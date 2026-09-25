@@ -61,10 +61,14 @@
   },
   "host_skill_metadata_globs": {
     "codex": [
-      "chaos-engine/skills/*/SKILL.md"
+      "chaos-engine/skills/*/SKILL.md",
+      "chaos-engine/plugin-adapters/*/SKILL.md",
+      "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
     ],
     "claude": [
-      "chaos-engine/skills/*/SKILL.md"
+      "chaos-engine/skills/*/SKILL.md",
+      "chaos-engine/plugin-adapters/*/SKILL.md",
+      "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
     ],
     "grok": [
       "chaos-engine/skills/*/SKILL.md"

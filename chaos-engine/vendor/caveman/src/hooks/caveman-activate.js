@@ -252,6 +252,13 @@ const modeLabel = mode === 'wenyan' ? 'wenyan-full' : mode;
 //      $CLAUDE_CONFIG_DIR/hooks/ and the skill at $CLAUDE_CONFIG_DIR/skills/caveman/.
 // All misses fall through to the hardcoded fallback ruleset below.
 const skillCandidates = [];
+// ChaosEngine overlay (#6198): the plugin SKILL.md is a short adapter, so read
+// the pinned vendor body first (<project>/.chaos-engine/vendor/caveman/...).
+for (const pluginRoot of [process.env.CLAUDE_PLUGIN_ROOT, path.join(__dirname, '..', '..')]) {
+  if (pluginRoot) {
+    skillCandidates.push(path.join(pluginRoot, '..', '..', '.chaos-engine', 'vendor', 'caveman', 'skills', 'caveman', 'SKILL.md'));
+  }
+}
 if (process.env.CLAUDE_PLUGIN_ROOT) {
   skillCandidates.push(path.join(process.env.CLAUDE_PLUGIN_ROOT, 'skills', 'caveman', 'SKILL.md'));
 }

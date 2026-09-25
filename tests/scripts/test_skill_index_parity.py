@@ -122,11 +122,11 @@ class SkillIndexParityTest(unittest.TestCase):
                         self.assertIn(entry["name"], catalog)
         self.assertEqual("AVAILABLE", codex["icm-architect"]["policy"]["installation"])
 
-    @unittest.skip("#6198: caveman-activate.js reads the plugin SKILL.md body; adapter needs a CE-side reader first")
     def test_vendor_plugin_adapters_are_short(self):
+        # #6198: Ponytail keeps its body; its pinned hooks read the plugin copy.
         hosts_module = load_module("ce_index_hosts_plugins", SOURCE / "hosts.py")
         images = hosts_module.companion_plugin_images()
-        for name in ("caveman", "ponytail", "icm-architect"):
+        for name in ("caveman", "icm-architect"):
             body = images[f"plugins/{name}/skills/{name}/SKILL.md"].decode("utf-8")
             with self.subTest(plugin=name):
                 description = frontmatter_description(body)

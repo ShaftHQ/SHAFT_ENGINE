@@ -1865,6 +1865,10 @@ def publish_vendor_plugin(
             continue
         relative = path.relative_to(root).as_posix()
         after[f"plugins/{name}/{relative}"] = path.read_bytes()
+    # #6198: a short adapter replaces the listed body; the pinned body stays in vendor/.
+    adapter = Path(__file__).resolve().parent / "plugin-adapters" / vendor / "SKILL.md"
+    if adapter.is_file():
+        after[f"plugins/{name}/skills/{vendor}/SKILL.md"] = adapter.read_bytes()
     after[f"plugins/{name}/UPSTREAM.md"] = (
         f"# {name.capitalize()} provenance\n\n"
         f"Bundled from `{repository}` under the MIT license.\n\n"

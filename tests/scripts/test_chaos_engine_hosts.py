@@ -881,13 +881,15 @@ class ChaosEngineHostsTest(unittest.TestCase):
                         encoding="utf-8"
                     )
                 )
+                adapter = ROOT / "chaos-engine/plugin-adapters" / vendor / "SKILL.md"
                 for relative in pin["files"]:
                     published = project / "plugins" / name / relative
                     self.assertTrue(published.is_file(), published)
-                    self.assertEqual(
-                        published.read_bytes(),
-                        (ROOT / "chaos-engine/vendor" / vendor / relative).read_bytes(),
-                    )
+                    expected = ROOT / "chaos-engine/vendor" / vendor / relative
+                    if relative == f"skills/{vendor}/SKILL.md" and adapter.is_file():
+                        # #6198: the listed skill is the short adapter.
+                        expected = adapter
+                    self.assertEqual(published.read_bytes(), expected.read_bytes())
                 manifest = json.loads(
                     project.joinpath(f"plugins/{name}/.claude-plugin/plugin.json").read_text()
                 )
