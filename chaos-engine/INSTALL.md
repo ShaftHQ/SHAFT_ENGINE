@@ -326,6 +326,9 @@ Overall doctor status stays **healthy** when the only non-healthy findings are `
 python3 .chaos-engine/install.py repair --project . --component plugins
 python3 .chaos-engine/install.py repair --project . --component mempalace
 A degraded MemPalace or Graphify retrieve is blocking doctor row `retrieve-mempalace` or `retrieve-graphify`. Use that existing repair command. Do not auto-migrate `~/.mempalace` and do not refresh stores from doctor.
+Doctor row `mempalace-backend` flags a backend selection other than
+`sqlite_exact`: a host MCP entry blocks (`repair --component hosts`), an ambient
+`MEMPALACE_BACKEND` is advisory because ChaosEngine calls pin `--backend sqlite_exact`.
 ```
 
 Supported components: `plugins`, `hosts`, `core`, `mempalace`,

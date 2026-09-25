@@ -364,6 +364,24 @@ def record_store_outcome(
     return fresh
 
 
+def clear_backend_mismatch(project: Path) -> None:
+    """Forget a recorded MemPalace backend mismatch so the next retrieve re-probes (#6212)."""
+    payload = _load_payload(project)
+    outcomes = payload.get("outcomes")
+    if not isinstance(outcomes, list):
+        return
+    payload["outcomes"] = [
+        item
+        for item in outcomes
+        if not (
+            isinstance(item, dict)
+            and item.get("store") == "mempalace"
+            and item.get("reason") == "backend-mismatch"
+        )
+    ]
+    _write_payload(project, payload)
+
+
 def backend_mismatch_recorded(project: Path) -> bool:
     """True when MemPalace backend-mismatch was already recorded for this project."""
     outcomes = _load_payload(project).get("outcomes")

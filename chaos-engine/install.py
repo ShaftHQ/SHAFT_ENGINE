@@ -5008,6 +5008,8 @@ def doctor_with_dependencies(
                     _mod.apply_policy_hash_doctor(
                         result, project.resolve(), probe_retrieve=probe_retrieve
                     )
+                if hasattr(_mod, "apply_mempalace_backend_doctor"):
+                    _mod.apply_mempalace_backend_doctor(result, project.resolve())
         heal_path = Path(__file__).resolve().with_name("official_self_heal.py")
         if heal_path.is_file() and isinstance(components, dict):
             _spec = _ilu.spec_from_file_location("ce_official_self_heal_doctor", heal_path)

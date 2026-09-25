@@ -36,7 +36,9 @@ host; `skipped` and `degraded` do not cite a path.
 One Graphify citation of path P authorizes later reads of P in that session
 without another retrieve. An uncited path stays denied. A MemPalace
 backend-mismatch is recorded once: do not retrieve MemPalace again, do not
-write `~/.mempalace`, and do not turn it into a recovery essay.
+write `~/.mempalace`, and do not turn it into a recovery essay. It is blocking,
+not a Graphify-only fallback: follow the receipt `fixNext` (doctor, then
+`repair --component mempalace`), then rerun retrieve with `--recheck`.
 A used receipt includes `hits` (repo-relative path and line, at most 8) and
 `excerpt` (800 bytes when hits exist, otherwise 4096). Read the cited line
 range. Do not turn the path into an absolute path or read the whole file.

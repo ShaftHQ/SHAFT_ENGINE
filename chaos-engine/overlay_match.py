@@ -491,6 +491,102 @@ def apply_policy_hash_doctor(
         result["status"] = "recovery-required"
 
 
+MEMPALACE_BACKEND = "sqlite_exact"
+_HOST_MCP_FILES = (".mcp.json", ".cursor/mcp.json", ".vscode/mcp.json", ".codex/config.toml")
+
+
+def _server_backend(server: object) -> str | None:
+    """Backend a host MCP entry selects, from its env or ``--backend`` argument."""
+    if not isinstance(server, dict):
+        return None
+    env = server.get("env")
+    if isinstance(env, dict) and isinstance(env.get("MEMPALACE_BACKEND"), str):
+        return env["MEMPALACE_BACKEND"]
+    args = server.get("args")
+    if isinstance(args, list) and "--backend" in args:
+        index = args.index("--backend") + 1
+        if index < len(args) and isinstance(args[index], str):
+            return args[index]
+    return None
+
+
+def _host_servers(path: Path) -> dict[str, object]:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+    try:
+        if path.suffix == ".toml":
+            import tomllib
+
+            document = tomllib.loads(text)
+        else:
+            document = json.loads(text)
+    except ValueError:
+        return {}
+    for key in ("mcpServers", "servers", "mcp_servers"):
+        servers = document.get(key) if isinstance(document, dict) else None
+        if isinstance(servers, dict):
+            return servers
+    return {}
+
+
+def host_backend_mismatches(project: Path) -> list[str]:
+    """Host MCP configs whose MemPalace server selects a non-sqlite_exact backend."""
+    found = []
+    for relative in _HOST_MCP_FILES:
+        for name, server in _host_servers(Path(project) / relative).items():
+            backend = _server_backend(server)
+            if "mempalace" in str(name).casefold() and backend not in (None, MEMPALACE_BACKEND):
+                found.append(f"{relative}:{name}={backend}")
+    return found
+
+
+def apply_mempalace_backend_doctor(
+    result: dict[str, object],
+    project: Path,
+    *,
+    environ: dict[str, str] | None = None,
+) -> None:
+    """Detect a MemPalace backend selection that would refuse the owned palace (#6212).
+
+    A host config selecting another backend blocks; an ambient shell variable is
+    advisory because ChaosEngine's own calls pin ``--backend sqlite_exact``.
+    Never migrates or re-indexes: the fixNext names the safe repair.
+    """
+    components = result.get("components")
+    if not isinstance(components, dict):
+        return
+    hosts = host_backend_mismatches(project)
+    if hosts:
+        components["mempalace-backend"] = {
+            "status": "recovery-required",
+            "taskImpact": "required",
+            "reason": "backend-mismatch",
+            "expected": MEMPALACE_BACKEND,
+            "source": ", ".join(hosts),
+            "fixNext": (
+                "python3 .chaos-engine/install.py repair --project . --component hosts "
+                "(rewrites host MCP entries to sqlite_exact; the palace is untouched)"
+            ),
+        }
+        result["status"] = "recovery-required"
+        return
+    selected = (os.environ if environ is None else environ).get("MEMPALACE_BACKEND")
+    if selected and selected != MEMPALACE_BACKEND:
+        components["mempalace-backend"] = {
+            "status": "degraded",
+            "taskImpact": "advisory",
+            "reason": "backend-mismatch",
+            "selected": selected,
+            "expected": MEMPALACE_BACKEND,
+            "fixNext": (
+                "unset MEMPALACE_BACKEND and query through "
+                "`python3 .chaos-engine/tool.py mempalace ...` (pins sqlite_exact)"
+            ),
+        }
+
+
 def _probe_degraded_retrieves(project: Path) -> list[dict[str, object]]:
     """One attempt per store. Never migrates a palace and never refreshes indexes."""
     import importlib.util
