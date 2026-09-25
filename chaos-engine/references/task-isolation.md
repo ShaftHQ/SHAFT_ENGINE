@@ -30,6 +30,14 @@ and its intended base, preserve its work, and isolate the continuation in a
 dedicated worktree; never silently restart it from the default branch. Resume
 or compact of the same session_id reuses the existing session worktree.
 
+Delivering into a consumer repository (third-party or adopter code where
+ChaosEngine was installed for the session) uses a separate worktree by default:
+`git worktree add <path> -b <branch> origin/<default>`. The install leaves
+`.chaos-engine/`, host directories such as `.claude/` and `.grok/`,
+`.mcp.json`, and `AGENTS.md`/`.gitignore` edits in the primary checkout;
+none of them belong in the consumer PR. Before each commit,
+`git status --porcelain` lists only task files.
+
 Resolve repository identity, upstream, default branch, primary-checkout path,
 and store commands from the selected profile, adapters, configuration, or
 integration playbooks. Never encode one repository or machine as portable

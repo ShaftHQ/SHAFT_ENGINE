@@ -26,6 +26,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | ICM Architect | Design/restructure ICM workspaces (advisory companion) | [`icm-architect.md`](icm-architect.md) |
 | Design loop | Write-review-revise a design doc until reviewer reports 0 open issues | [`design-loop.md`](design-loop.md) |
 | Deep research | Plan, parallel research, independent verify, cited report | [`deep-research.md`](deep-research.md) |
+| UI delivery | User-visible UI change: red-then-green e2e, measured geometry, viewport x theme matrix, CI coverage gap | [`ui-delivery.md`](ui-delivery.md) |
 | Learn traces | Portable /learn map-reduce-verify; host TUI optional | [`learn-traces.md`](learn-traces.md) |
 | Prefer CLI over MCP | CLI when both exist; `gh` when configured; no default GitHub MCP | [`prefer-cli-over-mcp.md`](prefer-cli-over-mcp.md) |
 | Context economy | Bound reads/searches; prefer path+excerpt over dumps | [`context-economy.md`](context-economy.md) |

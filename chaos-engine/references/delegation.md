@@ -99,7 +99,10 @@ or adjacent prose with blocker notes, HEAD SHA, and root-learning handoff
 Review is optional and selected explicitly during planning; recommend it and
 default it on. If approved, review complete pull-request implementation only
 after final scope commit plus automated CI/comment fixes. Never review
-individual implementation steps. Independence remains mandatory when enabled:
+individual implementation steps. Review is mandatory, never skipped for time,
+when a PR changes an existing test contract or PR CI does not run the changed
+surface ([UI delivery](ui-delivery.md)); one reviewer, one round is enough.
+Independence remains mandatory when enabled:
 
 - The reviewer is a **separate agent instance, never the author** of the work.
 - Choose a disposable review mechanism. When the host provides reliable terminal

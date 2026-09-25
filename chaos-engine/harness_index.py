@@ -115,6 +115,8 @@ ROUTES = (
      "Use when a design document needs write-review-revise rounds until zero open review issues remain."),
     ("deep-research", "references/deep-research.md",
      "Use when a question needs bounded parallel research with verification and a cited final report."),
+    ("ui-delivery", "references/ui-delivery.md",
+     "Use when a change touches user-visible UI, layout, styling, or themes: red-then-green e2e, measured geometry, viewport x theme matrix."),
     ("learn-traces", "references/learn-traces.md",
      "Use when session traces must be mapped, reduced, and verified into lessons without a host TUI runner."),
 )

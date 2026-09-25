@@ -86,6 +86,7 @@ return here for the next.
 | Harness learn | Tune git-tracked harness from repeated traces | [harness-learn](../../references/harness-learn.md) |
 | Design loop | Write-review-revise a design doc until 0 open issues | [design-loop](../../references/design-loop.md) |
 | Deep research | Bounded parallel research with independent verify and cited report | [deep-research](../../references/deep-research.md) |
+| UI delivery | Change touches user-visible UI, layout, styling, or themes | [ui-delivery](../../references/ui-delivery.md) |
 | Learn traces | Map-reduce-verify session traces; portable, no host TUI | [learn-traces](../../references/learn-traces.md) |
 | Meta-optimize | Periodic offline shared-log review (not continuous) | [meta-optimize](../../references/meta-optimize.md) |
 | Draft skill PR | Opt-in eval-gated draft skill PRs; default OFF | [draft-skill-pr](../../references/draft-skill-pr.md) |
