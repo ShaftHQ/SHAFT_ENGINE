@@ -74,7 +74,7 @@
         <allure.cli.maven.artifactId>allure-cli</allure.cli.maven.artifactId>
         <cucumber.bom.version>7.34.8</cucumber.bom.version>
         <jackson.version>3.2.2</jackson.version>
-        <jackson.legacy.version>2.22.2</jackson.legacy.version>
+        <jackson.legacy.version>2.22.3</jackson.legacy.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
         <tools.jackson.core.version>3.2.2</tools.jackson.core.version>
         <selenium.version>4.49.0</selenium.version>
