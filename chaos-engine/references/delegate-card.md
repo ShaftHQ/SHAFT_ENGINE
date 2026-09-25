@@ -29,6 +29,12 @@ reviewer, tester, or mechanical helper; see [roles](roles.md)). Do that one
 duty and nothing adjacent. The implementer loads Caveman + Ponytail at ultra
 before the first edit.
 
+## Shared git state
+
+Never run mutating `git stash` in a worktree (R8, #6223): the stash is shared
+across worktrees. Commit to your branch; for baselines use
+`git worktree add --detach <dir> <base-ref>`.
+
 ## Stop on ambiguity
 
 Stop and report when the specification is ambiguous, a premise is false, a

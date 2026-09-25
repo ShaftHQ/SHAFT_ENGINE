@@ -954,6 +954,75 @@ process.stderr.write(result.stderr || '');
             )
 
 
+class LinkedWorktreeStashGuardTest(unittest.TestCase):
+    """#6223: the portable guard enforces R8 -- no mutating git stash on a shared .git."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.git = shutil.which("git")
+        if cls.git is None:
+            raise unittest.SkipTest("git is required")
+
+    def _git(self, *arguments: str, cwd: Path) -> None:
+        subprocess.run(  # nosec B603 - resolved git executable, fixed arguments.
+            [self.git, *arguments], cwd=cwd, check=True, capture_output=True, text=True
+        )
+
+    def _repository(self, root: Path) -> Path:
+        main = root / "main"
+        main.mkdir()
+        self._git("init", "-q", cwd=main)
+        self._git("-c", "user.name=t", "-c", "user.email=t@example.invalid",
+                  "commit", "-q", "--allow-empty", "-m", "init", cwd=main)
+        return main
+
+    def _hook(self, command: str, cwd: Path):
+        return subprocess.run(  # nosec B603 - fixed interpreter and hook.
+            [sys.executable, str(HOOK)],
+            input=json.dumps({
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Bash",
+                "cwd": str(cwd),
+                "tool_input": {"command": command},
+            }),
+            capture_output=True, text=True, check=False, cwd=cwd,
+        )
+
+    def test_mutating_stash_is_blocked_in_a_linked_worktree_and_its_main_checkout(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            main = self._repository(Path(temporary))
+            linked = Path(temporary) / "linked"
+            self._git("worktree", "add", "-q", "--detach", str(linked), cwd=main)
+            for cwd in (linked, main):
+                for command in (
+                    "git stash", "git stash pop", "git stash push -m wip",
+                    "git -C . stash apply", "cd x && git stash drop", "git stash save wip",
+                ):
+                    with self.subTest(cwd=cwd.name, command=command):
+                        result = self._hook(command, cwd)
+                        self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+                        reason = json.loads(result.stdout)["reason"]
+                        self.assertIn("R8", reason)
+                        self.assertIn("git worktree add", reason)
+                        self.assertIn("commit", reason)
+
+    def test_read_only_stash_and_single_checkout_stay_allowed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            main = self._repository(Path(temporary))
+            # Other lifecycle gates may still apply; R8 itself must stay silent here.
+            self.assertNotIn("R8", self._hook("git stash", main).stdout)
+            linked = Path(temporary) / "linked"
+            self._git("worktree", "add", "-q", "--detach", str(linked), cwd=main)
+            for command in ("git stash list", "git stash show -p", "echo git stash"):
+                with self.subTest(command=command):
+                    self.assertNotIn("R8", self._hook(command, linked).stdout)
+
+    def test_delegate_card_carries_the_rule(self):
+        card = (ROOT / "chaos-engine/references/delegate-card.md").read_text(encoding="utf-8")
+        self.assertIn("git stash", card)
+        self.assertIn("git worktree add", card)
+
+
 if __name__ == "__main__":
     unittest.main()
 

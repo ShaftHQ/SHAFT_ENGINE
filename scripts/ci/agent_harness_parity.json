@@ -1135,6 +1135,45 @@
         "chaos-engine/learning_session.py"
       ],
       "note": "#6201: instruction-only hosts record retrieve: in .chaos-engine-state/research-receipt.md; finalize flags a missing one."
+    },
+    {
+      "id": "linked_worktree_stash_guard",
+      "owner": "chaos-engine/hooks/guard.py",
+      "check": "tests/scripts/test_chaos_engine_hook.py::test_mutating_stash_is_blocked_in_a_linked_worktree_and_its_main_checkout",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "codex": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "copilot": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "gemini": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "grok": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "opencode": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "cursor": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "note": "#6223: hook hosts deny mutating git stash on a shared .git before any session gate; instruction-only hosts (grok-bot, opencode/cursor without shims) carry the rule in the delegate card."
     }
   ]
 }

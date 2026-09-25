@@ -493,6 +493,66 @@ def _command_is_destructive(command: str) -> bool:
     return catastrophic_posix(command) or "git reset --hard" in folded or broad_remove
 
 
+STASH_READ_ONLY = frozenset({"list", "show"})
+GIT_OPTIONS_WITH_VALUE = frozenset({"-c", "-C", "--git-dir", "--work-tree", "--namespace"})
+STASH_R8_REASON = (
+    "R8 (#6223): `git stash{sub}` mutates the stash list in the shared .git, which this "
+    "checkout shares with its linked worktrees, so another session can pop or drop it. "
+    "Commit to your own branch instead (`git add -A && git commit -m wip`, amend or reset "
+    "later), and take baselines from a separate `git worktree add --detach <dir> <base-ref>`. "
+    "Read-only `git stash list` / `git stash show` stay allowed."
+)
+
+
+def _stash_invocation(command: str) -> tuple[bool, str, str]:
+    """Return (mutating stash, subcommand, -C directory) for one shell segment."""
+    head, arguments = command_head(tokens(command))
+    if head not in {"git", "git.exe"}:
+        return False, "", ""
+    directory = ""
+    index = 0
+    while index < len(arguments) and arguments[index].startswith("-"):
+        option = arguments[index]
+        if option in GIT_OPTIONS_WITH_VALUE and index + 1 < len(arguments):
+            if option == "-C":
+                directory = arguments[index + 1]
+            index += 2
+            continue
+        index += 1
+    if index >= len(arguments) or arguments[index] != "stash":
+        return False, "", ""
+    rest = [item for item in arguments[index + 1 :] if not item.startswith("-")]
+    subcommand = rest[0].casefold() if rest else ""
+    return subcommand not in STASH_READ_ONLY, subcommand, directory
+
+
+def shares_git_directory(cwd: Path) -> bool:
+    """True inside a linked worktree, or a main checkout that has linked worktrees."""
+    for candidate in (cwd, *cwd.parents):
+        marker = candidate / ".git"
+        if marker.is_file():
+            try:
+                return "/worktrees/" in marker.read_text(encoding="utf-8").replace("\\", "/")
+            except OSError:
+                return False
+        if marker.is_dir():
+            worktrees = marker / "worktrees"
+            return worktrees.is_dir() and any(worktrees.iterdir())
+    return False
+
+
+def linked_worktree_stash_reason(commands: tuple[str, ...], cwd: Path) -> str:
+    for command in commands:
+        for segment in re.split(r"&&|\|\||;|\||\r?\n", command):
+            mutating, subcommand, directory = _stash_invocation(segment)
+            if not mutating:
+                continue
+            target = (cwd / directory) if directory else cwd
+            if shares_git_directory(target.resolve()):
+                return STASH_R8_REASON.format(sub=f" {subcommand}" if subcommand else "")
+    return ""
+
+
 def _stop_block_reason(event: dict, session_id: str) -> str:
     if event.get("hook_event_name") == "SubagentStop" or bool(
         event.get("stop_hook_active") or event.get("stopHookActive")
@@ -822,6 +882,15 @@ def _run_event(event: dict, _host: str) -> int:
         if isinstance(event, dict)
         else ""
     )
+    if event_name == "PreToolUse":
+        # R8 is session-independent: enforce it before identity or ledger checks.
+        stash_block = linked_worktree_stash_reason(
+            commands, Path(str(event.get("cwd") or Path.cwd()))
+        )
+        if stash_block:
+            _record_denial_with_significance(event, event_name, tool_name)
+            print(json.dumps({"decision": "block", "reason": stash_block}))
+            return 2
     root_session_id = str(event.get("session_id") or event.get("sessionId") or "")
     session_id = reflection.scope_session_id(
         root_session_id, event.get("agent_id") or event.get("agentId")
