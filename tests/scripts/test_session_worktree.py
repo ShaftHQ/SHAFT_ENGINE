@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import io
+import json
+import os
 import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 from scripts.agents import session_worktree as sw
+
+REPO = Path(__file__).resolve().parents[2]
 
 
 def git(cwd: Path, *arguments: str) -> subprocess.CompletedProcess:
@@ -187,6 +194,73 @@ class SessionWorktreeTest(unittest.TestCase):
         sw.record_merge(self.main, "sess-twice")
         self.assertEqual("removed", sw.teardown_session(self.main, "sess-twice")["status"])
         self.assertEqual("absent", sw.teardown_session(self.main, "sess-twice")["status"])
+
+
+class TestRepositoryGuard6239Test(unittest.TestCase):
+    """#6239: the suite never checks out, resets, or cleans the repository under test."""
+
+    def test_the_test_package_arms_the_guard_for_this_repository(self):
+        protected = os.environ.get(sw.TEST_GUARD_ENV, "").split(os.pathsep)
+        self.assertIn(str(sw.git_common_dir(REPO)), protected)
+
+    def test_destructive_git_on_the_repository_under_test_is_refused(self):
+        # A no-op checkout: refused under the guard, harmless if the guard is missing.
+        self.assertIsNone(sw._git(REPO, "checkout", "-q", "HEAD"))
+        self.assertIsNone(sw._git(REPO, "worktree", "prune", "--dry-run"))
+        self.assertIsNotNone(sw._git(REPO, "rev-parse", "HEAD"))
+        self.assertIsNotNone(sw._git(REPO, "worktree", "list", "--porcelain"))
+
+    def test_a_temp_fixture_repository_is_allowed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Path(temporary)
+            git(fixture, "init", "-q", "-b", "main", ".")
+            git(fixture, "-c", "user.email=h@example.invalid", "-c", "user.name=H",
+                "commit", "-q", "--allow-empty", "-m", "initial")
+            self.assertIsNotNone(sw._git(fixture, "checkout", "-q", "-b", "task"))
+
+    def test_guard_decision(self):
+        temp_root = Path(tempfile.gettempdir())
+        fixture = temp_root / "fixture" / ".git"
+        self.assertTrue(sw.test_guard_allows(fixture, protected=(), temp_root=temp_root))
+        self.assertFalse(sw.test_guard_allows(fixture, protected=(str(fixture),), temp_root=temp_root))
+        outside = Path(temp_root.anchor) / "definitely-not-temp-6239" / "repo" / ".git"
+        self.assertFalse(sw.test_guard_allows(outside, protected=(), temp_root=temp_root))
+        self.assertFalse(sw.test_guard_allows(None, protected=(), temp_root=temp_root))
+
+    def test_session_start_from_the_repository_root_leaves_it_untouched(self):
+        # The #6239 reproduction: SessionStart without `cwd` resolved the real checkout.
+        from scripts.agents import guard
+
+        before = self.state()
+        payload = json.dumps({"hook_event_name": "SessionStart", "session_id": "repo-guard-6239"})
+        previous = Path.cwd()
+        os.chdir(REPO)
+        try:
+            with mock.patch("sys.stdin", io.StringIO(payload)), redirect_stdout(io.StringIO()):
+                guard.main([])
+        finally:
+            os.chdir(previous)
+        self.assertEqual(before, self.state())
+        self.assertFalse((REPO.parent / f"{REPO.name}.session-repo-guard-6239").exists())
+
+    def state(self):
+        return (
+            git(REPO, "rev-parse", "HEAD").stdout,
+            git(REPO, "rev-parse", "--abbrev-ref", "HEAD").stdout,
+            git(REPO, "status", "--porcelain").stdout,
+            git(REPO, "worktree", "list", "--porcelain").stdout,
+        )
+
+    def test_repository_state_check_flags_destroyed_work_only(self):
+        from tests import scripts as package
+
+        before = {"head": "a", "branch": "task", "dirty": frozenset({" M .mcp.json"})}
+        self.assertEqual([], package.destroyed_work(before, dict(before)))
+        grown = dict(before, dirty=frozenset({" M .mcp.json", "?? new.txt"}))
+        self.assertEqual([], package.destroyed_work(before, grown))
+        self.assertTrue(package.destroyed_work(before, dict(before, branch="main")))
+        self.assertTrue(package.destroyed_work(before, dict(before, head="b")))
+        self.assertTrue(package.destroyed_work(before, dict(before, dirty=frozenset())))
 
 
 if __name__ == "__main__":

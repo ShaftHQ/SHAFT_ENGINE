@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import subprocess  # nosec B404 - fixed git commands, never a shell.
+import sys
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -46,7 +47,66 @@ def is_protected_checkout(path: Path) -> bool:
     return target in listed
 
 
+# #6239: the test package sets this to the git common dirs of the repository
+# under test. While it is set, destructive git runs only on temp fixtures.
+TEST_GUARD_ENV = "CHAOS_ENGINE_TEST_REPO_GUARD"
+_DESTRUCTIVE = frozenset({"checkout", "switch", "reset", "clean", "merge", "rebase", "stash"})
+_DESTRUCTIVE_WORKTREE = frozenset({"add", "remove", "move", "prune"})
+
+
+def _normalized(path: Path | str) -> str:
+    return os.path.normcase(os.path.realpath(str(path)))
+
+
+def test_guard_allows(common: Path | None, *, protected, temp_root: Path) -> bool:
+    """Allow destructive git only in a temp fixture that is not a protected repository."""
+    if common is None:
+        return False
+    target = _normalized(common)
+    if target in {_normalized(item) for item in protected if item}:
+        return False
+    root = _normalized(temp_root)
+    return target == root or target.startswith(root.rstrip(os.sep) + os.sep)
+
+
+def _refused_under_tests(cwd: Path, arguments: tuple[str, ...]) -> bool:
+    protected = os.environ.get(TEST_GUARD_ENV, "")
+    if not protected or not arguments:
+        return False
+    command = arguments[0]
+    if command == "worktree":
+        if len(arguments) < 2 or arguments[1] not in _DESTRUCTIVE_WORKTREE:
+            return False
+    elif command not in _DESTRUCTIVE:
+        return False
+    try:
+        rendered = subprocess.run(  # nosec B603 B607 - fixed git argv.
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            timeout=GIT_TIMEOUT_SECONDS,
+            check=False,
+        )
+        common = Path(rendered.stdout.strip()) if rendered.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError):
+        common = None
+    if common is not None and not common.is_absolute():
+        common = Path(cwd) / common
+    import tempfile
+
+    if test_guard_allows(common, protected=protected.split(os.pathsep), temp_root=Path(tempfile.gettempdir())):
+        return False
+    print(
+        f"session_worktree: refused `git {' '.join(arguments[:2])}` in {cwd} during tests (#6239)",
+        file=sys.stderr,
+    )
+    return True
+
+
 def _git(cwd: Path, *arguments: str, timeout: int = GIT_TIMEOUT_SECONDS) -> str | None:
+    if _refused_under_tests(cwd, arguments):
+        return None
     try:
         completed = subprocess.run(  # nosec B603 B607 - fixed git argv.
             ["git", "-c", "core.longpaths=true", *arguments],
