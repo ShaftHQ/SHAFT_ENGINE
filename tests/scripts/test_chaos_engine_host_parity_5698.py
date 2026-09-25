@@ -15,6 +15,10 @@ from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
 
 OVERLAY = session_overlay(ROOT)
 CANONICAL = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
+# #6217: the lean router (#6176/#6177) moved the catalog and companion rules out
+# of SKILL.md into the generated catalog and the router contract.
+CATALOG = ROOT / "chaos-engine/references/catalog.md"
+ROUTER_CONTRACT = ROOT / "chaos-engine/references/router-contract.md"
 HOOK_MAP = ROOT / "chaos-engine/references/hook-trigger-map.md"
 ROLES = ROOT / "chaos-engine/references/roles.md"
 SKILLS_ROOT = ROOT / "chaos-engine/skills"
@@ -71,9 +75,12 @@ class HostParity5698Tests(unittest.TestCase):
         cls.hosts = load(ROOT / "chaos-engine/hosts.py", "ce_hosts_5698")
         cls.kernel = load(ROOT / "chaos-engine/hooks/kernel.py", "ce_kernel_5698")
         cls.skill = CANONICAL.read_text(encoding="utf-8")
+        cls.catalog = CATALOG.read_text(encoding="utf-8")
+        cls.contract = ROUTER_CONTRACT.read_text(encoding="utf-8")
 
     def test_router_catalog_lists_every_skill_and_role(self):
-        rows = catalog_rows(self.skill)
+        self.assertIn("references/catalog.md", self.skill)
+        rows = catalog_rows(self.catalog)
         skill_dirs = sorted(
             path.parent.name
             for path in SKILLS_ROOT.glob("*/SKILL.md")
@@ -99,10 +106,10 @@ class HostParity5698Tests(unittest.TestCase):
             )
 
     def test_companions_are_cataloged_not_body_loaded_by_default(self):
-        lowered = self.skill.casefold()
+        lowered = (self.skill + "\n" + self.contract).casefold()
         self.assertNotIn("load both companion skills at the start of every task", lowered)
-        self.assertIn("must not load companion skill bodies by default", lowered)
-        rows = catalog_rows(self.skill)
+        self.assertIn("do not load companion skill bodies by default", lowered)
+        rows = catalog_rows(self.catalog)
         self.assertIn("caveman", rows)
         self.assertIn("ponytail", rows)
 
@@ -126,13 +133,16 @@ class HostParity5698Tests(unittest.TestCase):
                     self.assertNotIn(marker, text)
 
     def test_role_adapters_load_canonical_router_not_agents_pointer(self):
+        # #6217: role adapters load the canonical delegate card (#6176), which
+        # links the router contract, never the `.agents` pointer.
         for path in sorted((OVERLAY / ".claude/agents").glob("*.md")):
             text = path.read_text(encoding="utf-8")
-            self.assertIn("chaos-engine/skills/chaos-engine/SKILL.md", text)
+            self.assertIn("chaos-engine/references/delegate-card.md", text)
             self.assertNotIn(".agents/skills/chaos-engine/SKILL.md", text)
         for path in sorted((OVERLAY / ".codex/agents").glob("*.toml")):
             text = path.read_text(encoding="utf-8")
-            self.assertIn("chaos-engine/skills/chaos-engine/SKILL.md", text)
+            self.assertIn("chaos-engine/references/delegate-card.md", text)
+            self.assertNotIn(".agents/skills/chaos-engine/SKILL.md", text)
             self.assertNotIn(".agents/skills/chaos-engine/SKILL.md", text)
 
     def test_agents_skill_pointer_cannot_drift_from_canonical(self):
