@@ -188,8 +188,8 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 "run",
                 return_value=SimpleNamespace(stdout="/repo/.git\n"),
             ):
-                # Windows resolves "/repo" onto the current drive (#6205).
-                self.assertEqual(Path("/repo").resolve(), module.shared_project_root(worktree))
+                # Windows resolves "/repo" onto the worktree's drive (#6205).
+                self.assertEqual((worktree / "/repo").resolve(), module.shared_project_root(worktree))
 
             resolver.unlink()
             self.assertEqual(worktree.resolve(), module.shared_project_root(worktree))

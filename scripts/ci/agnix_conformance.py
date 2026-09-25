@@ -231,6 +231,16 @@ def _validate_inputs(root: Path, relatives: list[str]) -> None:
                 raise ValueError(f"declared staging input contains a reparse point: {candidate}")
 
 
+def _make_world_readable(root: Path) -> None:
+    """Let the unprivileged quarantine container read the disposable copy.
+
+    The generated overlay writes private (0600) host adapters; agnix runs as a
+    different uid inside the container and reported them as unreadable (#6205).
+    """
+    for path in (root, *root.rglob("*")):
+        path.chmod(0o755 if path.is_dir() else 0o644)
+
+
 def stage_harness(source_root: Path, destination: Path, contract: dict) -> list[str]:
     """
     Copy only declared harness inputs into a disposable trial fixture.
@@ -276,6 +286,7 @@ def stage_harness(source_root: Path, destination: Path, contract: dict) -> list[
                 shutil.copytree(source_path, target_path)
             else:
                 shutil.copy2(source_path, target_path)
+        _make_world_readable(target)
         return relatives
     finally:
         if overlay is not None:
