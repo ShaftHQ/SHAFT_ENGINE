@@ -188,7 +188,8 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 "run",
                 return_value=SimpleNamespace(stdout="/repo/.git\n"),
             ):
-                self.assertEqual(Path("/repo"), module.shared_project_root(worktree))
+                # Windows resolves "/repo" onto the current drive (#6205).
+                self.assertEqual(Path("/repo").resolve(), module.shared_project_root(worktree))
 
             resolver.unlink()
             self.assertEqual(worktree.resolve(), module.shared_project_root(worktree))
@@ -685,12 +686,11 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             self.symlink_or_skip(root / "private", lexical_parent)
             lexical_home = lexical_parent / "person"
 
-            receipt = module.sanitize_receipt(
-                {"executable": str(lexical_home / ".local/bin/node")},
-                home=lexical_home,
-            )
+            executable = str(lexical_home / ".local/bin/node")
+            receipt = module.sanitize_receipt({"executable": executable}, home=lexical_home)
 
-        self.assertEqual("<home>/.local/bin/node", receipt["executable"])
+        # Only the home prefix is replaced; the remainder keeps the OS separator (#6205).
+        self.assertEqual("<home>" + executable[len(str(lexical_home)):], receipt["executable"])
 
     def test_account_discovery_rejects_project_local_generation_executables(self):
         module = load_controller()

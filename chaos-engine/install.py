@@ -1424,13 +1424,21 @@ def project_lock(project: Path, *, wait_seconds: float | None = None):
             lock_file.flush()
             os.fsync(lock_file.fileno())
         else:
-            lock_file.seek(0)
-            try:
-                lock_contents = lock_file.read()
-            except PermissionError as error:
-                raise RuntimeError(
-                    lock_busy_message("ChaosEngine operation", lock_path)
-                ) from error
+            read_deadline = time.monotonic() + wait_budget
+            while True:
+                lock_file.seek(0)
+                try:
+                    lock_contents = lock_file.read()
+                    break
+                except PermissionError as error:
+                    # Windows byte-range locks are mandatory: while another
+                    # handle holds the lock even reading fails, so wait for the
+                    # same bounded budget instead of failing at once (#6205).
+                    if time.monotonic() >= read_deadline:
+                        raise RuntimeError(
+                            lock_busy_message("ChaosEngine operation", lock_path)
+                        ) from error
+                    time.sleep(PROJECT_LOCK_POLL_SECONDS)
             if lock_contents != LOCK_MAGIC:
                 raise ValueError(f"ChaosEngine lock collision: {lock_path}")
         lock_file.seek(0)

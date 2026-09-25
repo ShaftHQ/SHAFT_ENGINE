@@ -4247,6 +4247,7 @@ module.install_with_dependencies(project, source, "3" * 40)
         self.assertIn("pid=7", detail)
         self.assertEqual("", MODULE.format_lock_holder_detail([]))
 
+    @unittest.skipUnless(hasattr(os, "major"), "st_dev major/minor split is POSIX-only")
     def test_linux_flock_holders_parses_hex_maj_min_from_proc_locks(self):
         with tempfile.TemporaryDirectory() as temporary:
             lock_path = Path(temporary) / ".chaos-engine.lock"

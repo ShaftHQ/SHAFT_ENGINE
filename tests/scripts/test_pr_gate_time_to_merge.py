@@ -164,5 +164,24 @@ class QualityConfigurationGuardTest(unittest.TestCase):
         self.assertIn("needs.changes.outputs.dependencies == 'true'", job["if"])
 
 
+
+class InstallerAcceptancePartsTest(unittest.TestCase):
+    """#6205: each OS runs the installer acceptance in two parts that cover every module."""
+
+    def test_parts_cover_the_whole_installer_module_and_the_other_modules_once(self) -> None:
+        job = load("agent-plugin-acceptance.yml")["jobs"]["chaos-engine-cross-platform"]
+        self.assertEqual([1, 2], job["strategy"]["matrix"]["part"])
+        runs = {step["name"]: step for step in job["steps"] if "run" in step}
+        shard = next(step for name, step in runs.items() if "shard" in name)
+        self.assertNotIn("if", shard)
+        self.assertIn("scripts.ci.unittest_shard", shard["run"])
+        self.assertIn("tests.scripts.test_chaos_engine_installer", shard["run"])
+        self.assertIn("--shard ${{ matrix.part }}/2", shard["run"])
+        others = runs["Run fresh-install, dependency, and wrapper acceptance"]
+        self.assertEqual("matrix.part == 1", others["if"])
+        for module in ("bootstrap", "dependencies", "install_wrappers"):
+            self.assertIn(f"tests.scripts.test_chaos_engine_{module}", others["run"])
+
+
 if __name__ == "__main__":
     unittest.main()
