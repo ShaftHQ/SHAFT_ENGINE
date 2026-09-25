@@ -3,6 +3,7 @@
 import copy
 import json
 import subprocess
+import shutil
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,7 @@ try:
     from scripts.ci.agnix_conformance import (
         assess_diagnostics,
         build_trial_command,
+        generated_overlay,
         load_contract,
         run_conformance,
         score_evaluation,
@@ -22,6 +24,7 @@ try:
 except ImportError:
     assess_diagnostics = None
     build_trial_command = None
+    generated_overlay = None
     load_contract = None
     run_conformance = None
     score_evaluation = None
@@ -30,6 +33,7 @@ except ImportError:
 
 
 ROOT = Path(__file__).resolve().parents[2]
+CMD = shutil.which("cmd") or "cmd"
 CONTRACT_PATH = ROOT / "scripts/ci/agnix_conformance.json"
 
 
@@ -211,7 +215,8 @@ class AgnixConformanceTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             destination = Path(directory) / "fixtures"
 
-            copied = stage_harness(ROOT, destination, contract)
+            # #6202: generated host files come from the installer's overlay.
+            copied = stage_harness(ROOT, destination, contract, generated_overlay(ROOT))
 
             self.assertIn("AGENTS.md", copied)
             self.assertTrue((destination / ".claude/settings.json").is_file())
@@ -265,7 +270,7 @@ class AgnixConformanceTest(unittest.TestCase):
             (outside / "host-only.txt").write_text("HOST_ONLY", encoding="utf-8")
             junction = declared / "junction"
             created = subprocess.run(
-                ["cmd", "/c", "mklink", "/J", str(junction), str(outside)],
+                [CMD, "/c", "mklink", "/J", str(junction), str(outside)],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -289,7 +294,7 @@ class AgnixConformanceTest(unittest.TestCase):
             (undeclared / "sibling-only.txt").write_text("SIBLING_ONLY", encoding="utf-8")
             junction = declared / "junction"
             created = subprocess.run(
-                ["cmd", "/c", "mklink", "/J", str(junction), str(undeclared)],
+                [CMD, "/c", "mklink", "/J", str(junction), str(undeclared)],
                 capture_output=True,
                 text=True,
                 check=False,

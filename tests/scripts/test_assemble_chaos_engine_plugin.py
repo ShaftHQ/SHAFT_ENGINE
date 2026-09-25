@@ -62,7 +62,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         runtime_sources.mkdir(parents=True)
         for name in (
             "chaos_engine_cli.py", "delivery_status.py", "github_client.py", "issue_filing.py", "planning_contract.py", "pr_audit.py",
-            "repository_context.py", "watch_pr_checks.py",
+            "repository_context.py", "status_lease.py", "watch_pr_checks.py",
         ):
             (runtime_sources / name).write_text("# fixture canonical runtime\n", encoding="utf-8")
         manifest = source_root / "agent-plugins/release.json"

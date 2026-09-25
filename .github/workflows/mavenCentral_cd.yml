@@ -103,7 +103,19 @@ jobs:
         with:
           python-version: "3.13"
       - name: Verify IntelliJ plugin release candidate
+        id: intellij_verify
         uses: ./.github/actions/intellij-verify
+      # Issue #6206: the combined release build runs the plugin's JVM tests
+      # (`check`), so its JaCoCo report is uploaded like the PR Gate leg's.
+      - name: Upload IntelliJ release coverage to Codecov
+        if: always() && steps.intellij_verify.outcome != 'skipped'
+        continue-on-error: true
+        uses: ./.github/actions/upload-jacoco-coverage
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
+          source-id: cd-intellij-verify
 
   cd_python_validators:
     name: CD — python contract validators

@@ -139,7 +139,14 @@ class AgentPluginReleaseTest(unittest.TestCase):
             Path(__file__).resolve().parents[2] / ".github/workflows/mavenCentral_cd.yml"
         ).read_text(encoding="utf-8")
         workflow = yaml.safe_load(workflow_text)
-        release_steps = workflow["jobs"]["build_release_and_deliver"]["steps"]
+        jobs = workflow["jobs"]
+        # The assets are built in the pre-deploy Maven validate job, which the
+        # deploy job needs, and attached after deploy by announce_release.
+        self.assertIn("cd_maven_validate", jobs["build_release_and_deliver"]["needs"])
+        release_steps = [
+            *jobs["cd_maven_validate"]["steps"],
+            *jobs["build_release_and_deliver"]["steps"],
+        ]
         steps_by_name = {
             step.get("name"): (index, step)
             for index, step in enumerate(release_steps)

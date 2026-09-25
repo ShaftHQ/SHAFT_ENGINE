@@ -203,8 +203,30 @@ def _is_reparse_point(path: Path) -> bool:
     return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400))
 
 
-def stage_harness(source_root: Path, destination: Path, contract: dict) -> list[str]:
-    """Copy only declared harness inputs into a disposable trial fixture."""
+def generated_overlay(source_root: Path) -> Path | None:
+    """A temp installed overlay when `source_root` is a ChaosEngine origin (#6202).
+
+    Host files such as `.claude/settings.json` are generated and untracked
+    (#5713), so a fresh checkout cannot stage them from the source tree.
+    """
+    source = Path(source_root).resolve()
+    if not (source / "chaos-engine/install.py").is_file():
+        return None
+    try:
+        from scripts.ci.overlay_in_temp import materialize_overlay
+    except ModuleNotFoundError:
+        from overlay_in_temp import materialize_overlay  # type: ignore[no-redef]
+    return materialize_overlay(source)
+
+
+def stage_harness(
+    source_root: Path, destination: Path, contract: dict, generated_root: Path | None = None
+) -> list[str]:
+    """Copy only declared harness inputs into a disposable trial fixture.
+
+    A declared input absent from the source falls back to `generated_root`,
+    the installer's rendered overlay, and nothing else.
+    """
     defects = validate_contract(contract)
     if defects:
         raise ValueError("invalid agnix contract: " + "; ".join(defects))
@@ -224,15 +246,21 @@ def stage_harness(source_root: Path, destination: Path, contract: dict) -> list[
     )
     if _inside(target, source) or any(_inside(target, root) or _inside(root, target) for root in protected):
         raise ValueError("fixture destination must be disposable and outside the repository")
+    generated = Path(generated_root).resolve(strict=True) if generated_root is not None else None
+    origins: dict[str, tuple[Path, Path]] = {}
     for relative in contract["staging_paths"]:
+        root = source
         source_path = source / relative
+        if not source_path.exists() and generated is not None and (generated / relative).exists():
+            root, source_path = generated, generated / relative
         if not source_path.exists():
             raise ValueError(f"declared staging input is missing: {relative}")
+        origins[relative] = (root, source_path)
         for candidate in (source_path, *source_path.rglob("*")):
             if candidate.is_symlink():
                 raise ValueError(f"declared staging input contains a symlink: {candidate}")
             try:
-                candidate.resolve(strict=True).relative_to(source)
+                candidate.resolve(strict=True).relative_to(root)
             except ValueError as error:
                 raise ValueError(
                     f"declared staging input resolves outside the source root: {candidate}"
@@ -242,7 +270,7 @@ def stage_harness(source_root: Path, destination: Path, contract: dict) -> list[
     target.mkdir(parents=True)
     copied: list[str] = []
     for relative in contract["staging_paths"]:
-        source_path = source / relative
+        source_path = origins[relative][1]
         target_path = target / relative
         target_path.parent.mkdir(parents=True, exist_ok=True)
         if source_path.is_dir():
@@ -378,6 +406,17 @@ def score_evaluation(payload: object, contract: dict) -> dict:
     }
 
 
+def _make_world_readable(root: Path) -> None:
+    """Let the unprivileged quarantine container read the disposable fixtures.
+
+    The generated overlay writes private (0600) host adapters; agnix runs as a
+    different uid inside the container and reported them as unreadable (#6205).
+    """
+    for path in (root, *root.rglob("*")):
+        if not path.is_symlink():
+            path.chmod(0o755 if path.is_dir() else 0o644)
+
+
 def _json_object_from_output(output: str) -> object:
     """Decode the first JSON object from agnix output that may include status prose."""
     start = output.find("{")
@@ -403,6 +442,8 @@ def run_conformance(
     defects = validate_contract(contract)
     if defects:
         raise ValueError("invalid agnix contract: " + "; ".join(defects))
+    if Path(fixtures_root).is_dir():
+        _make_world_readable(Path(fixtures_root))
     telemetry_command = _trial_command(
         candidate_root,
         fixtures_root,
@@ -516,7 +557,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.stage_source:
         if args.fixtures_root is None:
             parser.error("--stage-source requires --fixtures-root")
-        stage_harness(args.stage_source, args.fixtures_root, contract)
+        stage_harness(args.stage_source, args.fixtures_root, contract, generated_overlay(args.stage_source))
     if args.candidate_root:
         if None in (args.fixtures_root, args.evaluation_root, args.output_root, args.output):
             parser.error(

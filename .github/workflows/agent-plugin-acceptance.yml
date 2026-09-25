@@ -105,21 +105,34 @@ jobs:
             tests.scripts.test_worktree_hygiene
             tests.scripts.test_session_worktree
           )
+          # #6205: run every module and report all failures; stopping at the
+          # first red module hid every later regression for weeks.
+          failed=()
           for module in "${modules[@]}"; do
-            python -m unittest "$module" -v
+            python -m unittest "$module" -v || failed+=("$module")
           done
+          if ((${#failed[@]})); then
+            printf '::error::failing harness module: %s\n' "${failed[@]}"
+            exit 1
+          fi
       - name: Validate full harness aggregation
         run: |
           python scripts/ci/validate_agent_setup.py --skip-external
 
+  # #6205: the Windows leg took 26.5 of its 30 minutes (and timed out on
+  # earlier runs), almost all in test_chaos_engine_installer. Each OS now runs
+  # two parts: part 1 = the other acceptance modules + installer shard 1/2,
+  # part 2 = installer shard 2/2 (scripts/ci/unittest_shard.py, union ==
+  # the whole module).
   chaos-engine-cross-platform:
-    name: ChaosEngine installer acceptance (${{ matrix.os }})
+    name: ChaosEngine installer acceptance (${{ matrix.os }}, part ${{ matrix.part }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, macos-15, windows-2025]
+        part: [1, 2]
     steps:
       - name: Enable Windows long paths
         if: runner.os == 'Windows'
@@ -130,13 +143,19 @@ jobs:
         uses: actions/setup-python@v7.0.0
         with:
           python-version: '3.13'
-      - name: Run full fresh-install, upgrade, dependency, and rollback acceptance
+      - name: Run fresh-install, dependency, and wrapper acceptance
+        if: matrix.part == 1
         run: >-
           python -m unittest
           tests.scripts.test_chaos_engine_bootstrap
           tests.scripts.test_chaos_engine_dependencies
-          tests.scripts.test_chaos_engine_installer
           tests.scripts.test_chaos_engine_install_wrappers
+          -v
+      - name: Run upgrade and rollback acceptance (tests.scripts.test_chaos_engine_installer shard)
+        run: >-
+          python -m scripts.ci.unittest_shard
+          tests.scripts.test_chaos_engine_installer
+          --shard ${{ matrix.part }}/2
           -v
 
   chaos-engine-live-installer:

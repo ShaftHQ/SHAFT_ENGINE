@@ -144,5 +144,44 @@ class CodeqlScopeTest(unittest.TestCase):
         self.assertIn("workflow_dispatch", trigger)
 
 
+
+class QualityConfigurationGuardTest(unittest.TestCase):
+    """#6206: the quality validator runs in PR Gate and the release leg uploads coverage."""
+
+    def test_release_intellij_verify_uploads_coverage_after_the_build(self) -> None:
+        steps = load("mavenCentral_cd.yml")["jobs"]["cd_intellij_verify"]["steps"]
+        uses = [step.get("uses", "") for step in steps]
+        verify = uses.index("./.github/actions/intellij-verify")
+        upload = uses.index("./.github/actions/upload-jacoco-coverage")
+        self.assertGreater(upload, verify)
+        self.assertTrue(steps[upload]["if"].startswith("always()"))
+
+    def test_pr_gate_runs_the_quality_validator_on_workflow_and_pom_edits(self) -> None:
+        job = load("pr-gate.yml")["jobs"]["workflow-timeouts"]
+        runs = " ".join(step.get("run", "") for step in job["steps"])
+        self.assertIn("scripts/ci/validate_quality_configuration.py", runs)
+        self.assertIn("tests.scripts.test_validate_quality_configuration", runs)
+        self.assertIn("needs.changes.outputs.dependencies == 'true'", job["if"])
+
+
+
+class InstallerAcceptancePartsTest(unittest.TestCase):
+    """#6205: each OS runs the installer acceptance in two parts that cover every module."""
+
+    def test_parts_cover_the_whole_installer_module_and_the_other_modules_once(self) -> None:
+        job = load("agent-plugin-acceptance.yml")["jobs"]["chaos-engine-cross-platform"]
+        self.assertEqual([1, 2], job["strategy"]["matrix"]["part"])
+        runs = {step["name"]: step for step in job["steps"] if "run" in step}
+        shard = next(step for name, step in runs.items() if "shard" in name)
+        self.assertNotIn("if", shard)
+        self.assertIn("scripts.ci.unittest_shard", shard["run"])
+        self.assertIn("tests.scripts.test_chaos_engine_installer", shard["run"])
+        self.assertIn("--shard ${{ matrix.part }}/2", shard["run"])
+        others = runs["Run fresh-install, dependency, and wrapper acceptance"]
+        self.assertEqual("matrix.part == 1", others["if"])
+        for module in ("bootstrap", "dependencies", "install_wrappers"):
+            self.assertIn(f"tests.scripts.test_chaos_engine_{module}", others["run"])
+
+
 if __name__ == "__main__":
     unittest.main()

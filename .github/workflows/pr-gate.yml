@@ -130,6 +130,7 @@ jobs:
               - '.memory/**'
               - 'scripts/agents/**'
               - 'scripts/ci/harness_pr_gate.py'
+              - 'scripts/ci/unittest_shard.py'
               - 'scripts/ci/chaos_engine_live_installer_acceptance.py'
               - 'scripts/ci/chaos_engine_promotion.py'
               - 'scripts/ci/validate_chaos_engine_readme.py'
@@ -209,6 +210,7 @@ jobs:
               - 'tests/scripts/test_agnix_conformance.py'
               - 'tests/scripts/test_agent_plugin_client_smoke.py'
               - 'tests/scripts/test_harness_pr_gate.py'
+              - 'tests/scripts/test_unittest_shard.py'
               - 'tests/scripts/test_chaos_engine_bootstrap.py'
               - 'tests/scripts/test_chaos_engine_dependencies.py'
               - 'tests/scripts/test_chaos_engine_generation_runtime.py'
@@ -371,6 +373,13 @@ jobs:
               - 'tests/scripts/test_pr_gate_time_to_merge.py'
               - 'scripts/ci/shard_test_selector.py'
               - 'tests/scripts/test_shard_test_selector.py'
+              # Issue #6206: the quality-configuration validator ran nowhere in
+              # CI, so cd_intellij_verify lost its coverage upload unnoticed.
+              - 'scripts/ci/validate_quality_configuration.py'
+              - 'tests/scripts/test_validate_quality_configuration.py'
+              # Issue #6208: macOS opt-in label rerun helper.
+              - 'scripts/ci/rerun_pr_gate_on_label.py'
+              - 'tests/scripts/test_rerun_pr_gate_on_label.py'
               # Issue #6185: the post-merge main-red reaction and its pins.
               - 'scripts/ci/main_red_reaction.py'
               - 'tests/scripts/test_main_red_reaction.py'
@@ -434,8 +443,10 @@ jobs:
 
   # Fast harness gate. The repository-owned classifier selects changed-surface
   # tests, protected invariants, and a safe fallback for unknown harness files.
-  # Selected checks run concurrently (issue #6191, `--jobs 4` = the runner's
-  # vCPUs); `--jobs 1` is the sequential rollback.
+  # Selected checks run concurrently (issue #6191); the longest protected
+  # modules run as deterministic shards (#6207). `--jobs 6` oversubscribes the
+  # 4 vCPUs because the suites are subprocess/IO bound; `--jobs 1` is the
+  # sequential rollback.
   # Full cross-platform, native-client, and exhaustive suites run in
   # agent-plugin-acceptance.yml on schedule or workflow_dispatch.
   agent-guidance:
@@ -488,7 +499,7 @@ jobs:
           --head "$HEAD_SHA"
           --reviews "$REVIEWS_PATH"
           --budget-seconds 1200
-          --jobs 4
+          --jobs 6
           --output harness-pr-gate.json
       - name: Upload harness gate receipt
         if: always()
@@ -888,7 +899,8 @@ jobs:
   workflow-timeouts:
     name: Workflow Timeout Guard
     needs: changes
-    if: needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true'
+    # #6206: pom edits also re-run the quality-configuration validator.
+    if: needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.dependencies == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -911,9 +923,13 @@ jobs:
           tests.scripts.test_main_red_reaction
           tests.scripts.test_pr_gate_time_to_merge
           tests.scripts.test_shard_test_selector
+          tests.scripts.test_validate_quality_configuration
+          tests.scripts.test_rerun_pr_gate_on_label
           -v
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
+      - name: Validate coverage, CodeQL and quality configuration
+        run: python3 scripts/ci/validate_quality_configuration.py
 
   # Issue #4506: this module's other five tests pin a real architectural
   # boundary -- shaft-engine carries no Pilot or provider dependency, and the

@@ -1,0 +1,39 @@
+name: Installer macOS opt-in rerun
+
+# Issue #6208: PR Gate ignores label events (#6190), and its `changes` job reads
+# the `ci:installer-macos` opt-in label live (#6187). Adding the label used to
+# need a push or a manual "Re-run all jobs"; this workflow re-runs the newest
+# PR Gate run for the head commit (cancelling it first if it is still running)
+# so the macOS fresh-installer legs join. Any other label is a no-op skip.
+# Fork pull requests receive a read-only token; maintainers re-run by hand there.
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-macos-rerun-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  rerun:
+    name: Re-run PR Gate for macOS installer opt-in
+    if: github.event.label.name == 'ci:installer-macos' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+        with:
+          sparse-checkout: scripts/ci
+      - name: Re-run PR Gate for the head commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/ci/rerun_pr_gate_on_label.py --repo "$GITHUB_REPOSITORY" --head-sha "$HEAD_SHA"

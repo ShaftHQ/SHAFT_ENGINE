@@ -456,6 +456,7 @@ class ManagedCaptureRecorderBrowserTest {
             driver.findElement(By.id("shaft-capture-assert")).click();
             waitFor(() -> elementPresent(driver, assertionChoice("Element")));
             driver.findElement(assertionChoice("Element")).click();
+            waitForElementAssertionArmed(driver);
             driver.findElement(By.id("username")).click();
             waitFor(() -> elementPresent(driver, By.xpath(
                     "//*[@id='shaft-capture-assertion-panel']//button[normalize-space()='Use this locator']")));
@@ -1583,6 +1584,7 @@ class ManagedCaptureRecorderBrowserTest {
             driver.findElement(By.id("shaft-capture-assert")).click();
             waitFor(() -> elementPresent(driver, assertionChoice("Element")));
             driver.findElement(assertionChoice("Element")).click();
+            waitForElementAssertionArmed(driver);
             driver.findElement(By.id("result-title")).click();
             By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
                     + "//li[.//span[contains(@class,'locator-meta')"
@@ -1680,6 +1682,7 @@ class ManagedCaptureRecorderBrowserTest {
             driver.findElement(By.id("shaft-capture-assert")).click();
             waitFor(() -> elementPresent(driver, assertionChoice("Element")));
             driver.findElement(assertionChoice("Element")).click();
+            waitForElementAssertionArmed(driver);
             driver.findElement(By.id("stale-result")).click();
             By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
                     + "//li[.//span[contains(@class,'locator-meta')"
@@ -1751,6 +1754,7 @@ class ManagedCaptureRecorderBrowserTest {
             driver.findElement(By.id("shaft-capture-assert")).click();
             waitFor(() -> elementPresent(driver, assertionChoice("Element")));
             driver.findElement(assertionChoice("Element")).click();
+            waitForElementAssertionArmed(driver);
             driver.findElement(By.cssSelector("[data-testid='result-title-a']")).click();
             By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
                     + "//li[.//span[contains(@class,'locator-meta')"
@@ -1877,6 +1881,7 @@ class ManagedCaptureRecorderBrowserTest {
             driver.findElement(By.id("shaft-capture-assert")).click();
             waitFor(() -> elementPresent(driver, assertionChoice("Element")));
             driver.findElement(assertionChoice("Element")).click();
+            waitForElementAssertionArmed(driver);
             target.click();
             By selectedTestId = By.xpath("//*[@id='shaft-capture-assertion-panel']"
                     + "//li[.//span[contains(@class,'locator-meta')"
@@ -2106,6 +2111,16 @@ class ManagedCaptureRecorderBrowserTest {
 
     private static HttpServer localFixture() throws IOException {
         return localFixture(null);
+    }
+
+    /**
+     * Issue #6211: choosing "Element" arms the click interceptor asynchronously. A target clicked
+     * before that is a real click, so a link navigates away and the recorded session replays on
+     * the wrong page. Wait for the armed status hint (assertionMode) before clicking the target.
+     */
+    private static void waitForElementAssertionArmed(WebDriver driver) throws InterruptedException {
+        waitFor(() -> "Click an element to capture the assertion target.".equals(
+                driver.findElement(By.id("shaft-capture-status")).getAttribute("title")));
     }
 
     private static HttpServer localFixture(AtomicReference<String> selectedTestIdMarkup) throws IOException {

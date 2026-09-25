@@ -38,6 +38,7 @@ changing that token silently breaks both distribution publishers.
 | File | Trigger | Responsibility |
 |---|---|---|
 | `pr-gate.yml` | pull request (no label events), push to `main` | Required path-aware gate: documentation boundaries, agent guidance, unit tests, installer/plugin checks, CLI, Capture E2E, dependency review, and template coupling. |
+| `installer-macos-rerun.yml` | pull request `labeled` | Adding `ci:installer-macos` re-runs the newest PR Gate run for the head commit (cancelling it first if running) so the macOS installer legs join; other labels skip (#6208). |
 | `release-note-governance.yml` | pull request (incl. label/body edits), push to `main` | Required `Release-note governance` check: exactly one release-note classification label; always reports, no path filter (#6190). |
 | `chaos-gauge-public-canary.yml` | manual | Runs one excluded public two-arm ChaosGauge canary through private draft evidence retention; never launches the pilot. |
 | `security.yml` | Maven Java pull request, push to `main`, weekly, manual | CodeQL Java analysis; PRs only when Java/POM/resources change, `main` and the weekly scan cover everything (#6192). |
@@ -93,8 +94,10 @@ table. Remove a row only in the same change that deletes its workflow.
   ignores them. Both `PR Gate Summary` and `Release-note governance` are
   required status checks (#6190).
 - Agent Guidance Gate runs its selected harness checks concurrently
-  (`harness_pr_gate.py --jobs 4`, one temp dir per check, protected checks
-  first); `--jobs 1` restores the sequential run (#6191).
+  (`harness_pr_gate.py --jobs 6`, one temp dir per check, protected checks
+  first); `--jobs 1` restores the sequential run (#6191). The installer and
+  bootstrap modules run as 4 and 2 deterministic shards
+  (`scripts/ci/unittest_shard.py`, #6207).
 - `Build IntelliJ plugin` (`check buildPlugin`, coverage, artifact) and
   `Verify IntelliJ plugin (Plugin Verifier)` (`verifyPlugin`) run in parallel
   through `intellij-verify` modes `build`/`plugin`, both retried. Release
@@ -109,8 +112,9 @@ table. Remove a row only in the same change that deletes its workflow.
 | Push to `main` (post-merge, never cancelled) | ubuntu-22.04, windows-2025, macos-15 | windows-2025, macos-15 |
 | Daily 04:15 UTC (`agent-plugin-acceptance.yml`) | 3-OS installer acceptance + live installer, `notify` on failure | — |
 
-`scripts/ci/chaos_installer_tier.py` resolves the tier from live PR labels, so
-re-run PR Gate after adding the label. A macOS-only break is caught post-merge
+`scripts/ci/chaos_installer_tier.py` resolves the tier from live PR labels;
+adding the label re-runs PR Gate automatically via `installer-macos-rerun.yml`
+(#6208). A macOS-only break is caught post-merge
 and handled by `Main red reaction` (issue + revert PR).
 - `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml` listen for an actual
   published release rather than the Maven workflow conclusion, because an
