@@ -3361,6 +3361,7 @@ def initialize_account_project_palace(project: Path, controller, host_controller
             if Path(resolve(project)).resolve() == project_palace:
                 return False
         except (OSError, RuntimeError, ValueError, KeyError):
+            # The account palace is unresolvable: initialize the project palace anyway.
             pass
     host_controller.initialize_mempalace_runtime(project)
     return True
