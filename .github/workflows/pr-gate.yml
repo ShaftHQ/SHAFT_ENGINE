@@ -130,6 +130,7 @@ jobs:
               - '.memory/**'
               - 'scripts/agents/**'
               - 'scripts/ci/harness_pr_gate.py'
+              - 'scripts/ci/unittest_shard.py'
               - 'scripts/ci/chaos_engine_live_installer_acceptance.py'
               - 'scripts/ci/chaos_engine_promotion.py'
               - 'scripts/ci/validate_chaos_engine_readme.py'
@@ -209,6 +210,7 @@ jobs:
               - 'tests/scripts/test_agnix_conformance.py'
               - 'tests/scripts/test_agent_plugin_client_smoke.py'
               - 'tests/scripts/test_harness_pr_gate.py'
+              - 'tests/scripts/test_unittest_shard.py'
               - 'tests/scripts/test_chaos_engine_bootstrap.py'
               - 'tests/scripts/test_chaos_engine_dependencies.py'
               - 'tests/scripts/test_chaos_engine_generation_runtime.py'
@@ -441,8 +443,10 @@ jobs:
 
   # Fast harness gate. The repository-owned classifier selects changed-surface
   # tests, protected invariants, and a safe fallback for unknown harness files.
-  # Selected checks run concurrently (issue #6191, `--jobs 4` = the runner's
-  # vCPUs); `--jobs 1` is the sequential rollback.
+  # Selected checks run concurrently (issue #6191); the longest protected
+  # modules run as deterministic shards (#6207). `--jobs 6` oversubscribes the
+  # 4 vCPUs because the suites are subprocess/IO bound; `--jobs 1` is the
+  # sequential rollback.
   # Full cross-platform, native-client, and exhaustive suites run in
   # agent-plugin-acceptance.yml on schedule or workflow_dispatch.
   agent-guidance:
@@ -495,7 +499,7 @@ jobs:
           --head "$HEAD_SHA"
           --reviews "$REVIEWS_PATH"
           --budget-seconds 1200
-          --jobs 4
+          --jobs 6
           --output harness-pr-gate.json
       - name: Upload harness gate receipt
         if: always()

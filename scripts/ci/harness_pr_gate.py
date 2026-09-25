@@ -87,6 +87,13 @@ LONG_RUNNING_CHECK_IDS = (
     "protected-installer-acceptance",
     "setup-aggregator-contract",
 )
+# Issue #6207: the two longest protected modules run as deterministic shards
+# (scripts/ci/unittest_shard.py) so the concurrent gate is not bounded by one
+# module. The union of a module's shards is exactly that module.
+SHARDED_MODULES = {
+    "tests.scripts.test_chaos_engine_installer": 4,
+    "tests.scripts.test_chaos_engine_bootstrap": 2,
+}
 RECORDED_BASELINE_MEDIAN_SECONDS = 600
 PR_BUDGET_SECONDS = 360
 WAIVER_FENCE = re.compile(
@@ -150,7 +157,7 @@ CHECKS = {
     "ci-contract": Check(
         "ci-contract",
         "ci",
-        ("tests.scripts.test_harness_pr_gate",),
+        ("tests.scripts.test_harness_pr_gate", "tests.scripts.test_unittest_shard"),
     ),
     "setup-aggregator-contract": Check(
         "setup-aggregator-contract",
@@ -411,10 +418,12 @@ SURFACE_PATTERNS = {
         ".github/workflows/agent-plugin-acceptance.yml",
         ".github/workflows/README.md",
         "scripts/ci/harness_pr_gate.py",
+        "scripts/ci/unittest_shard.py",
         "scripts/ci/agent_ownership.json",
         "scripts/ci/validate_agent_ownership.py",
         "scripts/ci/validate_agent_setup.py",
         "tests/scripts/test_harness_pr_gate.py",
+        "tests/scripts/test_unittest_shard.py",
         "tests/scripts/test_validate_agent_ownership.py",
         "tests/scripts/test_validate_agent_setup.py",
         "tests/scripts/test_validate_workflow_timeouts.py",
@@ -937,15 +946,51 @@ def resolve_jobs(requested: int) -> int:
     return requested or max(1, os.cpu_count() or 1)
 
 
-def _execution_order(plan: GatePlan) -> list[tuple[str, ...]]:
-    """Unique module tuples: protected always-on checks, then the longest suites."""
-    priority = [
-        check.modules
-        for pid in (*PRIORITY_CHECK_IDS, *LONG_RUNNING_CHECK_IDS)
-        for check in plan.checks
-        if check.id == pid
+Unit = tuple[str, ...]
+
+
+def execution_units(modules: tuple[str, ...]) -> list[Unit]:
+    """Split one check's module tuple into runnable units (#6207).
+
+    Unsharded modules stay together as one unit; every sharded module becomes
+    ``(module, "--shard", "i/n")`` units that run in their own process.
+    """
+    plain = tuple(module for module in modules if module not in SHARDED_MODULES)
+    units: list[Unit] = [plain] if plain else []
+    for module in modules:
+        total = SHARDED_MODULES.get(module)
+        if total:
+            units.extend((module, "--shard", f"{index}/{total}") for index in range(1, total + 1))
+    return units
+
+
+def unit_command(unit: Unit) -> list[str]:
+    """Build the process argv for one unit."""
+    if len(unit) == 3 and unit[1] == "--shard":
+        return [sys.executable, "-m", "scripts.ci.unittest_shard", *unit, "-v"]
+    return [sys.executable, "-m", "unittest", *unit, "-v"]
+
+
+def _execution_order(plan: GatePlan) -> list[Unit]:
+    """Unique units: protected always-on checks, then the longest suites, then the rest."""
+    first = (*PRIORITY_CHECK_IDS, *LONG_RUNNING_CHECK_IDS)
+    ordered_checks = [
+        *(check for pid in first for check in plan.checks if check.id == pid),
+        *plan.checks,
     ]
-    return list(dict.fromkeys([*priority, *(check.modules for check in plan.checks)]))
+    return list(
+        dict.fromkeys(unit for check in ordered_checks for unit in execution_units(check.modules))
+    )
+
+
+def _combine(outcomes: list[tuple[str, int | None, float]]) -> tuple[str, int | None, float]:
+    """One check's outcome from its units: timeout beats failure beats pass."""
+    duration = round(sum(outcome[2] for outcome in outcomes), 3)
+    statuses = [outcome[0] for outcome in outcomes]
+    if "timeout" in statuses:
+        return "timeout", None, duration
+    exit_code = next((outcome[1] for outcome in outcomes if outcome[1]), 0)
+    return ("passed" if all(status == "passed" for status in statuses) else "failed"), exit_code, duration
 
 
 def _result_record(
@@ -990,31 +1035,29 @@ def run_plan(
         raise GateError("waiver names checks not selected by this change")
     started = time.monotonic()
 
-    def _execute(modules: tuple[str, ...]) -> tuple[str, int | None, float]:
+    def _execute(unit: Unit) -> tuple[str, int | None, float]:
         check_started = time.monotonic()
         remaining = budget_seconds - (check_started - started)
         if remaining <= 0:
             return "timeout", None, 0.0
-        status, exit_code = _run_check(
-            [sys.executable, "-m", "unittest", *modules, "-v"],
-            root,
-            remaining,
-        )
+        status, exit_code = _run_check(unit_command(unit), root, remaining)
         return status, exit_code, round(time.monotonic() - check_started, 3)
 
     order = _execution_order(plan)
     workers = max(1, min(jobs, len(order)))
     if workers == 1:
-        outcomes = {modules: _execute(modules) for modules in order}
+        unit_outcomes = {unit: _execute(unit) for unit in order}
     else:
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {modules: pool.submit(_execute, modules) for modules in order}
-            outcomes = {modules: future.result() for modules, future in futures.items()}
-
-    results = [_result_record(check, outcomes[check.modules], waiver) for check in plan.checks]
-    failed_ids = {
-        check.id for check in plan.checks if outcomes[check.modules][0] != "passed"
+            futures = {unit: pool.submit(_execute, unit) for unit in order}
+            unit_outcomes = {unit: future.result() for unit, future in futures.items()}
+    outcomes = {
+        check.id: _combine([unit_outcomes[unit] for unit in execution_units(check.modules)])
+        for check in plan.checks
     }
+
+    results = [_result_record(check, outcomes[check.id], waiver) for check in plan.checks]
+    failed_ids = {check.id for check in plan.checks if outcomes[check.id][0] != "passed"}
     if waiver and set(waiver.check_ids) != failed_ids.intersection(waiver.check_ids):
         raise GateError("waiver is stale because a named check did not fail")
     valid = all(result["status"] in {"passed", "waived"} for result in results)
@@ -1038,7 +1081,8 @@ def run_plan(
                 1 - budget_seconds / RECORDED_BASELINE_MEDIAN_SECONDS, 3
             ),
             "jobs": workers,
-            "sum_check_seconds": round(sum(outcome[2] for outcome in outcomes.values()), 3),
+            "units": len(order),
+            "sum_check_seconds": round(sum(outcome[2] for outcome in unit_outcomes.values()), 3),
         },
         "deferred_classes": ["scheduled-exhaustive", "release-promotion"],
         "safe_history_update_command": "git push --force-with-lease origin HEAD",

@@ -5,6 +5,7 @@ import json
 import re
 import shutil
 import subprocess  # nosec B404 - fixed test fixture commands only.
+import sys
 import tempfile
 import threading
 import time
@@ -29,6 +30,10 @@ from scripts.ci.harness_pr_gate import (
     event_waiver,
     parse_waiver,
     LONG_RUNNING_CHECK_IDS,
+    SHARDED_MODULES,
+    _combine,
+    execution_units,
+    unit_command,
     PRIORITY_CHECK_IDS,
     _isolated_environment,
     render_json,
@@ -890,14 +895,55 @@ class ConcurrentRunPlanTest(unittest.TestCase):
     def test_longest_suites_start_right_after_protected_checks(self) -> None:
         plan = classify_paths(self.PATHS)
         ordered = [
-            c.modules
+            unit
             for pid in (*PRIORITY_CHECK_IDS, *LONG_RUNNING_CHECK_IDS)
             for c in plan.checks
             if c.id == pid
+            for unit in execution_units(c.modules)
         ]
         self.assertTrue(any(c.id == "protected-rollback" for c in plan.checks))
         _, _, calls = self.run_with(1)
-        self.assertEqual(list(dict.fromkeys(ordered)), calls[: len(set(ordered))])
+        expected = list(dict.fromkeys(ordered))
+        self.assertEqual(expected, calls[: len(expected)])
+
+    def test_sharded_modules_run_every_shard_once_and_fold_into_their_check(self) -> None:
+        payload, _, calls = self.run_with(4)
+        for module, total in SHARDED_MODULES.items():
+            shards = sorted(call for call in calls if call[:1] == (module,))
+            self.assertEqual(
+                [(module, "--shard", f"{index}/{total}") for index in range(1, total + 1)], shards
+            )
+        self.assertNotIn(("tests.scripts.test_chaos_engine_installer",), calls)
+        rollback = next(c for c in payload["checks"] if c["id"] == "protected-rollback")
+        self.assertEqual(["tests.scripts.test_chaos_engine_installer"], rollback["tests"])
+        self.assertIn("python -m unittest tests.scripts.test_chaos_engine_installer", rollback["reproduction_command"])
+        self.assertEqual(len(set(calls)), payload["timing"]["units"])
+
+    def test_one_failing_shard_fails_its_check_and_timeout_wins(self) -> None:
+        def shard_two_fails(command: list[str], *_: object, **__: object):
+            return ("failed", 1) if "2/4" in command else ("passed", 0)
+
+        payload, exit_code, _ = self.run_with(4, side_effect=shard_two_fails)
+        statuses = {c["id"]: c["status"] for c in payload["checks"]}
+        self.assertEqual("failed", statuses["protected-rollback"])
+        self.assertEqual(1, exit_code)
+        self.assertEqual(("timeout", None, 3.0), _combine([("passed", 0, 1.0), ("timeout", None, 2.0)]))
+        self.assertEqual(("failed", 1, 2.0), _combine([("passed", 0, 1.0), ("failed", 1, 1.0)]))
+        self.assertEqual(("passed", 0, 2.0), _combine([("passed", 0, 1.0), ("passed", 0, 1.0)]))
+
+    def test_unit_commands(self) -> None:
+        self.assertEqual(
+            [sys.executable, "-m", "scripts.ci.unittest_shard", "m", "--shard", "1/2", "-v"],
+            unit_command(("m", "--shard", "1/2")),
+        )
+        self.assertEqual([sys.executable, "-m", "unittest", "a", "b", "-v"], unit_command(("a", "b")))
+        self.assertEqual(
+            [("tests.scripts.test_chaos_engine_dependencies",)]
+            + [("tests.scripts.test_chaos_engine_bootstrap", "--shard", f"{i}/2") for i in (1, 2)],
+            execution_units(
+                ("tests.scripts.test_chaos_engine_bootstrap", "tests.scripts.test_chaos_engine_dependencies")
+            ),
+        )
 
     def test_budget_exhaustion_never_skips_protected_checks(self) -> None:
         protected_modules = {
@@ -929,7 +975,7 @@ class ConcurrentRunPlanTest(unittest.TestCase):
     def test_pr_workflow_runs_checks_concurrently_with_a_sequential_escape_hatch(self) -> None:
         pr_gate = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         agent_job = pr_gate.split("  agent-guidance:", 1)[1].split("  installer-verify:", 1)[0]
-        self.assertIn("--jobs 4", agent_job)
+        self.assertIn("--jobs 6", agent_job)
         self.assertIn("--jobs 1", pr_gate)
 
 
