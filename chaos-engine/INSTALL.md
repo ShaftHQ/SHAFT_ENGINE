@@ -271,6 +271,14 @@ The consumer folder may be a GitHub checkout, another Git checkout, or a
 non-Git directory. ChaosEngine installs project-locally and does not infer its
 upstream from the consumer repository.
 
+In a repository you do not own, install with `--consumer` (bootstrap or
+`install.py install`; or `CHAOS_ENGINE_CONSUMER=1`). Consumer mode never edits a
+tracked file and never writes `.gitignore`; it writes one marked block to
+`.git/info/exclude` (shared by linked worktrees), so `git status` stays empty.
+The choice persists in `.chaos-engine-state/consumer-mode`. Tracked files it
+left without ChaosEngine instructions, such as `AGENTS.md`, are listed under
+`consumerMode.untouchedTrackedFiles`. Uninstall removes only its exclude block.
+
 `status` and `doctor` report every component with its `owner`, `scope`,
 `lifecycle`, and `taskImpact`. Without `--json`, `doctor` (and `status`) print a
 short human summary when healthy, or a scannable failure list with one

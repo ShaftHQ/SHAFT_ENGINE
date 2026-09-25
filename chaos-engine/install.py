@@ -3346,6 +3346,28 @@ RECEIPT_SHIM_MARKERS = {
 RECEIPT_SHIM_COMMANDS = {"cursor": ("cursor", "cursor-agent"), "opencode": ("opencode",)}
 
 
+def _consumer_mode_module():
+    """#6237: consumer-mode helper shipped next to this installer, or None."""
+    path = Path(__file__).resolve().with_name("consumer_mode.py")
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("ce_consumer_mode_installer", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def consumer_untouched_files(project: Path) -> list[str]:
+    """Tracked host files consumer mode left without ChaosEngine instructions."""
+    consumer = _consumer_mode_module()
+    if consumer is None or not consumer.enabled(project):
+        return []
+    hosts = load_source_controller("hosts")
+    return sorted(consumer.tracked(project, [*hosts.managed_paths(), ".graphifyignore"]))
+
+
 def _receipt_shim_module():
     path = Path(__file__).resolve().parent / "hooks" / "receipt_shim.py"
     spec = importlib.util.spec_from_file_location("ce_receipt_shim_installer", path)
@@ -3409,6 +3431,9 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     with_maven_tools = with_maven_tools or (project / "pom.xml").is_file()
     bundle = normalize_bundle_options(bundle_options)
     write_bundle_options(project, bundle)
+    consumer = _consumer_mode_module()
+    if consumer is not None:
+        consumer.record(project)
     source_dependencies = load_dependency_controller(source)
     account_mode = provisioner is None and hasattr(
         source_dependencies, "install_account_dependencies"
@@ -3664,6 +3689,9 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             host_created = not host_existed
             if not account_mode and not generation_mode:
                 provisioner(runtime, specification)
+            consumer = _consumer_mode_module()
+            if consumer is not None and consumer.enabled(project):
+                consumer.write_exclude(project, host_controller.managed_paths())
             if bundle.get("mempalace", True):
                 # #6236: account mode needs the project palace too, or doctor
                 # stays recovery-required / mempalace-state after install.
@@ -5414,6 +5442,10 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
             receipt_shim = _receipt_shim_module()
         except (ImportError, OSError):
             receipt_shim = None
+        try:
+            consumer = _consumer_mode_module()
+        except (ImportError, OSError):
+            consumer = None
         runtime = project / ".chaos-engine-runtime"
         removing = project / ".chaos-engine-runtime.removing"
         backup = project / ".chaos-engine-runtime.backup"
@@ -5518,6 +5550,9 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
             host_controller.finalize_uninstall(project)
         if receipt_shim is not None:
             unwire_receipt_shims(project, receipt_shim)
+        if consumer is not None:
+            # #6237: remove only our marked info/exclude block.
+            consumer.remove_exclude(project)
 
 
 def finalize_dependency_tombstone(removing: Path) -> None:
@@ -5786,6 +5821,14 @@ def parser() -> argparse.ArgumentParser:
         help="No-op when the installed overlay already matches the source byte-for-byte (#6179).",
     )
     install_command.add_argument("--with-maven-tools", action="store_true")
+    install_command.add_argument(
+        "--consumer",
+        action="store_true",
+        help=(
+            "consumer-repository mode (#6237): never edit tracked files; hide the overlay "
+            "through .git/info/exclude (also CHAOS_ENGINE_CONSUMER=1)"
+        ),
+    )
     mcp_choice = install_command.add_mutually_exclusive_group()
     mcp_choice.add_argument(
         "--with-mcp",
@@ -6432,6 +6475,8 @@ def main() -> int:
                     bundle[name] = False
             write_bundle_options(args.project, bundle)
             record_mcp_opt_in(args.project, args)
+            if getattr(args, "consumer", False):
+                os.environ["CHAOS_ENGINE_CONSUMER"] = "1"
             target = (
                 install(
                     args.project,
@@ -6451,8 +6496,22 @@ def main() -> int:
                 )
             )
             result: object = {"status": "installed", "root": str(target), "bundle": bundle}
+            consumer = _consumer_mode_module()
+            if consumer is not None and consumer.enabled(args.project):
+                consumer.record(args.project)
+                consumer.write_exclude(args.project, load_source_controller("hosts").managed_paths())
+            untouched = consumer_untouched_files(args.project)
+            if untouched:
+                # #6237 FR-2: name every tracked file consumer mode left alone.
+                result["consumerMode"] = {"untouchedTrackedFiles": untouched}
+                print(
+                    "ChaosEngine consumer mode left tracked files untouched: "
+                    + ", ".join(untouched),
+                    file=sys.stderr,
+                )
             with contextlib.suppress(OSError):
-                seed_graphify_ignore(args.project)
+                if ".graphifyignore" not in untouched:
+                    seed_graphify_ignore(args.project)
             _install_store_schedule(args.project)
         elif args.command == "repair":
             result = repair_component(args.project, args.component)

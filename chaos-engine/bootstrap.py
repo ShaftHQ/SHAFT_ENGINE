@@ -2164,6 +2164,11 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--skip-tools", action="store_true", help=argparse.SUPPRESS)
     result.add_argument("--with-maven-tools", action="store_true")
     result.add_argument(
+        "--consumer",
+        action="store_true",
+        help="consumer-repository mode: keep the overlay out of git status via .git/info/exclude",
+    )
+    result.add_argument(
         "--maven-tools-mode", choices=("native", "docker"), default="native"
     )
     for bundle_name in (
@@ -2507,6 +2512,8 @@ def emit_install_failure(
 def main() -> int:
     reporter = InstallReporter()
     args = parser().parse_args()
+    if getattr(args, "consumer", False):
+        os.environ["CHAOS_ENGINE_CONSUMER"] = "1"
     try:
         bundle_options = {
             name: not getattr(args, f"without_{name}", False)

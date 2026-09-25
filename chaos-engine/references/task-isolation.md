@@ -32,11 +32,12 @@ or compact of the same session_id reuses the existing session worktree.
 
 Delivering into a consumer repository (third-party or adopter code where
 ChaosEngine was installed for the session) uses a separate worktree by default:
-`git worktree add <path> -b <branch> origin/<default>`. The install leaves
+`git worktree add <path> -b <branch> origin/<default>`. A default install leaves
 `.chaos-engine/`, host directories such as `.claude/` and `.grok/`,
 `.mcp.json`, and `AGENTS.md`/`.gitignore` edits in the primary checkout;
-none of them belong in the consumer PR. Before each commit,
-`git status --porcelain` lists only task files.
+none of them belong in the consumer PR. Prefer `install --consumer`: it edits
+no tracked file and hides the overlay through `.git/info/exclude`. Before each
+commit, `git status --porcelain` lists only task files.
 
 Resolve repository identity, upstream, default branch, primary-checkout path,
 and store commands from the selected profile, adapters, configuration, or

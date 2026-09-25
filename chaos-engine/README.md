@@ -319,7 +319,9 @@ role/plugin/hook adapters, and ignore rules that separate canonical harness
 files from generated runtimes, indexes, receipts, and Graphify output. A
 receipt-bound `.gitattributes` block pins only canonical harness paths to LF so
 Windows clones preserve the installer's byte-level ownership hashes without
-changing unrelated project attributes.
+changing unrelated project attributes. For a repository you do not own,
+`--consumer` keeps all of this out of `git status`: tracked files stay
+untouched and ignore rules go to `.git/info/exclude` (see INSTALL.md).
 Memory's canonical store is bootstrapped from the pinned v5
 [schema bundle](assets/memory-v5/SCHEMAS.md):
 [config](assets/memory-v5/config.schema.json),
