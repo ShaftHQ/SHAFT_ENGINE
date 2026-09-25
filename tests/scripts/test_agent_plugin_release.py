@@ -149,15 +149,13 @@ class AgentPluginReleaseTest(unittest.TestCase):
         ]
         steps_by_name = {
             step.get("name"): (index, step)
-            for index, step in enumerate(jobs[builder]["steps"])
+            for index, step in enumerate(release_steps)
         }
-        deploy_steps = {step.get("name") for step in deploy_job["steps"]}
 
         self.assertIn("agent-plugins/**", workflow[True]["push"]["paths"])
         install_index, install_step = steps_by_name["Install Agent Plugin release prerequisites"]
         build_index, build_step = steps_by_name["Build portable Agent Plugin release assets"]
-        self.assertIn("Deploy to Maven Central", deploy_steps)
-        deploy_index = len(jobs[builder]["steps"])
+        deploy_index, _ = steps_by_name["Deploy to Maven Central"]
         self.assertEqual(
             install_step["run"],
             "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
