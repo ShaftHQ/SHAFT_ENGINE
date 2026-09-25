@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[2]
 from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
 
 OVERLAY = session_overlay(ROOT)
-from tests.scripts.ce_host_files import host_file_path, host_file_text, host_link_targets  # noqa: E402  (#6197)
+from tests.scripts.ce_host_files import host_file_text, host_link_targets  # noqa: E402  (#6197)
 CANONICAL_SKILLS = ROOT / "chaos-engine/skills"
 CLAUDE_SKILLS = OVERLAY / ".claude/skills"
 CLAUDE_AGENTS = OVERLAY / ".claude/agents"

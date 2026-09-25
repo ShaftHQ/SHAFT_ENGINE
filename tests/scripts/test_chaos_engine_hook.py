@@ -964,15 +964,17 @@ class TokenEconomyWave2HookParityTest(unittest.TestCase):
     def test_retrieve_gate_scopes_project_reads_on_every_host(self):
         from tests.scripts.test_retrieve_gate_scope import RetrieveGateScopeTest
 
-        result = unittest.TextTestRunner(stream=open(os.devnull, "w"), verbosity=0).run(
-            unittest.defaultTestLoader.loadTestsFromTestCase(RetrieveGateScopeTest)
-        )
+        with open(os.devnull, "w", encoding="utf-8") as sink:
+            result = unittest.TextTestRunner(stream=sink, verbosity=0).run(
+                unittest.defaultTestLoader.loadTestsFromTestCase(RetrieveGateScopeTest)
+            )
         self.assertTrue(result.wasSuccessful(), result.failures + result.errors)
 
     def test_every_emitted_locator_is_allowed_on_every_host(self):
         from tests.scripts.test_ce_guard_reachability import GuardReachabilityTest
 
-        result = unittest.TextTestRunner(stream=open(os.devnull, "w"), verbosity=0).run(
-            unittest.defaultTestLoader.loadTestsFromTestCase(GuardReachabilityTest)
-        )
+        with open(os.devnull, "w", encoding="utf-8") as sink:
+            result = unittest.TextTestRunner(stream=sink, verbosity=0).run(
+                unittest.defaultTestLoader.loadTestsFromTestCase(GuardReachabilityTest)
+            )
         self.assertTrue(result.wasSuccessful(), result.failures + result.errors)

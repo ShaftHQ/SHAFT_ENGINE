@@ -175,7 +175,7 @@ class InstallHygieneTest(unittest.TestCase):
         self.assertEqual(set(), set(policy.default_mcp_catalog("shaft")) & policy.CLI_EQUIVALENT_MCP_IDS)
         self.assertIn("maven-tools-mcp", policy.default_mcp_catalog("shaft"))
         self.assertNotIn("maven-tools-mcp", policy.default_mcp_catalog("portable"))
-        self.assertTrue(policy.CLI_EQUIVALENT_MCP_IDS <= set(policy.default_mcp_catalog("portable", with_mcp=True)))
+        self.assertLessEqual(policy.CLI_EQUIVALENT_MCP_IDS, set(policy.default_mcp_catalog("portable", with_mcp=True)))
 
     def test_update_if_changed_is_a_noop_on_matching_bytes(self):
         install = load_module("ce_f_install", SOURCE / "install.py")
