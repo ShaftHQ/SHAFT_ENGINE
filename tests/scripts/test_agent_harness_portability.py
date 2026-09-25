@@ -16,6 +16,7 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[2]
+GIT = shutil.which("git") or "git"
 from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
 
 OVERLAY = session_overlay(ROOT)
@@ -395,7 +396,7 @@ def absolute_guidance_path_offenders(
 ) -> list[str]:
     if tracked_paths is None:
         tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
-            ["git", "ls-files", "-z", "--", *ACTIVE_GUIDANCE_PATHS],
+            [GIT, "ls-files", "-z", "--", *ACTIVE_GUIDANCE_PATHS],
             cwd=root,
             capture_output=True,
             text=True,
@@ -579,7 +580,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertIn("@AGENTS.md", claude)
         self.assertFalse((ROOT / "GROK.md").exists())
         grok_tracked = subprocess.run(
-            ["git", "ls-files", "--", ".grok"],
+            [GIT, "ls-files", "--", ".grok"],
             cwd=ROOT,
             check=True,
             capture_output=True,
@@ -746,7 +747,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
 
     def test_hook_configs_are_tracked_for_host_local_trust(self):
         tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
-            ["git", "ls-files", "--error-unmatch", "scripts/agents/guard.py"],
+            [GIT, "ls-files", "--error-unmatch", "scripts/agents/guard.py"],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -983,7 +984,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
 
     def test_mempalace_config_is_tracked_while_generated_state_is_ignored(self):
         tracked = subprocess.run(  # nosec B603 B607 - fixed read-only git command.
-            ["git", "ls-files", "--error-unmatch", "mempalace.yaml"],
+            [GIT, "ls-files", "--error-unmatch", "mempalace.yaml"],
             cwd=ROOT,
             capture_output=True,
             text=True,

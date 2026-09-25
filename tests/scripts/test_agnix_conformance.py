@@ -3,6 +3,7 @@
 import copy
 import json
 import subprocess
+import shutil
 import sys
 import tempfile
 import unittest
@@ -32,6 +33,7 @@ except ImportError:
 
 
 ROOT = Path(__file__).resolve().parents[2]
+CMD = shutil.which("cmd") or "cmd"
 CONTRACT_PATH = ROOT / "scripts/ci/agnix_conformance.json"
 
 
@@ -268,7 +270,7 @@ class AgnixConformanceTest(unittest.TestCase):
             (outside / "host-only.txt").write_text("HOST_ONLY", encoding="utf-8")
             junction = declared / "junction"
             created = subprocess.run(
-                ["cmd", "/c", "mklink", "/J", str(junction), str(outside)],
+                [CMD, "/c", "mklink", "/J", str(junction), str(outside)],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -292,7 +294,7 @@ class AgnixConformanceTest(unittest.TestCase):
             (undeclared / "sibling-only.txt").write_text("SIBLING_ONLY", encoding="utf-8")
             junction = declared / "junction"
             created = subprocess.run(
-                ["cmd", "/c", "mklink", "/J", str(junction), str(undeclared)],
+                [CMD, "/c", "mklink", "/J", str(junction), str(undeclared)],
                 capture_output=True,
                 text=True,
                 check=False,

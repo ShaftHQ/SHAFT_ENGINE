@@ -4,6 +4,7 @@ import json
 import io
 import os
 import subprocess  # nosec B404 - tests drive the sync script with isolated temporary directories.
+import shutil
 import sys
 import tempfile
 import unittest
@@ -14,6 +15,7 @@ from pathlib import Path
 from scripts.agents import sync_user_harness as sync
 
 ROOT = Path(__file__).resolve().parents[2]
+GIT = shutil.which("git") or "git"
 from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
 
 OVERLAY = session_overlay(ROOT)
@@ -71,7 +73,7 @@ class SyncUserHarnessTest(unittest.TestCase):
     def test_sync_sources_are_tracked_templates_not_the_generated_overlay(self):
         """#6202: a fresh clone has no .claude/ overlay, so the sync must not read it."""
         tracked = subprocess.check_output(  # nosec B603 B607 - fixed git query.
-            ["git", "ls-files", "--", "scripts/agents/user-harness"], cwd=ROOT, text=True
+            [GIT, "ls-files", "--", "scripts/agents/user-harness"], cwd=ROOT, text=True
         ).split()
         for name in MANIFEST:
             with self.subTest(name=name):
@@ -144,7 +146,7 @@ class SyncUserHarnessTest(unittest.TestCase):
                 self.assertIsInstance(source, str)
                 historical = subprocess.check_output(
                     [
-                        "git",
+                        GIT,
                         "show",
                         f"{HISTORICAL_HARNESS_REVISION}:{source}",
                     ],
@@ -187,14 +189,14 @@ class SyncUserHarnessTest(unittest.TestCase):
         })
 
         canonical = subprocess.check_output(
-            ["git", "ls-tree", "-r", "--name-only", HISTORICAL_HARNESS_REVISION, "--", ".agents/skills"],
+            [GIT, "ls-tree", "-r", "--name-only", HISTORICAL_HARNESS_REVISION, "--", ".agents/skills"],
             cwd=ROOT,
             text=True,
         ).splitlines()
         expected_sources = {path for path in canonical if path != ".agents/skills/README.md"}
         for prefix in (".claude/skills", ".claude/agents", ".codex/agents"):
             expected_sources.update(subprocess.check_output(
-                ["git", "ls-tree", "-r", "--name-only", HISTORICAL_HARNESS_REVISION, "--", prefix],
+                [GIT, "ls-tree", "-r", "--name-only", HISTORICAL_HARNESS_REVISION, "--", prefix],
                 cwd=ROOT,
                 text=True,
             ).splitlines())
@@ -204,7 +206,7 @@ class SyncUserHarnessTest(unittest.TestCase):
         migrated = []
         for entry in entries:
             historical = subprocess.check_output(
-                ["git", "show", f"{HISTORICAL_HARNESS_REVISION}:{entry['source']}"],
+                [GIT, "show", f"{HISTORICAL_HARNESS_REVISION}:{entry['source']}"],
                 cwd=ROOT,
             )
             self.assertIn(sync.content_hash(historical), entry["hashes"])
