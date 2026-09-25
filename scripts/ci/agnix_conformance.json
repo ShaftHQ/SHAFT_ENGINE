@@ -53,6 +53,12 @@
     "scripts/ci/agent_ownership.json",
     "scripts/agents"
   ],
+  "staging_exclusions": [
+    {
+      "path": "scripts/agents/user-harness",
+      "reason": "#6226: user-level templates that sync_user_harness.py copies into ~/.claude; they are not repository agents, and agnix's agents/ path heuristic misreads their README as an agent definition (CC-AG-007)."
+    }
+  ],
   "allowlisted_findings": [],
   "evaluation": {
     "corpus_url": "https://github.com/agent-sh/agnix/archive/3792c6cfdf2e56ddf205340fb5afe8f272218501.tar.gz",

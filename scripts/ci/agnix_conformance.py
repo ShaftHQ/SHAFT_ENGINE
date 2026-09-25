@@ -57,6 +57,37 @@ def _valid_floor(floor: object) -> bool:
     return _is_int(percent) and 1 <= percent <= 100 and isinstance(reason, str) and bool(reason.strip())
 
 
+def _is_relative_posix(path: object) -> bool:
+    """Return whether ``path`` is a non-empty, relative, traversal-free POSIX path."""
+    return (
+        isinstance(path, str)
+        and bool(path)
+        and "\\" not in path
+        and not PurePosixPath(path).is_absolute()
+        and ".." not in PurePosixPath(path).parts
+    )
+
+
+def _valid_exclusions(exclusions: object, staging: object) -> bool:
+    """Return whether every exclusion is a reasoned sub-path of one staging path (#6226)."""
+    if not isinstance(exclusions, list) or not isinstance(staging, list):
+        return False
+    paths = []
+    for exclusion in exclusions:
+        if not isinstance(exclusion, dict) or set(exclusion) != {"path", "reason"}:
+            return False
+        path, reason = exclusion["path"], exclusion["reason"]
+        if not _is_relative_posix(path) or not isinstance(reason, str) or not reason.strip():
+            return False
+        inside = any(
+            isinstance(root, str) and PurePosixPath(path).is_relative_to(root) and path != root for root in staging
+        )
+        if not inside:
+            return False
+        paths.append(path)
+    return len(paths) == len(set(paths))
+
+
 def validate_contract(contract: object) -> list[str]:  # noqa: MC0001 - fail-closed schema validation stays linear.
     """Return deterministic defects for one agnix contract."""
     defects: list[str] = []
@@ -69,6 +100,7 @@ def validate_contract(contract: object) -> list[str]:  # noqa: MC0001 - fail-clo
         "files_checked_floor",
         "artifacts",
         "staging_paths",
+        "staging_exclusions",
         "allowlisted_findings",
         "evaluation",
     }
@@ -154,6 +186,8 @@ def validate_contract(contract: object) -> list[str]:  # noqa: MC0001 - fail-clo
         or len(staging) != len(set(staging))
     ):
         defects.append("staging_paths must be unique non-empty relative paths")
+    if not _valid_exclusions(contract.get("staging_exclusions"), staging):
+        defects.append("staging_exclusions must be unique reasoned sub-paths of a staging path")
 
     allowlist = contract.get("allowlisted_findings")
     # #6221: the ledger lists only real, still-present intentional findings.
@@ -272,6 +306,7 @@ def stage_harness(
         raise ValueError("fixture destination must be disposable and outside the repository")
     generated = Path(generated_root).resolve(strict=True) if generated_root is not None else None
     origins: dict[str, tuple[Path, Path]] = {}
+    excluded = [exclusion["path"] for exclusion in contract["staging_exclusions"]]
     for relative in contract["staging_paths"]:
         root = source
         source_path = source / relative
@@ -280,6 +315,9 @@ def stage_harness(
         if not source_path.exists():
             raise ValueError(f"declared staging input is missing: {relative}")
         origins[relative] = (root, source_path)
+        for exclusion in excluded:
+            if PurePosixPath(exclusion).is_relative_to(relative) and not (root / exclusion).exists():
+                raise ValueError(f"staging exclusion is stale (matches nothing): {exclusion}")
         for candidate in (source_path, *source_path.rglob("*")):
             if candidate.is_symlink():
                 raise ValueError(f"declared staging input contains a symlink: {candidate}")
@@ -298,7 +336,13 @@ def stage_harness(
         target_path = target / relative
         target_path.parent.mkdir(parents=True, exist_ok=True)
         if source_path.is_dir():
-            shutil.copytree(source_path, target_path)
+            root = origins[relative][0]
+            skip = {(root / exclusion).resolve() for exclusion in excluded}
+
+            def _ignore(directory: str, names: list[str], skip: set[Path] = skip) -> set[str]:
+                return {name for name in names if (Path(directory) / name).resolve() in skip}
+
+            shutil.copytree(source_path, target_path, ignore=_ignore)
         else:
             shutil.copy2(source_path, target_path)
         copied.append(relative)
