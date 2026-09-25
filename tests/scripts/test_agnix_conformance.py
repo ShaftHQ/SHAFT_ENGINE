@@ -293,9 +293,59 @@ class AgnixConformanceTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "symlink"):
                     stage_harness(ROOT, destination, contract)
 
+    def test_contract_excludes_user_harness_templates_from_staging(self):
+        """#6226: the ~/.claude templates are not repository agents."""
+        contract = load_contract(ROOT)
+        self.assertEqual(
+            [exclusion["path"] for exclusion in contract["staging_exclusions"]],
+            ["scripts/agents/user-harness"],
+        )
+        self.assertIn("scripts/agents", contract["staging_paths"])
+        self.assertEqual(
+            [], [row for row in contract["allowlisted_findings"] if "user-harness" in row["path"]]
+        )
+
+    def test_invalid_staging_exclusions_are_rejected(self):
+        contract = load_contract(ROOT)
+        for bad in (
+            None,
+            [{"path": "outside/dir", "reason": "r"}],
+            [{"path": "scripts/agents", "reason": "r"}],
+            [{"path": "scripts/agents/user-harness", "reason": " "}],
+            [{"path": "scripts/agents/../x", "reason": "r"}],
+            [{"path": "scripts/agents/user-harness", "reason": "r"}] * 2,
+            [{"path": "scripts/agents/user-harness"}],
+        ):
+            mutated = copy.deepcopy(contract)
+            mutated["staging_exclusions"] = bad
+            with self.subTest(bad=bad):
+                self.assertNotEqual(validate_contract(mutated), [])
+
+    def test_staging_omits_excluded_subtree_and_fails_on_a_stale_exclusion(self):
+        contract = load_contract(ROOT)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            (source / "declared/keep").mkdir(parents=True)
+            (source / "declared/skip").mkdir(parents=True)
+            (source / "declared/keep/AGENTS.md").write_text("keep\n", encoding="utf-8")
+            (source / "declared/skip/README.md").write_text("skip\n", encoding="utf-8")
+            contract["staging_paths"] = ["declared"]
+            contract["staging_exclusions"] = [{"path": "declared/skip", "reason": "fixture"}]
+
+            stage_harness(source, root / "fixtures", contract)
+
+            self.assertTrue((root / "fixtures/declared/keep/AGENTS.md").is_file())
+            self.assertFalse((root / "fixtures/declared/skip").exists())
+
+            contract["staging_exclusions"] = [{"path": "declared/gone", "reason": "fixture"}]
+            with self.assertRaisesRegex(ValueError, "stale"):
+                stage_harness(source, root / "fixtures-2", contract)
+
     def test_staging_rejects_an_entry_that_resolves_outside_the_source_root(self):
         contract = load_contract(ROOT)
         contract["staging_paths"] = ["AGENTS.md"]
+        contract["staging_exclusions"] = []
         with tempfile.TemporaryDirectory() as directory:
             destination = Path(directory) / "fixtures"
             outside = Path(directory) / "junction-target" / "AGENTS.md"
@@ -316,6 +366,7 @@ class AgnixConformanceTest(unittest.TestCase):
     def test_staging_rejects_a_windows_directory_junction(self):
         contract = load_contract(ROOT)
         contract["staging_paths"] = ["declared"]
+        contract["staging_exclusions"] = []
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "source"
@@ -340,6 +391,7 @@ class AgnixConformanceTest(unittest.TestCase):
     def test_staging_rejects_a_junction_to_an_undeclared_in_root_directory(self):
         contract = load_contract(ROOT)
         contract["staging_paths"] = ["declared"]
+        contract["staging_exclusions"] = []
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source = root / "source"
