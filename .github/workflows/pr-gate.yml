@@ -375,6 +375,9 @@ jobs:
               # CI, so cd_intellij_verify lost its coverage upload unnoticed.
               - 'scripts/ci/validate_quality_configuration.py'
               - 'tests/scripts/test_validate_quality_configuration.py'
+              # Issue #6208: macOS opt-in label rerun helper.
+              - 'scripts/ci/rerun_pr_gate_on_label.py'
+              - 'tests/scripts/test_rerun_pr_gate_on_label.py'
               # Issue #6185: the post-merge main-red reaction and its pins.
               - 'scripts/ci/main_red_reaction.py'
               - 'tests/scripts/test_main_red_reaction.py'
@@ -917,6 +920,7 @@ jobs:
           tests.scripts.test_pr_gate_time_to_merge
           tests.scripts.test_shard_test_selector
           tests.scripts.test_validate_quality_configuration
+          tests.scripts.test_rerun_pr_gate_on_label
           -v
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
