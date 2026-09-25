@@ -477,43 +477,19 @@ jobs:
             exit 0
           fi
 
+          # #6241: the rendered summary line plus a link; one helper shared with
+          # scripts/ci/reconcile_maven_central_release.py.
           python3 - <<'PY' > /tmp/slack_release_payload.json
           import json
           import os
+          from pathlib import Path
 
+          from scripts.ci.render_release_notes import slack_payload
+
+          body = Path("/tmp/release_body.md").read_text(encoding="utf-8")
           version = os.environ["RELEASE_VERSION"]
           release_url = os.environ["RELEASE_URL"]
-          summary = (
-              f"SHAFT_ENGINE {version} is now available. The release notes are intentionally "
-              "minimal and highlight only major new features, breaking changes, and new contributors."
-          )
-          payload = {
-              "text": f"SHAFT_ENGINE {version} released: {release_url}",
-              "blocks": [
-                  {
-                      "type": "section",
-                      "text": {
-                          "type": "mrkdwn",
-                          "text": f":tada: *SHAFT_ENGINE {version}* is now available!",
-                      },
-                  },
-                  {
-                      "type": "section",
-                      "text": {"type": "mrkdwn", "text": summary},
-                  },
-                  {
-                      "type": "actions",
-                      "elements": [
-                          {
-                              "type": "button",
-                              "text": {"type": "plain_text", "text": "View release notes"},
-                              "url": release_url,
-                          }
-                      ],
-                  },
-              ],
-          }
-          print(json.dumps(payload))
+          print(json.dumps(slack_payload(version, release_url, body)))
           PY
           curl --fail --silent --show-error \
             --request POST \

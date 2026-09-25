@@ -104,11 +104,14 @@ class IntelliJPluginDevelopmentSkillTest(unittest.TestCase):
                 self.assertIn(token, MASTERY.read_text(encoding="utf-8"))
 
     def test_expected_skill_names_exclude_adapter_and_map_lists_playbook(self) -> None:
+        # #6240: #6091 dropped the ".agents/skills" key when the overlay moved
+        # skills under chaos-engine/skills; the contract is that no skill root
+        # expects an IntelliJ adapter, and none exists on disk.
         budget = json.loads(BUDGET.read_text(encoding="utf-8"))
-        self.assertNotIn(
-            SKILL_NAME,
-            budget["expected_skill_names"][".agents/skills"],
-        )
+        for root, names in budget["expected_skill_names"].items():
+            with self.subTest(root=root):
+                self.assertNotIn(SKILL_NAME, names)
+        self.assertFalse(ADAPTER.exists())
         map_text = SKILLS_MAP.read_text(encoding="utf-8")
         self.assertNotIn(f".agents/skills/{SKILL_NAME}/SKILL.md", map_text)
         self.assertIn(f"playbooks/{SKILL_NAME}.md", map_text)

@@ -11,6 +11,7 @@ PRODUCT = ROOT / "chaos-engine/skills/self-improve/references/product-track.md"
 PROFILE_PRODUCT = ROOT / "chaos-engine/profiles/shaft/references/product-track.md"
 LEVEL1 = ROOT / "chaos-engine/references/level-1-catalog.md"
 CE_SKILL = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
+ROUTER_CONTRACT = ROOT / "chaos-engine/references/router-contract.md"
 SI_SKILL = ROOT / "chaos-engine/skills/self-improve/SKILL.md"
 AGENTS = ROOT / "AGENTS.md"
 DELEGATION = ROOT / "chaos-engine/references/delegation.md"
@@ -64,9 +65,14 @@ class S3SelfImproveTests(unittest.TestCase):
         self.assertIn("context-firewall.md", level1)
         self.assertIn("Context firewall", level1)
 
+        # #6240: the router core card (bf71b6f417) keeps the firewall route and
+        # loads the router contract, which now owns the filepath:line rule.
         skill = CE_SKILL.read_text(encoding="utf-8")
         self.assertIn("context-firewall.md", skill)
-        self.assertIn("filepath:line", skill)
+        self.assertIn("references/router-contract.md", skill)
+        router_contract = ROUTER_CONTRACT.read_text(encoding="utf-8")
+        self.assertIn("context-firewall.md", router_contract)
+        self.assertIn("filepath:line", router_contract)
 
         agents = AGENTS.read_text(encoding="utf-8")
         self.assertIn("context-firewall.md", agents)

@@ -314,6 +314,18 @@ CHECKS = {
         "research",
         ("tests.scripts.test_chaos_engine_research",),
     ),
+    # #6240: red on main for days because nothing selected them. Each runs
+    # in well under a second, so they are gated on every input they read.
+    "intellij-skill-contract": Check(
+        "intellij-skill-contract",
+        "intellij-skill",
+        ("tests.scripts.test_intellij_plugin_development_skill",),
+    ),
+    "self-improve-overlay-contract": Check(
+        "self-improve-overlay-contract",
+        "self-improve",
+        ("tests.scripts.test_chaos_engine_s3_self_improve",),
+    ),
     "graphify-maintenance-contract": Check(
         "graphify-maintenance-contract",
         "retrieval",
@@ -351,6 +363,8 @@ SURFACE_CHECKS = {
     "portable-core": ("portable-core-contract",),
     "plugin-assembly": ("plugin-assembly-contract",),
     "research": ("research-matrix-contract",),
+    "intellij-skill": ("intellij-skill-contract",),
+    "self-improve": ("self-improve-overlay-contract",),
     "ci": ("ci-contract", "setup-aggregator-contract"),
     "installer": (
         "protected-installer-acceptance",
@@ -587,6 +601,30 @@ SURFACE_PATTERNS = {
         "scripts/agents/watch_pr_checks.py",
         "scripts/ci/assemble_chaos_engine_plugin.py",
         "tests/scripts/test_assemble_chaos_engine_plugin.py",
+    ),
+    # #6240: the exact files each module reads.
+    "intellij-skill": (
+        ".agents/skills/README.md",
+        ".agents/skills/intellij-plugin-development/*",
+        "chaos-engine/profiles/shaft/references/playbooks/intellij-plugin-development.md",
+        "chaos-engine/profiles/shaft/references/shaft-mastery/intellij-plugin.md",
+        "chaos-engine/profiles/shaft/references/routing.md",
+        "scripts/ci/agent_guidance_budget.json",
+        "tests/scripts/test_intellij_plugin_development_skill.py",
+    ),
+    "self-improve": (
+        "AGENTS.md",
+        "chaos-engine/references/context-firewall.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/delegation.md",
+        "chaos-engine/references/context-economy.md",
+        "chaos-engine/references/research-receipt.md",
+        "chaos-engine/references/router-contract.md",
+        "chaos-engine/skills/chaos-engine/SKILL.md",
+        "chaos-engine/skills/self-improve/*",
+        "chaos-engine/profiles/shaft/references/product-track.md",
+        "chaos-engine/profiles/shaft/references/routing.md",
+        "tests/scripts/test_chaos_engine_s3_self_improve.py",
     ),
     "research": (
         "chaos-engine/RESEARCH.md",

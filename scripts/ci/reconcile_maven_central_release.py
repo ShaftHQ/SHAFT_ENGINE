@@ -176,8 +176,8 @@ def upload_plugin_release_assets(version: str, assets: list[Path]) -> None:
         )
 
 
-def create_release(version: str, assets: list[Path]) -> str:
-    """Create the GitHub Release for a version and return its URL."""
+def create_release(version: str, assets: list[Path]) -> tuple[str, str]:
+    """Create the GitHub Release for a version and return its URL and rendered body."""
     with tempfile.TemporaryDirectory(prefix="shaft-release-body-") as temp_dir:
         body_file = Path(temp_dir) / "release_body.md"
         body, fallback = render_release_body(version)
@@ -189,41 +189,12 @@ def create_release(version: str, assets: list[Path]) -> str:
                 f"gh release create failed (exit {result.returncode}): "
                 f"{result.stderr.strip() or result.stdout.strip()}"
             )
-        return result.stdout.strip()
+        return result.stdout.strip(), body
 
 
-def build_slack_payload(version: str, release_url: str) -> dict:
-    """Build the Slack payload, mirroring mavenCentral_cd.yml's inline Python block exactly."""
-    summary = (
-        f"SHAFT_ENGINE {version} is now available. The release notes are intentionally "
-        "minimal and highlight only major new features, breaking changes, and new contributors."
-    )
-    return {
-        "text": f"SHAFT_ENGINE {version} released: {release_url}",
-        "blocks": [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f":tada: *SHAFT_ENGINE {version}* is now available!",
-                },
-            },
-            {
-                "type": "section",
-                "text": {"type": "mrkdwn", "text": summary},
-            },
-            {
-                "type": "actions",
-                "elements": [
-                    {
-                        "type": "button",
-                        "text": {"type": "plain_text", "text": "View release notes"},
-                        "url": release_url,
-                    }
-                ],
-            },
-        ],
-    }
+def build_slack_payload(version: str, release_url: str, body: str = "") -> dict:
+    """Build the Slack payload with the same helper as mavenCentral_cd.yml (#6241)."""
+    return release_notes.slack_payload(version, release_url, body)
 
 
 def post_slack_notification(webhook_url: str, payload: dict) -> None:
@@ -312,15 +283,15 @@ def reconcile_release(
             upload_plugin_release_assets(version, assets)
             print(f"Repaired portable Agent Plugin assets on GitHub Release {version}.")
             return 0
-        release_url = create_release(version, assets)
-        print(f"Created GitHub Release {version}: {release_url}")
+        release = create_release(version, assets)  # (url, rendered body)
+        print(f"Created GitHub Release {version}: {release[0]}")
 
     webhook_url = os.environ.get("SLACK_WEBHOOK_URL")
     if not webhook_url:
         print("SLACK_WEBHOOK_URL is not configured; skipping Slack release announcement.")
         return 0
 
-    post_slack_notification(webhook_url, build_slack_payload(version, release_url))
+    post_slack_notification(webhook_url, build_slack_payload(version, *release))
     print("Posted Slack release announcement.")
     return 0
 

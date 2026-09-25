@@ -86,6 +86,16 @@ class SlackPayloadTest(unittest.TestCase):
         )
         self.assertEqual(payload["blocks"][2]["elements"][0]["url"], "https://example.test/release")
 
+    def test_payload_reuses_the_rendered_summary_line(self):
+        body = "# SHAFT 1.2.3\n\n**Heads-up:** 1 breaking change.\n\n```xml\n```\n"
+        payload = reconcile.build_slack_payload("1.2.3", "https://example.test/release", body)
+
+        self.assertEqual(
+            "*Heads-up:* 1 breaking change. <https://example.test/release|Release notes>",
+            payload["blocks"][1]["text"]["text"],
+        )
+        self.assertNotIn("new contributors", json.dumps(payload))
+
 
 class RenderReleaseBodyTest(unittest.TestCase):
     def test_uses_the_minimal_release_notes_renderer(self):

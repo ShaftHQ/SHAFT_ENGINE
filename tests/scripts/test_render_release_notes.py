@@ -247,6 +247,41 @@ class CollectTest(unittest.TestCase):
         self.assertEqual("fallback=true\n", flag)
 
 
+class SlackAnnouncementTest(unittest.TestCase):
+    """#6241: Slack reuses the rendered summary line plus a link."""
+
+    URL = "https://github.com/ShaftHQ/SHAFT_ENGINE/releases/tag/1.2.3"
+
+    def test_summary_is_the_text_between_heading_and_snippet(self):
+        body = notes.render_release(
+            "1.2.3", [pull(1, "feat: x", ["enhancement"])], "1.2.2", template=TEMPLATE
+        )
+        line = "This release brings 1 new feature for SHAFT users."
+        self.assertEqual(line, notes.release_summary(f"# SHAFT 1.2.3\n\n{line}\n\n```xml\n"))
+        self.assertEqual("", notes.release_summary("# SHAFT 1.2.3\n\n```xml\n"))
+        self.assertIn("1 new feature", notes.release_summary(body))
+
+    def test_payload_uses_summary_and_link_without_contributor_promise(self):
+        body = "# SHAFT 1.2.3\n\n**Heads-up:** 1 breaking change.\nHighlights: X.\n\n```xml\n"
+        payload = notes.slack_payload("1.2.3", self.URL, body)
+        section = payload["blocks"][1]["text"]["text"]
+        expected = f"*Heads-up:* 1 breaking change. Highlights: X. <{self.URL}|Release notes>"
+        self.assertEqual(expected, section)
+        self.assertEqual(self.URL, payload["blocks"][2]["elements"][0]["url"])
+        self.assertNotIn("contributor", json.dumps(payload))
+
+    def test_fallback_body_gets_a_neutral_summary(self):
+        fallback = notes.render_fallback("1.2.3", "1.2.2")
+        section = notes.slack_payload("1.2.3", self.URL, fallback)["blocks"][1]["text"]["text"]
+        self.assertTrue(section.startswith(notes.SLACK_FALLBACK_SUMMARY))
+
+    def test_release_workflow_uses_the_shared_helper(self):
+        workflow = (ROOT / ".github/workflows/mavenCentral_cd.yml").read_text(encoding="utf-8")
+        self.assertIn("from scripts.ci.render_release_notes import slack_payload", workflow)
+        self.assertIn('Path("/tmp/release_body.md")', workflow)
+        self.assertNotIn("new contributors", workflow)
+
+
 class GovernanceParityTest(unittest.TestCase):
     """The renderer and the Release-note governance check share one label taxonomy."""
 
