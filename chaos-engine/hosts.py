@@ -1313,6 +1313,9 @@ def mcp_runtime_status(
     account_commands: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Return one bounded MCP runtime result without retaining child output."""
+    if not mcp_opt_in(project):
+        # #6199: CLI-equivalent servers are not published, so nothing to probe.
+        return {"status": "healthy", "detail": "mcp-opted-out"}
     palace = (
         resolved_central_palace(project)
         if repository_map_resolver_present(project)
@@ -3735,8 +3738,40 @@ def owned_servers(
     managed_python: Path | None = None,
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
+    with_mcp: bool = False,
 ) -> dict[str, dict[str, object]]:
     del platform_name
+    servers = _optional_servers(managed_python, account_commands) if with_mcp else {}
+    _add_maven_server(servers, maven_runtime, maven_docker, managed_python)
+    return servers
+
+
+WITH_MCP_ENV = "CHAOS_ENGINE_WITH_MCP"
+WITH_MCP_MARKER = ".chaos-engine-state/with-mcp"
+
+
+def mcp_opt_in(project: Path | None) -> bool:
+    """`install --with-mcp` (persisted marker) or the env opt-in (#6199)."""
+    if os.environ.get(WITH_MCP_ENV) == "1":
+        return True
+    return project is not None and (Path(project) / WITH_MCP_MARKER).is_file()
+
+
+def write_mcp_opt_in(project: Path, enabled: bool) -> None:
+    """Persist the MCP opt-in in untracked state so repair keeps the choice."""
+    marker = Path(project) / WITH_MCP_MARKER
+    if not enabled:
+        with contextlib.suppress(FileNotFoundError):
+            marker.unlink()
+        return
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("with-mcp\n", encoding="utf-8")
+
+
+def _optional_servers(
+    managed_python: Path | None, account_commands: dict[str, str] | None
+) -> dict[str, dict[str, object]]:
+    """CLI-equivalent servers published only with the MCP opt-in (#6199)."""
     servers: dict[str, dict[str, object]] = {
         "chaosengine-memory": portable_python_server(
             [".chaos-engine/tool.py", "memory-mcp"], managed_python=managed_python
@@ -3760,6 +3795,15 @@ def owned_servers(
             [".chaos-engine/tool.py", "mempalace-mcp"],
             extra={"env": dict(MEMPALACE_MCP_ENV)},
         )
+    return servers
+
+
+def _add_maven_server(
+    servers: dict[str, dict[str, object]],
+    maven_runtime: tuple[Path, Path] | None,
+    maven_docker: tuple[str, str] | None,
+    managed_python: Path | None,
+) -> None:
     if maven_runtime is not None:
         # Portable shared-cache contract: never embed workstation-absolute
         # java/jar paths in git-tracked project overlay (#5782). Discovery of
@@ -3775,7 +3819,6 @@ def owned_servers(
             "command": "docker",
             "args": ["run", "-i", "--rm", image],
         }
-    return servers
 
 
 def managed_paths() -> tuple[str, ...]:
@@ -4625,12 +4668,16 @@ def json_content(
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
     relative: str = ".mcp.json",
+    with_mcp: bool | None = None,
 ) -> bytes:
     original = b"" if before is None else before
+    if with_mcp is None:
+        with_mcp = mcp_opt_in(None)
     desired = owned_servers(
         maven_runtime=maven_runtime, managed_python=managed_python,
         account_commands=account_commands,
         maven_docker=maven_docker,
+        with_mcp=with_mcp,
     )
     # Never publish GitHub MCP or the consumer product MCP into CE overlay (#5943).
     _ce_forbidden_mcp = {
@@ -4665,6 +4712,8 @@ def json_content(
             legacy_name, servers[legacy_name]
         ):
             del servers[legacy_name]
+    if not with_mcp:
+        _drop_opted_out_servers(servers, managed_python, account_commands)
     for name, server in desired.items():
         if str(name).strip().casefold() in _ce_forbidden_mcp:
             continue
@@ -4678,6 +4727,18 @@ def json_content(
         servers[name] = server
     return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode()
 
+
+
+def _drop_opted_out_servers(
+    servers: dict[str, object],
+    managed_python: Path | None,
+    account_commands: dict[str, str] | None,
+) -> None:
+    """Remove ChaosEngine-owned optional servers; keep same-name foreign ones (#6199)."""
+    owned = _optional_servers(managed_python, account_commands)
+    for name, desired in owned.items():
+        if name in servers and replaceable_owned_server(name, servers[name], desired):
+            del servers[name]
 
 
 _OWNED_CODEX_MCP_SERVERS = frozenset(
@@ -4851,8 +4912,11 @@ def codex_content(
     managed_python: Path | None = None,
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
+    with_mcp: bool | None = None,
 ) -> bytes:
     original = b"" if before is None else before
+    if with_mcp is None:
+        with_mcp = mcp_opt_in(None)
     try:
         existing = original.decode("utf-8") if before is not None else ""
     except UnicodeDecodeError:
@@ -4887,9 +4951,9 @@ def codex_content(
     del platform_name
     posix_command, _posix_prefix = interpreter("posix")
     windows_command, _windows_prefix = interpreter("nt")
-    if managed_python is not None:
-        posix_command = windows_command = str(managed_python).replace("\\", "\\\\")
-    windows_prefix = "" if managed_python is not None else '"-3", '
+    # #6199: tracked Codex config never embeds the managed interpreter; tool.py
+    # hands off to it. Legacy absolute spellings stay recognized for upgrade.
+    windows_prefix = '"-3", '
     memory_args = '".chaos-engine/tool.py", "memory-mcp"'
     mempalace_args = '".chaos-engine/tool.py", "mempalace-mcp"'
     if account_commands is not None:
@@ -4926,6 +4990,8 @@ def codex_content(
         '\n[mcp_servers.context7]\nurl = "https://mcp.context7.com/mcp"\n'
         "# CHAOSENGINE:END\n",
     )
+    if not with_mcp:
+        block = "# CHAOSENGINE:START\n# CHAOSENGINE:END\n"
     if maven_runtime is not None:
         # Portable launcher — no absolute java/jar in tracked Codex config (#5782).
         maven_cmd = posix_command
@@ -5160,7 +5226,10 @@ def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None, ma
 
 
 def copilot_hooks_document(managed_node: Path | None = None) -> bytes:
-    node = json.dumps(str(managed_node)) if managed_node else "node"
+    # #6199: the host CLI is itself a Node app, so bare `node` resolves; the
+    # launcher reads the untracked hook-python pointer for the guard runtime.
+    del managed_node
+    node = "node"
     handler = {
         "type": "command",
         "bash": f"{node} .chaos-engine/hooks/launch.js copilot",
@@ -5185,7 +5254,8 @@ def copilot_hooks_document(managed_node: Path | None = None) -> bytes:
 
 
 def gemini_hooks_document(managed_node: Path | None = None) -> bytes:
-    node = json.dumps(str(managed_node)) if managed_node else "node"
+    del managed_node  # #6199: portable, see copilot_hooks_document.
+    node = "node"
     handler = {
         "type": "command",
         "command": f"{node} .chaos-engine/hooks/launch.js gemini",
@@ -6209,14 +6279,15 @@ def desired_content(
         copilot_instruction_block(tree),
         relative=".github/copilot-instructions.md",
     )
+    with_mcp = mcp_opt_in(project)
     after[".mcp.json"] = json_content(
         before[".mcp.json"], maven_runtime, managed_python, account_commands,
-        maven_docker, relative=".mcp.json",
+        maven_docker, relative=".mcp.json", with_mcp=with_mcp,
     )
     gemini_settings = json_content(
         before[".gemini/settings.json"], maven_runtime, managed_python,
         account_commands,
-        maven_docker, relative=".gemini/settings.json",
+        maven_docker, relative=".gemini/settings.json", with_mcp=with_mcp,
     )
     if _path_handed_off(".gemini/settings.json"):
         after[".gemini/settings.json"] = gemini_settings
@@ -6233,7 +6304,7 @@ def desired_content(
     after[".codex/config.toml"] = codex_content(
         before[".codex/config.toml"], maven_runtime=maven_runtime,
         managed_python=managed_python, account_commands=account_commands,
-        maven_docker=maven_docker,
+        maven_docker=maven_docker, with_mcp=with_mcp,
     )
     after[".gitattributes"] = gitattributes_content(before[".gitattributes"])
     return after

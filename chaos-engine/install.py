@@ -5594,6 +5594,15 @@ def parser() -> argparse.ArgumentParser:
         help="No-op when the installed overlay already matches the source byte-for-byte (#6179).",
     )
     install_command.add_argument("--with-maven-tools", action="store_true")
+    mcp_choice = install_command.add_mutually_exclusive_group()
+    mcp_choice.add_argument(
+        "--with-mcp",
+        action="store_true",
+        help="also publish MCP servers whose job a ChaosEngine CLI already does (#6199)",
+    )
+    mcp_choice.add_argument(
+        "--without-mcp", action="store_true", help="withdraw a previous --with-mcp opt-in"
+    )
     install_command.add_argument(
         "--maven-tools-mode", choices=("native", "docker"), default="native"
     )
@@ -6193,6 +6202,20 @@ def validate_install_options(args: argparse.Namespace) -> None:
         raise ValueError("--agent-summary cannot be combined with --json")
 
 
+WITH_MCP_MARKER = ".chaos-engine-state/with-mcp"
+
+
+def record_mcp_opt_in(project: Path, args: argparse.Namespace) -> None:
+    """Persist `--with-mcp` / `--without-mcp` for hosts rendering and later repairs."""
+    marker = Path(project) / WITH_MCP_MARKER
+    if getattr(args, "with_mcp", False):
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("with-mcp\n", encoding="utf-8")
+    elif getattr(args, "without_mcp", False):
+        with contextlib.suppress(FileNotFoundError):
+            marker.unlink()
+
+
 def main() -> int:
     args = parser().parse_args()
     try:
@@ -6211,6 +6234,7 @@ def main() -> int:
                 if getattr(args, f"without_{name}", False):
                     bundle[name] = False
             write_bundle_options(args.project, bundle)
+            record_mcp_opt_in(args.project, args)
             target = (
                 install(
                     args.project,

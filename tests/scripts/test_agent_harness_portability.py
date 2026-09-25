@@ -413,6 +413,16 @@ def absolute_guidance_path_offenders(
     ]
 
 
+def _load_hosts():
+    import importlib.util as _ilu
+
+    spec = _ilu.spec_from_file_location("hosts_portability_6199", ROOT / "chaos-engine/hosts.py")
+    module = _ilu.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 class AgentHarnessPortabilityTest(unittest.TestCase):
     def test_codex_discovers_only_the_repo_local_router(self):
         # #6202: host skill dirs are generated into the overlay, never tracked (#5713).
@@ -992,13 +1002,15 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             "MEMPALACE_EMBEDDING_MODEL": "minilm",
             "MEMPALACE_BACKEND": "sqlite_exact",
         }
-        self.assertEqual(
-            claude_mcp["mcpServers"]["mempalace"]["env"],
-            expected_mempalace_env,
-        )
-        codex = tomllib.loads((OVERLAY / ".codex/config.toml").read_text(encoding="utf-8"))
-        project_mcp = claude_mcp["mcpServers"]["mempalace"]
-        codex_mcp = codex["mcp_servers"]["mempalace"]
+        # #6199: MemPalace MCP is opt-in; the tracked file is the CLI-only default
+        # and the opted-in renders of both hosts agree on the backend env.
+        self.assertNotIn("chaosengine-mempalace", claude_mcp["mcpServers"])
+        hosts = _load_hosts()
+        project_mcp = json.loads(hosts.json_content(None, with_mcp=True))["mcpServers"][
+            "chaosengine-mempalace"
+        ]
+        codex = tomllib.loads(hosts.codex_content(None, with_mcp=True).decode("utf-8"))
+        codex_mcp = codex["mcp_servers"]["chaosengine-mempalace"]
         self.assertEqual(codex_mcp["command"], project_mcp["command"])
         self.assertEqual(codex_mcp["env"], project_mcp["env"])
         self.assertEqual(codex_mcp["env"], expected_mempalace_env)

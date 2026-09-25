@@ -2176,7 +2176,7 @@ class RetrievalParityTest(unittest.TestCase):
 
     def test_both_hosts_declare_the_same_retrieval_servers(self):
         tomllib = __import__("tomllib")
-        codex = set(tomllib.loads(host_file_text(".codex/config.toml"))["mcp_servers"])
+        codex = set(tomllib.loads(host_file_text(".codex/config.toml")).get("mcp_servers", {}))
         claude = set(json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"])
         # tomllib nests `[mcp_servers.x.tools.y]` under x, so these are the
         # server names only.

@@ -176,6 +176,13 @@ older installation cannot be certified as latest. `.chaos-engine-dependencies.js
 sanitized observed versions, absolute executables, probes, providers, actions,
 and freshness without claiming ownership of global packages.
 
+Host MCP files carry only the profile's servers by default. Memory, MemPalace
+and Context7 have CLIs (`tool.py memory|mempalace`, `npx ctx7@latest`), so
+their MCP servers are opt-in: `install --with-mcp` publishes them and persists the
+choice in `.chaos-engine-state/with-mcp`; `--without-mcp` withdraws it. Doctor
+MCP health skips opted-out servers. Tracked host files name `python3` / `py -3`
+and `node`; the managed interpreter lives in `.chaos-engine-state/hook-python`.
+
 A root `pom.xml` enables Maven Tools MCP automatically. Pass `--with-maven-tools`
 to force it on a non-Maven project. `--skip-tools` still skips it. Java
 resolution prefers `CHAOSENGINE_JAVA`, then `JAVA_HOME`, then `PATH` and requires
