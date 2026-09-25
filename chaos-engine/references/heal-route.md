@@ -22,7 +22,7 @@ points here; do not require plugin activation to heal.
    success-with-agent-prompt, agentic one-liner) and
    [`installer-program-executable-spec.md`](installer-program-executable-spec.md)
 
-`CE-GITHUB-RATE-LIMIT` means the GitHub API quota is spent. The bootstrap
+GitHub API rate limit (`CE-GITHUB-RATE-LIMIT`): the quota is spent. The bootstrap
 already uses `GITHUB_TOKEN`, `GH_TOKEN`, or a signed-in `gh`; otherwise run
 `gh auth login` or export `GITHUB_TOKEN="$(gh auth token)"` and rerun.
 

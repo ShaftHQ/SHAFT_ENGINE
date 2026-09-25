@@ -35,6 +35,21 @@ sizes and empty-cell counts from `getBoundingClientRect()`, and computed font
 sizes per viewport. Screenshots support review. They never replace an
 assertion.
 
+## Wide tables
+
+- Scroll the table, not the page: wrap the real `<table>` in `<div
+  role="region" tabindex="0" aria-labelledby="<caption or heading id>">` with
+  `overflow-x: auto` and a 3:1 `:focus-visible` outline. WCAG 2.2 1.4.10
+  exempts only the table, so `scrollWidth <= innerWidth` still holds at 320;
+  2.1.1 needs the tab stop.
+- Keep table semantics: a `<caption>` or labelled heading, `<th scope>`. No
+  `display` override on table parts, no `role="grid"`, no card stacking.
+- Restructure instead when cells hold paragraphs or lists, rows differ, it is
+  layout, or there are too many columns: split, use prose or lists, or swap axes.
+- Verify: axe `scrollable-region-focusable` passes, Tab reaches the named
+  region, ArrowRight scrolls it, in every theme. Sources: Roselli, Pickering,
+  GOV.UK, USWDS, MDN.
+
 ## Visual matrix
 
 Capture Playwright screenshots before and after, in every theme, at 390x844,
