@@ -7,8 +7,8 @@ import io
 import json
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 from scripts.ci import render_release_notes as notes
 from scripts.ci import validate_release_notes
@@ -232,8 +232,8 @@ class CollectTest(unittest.TestCase):
         self.assertIn("compare/1.0.0...1.1.0", body)
 
     def test_main_writes_body_and_github_output(self):
-        offline = mock.Mock(side_effect=RuntimeError("offline"))
-        with tempfile.TemporaryDirectory() as temp_dir, mock.patch.object(
+        offline = unittest.mock.Mock(side_effect=RuntimeError("offline"))
+        with tempfile.TemporaryDirectory() as temp_dir, unittest.mock.patch.object(
             notes, "run_command", offline
         ), contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             output = Path(temp_dir) / "body.md"
