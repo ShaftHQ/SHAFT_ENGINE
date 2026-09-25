@@ -996,6 +996,8 @@ class WeeklyOnlyModulesOnPrGateTest(unittest.TestCase):
         "tests.scripts.test_assemble_chaos_engine_plugin": "plugin-assembly-contract",
         "tests.scripts.test_chaos_engine_research": "research-matrix-contract",
         "tests.scripts.test_graphify_maintenance": "graphify-maintenance-contract",
+        "tests.scripts.test_intellij_plugin_development_skill": "intellij-skill-contract",
+        "tests.scripts.test_chaos_engine_s3_self_improve": "self-improve-overlay-contract",
     }
 
     def test_each_module_has_a_check_selected_by_its_own_inputs(self) -> None:
@@ -1029,6 +1031,19 @@ class WeeklyOnlyModulesOnPrGateTest(unittest.TestCase):
             ("chaos-engine/RESEARCH.md", "research-matrix-contract"),
             ("tools/repository-map/graphify_maintenance.py", "graphify-maintenance-contract"),
             (".agents/skills/README.md", "router-contract"),
+            # #6240: every input of the two formerly unselected suites.
+            (".agents/skills/README.md", "intellij-skill-contract"),
+            ("scripts/ci/agent_guidance_budget.json", "intellij-skill-contract"),
+            ("chaos-engine/profiles/shaft/references/routing.md", "intellij-skill-contract"),
+            (
+                "chaos-engine/profiles/shaft/references/shaft-mastery/intellij-plugin.md",
+                "intellij-skill-contract",
+            ),
+            ("chaos-engine/skills/chaos-engine/SKILL.md", "self-improve-overlay-contract"),
+            ("chaos-engine/references/router-contract.md", "self-improve-overlay-contract"),
+            ("chaos-engine/references/context-firewall.md", "self-improve-overlay-contract"),
+            ("chaos-engine/skills/self-improve/SKILL.md", "self-improve-overlay-contract"),
+            ("AGENTS.md", "self-improve-overlay-contract"),
         ):
             with self.subTest(path=path):
                 self.assertIn(check_id, {check.id for check in classify_paths([path]).checks})

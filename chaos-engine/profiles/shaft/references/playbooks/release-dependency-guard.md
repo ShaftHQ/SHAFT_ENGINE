@@ -62,6 +62,8 @@ back to raw GitHub-generated notes or hand-write bodies.
   PR titles become release lines, so write them for SHAFT users.
 - Keep the renderer, template, and `scripts/ci/validate_release_notes.py`
   label sets in sync; `Release-note governance` tests that parity.
+- Slack and reconcile announcements reuse that summary line plus a link via
+  `slack_payload` (#6241); never promise sections the notes do not have.
 - Never edit a published release body. Preview with
   `python3 scripts/ci/render_release_notes.py --version <tag> --previous-tag <prev> --head <tag> --output <file>`.
 

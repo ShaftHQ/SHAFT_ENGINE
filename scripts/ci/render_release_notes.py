@@ -43,6 +43,8 @@ SKIP_LABEL = "skip-release-notes"
 # Automated "Prepare SHAFT Engine release X" version-bump PRs are the release itself.
 RELEASE_PREPARATION = re.compile(r"(?i)^\s*prepare\b.*\brelease\b")
 HIGHLIGHT_THRESHOLD = 4
+FALLBACK_SUMMARY = "The generated change list follows below."
+SLACK_FALLBACK_SUMMARY = "See the release notes for what changed."
 # Existing repository labels that mark work SHAFT library users do not consume.
 INTERNAL_LABELS = frozenset(
     {
@@ -352,10 +354,51 @@ def render_fallback(
     return render_body(
         template if template is not None else TEMPLATE.read_text(encoding="utf-8"),
         version,
-        "The generated change list follows below.",
+        FALLBACK_SUMMARY,
         "",
         render_changelog(repository, previous_tag, version),
     )
+
+
+def release_summary(body: str) -> str:
+    """Return the rendered summary: the first paragraph after the version heading."""
+    paragraphs = body.split("\n\n", 2)
+    first = paragraphs[1] if len(paragraphs) > 1 else ""
+    summary = " ".join(line.strip() for line in first.splitlines() if line.strip())
+    if summary.startswith(("```", "<")):
+        return ""
+    return "" if summary == FALLBACK_SUMMARY else summary
+
+
+def slack_payload(version: str, release_url: str, body: str = "") -> dict:
+    """Slack announcement (#6241): the release summary line plus a link to the notes."""
+    summary = release_summary(body).replace("**", "*") or SLACK_FALLBACK_SUMMARY
+    return {
+        "text": f"SHAFT_ENGINE {version} released: {release_url}",
+        "blocks": [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f":tada: *SHAFT_ENGINE {version}* is now available!",
+                },
+            },
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"{summary} <{release_url}|Release notes>"},
+            },
+            {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {"type": "plain_text", "text": "View release notes"},
+                        "url": release_url,
+                    }
+                ],
+            },
+        ],
+    }
 
 
 Runner = Callable[[Sequence[str]], str]

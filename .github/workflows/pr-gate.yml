@@ -175,6 +175,9 @@ jobs:
               # #6222: formerly weekly-only modules now gated on their inputs.
               - 'tests/scripts/test_chaos_engine_portable_core.py'
               - 'tests/scripts/test_chaos_engine_research.py'
+              # #6240: previously unselected suites that drifted red on main.
+              - 'tests/scripts/test_intellij_plugin_development_skill.py'
+              - 'tests/scripts/test_chaos_engine_s3_self_improve.py'
               - 'tests/scripts/test_chaos_engine_one_source_overlay_5713.py'
               - 'tests/scripts/test_omniroute.py'
               - 'tests/scripts/test_omniroute_workflow_contract.py'
