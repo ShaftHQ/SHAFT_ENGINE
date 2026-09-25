@@ -462,10 +462,21 @@ def _fail_open(project: Path, target: str) -> bool:
     return False
 
 
+def _oversize_heal_artifact(project: Path, relative: str) -> bool:
+    """#6219: harness exemption never covers a heal artifact above the read cap."""
+    if relative not in HEAL_ARTIFACTS:
+        return False
+    candidate = Path(project) / relative
+    try:
+        return candidate.is_file() and not candidate.is_symlink() and candidate.stat().st_size > HEAL_ARTIFACT_CAP
+    except OSError:
+        return False
+
+
 def read_allowed(project: Path, target: str) -> bool:
     """True when this path may be read without another store round trip."""
     relative = _project_relative(project, target)
-    if is_harness_path(relative):
+    if is_harness_path(relative) and not _oversize_heal_artifact(project, relative):
         return True
     return (
         _allowlisted(project, relative)
@@ -574,6 +585,9 @@ def _is_store_segment(segment: str) -> bool:
         return True
     if head not in _PY:
         return False
+    if "-c" in arguments or "-" in arguments:
+        # #6219: an inline/stdin program runs before any trailing store script.
+        return False
     scripts = [item.replace("\\", "/").casefold() for item in arguments]
     joined = " ".join(scripts)
     if any(item.endswith("tool.py") for item in scripts) and any(
@@ -621,7 +635,7 @@ def segment_kind(segment: str) -> str:
     tokens = _tokens(segment)
     head, arguments = _command_head(tokens)
     if head in _PY:
-        if "-c" in arguments:
+        if "-c" in arguments or "-" in arguments:  # #6219: stdin/heredoc scripts read too
             return "read"
         if "-m" in arguments:
             return "run"
@@ -653,8 +667,17 @@ def _read_segment_block(project: Path, segment: str) -> bool:
     return head in _SEARCH_HEADS and not _no_project_index(project)
 
 
+_PY_HEREDOC = re.compile(r"(?:^|[\s;&|(])(?:py|python3?)(?:\.exe)?\s+-\s*<<")
+
+
 def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
     for command in commands:
+        if _PY_HEREDOC.search(command or ""):
+            # #6219: a heredoc body is one program; `;` inside it is not a shell split.
+            paths = _shell_read_paths(command)
+            if paths and not all(read_allowed(project, path) for path in paths):
+                return BLOCK_REASON
+            continue
         for segment in _pipeline_parts(command):
             if segment_kind(segment) == "read" and _read_segment_block(project, segment):
                 return BLOCK_REASON
