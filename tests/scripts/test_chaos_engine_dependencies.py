@@ -262,7 +262,9 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
     def test_resolve_command_applies_origin_main_policy_before_dispatch(self):
         module = load_tool()
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary)
+            # macOS temp dirs are /var -> /private/var symlinks; the code
+            # resolves the project, so compare against the resolved path (#6205).
+            project = Path(temporary).resolve()
             core = project / ".chaos-engine"
             core.mkdir()
             (core / "dependencies.py").write_text(
@@ -814,9 +816,11 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             calls.append(command)
             return SimpleNamespace(returncode=0, stdout="/usr/local\n", stderr="")
 
-        with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
-            module.Path, "home", return_value=Path(temporary)
+        with tempfile.TemporaryDirectory() as raw, mock.patch.object(
+            module.Path, "home", return_value=Path(raw).resolve()
         ), mock.patch.object(module.os, "access", return_value=False):
+            # Resolve the macOS /var -> /private/var temp symlink first (#6205).
+            temporary = str(Path(raw).resolve())
             prefix = module.require_user_writable_npm_prefix(
                 "/usr/bin/npm", Path(temporary), runner=runner
             )

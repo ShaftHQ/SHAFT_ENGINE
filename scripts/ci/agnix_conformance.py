@@ -203,8 +203,43 @@ def _is_reparse_point(path: Path) -> bool:
     return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400))
 
 
+def _generated_overlay(source: Path) -> Path | None:
+    """Materialize the generated host overlay (#5713) when the source ships the installer."""
+    if not (source / "chaos-engine/install.py").is_file():
+        return None
+    from scripts.ci.overlay_in_temp import materialize_overlay
+
+    return materialize_overlay(source).resolve(strict=True)
+
+
+def _validate_inputs(root: Path, relatives: list[str]) -> None:
+    """Reject missing inputs, links, reparse points and escapes from ``root``."""
+    for relative in relatives:
+        source_path = root / relative
+        if not source_path.exists():
+            raise ValueError(f"declared staging input is missing: {relative}")
+        for candidate in (source_path, *source_path.rglob("*")):
+            if candidate.is_symlink():
+                raise ValueError(f"declared staging input contains a symlink: {candidate}")
+            try:
+                candidate.resolve(strict=True).relative_to(root)
+            except ValueError as error:
+                raise ValueError(
+                    f"declared staging input resolves outside the source root: {candidate}"
+                ) from error
+            if _is_reparse_point(candidate):
+                raise ValueError(f"declared staging input contains a reparse point: {candidate}")
+
+
 def stage_harness(source_root: Path, destination: Path, contract: dict) -> list[str]:
-    """Copy only declared harness inputs into a disposable trial fixture."""
+    """
+    Copy only declared harness inputs into a disposable trial fixture.
+
+    Since #5713 the host adapters (``.claude/``, ``.codex/``) are generated, not
+    tracked, so a declared input missing from the checkout is taken from a
+    freshly generated overlay of the same source (#6205). An input missing from
+    both is still an error.
+    """
     defects = validate_contract(contract)
     if defects:
         raise ValueError("invalid agnix contract: " + "; ".join(defects))
@@ -224,33 +259,27 @@ def stage_harness(source_root: Path, destination: Path, contract: dict) -> list[
     )
     if _inside(target, source) or any(_inside(target, root) or _inside(root, target) for root in protected):
         raise ValueError("fixture destination must be disposable and outside the repository")
-    for relative in contract["staging_paths"]:
-        source_path = source / relative
-        if not source_path.exists():
-            raise ValueError(f"declared staging input is missing: {relative}")
-        for candidate in (source_path, *source_path.rglob("*")):
-            if candidate.is_symlink():
-                raise ValueError(f"declared staging input contains a symlink: {candidate}")
-            try:
-                candidate.resolve(strict=True).relative_to(source)
-            except ValueError as error:
-                raise ValueError(
-                    f"declared staging input resolves outside the source root: {candidate}"
-                ) from error
-            if _is_reparse_point(candidate):
-                raise ValueError(f"declared staging input contains a reparse point: {candidate}")
-    target.mkdir(parents=True)
-    copied: list[str] = []
-    for relative in contract["staging_paths"]:
-        source_path = source / relative
-        target_path = target / relative
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        if source_path.is_dir():
-            shutil.copytree(source_path, target_path)
-        else:
-            shutil.copy2(source_path, target_path)
-        copied.append(relative)
-    return copied
+    relatives = list(contract["staging_paths"])
+    tracked = [relative for relative in relatives if (source / relative).exists()]
+    generated = [relative for relative in relatives if relative not in tracked]
+    _validate_inputs(source, tracked)
+    overlay = _generated_overlay(source) if generated else None
+    try:
+        _validate_inputs(overlay or source, generated)
+        target.mkdir(parents=True)
+        for relative in relatives:
+            origin = source if relative in tracked else overlay
+            source_path = origin / relative
+            target_path = target / relative
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            if source_path.is_dir():
+                shutil.copytree(source_path, target_path)
+            else:
+                shutil.copy2(source_path, target_path)
+        return relatives
+    finally:
+        if overlay is not None:
+            shutil.rmtree(overlay, ignore_errors=True)
 
 
 def _trial_command(candidate_root: Path, fixtures_root: Path, output_root: Path, image: str, argv: list[str]) -> list[str]:

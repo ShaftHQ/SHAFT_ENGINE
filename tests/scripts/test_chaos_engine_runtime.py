@@ -100,7 +100,7 @@ class ActAsMohabRuntimeTest(unittest.TestCase):
                 [
                     "__main__.py", "chaos_engine_cli.py", "delivery_status.py", "github_client.py",
                     "issue_filing.py", "planning_contract.py", "pr_audit.py", "repository_context.py",
-                    "watch_pr_checks.py",
+                    "status_lease.py", "watch_pr_checks.py",
                 ],
             )
 
