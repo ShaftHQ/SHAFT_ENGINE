@@ -1,11 +1,11 @@
 {
   "body_path": "memory/gotchas/sikulix-migrated-to-oculix-4-0-0.md",
-  "content_hash": "sha256:7d5f1ec1aeab1919bdd0043bacd72503eb9ee4bc34a482b326b0e37ac36d9fdd",
+  "content_hash": "sha256:fb570fd52973918bf6ce6696cb1cdff712e08c8ed3805cd2984c07b4a4f2044f",
   "created_at": "2026-09-24T17:40:00+03:00",
   "evidence": [
     {
-      "id": "6160",
-      "kind": "issue"
+      "id": "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/6160",
+      "kind": "task"
     }
   ],
   "id": "gotcha.sikulix-migrated-to-oculix-4-0-0",

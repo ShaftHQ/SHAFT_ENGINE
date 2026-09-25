@@ -1046,6 +1046,18 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     module.resolve_latest(repository, "main", opener=opener)
                 opener.assert_not_called()
 
+    def test_issue_links_use_the_normalized_repository(self):
+        """#6234: a URL-form repository must not yield github.com/https://github.com/..."""
+        module = load()
+        fields = {"error_code": "CE-INSTALL-FAILED", "cause": "x"}
+        for value in ("https://github.com/o/n", "https://github.com/o/n.git", "o/n"):
+            with self.subTest(value=value):
+                url = module.encode_issue_form_url(value, "t", fields)
+                self.assertTrue(url.startswith("https://github.com/o/n/issues/new?"), url)
+                with mock.patch.object(module, "resolve_issue_token", return_value=None):
+                    published = module.publish_installer_issue(value, "CE-INSTALL-FAILED", fields)
+                self.assertTrue(published.startswith("https://github.com/o/n/issues/new?"), published)
+
     def test_repository_accepts_the_full_github_url_form(self):
         """#6230 (Refs): the documented URL form resolves to owner/name before any request."""
         module = load()

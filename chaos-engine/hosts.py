@@ -416,6 +416,20 @@ def memory_schema_validation_failure(output: str) -> bool:
     return isinstance(error, dict) and error.get("code") == "MemorySchemaValidationFailed"
 
 
+def memory_schema_issue_paths(output: str) -> list[str]:
+    """List `path field` pairs from a MemorySchemaValidationFailed payload."""
+    try:
+        issues = json.loads(output)["error"]["details"]["issues"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return ["see `memory check --json`"]
+    found = [
+        f"{item.get('path')} {item.get('field', '')}".strip()
+        for item in issues
+        if isinstance(item, dict) and item.get("path")
+    ]
+    return sorted(set(found)) or ["see `memory check --json`"]
+
+
 def account_command_environment(account_commands: dict[str, str] | None = None) -> dict[str, str]:
     """Build a probe environment from the receipt-managed Node executable."""
     environment = os.environ.copy()
@@ -721,6 +735,14 @@ def retrieval_runtime_status(
                 if retried is not None:
                     return retried
                 return _legacy_result()
+            if memory_schema_validation_failure(result.stdout):
+                # Store data, not the CLI: name the objects so the fix is an edit (#6234).
+                return {
+                    "status": "recovery-required",
+                    "reason": "memory store fails the CLI schema: "
+                    + ", ".join(memory_schema_issue_paths(result.stdout))[:240],
+                    "code": "memory-store-schema-invalid",
+                }
             detail = (result.stderr or result.stdout or "memory tool exited non-zero").strip()
             return {
                 "status": "recovery-required",

@@ -177,6 +177,27 @@ class ReceiptShim6218Test(unittest.TestCase):
         self.assertIn("absent-after-edit", result.stdout)
         self.assertIn("host: opencode", self.sink.read_text(encoding="utf-8"))
 
+    def test_non_cursor_hosts_never_wait_on_an_open_stdin(self):
+        """#6234: only the Cursor hook reads stdin; an open pipe must not hang the others."""
+        for host in ("opencode", "copilot-cloud"):
+            with self.subTest(host=host), tempfile.TemporaryDirectory() as temporary:
+                process = subprocess.Popen(  # nosec B603 - fixed interpreter and repository script.
+                    [sys.executable, str(SHIM), "ensure", "--host", host, "--project", temporary],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                try:
+                    code = process.wait(timeout=20)
+                finally:
+                    if process.poll() is None:
+                        process.kill()
+                        process.wait()
+                    for stream in (process.stdin, process.stdout, process.stderr):
+                        stream.close()
+                self.assertEqual(0, code)
+                self.assertTrue((Path(temporary) / ".chaos-engine-state/research-receipt.md").is_file())
+
     def test_grok_bot_stays_instruction_only(self):
         done = _run_shim(self.project, "install", "--host", "grok-bot", "--project", str(self.project))
         self.assertNotEqual(0, done.returncode)

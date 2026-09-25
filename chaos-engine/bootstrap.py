@@ -329,6 +329,7 @@ def encode_issue_form_url(
     extra: dict[str, str] | None = None,
 ) -> str:
     """Pack required fields first; optional logs only while under the URL cap."""
+    repository = normalize_repository(repository)  # never github.com/https://... (#6234)
     packed = {
         key: fields[key]
         for key in REQUIRED_ISSUE_FORM_FIELDS
@@ -2268,6 +2269,7 @@ def publish_installer_issue(
     extra: dict[str, str] | None = None,
 ) -> str:
     title = f"[ChaosEngine installer] {code}"
+    repository = normalize_repository(repository)
     resolved = resolve_issue_token(token)
     if resolved:
         created = create_installer_github_issue(

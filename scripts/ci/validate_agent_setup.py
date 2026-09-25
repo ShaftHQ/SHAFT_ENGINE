@@ -110,6 +110,9 @@ RELATION_GLOB = "relations/*.json"
 # Event names that record a change to an existing object. `memory.created`
 # is excluded on purpose: it is what the four objects in #4465 already had,
 # and accepting it would let a creation launder every later silent edit.
+# The pinned Memory CLI's object schema (`evidence[].kind` enum). Anything else passes
+# --skip-external but fails `memory status` with MemorySchemaValidationFailed (#6234).
+MEMORY_EVIDENCE_KINDS = frozenset({"memory", "relation", "file", "commit", "task", "source"})
 MEMORY_UPDATE_EVENTS = frozenset(
     {"memory.updated", "memory.marked_stale", "memory.superseded"}
 )
@@ -451,6 +454,19 @@ def validate_memory_integrity(root: Path = ROOT) -> list[dict[str, str]]:
                         relative,
                         "Project-scoped memory must not set "
                         f"{' or '.join(set_fields)} (issue #5136).",
+                    )
+                )
+        evidence = sidecar.get("evidence")
+        for index, item in enumerate(evidence if isinstance(evidence, list) else []):
+            kind = item.get("kind") if isinstance(item, dict) else None
+            if kind not in MEMORY_EVIDENCE_KINDS:
+                errors.append(
+                    issue(
+                        "memory-evidence-kind",
+                        relative,
+                        f"evidence[{index}].kind {kind!r} is not one of "
+                        f"{', '.join(sorted(MEMORY_EVIDENCE_KINDS))}; cite an issue URL "
+                        "as kind `task` (issue #6234).",
                     )
                 )
         body_path = sidecar.get("body_path")

@@ -63,6 +63,9 @@ OFFICIAL_INSTALL_COMMANDS: dict[str, str] = {
 }
 
 BUNDLE_TOOL_ITEMS = ("memory", "mempalace", "graphify")
+# Store-data failures: reinstalling the CLI cannot fix them, so doctor must not
+# report them healed (the install check and doctor disagreed, #6234).
+STORE_DATA_CODES = frozenset({"memory-store-schema-invalid", "memory-check-invalid-store"})
 COMPANION_ITEMS = ("caveman", "ponytail")
 REPAIR_COMPONENT_ITEMS = ("mcps", "skills")
 CONTEXT7_ITEM = "context7"
@@ -614,6 +617,14 @@ def _doctor_heal_bundle_tools(
             continue
         item = components.get(name)
         if not _component_needs_heal(item if isinstance(item, dict) else None):
+            continue
+        if isinstance(item, dict) and item.get("code") in STORE_DATA_CODES:
+            item["fixNext"] = (
+                f"Fix the objects named by `{_doctor_cli()} .chaos-engine/tool.py memory check --json` "
+                "(store data; reinstalling the CLI cannot repair it), then rerun doctor."
+            )
+            summary["failed"].append(name)  # type: ignore[index]
+            _mark_recovery_required(result)
             continue
         heal = heal_bundle_tool(project, name, runner=runner, repair=repair)
         if heal.get("status") == "healed":

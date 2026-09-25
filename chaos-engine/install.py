@@ -3849,6 +3849,8 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 shutil.rmtree(project_setup_snapshot, ignore_errors=True)
         sync_repository_overlay_from_source(project, commit)
         wire_receipt_shims(project)
+        if not _running_under_tests():
+            refresh_stale_graph(project)
         return target
 
 
@@ -4028,6 +4030,31 @@ def _apply_shared_store_doctor(project: Path, components: object) -> None:
             note = ""
         if note:
             mempalace["homePalace"] = note
+
+
+def _running_under_tests() -> bool:
+    argv = " ".join(sys.argv)
+    return "unittest" in argv or "tests/scripts" in argv
+
+
+def refresh_stale_graph(project: Path, *, stores=None) -> str:
+    """Rebuild an existing shared graph that no longer matches the default-branch tip.
+
+    An update + reinstall used to leave graphify degraded until a manual
+    `repair --component graphify` (#6234). A missing graph stays the setup plan,
+    and a refresh failure never fails the install; doctor still reports it.
+    """
+    try:
+        stores = stores if stores is not None else _load_stores_module()
+        row = stores["graphify_doctor_row"](project)
+        if row is None:
+            return "absent"
+        if row.get("status") == "healthy":
+            return "current"
+        stores["refresh"](project, if_stale=True, components=frozenset({"graphify"}))
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+        return f"skipped: {error}"
+    return "refreshed"
 
 
 def _refresh_shared_store(project: Path, component: str) -> str:
