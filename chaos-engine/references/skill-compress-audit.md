@@ -29,7 +29,7 @@ Propose-only remains the default. Draft PRs are available **only** via
 [`draft-skill-pr.md`](draft-skill-pr.md) / [`draft_skill_pr.py`](../draft_skill_pr.py):
 
 1. Explicit `--opt-in` **and** `CHAOS_ENGINE_DRAFT_SKILL_PRS=1` (default OFF)
-2. `python3 scripts/ci/chaos_engine_eval_parity.py` green
+2. `python3 scripts/ci/chaos_engine_eval_parity.py` green (repo-only)
 3. Focused unit tests green
 4. `gh pr create --draft` only (`--execute`); **never** auto-merge; never apply without gate
 

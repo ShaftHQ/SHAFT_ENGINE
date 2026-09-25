@@ -48,7 +48,7 @@ default branch. Before the first push of **any** human PR:
    first CI cycle is not a fix-push for labels or switch exhaustiveness.
 3. When editing ChaosEngine `SKILL.md` bodies: keep each skill under the
    skill-md byte budget (Agent Guidance Gate). Compress overlapping sections in
-   the same PR and run `python3 scripts/ci/validate_agent_setup.py --skip-external`
+   the same PR and run `python3 scripts/ci/validate_agent_setup.py --skip-external` (repo-only)
    plus the skill's phrase-contract unit tests before push.
 4. When changing `.gitignore` or `hosts.py` Memory tracking policy: update the
    `generated-assets` inventory row in
@@ -65,7 +65,7 @@ profile must not treat process exit alone as green: after each proof
 invocation, require a zero failed count from Surefire `TEST-*.xml` or
 TestNG `testng-results.xml` (and set `-Dmaven.test.failure.ignore=false`
 for defense in depth). Use
-[`scripts/ci/assert_surefire_green.py`](../../scripts/ci/assert_surefire_green.py).
+`scripts/ci/assert_surefire_green.py` (repo-only).
 
 ## 5. Docs, catalog, and screenshots — only where real
 
@@ -177,7 +177,7 @@ by ancestry. Squash and rebase merging are disabled; do not substitute them.
 After **you** merge a PR that changes `chaos-engine/`, immediately rebuild the
 live overlay from the new `origin/main` on the **primary checkout**:
 `git fetch origin main && git merge --ff-only origin/main`, then
-`python3 chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch main`
+`python3 .chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch main`
 and `python3 .chaos-engine/install.py doctor --project . --agent-summary`. Reload host hooks and skills before the next turn so work builds on what is now on main. Do not call
 `install.py install` without `--source` and `--commit`. Replace
 `<configured-upstream>` with the adopter repository from installer identity.
@@ -228,7 +228,7 @@ re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
 
 4. **Arm** immediately after that acceptance remains current:
    `gh pr merge <n> --auto --merge` only (never squash; never unguarded force).
-5. **Watch** with `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest`
+5. **Watch** with `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest` (repo-only)
    until merged or a red fix is pushed. One line on GREEN, RED, or MERGED.
    No second poll. Reject a `gh run view` loop and a second watch while one task is pending.
    Never pass `--admin`. Resume text: `scripts/agents/unattended_delivery.py`.

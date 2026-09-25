@@ -46,7 +46,7 @@ Product follow-on from Learning Session (epic or delivery PR: #<n>).
 \`\`\`bash
 # example — replace with the real smallest check
 python3 -m unittest <focused_module> -v
-# or: python3 scripts/ci/chaos_gauge/validate_experiment.py …
+# or: python3 scripts/ci/chaos_gauge/validate_experiment.py …  # repo-only
 \`\`\`
 ```
 

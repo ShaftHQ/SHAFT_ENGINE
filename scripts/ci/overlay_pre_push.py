@@ -9,6 +9,12 @@ import subprocess  # nosec B404 - fixed git invocations, list args only.
 import sys
 from pathlib import Path
 
+# #6195: running this file directly must not need PYTHONPATH=. -- the repo
+# root is two levels up and owns the `scripts.ci` package imports below.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 PLAYBOOK = "chaos-engine/references/work-github-playbook.md"
 TIP_PREFLIGHT = "chaos-engine/skills/local-agency/scripts/tip_preflight.py"
 BYTE_BUDGET = 16384
@@ -39,6 +45,34 @@ def playbook_contract_failures(text: str, *, budget: int = BYTE_BUDGET) -> list[
         if clause not in text:
             failures.append(f"dropped pinned clause: {clause}")
     return failures
+
+
+NEAR_CAP_BYTES = 512
+
+
+def skill_budget_findings(root: Path) -> tuple[list[str], list[str]]:
+    """#6176: SKILL.md over its `skill_budgets` cap fails; within 512 B warns."""
+    import json
+
+    budget_path = root / "scripts/ci/agent_guidance_budget.json"
+    try:
+        budgets = json.loads(budget_path.read_text(encoding="utf-8")).get("skill_budgets", {})
+    except (OSError, ValueError):
+        return [], []
+    failures: list[str] = []
+    warnings: list[str] = []
+    for key, limits in sorted(budgets.items()):
+        cap = limits.get("max_skill_md_bytes") if isinstance(limits, dict) else None
+        if not isinstance(cap, int):
+            continue
+        for skill in sorted((root / key).glob("*/SKILL.md")):
+            size = len(skill.read_bytes())
+            name = skill.relative_to(root).as_posix()
+            if size > cap:
+                failures.append(f"{name}: {size} bytes exceeds skill cap {cap}")
+            elif size > cap - NEAR_CAP_BYTES:
+                warnings.append(f"{name}: {size} bytes is within {NEAR_CAP_BYTES} B of cap {cap}")
+    return failures, warnings
 
 
 def _unique(paths: list[str]) -> list[str]:
@@ -107,6 +141,10 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
 
         for item in validate_file_budgets(root, load_budget(budget_path)):
             failures.append(f"{item.get('path')}: {item.get('message')}")
+    skill_failures, skill_warnings = skill_budget_findings(root)
+    failures.extend(skill_failures)
+    for warning in skill_warnings:
+        print(f"overlay pre-push: warning: {warning}", file=sys.stderr)
     skill = root / "chaos-engine/skills/chaos-engine/SKILL.md"
     if skill.is_file():
         from scripts.ci.validate_agent_setup import validate_harness_reachability

@@ -42,7 +42,7 @@ first.
   `dispatch.py resolve --prefer freetoken` and
   [`require_rog_freetoken.py`](scripts/require_rog_freetoken.py) fail closed unless
   the hostname looks like ROG, cwd is the operator ROG checkout (see
-  [local-agency guide](../../guides/local-agency.md)), or
+  local-agency guide (repo-only `chaos-engine/guides/local-agency.md`)), or
   `CE_ALLOW_BOX_LOCAL_AGENCY=1`. Process-owner Shell with `machineId` on ROG is **mandatory** for ROG
   FreeToken/OpenCode writers (#6051). Do **not** dispatch those writers via
   Task until Grok Bot exposes `machineId` to Task/executor Shell. Diagnostic:
@@ -55,9 +55,9 @@ Helper:
 [`chaos-engine/skills/local-agency/scripts/dispatch.py`](scripts/dispatch.py). ROG gate: [`require_rog_freetoken.py`](scripts/require_rog_freetoken.py).
 
 ```text
-python3 chaos-engine/skills/local-agency/scripts/dispatch.py resolve
-python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer freetoken config
-python3 chaos-engine/skills/local-agency/scripts/dispatch.py argv --prompt '…' --workdir '<worktree>'
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py resolve
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer freetoken config
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py argv --prompt '…' --workdir '<worktree>'
 ```
 
 `resolve` ranks FreeToken, then OpenAI-compat peers, then Colibri. Use `--prefer colibri` when the adopter asked for Colibri. On `READY`, `config` /
@@ -72,9 +72,9 @@ plugins. `--pure` still only disables plugins.
 For design/spec-shaped local turns, build a locator-only system brief with [`ce_brief.py`](../../ce_brief.py) or via dispatch:
 
 ```text
-python3 chaos-engine/skills/local-agency/scripts/dispatch.py brief --json
-python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp config --with-ce-brief
-python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp chat --prompt '…' --with-ce-brief
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py brief --json
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp config --with-ce-brief
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp chat --prompt '…' --with-ce-brief
 ```
 
 Do not dump full SKILL bodies into the model context (#6067/#6068).
@@ -111,8 +111,8 @@ Parent parser uses `allow_abbrev=False` so `--mode` cannot abbreviate to `--mode
 (#6087). Keep that guard when adding short overlapping flags.
 
 ```text
-python3 chaos-engine/skills/local-agency/scripts/dispatch.py --mode mechanical argv --prompt 'bash /abs/apply.sh'
-python3 chaos-engine/skills/local-agency/scripts/dispatch.py --mode design argv --prompt '…' --project .
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --mode mechanical argv --prompt 'bash /abs/apply.sh'
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --mode design argv --prompt '…' --project .
 ```
 
 ## Mechanical dispatch (small-context local models)
@@ -160,7 +160,7 @@ the host session model (see [delegation](../../references/delegation.md)).
 Example (session only; model id is not a git pin):
 
 ```text
-python3 chaos-engine/skills/local-agency/scripts/dispatch.py --prefer freetoken config
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer freetoken config
 # export OPENCODE_CONFIG from the JSON env map for one process only
 OPENCODE_CONFIG=<ephemeral-path> opencode run --pure --variant medium --dir '<worktree>' '<one command>'
 ```
@@ -198,7 +198,7 @@ this skill when the adopter names OpenCode or “local agents”.
 
 ## Related
 
-- Guide: [local-agency.md](../../guides/local-agency.md)
+- Guide: local-agency.md (repo-only `chaos-engine/guides/local-agency.md`)
 - FreeToken: [freetoken](../freetoken/SKILL.md)
 - Local OpenAI-compat: [local-openai-compat](../local-openai-compat/SKILL.md)
 - OmniRoute (explicit cloud only): [omniroute](../omniroute/SKILL.md)

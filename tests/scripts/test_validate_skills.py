@@ -696,3 +696,19 @@ class SourceShapeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HarnessIndexParityTest(unittest.TestCase):
+    """#6177 parity row: one generated index exposes every skill on every host."""
+
+    def test_harness_index_covers_every_skill_on_every_host(self):
+        root = Path(__file__).resolve().parents[2]
+        index = json.loads((root / "chaos-engine/harness-index.json").read_text(encoding="utf-8"))
+        hosts = json.loads((root / "scripts/ci/agent_harness_parity.json").read_text(encoding="utf-8"))["hosts"]
+        self.assertEqual(hosts, index["hosts"])
+        indexed = {entry["path"] for entry in index["entries"]}
+        for pattern in ("skills/*/SKILL.md", "vendor/*/skills/*/SKILL.md"):
+            for path in (root / "chaos-engine").glob(pattern):
+                self.assertIn(path.relative_to(root / "chaos-engine").as_posix(), indexed)
+        for entry in index["entries"]:
+            self.assertEqual(set(hosts), set(entry["hosts"]))

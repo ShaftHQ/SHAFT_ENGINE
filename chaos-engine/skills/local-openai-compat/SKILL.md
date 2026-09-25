@@ -1,8 +1,8 @@
 ---
 name: local-openai-compat
 description: >-
-  Use when an orchestrated workflow may dispatch bounded implementation through
-  an optional local OpenAI-compatible runtime (Ollama, LM Studio, llamacpp).
+  Loopback OpenAI-compatible peers (Ollama, LM Studio, llamacpp on 127.0.0.1). Use
+  when a narrow task should go to an already READY loopback server.
 license: MIT
 ---
 
@@ -40,7 +40,7 @@ slot when the models path is loopback `/v1/models`.
 - Not an OmniRoute plugin and not a FreeToken plugin.
 
 Operator install stays on vendor docs. See the
-[local OpenAI-compat guide](../../guides/local-openai-compat.md).
+local OpenAI-compat guide (repo-only `chaos-engine/guides/local-openai-compat.md`).
 
 ## Agent machine vs user machine
 
@@ -58,10 +58,10 @@ Probe helper:
 [`chaos-engine/skills/local-openai-compat/scripts/probe.py`](scripts/probe.py).
 
 ```text
-python3 chaos-engine/skills/local-openai-compat/scripts/probe.py
-python3 chaos-engine/skills/local-openai-compat/scripts/probe.py --backend ollama
-python3 chaos-engine/skills/local-openai-compat/scripts/probe.py --backend lmstudio
-python3 chaos-engine/skills/local-openai-compat/scripts/probe.py --backend llamacpp
+python3 .chaos-engine/skills/local-openai-compat/scripts/probe.py
+python3 .chaos-engine/skills/local-openai-compat/scripts/probe.py --backend ollama
+python3 .chaos-engine/skills/local-openai-compat/scripts/probe.py --backend lmstudio
+python3 .chaos-engine/skills/local-openai-compat/scripts/probe.py --backend llamacpp
 ```
 
 Ambient `OPENAI_BASE_URL` / `OLLAMA_HOST` are ignored for the probe host. States:
@@ -78,13 +78,13 @@ only the state token.
 ### 2. Attest
 
 ```text
-python3 chaos-engine/skills/local-openai-compat/scripts/probe.py --backend ollama attest
+python3 .chaos-engine/skills/local-openai-compat/scripts/probe.py --backend ollama attest
 ```
 
 ### 3. Models (session stdout only)
 
 ```text
-python3 chaos-engine/skills/local-openai-compat/scripts/probe.py --backend ollama models --json
+python3 .chaos-engine/skills/local-openai-compat/scripts/probe.py --backend ollama models --json
 ```
 
 Prefer smaller coding models when hardware probe returns `small` or `medium`.
@@ -92,7 +92,7 @@ Prove the READY checkpoint with mechanical dispatch knobs before stretching.
 Optional size-class hint:
 
 ```text
-python3 chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py
+python3 .chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py
 ```
 
 ### 4. Dispatch when READY
@@ -107,7 +107,7 @@ guide; continue with other qualified paths. Never auto-serve.
 
 ## Related
 
-- Guide: [local-openai-compat.md](../../guides/local-openai-compat.md)
+- Guide: local-openai-compat.md (repo-only `chaos-engine/guides/local-openai-compat.md`)
 - FreeToken peer: [freetoken skill](../freetoken/SKILL.md)
 - Local OpenCode agency: [local-agency](../local-agency/SKILL.md)
 - OmniRoute peer (cloud-quota, not a dependency): [omniroute skill](../omniroute/SKILL.md)

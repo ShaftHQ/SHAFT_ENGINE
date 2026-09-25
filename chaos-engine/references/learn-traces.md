@@ -1,3 +1,8 @@
+---
+name: learn-traces
+description: Use when session traces must be mapped, reduced, and verified into lessons without a host TUI runner.
+---
+
 # Learn traces
 
 Portable map-reduce-verify contract for session traces. Host TUI workflow

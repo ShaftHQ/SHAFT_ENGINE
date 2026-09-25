@@ -9,8 +9,8 @@ requested goal and affected files.
 
 ## Canonical policy
 
-Before every task, read and follow
-[ChaosEngine](chaos-engine/skills/chaos-engine/SKILL.md). It is the only router and
+Before every task, read and follow ChaosEngine through the single marker
+pointer at the end of this file. It is the only router and
 working-policy owner. Its selected profile and references own lifecycle hooks,
 roles, capability levels, skills, tools, Caveman, Ponytail, TDD, research,
 memory, task isolation, cleanup, delegation, review, delivery, and completion.
@@ -19,8 +19,9 @@ Do not restate those policies in host adapters.
 Cleanup scope is defined only by
 [cleanup-scopes](chaos-engine/references/cleanup-scopes.md). Harness duty
 ownership is machine-readable in
-[agent_ownership.json](scripts/ci/agent_ownership.json). `CLAUDE.md`, host
-skills, and provider guidance remain thin pointers to the canonical router.
+[agent_ownership.json](scripts/ci/agent_ownership.json). `CLAUDE.md` and
+`GEMINI.md` only import this file (`@AGENTS.md`); host skills and provider
+guidance remain thin pointers to the canonical router.
 
 Harness parity (permanent): lasting behavior and policy — including Learning
 Session after every delivery — must live in the portable ChaosEngine overlay

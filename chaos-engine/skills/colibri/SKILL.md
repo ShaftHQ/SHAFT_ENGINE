@@ -1,9 +1,8 @@
 ---
 name: colibri
 description: >-
-  Use when an orchestrated workflow may dispatch bounded implementation through
-  an optional local Colibri process (frontier MoE via disk/RAM/VRAM hierarchy;
-  standalone; not OmniRoute or FreeToken).
+  Frontier MoE through a disk/RAM/VRAM hierarchy via the optional Colibri process.
+  Use when a large-model offline job needs Colibri; not OmniRoute or FreeToken.
 license: MIT
 ---
 
@@ -46,7 +45,7 @@ only after a tiny `curl` smoke test, the same way FreeToken is treated.
 - Never bind or probe a non-loopback Colibri URL from ChaosEngine.
 
 Operator install stays on vendor docs. See the
-[Colibri guide](../../guides/colibri.md).
+Colibri guide (repo-only `chaos-engine/guides/colibri.md`).
 
 ## Agent machine vs user machine
 
@@ -65,7 +64,7 @@ Probe helper: [`chaos-engine/skills/colibri/scripts/probe.py`](scripts/probe.py)
 ```text
 command -v coli
 curl -sf --max-time 2 http://127.0.0.1:8000/v1/models
-python3 chaos-engine/skills/colibri/scripts/probe.py
+python3 .chaos-engine/skills/colibri/scripts/probe.py
 ```
 
 Ambient `COLIBRI_BASE_URL` / `OPENAI_BASE_URL` are ignored for the probe host.
@@ -80,13 +79,13 @@ States:
 ### 2. Attest
 
 ```text
-python3 chaos-engine/skills/colibri/scripts/probe.py attest
+python3 .chaos-engine/skills/colibri/scripts/probe.py attest
 ```
 
 ### 3. Models (session stdout only)
 
 ```text
-python3 chaos-engine/skills/colibri/scripts/probe.py models --json
+python3 .chaos-engine/skills/colibri/scripts/probe.py models --json
 ```
 
 Never persist model ids in git. Prefer FreeToken for coding agency unless the
@@ -108,8 +107,8 @@ a frontier disk-stream server never silently wins over a coding MoE. Use
 
 ## Related
 
-- Guide: [colibri.md](../../guides/colibri.md)
-- FreeToken peer: [freetoken skill](../freetoken/SKILL.md) · [guide](../../guides/freetoken.md)
+- Guide: colibri.md (repo-only `chaos-engine/guides/colibri.md`)
+- FreeToken peer: [freetoken skill](../freetoken/SKILL.md) · guide (repo-only `chaos-engine/guides/freetoken.md`)
 - Local agency: [local-agency](../local-agency/SKILL.md)
 - Local OpenAI-compat peers: [local-openai-compat](../local-openai-compat/SKILL.md)
 - OmniRoute (cloud-quota peer, not a dependency): [omniroute skill](../omniroute/SKILL.md)

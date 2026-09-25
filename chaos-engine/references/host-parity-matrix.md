@@ -1,8 +1,8 @@
 # Host Parity Matrix v0
 
-Living adapter-outcome matrix for ChaosEngine across Claude Code, Codex, Grok, Gemini, and GitHub Copilot.
+Living adapter-outcome matrix for ChaosEngine across Claude Code, Codex, Grok, Gemini, GitHub Copilot, OpenCode, Cursor, and Grok Bot.
 
-Parity means the same workflow *outcomes* on all five hosts (not UI chrome parity).
+Parity means the same workflow *outcomes* on all eight hosts (not UI chrome parity).
 Machine-checkable capability pins also live in `scripts/ci/agent_harness_parity.json`.
 
 ## Harness parity (permanent)
@@ -16,8 +16,8 @@ valid Learning Session skip on any host.
 
 ## One implementation for every host
 
-Claude, Codex (the GPT host), Copilot, Gemini, and Grok run one portable
-implementation. Do not add a separate GPT adapter, and do not copy a rule
+Claude, Codex (the GPT host), Copilot, Gemini, Grok, OpenCode, Cursor, and
+Grok Bot run one portable implementation. Do not add a separate GPT adapter, and do not copy a rule
 into a host skill, a host guard, or a second policy file. A new harness
 rule is one shared row in `scripts/ci/agent_harness_parity.json`: every
 host column names the same evidence path, and one test runs that decision
@@ -30,20 +30,20 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 
 ## Matrix
 
-| Surface | Claude Code | Codex | Grok | Gemini | Copilot |
-| --- | --- | --- | --- | --- | --- |
-| Install / doctor human UX | P | P | P | P | P |
-| Host onboarding / activation path | A marketplace/plugin | A marketplace/plugin | A file/hook | A file/hook | A file/hook |
-| Router skill (`chaos-engine`) | P | P | P | P | P |
-| Lifecycle hooks | A | A | A | A | A |
-| Exit-2 / blocking denial fidelity | A | A | G | A | G |
-| SessionStart locator-only / progressive disclosure | A | A | A | A | A |
-| Skills discovery | A | A | A | A | A |
-| Companions (Caveman + Ponytail) | P | P | P | P | P |
-| Self-improve skill (Learning Session) | P | P | P | P | P |
-| Retrieval soft-degrade (Memory/MemPalace/Graphify) | P | P | P | P | P |
-| Work-item to merge playbook | P | P | P | P | P |
-| Learning Session | P | P | P | P | P |
+| Surface | Claude Code | Codex | Grok | Gemini | Copilot | OpenCode | Cursor | Grok Bot |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Install / doctor human UX | P | P | P | P | P | P | P | P |
+| Host onboarding / activation path | A marketplace/plugin | A marketplace/plugin | A file/hook | A file/hook | A file/hook | A AGENTS.md | A AGENTS.md | A AGENTS.md |
+| Router skill (`chaos-engine`) | P | P | P | P | P | P | P | P |
+| Lifecycle hooks | A | A | A | A | A | G | G | G |
+| Exit-2 / blocking denial fidelity | A | A | G | A | G | G | G | G |
+| SessionStart locator-only / progressive disclosure | A | A | A | A | A | G | G | G |
+| Skills discovery | A | A | A | A | A | A | A | A |
+| Companions (Caveman + Ponytail) | P | P | P | P | P | P | P | P |
+| Self-improve skill (Learning Session) | P | P | P | P | P | P | P | P |
+| Retrieval soft-degrade (Memory/MemPalace/Graphify) | P | P | P | P | P | P | P | P |
+| Work-item to merge playbook | P | P | P | P | P | P | P | P |
+| Learning Session | P | P | P | P | P | P | P | P |
 
 ## Measured gaps (severity)
 
@@ -58,6 +58,9 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 | GAP-MARKETPLACE-CLI | Claude, Codex | low | Marketplace/plugin auto-activation needs host CLI on PATH; absent CLI still installs adapters but activation is manual. | Onboarding cards. |
 | GAP-COPILOT-DETECT | Copilot | low | Detection is soft (`gh` / `code` / `cursor`); IDE/cloud hosting is outside install probes. | Onboarding card. |
 | GAP-GEMINI-NODE | Gemini | low | Hook launcher needs Node.js; unsupported native events remain explicit capability gaps. | Onboarding card + launch.js. |
+| GAP-OPENCODE-HOOKS | OpenCode | medium | Instruction-only host: reads `AGENTS.md`, no project hook runtime ChaosEngine can install. The read gate and SessionStart locators are replaced by the research-receipt `retrieve:` field and the Learning Session check. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt; #6178. |
+| GAP-CURSOR-HOOKS | Cursor | medium | Instruction-only host: reads `AGENTS.md` (and project rules); no portable pre-tool hook. Same receipt substitution as OpenCode. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt; #6178. |
+| GAP-GROKBOT-HOOKS | Grok Bot | medium | Instruction-only cloud agent: reads `AGENTS.md` from the checkout; no hook runtime. Same receipt substitution; `worktree_overlay.py verify` reports it as instruction-only. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt; #6178. |
 | GAP-GROK-BUNDLED | Grok | info | Grok product bundled skills (pdf/pptx/imagine/game-*) and session GitHub MCP cannot be deleted from the install tree. CE does not vendor them; doctor strips user GitHub MCP when gh is healthy and documents this limit. | #5780 #5785; prefer-cli-over-mcp. |
 | GAP-GROK-CAVEMAN | — (cleared) | info | Always-on CE card (`caveman=ultra` in `hooks/lifecycle.py`) is the Grok communication constitution. Do not copy Caveman skill bodies into `AGENTS.md`. | Closed: locator-only host guidance plus lifecycle ultra selector. No proxy. |
 
@@ -65,20 +68,20 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 
 ## Official self-heal (#5811)
 
-Doctor runs each required third party's **official install command** (or CE vendor rematerialize for Caveman/Ponytail) before agentic handoff. Inventory and heal wiring live in [`official_self_heal.py`](../official_self_heal.py) + [`INSTALL.md`](../INSTALL.md). Opt-out `--without-*` stays off. Parent epic: #5803.
+Doctor runs each required third party's **official install command** (or CE vendor rematerialize for Caveman/Ponytail) before agentic handoff. Inventory and heal wiring live in [`official_self_heal.py`](../official_self_heal.py) + `chaos-engine/INSTALL.md` (repo-only). Opt-out `--without-*` stays off. Parent epic: #5803.
 
 ## How to refresh
 
 1. Update rows when adapter contracts or Host Parity Wave B issues land.
 2. Keep `scripts/ci/agent_harness_parity.json` as the machine-checked pin set.
 3. Prefer outcome language (P/A/G) over host UI chrome comparisons.
-4. Re-run the eval / parity fixture suite (`python3 scripts/ci/chaos_engine_eval_parity.py`;
+4. Re-run the eval / parity fixture suite (`python3 scripts/ci/chaos_engine_eval_parity.py`, repo-only;
    see [eval-parity-fixtures](eval-parity-fixtures.md)) after hook or adapter changes.
    Fixture failures ratchet into hooks, skills, or a documented matrix gap — never
    weaken the fixture to look green.
 
 Checked-in memory for one-router / CLI-owned MCP / project-mode Caveman:
-[`.memory/memory/constraints/host-parity-one-router-cli-owned-mcp-project-mode-caveman.md`](../../.memory/memory/constraints/host-parity-one-router-cli-owned-mcp-project-mode-caveman.md).
+`.memory/memory/constraints/host-parity-one-router-cli-owned-mcp-project-mode-caveman.md` (repo-only).
 See also the [hook trigger map](hook-trigger-map.md).
 
 

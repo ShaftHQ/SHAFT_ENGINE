@@ -12,7 +12,7 @@ points here; do not require plugin activation to heal.
    `python3 .chaos-engine/install.py repair --project . --component <id>`  
    Components: `plugins`, `hosts`, `core`, `mempalace`, `graphify`,
    `memory`, `hooks`, `mcps`, `skills`, `roles`, `tools`
-4. Official install one-liner from [`INSTALL.md`](../INSTALL.md) for missing
+4. Official install one-liner from `chaos-engine/INSTALL.md` (repo-only) for missing
    core, wiped runtime, or multi-component drift
 5. Installer rewrite contract:
    [`installer-program.md`](installer-program.md) (deterministic merge,
@@ -21,7 +21,7 @@ points here; do not require plugin activation to heal.
 
 ## When marketplace plugin is absent
 
-- Read this file and [`INSTALL.md`](../INSTALL.md) from the portable tree or
+- Read this file and `chaos-engine/INSTALL.md` (repo-only) from the portable tree or
   `.chaos-engine/` copy — path locators stay valid without Codex/Claude plugin
   registration. For first install, upgrade, and conflict merge duties, also
   follow [`installer-program.md`](installer-program.md).

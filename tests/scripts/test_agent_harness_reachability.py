@@ -707,7 +707,14 @@ class EntrypointDutyTest(unittest.TestCase):
     """The content half of #4485: duties the entrypoint must state, unqualified."""
 
     ENTRYPOINT = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
+    # #6176: the core card points at its contract; duties live in the pair.
+    CONTRACT = ROOT / "chaos-engine/references/router-contract.md"
     PLAYBOOK = ROOT / "chaos-engine/references/work-github-playbook.md"
+
+    def entrypoint_corpus(self) -> str:
+        card = self.ENTRYPOINT.read_text(encoding="utf-8")
+        self.assertIn("references/router-contract.md", card, "the core card must link its contract")
+        return card + "\n" + self.CONTRACT.read_text(encoding="utf-8")
     PLANNING_PLAYBOOK = ROOT / "chaos-engine/references/work-github-planning.md"
 
     def test_the_github_playbook_links_its_planning_and_tracking_half(self):
@@ -763,7 +770,7 @@ class EntrypointDutyTest(unittest.TestCase):
         watch drops.
         """
         section = section_body(
-            self.ENTRYPOINT.read_text(encoding="utf-8"), "## Ownership and completion"
+            self.entrypoint_corpus(), "## Ownership and completion"
         )
         self.assertTrue(section, "the entrypoint must keep the Ownership and completion section")
         compact = re.sub(r"\s+", " ", section)
@@ -796,7 +803,7 @@ class EntrypointDutyTest(unittest.TestCase):
         turn a duty into a suggestion.
         """
         section = section_body(
-            self.ENTRYPOINT.read_text(encoding="utf-8"), "## Ownership and completion"
+            self.entrypoint_corpus(), "## Ownership and completion"
         )
         hedge = OPTIONALITY_HEDGE.search(section)
         self.assertIsNone(
@@ -814,7 +821,7 @@ class EntrypointDutyTest(unittest.TestCase):
         is what closes that: renaming the section in the playbook fails here,
         naming which anchor broke.
         """
-        content = self.ENTRYPOINT.read_text(encoding="utf-8")
+        content = self.entrypoint_corpus()
         slugs = heading_slugs(self.PLAYBOOK)
         for workflow, anchor in (
             ("learned-lessons workflow", "learned-lessons-workflow"),
@@ -822,8 +829,11 @@ class EntrypointDutyTest(unittest.TestCase):
         ):
             with self.subTest(workflow=workflow):
                 self.assertIn(workflow, content, f"the entrypoint must name the {workflow}")
-                link = f"../../references/work-github-playbook.md#{anchor}"
-                self.assertIn(link, content, f"the entrypoint must link {link}")
+                links = (
+                    f"../../references/work-github-playbook.md#{anchor}",
+                    f"(work-github-playbook.md#{anchor})",
+                )
+                self.assertTrue(any(link in content for link in links), f"the entrypoint must link {links[0]}")
                 self.assertIn(anchor, slugs, f"{anchor} names no heading in the playbook")
 
     def test_pr_merger_babysit_must_clear_feedback_and_accept_before_arming(self):
@@ -866,7 +876,7 @@ class EntrypointDutyTest(unittest.TestCase):
     def test_the_learning_session_is_required_before_every_report_of_done(self):
         """#4487: the routing table is the classifier; running it is the duty."""
         section = section_body(
-            self.ENTRYPOINT.read_text(encoding="utf-8"), "## Learning Session"
+            self.entrypoint_corpus(), "## Learning Session"
         )
         self.assertTrue(section, "the entrypoint must keep the Learning Session section")
         compact = re.sub(r"\s+", " ", section)

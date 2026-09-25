@@ -306,17 +306,31 @@ class ManagedRuntimeCliTest(TestCase):
         )
         self.assertTrue(args.with_maven_tools)
 
-    def test_owned_mcp_servers_bind_managed_python(self):
+    def test_owned_mcp_servers_use_portable_python(self):
+        """#6179: tracked MCP config names python3 / py -3; tool.py hands off to the runtime."""
         managed = Path("/owned/python")
         servers = HOSTS.owned_servers(managed_python=managed)
-        self.assertEqual(str(managed), servers["chaosengine-memory"]["command"])
-        self.assertEqual(str(managed), servers["chaosengine-mempalace"]["command"])
+        for name in ("chaosengine-memory", "chaosengine-mempalace"):
+            with self.subTest(server=name):
+                self.assertEqual("python3", servers[name]["command"])
+                self.assertEqual("py", servers[name]["commandWindows"])
+                self.assertNotIn(str(managed), json.dumps(servers[name]))
 
-    def test_hook_documents_bind_managed_python_and_node(self):
+    def test_hook_documents_hand_off_to_managed_python_through_an_untracked_pointer(self):
         python = Path("/owned/python")
         node = Path("/owned/node")
         lifecycle = json.loads(HOSTS.lifecycle_hooks_document("codex", managed_python=python))
-        self.assertIn(str(python), lifecycle["hooks"]["SessionStart"][0]["hooks"][0]["command"])
+        command = lifecycle["hooks"]["SessionStart"][0]["hooks"][0]["command"]
+        self.assertTrue(command.startswith("python3 -c "), command)
+        self.assertNotIn(str(python), command)
+        self.assertIn(HOSTS.HOOK_PYTHON_POINTER, command)
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            HOSTS.write_hook_python_pointer(project, python)
+            pointer = project / HOSTS.HOOK_PYTHON_POINTER
+            self.assertEqual(str(python), pointer.read_text(encoding="utf-8").strip())
+            HOSTS.write_hook_python_pointer(project, None)
+            self.assertFalse(pointer.exists())
         copilot = json.loads(HOSTS.copilot_hooks_document(node))
         self.assertIn(str(node), copilot["hooks"]["sessionStart"][0]["bash"])
 

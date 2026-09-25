@@ -152,5 +152,5 @@ delivery through **GitHub native sub-issues**, not checkbox prose alone.
 - Follow-ons that must keep the epic open must be attached as sub-issues. An
   open issue that is only mentioned in prose (for example a later wave that is
   not a formal sub-issue) does **not** block auto-close.
-- Manual dry-run: `python3 scripts/ci/epic_autoclose.py --issue <n> --dry-run`
+- Manual dry-run: `python3 scripts/ci/epic_autoclose.py --issue <n> --dry-run` (repo-only)
   or Actions → Epic Autoclose → workflow_dispatch with `dry_run=true`.

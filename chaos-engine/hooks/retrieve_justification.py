@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """One citation ledger for MemPalace and Graphify checks.
 
-File reads and file searches are allowed only when a prior MemPalace or
-Graphify check cited the path. The ledger is the portable core; every host
-hook calls this module. Host adapters do not keep a second copy.
+Project file reads and searches are allowed only when a prior MemPalace or
+Graphify check cited the path. Running a script is not reading it, harness
+files (everything `harness-index.json` names) are exempt, the project root is
+walked up like `retrieve.project_root()`, and a graph with no project nodes
+fails open as `skipped(no-project-index)` (#6174). The ledger is the portable
+core; every host hook calls this module. Host adapters keep no second copy.
 """
 
 from __future__ import annotations
@@ -27,7 +30,7 @@ BLOCK_REASON = (
     "or `--component graphify`. Do not auto-migrate ~/.mempalace."
 )
 
-_PATH = re.compile(r"(?<![\w.@])((?:[\w.-]+/)+[\w.-]+\.[\w.]+)")
+_PATH = re.compile(r"(?<![\w@])((?:[\w.-]+/)+[\w.-]+\.[\w.]+)")
 _SOURCE_LINE = re.compile(r"(?m)^[ \t]*Source:\s*(\S+)")
 _READ_TOOLS = frozenset({"Read", "Grep", "Glob"})
 _FILE_HEADS = frozenset(
@@ -67,6 +70,24 @@ _INSTRUCTION_MARKERS = (
 _STORE_HEADS = frozenset({"mempalace", "graphify"})
 _PY = frozenset({"py", "python", "python3"})
 _SHELL_PATH = re.compile(r"(?<![\w@])(\.?[\w.-]+(?:/[\w.-]+)+\.[\w.]+)")
+_RUNNERS = frozenset(
+    {"node", "bash", "sh", "zsh", "pwsh", "powershell", "npx", "deno", "bun", "uv", "java", "mvn", "gradle", "make"}
+)
+_SEARCH_HEADS = frozenset({"rg", "grep", "ag", "ack", "fd", "find"})
+_FALLBACK_ROOTS = (
+    ".chaos-engine/", "chaos-engine/", ".chaos-engine-state/", "plugins/", ".agents/", ".claude/",
+    ".claude-plugin/", ".codex/", ".codex-plugin/", ".gemini/", ".grok/", ".opencode/", ".cursor/",
+    ".github/hooks/", ".github/skills/", ".memory/",
+)
+_FALLBACK_FILES = (
+    "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".github/copilot-instructions.md", ".mcp.json",
+    "mempalace.yaml", ".graphifyignore",
+)
+_LOCATOR = re.compile(r"`([^`\s]+\.md)`")
+_RECEIPT_FIELD = re.compile(
+    r"(?mi)^\s*(?:[-*]\s*)?retrieve:\s*(used|skipped\([^)\n]+\)|exempt\(harness\))\s*$"
+)
+NO_PROJECT_INDEX = "no-project-index"
 
 
 def _norm(value: str) -> str:
@@ -74,6 +95,130 @@ def _norm(value: str) -> str:
     while text.startswith("./"):
         text = text[2:]
     return text
+
+
+def _index_payload() -> dict:
+    path = Path(__file__).resolve().parent.parent / "harness-index.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def harness_roots() -> tuple[tuple[str, ...], frozenset[str]]:
+    """Harness roots and files from the generated index (fallback: built-in copy)."""
+    payload = _index_payload()
+    roots = payload.get("harnessRoots")
+    files = payload.get("harnessFiles")
+    if not (isinstance(roots, list) and roots and all(isinstance(item, str) for item in roots)):
+        roots = list(_FALLBACK_ROOTS)
+    if not (isinstance(files, list) and all(isinstance(item, str) for item in files)):
+        files = list(_FALLBACK_FILES)
+    return tuple(roots), frozenset(files)
+
+
+def is_harness_path(path: str, project: Path | None = None) -> bool:
+    """True for ChaosEngine harness paths: always readable, never gated."""
+    wanted = _project_relative(project, path) if project is not None else _norm(path)
+    if not wanted or wanted.startswith("../"):
+        return False
+    roots, files = harness_roots()
+    if wanted in files:
+        return True
+    return any(wanted == root.rstrip("/") or wanted.startswith(root) for root in roots)
+
+
+def project_root(start: Path | None = None) -> Path:
+    """Same walk-up as `retrieve.project_root()`: citations are visible from subdirectories."""
+    try:
+        here = (start or Path.cwd()).resolve()
+    except OSError:
+        return Path(start or ".")
+    for candidate in (here, *here.parents):
+        if (candidate / ".chaos-engine" / "install.py").is_file() or (
+            candidate / "chaos-engine" / "install.py"
+        ).is_file():
+            return candidate
+    return here
+
+
+def session_start_locators(text: str) -> list[str]:
+    """Backticked markdown paths SessionStart tells the agent to read."""
+    found: list[str] = []
+    for match in _LOCATOR.finditer(text or ""):
+        path = _norm(match.group(1))
+        if "/" in path and path not in found:
+            found.append(path)
+    return found
+
+
+def retrieve_receipt_field(text: str) -> str | None:
+    """Instruction-only hosts record `retrieve: used|skipped(reason)|exempt(harness)`."""
+    match = _RECEIPT_FIELD.search(text or "")
+    return match.group(1) if match else None
+
+
+def _graph_json(project: Path) -> Path:
+    import os
+
+    configured = os.environ.get("CHAOS_ENGINE_GRAPHIFY_OUT")
+    base = Path(configured) if configured else Path(project) / "graphify-out"
+    return base / "graph.json"
+
+
+def _node_path(node: object) -> str:
+    if not isinstance(node, dict):
+        return ""
+    for key in ("source_file", "file", "path", "source"):
+        value = node.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return ""
+
+
+def project_index_state(project: Path) -> str:
+    """`ok`, `missing`, or `no-project-index` when the graph holds only harness nodes."""
+    graph = _graph_json(project)
+    try:
+        stat = graph.stat()
+    except OSError:
+        return "missing"
+    stamp = [int(stat.st_mtime_ns), int(stat.st_size)]
+    cached = _load_payload(project).get("indexState")
+    if isinstance(cached, dict) and cached.get("stamp") == stamp and isinstance(cached.get("state"), str):
+        return cached["state"]
+    try:
+        payload = json.loads(graph.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return "missing"
+    nodes = payload.get("nodes") if isinstance(payload, dict) else None
+    nodes = nodes if isinstance(nodes, list) else []
+    state = NO_PROJECT_INDEX
+    for node in nodes:
+        path = _node_path(node)
+        if path and not is_harness_path(path, project):
+            state = "ok"
+            break
+    record = _load_payload(project)
+    if record or (Path(project) / RECEIPT_NAME).parent.is_dir() or state == NO_PROJECT_INDEX:
+        record["indexState"] = {"stamp": stamp, "state": state}
+        record.setdefault("schemaVersion", 1)
+        _write_payload(project, record)
+    return state
+
+
+def _record_no_project_index(project: Path) -> None:
+    payload = _load_payload(project)
+    outcomes = payload.get("outcomes")
+    kept = [item for item in outcomes if isinstance(item, dict)] if isinstance(outcomes, list) else []
+    if any(item.get("reason") == NO_PROJECT_INDEX for item in kept):
+        return
+    kept.append({"store": "graphify", "status": "skipped", "query": "", "reason": NO_PROJECT_INDEX})
+    payload["outcomes"] = kept[-32:]
+    payload.setdefault("schemaVersion", 1)
+    payload.setdefault("citations", [])
+    _write_payload(project, payload)
 
 
 def _project_relative(project: Path, target: str) -> str:
@@ -101,7 +246,9 @@ def extract_citations(text: str) -> list[str]:
     found: list[str] = []
     for match in _PATH.finditer(text or ""):
         path = _norm(match.group(1))
-        if "://" in path or path.startswith("."):
+        if "://" in path:
+            continue
+        if path.startswith(".") and not is_harness_path(path):
             continue
         found.append(path)
     for match in _SOURCE_LINE.finditer(text or ""):
@@ -157,6 +304,17 @@ def _write_payload(project: Path, payload: dict) -> None:
     destination.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def _citable(project: Path, path: str) -> bool:
+    """#6179: only existing repository files enter the ledger (no tqdm or cache noise)."""
+    wanted = _norm(path)
+    if not wanted or wanted.startswith(("../", "/")) or ".." in wanted.split("/"):
+        return False
+    try:
+        return (Path(project) / wanted).is_file()
+    except OSError:
+        return False
+
+
 def record_citations(project: Path, store: str, text: str) -> list[str]:
     """Append paths from a MemPalace or Graphify result. Other stores no-op."""
     return record_store_outcome(project, store, "used", "", text)
@@ -172,7 +330,10 @@ def record_store_outcome(
     payload = _load_payload(project)
     citations = payload.get("citations")
     current = [item for item in citations if isinstance(item, str)] if isinstance(citations, list) else []
-    fresh = extract_citations(text) if status == "used" else []
+    fresh = [
+        path for path in (extract_citations(text) if status == "used" else [])
+        if _citable(project, path)
+    ]
     for path in fresh:
         if path not in current:
             current.append(path)
@@ -196,6 +357,9 @@ def record_store_outcome(
         kept.append(outcome)
         kept = kept[-32:]
     payload = {"schemaVersion": 1, "store": chosen, "citations": current, "outcomes": kept}
+    previous = _load_payload(project).get("indexState")
+    if isinstance(previous, dict):
+        payload["indexState"] = previous
     _write_payload(project, payload)
     return fresh
 
@@ -283,12 +447,22 @@ def _fail_open(project: Path, target: str) -> bool:
 def read_allowed(project: Path, target: str) -> bool:
     """True when this path may be read without another store round trip."""
     relative = _project_relative(project, target)
+    if is_harness_path(relative):
+        return True
     return (
         _allowlisted(project, relative)
         or cites(project, relative)
         or _prefix_allowed(project, relative)
         or _fail_open(project, relative)
+        or _no_project_index(project)
     )
+
+
+def _no_project_index(project: Path) -> bool:
+    if project_index_state(project) != NO_PROJECT_INDEX:
+        return False
+    _record_no_project_index(project)
+    return True
 
 
 def cites(project: Path, target: str) -> bool:
@@ -413,36 +587,59 @@ def _only_store_scripts(paths: list[str]) -> bool:
     return bool(paths) and all(path.endswith(scripts) for path in paths)
 
 
+def _tokens(segment: str) -> list[str]:
+    try:
+        import shlex
+
+        return shlex.split(segment, posix=True)
+    except ValueError:
+        return []
+
+
+def segment_kind(segment: str) -> str:
+    """`store`, `run` (executing a script is not reading it), `read`, or `other`."""
+    if _is_store_segment(segment):
+        return "store"
+    tokens = _tokens(segment)
+    head, arguments = _command_head(tokens)
+    if head in _PY:
+        if "-c" in arguments:
+            return "read"
+        if "-m" in arguments:
+            return "run"
+        return "run" if any(item.endswith(".py") for item in arguments if not item.startswith("-")) else "other"
+    if head in _RUNNERS:
+        return "run"
+    if head in _FILE_HEADS:
+        return "read"
+    if not tokens and "python" in segment.casefold() and " -c" in segment:
+        return "read"
+    return "other"
+
+
+def _pipeline_parts(command: str) -> list[str]:
+    parts: list[str] = []
+    for segment in _segments(command):
+        parts.extend(piece.strip() for piece in re.split(r"(?<!\|)\|(?!\|)", segment) if piece.strip())
+    return parts
+
+
+def _read_segment_block(project: Path, segment: str) -> bool:
+    head, _arguments = _command_head(_tokens(segment))
+    if head in _PY or not head:
+        paths = _shell_read_paths(segment)
+        return bool(paths) and not all(read_allowed(project, path) for path in paths)
+    paths = _paths_in_segment(segment)
+    if paths:
+        return not all(read_allowed(project, path) for path in paths)
+    return head in _SEARCH_HEADS and not _no_project_index(project)
+
+
 def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
     for command in commands:
-        if re.search(r"\b(python3?|py|sed)\b", command):
-            opened = _shell_read_paths(command)
-            if opened and not all(read_allowed(project, path) for path in opened):
-                if not _only_store_scripts(opened):
-                    return BLOCK_REASON
-        for segment in _segments(command):
-            if _is_store_segment(segment):
-                continue
-            try:
-                import shlex
-
-                tokens = shlex.split(segment, posix=True)
-            except ValueError:
-                tokens = []
-            head, _arguments = _command_head(tokens)
-            if head in _PY or (not tokens and "python" in segment.casefold()):
-                paths = _shell_read_paths(segment)
-                if paths and all(read_allowed(project, path) for path in paths):
-                    continue
-                if paths:
-                    return BLOCK_REASON
-                continue
-            if head not in _FILE_HEADS:
-                continue
-            paths = _paths_in_segment(segment)
-            if paths and all(read_allowed(project, path) for path in paths):
-                continue
-            return BLOCK_REASON
+        for segment in _pipeline_parts(command):
+            if segment_kind(segment) == "read" and _read_segment_block(project, segment):
+                return BLOCK_REASON
     return None
 
 

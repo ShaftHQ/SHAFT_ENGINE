@@ -11,7 +11,7 @@ source excerpts, or user-specific absolute paths.
 - The third attempted failure stops for a receipt (`third-fix`, or
   `repeated-fingerprint` when every fingerprint matches). A fourth distinct
   failure without a new receipt is forbidden. The denial names
-  `py -3 scripts/agents/reflection.py receipt` and the installed
+  `py -3 scripts/agents/reflection.py receipt` (repo-only) and the installed
   `.chaos-engine/hooks/reflection.py receipt`. It does not invite a read of
   `reflection.py`.
 - A valid receipt authorizes one following `git commit` of that fix. The
@@ -56,9 +56,9 @@ Stores and GitHub are optional: an unavailable service never prevents the
 local receipt or resumption, and hooks never create or update issues.
 
 For semantic events the hook cannot infer safely, record the trigger explicitly
-with `py -3 scripts/agents/reflection.py trigger --session-id {id} --trigger
+with (repo-only) `py -3 scripts/agents/reflection.py trigger --session-id {id} --trigger
 {enum}`. Append a receipt without creating a blocked intermediate file using
-`py -3 scripts/agents/reflection.py receipt --session-id {id} --session-token
+(repo-only) `py -3 scripts/agents/reflection.py receipt --session-id {id} --session-token
 {token} --json {receipt-json}`. Mark only a proved setup, syntax, or capability
 probe by exact ID with the `non-attempt` subcommand. Portable installs use the
 same subcommands through `.chaos-engine/hooks/reflection.py`.

@@ -102,13 +102,14 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertNotIn("unsupported ChaosEngine tool", result.stderr)
 
     def test_file_read_without_store_citation_is_blocked(self):
+        # #6174: harness files are exempt; the gate governs project source.
         with tempfile.TemporaryDirectory() as temporary:
             result = self.run_hook(
                 {
                     "hook_event_name": "PreToolUse",
                     "tool_name": "Read",
                     "cwd": temporary,
-                    "tool_input": {"file_path": "chaos-engine/hooks/guard.py"},
+                    "tool_input": {"file_path": "src/Foo.java"},
                 }
             )
         self.assertEqual(2, result.returncode)
@@ -129,8 +130,8 @@ class ChaosEngineHookTest(unittest.TestCase):
                     **event,
                     "cwd": temporary,
                     "session_id": f"read-gate-{host}",
-                    "tool_input": {"file_path": "chaos-engine/hooks/guard.py"},
-                    "toolArgs": {"file_path": "chaos-engine/hooks/guard.py"},
+                    "tool_input": {"file_path": "src/Foo.java"},
+                    "toolArgs": {"file_path": "src/Foo.java"},
                 }
                 result = self.run_hook(
                     payload,
@@ -150,7 +151,7 @@ class ChaosEngineHookTest(unittest.TestCase):
                 json.dumps(
                     {
                         "schemaVersion": 1,
-                        "citations": ["chaos-engine/hooks/guard.py"],
+                        "citations": ["src/Foo.java"],
                     }
                 ),
                 encoding="utf-8",
@@ -161,8 +162,8 @@ class ChaosEngineHookTest(unittest.TestCase):
                     **event,
                     "cwd": temporary,
                     "session_id": f"read-allow-{host}",
-                    "tool_input": {"file_path": "chaos-engine/hooks/guard.py"},
-                    "toolArgs": {"file_path": "chaos-engine/hooks/guard.py"},
+                    "tool_input": {"file_path": "src/Foo.java"},
+                    "toolArgs": {"file_path": "src/Foo.java"},
                 }
                 result = self.run_hook(
                     payload,
@@ -955,3 +956,25 @@ process.stderr.write(result.stderr || '');
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TokenEconomyWave2HookParityTest(unittest.TestCase):
+    """#6173 parity rows: every host runs the same portable gate and locators."""
+
+    def test_retrieve_gate_scopes_project_reads_on_every_host(self):
+        from tests.scripts.test_retrieve_gate_scope import RetrieveGateScopeTest
+
+        with open(os.devnull, "w", encoding="utf-8") as sink:
+            result = unittest.TextTestRunner(stream=sink, verbosity=0).run(
+                unittest.defaultTestLoader.loadTestsFromTestCase(RetrieveGateScopeTest)
+            )
+        self.assertTrue(result.wasSuccessful(), result.failures + result.errors)
+
+    def test_every_emitted_locator_is_allowed_on_every_host(self):
+        from tests.scripts.test_ce_guard_reachability import GuardReachabilityTest
+
+        with open(os.devnull, "w", encoding="utf-8") as sink:
+            result = unittest.TextTestRunner(stream=sink, verbosity=0).run(
+                unittest.defaultTestLoader.loadTestsFromTestCase(GuardReachabilityTest)
+            )
+        self.assertTrue(result.wasSuccessful(), result.failures + result.errors)

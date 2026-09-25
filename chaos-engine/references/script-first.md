@@ -9,7 +9,7 @@ fifteen hops that restate the same question.
 This reimplements a published code-mode idea as portable guidance: write or
 run one program against the workspace instead of orchestrating each primitive
 by hand. No upstream runtime is required. Named sources and licenses live in
-[THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md) and [RESEARCH](../RESEARCH.md).
+[THIRD_PARTY_NOTICES](../THIRD_PARTY_NOTICES.md) and RESEARCH (repo-only `chaos-engine/RESEARCH.md`).
 
 ## When a script is the smaller move
 

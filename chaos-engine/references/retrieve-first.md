@@ -15,12 +15,24 @@ depth off that answer rather than judging it twice.
 | One module, reversible | Select stores relevant to the subsystem or affected callers. |
 | Public contract, many callers, or hard to reverse | Use every relevant store, then verify every useful hit against live files. |
 
-Memory is advisory. A MemPalace or Graphify check is required before a file
-read or a file search: the portable guard allows those calls only for paths
-that check cited. `skipped` and `degraded` do not cite a path and do not
-unlock reads. Neither state blocks implementation once the cited files have
-been read. The deny text and the ledger live in one
-[citation ledger](../hooks/retrieve_justification.py) for every host.
+Graph and memory first, when it pays. Before the first read or search of
+**project** files in a task area, run one bounded retrieve (`--store graphify`
+for what calls or depends on this; `--store mempalace` for what happened
+around this). Then read only cited ranges.
+One retrieve per task area, not per file. Skip it for harness files (everything in
+[harness-index.json](../harness-index.json)), for running a script, for files
+you named or that are already in the diff, and when the store is empty or
+degraded or has no project nodes for the path.
+In those cases record `skipped(<reason>)` once and continue.
+
+Hook hosts enforce this through the portable guard: running a script is not
+reading it, harness paths are exempt, the project root is walked up from the
+event `cwd`, and a graph with no project nodes fails open as
+`skipped(no-project-index)`. Instruction-only hosts (OpenCode, Cursor, Grok
+Bot, Copilot cloud) record `retrieve: used|skipped(<reason>)|exempt(harness)`
+in the [research receipt](research-receipt.md). The deny text and the ledger
+live in one [citation ledger](../hooks/retrieve_justification.py) for every
+host; `skipped` and `degraded` do not cite a path.
 One Graphify citation of path P authorizes later reads of P in that session
 without another retrieve. An uncited path stays denied. A MemPalace
 backend-mismatch is recorded once: do not retrieve MemPalace again, do not

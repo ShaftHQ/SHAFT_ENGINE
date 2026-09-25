@@ -3,7 +3,7 @@
 Sibling of [`installer-program.md`](installer-program.md). Required before the
 first implementing commit on any child. Re-copy onto that child if a cell
 changes. Portable payload must stay free of repository-identity tokens; quote
-artifact ids and upstream URLs only from origin-only [`INSTALL.md`](../INSTALL.md)
+artifact ids and upstream URLs only from origin-only `chaos-engine/INSTALL.md` (repo-only)
 and the live profile catalog.
 
 ## Resolved caller matrix
@@ -33,7 +33,7 @@ and the live profile catalog.
 
 | Criterion or invariant | Positive proof | Negative or mutation proof | Command |
 | --- | --- | --- | --- |
-| Empty first install reaches healthy doctor | Smoke fixture doctor `status` healthy, distribution `portable` | Delete `hooks/guard.py` after install → doctor unhealthy `hooks` | `python3 scripts/ci/chaos_engine_empty_project_smoke.py --output /tmp/ce-smoke.json` plus focused unittest |
+| Empty first install reaches healthy doctor | Smoke fixture doctor `status` healthy, distribution `portable` | Delete `hooks/guard.py` after install → doctor unhealthy `hooks` | `python3 scripts/ci/chaos_engine_empty_project_smoke.py --output /tmp/ce-smoke.json` plus focused unittest (repo-only) |
 | Java first install selects repository | Manifest `distribution.id` is `repository`; Maven Tools component present | POM without the configured `installWhen.mavenArtifactIds` entry must not select repository | Focused installer distribution tests |
 | Non-Java first install stays portable | Manifest `portable`; missing Maven Tools does not fail required health | Inject matching artifact id → flips to repository | Same tests, non-Java fixture |
 | Upgrade preserves foreign bytes | Pre-seed `AGENTS.md` prose; after upgrade file contains that prose plus current owned block | Pre-seed colliding markers → no overwrite of foreign file | Hosts merge tests |

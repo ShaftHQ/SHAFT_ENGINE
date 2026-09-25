@@ -4,7 +4,7 @@ Learned in the PR #6158 coalesce wave (epic #6161): babysit, process-owner, and 
 
 ## Digest only (#6162)
 
-- Agent-facing CI status comes from `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest` (one blocking watch).
+- Agent-facing CI status comes from `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest` (one blocking watch). (repo-only)
 - Never paste a raw `statusCheckRollup` or a full check-runs list into chat, an executor prompt, or a status report.
 - Digest schema:
 
@@ -27,7 +27,7 @@ Learned in the PR #6158 coalesce wave (epic #6161): babysit, process-owner, and 
 ## One status channel (#6163)
 
 - Exactly one status channel per in-flight PR: the armed watch. Start it with `--status-lease --digest-out .chaos-engine/runtime/digest-<pr>.json`; it records `.chaos-engine/runtime/status-lease-<pr>.json`.
-- Scheduled process-owner status routines run `python3 scripts/agents/status_lease.py routine --pr <n> --last-reported <state>`; it prints nothing while the lease is live and unchanged, and one line on `red` / `merged` or when no live watch exists.
+- Scheduled process-owner status routines run `python3 scripts/agents/status_lease.py routine --pr <n> --last-reported <state>`; it prints nothing while the lease is live and unchanged, and one line on `red` / `merged` or when no live watch exists. (repo-only)
 - Parent re-entry does not re-narrate unless the watch returned RED/MERGED or the owner asked (`--owner-asked`).
 - Link: [process-owner](process-owner-scrum-master.md), [orchestrator follow-through](orchestrator-follow-through.md).
 
@@ -36,7 +36,7 @@ Learned in the PR #6158 coalesce wave (epic #6161): babysit, process-owner, and 
 - If the job summary, annotation, or evidence JSON already names a fingerprint, read at most 40 lines around it:
 
   ```bash
-  python3 chaos-engine/skills/local-agency/scripts/executor_brief.py log-budget <log> --fingerprint <text>
+  python3 .chaos-engine/skills/local-agency/scripts/executor_brief.py log-budget <log> --fingerprint <text>
   ```
 
 - Otherwise spill the full log to disk and keep only path + fingerprint + tail in context. `tip_preflight.classify_failure()` maps a summary line to a known fingerprint.
@@ -65,5 +65,5 @@ red: python3 -m unittest <module> -v
 
 ## Related
 
-- [`watch_pr_checks.py`](../../scripts/agents/watch_pr_checks.py), [`status_lease.py`](../../scripts/agents/status_lease.py), [`executor_brief.py`](../skills/local-agency/scripts/executor_brief.py)
+- `scripts/agents/watch_pr_checks.py` (repo-only), `scripts/agents/status_lease.py` (repo-only), [`executor_brief.py`](../skills/local-agency/scripts/executor_brief.py)
 - [Tip-churn preflight](tip-churn-preflight.md) · [Codacy ACTION_REQUIRED gate](codacy-action-required-gate.md)

@@ -1,3 +1,8 @@
+---
+name: design-loop
+description: Use when a design document needs write-review-revise rounds until zero open review issues remain.
+---
+
 # Design loop
 
 Portable write-review-revise contract for a design document. Host-specific

@@ -15,10 +15,10 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -175,11 +175,11 @@ class DigestCiStatusTest(unittest.TestCase):
             context = SimpleNamespace(repo="o/r", pr_number=5, root=root)
             checks = [{"name": "unit", "state": "FAILURE", "link": "https://checks/1"}]
             out = io.StringIO()
-            with mock.patch.object(watch_pr_checks, "resolve_gh", return_value="/gh"), \
-                 mock.patch.object(watch_pr_checks, "resolve_repository_context", return_value=context), \
-                 mock.patch.object(watch_pr_checks, "resolve_pr_number", return_value=5), \
-                 mock.patch.object(watch_pr_checks, "poll_once", return_value=checks), \
-                 mock.patch.object(watch_pr_checks, "fetch_head_sha", return_value="c" * 40), \
+            with unittest.mock.patch.object(watch_pr_checks, "resolve_gh", return_value="/gh"), \
+                 unittest.mock.patch.object(watch_pr_checks, "resolve_repository_context", return_value=context), \
+                 unittest.mock.patch.object(watch_pr_checks, "resolve_pr_number", return_value=5), \
+                 unittest.mock.patch.object(watch_pr_checks, "poll_once", return_value=checks), \
+                 unittest.mock.patch.object(watch_pr_checks, "fetch_head_sha", return_value="c" * 40), \
                  redirect_stdout(out):
                 code = watch_pr_checks.main(["--pr", "5", "--repo", "o/r", "--poll-once", "--digest", "--digest-out", str(digest_path), "--status-lease", "--root", str(root)])
             self.assertEqual(1, code)
@@ -375,7 +375,7 @@ class GraphifyEmptyOutputAbsorbTest(unittest.TestCase):
             root = Path(temporary)
             summary = root / "summary.md"
             err = io.StringIO()
-            with mock.patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(summary)}), redirect_stderr(err):
+            with unittest.mock.patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(summary)}), redirect_stderr(err):
                 result = DEPENDENCIES._run_project_setup_command([str(root / "graphify.exe"), "install", "--platform", "agents"], root, runner=self._runner(calls))
                 self.assertEqual(0, result.returncode)
                 self.assertEqual(["install", "install", "--version"], [c[1] for c in calls])

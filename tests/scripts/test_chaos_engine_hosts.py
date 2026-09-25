@@ -1428,10 +1428,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 path = project / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("tracked\n", encoding="utf-8")
-            subprocess.run(["git", "init", "-q", str(project)], check=True)
+            subprocess.run(["git", "init", "-q", str(project)], check=True)  # nosec B603 B607 - fixed git argv on a temp fixture.
 
             ignored = subprocess.run(
-                ["git", "-C", str(project), "check-ignore", "-v", overlay],
+                ["git", "-C", str(project), "check-ignore", "-v", overlay],  # nosec B603 B607 - fixed git argv on a temp fixture.
                 capture_output=True,
                 text=True,
                 check=False,
@@ -1440,7 +1440,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertNotIn("!.chaos-engine", ignored.stdout)
 
             result = subprocess.run(
-                ["git", "-C", str(project), "check-ignore", *reincluded],
+                ["git", "-C", str(project), "check-ignore", *reincluded],  # nosec B603 B607 - fixed git argv on a temp fixture.
                 capture_output=True,
                 text=True,
                 check=False,
@@ -1456,10 +1456,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
             path = project / generated
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b"generated")
-            subprocess.run(["git", "init", "-q", str(project)], check=True)
+            subprocess.run(["git", "init", "-q", str(project)], check=True)  # nosec B603 B607 - fixed git argv on a temp fixture.
 
             result = subprocess.run(
-                ["git", "-C", str(project), "check-ignore", generated],
+                ["git", "-C", str(project), "check-ignore", generated],  # nosec B603 B607 - fixed git argv on a temp fixture.
                 capture_output=True,
                 text=True,
                 check=False,
@@ -1701,10 +1701,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "feature-worktree"
             project.mkdir()
-            subprocess.run(["git", "init", "-q", str(project)], check=True)
+            subprocess.run(["git", "init", "-q", str(project)], check=True)  # nosec B603 B607 - fixed git argv on a temp fixture.
             subprocess.run(
                 [
-                    "git",
+                    "git",  # nosec B603 B607 - fixed git argv on a temp fixture.
                     "-C",
                     str(project),
                     "remote",
@@ -4499,3 +4499,27 @@ class CompanionPinTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TokenEconomyWave2HostsParityTest(unittest.TestCase):
+    """#6178 / #6179 parity rows."""
+
+    @classmethod
+    def setUpClass(cls):
+        spec = importlib.util.spec_from_file_location("ce_hosts_wave2", ROOT / "chaos-engine/hosts.py")
+        cls.hosts = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.hosts)
+
+    def test_ce_pointer_loads_once_on_every_host(self):
+        self.assertEqual(b"@AGENTS.md\n", self.hosts.claude_pointer_bytes())
+        self.assertEqual({"opencode", "cursor", "grok-bot"}, set(self.hosts.INSTRUCTION_ONLY_HOSTS))
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertEqual(1, agents.count("skills/chaos-engine/SKILL.md"))
+
+    def test_hook_documents_use_portable_interpreters(self):
+        managed = Path("/opt/example/python3")
+        for host in ("claude", "codex", "grok", "copilot"):
+            with self.subTest(host=host):
+                document = self.hosts.lifecycle_hooks_document(host, managed_python=managed).decode("utf-8")
+                self.assertNotIn(str(managed), document)
+                self.assertIn("python3", document)

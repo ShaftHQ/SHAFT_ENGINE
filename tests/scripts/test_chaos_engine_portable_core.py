@@ -18,9 +18,18 @@ if INSTALLER_SPEC is None or INSTALLER_SPEC.loader is None:
 INSTALLER = importlib.util.module_from_spec(INSTALLER_SPEC)
 INSTALLER_SPEC.loader.exec_module(INSTALLER)
 CANONICAL_SKILL = CORE / "skills/chaos-engine/SKILL.md"
+# #6176: the router card links the router contract that owns every moved section.
+ROUTER_CONTRACT = CORE / "references/router-contract.md"
+
+
+def router_text() -> str:
+    """The router card plus the contract it always links, as one corpus."""
+    return CANONICAL_SKILL.read_text(encoding="utf-8") + "\n\n" + ROUTER_CONTRACT.read_text(encoding="utf-8")
+
 CLEANUP_SCOPES = CORE / "references/cleanup-scopes.md"
 TASK_ISOLATION = CORE / "references/task-isolation.md"
 from scripts.ci.overlay_in_temp import session_overlay  # noqa: E402
+from tests.scripts.ce_host_files import installed_overlay_text  # noqa: E402  (#6197)
 
 OVERLAY = session_overlay(ROOT)
 REPOSITORY_ADAPTER = OVERLAY / ".agents/skills/chaos-engine/SKILL.md"
@@ -36,7 +45,7 @@ POSIX_ABSOLUTE_PATH = re.compile(
 
 class ChaosEnginePortableCoreTest(unittest.TestCase):
     def test_validation_scope_recommends_balanced_and_ci_reruns_only_changed_tests(self):
-        guidance = CANONICAL_SKILL.read_text(encoding="utf-8")
+        guidance = router_text()
 
         self.assertIn("balanced default", guidance)
         self.assertIn("only tests created or edited", guidance)
@@ -97,7 +106,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("references/routing.md", profile.read_text(encoding="utf-8"))
 
     def test_router_reads_selected_profile_when_portable_entrypoint_is_omitted(self):
-        skill = " ".join(CANONICAL_SKILL.read_text(encoding="utf-8").split())
+        skill = " ".join(router_text().split())
         identity = " ".join((CORE / "identity.md").read_text(encoding="utf-8").split())
         self.assertIn("profiles/<id>/entrypoint.md", skill)
         self.assertIn("portable entrypoint on purpose", skill)
@@ -367,7 +376,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                 self.assertTrue((vendor / relative).is_file(), relative)
 
     def test_companions_are_always_on_ultra_and_beat_host_prose(self):
-        skill = CANONICAL_SKILL.read_text(encoding="utf-8")
+        skill = router_text()
         hooks = (CORE / "references/lifecycle-hooks.md").read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         lowered = skill.casefold()
@@ -382,7 +391,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("Caveman", agents)
 
     def test_harness_changes_require_five_host_compatibility(self):
-        skill = CANONICAL_SKILL.read_text(encoding="utf-8")
+        skill = router_text()
         lowered = skill.casefold()
         self.assertIn("harness change", lowered)
         self.assertIn("provider-agnostic", lowered)
@@ -390,12 +399,12 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("silently no-ops the others", lowered)
 
     def test_canonical_cleanup_policy_is_portable_and_has_three_scopes(self):
-        canonical = CANONICAL_SKILL.read_text(encoding="utf-8")
+        canonical = router_text()
         task_isolation_router = canonical.split("## Task isolation", 1)[1].split(
             "## Operating contract", 1
         )[0]
         cleanup_scopes = CLEANUP_SCOPES.read_text(encoding="utf-8")
-        self.assertIn("../../references/cleanup-scopes.md", task_isolation_router)
+        self.assertIn("](cleanup-scopes.md)", task_isolation_router)  # #6176: section lives in references/router-contract.md
 
         for heading in (
             "### Task scope (default)",
@@ -502,11 +511,11 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("no `--force-with-lease` to the configured default", compact_recipe)
 
     def test_task_isolation_gates_planning_on_a_clean_primary_checkout(self):
-        canonical = CANONICAL_SKILL.read_text(encoding="utf-8")
+        canonical = router_text()
         task_isolation_router = canonical.split("## Task isolation", 1)[1].split(
             "## Operating contract", 1
         )[0]
-        self.assertIn("../../references/task-isolation.md", task_isolation_router)
+        self.assertIn("](task-isolation.md)", task_isolation_router)  # #6176: section lives in references/router-contract.md
         task_isolation = TASK_ISOLATION.read_text(encoding="utf-8")
         normalized = " ".join(task_isolation.split())
 
@@ -536,7 +545,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         )
 
     def test_ordinary_tasks_do_not_maintain_or_wait_for_knowledge_stores(self):
-        canonical = CANONICAL_SKILL.read_text(encoding="utf-8")
+        canonical = router_text()
         task_isolation = TASK_ISOLATION.read_text(encoding="utf-8")
         retrieval = (CORE / "references/retrieve-first.md").read_text(encoding="utf-8")
         graphify = (CORE / "references/graphify.md").read_text(encoding="utf-8")
@@ -647,11 +656,11 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         forensics_source = (CORE / forensics_path).read_text(encoding="utf-8")
         self.assertEqual(
             entry_source,
-            (ROOT / ".chaos-engine" / entry_path).read_text(encoding="utf-8"),
+            installed_overlay_text(entry_path.as_posix()),
         )
         self.assertEqual(
             forensics_source,
-            (ROOT / ".chaos-engine" / forensics_path).read_text(encoding="utf-8"),
+            installed_overlay_text(forensics_path.as_posix()),
         )
         entry = " ".join(entry_source.split())
         forensics = " ".join(forensics_source.split())
@@ -773,8 +782,9 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertNotIn("../shafthq.github.io", profile_text)
         self.assertNotIn("../shafthq.github.io", entry)
         self.assertNotIn("../shafthq.github.io", playbook)
-        self.assertIn("[ChaosEngine](chaos-engine/skills/chaos-engine/SKILL.md)", agents)
-        self.assertIn("[ChaosEngine](.chaos-engine/skills/chaos-engine/SKILL.md)", agents)
+        # #6178: the router is linked once, from the managed ChaosEngine block.
+        self.assertNotIn("[ChaosEngine](chaos-engine/skills/chaos-engine/SKILL.md)", agents)
+        self.assertEqual(1, agents.count("[ChaosEngine](.chaos-engine/skills/chaos-engine/SKILL.md)"))
         self.assertIn("the only router and\nworking-policy owner", agents)
         self.assertNotIn("../shafthq.github.io", agents)
         self.assertIsNone(windows_absolute.search(entry))
@@ -955,7 +965,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         planning = (CORE / "references/work-github-planning.md").read_text(encoding="utf-8")
         receipt = (CORE / "references/research-receipt.md").read_text(encoding="utf-8")
         consult = (CORE / "references/consult-first.md").read_text(encoding="utf-8")
-        skill = CANONICAL_SKILL.read_text(encoding="utf-8")
+        skill = router_text()
         forbidden = "Ask once, at the start, then go unattended"
         for text, name in (
             (planning, "work-github-planning.md"),
@@ -983,7 +993,7 @@ class OrchestratorModeContractTest(unittest.TestCase):
     """Portable orchestrator-mode pins (#5210, #5246, #5249)."""
 
     def _skill(self) -> str:
-        return re.sub(r"\s+", " ", CANONICAL_SKILL.read_text(encoding="utf-8"))
+        return re.sub(r"\s+", " ", router_text())
 
     def _delegation(self) -> str:
         return re.sub(
@@ -994,7 +1004,7 @@ class OrchestratorModeContractTest(unittest.TestCase):
 
     def _combined(self) -> str:
         texts = [
-            CANONICAL_SKILL.read_text(encoding="utf-8"),
+            router_text(),
             (CORE / "references/delegation.md").read_text(encoding="utf-8"),
             (CORE / "references/roles.md").read_text(encoding="utf-8"),
             (CORE / "references/orchestrator-bootstrap.md").read_text(encoding="utf-8"),
@@ -1005,7 +1015,7 @@ class OrchestratorModeContractTest(unittest.TestCase):
         """Attendance mode sits with review/PR planning; default fully unattended."""
         planning = (CORE / "references/work-github-planning.md").read_text(encoding="utf-8")
         identity = (CORE / "references/identity-push-back.md").read_text(encoding="utf-8")
-        skill = (CORE / "skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        skill = router_text()
         self.assertIn("Attendance mode", planning)
         self.assertIn("Fully unattended", planning)
         self.assertIn("PLUS ULTRA", identity)
@@ -1071,7 +1081,7 @@ class OrchestratorModeContractTest(unittest.TestCase):
 
     def test_harness_merge_reinstalls_overlay_from_main(self):
         playbook = (CORE / "references/work-github-playbook.md").read_text(encoding="utf-8")
-        self.assertIn("python3 chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch main", playbook)
+        self.assertIn("python3 .chaos-engine/bootstrap.py --project . --repository <configured-upstream> --branch main", playbook)
         self.assertIn("python3 .chaos-engine/install.py doctor --project .", playbook)
         self.assertIn("git merge --ff-only origin/main", playbook)
         self.assertIn("Reload host hooks and skills", playbook)

@@ -118,11 +118,12 @@
   "expected_skill_names": {
     "chaos-engine/skills": [
       "chaos-engine",
-      "freetoken",
       "colibri",
+      "freetoken",
       "local-agency",
       "local-coding-delegate",
       "local-openai-compat",
+      "local-runtimes",
       "omniroute",
       "self-improve",
       "work-item"
@@ -289,5 +290,51 @@
   ],
   "notes": "One substantive portable entrypoint lives under .agents; host skill files are relative redirects. Ceilings are derived from documented host limits and measured in characters -- see limit_sources. Always-loaded body counts the mandatory fronts plus the entrypoint; the skill listing counts discovery metadata only. Canonical references are on-demand but included in deduplication, forbidden-pattern, stale-reference, and link checks.",
   "host_skill_metadata_exemptions": {},
-  "host_skill_metadata_note": "#4531 gap 3. Vendors are enumerated rather than generalised: each host reads guidance at paths only that host knows, and no pattern discovers them. The enumeration is therefore enforced instead of assumed -- tests/scripts/test_validate_agent_guidance.py::VendorEnumerationIsEnforcedTest fails when a host_contexts entry has no glob list here and no exemption with a stated reason, so a fourth vendor dropping in an adapter is loud rather than silently uncovered. copilot was exactly that gap: .github/skills ships 11 SKILL.md files and had no listing budget while claude, codex and grok did. exemptions is empty and that is the healthy end state, not a placeholder -- see gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened."
+  "host_skill_metadata_note": "#4531 gap 3. Vendors are enumerated rather than generalised: each host reads guidance at paths only that host knows, and no pattern discovers them. The enumeration is therefore enforced instead of assumed -- tests/scripts/test_validate_agent_guidance.py::VendorEnumerationIsEnforcedTest fails when a host_contexts entry has no glob list here and no exemption with a stated reason, so a fourth vendor dropping in an adapter is loud rather than silently uncovered. copilot was exactly that gap: .github/skills ships 11 SKILL.md files and had no listing budget while claude, codex and grok did. exemptions is empty and that is the healthy end state, not a placeholder -- see gotcha.a-check-whose-healthy-end-state-is-unreachable-is-a-check-that-will-be-weakened.",
+  "mandated_chain": {
+    "notes": "#6176: bytes every host must load before any task, measured end to end: host pointer files, the router core card, identity, the selected profile entrypoint, and (hook hosts) the SessionStart cap. max_always_loaded_body_chars only counts pointer files; this bounds the whole chain.",
+    "max_bytes": 24576,
+    "session_start_bytes": 4096,
+    "session_start_hosts": [
+      "claude",
+      "codex",
+      "copilot",
+      "gemini",
+      "grok"
+    ],
+    "common": [
+      "chaos-engine/skills/chaos-engine/SKILL.md",
+      "chaos-engine/identity.md",
+      "chaos-engine/profiles/shaft/entrypoint.md"
+    ],
+    "hosts": {
+      "claude": [
+        "CLAUDE.md",
+        "AGENTS.md"
+      ],
+      "codex": [
+        "AGENTS.md"
+      ],
+      "copilot": [
+        "AGENTS.md",
+        ".github/copilot-instructions.md"
+      ],
+      "gemini": [
+        "GEMINI.md",
+        "AGENTS.md"
+      ],
+      "grok": [
+        "AGENTS.md"
+      ],
+      "opencode": [
+        "AGENTS.md"
+      ],
+      "cursor": [
+        "AGENTS.md"
+      ],
+      "grok-bot": [
+        "AGENTS.md"
+      ]
+    }
+  }
 }
