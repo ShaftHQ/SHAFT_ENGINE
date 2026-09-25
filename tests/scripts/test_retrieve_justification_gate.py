@@ -115,13 +115,14 @@ class RetrieveJustificationGateTest(unittest.TestCase):
 
     def test_degraded_store_fails_open_only_for_paths_in_the_query(self):
         gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_open")
+        # #6219: project paths, not harness paths (harness is exempt since #6174).
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             gate.record_store_outcome(
                 project,
                 "mempalace",
                 "degraded",
-                "chaos-engine/bootstrap.py chroma mismatch",
+                "src/bootstrap.py chroma mismatch",
                 "",
             )
             self.assertIsNone(
@@ -129,7 +130,7 @@ class RetrieveJustificationGateTest(unittest.TestCase):
                     project=project,
                     event_name="PreToolUse",
                     tool_name="Read",
-                    tool_input={"target_file": "chaos-engine/bootstrap.py"},
+                    tool_input={"target_file": "src/bootstrap.py"},
                     commands=(),
                 )
             )
@@ -138,7 +139,7 @@ class RetrieveJustificationGateTest(unittest.TestCase):
                     project=project,
                     event_name="PreToolUse",
                     tool_name="Read",
-                    tool_input={"target_file": "chaos-engine/hosts.py"},
+                    tool_input={"target_file": "src/hosts.py"},
                     commands=(),
                 )
             )
@@ -218,6 +219,7 @@ NODE install [src=chaos-engine/install.py loc=L12]
 
     def test_instruction_markdown_needs_no_citation_and_shell_opens_use_the_ledger(self):
         gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_shell")
+        # #6219: the gated file is project code; chaos-engine/ is harness (#6174).
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             relative = "chaos-engine/references/eliminate-waste.md"
@@ -237,17 +239,17 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     project=project,
                     event_name="PreToolUse",
                     tool_name="Read",
-                    tool_input={"target_file": "chaos-engine/hooks/guard.py"},
+                    tool_input={"target_file": "src/hooks/guard.py"},
                     commands=(),
                 )
             )
             denied = (
-                "sed -n '1,20p' chaos-engine/hooks/guard.py",
-                'python3 - <<\'PY\'\nPath("chaos-engine/hooks/guard.py").read_text()\nPY',
-                'python3 -c \'print(open(".chaos-engine/hooks/guard.py").read())\'',
-                'python3 -c \'import pathlib; pathlib.Path("chaos-engine/hooks/guard.py").read_text()\'',
-                'python3 -c \'open(".chaos-engine/hooks/guard.py").read()\' .chaos-engine/tool.py --help',
-                "python3 - <<'PY'\nimport os; open(\".chaos-engine/hooks/guard.py\").read()\nPY",
+                "sed -n '1,20p' src/hooks/guard.py",
+                'python3 - <<\'PY\'\nPath("src/hooks/guard.py").read_text()\nPY',
+                'python3 -c \'print(open("src/hooks/guard.py").read())\'',
+                'python3 -c \'import pathlib; pathlib.Path("src/hooks/guard.py").read_text()\'',
+                'python3 -c \'open("src/hooks/guard.py").read()\' .chaos-engine/tool.py --help',
+                "python3 - <<'PY'\nimport os; open(\"src/hooks/guard.py\").read()\nPY",
             )
             for command in denied:
                 self.assertIsNotNone(

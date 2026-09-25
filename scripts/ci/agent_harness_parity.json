@@ -1135,6 +1135,123 @@
         "chaos-engine/learning_session.py"
       ],
       "note": "#6201: instruction-only hosts record retrieve: in .chaos-engine-state/research-receipt.md; finalize flags a missing one."
+    },
+    {
+      "id": "linked_worktree_stash_guard",
+      "owner": "chaos-engine/hooks/guard.py",
+      "check": "tests/scripts/test_chaos_engine_hook.py::test_mutating_stash_is_blocked_in_a_linked_worktree_and_its_main_checkout",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "codex": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "copilot": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "gemini": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "grok": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "opencode": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "cursor": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ],
+      "note": "#6223: hook hosts deny mutating git stash on a shared .git before any session gate; instruction-only hosts (grok-bot, opencode/cursor without shims) carry the rule in the delegate card."
+    },
+    {
+      "id": "nested_overlay_tree_guard",
+      "owner": "chaos-engine/install.py",
+      "check": "tests/scripts/test_chaos_engine_installer.py::test_repair_core_removes_the_nested_overlay_tree",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "codex": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "copilot": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "gemini": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "grok": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "opencode": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "cursor": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "grok-bot": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ],
+      "note": "#6225: install refuses an overlay or portable tree as the project, source_files skips top-level dot residue, repair --component core removes a nested .chaos-engine tree, and status --digest carries the doctor policy-overlay row."
+    },
+    {
+      "id": "research_receipt_shims",
+      "owner": "chaos-engine/hooks/receipt_shim.py",
+      "check": "tests/scripts/test_chaos_engine_learning.py::test_wave3_instruction_only_receipt_suite_passes",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/hooks/receipt_shim.py",
+        "chaos-engine/references/research-receipt.md"
+      ],
+      "codex": [
+        "chaos-engine/hooks/receipt_shim.py",
+        "chaos-engine/references/research-receipt.md"
+      ],
+      "copilot": [
+        "chaos-engine/hooks/receipt_shim.py",
+        "chaos-engine/references/research-receipt.md"
+      ],
+      "gemini": [
+        "chaos-engine/hooks/receipt_shim.py",
+        "chaos-engine/references/research-receipt.md"
+      ],
+      "grok": [
+        "chaos-engine/hooks/receipt_shim.py",
+        "chaos-engine/references/research-receipt.md"
+      ],
+      "opencode": [
+        "chaos-engine/hooks/receipt_shim.py",
+        "chaos-engine/references/research-receipt.md"
+      ],
+      "cursor": [
+        "chaos-engine/hooks/receipt_shim.py",
+        "chaos-engine/references/research-receipt.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/hooks/receipt_shim.py",
+        "chaos-engine/references/research-receipt.md"
+      ],
+      "note": "#6218: Cursor hooks and the OpenCode plugin open a pending research receipt before the first project read; Grok Bot stays instruction-only; the Copilot cloud overlay setup step needs a workflow change and owner approval."
     }
   ]
 }

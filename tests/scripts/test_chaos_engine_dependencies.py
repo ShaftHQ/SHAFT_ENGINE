@@ -2203,5 +2203,32 @@ class McpOptInSuite6199(unittest.TestCase):
         self.assertEqual([], problems)
 
 
+class DefaultBranchResolution6216Test(unittest.TestCase):
+    """#6216: the Memory sync gate resolves the default branch, never hard-codes it."""
+
+    def test_desync_message_names_the_resolved_default_branch(self):
+        import subprocess  # nosec B404 - fixed git fixture commands.
+
+        module = load_tool()
+        git = shutil.which("git")
+        if git is None:
+            self.skipTest("git is required")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for arguments in (
+                ["init", "-q"],
+                ["-c", "user.name=t", "-c", "user.email=t@example.invalid",
+                 "commit", "-q", "--allow-empty", "-m", "init"],
+                ["update-ref", "refs/remotes/origin/trunk", "HEAD"],
+                ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/trunk"],
+            ):
+                subprocess.run([git, *arguments], cwd=root, check=True, capture_output=True)  # nosec B603
+            self.assertEqual("trunk", module.default_branch_name(root))
+            message = module.origin_main_desync_message("aaa", "bbb", root)
+            self.assertIn("not synchronized with origin/trunk", message)
+            self.assertIn("git fetch origin trunk && git merge --ff-only origin/trunk", message)
+            self.assertNotIn("origin/main", message)
+
+
 if __name__ == "__main__":
     unittest.main()

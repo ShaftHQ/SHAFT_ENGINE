@@ -606,7 +606,6 @@ def _tokens_after_head(segment: str, names: frozenset[str]) -> list[str] | None:
     return None
 
 
-_GIT_STASH_MUTATING_SUBCOMMANDS = frozenset({"pop", "drop", "apply", "clear", "push"})
 _GIT_STASH_READONLY_SUBCOMMANDS = frozenset({"list", "show"})
 _GIT_GLOBAL_OPTS_WITH_ARG = frozenset({"-c", "-C"})
 
@@ -644,21 +643,22 @@ def check_r8_git_stash(command: str) -> str | None:
         is_stash, sub = _stash_subcommand(rest)
         if not is_stash or sub in _GIT_STASH_READONLY_SUBCOMMANDS:
             continue
-        if sub is None or sub in _GIT_STASH_MUTATING_SUBCOMMANDS:
-            return (
-                "R8 (git stash shared across worktrees): the stash list lives in "
-                "the shared .git directory, common to the main checkout and every "
-                "`git worktree add`-created worktree. A `git stash` that finds "
-                "nothing to save still lets a later `git stash pop` pop and DROP "
-                "an unrelated entry from a different session/worktree -- this has "
-                "already destroyed a months-old stash and silently reverted a "
-                "tracked AGENTS.md in this repo (issue #4130). Do not run mutating "
-                f"`git stash{(' ' + sub) if sub else ''}` in a shared-.git "
-                "worktree -- commit your work to your own branch instead "
-                "(`git add -A && git commit`), or use read-only `git stash list` "
-                "/ `git stash show` / `git diff` to inspect state without "
-                "mutating the shared stash."
-            )
+        # #6223: every non-read-only form (known or unknown) mutates the shared stash.
+        return (
+            "R8 (git stash shared across worktrees): the stash list lives in "
+            "the shared .git directory, common to the main checkout and every "
+            "`git worktree add`-created worktree. A `git stash` that finds "
+            "nothing to save still lets a later `git stash pop` pop and DROP "
+            "an unrelated entry from a different session/worktree -- this has "
+            "already destroyed a months-old stash and silently reverted a "
+            "tracked AGENTS.md in this repo (issue #4130). Do not run mutating "
+            f"`git stash{(' ' + sub) if sub else ''}` in a shared-.git "
+            "worktree -- commit your work to your own branch instead "
+            "(`git add -A && git commit`), take baselines from a separate "
+            "`git worktree add --detach <dir> origin/main`, or use read-only `git stash list` "
+            "/ `git stash show` / `git diff` to inspect state without "
+            "mutating the shared stash."
+        )
     return None
 
 

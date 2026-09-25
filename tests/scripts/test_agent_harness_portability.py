@@ -609,20 +609,27 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
 
     def test_delegation_policy_uses_capability_tiers_not_fixed_models_or_effort(self):
         paths = [ROOT / "AGENTS.md", ROOT / "scripts/agents/user-harness/settings.json"]
-        # #6202: local-runtime skills and provider guides route by concrete model
-        # ids as data (catalog tiers, loopback servers); they are not delegation
-        # policy. Everything else in the portable tree must name tiers only.
-        runtime_data = ("skills/omniroute", "skills/freetoken", "skills/colibri",
-                        "skills/local-openai-compat", "skills/local-coding-delegate",
-                        "skills/local-runtimes", "guides/")
-        paths.extend(
-            path for path in (ROOT / "chaos-engine").rglob("*.md")
-            if not any(part in path.relative_to(ROOT / "chaos-engine").as_posix() for part in runtime_data)
-        )
+        # #6219: full scan restored -- every portable markdown file is checked.
+        paths.extend((ROOT / "chaos-engine").rglob("*.md"))
         paths.extend((OVERLAY / ".claude/agents").glob("*.md"))
-        # Version-shaped ids only: GAP-GROK-* gap ids and the Grok Bot host name are not models.
+        # Per-file allowlist, each with a reason. These files route local
+        # runtimes by concrete catalog ids as data; none is delegation policy.
+        model_id_data = {
+            "chaos-engine/guides/omniroute.md": "provider catalog table of free-tier model ids",
+            "chaos-engine/guides/freetoken-5867-closeout-proof.md": "verbatim reproduction commands for one proof run",
+            "chaos-engine/skills/local-runtimes/references/omniroute.md": "tier classifier keyword tables for live catalogs",
+            "chaos-engine/skills/omniroute/references/living-lessons.md": "dated provider incident notes naming the affected ids",
+        }
+        paths = [
+            path for path in paths
+            if not path.is_relative_to(ROOT)
+            or path.relative_to(ROOT).as_posix() not in model_id_data
+        ]
+        # Gap ids (GROK-LEAN, GROK-SKILLS, ...), the grok-skills dir and the
+        # Grok Bot host are identifiers, not model names.
         forbidden = re.compile(
-            r"(?i)\b(?:sonnet|haiku|opus|fable|gpt-\d[\w.-]*|grok-\d[\w.-]*)\b"
+            r"(?i)\b(?:sonnet|haiku|opus|fable|gpt-[\w.-]+"
+            r"|grok-(?!(?:lean|skills|bundled|caveman|bot)\b)[\w.-]+)\b"
             r"|\beffortLevel\b|\bHIGH effort\b|^model:\s*",
             re.MULTILINE,
         )
@@ -632,6 +639,10 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             if forbidden.search(path.read_text(encoding="utf-8"))
         ]
         self.assertEqual(offenders, [])
+        # The allowlist must not go stale: every entry exists and still needs it.
+        for relative in model_id_data:
+            with self.subTest(allowlisted=relative):
+                self.assertIsNotNone(forbidden.search((ROOT / relative).read_text(encoding="utf-8")))
 
     def test_pdca_personas_are_main_thread_phases_that_follow_the_mode(self):
         """PDCA is one task, so it is normally worked solo.

@@ -60,7 +60,7 @@ paragraph if they drift; re-read before implementing.
   JSON, timeout, or missing interpreter returns `False`.
 - MCP probe (`hosts.py` `mcp_runtime_status`): palace health, then
   `memory-mcp` + `mempalace-mcp` initialize/tools-list. Memory
-  `HEAD != origin/main` is already `compatible-legacy` (#5630). Other probe
+  `HEAD != origin/<default>` is already `compatible-legacy` (#5630). Other probe
   failures fail verify.
 
 ## Deterministic merge

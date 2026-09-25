@@ -2214,6 +2214,15 @@ class RemediesAreNotBlockedByAnotherRuleTest(unittest.TestCase):
         """Guards the check above against passing because R8 stopped working."""
         self.assertIsNotNone(guard.check_r8_git_stash("git stash"))
 
+    def test_r8_covers_every_mutating_stash_form_and_names_the_baseline_path(self):
+        """#6223: save/branch/create/store also mutate the shared stash."""
+        for command in ("git stash save wip", "git stash branch tmp", "git stash store abc"):
+            with self.subTest(command=command):
+                reason = guard.check_r8_git_stash(command)
+                self.assertIsNotNone(reason)
+                self.assertIn("git worktree add", reason)
+        self.assertIsNone(guard.check_r8_git_stash("git stash list"))
+
     def test_r14_no_longer_recommends_the_command_r8_refuses(self):
         with patch("scripts.agents.guard._uncommitted_file_count", return_value=4):
             reason = guard.check_r14_hard_reset("git reset --hard HEAD~1", "Bash", ".")

@@ -591,7 +591,7 @@ def _component_blocks_health(value: object) -> bool:
     status = value.get("status")
     if status == "healthy":
         return False
-    # Memory origin/main desync is advisory for required mcps during install verify (#5630).
+    # Memory default-branch desync is advisory for required mcps during install verify (#5630).
     if status in {"compatible-legacy", "degraded", "sync-advisory"}:
         return False
     if value.get("taskImpact") == "optional" and status == "absent":
@@ -2149,7 +2149,7 @@ def one_line_cause(error: BaseException) -> str:
             )
     text = " ".join(text.split())
     # Non-HTML [path] so GitHub issue forms cannot strip the marker and leave a
-    # mount prefix such as /media/.../OS after redacting /Users/...
+    # removable-media mount prefix after redacting a user home directory
     text = re.sub(
         r"(?<!:)(?:[A-Za-z]:[\\/]|\\\\[^\s\\/]+[\\/]|/(?:(?:media|mnt|Volumes)(?:/\S+?)?/(?:Users|home)|home|Users|tmp|var|private)/)\S+",
         "[path]",

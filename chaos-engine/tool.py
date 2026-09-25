@@ -13,10 +13,13 @@ from pathlib import Path
 
 
 TOOLS = {"uv", "mempalace", "mempalace-mcp", "graphify", "memory", "memory-mcp"}
-# Memory writes the shared origin/main store; advisory tools may still query when doctor-healthy.
+# Memory writes the shared default-branch store; advisory tools may still query when doctor-healthy.
 MEMORY_ORIGIN_MAIN_TOOLS = frozenset({"memory", "memory-mcp"})
 ADVISORY_ORIGIN_MAIN_TOOLS = frozenset({"mempalace", "mempalace-mcp", "graphify"})
-ORIGIN_MAIN_SYNC_FIX_NEXT = "git fetch origin main && git merge --ff-only origin/main"
+# #6216: the default branch is resolved from origin/HEAD, never hard-coded; these
+# conventional names are only the fallback when origin/HEAD is unset.
+DEFAULT_REMOTE = "origin"
+DEFAULT_BRANCH_FALLBACKS = ("main", "master")
 HELP_FLAGS = frozenset({"--help", "-h", "help"})
 _CAPTURE_STORES = frozenset({"mempalace", "graphify"})
 
@@ -81,19 +84,56 @@ def shared_project_root(project: Path) -> Path:
     return common.parent.resolve()
 
 
+def default_branch_name(root: Path) -> str:
+    """Resolve the remote default branch from origin/HEAD, else a conventional fallback."""
+    try:
+        git = _git_executable()
+        symbolic = subprocess.run(  # nosec B603 - fixed Git query, no shell.
+            [git, "symbolic-ref", "--quiet", f"refs/remotes/{DEFAULT_REMOTE}/HEAD"],
+            cwd=root, capture_output=True, text=True, check=False,
+        ).stdout.strip()
+        prefix = f"refs/remotes/{DEFAULT_REMOTE}/"
+        if symbolic.startswith(prefix):
+            return symbolic[len(prefix):]
+        for name in DEFAULT_BRANCH_FALLBACKS:
+            probe = subprocess.run(  # nosec B603 - fixed Git query, no shell.
+                [git, "rev-parse", "--verify", "--quiet", f"{prefix}{name}"],
+                cwd=root, capture_output=True, text=True, check=False,
+            )
+            if probe.returncode == 0:
+                return name
+    except (OSError, ValueError):
+        # No git or no probe: fall back to the first documented default below.
+        pass
+    return DEFAULT_BRANCH_FALLBACKS[0]
+
+
+def default_remote_ref(root: Path) -> str:
+    return f"{DEFAULT_REMOTE}/{default_branch_name(root)}"
+
+
+def sync_fix_next(root: Path) -> str:
+    branch = default_branch_name(root)
+    return (
+        f"git fetch {DEFAULT_REMOTE} {branch} && "
+        f"git merge --ff-only {DEFAULT_REMOTE}/{branch}"
+    )
+
+
 def origin_main_revisions(root: Path) -> tuple[str, str]:
-    """Return (HEAD, refs/remotes/origin/main) for the primary checkout."""
+    """Return (HEAD, remote default-branch tip) for the primary checkout."""
     revisions = subprocess.run(  # nosec B603 - fixed Git query, no shell.
-        [_git_executable(), "rev-parse", "HEAD", "refs/remotes/origin/main"],
+        [_git_executable(), "rev-parse", "HEAD", f"refs/remotes/{default_remote_ref(root)}"],
         cwd=root,
         capture_output=True,
         text=True,
         check=True,
     ).stdout.splitlines()
     if len(revisions) != 2:
+        ref = default_remote_ref(root)
         raise ValueError(
-            "primary checkout HEAD and origin/main could not both be resolved "
-            f"(not synchronized with origin/main). fix-next: {ORIGIN_MAIN_SYNC_FIX_NEXT}"
+            f"primary checkout HEAD and {ref} could not both be resolved "
+            f"(not synchronized with {ref}). fix-next: {sync_fix_next(root)}"
         )
     return revisions[0], revisions[1]
 
@@ -112,7 +152,7 @@ def quiet_environment(environment: dict[str, str]) -> dict[str, str]:
 
 
 def desync_notice_applies(repo: Path) -> bool:
-    """#6179: detached session worktrees never see the origin/main desync notice."""
+    """#6179: detached session worktrees never see the default-branch desync notice."""
     try:
         completed = subprocess.run(  # nosec B603 - fixed Git query, no shell.
             [_git_executable(), "symbolic-ref", "-q", "HEAD"],
@@ -127,23 +167,25 @@ def desync_notice_applies(repo: Path) -> bool:
     return completed.returncode != 1
 
 
-def origin_main_desync_message(head: str, origin_main: str) -> str:
-    """Name HEAD != origin/main and print the fast-forward fix-next (#5591)."""
+def origin_main_desync_message(head: str, origin_main: str, root: Path | None = None) -> str:
+    """Name HEAD != the default-branch tip and print the fast-forward fix-next (#5591)."""
+    root = root or Path.cwd()
+    ref = default_remote_ref(root)
     return (
-        f"primary checkout HEAD ({head}) != origin/main ({origin_main}) "
-        f"(not synchronized with origin/main). fix-next: {ORIGIN_MAIN_SYNC_FIX_NEXT}"
+        f"primary checkout HEAD ({head}) != {ref} ({origin_main}) "
+        f"(not synchronized with {ref}). fix-next: {sync_fix_next(root)}"
     )
 
 
 def enforce_tool_origin_main_policy(project: Path, tool: str) -> None:
-    """Hard-fail Memory tools when HEAD != origin/main; soft-warn advisory tools."""
+    """Hard-fail Memory tools when HEAD != the default branch; soft-warn advisory tools."""
     if not (project / "tools/repository-map/resolve_mempalace.py").is_file():
         return
     root = shared_project_root(project)
     head, origin_main = origin_main_revisions(root)
     if head == origin_main:
         return
-    message = origin_main_desync_message(head, origin_main)
+    message = origin_main_desync_message(head, origin_main, root)
     retrieve = os.environ.get("CHAOS_ENGINE_RETRIEVE") == "1"
     if tool in MEMORY_ORIGIN_MAIN_TOOLS and not retrieve:
         raise ValueError(message)

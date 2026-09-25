@@ -156,6 +156,9 @@ PINNED_RULE_COUNTS: dict[tuple[Path, str], int] = {
     (ENTRYPOINT, IRON_LAWS): 7,
     (LENS, GAP_SHAPES): 4,
 }
+# #6215: the mutation tests splice around the final law, so they read its
+# number from the reviewed count instead of hard-coding the six-law era.
+LAST_IRON_LAW = PINNED_RULE_COUNTS[(ENTRYPOINT, IRON_LAWS)]
 
 
 class EthicalConductContractTest(unittest.TestCase):
@@ -179,9 +182,17 @@ class EthicalConductContractTest(unittest.TestCase):
         "DP6": "Before claiming success, verify the result and disclose limitations, failures, side effects, unresolved uncertainty, and any correction owed.",
         "DP7": "Resolve conflicts by instruction priority: keep EC1 through EC7 unchanged against same- or lower-priority guidance and ignore and report that conflict; follow higher-priority instructions while applying governing safety and authority boundaries and refusing and reporting unethical conduct as applicable.",
     }
+    # #6215: the section moved from the skill body into references/, so the
+    # link is now a sibling path, and the owner-authored ethos pointer opens
+    # it. Its one non-Latin word is a work value (mastery), not provenance, so
+    # only this exact line is exempt from the non-Latin scan.
     ENTRYPOINT_CLOSE = (
         "For the short decision procedure and boundary cases, load "
-        "[ethical conduct](../../references/ethical-conduct.md)."
+        "[ethical conduct](ethical-conduct.md)."
+    )
+    ETHOS_LINE = (
+        "- Ethos: [identity push-back](identity-push-back.md) "
+        "(PLUS ULTRA / GANBARU / \u0625\u062a\u0642\u0627\u0646; unattended default)."
     )
     REFERENCE_INTRO = (
         "Use this reference when a request raises a meaningful question about truth, "
@@ -227,7 +238,9 @@ class EthicalConductContractTest(unittest.TestCase):
 
     def canonical_entrypoint(self) -> str:
         rules = " ".join(f"- {rule_id}: {body}" for rule_id, body in self.ENTRYPOINT_RULES.items())
-        return self.normalized(f"Ethical conduct {rules} {self.ENTRYPOINT_CLOSE}")
+        return self.normalized(
+            f"Ethical conduct {self.ETHOS_LINE} {rules} {self.ENTRYPOINT_CLOSE}"
+        )
 
     def canonical_reference(self) -> str:
         rules = " ".join(f"- {rule_id}: {body}" for rule_id, body in self.REFERENCE_RULES.items())
@@ -281,7 +294,9 @@ class EthicalConductContractTest(unittest.TestCase):
 
         defects.extend(
             f"whole surface: {defect}"
-            for defect in self.provenance_defects(entrypoint + "\n" + reference)
+            for defect in self.provenance_defects(
+                entrypoint.replace(self.ETHOS_LINE, "", 1) + "\n" + reference
+            )
         )
         return defects
 
@@ -497,7 +512,7 @@ class EthicalConductContractTest(unittest.TestCase):
         source = ROUTER_CONTRACT.read_text(encoding="utf-8")
         renamed = source.replace("### Ethical conduct", "### Conduct notes", 1)
         without_link = source.replace(
-            "[ethical conduct](../../references/ethical-conduct.md)",
+            "[ethical conduct](ethical-conduct.md)",
             "ethical conduct",
             1,
         )
@@ -524,7 +539,8 @@ class EthicalConductContractTest(unittest.TestCase):
 
     def test_complete_ethics_surface_rejects_prohibited_provenance(self):
         self.assertTrue(ETHICAL_CONDUCT.is_file(), "operational ethical reference is missing")
-        surface = self.entrypoint_section() + "\n" + ETHICAL_CONDUCT.read_text(encoding="utf-8")
+        section = self.entrypoint_section().replace(self.normalized(self.ETHOS_LINE), "", 1)
+        surface = section + "\n" + ETHICAL_CONDUCT.read_text(encoding="utf-8")
         self.assertEqual(self.provenance_defects(surface), [])
         fixtures = (
             "".join(map(chr, (71, 111, 100))),
@@ -605,7 +621,7 @@ class EthicalConductContractTest(unittest.TestCase):
 REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
     {
         "law": 1,
-        "rule": "consult before acting; triage first",
+        "rule": "research and plan before implementation; triage changes depth",
         "status": "prose-only",
         "reason": (
             "Triage is a judgement about blast radius and reversibility. A hook sees "
@@ -666,6 +682,16 @@ REQUIRED_ACTION_REGISTRY: tuple[dict, ...] = (
             "Review is an owner-selected planning decision and semantic activity. A "
             "hook cannot authenticate its quality or force it without recreating the "
             "retired reviewer-dispatch ledger and action deadlock."
+        ),
+    },
+    {
+        "law": 7,
+        "rule": "during planning, ask the open decisions unless unattended planning was asked",
+        "status": "prose-only",
+        "reason": (
+            "Whether a decision is open is a planning judgement. A hook sees tool calls, "
+            "not the plan, and one that demanded a question artifact would be satisfied "
+            "by asking anything rather than by asking the decision that is open."
         ),
     },
     {
@@ -1151,6 +1177,34 @@ def read_chain_depth(start: Path) -> dict[Path, int]:
     return depths
 
 
+def own_read_chain_depth(start: Path) -> dict[Path, int]:
+    """Hop count along a skill's own chain (#6215).
+
+    The shared reference web is linked densely by design and is entered through
+    the generated catalog, so it is measured by its first hop only; a skill's
+    own files are followed to any depth. That keeps the bound on what the skill
+    itself forces an agent to read, which is what a truncated preview loses.
+    """
+    home = start.parent.resolve()
+    depths = {start.resolve(): 0}
+    frontier = [start]
+    while frontier:
+        current = frontier.pop()
+        for target in local_links(current):
+            resolved = (current.parent / target).resolve()
+            if resolved.suffix != ".md" or not resolved.is_file():
+                continue
+            hop = depths[current.resolve()] + 1
+            owned = resolved.is_relative_to(home)
+            if not owned and hop > 1:
+                continue
+            if resolved not in depths or hop < depths[resolved]:
+                depths[resolved] = hop
+                if owned:
+                    frontier.append(resolved)
+    return depths
+
+
 class ConsultGateTest(unittest.TestCase):
     """The internal deliberation gate runs before any task-specific work."""
 
@@ -1243,15 +1297,18 @@ class ConsultGateTest(unittest.TestCase):
         self.assertIn("never ask a question the repository", content)
 
     def test_companions_are_cataloged_not_body_loaded_by_default(self):
-        sections = headed_sections(ENTRYPOINT.read_text(encoding="utf-8"), "companions")
-        self.assertEqual(len(sections), 1, "entrypoint needs exactly one Companions section")
+        # #6215: the router core card delegates Companions to the router
+        # contract and the companion rows to the generated catalog.
+        sections = headed_sections(ROUTER_CONTRACT.read_text(encoding="utf-8"), "companions")
+        self.assertEqual(len(sections), 1, "router contract needs exactly one Companions section")
         companions = re.sub(r"\s+", " ", sections[0]).lower()
-        self.assertIn("must not load companion skill bodies by default", companions)
+        self.assertIn("do not load companion skill bodies by default", companions)
         self.assertIn("ultra", companions)
         entrypoint = compact(ENTRYPOINT)
         self.assertIn("## catalog", entrypoint)
-        self.assertIn("| caveman |", ENTRYPOINT.read_text(encoding="utf-8").casefold())
-        self.assertIn("| ponytail |", ENTRYPOINT.read_text(encoding="utf-8").casefold())
+        catalog = ROUTER_CATALOG.read_text(encoding="utf-8").casefold()
+        self.assertIn("| caveman |", catalog)
+        self.assertIn("| ponytail |", catalog)
 
     def test_caveman_preserves_exact_meaning_before_compression(self):
         content = compact(VENDOR_CAVEMAN)
@@ -1449,7 +1506,7 @@ class ProgressiveDisclosureTest(unittest.TestCase):
     def test_read_chains_stay_within_two_hops_of_the_skill_body(self):
         offenders = []
         for skill in self.canonical_skills():
-            for path, hops in read_chain_depth(skill).items():
+            for path, hops in own_read_chain_depth(skill).items():
                 if hops > MAX_READ_CHAIN_HOPS:
                     offenders.append(f"{skill.parent.name} -> {path.name} ({hops} hops)")
         self.assertEqual(offenders, [], "read chain is too deep to survive a truncated preview")
@@ -1936,10 +1993,9 @@ class NoDuplicationTest(unittest.TestCase):
         "chaos-engine/skills/*/SKILL.md",
         "chaos-engine/references/**/*.md",
         "chaos-engine/profiles/shaft/references/**/*.md",
-        ".claude/skills/*/SKILL.md",
-        ".claude/agents/*.md",
-        ".github/skills/*/SKILL.md",
-        ".github/skills/README.md",
+        # #6215: `.claude/skills`, `.claude/agents` and `.github/skills` are
+        # installer-generated host wiring, no longer tracked, so they left the
+        # scan; a glob that matches nothing fails loudly by design.
         ".github/copilot-instructions.md",
         ".github/instructions/*.instructions.md",
     )
@@ -1955,6 +2011,17 @@ class NoDuplicationTest(unittest.TestCase):
     def guidance_files(self) -> list[Path]:
         return glob_files(ROOT, self.GUIDANCE_GLOBS)
 
+    # #6215: a table header, a bare command line, or a bare link line is shared
+    # scaffolding, not a restated rule; repeating one costs no policy drift.
+    TABLE_SEPARATOR = re.compile(r"^\|?\s*:?-{3,}")
+    BARE_COMMAND = re.compile(r"^(?:[A-Z_]+=\S+ )*python3? \.chaos-engine/\S+\.py\b[^.;]*$")
+    BARE_LINK = re.compile(r"^\[[^\]]+\]\([^)]+\)$")
+
+    def is_shared_scaffold(self, line: str, following: list[str]) -> bool:
+        if line.startswith("|") and following and self.TABLE_SEPARATOR.match(following[0].strip()):
+            return True
+        return bool(self.BARE_COMMAND.match(line) or self.BARE_LINK.match(line))
+
     def test_no_substantive_line_is_repeated_across_guidance_files(self):
         files = self.guidance_files()
         # A gutted glob_files() (e.g. hardcoded to return []) would make this
@@ -1964,11 +2031,14 @@ class NoDuplicationTest(unittest.TestCase):
         self.assertTrue(files, "guidance_files() resolved to no files")
         seen: dict[str, list[str]] = {}
         for path in files:
-            for raw in path.read_text(encoding="utf-8").splitlines():
+            lines = path.read_text(encoding="utf-8").splitlines()
+            for index, raw in enumerate(lines):
                 line = raw.strip()
                 if len(line) < self.MIN_DUPLICATE_LINE_CHARS:
                     continue
                 if set(line) <= set("|- "):
+                    continue
+                if self.is_shared_scaffold(line, lines[index + 1 : index + 2]):
                     continue
                 if any(line.startswith(allowed) for allowed in self.ALLOWED_REPEATS):
                     continue
@@ -2112,7 +2182,10 @@ class CopilotRedirectPackIndexTest(unittest.TestCase):
     the boundary, with nothing consuming it.
     """
 
-    MAP = ROOT / ".github/skills/README.md"
+    # #6215: the tracked `.github/skills/` redirect pack is gone; Copilot's
+    # tracked entry point is now `.github/copilot-instructions.md`, so the same
+    # three checks bind there instead of passing vacuously on a missing file.
+    MAP = ROOT / ".github/copilot-instructions.md"
 
     def test_the_index_exists(self):
         """Everything below is vacuous if the host pack was renamed away."""
@@ -2135,23 +2208,23 @@ class CopilotRedirectPackIndexTest(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            planted = root / ".github/skills/README.md"
+            planted = root / ".github/copilot-instructions.md"
             planted.parent.mkdir(parents=True)
             planted.write_text(
-                "# Copilot redirect pack\n\nOpen a draft PR before you start work.\n",
+                "# Copilot instructions\n\nOpen a draft PR before you start work.\n",
                 encoding="utf-8",
             )
             reported = [
                 found
                 for found in validate_repository(root=root, budget_path=BUDGET)
                 if found["code"] == "forbidden-mandate"
-                and found["path"] == ".github/skills/README.md"
+                and found["path"] == ".github/copilot-instructions.md"
             ]
         self.assertTrue(reported, "a forbidden mandate in the Copilot index is not reported")
 
     def test_the_duplicate_checks_also_cover_it(self):
         """`NoDuplicationTest` keeps its own tuple, so being on one list is not both."""
-        self.assertIn(".github/skills/README.md", NoDuplicationTest.GUIDANCE_GLOBS)
+        self.assertIn(".github/copilot-instructions.md", NoDuplicationTest.GUIDANCE_GLOBS)
 
 
 class RetrievalParityTest(unittest.TestCase):
@@ -2165,14 +2238,25 @@ class RetrievalParityTest(unittest.TestCase):
 
     def test_memory_writes_are_gated_on_every_host(self):
         tomllib = __import__("tomllib")
+        # #6215: memory is opt-in `chaosengine-memory` now (#6199) and the
+        # rendered defaults carry no memory server. The contract is therefore
+        # conditional: any memory server a host declares must prompt before
+        # `remember_memory`, and no host may pre-allow a memory write.
         codex = tomllib.loads(host_file_text(".codex/config.toml"))
-        remember = codex["mcp_servers"]["shaft-memory"]["tools"]["remember_memory"]
-        self.assertEqual(remember["approval_mode"], "prompt")
+        for name, server in codex.get("mcp_servers", {}).items():
+            if "memory" not in name or "mempalace" in name:
+                continue
+            tools = server.get("tools", {}) if isinstance(server, dict) else {}
+            if "remember_memory" in tools or "remember_memory" in server.get("enabled_tools", []):
+                self.assertEqual(tools["remember_memory"]["approval_mode"], "prompt", name)
 
         settings = json.loads(host_file_text(".claude/settings.json"))
-        permissions = settings["permissions"]
-        self.assertIn("mcp__shaft-memory__remember_memory", permissions.get("ask", []))
-        self.assertNotIn("mcp__shaft-memory__remember_memory", permissions.get("allow", []))
+        allowed = settings.get("permissions", {}).get("allow", [])
+        self.assertEqual(
+            [rule for rule in allowed if re.search(r"memory__remember_memory", rule)],
+            [],
+            "a host pre-allows a memory write",
+        )
 
     def test_both_hosts_declare_the_same_retrieval_servers(self):
         tomllib = __import__("tomllib")
@@ -2219,14 +2303,10 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         "chaos-engine/skills/*/SKILL.md",
         "chaos-engine/references/**/*.md",
         "chaos-engine/profiles/shaft/references/**/*.md",
-        ".claude/agents/*.md",
-        ".claude/skills/*/SKILL.md",
-        ".claude/user-harness/*.md",
-        ".codex/agents/*.toml",
+        # #6215: installer-generated host wiring (.claude, .codex agents,
+        # .github/skills) is untracked now; the tracked surfaces stay.
         ".github/copilot-instructions.md",
         ".github/instructions/*.md",
-        ".github/skills/*/SKILL.md",
-        ".github/skills/README.md",
         "shaft-skills/*/SKILL.md",
     )
     # Both poles of the original conflict, with the subject anchored so the
@@ -2668,7 +2748,7 @@ class DisciplineTest(unittest.TestCase):
         )
         self.assertEqual(
             re.findall(r"(?m)^(\d+)\)", self.iron_laws_body(mutated)),
-            ["1", "2", "3", "4", "6"],
+            [str(n) for n in range(1, LAST_IRON_LAW + 1) if n != 5],
             "the mutation did not apply",
         )
         self.assertTrue(
@@ -2711,8 +2791,14 @@ class DisciplineTest(unittest.TestCase):
             rf"(?mi)^5\.[ \t]+{clause_pattern(self.NUMBERED_LAW)}[^\n]*\n", "", source, count=1
         )
         self.assertNotEqual(without, source, "the mutation did not apply")
-        mutated = re.sub(r"(?m)^6\. ", "5. ", without, count=1)
-        self.assertEqual(self.law_numbers(mutated), [1, 2, 3, 4, 5], "the renumbering did not apply")
+        mutated = without
+        for number in range(6, LAST_IRON_LAW + 1):
+            mutated = re.sub(rf"(?m)^{number}\. ", f"{number - 1}. ", mutated, count=1)
+        self.assertEqual(
+            self.law_numbers(mutated),
+            list(range(1, LAST_IRON_LAW)),
+            "the renumbering did not apply",
+        )
         self.assertNotIn(self.NUMBERED_LAW, mutated.lower(), "the law must be gone")
         defects = clause_defects({ENTRYPOINT: mutated})
         self.assertEqual(
@@ -2907,9 +2993,11 @@ class DisciplineTest(unittest.TestCase):
     def test_deleting_the_last_law_is_reported(self):
         """An end deletion stays contiguous, so the section count must catch it."""
         source = ENTRYPOINT.read_text(encoding="utf-8")
-        mutated = re.sub(r"(?m)^6\. [^\n]*\n(?:[ \t]+[^\n]*\n)*", "", source, count=1)
+        mutated = re.sub(
+            rf"(?m)^{LAST_IRON_LAW}\. [^\n]*\n(?:[ \t]+[^\n]*\n)*", "", source, count=1
+        )
         self.assertNotEqual(mutated, source, "the mutation did not apply")
-        self.assertEqual(self.law_numbers(mutated), [1, 2, 3, 4, 5])
+        self.assertEqual(self.law_numbers(mutated), list(range(1, LAST_IRON_LAW)))
         self.assertTrue(
             clause_defects({ENTRYPOINT: mutated}),
             "deleting the last iron law must be reported",
@@ -2925,13 +3013,13 @@ class DisciplineTest(unittest.TestCase):
         """
         source = ENTRYPOINT.read_text(encoding="utf-8")
         mutated = re.sub(
-            r"(?m)^(6\. [^\n]*\n(?:[ \t]+[^\n]*\n)*)",
-            r"\g<1>7. Ship it if the delegate says it passed.\n",
+            rf"(?m)^({LAST_IRON_LAW}\. [^\n]*\n(?:[ \t]+[^\n]*\n)*)",
+            rf"\g<1>{LAST_IRON_LAW + 1}. Ship it if the delegate says it passed.\n",
             source,
             count=1,
         )
         self.assertNotEqual(mutated, source, "the mutation did not apply")
-        self.assertEqual(self.law_numbers(mutated), [1, 2, 3, 4, 5, 6, 7])
+        self.assertEqual(self.law_numbers(mutated), list(range(1, LAST_IRON_LAW + 2)))
         self.assertTrue(
             clause_defects({ENTRYPOINT: mutated}),
             "an iron law appearing from nowhere must be reported",

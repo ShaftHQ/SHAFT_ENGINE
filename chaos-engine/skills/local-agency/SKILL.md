@@ -111,7 +111,7 @@ Parent parser uses `allow_abbrev=False` so `--mode` cannot abbreviate to `--mode
 (#6087). Keep that guard when adding short overlapping flags.
 
 ```text
-python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --mode mechanical argv --prompt 'bash /abs/apply.sh'
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --mode mechanical argv --prompt 'bash <abs-dir>/apply.sh'
 python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --mode design argv --prompt '…' --project .
 ```
 
@@ -123,7 +123,7 @@ the host session model (see [delegation](../../references/delegation.md)).
 
 1. Orchestrator writes one bounded command (a short script with exact paths).
    The OpenCode prompt is **only** that executable line (e.g.
-   `bash /abs/path/apply.sh`). No extra English nouns such as
+   `bash <abs-dir>/apply.sh`). No extra English nouns such as
    `git add product files` — those trigger Glob/Grep then
    `context_length_exceeded` (#5996/#5997). Keep `git add` of exact paths
    **inside** the script; commit stays orchestrator-owned.

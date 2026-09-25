@@ -292,13 +292,11 @@ CHECKS = {
         "portable-core-contract",
         "portable-core",
         ("tests.scripts.test_chaos_engine_portable_core",),
-        known_drift="#6216",
     ),
     "router-contract": Check(
         "router-contract",
         "guidance",
         ("tests.scripts.test_agent_router_contract",),
-        known_drift="#6215",
     ),
     "harness-portability-contract": Check(
         "harness-portability-contract",

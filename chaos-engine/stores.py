@@ -147,6 +147,9 @@ def inject_graphify_arguments(arguments: list[str], graph_json: Path) -> list[st
     return [*arguments, "--graph", str(graph_json)]
 
 
+DEFAULT_BRANCH_FALLBACKS = ("main", "master")
+
+
 def default_branch_commit(cwd: Path) -> str:
     """Return the local default-branch tip. Does not fetch."""
     candidates: list[str] = []
@@ -156,7 +159,8 @@ def default_branch_commit(cwd: Path) -> str:
         symbolic = ""
     if symbolic:
         candidates.append(symbolic)
-    candidates.extend(("refs/remotes/origin/main", "refs/remotes/origin/master"))
+    # #6216: conventional names only as a fallback when origin/HEAD is unset.
+    candidates.extend(f"refs/remotes/origin/{name}" for name in DEFAULT_BRANCH_FALLBACKS)
     seen: set[str] = set()
     for candidate in candidates:
         if candidate in seen:

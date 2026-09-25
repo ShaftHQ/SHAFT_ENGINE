@@ -26,9 +26,9 @@ and CredentialHealth probes are not progress.
 
 ```text
 python3 .chaos-engine/skills/omniroute/scripts/runner.py proof --required \
-  --receipt /path/to/receipt.json
+  --receipt <receipt.json>
 python3 .chaos-engine/skills/omniroute/scripts/runner.py proof --required \
-  --call-logs /path/to/call-logs.json
+  --call-logs <call-logs.json>
 python3 .chaos-engine/skills/omniroute/scripts/runner.py proof --required \
   --steps probe,candidates
 ```

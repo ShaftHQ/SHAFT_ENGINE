@@ -102,6 +102,10 @@ REPAIRABLE_COMPONENTS = frozenset({
 })
 
 
+# #6216: branch-agnostic doctor fallback when a status carries no fix-next.
+DESYNC_FIX_NEXT_FALLBACK = "git fetch origin && git merge --ff-only @{upstream}"
+
+
 def legacy_capability_policy() -> dict[str, dict[str, str]]:
     """Return the immutable schema-v1 compatibility view; new installs use tracked contracts."""
     result = {
@@ -436,6 +440,65 @@ def is_origin_only(relative: Path) -> bool:
     )
 
 
+def is_nested_install_artifact(relative: Path) -> bool:
+    """Project-level residue an install run inside the portable tree leaves (#6225).
+
+    The portable tree ships no top-level dot entries, so every one of them is
+    install residue (a nested overlay, host wiring, state receipts), never payload.
+    """
+    return bool(relative.parts) and relative.parts[0].startswith(".")
+
+
+def reject_nested_project(project: Path) -> None:
+    """Refuse a project that is an overlay or a portable tree (#6225)."""
+    if INSTALL_DIRECTORY in project.parts:
+        raise ValueError(
+            f"refusing a nested install inside {INSTALL_DIRECTORY}; "
+            f"rerun with --project {project.parent}"
+        )
+    if (project / "skills/chaos-engine/SKILL.md").is_file():
+        raise ValueError(
+            "refusing a nested install inside a portable ChaosEngine tree; "
+            f"rerun with --project {project.parent}"
+        )
+
+
+def remove_nested_install_artifacts(target: Path) -> list[str]:
+    """Delete overlay top-level dot entries and drop them from the manifest (#6225).
+
+    Links are unlinked, never followed. Returns the removed entry names.
+    """
+    reject_link_or_reparse(target)
+    removed: list[str] = []
+    for entry in sorted(target.iterdir()):
+        if not entry.name.startswith("."):
+            continue
+        if is_link_or_reparse(entry) or not entry.is_dir():
+            entry.unlink()
+        else:
+            shutil.rmtree(entry)
+        removed.append(entry.name)
+    manifest_path = target / MANIFEST_NAME
+    if not removed or not manifest_path.is_file():
+        return removed
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    files = manifest.get("files") if isinstance(manifest, dict) else None
+    if isinstance(files, dict):
+        manifest["files"] = {
+            key: value for key, value in files.items() if key.split("/", 1)[0] not in removed
+        }
+        temporary = target / f"{MANIFEST_NAME}.nested-{secrets.token_hex(8)}"
+        try:
+            temporary.write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            temporary.replace(manifest_path)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+    return removed
+
+
 def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tuple[Path, ...]:
     reject_link_or_reparse(source)
     if not (source / "skills/chaos-engine/SKILL.md").is_file():
@@ -459,7 +522,7 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
             and relative.parts[1] != selected_profile
         ):
             continue
-        if is_origin_only(relative):
+        if is_origin_only(relative) or is_nested_install_artifact(relative):
             continue
         if is_link_or_reparse(path):
             raise ValueError(f"source contains a link or reparse point: {relative}")
@@ -2280,6 +2343,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
             raise ValueError("ChaosEngine source record is invalid")
     if source == project or source.is_relative_to(project) or project.is_relative_to(source):
         raise ValueError("ChaosEngine source and project trees must be disjoint")
+    reject_nested_project(project)
 
     if (source / MANIFEST_NAME).exists():
         raise ValueError(f"source contains the reserved manifest path: {MANIFEST_NAME}")
@@ -3288,6 +3352,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     bundle_options: dict[str, bool] | None = None,
 ) -> Path:
     project = project.resolve()
+    reject_nested_project(project)
     source = source.absolute()
     reject_link_or_reparse(source)
     source = source.resolve()
@@ -4504,7 +4569,7 @@ def apply_mcp_doctor_status(
     if mcp_status_value == "healthy":
         return
     if mcp_status_value in {"compatible-legacy", "degraded", "sync-advisory"}:
-        # Memory origin/main write gate is advisory for required mcps (#5630).
+        # Memory default-branch write gate is advisory for required mcps (#5630).
         mcps["status"] = "compatible-legacy"
         _attach_probe_fields(mcps, mcp_status)
         return
@@ -5176,6 +5241,20 @@ def validate_diagnostic_json(document: object) -> dict[str, object]:
     return document
 
 
+def apply_static_overlay_doctor(state: dict[str, object], project: Path) -> None:
+    """Give status the doctor's static policy-overlay row so --digest agrees (#6225)."""
+    match_path = Path(__file__).resolve().with_name("overlay_match.py")
+    if not match_path.is_file() or not isinstance(state.get("components"), dict):
+        return
+    spec = importlib.util.spec_from_file_location("ce_overlay_match_status", match_path)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    if hasattr(module, "apply_policy_hash_doctor"):
+        module.apply_policy_hash_doctor(state, project, probe_retrieve=False)
+
+
 def status_json(project: Path, *, active_probes: bool = False) -> dict[str, object]:
     """Expose the stable secret-free status JSON v2 contract."""
     if active_probes:
@@ -5192,6 +5271,7 @@ def status_json(project: Path, *, active_probes: bool = False) -> dict[str, obje
             except (OSError, RuntimeError, ValueError):
                 # Status stays fail-closed via existing component/file checks.
                 pass
+        apply_static_overlay_doctor(state, project.resolve())
     payload = {
         "schemaVersion": DIAGNOSTIC_SCHEMA_VERSION,
         "identity": CANONICAL_IDENTITY,
@@ -5460,7 +5540,15 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
                     "core is missing; rerun the ChaosEngine install one-liner "
                     "(repair --component core cannot recreate an absent tree)"
                 )
+            removed = remove_nested_install_artifacts(target)
             verify_install(target)
+            if removed:
+                return {
+                    "status": "repaired",
+                    "component": name,
+                    "action": "removed-nested-overlay",
+                    "removed": removed,
+                }
             return {"status": "repaired", "component": name, "action": "verified"}
         if not target.exists():
             raise ValueError(
@@ -5942,13 +6030,12 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
         )
     if name == "mcps":
         detail = item.get("detail")
-        if isinstance(detail, str) and "git fetch origin main" in detail:
+        if isinstance(detail, str) and "git fetch origin" in detail:
             return detail.strip()
         if item.get("code") == "CE_MEMORY_ORIGIN_MAIN_DESYNC" or status == "compatible-legacy":
             return (
-                "Primary checkout HEAD is not synchronized with origin/main "
-                "(Memory write gate). Fix-next: git fetch origin main && "
-                "git merge --ff-only origin/main — then rerun "
+                "Primary checkout HEAD is not synchronized with the default branch "
+                f"(Memory write gate). Fix-next: {item.get('fixNext') or DESYNC_FIX_NEXT_FALLBACK} — then rerun "
                 f"`{cli} .chaos-engine/install.py doctor --project .`. "
                 "Required mcps stay installable; memory/memory-mcp writes still hard-fail."
             )

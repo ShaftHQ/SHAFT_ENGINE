@@ -1299,12 +1299,24 @@ def parse_mcp_stdout_frames(stdout: str) -> list[dict[str, object]]:
 
 
 def _memory_origin_main_desync_output(stderr: str | None, stdout: str | None) -> bool:
-    """Fingerprint Memory tool origin/main hard-fail without treating other crashes as sync."""
+    """Fingerprint the Memory default-branch hard-fail without treating other crashes as sync."""
     text = f"{stderr or ''}\n{stdout or ''}"
     return (
-        "not synchronized with origin/main" in text
+        "not synchronized with origin/" in text
         and "fix-next:" in text.casefold()
     )
+
+
+# #6216: branch-agnostic fallback; the tool's own fix-next names the resolved branch.
+# Account-relative jar location (the account root varies per machine).
+MAVEN_TOOLS_JAR_SUFFIX = "ChaosEngine/tools/maven-tools-mcp/3.2.0/maven-tools-mcp-3.2.0.jar"
+DESYNC_FIX_NEXT_FALLBACK = "git fetch origin && git merge --ff-only @{upstream}"
+
+
+def _desync_fix_next(stderr: str | None, stdout: str | None) -> str:
+    """Reuse the fix-next the Memory tool printed (it names the resolved default branch)."""
+    match = re.search(r"fix-next:\s*([^\r\n]+)", f"{stderr or ''}\n{stdout or ''}", re.IGNORECASE)
+    return match.group(1).strip() if match else DESYNC_FIX_NEXT_FALLBACK
 
 
 def mcp_runtime_status(
@@ -1367,6 +1379,7 @@ def mcp_runtime_status(
         [python, str(tool), "mempalace-mcp"],
     )
     memory_origin_main_desync = False
+    memory_origin_main_desync_fix_next = DESYNC_FIX_NEXT_FALLBACK
     for name, command in zip(("memory-mcp", "mempalace-mcp"), commands):
         try:
             result = subprocess.run(  # nosec B603 - fixed owned launcher and arguments.
@@ -1389,6 +1402,9 @@ def mcp_runtime_status(
             ):
                 # Keep probing mempalace-mcp; required mcps stay non-blocking (#5630).
                 memory_origin_main_desync = True
+                memory_origin_main_desync_fix_next = _desync_fix_next(
+                    result.stderr, result.stdout
+                )
                 continue
             return {"status": "recovery-required", "detail": f"{name}-exit"}
         try:
@@ -1417,7 +1433,7 @@ def mcp_runtime_status(
             "status": "compatible-legacy",
             "detail": "memory-origin-main-desync",
             "code": "CE_MEMORY_ORIGIN_MAIN_DESYNC",
-            "fixNext": "git fetch origin main && git merge --ff-only origin/main",
+            "fixNext": memory_origin_main_desync_fix_next,
         }
     return {"status": "healthy"}
 
@@ -4359,9 +4375,7 @@ def exact_legacy_native_maven_server(server: object) -> bool:
     normalized_jar = jar.replace("\\", "/")
     return (
         normalized_jar.startswith("/") or re.match(r"^[A-Za-z]:/", normalized_jar)
-    ) and normalized_jar.endswith(
-        "/ChaosEngine/tools/maven-tools-mcp/3.2.0/maven-tools-mcp-3.2.0.jar"
-    )
+    ) and normalized_jar.endswith("/" + MAVEN_TOOLS_JAR_SUFFIX)
 
 
 def replaceable_owned_server(name: str, existing: object, desired: dict[str, object]) -> bool:
