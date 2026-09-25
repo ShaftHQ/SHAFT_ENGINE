@@ -83,7 +83,7 @@ OpenCode, Cursor and Grok Bot load `AGENTS.md` but run no project hook, so the
 also fills the retrieve ledger. `learning_session.py finalize --host <id>`
 flags `missing-retrieve-receipt` when neither exists; it never blocks (#6201).
 
-Receipt shims (#6218): install and `repair --component hooks` wire the
+Receipt shims (#6218): Copilot cloud opens it in its setup job; install and `repair --component hooks` wire the
 [receipt shim](../hooks/receipt_shim.py) for each host with a project marker or
 CLI on PATH, and uninstall removes it (#6230); it opens a pending receipt before the first
 project read, never blocks, never overwrites, and never fills `retrieve:`.
@@ -93,4 +93,4 @@ project read, never blocks, never overwrites, and never fills `retrieve:`.
 | OpenCode | `.opencode/plugins/` `tool.execute.before` | Shipped: plugin runs the shim before read tools. |
 | Cursor | `.cursor/hooks.json` `beforeReadFile`, `beforeShellExecution` | Shipped: hook runs the shim and allows. |
 | Grok Bot | cloud box session, no project hook runtime | Receipt sink only. |
-| Copilot cloud | fresh clone without the untracked overlay | `worktree_overlay.py verify` reports `missing-overlay`; the setup step that materializes the overlay needs a workflow change and owner approval. |
+| Copilot cloud | `copilot-setup-steps` job on a fresh clone | Shipped: the job runs `receipt_shim.py ensure --host copilot-cloud` before the agent starts; the overlay stays absent (`missing-overlay`). |

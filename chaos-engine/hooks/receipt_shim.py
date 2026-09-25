@@ -7,7 +7,7 @@ project read. It never blocks, never overwrites an existing receipt, and never
 fills the `retrieve:` field: the agent still records `used`, `skipped(<reason>)`
 or `exempt(harness)`, and the Learning Session keeps flagging a pending one.
 
-    ensure  --host cursor|opencode [--project DIR]   (Cursor passes JSON on stdin)
+    ensure  --host cursor|opencode|copilot-cloud [--project DIR]   (Cursor: JSON on stdin)
     install --host cursor|opencode [--project DIR]
 
 The installer wires these automatically for detected hosts (#6230).
@@ -24,7 +24,9 @@ from pathlib import Path
 
 SINK = ".chaos-engine-state/research-receipt.md"
 SHIM_HOSTS = ("cursor", "opencode")
-INSTRUCTION_ONLY = ("grok-bot", "copilot-cloud")
+# Copilot cloud has no project hook file; its setup-steps job runs `ensure` (#6218).
+SETUP_STEP_HOSTS = ("copilot-cloud",)
+INSTRUCTION_ONLY = ("grok-bot",)
 CURSOR_HOOKS = ".cursor/hooks.json"
 CURSOR_EVENTS = ("beforeReadFile", "beforeShellExecution")
 OPENCODE_PLUGIN = ".opencode/plugins/chaos-engine-receipt.js"
@@ -191,7 +193,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--project", type=Path)
     args = parser.parse_args(argv)
     host = args.host.strip().casefold()
-    if host not in SHIM_HOSTS:
+    if host in SETUP_STEP_HOSTS and args.command == "install":
+        print(f"{host} is wired by its setup step; run `ensure` there", file=sys.stderr)
+        return 2
+    if host not in SHIM_HOSTS + SETUP_STEP_HOSTS:
         reason = "instruction-only" if host in INSTRUCTION_ONLY else "unsupported"
         print(f"{host} is {reason}; no receipt shim ships for it", file=sys.stderr)
         return 2
