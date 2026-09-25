@@ -371,6 +371,10 @@ jobs:
               - 'tests/scripts/test_pr_gate_time_to_merge.py'
               - 'scripts/ci/shard_test_selector.py'
               - 'tests/scripts/test_shard_test_selector.py'
+              # Issue #6206: the quality-configuration validator ran nowhere in
+              # CI, so cd_intellij_verify lost its coverage upload unnoticed.
+              - 'scripts/ci/validate_quality_configuration.py'
+              - 'tests/scripts/test_validate_quality_configuration.py'
               # Issue #6185: the post-merge main-red reaction and its pins.
               - 'scripts/ci/main_red_reaction.py'
               - 'tests/scripts/test_main_red_reaction.py'
@@ -888,7 +892,8 @@ jobs:
   workflow-timeouts:
     name: Workflow Timeout Guard
     needs: changes
-    if: needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true'
+    # #6206: pom edits also re-run the quality-configuration validator.
+    if: needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.dependencies == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -911,9 +916,12 @@ jobs:
           tests.scripts.test_main_red_reaction
           tests.scripts.test_pr_gate_time_to_merge
           tests.scripts.test_shard_test_selector
+          tests.scripts.test_validate_quality_configuration
           -v
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
+      - name: Validate coverage, CodeQL and quality configuration
+        run: python3 scripts/ci/validate_quality_configuration.py
 
   # Issue #4506: this module's other five tests pin a real architectural
   # boundary -- shaft-engine carries no Pilot or provider dependency, and the
