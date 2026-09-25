@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scripts.ci import render_release_notes as release_notes  # noqa: E402
 from scripts.ci import verify_maven_central_release as verify  # noqa: E402
 from scripts.ci.validate_maven_publication import PUBLIC_ARTIFACTS  # noqa: E402
 
@@ -106,18 +107,30 @@ def gh_executable() -> str:
     return executable
 
 
-def render_release_body(version: str, template_path: Path = RELEASE_BODY_TEMPLATE) -> str:
-    """Render the release body the same way announce_release's "Prepare Release Body" step does."""
-    return template_path.read_text(encoding="utf-8").replace("$RELEASE_VERSION", version)
+def render_release_body(
+    version: str, template_path: Path = RELEASE_BODY_TEMPLATE
+) -> tuple[str, bool]:
+    """Render the body like announce_release's "Prepare Release Body" step (#6232).
+
+    Returns ``(body, fallback)``; fallback means GitHub's generated notes must be appended.
+    """
+    request = release_notes.ReleaseRequest(
+        version=version,
+        template_path=template_path,
+        repository=os.environ.get("GITHUB_REPOSITORY", release_notes.DEFAULT_REPOSITORY),
+    )
+    return release_notes.build_release_body(request)
 
 
-def build_release_create_command(version: str, body_file: Path, assets: list[Path]) -> list[str]:
+def build_release_create_command(
+    version: str, body_file: Path, assets: list[Path], generate_notes: bool = True
+) -> list[str]:
     """Build the `gh release create` invocation for a version, given a rendered body file."""
     return [
         "gh", "release", "create", version,
         "--title", version,
         "--notes-file", str(body_file),
-        "--generate-notes",
+        *(["--generate-notes"] if generate_notes else []),
         *(str(asset) for asset in assets),
     ]
 
@@ -167,8 +180,9 @@ def create_release(version: str, assets: list[Path]) -> str:
     """Create the GitHub Release for a version and return its URL."""
     with tempfile.TemporaryDirectory(prefix="shaft-release-body-") as temp_dir:
         body_file = Path(temp_dir) / "release_body.md"
-        body_file.write_text(render_release_body(version), encoding="utf-8")
-        command = build_release_create_command(version, body_file, assets)
+        body, fallback = render_release_body(version)
+        body_file.write_text(body, encoding="utf-8")
+        command = build_release_create_command(version, body_file, assets, generate_notes=fallback)
         result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
         if result.returncode != 0:
             raise RuntimeError(

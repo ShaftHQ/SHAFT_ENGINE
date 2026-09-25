@@ -66,7 +66,7 @@ failure this table exists to prevent.
 | Test Java under `src/test/java` | [Java tests](playbooks/java-tests.md) |
 | A red CI run, job, or scheduled suite | [CI failures](playbooks/ci-failure-investigator.md) |
 | Inconsistent pass/fail under equivalent conditions | [flaky tests](playbooks/flaky-test-stabilizer.md) |
-| Version, release, BOM, or dependency metadata | [release and dependencies](playbooks/release-dependency-guard.md) |
+| Version, release, release notes, BOM, or dependency metadata | [release and dependencies](playbooks/release-dependency-guard.md) |
 | MCP transport, tool contract, or client wiring | [MCP transport](playbooks/mcp-transport-contract-auditor.md) |
 | Module boundary or cross-module dependency | [module boundaries](playbooks/modular-boundary-auditor.md) |
 | Allure or Extent report generation and verdicts | [reports](playbooks/allure-extent-report-operator.md) |

@@ -1,6 +1,7 @@
 # Release And Dependency Guard
 
-Use only for release preparation, release review, or dependency-currency work.
+Use only for release preparation, release review, release notes, or
+dependency-currency work.
 Never run deployment or publication commands locally.
 
 ## Workflow
@@ -38,6 +39,31 @@ Never run deployment or publication commands locally.
 8. Verify the release version is newer than any immutable Maven Central
    coordinate it replaces. Merging to `main` triggers publication; local
    deploy, signing, and `scm-publish` are prohibited.
+
+## Release notes (#6232)
+
+Release bodies come from `scripts/ci/render_release_notes.py` (run by
+`announce_release`) filling `.github/RELEASE_BODY_TEMPLATE.md`; do not switch
+back to raw GitHub-generated notes or hand-write bodies.
+
+- Format: version, a 1-3 line summary, the Maven/Gradle snippet, then only
+  non-empty sections in this order: Breaking changes and upgrade notes, New
+  features, Fixes, Performance, Deprecations, notable Dependency upgrades.
+  One cleaned `- Title (#PR)` line per change; no authors or PR URLs. All
+  internal work goes in one `<details>` block; the full changelog link is last.
+- Internal: `[CE]`; `ci`, `test`, `docs`, `chore`, `build`, or `refactor`
+  prefixes; ChaosEngine/installer/harness scopes; the labels
+  `subsystem:agent-harness`, `subsystem:repository-tooling`, `documentation`,
+  `tests`, `github-actions`, or `maintenance`; or no files under shipped
+  module sources. Bumps collapse to "N dependency updates" unless labeled
+  `security` or they are Selenium/Appium/Playwright majors.
+- Labels: exactly one of `breaking-change`, `enhancement`, `bug`,
+  `skip-release-notes`; optional `performance`, `deprecation`, `regression`.
+  PR titles become release lines, so write them for SHAFT users.
+- Keep the renderer, template, and `scripts/ci/validate_release_notes.py`
+  label sets in sync; `Release-note governance` tests that parity.
+- Never edit a published release body. Preview with
+  `python3 scripts/ci/render_release_notes.py --version <tag> --previous-tag <prev> --head <tag> --output <file>`.
 
 ## Output
 

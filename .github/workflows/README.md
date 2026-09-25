@@ -39,11 +39,11 @@ changing that token silently breaks both distribution publishers.
 |---|---|---|
 | `pr-gate.yml` | pull request (no label events), push to `main` | Required path-aware gate: documentation boundaries, agent guidance, unit tests, installer/plugin checks, CLI, Capture E2E, dependency review, and template coupling. |
 | `installer-macos-rerun.yml` | pull request `labeled` | Adding `ci:installer-macos` re-runs the newest PR Gate run for the head commit (cancelling it first if running) so the macOS installer legs join; other labels skip (#6208). |
-| `release-note-governance.yml` | pull request (incl. label/body edits), push to `main` | Required `Release-note governance` check: exactly one release-note classification label; always reports, no path filter (#6190). |
+| `release-note-governance.yml` | pull request (incl. label/body edits), push to `main` | Required `Release-note governance` check: exactly one release-note classification label, release template placeholders, and the release-notes renderer tests; always reports, no path filter (#6190, #6232). |
 | `chaos-gauge-public-canary.yml` | manual | Runs one excluded public two-arm ChaosGauge canary through private draft evidence retention; never launches the pilot. |
 | `security.yml` | Maven Java pull request, push to `main`, weekly, manual | CodeQL Java analysis; PRs only when Java/POM/resources change, `main` and the weekly scan cover everything (#6192). |
 | `shaft-pilot-release.yml` | release-relevant pull request, manual | Rehearses the release contract, consumers, IntelliJ candidate, Capture, MCP transports, and container. |
-| `mavenCentral_cd.yml` | release-relevant push to `main`, manual | Validates, signs, publishes, verifies, releases, dispatches the guide, and announces. |
+| `mavenCentral_cd.yml` | release-relevant push to `main`, manual | Validates, signs, publishes, verifies, releases with minimal notes from `scripts/ci/render_release_notes.py` (#6232), dispatches the guide, and announces. |
 | `maven-central-reconcile.yml` | manual only | Safely completes a partially published immutable Maven Central version; dry-run defaults on. |
 | `prepare-release-pr.yml` | manual only | Updates the dated reactor and tool versions and opens the release PR. |
 | `publishJavaDocs.yml` | successful Maven Central workflow, manual | Publishes aggregate JavaDocs to the `javadoc` branch. |
