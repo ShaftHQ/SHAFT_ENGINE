@@ -1167,5 +1167,34 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
                 self.assertIn(module, scheduled)
 
 
+class DefaultMcpOptOutAcceptanceTest(TestCase):
+    """#6199: default upgrades publish no opt-in MCP servers; opted-in accounts probe them live."""
+
+    def _project(self, root: Path, servers: dict[str, object]) -> Path:
+        (root / ".mcp.json").write_text(json.dumps({"mcpServers": servers}), encoding="utf-8")
+        return root
+
+    def test_default_install_rejects_published_opt_in_servers(self):
+        module = load_acceptance()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self._project(Path(temporary), {
+                "chaosengine-memory": {"command": "python3", "args": []},
+                "keep-me": {"command": "echo"},
+            })
+            with self.assertRaisesRegex(RuntimeError, "opt-in MCP"):
+                module.assert_single_generated_mempalace(project, with_mcp=False)
+
+    def test_default_install_accepts_foreign_servers_only(self):
+        module = load_acceptance()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self._project(Path(temporary), {"keep-me": {"command": "echo"}})
+            module.assert_single_generated_mempalace(project, with_mcp=False)
+
+    def test_fresh_accounts_opt_in_so_generated_servers_are_probed_live(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('fresh_environment[WITH_MCP_ENV] = "1"', source)
+        self.assertIn("with_mcp=False", source)
+
+
 if __name__ == "__main__":
     main()
