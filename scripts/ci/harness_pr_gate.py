@@ -161,7 +161,12 @@ CHECKS = {
     "ci-contract": Check(
         "ci-contract",
         "ci",
-        ("tests.scripts.test_harness_pr_gate", "tests.scripts.test_unittest_shard"),
+        (
+            "tests.scripts.test_harness_pr_gate",
+            "tests.scripts.test_unittest_shard",
+            # #6239: the suite must never mutate the invoking checkout.
+            "tests.scripts.test_repo_state_guard",
+        ),
     ),
     "setup-aggregator-contract": Check(
         "setup-aggregator-contract",
@@ -342,6 +347,9 @@ CHECKS = {
             # itself; this Linux check is their PR-time home.
             "tests.scripts.test_chaos_engine_same_commit_payload_heal_5839",
             "tests.scripts.test_chaos_engine_overlay_only_host_pointers",
+            # #6236/#6237: MemPalace init on repair/account install, consumer mode.
+            "tests.scripts.test_chaos_engine_mempalace_init_6236",
+            "tests.scripts.test_chaos_engine_consumer_mode_6237",
         ),
     ),
 }
@@ -414,6 +422,9 @@ SURFACE_PATTERNS = {
         "chaos-engine/hosts.py",
         "tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py",
         "tests/scripts/test_chaos_engine_overlay_only_host_pointers.py",
+        "chaos-engine/consumer_mode.py",
+        "tests/scripts/test_chaos_engine_mempalace_init_6236.py",
+        "tests/scripts/test_chaos_engine_consumer_mode_6237.py",
     ),
     "hosts": (
         "chaos-engine/hosts.py",
@@ -490,6 +501,10 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_validate_agent_ownership.py",
         "tests/scripts/test_validate_agent_setup.py",
         "tests/scripts/test_validate_workflow_timeouts.py",
+        "scripts/agents/session_worktree.py",
+        "tests/scripts/conftest.py",
+        "tests/scripts/repo_state_guard.py",
+        "tests/scripts/test_repo_state_guard.py",
     ),
     "documentation": (
         "chaos-engine/README.md",
