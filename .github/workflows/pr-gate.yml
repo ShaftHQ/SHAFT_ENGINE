@@ -172,6 +172,9 @@ jobs:
               - 'tests/scripts/test_agent_plugin_release.py'
               - 'tests/scripts/test_agent_harness_portability.py'
               - 'tests/scripts/test_agent_harness_reachability.py'
+              # #6222: formerly weekly-only modules now gated on their inputs.
+              - 'tests/scripts/test_chaos_engine_portable_core.py'
+              - 'tests/scripts/test_chaos_engine_research.py'
               - 'tests/scripts/test_chaos_engine_one_source_overlay_5713.py'
               - 'tests/scripts/test_omniroute.py'
               - 'tests/scripts/test_omniroute_workflow_contract.py'
@@ -377,6 +380,11 @@ jobs:
               # CI, so cd_intellij_verify lost its coverage upload unnoticed.
               - 'scripts/ci/validate_quality_configuration.py'
               - 'tests/scripts/test_validate_quality_configuration.py'
+              # #6222: a pom version bump must come with the plugin CHANGELOG entry.
+              - 'scripts/ci/check_plugin_changelog_version.py'
+              - 'tests/scripts/test_check_plugin_changelog_version.py'
+              - 'agent-plugins/chaos-engine/CHANGELOG.md'
+              - 'agent-plugins/chaos-engine/COMPATIBILITY.md'
               # Issue #6208: macOS opt-in label rerun helper.
               - 'scripts/ci/rerun_pr_gate_on_label.py'
               - 'tests/scripts/test_rerun_pr_gate_on_label.py'
@@ -925,11 +933,14 @@ jobs:
           tests.scripts.test_shard_test_selector
           tests.scripts.test_validate_quality_configuration
           tests.scripts.test_rerun_pr_gate_on_label
+          tests.scripts.test_check_plugin_changelog_version
           -v
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
       - name: Validate coverage, CodeQL and quality configuration
         run: python3 scripts/ci/validate_quality_configuration.py
+      - name: Validate the plugin CHANGELOG covers the engine version
+        run: python3 scripts/ci/check_plugin_changelog_version.py
 
   # Issue #4506: this module's other five tests pin a real architectural
   # boundary -- shaft-engine carries no Pilot or provider dependency, and the

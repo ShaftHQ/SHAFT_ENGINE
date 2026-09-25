@@ -42,6 +42,10 @@ class Check:
     surface: str
     modules: tuple[str, ...]
     protected: bool = False
+    # #6222: an open issue tracking content drift that is red on main today.
+    # A failure is reported as "known-drift" (never blocking) until the issue
+    # is fixed; a pass tells the author to promote the check by clearing it.
+    known_drift: str = ""
 
     @property
     def reproduction_command(self) -> str:
@@ -277,6 +281,49 @@ CHECKS = {
             "tests.scripts.test_skill_index_parity",
         ),
     ),
+    # #6222: modules that only ran in the weekly acceptance run, each selected
+    # by the paths it actually reads, so drift surfaces on the PR that causes it.
+    "user-harness-sync-contract": Check(
+        "user-harness-sync-contract",
+        "user-harness",
+        ("tests.scripts.test_sync_user_harness",),
+        known_drift="#6202",
+    ),
+    "portable-core-contract": Check(
+        "portable-core-contract",
+        "portable-core",
+        ("tests.scripts.test_chaos_engine_portable_core",),
+        known_drift="#6216",
+    ),
+    "router-contract": Check(
+        "router-contract",
+        "guidance",
+        ("tests.scripts.test_agent_router_contract",),
+        known_drift="#6215",
+    ),
+    "harness-portability-contract": Check(
+        "harness-portability-contract",
+        "guidance",
+        ("tests.scripts.test_agent_harness_portability",),
+        known_drift="#6202",
+    ),
+    "plugin-assembly-contract": Check(
+        "plugin-assembly-contract",
+        "plugin-assembly",
+        ("tests.scripts.test_assemble_chaos_engine_plugin",),
+        known_drift="#6202",
+    ),
+    "research-matrix-contract": Check(
+        "research-matrix-contract",
+        "research",
+        ("tests.scripts.test_chaos_engine_research",),
+        known_drift="#6202",
+    ),
+    "graphify-maintenance-contract": Check(
+        "graphify-maintenance-contract",
+        "retrieval",
+        ("tests.scripts.test_graphify_maintenance",),
+    ),
     "installer-ux-contract": Check(
         "installer-ux-contract",
         "installer",
@@ -300,9 +347,15 @@ SURFACE_CHECKS = {
         "guidance-contract",
         "skill-contract",
         "guidance-reachability-contract",
+        "router-contract",
+        "harness-portability-contract",
     ),
     "plugins": ("plugin-contract", "plugin-quality-contract"),
-    "retrieval": ("retrieval-contract", "graph-resolver-contract"),
+    "retrieval": ("retrieval-contract", "graph-resolver-contract", "graphify-maintenance-contract"),
+    "user-harness": ("user-harness-sync-contract",),
+    "portable-core": ("portable-core-contract",),
+    "plugin-assembly": ("plugin-assembly-contract",),
+    "research": ("research-matrix-contract",),
     "ci": ("ci-contract", "setup-aggregator-contract"),
     "installer": (
         "protected-installer-acceptance",
@@ -412,6 +465,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_knowledge_stores.py",
         "tests/scripts/test_resolve_*.py",
         "tests/scripts/test_shaft_knowledge_refresh.py",
+        "tests/scripts/test_graphify_maintenance.py",
     ),
     "ci": (
         ".github/workflows/pr-gate.yml",
@@ -504,6 +558,45 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_retrieve_gate_scope.py",
         "tests/scripts/test_ce_guard_reachability.py",
         "tests/scripts/test_skill_index_parity.py",
+    ),
+    # #6222: inputs of the formerly weekly-only modules. Each is a cheap
+    # (< 5 s) single-module check, so broad content globs are affordable.
+    "user-harness": (
+        "scripts/agents/sync_user_harness.py",
+        "scripts/agents/user_harness_retired_manifest.json",
+        "scripts/agents/user-harness/*",
+        ".claude/user-harness/*",
+        "tests/scripts/test_sync_user_harness.py",
+    ),
+    "portable-core": (
+        "chaos-engine/*",
+        "AGENTS.md",
+        ".memory/memory/*",
+        "scripts/ci/agent_guidance_budget.json",
+        "tests/scripts/test_chaos_engine_portable_core.py",
+    ),
+    "plugin-assembly": (
+        "chaos-engine/*",
+        "agent-plugins/*",
+        # The zipapp runtime sources (RUNTIME_SOURCES), listed exactly so a
+        # new scripts/agents file still reaches the unknown-path fallback.
+        "scripts/agents/chaos_engine_cli.py",
+        "scripts/agents/delivery_status.py",
+        "scripts/agents/github_client.py",
+        "scripts/agents/issue_filing.py",
+        "scripts/agents/planning_contract.py",
+        "scripts/agents/pr_audit.py",
+        "scripts/agents/repository_context.py",
+        "scripts/agents/status_lease.py",
+        "scripts/agents/watch_pr_checks.py",
+        "scripts/ci/assemble_chaos_engine_plugin.py",
+        "tests/scripts/test_assemble_chaos_engine_plugin.py",
+    ),
+    "research": (
+        "chaos-engine/RESEARCH.md",
+        "agent-plugins/release.json",
+        ".github/workflows/mavenCentral_cd.yml",
+        "tests/scripts/test_chaos_engine_research.py",
     ),
     "javadoc": (
         "scripts/ci/check_javadoc_param_arity.py",
@@ -1001,11 +1094,18 @@ def _result_record(
     status, exit_code, duration = outcome
     if status == "failed" and waiver and check.id in waiver.check_ids and not check.protected:
         status = "waived"
+    if status == "failed" and check.known_drift and not check.protected:
+        status = "known-drift"
+    record_class = "blocking-protected-invariant" if check.protected else "change-scoped"
+    if check.known_drift:
+        record_class = "known-drift-advisory"
     return {
         "id": check.id,
         "surface": check.surface,
         "protected": check.protected,
-        "class": "blocking-protected-invariant" if check.protected else "change-scoped",
+        "class": record_class,
+        "known_drift": check.known_drift,
+        "promote": bool(check.known_drift) and status == "passed",
         "tests": list(check.modules),
         "status": status,
         "exit_code": exit_code,
@@ -1060,7 +1160,7 @@ def run_plan(
     failed_ids = {check.id for check in plan.checks if outcomes[check.id][0] != "passed"}
     if waiver and set(waiver.check_ids) != failed_ids.intersection(waiver.check_ids):
         raise GateError("waiver is stale because a named check did not fail")
-    valid = all(result["status"] in {"passed", "waived"} for result in results)
+    valid = all(result["status"] in {"passed", "waived", "known-drift"} for result in results)
     payload = {
         "schema": 1,
         "valid": valid,
@@ -1098,6 +1198,11 @@ def render_text(payload: dict[str, Any]) -> str:
         f"harness-pr-gate valid={str(payload.get('valid', True)).lower()} surfaces={surfaces} "
         f"elapsed={timing.get('elapsed_seconds', 0)}s/{timing.get('budget_seconds', 0)}s"
     ]
+    lines.extend(
+        f"{item['id']} known-drift={item['known_drift']}: now passes; promote it by clearing known_drift"
+        for item in payload.get("checks", [])
+        if item.get("promote")
+    )
     lines.extend(
         f"{item['id']} status={item.get('status', 'planned')} "
         f"protected={str(item.get('protected', False)).lower()} "

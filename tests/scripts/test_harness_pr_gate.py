@@ -89,7 +89,9 @@ class ClassifierTest(unittest.TestCase):
             ["scripts/ci/chaos_engine_promotion_trials.py"]
         )
 
-        self.assertEqual(("documentation", "identities"), documentation.surfaces)
+        self.assertEqual(
+            ("documentation", "identities", "portable-core", "plugin-assembly"), documentation.surfaces
+        )
 
         accessibility = classify_paths(["scripts/ci/accessibility_quality_gates.py"])
         self.assertIn("accessibility", accessibility.surfaces)
@@ -102,6 +104,8 @@ class ClassifierTest(unittest.TestCase):
                 "documentation-inventory-contract",
                 "identity-contract",
                 "identity-recovery-contract",
+                "portable-core-contract",
+                "plugin-assembly-contract",
                 "protected-ownership",
                 "protected-secret-safety",
             },
@@ -134,12 +138,16 @@ class ClassifierTest(unittest.TestCase):
     def test_kernel_change_selects_only_focused_and_protected_checks(self) -> None:
         plan = classify_paths(["chaos-engine/hooks/kernel.py"])
 
-        self.assertEqual(("kernel", "identities"), plan.surfaces)
+        # #6222: the portable-core scan and the plugin assembly read the whole
+        # chaos-engine tree, so their cheap single-module checks join too.
+        self.assertEqual(("kernel", "identities", "portable-core", "plugin-assembly"), plan.surfaces)
         self.assertEqual(
             (
                 "kernel-contract",
                 "identity-contract",
                 "identity-recovery-contract",
+                "portable-core-contract",
+                "plugin-assembly-contract",
                 "protected-ownership",
                 "protected-secret-safety",
             ),
@@ -304,8 +312,6 @@ class ClassifierTest(unittest.TestCase):
             "tests/scripts/test_repository_context.py",
             "tests/scripts/test_watch_pr_checks.py",
             "tests/scripts/test_worktree_hygiene.py",
-            "tests/scripts/test_sync_user_harness.py",
-            "tests/scripts/test_graphify_maintenance.py",
             "tools/intellij-plugin-recording/install.ps1",
         ):
             with self.subTest(path=path):
@@ -675,7 +681,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
         payload = json.loads(render_json(plan, head_sha=HEAD, budget_seconds=240))
 
         self.assertEqual(1, payload["schema"])
-        self.assertEqual(["kernel", "identities"], payload["surfaces"])
+        self.assertEqual(["kernel", "identities", "portable-core", "plugin-assembly"], payload["surfaces"])
         self.assertEqual(240, payload["timing"]["budget_seconds"])
         self.assertEqual(600, payload["timing"]["recorded_baseline_median_seconds"])
         self.assertEqual(0.6, payload["timing"]["maximum_budget_reduction"])
@@ -977,6 +983,98 @@ class ConcurrentRunPlanTest(unittest.TestCase):
         agent_job = pr_gate.split("  agent-guidance:", 1)[1].split("  installer-verify:", 1)[0]
         self.assertIn("--jobs 6", agent_job)
         self.assertIn("--jobs 1", pr_gate)
+
+
+class WeeklyOnlyModulesOnPrGateTest(unittest.TestCase):
+    """#6222: the formerly weekly-only modules run on the PRs that change their inputs."""
+
+    MODULES = {
+        "tests.scripts.test_sync_user_harness": "user-harness-sync-contract",
+        "tests.scripts.test_chaos_engine_portable_core": "portable-core-contract",
+        "tests.scripts.test_agent_router_contract": "router-contract",
+        "tests.scripts.test_agent_harness_portability": "harness-portability-contract",
+        "tests.scripts.test_assemble_chaos_engine_plugin": "plugin-assembly-contract",
+        "tests.scripts.test_chaos_engine_research": "research-matrix-contract",
+        "tests.scripts.test_graphify_maintenance": "graphify-maintenance-contract",
+    }
+
+    def test_each_module_has_a_check_selected_by_its_own_inputs(self) -> None:
+        workflow = yaml.safe_load((ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8"))
+        filters = yaml.safe_load(
+            next(
+                step["with"]["filters"]
+                for step in workflow["jobs"]["changes"]["steps"]
+                if step.get("id") == "filter"
+            )
+        )
+        guidance_filter = [pattern.replace("**", "*") for pattern in filters["agent_guidance"]]
+        for module, check_id in self.MODULES.items():
+            with self.subTest(module=module):
+                self.assertEqual((module,), CHECKS[check_id].modules)
+                self.assertIn(check_id, SURFACE_CHECKS[CHECKS[check_id].surface])
+                test_file = module.replace(".", "/") + ".py"
+                self.assertIn(check_id, {check.id for check in classify_paths([test_file]).checks})
+                # The harness gate job itself must start for that input.
+                self.assertTrue(
+                    any(fnmatch.fnmatchcase(test_file, pattern) for pattern in guidance_filter), test_file
+                )
+
+    def test_representative_inputs_select_the_cheap_check(self) -> None:
+        for path, check_id in (
+            ("scripts/agents/user-harness/settings.json", "user-harness-sync-contract"),
+            ("chaos-engine/tool.py", "portable-core-contract"),
+            (".memory/memory/workflow/x.json", "portable-core-contract"),
+            ("agent-plugins/chaos-engine/CHANGELOG.md", "plugin-assembly-contract"),
+            ("scripts/agents/status_lease.py", "plugin-assembly-contract"),
+            ("chaos-engine/RESEARCH.md", "research-matrix-contract"),
+            ("tools/repository-map/graphify_maintenance.py", "graphify-maintenance-contract"),
+            (".agents/skills/README.md", "router-contract"),
+        ):
+            with self.subTest(path=path):
+                self.assertIn(check_id, {check.id for check in classify_paths([path]).checks})
+        self.assertNotIn(
+            "portable-core-contract",
+            {check.id for check in classify_paths(["scripts/ci/accessibility_quality_gates.py"]).checks},
+        )
+
+    def test_known_drift_is_tracked_advisory_and_never_protected(self) -> None:
+        for check in CHECKS.values():
+            if check.known_drift:
+                with self.subTest(check=check.id):
+                    self.assertRegex(check.known_drift, r"^#\d+$")
+                    self.assertFalse(check.protected)
+
+    def test_known_drift_failure_reports_without_blocking_but_timeout_still_blocks(self) -> None:
+        drift = Check("drift-contract", "research", ("tests.scripts.fixture_drift",), known_drift="#1")
+        plan = GatePlan(("research",), (drift,))
+        with patch("scripts.ci.harness_pr_gate._run_check", return_value=("failed", 1)):
+            payload, exit_code = run_plan(ROOT, plan, head_sha=HEAD, budget_seconds=60, waiver=None)
+        self.assertEqual(0, exit_code)
+        self.assertEqual("known-drift", payload["checks"][0]["status"])
+        self.assertEqual("known-drift-advisory", payload["checks"][0]["class"])
+        self.assertEqual("#1", payload["checks"][0]["known_drift"])
+        self.assertFalse(payload["checks"][0]["promote"])
+
+        with patch("scripts.ci.harness_pr_gate._run_check", return_value=("timeout", None)):
+            _, exit_code = run_plan(ROOT, plan, head_sha=HEAD, budget_seconds=60, waiver=None)
+        self.assertEqual(1, exit_code)
+
+        with patch("scripts.ci.harness_pr_gate._run_check", return_value=("passed", 0)):
+            payload, exit_code = run_plan(ROOT, plan, head_sha=HEAD, budget_seconds=60, waiver=None)
+        self.assertEqual(0, exit_code)
+        self.assertTrue(payload["checks"][0]["promote"])
+        from scripts.ci.harness_pr_gate import render_text
+
+        self.assertIn("promote it by clearing known_drift", render_text(payload))
+
+    def test_blocking_checks_still_block(self) -> None:
+        blocking = Check("blocking-contract", "research", ("tests.scripts.fixture_blocking",))
+        with patch("scripts.ci.harness_pr_gate._run_check", return_value=("failed", 1)):
+            payload, exit_code = run_plan(
+                ROOT, GatePlan(("research",), (blocking,)), head_sha=HEAD, budget_seconds=60, waiver=None
+            )
+        self.assertEqual(1, exit_code)
+        self.assertEqual("failed", payload["checks"][0]["status"])
 
 
 if __name__ == "__main__":

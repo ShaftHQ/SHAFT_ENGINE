@@ -98,6 +98,17 @@ table. Remove a row only in the same change that deletes its workflow.
   first); `--jobs 1` restores the sequential run (#6191). The installer and
   bootstrap modules run as 4 and 2 deterministic shards
   (`scripts/ci/unittest_shard.py`, #6207).
+- Seven modules that used to run only in the weekly acceptance run now have
+  path-filtered harness checks (`router-contract`, `harness-portability-contract`,
+  `portable-core-contract`, `user-harness-sync-contract`, `plugin-assembly-contract`,
+  `research-matrix-contract`, `graphify-maintenance-contract`, #6222). A check
+  whose module is red on main because of tracked drift carries `known_drift`
+  (the issue number): its failure is reported as `known-drift` and does not
+  block, and once it passes the receipt tells the author to clear `known_drift`.
+- Workflow Timeout Guard runs `scripts/ci/check_plugin_changelog_version.py`
+  on pom, workflow and plugin CHANGELOG edits: a `pom.xml` version bump needs a
+  `## <version>` entry in `agent-plugins/chaos-engine/CHANGELOG.md` and the
+  version in `COMPATIBILITY.md` (#6222).
 - `Build IntelliJ plugin` (`check buildPlugin`, coverage, artifact) and
   `Verify IntelliJ plugin (Plugin Verifier)` (`verifyPlugin`) run in parallel
   through `intellij-verify` modes `build`/`plugin`, both retried. Release
