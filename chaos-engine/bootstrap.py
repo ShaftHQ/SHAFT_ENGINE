@@ -30,6 +30,7 @@ from pathlib import Path, PurePosixPath
 
 
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
+GITHUB_URL = re.compile(r"https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?")
 COMMIT = re.compile(r"[0-9a-f]{40}")
 MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 MAX_SOURCE_BYTES = 10 * 1024 * 1024
@@ -1648,7 +1649,17 @@ def read_response(
     return value
 
 
+def normalize_repository(value: str) -> str:
+    """Accept `owner/name` or `https://github.com/owner/name[.git]` (#6230).
+
+    Anything else is returned unchanged so `resolve_latest` rejects it.
+    """
+    match = GITHUB_URL.fullmatch(value.strip())
+    return match.group(1) if match else value
+
+
 def resolve_latest(repository: str, branch: str | None, opener=urllib.request.urlopen) -> tuple[str, str]:
+    repository = normalize_repository(repository)
     components = repository.split("/")
     if (
         REPOSITORY.fullmatch(repository) is None
@@ -2059,7 +2070,7 @@ def install_latest(
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument("--project", type=Path, default=Path.cwd())
-    result.add_argument("--repository", required=True)
+    result.add_argument("--repository", required=True, type=normalize_repository)
     result.add_argument("--branch")
     result.add_argument("--distribution")
     result.add_argument("--skip-tools", action="store_true", help=argparse.SUPPRESS)
