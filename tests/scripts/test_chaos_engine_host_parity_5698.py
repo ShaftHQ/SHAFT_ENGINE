@@ -177,9 +177,12 @@ class HostParity5698Tests(unittest.TestCase):
         before = json.dumps(
             {"mcpServers": {"github": {"command": "npx"}, "keep-me": {"command": "echo"}}}
         ).encode()
-        after = json.loads(self.hosts.json_content(before).decode("utf-8"))
+        after = json.loads(self.hosts.json_content(before, with_mcp=True).decode("utf-8"))
         self.assertEqual({"command": "npx"}, after["mcpServers"]["github"])
         self.assertIn("chaosengine-memory", after["mcpServers"])
+        default = json.loads(self.hosts.json_content(before).decode("utf-8"))
+        self.assertEqual({"command": "npx"}, default["mcpServers"]["github"])
+        self.assertNotIn("chaosengine-memory", default["mcpServers"])  # #6199 opt-in
         self.assertNotIn("github-gh", self.hosts.owned_servers())
 
     def test_default_owned_servers_never_include_shaft_product_mcp(self):

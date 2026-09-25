@@ -6,7 +6,7 @@ hook bodies track upstream. ChaosEngine applies a project-mode overlay on
 in the walk, mode resolution never falls through to user-level caveman config
 (#5698). `caveman-activate.js` also reads the pinned body from
 `.chaos-engine/vendor/caveman/` before the plugin copy, because the published
-plugin `SKILL.md` is a short [adapter](../../plugin-adapters/README.md) (#6198).
+plugin `SKILL.md` is a short [adapter](../../plugin-adapters/INDEX.md) (#6198).
 Re-apply that overlay after any upstream pin refresh.
 
 - Pin: [PIN.json](PIN.json)

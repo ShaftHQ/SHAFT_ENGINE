@@ -507,5 +507,23 @@ class ChaosEngineLearningTest(unittest.TestCase):
             runner.assert_not_called()
 
 
+class InstructionOnlyReceiptSuite6201(unittest.TestCase):
+    """Run the focused tests/scripts/test_instruction_only_receipt_6201.py suite inside this CI-gated module."""
+
+    def test_wave3_instruction_only_receipt_suite_passes(self) -> None:
+        import sys as _sys
+        from pathlib import Path as _Path
+
+        root = str(_Path(__file__).resolve().parents[2])
+        if root not in _sys.path:
+            _sys.path.insert(0, root)
+        suite = unittest.defaultTestLoader.loadTestsFromName("tests.scripts.test_instruction_only_receipt_6201")
+        result = unittest.TestResult()
+        suite.run(result)
+        problems = [f"{test}: {trace}" for test, trace in result.failures + result.errors]
+        self.assertTrue(result.testsRun > 0, "focused suite discovered no tests")
+        self.assertEqual([], problems)
+
+
 if __name__ == "__main__":
     unittest.main()
