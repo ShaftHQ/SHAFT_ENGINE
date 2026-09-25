@@ -1039,9 +1039,10 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         claude = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))[
             "mcpServers"
         ]
-        codex = tomllib.loads((OVERLAY / ".codex/config.toml").read_text(encoding="utf-8"))[
-            "mcp_servers"
-        ]
+        # #6199 made MCP opt-in: a default Codex config may declare no servers at all.
+        codex = tomllib.loads((OVERLAY / ".codex/config.toml").read_text(encoding="utf-8")).get(
+            "mcp_servers", {}
+        )
 
         offenders = []
         for host, servers in (("claude", claude), ("codex", codex)):
