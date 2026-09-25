@@ -22,6 +22,9 @@ points here; do not require plugin activation to heal.
    success-with-agent-prompt, agentic one-liner) and
    [`installer-program-executable-spec.md`](installer-program-executable-spec.md)
 
+GitHub `403` rate limit on install or bootstrap means the anonymous API quota
+is spent: export `GITHUB_TOKEN="$(gh auth token)"` and rerun the same command.
+
 ## When marketplace plugin is absent
 
 - Read this file and `chaos-engine/INSTALL.md` (repo-only) from the portable tree or

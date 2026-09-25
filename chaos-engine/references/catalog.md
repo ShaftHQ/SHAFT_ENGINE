@@ -32,4 +32,5 @@ routes are reached through `local-runtimes`; roles through their adapters.
 | harness-learn | Use when repeated session traces show the git-tracked overlay should change; tune the harness in the repo, never under `~/.grok/skills`. | `references/harness-learn.md` | [route](../references/harness-learn.md) |
 | design-loop | Use when a design document needs write-review-revise rounds until zero open review issues remain. | `references/design-loop.md` | [route](../references/design-loop.md) |
 | deep-research | Use when a question needs bounded parallel research with verification and a cited final report. | `references/deep-research.md` | [route](../references/deep-research.md) |
+| ui-delivery | Use when a change touches user-visible UI, layout, styling, or themes: red-then-green e2e, measured geometry, viewport x theme matrix. | `references/ui-delivery.md` | [route](../references/ui-delivery.md) |
 | learn-traces | Use when session traces must be mapped, reduced, and verified into lessons without a host TUI runner. | `references/learn-traces.md` | [route](../references/learn-traces.md) |

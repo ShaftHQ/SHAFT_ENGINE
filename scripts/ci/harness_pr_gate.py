@@ -279,6 +279,7 @@ CHECKS = {
             "tests.scripts.test_retrieve_gate_scope",
             "tests.scripts.test_ce_guard_reachability",
             "tests.scripts.test_skill_index_parity",
+            "tests.scripts.test_chaos_engine_ui_delivery",
         ),
     ),
     # #6222: modules that only ran in the weekly acceptance run, each selected
@@ -552,6 +553,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_retrieve_gate_scope.py",
         "tests/scripts/test_ce_guard_reachability.py",
         "tests/scripts/test_skill_index_parity.py",
+        "tests/scripts/test_chaos_engine_ui_delivery.py",
     ),
     # #6222: inputs of the formerly weekly-only modules. Each is a cheap
     # (< 5 s) single-module check, so broad content globs are affordable.
