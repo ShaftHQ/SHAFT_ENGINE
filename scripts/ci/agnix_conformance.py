@@ -203,52 +203,29 @@ def _is_reparse_point(path: Path) -> bool:
     return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400))
 
 
-def _generated_overlay(source: Path) -> Path | None:
-    """Materialize the generated host overlay (#5713) when the source ships the installer."""
+def generated_overlay(source_root: Path) -> Path | None:
+    """A temp installed overlay when `source_root` is a ChaosEngine origin (#6202).
+
+    Host files such as `.claude/settings.json` are generated and untracked
+    (#5713), so a fresh checkout cannot stage them from the source tree.
+    """
+    source = Path(source_root).resolve()
     if not (source / "chaos-engine/install.py").is_file():
         return None
-    from scripts.ci.overlay_in_temp import materialize_overlay
-
-    return materialize_overlay(source).resolve(strict=True)
-
-
-def _validate_inputs(root: Path, relatives: list[str]) -> None:
-    """Reject missing inputs, links, reparse points and escapes from ``root``."""
-    for relative in relatives:
-        source_path = root / relative
-        if not source_path.exists():
-            raise ValueError(f"declared staging input is missing: {relative}")
-        for candidate in (source_path, *source_path.rglob("*")):
-            if candidate.is_symlink():
-                raise ValueError(f"declared staging input contains a symlink: {candidate}")
-            try:
-                candidate.resolve(strict=True).relative_to(root)
-            except ValueError as error:
-                raise ValueError(
-                    f"declared staging input resolves outside the source root: {candidate}"
-                ) from error
-            if _is_reparse_point(candidate):
-                raise ValueError(f"declared staging input contains a reparse point: {candidate}")
+    try:
+        from scripts.ci.overlay_in_temp import materialize_overlay
+    except ModuleNotFoundError:
+        from overlay_in_temp import materialize_overlay  # type: ignore[no-redef]
+    return materialize_overlay(source)
 
 
-def _make_world_readable(root: Path) -> None:
-    """Let the unprivileged quarantine container read the disposable copy.
+def stage_harness(
+    source_root: Path, destination: Path, contract: dict, generated_root: Path | None = None
+) -> list[str]:
+    """Copy only declared harness inputs into a disposable trial fixture.
 
-    The generated overlay writes private (0600) host adapters; agnix runs as a
-    different uid inside the container and reported them as unreadable (#6205).
-    """
-    for path in (root, *root.rglob("*")):
-        path.chmod(0o755 if path.is_dir() else 0o644)
-
-
-def stage_harness(source_root: Path, destination: Path, contract: dict) -> list[str]:
-    """
-    Copy only declared harness inputs into a disposable trial fixture.
-
-    Since #5713 the host adapters (``.claude/``, ``.codex/``) are generated, not
-    tracked, so a declared input missing from the checkout is taken from a
-    freshly generated overlay of the same source (#6205). An input missing from
-    both is still an error.
+    A declared input absent from the source falls back to `generated_root`,
+    the installer's rendered overlay, and nothing else.
     """
     defects = validate_contract(contract)
     if defects:
@@ -269,28 +246,39 @@ def stage_harness(source_root: Path, destination: Path, contract: dict) -> list[
     )
     if _inside(target, source) or any(_inside(target, root) or _inside(root, target) for root in protected):
         raise ValueError("fixture destination must be disposable and outside the repository")
-    relatives = list(contract["staging_paths"])
-    tracked = [relative for relative in relatives if (source / relative).exists()]
-    generated = [relative for relative in relatives if relative not in tracked]
-    _validate_inputs(source, tracked)
-    overlay = _generated_overlay(source) if generated else None
-    try:
-        _validate_inputs(overlay or source, generated)
-        target.mkdir(parents=True)
-        for relative in relatives:
-            origin = source if relative in tracked else overlay
-            source_path = origin / relative
-            target_path = target / relative
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            if source_path.is_dir():
-                shutil.copytree(source_path, target_path)
-            else:
-                shutil.copy2(source_path, target_path)
-        _make_world_readable(target)
-        return relatives
-    finally:
-        if overlay is not None:
-            shutil.rmtree(overlay, ignore_errors=True)
+    generated = Path(generated_root).resolve(strict=True) if generated_root is not None else None
+    origins: dict[str, tuple[Path, Path]] = {}
+    for relative in contract["staging_paths"]:
+        root = source
+        source_path = source / relative
+        if not source_path.exists() and generated is not None and (generated / relative).exists():
+            root, source_path = generated, generated / relative
+        if not source_path.exists():
+            raise ValueError(f"declared staging input is missing: {relative}")
+        origins[relative] = (root, source_path)
+        for candidate in (source_path, *source_path.rglob("*")):
+            if candidate.is_symlink():
+                raise ValueError(f"declared staging input contains a symlink: {candidate}")
+            try:
+                candidate.resolve(strict=True).relative_to(root)
+            except ValueError as error:
+                raise ValueError(
+                    f"declared staging input resolves outside the source root: {candidate}"
+                ) from error
+            if _is_reparse_point(candidate):
+                raise ValueError(f"declared staging input contains a reparse point: {candidate}")
+    target.mkdir(parents=True)
+    copied: list[str] = []
+    for relative in contract["staging_paths"]:
+        source_path = origins[relative][1]
+        target_path = target / relative
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        if source_path.is_dir():
+            shutil.copytree(source_path, target_path)
+        else:
+            shutil.copy2(source_path, target_path)
+        copied.append(relative)
+    return copied
 
 
 def _trial_command(candidate_root: Path, fixtures_root: Path, output_root: Path, image: str, argv: list[str]) -> list[str]:
@@ -418,6 +406,17 @@ def score_evaluation(payload: object, contract: dict) -> dict:
     }
 
 
+def _make_world_readable(root: Path) -> None:
+    """Let the unprivileged quarantine container read the disposable fixtures.
+
+    The generated overlay writes private (0600) host adapters; agnix runs as a
+    different uid inside the container and reported them as unreadable (#6205).
+    """
+    for path in (root, *root.rglob("*")):
+        if not path.is_symlink():
+            path.chmod(0o755 if path.is_dir() else 0o644)
+
+
 def _json_object_from_output(output: str) -> object:
     """Decode the first JSON object from agnix output that may include status prose."""
     start = output.find("{")
@@ -443,6 +442,8 @@ def run_conformance(
     defects = validate_contract(contract)
     if defects:
         raise ValueError("invalid agnix contract: " + "; ".join(defects))
+    if Path(fixtures_root).is_dir():
+        _make_world_readable(Path(fixtures_root))
     telemetry_command = _trial_command(
         candidate_root,
         fixtures_root,
@@ -556,7 +557,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.stage_source:
         if args.fixtures_root is None:
             parser.error("--stage-source requires --fixtures-root")
-        stage_harness(args.stage_source, args.fixtures_root, contract)
+        stage_harness(args.stage_source, args.fixtures_root, contract, generated_overlay(args.stage_source))
     if args.candidate_root:
         if None in (args.fixtures_root, args.evaluation_root, args.output_root, args.output):
             parser.error(
