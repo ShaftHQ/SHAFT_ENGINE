@@ -83,8 +83,9 @@ OpenCode, Cursor and Grok Bot load `AGENTS.md` but run no project hook, so the
 also fills the retrieve ledger. `learning_session.py finalize --host <id>`
 flags `missing-retrieve-receipt` when neither exists; it never blocks (#6201).
 
-Receipt shims (#6218): the [receipt shim](../hooks/receipt_shim.py) wires one
-via `python3 .chaos-engine/hooks/receipt_shim.py install --host cursor|opencode`; it opens a pending receipt before the first
+Receipt shims (#6218): install and `repair --component hooks` wire the
+[receipt shim](../hooks/receipt_shim.py) for each host with a project marker or
+CLI on PATH, and uninstall removes it (#6230); it opens a pending receipt before the first
 project read, never blocks, never overwrites, and never fills `retrieve:`.
 
 | Host | Native surface | Verdict |

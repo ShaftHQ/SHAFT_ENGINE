@@ -4703,5 +4703,92 @@ class NestedOverlayTree6225Test(unittest.TestCase):
             self.assertIn("repair --project . --component core", row["fixNext"])
 
 
+class ReceiptShimWiring6230Test(unittest.TestCase):
+    """#6230: the installer wires the Cursor/OpenCode receipt shims it detects."""
+
+    def project(self, temporary: str) -> Path:
+        project = Path(temporary) / "consumer"
+        project.mkdir()
+        return project
+
+    def test_detection_uses_project_markers_or_path(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self.project(temporary)
+            self.assertEqual((), MODULE.receipt_shim_hosts(project, which=lambda _name: None))
+            (project / ".cursor").mkdir()
+            self.assertEqual(("cursor",), MODULE.receipt_shim_hosts(project, which=lambda _name: None))
+            on_path = {"opencode": "/bin/opencode"}
+            self.assertEqual(
+                ("cursor", "opencode"), MODULE.receipt_shim_hosts(project, which=on_path.get)
+            )
+
+    def test_wire_then_unwire_keeps_foreign_hooks(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self.project(temporary)
+            hooks = project / ".cursor/hooks.json"
+            hooks.parent.mkdir()
+            foreign = {"command": "./format.sh"}
+            hooks.write_text(json.dumps({"version": 1, "hooks": {"afterFileEdit": [foreign]}}), encoding="utf-8")
+            (project / "opencode.json").write_text("{}", encoding="utf-8")
+            wired = MODULE.wire_receipt_shims(project, which=lambda _name: None)
+            self.assertEqual({"cursor": "wired", "opencode": "wired"}, wired)
+            config = json.loads(hooks.read_text(encoding="utf-8"))
+            self.assertIn("receipt_shim.py ensure --host cursor", config["hooks"]["beforeReadFile"][0]["command"])
+            plugin = project / ".opencode/plugins/chaos-engine-receipt.js"
+            self.assertIn("tool.execute.before", plugin.read_text(encoding="utf-8"))
+            MODULE.unwire_receipt_shims(project)
+            self.assertEqual(
+                {"version": 1, "hooks": {"afterFileEdit": [foreign]}},
+                json.loads(hooks.read_text(encoding="utf-8")),
+            )
+            self.assertFalse(plugin.exists())
+
+    def test_unwire_deletes_a_hooks_file_only_the_shim_owned(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self.project(temporary)
+            (project / ".cursor").mkdir()
+            MODULE.wire_receipt_shims(project, which=lambda _name: None)
+            self.assertTrue((project / ".cursor/hooks.json").is_file())
+            MODULE.unwire_receipt_shims(project)
+            self.assertFalse((project / ".cursor/hooks.json").exists())
+            self.assertTrue((project / ".cursor").is_dir())
+
+    def test_install_wires_detected_hosts_and_uninstall_removes_them(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = self.project(temporary)
+            (project / ".cursor").mkdir()
+            specification = json.loads((SOURCE / "dependencies.json").read_text(encoding="utf-8"))
+            controller = SimpleNamespace(
+                load_specification=lambda _path: specification,
+                install_account_dependencies=mock.Mock(
+                    return_value={
+                        "schemaVersion": 2,
+                        "components": {},
+                        "commands": {
+                            "memory-mcp": "/user/bin/memory-mcp",
+                            "mempalace-mcp": "/user/bin/mempalace-mcp",
+                            "node": "/user/bin/node",
+                            "python3": "/user/bin/python3.14",
+                        },
+                    }
+                ),
+            )
+            with (
+                mock.patch.object(MODULE, "load_dependency_controller", return_value=controller),
+                mock.patch.object(MODULE.shutil, "which", return_value=None),
+            ):
+                MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, with_maven_tools=False)
+            config = json.loads((project / ".cursor/hooks.json").read_text(encoding="utf-8"))
+            self.assertIn("receipt_shim.py ensure --host cursor", config["hooks"]["beforeReadFile"][0]["command"])
+            self.assertFalse((project / ".opencode/plugins/chaos-engine-receipt.js").exists())
+            MODULE.unwire_receipt_shims(project)
+            self.assertFalse((project / ".cursor/hooks.json").exists())
+
+    def test_origin_overlay_ignores_the_generated_shim_files(self):
+        hosts = MODULE.load_source_controller("hosts")
+        for pattern in (".cursor/hooks.json", ".opencode/plugins/chaos-engine-receipt.js"):
+            self.assertIn(pattern, hosts.ORIGIN_OVERLAY_PATTERNS)
+
+
 if __name__ == "__main__":
     unittest.main()

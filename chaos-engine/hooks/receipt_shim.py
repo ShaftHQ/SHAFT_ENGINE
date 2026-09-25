@@ -9,6 +9,8 @@ or `exempt(harness)`, and the Learning Session keeps flagging a pending one.
 
     ensure  --host cursor|opencode [--project DIR]   (Cursor passes JSON on stdin)
     install --host cursor|opencode [--project DIR]
+
+The installer wires these automatically for detected hosts (#6230).
 """
 
 from __future__ import annotations
@@ -89,10 +91,7 @@ def cursor_hooks(existing: dict[str, object]) -> dict[str, object]:
     hooks = document.get("hooks")
     hooks = dict(hooks) if isinstance(hooks, dict) else {}
     for event in CURSOR_EVENTS:
-        entries = [
-            entry for entry in hooks.get(event, [])
-            if not (isinstance(entry, dict) and "receipt_shim.py" in str(entry.get("command", "")))
-        ]
+        entries = [entry for entry in hooks.get(event, []) if not _is_shim_entry(entry)]
         entries.append({"command": command, "timeout": 10})
         hooks[event] = entries
     document["hooks"] = hooks
@@ -141,6 +140,48 @@ def install(project: Path, host: str) -> Path:
     temporary.write_text(payload, encoding="utf-8")
     temporary.replace(target)
     return target
+
+
+def _is_shim_entry(entry: object) -> bool:
+    return isinstance(entry, dict) and "receipt_shim.py" in str(entry.get("command", ""))
+
+
+def uninstall(project: Path, host: str) -> bool:
+    """Remove only what `install` wrote (#6230). Returns True when something changed."""
+    if host == "opencode":
+        target = project / OPENCODE_PLUGIN
+        if target.is_file() and not target.is_symlink():
+            if target.read_text(encoding="utf-8").startswith("// ChaosEngine research-receipt shim"):
+                target.unlink()
+                return True
+        return False
+    target = project / CURSOR_HOOKS
+    try:
+        document = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    hooks = document.get("hooks") if isinstance(document, dict) else None
+    if not isinstance(hooks, dict):
+        return False
+    changed = False
+    for event in CURSOR_EVENTS:
+        entries = hooks.get(event)
+        if not isinstance(entries, list):
+            continue
+        kept = [entry for entry in entries if not _is_shim_entry(entry)]
+        if len(kept) != len(entries):
+            changed = True
+            if kept:
+                hooks[event] = kept
+            else:
+                del hooks[event]
+    if not changed:
+        return False
+    if not hooks and set(document) <= {"version", "hooks"}:
+        target.unlink()
+    else:
+        target.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:

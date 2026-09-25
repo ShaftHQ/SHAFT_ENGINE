@@ -3338,6 +3338,56 @@ def _tracing_dependency_runner(reporter, runner):
     return traced
 
 
+RECEIPT_SHIM_HOSTS = ("cursor", "opencode")
+RECEIPT_SHIM_MARKERS = {
+    "cursor": (".cursor",),
+    "opencode": (".opencode", "opencode.json", "opencode.jsonc"),
+}
+RECEIPT_SHIM_COMMANDS = {"cursor": ("cursor", "cursor-agent"), "opencode": ("opencode",)}
+
+
+def _receipt_shim_module():
+    path = Path(__file__).resolve().parent / "hooks" / "receipt_shim.py"
+    spec = importlib.util.spec_from_file_location("ce_receipt_shim_installer", path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"unable to load ChaosEngine receipt shim: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def receipt_shim_hosts(project: Path, *, which=None) -> tuple[str, ...]:
+    """Hosts with a project marker or a CLI on PATH that get a receipt shim (#6230)."""
+    which = which or shutil.which
+    return tuple(
+        host
+        for host in RECEIPT_SHIM_HOSTS
+        if any((project / marker).exists() for marker in RECEIPT_SHIM_MARKERS[host])
+        or any(which(command) for command in RECEIPT_SHIM_COMMANDS[host])
+    )
+
+
+def wire_receipt_shims(project: Path, *, which=None) -> dict[str, str]:
+    """Wire the research-receipt shim for each detected instruction-only host (#6230)."""
+    detected = receipt_shim_hosts(project, which=which)
+    module = _receipt_shim_module() if detected else None
+    result: dict[str, str] = {}
+    for host in RECEIPT_SHIM_HOSTS:
+        if module is not None and host in detected:
+            module.install(project, host)
+            result[host] = "wired"
+        else:
+            result[host] = "absent"
+    return result
+
+
+def unwire_receipt_shims(project: Path, module=None) -> None:
+    """Remove the shim entries install wrote; foreign hooks stay (#6230)."""
+    module = module or _receipt_shim_module()
+    for host in RECEIPT_SHIM_HOSTS:
+        module.uninstall(project, host)
+
+
 def install_with_dependencies(  # noqa: MC0001 - owned resources share one compensation boundary.
     project: Path,
     source: Path,
@@ -3798,6 +3848,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             if project_setup_snapshot is not None:
                 shutil.rmtree(project_setup_snapshot, ignore_errors=True)
         sync_repository_overlay_from_source(project, commit)
+        wire_receipt_shims(project)
         return target
 
 
@@ -5329,6 +5380,11 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
         if read_cross_rollback_journal(project) is not None:
             raise ValueError("rollback recovery is required before uninstall")
         target = project / INSTALL_DIRECTORY
+        try:
+            # Loaded before core removal deletes the file it lives in (#6230).
+            receipt_shim = _receipt_shim_module()
+        except (ImportError, OSError):
+            receipt_shim = None
         runtime = project / ".chaos-engine-runtime"
         removing = project / ".chaos-engine-runtime.removing"
         backup = project / ".chaos-engine-runtime.backup"
@@ -5431,6 +5487,8 @@ def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, an
             controller.finalize_generation_remove(project)
         if host_prepared:
             host_controller.finalize_uninstall(project)
+        if receipt_shim is not None:
+            unwire_receipt_shims(project, receipt_shim)
 
 
 def finalize_dependency_tombstone(removing: Path) -> None:
@@ -5617,7 +5675,10 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
                 capability_policy_digest=repair_capability,
                 account_commands=account_commands,
             )
-            return {"status": "repaired", "component": name, "action": "rebind"}
+            payload = {"status": "repaired", "component": name, "action": "rebind"}
+            if name == "hooks":
+                payload["receiptShims"] = wire_receipt_shims(project)
+            return payload
         if name == "memory" and hasattr(host_controller, "migrate_legacy_memory_store"):
             migrated = host_controller.migrate_legacy_memory_store(project)
             if isinstance(migrated, dict) and migrated.get("status") == "migrated":
