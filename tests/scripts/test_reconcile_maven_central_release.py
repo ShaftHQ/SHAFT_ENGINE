@@ -88,16 +88,28 @@ class SlackPayloadTest(unittest.TestCase):
 
 
 class RenderReleaseBodyTest(unittest.TestCase):
-    def test_substitutes_the_release_version_placeholder(self):
+    def test_uses_the_minimal_release_notes_renderer(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             template = Path(temp_dir) / "RELEASE_BODY_TEMPLATE.md"
             template.write_text(
-                "# SHAFT $RELEASE_VERSION\n\nSee $RELEASE_VERSION docs.\n", encoding="utf-8"
+                "# SHAFT $RELEASE_VERSION\n\n$RELEASE_SUMMARY\n\n$RELEASE_CHANGES\n\n"
+                "$RELEASE_CHANGELOG\n",
+                encoding="utf-8",
             )
+            with mock.patch.object(
+                reconcile.release_notes, "build_release_body", return_value=("body", False)
+            ) as build:
+                body = reconcile.render_release_body("1.2.3", template)
 
-            body = reconcile.render_release_body("1.2.3", template)
+        self.assertEqual(("body", False), body)
+        request = build.call_args.args[0]
+        self.assertEqual(("1.2.3", template), (request.version, request.template_path))
 
-        self.assertEqual(body, "# SHAFT 1.2.3\n\nSee 1.2.3 docs.\n")
+    def test_generated_notes_are_only_requested_on_fallback(self):
+        rendered = reconcile.build_release_create_command("1.2.3", Path("b.md"), [], False)
+        fallback = reconcile.build_release_create_command("1.2.3", Path("b.md"), [])
+        self.assertNotIn("--generate-notes", rendered)
+        self.assertIn("--generate-notes", fallback)
 
 
 class ReconcileReleaseTest(unittest.TestCase):
@@ -182,6 +194,8 @@ class ReconcileReleaseTest(unittest.TestCase):
         ), mock.patch.object(reconcile, "release_exists", return_value=False), mock.patch.object(
             reconcile.subprocess, "run", return_value=release_result
         ) as run, mock.patch.object(
+            reconcile, "render_release_body", return_value=("# SHAFT 1.2.3\n", False)
+        ), mock.patch.object(
             reconcile.urllib.request, "urlopen"
         ) as urlopen:
             urlopen.return_value.__enter__.return_value = object()
@@ -196,6 +210,7 @@ class ReconcileReleaseTest(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         run.assert_called_once()
         self.assertEqual(run.call_args.args[0][:3], ["gh", "release", "create"])
+        self.assertNotIn("--generate-notes", run.call_args.args[0])
         urlopen.assert_called_once()
         request = urlopen.call_args.args[0]
         self.assertEqual(request.full_url, "https://hooks.slack.test/services/x")

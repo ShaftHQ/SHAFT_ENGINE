@@ -35,6 +35,7 @@ on:
       - 'report-aggregate/**'
       - 'tools/modularization/consumer-fixtures/**'
       - '.github/RELEASE_BODY_TEMPLATE.md'
+      - 'scripts/ci/render_release_notes.py'
       - '.github/actions/upload-jacoco-coverage/action.yml'
       - '.github/actions/reclaim-disk-space/action.yml'
       - '.github/workflows/mavenCentral_cd.yml'
@@ -419,13 +420,26 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write
+      pull-requests: read
     steps:
       - name: Checkout released source
         uses: actions/checkout@v7.0.1
+        with:
+          # Full history and tags: the notes list first-parent PRs since the last release.
+          fetch-depth: 0
+      # Issue #6232: minimal, user-facing notes (summary, install snippet, grouped
+      # sections, collapsed internals). Falls back to GitHub-generated notes when
+      # pull requests cannot be collected, so the release is never blocked.
       - name: Prepare Release Body
+        id: release_body
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.build_release_and_deliver.outputs.release_version }}
-        run: sed "s/\$RELEASE_VERSION/${RELEASE_VERSION}/g" .github/RELEASE_BODY_TEMPLATE.md > /tmp/release_body.md
+        run: >-
+          python3 scripts/ci/render_release_notes.py
+          --version "${RELEASE_VERSION}"
+          --output /tmp/release_body.md
+          --github-output "$GITHUB_OUTPUT"
       - name: Download portable Agent Plugin release assets
         uses: actions/download-artifact@v8
         with:
@@ -440,7 +454,7 @@ jobs:
           # fire. BOT_TOKEN is a PAT, so its release triggers that workflow.
           token: ${{ secrets.BOT_TOKEN }}
           allowUpdates: false
-          generateReleaseNotes: true
+          generateReleaseNotes: ${{ steps.release_body.outputs.fallback == 'true' }}
           bodyFile: /tmp/release_body.md
           name: ${{ needs.build_release_and_deliver.outputs.release_version }}
           tag: ${{ needs.build_release_and_deliver.outputs.release_version }}

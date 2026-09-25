@@ -18,7 +18,9 @@
 
 > Apply exactly one release-note classification label to every human-authored
 > PR: `breaking-change`, `enhancement`, `bug`, or `skip-release-notes`.
-> `regression` is supplemental and does not replace the required classification.
+> `regression`, `performance`, and `deprecation` are supplemental: they pick a
+> release-notes section and do not replace the required classification. The PR
+> title becomes the release-notes line, so write it for SHAFT users.
 
 - [ ] 🐛 Bug fix (non-breaking change that fixes an issue)
 - [ ] 🚀 New feature (non-breaking change that adds functionality)
