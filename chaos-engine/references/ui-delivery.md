@@ -1,3 +1,8 @@
+---
+name: ui-delivery
+description: Use when a change touches user-visible UI, layout, styling, or themes: red-then-green e2e, measured geometry, viewport x theme matrix.
+---
+
 # UI delivery
 
 Load when the deliverable changes what a user sees: layout, styling,

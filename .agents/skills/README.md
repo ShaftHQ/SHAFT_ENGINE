@@ -157,6 +157,7 @@ sends you there; the rest by
 - [learn traces](../../chaos-engine/references/learn-traces.md)
 - [design loop](../../chaos-engine/references/design-loop.md)
 - [deep research](../../chaos-engine/references/deep-research.md)
+- [UI delivery](../../chaos-engine/references/ui-delivery.md)
 - [lifecycle hooks](../../chaos-engine/references/lifecycle-hooks.md)
 - [hook trigger map](../../chaos-engine/references/hook-trigger-map.md)
 - [work GitHub playbook](../../chaos-engine/references/work-github-playbook.md)
