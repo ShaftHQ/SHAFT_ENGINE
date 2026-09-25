@@ -34,6 +34,30 @@ if SPEC is None or SPEC.loader is None:
 RUNNER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RUNNER)
 
+# #6220: the runner deliberately refuses platforms without durable process
+# identity and process-tree termination (Linux /proc + killpg). Tests that
+# drive dispatch, launch or supervision skip there with the runner's own words
+# instead of failing; the refusal itself stays covered by
+# test_unsupported_platform_fails_before_state_mutation.
+RUNNER_REFUSAL = "durable process identity and tree termination are unsupported; use native fallback"
+try:
+    RUNNER._platform_preflight()
+except RUNNER.OmniRouteError as _refusal:
+    DURABLE_SUPERVISION_REFUSAL: str | None = str(_refusal)
+else:
+    DURABLE_SUPERVISION_REFUSAL = None
+requires_durable_supervision = unittest.skipIf(
+    DURABLE_SUPERVISION_REFUSAL is not None,
+    f"omniroute runner refuses this platform: {DURABLE_SUPERVISION_REFUSAL}",
+)
+# Launcher qualification, attestation and private-state checks rely on POSIX
+# owner/mode bits and exec permission, which NTFS does not model.
+POSIX_PERMISSIONS = os.name == "posix"
+requires_posix_permissions = unittest.skipUnless(
+    POSIX_PERMISSIONS,
+    "POSIX owner/mode/exec-bit semantics are required for launcher qualification (#6220)",
+)
+
 
 def _read_config_worker(path: str, result: Queue) -> None:
     """Exercise descriptor reads in a killable process for FIFO regression proof."""
@@ -303,6 +327,7 @@ class OmniRouteProbeTest(unittest.TestCase):
                     RUNNER.attest(config_path=self.root / "destination.json", contract_path=contract,
                                   opener=health)
 
+    @requires_posix_permissions
     def test_status_only_health_uses_verified_local_cli_build_without_exposing_credentials(self):
         self._config()
         contract = self.root / "attestation-contract.json"
@@ -442,6 +467,7 @@ class OmniRouteProbeTest(unittest.TestCase):
         ))
         self.assertLess(time.monotonic() - started, RUNNER.HTTP_TIMEOUT_SECONDS + 1.5)
 
+    @requires_posix_permissions
     def test_attest_writes_only_current_fully_qualified_operator_contract(self):
         self._config()
         contract = self.root / "attestation-contract.json"
@@ -487,6 +513,7 @@ class OmniRouteProbeTest(unittest.TestCase):
             opener=lambda *_, **__: _Response(),
         ))
 
+    @requires_posix_permissions
     def test_attest_rejects_extra_contract_keys_and_preserves_destination(self):
         self._config()
         contract = self.root / "attestation-contract.json"
@@ -615,6 +642,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
         line = "42 (worker name) tricky) S " + " ".join(str(i) for i in range(1, 30))
         self.assertEqual("19", RUNNER._linux_start_time(line))
 
+    @requires_posix_permissions
     def test_executable_identity_detects_replacement_before_launch(self):
         qualified = RUNNER._resolved_executable([str(self.launcher)])
         self.assertIsNotNone(qualified)
@@ -696,6 +724,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
         if os.name == "posix":
             self.config.chmod(0o600)
 
+    @requires_durable_supervision
     def test_dispatch_is_fail_closed_and_writes_private_manifest(self):
         launched = []
         def popen(argv, **kwargs):
@@ -753,7 +782,8 @@ class OmniRouteRunnerTest(unittest.TestCase):
         self.assertLessEqual(len(diagnostic["stdout"].encode()), RUNNER.MAX_DIAGNOSTIC_BYTES)
         self.assertTrue(diagnostic["stdoutTruncated"])
         self.assertEqual(7, diagnostic["exitCode"])
-        self.assertEqual(0o600, path.stat().st_mode & 0o777)
+        if POSIX_PERMISSIONS:  # NTFS reports 0o666 for a private file (#6220).
+            self.assertEqual(0o600, path.stat().st_mode & 0o777)
 
     def test_diagnostics_redact_basic_json_and_split_cli_secrets(self):
         raw = (b"Authorization: Basic abc123\n"
@@ -780,6 +810,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
             )
         self.assertEqual([], launched)
 
+    @requires_durable_supervision
     def test_direct_launcher_receives_only_configured_argv_and_delegate_args(self):
         config = json.loads(self.config.read_text(encoding="utf-8"))
         config["launcher"]["invocationMode"] = "direct"
@@ -819,6 +850,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
         self.assertEqual("secret", launched[0][1]["env"]["OMNIROUTE_API_KEY"])
         self.assertNotIn("AWS_SECRET_ACCESS_KEY", launched[0][1]["env"])
 
+    @requires_durable_supervision
     def test_direct_protected_launcher_gets_runtime_locator_without_credentials(self):
         config = json.loads(self.config.read_text(encoding="utf-8"))
         config["launcher"].update({"invocationMode": "direct", "credentialMode": "launcher"})
@@ -841,6 +873,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
         self.assertEqual("/home/agent", launched[0][1]["env"]["HOME"])
         self.assertNotIn("OMNIROUTE_API_KEY", launched[0][1]["env"])
 
+    @requires_durable_supervision
     def test_manifest_freezes_full_delegate_contract_without_private_assignment_data(self):
         manifest = self._dispatch(
             run_id="full-1", worktree=self.worktree, state_dir=self.state, config_path=self.config,
@@ -994,6 +1027,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
         self.assertEqual("RUNTIME_EXHAUSTED", result["reason"])
         self.assertNotIn("route", json.dumps(result).lower())
 
+    @requires_durable_supervision
     def test_completion_receipt_is_terminal_and_redacted(self):
         head = subprocess.run([GIT, "-C", str(self.worktree), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()  # nosec B603 - fixed test executable and controlled argv.
         RUNNER._write_json(self.state / "runs/run-1.json", {
@@ -1043,6 +1077,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
                 learning_disposition="nothing-durable",
             )
 
+    @requires_durable_supervision
     def test_probe_and_dispatch_use_one_sealed_config_snapshot(self):
         original = RUNNER._read_config_with_reason
         calls = []
@@ -1056,6 +1091,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
                 popen=lambda *_a, **_k: _Process(), process_identity=lambda _: "identity")
         self.assertEqual(1, len(calls))
 
+    @requires_posix_permissions
     def test_launcher_identity_binds_content_and_metadata(self):
         qualified = RUNNER._resolved_executable([str(self.launcher)])
         self.assertIsNotNone(qualified)
@@ -1064,6 +1100,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
         self.launcher.chmod(0o700)
         self.assertFalse(RUNNER._same_executable(argv, identity))
 
+    @requires_posix_permissions
     def test_sealing_rejects_launcher_replaced_after_qualification(self):
         qualified = RUNNER._resolved_executable([str(self.launcher)])
         self.assertIsNotNone(qualified)
@@ -1075,6 +1112,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
         with self.assertRaises(RUNNER.OmniRouteError):
             RUNNER._seal_launcher(argv, identity, self.state)
 
+    @requires_posix_permissions
     def test_sealing_writes_exec_wrapper_to_original_path(self):
         qualified = RUNNER._resolved_executable([str(self.launcher)])
         self.assertIsNotNone(qualified)
@@ -1122,6 +1160,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
                 popen=lambda *_a, **_k: _Process(), process_identity=lambda _: None)
         self.assertFalse((self.state / "runs/unknown.json").exists())
 
+    @requires_durable_supervision
     def test_learning_registration_failure_prevents_launch_and_cleans_reservation(self):
         launched = []
         with patch("scripts.agents.learning_session.register_runtime_participant",
@@ -1134,6 +1173,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
         self.assertEqual([], launched)
         self.assertFalse((self.state / "runs/learning-fail.json").exists())
 
+    @requires_durable_supervision
     def test_launch_failure_attests_registered_participant_unavailable(self):
         with patch("scripts.agents.learning_session.attest_participant_unavailable") as attest:
             with self.assertRaisesRegex(RUNNER.OmniRouteError, "could not start"):
@@ -1144,6 +1184,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
                     process_identity=lambda _: "identity")
         attest.assert_called_once_with(self.learning_state, "root-1", "launch-fail", "launch-failure")
 
+    @requires_durable_supervision
     def test_dispatch_durable_supervisor_reaches_review_after_retryable_interruption(self):
         counter = self.root / "attempts"
         self.launcher.write_text(
@@ -1186,6 +1227,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
         self.assertEqual("2", counter.read_text(encoding="utf-8"))
         self.assertNotIn("replacement-session", json.dumps(result))
 
+    @requires_durable_supervision
     def test_dispatch_rejects_candidates_bound_to_different_task(self):
         resumption = {
             "task": "different-task", "authority": "owner-approved",
@@ -1221,6 +1263,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
             RUNNER.dispatch(run_id="incomplete", worktree=self.worktree, state_dir=self.state,
                 config_path=self.config, target="host-cli", delegate_args=[])
 
+    @requires_durable_supervision
     def test_cancel_kills_surviving_process_group_after_leader_exits(self):
         RUNNER._write_json(self.state / "runs/cancel-child.json", {
             "schemaVersion": 1, "runId": "cancel-child", "status": "running",
@@ -1259,6 +1302,16 @@ class OmniRouteRunnerTest(unittest.TestCase):
         self.assertNotEqual(Path.cwd(), RUNNER.default_state_path())
         self.assertNotIn(Path.cwd(), RUNNER.default_state_path().parents)
 
+    def test_platform_skip_reason_is_the_runners_own_refusal(self):
+        """#6220: skips mirror the runner's deliberate refusal, never a looser guess."""
+        with patch.object(RUNNER.sys, "platform", "win32"):
+            with self.assertRaisesRegex(RUNNER.OmniRouteError, "^" + RUNNER_REFUSAL + "$"):
+                RUNNER._platform_preflight()
+        if DURABLE_SUPERVISION_REFUSAL is not None:
+            self.assertEqual(RUNNER_REFUSAL, DURABLE_SUPERVISION_REFUSAL)
+        elif sys.platform == "linux":
+            self.assertIsNone(DURABLE_SUPERVISION_REFUSAL)
+
     def test_unsupported_platform_fails_before_state_mutation(self):
         state = self.root / "never-created"
         with patch.object(RUNNER.sys, "platform", "win32"):
@@ -1280,6 +1333,7 @@ class OmniRouteRunnerTest(unittest.TestCase):
                 state_dir=self.worktree / ".state", config_path=self.config,
                 target="host-cli", delegate_args=[])
 
+    @requires_durable_supervision
     def test_dispatch_rejects_shared_delegate_and_integration_worktree(self):
         with self.assertRaisesRegex(RUNNER.OmniRouteError, "distinct"):
             self._dispatch(run_id="shared", worktree=self.worktree, state_dir=self.state,
