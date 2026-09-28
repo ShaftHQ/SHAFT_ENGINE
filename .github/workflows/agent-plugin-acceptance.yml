@@ -53,6 +53,7 @@ jobs:
             tests.scripts.test_build_retry
             tests.scripts.test_chaos_engine_bootstrap
             tests.scripts.test_chaos_engine_dependencies
+            tests.scripts.test_deja_store_6183
             tests.scripts.test_chaos_engine_generation_runtime
             tests.scripts.test_chaos_engine_hook
             tests.scripts.test_chaos_engine_eval_parity_fixtures

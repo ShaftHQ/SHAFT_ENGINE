@@ -10,6 +10,8 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 
 GITHUB_MCP_IDS = frozenset({"github", "github-gh", "github_gh"})
+DEJA_MCP_IDS = frozenset({"deja", "deja-vu", "dejavu"})
+DEJA_SKILL_NAMES = frozenset({"deja", "deja-vu", "dejavu"})
 
 # Consumer product MCP is owned by the agentic installer, never by the ChaosEngine
 # installer catalog (#5943 FR-005). Assembled at runtime so portable forbiddenTokens
@@ -125,6 +127,11 @@ def duplicate_groups(server_ids: Iterable[str]) -> list[tuple[str, ...]]:
 
 def is_github_mcp_id(name: str) -> bool:
     return str(name).strip().casefold() in GITHUB_MCP_IDS
+
+
+def is_deja_mcp_id(name: str) -> bool:
+    token = str(name).strip().casefold().replace("_", "-")
+    return token in DEJA_MCP_IDS
 
 
 def omit_github_from_defaults(servers: dict[str, object]) -> dict[str, object]:
@@ -495,6 +502,197 @@ def repair_user_github_mcp(
     result["stripped"] = stripped_rows
     result["unchangedFiles"] = unchanged
     return result
+
+
+def _deja_command(value: object) -> bool:
+    if isinstance(value, str):
+        token = value.strip().split()[0] if value.strip() else ""
+        base = token.replace("\\", "/").rsplit("/", 1)[-1].casefold()
+        return base in {"deja", "deja.exe"}
+    if isinstance(value, list) and value:
+        return _deja_command(value[0])
+    return False
+
+
+def _scrub_deja_json(node: object) -> tuple[object, list[str]]:
+    if isinstance(node, dict):
+        if _deja_command(node.get("command")) or _deja_command(node.get("args")):
+            return None, ["hook"]
+        cleaned: dict[str, object] = {}
+        removed: list[str] = []
+        for key, value in node.items():
+            if str(key) in {"mcpServers", "servers"} and isinstance(value, dict):
+                keep: dict[str, object] = {}
+                for name, server in value.items():
+                    if is_deja_mcp_id(str(name)):
+                        removed.append(str(name))
+                    else:
+                        keep[str(name)] = server
+                cleaned[str(key)] = keep
+                continue
+            child, child_removed = _scrub_deja_json(value)
+            removed.extend(child_removed)
+            if child is None:
+                continue
+            cleaned[str(key)] = child
+        return cleaned, removed
+    if isinstance(node, list):
+        kept: list[object] = []
+        removed = []
+        for item in node:
+            child, child_removed = _scrub_deja_json(item)
+            removed.extend(child_removed)
+            if child is None:
+                continue
+            kept.append(child)
+        return kept, removed
+    return node, []
+
+
+def _strip_deja_toml(text: str) -> tuple[str, list[str]]:
+    lines = text.splitlines(keepends=True)
+    kept: list[str] = []
+    removed: list[str] = []
+    skipping = False
+    for line in lines:
+        bare = line.splitlines()[0] if line else ""
+        match = _SERVER_HEADER.match(bare.strip() if bare.startswith("[") else bare)
+        if match is not None:
+            raw = match.group(1).strip().strip('"')
+            if is_deja_mcp_id(raw):
+                skipping = True
+                removed.append(raw)
+                continue
+            skipping = False
+            kept.append(line)
+            continue
+        if skipping:
+            if bare.startswith("[") and not bare.startswith("[mcp_servers."):
+                skipping = False
+                kept.append(line)
+            continue
+        kept.append(line)
+    if not removed:
+        return text, []
+    return "".join(kept), removed
+
+
+def user_deja_config_paths(home: Path | None = None) -> tuple[Path, ...]:
+    root = home or Path.home()
+    xdg = Path(os.environ.get("XDG_CONFIG_HOME") or root / ".config")
+    return (
+        root / ".claude.json",
+        root / ".claude" / "settings.json",
+        root / ".claude" / "settings.local.json",
+        Path(os.environ.get("CODEX_HOME") or root / ".codex") / "config.toml",
+        Path(os.environ.get("CODEX_HOME") or root / ".codex") / "hooks.json",
+        Path(os.environ.get("GROK_HOME") or root / ".grok") / "config.toml",
+        Path(os.environ.get("GROK_HOME") or root / ".grok") / "hooks.json",
+        Path(os.environ.get("GEMINI_HOME") or root / ".gemini") / "settings.json",
+        Path(os.environ.get("COPILOT_HOME") or root / ".copilot") / "mcp-config.json",
+        Path(os.environ.get("COPILOT_HOME") or root / ".copilot") / "hooks.json",
+        root / ".cursor" / "mcp.json",
+        root / ".cursor" / "hooks.json",
+        xdg / "opencode" / "opencode.json",
+        xdg / "github-copilot" / "intellij" / "mcp.json",
+    )
+
+
+def user_deja_skill_roots(home: Path | None = None) -> tuple[Path, ...]:
+    root = home or Path.home()
+    xdg = Path(os.environ.get("XDG_CONFIG_HOME") or root / ".config")
+    return (
+        root / ".claude" / "skills",
+        root / ".agents" / "skills",
+        Path(os.environ.get("CODEX_HOME") or root / ".codex") / "skills",
+        Path(os.environ.get("GROK_HOME") or root / ".grok") / "skills",
+        Path(os.environ.get("GEMINI_HOME") or root / ".gemini") / "skills",
+        root / ".cursor" / "skills",
+        Path(os.environ.get("COPILOT_HOME") or root / ".copilot") / "skills",
+        xdg / "opencode" / "skills",
+    )
+
+
+def _remove_tree(path: Path) -> None:
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+        return
+    if not path.is_dir():
+        return
+    for child in list(path.iterdir()):
+        _remove_tree(child)
+    path.rmdir()
+
+
+def _strip_deja_file(path: Path) -> list[str]:
+    if not path.is_file():
+        return []
+    original = path.read_text(encoding="utf-8")
+    if original.lstrip().startswith("{"):
+        try:
+            payload = json.loads(original)
+        except json.JSONDecodeError:
+            return []
+        cleaned, removed = _scrub_deja_json(payload)
+        if not removed:
+            return []
+        path.write_text(json.dumps(cleaned, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return removed
+    updated, removed = _strip_deja_toml(original)
+    if removed and updated != original:
+        path.write_text(updated, encoding="utf-8")
+    return removed
+
+
+def _remove_deja_skills(roots: tuple[Path, ...]) -> list[str]:
+    removed: list[str] = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for child in list(root.iterdir()):
+            if child.is_dir() and child.name.casefold() in DEJA_SKILL_NAMES:
+                _remove_tree(child)
+                removed.append(str(child))
+    return removed
+
+
+def repair_user_deja(home: Path | None = None) -> dict[str, object]:
+    """Strip deja MCP, hooks, and user-home skills. Never runs the upstream installer."""
+    stripped: list[dict[str, object]] = []
+    for path in user_deja_config_paths(home):
+        removed = _strip_deja_file(path)
+        if removed:
+            stripped.append({"path": str(path), "ids": removed})
+    skills = _remove_deja_skills(user_deja_skill_roots(home))
+    return {"stripped": stripped, "skillsRemoved": skills}
+
+
+def repair_project_deja(project: Path) -> dict[str, object]:
+    """Strip deja MCP and hooks from project host files. Does not add any."""
+    root = Path(project)
+    paths = (
+        root / ".mcp.json",
+        root / ".claude" / "settings.json",
+        root / ".claude" / "settings.local.json",
+        root / ".codex" / "config.toml",
+        root / ".codex" / "hooks.json",
+        root / ".grok" / "config.toml",
+        root / ".cursor" / "mcp.json",
+        root / ".cursor" / "hooks.json",
+    )
+    stripped: list[dict[str, object]] = []
+    for path in paths:
+        removed = _strip_deja_file(path)
+        if removed:
+            stripped.append({"path": str(path), "ids": removed})
+    skills = _remove_deja_skills(
+        (
+            root / ".agents" / "skills",
+            root / ".claude" / "skills",
+            root / ".codex" / "skills",
+        )
+    )
+    return {"stripped": stripped, "skillsRemoved": skills}
 
 
 def plugin_base_name(plugin_id: str) -> str:

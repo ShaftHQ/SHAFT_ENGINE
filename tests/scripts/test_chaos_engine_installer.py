@@ -1566,7 +1566,7 @@ module.install_with_dependencies(project, source, "3" * 40)
             expected = {
                 "core", "skills", "playbooks", "hooks", "plugins", "roles", "mcps",
                 "retrieval-config", "projection-policy", "tools", "memory", "mempalace",
-                "graphify", "maven-tools-mcp",
+                "graphify", "maven-tools-mcp", "deja",
             }
             self.assertEqual(expected, set(result["components"]))
             for component in result["components"].values():

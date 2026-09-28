@@ -51,6 +51,7 @@ range. Do not turn the path into an absolute path or read the whole file.
 | What happened around this before, and what does it touch? | MemPalace |
 | What calls or depends on this? | [Graphify](graphify.md) — unclassified extract skips are coverage, not a failed install |
 | What does the code do right now? | targeted `rg` and exact reads; a cheap read does not wait for a store |
+| What did a past agent session run or decide here? | deja (opt-in) — `python3 .chaos-engine/retrieve.py --store deja "<question>"`; not SessionStart, per-prompt, or per-tool |
 
 Only the last one settles a disagreement. A retrieved claim is a lead: confirm
 it against the file on disk before acting, and never let an index outrank what

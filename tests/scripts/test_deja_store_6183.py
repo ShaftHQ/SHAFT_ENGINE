@@ -108,7 +108,8 @@ class DejaStoreContractTest(unittest.TestCase):
             bindir = root / "bin"
             bindir.mkdir()
             _fake_deja(bindir, json.dumps({"results": hits}))
-            with mock.patch.dict(os.environ, {"PATH": str(bindir)}, clear=False):
+            path = str(bindir) + os.pathsep + os.environ.get("PATH", "")
+            with mock.patch.dict(os.environ, {"PATH": path}, clear=False):
                 code = self.retrieve.main(
                     ["--store", "deja", "--project", str(project), "--host", "claude", "past decision"]
                 )
@@ -121,7 +122,8 @@ class DejaStoreContractTest(unittest.TestCase):
             bindir = root / "bin"
             bindir.mkdir()
             _fake_deja(bindir, json.dumps({"results": hits}))
-            with mock.patch.dict(os.environ, {"PATH": str(bindir)}, clear=False):
+            path = str(bindir) + os.pathsep + os.environ.get("PATH", "")
+            with mock.patch.dict(os.environ, {"PATH": path}, clear=False):
                 receipt = self.retrieve.retrieve(
                     "past decision", store="deja", project=project, host="claude"
                 )
@@ -137,6 +139,14 @@ class DejaStoreContractTest(unittest.TestCase):
             self.assertNotRegex(str(hit["path"]), r"^[A-Za-z]:")
 
     def test_retrieve_store_deja_skips_cleanly_when_binary_or_history_missing(self) -> None:
+        matrix = json.loads((ROOT / "scripts/ci/agent_harness_parity.json").read_text(encoding="utf-8"))
+        row = next(item for item in matrix["capabilities"] if item.get("id") == "retrieve_store_deja")
+        self.assertEqual("equivalent", row["mode"])
+        self.assertEqual("chaos-engine/references/retrieve-first.md", row["owner"])
+        self.assertEqual(
+            matrix["hosts"],
+            ["claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot"],
+        )
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             with mock.patch.dict(os.environ, {"PATH": str(project / "missing")}, clear=False):
@@ -146,25 +156,24 @@ class DejaStoreContractTest(unittest.TestCase):
                 receipt = self.retrieve.retrieve(
                     "past run", store="deja", project=project, host="claude"
                 )
-        self.assertEqual(0, code)
-        self.assertEqual("degraded", receipt["status"])
-        self.assertEqual("missing-binary", receipt["reason"])
-        for host in ("grok-bot", "copilot-cloud"):
-            skipped = self.retrieve.retrieve("past run", store="deja", project=project, host=host)
-            self.assertEqual("skipped", skipped["status"])
-            self.assertEqual("no-history", skipped["reason"])
-        matrix = json.loads((ROOT / "scripts/ci/agent_harness_parity.json").read_text(encoding="utf-8"))
-        row = next(item for item in matrix["capabilities"] if item.get("id") == "retrieve_store_deja")
-        self.assertEqual("equivalent", row["mode"])
-        self.assertEqual("chaos-engine/references/retrieve-first.md", row["owner"])
-        self.assertEqual(matrix["hosts"], ["claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot"])
-        for host in matrix["hosts"]:
-            self.assertTrue(row.get(host))
-            outcome = self.retrieve.retrieve("past run", store="deja", project=project, host=host)
-            if host in NO_TRANSCRIPT_HOSTS or host.endswith("-cloud"):
-                self.assertEqual(("skipped", "no-history"), (outcome["status"], outcome["reason"]))
-            else:
-                self.assertEqual(("degraded", "missing-binary"), (outcome["status"], outcome["reason"]))
+                self.assertEqual(0, code)
+                self.assertEqual("degraded", receipt["status"])
+                self.assertEqual("missing-binary", receipt["reason"])
+                for host in matrix["hosts"]:
+                    self.assertTrue(row.get(host))
+                    outcome = self.retrieve.retrieve(
+                        "past run", store="deja", project=project, host=host
+                    )
+                    if host in NO_TRANSCRIPT_HOSTS or str(host).endswith("-cloud"):
+                        self.assertEqual(
+                            ("skipped", "no-history"), (outcome["status"], outcome["reason"]), host
+                        )
+                    else:
+                        self.assertEqual(
+                            ("degraded", "missing-binary"),
+                            (outcome["status"], outcome["reason"]),
+                            host,
+                        )
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             project = root / "proj"
@@ -172,7 +181,8 @@ class DejaStoreContractTest(unittest.TestCase):
             bindir = root / "bin"
             bindir.mkdir()
             _fake_deja(bindir, json.dumps({"results": [], "reason": "no-history"}))
-            with mock.patch.dict(os.environ, {"PATH": str(bindir)}, clear=False):
+            path = str(bindir) + os.pathsep + os.environ.get("PATH", "")
+            with mock.patch.dict(os.environ, {"PATH": path}, clear=False):
                 empty = self.retrieve.retrieve(
                     "past run", store="deja", project=project, host="claude"
                 )
