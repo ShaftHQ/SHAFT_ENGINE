@@ -279,6 +279,52 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     command,
                 )
 
+    def test_commands_outside_the_project_are_not_exploratory_reads(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_outside")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "chaos-engine").mkdir()
+            (project / "chaos-engine" / "install.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
+            download = (
+                "curl -sS -L -o /tmp/autoclose-job.zip "
+                "https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/actions/jobs/1/logs "
+                "&& unzip -o /tmp/autoclose-job.zip -d /tmp/autoclose-job "
+                "&& find /tmp/autoclose-job -type f | head"
+            )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(download,),
+                )
+            )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Read",
+                    tool_input={"target_file": "/tmp/autoclose-job.log"},
+                    commands=(),
+                )
+            )
+            checkout = Path(temporary) / "worktree"
+            (checkout / "chaos-engine").mkdir(parents=True)
+            (checkout / "chaos-engine" / "install.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
+            feature = checkout / "src" / "Sample.feature"
+            feature.parent.mkdir()
+            feature.write_text("Feature: sample\n", encoding="utf-8")
+            self.assertIsNotNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(f"sed -n '1,5p' {feature}",),
+                )
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

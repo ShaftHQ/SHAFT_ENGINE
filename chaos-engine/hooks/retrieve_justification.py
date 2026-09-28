@@ -2,7 +2,9 @@
 """One citation ledger for MemPalace and Graphify checks.
 
 Project file reads and searches are allowed only when a prior MemPalace or
-Graphify check cited the path. Running a script is not reading it, harness
+Graphify check cited the path. A command that only touches paths outside
+this checkout — a log download, an unzip into /tmp, a find of that
+directory — is not a project read. Running a script is not reading it, harness
 files (everything `harness-index.json` names) are exempt, the project root is
 walked up like `retrieve.project_root()`, and a graph with no project nodes
 fails open as `skipped(no-project-index)` (#6174). The ledger is the portable
@@ -69,7 +71,7 @@ _INSTRUCTION_MARKERS = (
 )
 _STORE_HEADS = frozenset({"mempalace", "graphify"})
 _PY = frozenset({"py", "python", "python3"})
-_SHELL_PATH = re.compile(r"(?<![\w@])(\.?[\w.-]+(?:/[\w.-]+)+\.[\w.]+)")
+_SHELL_PATH = re.compile(r"(?<![\w@])(/?\.?[\w.-]+(?:/[\w.-]+)+\.[\w.]+)")
 _RUNNERS = frozenset(
     {"node", "bash", "sh", "zsh", "pwsh", "powershell", "npx", "deno", "bun", "uv", "java", "mvn", "gradle", "make"}
 )
@@ -561,6 +563,44 @@ def _segments(command: str) -> list[str]:
     return [part for part in parts if part]
 
 
+def _checkout_root(path: Path) -> Path | None:
+    """Nearest parent that is a ChaosEngine checkout, or None for scratch dirs."""
+    current = path if path.is_dir() else path.parent
+    for candidate in (current, *current.parents):
+        if (candidate / "chaos-engine" / "install.py").is_file() or (
+            candidate / ".chaos-engine" / "install.py"
+        ).is_file():
+            return candidate
+        if candidate.parent == candidate:
+            break
+    return None
+
+
+def exploratory_project_path(project: Path, raw: str) -> bool:
+    """True when a shell or tool path is a read of this checkout or another one.
+
+    Relative paths stay project reads. Absolute paths outside every checkout
+    (log archives under /tmp, API URLs) do not. An absolute ancestor of the
+    project, such as ``find /``, still counts because it walks the tree.
+    """
+    text = (raw or "").strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
+        text = text[1:-1]
+    if not text or "://" in text:
+        return False
+    candidate = Path(text)
+    if not candidate.is_absolute():
+        return True
+    try:
+        resolved = candidate.resolve()
+        root = Path(project).resolve()
+    except OSError:
+        return True
+    if resolved == root or root in resolved.parents or resolved in root.parents:
+        return True
+    return _checkout_root(resolved) is not None
+
+
 def _shell_read_paths(text: str) -> list[str]:
     """Slash paths, including `.chaos-engine/...`, that a shell command can open."""
     found: list[str] = []
@@ -659,11 +699,14 @@ def _pipeline_parts(command: str) -> list[str]:
 def _read_segment_block(project: Path, segment: str) -> bool:
     head, _arguments = _command_head(_tokens(segment))
     if head in _PY or not head:
-        paths = _shell_read_paths(segment)
+        paths = [path for path in _shell_read_paths(segment) if exploratory_project_path(project, path)]
         return bool(paths) and not all(read_allowed(project, path) for path in paths)
     paths = _paths_in_segment(segment)
+    project_paths = [path for path in paths if exploratory_project_path(project, path)]
+    if project_paths:
+        return not all(read_allowed(project, path) for path in project_paths)
     if paths:
-        return not all(read_allowed(project, path) for path in paths)
+        return False
     return head in _SEARCH_HEADS and not _no_project_index(project)
 
 
@@ -674,7 +717,7 @@ def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
     for command in commands:
         if _PY_HEREDOC.search(command or ""):
             # #6219: a heredoc body is one program; `;` inside it is not a shell split.
-            paths = _shell_read_paths(command)
+            paths = [path for path in _shell_read_paths(command) if exploratory_project_path(project, path)]
             if paths and not all(read_allowed(project, path) for path in paths):
                 return BLOCK_REASON
             continue
@@ -706,7 +749,10 @@ def file_read_block_reason(
         return None
     if tool_name in _READ_TOOLS:
         paths = _input_paths(tool_input)
-        if paths and all(read_allowed(project, path) for path in paths):
+        if not paths:
+            return BLOCK_REASON
+        exploratory = [path for path in paths if exploratory_project_path(project, path)]
+        if not exploratory or all(read_allowed(project, path) for path in exploratory):
             return None
         return BLOCK_REASON
     return _shell_block(project, commands)
