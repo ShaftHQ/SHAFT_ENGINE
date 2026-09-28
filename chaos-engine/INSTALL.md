@@ -398,7 +398,9 @@ a URL cannot attach files.
 `CE-INSTALL-FAILED` with core present (including provision-phase MemPalace
 failures) also writes `.chaos-engine-state/heal-handoff.md`,
 `install-console.log`, and `doctor-failure.json`. The printed agent prompt
-names only artifacts that exist on disk.
+names only artifacts that exist on disk. It tells the agent to resolve the
+GitHub issue from that handoff, or by searching open issues for the error
+code, so the operator does not paste the issue URL separately.
 
 
 ## Empty-project smoke (< 5 minutes)

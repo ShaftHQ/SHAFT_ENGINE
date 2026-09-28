@@ -1222,6 +1222,50 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
 
             self.assertEqual([mine], calls)
 
+    def test_account_setup_keeps_empty_palace_when_mempalace_mine_times_out(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        commands = {"mempalace": "/tools/mempalace", "uv": "/tools/uv", "npm": "/tools/npm"}
+        local = {
+            name: {"healthy": True, "version": "1.0", "detail": "passed"}
+            for name in ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+        }
+        actions = {name: {"action": "reused"} for name in local}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            mine = [commands["mempalace"], "mine", "."]
+            calls = []
+
+            def timeout(command, **kwargs):
+                calls.append(command)
+                raise module.subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+            with mock.patch.object(module, "discover_account_commands", side_effect=((local, commands), (local, commands))), mock.patch.object(module, "resolve_account_actions", return_value=actions), mock.patch.object(module, "project_setup_plan", return_value=[mine]):
+                module.install_account_dependencies(project, specification, runner=timeout, allow_root=True)
+
+            palace = project / ".chaos-engine-state/mempalace"
+            self.assertEqual([mine], calls)
+            self.assertTrue((palace / "sqlite_exact.sqlite3").is_file())
+            self.assertEqual(b"current\n", (palace / ".mined").read_bytes())
+            self.assertTrue((project / module.ACCOUNT_RECEIPT_NAME).is_file())
+            project.joinpath("mempalace.yaml").write_text("wing: test\n", encoding="utf-8")
+            planned = module.project_setup_plan(project, {"mempalace": "/tools/mempalace"})
+            self.assertFalse(any(part == "mine" for command in planned for part in command))
+
+    def test_mempalace_mine_timeout_classifier_ignores_cli_failures(self):
+        module = load_controller()
+        self.assertTrue(module._mempalace_mine_timed_out(TimeoutError("timed out after 1s")))
+        self.assertTrue(
+            module._mempalace_mine_timed_out(RuntimeError("mine timed out after 900 seconds"))
+        )
+        self.assertFalse(
+            module._mempalace_mine_timed_out(
+                RuntimeError("dependency command failed: mempalace: timed out in stderr")
+            )
+        )
+        self.assertFalse(module._mempalace_mine_timed_out(RuntimeError("invalid project configuration")))
+
     def test_mempalace_retry_rejects_near_miss_and_other_ssl_errors(self):
         module = load_controller()
         for detail in ("UNEXPECTED_EOF_WHILE_READING", "[SSL: CERTIFICATE_VERIFY_FAILED]"):
