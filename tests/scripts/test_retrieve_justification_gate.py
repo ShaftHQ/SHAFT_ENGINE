@@ -279,6 +279,82 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     command,
                 )
 
+    def test_commands_outside_the_project_are_not_exploratory_reads(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_outside")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "chaos-engine").mkdir()
+            (project / "chaos-engine" / "install.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
+            scratch = Path(tempfile.gettempdir()) / "autoclose-job"
+            download = (
+                f"curl -sS -L -o {scratch}.zip "
+                "https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/actions/jobs/1/logs "
+                f"&& unzip -o {scratch}.zip -d {scratch} "
+                f"&& find {scratch} -type f | head"
+            )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(download,),
+                )
+            )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Read",
+                    tool_input={"target_file": f"{scratch}.log"},
+                    commands=(),
+                )
+            )
+            outside = tempfile.TemporaryDirectory()
+            self.addCleanup(outside.cleanup)
+            checkout = Path(outside.name) / "worktree"
+            (checkout / "chaos-engine").mkdir(parents=True)
+            (checkout / "chaos-engine" / "install.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
+            feature = checkout / "src" / "Sample.feature"
+            feature.parent.mkdir()
+            feature.write_text("Feature: sample\n", encoding="utf-8")
+            self.assertIsNotNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(f"sed -n '1,5p' {feature}",),
+                )
+            )
+            secret = project / "src" / "Foo.java"
+            secret.parent.mkdir()
+            secret.write_text("SECRET_PROJECT_BYTES\n", encoding="utf-8")
+            for url in (f"file://{secret}", f"file://127.0.0.1{secret}", f"file://[::1]{secret}"):
+                bypass = f"find {scratch} -exec curl -s {url} {{}} +"
+                self.assertIsNotNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(bypass,),
+                    ),
+                    url,
+                )
+            harness = checkout / "chaos-engine" / "hooks" / "guard.py"
+            harness.parent.mkdir(parents=True)
+            harness.write_text("print('ok')\n", encoding="utf-8")
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(f"sed -n '1,5p' {harness}",),
+                )
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
