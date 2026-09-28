@@ -269,8 +269,9 @@ class StoreRefreshAndUnifiedGuardTest(FixtureRepository):
     def test_hook_spawn_skips_when_the_repo_guard_is_set(self):
         path = ROOT / "chaos-engine" / "stores.py"
         spec = importlib.util.spec_from_file_location("ce_stores_guard_6249", path)
+        if spec is None or spec.loader is None:
+            raise AssertionError("cannot load chaos-engine/stores.py")
         module = importlib.util.module_from_spec(spec)
-        assert spec and spec.loader
         spec.loader.exec_module(module)
         environment = {
             key: value
@@ -287,8 +288,9 @@ class StoreRefreshAndUnifiedGuardTest(FixtureRepository):
     def test_explicit_refresh_still_spawns_under_the_guard(self):
         path = ROOT / "chaos-engine" / "stores.py"
         spec = importlib.util.spec_from_file_location("ce_stores_guard_6249_on", path)
+        if spec is None or spec.loader is None:
+            raise AssertionError("cannot load chaos-engine/stores.py")
         module = importlib.util.module_from_spec(spec)
-        assert spec and spec.loader
         spec.loader.exec_module(module)
         with patch.dict(
             os.environ,

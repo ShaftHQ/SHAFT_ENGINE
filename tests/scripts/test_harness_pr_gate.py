@@ -91,7 +91,14 @@ class ClassifierTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            ("documentation", "identities", "portable-core", "plugin-assembly"), documentation.surfaces
+            (
+                "documentation",
+                "identities",
+                "portable-core",
+                "plugin-assembly",
+                "icm-architect",
+            ),
+            documentation.surfaces,
         )
 
         accessibility = classify_paths(["scripts/ci/accessibility_quality_gates.py"])
@@ -107,6 +114,7 @@ class ClassifierTest(unittest.TestCase):
                 "identity-recovery-contract",
                 "portable-core-contract",
                 "plugin-assembly-contract",
+                "icm-architect-contract",
                 "protected-ownership",
                 "protected-secret-safety",
             },
