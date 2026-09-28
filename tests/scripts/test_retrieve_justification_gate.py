@@ -285,11 +285,12 @@ NODE install [src=chaos-engine/install.py loc=L12]
             project = Path(temporary)
             (project / "chaos-engine").mkdir()
             (project / "chaos-engine" / "install.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
+            scratch = Path(tempfile.gettempdir()) / "autoclose-job"
             download = (
-                "curl -sS -L -o /tmp/autoclose-job.zip "
+                f"curl -sS -L -o {scratch}.zip "
                 "https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/actions/jobs/1/logs "
-                "&& unzip -o /tmp/autoclose-job.zip -d /tmp/autoclose-job "
-                "&& find /tmp/autoclose-job -type f | head"
+                f"&& unzip -o {scratch}.zip -d {scratch} "
+                f"&& find {scratch} -type f | head"
             )
             self.assertIsNone(
                 gate.file_read_block_reason(
@@ -305,7 +306,7 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     project=project,
                     event_name="PreToolUse",
                     tool_name="Read",
-                    tool_input={"target_file": "/tmp/autoclose-job.log"},
+                    tool_input={"target_file": f"{scratch}.log"},
                     commands=(),
                 )
             )
@@ -330,7 +331,7 @@ NODE install [src=chaos-engine/install.py loc=L12]
             secret.parent.mkdir()
             secret.write_text("SECRET_PROJECT_BYTES\n", encoding="utf-8")
             for url in (f"file://{secret}", f"file://127.0.0.1{secret}", f"file://[::1]{secret}"):
-                bypass = f"find /tmp/autoclose-job -exec curl -s {url} {{}} +"
+                bypass = f"find {scratch} -exec curl -s {url} {{}} +"
                 self.assertIsNotNone(
                     gate.file_read_block_reason(
                         project=project,

@@ -3,8 +3,8 @@
 
 Project file reads and searches are allowed only when a prior MemPalace or
 Graphify check cited the path. A command that only touches paths outside
-this checkout — a log download, an unzip into /tmp, a find of that
-directory — is not a project read. Running a script is not reading it, harness
+this checkout, such as a log download and unzip into a scratch
+directory, is not a project read. Running a script is not reading it, harness
 files (everything `harness-index.json` names) are exempt, the project root is
 walked up like `retrieve.project_root()`, and a graph with no project nodes
 fails open as `skipped(no-project-index)` (#6174). The ledger is the portable
@@ -577,6 +577,7 @@ def _checkout_root(path: Path) -> Path | None:
 
 
 def _unquote(raw: str) -> str:
+    """Strip one matching pair of quotes from a shell token."""
     text = (raw or "").strip()
     if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
         return text[1:-1]
@@ -602,6 +603,7 @@ def _file_url_path(text: str) -> str | None:
 
 
 def _resolved_absolute(text: str) -> Path | None:
+    """Resolve an absolute local path. Remote URLs and relative tokens return None."""
     """Absolute local path, or None when the token is relative or a remote URL."""
     if "://" in text and _file_url_path(text) is None:
         return None
@@ -618,7 +620,7 @@ def exploratory_project_path(project: Path, raw: str) -> bool:
     """True when a shell or tool path is a read of this checkout or another one.
 
     Relative paths stay project reads. Absolute paths outside every checkout
-    (log archives under /tmp, http URLs) do not. ``file://`` is a local path.
+    (scratch log archives, http URLs) do not. ``file://`` is a local path.
     An absolute ancestor of the project, such as ``find /``, still counts.
     """
     text = _unquote(raw)
@@ -666,6 +668,7 @@ def _ledger_path(project: Path, raw: str) -> str:
 
 
 def _ungated(project: Path, paths: list[str]) -> bool:
+    """True when an exploratory project path is not yet on the citation ledger."""
     gated = [_ledger_path(project, path) for path in paths if exploratory_project_path(project, path)]
     return bool(gated) and not all(read_allowed(project, path) for path in gated)
 
