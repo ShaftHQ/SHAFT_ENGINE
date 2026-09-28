@@ -426,45 +426,10 @@ def core_install_py(project: Path) -> bool:
 
 
 def heal_issue_reference(issue_url: str) -> str:
-    """Return a filed issue URL, or empty when the locator is only a form link."""
-    if (
-        issue_url
-        and "issues/new?" not in issue_url
-        and issue_url.startswith("https://github.com/")
-        and "/issues/" in issue_url
-    ):
-        return issue_url
-    return ""
-
-
-def _heal_issue_clause(issue_url: str, *, name_handoff: bool) -> str:
-    """Tell the agent to find the issue from disk or gh, never from chat scrollback."""
-    if name_handoff:
-        locate = (
-            "Resolve the GitHub issue from the project, not from the chat transcript. "
-            "If .chaos-engine-state/heal-handoff.md has an Issue line whose URL path is "
-            "/issues/<number>, use that URL. If that line is missing or is not a filed "
-            "issue URL, take owner/repo from git remote get-url origin and run "
-            "gh issue list --repo <owner/repo> --state open --limit 20 "
-            "--search \"<error_code> in:title\", then pick the open issue whose body "
-            "contains the cause from .chaos-engine-state/doctor-failure.json."
-        )
-    else:
-        locate = (
-            "Resolve the GitHub issue from the project, not from the chat transcript. "
-            "Take owner/repo from git remote get-url origin and run "
-            "gh issue list --repo <owner/repo> --state open --limit 20 "
-            "--search \"<error_code> in:title\", then pick the open issue whose body "
-            "matches this failure."
-        )
-    filed = heal_issue_reference(issue_url)
-    filed_bit = f" Filed issue: {filed}." if filed else ""
-    return (
-        f"{locate}{filed_bit} "
-        "Then comment findings, solutions, and troubleshooting steps on that issue. "
-        "Ask the user whether they want to attempt a fix by opening an upstream PR "
-        "linked to that issue."
-    )
+    """Prefer a short issue locator inside copy-paste agent prompts."""
+    if not issue_url or "issues/new?" in issue_url:
+        return "the GitHub issue URL printed above"
+    return issue_url
 
 
 def _artifact_read_clause(artifacts: list[str] | None) -> str:
@@ -490,11 +455,8 @@ def heal_handoff_prompt(
     artifacts: list[str] | None = None,
 ) -> str:
     cli = "py -3" if os.name == "nt" else "python3"
+    issue_ref = heal_issue_reference(issue_url)
     read_clause = _artifact_read_clause(artifacts)
-    name_handoff = artifacts is None or any(
-        "heal-handoff.md" in item for item in artifacts
-    )
-    issue_clause = _heal_issue_clause(issue_url, name_handoff=name_handoff)
     if doctor_command == "not available":
         restore = (
             "Restore the portable core with the documented ChaosEngine install one-liner"
@@ -505,22 +467,21 @@ def heal_handoff_prompt(
             restore += ", then read .chaos-engine-state/heal-handoff.md"
         return (
             "Continue ChaosEngine install in this folder. Load ChaosEngine if present. "
-            f"{restore}. {issue_clause}"
-        )
-    discover = f"Read {read_clause}."
-    if artifacts:
-        discover += (
-            " Read each of those that exists and take the error code, cause, failed phase, "
-            "and doctor JSON from them."
+            f"{restore}. "
+            f"Open {issue_ref} and comment findings, solutions, and troubleshooting steps. "
+            "Ask the user whether they want to attempt a fix by opening an upstream PR "
+            "linked to that issue."
         )
     return (
         "Continue ChaosEngine install in this folder. Load ChaosEngine. "
-        f"{discover} "
+        f"Read {read_clause}. "
         "Do not rerun the install one-liner unless the portable core is missing. "
         "Continue unhealthy components with "
         f"{cli} .chaos-engine/install.py repair --project . --component <name> "
         f"and {doctor_command} until required components are healthy. "
-        f"{issue_clause}"
+        f"Open {issue_ref} and comment findings, solutions, and troubleshooting steps. "
+        "Ask the user whether they want to attempt a fix by opening an upstream PR "
+        "linked to that issue."
     )
 
 
