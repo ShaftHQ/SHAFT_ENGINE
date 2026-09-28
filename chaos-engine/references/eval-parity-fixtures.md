@@ -31,7 +31,7 @@ runner: identical CE policy, host-native deny/context payloads.
 | ID | Policy | Expected |
 | --- | --- | --- |
 | `deny-catastrophic-rm-rf-root` | catastrophic deny | exit 2 + native deny on all hosts |
-| `allow-read-tool` | retrieve-before-read | exit 2 when the path has no MemPalace or Graphify citation |
+| `allow-read-tool` | retrieve-before-read | exit 0 for a cheap one-file read. A broad search is pinned by `tests.scripts.test_retrieve_justification_gate` (retrieveOwed), not by this fixture, because a checkout with no project graph fails open and must not make the eval depend on an index. |
 | `allow-safe-echo` | non-mutation allow | exit 0 for `echo hello` |
 | `sessionstart-locator-budget` | SessionStart locator | ≤4096 bytes, companion paths, identical context |
 | `research-before-mutation-enforced` | research receipt gate | deny until preflight when env enforced |
