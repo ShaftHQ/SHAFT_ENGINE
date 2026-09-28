@@ -193,6 +193,82 @@ class DejaStoreContractTest(unittest.TestCase):
         self.assertEqual("skipped", empty["status"])
         self.assertEqual("no-history", empty["reason"])
 
+    def test_retrieve_reads_v0212_snippets_and_relative_touched_paths(self) -> None:
+        envelope = {
+            "schema_version": 5,
+            "tier": "exact",
+            "total": 1,
+            "hits": [
+                {
+                    "count": 2,
+                    "score": 3.5,
+                    "snippets": ["kept the offline flag", "second snippet stays"],
+                    "session": {
+                        "id": "abc",
+                        "path": "/home/user/.claude/projects/secret/session.jsonl",
+                        "touched": [
+                            "chaos-engine/retrieve.py",
+                            "/tmp/absolute-drop.py",
+                            "tests/scripts/test_deja_store_6183.py",
+                        ],
+                    },
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "proj"
+            project.mkdir()
+            bindir = root / "bin"
+            bindir.mkdir()
+            _fake_deja(bindir, json.dumps(envelope))
+            path = str(bindir) + os.pathsep + os.environ.get("PATH", "")
+            with unittest.mock.patch.dict(os.environ, {"PATH": path}, clear=False):
+                receipt = self.retrieve.retrieve(
+                    "past decision", store="deja", project=project, host="claude", mode="how"
+                )
+        self.assertEqual("used", receipt["status"])
+        self.assertEqual("hits", receipt["reason"])
+        self.assertEqual(
+            ["chaos-engine/retrieve.py", "tests/scripts/test_deja_store_6183.py"],
+            [hit["path"] for hit in receipt["hits"]],
+        )
+        self.assertNotIn("/home/user", json.dumps(receipt["hits"]))
+        self.assertNotIn("absolute-drop", json.dumps(receipt["hits"]))
+        self.assertIn("kept the offline flag", receipt["excerpt"])
+        self.assertIn("second snippet stays", receipt["excerpt"])
+        self.assertGreater(receipt["bytes"], 0)
+        self.assertEqual(receipt["bytes"], len(receipt["excerpt"].encode("utf-8")))
+
+    def test_retrieve_does_not_report_used_hits_when_no_relative_path(self) -> None:
+        envelope = {
+            "hits": [
+                {
+                    "snippets": ["only an absolute session file"],
+                    "session": {
+                        "path": "/home/user/.claude/projects/secret/session.jsonl",
+                        "touched": ["/tmp/absolute-only.py"],
+                    },
+                }
+            ]
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project = root / "proj"
+            project.mkdir()
+            bindir = root / "bin"
+            bindir.mkdir()
+            _fake_deja(bindir, json.dumps(envelope))
+            path = str(bindir) + os.pathsep + os.environ.get("PATH", "")
+            with unittest.mock.patch.dict(os.environ, {"PATH": path}, clear=False):
+                receipt = self.retrieve.retrieve(
+                    "past decision", store="deja", project=project, host="claude"
+                )
+        self.assertNotEqual(("used", "hits"), (receipt["status"], receipt["reason"]))
+        self.assertEqual("degraded", receipt["status"])
+        self.assertEqual("no-relative-paths", receipt["reason"])
+        self.assertNotIn("hits", receipt)
+
     def test_no_deja_mcp_hooks_or_user_home_skills_in_any_host_config(self) -> None:
         for relative in INSTALLER_SOURCES:
             text = (ROOT / relative).read_text(encoding="utf-8", errors="ignore")
@@ -237,6 +313,60 @@ class DejaStoreContractTest(unittest.TestCase):
             toml = (codex / "config.toml").read_text(encoding="utf-8")
             self.assertNotIn("mcp_servers.deja", toml)
             self.assertIn("mcp_servers.other", toml)
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary)
+            history = home / ".claude" / "skills" / "deja-history"
+            search = home / ".agents" / "skills" / "deja-search"
+            kept = home / ".claude" / "skills" / "chaos-engine"
+            for skill in (history, search, kept):
+                skill.mkdir(parents=True)
+                (skill / "SKILL.md").write_text(skill.name + "\n", encoding="utf-8")
+            opencode = home / ".config" / "opencode"
+            opencode.mkdir(parents=True)
+            (opencode / "opencode.jsonc").write_text(
+                "{\n"
+                "  // comment-bearing OpenCode config\n"
+                "  \"mcp\": {\n"
+                "    \"servers\": {\n"
+                "      \"deja\": {\"type\": \"local\", \"command\": [\"deja\", \"mcp\"]},\n"
+                "      \"other\": {\"command\": [\"other\"]},\n"
+                "    },\n"
+                "  },\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            (opencode / "opencode.json").write_text(
+                json.dumps(
+                    {
+                        "mcp": {
+                            "servers": {
+                                "deja": {"command": "deja", "args": ["mcp"]},
+                                "keep": {"command": "keep"},
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with unittest.mock.patch.dict(
+                os.environ, {"XDG_CONFIG_HOME": str(home / ".config")}, clear=False
+            ):
+                repaired = self.policy.repair_user_deja(home)
+            removed_skills = [str(item) for item in repaired["skillsRemoved"]]
+            self.assertIn(str(history), removed_skills)
+            self.assertIn(str(search), removed_skills)
+            self.assertFalse(history.exists())
+            self.assertFalse(search.exists())
+            self.assertTrue((kept / "SKILL.md").is_file())
+            commented = json.loads((opencode / "opencode.jsonc").read_text(encoding="utf-8"))
+            servers = commented["mcp"]["servers"]
+            self.assertNotIn("deja", servers)
+            self.assertIn("other", servers)
+            self.assertNotIn("deja", (opencode / "opencode.jsonc").read_text(encoding="utf-8"))
+            plain = json.loads((opencode / "opencode.json").read_text(encoding="utf-8"))
+            plain_servers = plain["mcp"]["servers"]
+            self.assertNotIn("deja", plain_servers)
+            self.assertEqual({"command": "keep"}, plain_servers["keep"])
         tracked = []
         for relative in (".mcp.json", ".claude", ".codex", ".github/hooks", "plugins", "chaos-engine/hooks"):
             path = ROOT / relative

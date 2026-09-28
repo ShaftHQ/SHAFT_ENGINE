@@ -11,7 +11,9 @@ from pathlib import Path
 
 GITHUB_MCP_IDS = frozenset({"github", "github-gh", "github_gh"})
 DEJA_MCP_IDS = frozenset({"deja", "deja-vu", "dejavu"})
-DEJA_SKILL_NAMES = frozenset({"deja", "deja-vu", "dejavu"})
+DEJA_SKILL_NAMES = frozenset(
+    {"deja", "deja-vu", "dejavu", "deja-history", "deja-search"}
+)
 
 # Consumer product MCP is owned by the agentic installer, never by the ChaosEngine
 # installer catalog (#5943 FR-005). Assembled at runtime so portable forbiddenTokens
@@ -594,6 +596,7 @@ def user_deja_config_paths(home: Path | None = None) -> tuple[Path, ...]:
         root / ".cursor" / "mcp.json",
         root / ".cursor" / "hooks.json",
         xdg / "opencode" / "opencode.json",
+        xdg / "opencode" / "opencode.jsonc",
         xdg / "github-copilot" / "intellij" / "mcp.json",
     )
 
@@ -624,14 +627,111 @@ def _remove_tree(path: Path) -> None:
     path.rmdir()
 
 
+def _strip_json_comments(text: str) -> str:
+    """Drop // and /* */ comments outside JSON strings. OpenCode configs are JSONC."""
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    in_string = False
+    escaped = False
+    while i < n:
+        char = text[i]
+        if in_string:
+            out.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            i += 1
+            continue
+        if char == '"':
+            in_string = True
+            out.append(char)
+            i += 1
+            continue
+        if char == "/" and i + 1 < n and text[i + 1] == "/":
+            i += 2
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        if char == "/" and i + 1 < n and text[i + 1] == "*":
+            i += 2
+            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
+                i += 1
+            i = min(n, i + 2)
+            continue
+        out.append(char)
+        i += 1
+    return "".join(out)
+
+
+def _strip_trailing_commas(text: str) -> str:
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    in_string = False
+    escaped = False
+    while i < n:
+        char = text[i]
+        if in_string:
+            out.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            i += 1
+            continue
+        if char == '"':
+            in_string = True
+            out.append(char)
+            i += 1
+            continue
+        if char == ",":
+            j = i + 1
+            while j < n and text[j] in " \t\r\n":
+                j += 1
+            if j < n and text[j] in "}]":
+                i += 1
+                continue
+        out.append(char)
+        i += 1
+    return "".join(out)
+
+
+def _strip_jsonc(text: str) -> str:
+    return _strip_trailing_commas(_strip_json_comments(text))
+
+
+def _load_json_document(text: str) -> object | None:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    cleaned = _strip_jsonc(text)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        return None
+
+
+def _looks_like_json(text: str) -> bool:
+    """Object configs only. A TOML table header also starts with '['."""
+    if text.lstrip().startswith("{"):
+        return True
+    return _strip_jsonc(text).lstrip().startswith("{")
+
+
 def _strip_deja_file(path: Path) -> list[str]:
     if not path.is_file():
         return []
     original = path.read_text(encoding="utf-8")
-    if original.lstrip().startswith("{"):
-        try:
-            payload = json.loads(original)
-        except json.JSONDecodeError:
+    if _looks_like_json(original):
+        payload = _load_json_document(original)
+        if payload is None:
             return []
         cleaned, removed = _scrub_deja_json(payload)
         if not removed:

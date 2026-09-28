@@ -211,33 +211,100 @@ def _relative_hit_path(value: object) -> str | None:
     return text
 
 
+def _relative_paths(value: object) -> list[str]:
+    if isinstance(value, str):
+        path = _relative_hit_path(value)
+        return [path] if path else []
+    if isinstance(value, dict):
+        return _relative_paths(value.get("path") or value.get("file"))
+    if isinstance(value, list):
+        found: list[str] = []
+        for item in value:
+            for path in _relative_paths(item):
+                if path not in found:
+                    found.append(path)
+        return found
+    return []
+
+
+def _deja_hit_paths(row: dict[str, Any]) -> list[str]:
+    """Paths a hit may name. v0.21.2 keeps files on session.touched, not path."""
+    paths: list[str] = []
+    direct = _relative_hit_path(row.get("path") or row.get("file"))
+    if direct:
+        paths.append(direct)
+    else:
+        files = row.get("files")
+        if isinstance(files, list) and files:
+            first = files[0]
+            legacy = _relative_hit_path(
+                first if isinstance(first, str) else first.get("path") if isinstance(first, dict) else None
+            )
+            if legacy:
+                paths.append(legacy)
+    session = row.get("session")
+    touched = session.get("touched") if isinstance(session, dict) else None
+    if touched is None:
+        touched = row.get("touched")
+    for path in _relative_paths(touched):
+        if path not in paths:
+            paths.append(path)
+    if isinstance(session, dict):
+        session_path = _relative_hit_path(session.get("path"))
+        if session_path and session_path not in paths:
+            paths.append(session_path)
+    return paths
+
+
 def _deja_hits(payload: object) -> list[dict[str, object]]:
     hits: list[dict[str, object]] = []
     for row in _deja_rows(payload):
-        path = _relative_hit_path(row.get("path") or row.get("file"))
-        if path is None:
-            files = row.get("files")
-            if isinstance(files, list) and files:
-                first = files[0]
-                path = _relative_hit_path(first if isinstance(first, str) else first.get("path") if isinstance(first, dict) else None)
-        if path is None:
+        paths = _deja_hit_paths(row)
+        if not paths:
             continue
-        item: dict[str, object] = {"path": path}
         line = row.get("line")
-        if isinstance(line, int) and not isinstance(line, bool):
-            item["line"] = line
-        hits.append(item)
-        if len(hits) >= _HIT_LIMIT:
-            break
+        if not isinstance(line, int) or isinstance(line, bool):
+            session = row.get("session")
+            if isinstance(session, dict):
+                line = session.get("line")
+        for path in paths:
+            item: dict[str, object] = {"path": path}
+            if isinstance(line, int) and not isinstance(line, bool):
+                item["line"] = line
+            hits.append(item)
+            if len(hits) >= _HIT_LIMIT:
+                return hits
     return hits
+
+
+def _snippet_texts(value: object) -> list[str]:
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    if not isinstance(value, list):
+        return []
+    parts: list[str] = []
+    for item in value:
+        if isinstance(item, str) and item.strip():
+            parts.append(item.strip())
+            continue
+        if isinstance(item, dict):
+            for key in ("text", "snippet", "excerpt", "content"):
+                text = item.get(key)
+                if isinstance(text, str) and text.strip():
+                    parts.append(text.strip())
+                    break
+    return parts
 
 
 def _deja_excerpt(payload: object, hits: list[dict[str, object]]) -> str:
     parts: list[str] = []
     for row in _deja_rows(payload):
+        for text in _snippet_texts(row.get("snippets")):
+            if text not in parts:
+                parts.append(text)
         for key in ("excerpt", "snippet", "text"):
             value = row.get(key)
-            if isinstance(value, str) and value.strip():
+            if isinstance(value, str) and value.strip() and value.strip() not in parts:
                 parts.append(value.strip())
                 break
     return _bounded_excerpt("\n".join(parts), _EXCERPT_WITH_HITS if hits else 4096)
@@ -327,7 +394,18 @@ def _run_deja(project: Path, query: str, *, host: str | None, mode: str) -> dict
             "invocation": invocation,
         }
     hits = _deja_hits(payload)
-    if not hits and (not body or body in {"[]", "{}", "none", "no results"} or _deja_rows(payload) == []):
+    if not hits:
+        # Rows that only name absolute session files are not a used/hits receipt.
+        if _deja_rows(payload) and body not in {"", "[]", "{}", "none", "no results"}:
+            return {
+                "store": "deja",
+                "status": STATUS_DEGRADED,
+                "reason": "no-relative-paths",
+                "query": query,
+                "invocation": invocation,
+                "untrusted": True,
+                "verify": "live-files",
+            }
         return {
             "store": "deja",
             "status": STATUS_SKIPPED,
