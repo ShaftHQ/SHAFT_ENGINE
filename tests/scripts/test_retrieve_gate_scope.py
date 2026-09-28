@@ -50,7 +50,6 @@ ALLOWED_RUNS = (
     "sed -n 1,40p .chaos-engine/hooks/guard.py",
 )
 BLOCKED_COMMANDS = (
-    "rg foo src/",
     "cat src/Foo.java",
     "sed -n 1,10p src/Foo.java",
     "python3 -c \"print(open('src/Foo.java').read())\"",
@@ -125,7 +124,10 @@ class RetrieveGateScopeTest(unittest.TestCase):
         self.assertEqual("read", self.gate.segment_kind("python3 -c \"open('a/b.py')\""))
 
     def test_uncited_project_reads_stay_blocked(self):
-        self.assertIsNotNone(self.block(tool_input={"file_path": "src/Foo.java"}))
+        # Reads and searches run. A directory rg owes one retrieve; shell opens stay denied.
+        self.assertIsNone(self.block(tool_input={"file_path": "src/Foo.java"}))
+        self.assertIsNone(self.block(commands=("rg foo src/",)))
+        self.assertEqual(self.gate.RETRIEVE_COMMAND, self.gate.session_retrieve_gap(self.project, ""))
         for command in BLOCKED_COMMANDS:
             with self.subTest(command=command):
                 self.assertIsNotNone(self.block(commands=(command,)))
@@ -180,7 +182,11 @@ class RetrieveGateScopeTest(unittest.TestCase):
             json.dumps({"nodes": [{"id": "f", "source_file": "src/Foo.java"}]}), encoding="utf-8"
         )
         self.assertEqual("ok", self.gate.project_index_state(self.project))
-        self.assertIsNotNone(self.block(tool_input={"file_path": "src/Foo.java"}))
+        self.assertIsNone(self.block(tool_input={"file_path": "src/Foo.java"}))
+        self.assertIsNone(
+            self.block(tool="Grep", tool_input={"pattern": "class", "glob": "*.java"})
+        )
+        self.assertEqual(self.gate.RETRIEVE_COMMAND, self.gate.session_retrieve_gap(self.project, ""))
 
     def test_every_hook_host_applies_the_same_scope(self):
         for host in HOOK_HOSTS:
@@ -189,7 +195,8 @@ class RetrieveGateScopeTest(unittest.TestCase):
                 self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             with self.subTest(host=host, case="project"):
                 result = self.run_installed_guard(host, self.project, "src/Foo.java")
-                self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertNotIn("An uncited path stays denied", result.stdout)
 
     def test_instruction_only_hosts_record_the_receipt_field(self):
         receipt = (ROOT / "chaos-engine/references/research-receipt.md").read_text(encoding="utf-8")

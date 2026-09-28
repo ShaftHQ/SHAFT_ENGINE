@@ -12,6 +12,14 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+_OWED_RETRIEVE = (
+    'python3 .chaos-engine/tool.py retrieve --store graphify '
+    '"<what calls or depends on this>"'
+)
+_ALLOW_OWED = (
+    "A cheap read does not wait for a store. A broad search is allowed and "
+    "owes one retrieve for that session."
+)
 
 
 def load(relative: str, name: str):
@@ -69,13 +77,22 @@ class RetrieveJustificationGateTest(unittest.TestCase):
                     commands=(),
                 )
             )
-            self.assertIsNotNone(
+            self.assertIsNone(
                 gate.file_read_block_reason(
                     project=project,
                     event_name="PreToolUse",
                     tool_name="Read",
                     tool_input={"target_file": ".chaos-engine-state/install-console.log"},
                     commands=(),
+                )
+            )
+            self.assertIsNotNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=("cat .chaos-engine-state/install-console.log",),
                 )
             )
 
@@ -93,7 +110,7 @@ class RetrieveJustificationGateTest(unittest.TestCase):
                     commands=(),
                 )
             )
-            self.assertIsNotNone(
+            self.assertIsNone(
                 gate.file_read_block_reason(
                     project=project,
                     event_name="PreToolUse",
@@ -114,34 +131,55 @@ class RetrieveJustificationGateTest(unittest.TestCase):
             )
 
     def test_degraded_store_fails_open_only_for_paths_in_the_query(self):
+        """A degraded receipt clears retrieveOwed for that session, not another."""
         gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_open")
         # #6219: project paths, not harness paths (harness is exempt since #6174).
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
-            gate.record_store_outcome(
-                project,
-                "mempalace",
-                "degraded",
-                "src/bootstrap.py chroma mismatch",
-                "",
-            )
+            with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_SESSION_ID": "open"}):
+                gate.record_store_outcome(
+                    project,
+                    "mempalace",
+                    "degraded",
+                    "src/bootstrap.py chroma mismatch",
+                    "",
+                )
+            for target in ("src/bootstrap.py", "src/hosts.py"):
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Read",
+                        tool_input={"target_file": target},
+                        commands=(),
+                        session_id="open",
+                    ),
+                    target,
+                )
             self.assertIsNone(
                 gate.file_read_block_reason(
                     project=project,
                     event_name="PreToolUse",
-                    tool_name="Read",
-                    tool_input={"target_file": "src/bootstrap.py"},
+                    tool_name="Grep",
+                    tool_input={"pattern": "bootstrap", "glob": "*.py"},
                     commands=(),
+                    session_id="open",
                 )
             )
-            self.assertIsNotNone(
+            self.assertIsNone(gate.session_retrieve_gap(project, "open"))
+            self.assertIsNone(
                 gate.file_read_block_reason(
                     project=project,
                     event_name="PreToolUse",
-                    tool_name="Read",
-                    tool_input={"target_file": "src/hosts.py"},
+                    tool_name="Grep",
+                    tool_input={"pattern": "bootstrap", "glob": "*.py"},
                     commands=(),
+                    session_id="other",
                 )
+            )
+            self.assertEqual(
+                _OWED_RETRIEVE,
+                gate.session_retrieve_gap(project, "other"),
             )
 
     def test_hits_prefer_query_tokens_and_drop_the_budget_hint(self):
@@ -158,6 +196,7 @@ NODE install [src=chaos-engine/install.py loc=L12]
         self.assertIn("TRUNCATED", excerpt)
 
     def test_graphify_citation_authorizes_a_second_read_and_denies_uncited(self):
+        """Uncited reads run. A glob-only search owes a retrieve per session."""
         gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_session")
         retrieve = load("chaos-engine/retrieve.py", "retrieve_session")
         with tempfile.TemporaryDirectory() as temporary:
@@ -165,31 +204,59 @@ NODE install [src=chaos-engine/install.py loc=L12]
             tool = project / ".chaos-engine" / "tool.py"
             tool.parent.mkdir(parents=True)
             tool.write_text("raise SystemExit(0)\n", encoding="utf-8")
-            body = "NODE guard [src=chaos-engine/hooks/guard.py loc=L10]\n"
-            completed = unittest.mock.Mock(returncode=0, stdout=body, stderr="")
-            with unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed) as run:
-                receipt = retrieve.retrieve("guard.py calls", store="graphify", project=project)
-            self.assertEqual("used", receipt["status"])
-            self.assertEqual(1, run.call_count)
-            for _read in range(2):
-                self.assertIsNone(
-                    gate.file_read_block_reason(
-                        project=project,
-                        event_name="PreToolUse",
-                        tool_name="Read",
-                        tool_input={"target_file": "chaos-engine/hooks/guard.py"},
-                        commands=(),
-                    )
-                )
-            self.assertIsNotNone(
+            self.assertIsNone(
                 gate.file_read_block_reason(
                     project=project,
                     event_name="PreToolUse",
                     tool_name="Read",
                     tool_input={"target_file": "tests/fixtures/uncited.py"},
                     commands=(),
+                    session_id="first",
                 )
             )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Grep",
+                    tool_input={"path": "tests/fixtures/uncited.py", "pattern": "def"},
+                    commands=(),
+                    session_id="first",
+                )
+            )
+            self.assertIsNone(gate.session_retrieve_gap(project, "first"))
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Grep",
+                    tool_input={"pattern": "def", "glob": "*.py"},
+                    commands=(),
+                    session_id="first",
+                )
+            )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "first"))
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Grep",
+                    tool_input={"pattern": "def", "glob": "*.py"},
+                    commands=(),
+                    session_id="second",
+                )
+            )
+            body = "NODE guard [src=chaos-engine/hooks/guard.py loc=L10]\n"
+            completed = unittest.mock.Mock(returncode=0, stdout=body, stderr="")
+            with (
+                unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_SESSION_ID": "first"}),
+                unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed) as run,
+            ):
+                receipt = retrieve.retrieve("guard.py calls", store="graphify", project=project)
+            self.assertEqual("used", receipt["status"])
+            self.assertEqual(1, run.call_count)
+            self.assertIsNone(gate.session_retrieve_gap(project, "first"))
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "second"))
 
     def test_backend_mismatch_is_recorded_once_and_does_not_touch_mempalace(self):
         retrieve = load("chaos-engine/retrieve.py", "retrieve_mismatch")
@@ -234,7 +301,7 @@ NODE install [src=chaos-engine/install.py loc=L12]
                         commands=(),
                     )
                 )
-            self.assertIsNotNone(
+            self.assertIsNone(
                 gate.file_read_block_reason(
                     project=project,
                     event_name="PreToolUse",
@@ -354,6 +421,250 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     commands=(f"sed -n '1,5p' {harness}",),
                 )
             )
+
+    def test_cheap_file_grep_never_owes_a_retrieve(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_cheap")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            target = project / "src" / "Foo.java"
+            target.parent.mkdir(parents=True)
+            target.write_text("class Foo {}\n", encoding="utf-8")
+            scratch = Path(tempfile.gettempdir()) / "retrieve-cheap-scratch"
+            scratch.mkdir(exist_ok=True)
+            calls = (
+                ("Grep", {"path": "src/Foo.java", "pattern": "class"}, ()),
+                ("Read", {"target_file": "src/Foo.java"}, ()),
+                ("Bash", {}, ("rg class src/Foo.java",)),
+                ("Bash", {}, ("rg class chaos-engine/hooks/retrieve_justification.py",)),
+                ("Bash", {}, (f"rg class {scratch}",)),
+                ("Bash", {}, ("python3 -m unittest tests.scripts.test_watch_pr_checks",)),
+            )
+            for tool_name, tool_input, commands in calls:
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name=tool_name,
+                        tool_input=tool_input,
+                        commands=commands,
+                        session_id="cheap",
+                    ),
+                    (tool_name, tool_input, commands),
+                )
+            self.assertIsNone(gate.session_retrieve_gap(project, "cheap"))
+
+    def test_broad_search_without_retrieve_fails_stop_and_clears_after_one_retrieve(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_stop")
+        retrieve = load("chaos-engine/retrieve.py", "retrieve_stop")
+        guard = load("chaos-engine/hooks/guard.py", "retrieve_stop_guard")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src").mkdir()
+            tool = project / ".chaos-engine" / "tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Grep",
+                    tool_input={"path": "src", "pattern": "class"},
+                    commands=(),
+                    session_id="task",
+                )
+            )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=("find src -name Foo.java", "rg -g '*.py' Foo"),
+                    session_id="task",
+                )
+            )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "task"))
+            event = {
+                "hook_event_name": "Stop",
+                "cwd": str(project),
+                "stop_hook_active": True,
+            }
+            self.assertEqual(_OWED_RETRIEVE, guard._stop_block_reason(event, "task"))
+            completed = unittest.mock.Mock(returncode=0, stdout="", stderr="")
+            with (
+                unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_SESSION_ID": "task"}),
+                unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed),
+            ):
+                receipt = retrieve.retrieve("src callers", store="graphify", project=project)
+            self.assertEqual("skipped", receipt["status"])
+            self.assertIsNone(gate.session_retrieve_gap(project, "task"))
+            self.assertNotEqual(_OWED_RETRIEVE, guard._stop_block_reason(event, "task"))
+
+    def test_grep_with_glob_and_no_path_is_not_denied(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_glob")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Grep",
+                    tool_input={"pattern": "foo", "glob": "*.py"},
+                    commands=(),
+                    session_id="glob",
+                )
+            )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Glob",
+                    tool_input={"glob_pattern": "**/*.py"},
+                    commands=(),
+                    session_id="glob",
+                )
+            )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=("rg foo", "grep -n foo", "find . -name '*.py'"),
+                    session_id="glob",
+                )
+            )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "glob"))
+
+    def test_policy_pins_allow_plus_owed_not_an_uncited_deny(self):
+        retrieve_first = (ROOT / "chaos-engine/references/retrieve-first.md").read_text(encoding="utf-8")
+        matrix = (ROOT / "chaos-engine/references/host-parity-matrix.md").read_text(encoding="utf-8")
+        for text in (retrieve_first, matrix):
+            self.assertIn(_ALLOW_OWED, text)
+            self.assertNotIn("An uncited path stays denied", text)
+        self.assertIn("One retrieve per task area, not per file.", retrieve_first)
+        self.assertIn("retrieve: used|skipped(<reason>)|exempt(harness)", retrieve_first)
+
+    def test_receipt_clears_the_awaiting_hook_session_not_anonymous(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_await")
+        retrieve = load("chaos-engine/retrieve.py", "retrieve_await")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            tool = project / ".chaos-engine" / "tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            for session_id in ("hook-a", "hook-b"):
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Glob",
+                        tool_input={"glob_pattern": "**/*.py"},
+                        commands=(),
+                        session_id=session_id,
+                    )
+                )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=('python3 .chaos-engine/tool.py retrieve --store graphify "callers"',),
+                    session_id="hook-a",
+                )
+            )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "hook-a"))
+            completed = unittest.mock.Mock(returncode=0, stdout="", stderr="")
+            env = {key: value for key, value in os.environ.items() if key != "CHAOS_ENGINE_SESSION_ID"}
+            with (
+                unittest.mock.patch.dict(os.environ, env, clear=True),
+                unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed),
+            ):
+                receipt = retrieve.retrieve("callers", store="graphify", project=project)
+            self.assertEqual("skipped", receipt["status"])
+            self.assertIsNone(gate.session_retrieve_gap(project, "hook-a"))
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "hook-b"))
+
+    def test_retrieve_command_does_not_clear_before_a_receipt(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_early")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src").mkdir()
+            (project / "src" / "Foo.java").write_text("class Foo {}\n", encoding="utf-8")
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Glob",
+                    tool_input={"glob_pattern": "**/*.java"},
+                    commands=(),
+                    session_id="early",
+                )
+            )
+            denied = gate.file_read_block_reason(
+                project=project,
+                event_name="PreToolUse",
+                tool_name="Bash",
+                tool_input={},
+                commands=(
+                    'python3 .chaos-engine/tool.py retrieve --store graphify "q"; cat src/Foo.java',
+                ),
+                session_id="early",
+            )
+            self.assertIsNotNone(denied)
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "early"))
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=('python3 .chaos-engine/tool.py retrieve --dry-run callers',),
+                    session_id="early",
+                )
+            )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "early"))
+
+    def test_find_name_without_a_start_path_owes_a_retrieve(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_find_name")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src").mkdir()
+            (project / "src" / "Foo.java").write_text("class Foo {}\n", encoding="utf-8")
+            (project / "Foo.java").write_text("class Foo {}\n", encoding="utf-8")
+            for command in ("find -name Foo.java", "find src -name Foo.java"):
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                        session_id="find-name",
+                    ),
+                    command,
+                )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "find-name"))
+
+    def test_find_execdir_stays_denied(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_execdir")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src").mkdir()
+            (project / "src" / "Foo.java").write_text("class Foo {}\n", encoding="utf-8")
+            for command in ("find . -execdir cat {} +", "find . -exec cat {} ;"):
+                self.assertIsNotNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                        session_id="execdir",
+                    ),
+                    command,
+                )
 
 
 if __name__ == "__main__":

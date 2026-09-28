@@ -46,11 +46,8 @@
         }
       },
       "expect": {
-        "exit_code": 2,
-        "decision": "deny",
-        "reason_substrings": [
-          "MemPalace or Graphify"
-        ]
+        "exit_code": 0,
+        "decision": "allow"
       }
     },
     {
