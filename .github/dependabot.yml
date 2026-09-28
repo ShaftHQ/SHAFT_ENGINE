@@ -49,6 +49,12 @@ updates:
       timezone: "Africa/Cairo"
     labels:
       - "dependencies"
+    ignore:
+      # Cucumber 8 needs an Allure adapter that compiles against messages v34.
+      # Tracked on ShaftHQ/SHAFT_ENGINE#6262. 7.x patch and minor updates still open.
+      - dependency-name: "io.cucumber:cucumber-bom"
+        update-types:
+          - "version-update:semver-major"
     groups:
       aligned-maven-dependencies:
         group-by: dependency-name
