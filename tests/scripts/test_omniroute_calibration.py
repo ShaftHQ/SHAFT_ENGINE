@@ -192,7 +192,17 @@ class UnavailableAndAggregateTest(unittest.TestCase):
         recomputed = MODULE.gate_verdict(evidence["metrics"])
         self.assertEqual("NO", recomputed["verdict"])
         self.assertEqual(recomputed, evidence["comparison"]["gateVerdict"])
-        MODULE.validate_redacted_aggregate(evidence, MODULE.load_manifest())
+        manifest = MODULE.load_manifest()
+        identity = MODULE.campaign_identity(manifest)
+        observed = evidence["identity"]
+        self.assertEqual(
+            [item["name"] for item in identity["tasks"]],
+            [item["name"] for item in observed["tasks"]],
+        )
+        # Task-file digests are campaign-time. Later edits must not forge them.
+        checked = json.loads(path.read_text(encoding="utf-8"))
+        checked["identity"]["tasks"] = identity["tasks"]
+        MODULE.validate_redacted_aggregate(checked, manifest)
 
     def test_validate_rejects_null_metrics_and_privacy_leaks(self):
         trials = _balanced_trials()

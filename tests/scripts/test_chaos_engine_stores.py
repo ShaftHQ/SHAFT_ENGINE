@@ -233,6 +233,57 @@ class SharedStoreTest(unittest.TestCase):
         self.assertIn("OnCalendar=daily", text)
         self.assertFalse((self.home / ".mempalace").exists())
 
+    def test_mcp_args_and_cli_resolver_use_the_same_palace(self):
+        import importlib.util
+
+        hosts_spec = importlib.util.spec_from_file_location(
+            "ce_hosts_palace_6248", ROOT / "chaos-engine" / "hosts.py"
+        )
+        if hosts_spec is None or hosts_spec.loader is None:
+            raise AssertionError("cannot load chaos-engine/hosts.py")
+        hosts = importlib.util.module_from_spec(hosts_spec)
+        hosts_spec.loader.exec_module(hosts)
+        deps_spec = importlib.util.spec_from_file_location(
+            "ce_deps_palace_6248", ROOT / "chaos-engine" / "dependencies.py"
+        )
+        if deps_spec is None or deps_spec.loader is None:
+            raise AssertionError("cannot load chaos-engine/dependencies.py")
+        deps = importlib.util.module_from_spec(deps_spec)
+        deps_spec.loader.exec_module(deps)
+
+        canonical = self.stores.resolve_palace(self.linked)
+        self.assertEqual(canonical, deps.mempalace_project_palace(self.linked))
+        tool_spec = importlib.util.spec_from_file_location(
+            "ce_tool_palace_6248", ROOT / "chaos-engine" / "tool.py"
+        )
+        if tool_spec is None or tool_spec.loader is None:
+            raise AssertionError("cannot load chaos-engine/tool.py")
+        tool = importlib.util.module_from_spec(tool_spec)
+        tool_spec.loader.exec_module(tool)
+        tool_palace = tool._load_stores(ROOT / "chaos-engine")["resolve_palace"](self.linked)
+        self.assertEqual(canonical, tool_palace)
+        arguments = hosts.mempalace_mcp_arguments(self.linked)
+        self.assertEqual([".chaos-engine/tool.py", "mempalace-mcp"], arguments)
+        self.assertNotIn("--palace", arguments)
+        self.assertNotIn("--backend", arguments)
+
+        legacy = self.linked / ".chaos-engine-state" / "mempalace"
+        legacy.mkdir(parents=True)
+        (legacy / "keep.txt").write_text("legacy data\n", encoding="utf-8")
+        hint = self.stores.palace_migration_hint(self.linked)
+        self.assertIsNotNone(hint)
+        self.assertIn(str(legacy.resolve()), hint)
+        self.assertIn(str(canonical), hint)
+        self.assertTrue((legacy / "keep.txt").is_file())
+        digest = hosts.doctor_digest(
+            {
+                "status": "healthy",
+                "components": {"mempalace": {"status": "healthy", "migrationHint": hint}},
+            }
+        )
+        self.assertIn("legacy MemPalace directory", digest)
+        self.assertIsNone(self.stores.palace_migration_hint(self.primary))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -184,6 +184,144 @@ class PytestRepoStateGuardTest(FixtureRepository):
         self.assertNotIn("repo-state guard", completed.stdout)
 
 
+class UnittestRepoStateGuardTest(FixtureRepository):
+    """#6249: unittest, not only pytest, fails on a new worktree or status drift."""
+
+    def setUp(self):
+        super().setUp()
+        suite = self.main / "tests" / "scripts"
+        suite.mkdir(parents=True)
+        for name in ("__init__.py", "repo_state_guard.py"):
+            shutil.copy2(ROOT / "tests" / "scripts" / name, suite / name)
+        (self.main / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
+        git(self.main, "add", "-A")
+        git(self.main, "commit", "-qm", "suite")
+
+    def run_unittest(self, body: str) -> subprocess.CompletedProcess:
+        (self.main / "tests" / "scripts" / "test_probe.py").write_text(
+            textwrap.dedent(body), encoding="utf-8"
+        )
+        git(self.main, "add", "-A")
+        git(self.main, "commit", "-qm", "probe")
+        environment = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+        return subprocess.run(  # nosec B603 - fixed interpreter on a temp fixture.
+            [sys.executable, "-m", "unittest", "tests.scripts.test_probe"],
+            cwd=self.main,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=300,
+            env=environment,
+        )
+
+    def test_new_worktree_fails_unittest_with_exit_70(self):
+        completed = self.run_unittest(
+            """
+            import subprocess
+            import unittest
+            from pathlib import Path
+
+            class ProbeTest(unittest.TestCase):
+                def test_registers_a_worktree(self):
+                    root = Path(__file__).resolve().parents[2]
+                    subprocess.run(
+                        ["git", "worktree", "add", "-q", "--detach", str(root.parent / "extra"), "HEAD"],
+                        cwd=root,
+                        check=True,
+                    )
+            """
+        )
+        self.assertEqual(70, completed.returncode, completed.stdout + completed.stderr)
+        self.assertIn("worktrees:", completed.stderr)
+
+    def test_status_drift_fails_unittest(self):
+        completed = self.run_unittest(
+            """
+            import unittest
+            from pathlib import Path
+
+            class ProbeTest(unittest.TestCase):
+                def test_writes_a_file(self):
+                    root = Path(__file__).resolve().parents[2]
+                    (root / "drift.txt").write_text("drift\\n", encoding="utf-8")
+            """
+        )
+        self.assertEqual(70, completed.returncode, completed.stdout + completed.stderr)
+        self.assertIn("status:", completed.stderr)
+
+    def test_clean_unittest_passes(self):
+        completed = self.run_unittest(
+            """
+            import unittest
+
+            class ProbeTest(unittest.TestCase):
+                def test_ok(self):
+                    self.assertTrue(True)
+            """
+        )
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertNotIn("repository under test", completed.stderr)
+
+
+class StoreRefreshAndUnifiedGuardTest(FixtureRepository):
+    """Spawn honors the repo guard, and protection reads that one variable."""
+
+    def test_hook_spawn_skips_when_the_repo_guard_is_set(self):
+        path = ROOT / "chaos-engine" / "stores.py"
+        spec = importlib.util.spec_from_file_location("ce_stores_guard_6249", path)
+        if spec is None or spec.loader is None:
+            raise AssertionError("cannot load chaos-engine/stores.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key != "CHAOS_ENGINE_STORE_REFRESH"
+        }
+        environment["CHAOS_ENGINE_TEST_REPO_GUARD"] = str(self.main)
+        with patch.dict(os.environ, environment, clear=True), patch.object(sys, "argv", ["guard.py"]):
+            self.assertEqual(
+                "skipped",
+                module.maybe_spawn_refresh(self.main, popen=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("spawned"))),
+            )
+
+    def test_explicit_refresh_still_spawns_under_the_guard(self):
+        path = ROOT / "chaos-engine" / "stores.py"
+        spec = importlib.util.spec_from_file_location("ce_stores_guard_6249_on", path)
+        if spec is None or spec.loader is None:
+            raise AssertionError("cannot load chaos-engine/stores.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with patch.dict(
+            os.environ,
+            {
+                "CHAOS_ENGINE_TEST_REPO_GUARD": str(self.main),
+                "CHAOS_ENGINE_STORE_REFRESH": "1",
+            },
+        ):
+            self.assertTrue(module._spawn_enabled())
+
+    def test_protected_checkout_reads_the_repo_guard_variable(self):
+        with patch.dict(
+            os.environ,
+            {sw.PROTECTED_CHECKOUTS_ENV: "", sw.TEST_GUARD_ENV: str(self.main)},
+        ):
+            self.assertTrue(sw.is_protected_checkout(self.main))
+            self.assertEqual([str(self.main)], sw.protected_checkout_entries())
+
+    def test_common_dir_guard_protects_the_checkout_root(self):
+        rendered = git(self.main, "rev-parse", "--git-common-dir")
+        common = Path(rendered.stdout.strip())
+        if not common.is_absolute():
+            common = (self.main / common).resolve()
+        with patch.dict(
+            os.environ,
+            {sw.PROTECTED_CHECKOUTS_ENV: "", sw.TEST_GUARD_ENV: str(common)},
+        ):
+            self.assertTrue(sw.is_protected_checkout(self.main))
+            self.assertNotEqual(str(common), str(self.main))
+
+
 class OffendingTestsAreIsolatedTest(unittest.TestCase):
     """SC-2: the two SessionStart tests that reached the real root stay isolated."""
 

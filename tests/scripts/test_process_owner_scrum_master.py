@@ -7,8 +7,9 @@ from scripts.ci.overlay_in_temp import session_overlay
 ROOT = Path(__file__).resolve().parents[2]
 OVERLAY = session_overlay(ROOT)
 REFERENCE = ROOT / "chaos-engine/references/process-owner-scrum-master.md"
+# The core card no longer restates owner links (#6176). The router contract does.
 OWNERS = (
-    ROOT / "chaos-engine/skills/chaos-engine/SKILL.md",
+    ROOT / "chaos-engine/references/router-contract.md",
     ROOT / "chaos-engine/references/roles.md",
     ROOT / "chaos-engine/references/orchestrator-follow-through.md",
     ROOT / "chaos-engine/references/execution-workflows.md",

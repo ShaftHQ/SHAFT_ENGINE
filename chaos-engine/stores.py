@@ -106,6 +106,29 @@ def resolve_palace(cwd: Path) -> Path:
     return cwd.resolve() / ".chaos-engine-state" / "mempalace"
 
 
+def legacy_palace(cwd: Path) -> Path:
+    """Project-local palace written by older host MCP args. Do not delete it."""
+    return cwd.resolve() / ".chaos-engine-state" / "mempalace"
+
+
+def palace_migration_hint(cwd: Path) -> str | None:
+    """Hint when the legacy directory exists and is not the shared palace."""
+    legacy = legacy_palace(cwd)
+    canonical = resolve_palace(cwd)
+    try:
+        if legacy.is_symlink() or not legacy.is_dir():
+            return None
+        if legacy.resolve() == canonical.resolve():
+            return None
+    except OSError:
+        return None
+    return (
+        "legacy MemPalace directory "
+        f"{legacy} differs from the shared palace {canonical}; "
+        "leave that data in place and point MCP at the shared palace"
+    )
+
+
 def resolve_graph_out(cwd: Path) -> Path:
     """Return the one graphify-out directory for this repository."""
     configured = _override(("CHAOS_ENGINE_GRAPHIFY_OUT", "SHA" + "FT_GRAPHIFY_OUT"))
@@ -503,6 +526,10 @@ def refresh(
 
 
 def _spawn_enabled() -> bool:
+    """Explicit refresh wins. A repo-guarded test run does not spawn (#6249)."""
+    if os.environ.get("CHAOS_ENGINE_TEST_REPO_GUARD", "").strip():
+        flag = os.environ.get("CHAOS_ENGINE_STORE_REFRESH", "")
+        return flag.strip().casefold() in {"1", "true", "yes", "on"}
     flag = os.environ.get("CHAOS_ENGINE_STORE_REFRESH")
     if flag is not None:
         return flag.strip().casefold() not in {"", "0", "false", "no", "off"}

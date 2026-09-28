@@ -36,15 +36,65 @@ def sanitize_session_id(session_id: str) -> str:
     return f"{raw[:19].rstrip('-_')}-{digest}"
 
 
-def is_protected_checkout(path: Path) -> bool:
-    """True when ``path`` is listed in ``CHAOS_ENGINE_PROTECTED_CHECKOUTS``."""
-    raw = os.environ.get(PROTECTED_CHECKOUTS_ENV, "")
+def protected_checkout_entries() -> list[str]:
+    """Checkout list. ``PROTECTED_CHECKOUTS`` reads the canonical repo-guard variable."""
+    canonical = os.environ.get(TEST_GUARD_ENV, "")
+    legacy = os.environ.get(PROTECTED_CHECKOUTS_ENV, "")
+    if canonical.strip():
+        raw = canonical if not legacy.strip() else os.pathsep.join((canonical, legacy))
+    else:
+        raw = legacy
+    return [item.strip() for item in raw.split(os.pathsep) if item.strip()]
+
+
+def _resolved_keys(entries: list[str]) -> set[str]:
+    keys = set()
+    for item in entries:
+        try:
+            keys.add(os.path.normcase(str(Path(item).resolve())))
+        except OSError:
+            continue
+    return keys
+
+
+def _git_common_dir(checkout: Path) -> Path | None:
     try:
-        target = os.path.normcase(str(Path(path).resolve()))
-        listed = {os.path.normcase(str(Path(item).resolve())) for item in raw.split(os.pathsep) if item.strip()}
+        rendered = subprocess.run(  # nosec B603 B607 - fixed git argv.
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=str(checkout),
+            capture_output=True,
+            text=True,
+            timeout=GIT_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if rendered.returncode != 0 or not rendered.stdout.strip():
+        return None
+    common = Path(rendered.stdout.strip())
+    if not common.is_absolute():
+        common = checkout / common
+    try:
+        return common.resolve()
+    except OSError:
+        return None
+
+
+def is_protected_checkout(path: Path) -> bool:
+    """True when the checkout path or its git common dir is guarded.
+
+    ``CHAOS_ENGINE_TEST_REPO_GUARD`` stores git common dirs. The legacy
+    checkout list stores checkout roots. Either match protects the checkout.
+    """
+    try:
+        target = Path(path).resolve()
     except OSError:
         return False
-    return target in listed
+    listed = _resolved_keys(protected_checkout_entries())
+    if os.path.normcase(str(target)) in listed:
+        return True
+    common = _git_common_dir(target)
+    return common is not None and os.path.normcase(str(common)) in listed
 
 
 # #6239: the test package sets this to the git common dirs of the repository

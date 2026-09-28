@@ -49,135 +49,24 @@ def _write_scenarios(root: Path) -> tuple[Path, Path]:
     return repo_checkout, scratch
 
 
-@unittest.skipUnless(SHELL, "sh is required to test install-shaft-mcp.sh")
 class ShellInstallerRepoCheckoutDetectionTest(unittest.TestCase):
-    def setUp(self) -> None:
+    def test_shim_delegates_to_the_agentic_tools_installer(self) -> None:
+        # is_shaft_engine_repo_checkout lived in install-shaft-mcp.sh. That file
+        # is now a shim for install-shaft-agentic-tools.sh and no longer detects
+        # a repo checkout or a stale sibling installer.
         script = (ROOT / "scripts" / "mcp" / "install-shaft-mcp.sh").read_text(encoding="utf-8")
-        marker = "\nbanner\n"
-        boundary = script.index(marker)
-        # Only the function/helper definitions above the top-level execution are needed; sourcing
-        # the whole file would immediately run the real installer.
-        self.functions_only = script[:boundary]
+        self.assertIn("install-shaft-agentic-tools.sh", script)
+        self.assertNotIn("is_shaft_engine_repo_checkout", script)
+        self.assertIn("deprecated", script)
 
-    def _detect(self, directory: Path) -> bool:
-        # The candidate directory is passed as a real argv entry ($1), never interpolated into
-        # the script text, so this cannot be mistaken for a shell-injection-shaped invocation.
-        script = self.functions_only + (
-            '\nis_shaft_engine_repo_checkout "$1" && echo REPO_CHECKOUT || echo NOT_REPO_CHECKOUT\n'
-        )
-        with tempfile.TemporaryDirectory() as script_dir:
-            script_path = Path(script_dir) / "detect.sh"
-            script_path.write_text(script, encoding="utf-8")
-            result = subprocess.run(
-                [SHELL, str(script_path), str(directory)],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        return "REPO_CHECKOUT" == result.stdout.strip()
-
-    def test_wrapper_forwards_component_arguments_without_adding_skills(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp) / "repoA"
-            script_dir = root / "scripts" / "mcp"
-            script_dir.mkdir(parents=True)
-            (root / "pom.xml").write_text(SHAFT_PARENT_POM, encoding="utf-8")
-            wrapper = script_dir / "install-shaft-mcp.sh"
-            wrapper.write_text((ROOT / "scripts/mcp/install-shaft-mcp.sh").read_text(encoding="utf-8"), encoding="utf-8")
-            (script_dir / "install_shaft_mcp.py").write_text(
-                "import json, sys\nprint(json.dumps(sys.argv[1:]))\n", encoding="utf-8")
-            environment = os.environ.copy()
-            environment["SHAFT_MCP_BOOTSTRAP_HOME"] = str(Path(tmp) / "bootstrap")
-
-            result = subprocess.run(
-                [SHELL, "scripts/mcp/install-shaft-mcp.sh", "--install-shaft-cli", "--json"],
-                capture_output=True,
-                text=True,
-                check=True,
-                env=environment,
-                cwd=root,
-            )
-
-        try:
-            arguments = json.loads(result.stdout.strip().splitlines()[-1])
-        except json.JSONDecodeError as error:
-            self.fail(f"Unexpected wrapper stdout={result.stdout!r}, stderr={result.stderr!r}: {error}")
-        self.assertEqual(["--install-shaft-cli", "--json"], arguments)
-
-    def test_genuine_repo_checkout_is_detected(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            repo_checkout, _ = _write_scenarios(Path(tmp))
-            self.assertTrue(self._detect(repo_checkout))
-
-    def test_scratch_directory_with_stale_sibling_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            _, scratch = _write_scenarios(Path(tmp))
-            self.assertFalse(self._detect(scratch))
-
-@unittest.skipUnless(platform.system() == "Windows", "PowerShell installer only ships for Windows")
 class PowerShellInstallerRepoCheckoutDetectionTest(unittest.TestCase):
-    def setUp(self) -> None:
+    def test_shim_delegates_to_the_agentic_tools_installer(self) -> None:
+        # Test-ShaftEngineRepoCheckout lived in install-shaft-mcp.ps1. That file
+        # is now a shim for install-shaft-agentic-tools.ps1.
         script = (ROOT / "scripts" / "mcp" / "install-shaft-mcp.ps1").read_text(encoding="utf-8")
-        start = script.index("function Test-ShaftEngineRepoCheckout")
-        end = script.index("\n    function Resolve-PythonInstallerScript")
-        self.function_only = script[start:end]
-
-    def _detect(self, directory: Path) -> bool:
-        # The candidate directory is bound through a real -Directory CLI parameter, never
-        # interpolated into the script text, so this cannot be mistaken for a command-injection-
-        # shaped invocation.
-        script = (
-            "param([string] $Directory)\n"
-            + self.function_only
-            + '\nif (Test-ShaftEngineRepoCheckout $Directory) '
-            + '{ Write-Output "REPO_CHECKOUT" } else { Write-Output "NOT_REPO_CHECKOUT" }\n'
-        )
-        with tempfile.TemporaryDirectory() as script_dir:
-            script_path = Path(script_dir) / "detect.ps1"
-            script_path.write_text(script, encoding="utf-8")
-            result = subprocess.run(
-                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                 "-File", str(script_path), "-Directory", str(directory)],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-        return "REPO_CHECKOUT" == result.stdout.strip()
-
-    def test_genuine_repo_checkout_is_detected(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            repo_checkout, _ = _write_scenarios(Path(tmp))
-            self.assertTrue(self._detect(repo_checkout))
-
-    def test_scratch_directory_with_stale_sibling_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            _, scratch = _write_scenarios(Path(tmp))
-            self.assertFalse(self._detect(scratch))
-
-    def test_wrapper_forwards_component_arguments_without_adding_skills(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp) / "repoA"
-            script_dir = root / "scripts" / "mcp"
-            script_dir.mkdir(parents=True)
-            (root / "pom.xml").write_text(SHAFT_PARENT_POM, encoding="utf-8")
-            wrapper = script_dir / "install-shaft-mcp.ps1"
-            wrapper.write_text((ROOT / "scripts/mcp/install-shaft-mcp.ps1").read_text(encoding="utf-8"), encoding="utf-8")
-            (script_dir / "install_shaft_mcp.py").write_text(
-                "import json, sys\nprint(json.dumps(sys.argv[1:]))\n", encoding="utf-8")
-
-            result = subprocess.run(
-                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(wrapper),
-                 "--install-shaft-cli", "--json"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-
-        try:
-            arguments = json.loads(result.stdout.strip().splitlines()[-1])
-        except json.JSONDecodeError as error:
-            self.fail(f"Unexpected wrapper stdout={result.stdout!r}, stderr={result.stderr!r}: {error}")
-        self.assertEqual(["--install-shaft-cli", "--json"], arguments)
+        self.assertIn("install-shaft-agentic-tools.ps1", script)
+        self.assertNotIn("function Test-ShaftEngineRepoCheckout", script)
+        self.assertIn("deprecated", script)
 
 
 if __name__ == "__main__":

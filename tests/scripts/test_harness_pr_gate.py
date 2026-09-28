@@ -21,6 +21,7 @@ from scripts.ci.harness_pr_gate import (
     CHECKS,
     SURFACE_CHECKS,
     SURFACE_PATTERNS,
+    UNGATED_TEST_ALLOWLIST,
     Check,
     GateError,
     GatePlan,
@@ -90,7 +91,14 @@ class ClassifierTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            ("documentation", "identities", "portable-core", "plugin-assembly"), documentation.surfaces
+            (
+                "documentation",
+                "identities",
+                "portable-core",
+                "plugin-assembly",
+                "icm-architect",
+            ),
+            documentation.surfaces,
         )
 
         accessibility = classify_paths(["scripts/ci/accessibility_quality_gates.py"])
@@ -106,6 +114,7 @@ class ClassifierTest(unittest.TestCase):
                 "identity-recovery-contract",
                 "portable-core-contract",
                 "plugin-assembly-contract",
+                "icm-architect-contract",
                 "protected-ownership",
                 "protected-secret-safety",
             },
@@ -1090,6 +1099,37 @@ class WeeklyOnlyModulesOnPrGateTest(unittest.TestCase):
             )
         self.assertEqual(1, exit_code)
         self.assertEqual("failed", payload["checks"][0]["status"])
+
+
+class UngatedScriptModuleGuardTest(unittest.TestCase):
+    """#6244: every tests/scripts/test_*.py is gated, workflow-named, or allowlisted."""
+
+    def test_every_script_test_module_is_selected_or_allowlisted(self) -> None:
+        gated = set()
+        for check in CHECKS.values():
+            for name in check.modules:
+                parts = name.split(".")
+                if len(parts) >= 3 and parts[0] == "tests" and parts[1] == "scripts":
+                    gated.add(".".join(parts[:3]))
+        workflows = "\n".join(
+            path.read_text(encoding="utf-8", errors="ignore")
+            for path in (ROOT / ".github/workflows").glob("*.yml")
+        )
+        missing = []
+        for path in sorted((ROOT / "tests/scripts").glob("test_*.py")):
+            dotted = f"tests.scripts.{path.stem}"
+            if dotted in gated:
+                continue
+            reason = UNGATED_TEST_ALLOWLIST.get(dotted, "")
+            if isinstance(reason, str) and reason.strip():
+                continue
+            if dotted in workflows or path.relative_to(ROOT).as_posix() in workflows:
+                continue
+            missing.append(dotted)
+        self.assertEqual([], missing)
+        for dotted, reason in UNGATED_TEST_ALLOWLIST.items():
+            self.assertTrue(str(reason).strip(), dotted)
+            self.assertNotIn(dotted, gated, dotted)
 
 
 if __name__ == "__main__":

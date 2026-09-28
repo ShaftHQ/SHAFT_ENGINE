@@ -174,7 +174,7 @@ class NamedRecordMergeHandoffTest(unittest.TestCase):
             indent=2,
             sort_keys=True,
         ).encode() + b"\n"
-        merged = self.hosts.json_content(original)
+        merged = self.hosts.json_content(original, with_mcp=True)
         self.assertEqual(merged, original)
         notes = self.hosts.consume_merge_handoffs()
         self.assertEqual(len(notes), 1)
@@ -194,7 +194,7 @@ class NamedRecordMergeHandoffTest(unittest.TestCase):
             b"# CHAOSENGINE:START\n[mcp_servers.x]\n"
             b"# CHAOSENGINE:START\n# CHAOSENGINE:END\n"
         )
-        merged = self.hosts.codex_content(original)
+        merged = self.hosts.codex_content(original, with_mcp=True)
         self.assertEqual(merged, original)
         notes = self.hosts.consume_merge_handoffs()
         self.assertEqual(len(notes), 1)
@@ -404,6 +404,8 @@ class InstallConflictHandoffTest(unittest.TestCase):
             (project / "AGENTS.md").write_text("keep this prose\n", encoding="utf-8")
             (project / ".mcp.json").write_bytes(colliding)
             seed_core(project, self.install)
+            (project / ".chaos-engine-state").mkdir(exist_ok=True)
+            (project / ".chaos-engine-state/with-mcp").write_text("with-mcp\n", encoding="utf-8")
             bind_hosts(self.hosts, project)
             agents = (project / "AGENTS.md").read_text(encoding="utf-8")
             self.assertIn("keep this prose\n", agents)
@@ -442,6 +444,8 @@ class InstallConflictHandoffTest(unittest.TestCase):
             project.mkdir()
             (project / ".mcp.json").write_bytes(colliding)
             seed_core(project, self.install)
+            (project / ".chaos-engine-state").mkdir(exist_ok=True)
+            (project / ".chaos-engine-state/with-mcp").write_text("with-mcp\n", encoding="utf-8")
             bind_hosts(self.hosts, project)
             bind_hosts(self.hosts, project)
             live = json.loads((project / ".mcp.json").read_text(encoding="utf-8"))

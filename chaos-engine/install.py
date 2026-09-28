@@ -4087,6 +4087,12 @@ def _apply_shared_store_doctor(project: Path, components: object) -> None:
             note = ""
         if note:
             mempalace["homePalace"] = note
+        try:
+            hint = stores["palace_migration_hint"](project)
+        except (OSError, RuntimeError, ValueError, KeyError):
+            hint = None
+        if hint:
+            mempalace["migrationHint"] = hint
 
 
 def _running_under_tests() -> bool:
