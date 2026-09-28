@@ -4852,7 +4852,7 @@ class StaleGraphRefreshOnInstall6234Test(unittest.TestCase):
                 ),
             ):
                 MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, with_maven_tools=False)
-            self.assertEqual(["shims", ("graph", project)], order)
+            self.assertEqual(["shims", ("graph", project.resolve())], order)
 
 if __name__ == "__main__":
     unittest.main()

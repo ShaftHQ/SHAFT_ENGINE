@@ -1030,6 +1030,16 @@ class _AccountCommandError(RuntimeError):
         self.full_output = f"{stderr}\n{stdout}"
 
 
+def _mempalace_mine_timed_out(error: BaseException) -> bool:
+    """True when mine exceeded the setup budget, not when the CLI exited on its own."""
+    if isinstance(error, (subprocess.TimeoutExpired, TimeoutError)):
+        return True
+    if not isinstance(error, RuntimeError):
+        return False
+    text = str(error).casefold()
+    return "timed out" in text and "dependency command failed" not in text
+
+
 def _run_transient_mempalace_mine(
     command: list[str], project: Path, *, runner=subprocess.run,
     extra_environment: dict[str, str] | None = None,
@@ -1355,9 +1365,16 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         # MemPalace init prompts to mine unless --auto-mine; decline via EOF.
         stdin = subprocess.DEVNULL if action == "init" else None
         if action == "mine":
-            _run_transient_mempalace_mine(
-                command, project, runner=runner, extra_environment=environment
-            )
+            try:
+                _run_transient_mempalace_mine(
+                    command, project, runner=runner, extra_environment=environment
+                )
+            except (subprocess.TimeoutExpired, TimeoutError, RuntimeError) as error:
+                # A full-tree mine can exceed the setup budget. Keep an empty exact
+                # palace so install can finish; the sqlite file makes the next plan skip mine.
+                if not _mempalace_mine_timed_out(error):
+                    raise
+                ensure_mempalace_exact_target(project)
         else:
             _run_project_setup_command(
                 command,

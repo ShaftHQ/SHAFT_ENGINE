@@ -1041,7 +1041,8 @@ class InstallerUxTests(unittest.TestCase):
             "Ask the user whether they want to attempt a fix by opening an upstream PR",
             output,
         )
-        self.assertIn("the GitHub issue URL printed above", output)
+        self.assertIn("gh issue list", output)
+        self.assertNotIn("the GitHub issue URL printed above", output)
         self.assertNotIn("Repair the named", output)
         self.assertNotIn("Give this prompt", output)
         prompt_line = next(
@@ -1071,8 +1072,10 @@ class InstallerUxTests(unittest.TestCase):
             compose,
         )
         self.assertTrue(prompt.startswith("Continue ChaosEngine install in this folder."))
-        self.assertIn("the GitHub issue URL printed above", prompt)
-        self.assertNotIn("issues/new?", prompt)
+        self.assertIn("gh issue list", prompt)
+        self.assertIn(".chaos-engine-state/heal-handoff.md", prompt)
+        self.assertNotIn("the GitHub issue URL printed above", prompt)
+        self.assertNotIn("issues/new", prompt)
         self.assertNotIn("Repair the named", prompt)
         filed = BOOTSTRAP.heal_handoff_prompt(
             "python3 .chaos-engine/install.py doctor --project . --json",
