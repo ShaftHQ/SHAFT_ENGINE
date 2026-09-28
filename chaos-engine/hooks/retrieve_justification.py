@@ -583,16 +583,20 @@ def _unquote(raw: str) -> str:
     return text
 
 
+_LOCAL_FILE_HOSTS = frozenset({"localhost", "127.0.0.1", "[::1]"})
+
+
 def _file_url_path(text: str) -> str | None:
     """Local path from ``file://``, or None for http(s) and remote file hosts."""
     if not text.casefold().startswith("file:"):
         return None
     rest = text[5:]
-    if rest.casefold().startswith("//localhost/"):
-        rest = rest[len("//localhost"):]
-    elif rest.startswith("///"):
-        rest = rest[2:]
-    elif rest.startswith("//"):
+    if rest.startswith("///"):
+        return rest[2:]
+    if rest.startswith("//"):
+        host, separator, tail = rest[2:].partition("/")
+        if separator and host.casefold() in _LOCAL_FILE_HOSTS:
+            return "/" + tail
         return None
     return rest if rest.startswith("/") else None
 

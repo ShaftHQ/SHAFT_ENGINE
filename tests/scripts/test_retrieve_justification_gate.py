@@ -329,16 +329,18 @@ NODE install [src=chaos-engine/install.py loc=L12]
             secret = project / "src" / "Foo.java"
             secret.parent.mkdir()
             secret.write_text("SECRET_PROJECT_BYTES\n", encoding="utf-8")
-            bypass = f"find /tmp/autoclose-job -exec curl -s file://{secret} {{}} +"
-            self.assertIsNotNone(
-                gate.file_read_block_reason(
-                    project=project,
-                    event_name="PreToolUse",
-                    tool_name="Bash",
-                    tool_input={},
-                    commands=(bypass,),
+            for url in (f"file://{secret}", f"file://127.0.0.1{secret}", f"file://[::1]{secret}"):
+                bypass = f"find /tmp/autoclose-job -exec curl -s {url} {{}} +"
+                self.assertIsNotNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(bypass,),
+                    ),
+                    url,
                 )
-            )
             harness = checkout / "chaos-engine" / "hooks" / "guard.py"
             harness.parent.mkdir(parents=True)
             harness.write_text("print('ok')\n", encoding="utf-8")
