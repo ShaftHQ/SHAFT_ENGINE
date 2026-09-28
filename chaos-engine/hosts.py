@@ -3834,19 +3834,40 @@ def resolved_mempalace_palace(project: Path) -> Path:
     spec = importlib.util.spec_from_file_location("chaos_engine_hosts_stores", path)
     if spec is None or spec.loader is None:
         return project.resolve() / ".chaos-engine-state" / "mempalace"
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.resolve_palace(project)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.resolve_palace(project)
+    finally:
+        sys.dont_write_bytecode = previous
+
+
+def _relative_palace_argument(project: Path, palace: Path) -> str | None:
+    """Project-relative palace, or None for the in-project default (no flag)."""
+    root = project.resolve()
+    try:
+        relative = palace.resolve().relative_to(root)
+    except ValueError:
+        relative = Path(os.path.relpath(palace.resolve(), root))
+    rendered = relative.as_posix()
+    if rendered == ".chaos-engine-state/mempalace":
+        return None
+    if rendered.startswith("/") or (len(rendered) > 1 and rendered[1] == ":"):
+        return None
+    return rendered
 
 
 def mempalace_mcp_arguments(project: Path | None) -> list[str]:
-    """MCP argv for mempalace. A project uses the shared resolver, not a hard-coded palace."""
+    """MCP argv. Generated files stay project-relative and omit the default palace."""
     arguments = [".chaos-engine/tool.py", "mempalace-mcp"]
     if project is None:
         return arguments
-    arguments.extend(
-        ["--palace", str(resolved_mempalace_palace(project)), "--backend", "sqlite_exact"]
-    )
+    rendered = _relative_palace_argument(project, resolved_mempalace_palace(project))
+    if rendered is None:
+        return arguments
+    arguments.extend(["--palace", rendered, "--backend", "sqlite_exact"])
     return arguments
 
 
@@ -5041,14 +5062,7 @@ def codex_content(
     # hands off to it. Legacy absolute spellings stay recognized for upgrade.
     windows_prefix = '"-3", '
     memory_args = '".chaos-engine/tool.py", "memory-mcp"'
-    if project is None:
-        mempalace_args = '".chaos-engine/tool.py", "mempalace-mcp"'
-    else:
-        palace = json.dumps(str(resolved_mempalace_palace(project)))
-        mempalace_args = (
-            '".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
-            f'{palace}, "--backend", "sqlite_exact"'
-        )
+    mempalace_args = ", ".join(json.dumps(part) for part in mempalace_mcp_arguments(project))
     if account_commands is not None:
         memory = account_commands.get("memory-mcp")
         mempalace = account_commands.get("mempalace-mcp")

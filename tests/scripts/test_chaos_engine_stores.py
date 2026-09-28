@@ -254,8 +254,18 @@ class SharedStoreTest(unittest.TestCase):
         canonical = self.stores.resolve_palace(self.linked)
         self.assertEqual(canonical, deps.mempalace_project_palace(self.linked))
         arguments = hosts.mempalace_mcp_arguments(self.linked)
-        self.assertEqual(str(canonical), arguments[arguments.index("--palace") + 1])
-        self.assertEqual("sqlite_exact", arguments[arguments.index("--backend") + 1])
+        self.assertNotIn(str(canonical), arguments)
+        if "--palace" in arguments:
+            rendered = Path(arguments[arguments.index("--palace") + 1])
+            if rendered.is_absolute():
+                self.fail(f"generated palace must stay project-relative: {rendered}")
+            self.assertEqual(canonical.resolve(), (self.linked / rendered).resolve())
+            self.assertEqual("sqlite_exact", arguments[arguments.index("--backend") + 1])
+        else:
+            self.assertEqual(
+                canonical.resolve(),
+                (self.linked / ".chaos-engine-state" / "mempalace").resolve(),
+            )
 
         legacy = self.linked / ".chaos-engine-state" / "mempalace"
         legacy.mkdir(parents=True)
