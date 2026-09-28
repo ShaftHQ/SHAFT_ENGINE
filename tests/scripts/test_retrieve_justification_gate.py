@@ -545,6 +545,127 @@ NODE install [src=chaos-engine/install.py loc=L12]
         self.assertIn("One retrieve per task area, not per file.", retrieve_first)
         self.assertIn("retrieve: used|skipped(<reason>)|exempt(harness)", retrieve_first)
 
+    def test_receipt_clears_the_awaiting_hook_session_not_anonymous(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_await")
+        retrieve = load("chaos-engine/retrieve.py", "retrieve_await")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            tool = project / ".chaos-engine" / "tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            for session_id in ("hook-a", "hook-b"):
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Glob",
+                        tool_input={"glob_pattern": "**/*.py"},
+                        commands=(),
+                        session_id=session_id,
+                    )
+                )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=('python3 .chaos-engine/tool.py retrieve --store graphify "callers"',),
+                    session_id="hook-a",
+                )
+            )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "hook-a"))
+            completed = unittest.mock.Mock(returncode=0, stdout="", stderr="")
+            env = {key: value for key, value in os.environ.items() if key != "CHAOS_ENGINE_SESSION_ID"}
+            with (
+                unittest.mock.patch.dict(os.environ, env, clear=True),
+                unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed),
+            ):
+                receipt = retrieve.retrieve("callers", store="graphify", project=project)
+            self.assertEqual("skipped", receipt["status"])
+            self.assertIsNone(gate.session_retrieve_gap(project, "hook-a"))
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "hook-b"))
+
+    def test_retrieve_command_does_not_clear_before_a_receipt(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_early")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src").mkdir()
+            (project / "src" / "Foo.java").write_text("class Foo {}\n", encoding="utf-8")
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Glob",
+                    tool_input={"glob_pattern": "**/*.java"},
+                    commands=(),
+                    session_id="early",
+                )
+            )
+            denied = gate.file_read_block_reason(
+                project=project,
+                event_name="PreToolUse",
+                tool_name="Bash",
+                tool_input={},
+                commands=(
+                    'python3 .chaos-engine/tool.py retrieve --store graphify "q"; cat src/Foo.java',
+                ),
+                session_id="early",
+            )
+            self.assertIsNotNone(denied)
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "early"))
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=('python3 .chaos-engine/tool.py retrieve --dry-run callers',),
+                    session_id="early",
+                )
+            )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "early"))
+
+    def test_find_name_without_a_start_path_owes_a_retrieve(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_find_name")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src").mkdir()
+            (project / "src" / "Foo.java").write_text("class Foo {}\n", encoding="utf-8")
+            (project / "Foo.java").write_text("class Foo {}\n", encoding="utf-8")
+            for command in ("find -name Foo.java", "find src -name Foo.java"):
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                        session_id="find-name",
+                    ),
+                    command,
+                )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "find-name"))
+
+    def test_find_execdir_stays_denied(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_execdir")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src").mkdir()
+            (project / "src" / "Foo.java").write_text("class Foo {}\n", encoding="utf-8")
+            for command in ("find . -execdir cat {} +", "find . -exec cat {} ;"):
+                self.assertIsNotNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                        session_id="execdir",
+                    ),
+                    command,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

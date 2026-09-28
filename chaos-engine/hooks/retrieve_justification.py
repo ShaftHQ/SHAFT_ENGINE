@@ -369,6 +369,23 @@ def _apply_retrieved(sessions: dict, session_id: str | None) -> None:
     sessions[key] = row
 
 
+def _receipt_session(payload: dict, session_id: str | None) -> str:
+    """Session a receipt clears: the PreToolUse await marker, else env, else anonymous."""
+    if session_id is None:
+        awaiting = payload.get("awaitingReceipt")
+        if isinstance(awaiting, str) and awaiting.strip():
+            return awaiting.strip()[:128]
+    return _session_key(session_id)
+
+
+def _mark_awaiting_receipt(project: Path, session_id: str | None) -> None:
+    """Remember which hook session is about to retrieve. Do not clear retrieveOwed yet."""
+    payload = _load_payload(project)
+    payload["awaitingReceipt"] = _session_key(session_id)
+    payload.setdefault("schemaVersion", 1)
+    _write_payload(project, payload)
+
+
 def _mark_session(project: Path, session_id: str | None, *, owe: bool = False, retrieved: bool = False) -> None:
     """Record retrieveOwed or clear it. A retrieved session does not owe again."""
     now = time.time()
@@ -464,8 +481,9 @@ def record_store_outcome(
         kept.append(outcome)
         kept = kept[-32:]
     sessions = _live_sessions(payload_in)
-    if status in {"used", "skipped", "degraded"}:
-        _apply_retrieved(sessions, session_id)
+    clears = status in {"used", "skipped", "degraded"}
+    if clears:
+        _apply_retrieved(sessions, _receipt_session(payload_in, session_id))
     payload = {
         "schemaVersion": 1,
         "store": chosen,
@@ -473,6 +491,8 @@ def record_store_outcome(
         "outcomes": kept,
         "sessions": sessions,
     }
+    if not clears and isinstance(payload_in.get("awaitingReceipt"), str):
+        payload["awaitingReceipt"] = payload_in["awaitingReceipt"]
     previous = payload_in.get("indexState")
     if isinstance(previous, dict):
         payload["indexState"] = previous
@@ -898,6 +918,11 @@ _PY_HEREDOC = re.compile(r"(?:^|[\s;&|(])(?:py|python3?)(?:\.exe)?\s+-\s*<<")
 
 
 _GLOB_FLAGS = frozenset({"-g", "--glob", "--include", "-G"})
+_FIND_ARG_FLAGS = frozenset({
+    "-name", "-iname", "-path", "-ipath", "-regex", "-iregex", "-wholename", "-iwholename",
+    "-lname", "-ilname",
+})
+_FIND_OPEN = re.compile(r"(?:^|\s)-(?:execdir|exec|okdir|ok)\b")
 
 
 def _looks_like_file(project: Path, raw: str) -> bool:
@@ -995,12 +1020,35 @@ def _positionals(arguments: list[str]) -> tuple[list[str], bool]:
     return found, globbed
 
 
+def _find_start_paths(arguments: list[str]) -> list[str]:
+    """Start paths only. `-name` operands and `-exec` bodies are not file paths."""
+    paths: list[str] = []
+    index = 0
+    while index < len(arguments):
+        item = arguments[index]
+        if item in {"-exec", "-execdir", "-ok", "-okdir"}:
+            index += 1
+            while index < len(arguments) and arguments[index] not in {";", "+"}:
+                index += 1
+            index += 1
+            continue
+        if item in _FIND_ARG_FLAGS or item in _GLOB_FLAGS:
+            index += 2 if index + 1 < len(arguments) else 1
+            continue
+        if item.startswith("-"):
+            index += 1
+            continue
+        paths.append(item)
+        index += 1
+    return paths
+
+
 def _shell_search_owes(project: Path, segment: str) -> bool:
     head, arguments = _command_head(_tokens(segment))
     if head not in _SEARCH_HEADS:
         return False
     positionals, globbed = _positionals(arguments)
-    file_paths = positionals if head == "find" else positionals[1:]
+    file_paths = _find_start_paths(arguments) if head == "find" else positionals[1:]
     if not file_paths:
         return True
     if any(_search_path_owes(project, path) for path in file_paths):
@@ -1013,7 +1061,7 @@ def _retrieve_attempt(segment: str) -> bool:
     if not _is_store_segment(segment):
         return False
     folded = [item.casefold() for item in _tokens(segment)]
-    if any(item in {"--help", "-h"} for item in folded):
+    if any(item in {"--help", "-h", "--dry-run"} for item in folded):
         return False
     if "retrieve" in folded or any(item.endswith("retrieve.py") for item in folded):
         return True
@@ -1031,15 +1079,13 @@ def _shell_block(project: Path, commands: tuple[str, ...], session_id: str | Non
             continue
         for segment in _pipeline_parts(command):
             if _retrieve_attempt(segment):
-                _mark_session(project, session_id, retrieved=True)
+                _mark_awaiting_receipt(project, session_id)
             if segment_kind(segment) != "read":
                 continue
             head, _arguments = _command_head(_tokens(segment))
             if head in _SEARCH_HEADS:
-                # find -exec / -ok can open a project file. A plain search cannot.
-                if re.search(r"(?:^|\s)-exec\b|(?:^|\s)-ok\b", segment) and _read_segment_block(
-                    project, segment
-                ):
+                # find -exec / -execdir / -ok can open a project file. A plain search cannot.
+                if _FIND_OPEN.search(segment) and _read_segment_block(project, segment):
                     return BLOCK_REASON
                 if _shell_search_owes(project, segment) and not _index_allows_without_retrieve(
                     project, _paths_in_segment(segment)
