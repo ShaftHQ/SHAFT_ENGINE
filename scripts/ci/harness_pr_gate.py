@@ -156,6 +156,7 @@ CHECKS = {
         (
             "tests.scripts.test_knowledge_stores",
             "tests.scripts.test_chaos_engine_stores",
+            "tests.scripts.test_deja_store_6183",
         ),
     ),
     "graph-resolver-contract": Check(
@@ -557,6 +558,13 @@ SURFACE_PATTERNS = {
         "tools/agent-infra/shaft_knowledge_refresh.py",
         "scripts/agents/knowledge_stores.py",
         "chaos-engine/stores.py",
+        "chaos-engine/retrieve.py",
+        "chaos-engine/dependencies.json",
+        "chaos-engine/mcp_policy.py",
+        "chaos-engine/THIRD_PARTY_NOTICES.md",
+        "chaos-engine/references/retrieve-first.md",
+        "scripts/ci/agent_harness_parity.json",
+        "tests/scripts/test_deja_store_6183.py",
         "tests/scripts/test_chaos_engine_stores.py",
         "tests/scripts/test_knowledge_stores.py",
         "tests/scripts/test_resolve_*.py",

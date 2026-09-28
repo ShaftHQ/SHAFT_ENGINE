@@ -71,7 +71,7 @@ GRAPHIFY_IGNORE_DEFAULTS = (
 CAPABILITY_COMPONENTS = {
     "core", "skills", "playbooks", "hooks", "plugins", "roles", "mcps",
     "retrieval-config", "projection-policy", "tools", "memory", "mempalace",
-    "graphify", "maven-tools-mcp",
+    "graphify", "maven-tools-mcp", "deja",
 }
 PROJECT_SETUP_OUTPUTS = (
     ".agents/skills/graphify",
@@ -87,6 +87,8 @@ DEFAULT_BUNDLE_COMPONENTS = (
     "caveman",
     "icm-architect",
 )
+# Opt-in stores stay off until an operator flag or env turns them on (#6183).
+OPT_IN_BUNDLE_COMPONENTS = ("deja",)
 REPAIRABLE_COMPONENTS = frozenset({
     "plugins",
     "hosts",
@@ -128,6 +130,9 @@ def legacy_capability_policy() -> dict[str, dict[str, str]]:
     )
     result["maven-tools-mcp"].update(
         owner="installer", scope="user", lifecycle="receipt-owned", taskImpact="optional"
+    )
+    result["deja"].update(
+        owner="user", scope="user", lifecycle="user-managed-cache", taskImpact="optional"
     )
     return _validated_capabilities(result)
 
@@ -3913,21 +3918,47 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
 
 
 def default_bundle_options() -> dict[str, bool]:
-    """Return default-on bundle enablement (True = provisioned)."""
-    return {name: True for name in DEFAULT_BUNDLE_COMPONENTS}
+    """Return bundle enablement. Default-on components are true; opt-in stays false."""
+    options = {name: True for name in DEFAULT_BUNDLE_COMPONENTS}
+    for name in OPT_IN_BUNDLE_COMPONENTS:
+        options[name] = False
+    return options
 
 
-def normalize_bundle_options(raw: object | None = None) -> dict[str, bool]:
-    """Merge operator disable flags onto the default-on bundle."""
+def normalize_bundle_options(
+    raw: object | None = None, *, honor_env: bool = True
+) -> dict[str, bool]:
+    """Merge operator flags onto bundle defaults. Env overrides a stored file, not a later CLI flag."""
     options = default_bundle_options()
-    if not isinstance(raw, dict):
-        return options
-    for name in DEFAULT_BUNDLE_COMPONENTS:
-        if name in raw:
-            options[name] = bool(raw[name])
-        without_key = f"without_{name}"
-        if without_key in raw and raw[without_key]:
-            options[name] = False
+    if isinstance(raw, dict):
+        for name in (*DEFAULT_BUNDLE_COMPONENTS, *OPT_IN_BUNDLE_COMPONENTS):
+            if name in raw:
+                options[name] = bool(raw[name])
+            if raw.get(f"with_{name}"):
+                options[name] = True
+            if raw.get(f"without_{name}"):
+                options[name] = False
+    if honor_env:
+        if os.environ.get("CHAOS_ENGINE_WITH_DEJA") == "1":
+            options["deja"] = True
+        if os.environ.get("CHAOS_ENGINE_WITHOUT_DEJA") == "1":
+            options["deja"] = False
+    return options
+
+
+def bundle_from_install_args(args: argparse.Namespace) -> dict[str, bool]:
+    """Resolve install CLI flags and deja env. Explicit CLI wins over env."""
+    raw: dict[str, object] = {}
+    for name in (*DEFAULT_BUNDLE_COMPONENTS, *OPT_IN_BUNDLE_COMPONENTS):
+        if getattr(args, f"without_{name}", False):
+            raw[f"without_{name}"] = True
+        if getattr(args, f"with_{name}", False):
+            raw[f"with_{name}"] = True
+    options = normalize_bundle_options(raw, honor_env=True)
+    if getattr(args, "with_deja", False):
+        options["deja"] = True
+    if getattr(args, "without_deja", False):
+        options["deja"] = False
     return options
 
 
@@ -3940,7 +3971,8 @@ def write_bundle_options(project: Path, options: dict[str, bool]) -> Path:
         "schemaVersion": 1,
         "identity": CANONICAL_IDENTITY,
         "defaultOn": list(DEFAULT_BUNDLE_COMPONENTS),
-        "enabled": normalize_bundle_options(options),
+        "optIn": {name: {"defaultOn": False} for name in OPT_IN_BUNDLE_COMPONENTS},
+        "enabled": normalize_bundle_options(options, honor_env=False),
     }
     target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return target
@@ -4148,6 +4180,25 @@ def _install_store_schedule(project: Path) -> None:
         return
 
 
+def account_dependency_records_healthy(records: object) -> bool:
+    """True when every required account tool is healthy.
+
+    An opt-in dependency that was not provisioned (deja absent) must not flip
+    the tools component to recovery-required.
+    """
+    if not isinstance(records, dict):
+        return False
+
+    def _ok(item: object) -> bool:
+        if not isinstance(item, dict):
+            return False
+        if item.get("taskImpact") == "optional" and item.get("status") in {"absent", "skipped"}:
+            return item.get("action") != "blocked"
+        return item.get("status") == "healthy" and item.get("action") != "blocked"
+
+    return all(_ok(item) for item in records.values())
+
+
 def component_escalates_overall(item: dict[str, object]) -> bool:
     """Return True when one component should flip overall doctor to recovery-required.
 
@@ -4338,6 +4389,17 @@ def attach_component_status(
     if result.get("distribution") == "repository":
         components["maven-tools-mcp"]["taskImpact"] = "required"
     bundle = read_bundle_options(project)
+    if "deja" in capabilities:
+        enabled = bool(bundle.get("deja", False))
+        components["deja"] = {
+            **capabilities["deja"],
+            "status": "absent",
+            "detail": (
+                "opt-in CLI transcript store enabled; user-managed binary, no installer wiring"
+                if enabled
+                else "opt-in CLI transcript store; off by default; not provisioned"
+            ),
+        }
     for name in ("memory", "mempalace", "graphify"):
         if not bundle.get(name, True) and name in components:
             components[name] = {
@@ -4454,12 +4516,7 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 controller = load_dependency_controller(target)
                 receipt = controller.read_account_receipt(project)
                 records = receipt.get("components", {})
-                healthy = isinstance(records, dict) and all(
-                    isinstance(item, dict)
-                    and item.get("status") == "healthy"
-                    and item.get("action") != "blocked"
-                    for item in records.values()
-                )
+                healthy = account_dependency_records_healthy(records)
                 result["dependencies"] = {
                     "status": "healthy" if healthy else "recovery-required",
                     "schemaVersion": receipt["schemaVersion"],
@@ -5075,6 +5132,24 @@ def apply_mcp_policy_doctor(
             )
         elif isinstance(repaired, dict) and repaired.get("preserved"):
             mcps["githubMcpRepair"] = repaired
+    repair_deja = getattr(policy_mod, "repair_user_deja", None)
+    if callable(repair_deja):
+        try:
+            deja_repaired = repair_deja()
+        except OSError:
+            # Doctor continues when residue repair cannot touch the home directory.
+            deja_repaired = None
+        if isinstance(deja_repaired, dict) and (
+            deja_repaired.get("stripped") or deja_repaired.get("skillsRemoved")
+        ):
+            mcps["dejaResidueRepair"] = deja_repaired
+    repair_project_deja = getattr(policy_mod, "repair_project_deja", None)
+    if callable(repair_project_deja):
+        try:
+            repair_project_deja(project)
+        except OSError:
+            # Doctor continues when residue repair cannot touch the project directory.
+            pass
     finding = policy_mod.user_mcp_policy_finding(project)
     if finding and mcps.get("status") in {
         "healthy",
@@ -5883,6 +5958,17 @@ def parser() -> argparse.ArgumentParser:
             action="store_true",
             help=f"Disable default-on {bundle_name} provisioning.",
         )
+    deja_choice = install_command.add_mutually_exclusive_group()
+    deja_choice.add_argument(
+        "--with-deja",
+        action="store_true",
+        help="Opt in to the deja transcript store flag. Does not register MCP, hooks, or skills.",
+    )
+    deja_choice.add_argument(
+        "--without-deja",
+        action="store_true",
+        help="Keep the deja transcript store off (also CHAOS_ENGINE_WITHOUT_DEJA=1).",
+    )
     install_command.add_argument(
         "--lean-grok-skills",
         action="store_true",
@@ -6505,10 +6591,7 @@ def main() -> int:
             ):
                 print(json.dumps({"status": "unchanged", "root": str(args.project / INSTALL_DIRECTORY)}))
                 return 0
-            bundle = default_bundle_options()
-            for name in DEFAULT_BUNDLE_COMPONENTS:
-                if getattr(args, f"without_{name}", False):
-                    bundle[name] = False
+            bundle = bundle_from_install_args(args)
             write_bundle_options(args.project, bundle)
             record_mcp_opt_in(args.project, args)
             if getattr(args, "consumer", False):

@@ -12,7 +12,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-STORES = ("memory", "mempalace", "graphify")
+STORES = ("memory", "mempalace", "graphify", "deja")
+DEJA_LIMIT = "8"
+DEJA_MODES = ("search", "how", "fix")
+_NO_TRANSCRIPT_HOSTS = frozenset({"grok-bot", "copilot-cloud"})
 STATUS_USED = "used"
 STATUS_SKIPPED = "skipped"
 STATUS_DEGRADED = "degraded"
@@ -156,6 +159,275 @@ def _bounded_excerpt(body: str, limit: int = 4096) -> str:
     return raw[:limit].decode("utf-8", errors="ignore")
 
 
+def _host_lacks_transcripts(host: str | None) -> bool:
+    if not host:
+        return False
+    folded = host.strip().casefold()
+    return folded in _NO_TRANSCRIPT_HOSTS or folded.endswith("-cloud")
+
+
+def _deja_on_path() -> bool:
+    names = ("deja.exe", "deja") if os.name == "nt" else ("deja",)
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        if not entry:
+            continue
+        for name in names:
+            if (Path(entry) / name).is_file():
+                return True
+    return False
+
+
+def deja_invocation(query: str, mode: str = "search") -> tuple[list[str], dict[str, str]]:
+    """CLI-only deja argv. No absolute paths, no installer, no MCP."""
+    chosen = mode if mode in DEJA_MODES else "search"
+    args = ["deja", chosen, "--json", "--project", "."]
+    if chosen in {"search", "how"}:
+        args.extend(["--limit", DEJA_LIMIT])
+    args.append(query)
+    env = {
+        "DEJA_OFFLINE": "1",
+        "DEJA_EMBED_OFF": "1",
+    }
+    return args, env
+
+
+def _deja_rows(payload: object) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        for key in ("results", "hits", "sessions"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+    return []
+
+
+def _relative_hit_path(value: object) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = value.strip().replace("\\", "/")
+    if text.startswith("/") or re.match(r"^[A-Za-z]:", text):
+        return None
+    return text
+
+
+def _relative_paths(value: object) -> list[str]:
+    if isinstance(value, str):
+        path = _relative_hit_path(value)
+        return [path] if path else []
+    if isinstance(value, dict):
+        return _relative_paths(value.get("path") or value.get("file"))
+    if isinstance(value, list):
+        found: list[str] = []
+        for item in value:
+            for path in _relative_paths(item):
+                if path not in found:
+                    found.append(path)
+        return found
+    return []
+
+
+def _deja_hit_paths(row: dict[str, Any]) -> list[str]:
+    """Paths a hit may name. v0.21.2 keeps files on session.touched, not path."""
+    paths: list[str] = []
+    direct = _relative_hit_path(row.get("path") or row.get("file"))
+    if direct:
+        paths.append(direct)
+    else:
+        files = row.get("files")
+        if isinstance(files, list) and files:
+            first = files[0]
+            legacy = _relative_hit_path(
+                first if isinstance(first, str) else first.get("path") if isinstance(first, dict) else None
+            )
+            if legacy:
+                paths.append(legacy)
+    session = row.get("session")
+    touched = session.get("touched") if isinstance(session, dict) else None
+    if touched is None:
+        touched = row.get("touched")
+    for path in _relative_paths(touched):
+        if path not in paths:
+            paths.append(path)
+    if isinstance(session, dict):
+        session_path = _relative_hit_path(session.get("path"))
+        if session_path and session_path not in paths:
+            paths.append(session_path)
+    return paths
+
+
+def _deja_hits(payload: object) -> list[dict[str, object]]:
+    hits: list[dict[str, object]] = []
+    for row in _deja_rows(payload):
+        paths = _deja_hit_paths(row)
+        if not paths:
+            continue
+        line = row.get("line")
+        if not isinstance(line, int) or isinstance(line, bool):
+            session = row.get("session")
+            if isinstance(session, dict):
+                line = session.get("line")
+        for path in paths:
+            item: dict[str, object] = {"path": path}
+            if isinstance(line, int) and not isinstance(line, bool):
+                item["line"] = line
+            hits.append(item)
+            if len(hits) >= _HIT_LIMIT:
+                return hits
+    return hits
+
+
+def _snippet_texts(value: object) -> list[str]:
+    if isinstance(value, str) and value.strip():
+        return [value.strip()]
+    if not isinstance(value, list):
+        return []
+    parts: list[str] = []
+    for item in value:
+        if isinstance(item, str) and item.strip():
+            parts.append(item.strip())
+            continue
+        if isinstance(item, dict):
+            for key in ("text", "snippet", "excerpt", "content"):
+                text = item.get(key)
+                if isinstance(text, str) and text.strip():
+                    parts.append(text.strip())
+                    break
+    return parts
+
+
+def _deja_excerpt(payload: object, hits: list[dict[str, object]]) -> str:
+    parts: list[str] = []
+    for row in _deja_rows(payload):
+        for text in _snippet_texts(row.get("snippets")):
+            if text not in parts:
+                parts.append(text)
+        for key in ("excerpt", "snippet", "text"):
+            value = row.get(key)
+            if isinstance(value, str) and value.strip() and value.strip() not in parts:
+                parts.append(value.strip())
+                break
+    return _bounded_excerpt("\n".join(parts), _EXCERPT_WITH_HITS if hits else 4096)
+
+
+def _run_deja(project: Path, query: str, *, host: str | None, mode: str) -> dict[str, Any]:
+    args, overlay = deja_invocation(query, mode)
+    env = {**os.environ, **overlay, "PYTHONDONTWRITEBYTECODE": "1", "CHAOS_ENGINE_RETRIEVE": "1"}
+    invocation = {"argv": args, "env": overlay}
+    if _host_lacks_transcripts(host):
+        return {
+            "store": "deja",
+            "status": STATUS_SKIPPED,
+            "reason": "no-history",
+            "query": query,
+            "invocation": invocation,
+            "untrusted": True,
+            "verify": "live-files",
+        }
+    if not _deja_on_path():
+        return {
+            "store": "deja",
+            "status": STATUS_DEGRADED,
+            "reason": "missing-binary",
+            "query": query,
+            "invocation": invocation,
+            "untrusted": True,
+            "verify": "live-files",
+        }
+    try:
+        completed = subprocess.run(  # nosec B603 - fixed deja CLI name, no shell.
+            args,
+            cwd=project,
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT_SECONDS,
+            env=env,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "store": "deja",
+            "status": STATUS_DEGRADED,
+            "reason": "timeout",
+            "query": query,
+            "invocation": invocation,
+        }
+    except OSError as error:
+        return {
+            "store": "deja",
+            "status": STATUS_DEGRADED,
+            "reason": f"os-error:{type(error).__name__}",
+            "query": query,
+            "invocation": invocation,
+        }
+    body = (completed.stdout or "").strip()
+    if completed.returncode != 0:
+        detail = (completed.stderr or body).strip().splitlines()
+        tip = detail[0][:120] if detail else "nonzero-exit"
+        return {
+            "store": "deja",
+            "status": STATUS_DEGRADED,
+            "reason": tip or "nonzero-exit",
+            "query": query,
+            "exitCode": completed.returncode,
+            "invocation": invocation,
+        }
+    payload: object
+    try:
+        payload = json.loads(body) if body else {}
+    except json.JSONDecodeError:
+        payload = body
+    if isinstance(payload, dict) and str(payload.get("reason") or "") == "no-history":
+        return {
+            "store": "deja",
+            "status": STATUS_SKIPPED,
+            "reason": "no-history",
+            "query": query,
+            "invocation": invocation,
+        }
+    if isinstance(payload, str) and re.search(r"no (transcripts|history|sessions)", payload, re.I):
+        return {
+            "store": "deja",
+            "status": STATUS_SKIPPED,
+            "reason": "no-history",
+            "query": query,
+            "invocation": invocation,
+        }
+    hits = _deja_hits(payload)
+    if not hits:
+        # Rows that only name absolute session files are not a used/hits receipt.
+        if _deja_rows(payload) and body not in {"", "[]", "{}", "none", "no results"}:
+            return {
+                "store": "deja",
+                "status": STATUS_DEGRADED,
+                "reason": "no-relative-paths",
+                "query": query,
+                "invocation": invocation,
+                "untrusted": True,
+                "verify": "live-files",
+            }
+        return {
+            "store": "deja",
+            "status": STATUS_SKIPPED,
+            "reason": "no-relevant-hits",
+            "query": query,
+            "invocation": invocation,
+        }
+    excerpt = _deja_excerpt(payload, hits)
+    return {
+        "store": "deja",
+        "status": STATUS_USED,
+        "reason": "hits",
+        "query": query,
+        "hits": hits,
+        "excerpt": excerpt,
+        "bytes": len(excerpt.encode("utf-8")),
+        "untrusted": True,
+        "verify": "live-files",
+        "invocation": invocation,
+    }
+
+
 def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
     """One attempt; no retries. Missing/unhealthy → degraded; empty relevance → skipped."""
     tool = _tool_py(project)
@@ -166,6 +438,8 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
             "reason": "tool.py-absent",
             "query": query,
         }
+    if store == "deja":
+        return _run_deja(project, query, host=None, mode="search")
     # Map store → advisory CLI shape (bounded; never writes).
     if store == "memory":
         args = [sys.executable, str(tool), "memory", "search", query]
@@ -283,6 +557,8 @@ def retrieve(
     project: Path | None = None,
     dry_run: bool = False,
     recheck: bool = False,
+    host: str | None = None,
+    mode: str = "search",
 ) -> dict[str, Any]:
     cleaned = " ".join(str(query).split())
     if not cleaned:
@@ -306,7 +582,10 @@ def retrieve(
     if recorded is not None:
         receipt.update(recorded)
         return receipt
-    outcome = _run_store(root, chosen, cleaned)
+    if chosen == "deja":
+        outcome = _run_deja(root, cleaned, host=host, mode=mode)
+    else:
+        outcome = _run_store(root, chosen, cleaned)
     receipt.update(outcome)
     if receipt.get("status") in {STATUS_DEGRADED, STATUS_SKIPPED}:
         _record_store_outcome(
@@ -376,6 +655,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--store", choices=STORES, default=None)
     parser.add_argument("--project", type=Path, default=None)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--host", default=os.environ.get("CHAOS_ENGINE_HOST"))
+    parser.add_argument("--mode", choices=DEJA_MODES, default="search")
     parser.add_argument(
         "--recheck", action="store_true", help="re-probe MemPalace after a backend repair"
     )
@@ -387,6 +668,8 @@ def main(argv: list[str] | None = None) -> int:
             project=args.project,
             dry_run=args.dry_run,
             recheck=args.recheck,
+            host=args.host,
+            mode=args.mode,
         )
     except ValueError as error:
         print(str(error), file=sys.stderr)

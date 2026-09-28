@@ -9,7 +9,8 @@
     "graphify": {"minimumVersion": "0.9.43", "executables": ["graphify"], "provider": "uv-tool", "stableChannel": "https://pypi.org/pypi/graphifyy/json", "probe": ["graphify", "--version"]},
     "memory": {"minimumVersion": "0.2.1", "executables": ["memory", "memory-mcp"], "provider": "npm-global-user", "stableChannel": "https://registry.npmjs.org/@aictx%2fmemory/latest", "probe": ["memory", "--version"]},
     "context7": {"minimumVersion": "0.1.0", "executables": ["ctx7"], "provider": "npm-global-user", "stableChannel": "https://registry.npmjs.org/ctx7/latest", "probe": ["ctx7", "--version"]},
-    "maven-tools-mcp": {"minimumVersion": "3.2.0", "executables": [], "provider": "upstream-source-jar", "stableChannel": "https://api.github.com/repos/arvindand/maven-tools-mcp/releases/latest", "probe": ["mcp", "initialize"]}
+    "maven-tools-mcp": {"minimumVersion": "3.2.0", "executables": [], "provider": "upstream-source-jar", "stableChannel": "https://api.github.com/repos/arvindand/maven-tools-mcp/releases/latest", "probe": ["mcp", "initialize"]},
+    "deja": {"minimumVersion": "0.21.2", "executables": ["deja"], "provider": "pinned-release", "stableChannel": "https://api.github.com/repos/vshulcz/deja-vu/releases/tags/v0.21.2", "probe": ["deja", "version"]}
   },
   "runtimes": {
     "uv": {"version": "0.11.29", "artifacts": {
@@ -38,6 +39,14 @@
       "macos-x64": {"url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4%2B7/OpenJDK25U-jdk_x64_mac_hotspot_25.0.4_7.tar.gz", "sha256": "a5ac9c46dad47ac06df35e36d096913195d8da1f3f71918828bcc2cfe33869b7"},
       "macos-arm64": {"url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4%2B7/OpenJDK25U-jdk_aarch64_mac_hotspot_25.0.4_7.tar.gz", "sha256": "5a101c54abf5a9f16c0f70d8c38ba99e6567c1ba213378f0bb04497284f051bd"}
     }},
+    "deja": {"version": "0.21.2", "artifacts": {
+      "windows-x64": {"url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_windows_amd64.zip", "sha256": "a2e71c2a889bde77e5f0c838585c3e40a04694a2c985e811552bdeee1de447f6"},
+      "windows-arm64": {"url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_windows_arm64.zip", "sha256": "595859506a8c77eea76ef40b3a3f911f937525cb95c3480363435f4cb5f05810"},
+      "linux-x64": {"url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_linux_amd64.tar.gz", "sha256": "e508551088b5b693d1017391e9bbad6c10a118a2f06e3771d0fdd70bb61230e9"},
+      "linux-arm64": {"url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_linux_arm64.tar.gz", "sha256": "e42ebb007531c4ba7302226e1fb68d747b603bd3dc7909e2d5bd7519c8fff97a"},
+      "macos-x64": {"url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_darwin_amd64.tar.gz", "sha256": "b0291255ffa9f9aa3109b795074cbdf4334a389a250dc0418a9b530f8a95c7ad"},
+      "macos-arm64": {"url": "https://github.com/vshulcz/deja-vu/releases/download/v0.21.2/deja-vu_0.21.2_darwin_arm64.tar.gz", "sha256": "d75bcaab006d16b4054c993dab99bf6c298b437cffab0f77eeebff005afeceb2"}
+    }},
     "maven": {"version": "3.9.12", "minimumVersion": "3.9.0", "artifacts": {
       "windows-x64": {"url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.zip", "sha256": "305773a68d6ddfd413df58c82b3f8050e89778e777f3a745c8e5b8cbea4018ef"},
       "windows-arm64": {"url": "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.zip", "sha256": "305773a68d6ddfd413df58c82b3f8050e89778e777f3a745c8e5b8cbea4018ef", "artifactArchitecture": "x64", "emulated": true},
@@ -58,6 +67,7 @@
     "memory": {"owner": "project", "scope": "project", "lifecycle": "persistent-data", "taskImpact": "advisory"},
     "mempalace": {"owner": "project", "scope": "project", "lifecycle": "persistent-data", "taskImpact": "advisory"},
     "graphify": {"owner": "project", "scope": "repository", "lifecycle": "derived-single-writer", "taskImpact": "required-when-indexed"},
-    "maven-tools-mcp": {"owner": "installer", "scope": "user", "lifecycle": "receipt-owned", "taskImpact": "optional"}
+    "maven-tools-mcp": {"owner": "installer", "scope": "user", "lifecycle": "receipt-owned", "taskImpact": "optional"},
+    "deja": {"owner": "user", "scope": "user", "lifecycle": "user-managed-cache", "taskImpact": "optional"}
   }
 }

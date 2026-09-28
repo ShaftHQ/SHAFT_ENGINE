@@ -1330,6 +1330,21 @@
         "chaos-engine/hooks/receipt_shim.py"
       ],
       "note": "#6218 (owner-approved 2026-09-25 07:40 Cairo): the Copilot cloud copilot-setup-steps job runs receipt_shim.py ensure --host copilot-cloud before the agent starts, so a pending research receipt exists before the first project read."
+    },
+    {
+      "id": "retrieve_store_deja",
+      "owner": "chaos-engine/references/retrieve-first.md",
+      "check": "tests/scripts/test_deja_store_6183.py::test_retrieve_store_deja_skips_cleanly_when_binary_or_history_missing",
+      "mode": "equivalent",
+      "claude": ["chaos-engine/references/retrieve-first.md"],
+      "codex": ["chaos-engine/references/retrieve-first.md"],
+      "copilot": ["chaos-engine/references/retrieve-first.md"],
+      "gemini": ["chaos-engine/references/retrieve-first.md"],
+      "grok": ["chaos-engine/references/retrieve-first.md"],
+      "opencode": ["chaos-engine/references/retrieve-first.md"],
+      "cursor": ["chaos-engine/references/retrieve-first.md"],
+      "grok-bot": ["chaos-engine/references/retrieve-first.md"],
+      "note": "#6183: opt-in CLI transcript store. grok-bot and cloud executors return skipped(no-history); no MCP, hooks, or upstream installer."
     }
   ]
 }
