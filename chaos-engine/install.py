@@ -5123,6 +5123,7 @@ def apply_mcp_policy_doctor(
         try:
             deja_repaired = repair_deja()
         except OSError:
+            # Doctor continues when residue repair cannot touch the home directory.
             deja_repaired = None
         if isinstance(deja_repaired, dict) and (
             deja_repaired.get("stripped") or deja_repaired.get("skillsRemoved")
@@ -5133,6 +5134,7 @@ def apply_mcp_policy_doctor(
         try:
             repair_project_deja(project)
         except OSError:
+            # Doctor continues when residue repair cannot touch the project directory.
             pass
     finding = policy_mod.user_mcp_policy_finding(project)
     if finding and mcps.get("status") in {

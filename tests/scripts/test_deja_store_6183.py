@@ -9,8 +9,8 @@ import stat
 import subprocess
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 PLATFORMS = {
@@ -74,9 +74,9 @@ class DejaStoreContractTest(unittest.TestCase):
         self.assertFalse(document["optIn"]["deja"]["defaultOn"])
         self.assertFalse(document["enabled"]["deja"])
         self.assertNotIn("deja", document["defaultOn"])
-        with mock.patch.dict(os.environ, {"CHAOS_ENGINE_WITH_DEJA": "1"}, clear=False):
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_WITH_DEJA": "1"}, clear=False):
             self.assertTrue(self.install.normalize_bundle_options(None)["deja"])
-        with mock.patch.dict(
+        with unittest.mock.patch.dict(
             os.environ,
             {"CHAOS_ENGINE_WITH_DEJA": "1", "CHAOS_ENGINE_WITHOUT_DEJA": "1"},
             clear=False,
@@ -88,7 +88,7 @@ class DejaStoreContractTest(unittest.TestCase):
         disabled = self.install.parser().parse_args(
             ["install", "--project", "p", "--source", "s", "--commit", "c", "--without-deja"]
         )
-        with mock.patch.dict(os.environ, {"CHAOS_ENGINE_WITH_DEJA": "", "CHAOS_ENGINE_WITHOUT_DEJA": ""}, clear=False):
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_WITH_DEJA": "", "CHAOS_ENGINE_WITHOUT_DEJA": ""}, clear=False):
             self.assertTrue(self.install.bundle_from_install_args(enabled)["deja"])
             self.assertFalse(self.install.bundle_from_install_args(disabled)["deja"])
 
@@ -109,7 +109,7 @@ class DejaStoreContractTest(unittest.TestCase):
             bindir.mkdir()
             _fake_deja(bindir, json.dumps({"results": hits}))
             path = str(bindir) + os.pathsep + os.environ.get("PATH", "")
-            with mock.patch.dict(os.environ, {"PATH": path}, clear=False):
+            with unittest.mock.patch.dict(os.environ, {"PATH": path}, clear=False):
                 code = self.retrieve.main(
                     ["--store", "deja", "--project", str(project), "--host", "claude", "past decision"]
                 )
@@ -123,7 +123,7 @@ class DejaStoreContractTest(unittest.TestCase):
             bindir.mkdir()
             _fake_deja(bindir, json.dumps({"results": hits}))
             path = str(bindir) + os.pathsep + os.environ.get("PATH", "")
-            with mock.patch.dict(os.environ, {"PATH": path}, clear=False):
+            with unittest.mock.patch.dict(os.environ, {"PATH": path}, clear=False):
                 receipt = self.retrieve.retrieve(
                     "past decision", store="deja", project=project, host="claude"
                 )
@@ -149,7 +149,7 @@ class DejaStoreContractTest(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
-            with mock.patch.dict(os.environ, {"PATH": str(project / "missing")}, clear=False):
+            with unittest.mock.patch.dict(os.environ, {"PATH": str(project / "missing")}, clear=False):
                 code = self.retrieve.main(
                     ["--store", "deja", "--project", str(project), "--host", "claude", "past run"]
                 )
@@ -182,7 +182,7 @@ class DejaStoreContractTest(unittest.TestCase):
             bindir.mkdir()
             _fake_deja(bindir, json.dumps({"results": [], "reason": "no-history"}))
             path = str(bindir) + os.pathsep + os.environ.get("PATH", "")
-            with mock.patch.dict(os.environ, {"PATH": path}, clear=False):
+            with unittest.mock.patch.dict(os.environ, {"PATH": path}, clear=False):
                 empty = self.retrieve.retrieve(
                     "past run", store="deja", project=project, host="claude"
                 )
@@ -267,8 +267,8 @@ class DejaStoreContractTest(unittest.TestCase):
             bindir.mkdir()
             (bindir / "deja").write_text("#!/bin/sh\n", encoding="utf-8")
             (bindir / "deja").chmod(0o755)
-            with mock.patch.dict(os.environ, {"PATH": str(bindir)}, clear=False):
-                with mock.patch.object(self.retrieve.subprocess, "run", fake_run):
+            with unittest.mock.patch.dict(os.environ, {"PATH": str(bindir)}, clear=False):
+                with unittest.mock.patch.object(self.retrieve.subprocess, "run", fake_run):
                     self.retrieve.retrieve("query", store="deja", project=project, host="claude")
                     self.retrieve.retrieve(
                         "query", store="deja", project=project, host="claude", mode="how"
