@@ -233,6 +233,45 @@ class SharedStoreTest(unittest.TestCase):
         self.assertIn("OnCalendar=daily", text)
         self.assertFalse((self.home / ".mempalace").exists())
 
+    def test_mcp_args_and_cli_resolver_use_the_same_palace(self):
+        import importlib.util
+
+        hosts_spec = importlib.util.spec_from_file_location(
+            "ce_hosts_palace_6248", ROOT / "chaos-engine" / "hosts.py"
+        )
+        hosts = importlib.util.module_from_spec(hosts_spec)
+        assert hosts_spec and hosts_spec.loader
+        hosts_spec.loader.exec_module(hosts)
+        deps_spec = importlib.util.spec_from_file_location(
+            "ce_deps_palace_6248", ROOT / "chaos-engine" / "dependencies.py"
+        )
+        deps = importlib.util.module_from_spec(deps_spec)
+        assert deps_spec and deps_spec.loader
+        deps_spec.loader.exec_module(deps)
+
+        canonical = self.stores.resolve_palace(self.linked)
+        self.assertEqual(canonical, deps.mempalace_project_palace(self.linked))
+        arguments = hosts.mempalace_mcp_arguments(self.linked)
+        self.assertEqual(str(canonical), arguments[arguments.index("--palace") + 1])
+        self.assertEqual("sqlite_exact", arguments[arguments.index("--backend") + 1])
+
+        legacy = self.linked / ".chaos-engine-state" / "mempalace"
+        legacy.mkdir(parents=True)
+        (legacy / "keep.txt").write_text("legacy data\n", encoding="utf-8")
+        hint = self.stores.palace_migration_hint(self.linked)
+        self.assertIsNotNone(hint)
+        self.assertIn(str(legacy.resolve()), hint)
+        self.assertIn(str(canonical), hint)
+        self.assertTrue((legacy / "keep.txt").is_file())
+        digest = hosts.doctor_digest(
+            {
+                "status": "healthy",
+                "components": {"mempalace": {"status": "healthy", "migrationHint": hint}},
+            }
+        )
+        self.assertIn("legacy MemPalace directory", digest)
+        self.assertIsNone(self.stores.palace_migration_hint(self.primary))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -153,7 +153,10 @@ CHECKS = {
     "retrieval-contract": Check(
         "retrieval-contract",
         "retrieval",
-        ("tests.scripts.test_knowledge_stores",),
+        (
+            "tests.scripts.test_knowledge_stores",
+            "tests.scripts.test_chaos_engine_stores",
+        ),
     ),
     "graph-resolver-contract": Check(
         "graph-resolver-contract", "retrieval", ("tests.scripts.test_resolve_graph_out",)
@@ -925,9 +928,6 @@ UNGATED_TEST_ALLOWLIST = {
         'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
     ),
     'tests.scripts.test_chaos_engine_soft_fixnext_5831': (
-        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
-    ),
-    'tests.scripts.test_chaos_engine_stores': (
         'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
     ),
     'tests.scripts.test_chaos_engine_token_budget_modes': (

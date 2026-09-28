@@ -3796,9 +3796,10 @@ def owned_servers(
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
     with_mcp: bool = False,
+    project: Path | None = None,
 ) -> dict[str, dict[str, object]]:
     del platform_name
-    servers = _optional_servers(managed_python, account_commands) if with_mcp else {}
+    servers = _optional_servers(managed_python, account_commands, project) if with_mcp else {}
     _add_maven_server(servers, maven_runtime, maven_docker, managed_python)
     return servers
 
@@ -3825,8 +3826,34 @@ def write_mcp_opt_in(project: Path, enabled: bool) -> None:
     marker.write_text("with-mcp\n", encoding="utf-8")
 
 
+def resolved_mempalace_palace(project: Path) -> Path:
+    """The same palace ``resolve_palace`` and ``mempalace_project_palace`` use (#6248)."""
+    import importlib.util
+
+    path = Path(__file__).resolve().with_name("stores.py")
+    spec = importlib.util.spec_from_file_location("chaos_engine_hosts_stores", path)
+    if spec is None or spec.loader is None:
+        return project.resolve() / ".chaos-engine-state" / "mempalace"
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.resolve_palace(project)
+
+
+def mempalace_mcp_arguments(project: Path | None) -> list[str]:
+    """MCP argv for mempalace. A project uses the shared resolver, not a hard-coded palace."""
+    arguments = [".chaos-engine/tool.py", "mempalace-mcp"]
+    if project is None:
+        return arguments
+    arguments.extend(
+        ["--palace", str(resolved_mempalace_palace(project)), "--backend", "sqlite_exact"]
+    )
+    return arguments
+
+
 def _optional_servers(
-    managed_python: Path | None, account_commands: dict[str, str] | None
+    managed_python: Path | None,
+    account_commands: dict[str, str] | None,
+    project: Path | None = None,
 ) -> dict[str, dict[str, object]]:
     """CLI-equivalent servers published only with the MCP opt-in (#6199)."""
     servers: dict[str, dict[str, object]] = {
@@ -3834,7 +3861,7 @@ def _optional_servers(
             [".chaos-engine/tool.py", "memory-mcp"], managed_python=managed_python
         ),
         "chaosengine-mempalace": portable_python_server(
-            [".chaos-engine/tool.py", "mempalace-mcp"],
+            mempalace_mcp_arguments(project),
             extra={"env": dict(MEMPALACE_MCP_ENV)},
             managed_python=managed_python,
         ),
@@ -3849,7 +3876,7 @@ def _optional_servers(
             [".chaos-engine/tool.py", "memory-mcp"]
         )
         servers["chaosengine-mempalace"] = portable_python_server(
-            [".chaos-engine/tool.py", "mempalace-mcp"],
+            mempalace_mcp_arguments(project),
             extra={"env": dict(MEMPALACE_MCP_ENV)},
         )
     return servers
@@ -4724,6 +4751,7 @@ def json_content(
     maven_docker: tuple[str, str] | None = None,
     relative: str = ".mcp.json",
     with_mcp: bool | None = None,
+    project: Path | None = None,
 ) -> bytes:
     original = b"" if before is None else before
     if with_mcp is None:
@@ -4733,6 +4761,7 @@ def json_content(
         account_commands=account_commands,
         maven_docker=maven_docker,
         with_mcp=with_mcp,
+        project=project,
     )
     # Never publish GitHub MCP or the consumer product MCP into CE overlay (#5943).
     _ce_forbidden_mcp = {
@@ -4768,7 +4797,7 @@ def json_content(
         ):
             del servers[legacy_name]
     if not with_mcp:
-        _drop_opted_out_servers(servers, managed_python, account_commands)
+        _drop_opted_out_servers(servers, managed_python, account_commands, project)
     for name, server in desired.items():
         if str(name).strip().casefold() in _ce_forbidden_mcp:
             continue
@@ -4788,9 +4817,10 @@ def _drop_opted_out_servers(
     servers: dict[str, object],
     managed_python: Path | None,
     account_commands: dict[str, str] | None,
+    project: Path | None = None,
 ) -> None:
     """Remove ChaosEngine-owned optional servers; keep same-name foreign ones (#6199)."""
-    owned = _optional_servers(managed_python, account_commands)
+    owned = _optional_servers(managed_python, account_commands, project)
     for name, desired in owned.items():
         if name in servers and replaceable_owned_server(name, servers[name], desired):
             del servers[name]
@@ -4968,6 +4998,7 @@ def codex_content(
     account_commands: dict[str, str] | None = None,
     maven_docker: tuple[str, str] | None = None,
     with_mcp: bool | None = None,
+    project: Path | None = None,
 ) -> bytes:
     original = b"" if before is None else before
     if with_mcp is None:
@@ -5010,7 +5041,14 @@ def codex_content(
     # hands off to it. Legacy absolute spellings stay recognized for upgrade.
     windows_prefix = '"-3", '
     memory_args = '".chaos-engine/tool.py", "memory-mcp"'
-    mempalace_args = '".chaos-engine/tool.py", "mempalace-mcp"'
+    if project is None:
+        mempalace_args = '".chaos-engine/tool.py", "mempalace-mcp"'
+    else:
+        palace = json.dumps(str(resolved_mempalace_palace(project)))
+        mempalace_args = (
+            '".chaos-engine/tool.py", "mempalace-mcp", "--palace", '
+            f'{palace}, "--backend", "sqlite_exact"'
+        )
     if account_commands is not None:
         memory = account_commands.get("memory-mcp")
         mempalace = account_commands.get("mempalace-mcp")
@@ -5179,13 +5217,18 @@ def doctor_digest(report: dict[str, object]) -> str:
         and not (item.get("status") == "absent" and item.get("taskImpact") in {"optional", "advisory", "required-when-indexed"})
     ]
     status = str(report.get("status") or ("healthy" if not failing else "recovery-required"))
+    hint = ""
+    if isinstance(components, dict):
+        mempalace = components.get("mempalace")
+        if isinstance(mempalace, dict) and mempalace.get("migrationHint"):
+            hint = "\n" + str(mempalace["migrationHint"])
     if not failing:
-        return f"ChaosEngine doctor: {status} ({len(items)} checks)"
+        return f"ChaosEngine doctor: {status} ({len(items)} checks)" + hint
     lines = [f"ChaosEngine doctor: {status}; {len(failing)} failing"]
     for name, item in failing:
         fix = item.get("fixNext") or item.get("fix_next") or item.get("detail") or ""
         lines.append(f"- {name}: {item.get('status')}" + (f"; fix-next: {fix}" if fix else ""))
-    return "\n".join(lines)
+    return "\n".join(lines) + hint
 
 
 HOOK_PYTHON_POINTER = ".chaos-engine-state/hook-python"
@@ -6337,12 +6380,13 @@ def desired_content(
     with_mcp = mcp_opt_in(project)
     after[".mcp.json"] = json_content(
         before[".mcp.json"], maven_runtime, managed_python, account_commands,
-        maven_docker, relative=".mcp.json", with_mcp=with_mcp,
+        maven_docker, relative=".mcp.json", with_mcp=with_mcp, project=project,
     )
     gemini_settings = json_content(
         before[".gemini/settings.json"], maven_runtime, managed_python,
         account_commands,
         maven_docker, relative=".gemini/settings.json", with_mcp=with_mcp,
+        project=project,
     )
     if _path_handed_off(".gemini/settings.json"):
         after[".gemini/settings.json"] = gemini_settings
@@ -6359,7 +6403,7 @@ def desired_content(
     after[".codex/config.toml"] = codex_content(
         before[".codex/config.toml"], maven_runtime=maven_runtime,
         managed_python=managed_python, account_commands=account_commands,
-        maven_docker=maven_docker, with_mcp=with_mcp,
+        maven_docker=maven_docker, with_mcp=with_mcp, project=project,
     )
     after[".gitattributes"] = gitattributes_content(before[".gitattributes"])
     consumer = consumer_mode_module()
