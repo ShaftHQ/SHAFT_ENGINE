@@ -126,18 +126,38 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertNotIn("unsupported ChaosEngine tool", result.stderr)
 
     def test_file_read_without_store_citation_is_blocked(self):
-        # #6174: harness files are exempt; the gate governs project source.
+        # A cheap read runs. A broad search is allowed and the stop hook owes one retrieve.
         with tempfile.TemporaryDirectory() as temporary:
-            result = self.run_hook(
+            read = self.run_hook(
                 {
                     "hook_event_name": "PreToolUse",
                     "tool_name": "Read",
                     "cwd": temporary,
+                    "session_id": "read-owed",
                     "tool_input": {"file_path": "src/Foo.java"},
                 }
             )
-        self.assertEqual(2, result.returncode)
-        self.assertIn("MemPalace or Graphify", result.stdout + result.stderr)
+            searched = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "Grep",
+                    "cwd": temporary,
+                    "session_id": "read-owed",
+                    "tool_input": {"pattern": "class", "glob": "*.java"},
+                }
+            )
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "cwd": temporary,
+                    "session_id": "read-owed",
+                    "stop_hook_active": False,
+                }
+            )
+        self.assertEqual(0, read.returncode, read.stdout + read.stderr)
+        self.assertEqual(0, searched.returncode, searched.stdout + searched.stderr)
+        self.assertEqual(2, stopped.returncode, stopped.stdout + stopped.stderr)
+        self.assertIn("tool.py retrieve --store graphify", stopped.stdout + stopped.stderr)
 
     def test_file_read_gate_is_identical_on_every_host(self):
         hosts = (
@@ -147,7 +167,7 @@ class ChaosEngineHookTest(unittest.TestCase):
             ("grok", {"hook_event_name": "pre_tool_use", "tool_name": "read_file"}),
             ("copilot", {"hook_event_name": "preToolUse", "toolName": "read_file"}),
         )
-        reasons = []
+        allowed = []
         with tempfile.TemporaryDirectory() as temporary:
             for host, event in hosts:
                 payload = {
@@ -161,12 +181,42 @@ class ChaosEngineHookTest(unittest.TestCase):
                     payload,
                     {**os.environ, "CHAOS_ENGINE_HOST": host},
                 )
-                reason = self._deny_reason(result)
-                with self.subTest(host=host):
-                    self.assertEqual(2, result.returncode, result.stdout + result.stderr)
-                    self.assertIn("MemPalace or Graphify", reason)
-                reasons.append(reason)
-        self.assertEqual(1, len(set(reasons)))
+                with self.subTest(host=host, phase="read"):
+                    self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                    self.assertNotIn("MemPalace or Graphify", result.stdout)
+                allowed.append(result.returncode)
+        self.assertEqual([0, 0, 0, 0, 0], allowed)
+        stop_reasons = []
+        with tempfile.TemporaryDirectory() as temporary:
+            for host, event in hosts:
+                environment = {**os.environ, "CHAOS_ENGINE_HOST": host}
+                searched = self.run_hook(
+                    {
+                        **event,
+                        "cwd": temporary,
+                        "session_id": f"broad-{host}",
+                        "tool_name": "Grep",
+                        "tool_input": {"pattern": "class", "glob": "*.java"},
+                        "toolArgs": {"pattern": "class", "glob": "*.java"},
+                    },
+                    environment,
+                )
+                stopped = self.run_hook(
+                    {
+                        "hook_event_name": "Stop",
+                        "cwd": temporary,
+                        "session_id": f"broad-{host}",
+                        "stop_hook_active": False,
+                    },
+                    environment,
+                )
+                reason = self._deny_reason(stopped)
+                with self.subTest(host=host, phase="owed"):
+                    self.assertEqual(0, searched.returncode, searched.stdout + searched.stderr)
+                    self.assertEqual(2, stopped.returncode, stopped.stdout + stopped.stderr)
+                    self.assertIn("tool.py retrieve --store graphify", reason)
+                stop_reasons.append(reason)
+        self.assertEqual(1, len(set(stop_reasons)))
 
         with tempfile.TemporaryDirectory() as temporary:
             ledger = Path(temporary) / ".chaos-engine-state"

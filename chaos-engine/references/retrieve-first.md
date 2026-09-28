@@ -15,11 +15,11 @@ depth off that answer rather than judging it twice.
 | One module, reversible | Select stores relevant to the subsystem or affected callers. |
 | Public contract, many callers, or hard to reverse | Use every relevant store, then verify every useful hit against live files. |
 
-Graph and memory first, when it pays. Before the first read or search of
-**project** files in a task area, run one bounded retrieve (`--store graphify`
-for what calls or depends on this; `--store mempalace` for what happened
-around this). Then read only cited ranges.
-One retrieve per task area, not per file. Skip it for harness files (everything in
+Graph and memory first, when it pays. Before broad discovery in a task area,
+run one bounded retrieve (`--store graphify` for what calls or depends on this;
+`--store mempalace` for what happened around this).
+One retrieve per task area, not per file. A cheap read does not wait for a store. A broad search is allowed and owes one retrieve for that session.
+Skip it for harness files (everything in
 [harness-index.json](../harness-index.json)), for running a script, for files
 you named or that are already in the diff, and when the store is empty or
 degraded or has no project nodes for the path.
@@ -30,11 +30,11 @@ reading it, harness paths are exempt, the project root is walked up from the
 event `cwd`, and a graph with no project nodes fails open as
 `skipped(no-project-index)`. Instruction-only hosts (OpenCode, Cursor, Grok
 Bot, Copilot cloud) record `retrieve: used|skipped(<reason>)|exempt(harness)`
-in the [research receipt](research-receipt.md). The deny text and the ledger
-live in one [citation ledger](../hooks/retrieve_justification.py) for every
-host; `skipped` and `degraded` do not cite a path.
-One Graphify citation of path P authorizes later reads of P in that session
-without another retrieve. An uncited path stays denied. A MemPalace
+in the [research receipt](research-receipt.md). The session ledger
+lives in one [citation ledger](../hooks/retrieve_justification.py) for every
+host; `skipped` and `degraded` count as that session's retrieve and do not
+cite a path.
+A cheap read does not wait for a store. A broad search is allowed and owes one retrieve for that session. A MemPalace
 backend-mismatch is recorded once: do not retrieve MemPalace again, do not
 write `~/.mempalace`, and do not turn it into a recovery essay. It is blocking,
 not a Graphify-only fallback: follow the receipt `fixNext` (doctor, then
@@ -50,7 +50,7 @@ range. Do not turn the path into an absolute path or read the whole file.
 | Has this constraint or gotcha already bitten us? | native Memory — `memory search`, then `memory inspect <id>` |
 | What happened around this before, and what does it touch? | MemPalace |
 | What calls or depends on this? | [Graphify](graphify.md) — unclassified extract skips are coverage, not a failed install |
-| What does the code do right now? | targeted `rg` and exact reads of paths a MemPalace or Graphify check already cited |
+| What does the code do right now? | targeted `rg` and exact reads; a cheap read does not wait for a store |
 
 Only the last one settles a disagreement. A retrieved claim is a lead: confirm
 it against the file on disk before acting, and never let an index outrank what
@@ -105,7 +105,7 @@ When a store can answer a concrete question, query it before broad discovery.
 Allow one attempt through the existing host timeout, with no retries, repair,
 refresh, mining, checkpointing, polling, or watching. Shell opens of a path use
 the same citation ledger as `read_file`. One skipped or degraded retrieve
-fail-opens only paths named in that query. Do not auto-migrate `~/.mempalace`.
+in that session clears retrieveOwed and does not clear another session. Do not auto-migrate `~/.mempalace`.
 Ordinary tasks launch no background store processes. SessionStart launches no optional retrieval tool
 and injects only tracked locators; any store failure is silent to task control.
 

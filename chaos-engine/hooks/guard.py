@@ -554,6 +554,11 @@ def linked_worktree_stash_reason(commands: tuple[str, ...], cwd: Path) -> str:
 
 
 def _stop_block_reason(event: dict, session_id: str) -> str:
+    if justification is not None and event.get("hook_event_name") != "SubagentStop":
+        root = justification.project_root(Path(str(event.get("cwd") or Path.cwd())))
+        gap = justification.session_retrieve_gap(root, session_id)
+        if gap:
+            return gap
     if event.get("hook_event_name") == "SubagentStop" or bool(
         event.get("stop_hook_active") or event.get("stopHookActive")
     ):
@@ -917,6 +922,7 @@ def _run_event(event: dict, _host: str) -> int:
             tool_name=str(normalized_kernel_event.tool_name or tool_name),
             tool_input=tool_input if isinstance(tool_input, dict) else {},
             commands=commands,
+            session_id=session_id,
         )
         if read_reason:
             _record_denial_with_significance(event, event_name, tool_name)
@@ -979,8 +985,15 @@ def _run_event(event: dict, _host: str) -> int:
         tool_input=tool_input,
         commands=commands,
     )
-    if complexity_hint:
-        print(json.dumps({"additionalContext": complexity_hint}))
+    retrieve_note = None
+    if justification is not None and event_name == "PreToolUse":
+        retrieve_note = justification.broad_search_context(
+            justification.project_root(Path(str(event.get("cwd") or Path.cwd()))),
+            session_id,
+        )
+    notes = [item for item in (retrieve_note, complexity_hint) if item]
+    if notes:
+        print(json.dumps({"additionalContext": "\n".join(notes)}))
     return 0
 
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""One citation ledger for MemPalace and Graphify checks.
+"""Session ledger for MemPalace and Graphify checks.
 
-Project file reads and searches are allowed only when a prior MemPalace or
-Graphify check cited the path. A command that only touches paths outside
-this checkout, such as a log download and unzip into a scratch
+Reads and searches run. A broad search records `retrieveOwed` for the hook
+session until that session has one `used`, `skipped`, or `degraded` retrieve.
+Cheap one-file reads do not owe a retrieve. A command that only touches paths
+outside this checkout, such as a log download and unzip into a scratch
 directory, is not a project read. Running a script is not reading it, harness
 files (everything `harness-index.json` names) are exempt, the project root is
 walked up like `retrieve.project_root()`, and a graph with no project nodes
@@ -14,7 +15,9 @@ core; every host hook calls this module. Host adapters keep no second copy.
 from __future__ import annotations
 
 import json
+import os
 import re
+import time
 from pathlib import Path
 
 STORES = frozenset({"mempalace", "graphify"})
@@ -90,6 +93,16 @@ _RECEIPT_FIELD = re.compile(
     r"(?mi)^\s*(?:[-*]\s*)?retrieve:\s*(used|skipped\([^)\n]+\)|exempt\(harness\))\s*$"
 )
 NO_PROJECT_INDEX = "no-project-index"
+SESSION_TTL_SECONDS = 12 * 60 * 60
+_ANONYMOUS_SESSION = "anonymous"
+RETRIEVE_COMMAND = (
+    'python3 .chaos-engine/tool.py retrieve --store graphify '
+    '"<what calls or depends on this>"'
+)
+BROAD_SEARCH_NOTE = (
+    "Broad search recorded retrieveOwed for this session. Before stop, run "
+    + RETRIEVE_COMMAND
+)
 
 
 def _norm(value: str) -> str:
@@ -322,15 +335,107 @@ def record_citations(project: Path, store: str, text: str) -> list[str]:
     return record_store_outcome(project, store, "used", "", text)
 
 
+def _session_key(session_id: str | None) -> str:
+    """Hook session id, else CHAOS_ENGINE_SESSION_ID, else one anonymous key."""
+    if session_id is None:
+        session_id = os.environ.get("CHAOS_ENGINE_SESSION_ID", "")
+    text = str(session_id or "").strip()[:128]
+    return text or _ANONYMOUS_SESSION
+
+
+def _live_sessions(payload: dict, now: float | None = None) -> dict:
+    """Drop expired session rows. One session's retrieve does not outlive the TTL."""
+    moment = time.time() if now is None else now
+    raw = payload.get("sessions")
+    if not isinstance(raw, dict):
+        return {}
+    kept: dict = {}
+    for key, row in raw.items():
+        if not isinstance(key, str) or not isinstance(row, dict):
+            continue
+        updated = row.get("updated")
+        if isinstance(updated, (int, float)) and moment - float(updated) <= SESSION_TTL_SECONDS:
+            kept[key] = row
+    return kept
+
+
+def _apply_retrieved(sessions: dict, session_id: str | None) -> None:
+    key = _session_key(session_id)
+    row = dict(sessions.get(key) or {})
+    row["retrieved"] = True
+    row["retrieveOwed"] = False
+    row["announce"] = False
+    row["updated"] = time.time()
+    sessions[key] = row
+
+
+def _mark_session(project: Path, session_id: str | None, *, owe: bool = False, retrieved: bool = False) -> None:
+    """Record retrieveOwed or clear it. A retrieved session does not owe again."""
+    now = time.time()
+    payload = _load_payload(project)
+    sessions = _live_sessions(payload, now)
+    key = _session_key(session_id)
+    row = dict(sessions.get(key) or {})
+    if retrieved:
+        row["retrieved"] = True
+        row["retrieveOwed"] = False
+        row["announce"] = False
+    elif owe and not row.get("retrieved"):
+        if not row.get("retrieveOwed"):
+            row["announce"] = True
+        row["retrieveOwed"] = True
+    else:
+        return
+    row["updated"] = now
+    sessions[key] = row
+    payload["sessions"] = sessions
+    payload.setdefault("schemaVersion", 1)
+    _write_payload(project, payload)
+
+
+def session_retrieve_gap(project: Path, session_id: str) -> str | None:
+    """Retrieve command while this session owes one, else None."""
+    sessions = _live_sessions(_load_payload(project))
+    row = sessions.get(_session_key(session_id))
+    if not isinstance(row, dict) or row.get("retrieved") or not row.get("retrieveOwed"):
+        return None
+    return RETRIEVE_COMMAND
+
+
+def broad_search_context(project: Path, session_id: str | None) -> str | None:
+    """One non-blocking line for the first broad search in this session."""
+    now = time.time()
+    payload = _load_payload(project)
+    sessions = _live_sessions(payload, now)
+    key = _session_key(session_id)
+    row = sessions.get(key)
+    if not isinstance(row, dict) or not row.get("announce"):
+        return None
+    row = dict(row)
+    row["announce"] = False
+    row["updated"] = now
+    sessions[key] = row
+    payload["sessions"] = sessions
+    payload.setdefault("schemaVersion", 1)
+    _write_payload(project, payload)
+    return BROAD_SEARCH_NOTE
+
+
 def record_store_outcome(
-    project: Path, store: str, status: str, query: str, text: str = "", reason: str = ""
+    project: Path,
+    store: str,
+    status: str,
+    query: str,
+    text: str = "",
+    reason: str = "",
+    session_id: str | None = None,
 ) -> list[str]:
-    """Record a store attempt. Degraded or skipped attempts fail open for query paths."""
+    """Record a store attempt. used, skipped, and degraded clear that session's owed flag."""
     chosen = str(store or "").casefold()
     if chosen not in STORES:
         return []
-    payload = _load_payload(project)
-    citations = payload.get("citations")
+    payload_in = _load_payload(project)
+    citations = payload_in.get("citations")
     current = [item for item in citations if isinstance(item, str)] if isinstance(citations, list) else []
     fresh = [
         path for path in (extract_citations(text) if status == "used" else [])
@@ -340,7 +445,7 @@ def record_store_outcome(
         if path not in current:
             current.append(path)
     current = current[-CITATION_LIMIT:]
-    outcomes = payload.get("outcomes")
+    outcomes = payload_in.get("outcomes")
     kept = [item for item in outcomes if isinstance(item, dict)] if isinstance(outcomes, list) else []
     if status == "used" and chosen == "mempalace":
         kept = [
@@ -358,8 +463,17 @@ def record_store_outcome(
             outcome["reason"] = str(reason)[:120]
         kept.append(outcome)
         kept = kept[-32:]
-    payload = {"schemaVersion": 1, "store": chosen, "citations": current, "outcomes": kept}
-    previous = _load_payload(project).get("indexState")
+    sessions = _live_sessions(payload_in)
+    if status in {"used", "skipped", "degraded"}:
+        _apply_retrieved(sessions, session_id)
+    payload = {
+        "schemaVersion": 1,
+        "store": chosen,
+        "citations": current,
+        "outcomes": kept,
+        "sessions": sessions,
+    }
+    previous = payload_in.get("indexState")
     if isinstance(previous, dict):
         payload["indexState"] = previous
     _write_payload(project, payload)
@@ -783,7 +897,132 @@ def _read_segment_block(project: Path, segment: str) -> bool:
 _PY_HEREDOC = re.compile(r"(?:^|[\s;&|(])(?:py|python3?)(?:\.exe)?\s+-\s*<<")
 
 
-def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
+_GLOB_FLAGS = frozenset({"-g", "--glob", "--include", "-G"})
+
+
+def _looks_like_file(project: Path, raw: str) -> bool:
+    """True for one file, a harness path, or a path outside the checkout."""
+    text = _unquote(raw)
+    if not text or text.endswith("/") or any(character in text for character in "*?["):
+        return False
+    if not exploratory_project_path(project, text):
+        return True
+    relative = _ledger_path(project, text)
+    if is_harness_path(relative, project) and not _oversize_heal_artifact(project, relative):
+        return True
+    candidate = Path(text)
+    if not candidate.is_absolute():
+        candidate = Path(project) / text
+    try:
+        if candidate.is_dir():
+            return False
+        if candidate.is_file():
+            return True
+    except OSError:
+        return bool(Path(text).suffix)
+    return bool(Path(text).suffix)
+
+
+def _search_path_owes(project: Path, raw: str) -> bool:
+    """True when this path makes a search broad (project directory, glob, or missing non-file)."""
+    text = _unquote(raw)
+    if not text or not exploratory_project_path(project, text):
+        return False
+    relative = _ledger_path(project, text)
+    if is_harness_path(relative, project) and not _oversize_heal_artifact(project, relative):
+        return False
+    return not _looks_like_file(project, text)
+
+
+def _has_glob(tool_input: dict) -> bool:
+    for key in ("glob", "glob_pattern", "include"):
+        value = tool_input.get(key)
+        if isinstance(value, str) and value.strip():
+            return True
+    return False
+
+
+def _index_allows_without_retrieve(project: Path, paths: list[str]) -> bool:
+    """A graph with no project nodes fails open and records skipped(no-project-index)."""
+    probes = paths or ["."]
+    project_paths = []
+    for raw in probes:
+        if not exploratory_project_path(project, raw):
+            continue
+        relative = _ledger_path(project, raw)
+        if is_harness_path(relative, project) and not _oversize_heal_artifact(project, relative):
+            continue
+        project_paths.append(raw)
+    if not project_paths:
+        return False
+    return _no_project_index(project)
+
+
+def _tool_search_owes(project: Path, tool_name: str, tool_input: dict) -> bool:
+    """Grep/Glob with no file, a directory, or a glob can dump more than a receipt."""
+    if tool_name not in {"Grep", "Glob"}:
+        return False
+    paths = _input_paths(tool_input)
+    if not paths:
+        return True
+    if any(_search_path_owes(project, path) for path in paths):
+        return True
+    return _has_glob(tool_input) and not all(_looks_like_file(project, path) for path in paths)
+
+
+def _positionals(arguments: list[str]) -> tuple[list[str], bool]:
+    found: list[str] = []
+    globbed = False
+    index = 0
+    while index < len(arguments):
+        item = arguments[index]
+        if item in _GLOB_FLAGS:
+            globbed = True
+            index += 2 if index + 1 < len(arguments) else 1
+            continue
+        if item.startswith("--glob=") or item.startswith("--include="):
+            globbed = True
+            index += 1
+            continue
+        if item == "--":
+            found.extend(arguments[index + 1 :])
+            break
+        if item.startswith("-"):
+            index += 1
+            continue
+        found.append(item)
+        index += 1
+    return found, globbed
+
+
+def _shell_search_owes(project: Path, segment: str) -> bool:
+    head, arguments = _command_head(_tokens(segment))
+    if head not in _SEARCH_HEADS:
+        return False
+    positionals, globbed = _positionals(arguments)
+    file_paths = positionals if head == "find" else positionals[1:]
+    if not file_paths:
+        return True
+    if any(_search_path_owes(project, path) for path in file_paths):
+        return True
+    return globbed and not all(_looks_like_file(project, path) for path in file_paths)
+
+
+def _retrieve_attempt(segment: str) -> bool:
+    """True for a retrieve invocation, not store --help."""
+    if not _is_store_segment(segment):
+        return False
+    folded = [item.casefold() for item in _tokens(segment)]
+    if any(item in {"--help", "-h"} for item in folded):
+        return False
+    if "retrieve" in folded or any(item.endswith("retrieve.py") for item in folded):
+        return True
+    if "graphify" in folded and "query" in folded:
+        return True
+    return "mempalace" in folded and "search" in folded
+
+
+def _shell_block(project: Path, commands: tuple[str, ...], session_id: str | None = None) -> str | None:
     for command in commands:
         if _PY_HEREDOC.search(command or ""):
             # #6219: a heredoc body is one program; `;` inside it is not a shell split.
@@ -791,7 +1030,23 @@ def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
                 return BLOCK_REASON
             continue
         for segment in _pipeline_parts(command):
-            if segment_kind(segment) == "read" and _read_segment_block(project, segment):
+            if _retrieve_attempt(segment):
+                _mark_session(project, session_id, retrieved=True)
+            if segment_kind(segment) != "read":
+                continue
+            head, _arguments = _command_head(_tokens(segment))
+            if head in _SEARCH_HEADS:
+                # find -exec / -ok can open a project file. A plain search cannot.
+                if re.search(r"(?:^|\s)-exec\b|(?:^|\s)-ok\b", segment) and _read_segment_block(
+                    project, segment
+                ):
+                    return BLOCK_REASON
+                if _shell_search_owes(project, segment) and not _index_allows_without_retrieve(
+                    project, _paths_in_segment(segment)
+                ):
+                    _mark_session(project, session_id, owe=True)
+                continue
+            if _read_segment_block(project, segment):
                 return BLOCK_REASON
     return None
 
@@ -812,15 +1067,23 @@ def file_read_block_reason(
     tool_name: str,
     tool_input: dict,
     commands: tuple[str, ...],
+    session_id: str | None = None,
 ) -> str | None:
-    """Return the shared deny reason, or None when this call is not a file read."""
+    """Return a deny reason for shell opens, or None when the tool may run.
+
+    Read, Grep, Glob, and rg/grep/find/ag/ack/fd always run. A broad search
+    records retrieveOwed for this session. Callers that only understand a deny
+    string get None; the stop hook reads session_retrieve_gap.
+    """
     if event_name != "PreToolUse":
         return None
     if tool_name in _READ_TOOLS:
         paths = _input_paths(tool_input)
-        if not paths:
-            return BLOCK_REASON
-        if _ungated(project, paths):
-            return BLOCK_REASON
+        if _tool_search_owes(project, tool_name, tool_input) and not _index_allows_without_retrieve(
+            project, paths
+        ):
+            _mark_session(project, session_id, owe=True)
+        elif paths:
+            _index_allows_without_retrieve(project, paths)
         return None
-    return _shell_block(project, commands)
+    return _shell_block(project, commands, session_id)
