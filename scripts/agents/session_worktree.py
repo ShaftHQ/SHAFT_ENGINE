@@ -36,12 +36,25 @@ def sanitize_session_id(session_id: str) -> str:
     return f"{raw[:19].rstrip('-_')}-{digest}"
 
 
+def protected_checkout_entries() -> list[str]:
+    """Checkout list. ``PROTECTED_CHECKOUTS`` reads the canonical repo-guard variable."""
+    canonical = os.environ.get(TEST_GUARD_ENV, "")
+    legacy = os.environ.get(PROTECTED_CHECKOUTS_ENV, "")
+    if canonical.strip():
+        raw = canonical if not legacy.strip() else os.pathsep.join((canonical, legacy))
+    else:
+        raw = legacy
+    return [item.strip() for item in raw.split(os.pathsep) if item.strip()]
+
+
 def is_protected_checkout(path: Path) -> bool:
-    """True when ``path`` is listed in ``CHAOS_ENGINE_PROTECTED_CHECKOUTS``."""
-    raw = os.environ.get(PROTECTED_CHECKOUTS_ENV, "")
+    """True when ``path`` is protected by the repo guard or the legacy checkout list."""
     try:
         target = os.path.normcase(str(Path(path).resolve()))
-        listed = {os.path.normcase(str(Path(item).resolve())) for item in raw.split(os.pathsep) if item.strip()}
+        listed = {
+            os.path.normcase(str(Path(item).resolve()))
+            for item in protected_checkout_entries()
+        }
     except OSError:
         return False
     return target in listed

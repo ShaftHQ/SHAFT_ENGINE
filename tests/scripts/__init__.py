@@ -1,4 +1,4 @@
-"""Arm the repository guard for every tests.scripts run (#6239).
+"""Arm the repository guard for every tests.scripts run (#6239, #6249).
 
 Some tests drive SessionStart, whose session-worktree setup checks out the
 default branch, hard-resets it, and cleans it. Against the real checkout that
@@ -7,9 +7,10 @@ does two things:
 
 1. Sets CHAOS_ENGINE_TEST_REPO_GUARD to this repository's git common dir, so
    scripts/agents/session_worktree.py refuses checkout/reset/clean/worktree
-   changes anywhere except temp fixtures. Child processes inherit it.
-2. Records HEAD, branch, and dirty paths, and at exit fails the run (exit 70)
-   if the suite moved the branch or discarded a local edit.
+   changes anywhere except temp fixtures. Child processes inherit it. Store
+   refresh treats that variable as a test run and does not spawn.
+2. Records branch, HEAD, porcelain status, and registered worktrees, and at
+   exit fails the run (exit 70) if any of them changed.
 """
 
 from __future__ import annotations
@@ -19,6 +20,8 @@ import os
 import subprocess  # nosec B404 - fixed read-only git queries.
 import sys
 from pathlib import Path
+
+from . import repo_state_guard
 
 GUARD_ENV = "CHAOS_ENGINE_TEST_REPO_GUARD"
 REPOSITORY = Path(__file__).resolve().parents[2]
@@ -79,19 +82,29 @@ def _arm() -> None:
     if resolved not in protected:
         protected.append(resolved)
     os.environ[GUARD_ENV] = os.pathsep.join(protected)
-    before = repository_state()
-    if before is None:
+    roots = repo_state_guard.checkout_roots(REPOSITORY) or [REPOSITORY]
+    before = {}
+    for root in roots:
+        earlier = repo_state_guard.snapshot(root)
+        if earlier.get("head"):
+            before[root] = earlier
+    if not before:
         return
     owner = os.getpid()
 
     def verify() -> None:
         if os.getpid() != owner:
             return
-        after = repository_state()
-        reasons = [] if after is None else destroyed_work(before, after)
+        reasons = []
+        for root, earlier in before.items():
+            reasons.extend(
+                f"{root}: {item}"
+                for item in repo_state_guard.differences(earlier, repo_state_guard.snapshot(root))
+            )
         if reasons:
             print(
-                f"tests.scripts changed the repository under test (#6239): {'; '.join(reasons)}",
+                "tests.scripts changed the repository under test (#6239): "
+                + "; ".join(reasons),
                 file=sys.stderr,
             )
             sys.stderr.flush()

@@ -503,6 +503,10 @@ def refresh(
 
 
 def _spawn_enabled() -> bool:
+    """Explicit refresh wins. A repo-guarded test run does not spawn (#6249)."""
+    if os.environ.get("CHAOS_ENGINE_TEST_REPO_GUARD", "").strip():
+        flag = os.environ.get("CHAOS_ENGINE_STORE_REFRESH", "")
+        return flag.strip().casefold() in {"1", "true", "yes", "on"}
     flag = os.environ.get("CHAOS_ENGINE_STORE_REFRESH")
     if flag is not None:
         return flag.strip().casefold() not in {"", "0", "false", "no", "off"}
