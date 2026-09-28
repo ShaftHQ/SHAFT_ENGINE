@@ -713,6 +713,58 @@ def read_account_receipt(project: Path) -> dict[str, object]:
     return receipt
 
 
+def optional_account_dependency_enabled(project: Path, name: str) -> bool:
+    """True only when the operator opted in. Missing bundle options stay off."""
+    if name not in OPTIONAL_ACCOUNT_DEPENDENCIES:
+        return True
+    path = project / ".chaos-engine-state" / "bundle-options.json"
+    if not path.is_file():
+        return False
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    enabled = document.get("enabled") if isinstance(document, dict) else None
+    return isinstance(enabled, dict) and enabled.get(name) is True
+
+
+def select_account_receipt_components(
+    project: Path,
+    actions: dict[str, dict[str, object]],
+    local: dict[str, dict[str, object]],
+) -> dict[str, dict[str, object]]:
+    """Receipt rows for required tools, plus an opt-in tool only when it is healthy."""
+    selected: dict[str, dict[str, object]] = {}
+    for name, record in actions.items():
+        observed = local.get(name, {})
+        if name in OPTIONAL_ACCOUNT_DEPENDENCIES:
+            installed_healthy = (
+                observed.get("healthy") is True and observed.get("status") == "healthy"
+            )
+            if not optional_account_dependency_enabled(project, name) or not installed_healthy:
+                continue
+        selected[name] = {
+            **record,
+            **observed,
+            "installedVersion": observed.get("version"),
+            "scope": "user",
+            "action": record["action"],
+            "probe": observed.get("detail", "passed"),
+        }
+    return selected
+
+
+def account_receipt_commands(
+    components: dict[str, dict[str, object]], commands: dict[str, str]
+) -> dict[str, str]:
+    """Drop an opt-in executable when its component was omitted from the receipt."""
+    published = dict(commands)
+    for name in OPTIONAL_ACCOUNT_DEPENDENCIES:
+        if name not in components:
+            published.pop(name, None)
+    return published
+
+
 def write_account_receipt(
     project: Path,
     components: dict[str, dict[str, object]],
@@ -1398,19 +1450,12 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         if action in {"init", "mine"}:
             mark_mempalace_project_setup(project)
 
-    final_components: dict[str, dict[str, object]] = {}
-    for name, record in actions.items():
-        observed = local.get(name, {})
-        final_components[name] = {
-            **record,
-            **observed,
-            "installedVersion": observed.get("version"),
-            "scope": "user",
-            "action": record["action"],
-            "probe": observed.get("detail", "passed"),
-        }
+    final_components = select_account_receipt_components(project, actions, local)
     return write_account_receipt(
-        project, final_components, commands, now=now
+        project,
+        final_components,
+        account_receipt_commands(final_components, commands),
+        now=now,
     )
 
 

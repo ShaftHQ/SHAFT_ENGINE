@@ -893,6 +893,65 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "dispatch is missing"):
                 module.active_dispatch(project, "mempalace", [])
 
+    def test_default_account_receipt_omits_opt_in_deja(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            actions = {
+                "uv": {"action": "reused"},
+                "deja": {"action": "skipped", "status": "absent", "taskImpact": "optional"},
+            }
+            local = {
+                "uv": {"status": "healthy", "healthy": True, "version": "1", "detail": "passed"},
+                "deja": {
+                    "status": "absent",
+                    "healthy": False,
+                    "version": None,
+                    "detail": "optional-absent",
+                    "taskImpact": "optional",
+                },
+            }
+            selected = module.select_account_receipt_components(project, actions, local)
+            self.assertNotIn("deja", selected)
+            self.assertEqual("healthy", selected["uv"]["status"])
+            state = project / ".chaos-engine-state"
+            state.mkdir()
+            (state / "bundle-options.json").write_text(
+                json.dumps({"enabled": {"deja": False}, "optIn": {"deja": {"defaultOn": False}}}),
+                encoding="utf-8",
+            )
+            still_off = module.select_account_receipt_components(project, actions, local)
+            self.assertNotIn("deja", still_off)
+            (state / "bundle-options.json").write_text(
+                json.dumps({"enabled": {"deja": True}}),
+                encoding="utf-8",
+            )
+            unhealthy = module.select_account_receipt_components(project, actions, local)
+            self.assertNotIn("deja", unhealthy)
+            local["deja"] = {
+                "status": "healthy",
+                "healthy": True,
+                "version": "0.21.2",
+                "detail": "passed",
+            }
+            actions["deja"] = {"action": "reused"}
+            opted = module.select_account_receipt_components(project, actions, local)
+            self.assertEqual("healthy", opted["deja"]["status"])
+            published = module.account_receipt_commands(
+                selected, {"uv": "/usr/bin/uv", "deja": "/usr/bin/deja"}
+            )
+            self.assertNotIn("deja", published)
+            receipt = module.write_account_receipt(
+                project,
+                selected,
+                published,
+                now=datetime(2026, 9, 29, tzinfo=timezone.utc),
+            )
+            self.assertNotIn("deja", receipt["components"])
+            self.assertTrue(
+                all(record.get("status") == "healthy" for record in receipt["components"].values())
+            )
+
     def test_account_receipt_v1_migrates_deterministically_in_memory(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:
