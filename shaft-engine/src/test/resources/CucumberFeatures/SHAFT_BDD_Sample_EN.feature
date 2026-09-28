@@ -4,7 +4,7 @@ Feature: Basic SHAFT_Engine BDD POC
   Scenario: Browser steps
     Given I Open the target browser
     When I Navigate to "https://www.selenium.dev/selenium/web/xhtmlTest.html"
-    And I Navigate to "https://duckduckgo.com/"
+    And I Navigate to "https://www.selenium.dev/selenium/web/clicks.html"
     And I Navigate back
     And I Navigate forward
     And I Maximize the current window
