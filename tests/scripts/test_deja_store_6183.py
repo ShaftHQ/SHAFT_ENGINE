@@ -208,7 +208,7 @@ class DejaStoreContractTest(unittest.TestCase):
                         "path": "/home/user/.claude/projects/secret/session.jsonl",
                         "touched": [
                             "chaos-engine/retrieve.py",
-                            "/tmp/absolute-drop.py",
+                            "/var/absolute-drop.py",
                             "tests/scripts/test_deja_store_6183.py",
                         ],
                     },
@@ -234,7 +234,7 @@ class DejaStoreContractTest(unittest.TestCase):
             [hit["path"] for hit in receipt["hits"]],
         )
         self.assertNotIn("/home/user", json.dumps(receipt["hits"]))
-        self.assertNotIn("absolute-drop", json.dumps(receipt["hits"]))
+        self.assertNotIn("/var/absolute-drop.py", json.dumps(receipt["hits"]))
         self.assertIn("kept the offline flag", receipt["excerpt"])
         self.assertIn("second snippet stays", receipt["excerpt"])
         self.assertGreater(receipt["bytes"], 0)
@@ -247,7 +247,7 @@ class DejaStoreContractTest(unittest.TestCase):
                     "snippets": ["only an absolute session file"],
                     "session": {
                         "path": "/home/user/.claude/projects/secret/session.jsonl",
-                        "touched": ["/tmp/absolute-only.py"],
+                        "touched": ["/var/absolute-only.py"],
                     },
                 }
             ]
@@ -407,7 +407,7 @@ class DejaStoreContractTest(unittest.TestCase):
                         "query", store="deja", project=project, host="claude", mode="fix"
                     )
         self.assertEqual(3, len(calls))
-        search_args, search_kwargs = calls[0]
+        search_args = calls[0][0]
         self.assertEqual("deja", search_args[0])
         self.assertEqual("search", search_args[1])
         self.assertIn("how", calls[1][0])
