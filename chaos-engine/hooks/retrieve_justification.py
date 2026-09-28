@@ -576,29 +576,94 @@ def _checkout_root(path: Path) -> Path | None:
     return None
 
 
+def _unquote(raw: str) -> str:
+    text = (raw or "").strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
+        return text[1:-1]
+    return text
+
+
+def _file_url_path(text: str) -> str | None:
+    """Local path from ``file://``, or None for http(s) and remote file hosts."""
+    if not text.casefold().startswith("file:"):
+        return None
+    rest = text[5:]
+    if rest.casefold().startswith("//localhost/"):
+        rest = rest[len("//localhost"):]
+    elif rest.startswith("///"):
+        rest = rest[2:]
+    elif rest.startswith("//"):
+        return None
+    return rest if rest.startswith("/") else None
+
+
+def _resolved_absolute(text: str) -> Path | None:
+    """Absolute local path, or None when the token is relative or a remote URL."""
+    if "://" in text and _file_url_path(text) is None:
+        return None
+    candidate = Path(_file_url_path(text) or text)
+    if not candidate.is_absolute():
+        return None
+    try:
+        return candidate.resolve()
+    except OSError:
+        return candidate
+
+
 def exploratory_project_path(project: Path, raw: str) -> bool:
     """True when a shell or tool path is a read of this checkout or another one.
 
     Relative paths stay project reads. Absolute paths outside every checkout
-    (log archives under /tmp, API URLs) do not. An absolute ancestor of the
-    project, such as ``find /``, still counts because it walks the tree.
+    (log archives under /tmp, http URLs) do not. ``file://`` is a local path.
+    An absolute ancestor of the project, such as ``find /``, still counts.
     """
-    text = (raw or "").strip()
-    if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
-        text = text[1:-1]
-    if not text or "://" in text:
+    text = _unquote(raw)
+    if not text:
         return False
-    candidate = Path(text)
-    if not candidate.is_absolute():
+    if "://" in text and _file_url_path(text) is None:
+        return False
+    if _file_url_path(text) is None and not Path(text).is_absolute():
+        return True
+    resolved = _resolved_absolute(text)
+    if resolved is None:
         return True
     try:
-        resolved = candidate.resolve()
         root = Path(project).resolve()
     except OSError:
         return True
     if resolved == root or root in resolved.parents or resolved in root.parents:
         return True
     return _checkout_root(resolved) is not None
+
+
+def _ledger_path(project: Path, raw: str) -> str:
+    """Checkout-relative path so harness exemptions apply in linked worktrees."""
+    text = _unquote(raw)
+    local = _file_url_path(text) or text
+    candidate = Path(local)
+    if not candidate.is_absolute():
+        return _norm(local)
+    resolved = _resolved_absolute(text)
+    if resolved is None:
+        return _norm(local)
+    try:
+        root = Path(project).resolve()
+    except OSError:
+        return _norm(str(resolved))
+    if resolved == root or root in resolved.parents:
+        return _project_relative(project, str(resolved))
+    checkout = _checkout_root(resolved)
+    if checkout is None:
+        return _norm(str(resolved))
+    try:
+        return resolved.relative_to(checkout.resolve()).as_posix()
+    except ValueError:
+        return _norm(str(resolved))
+
+
+def _ungated(project: Path, paths: list[str]) -> bool:
+    gated = [_ledger_path(project, path) for path in paths if exploratory_project_path(project, path)]
+    return bool(gated) and not all(read_allowed(project, path) for path in gated)
 
 
 def _shell_read_paths(text: str) -> list[str]:
@@ -699,12 +764,10 @@ def _pipeline_parts(command: str) -> list[str]:
 def _read_segment_block(project: Path, segment: str) -> bool:
     head, _arguments = _command_head(_tokens(segment))
     if head in _PY or not head:
-        paths = [path for path in _shell_read_paths(segment) if exploratory_project_path(project, path)]
-        return bool(paths) and not all(read_allowed(project, path) for path in paths)
+        return _ungated(project, _shell_read_paths(segment))
     paths = _paths_in_segment(segment)
-    project_paths = [path for path in paths if exploratory_project_path(project, path)]
-    if project_paths:
-        return not all(read_allowed(project, path) for path in project_paths)
+    if _ungated(project, paths):
+        return True
     if paths:
         return False
     return head in _SEARCH_HEADS and not _no_project_index(project)
@@ -717,8 +780,7 @@ def _shell_block(project: Path, commands: tuple[str, ...]) -> str | None:
     for command in commands:
         if _PY_HEREDOC.search(command or ""):
             # #6219: a heredoc body is one program; `;` inside it is not a shell split.
-            paths = [path for path in _shell_read_paths(command) if exploratory_project_path(project, path)]
-            if paths and not all(read_allowed(project, path) for path in paths):
+            if _ungated(project, _shell_read_paths(command)):
                 return BLOCK_REASON
             continue
         for segment in _pipeline_parts(command):
@@ -751,8 +813,7 @@ def file_read_block_reason(
         paths = _input_paths(tool_input)
         if not paths:
             return BLOCK_REASON
-        exploratory = [path for path in paths if exploratory_project_path(project, path)]
-        if not exploratory or all(read_allowed(project, path) for path in exploratory):
-            return None
-        return BLOCK_REASON
+        if _ungated(project, paths):
+            return BLOCK_REASON
+        return None
     return _shell_block(project, commands)

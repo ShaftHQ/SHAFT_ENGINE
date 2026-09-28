@@ -309,7 +309,9 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     commands=(),
                 )
             )
-            checkout = Path(temporary) / "worktree"
+            outside = tempfile.TemporaryDirectory()
+            self.addCleanup(outside.cleanup)
+            checkout = Path(outside.name) / "worktree"
             (checkout / "chaos-engine").mkdir(parents=True)
             (checkout / "chaos-engine" / "install.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
             feature = checkout / "src" / "Sample.feature"
@@ -322,6 +324,31 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     tool_name="Bash",
                     tool_input={},
                     commands=(f"sed -n '1,5p' {feature}",),
+                )
+            )
+            secret = project / "src" / "Foo.java"
+            secret.parent.mkdir()
+            secret.write_text("SECRET_PROJECT_BYTES\n", encoding="utf-8")
+            bypass = f"find /tmp/autoclose-job -exec curl -s file://{secret} {{}} +"
+            self.assertIsNotNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(bypass,),
+                )
+            )
+            harness = checkout / "chaos-engine" / "hooks" / "guard.py"
+            harness.parent.mkdir(parents=True)
+            harness.write_text("print('ok')\n", encoding="utf-8")
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(f"sed -n '1,5p' {harness}",),
                 )
             )
 
