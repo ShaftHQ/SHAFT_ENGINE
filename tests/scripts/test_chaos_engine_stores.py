@@ -253,19 +253,19 @@ class SharedStoreTest(unittest.TestCase):
 
         canonical = self.stores.resolve_palace(self.linked)
         self.assertEqual(canonical, deps.mempalace_project_palace(self.linked))
+        tool_spec = importlib.util.spec_from_file_location(
+            "ce_tool_palace_6248", ROOT / "chaos-engine" / "tool.py"
+        )
+        if tool_spec is None or tool_spec.loader is None:
+            raise AssertionError("cannot load chaos-engine/tool.py")
+        tool = importlib.util.module_from_spec(tool_spec)
+        tool_spec.loader.exec_module(tool)
+        tool_palace = tool._load_stores(ROOT / "chaos-engine")["resolve_palace"](self.linked)
+        self.assertEqual(canonical, tool_palace)
         arguments = hosts.mempalace_mcp_arguments(self.linked)
-        self.assertNotIn(str(canonical), arguments)
-        if "--palace" in arguments:
-            rendered = Path(arguments[arguments.index("--palace") + 1])
-            if rendered.is_absolute():
-                self.fail(f"generated palace must stay project-relative: {rendered}")
-            self.assertEqual(canonical.resolve(), (self.linked / rendered).resolve())
-            self.assertEqual("sqlite_exact", arguments[arguments.index("--backend") + 1])
-        else:
-            self.assertEqual(
-                canonical.resolve(),
-                (self.linked / ".chaos-engine-state" / "mempalace").resolve(),
-            )
+        self.assertEqual([".chaos-engine/tool.py", "mempalace-mcp"], arguments)
+        self.assertNotIn("--palace", arguments)
+        self.assertNotIn("--backend", arguments)
 
         legacy = self.linked / ".chaos-engine-state" / "mempalace"
         legacy.mkdir(parents=True)

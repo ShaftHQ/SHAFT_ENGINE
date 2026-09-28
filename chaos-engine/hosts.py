@@ -3826,49 +3826,10 @@ def write_mcp_opt_in(project: Path, enabled: bool) -> None:
     marker.write_text("with-mcp\n", encoding="utf-8")
 
 
-def resolved_mempalace_palace(project: Path) -> Path:
-    """The same palace ``resolve_palace`` and ``mempalace_project_palace`` use (#6248)."""
-    import importlib.util
-
-    path = Path(__file__).resolve().with_name("stores.py")
-    spec = importlib.util.spec_from_file_location("chaos_engine_hosts_stores", path)
-    if spec is None or spec.loader is None:
-        return project.resolve() / ".chaos-engine-state" / "mempalace"
-    previous = sys.dont_write_bytecode
-    sys.dont_write_bytecode = True
-    try:
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module.resolve_palace(project)
-    finally:
-        sys.dont_write_bytecode = previous
-
-
-def _relative_palace_argument(project: Path, palace: Path) -> str | None:
-    """Project-relative palace, or None for the in-project default (no flag)."""
-    root = project.resolve()
-    try:
-        relative = palace.resolve().relative_to(root)
-    except ValueError:
-        relative = Path(os.path.relpath(palace.resolve(), root))
-    rendered = relative.as_posix()
-    if rendered == ".chaos-engine-state/mempalace":
-        return None
-    if rendered.startswith("/") or (len(rendered) > 1 and rendered[1] == ":"):
-        return None
-    return rendered
-
-
 def mempalace_mcp_arguments(project: Path | None) -> list[str]:
-    """MCP argv. Generated files stay project-relative and omit the default palace."""
-    arguments = [".chaos-engine/tool.py", "mempalace-mcp"]
-    if project is None:
-        return arguments
-    rendered = _relative_palace_argument(project, resolved_mempalace_palace(project))
-    if rendered is None:
-        return arguments
-    arguments.extend(["--palace", rendered, "--backend", "sqlite_exact"])
-    return arguments
+    """Host MCP argv. ``tool.py`` injects ``--palace``; hosts must not."""
+    del project
+    return [".chaos-engine/tool.py", "mempalace-mcp"]
 
 
 def _optional_servers(
@@ -4492,18 +4453,32 @@ def replaceable_owned_server(name: str, existing: object, desired: dict[str, obj
         return False
     if name not in {"chaosengine-memory", "chaosengine-mempalace"}:
         return False
-    arguments = [".chaos-engine/tool.py", "memory-mcp"] if name == "chaosengine-memory" else [
-        ".chaos-engine/tool.py", "mempalace-mcp", "--palace",
-        ".chaos-engine-state/mempalace", "--backend", "sqlite_exact",
-    ]
-    portable = {
-        "command": "python3", "args": arguments,
-        "commandWindows": "py", "argsWindows": ["-3", *arguments], "cwd": ".",
-    }
-    if name == "chaosengine-mempalace":
-        portable["env"] = dict(MEMPALACE_MCP_ENV)
+    if name == "chaosengine-memory":
+        argument_sets = [[".chaos-engine/tool.py", "memory-mcp"]]
+    else:
+        # No storage flags, plus the older generated shape that named the palace.
+        argument_sets = [
+            [".chaos-engine/tool.py", "mempalace-mcp"],
+            [
+                ".chaos-engine/tool.py",
+                "mempalace-mcp",
+                "--palace",
+                ".chaos-engine-state/mempalace",
+                "--backend",
+                "sqlite_exact",
+            ],
+        ]
+    owned = []
+    for arguments in argument_sets:
+        portable = {
+            "command": "python3", "args": arguments,
+            "commandWindows": "py", "argsWindows": ["-3", *arguments], "cwd": ".",
+        }
+        if name == "chaosengine-mempalace":
+            portable["env"] = dict(MEMPALACE_MCP_ENV)
+        owned.append(portable)
     return existing in (
-        portable,
+        *owned,
         legacy_owned_python_server(name, "nt"),
         legacy_owned_python_server(name, "posix"),
     )

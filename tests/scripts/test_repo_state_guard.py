@@ -309,6 +309,18 @@ class StoreRefreshAndUnifiedGuardTest(FixtureRepository):
             self.assertTrue(sw.is_protected_checkout(self.main))
             self.assertEqual([str(self.main)], sw.protected_checkout_entries())
 
+    def test_common_dir_guard_protects_the_checkout_root(self):
+        rendered = git(self.main, "rev-parse", "--git-common-dir")
+        common = Path(rendered.stdout.strip())
+        if not common.is_absolute():
+            common = (self.main / common).resolve()
+        with patch.dict(
+            os.environ,
+            {sw.PROTECTED_CHECKOUTS_ENV: "", sw.TEST_GUARD_ENV: str(common)},
+        ):
+            self.assertTrue(sw.is_protected_checkout(self.main))
+            self.assertNotEqual(str(common), str(self.main))
+
 
 class OffendingTestsAreIsolatedTest(unittest.TestCase):
     """SC-2: the two SessionStart tests that reached the real root stay isolated."""
