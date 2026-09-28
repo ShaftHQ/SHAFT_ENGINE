@@ -4180,6 +4180,25 @@ def _install_store_schedule(project: Path) -> None:
         return
 
 
+def account_dependency_records_healthy(records: object) -> bool:
+    """True when every required account tool is healthy.
+
+    An opt-in dependency that was not provisioned (deja absent) must not flip
+    the tools component to recovery-required.
+    """
+    if not isinstance(records, dict):
+        return False
+
+    def _ok(item: object) -> bool:
+        if not isinstance(item, dict):
+            return False
+        if item.get("taskImpact") == "optional" and item.get("status") in {"absent", "skipped"}:
+            return item.get("action") != "blocked"
+        return item.get("status") == "healthy" and item.get("action") != "blocked"
+
+    return all(_ok(item) for item in records.values())
+
+
 def component_escalates_overall(item: dict[str, object]) -> bool:
     """Return True when one component should flip overall doctor to recovery-required.
 
@@ -4497,12 +4516,7 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 controller = load_dependency_controller(target)
                 receipt = controller.read_account_receipt(project)
                 records = receipt.get("components", {})
-                healthy = isinstance(records, dict) and all(
-                    isinstance(item, dict)
-                    and item.get("status") == "healthy"
-                    and item.get("action") != "blocked"
-                    for item in records.values()
-                )
+                healthy = account_dependency_records_healthy(records)
                 result["dependencies"] = {
                     "status": "healthy" if healthy else "recovery-required",
                     "schemaVersion": receipt["schemaVersion"],

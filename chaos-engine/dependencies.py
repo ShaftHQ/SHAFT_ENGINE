@@ -56,6 +56,8 @@ REQUIRED_DISPATCHES = {
 }
 PINNED_MEMPALACE_PACKAGE = "mempalace==3.8.0"
 PINNED_MEMPALACE_WITH = ("chromadb==1.5.9",)
+# Opt-in CLIs are never provisioned. A missing binary must not block account setup.
+OPTIONAL_ACCOUNT_DEPENDENCIES = frozenset({"deja"})
 SCHEMA3_TOOLS = {
     "uv": {"package": "uv==0.11.29"},
     "mempalace": {
@@ -588,6 +590,16 @@ def discover_account_commands(
             components[name] = {"status": "not-applicable", "siblings": sibling_paths}
             continue
         if len(sibling_paths) != len(names):
+            if name in OPTIONAL_ACCOUNT_DEPENDENCIES:
+                components[name] = {
+                    "status": "absent",
+                    "healthy": False,
+                    "version": None,
+                    "taskImpact": "optional",
+                    "detail": "optional-absent",
+                    "siblings": sibling_paths,
+                }
+                continue
             components[name] = {
                 "status": "missing",
                 "healthy": False,
@@ -628,6 +640,21 @@ def resolve_account_actions(
         if name == "maven-tools-mcp":
             continue
         record = local.get(name, {})
+        if name in OPTIONAL_ACCOUNT_DEPENDENCIES:
+            present = record.get("healthy") is True and record.get("status") != "absent"
+            resolved[name] = {
+                **record,
+                "provider": contract.get("provider"),
+                "source": contract.get("stableChannel"),
+                "installedVersion": record.get("version") if present else None,
+                "resolvedVersion": record.get("version") if present else None,
+                "latestVersionVerified": bool(present),
+                "action": "reused" if present else "skipped",
+                "status": "healthy" if present else "absent",
+                "taskImpact": "optional",
+                "probe": record.get("detail", "optional-absent"),
+            }
+            continue
         latest = None
         verified = False
         lookup_error = None
@@ -1193,7 +1220,9 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         specification, local, opener=opener
     )
     blocked = sorted(
-        name for name, record in actions.items() if record.get("action") == "blocked"
+        name
+        for name, record in actions.items()
+        if record.get("action") == "blocked" and record.get("taskImpact") != "optional"
     )
     if blocked:
         raise RuntimeError("dependency setup blocked: " + ", ".join(blocked))

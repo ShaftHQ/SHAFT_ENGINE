@@ -322,6 +322,44 @@ class DejaStoreContractTest(unittest.TestCase):
         self.assertIn("deja (opt-in)", guide)
         self.assertIn("What did a past agent session run or decide here?", guide)
 
+    def test_default_doctor_keeps_tools_healthy_when_deja_is_absent(self) -> None:
+        deps = load("chaos-engine/dependencies.py", "ce_deps_deja_tools_6183")
+        spec = json.loads((ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8"))
+        discovered, _commands = deps.discover_account_commands(
+            spec, which=lambda *_args, **_kwargs: None
+        )
+        self.assertEqual("absent", discovered["deja"]["status"])
+        self.assertEqual("optional", discovered["deja"]["taskImpact"])
+        local = {
+            name: {"healthy": False, "status": "missing", "version": None}
+            for name in spec["dependencies"]
+        }
+        local["deja"] = discovered["deja"]
+        with unittest.mock.patch.object(deps, "resolve_stable_version", return_value="9.9.9") as lookup:
+            actions = deps.resolve_account_actions(spec, local)
+        looked_up = [call.args[0] for call in lookup.call_args_list]
+        self.assertNotIn("deja", looked_up)
+        self.assertEqual("skipped", actions["deja"]["action"])
+        self.assertEqual("absent", actions["deja"]["status"])
+        self.assertEqual("optional", actions["deja"]["taskImpact"])
+        records = {
+            name: {"status": "healthy", "action": "reused"}
+            for name in ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+        }
+        records["deja"] = actions["deja"]
+        self.assertTrue(self.install.account_dependency_records_healthy(records))
+        tools_status = (
+            "healthy" if self.install.account_dependency_records_healthy(records) else "recovery-required"
+        )
+        self.assertEqual("healthy", tools_status)
+        self.assertFalse(
+            self.install.component_escalates_overall(
+                {"status": "absent", "taskImpact": "optional"}
+            )
+        )
+        records["uv"] = {"status": "missing", "action": "blocked"}
+        self.assertFalse(self.install.account_dependency_records_healthy(records))
+
 
 if __name__ == "__main__":
     unittest.main()
