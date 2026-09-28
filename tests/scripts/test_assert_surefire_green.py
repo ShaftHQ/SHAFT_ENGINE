@@ -88,7 +88,8 @@ class AssertSurefireGreenTest(unittest.TestCase):
         playbook = (root / "chaos-engine/references/work-github-playbook.md").read_text(
             encoding="utf-8",
         )
-        self.assertIn("Wave PR open checklist", playbook)
+        # The wave checklist heading is now the human PR open checklist.
+        self.assertIn("Human PR open checklist", playbook)
         self.assertIn("assert_surefire_green.py", playbook)
 
 

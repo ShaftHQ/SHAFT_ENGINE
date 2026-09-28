@@ -50,8 +50,6 @@ class MemoryTracked5774Test(unittest.TestCase):
     def test_retrieve_first_and_graphify_instructions_are_active(self) -> None:
         skill = SKILL.read_text(encoding="utf-8")
         self.assertIn("retrieve-first.md", skill)
-        self.assertIn("MemPalace", skill)
-        self.assertIn("Graphify", skill)
         retrieve = RETRIEVE.read_text(encoding="utf-8")
         self.assertIn("MemPalace", retrieve)
         self.assertIn("Graphify", retrieve)

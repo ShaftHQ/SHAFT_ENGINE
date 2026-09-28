@@ -130,7 +130,8 @@ class IcmArchitectPhraseGates(unittest.TestCase):
         notices = (ROOT / "chaos-engine/THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
         self.assertIn("RinDig/icm-architect", notices)
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("icm-architect", skill)
+        # The thin router points at the design loop, which still names ICM Architect.
+        self.assertIn("design-loop.md", skill)
         design = (ROOT / "chaos-engine/references/design-loop.md").read_text(encoding="utf-8")
         self.assertIn("ICM Architect", design)
 

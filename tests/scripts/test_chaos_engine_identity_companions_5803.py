@@ -64,13 +64,18 @@ class IdentityMdTests(unittest.TestCase):
 
 class CompanionPolicyTests(unittest.TestCase):
     def test_skill_requires_companions_on_implement(self):
+        contract = (ROOT / "chaos-engine/references/router-contract.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Implement path (required)", contract)
+        self.assertIn("load both at ultra before first mutation", contract)
+        self.assertIn("Caveman+Ponytail", contract)
+        self.assertIn("--without-caveman", contract)
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("Implement path (required)", skill)
-        self.assertIn("load Caveman+Ponytail", skill)
+        self.assertIn("router-contract.md", skill)
         self.assertIn("Ponytail at ultra", skill)
-        self.assertIn("--without-caveman", skill)
 
     def test_implementer_role_mentions_companions(self):
         hosts = load(ROOT / "chaos-engine/hosts.py", "hosts_impl_5803")

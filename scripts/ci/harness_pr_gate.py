@@ -352,6 +352,67 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_consumer_mode_6237",
         ),
     ),
+    # #6244: modules that were red on main and selected by nothing.
+    "surefire-green-contract": Check(
+        "surefire-green-contract",
+        "surefire-green",
+        ("tests.scripts.test_assert_surefire_green",),
+    ),
+    "browserstack-boundary-contract": Check(
+        "browserstack-boundary-contract",
+        "browserstack-boundary",
+        ("tests.scripts.test_browserstack_module_boundary",),
+    ),
+    "icm-architect-contract": Check(
+        "icm-architect-contract",
+        "icm-architect",
+        ("tests.scripts.test_chaos_engine_icm_architect_6001",),
+    ),
+    "identity-companions-contract": Check(
+        "identity-companions-contract",
+        "identity-companions",
+        ("tests.scripts.test_chaos_engine_identity_companions_5803",),
+    ),
+    "memory-tracked-contract": Check(
+        "memory-tracked-contract",
+        "memory-tracked",
+        ("tests.scripts.test_chaos_engine_memory_tracked_5774",),
+    ),
+    "wave-c-ledger-contract": Check(
+        "wave-c-ledger-contract",
+        "wave-c-ledger",
+        ("tests.scripts.test_chaos_engine_wave_c_ledger_retrieve_learning",),
+    ),
+    "freetoken-probe-contract": Check(
+        "freetoken-probe-contract",
+        "freetoken-probe",
+        ("tests.scripts.test_freetoken_probe",),
+    ),
+    "installer-merge-handoff-contract": Check(
+        "installer-merge-handoff-contract",
+        "installer-merge-handoff",
+        ("tests.scripts.test_installer_merge_handoff",),
+    ),
+    "installer-checkout-shim-contract": Check(
+        "installer-checkout-shim-contract",
+        "installer-checkout-shim",
+        ("tests.scripts.test_installer_repo_checkout_detection",),
+    ),
+    "omniroute-calibration-contract": Check(
+        "omniroute-calibration-contract",
+        "omniroute-calibration",
+        ("tests.scripts.test_omniroute_calibration",),
+    ),
+    "process-owner-contract": Check(
+        "process-owner-contract",
+        "process-owner",
+        ("tests.scripts.test_process_owner_scrum_master",),
+    ),
+    "visual-ocr-workflow-contract": Check(
+        "visual-ocr-workflow-contract",
+        "visual-ocr-workflow",
+        ("tests.scripts.test_visual_ocr_workflow",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -387,6 +448,18 @@ SURFACE_CHECKS = {
     "javadoc": ("javadoc-param-arity-contract",),
     "token-waste": ("token-waste-contract",),
     "token-economy": ("token-economy-contract",),
+    "surefire-green": ("surefire-green-contract",),
+    "browserstack-boundary": ("browserstack-boundary-contract",),
+    "icm-architect": ("icm-architect-contract",),
+    "identity-companions": ("identity-companions-contract",),
+    "memory-tracked": ("memory-tracked-contract",),
+    "wave-c-ledger": ("wave-c-ledger-contract",),
+    "freetoken-probe": ("freetoken-probe-contract",),
+    "installer-merge-handoff": ("installer-merge-handoff-contract",),
+    "installer-checkout-shim": ("installer-checkout-shim-contract",),
+    "omniroute-calibration": ("omniroute-calibration-contract",),
+    "process-owner": ("process-owner-contract",),
+    "visual-ocr-workflow": ("visual-ocr-workflow-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -654,6 +727,382 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_check_javadoc_param_arity.py",
         "tests/scripts/test_chaos_engine_zero_llm_catalog.py",
         "shaft-engine/src/main/java/com/shaft/gui/element/internal/interaction/*",
+    ),
+    "surefire-green": (
+        "scripts/ci/assert_surefire_green.py",
+        "scripts/ci/run_click_type_wave_f_proof.sh",
+        "chaos-engine/references/work-github-playbook.md",
+        "tests/scripts/test_assert_surefire_green.py",
+    ),
+    "browserstack-boundary": (
+        ".github/workflows/e2eTests.yml",
+        "shaft-browserstack/pom.xml",
+        "shaft-engine/pom.xml",
+        "tests/scripts/test_browserstack_module_boundary.py",
+    ),
+    "icm-architect": (
+        "chaos-engine/README.md",
+        "chaos-engine/THIRD_PARTY_NOTICES.md",
+        "chaos-engine/references/design-loop.md",
+        "chaos-engine/skills/chaos-engine/SKILL.md",
+        "chaos-engine/hooks/lifecycle.py",
+        "tests/scripts/test_chaos_engine_icm_architect_6001.py",
+    ),
+    "identity-companions": (
+        "chaos-engine/references/router-contract.md",
+        "chaos-engine/skills/chaos-engine/SKILL.md",
+        "chaos-engine/identity.md",
+        "chaos-engine/identity_md.py",
+        "chaos-engine/hosts.py",
+        "tests/scripts/test_chaos_engine_identity_companions_5803.py",
+    ),
+    "memory-tracked": (
+        ".gitignore",
+        "chaos-engine/references/retrieve-first.md",
+        "chaos-engine/references/graphify.md",
+        "chaos-engine/skills/chaos-engine/SKILL.md",
+        "tests/scripts/test_chaos_engine_memory_tracked_5774.py",
+    ),
+    "wave-c-ledger": (
+        "chaos-engine/retrieve.py",
+        "chaos-engine/tool.py",
+        "chaos-engine/learning.py",
+        "tests/scripts/test_chaos_engine_wave_c_ledger_retrieve_learning.py",
+    ),
+    "freetoken-probe": (
+        "chaos-engine/skills/freetoken/scripts/probe.py",
+        "tests/scripts/test_freetoken_probe.py",
+    ),
+    "installer-merge-handoff": (
+        "chaos-engine/hosts.py",
+        "chaos-engine/install.py",
+        "chaos-engine/bootstrap.py",
+        "tests/scripts/test_installer_merge_handoff.py",
+    ),
+    "installer-checkout-shim": (
+        "scripts/mcp/install-shaft-mcp.sh",
+        "scripts/mcp/install-shaft-mcp.ps1",
+        "tests/scripts/test_installer_repo_checkout_detection.py",
+    ),
+    "omniroute-calibration": (
+        "scripts/ci/chaos_gauge/omniroute_calibration.py",
+        "chaos-engine/decision-quality-calibration.aggregate.json",
+        "tests/scripts/test_omniroute_calibration.py",
+    ),
+    "process-owner": (
+        "chaos-engine/references/process-owner-scrum-master.md",
+        "chaos-engine/references/router-contract.md",
+        "chaos-engine/references/roles.md",
+        "chaos-engine/references/orchestrator-follow-through.md",
+        "chaos-engine/references/execution-workflows.md",
+        "tests/scripts/test_process_owner_scrum_master.py",
+    ),
+    "visual-ocr-workflow": (
+        ".github/workflows/e2eTests.yml",
+        ".github/workflows/e2eLocalTests.yml",
+        "shaft-engine/src/test/java/testPackage/appium/AndroidBasicInteractionsTests.java",
+        "shaft-engine/src/test/java/testPackage/appium/IOSBasicInteractionsTest.java",
+        "tests/scripts/test_visual_ocr_workflow.py",
+    ),
+}
+
+UNGATED_TEST_ALLOWLIST = {
+    'tests.scripts.test_assemble_javadocs': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_assemble_shard_blob': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_assert_tests_executed': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_build_shaft_mcp_live_jar': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_ce_brief': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_ce_brief_doctor': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_ce_brief_eval_fixtures': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_cli_over_mcp': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_codacy_complexity_gate_5747': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_delivery_phase_gates': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_empty_project_smoke': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_exit2_fidelity': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_g1_doctor_heal_5812_5813': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_host_parity_5698': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_host_parity_5780_5785': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_host_parity_matrix': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_install_golden_path': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_install_verify_5699': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_install_verify_5703': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_installer_host_adapter_drift_5633': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_installer_self_heal_5630': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_learn_contracts': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_learning_5767_5770': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_learning_5776': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_learning_5787': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_learning_5790_5791': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_learning_5795': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_learning_5852': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_learning_5882_5883': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_memory_migrate': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_missing_core_recovery': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_official_self_heal_5811': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_overlay_commit_bytes_6121': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_portable_learn_5847': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_s0s1_self_improve': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_s2_self_improve': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_s4_self_improve': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_self_improve': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_sessionstart_locator_parity': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_soft_fixnext_5831': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_stores': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_token_budget_modes': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_token_max': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_uninstall_clarity': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_wave_a_health_truth': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_chaos_engine_wave_b_router_catalog': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_check_maven_release_version': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_colibri_probe': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_decision_quality_baseline': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_decision_quality_readme_evidence': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_decision_quality_rubric': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_design_turn_gate': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_doctor_agent_summary': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_doctor_overlay_drift_6136': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_drag_and_drop_fixture': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_gap_exit2_payload_6137': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_grok_lean_config_5803': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_harness_program_6140': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_insert_mcp_tool_manifest_entry': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_instruction_only_receipt_6201': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_learning_session': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_llamacpp_bringup_6141': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_local_agency_dispatch': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_local_ai_poc': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_local_coding_agent': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_local_openai_compat_probe': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_local_runtimes_fold_6200': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_mcp_opt_in_6199': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_mempalace_backend_mismatch_6212': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_mempalace_promote': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_omniroute_catalog': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_omniroute_coding_filter': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_omniroute_failover': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_omniroute_productive_dispatch': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_omniroute_proof_of_dispatch': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_playwright_setup_workflow': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_post_test_report_action': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_prepare_release_pr': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_reconcile_maven_central_release': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_reflection_commit_credit': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_retrieve_justification_gate': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_reviewer_headings_6138': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_run_sharded_and_merge': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_self_improvement_controller': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_session_token_usage': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_shaft_one_liner_installers': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_shim_pointer_6139': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_sikulix_module_boundary': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_soup_delegate_poc': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_unattended_delivery_resume': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_upgrade_to_modular_shaft': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_validate_documentation_boundaries': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_validate_maven_publication': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_validate_modular_documentation': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_validate_reactor_versions': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_vendor_plugin_adapters_6198': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_verify_maven_central_release': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_verify_shaft_mcp_installer_release': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
+    ),
+    'tests.scripts.test_video_module_boundary': (
+        'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
     ),
 }
 

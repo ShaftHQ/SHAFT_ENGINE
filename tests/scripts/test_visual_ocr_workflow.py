@@ -121,7 +121,7 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
         steps = workflow["jobs"]["Ubuntu_Flutter_Emulator_Local"]["steps"]
         setup = next(step for step in steps if step.get("name") == "Setup Android SDK")
-        self.assertEqual("android-actions/setup-android@v4.0.1", setup["uses"])
+        self.assertEqual("android-actions/setup-android@v4.0.4", setup["uses"])
         self.assertEqual("platform-tools", setup.get("with", {}).get("packages"))
         self.assertNotIn("tools", (setup.get("with", {}).get("packages") or "").split())
 
@@ -236,9 +236,9 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         )
         self.assertIsNotNone(method)
         body = method.group(1)
-        self.assertIn("tab12Screenshot", body)
-        self.assertIn("ImageTarget.fromBytes(tab12Screenshot)", body)
-        self.assertNotIn('OcrTarget.exact("TAB 12")', body)
+        # tab12Screenshot was replaced by the TAB 12 xpath and exact OCR.
+        self.assertIn("TAB 12", body)
+        self.assertIn('OcrTarget.exact("TAB 12")', body)
         self.assertNotIn('OcrTarget.containing("TAB 1")', body)
         self.assertIn('OcrTarget.exact("TAB 1")', body)
 

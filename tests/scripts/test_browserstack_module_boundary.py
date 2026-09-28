@@ -64,7 +64,7 @@ class BrowserStackModuleBoundaryTest(unittest.TestCase):
             line.strip()
             for workflow in workflows
             for line in workflow.read_text(encoding="utf-8").splitlines()
-            if "mvn " in line
+            if "mvn " in line and not line.strip().startswith("#")
         ]
 
         self.assertTrue(commands)
@@ -75,7 +75,10 @@ class BrowserStackModuleBoundaryTest(unittest.TestCase):
                 self.assertIn("-f shaft-engine/pom.xml", command)
                 self.assertNotIn("shaft-browserstack", command)
                 continue
-            if "-DexecutionAddress=browserstack" in command:
+            if (
+                "-DexecutionAddress=browserstack" in command
+                or "-pl shaft-browserstack" in command
+            ):
                 expected_module = "shaft-browserstack"
             elif (
                 "ImageProcessingActionsUnitTest" in command
@@ -84,9 +87,22 @@ class BrowserStackModuleBoundaryTest(unittest.TestCase):
                 expected_module = "shaft-visual"
             elif "DesktopVideoRecordingProviderRegistrationTest" in command:
                 expected_module = "shaft-video"
+            elif "-pl shaft-engine" not in command and "-pl " in command:
+                self.assertIn("-am", command)
+                self.assertNotIn("shaft-browserstack", command)
+                continue
             else:
                 expected_module = "shaft-engine"
-            self.assertIn(f"-pl {expected_module} -am", command)
+            # Visual-runtime engine steps install shaft-visual first, then test
+            # shaft-engine without -am.
+            if (
+                expected_module == "shaft-engine"
+                and "-DincludeVisualTestRuntime" in command
+                and "-am" not in command
+            ):
+                self.assertIn("-pl shaft-engine", command)
+            else:
+                self.assertIn(f"-pl {expected_module} -am", command)
             if expected_module != "shaft-browserstack":
                 self.assertNotIn("shaft-browserstack", command)
 

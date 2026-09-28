@@ -161,7 +161,7 @@ class WaveCLedgerRetrieveLearningTests(unittest.TestCase):
         with (
             mock.patch.object(self.retrieve.subprocess, "run", return_value=completed),
             mock.patch.object(self.retrieve, "_tool_py", return_value=ROOT / "chaos-engine/tool.py"),
-            mock.patch.object(self.retrieve, "_record_store_citations"),
+            mock.patch.object(self.retrieve, "_record_store_outcome"),
         ):
             receipt = self.retrieve._run_store(ROOT, "graphify", "what calls guard")
         self.assertEqual("used", receipt["status"])
