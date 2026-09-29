@@ -996,6 +996,7 @@ public class DriverFactoryHelper {
         ReportManager.logDiscrete(initialLog + ".");
         var localDriverFailures = new ArrayList<Throwable>();
         var initializationStartTime = System.currentTimeMillis();
+        var safariPairingRecoveryUsed = false;
         for (int attempt = 0; attempt <= retryAttempts; attempt++) {
             try {
                 ReportManager.logDiscrete(WEB_DRIVER_MANAGER_MESSAGE);
@@ -1072,11 +1073,21 @@ public class DriverFactoryHelper {
                             optionsManager.setEdOptions(edOptions);
                         }
                     }
-                } else if (message != null && message.contains("The Safari instance is already paired with another WebDriver session.")) {
-                    //this issue happens when running locally via safari/mac platform
-                    // attempting blind fix by trying to quit existing safari instances if any, then
-                    // retrying (issue #1548): safaridriver only allows one active session system-wide,
-                    // so killing the stale pairing is useless unless we retry with the now-freed instance
+                } else if (message != null && message.contains("The Safari instance is already paired")) {
+                    // Local Safari/macOS. safaridriver allows one session system-wide.
+                    // Current safaridriver says "already paired with a different session";
+                    // older builds said "another WebDriver session" (#1548, nightly #6277).
+                    // Killing the stale pairing is useless unless construction is retried,
+                    // including when the caller already spent its retry budget.
+                    // shouldRetry is captured before this branch, so the extra attempt
+                    // has to be granted here or the loop exits on the pairing error.
+                    if (!safariPairingRecoveryUsed) {
+                        safariPairingRecoveryUsed = true;
+                        shouldRetry = true;
+                        if (attempt >= retryAttempts) {
+                            retryAttempts = attempt + 1;
+                        }
+                    }
                     try {
                         SHAFT.CLI.terminal().performTerminalCommands(Arrays.asList(
                                 "osascript -e 'quit app \"Safari\"'", "osascript -e 'quit app \"SafariDriver\"'",

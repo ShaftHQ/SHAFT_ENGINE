@@ -4860,7 +4860,36 @@ class StaleGraphRefreshOnInstall6234Test(unittest.TestCase):
                 ),
             ):
                 MODULE.install_with_dependencies(project, SOURCE, TEST_COMMIT, with_maven_tools=False)
-            self.assertEqual(["shims", ("graph", project)], order)
+            self.assertEqual("shims", order[0])
+            self.assertEqual("graph", order[1][0])
+            self.assertTrue(MODULE.same_consumer_location(project, order[1][1]))
+
+    def test_consumer_location_accepts_ci_path_aliases(self):
+        # Run 36557240639: resolve() rewrote the temp dir on windows-2025 and macos-15.
+        windows_short = r"C:\Users\RUNNER~1\AppData\Local\Temp\tmp7qwco8q8\consumer"
+        windows_long = r"C:\Users\runneradmin\AppData\Local\Temp\tmp7qwco8q8\consumer"
+        mac_alias = "/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/tmp/consumer"
+        mac_resolved = "/private/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/tmp/consumer"
+        self.assertTrue(MODULE.same_consumer_location(windows_short, windows_long))
+        self.assertTrue(MODULE.same_consumer_location(mac_alias, mac_resolved))
+        self.assertFalse(
+            MODULE.same_consumer_location(
+                windows_short,
+                r"C:\Users\RUNNER~1\AppData\Local\Temp\tmpOTHER\consumer",
+            )
+        )
+        self.assertFalse(
+            MODULE.same_consumer_location(
+                mac_alias,
+                "/private/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/other/consumer",
+            )
+        )
+        self.assertFalse(
+            MODULE.same_consumer_location(
+                windows_long,
+                r"C:\Users\someoneelse\AppData\Local\Temp\tmp7qwco8q8\consumer",
+            )
+        )
 
 if __name__ == "__main__":
     unittest.main()

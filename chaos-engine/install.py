@@ -4132,6 +4132,49 @@ def _running_under_tests() -> bool:
     return "unittest" in argv or "tests/scripts" in argv
 
 
+def same_consumer_location(left: Path | str, right: Path | str) -> bool:
+    """True when two consumer paths name the same directory.
+
+    ``Path.resolve()`` rewrites a Windows 8.3 short account directory to the
+    long account name, and prefixes the macOS temporary directory with the
+    private alias. Those aliases are the same location. A different directory
+    component is not.
+    """
+
+    def parts(value: Path | str) -> list[str]:
+        text = str(value).replace("\\", "/")
+        if text.startswith("/private/"):
+            text = text[len("/private") :]
+        return [part for part in text.split("/") if part]
+
+    left_parts = parts(left)
+    right_parts = parts(right)
+    if len(left_parts) != len(right_parts):
+        return False
+    return all(
+        _path_component_equivalent(one, other)
+        for one, other in zip(left_parts, right_parts)
+    )
+
+
+def _path_component_equivalent(left: str, right: str) -> bool:
+    if left.casefold() == right.casefold():
+        return True
+    return _windows_short_name_matches(left, right) or _windows_short_name_matches(right, left)
+
+
+def _windows_short_name_matches(short: str, long: str) -> bool:
+    """8.3 stems keep the first six alphanumeric characters of the long name."""
+    match = re.fullmatch(r"(.{1,6})~\d+", short)
+    if match is None:
+        return False
+    cleaned = "".join(character for character in long if character.isalnum())
+    prefix = match.group(1)
+    if len(cleaned) <= len(prefix):
+        return False
+    return cleaned.casefold().startswith(prefix.casefold())
+
+
 def refresh_stale_graph(project: Path, *, stores=None) -> str:
     """Rebuild an existing shared graph that no longer matches the default-branch tip.
 

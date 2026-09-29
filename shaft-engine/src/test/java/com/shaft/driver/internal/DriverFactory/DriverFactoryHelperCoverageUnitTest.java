@@ -1241,6 +1241,38 @@ public class DriverFactoryHelperCoverageUnitTest {
         }
     }
 
+    @Test
+    public void createNewLocalDriverInstanceReleasesADifferentSessionPairingBeforeRetrying() throws Exception {
+        // Nightly MacOSX_Safari_Local_2 (run 36532126939): safaridriver reports
+        // "already paired with a different session". With a spent retry budget the
+        // stale pairing must still be released and construction retried once.
+        DriverFactoryHelper helper = new DriverFactoryHelper();
+        OptionsManager mockedOptionsManager = org.mockito.Mockito.mock(OptionsManager.class);
+        org.mockito.Mockito.when(mockedOptionsManager.getSfOptions())
+                .thenThrow(new SessionNotCreatedException(
+                        "Could not create a session: The Safari instance is already paired with a different session."))
+                .thenReturn(new SafariOptions());
+
+        Field optionsManagerField = DriverFactoryHelper.class.getDeclaredField("optionsManager");
+        optionsManagerField.setAccessible(true);
+        optionsManagerField.set(helper, mockedOptionsManager);
+
+        Method createNewLocalDriverInstance = DriverFactoryHelper.class.getDeclaredMethod(
+                "createNewLocalDriverInstance", com.shaft.driver.DriverFactory.DriverType.class, int.class);
+        createNewLocalDriverInstance.setAccessible(true);
+
+        try (MockedConstruction<TerminalActions> ignoredTerminal = org.mockito.Mockito.mockConstruction(TerminalActions.class);
+             MockedConstruction<SafariDriver> ignoredSafari = org.mockito.Mockito.mockConstruction(SafariDriver.class)) {
+            createNewLocalDriverInstance.invoke(helper, com.shaft.driver.DriverFactory.DriverType.SAFARI, 0);
+
+            SHAFT.Validations.assertThat().object(helper.getDriver()).isNotNull().perform();
+            org.mockito.Mockito.verify(mockedOptionsManager, org.mockito.Mockito.times(2)).getSfOptions();
+            SHAFT.Validations.assertThat().object(ignoredSafari.constructed().size()).isEqualTo(1).perform();
+            org.mockito.Mockito.verify(ignoredTerminal.constructed().get(0))
+                    .performTerminalCommands(org.mockito.ArgumentMatchers.anyList());
+        }
+    }
+
     private static class TestableDriverFactoryHelper extends DriverFactoryHelper {
         private com.shaft.driver.DriverFactory.DriverType capturedDriverType;
         private MutableCapabilities capturedCustomDriverOptions;
