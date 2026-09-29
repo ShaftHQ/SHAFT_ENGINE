@@ -35,8 +35,8 @@ class ReportingSetupServiceTest {
             lock = new String(java.util.Objects.requireNonNull(lockInput).readAllBytes(), StandardCharsets.UTF_8);
         }
 
-        assertTrue(packageJson.contains("\"adm-zip\": \"0.6.0\""));
-        assertTrue(lock.matches("(?s).*\"node_modules/adm-zip\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"0\\.6\\.0\".*"));
+        assertTrue(packageJson.contains("\"adm-zip\": \"0.6.1\""));
+        assertTrue(lock.matches("(?s).*\"node_modules/adm-zip\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"0\\.6\\.1\".*"));
     }
 
     @Test
