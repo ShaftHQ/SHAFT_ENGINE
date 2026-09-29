@@ -565,6 +565,10 @@ def _terminal_reflection_reason(event: dict, session_id: str) -> str:
     if not missing:
         reflection.accept_terminal_reflection(session_id)
         return ""
+    # A host sets stop_hook_active on the retry of a blocked stop. Demanding
+    # again there loops. The session still asks on a later stop that is not a retry.
+    if bool(event.get("stop_hook_active") or event.get("stopHookActive")):
+        return ""
     return (
         "Terminal reflection required once this session. Include "
         + ", ".join(missing)
