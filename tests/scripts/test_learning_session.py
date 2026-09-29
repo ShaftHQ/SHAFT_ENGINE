@@ -368,17 +368,23 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                     )
 
     def test_unfinalized_delivery_requires_terminal_session_completion(self):
-        with patch(
-            "scripts.agents.guard.ledger_events",
-            return_value=[
-                "commit",
-                'delivery:{"repository":"ShaftHQ/SHAFT_ENGINE"}',
-                "learning-signal:first",
-                "learning-assessed:first",
-                "learning-signal:second",
-            ],
-        ), patch("scripts.agents.guard.check_r29_delivery_complete", return_value=None):
-            self.assertIsNotNone(guard.check_r16_learning_session({"session_id": "s"}))
+        session = "unfinalized-delivery"
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(os.environ, {"TMPDIR": directory, "TEMP": directory, "TMP": directory}):
+                spec = importlib.util.spec_from_file_location(
+                    "ce_guard_unfinalized",
+                    Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                module.reflection.record_activity(session, "delivery-complete")
+                guard._portable_hook_guard.cache_clear()
+                reason = guard.check_r16_learning_session(
+                    {"hook_event_name": "Stop", "session_id": session}
+                )
+        guard._portable_hook_guard.cache_clear()
+        self.assertIsNotNone(reason)
+        self.assertTrue(reason.casefold().startswith("learning session:"))
 
 
 class StructuredLearningReceiptTest(unittest.TestCase):

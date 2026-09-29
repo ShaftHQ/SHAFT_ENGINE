@@ -796,6 +796,50 @@ process.stderr.write(result.stderr || '');
             ],
         )
 
+    def test_unpaid_learning_session_outranks_retrieve_on_stop_retry(self):
+        """#6282: delivery-complete owes Learning Session before any retrieve citation."""
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("ce_guard_6282", HOOK)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        session = "learn-debt-6282"
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary, "TMP": temporary}
+            project = Path(temporary) / "project"
+            project.mkdir()
+            with patch.dict(os.environ, environment):
+                module.reflection.record_activity(session, "delivery-complete")
+                module.justification._mark_session(project, session, owe=True)
+                gap = module.justification.session_retrieve_gap(project, session)
+                self.assertEqual(module.justification.RETRIEVE_COMMAND, gap)
+                reasons = []
+                for retry in (False, True):
+                    reason = module._stop_block_reason(
+                        {
+                            "hook_event_name": "Stop",
+                            "session_id": session,
+                            "cwd": str(project),
+                            "stop_hook_active": retry,
+                        },
+                        session,
+                    )
+                    reasons.append(reason)
+                    again = module._stop_block_reason(
+                        {
+                            "hook_event_name": "Stop",
+                            "session_id": session,
+                            "cwd": str(project),
+                            "stop_hook_active": retry,
+                        },
+                        session,
+                    )
+                    self.assertEqual(reason, again)
+        for reason in reasons:
+            self.assertTrue(reason.casefold().startswith("learning session:"))
+            self.assertNotIn(module.justification.RETRIEVE_COMMAND, reason)
+            self.assertNotIn("tool.py retrieve", reason)
+
     def test_repeated_stop_events_never_create_a_hook_loop(self):
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}

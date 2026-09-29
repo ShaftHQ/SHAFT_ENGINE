@@ -27,7 +27,7 @@ events and point them at the installed ChaosEngine guard:
 | `PreToolUse` | Deny catastrophic or out-of-contract tool use. Hold work that owes a reflection receipt. When a session worktree manifest exists, deny mutations of the primary checkout. |
 | `PostToolUse` | Record mutation, delivery, and outcome for reflection. Soft significance marks on fail only (no Observer). |
 | `PostToolUseFailure` | Record the failure, soft significance mark, and inject a pending reflection checkpoint when one is owed. |
-| `Stop` | Collect incomplete delivery duties once without manufacturing work. Never create or delete worktrees; Stop is per-turn. Plan Mode stays read-only: it may finish in a pre-dirty or unverifiable checkout without inheriting unrelated delivery, synchronization, tracking, cleanup, or Learning Session duties; confirmed NUL corruption still blocks with preservation guidance. Normal completion ownership applies to task-created mutation. Never start learning before delivery. After delivery, require exactly one root-owned terminal Learning Session completion immediately before the final report. `stop_hook_active` lets the retry proceed. |
+| `Stop` | Collect incomplete delivery duties once without manufacturing work. Never create or delete worktrees; Stop is per-turn. Plan Mode stays read-only: it may finish in a pre-dirty or unverifiable checkout without inheriting unrelated delivery, synchronization, tracking, cleanup, or Learning Session duties; confirmed NUL corruption still blocks with preservation guidance. Normal completion ownership applies to task-created mutation. Never start learning before delivery. After delivery, require exactly one root-owned terminal Learning Session completion immediately before the final report. That reason comes before any retrieve citation. `stop_hook_active` lets other duties proceed once; it does not clear an unpaid Learning Session. |
 | `SubagentStop` | Apply delegate-owned completion duties only. Never start or inherit the root terminal Learning Session. Never create or delete the root session worktree. A delegate that missed SessionStart still owes the entrypoint through its role adapter. |
 | `SessionEnd` | Remove this session's worktree only after merge is recorded locally and the tree is clean. Keep the local branch. Codex and Grok cap this handler at 3 seconds. Hosts without SessionEnd rely on the next SessionStart to reap merged leftovers. |
 
@@ -161,7 +161,10 @@ prose, as those files already require.
 ## Learning Session
 
 Stop becomes the Learning Session gate only after delivery is complete
-(`delivery-status` or confirmed `gh pr merge`). Commits, guard refusals,
+(`delivery-status` or confirmed `gh pr merge`). That reason is returned before
+any retrieve citation. `stop_hook_active` does not clear an unpaid
+delivery-complete debt; a later Stop still blocks until a completion artifact
+exists. Commits, guard refusals,
 diagnostics, intermediate pushes, and recorded signals never start it early.
 Unchanged `chaos-engine/` files are not a valid skip — product-only
 deliveries still owe the gate. The root session records one immutable completion
@@ -170,6 +173,8 @@ Harness lessons, findings, and potential enhancements are GitHub issues only
 and are not written to a local queue or into chat. Delegates
 never own this terminal phase. Hooks own enforcement so every host shares the
 same outcome (harness parity); do not rely on agent-local routines.
+`scripts/agents/guard.py` calls this same portable reason before it yields
+to `stop_hook_active`.
 
 ## Checks
 

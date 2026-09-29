@@ -48,7 +48,8 @@ adapter sees the same durable self-model.
 
 ## Self-development
 
-- After delivery, run one Learning Session. Unchanged overlay files are not a skip.
+- After delivery, run one Learning Session before any retrieve citation.
+  Unchanged overlay files are not a skip. A host retry does not cancel that debt.
 - Dual track: harness guidance vs product tickets. Search before filing.
 - If Learning Session `assess` refuses `novel_success` under a one-incident
   rule (#6015), still finalize: file or update the durable harness/product

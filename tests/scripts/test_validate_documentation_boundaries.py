@@ -146,6 +146,15 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_ignores_gitignored_install_and_backup_trees(self):
+        self.write(".chaos-engine/identity.md", "# Installed identity\n")
+        self.write(
+            ".chaos-engine.backup/references/lifecycle-hooks.md",
+            "# Backup hooks\n",
+        )
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_ignores_markdown_inside_claude_worktrees(self):
         self.write(
             ".claude/worktrees/agent-a/docs/anything.md",

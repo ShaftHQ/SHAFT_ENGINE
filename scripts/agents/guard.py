@@ -5349,28 +5349,8 @@ def _open_pull_request_count(branch: str | None, cwd: object = None) -> int | No
 
 
 def check_r16_learning_session(hook_input: dict) -> str | None:
-    """Require one Learning Session only after delivery is already complete."""
-    if hook_input.get("hook_event_name") == "SubagentStop" or hook_input.get(
-        "hookEventName"
-    ) == "SubagentStop":
-        return None
-    events = ledger_events(hook_input)
-    if "commit" not in events or check_r29_delivery_complete(hook_input) is not None:
-        return None
-    session_id = hook_input.get("session_id")
-    if isinstance(session_id, str) and session_id.strip():
-        learning_session = _learning_session_core()
-        state = learning_session.default_state_dir()
-        if (
-            learning_session.load_session_completion(state, session_id) is not None
-            or learning_session.load_runtime_completion(state, session_id) is not None
-        ):
-            return None
-    return (
-        "Learning Session: delivery is complete. Run exactly one terminal Learning "
-        "Session now, after timing, failed-call, recursion, and cleanup analysis, then "
-        "record its immutable completion receipt immediately before the final report."
-    )
+    """Repository Stop shares the portable Learning Session reason."""
+    return _portable_learning_session_reason(hook_input)
 
 
 
@@ -5672,9 +5652,47 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
     )
 
 
+@lru_cache(maxsize=1)
+def _portable_hook_guard():
+    """The installed Stop owner. Repository Stop must not invent a second order."""
+    path = Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("chaos_engine_portable_stop", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _portable_learning_session_reason(hook_input: dict) -> str | None:
+    """Delivery-complete Learning Session from the portable hook, before retrieve."""
+    event = str(hook_input.get("hook_event_name") or hook_input.get("hookEventName") or "")
+    if event == "SubagentStop":
+        return None
+    session_id = str(hook_input.get("session_id") or hook_input.get("sessionId") or "").strip()
+    if not session_id:
+        return None
+    module = _portable_hook_guard()
+    if module is None:
+        return None
+    reason = module.learning_session_reason(session_id, hook_input)
+    return reason or None
+
+
 def run_stop(hook_input: dict) -> int:
-    """Continue incomplete repository work once, without creating a Stop loop."""
-    if hook_input.get("stop_hook_active") is True:
+    """Continue incomplete repository work once, without creating a Stop loop.
+
+    An unpaid Learning Session is the exception: `stop_hook_active` still
+    blocks, and that reason stays ahead of any retrieve citation.
+    """
+    retry = bool(hook_input.get("stop_hook_active") or hook_input.get("stopHookActive"))
+    if retry:
+        learning = check_r16_learning_session(hook_input)
+        if learning:
+            print(json.dumps({"decision": "block", "reason": learning}))
+            return 0
         elapsed = _reflection.session_elapsed_seconds(
             _reflection_session_id(hook_input)
         )
@@ -6053,10 +6071,7 @@ def _with_stubs(replacements: dict, action):
 
 _STOP_RULE_RENDERERS = {
     "check_r16_learning_session": lambda: _with_stubs(
-        {
-            "ledger_events": lambda payload: ["commit", "delivery:{}"],
-            "check_r29_delivery_complete": lambda payload: None,
-        },
+        {"_portable_learning_session_reason": lambda payload: "Learning Session: owed."},
         lambda: check_r16_learning_session({"session_id": "s"}),
     ),
     "check_r18_unpushed_work": lambda: _with_stubs(
@@ -6219,63 +6234,26 @@ def run_required_action_self_test() -> int:
         )
         is None,
     )
-    # R16: only completed delivery owes one terminal Learning Session.
+    # R16 prints the portable sentence and does not invent a second one.
     check(
-        "R16 ignores a commit before delivery",
+        "R16 is quiet when the portable Learning Session is quiet",
         _with_stubs(
-            {"ledger_events": lambda payload: ["commit"]},
+            {"_portable_learning_session_reason": lambda payload: None},
             lambda: check_r16_learning_session({"session_id": "s"}),
         )
         is None,
     )
     check(
-        "R16 reports delivered work without terminal completion",
+        "R16 returns the portable Learning Session sentence",
         _with_stubs(
             {
-                "ledger_events": lambda payload: ["commit", "delivery:{}"],
-                "check_r29_delivery_complete": lambda payload: None,
-            },
-            lambda: check_r16_learning_session({"session_id": "s"}),
-        )
-        is not None,
-    )
-    check(
-        "R16 ignores forged ledger completion without an artifact",
-        _with_stubs(
-            {
-                "ledger_events": lambda payload: [
-                    "commit",
-                    "delivery:{}",
-                    "learning-session-complete:" + "a" * 64,
-                ],
-                "check_r29_delivery_complete": lambda payload: None,
-            },
-            lambda: check_r16_learning_session({"session_id": "s"}),
-        )
-        is not None,
-    )
-    def _r16_with_real_completion():
-        learning_session = _learning_session_core()
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory) / "chaosengine-learning-v1"
-            learning_session.attest_no_learning(state, "s", "no_new_evidence")
-            learning_session.finalize_session(state, "s")
-            original = learning_session.default_state_dir
-            learning_session.default_state_dir = lambda: state
-            try:
-                return _with_stubs(
-                    {
-                        "ledger_events": lambda payload: ["commit", "delivery:{}"],
-                        "check_r29_delivery_complete": lambda payload: None,
-                    },
-                    lambda: check_r16_learning_session({"session_id": "s"}),
+                "_portable_learning_session_reason": lambda payload: (
+                    "Learning Session: owed."
                 )
-            finally:
-                learning_session.default_state_dir = original
-
-    check(
-        "R16 accepts one immutable terminal completion artifact",
-        _r16_with_real_completion() is None,
+            },
+            lambda: check_r16_learning_session({"session_id": "s"}),
+        )
+        == "Learning Session: owed.",
     )
 
     # R31: controller operations are terminal and root-session owned.

@@ -120,8 +120,9 @@ TERMINAL_LABELS = (
 
 
 def learning_session_reason(session_id: str, event: dict) -> str | None:
-    if bool(event.get("stop_hook_active") or event.get("stopHookActive")):
-        return None
+    # stop_hook_active is the host retry after an earlier Stop block. A retrieve
+    # citation used to be that block, and the retry then returned without a
+    # Learning Session (#6281 session). Delivery-complete still owes the session.
     recorded = reflection.entries(session_id)
     activities = {
         item.get("activity")
@@ -577,6 +578,12 @@ def _terminal_reflection_reason(event: dict, session_id: str) -> str:
 
 
 def _stop_block_reason(event: dict, session_id: str) -> str:
+    # Learning Session outranks a retrieve citation. Otherwise a delivery-complete
+    # Stop ends on the retrieve command and the host retry never asks again.
+    if event.get("hook_event_name") != "SubagentStop":
+        loop_reason = learning_session_reason(session_id, event)
+        if loop_reason:
+            return loop_reason
     if justification is not None and event.get("hook_event_name") != "SubagentStop":
         root = justification.project_root(Path(str(event.get("cwd") or Path.cwd())))
         gap = justification.session_retrieve_gap(root, session_id)
@@ -589,9 +596,6 @@ def _stop_block_reason(event: dict, session_id: str) -> str:
         return reflection_reason
     if bool(event.get("stop_hook_active") or event.get("stopHookActive")):
         return ""
-    loop_reason = learning_session_reason(session_id, event)
-    if loop_reason:
-        return loop_reason
     return _pending_watch_claim_reason(event)
 
 

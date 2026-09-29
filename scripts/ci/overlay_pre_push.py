@@ -124,10 +124,36 @@ def tip_preflight_failures(root: Path, paths: list[str]) -> list[str]:
     return [f"tip preflight: {failure}" for failure in module.preflight_failures(root, paths)]
 
 
+def portable_core_path_failures(root: Path) -> list[str]:
+    """Reject a chaos-engine tree that contains a machine-specific path (#6284).
+
+    This is the same check as
+    ``ChaosEnginePortableCoreTest.test_generic_core_has_no_shaft_or_machine_specific_paths``.
+    A checkout without the portable installer is not that tree.
+    """
+    if not (root / "chaos-engine" / "install.py").is_file():
+        return []
+    import unittest
+
+    from tests.scripts.test_chaos_engine_portable_core import ChaosEnginePortableCoreTest
+
+    case = ChaosEnginePortableCoreTest("test_generic_core_has_no_shaft_or_machine_specific_paths")
+    result = unittest.TestResult()
+    case.run(result)
+    if result.wasSuccessful():
+        return []
+    detail = ""
+    if result.failures or result.errors:
+        detail = (result.failures + result.errors)[0][1].strip().splitlines()[-1]
+    return [f"portable core path check failed: {detail}"]
+
+
 def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
     """Return contract failures for one overlay diff. Empty means the push may proceed."""
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
     failures: list[str] = tip_preflight_failures(root, changed)
+    if any(path.replace("\\", "/").lstrip("./").startswith("chaos-engine/") for path in changed):
+        failures.extend(portable_core_path_failures(root))
     if not any(touches_overlay_contract(path) for path in changed):
         return failures
     playbook = root / PLAYBOOK

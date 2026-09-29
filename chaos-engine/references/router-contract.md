@@ -214,7 +214,9 @@ leftover risks become `gh` issues, never chat-only.
 After confirmed delivery and any terminal reflection, run exactly one root-owned
 Learning Session immediately before the final report. Portable Stop /
 delivery-complete hooks enforce this on every supported host — including when
-`chaos-engine/` files were untouched. Load
+`chaos-engine/` files were untouched. On that Stop the Learning Session reason
+is emitted before any retrieve citation, including when `stop_hook_active` is
+set. The same unpaid debt blocks again until a completion artifact exists. Load
 [self-improve](../skills/self-improve/SKILL.md) for the dual-track harness + product
 protocol. Never start it from a
 commit, guard refusal, failed diagnostic, delegate stop, or intermediate push.

@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: release-note-governance-${{ github.event.pull_request.number || github.sha }}
@@ -36,3 +37,5 @@ jobs:
         run: |
           python3 -m unittest tests.scripts.test_validate_release_notes tests.scripts.test_render_release_notes -v
           python3 scripts/ci/validate_release_notes.py --event "$GITHUB_EVENT_PATH"
+        env:
+          GH_TOKEN: ${{ github.token }}

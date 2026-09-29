@@ -979,10 +979,17 @@ def collect_worktree_metrics(root: Path = ROOT, *, run_external: bool = True) ->
     # collectors and can gain an external check without a signature change.
     del run_external
     report = collect_worktree_report(root)
+    # Remote-only orphans belong to other branches. The setup gate reports the
+    # current checkout. `worktree_hygiene.py` still lists those remotes.
+    visible = [
+        entry
+        for entry in report
+        if not (entry.get("is_remote_only") and entry.get("state") == "orphaned")
+    ]
     return {
         "worktrees": report,
         "worktree_advisories": format_advisories(
-            report,
+            visible,
             check_pull_requests_command=(
                 "py -3 scripts/ci/worktree_hygiene.py --check-pull-requests"
             ),

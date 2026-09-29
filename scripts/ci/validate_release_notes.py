@@ -5,7 +5,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import shutil
+import subprocess  # nosec B603 - absolute gh from shutil.which, fixed API argv.
 from pathlib import Path
 
 
@@ -111,12 +114,48 @@ def _label_names(pull_request: dict) -> set[str]:
     }
 
 
-def pull_request_errors(event: dict) -> list[str]:
+def fetch_live_labels(pull_request: dict) -> set[str]:
+    """Label names currently on the pull request. Empty when GitHub cannot be read."""
+    number = pull_request.get("number")
+    repository = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    executable = shutil.which("gh")
+    if not isinstance(number, int) or not repository or executable is None:
+        return set()
+    completed = subprocess.run(  # nosec B603 - absolute gh, fixed API argv.
+        [
+            executable,
+            "api",
+            f"repos/{repository}/pulls/{number}",
+            "--jq",
+            ".labels[].name",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return set()
+    return {line.strip() for line in completed.stdout.splitlines() if line.strip()}
+
+
+def event_label_errors(event: dict, *, fetcher=fetch_live_labels) -> list[str]:
+    """Use live labels when the event payload recorded none (#6284)."""
+    pull_request = event.get("pull_request")
+    live = None
+    if isinstance(pull_request, dict) and not _is_bot(pull_request) and not _label_names(pull_request):
+        live = fetcher(pull_request)
+    return pull_request_errors(event, live_labels=live)
+
+
+def pull_request_errors(event: dict, *, live_labels: set[str] | None = None) -> list[str]:
     """Human pull requests need exactly one release-note classification label."""
     pull_request = event.get("pull_request")
     if not isinstance(pull_request, dict) or _is_bot(pull_request):
         return []
-    selected = sorted(_label_names(pull_request) & CLASSIFICATION_LABELS)
+    names = _label_names(pull_request)
+    if not names and live_labels is not None:
+        names = set(live_labels)
+    selected = sorted(names & CLASSIFICATION_LABELS)
     if len(selected) == 1:
         return []
     return [
@@ -144,7 +183,7 @@ def main() -> int:
         except (OSError, json.JSONDecodeError, ValueError) as error:
             errors.append(f"cannot read GitHub event: {error}")
         else:
-            errors.extend(pull_request_errors(event))
+            errors.extend(event_label_errors(event))
     for error in errors:
         print(f"release-note validation failed: {error}")
     return 1 if errors else 0

@@ -58,6 +58,7 @@ When a fixture fails:
 CI executes the suite through the Agent Guidance Gate
 (`eval-parity-contract` in `scripts/ci/harness_pr_gate.py`) and the scheduled
 exhaustive harness in `.github/workflows/agent-plugin-acceptance.yml`.
+A `workflow_dispatch` may name installer jobs and skip that exhaustive job.
 
 ## Related
 
