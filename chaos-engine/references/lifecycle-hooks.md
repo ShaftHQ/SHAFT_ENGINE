@@ -173,6 +173,8 @@ Harness lessons, findings, and potential enhancements are GitHub issues only
 and are not written to a local queue or into chat. Delegates
 never own this terminal phase. Hooks own enforcement so every host shares the
 same outcome (harness parity); do not rely on agent-local routines.
+`scripts/agents/guard.py` calls this same portable reason before it yields
+to `stop_hook_active`.
 
 ## Checks
 

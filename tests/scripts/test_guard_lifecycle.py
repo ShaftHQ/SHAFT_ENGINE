@@ -2948,13 +2948,10 @@ class LearningSessionStopGateTest(unittest.TestCase):
     evidence: an iteration reported done having skipped the mandatory
     retrieval entirely, and the owner caught it rather than any check.
 
-    Deliberately a block-once reminder, not a hard gate. `run_stop` already
-    returns 0 when `stop_hook_active` is set, so the agent is interrupted a
-    single time and may then end the turn. That matters more here than
-    anywhere else in the file: "nothing durable surfaced" is a legitimate and
-    common outcome that the entrypoint explicitly endorses -- "Nothing durable
-    is a valid result" -- so a rule that could not be satisfied by saying so
-    would be a rule that forces invented memory objects.
+    Other Stop rules still yield on `stop_hook_active`. An unpaid Learning
+    Session does not: the portable reason is returned before any retrieve
+    citation, and the same debt blocks the retry. "Nothing durable surfaced"
+    is a legitimate outcome once a completion artifact exists.
 
     It must also never strand a delegate in a linked worktree. R11 refuses a
     memory write from one by design, so demanding a memory write there would
@@ -3036,6 +3033,47 @@ class LearningSessionStopGateTest(unittest.TestCase):
         """A read-only session owes no learning; asking would train the block away."""
         with patch("scripts.agents.guard.ledger_events", return_value=["read-observation"]):
             self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
+
+    def test_unpaid_learning_session_still_blocks_the_stop_retry(self):
+        """#6282: repository Stop uses the portable reason, including stop_hook_active."""
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "ce_guard_repo_6282",
+            Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        session = "repo-learn-debt-6282"
+        guard._portable_hook_guard.cache_clear()
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary, "TMP": temporary}
+            project = Path(temporary) / "project"
+            project.mkdir()
+            with patch.dict(os.environ, environment):
+                module.reflection.record_activity(session, "delivery-complete")
+                module.justification._mark_session(project, session, owe=True)
+                self.assertEqual(
+                    module.justification.RETRIEVE_COMMAND,
+                    module.justification.session_retrieve_gap(project, session),
+                )
+                for retry in (False, True):
+                    output = io.StringIO()
+                    with redirect_stdout(output):
+                        guard.run_stop(
+                            {
+                                "hook_event_name": "Stop",
+                                "cwd": str(project),
+                                "session_id": session,
+                                "stop_hook_active": retry,
+                            }
+                        )
+                    payload = json.loads(output.getvalue())
+                    self.assertEqual("block", payload["decision"])
+                    self.assertTrue(payload["reason"].casefold().startswith("learning session:"))
+                    self.assertNotIn(module.justification.RETRIEVE_COMMAND, payload["reason"])
+                    self.assertNotIn("tool.py retrieve", payload["reason"])
+        guard._portable_hook_guard.cache_clear()
 
     def test_the_second_stop_attempt_is_always_allowed(self):
         """Block once. `run_stop` returns 0 on stop_hook_active, so this cannot loop.

@@ -5672,9 +5672,58 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
     )
 
 
+@lru_cache(maxsize=1)
+def _portable_hook_guard():
+    """The installed Stop owner. Repository Stop must not invent a second order."""
+    path = Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("chaos_engine_portable_stop", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _portable_learning_session_reason(hook_input: dict) -> str | None:
+    """Delivery-complete Learning Session from the portable hook, before retrieve."""
+    event = str(hook_input.get("hook_event_name") or hook_input.get("hookEventName") or "")
+    if event == "SubagentStop":
+        return None
+    session_id = str(hook_input.get("session_id") or hook_input.get("sessionId") or "").strip()
+    if not session_id:
+        return None
+    module = _portable_hook_guard()
+    if module is None:
+        return None
+    reason = module.learning_session_reason(session_id, hook_input)
+    return reason or None
+
+
+def _learning_stop_reason(hook_input: dict) -> str | None:
+    """Portable Learning Session first, then repository R16. Retry does not clear it."""
+    portable = _portable_learning_session_reason(hook_input)
+    if portable:
+        return portable
+    event = str(hook_input.get("hook_event_name") or hook_input.get("hookEventName") or "")
+    if event == "SubagentStop":
+        return None
+    return check_r16_learning_session(hook_input)
+
+
 def run_stop(hook_input: dict) -> int:
-    """Continue incomplete repository work once, without creating a Stop loop."""
-    if hook_input.get("stop_hook_active") is True:
+    """Continue incomplete repository work once, without creating a Stop loop.
+
+    An unpaid Learning Session is the exception: `stop_hook_active` still
+    blocks, and that reason stays ahead of any retrieve citation.
+    """
+    retry = bool(hook_input.get("stop_hook_active") or hook_input.get("stopHookActive"))
+    if retry:
+        learning = _learning_stop_reason(hook_input)
+        if learning:
+            print(json.dumps({"decision": "block", "reason": learning}))
+            return 0
         elapsed = _reflection.session_elapsed_seconds(
             _reflection_session_id(hook_input)
         )
@@ -5715,10 +5764,12 @@ def run_stop(hook_input: dict) -> int:
     # turn learns everything it owes at once, instead of discovering the
     # next duty only after satisfying the previous one.
     report = _worktree_report(_hook_working_directory(hook_input))
+    portable_learning = _portable_learning_session_reason(hook_input)
     reasons = [
         item
         for item in (
-            check_r16_learning_session(hook_input),
+            portable_learning,
+            None if portable_learning else check_r16_learning_session(hook_input),
             check_r18_unpushed_work(hook_input),
             check_r20_user_harness_drift(hook_input),
             check_r21_run_state_not_recorded(hook_input),
