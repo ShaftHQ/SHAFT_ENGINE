@@ -1,3 +1,7 @@
+---
+description: Use when triage or the environment selects an ultra-lean, balanced, or deep token budget.
+---
+
 # Token budget modes
 
 Owner-selectable context budgets for ChaosEngine sessions. Set

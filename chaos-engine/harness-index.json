@@ -52,6 +52,23 @@
       "path": "skills/self-improve/SKILL.md"
     },
     {
+      "description": "Use when a git worktree is dirty or another local branch or worktree exists. Ask before cleanup unless the session is unattended.",
+      "family": "delivery",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "git-cleanup",
+      "path": "skills/git-cleanup/SKILL.md"
+    },
+    {
       "description": "Use when the adopter asks to delegate to local agents (OpenCode / OSS agency) against a READY local runtime instead of orchestrator-session subagents.",
       "family": "delegation",
       "hosts": {
@@ -315,6 +332,74 @@
       "path": "references/roles.md"
     },
     {
+      "description": "Use when install, doctor, or repair can run as a script before any host chat. Prefer these deterministic paths.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Zero-LLM first",
+      "path": "references/zero-llm-catalog.md"
+    },
+    {
+      "description": "Use when a drifted install, wiped runtime, or unhealthy doctor must be repaired by file path.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Heal",
+      "path": "references/heal-route.md"
+    },
+    {
+      "description": "Use when a task needs a secondary skill or tool beyond the core router. The list stays short and sorted.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Level-1 catalog",
+      "path": "references/level-1-catalog.md"
+    },
+    {
+      "description": "Use when research or a multi-file explore should run in an isolated subagent so the parent stays small.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Context firewall",
+      "path": "references/context-firewall.md"
+    },
+    {
       "description": "Use when repeated session traces show the git-tracked overlay should change; tune the harness in the repo, never under `~/.grok/skills`.",
       "family": "reference",
       "hosts": {
@@ -398,6 +483,142 @@
       "kind": "route",
       "name": "learn-traces",
       "path": "references/learn-traces.md"
+    },
+    {
+      "description": "Use when a periodic offline review of shared logs is due. This is not a continuous session hook.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Meta-optimize",
+      "path": "references/meta-optimize.md"
+    },
+    {
+      "description": "Use when an opt-in eval-gated draft skill pull request is requested. The default is off.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Draft skill PR",
+      "path": "references/draft-skill-pr.md"
+    },
+    {
+      "description": "Use when triage or the environment selects an ultra-lean, balanced, or deep token budget.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Token budget",
+      "path": "references/token-budget-modes.md"
+    },
+    {
+      "description": "Use when a hop, retry, or duplicate tool does not change the next decision and should be dropped.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Eliminate waste",
+      "path": "references/eliminate-waste.md"
+    },
+    {
+      "description": "Use when both a CLI and an MCP server can do the same job. Prefer the CLI, and gh when it is configured.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Prefer CLI over MCP",
+      "path": "references/prefer-cli-over-mcp.md"
+    },
+    {
+      "description": "Use when a task would install, pin, or wrap a traffic proxy. Never install one.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "No proxy",
+      "path": "references/no-proxy.md"
+    },
+    {
+      "description": "Use when Grok or Copilot may not honor an exit-2 hard block and the compensating checklist applies.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "GAP-EXIT2 UX",
+      "path": "references/host-parity-matrix.md"
+    },
+    {
+      "description": "Use when a classifier or interaction change must treat Codacy Complexity ACTION_REQUIRED as a unit failure.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Codacy Complexity",
+      "path": "references/codacy-complexity-gate.md"
     }
   ],
   "generator": "harness_index.py",

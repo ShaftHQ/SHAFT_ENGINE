@@ -1,3 +1,7 @@
+---
+description: Use when both a CLI and an MCP server can do the same job. Prefer the CLI, and gh when it is configured.
+---
+
 # Prefer CLI over MCP
 
 Permanent. One owner per job. When a CLI exists and is configured, do not

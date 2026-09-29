@@ -1,3 +1,7 @@
+---
+description: Use when a drifted install, wiped runtime, or unhealthy doctor must be repaired by file path.
+---
+
 # Router Heal surface
 
 Always reachable by **file path** even when the marketplace plugin is absent.

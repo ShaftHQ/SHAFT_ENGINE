@@ -1,3 +1,7 @@
+---
+description: Use when Grok or Copilot may not honor an exit-2 hard block and the compensating checklist applies.
+---
+
 # Host Parity Matrix v0
 
 Living adapter-outcome matrix for ChaosEngine across Claude Code, Codex, Grok, Gemini, GitHub Copilot, OpenCode, Cursor, and Grok Bot.

@@ -66,6 +66,9 @@ SKILLS = (
     ("self-improve", "portable", "skills/self-improve/SKILL.md",
      "Use when running ChaosEngine Learning Session self-improve. Harness lessons "
      "are GitHub issues only. Product lessons may queue after delivery or on request.", "learning"),
+    ("git-cleanup", "portable", "skills/git-cleanup/SKILL.md",
+     "Use when a git worktree is dirty or another local branch or worktree exists. "
+     "Ask before cleanup unless the session is unattended.", "delivery"),
     ("local-agency", "portable", "skills/local-agency/SKILL.md",
      "Use when the adopter asks to delegate to local agents (OpenCode / OSS agency) against a READY "
      "local runtime instead of orchestrator-session subagents.", "delegation"),
@@ -109,6 +112,14 @@ ROLES = (
     ("mechanical-helper", "Deterministic reversible spec-exact work; stop on ambiguity."),
 )
 ROUTES = (
+    ("Zero-LLM first", "references/zero-llm-catalog.md",
+     "Use when install, doctor, or repair can run as a script before any host chat. Prefer these deterministic paths."),
+    ("Heal", "references/heal-route.md",
+     "Use when a drifted install, wiped runtime, or unhealthy doctor must be repaired by file path."),
+    ("Level-1 catalog", "references/level-1-catalog.md",
+     "Use when a task needs a secondary skill or tool beyond the core router. The list stays short and sorted."),
+    ("Context firewall", "references/context-firewall.md",
+     "Use when research or a multi-file explore should run in an isolated subagent so the parent stays small."),
     ("harness-learn", "references/harness-learn.md",
      "Use when repeated session traces show the git-tracked overlay should change; tune the harness in the repo, never under `~/.grok/skills`."),
     ("design-loop", "references/design-loop.md",
@@ -119,7 +130,25 @@ ROUTES = (
      "Use when a change touches user-visible UI, layout, styling, or themes: red-then-green e2e, measured geometry, viewport x theme matrix."),
     ("learn-traces", "references/learn-traces.md",
      "Use when session traces must be mapped, reduced, and verified into lessons without a host TUI runner."),
+    ("Meta-optimize", "references/meta-optimize.md",
+     "Use when a periodic offline review of shared logs is due. This is not a continuous session hook."),
+    ("Draft skill PR", "references/draft-skill-pr.md",
+     "Use when an opt-in eval-gated draft skill pull request is requested. The default is off."),
+    ("Token budget", "references/token-budget-modes.md",
+     "Use when triage or the environment selects an ultra-lean, balanced, or deep token budget."),
+    ("Eliminate waste", "references/eliminate-waste.md",
+     "Use when a hop, retry, or duplicate tool does not change the next decision and should be dropped."),
+    ("Prefer CLI over MCP", "references/prefer-cli-over-mcp.md",
+     "Use when both a CLI and an MCP server can do the same job. Prefer the CLI, and gh when it is configured."),
+    ("No proxy", "references/no-proxy.md",
+     "Use when a task would install, pin, or wrap a traffic proxy. Never install one."),
+    ("GAP-EXIT2 UX", "references/host-parity-matrix.md",
+     "Use when Grok or Copilot may not honor an exit-2 hard block and the compensating checklist applies."),
+    ("Codacy Complexity", "references/codacy-complexity-gate.md",
+     "Use when a classifier or interaction change must treat Codacy Complexity ACTION_REQUIRED as a unit failure."),
 )
+ROUTE_START = "<!-- HARNESS-ROUTES:START -->"
+ROUTE_END = "<!-- HARNESS-ROUTES:END -->"
 
 
 def _hosts(native: dict[str, str], default: str = "catalog") -> dict[str, str]:
@@ -193,6 +222,32 @@ def render_catalog(index: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_route_table(index: dict) -> str:
+    lines = ["| Route | Use when | Load |", "| --- | --- | --- |"]
+    selected = [
+        entry for entry in index["entries"]
+        if entry.get("family") == "reference" or entry["name"] == "git-cleanup"
+    ]
+    selected.sort(key=lambda entry: entry["name"] == "git-cleanup")
+    for entry in selected:
+        path = entry["path"]
+        filename = path.rsplit("/", 1)[-1]
+        href = "../" + path[len("skills/"):] if path.startswith("skills/") else "../../" + path
+        lines.append(
+            f"| {entry['name']} | {_cell(entry['description'])} | [{filename}]({href}) |"
+        )
+    return "\n".join(lines)
+
+
+def _replace_marked(text: str, start: str, end: str, inner: str) -> str:
+    block = f"{start}\n{inner}\n{end}"
+    if start in text and end in text:
+        head, rest = text.split(start, 1)
+        _, tail = rest.split(end, 1)
+        return head + block + tail
+    return text
+
+
 def render_readme_block(index: dict) -> str:
     lines = [README_START, "", "Generated skill index (`chaos-engine/harness_index.py`):", ""]
     for entry in index["entries"]:
@@ -241,6 +296,14 @@ def generated(root: Path) -> dict[Path, str]:
     index = build_index()
     source = _source_tree(root)
     targets = {source / INDEX_NAME: render_index(index), source / CATALOG: render_catalog(index)}
+    skill = source / "skills/chaos-engine/SKILL.md"
+    if skill.is_file():
+        targets[skill] = _replace_marked(
+            skill.read_text(encoding="utf-8"),
+            ROUTE_START,
+            ROUTE_END,
+            render_route_table(index),
+        )
     if source.name == "chaos-engine":
         targets.update(_repo_targets(root, index))
     return targets

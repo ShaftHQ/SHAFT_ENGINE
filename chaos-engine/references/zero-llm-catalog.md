@@ -1,3 +1,7 @@
+---
+description: Use when install, doctor, or repair can run as a script before any host chat. Prefer these deterministic paths.
+---
+
 # Zero-LLM / script-first catalog
 
 Deterministic ChaosEngine paths that never require an LLM. Prefer these before

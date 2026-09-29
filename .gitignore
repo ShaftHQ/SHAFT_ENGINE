@@ -332,6 +332,8 @@ graphify-out/
 !plugins/caveman/**
 !plugins/ponytail/
 !plugins/ponytail/**
+!plugins/icm-architect/
+!plugins/icm-architect/**
 !.mcp.json
 
 # Machine-local installer and Graphify artifacts remain untracked after the
@@ -367,6 +369,7 @@ plugins/**/__pycache__/
 plugins/chaos-engine/
 plugins/caveman/
 plugins/ponytail/
+plugins/icm-architect/
 agent-plugins/chaos-engine/**
 !agent-plugins/chaos-engine/CHANGELOG.md
 !agent-plugins/chaos-engine/COMPATIBILITY.md

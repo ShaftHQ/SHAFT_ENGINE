@@ -1,3 +1,7 @@
+---
+description: Use when a periodic offline review of shared logs is due. This is not a continuous session hook.
+---
+
 # Periodic meta-optimize over shared logs (#5664 / Top 10 #9)
 
 Module: [`meta_optimize.py`](../meta_optimize.py).

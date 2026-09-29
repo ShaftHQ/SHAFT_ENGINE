@@ -1,3 +1,7 @@
+---
+description: Use when a task would install, pin, or wrap a traffic proxy. Never install one.
+---
+
 # No proxy
 
 Permanent. Source of truth for Codex, Claude, Grok, Gemini, Copilot, and Grok Bot.
