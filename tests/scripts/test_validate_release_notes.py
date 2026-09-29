@@ -37,6 +37,29 @@ class ValidateReleaseNotesTest(unittest.TestCase):
             1, len(validate_release_notes.pull_request_errors(self.event("regression")))
         )
 
+    def test_empty_event_labels_use_one_live_classification_label(self):
+        event = self.event()
+        self.assertEqual(
+            [],
+            validate_release_notes.event_label_errors(event, fetcher=lambda _pull: {"bug"}),
+        )
+        self.assertEqual(
+            1,
+            len(validate_release_notes.event_label_errors(event, fetcher=lambda _pull: set())),
+        )
+        self.assertEqual(
+            1,
+            len(
+                validate_release_notes.event_label_errors(
+                    event, fetcher=lambda _pull: {"bug", "enhancement"}
+                )
+            ),
+        )
+        self.assertEqual(
+            [],
+            validate_release_notes.pull_request_errors(self.event("bug"), live_labels=set()),
+        )
+
     def test_bots_and_non_pull_request_events_are_exempt(self):
         bot = self.event()
         bot["pull_request"]["user"] = {"login": "dependabot[bot]", "type": "Bot"}

@@ -9,6 +9,15 @@ on:
     - cron: '15 4 * * 1'
     - cron: '15 4 * * 0,2-6'
   workflow_dispatch:
+    inputs:
+      jobs:
+        description: >-
+          Comma-separated job ids or gate names. Empty runs the full dispatch.
+          installer-part-1-windows-2025 and installer-part-1-macos-15 run only
+          ChaosEngine installer acceptance part 1 on those runners.
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -18,9 +27,36 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  acceptance-selection:
+    name: Select acceptance jobs
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      run_deterministic_harness_full: ${{ steps.pick.outputs.run_deterministic_harness_full }}
+      run_chaos_engine_cross_platform: ${{ steps.pick.outputs.run_chaos_engine_cross_platform }}
+      run_chaos_engine_live_installer: ${{ steps.pick.outputs.run_chaos_engine_live_installer }}
+      run_harness_platform_contracts: ${{ steps.pick.outputs.run_harness_platform_contracts }}
+      run_agnix_conformance: ${{ steps.pick.outputs.run_agnix_conformance }}
+      run_external_guardrail_corpus: ${{ steps.pick.outputs.run_external_guardrail_corpus }}
+      run_native_client_load: ${{ steps.pick.outputs.run_native_client_load }}
+      run_chaos_engine_promotion: ${{ steps.pick.outputs.run_chaos_engine_promotion }}
+      cross_matrix: ${{ steps.pick.outputs.cross_matrix }}
+      cross_exclude: ${{ steps.pick.outputs.cross_exclude }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Select the jobs this event may run
+        id: pick
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          ACCEPTANCE_SCHEDULE: ${{ github.event.schedule }}
+          ACCEPTANCE_JOBS: ${{ github.event_name == 'workflow_dispatch' && inputs.jobs || '' }}
+        run: python scripts/ci/acceptance_job_filter.py --github-output "$GITHUB_OUTPUT"
+
   deterministic-harness-full:
     name: Full deterministic harness
-    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_deterministic_harness_full == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
@@ -127,6 +163,8 @@ jobs:
   # the whole module).
   chaos-engine-cross-platform:
     name: ChaosEngine installer acceptance (${{ matrix.os }}, part ${{ matrix.part }})
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_chaos_engine_cross_platform == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -134,6 +172,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04, macos-15, windows-2025]
         part: [1, 2]
+        exclude: ${{ fromJson(needs.acceptance-selection.outputs.cross_exclude) }}
     steps:
       - name: Enable Windows long paths
         if: runner.os == 'Windows'
@@ -161,6 +200,8 @@ jobs:
 
   chaos-engine-live-installer:
     name: Live immutable installer (${{ matrix.os }})
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_chaos_engine_live_installer == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -198,7 +239,8 @@ jobs:
 
   harness-platform-contracts:
     name: Harness platform contracts (${{ matrix.os }})
-    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_harness_platform_contracts == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -227,7 +269,8 @@ jobs:
 
   agnix-conformance:
     name: Pinned agnix conformance
-    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_agnix_conformance == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -277,7 +320,8 @@ jobs:
 
   external-guardrail-corpus:
     name: Pinned external guardrail corpus
-    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_external_guardrail_corpus == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -302,7 +346,8 @@ jobs:
 
   native-client-load:
     name: Claude and Codex live skill load
-    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_native_client_load == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -341,7 +386,8 @@ jobs:
 
   chaos-engine-promotion:
     name: Five-host promotion evaluator
-    if: github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1'
+    needs: acceptance-selection
+    if: needs.acceptance-selection.outputs.run_chaos_engine_promotion == 'true' && (github.event_name != 'schedule' || github.event.schedule == '15 4 * * 1')
     runs-on: ubuntu-22.04
     timeout-minutes: 180
     steps:
@@ -457,6 +503,7 @@ jobs:
   notify:
     name: Notify on scheduled failure
     needs:
+      - acceptance-selection
       - deterministic-harness-full
       - chaos-engine-cross-platform
       - chaos-engine-live-installer

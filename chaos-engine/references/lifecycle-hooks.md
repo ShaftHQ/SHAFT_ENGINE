@@ -161,7 +161,10 @@ prose, as those files already require.
 ## Learning Session
 
 Stop becomes the Learning Session gate only after delivery is complete
-(`delivery-status` or confirmed `gh pr merge`). Commits, guard refusals,
+(`delivery-status` or confirmed `gh pr merge`). That reason is returned before
+any retrieve citation. `stop_hook_active` does not clear an unpaid
+delivery-complete debt; a later Stop still blocks until a completion artifact
+exists. Commits, guard refusals,
 diagnostics, intermediate pushes, and recorded signals never start it early.
 Unchanged `chaos-engine/` files are not a valid skip — product-only
 deliveries still owe the gate. The root session records one immutable completion

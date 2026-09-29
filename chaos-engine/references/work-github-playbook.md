@@ -39,13 +39,12 @@ Human-authored PRs fail Release-note governance without a classification label.
 Strategy-matrix / Wave PRs also fail static analysis when Java switches lack a
 default branch. Before the first push of **any** human PR:
 
-1. Apply **exactly one** release-note classification label in the same
-   `gh pr create` step: `breaking-change`, `enhancement`, `bug`, or
-   `skip-release-notes` (bug = fix, enhancement = feature).
-2. For Wave / strategy-matrix Java changes: verify `switch`
-   expressions/statements are **exhaustive** (include a `default` branch where
-   Codacy/`MissingDefaultCase` requires it). Confirm locally before push so the
-   first CI cycle is not a fix-push for labels or switch exhaustiveness.
+1. Apply exactly one classification label in the same `gh pr create` step
+   (`breaking-change`, `enhancement`, `bug`, or `skip-release-notes`).
+   Governance reads live PR labels when the event payload has none.
+   A `chaos-engine/` push runs the portable-core path check first.
+2. Wave / strategy-matrix Java: `switch` must be exhaustive (`default` where
+   Codacy `MissingDefaultCase` requires it). Confirm before the first push.
 3. When editing ChaosEngine `SKILL.md` bodies: keep each skill under the
    skill-md byte budget (Agent Guidance Gate). Compress overlapping sections in
    the same PR and run `python3 scripts/ci/validate_agent_setup.py --skip-external` (repo-only)

@@ -2,6 +2,19 @@
 
 Learned in the PR #6158 coalesce wave (epic #6161): babysit, process-owner, and parent turns burned tokens re-reading unchanged CI state. This policy is portable. Codex, Claude, Grok CLI, Gemini, Copilot, and Grok Bot share it; no host-only memory exception.
 
+## Agent Plugin Live Acceptance dispatch (#6283)
+
+- Dispatch only the jobs the gate names. Installer part 1 on windows-2025 and
+  macos-15 is `workflow_dispatch` input
+  `jobs=installer-part-1-windows-2025,installer-part-1-macos-15` on
+  `agent-plugin-acceptance.yml`. That selection skips the other matrix cells
+  and the weekly full harness job. An empty `jobs` input still runs the full
+  dispatch. Monday's schedule is unchanged.
+- Watch those named jobs with one conclusion line each
+  (`scripts/ci/acceptance_job_filter.py` `watch_acceptance_jobs`). Do not paste
+  intermediate `gh run view` rows into the agent. Hosts share this helper;
+  do not keep a private poll loop.
+
 ## Digest only (#6162)
 
 - Agent-facing CI status comes from `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest` (one blocking watch). (repo-only)

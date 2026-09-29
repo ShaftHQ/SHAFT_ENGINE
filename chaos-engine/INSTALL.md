@@ -701,6 +701,8 @@ attribution for Task Observer methodology). It wraps `learning.py` privacy gates
 for harness + product dual-track observations. Portable Stop / delivery-complete
 hooks enforce the Learning Session after every confirmed delivery (including
 `gh pr merge` and `delivery-status`) even when `chaos-engine/` was untouched.
+The Learning Session reason comes before any retrieve citation, and
+`stop_hook_active` does not clear unpaid delivery-complete debt.
 Doctor surfaces the gate under `components.hooks.learningSession`. SessionStart
 stays locator-only; the heavy protocol runs on the delivery Stop path (not an
 always-on Task Observer). Harness parity: lasting policy lives in this overlay
