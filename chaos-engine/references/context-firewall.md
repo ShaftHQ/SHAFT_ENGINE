@@ -1,3 +1,7 @@
+---
+description: Use when research or a multi-file explore should run in an isolated subagent so the parent stays small.
+---
+
 # Context firewall (research / explore)
 
 HumanLayer pattern: use an **isolated subagent** (or host Task / equivalent)

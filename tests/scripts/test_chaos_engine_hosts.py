@@ -1400,6 +1400,35 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertEqual({"name": "user-plugin", "source": "./user", "permissions": ["keep"]}, rendered["plugins"][0])
         self.assertEqual("2.0.0", rendered["plugins"][1]["version"])
 
+    def test_source_checkout_keeps_marketplace_version_and_omits_maven(self):
+        module = load(HOSTS, "chaos_engine_source_checkout_marketplace")
+        before = {relative: None for relative in module.managed_paths()}
+        marketplace = (ROOT / ".claude-plugin/marketplace.json").read_bytes()
+        mcp = (ROOT / ".mcp.json").read_bytes()
+        before[".claude-plugin/marketplace.json"] = marketplace
+        before[".mcp.json"] = mcp
+        rendered = module.desired_content(
+            before,
+            maven_runtime=None,
+            maven_docker=("docker", "maven:3.9"),
+            plugin_version="9.9.9",
+            project=ROOT,
+        )
+        self.assertEqual(marketplace, rendered[".claude-plugin/marketplace.json"])
+        servers = json.loads(rendered[".mcp.json"])["mcpServers"]
+        self.assertNotIn("maven-tools-mcp", servers)
+        self.assertNotIn("maven-tools-mcp", rendered[".codex/config.toml"].decode())
+        consumer = module.desired_content(
+            before,
+            maven_docker=("docker", "maven:3.9"),
+            plugin_version="2.0.0",
+        )
+        migrated = json.loads(consumer[".claude-plugin/marketplace.json"])
+        chaos = next(item for item in migrated["plugins"] if item["name"] == "chaos-engine")
+        self.assertEqual("2.0.0", chaos["version"])
+        self.assertIn("maven-tools-mcp", json.loads(consumer[".mcp.json"])["mcpServers"])
+        self.assertIn("maven-tools-mcp", consumer[".codex/config.toml"].decode())
+
     def test_conflicting_claude_plugin_fails_closed_without_mutation(self):
         module = load(HOSTS, "chaos_engine_claude_marketplace_collision")
         with tempfile.TemporaryDirectory() as temporary:

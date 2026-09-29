@@ -1,3 +1,7 @@
+---
+description: Use when a classifier or interaction change must treat Codacy Complexity ACTION_REQUIRED as a unit failure.
+---
+
 # Codacy Complexity gate
 
 Learning from issue #5747 (Waves D/E of epic #5732): Codacy **Complexity /

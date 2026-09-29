@@ -2761,6 +2761,11 @@ GITATTRIBUTES_START = "# CHAOSENGINE-EOL:START"
 GITATTRIBUTES_END = "# CHAOSENGINE-EOL:END"
 
 
+def engine_source_checkout(project: Path | None) -> bool:
+    """True on the ChaosEngine source tree; consumer installs stay false."""
+    return project is not None and (Path(project) / "chaos-engine" / "hosts.py").is_file()
+
+
 def origin_overlay_gitignore_block() -> str:
     body = "\n".join(ORIGIN_OVERLAY_PATTERNS)
     return f"{ORIGIN_OVERLAY_START}\n{body}\n{ORIGIN_OVERLAY_END}\n"
@@ -4752,6 +4757,9 @@ def json_content(
     original = b"" if before is None else before
     if with_mcp is None:
         with_mcp = mcp_opt_in(None)
+    if engine_source_checkout(project):
+        maven_runtime = None
+        maven_docker = None
     desired = owned_servers(
         maven_runtime=maven_runtime, managed_python=managed_python,
         account_commands=account_commands,
@@ -5680,6 +5688,9 @@ def desired_content(
 ) -> dict[str, bytes]:
     if maven_runtime is False:
         maven_runtime = discover_maven_tools_runtime()
+    if engine_source_checkout(project):
+        maven_runtime = None
+        maven_docker = None
     managed_python = None
     managed_node = None
     if dependency_runtime is not None:
@@ -5875,6 +5886,7 @@ def desired_content(
         if (
             versionless == expected_versionless
             and isinstance(existing_claude_plugin.get("version"), str)
+            and not engine_source_checkout(project)
         ):
             existing_claude_plugin["version"] = plugin_version
         if existing_claude_plugin != claude_plugin_entry:

@@ -4789,6 +4789,14 @@ class ReceiptShimWiring6230Test(unittest.TestCase):
         for pattern in (".cursor/hooks.json", ".opencode/plugins/chaos-engine-receipt.js"):
             self.assertIn(pattern, hosts.ORIGIN_OVERLAY_PATTERNS)
 
+    def test_checked_in_ignore_files_match_the_generators(self):
+        hosts = MODULE.load_source_controller("hosts")
+        gitignore = (ROOT / ".gitignore").read_bytes()
+        attributes = (ROOT / ".gitattributes").read_bytes()
+        self.assertEqual(gitignore, hosts.gitignore_content(gitignore))
+        self.assertEqual(attributes, hosts.gitattributes_content(attributes))
+        self.assertIn("plugins/icm-architect/", hosts.ORIGIN_OVERLAY_PATTERNS)
+
 
 class StaleGraphRefreshOnInstall6234Test(unittest.TestCase):
     """#6234: an update + reinstall refreshes a stale shared graph instead of leaving 17/18."""

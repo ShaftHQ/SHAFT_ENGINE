@@ -1,3 +1,7 @@
+---
+description: Use when a task needs a secondary skill or tool beyond the core router. The list stays short and sorted.
+---
+
 # Level-1 progressive-disclosure catalog
 
 Secondary ChaosEngine surfaces reachable from the core

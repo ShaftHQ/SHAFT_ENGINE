@@ -1594,7 +1594,7 @@ class HostParityTest(unittest.TestCase):
         """Checks portable skill directories, and that Claude adapters expose only the router entrypoint."""
         canonical = {path.parent.name for path in CANONICAL_SKILLS.glob("*/SKILL.md")}
         claude = {path.parent.name for path in CLAUDE_SKILLS.glob("*/SKILL.md")}
-        self.assertEqual(canonical, {"chaos-engine", "colibri", "freetoken", "local-agency", "local-coding-delegate", "local-openai-compat", "local-runtimes", "omniroute", "self-improve", "work-item"})
+        self.assertEqual(canonical, {"chaos-engine", "colibri", "freetoken", "git-cleanup", "local-agency", "local-coding-delegate", "local-openai-compat", "local-runtimes", "omniroute", "self-improve", "work-item"})
         self.assertEqual(claude, {"chaos-engine"})
 
 

@@ -124,6 +124,7 @@
       "chaos-engine",
       "colibri",
       "freetoken",
+      "git-cleanup",
       "local-agency",
       "local-coding-delegate",
       "local-openai-compat",

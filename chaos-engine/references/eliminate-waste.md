@@ -1,3 +1,7 @@
+---
+description: Use when a hop, retry, or duplicate tool does not change the next decision and should be dropped.
+---
+
 # Eliminate waste
 
 Permanent. Learned 2026-09-09. Token optimization is the objective. The method is Kanban: eliminate waste.

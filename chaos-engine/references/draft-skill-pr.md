@@ -1,3 +1,7 @@
+---
+description: Use when an opt-in eval-gated draft skill pull request is requested. The default is off.
+---
+
 # Eval-gated draft skill PRs — opt-in phase 2 (#5665 / Top 10 #8)
 
 Module: [`draft_skill_pr.py`](../draft_skill_pr.py).

@@ -1070,7 +1070,9 @@ class OrchestratorModeContractTest(unittest.TestCase):
 
     def test_host_model_reviews_even_when_implementation_is_local(self):
         delegation = (CORE / "references/delegation.md").read_text(encoding="utf-8")
-        agency = (CORE / "skills/local-agency/SKILL.md").read_text(encoding="utf-8")
+        agency = (
+            CORE / "skills/local-agency/references/mechanical-dispatch.md"
+        ).read_text(encoding="utf-8")
         identity = (CORE / "identity.md").read_text(encoding="utf-8")
         self.assertIn("same host model", delegation)
         self.assertIn("Never assign that review to", delegation)

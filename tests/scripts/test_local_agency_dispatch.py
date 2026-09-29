@@ -47,12 +47,16 @@ class LocalAgencyDispatchTest(unittest.TestCase):
 
     def test_skill_says_orchestrator_runs_command_when_opencode_mutates_nothing(self):
         skill = (ROOT / "chaos-engine/skills/local-agency/SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("no worktree mutation", skill)
-        self.assertIn("run the same", skill)
-        self.assertIn("command in the worktree", skill)
-        self.assertIn("zero tool calls is writer failure", skill)
-        self.assertIn("Never use it for independent adversarial review", skill)
-        self.assertIn("Do not OpenCode-`Read` a 200-line Java file", skill)
+        mechanical = (
+            ROOT / "chaos-engine/skills/local-agency/references/mechanical-dispatch.md"
+        ).read_text(encoding="utf-8")
+        self.assertIn("no worktree mutation", mechanical)
+        self.assertIn("run the same", mechanical)
+        self.assertIn("command in the worktree", mechanical)
+        self.assertIn("zero tool calls is writer failure", mechanical)
+        self.assertIn("Never use it for independent adversarial review", mechanical)
+        self.assertIn("Do not OpenCode-`Read` a 200-line Java file", mechanical)
+        self.assertIn("mechanical-dispatch.md", skill)
         self.assertIn("`ft launch` / `ft serve`", skill)
         self.assertIn("#6021", skill)
         self.assertIn("CE_ALLOW_BOX_LOCAL_AGENCY", skill)

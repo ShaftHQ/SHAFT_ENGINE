@@ -57,7 +57,9 @@ class FixedSignatureCoachTest(unittest.TestCase):
         coach = (
             ROOT / "chaos-engine/skills/local-agency/references/coach-loop.md"
         ).read_text(encoding="utf-8")
-        skill = (ROOT / "chaos-engine/skills/local-agency/SKILL.md").read_text(encoding="utf-8")
+        skill = (
+            ROOT / "chaos-engine/skills/local-agency/references/mechanical-dispatch.md"
+        ).read_text(encoding="utf-8")
         self.assertIn("tool_calls` null", coach)
         self.assertIn("Use this only when message content holds the tool JSON", coach)
         self.assertIn("Host gate for properties", coach)
