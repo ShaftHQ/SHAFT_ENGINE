@@ -1193,7 +1193,7 @@ public class AllureManagerUnitTest {
 
     @Test(description = "tryProvisionAllureCliFromMavenZip should unpack zip into runtime cache and expose cli.js (#5815)")
     public void tryProvisionAllureCliFromMavenZipShouldUnpackIntoRuntimeCache() throws Exception {
-        String version = "3.17.0";
+        String version = SHAFT.Properties.internal.allure3Version();
         Path work = Files.createTempDirectory("shaft-allure-cli-zip-provision");
         Path cacheRoot = work.resolve("runtime-cache");
         Path zipPath = work.resolve("allure-cli-" + version + ".zip");
@@ -1201,23 +1201,29 @@ public class AllureManagerUnitTest {
         System.setProperty("allure.cli.cacheRoot", cacheRoot.toString());
         System.setProperty("allure.cli.mavenZip", zipPath.toString());
         System.setProperty("allure.cli.skipProvision", "false");
-        setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
-        try {
-            SHAFT.Validations.assertThat().object(AllureManager.isProvisionedAllureCliPresent(version)).isEqualTo(false).perform();
-            boolean provisioned = AllureManager.tryProvisionAllureCliFromMavenZip(version);
-            SHAFT.Validations.assertThat().object(provisioned).isEqualTo(true).perform();
-            SHAFT.Validations.assertThat().object(AllureManager.isProvisionedAllureCliPresent(version)).isEqualTo(true).perform();
-            Path cliJs = cacheRoot.resolve(version).resolve("node_modules").resolve("allure").resolve("cli.js");
-            SHAFT.Validations.assertThat().object(Files.isRegularFile(cliJs)).isEqualTo(true).perform();
+        // The prefix cache is JVM-global and shaft-engine unit shards run other classes at the
+        // same time. Hold the same lock as resolveAllureCommandPrefix so a parallel report
+        // writer cannot publish an npx prefix between this reset and the assertion.
+        synchronized (AllureManager.class) {
+            setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
+            try {
+                SHAFT.Validations.assertThat().object(AllureManager.isProvisionedAllureCliPresent(version)).isEqualTo(false).perform();
+                boolean provisioned = AllureManager.tryProvisionAllureCliFromMavenZip(version);
+                SHAFT.Validations.assertThat().object(provisioned).isEqualTo(true).perform();
+                SHAFT.Validations.assertThat().object(AllureManager.isProvisionedAllureCliPresent(version)).isEqualTo(true).perform();
+                Path cliJs = cacheRoot.resolve(version).resolve("node_modules").resolve("allure").resolve("cli.js");
+                SHAFT.Validations.assertThat().object(Files.isRegularFile(cliJs)).isEqualTo(true).perform();
 
-            Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
-            resolveAllureCommandPrefix.setAccessible(true);
-            Object prefix = resolveAllureCommandPrefix.invoke(null);
-            SHAFT.Validations.assertThat().object(prefix).isNotNull().perform();
-            SHAFT.Validations.assertThat().object(prefix.toString().contains("cli.js")).isEqualTo(true).perform();
-            SHAFT.Validations.assertThat().object(prefix.toString().contains("npx")).isEqualTo(false).perform();
-        } finally {
-            deleteRecursively(work);
+                Method resolveAllureCommandPrefix = AllureManager.class.getDeclaredMethod("resolveAllureCommandPrefix");
+                resolveAllureCommandPrefix.setAccessible(true);
+                Object prefix = resolveAllureCommandPrefix.invoke(null);
+                SHAFT.Validations.assertThat().object(prefix).isNotNull().perform();
+                SHAFT.Validations.assertThat().object(prefix.toString().contains("cli.js")).isEqualTo(true).perform();
+                SHAFT.Validations.assertThat().object(prefix.toString().contains("npx")).isEqualTo(false).perform();
+            } finally {
+                setStaticField(AllureManager.class, "cachedAllureCommandPrefix", null);
+                deleteRecursively(work);
+            }
         }
     }
 

@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>shaft-parent</artifactId>
-    <version>10.3.20260911</version>
+    <version>10.3.20260930</version>
     <packaging>pom</packaging>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Build parent and reactor aggregator for SHAFT modules.</description>
@@ -66,7 +66,7 @@
         <allure.bom.version>3.0.0</allure.bom.version>
         <!-- Pinned Allure 3 npm CLI version for Maven cache provision (#5801/#5815); keep aligned with
              SHAFT.Properties.internal.allure3Version() default in Internal.java and allure-cli/pom.xml -->
-        <allure.cli.version>3.17.0</allure.cli.version>
+        <allure.cli.version>3.19.1</allure.cli.version>
         <!-- Maven zip coordinates for the pinned CLI distribution (#5815). Artifact lives under
              io/github/shafthq/allure-cli/<version>/; runtime unpack target remains
              allure/allure-cli/<version>/ (AllureManager cache). -->
