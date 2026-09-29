@@ -377,6 +377,36 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     commands=(),
                 )
             )
+            job_logs = (
+                "gh api repos/ShaftHQ/SHAFT_ENGINE/actions/jobs/109636180161/logs "
+                "--allow-escape-sequences | sed 's/\\x1b\\[[0-9;]*m//g' | tail -n 180",
+                "gh run view 36635681551 --job 109636180161 --log-failed | tail -n 80",
+                f"gh api repos/ShaftHQ/SHAFT_ENGINE/actions/jobs/1/logs > {scratch}.log",
+            )
+            for command in job_logs:
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                    ),
+                    command,
+                )
+            mixed = (
+                "gh api repos/ShaftHQ/SHAFT_ENGINE/actions/jobs/1/logs "
+                "&& sed -n '1,20p' src/hooks/guard.py"
+            )
+            self.assertIsNotNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(mixed,),
+                )
+            )
             outside = tempfile.TemporaryDirectory()
             self.addCleanup(outside.cleanup)
             checkout = Path(outside.name) / "worktree"
