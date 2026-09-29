@@ -93,6 +93,10 @@ FORBIDDEN_LINK_FRAGMENTS = (
     "github.com/ShaftHQ/SHAFT_ENGINE/tree/main/docs/",
 )
 IGNORED_DIRECTORIES = {
+    # Gitignored install and backup trees. They mirror the portable overlay and
+    # are not repository markdown.
+    ".chaos-engine",
+    ".chaos-engine.backup",
     ".chaos-engine-runtime",
     ".chaos-engine-runtime-generations",
     ".chaos-engine-runtime-transactions",

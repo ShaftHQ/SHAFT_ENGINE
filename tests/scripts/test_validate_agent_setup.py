@@ -299,6 +299,38 @@ approval_mode = "prompt"
         )
         self.assertEqual(metrics["worktrees"][0]["state"], "uncommitted")
 
+    def test_setup_advisories_skip_unrelated_remote_orphans(self):
+        report = [
+            {
+                "path": str(self.root),
+                "branch": "topic",
+                "state": "uncommitted",
+                "is_remote_only": False,
+                "uncommitted_files": 1,
+                "open_pull_requests": None,
+                "scan_truncated": False,
+            },
+            {
+                "path": "origin/old-topic",
+                "branch": "old-topic",
+                "state": "orphaned",
+                "is_remote_only": True,
+                "age_days": 9,
+                "open_pull_requests": None,
+                "upstream": "origin/main",
+                "scan_truncated": False,
+            },
+        ]
+        with patch(
+            "scripts.ci.validate_agent_setup.collect_worktree_report",
+            return_value=report,
+        ):
+            metrics = collect_worktree_metrics(self.root, run_external=False)
+        advisories = metrics["worktree_advisories"]
+        self.assertEqual(1, len(advisories))
+        self.assertIn("uncommitted", advisories[0])
+        self.assertNotIn("branch-orphaned", "\n".join(advisories))
+
     def test_worktree_metrics_are_empty_outside_a_repository(self):
         metrics = collect_worktree_metrics(self.root, run_external=False)
         self.assertEqual(metrics["worktrees"], [])
