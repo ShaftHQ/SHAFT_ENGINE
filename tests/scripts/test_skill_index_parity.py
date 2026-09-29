@@ -137,6 +137,30 @@ class SkillIndexParityTest(unittest.TestCase):
         module = load_module("ce_harness_index", SOURCE / "harness_index.py")
         self.assertEqual([], module.check(ROOT))
 
+    def test_router_keeps_route_locators_without_full_descriptions(self):
+        """The always-loaded router must not repeat catalog descriptions."""
+        module = load_module("ce_harness_index_routes", SOURCE / "harness_index.py")
+        payload = module.build_index()
+        table = module.render_route_table(payload)
+        skill = (SOURCE / "skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        descriptions = [
+            entry["description"]
+            for entry in payload["entries"]
+            if entry.get("family") == "reference" or entry["name"] == "git-cleanup"
+        ]
+        self.assertGreater(len(descriptions), 10)
+        self.assertLess(len(table), sum(len(item) for item in descriptions))
+        self.assertIn(table, skill)
+        self.assertIn("| Heal |", table)
+        self.assertIn("heal-route.md", table)
+        self.assertIn("git-cleanup/SKILL.md", table)
+        ui = [line for line in table.splitlines() if line.startswith("| UI delivery |")]
+        self.assertEqual(1, len(ui))
+        self.assertIn("user-visible UI", ui[0])
+        for description in descriptions:
+            self.assertNotIn(description, table)
+            self.assertNotIn(description, skill)
+
     def test_catalog_paths_are_allowed_by_the_guard(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = build_installed_project(Path(temporary) / "adopter")

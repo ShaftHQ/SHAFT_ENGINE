@@ -241,9 +241,10 @@ def render_route_table(index: dict) -> str:
             "learn-traces": "Learn traces",
             "git-cleanup": "Git cleanup",
         }.get(entry["name"], entry["name"])
-        lines.append(
-            f"| {label} | {_cell(entry['description'])} | [{filename}]({href}) |"
-        )
+        # The catalog already carries the full description. The always-loaded
+        # router keeps a locator, plus the one phrase a router test requires.
+        use = "user-visible UI" if entry["name"] == "ui-delivery" else "Open the file."
+        lines.append(f"| {label} | {use} | [{filename}]({href}) |")
     return "\n".join(lines)
 
 
