@@ -6,6 +6,6 @@
     "allure": "3.14.3"
   },
   "overrides": {
-    "adm-zip": "0.6.0"
+    "adm-zip": "0.6.1"
   }
 }

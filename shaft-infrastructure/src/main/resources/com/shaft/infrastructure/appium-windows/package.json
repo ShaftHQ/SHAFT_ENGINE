@@ -8,10 +8,10 @@
     "appium-windows-driver": "6.1.0"
   },
   "overrides": {
-    "fast-uri": "3.1.6",
+    "fast-uri": "3.1.7",
     "qs": "6.16.0",
     "@xmldom/xmldom": "0.9.12",
-    "morgan": "1.12.0",
+    "morgan": "1.12.1",
     "sharp": "0.35.4"
   }
 }
