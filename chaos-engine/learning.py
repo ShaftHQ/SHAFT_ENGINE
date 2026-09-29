@@ -262,7 +262,21 @@ def write_queue(state: Path, document: dict[str, object]) -> None:
             temporary.unlink()
 
 
-def queue_learning(state: Path, candidate: dict[str, object], upstream: str) -> dict[str, object]:
+HARNESS_LOCAL_REFUSAL = (
+    "ChaosEngine harness learning, findings, and potential enhancements "
+    "are GitHub issues only. Do not write them to a local queue or into chat."
+)
+
+
+def queue_learning(
+    state: Path,
+    candidate: dict[str, object],
+    upstream: str,
+    *,
+    track: str | None = None,
+) -> dict[str, object]:
+    if track != "product":
+        raise ValueError(HARNESS_LOCAL_REFUSAL)
     state = Path(state)
     safe = validate_candidate(candidate, upstream)
     learning_id = hashlib.sha256(canonical(safe)).hexdigest()
@@ -557,6 +571,7 @@ def parser() -> argparse.ArgumentParser:
     queue.add_argument("--state", required=True, type=Path)
     queue.add_argument("--upstream", required=True)
     queue.add_argument("--candidate", required=True, type=Path)
+    queue.add_argument("--track", choices=("harness", "product"))
     submit = commands.add_parser("submit")
     submit.add_argument("--state", required=True, type=Path)
     submit.add_argument("--id", required=True)
@@ -572,7 +587,9 @@ def main() -> int:
     try:
         if args.command == "queue":
             candidate = json.loads(args.candidate.read_text(encoding="utf-8"))
-            result = queue_learning(args.state, candidate, args.upstream)
+            result = queue_learning(
+                args.state, candidate, args.upstream, track=args.track
+            )
         elif args.command in {"metrics", "summary"}:
             result = learning_metrics(args.state, project=args.project)
         else:

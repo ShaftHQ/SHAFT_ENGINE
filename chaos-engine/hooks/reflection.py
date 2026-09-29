@@ -472,6 +472,43 @@ def has_valid_terminal_receipt(session_id: str) -> bool:
     return terminal
 
 
+def accept_terminal_reflection(session_id: str) -> bool:
+    """Record that this session's terminal reflection was accepted.
+
+    The ledger stores acceptance only. It does not store the reflection text.
+    One acceptance covers every later stop in the session.
+    """
+    if has_valid_terminal_receipt(session_id):
+        return True
+    if not isinstance(session_id, str) or not session_id.strip():
+        return False
+    if _ensure_session_token(session_id) is None:
+        return False
+    active = active_entries(session_id)
+    entry = {
+        "schemaVersion": SCHEMA_VERSION,
+        "kind": "reflection-receipt",
+        "sessionHash": _session_hash(session_id),
+        "checkpointDigest": _checkpoint_digest(active),
+        "taskId": "terminal-reflection",
+        "trigger": "long-session-completion",
+        "failureFingerprints": [],
+        "failedAssumption": "none",
+        "approachesCompared": ["repeat the same reflection", "record one acceptance"],
+        "chosenExperiment": "record one acceptance",
+        "changedApproach": "later stops skip this demand",
+        "proofCommandOrCheck": "terminal reflection labels present",
+        "proofOutcome": "accepted",
+        "durableDisposition": "nothing-durable",
+        "noDeferredOrRiskWork": True,
+        "observedAt": datetime.now(UTC).isoformat(),
+    }
+    entry["receiptHash"] = _receipt_hash(session_id, entry)
+    if not isinstance(entry["receiptHash"], str):
+        return False
+    return append_entry(session_id, entry)
+
+
 def _safe_text(name: str, value: object, *, allow_github_issue: bool = False) -> str:
     rendered = str(value or "").strip()
     if not _SAFE_TEXT.fullmatch(rendered):

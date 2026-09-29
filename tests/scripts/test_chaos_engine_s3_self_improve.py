@@ -48,7 +48,7 @@ class S3SelfImproveTests(unittest.TestCase):
             "CLI",
             "learning.py",
             "Reject Task Observer",
-            "harness queued N / product queued N",
+            "product queued N / nothing durable",
             "gh issue create",
         ):
             self.assertIn(needle, body)

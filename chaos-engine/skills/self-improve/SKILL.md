@@ -1,8 +1,8 @@
 ---
 name: self-improve
 description: >-
-  Use when running ChaosEngine Learning Session self-improve: dual-track harness +
-  product lessons via learning.py after delivery or on request.
+  Use when running ChaosEngine Learning Session self-improve. Harness lessons
+  are GitHub issues only. Product lessons may queue after delivery or on request.
 ---
 
 # self-improve — ChaosEngine learning & adapting
@@ -19,7 +19,8 @@ Lean CE-native skill informed by Task Observer methodology
 
 ## Dual track
 
-1. **Harness** — skills, hooks, MemPalace, Graphify, installer/doctor.
+1. **Harness** — skills, hooks, MemPalace, Graphify, installer/doctor. GitHub
+   issue only. Never a local queue and never chat.
 2. **Product** — enhancements for the product under development (queued issues).
 
 Details: [references/observation-taxonomy.md](references/observation-taxonomy.md).
@@ -35,7 +36,8 @@ Research/explore isolation (harness): [../../references/context-firewall.md](../
 1. Classify each finding (harness vs product; category allow-list).
 2. Write minimal fields only: `category`, `title`, `lesson`, `proposedChange`,
    `benefit`, `estimatedTokens`.
-3. Queue through `learning.py` so privacy gates + GitHub filing invariants hold.
+3. File a harness lesson as a GitHub issue. Queue only a product lesson
+   through `learning.py --track product`.
 4. Never auto-install skill patches; stage proposals for human/CI review.
 5. "Nothing durable" is a valid outcome.
 6. Refine this protocol when traces show skipped Learning Sessions, local
@@ -44,18 +46,11 @@ Research/explore isolation (harness): [../../references/context-firewall.md](../
 
 Example:
 
+A harness example is a GitHub issue, not a queue file. A product example:
+
 ```bash
-cat > .chaos-engine-state/learning-candidate.json <<'EOF'
-{
-  "category": "tooling",
-  "title": "Doctor fix-next missing for Graphify",
-  "lesson": "Operators lacked a single repair command after a store probe failed",
-  "proposedChange": "Surface repair --component graphify in doctor fix-next",
-  "benefit": "Faster store repair on adopter hosts",
-  "estimatedTokens": 120
-}
-EOF
 python3 .chaos-engine/learning.py queue \
+  --track product \
   --state .chaos-engine-state/learning \
   --upstream Owner/ExampleRepo \
   --candidate .chaos-engine-state/learning-candidate.json
@@ -87,8 +82,7 @@ See [meta-optimize](../../references/meta-optimize.md) and
 ```bash
 # From a temp project with ChaosEngine installed, or the source tree:
 python3 -c "from pathlib import Path; assert Path('chaos-engine/skills/self-improve/SKILL.md').is_file()"
-# Queue one harness + one product candidate (privacy-safe fixtures) via learning.py
-# then confirm queue.json grew by two items without secrets/paths.
+# Confirm learning.py queue --track harness exits non-zero and writes no queue.json.
 ```
 
 

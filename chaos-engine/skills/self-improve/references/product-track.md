@@ -81,4 +81,4 @@ See [zero-llm-catalog](../../../references/zero-llm-catalog.md) and
 
 Always end product review with counts the root can paste:
 
-`harness queued N / product queued N / nothing durable`
+`product queued N / nothing durable`

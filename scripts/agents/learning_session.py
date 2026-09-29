@@ -1190,7 +1190,9 @@ def _validate_blocked_evidence(
     learning = _load_chaos_engine_learning(learning_module)
     if not isinstance(candidate, dict):
         raise ValueError("blocked disposition requires a privacy-safe queue payload")
-    queued = learning.queue_learning(Path(learning_state), candidate, str(upstream))
+    queued = learning.queue_learning(
+        Path(learning_state), candidate, str(upstream), track="product"
+    )
     payload = {
         "queued_learning_id": queued["id"],
         "queue_status": queued["status"],

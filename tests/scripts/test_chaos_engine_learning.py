@@ -49,13 +49,28 @@ class ChaosEngineLearningTest(unittest.TestCase):
             "estimatedTokens": 180,
         }
 
+    def test_harness_track_is_not_written_locally_or_described_for_chat(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            state = Path(temporary) / "learning"
+            with self.assertRaisesRegex(ValueError, "GitHub issues only"):
+                module.queue_learning(
+                    state, self.candidate(), "example/chaos-engine", track="harness"
+                )
+            self.assertFalse((state / "queue.json").exists())
+            with self.assertRaisesRegex(ValueError, "GitHub issues only"):
+                module.queue_learning(state, self.candidate(), "example/chaos-engine")
+            self.assertFalse((state / "queue.json").exists())
+        self.assertIn("into chat", module.HARNESS_LOCAL_REFUSAL)
+        self.assertNotIn("harness queued", module.HARNESS_LOCAL_REFUSAL)
+
     def test_safe_learning_is_redacted_deduplicated_and_queued_locally(self):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "learning"
 
-            first = module.queue_learning(state, self.candidate(), "example/chaos-engine")
-            second = module.queue_learning(state, self.candidate(), "example/chaos-engine")
+            first = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
+            second = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
 
             self.assertEqual(first["id"], second["id"])
             self.assertEqual("queued", first["status"])
@@ -100,7 +115,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
                 state = Path(temporary) / "learning"
                 with mock.patch("subprocess.run") as run:
                     with self.assertRaisesRegex(ValueError, "privacy gate"):
-                        module.queue_learning(state, candidate, "example/chaos-engine")
+                        module.queue_learning(state, candidate, "example/chaos-engine", track="product")
                 self.assertFalse(state.exists(), index)
                 run.assert_not_called()
 
@@ -116,7 +131,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
         candidate["lesson"] = "Token confirmation prevents accidental contribution."
         with tempfile.TemporaryDirectory() as temporary:
             queued = module.queue_learning(
-                Path(temporary) / "learning", candidate, "example/chaos-engine"
+                Path(temporary) / "learning", candidate, "example/chaos-engine", track="product"
             )
         self.assertEqual("queued", queued["status"])
 
@@ -124,7 +139,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "learning"
-            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine")
+            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
             calls: list[list[str]] = []
 
             def runner(command, **_kwargs):
@@ -152,7 +167,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "learning"
-            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine")
+            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
             runner = mock.Mock(return_value=mock.Mock(returncode=1, stdout="", stderr="offline"))
 
             result = module.submit_learning(state, queued["id"], confirmed=True, runner=runner)
@@ -180,7 +195,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
         ):
             with self.subTest(runner=runner), tempfile.TemporaryDirectory() as temporary:
                 state = Path(temporary) / "learning"
-                queued = module.queue_learning(state, self.candidate(), "example/chaos-engine")
+                queued = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
 
                 result = module.submit_learning(
                     state, queued["id"], confirmed=True, runner=runner
@@ -193,7 +208,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "learning"
-            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine")
+            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
             runner = mock.Mock(
                 return_value=mock.Mock(
                     returncode=0,
@@ -223,7 +238,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
                 self.skipTest(f"symbolic links unavailable: {error}")
 
             with self.assertRaisesRegex(ValueError, "link or reparse"):
-                module.queue_learning(state, self.candidate(), "example/chaos-engine")
+                module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
 
             self.assertEqual("user content\n", outside.read_text(encoding="utf-8"))
 
@@ -244,6 +259,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
                     linked / "nested/learning",
                     self.candidate(),
                     "example/chaos-engine",
+                    track="product",
                 )
 
             self.assertEqual([], list(outside.iterdir()))
@@ -255,7 +271,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
             state.mkdir()
             (state / module.LOCK_NAME).write_bytes(b"")
 
-            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine")
+            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
 
             self.assertEqual("queued", queued["status"])
             self.assertEqual(b"", (state / module.LOCK_NAME).read_bytes())
@@ -272,7 +288,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
                     "import importlib.util,json,sys;"
                     "s=importlib.util.spec_from_file_location('learning',sys.argv[1]);"
                     "m=importlib.util.module_from_spec(s);s.loader.exec_module(m);"
-                    "m.queue_learning(__import__('pathlib').Path(sys.argv[2]),json.loads(sys.argv[3]),'example/chaos-engine')"
+                    "m.queue_learning(__import__('pathlib').Path(sys.argv[2]),json.loads(sys.argv[3]),'example/chaos-engine',track='product')"
                 )
                 processes.append(
                     subprocess.Popen(  # nosec B603 - fixed interpreter and controlled fixture.
@@ -292,7 +308,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "learning"
-            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine")
+            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
             document = json.loads((state / "queue.json").read_text(encoding="utf-8"))
             document["items"][0]["unexpected"] = "not owned"
             (state / "queue.json").write_text(json.dumps(document), encoding="utf-8")
@@ -309,11 +325,11 @@ class ChaosEngineLearningTest(unittest.TestCase):
         candidate["lesson"] = "Apply only for ac and me."
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaisesRegex(ValueError, "repository identity"):
-                module.queue_learning(Path(temporary) / "learning", candidate, "ac/me")
+                module.queue_learning(Path(temporary) / "learning", candidate, "ac/me", track="product")
 
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "learning"
-            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine")
+            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
             document = json.loads((state / "queue.json").read_text(encoding="utf-8"))
             document["items"][0]["status"] = "submitted"
             (state / "queue.json").write_text(json.dumps(document), encoding="utf-8")
@@ -328,7 +344,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "learning"
-            module.queue_learning(state, self.candidate(), "example/chaos-engine")
+            module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
             document = json.loads((state / "queue.json").read_text(encoding="utf-8"))
             document["items"].append(dict(document["items"][0]))
             (state / "queue.json").write_text(json.dumps(document), encoding="utf-8")
@@ -366,7 +382,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
 
             def queue(candidate):
                 try:
-                    module.queue_learning(state, candidate, "example/chaos-engine")
+                    module.queue_learning(state, candidate, "example/chaos-engine", track="product")
                 except Exception as error:  # pylint: disable=broad-exception-caught
                     errors.append(error)
 
@@ -389,7 +405,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "learning"
-            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine")
+            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
             created = 0
             created_lock = threading.Lock()
             first_search = threading.Event()
@@ -448,7 +464,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
         for url in invalid:
             with self.subTest(url=url), tempfile.TemporaryDirectory() as temporary:
                 state = Path(temporary) / "learning"
-                queued = module.queue_learning(state, self.candidate(), "example/chaos-engine")
+                queued = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
                 responses = iter(
                     (
                         mock.Mock(returncode=0, stdout="[]", stderr=""),
@@ -473,7 +489,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "learning"
-            queued = module.queue_learning(state, self.candidate(), "Example/Project")
+            queued = module.queue_learning(state, self.candidate(), "Example/Project", track="product")
             responses = iter(
                 (
                     mock.Mock(returncode=0, stdout="[]", stderr=""),
@@ -498,7 +514,7 @@ class ChaosEngineLearningTest(unittest.TestCase):
         module = load()
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary) / "learning"
-            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine")
+            queued = module.queue_learning(state, self.candidate(), "example/chaos-engine", track="product")
             runner = mock.Mock()
 
             with self.assertRaisesRegex(ValueError, "explicit confirmation"):

@@ -165,8 +165,9 @@ Stop becomes the Learning Session gate only after delivery is complete
 diagnostics, intermediate pushes, and recorded signals never start it early.
 Unchanged `chaos-engine/` files are not a valid skip — product-only
 deliveries still owe the gate. The root session records one immutable completion
-after routing every assessed signal or attesting that nothing durable surfaced,
-then reports harness queued N / product queued N / nothing durable. Delegates
+after routing every assessed signal or attesting that nothing durable surfaced.
+Harness lessons, findings, and potential enhancements are GitHub issues only
+and are not written to a local queue or into chat. Delegates
 never own this terminal phase. Hooks own enforcement so every host shares the
 same outcome (harness parity); do not rely on agent-local routines.
 

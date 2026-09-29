@@ -5640,13 +5640,16 @@ def check_r24_foreign_worktree_left_behind(hook_input: dict, report: dict | None
 
 
 _TERMINAL_REFLECTION_LABELS = (
-    "elapsed estimate",
-    "main time consumer",
-    "repeated failures or corrections",
-    "changed assumption or approach",
-    "successful proof",
-    "remaining risk or follow-up",
-    "learning session disposition",
+    "intended versus actual result",
+    "cause of the result",
+    "what to repeat",
+    "what to change",
+    "external proof",
+    "lesson for the next attempt",
+    "bounded retry",
+    "committed next action",
+    "durable carry-forward",
+    "token consumption optimization",
 )
 
 
@@ -5655,21 +5658,17 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
     elapsed = _reflection.session_elapsed_seconds(session_id)
     if elapsed is None or elapsed <= 60 * 60:
         return None
-    has_receipt = _reflection.has_valid_terminal_receipt(session_id)
-    if has_receipt:
+    if _reflection.has_valid_terminal_receipt(session_id):
         return None
     message = str(hook_input.get("last_assistant_message") or "").casefold()
     missing = [label for label in _TERMINAL_REFLECTION_LABELS if label not in message]
-    if missing:
-        return (
-            "Terminal reflection required once this session. Include "
-            + ", ".join(missing)
-            + ", and append one long-session-completion receipt. Do not repeat it after later tool calls."
-        )
+    if not missing:
+        _reflection.accept_terminal_reflection(session_id)
+        return None
     return (
-        "Terminal reflection required: this session exceeded one hour. Append one "
-        "validated long-session-completion receipt before stopping. Later tool calls "
-        "do not require another one."
+        "Terminal reflection required once this session. Include "
+        + ", ".join(missing)
+        + ". Do not repeat it after later tool calls."
     )
 
 

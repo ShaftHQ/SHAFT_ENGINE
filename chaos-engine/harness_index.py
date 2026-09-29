@@ -64,8 +64,8 @@ SKILLS = (
      "Use when opening or rewriting a work item on any git-based SCM. Source-control agnostic; "
      "GitHub, GitLab, and Azure Boards are adapters only.", "delivery"),
     ("self-improve", "portable", "skills/self-improve/SKILL.md",
-     "Use when running ChaosEngine Learning Session self-improve: dual-track harness + product "
-     "lessons via learning.py after delivery or on request.", "learning"),
+     "Use when running ChaosEngine Learning Session self-improve. Harness lessons "
+     "are GitHub issues only. Product lessons may queue after delivery or on request.", "learning"),
     ("local-agency", "portable", "skills/local-agency/SKILL.md",
      "Use when the adopter asks to delegate to local agents (OpenCode / OSS agency) against a READY "
      "local runtime instead of orchestrator-session subagents.", "delegation"),

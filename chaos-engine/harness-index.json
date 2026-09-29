@@ -35,7 +35,7 @@
       "path": "skills/work-item/SKILL.md"
     },
     {
-      "description": "Use when running ChaosEngine Learning Session self-improve: dual-track harness + product lessons via learning.py after delivery or on request.",
+      "description": "Use when running ChaosEngine Learning Session self-improve. Harness lessons are GitHub issues only. Product lessons may queue after delivery or on request.",
       "family": "learning",
       "hosts": {
         "claude": "plugin",

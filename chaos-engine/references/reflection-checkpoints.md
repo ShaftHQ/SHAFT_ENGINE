@@ -63,10 +63,13 @@ with (repo-only) `py -3 scripts/agents/reflection.py trigger --session-id {id} -
 probe by exact ID with the `non-attempt` subcommand. Portable installs use the
 same subcommands through `.chaos-engine/hooks/reflection.py`.
 
-For a terminal receipt, the final user-facing summary must label the elapsed
-estimate, main time consumer, repeated failures or corrections, changed
-assumption or approach, successful proof, remaining risk or follow-up, and
-Learning Session disposition. Include the local vs cloud token retrospective from [`session_token_usage.py`](../session_token_usage.py) / finalize `tokenUsage` when events were recorded (#5981).
+For a terminal receipt, the final user-facing summary must include all ten
+elements: intended versus actual result, cause of the result, what to repeat,
+what to change, external proof, lesson for the next attempt, bounded retry,
+committed next action, durable carry-forward, and token consumption
+optimization. Token consumption optimization means the least tokens that still
+complete the same kind of task next time, plus one further cut so later
+sessions keep using fewer tokens. Include the local vs cloud token retrospective from [`session_token_usage.py`](../session_token_usage.py) / finalize `tokenUsage` when events were recorded (#5981).
 
 Leftover risks and out-of-scope items must not remain only in chat. Search for
 duplicates, then open GitHub issues with `gh` (never GitHub MCP). Put those

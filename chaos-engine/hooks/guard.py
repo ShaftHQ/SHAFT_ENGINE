@@ -106,13 +106,16 @@ ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 SHELLS = {"bash", "sh", "zsh"}
 DOWNLOADERS = {"curl", "fetch", "wget"}
 TERMINAL_LABELS = (
-    "elapsed estimate",
-    "main time consumer",
-    "repeated failures or corrections",
-    "changed assumption or approach",
-    "successful proof",
-    "remaining risk or follow-up",
-    "learning session disposition",
+    "intended versus actual result",
+    "cause of the result",
+    "what to repeat",
+    "what to change",
+    "external proof",
+    "lesson for the next attempt",
+    "bounded retry",
+    "committed next action",
+    "durable carry-forward",
+    "token consumption optimization",
 )
 
 
@@ -130,11 +133,10 @@ def learning_session_reason(session_id: str, event: dict) -> str | None:
     if learning_completion_artifact(session_id) is not None:
         return None
     return (
-        "Learning Session: delivery is complete. Run exactly one terminal Learning "
-        "Session immediately before the final report. Load skills/self-improve/"
-        "SKILL.md; queue harness and product lessons via learning.py; report "
-        "harness queued N / product queued N / nothing durable. Unchanged "
-        "chaos-engine files are not a valid skip. Hooks own this duty on every host."
+        "Learning Session: delivery is complete. File each durable ChaosEngine "
+        "harness lesson, finding, or potential enhancement as a GitHub issue. "
+        "Do not write them to a local queue or into chat. Product lessons may "
+        "queue. Unchanged chaos-engine files are not a valid skip."
     )
 
 
@@ -553,31 +555,40 @@ def linked_worktree_stash_reason(commands: tuple[str, ...], cwd: Path) -> str:
     return ""
 
 
+def _terminal_reflection_reason(event: dict, session_id: str) -> str:
+    """Ask once for the ten-part reflection, then record acceptance and stay quiet."""
+    elapsed = reflection.session_elapsed_seconds(session_id)
+    if elapsed is None or elapsed <= 3600 or reflection.has_valid_terminal_receipt(session_id):
+        return ""
+    message = str(event.get("last_assistant_message") or event.get("lastAssistantMessage") or "").casefold()
+    missing = [label for label in TERMINAL_LABELS if label not in message]
+    if not missing:
+        reflection.accept_terminal_reflection(session_id)
+        return ""
+    # A host sets stop_hook_active on the retry of a blocked stop. Demanding
+    # again there loops. The session still asks on a later stop that is not a retry.
+    if bool(event.get("stop_hook_active") or event.get("stopHookActive")):
+        return ""
+    return (
+        "Terminal reflection required once this session. Include "
+        + ", ".join(missing)
+        + ". Do not repeat it after later tool calls."
+    )
+
+
 def _stop_block_reason(event: dict, session_id: str) -> str:
     if justification is not None and event.get("hook_event_name") != "SubagentStop":
         root = justification.project_root(Path(str(event.get("cwd") or Path.cwd())))
         gap = justification.session_retrieve_gap(root, session_id)
         if gap:
             return gap
-    if event.get("hook_event_name") == "SubagentStop" or bool(
-        event.get("stop_hook_active") or event.get("stopHookActive")
-    ):
+    if event.get("hook_event_name") == "SubagentStop":
         return ""
-    elapsed = reflection.session_elapsed_seconds(session_id)
-    if (
-        elapsed is not None
-        and elapsed > 3600
-        and not reflection.has_valid_terminal_receipt(session_id)
-    ):
-        message = str(event.get("last_assistant_message") or event.get("lastAssistantMessage") or "").casefold()
-        missing = [label for label in TERMINAL_LABELS if label not in message]
-        if missing:
-            return (
-                "Terminal reflection required once this session. Include "
-                + ", ".join(missing)
-                + ", and append one long-session-completion receipt. Do not repeat it after later tool calls."
-            )
-        return "Terminal reflection required before this session can stop."
+    reflection_reason = _terminal_reflection_reason(event, session_id)
+    if reflection_reason:
+        return reflection_reason
+    if bool(event.get("stop_hook_active") or event.get("stopHookActive")):
+        return ""
     loop_reason = learning_session_reason(session_id, event)
     if loop_reason:
         return loop_reason
