@@ -134,6 +134,20 @@
                                     <groupId>com.browserstack</groupId>
                                     <artifactId>browserstack-java-sdk</artifactId>
                                 </dependency>
+                                <!-- oculixapi embeds com.jcraft.jsch, which differs from shaft-engine's mwiede JSch fork. -->
+                                <dependency>
+                                    <groupId>io.github.oculix-org</groupId>
+                                    <artifactId>oculixapi</artifactId>
+                                </dependency>
+                                <!-- SikuliX brings Apertix OpenCV; shaft-visual brings OpenPnP OpenCV. Same packages, different bytes. -->
+                                <dependency>
+                                    <groupId>io.github.julienmerconsulting.apertix</groupId>
+                                    <artifactId>opencv</artifactId>
+                                </dependency>
+                                <dependency>
+                                    <groupId>org.openpnp</groupId>
+                                    <artifactId>opencv</artifactId>
+                                </dependency>
                             </ignoredDependencies>
                             <ignoredClassPatterns>
                                 <ignoredClassPattern>org[.]json[.]JSONString</ignoredClassPattern>
