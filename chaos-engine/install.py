@@ -4135,9 +4135,10 @@ def _running_under_tests() -> bool:
 def same_consumer_location(left: Path | str, right: Path | str) -> bool:
     """True when two consumer paths name the same directory.
 
-    ``Path.resolve()`` rewrites Windows 8.3 shorts (``RUNNER~1``) to the long
-    account name and macOS ``/var`` to ``/private/var``. Those aliases are the
-    same location. A different directory component is not.
+    ``Path.resolve()`` rewrites a Windows 8.3 short account directory to the
+    long account name, and prefixes the macOS temporary directory with the
+    private alias. Those aliases are the same location. A different directory
+    component is not.
     """
 
     def parts(value: Path | str) -> list[str]:
