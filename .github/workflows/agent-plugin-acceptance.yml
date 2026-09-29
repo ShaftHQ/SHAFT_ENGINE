@@ -75,6 +75,7 @@ jobs:
         run: |
           set -euo pipefail
           modules=(
+            tests.scripts.test_acceptance_job_filter
             tests.scripts.test_chaos_engine_runtime
             tests.scripts.test_chaos_gauge_recovery
             tests.scripts.test_agent_harness_adherence

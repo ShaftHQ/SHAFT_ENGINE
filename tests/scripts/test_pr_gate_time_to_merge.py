@@ -13,6 +13,7 @@ from pathlib import Path
 import yaml
 
 from scripts.ci import chaos_installer_tier as tier
+from scripts.ci.acceptance_job_filter import acceptance_selection
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = ROOT / ".github/workflows"
@@ -78,9 +79,17 @@ class MacosInstallerTierTest(unittest.TestCase):
         jobs = workflow["jobs"]
         for name in ("chaos-engine-cross-platform", "chaos-engine-live-installer"):
             with self.subTest(job=name):
-                self.assertNotIn("if", jobs[name])
+                output = "run_" + name.replace("-", "_")
+                self.assertEqual(
+                    f"needs.acceptance-selection.outputs.{output} == 'true'",
+                    jobs[name]["if"],
+                )
                 self.assertIn("macos-15", jobs[name]["strategy"]["matrix"]["os"])
                 self.assertIn(name, jobs["notify"]["needs"])
+        for cron in ("15 4 * * 1", "15 4 * * 0,2-6"):
+            enabled = acceptance_selection("schedule", cron, "")["enabled"]
+            self.assertIn("chaos-engine-cross-platform", enabled)
+            self.assertIn("chaos-engine-live-installer", enabled)
         self.assertIn("github.event_name == 'schedule'", jobs["notify"]["if"])
         self.assertTrue(
             any("notify-nightly-failure" in step.get("uses", "") for step in jobs["notify"]["steps"])

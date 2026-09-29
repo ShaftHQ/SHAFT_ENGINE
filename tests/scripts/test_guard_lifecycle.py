@@ -16,6 +16,7 @@ import sys
 import tempfile
 import time
 import unittest
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout
 from datetime import UTC, datetime
@@ -2968,66 +2969,72 @@ class LearningSessionStopGateTest(unittest.TestCase):
             self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
 
     def test_fresh_delivery_requires_one_terminal_learning_session(self):
-        events = ["commit", 'delivery:{"repository":"ShaftHQ/SHAFT_ENGINE"}']
-        with patch("scripts.agents.guard.ledger_events", return_value=events), patch(
-            "scripts.agents.guard.check_r29_delivery_complete", return_value=None
-        ):
-            reason = guard.check_r16_learning_session({"session_id": "s"})
-        self.assertIsNotNone(reason)
+        session = f"fresh-delivery-{uuid.uuid4().hex}"
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {"TMPDIR": temporary, "TEMP": temporary, "TMP": temporary}):
+                spec = importlib.util.spec_from_file_location(
+                    "ce_guard_fresh_delivery",
+                    Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                module.reflection.record_activity(session, "delivery-complete")
+                guard._portable_hook_guard.cache_clear()
+                reason = guard.check_r16_learning_session(
+                    {"hook_event_name": "Stop", "session_id": session}
+                )
+                expected = module.learning_session_reason(
+                    session, {"hook_event_name": "Stop", "session_id": session}
+                )
+        guard._portable_hook_guard.cache_clear()
+        self.assertEqual(expected, reason)
         self.assertIn("Learning Session", reason)
 
     def test_one_completion_receipt_permanently_satisfies_terminal_gate(self):
-        forged_events = [
-            "commit",
-            'delivery:{"repository":"ShaftHQ/SHAFT_ENGINE"}',
-            "learning-session-complete:" + "a" * 64,
-        ]
-        with patch("scripts.agents.guard.ledger_events", return_value=forged_events), patch(
-            "scripts.agents.guard.check_r29_delivery_complete", return_value=None
-        ):
-            self.assertIsNotNone(
-                guard.check_r16_learning_session({"session_id": "s"}),
-                "ledger learning-session-complete prose alone must not clear R16",
-            )
+        session = f"completion-gate-{uuid.uuid4().hex}"
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {"TMPDIR": temporary, "TEMP": temporary, "TMP": temporary}):
+                spec = importlib.util.spec_from_file_location(
+                    "ce_guard_completion_gate",
+                    Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                module.reflection.record_activity(session, "delivery-complete")
+                guard._portable_hook_guard.cache_clear()
+                event = {"hook_event_name": "Stop", "session_id": session}
+                self.assertIsNotNone(
+                    guard.check_r16_learning_session(event),
+                    "ledger learning-session-complete prose alone must not clear R16",
+                )
+                learning_session = importlib.import_module("scripts.agents.learning_session")
+                state = learning_session.default_state_dir()
+                learning_session.attest_no_learning(state, session, "no_new_evidence")
+                learning_session.finalize_session(state, session)
+                self.assertIsNone(guard.check_r16_learning_session(event))
+        guard._portable_hook_guard.cache_clear()
 
-        learning_session = importlib.import_module("scripts.agents.learning_session")
-        delivered = [
-            "commit",
-            'delivery:{"repository":"ShaftHQ/SHAFT_ENGINE"}',
-        ]
-        with tempfile.TemporaryDirectory() as directory:
-            state = Path(directory) / "chaosengine-learning-v1"
-            learning_session.attest_no_learning(state, "s", "no_new_evidence")
-            learning_session.finalize_session(state, "s")
-            with patch("scripts.agents.guard.ledger_events", return_value=delivered), patch(
-                "scripts.agents.guard.check_r29_delivery_complete", return_value=None
-            ), patch.object(learning_session, "default_state_dir", return_value=state):
-                self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
-
-    def test_a_recorded_memory_write_satisfies_it(self):
-        with patch(
-            "scripts.agents.guard.ledger_events", return_value=["commit", "memory-write"]
-        ):
-            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
-        with patch(
-            "scripts.agents.guard.ledger_events",
-            return_value=["commit", "learning-none:store_degraded"],
-        ):
-            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
-
-    def test_a_created_issue_satisfies_it(self):
-        with patch(
-            "scripts.agents.guard.ledger_events",
-            return_value=["commit", "issue-created:4995"],
-        ):
-            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
-
-    def test_a_successful_existing_issue_reference_satisfies_it(self):
-        with patch(
-            "scripts.agents.guard.ledger_events",
-            return_value=["commit", "learning-issue:4995"],
-        ):
-            self.assertIsNone(guard.check_r16_learning_session({"session_id": "s"}))
+    def test_a_recorded_memory_write_does_not_clear_the_portable_debt(self):
+        session = f"memory-write-{uuid.uuid4().hex}"
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {"TMPDIR": temporary, "TEMP": temporary, "TMP": temporary}):
+                spec = importlib.util.spec_from_file_location(
+                    "ce_guard_memory_write",
+                    Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                module.reflection.record_activity(session, "delivery-complete")
+                guard._portable_hook_guard.cache_clear()
+                with patch(
+                    "scripts.agents.guard.ledger_events",
+                    return_value=["commit", "memory-write"],
+                ):
+                    reason = guard.check_r16_learning_session(
+                        {"hook_event_name": "Stop", "session_id": session}
+                    )
+        guard._portable_hook_guard.cache_clear()
+        self.assertIn("Learning Session", reason)
 
     def test_a_session_that_changed_nothing_is_never_interrupted(self):
         """A read-only session owes no learning; asking would train the block away."""
@@ -3073,6 +3080,49 @@ class LearningSessionStopGateTest(unittest.TestCase):
                     self.assertTrue(payload["reason"].casefold().startswith("learning session:"))
                     self.assertNotIn(module.justification.RETRIEVE_COMMAND, payload["reason"])
                     self.assertNotIn("tool.py retrieve", payload["reason"])
+        guard._portable_hook_guard.cache_clear()
+
+    def test_stop_retry_uses_the_portable_reason_until_a_completion_artifact(self):
+        """#6286: the retry prints the portable sentence, then a completion clears it."""
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "ce_guard_repo_6286",
+            Path(__file__).resolve().parents[2] / "chaos-engine" / "hooks" / "guard.py",
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        session = f"repo-learn-debt-6286-{uuid.uuid4().hex}"
+        event = {
+            "hook_event_name": "Stop",
+            "cwd": ".",
+            "session_id": session,
+            "stop_hook_active": True,
+        }
+        guard._portable_hook_guard.cache_clear()
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary, "TMP": temporary}
+            with patch.dict(os.environ, environment):
+                module.reflection.record_activity(session, "delivery-complete")
+                expected = module.learning_session_reason(session, event)
+                self.assertIsNotNone(expected)
+                self.assertIsNone(module.learning_completion_artifact(session))
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    guard.run_stop(event)
+                payload = json.loads(output.getvalue())
+                self.assertEqual("block", payload["decision"])
+                self.assertEqual(expected, payload["reason"])
+
+                learning_session = importlib.import_module("scripts.agents.learning_session")
+                state = learning_session.default_state_dir()
+                learning_session.attest_no_learning(state, session, "no_new_evidence")
+                learning_session.finalize_session(state, session)
+                self.assertIsNotNone(module.learning_completion_artifact(session))
+                cleared = io.StringIO()
+                with redirect_stdout(cleared):
+                    self.assertEqual(0, guard.run_stop(event))
+                self.assertNotIn("Learning Session", cleared.getvalue())
         guard._portable_hook_guard.cache_clear()
 
     def test_the_second_stop_attempt_is_always_allowed(self):
