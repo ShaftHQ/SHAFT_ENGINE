@@ -500,6 +500,49 @@ NODE install [src=chaos-engine/install.py loc=L12]
             self.assertIsNone(gate.session_retrieve_gap(project, "task"))
             self.assertNotEqual(_OWED_RETRIEVE, guard._stop_block_reason(event, "task"))
 
+    def test_delivery_complete_stop_requires_learning_session_ahead_of_retrieve(self):
+        """A retrieve citation must not be the only Stop after gh pr merge."""
+        import scripts.agents.learning_session as learning_session
+
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_learn_stop")
+        guard = load("chaos-engine/hooks/guard.py", "learn_stop_guard")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src").mkdir()
+            tool = project / ".chaos-engine" / "tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            session = "delivery-learn"
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Grep",
+                    tool_input={"path": "src", "pattern": "class"},
+                    commands=(),
+                    session_id=session,
+                )
+            )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, session))
+            quiet = {"hook_event_name": "Stop", "cwd": str(project), "stop_hook_active": True}
+            self.assertIsNone(guard.learning_session_reason("never-delivered", quiet))
+            self.assertEqual(_OWED_RETRIEVE, guard._stop_block_reason(quiet, session))
+            guard.reflection.record_activity(session, "delivery-complete")
+            reason = guard._stop_block_reason(quiet, session)
+            self.assertTrue(str(reason).casefold().startswith("learning session:"))
+            self.assertNotEqual(_OWED_RETRIEVE, reason)
+            state = Path(temporary) / "learning-state"
+            learning_session.attest_no_learning(state, session, "no_new_evidence")
+            learning_session.finalize_session(state, session)
+            original = learning_session.default_state_dir
+            learning_session.default_state_dir = lambda: state
+            try:
+                self.assertIsNone(guard.learning_session_reason(session, quiet))
+                after = guard._stop_block_reason(quiet, session)
+            finally:
+                learning_session.default_state_dir = original
+            self.assertFalse(str(after or "").casefold().startswith("learning session:"))
+
     def test_grep_with_glob_and_no_path_is_not_denied(self):
         gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_glob")
         with tempfile.TemporaryDirectory() as temporary:
