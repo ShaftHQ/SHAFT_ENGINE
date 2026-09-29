@@ -5,7 +5,7 @@ description: Use when a git worktree is dirty or another local branch or worktre
 
 # Git cleanup
 
-One checkout. Only `main`. `HEAD` equals `origin/main`. Clean status.
+One checkout. Only the default branch. `HEAD` equals the remote default branch. Clean status.
 
 ## When
 
@@ -18,12 +18,12 @@ Unattended: decide and run it.
 
 1. Fetch `origin`.
 2. Classify each dirty or untracked path as land (commit, push, pull request, merge), delete, or gitignore.
-3. Remove every local branch and linked worktree except `main`.
-4. Check out `main` and fast-forward to `origin/main`.
+3. Remove every local branch and linked worktree except the default branch.
+4. Check out the default branch and fast-forward it to the remote.
 
 ## Done
 
-One checkout, only `main`, `HEAD` equals `origin/main`, and `git status` is clean.
+One checkout, only the default branch, `HEAD` equals the remote default branch, and `git status` is clean.
 
 ## Limits
 

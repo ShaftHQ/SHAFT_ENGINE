@@ -233,8 +233,16 @@ def render_route_table(index: dict) -> str:
         path = entry["path"]
         filename = path.rsplit("/", 1)[-1]
         href = "../" + path[len("skills/"):] if path.startswith("skills/") else "../../" + path
+        label = {
+            "harness-learn": "Harness learn",
+            "design-loop": "Design loop",
+            "deep-research": "Deep research",
+            "ui-delivery": "UI delivery",
+            "learn-traces": "Learn traces",
+            "git-cleanup": "Git cleanup",
+        }.get(entry["name"], entry["name"])
         lines.append(
-            f"| {entry['name']} | {_cell(entry['description'])} | [{filename}]({href}) |"
+            f"| {label} | {_cell(entry['description'])} | [{filename}]({href}) |"
         )
     return "\n".join(lines)
 

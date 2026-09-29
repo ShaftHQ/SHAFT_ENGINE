@@ -74,10 +74,7 @@ flow on Linux, macOS, and Windows.
 
 ## Route
 
-The selected project profile maps the deliverable in front of you to the one
-surface that owns it. The entrypoint makes that choice; callers do not bypass it
-by invoking a playbook directly. Load one surface, finish its deliverable, then
-return here for the next.
+Load one surface from the table, finish its deliverable, then return here.
 
 <!-- HARNESS-ROUTES:START -->
 | Route | Use when | Load |
@@ -86,11 +83,11 @@ return here for the next.
 | Heal | Use when a drifted install, wiped runtime, or unhealthy doctor must be repaired by file path. | [heal-route.md](../../references/heal-route.md) |
 | Level-1 catalog | Use when a task needs a secondary skill or tool beyond the core router. The list stays short and sorted. | [level-1-catalog.md](../../references/level-1-catalog.md) |
 | Context firewall | Use when research or a multi-file explore should run in an isolated subagent so the parent stays small. | [context-firewall.md](../../references/context-firewall.md) |
-| harness-learn | Use when repeated session traces show the git-tracked overlay should change; tune the harness in the repo, never under `~/.grok/skills`. | [harness-learn.md](../../references/harness-learn.md) |
-| design-loop | Use when a design document needs write-review-revise rounds until zero open review issues remain. | [design-loop.md](../../references/design-loop.md) |
-| deep-research | Use when a question needs bounded parallel research with verification and a cited final report. | [deep-research.md](../../references/deep-research.md) |
-| ui-delivery | Use when a change touches user-visible UI, layout, styling, or themes: red-then-green e2e, measured geometry, viewport x theme matrix. | [ui-delivery.md](../../references/ui-delivery.md) |
-| learn-traces | Use when session traces must be mapped, reduced, and verified into lessons without a host TUI runner. | [learn-traces.md](../../references/learn-traces.md) |
+| Harness learn | Use when repeated session traces show the git-tracked overlay should change; tune the harness in the repo, never under `~/.grok/skills`. | [harness-learn.md](../../references/harness-learn.md) |
+| Design loop | Use when a design document needs write-review-revise rounds until zero open review issues remain. | [design-loop.md](../../references/design-loop.md) |
+| Deep research | Use when a question needs bounded parallel research with verification and a cited final report. | [deep-research.md](../../references/deep-research.md) |
+| UI delivery | Use when a change touches user-visible UI, layout, styling, or themes: red-then-green e2e, measured geometry, viewport x theme matrix. | [ui-delivery.md](../../references/ui-delivery.md) |
+| Learn traces | Use when session traces must be mapped, reduced, and verified into lessons without a host TUI runner. | [learn-traces.md](../../references/learn-traces.md) |
 | Meta-optimize | Use when a periodic offline review of shared logs is due. This is not a continuous session hook. | [meta-optimize.md](../../references/meta-optimize.md) |
 | Draft skill PR | Use when an opt-in eval-gated draft skill pull request is requested. The default is off. | [draft-skill-pr.md](../../references/draft-skill-pr.md) |
 | Token budget | Use when triage or the environment selects an ultra-lean, balanced, or deep token budget. | [token-budget-modes.md](../../references/token-budget-modes.md) |
@@ -99,7 +96,7 @@ return here for the next.
 | No proxy | Use when a task would install, pin, or wrap a traffic proxy. Never install one. | [no-proxy.md](../../references/no-proxy.md) |
 | GAP-EXIT2 UX | Use when Grok or Copilot may not honor an exit-2 hard block and the compensating checklist applies. | [host-parity-matrix.md](../../references/host-parity-matrix.md) |
 | Codacy Complexity | Use when a classifier or interaction change must treat Codacy Complexity ACTION_REQUIRED as a unit failure. | [codacy-complexity-gate.md](../../references/codacy-complexity-gate.md) |
-| git-cleanup | Use when a git worktree is dirty or another local branch or worktree exists. Ask before cleanup unless the session is unattended. | [SKILL.md](../git-cleanup/SKILL.md) |
+| Git cleanup | Use when a git worktree is dirty or another local branch or worktree exists. Ask before cleanup unless the session is unattended. | [SKILL.md](../git-cleanup/SKILL.md) |
 <!-- HARNESS-ROUTES:END -->
 
 ## Catalog
