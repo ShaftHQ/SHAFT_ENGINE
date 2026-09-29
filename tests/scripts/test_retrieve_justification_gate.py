@@ -7,6 +7,7 @@ import json
 import os
 import tempfile
 import unittest
+import uuid
 import unittest.mock
 from pathlib import Path
 
@@ -512,7 +513,7 @@ NODE install [src=chaos-engine/install.py loc=L12]
             tool = project / ".chaos-engine" / "tool.py"
             tool.parent.mkdir(parents=True)
             tool.write_text("raise SystemExit(0)\n", encoding="utf-8")
-            session = "delivery-learn"
+            session = "delivery-learn-" + uuid.uuid4().hex
             self.assertIsNone(
                 gate.file_read_block_reason(
                     project=project,
