@@ -4,7 +4,7 @@
 
   Coordinates: io.github.shafthq:allure-cli:${allure.cli.version}:zip
   Keep <version> aligned with root POM property allure.cli.version and
-  Internal.allure3Version() (currently 3.17.0). This module is intentionally
+  Internal.allure3Version() (currently 3.19.1). This module is intentionally
   NOT in the shaft-parent reactor — Central CD still ships SHAFT jars at the
   engine version; wiring this zip into mavenCentral_cd is deferred (follow-up issue).
 
@@ -24,7 +24,7 @@
     <groupId>io.github.shafthq</groupId>
     <artifactId>allure-cli</artifactId>
     <!-- Keep in sync with shaft-parent allure.cli.version / Internal.allure3Version() -->
-    <version>3.17.0</version>
+    <version>3.19.1</version>
     <packaging>pom</packaging>
 
     <name>${project.groupId}:${project.artifactId}</name>
