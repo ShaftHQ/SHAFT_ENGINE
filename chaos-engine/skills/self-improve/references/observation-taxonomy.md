@@ -15,7 +15,9 @@ Load on demand when classifying a finding.
 
 ## Privacy invariants (hard)
 
-Use `chaos-engine/learning.py` `queue` path only. Never put secrets, absolute
+Harness lessons, findings, and potential enhancements are GitHub issues only.
+Do not write them to a local queue or into chat. Product lessons may use
+`chaos-engine/learning.py` `queue --track product`. Never put secrets, absolute
 paths, URLs (except after submit), emails, raw prompts, transcripts, or code
 fences into queued fields. Respect category allow-list and field length limits.
 

@@ -65,7 +65,9 @@ Ponytail at ultra on the implement path), portability, validation scope,
 roles, ownership, reflection, and the Learning Session. Delegates load the
 [delegate card](../../references/delegate-card.md) instead. After confirmed
 delivery run exactly one root-owned Learning Session immediately before the
-final report. The [installer](../../install.py) and
+final report. Untouched chaos-engine files are not a valid skip. Load
+self-improve for that session. A ChaosEngine harness lesson, finding, or
+potential enhancement is a GitHub issue only. Do not write it to a local queue or into chat. The [installer](../../install.py) and
 [bootstrap](../../bootstrap.py) own install;
 `tests/scripts/test_chaos_engine_bootstrap.py` runs the clean/update/failure
 flow on Linux, macOS, and Windows.

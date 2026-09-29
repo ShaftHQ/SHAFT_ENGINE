@@ -31,13 +31,21 @@ Activate the full protocol:
 
 1. Load this SKILL.md (already loaded) + `observation-taxonomy.md` if classifying.
 2. Scan the session for harness friction and product enhancement candidates.
-3. For each durable lesson, build a privacy-safe candidate and
-   `python3 .chaos-engine/learning.py queue ...` (or the host-equivalent wrapper).
-4. Submit confirmed candidates with `learning.py submit` (GitHub issues, not
-   queue-only).
+3. A ChaosEngine harness lesson, finding, or potential enhancement is a GitHub
+   issue only. Do not call `learning.py queue --track harness`. Do not write
+   that lesson into chat.
+4. A product lesson may use `python3 .chaos-engine/learning.py queue --track product`.
+   Submit confirmed product candidates with `learning.py submit`.
 5. Persist durable Memory knowledge with `memory save --stdin` only — never
    hand-edit `.memory/**` sidecars (#5852). If a body changed outside
    `memory save`, run `python3 .chaos-engine/skills/local-agency/scripts/tip_preflight.py --rehash <sidecar>`
    before push ([tip-churn preflight](../../../references/tip-churn-preflight.md), #6169).
-6. Do **not** auto-edit skills/hooks; propose via queued `proposedChange`.
-7. Report counts: harness queued N / product queued N / nothing durable.
+6. Do **not** auto-edit skills/hooks. Propose a harness change as a GitHub issue.
+7. Do not report harness lesson text. Product counts may be `product queued N`
+   or `nothing durable`.
+8. The reflection and this learning action include all ten elements: intended
+   versus actual result, cause of the result, what to repeat, what to change,
+   external proof, lesson for the next attempt, bounded retry, committed next
+   action, durable carry-forward, and token consumption optimization. Token
+   consumption optimization names the least-token path for the same kind of
+   task next time and one further cut so consumption keeps falling.

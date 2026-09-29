@@ -58,7 +58,7 @@ class S0S1SelfImproveTests(unittest.TestCase):
                 "benefit": "Zero LLM closed loop for adoption rates",
                 "estimatedTokens": 90,
             }
-            queued = self.learning.queue_learning(state, candidate, "example/chaos-engine")
+            queued = self.learning.queue_learning(state, candidate, "example/chaos-engine", track="product")
             self.assertEqual("queued", queued["status"])
             # Mark one submitted without network by writing queue
             document = self.learning.queue_document(state)
@@ -216,6 +216,7 @@ class S0S1SelfImproveTests(unittest.TestCase):
                     "estimatedTokens": 40,
                 },
                 "example/chaos-engine",
+                track="product",
             )
             cwd = Path.cwd()
             try:

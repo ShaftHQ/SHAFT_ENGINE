@@ -462,6 +462,45 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 guard.run_stop(payload)
             self.assertEqual("", output.getvalue())
 
+    def test_one_reflection_is_accepted_then_later_stops_stay_silent(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            session = "once"
+            reflection.record_session_start(session, "2020-01-01T00:00:00+00:00")
+            self.assertIn("token consumption optimization", guard._TERMINAL_REFLECTION_LABELS)
+            self.assertEqual(10, len(guard._TERMINAL_REFLECTION_LABELS))
+            portable_guard = (
+                Path(__file__).resolve().parents[2] / "chaos-engine/hooks/guard.py"
+            ).read_text(encoding="utf-8")
+            for label in guard._TERMINAL_REFLECTION_LABELS:
+                self.assertIn(f'"{label}"', portable_guard)
+            demanded = guard._terminal_reflection_reason({"session_id": session})
+            self.assertIn("token consumption optimization", demanded)
+            self.assertIn("intended versus actual result", demanded)
+            complete = "\n".join(
+                f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
+            )
+            self.assertIsNone(
+                guard._terminal_reflection_reason(
+                    {"session_id": session, "last_assistant_message": complete}
+                )
+            )
+            self.assertTrue(reflection.has_valid_terminal_receipt(session))
+            self.assertIsNone(
+                guard._terminal_reflection_reason(
+                    {
+                        "session_id": session,
+                        "last_assistant_message": "continuing the pull request",
+                    }
+                )
+            )
+            reflection.record_session_start("fresh-session", "2020-01-01T00:00:00+00:00")
+            self.assertIn(
+                "Terminal reflection required once",
+                guard._terminal_reflection_reason({"session_id": "fresh-session"}),
+            )
+
     def test_changed_diagnostic_test_is_allowed_but_unchanged_rerun_is_not(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}

@@ -218,13 +218,14 @@ delivery-complete hooks enforce this on every supported host — including when
 [self-improve](../skills/self-improve/SKILL.md) for the dual-track harness + product
 protocol. Never start it from a
 commit, guard refusal, failed diagnostic, delegate stop, or intermediate push.
-Unchanged ChaosEngine sources are not a valid skip. Report
-`harness queued N / product queued N / nothing durable`. Run the
+Unchanged ChaosEngine sources are not a valid skip. A ChaosEngine harness
+lesson, finding, or potential enhancement is a GitHub issue only. Do not write
+it to a local queue or into chat. Product lessons may report `product queued N`
+or `nothing durable`. Run the
 [learned-lessons workflow](work-github-playbook.md#learned-lessons-workflow).
-Scan the session for failures, traps, and guard blocks. Route each learning
-once: native Memory, MemPalace, Graphify, guidance, or a new GitHub issue after
-duplicate search via `learning.py` (submit confirmed candidates as issues, not
-queue-only). Prefer a smaller discriminating observation. Self-development
+Scan the session for failures, traps, and guard blocks. Route a product
+learning once: native Memory, MemPalace, Graphify, or `learning.py queue
+--track product`. Prefer a smaller discriminating observation. Self-development
 has no cap. Nothing durable is a valid result. Search before writing.
 
 Harness parity: lasting policy lives in the portable overlay, not only in

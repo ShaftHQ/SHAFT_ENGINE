@@ -79,12 +79,17 @@ class SelfImproveSkillTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as temporary:
             state = Path(temporary)
-            first = self.learning.queue_learning(state, harness, "Owner/ExampleRepo")
-            second = self.learning.queue_learning(state, product, "Owner/ExampleRepo")
-            self.assertEqual("queued", first["status"])
+            with self.assertRaisesRegex(ValueError, "GitHub issues only"):
+                self.learning.queue_learning(state, harness, "Owner/ExampleRepo", track="harness")
+            with self.assertRaisesRegex(ValueError, "GitHub issues only"):
+                self.learning.queue_learning(state, harness, "Owner/ExampleRepo")
+            self.assertFalse((state / "queue.json").exists())
+            second = self.learning.queue_learning(
+                state, product, "Owner/ExampleRepo", track="product"
+            )
             self.assertEqual("queued", second["status"])
             document = self.learning.queue_document(state)
-            self.assertEqual(2, len(document["items"]))
+            self.assertEqual(1, len(document["items"]))
             raw = (state / "queue.json").read_text(encoding="utf-8")
             self.assertNotIn("/home/", raw)
             self.assertNotIn("password", raw.casefold())
@@ -105,7 +110,7 @@ class SelfImproveSkillTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("untouched", router.casefold())
-        self.assertIn("harness queued", router.casefold())
+        self.assertIn("do not write it to a local queue or into chat", router.casefold())
         life = (ROOT / "chaos-engine/references/lifecycle-hooks.md").read_text(
             encoding="utf-8"
         )
@@ -128,7 +133,8 @@ class SelfImproveSkillTests(unittest.TestCase):
         source = (ROOT / "chaos-engine/hooks/guard.py").read_text(encoding="utf-8")
         self.assertIn("not a valid skip", source)
         self.assertIn("confirmed_delivery_command", source)
-        self.assertIn("harness queued N / product queued N / nothing durable", source)
+        self.assertIn("Do not write them to a local queue or into chat.", source)
+        self.assertNotIn("harness queued N", source)
 
 
 
