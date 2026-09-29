@@ -156,6 +156,8 @@
                                 <ignoredResourcePattern>draftv[34]/schema</ignoredResourcePattern>
                                 <ignoredResourcePattern>changelog[.]xml</ignoredResourcePattern>
                                 <ignoredResourcePattern>versionchanges[.]txt</ignoredResourcePattern>
+                                <!-- legerix and tess4j ship the same eng.traineddata bytes. -->
+                                <ignoredResourcePattern>tessdata/eng[.]traineddata</ignoredResourcePattern>
                             </ignoredResourcePatterns>
                         </configuration>
                     </execution>
