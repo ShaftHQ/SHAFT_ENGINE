@@ -627,29 +627,70 @@ def _terminal_reflection_reason(event: dict, session_id: str) -> str:
     )
 
 
+_PULL_REQUEST_URL = re.compile(r"/pull/(\d+)\b")
+
+
+def _open_pull_request_state_path(cwd: Path) -> Path:
+    return cwd / ".chaos-engine-state" / "open-pull-request.json"
+
+
+def _pull_request_number(event: dict, commands: tuple[str, ...]) -> int | None:
+    response = event.get("tool_response") or event.get("toolResponse") or {}
+    chunks: list[str] = []
+    if isinstance(response, dict):
+        chunks.extend(str(response.get(key) or "") for key in ("stdout", "output", "body"))
+    elif isinstance(response, str):
+        chunks.append(response)
+    chunks.extend(commands)
+    for chunk in chunks:
+        match = _PULL_REQUEST_URL.search(chunk)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def remember_open_pull_request(cwd: Path, number: int | None) -> None:
+    """Persist a pull request opened by gh pr create for later sessions."""
+    payload: dict[str, object] = {"active": True, "state": "open"}
+    if number is not None:
+        payload["pullRequest"] = number
+    path = _open_pull_request_state_path(cwd)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    except OSError:
+        return
+
+
+def clear_open_pull_request(cwd: Path) -> None:
+    """Drop the checkout open-PR mark after gh pr merge."""
+    path = _open_pull_request_state_path(cwd)
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        return
+
+
 def delivery_goal_open_pull_request(event: dict) -> bool:
-    """True when delivery-goal state names an open pull request.
+    """True when this checkout still has a pull request opened by gh pr create.
 
     The session ledger is not required to contain ``pull-request-open``.
-    A push-only session still owes a babysit when this state is active.
+    A later push-only session still owes a babysit while that mark is open.
     """
-    payload = event.get("deliveryGoal") or event.get("delivery_goal")
-    if not isinstance(payload, dict):
-        cwd = event.get("cwd")
-        payload = None
-        if cwd:
-            path = Path(str(cwd)) / ".chaos-engine-state" / "delivery-goal.json"
-            try:
-                loaded = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, UnicodeError, json.JSONDecodeError):
-                loaded = None
-            if isinstance(loaded, dict):
-                payload = loaded
+    cwd = event.get("cwd")
+    if not cwd:
+        return False
+    path = _open_pull_request_state_path(Path(str(cwd)))
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
     if not isinstance(payload, dict) or payload.get("active") is not True:
         return False
-    state = str(payload.get("state") or payload.get("pullRequestState") or "").casefold()
-    number = payload.get("pullRequest") or payload.get("pull_request")
-    return state == "open" and number not in (None, "", 0)
+    if str(payload.get("state") or "").casefold() != "open":
+        return False
+    number = payload.get("pullRequest")
+    return number is None or (isinstance(number, int) and not isinstance(number, bool) and number > 0)
 
 
 def _open_pull_request_reason(session_id: str, event: dict) -> str:
@@ -1084,12 +1125,17 @@ def _run_event(event: dict, _host: str) -> int:
             reflection.record_activity(session_id, "delivery-complete")
             if any(pull_request_merged_command(candidate) for candidate in commands):
                 reflection.record_activity(session_id, "pull-request-merged")
+                clear_open_pull_request(Path(str(event.get("cwd") or Path.cwd())))
         elif mutation or any(delivery_command(candidate) for candidate in commands):
             reflection.record_activity(session_id, "mutation")
             if any(git_commit_command(candidate) for candidate in commands):
                 reflection.record_activity(session_id, "fix-commit")
             if any(pull_request_open_command(candidate) for candidate in commands):
                 reflection.record_activity(session_id, "pull-request-open")
+                remember_open_pull_request(
+                    Path(str(event.get("cwd") or Path.cwd())),
+                    _pull_request_number(event, commands),
+                )
     if event_name in {"Stop", "SubagentStop"}:
         stop_reason = _stop_block_reason(event, session_id)
         if stop_reason:

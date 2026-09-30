@@ -1150,14 +1150,27 @@ process.stderr.write(result.stderr || '');
     def test_stop_blocks_an_open_delivery_goal_without_pr_create_in_session(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            state = root / ".chaos-engine-state"
-            state.mkdir()
-            (state / "delivery-goal.json").write_text(
-                json.dumps({"active": True, "pullRequest": 6322, "state": "open"}),
-                encoding="utf-8",
-            )
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary, "CHAOS_ENGINE_HOST": "claude"}
-            session = "goal-open-pr"
+            created = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "gh pr create --base main --title x --body y"},
+                    "tool_response": {
+                        "status": "success",
+                        "exit_code": 0,
+                        "stdout": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/6322\n",
+                    },
+                    "session_id": "pr-creator",
+                },
+                environment,
+            )
+            self.assertEqual(0, created.returncode)
+            persisted = json.loads((root / ".chaos-engine-state" / "open-pull-request.json").read_text(encoding="utf-8"))
+            self.assertEqual(6322, persisted["pullRequest"])
+            self.assertTrue(persisted["active"])
+            session = "push-only"
             pushed = self.run_hook(
                 {
                     "hook_event_name": "PostToolUse",
@@ -1207,6 +1220,19 @@ process.stderr.write(result.stderr || '');
                 environment,
             )
             self.assertIn("until merged", (still.stderr or still.stdout).casefold())
+            grok_env = {**environment, "CHAOS_ENGINE_HOST": "grok"}
+            grok_stop = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "cwd": str(root),
+                    "session_id": "goal-open-pr-grok",
+                    "stop_hook_active": True,
+                },
+                grok_env,
+            )
+            grok_payload = json.loads(grok_stop.stdout.strip().splitlines()[-1])
+            self.assertEqual("block", grok_payload.get("decision"))
+            self.assertIn("until merged", str(grok_payload.get("additionalContext", "")).casefold())
             merged = self.run_hook(
                 {
                     "hook_event_name": "PostToolUse",
@@ -1229,23 +1255,7 @@ process.stderr.write(result.stderr || '');
                 environment,
             )
             self.assertNotIn("until merged", (cleared.stdout + cleared.stderr).casefold())
-            grok_env = {**environment, "CHAOS_ENGINE_HOST": "grok"}
-            (state / "delivery-goal.json").write_text(
-                json.dumps({"active": True, "pullRequest": 6322, "state": "open"}),
-                encoding="utf-8",
-            )
-            grok_stop = self.run_hook(
-                {
-                    "hook_event_name": "Stop",
-                    "cwd": str(root),
-                    "session_id": "goal-open-pr-grok",
-                    "stop_hook_active": True,
-                },
-                grok_env,
-            )
-            grok_payload = json.loads(grok_stop.stdout.strip().splitlines()[-1])
-            self.assertEqual("block", grok_payload.get("decision"))
-            self.assertIn("until merged", str(grok_payload.get("additionalContext", "")).casefold())
+            self.assertFalse((root / ".chaos-engine-state" / "open-pull-request.json").exists())
 
     def test_reflection_receipt_alone_does_not_clear_stop_after_delivery(self):
         with tempfile.TemporaryDirectory() as temporary:
