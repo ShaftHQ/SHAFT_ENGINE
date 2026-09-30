@@ -143,6 +143,8 @@ playbook can take another lesson without deleting that guidance (#6313).
 
 The entrypoint makes this a duty. The terminal states are merged, red,
 conflicting, and stale; a watcher observes only green and red.
+The Stop hook blocks while the session has opened a pull request and has not
+recorded `gh pr merge`. A delivery goal keeps babysitting until that merge.
 When attendance is fully unattended (default) or the owner says babysit and merge it when green, follow this PR-merger
 (arm auto-merge, watch, fix, confirm). Bundled `pr-babysit` forbids merge;
 do not copy that rule into ChaosEngine and do not edit the bundled skill in place.
