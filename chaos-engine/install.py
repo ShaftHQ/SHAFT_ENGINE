@@ -4452,6 +4452,9 @@ def attach_component_status(
                 "taskImpact": "optional",
             }
     result["components"] = components
+    drift = reflection_controller_drift(project)
+    if drift:
+        result["reflectionControllerDrift"] = drift
     apply_merge_handoff_fix_next(project, components)
     if any(component_escalates_overall(item) for item in components.values()):
         result["status"] = "recovery-required"
@@ -6397,6 +6400,20 @@ def format_doctor_host_onboarding(clients: dict[str, object] | None = None) -> s
 
 
 
+def reflection_controller_drift(project: Path) -> str:
+    """Doctor view of installed-vs-source hooks/reflection.py."""
+    path = Path(__file__).resolve().parent / "hooks" / "reflection.py"
+    spec = importlib.util.spec_from_file_location("chaos_engine_reflection_drift", path)
+    if spec is None or spec.loader is None:
+        return ""
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    report = getattr(module, "reflection_controller_drift", None)
+    if not callable(report):
+        return ""
+    return str(report(project) or "")
+
+
 def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
     """Owner-visible warnings when a host may not honor exit-2 hard blocks (#5579)."""
     lines: list[str] = []
@@ -6568,6 +6585,9 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
             lines.append("")
             lines.extend(advisories)
         lines.extend(format_blocking_fidelity_warnings(document))
+        note = document.get("reflectionControllerDrift")
+        if isinstance(note, str) and note.strip():
+            lines.append(note.strip())
         return "\n".join(lines) + "\n"
     counts: dict[str, int] = {"error": 0, "warning": 0, "info": 0}
     for _name, _item, severity in failures:
@@ -6595,6 +6615,9 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
             lines.append(f"  `{prompt.strip()}`")
     lines.extend(advisories)
     lines.extend(format_blocking_fidelity_warnings(document))
+    note = document.get("reflectionControllerDrift")
+    if isinstance(note, str) and note.strip():
+        lines.append(note.strip())
     return "\n".join(lines) + "\n"
 
 

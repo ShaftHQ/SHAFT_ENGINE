@@ -1046,6 +1046,207 @@ process.stderr.write(result.stderr || '');
             )
             self.assertNotIn("until merged", cleared.stdout.casefold())
 
+    def test_session_start_reports_reflection_controller_drift_only_when_files_differ(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            installed = root / ".chaos-engine" / "hooks"
+            source = root / "chaos-engine" / "hooks"
+            installed.mkdir(parents=True)
+            source.mkdir(parents=True)
+            (installed / "reflection.py").write_text("same\n", encoding="utf-8")
+            (source / "reflection.py").write_text("same\n", encoding="utf-8")
+            environment = {
+                **isolated_session_environment(),
+                "TMPDIR": temporary,
+                "TEMP": temporary,
+            }
+            matched = self.run_hook(
+                {
+                    "hook_event_name": "SessionStart",
+                    "cwd": str(root),
+                    "session_id": "drift-match",
+                },
+                environment,
+            )
+            self.assertEqual(0, matched.returncode)
+            self.assertNotIn("Reflection controller drift", matched.stdout)
+            (source / "reflection.py").write_text("other\n", encoding="utf-8")
+            drifted = self.run_hook(
+                {
+                    "hook_event_name": "SessionStart",
+                    "cwd": str(root),
+                    "session_id": "drift-differ",
+                },
+                environment,
+            )
+            self.assertEqual(0, drifted.returncode)
+            self.assertIn("Reflection controller drift", drifted.stdout)
+            self.assertIn("chaos-engine/hooks/reflection.py", drifted.stdout)
+
+    def test_doctor_reports_reflection_controller_drift_only_when_files_differ(self):
+        import importlib.util
+
+        path = ROOT / "chaos-engine" / "install.py"
+        spec = importlib.util.spec_from_file_location("ce_install_drift", path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            installed = root / ".chaos-engine" / "hooks"
+            source = root / "chaos-engine" / "hooks"
+            installed.mkdir(parents=True)
+            source.mkdir(parents=True)
+            (installed / "reflection.py").write_text("same\n", encoding="utf-8")
+            (source / "reflection.py").write_text("same\n", encoding="utf-8")
+            self.assertEqual("", module.reflection_controller_drift(root))
+            matched = module.format_health_report(
+                {"kind": "doctor", "status": "healthy", "commit": "abc", "components": {}}
+            )
+            self.assertNotIn("Reflection controller drift", matched)
+            (source / "reflection.py").write_text("other\n", encoding="utf-8")
+            note = module.reflection_controller_drift(root)
+            self.assertIn("Reflection controller drift", note)
+            rendered = module.format_health_report(
+                {
+                    "kind": "doctor",
+                    "status": "healthy",
+                    "commit": "abc",
+                    "components": {},
+                    "reflectionControllerDrift": note,
+                }
+            )
+            self.assertIn("Reflection controller drift", rendered)
+
+    def test_checkpoint_denial_names_the_executed_controller(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "name-the-controller"
+            failure = {
+                "hook_event_name": "PostToolUse",
+                "tool_name": "Bash",
+                "tool_input": {"command": "py -3 -m unittest focused"},
+                "tool_response": {"status": "failed", "exit_code": 1},
+                "session_id": session,
+            }
+            self.run_hook(failure, environment)
+            self.run_hook(failure, environment)
+            self.run_hook(failure, environment)
+            denied = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "git commit -m fix"},
+                    "session_id": session,
+                },
+                environment,
+            )
+            controller = str((ROOT / "chaos-engine" / "hooks" / "reflection.py").resolve())
+            self.assertEqual(2, denied.returncode)
+            self.assertIn(controller, denied.stdout)
+            self.assertIn("The gate executed", denied.stdout)
+
+    def test_stop_blocks_an_open_delivery_goal_without_pr_create_in_session(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state = root / ".chaos-engine-state"
+            state.mkdir()
+            (state / "delivery-goal.json").write_text(
+                json.dumps({"active": True, "pullRequest": 6322, "state": "open"}),
+                encoding="utf-8",
+            )
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary, "CHAOS_ENGINE_HOST": "claude"}
+            session = "goal-open-pr"
+            pushed = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "git push -u origin HEAD"},
+                    "tool_response": {"status": "success", "exit_code": 0},
+                    "session_id": session,
+                },
+                environment,
+            )
+            self.assertEqual(0, pushed.returncode)
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "cwd": str(root),
+                    "session_id": session,
+                    "stop_hook_active": True,
+                },
+                environment,
+            )
+            self.assertEqual(2, stopped.returncode)
+            self.assertIn("until merged", stopped.stderr.casefold() + stopped.stdout.casefold())
+            payload = json.loads((stopped.stderr or stopped.stdout).strip().splitlines()[-1])
+            self.assertNotIn("additionalContext", payload)
+            status = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": "py -3 scripts/agents/chaos_engine_cli.py delivery-status --manifest m --receipt-out r"
+                    },
+                    "tool_response": {"status": "success", "exit_code": 0},
+                    "session_id": session,
+                },
+                environment,
+            )
+            self.assertEqual(0, status.returncode)
+            still = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "cwd": str(root),
+                    "session_id": session,
+                    "stop_hook_active": True,
+                },
+                environment,
+            )
+            self.assertIn("until merged", (still.stderr or still.stdout).casefold())
+            merged = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "gh pr merge 6322 --merge"},
+                    "tool_response": {"status": "success", "exit_code": 0},
+                    "session_id": session,
+                },
+                environment,
+            )
+            self.assertEqual(0, merged.returncode)
+            cleared = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "cwd": str(root),
+                    "session_id": session,
+                    "stop_hook_active": True,
+                },
+                environment,
+            )
+            self.assertNotIn("until merged", (cleared.stdout + cleared.stderr).casefold())
+            grok_env = {**environment, "CHAOS_ENGINE_HOST": "grok"}
+            (state / "delivery-goal.json").write_text(
+                json.dumps({"active": True, "pullRequest": 6322, "state": "open"}),
+                encoding="utf-8",
+            )
+            grok_stop = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "cwd": str(root),
+                    "session_id": "goal-open-pr-grok",
+                    "stop_hook_active": True,
+                },
+                grok_env,
+            )
+            grok_payload = json.loads(grok_stop.stdout.strip().splitlines()[-1])
+            self.assertEqual("block", grok_payload.get("decision"))
+            self.assertIn("until merged", str(grok_payload.get("additionalContext", "")).casefold())
+
     def test_reflection_receipt_alone_does_not_clear_stop_after_delivery(self):
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}

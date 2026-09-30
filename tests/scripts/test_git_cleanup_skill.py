@@ -61,7 +61,9 @@ class ReflectionReceiptAdapterTest(unittest.TestCase):
             os.chdir(previous)
         self.assertEqual("receipt", operation)
         reason = guard.checkpoint_reason({"depth": "task", "failureFingerprints": ["abc"]})
-        self.assertIn(".chaos-engine/hooks/reflection.py receipt", reason)
+        controller = str(guard._reflection_controller())
+        self.assertIn(f"The gate executed `{controller}`", reason)
+        self.assertIn(f"`{controller}` receipt", reason)
         self.assertNotIn("scripts/agents/reflection.py", reason)
 
     def test_denied_reflection_retry_does_not_append_a_fingerprint(self) -> None:

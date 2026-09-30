@@ -429,6 +429,21 @@ def adapt_hook_output(
             adapted["permissionDecisionReason"] = str(reason or "Blocked by ChaosEngine.")
         elif decision == "allow":
             adapted["permissionDecision"] = "allow"
+    # GAP-EXIT2 hosts ignore exit 2. The continuation channel is the text
+    # they still surface after a Stop that returned decision=block.
+    capability = HOST_CAPABILITIES.get(host)
+    if (
+        capability is not None
+        and not capability.process_exit2_honored
+        and event_name in {"Stop", "SubagentStop"}
+        and adapted.get("decision") in {"block", "deny"}
+    ):
+        reason = str(adapted.get("reason") or "")
+        if reason:
+            adapted["additionalContext"] = reason
+            if host == "copilot":
+                adapted["permissionDecision"] = "deny"
+                adapted["permissionDecisionReason"] = reason
     return adapted
 
 
