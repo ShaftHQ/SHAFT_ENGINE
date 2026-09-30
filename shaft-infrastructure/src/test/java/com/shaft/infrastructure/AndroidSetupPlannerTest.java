@@ -145,7 +145,7 @@ class AndroidSetupPlannerTest {
                 lockResource);
         assertTrue(lock.matches("(?s).*\"node_modules/morgan\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"1\\.12\\.1\".*"),
                 lockResource);
-        assertTrue(lock.matches("(?s).*\"node_modules/fast-uri\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"3\\.1\\.7\".*"),
+        assertTrue(lock.matches("(?s).*\"node_modules/fast-uri\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"3\\.1\\.8\".*"),
                 lockResource);
     }
 

@@ -33,10 +33,6 @@ the PR with an explicit base. Persist its `baseRefName`, PR identity, and
 `closingIssuesReferences`. Keep nonempty `## Summary`, `## Checks`, and
 `## Continuation` sections current for the delivered head.
 
-### Commit signature before merge
-
-Agent commits must be signed with the enrolled GitHub GPG key `F79E3F65DB762CE1` before merge when that secret is available on the machine. The owner's own email-matched commits (`Mohab.MohieElDeen@outlook.com`) are not unattributed changes when no second reviewer exists, so a green pull request must not stay blocked solely because those commits are unverified.
-
 ### Human PR open checklist (before first push)
 
 Human-authored PRs fail Release-note governance without a classification label.
