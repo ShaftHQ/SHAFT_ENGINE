@@ -45,7 +45,7 @@
              dependency that the old Annotator-based registration required. -->
         <listener class="com.shaft.intellij.java.CaptureReadinessNotifier"
                   topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
-        <!-- Live pass/fail progression for the "SHAFT Tests" panel (issue #3688): a project-wide
+        <!-- Live pass/fail progression for SHAFT test runs (issue #3688): a project-wide
              subscription to every SM Test Runner-driven test run, mirroring the two listeners
              above rather than attaching per-process-handler; see ShaftSmTestRunnerBridge's
              class javadoc for why. -->
