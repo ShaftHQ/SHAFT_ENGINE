@@ -24,41 +24,31 @@ class ShaftToolWindowPanelStagesTest {
     void defaultUiExposesThreeStagesAndARecorderWithoutExpertMode() {
         ShaftToolWindowPanel panel = newPanel(false);
         assertEquals(List.of(
-                ShaftToolWindowPanel.STAGE_DESIGN,
-                ShaftToolWindowPanel.STAGE_AUTOMATION,
-                ShaftToolWindowPanel.STAGE_REPORTING), stageLabels(panel));
+                ShaftToolWindowPanel.SURFACE_AGENT,
+                ShaftToolWindowPanel.SURFACE_WORKFLOW,
+                ShaftToolWindowPanel.SURFACE_LOG), stageLabels(panel));
         assertTrue(panel.workflowSelector().isVisible());
-        assertNotNull(panel.recorderPanel());
         assertNotNull(panel.assistantPanel());
-        assertNotNull(panel.designStagePanel());
-        assertNotNull(panel.designStagePanel().storyArea());
-        assertNotNull(panel.designStagePanel().ingestButton());
-        assertNotNull(panel.designStagePanel().analyzeButton());
-        assertNotNull(panel.designStagePanel().gherkinButton());
-        assertFalse(panel.designStagePanel().gherkinButton().isEnabled());
-        assertEquals(ShaftToolWindowPanel.STAGE_DESIGN, panel.selectedStageLabel());
+        assertEquals(ShaftToolWindowPanel.SURFACE_AGENT, panel.selectedStageLabel());
     }
 
     @Test
     void expertModeAddsMoreNotAFourthProductStageName() {
         ShaftToolWindowPanel panel = newPanel(true);
         assertEquals(List.of(
-                ShaftToolWindowPanel.STAGE_DESIGN,
-                ShaftToolWindowPanel.STAGE_AUTOMATION,
-                ShaftToolWindowPanel.STAGE_REPORTING,
-                "More"), stageLabels(panel));
+                ShaftToolWindowPanel.SURFACE_AGENT,
+                ShaftToolWindowPanel.SURFACE_WORKFLOW,
+                ShaftToolWindowPanel.SURFACE_LOG), stageLabels(panel));
+        assertFalse(stageLabels(panel).contains("More"));
     }
 
     @Test
     void liveRecordIsAutomationDefaultWithoutExpertMode() {
         ShaftToolWindowPanel panel = newPanel(false);
-        assertNotNull(panel.automationStagePanel());
         assertNotNull(panel.guidedWorkflowPanel());
-        assertEquals(AutomationStagePanel.ACCESSIBLE_NAME,
-                panel.automationStagePanel().getAccessibleContext().getAccessibleName());
         panel.workflowSelector().setSelectedIndex(1);
-        assertEquals(ShaftToolWindowPanel.STAGE_AUTOMATION, panel.selectedStageLabel());
-        assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, panel.selectedSurfaceLabel());
+        assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, panel.selectedStageLabel());
+        assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, panel.selectedSurfaceLabel());
         assertNotNull(findButton(panel.guidedWorkflowPanel(), "Start recording"));
         assertNotNull(findButton(panel.guidedWorkflowPanel(), "Pause recording"));
         assertNotNull(findButton(panel.guidedWorkflowPanel(), "Stop recording"));
@@ -70,8 +60,7 @@ class ShaftToolWindowPanelStagesTest {
         ShaftToolWindowPanel panel = newPanel(false);
         panel.startRecordingAtTarget(new JavaTargetContext(
                 "src/test/java/LoginTest.java", "tests", "LoginTest", "logsIn"));
-        assertEquals(ShaftToolWindowPanel.STAGE_AUTOMATION, panel.selectedStageLabel());
-        assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, panel.selectedSurfaceLabel());
+        assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, panel.selectedStageLabel());
     }
 
 
@@ -79,11 +68,8 @@ class ShaftToolWindowPanelStagesTest {
     void reportingOverviewIsDefaultCanvasWithoutFivePrimaryTabs() {
         ShaftToolWindowPanel panel = newPanel(false);
         panel.workflowSelector().setSelectedIndex(2);
-        assertEquals(ShaftToolWindowPanel.STAGE_REPORTING, panel.selectedStageLabel());
-        assertNotNull(panel.reportingStagePanel());
-        assertEquals(ReportingStagePanel.OVERVIEW_TAB, panel.selectedSurfaceLabel());
-        assertEquals(ReportingStagePanel.ACCESSIBLE_NAME,
-                panel.reportingStagePanel().getAccessibleContext().getAccessibleName());
+        assertEquals(ShaftToolWindowPanel.SURFACE_LOG, panel.selectedStageLabel());
+        assertNotNull(panel.executionLogPanel());
     }
 
     private static ShaftToolWindowPanel newPanel(boolean expert) {

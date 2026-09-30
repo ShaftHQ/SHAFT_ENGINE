@@ -1033,6 +1033,19 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
     }
 
     /** Package-private test accessor: rendered transcript markdown (blank until a turn is sent). */
+    void submitReviewedPrompt(String text) {
+        append("user", text, "");
+    }
+
+    void offerQuestion(java.util.List<String> options) {
+        showAssistantQuestionOptions(new AssistantQuestion("Choose one", options));
+    }
+
+    void offerApproval(String toolName) {
+        requestToolApproval(toolName, new JsonObject(),
+                ToolApprovalPromptPanel.AgentApprovalCapability.STANDARD, decision -> { });
+    }
+
     String transcriptMarkdown() {
         return transcript.markdown();
     }
