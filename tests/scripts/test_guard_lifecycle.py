@@ -309,8 +309,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
                 for item in reflection.entries("guard-scope")
                 if item.get("kind") == "task-failure"
             ]
-            self.assertEqual(2, len(failures))
-            self.assertTrue(all(item["attempted"] is False for item in failures))
+            self.assertEqual([], failures)
 
     def test_agent_ids_isolate_reflection_checkpoints(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(

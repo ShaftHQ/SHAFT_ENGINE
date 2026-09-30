@@ -75,6 +75,67 @@ def _drain_significance(session_id: str) -> list[dict]:
 
 
 
+def _activity_retrospective(session_id: str) -> dict[str, object]:
+    """Name costly activity classes from the reflection ledger (#6311).
+
+    Token totals stay separate. An empty ledger does not claim the session
+    consumed nothing. Notes stay free of prompts, secrets, and absolute paths.
+    """
+    counts: dict[str, int] = {}
+    try:
+        path = Path(__file__).resolve().parent / "hooks" / "reflection.py"
+        spec = importlib.util.spec_from_file_location("chaos_engine_reflection_activity", path)
+        if spec is None or spec.loader is None:
+            items = []
+        else:
+            reflection = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(reflection)
+            items = reflection.entries(session_id)
+    except (OSError, ValueError, AttributeError, ImportError):
+        items = []
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("kind") == "task-activity":
+            label = str(item.get("activity") or "activity")
+        elif item.get("kind") == "task-failure" and item.get("attempted") is not False:
+            label = "implementation"
+        else:
+            continue
+        if label.startswith("digest-") or "/" in label or "\\" in label:
+            label = "redacted"
+        counts[label] = counts.get(label, 0) + 1
+    ranked = sorted(counts.items(), key=lambda pair: (-pair[1], pair[0]))
+    optimizations = {
+        "wait": "One watcher event is enough; do not narrate an unchanged pending list.",
+        "log-ingest": "Return surefire failure names only; do not place the raw job log in context.",
+        "re-entry": "Carry a short completed-check digest; do not replay the plan on continuation.",
+        "retrieve": "Keep a citation gate out of the model context and skip a repeated query.",
+        "implementation": "After a red matrix names a test, rerun that test before another full matrix.",
+    }
+    if not ranked:
+        return {
+            "classes": [],
+            "largestWaste": "unrecorded",
+            "optimization": "Record tool and wait activity before finalize.",
+            "note": (
+                "Activity estimate: no tool or wait records. "
+                "Missing usage events do not mean the work was free."
+            ),
+        }
+    top = ranked[0][0]
+    classes = [
+        {"activity": name, "count": count, "reason": optimizations.get(name, "Observed in the session ledger.")}
+        for name, count in ranked[:5]
+    ]
+    return {
+        "classes": classes,
+        "largestWaste": top,
+        "optimization": optimizations.get(top, "Cut the repeated activity before the next session."),
+        "note": f"Highest-cost activity class: {top}.",
+    }
+
+
 def _token_usage_summary(session_id: str) -> dict[str, object] | None:
     """Attach privacy-safe local vs cloud token retrospective (#5981)."""
     try:
@@ -181,6 +242,7 @@ def finalize(
                 if isinstance(item, dict) and item.get("kind")
             }
         )
+    receipt["activityRetrospective"] = _activity_retrospective(session_id.strip())
     token_summary = _token_usage_summary(session_id.strip())
     if isinstance(token_summary, dict):
         retrospective = None

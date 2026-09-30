@@ -12,6 +12,7 @@ from scripts.ci.validate_pr_closing_keywords import (
     find_credited_symbols_not_in_diff,
     find_negated_autocloses,
     find_negated_autocloses_in_commits,
+    find_nightly_tracker_closes,
     parse_commits_json,
 )
 
@@ -346,6 +347,26 @@ itself a judgement call reads as softer than it is.
             [("254a830710", self.COMMIT_254A_MESSAGE)], lambda sha: None
         )
         self.assertEqual([finding["code"] for finding in findings], ["credit-scan-unavailable"])
+
+
+class NightlyTrackerCloseTest(unittest.TestCase):
+    def test_closing_keyword_on_nightly_tracker_is_rejected(self):
+        errors = find_nightly_tracker_closes(
+            "Fixes #6314\nRelated to #12\n",
+            {"6314": ["nightly-failure:e2e-tests"], "12": ["bug"]},
+        )
+        self.assertEqual(len(errors), 1)
+        self.assertIn("6314", errors[0]["message"])
+        self.assertIn("jobs=all", errors[0]["message"])
+
+    def test_related_to_does_not_close_a_nightly_tracker(self):
+        self.assertEqual(
+            find_nightly_tracker_closes(
+                "Related to #6314",
+                {"6314": ["nightly-failure:e2e-tests"]},
+            ),
+            [],
+        )
 
 
 class MainCLIIntegrationTest(unittest.TestCase):

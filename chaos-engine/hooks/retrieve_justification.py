@@ -783,9 +783,11 @@ def exploratory_project_path(project: Path, raw: str) -> bool:
         root = Path(project).resolve()
     except OSError:
         return True
+    # Another checkout, scratch dir, or docs worktree is outside this workspace
+    # (#6309). An ancestor of the project, such as ``find /``, still counts.
     if resolved == root or root in resolved.parents or resolved in root.parents:
         return True
-    return _checkout_root(resolved) is not None
+    return False
 
 
 def _ledger_path(project: Path, raw: str) -> str:

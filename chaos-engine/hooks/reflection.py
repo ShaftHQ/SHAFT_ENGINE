@@ -414,11 +414,9 @@ def pending_checkpoint(session_id: str) -> dict | None:
             ),
             "attemptCount": len(active),
         }
-    _credit, saw = _receipt_commit_state(session_id)
-    # A new failure after a receipt is the fourth attempt. Commit credit does
-    # not keep that failure open until the commit is recorded.
-    reopen = bool(saw and active)
-    if len(active) < 3 and not reopen:
+    # A receipt authorizes the next mutation. One later failure does not
+    # reopen the checkpoint (#6309). Three new attempted failures still do.
+    if len(active) < 3:
         return None
     fingerprints = [str(item.get("fingerprint", "manual")) for item in active]
     same = len(set(fingerprints)) == 1
