@@ -1806,7 +1806,8 @@ class ShaftPluginScreenshotRendererTest {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(
                 project, settings, AssistantLocalAgentRunner::readiness, chatState);
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindow.workflowSelector();
-        ShaftToolWindowPanel.WorkflowView selectedView = selector.getItemAt(selectedTab);
+        int safeTab = Math.min(selectedTab, Math.max(0, selector.getItemCount() - 1));
+        ShaftToolWindowPanel.WorkflowView selectedView = selector.getItemAt(safeTab);
         Component selected = selectedView.component();
         if (selected instanceof ShaftFeaturePanel featurePanel && !toolsCategory.isBlank()) {
             featurePanel.selectCategory(toolsCategory);

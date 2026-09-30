@@ -523,7 +523,8 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         // row down to that smaller natural minimum instead of any of the zero-slack rows around it
         // -- the exact same footgun setupStateLabel's badges were already pinned against below.
         status.setMinimumSize(JBUI.size(560, 28));
-        setStatusText(GUIDE_SETUP_STEP);
+        boolean prerequisitesMet = settings != null && settings.mcpReady();
+        setStatusText(SetupReadiness.message(prerequisitesMet, prerequisitesMet, prerequisitesMet));
         status.getAccessibleContext().setAccessibleName("SHAFT MCP setup next step");
         copyCommand = new JButton("Copy");
         copyCommand.getAccessibleContext().setAccessibleName("Copy setup diagnostic command");
@@ -846,7 +847,9 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         refreshPrerequisites();
         refreshRealChecks();
         if (!currentCommand().isBlank()) {
-            setStatusText(settings.mcpSetupComplete ? ALREADY_VERIFIED_STEP : CHECK_NEXT_STEP);
+            setStatusText(settings.mcpSetupComplete
+                    ? SetupReadiness.message(true, true, true)
+                    : SetupReadiness.message(false, false, false));
         }
         updateActionState(false);
     }

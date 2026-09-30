@@ -123,7 +123,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         workflowLayout = null;
         advancedTools = null;
         assistantPanel = null;
-        recorderPanel = null;
+        recorderPanel = new RecorderToolPanel(project, settings);
         designStagePanel = null;
         automationStagePanel = null;
         reportingStagePanel = null;
