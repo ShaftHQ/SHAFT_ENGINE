@@ -115,7 +115,7 @@ records its terminal reflection receipt before the Learning Session.
    (gitignored).
 
 Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
-[work-github-playbook-promotion.md](work-github-playbook-promotion.md) so this
+[work-github-playbook-promotion.md](details/work-github-playbook-promotion.md) so this
 playbook can take another lesson without deleting that guidance (#6313).
 
 

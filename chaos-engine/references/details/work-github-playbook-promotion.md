@@ -1,6 +1,6 @@
 # Playbook: promotion and orchestrated runtime
 
-Moved out of [work-github-playbook.md](work-github-playbook.md) so that file
+Moved out of [work-github-playbook.md](../work-github-playbook.md) so that file
 can take another lesson without deleting this guidance (#6313).
 
 For a meaningful event, record an evidence-consistent `signal`, then `assess`

@@ -41,7 +41,7 @@ class OverlayPrePushTest(unittest.TestCase):
 
     def test_live_playbook_has_room_for_another_lesson_without_dropping_promotion(self):
         playbook = (ROOT / PLAYBOOK).read_text(encoding="utf-8")
-        promotion = (ROOT / "chaos-engine/references/work-github-playbook-promotion.md").read_text(
+        promotion = (ROOT / "chaos-engine/references/details/work-github-playbook-promotion.md").read_text(
             encoding="utf-8"
         )
         self.assertEqual(playbook_contract_failures(playbook), [])
