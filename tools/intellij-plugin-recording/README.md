@@ -1,5 +1,9 @@
 # IntelliJ Plugin Capture Workflow
 
+**Humans:** use this flow to validate the assistant-driven capture path. The plugin itself is [shaft-intellij](../../shaft-intellij/README.md).
+
+**Agents:** load [AGENTS.md](../../AGENTS.md) and follow ChaosEngine. This README is a recording runbook, not policy. Skip it unless the task records or replays the IntelliJ plugin.
+
 Use this flow to validate the assistant-driven e2e capture path. For the
 reproducible headed recording, duplicate-frame processing, verified replay,
 and Drive evidence, follow [RUNBOOK.md](RUNBOOK.md).

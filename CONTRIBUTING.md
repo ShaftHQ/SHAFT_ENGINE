@@ -1,7 +1,14 @@
 # Contributing To SHAFT Engine
 
-This repository contains the Java 25 Maven reactor for SHAFT Engine. The public
-user guide lives in
+**Humans:** this repository is the Java 25 Maven reactor. The product guide is
+[https://shafthq.github.io/](https://shafthq.github.io/). JDK 25 and Maven 3.9+
+are required before the build below.
+
+**Agents:** load [AGENTS.md](AGENTS.md) and follow ChaosEngine before editing.
+This file is contributor procedure, not a second policy manual. Skip it when
+the task does not change the engine.
+
+The public user-guide source lives in
 [ShaftHQ/shafthq.github.io](https://github.com/ShaftHQ/shafthq.github.io).
 
 ## 1. Check Out The Code
@@ -135,8 +142,9 @@ once before your first agent-assisted change.
   credential files.
 
 The Docusaurus user guide is the canonical location for product, usage,
-architecture, migration, and maintainer documentation. Do not add public guides
-or module READMEs to this repository.
+architecture, migration, and maintainer documentation. In-repo module READMEs
+are short orientation only (purpose, use or skip, next link). Do not add
+product guides or a second ChaosEngine policy to this repository.
 
 ## 5. Validate By Risk
 

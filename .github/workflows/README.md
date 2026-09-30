@@ -1,5 +1,9 @@
 # GitHub Actions workflow map
 
+**Humans:** this is the repository-local inventory of workflow triggers. Public release guidance stays on the maintainer guide linked below.
+
+**Agents:** load [AGENTS.md](../../AGENTS.md) before changing workflows. This page is an inventory, not ChaosEngine policy. Skip it unless the task touches `.github/workflows/`.
+
 This is the repository-local operating inventory for `.github/workflows/`.
 Public release and architecture guidance belongs in the
 [maintainer guide](https://shafthq.github.io/docs/maintainers/overview); this

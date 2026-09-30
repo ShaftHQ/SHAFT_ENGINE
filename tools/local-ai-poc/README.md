@@ -1,5 +1,9 @@
 # SHAFT managed local AI research PoC
 
+**Humans:** this is a research proof, outside the production Maven modules. Do not start product work here.
+
+**Agents:** load [AGENTS.md](../../AGENTS.md) and follow ChaosEngine. This README is research notes, not policy. Skip it unless the task is the local-AI proof.
+
 This tracked harness supports [#4852](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4852) under the wider research tracker [#4851](https://github.com/ShaftHQ/SHAFT_ENGINE/issues/4851). It is deliberately outside production modules: its job is to prove lifecycle mechanics and measure whether small local models can safely improve SHAFT Doctor advisories.
 
 No runtime, model, cache, result, or raw response is committed. Every generated artifact stays under ignored `target/local-ai-poc/`, and normal Maven/Python validation never downloads anything.

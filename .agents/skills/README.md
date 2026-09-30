@@ -1,5 +1,9 @@
 # Agent skills map
 
+**Humans:** this directory is a map of how coding-agent skills fit together in this repository.
+
+**Agents:** do not work from this file. Load [ChaosEngine](../../chaos-engine/skills/chaos-engine/SKILL.md) and follow it. Repository entry is [AGENTS.md](../../AGENTS.md). This page is not policy.
+
 This directory holds the skills that teach a coding agent how work is done in
 this repository. It is written to be read by both people and agents: a
 contributor can skim it to understand the system, and an agent can be pointed

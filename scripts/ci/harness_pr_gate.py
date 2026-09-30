@@ -180,7 +180,10 @@ CHECKS = {
     "documentation-inventory-contract": Check(
         "documentation-inventory-contract",
         "documentation",
-        ("tests.scripts.test_validate_chaos_engine_readme",),
+        (
+            "tests.scripts.test_validate_chaos_engine_readme",
+            "tests.scripts.test_user_facing_readmes",
+        ),
     ),
     "accessibility-contract": Check(
         "accessibility-contract",

@@ -24,6 +24,23 @@ readable assertions, and unified reports.
 
 </div>
 
+## Start here
+
+SHAFT is a Java test-automation framework. The shortest path from zero to a
+run is the published user guide at [https://shafthq.github.io/](https://shafthq.github.io/):
+generate a project, then run `mvn test`.
+
+**Humans:** use this page to orient, then [CONTRIBUTING.md](CONTRIBUTING.md)
+when you change the engine. Report vulnerabilities through
+[SECURITY.md](SECURITY.md).
+
+**Agents:** start at [AGENTS.md](AGENTS.md). It points at ChaosEngine, the only
+working-policy owner. This README is orientation. Do not treat it, or any
+module README, as agent policy.
+
+Each Maven reactor module and [shaft-intellij](shaft-intellij/README.md) has a
+short README with a purpose line and a use-or-skip note.
+
 SHAFT removes the repeated plumbing around drivers, waits, assertions,
 configuration, test data, screenshots, logs, and Allure evidence. Its modular
 Maven reactor keeps the core lean and lets teams add advanced tooling only when
@@ -33,7 +50,6 @@ they need it.
 
 - FreeToken / llama.cpp on ROG: resolve with `chaos-engine/skills/local-agency` (`dispatch.py --prefer freetoken` or OpenAI-compat on `:8080`).
 - Colibri is optional only when `http://127.0.0.1:8000` is READY; not the default on 6GB VRAM laptops.
-- Three-stage UX (Architect, Automation, Reporting): see `chaos-engine/README.md`.
 - Proof runner note (#6045): preferred dense coder is Qwen2.5-Coder-7B Q4_K_M via llama-server when FreeToken KV is ~8k.
 
 ## From zero to useful evidence

@@ -21,6 +21,10 @@ It is not a code generator or a replacement for a project's own engineering
 rules. It is the control layer that discovers those rules, routes each task to
 the right surface, and demands evidence before claiming the work is done.
 
+**Humans:** this page is the overview. Install steps stay in [INSTALL.md](INSTALL.md).
+
+**Agents:** load [skills/chaos-engine/SKILL.md](skills/chaos-engine/SKILL.md) and follow it. This README is a map. Do not treat it as a second copy of the working policy.
+
 ## Why it exists
 
 Capable agents still fail in predictable ways: they start editing before they
