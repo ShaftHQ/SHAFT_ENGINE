@@ -16,12 +16,12 @@ Unattended: decide and run it.
 
 ## Procedure
 
-Name the configured default branch from the remote HEAD or the selected profile. Do not hardcode a repository branch name.
+Name the configured default branch from the remote HEAD or the selected profile. Do not hardcode a repository branch name. This is the repository-scope recipe in cleanup-scopes. Do not fork a second policy.
 
-1. Fetch the configured upstream.
-2. Classify each dirty or untracked path as land (commit, push, pull request, merge), delete, or gitignore.
-3. Remove extra local branches and linked worktrees only after that classification. Keep a branch or worktree that still holds a unique commit until that commit is landed or its discard is explicitly authorized.
-4. Check out the configured default branch in the primary checkout and fast-forward it so `HEAD` equals the remote tip.
+1. Fetch and prune the configured upstream. Inventory dirty and untracked paths, extra local branches, linked worktrees, locks, and unique commits before mutation.
+2. Classify each dirty or untracked path as land (commit, push, pull request, merge), delete, or gitignore. Halt on a locked or concurrently owned worktree.
+3. Check out the configured default branch in the primary checkout and fast-forward it so `HEAD` equals the remote tip and `git status` is clean.
+4. Remove extra linked worktrees only after that classification, and only when they are clean, unlocked, and not concurrently owned. Then remove extra local branches that are fully merged into the remote tip, or whose unique commits were explicitly authorized for discard.
 
 ## Done
 
@@ -29,4 +29,4 @@ One checkout, only the configured default branch, `HEAD` equals that remote tip,
 
 ## Limits
 
-Do not stash. Do not `reset --hard`. Do not force-push. Do not delete remote branches. Do not discard unique commits without explicit authorization. Do not commit generated plugin directories.
+Do not stash. Do not `reset --hard`. Do not force-push. Do not use `--force-with-lease`. Do not delete remote branches. Do not rewrite remote history. Do not discard unique commits without explicit authorization. Do not commit generated plugin directories.
