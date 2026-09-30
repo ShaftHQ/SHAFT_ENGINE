@@ -414,12 +414,14 @@ def reflection_controller_drift(start: Path) -> str:
         return ""
     installed = project / ".chaos-engine" / "hooks" / "reflection.py"
     source = project / "chaos-engine" / "hooks" / "reflection.py"
+    if not installed.is_file() or not source.is_file():
+        return ""
     try:
-        left = installed.read_bytes() if installed.is_file() else None
-        right = source.read_bytes() if source.is_file() else None
+        left = installed.read_bytes()
+        right = source.read_bytes()
     except OSError:
         return ""
-    if left is not None and left == right:
+    if left == right:
         return ""
     return (
         "Reflection controller drift: `.chaos-engine/hooks/reflection.py` and "

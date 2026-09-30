@@ -6408,17 +6408,27 @@ def format_doctor_host_onboarding(clients: dict[str, object] | None = None) -> s
 
 
 def reflection_controller_drift(project: Path) -> str:
-    """Doctor view of installed-vs-source hooks/reflection.py."""
-    path = Path(__file__).resolve().parent / "hooks" / "reflection.py"
-    spec = importlib.util.spec_from_file_location("chaos_engine_reflection_drift", path)
-    if spec is None or spec.loader is None:
+    """Doctor view of installed-vs-source hooks/reflection.py.
+
+    Compare the two project copies directly. Do not import the hook module:
+    doctor can run before that file sits beside install.py.
+    """
+    installed = project / ".chaos-engine" / "hooks" / "reflection.py"
+    source = project / "chaos-engine" / "hooks" / "reflection.py"
+    if not installed.is_file() or not source.is_file():
         return ""
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    report = getattr(module, "reflection_controller_drift", None)
-    if not callable(report):
+    try:
+        left = installed.read_bytes()
+        right = source.read_bytes()
+    except OSError:
         return ""
-    return str(report(project) or "")
+    if left == right:
+        return ""
+    return (
+        "Reflection controller drift: `.chaos-engine/hooks/reflection.py` and "
+        "`chaos-engine/hooks/reflection.py` differ. Receipts must use the "
+        "controller the gate executes."
+    )
 
 
 def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
