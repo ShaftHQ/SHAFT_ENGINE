@@ -101,7 +101,9 @@ public class HealingActionsIntegrationTest {
         DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
         when(helper.getDriver()).thenReturn(driver);
 
-        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+        try (var waits = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            waits.when(() -> JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(any()))
+                    .thenThrow(new IllegalStateException("lazy-loading probe failed"));
             new Actions(helper).click(locator);
         }
 

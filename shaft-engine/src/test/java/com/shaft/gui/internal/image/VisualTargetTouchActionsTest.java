@@ -21,6 +21,7 @@ import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebElement;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -244,6 +245,7 @@ public class VisualTargetTouchActionsTest {
         byte[] screenshot = image(false);
         AndroidDriver driver = driver();
         doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        displayedExactText(driver);
         TestTouchActions actions = actions(driver);
         By container = By.id("expandable");
         container(actions, driver, container, new Rectangle(10, 10, 80, 80));
@@ -270,6 +272,7 @@ public class VisualTargetTouchActionsTest {
         byte[] screenshot = image(false);
         AndroidDriver driver = driver();
         doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        displayedExactText(driver);
         TestTouchActions actions = actions(driver);
         By container = By.id("tabs");
         container(actions, driver, container, new Rectangle(10, 10, 80, 80));
@@ -324,6 +327,13 @@ public class VisualTargetTouchActionsTest {
         when(element.getId()).thenReturn("container-element");
         when(element.getRect()).thenReturn(rectangle);
         when(helper.identifyUniqueElement(driver, locator)).thenReturn(List.of(locator.toString(), element));
+    }
+
+    /** OCR swipe treats a match as visible only when a displayed node has that exact text. */
+    private static void displayedExactText(AndroidDriver driver) {
+        WebElement visible = mock(WebElement.class);
+        when(visible.isDisplayed()).thenReturn(true);
+        when(driver.findElements(any())).thenReturn(List.of(visible));
     }
 
     private static AndroidDriver driver() {

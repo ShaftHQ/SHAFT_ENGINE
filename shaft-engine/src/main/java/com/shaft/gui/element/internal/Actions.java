@@ -625,8 +625,15 @@ public class Actions extends ElementActions {
                 }
                 }
 
-                //wait for lazy loading
-                boolean lazyLoadingActivityObserved = JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(d);
+                // A failed lazy-loading probe must not abort the element action. The wait
+                // already treats browser errors as activity; an unexpected failure (including
+                // a torn-down static test double) is "no activity" so the action still runs.
+                boolean lazyLoadingActivityObserved = false;
+                try {
+                    lazyLoadingActivityObserved = JavaScriptWaitManager.waitForLazyLoadingAndDetectActivity(d);
+                } catch (RuntimeException ignored) {
+                    lazyLoadingActivityObserved = false;
+                }
                 if (lazyLoadingActivityObserved && !isMobileNativeExecution && shouldRefreshElementAfterLazyLoading(action, locator)) {
                     flakeProfile.locatorLookups.incrementAndGet();
                     long profilerRefreshLocateStart = profilerStart != 0L ? System.nanoTime() : 0L;
