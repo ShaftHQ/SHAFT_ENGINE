@@ -5442,19 +5442,26 @@ _DIAGNOSTIC_FIELDS = {
     "status": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components",
+        "reflectionControllerDrift",
     },
     "doctor": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
         "activationProof", "phaseLedger", "learningMetrics", "ceBrief", "officialSelfHeal",
+        "reflectionControllerDrift",
     },
     "explain": {
         "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",
         "diagnosticCode", "reason", "remedy", "factsUsed", "effects", "terminalReason",
     },
 }
+_DIAGNOSTIC_OPTIONAL_FIELDS = {
+    "status": frozenset({"reflectionControllerDrift"}),
+    "doctor": frozenset({"reflectionControllerDrift"}),
+}
 _DIAGNOSTIC_REQUIRED_FIELDS = {
-    kind: frozenset(fields) for kind, fields in _DIAGNOSTIC_FIELDS.items()
+    kind: frozenset(fields) - _DIAGNOSTIC_OPTIONAL_FIELDS.get(kind, frozenset())
+    for kind, fields in _DIAGNOSTIC_FIELDS.items()
 }
 
 
