@@ -111,16 +111,32 @@ class AgentFirstUxTest {
 
     private static Project fakeProject() {
         return (Project) Proxy.newProxyInstance(Project.class.getClassLoader(), new Class<?>[]{Project.class},
-                (proxy, method, arguments) -> switch (method.getName()) {
-                    case "equals" -> proxy == (arguments == null || arguments.length == 0 ? null : arguments[0]);
-                    case "hashCode" -> System.identityHashCode(proxy);
-                    case "toString" -> "agent-first";
-                    case "getBasePath" -> "";
-                    case "getName" -> "agent-first";
-                    default -> method.getReturnType() == boolean.class ? false
-                            : method.getReturnType() == int.class ? 0
-                            : method.getReturnType() == long.class ? 0L : null;
+                (proxy, method, arguments) -> {
+                    if (method == null) {
+                        return null;
+                    }
+                    return switch (method.getName()) {
+                        case "equals" -> proxy == (arguments == null || arguments.length == 0 ? null : arguments[0]);
+                        case "hashCode" -> System.identityHashCode(proxy);
+                        case "toString" -> "agent-first";
+                        case "getBasePath" -> "";
+                        case "getName" -> "agent-first";
+                        default -> defaultValue(method.getReturnType());
+                    };
                 });
+    }
+
+    private static Object defaultValue(Class<?> returnType) {
+        if (returnType == boolean.class) {
+            return false;
+        }
+        if (returnType == int.class) {
+            return 0;
+        }
+        if (returnType == long.class) {
+            return 0L;
+        }
+        return null;
     }
 
     private static String text(Component root, String name) {
