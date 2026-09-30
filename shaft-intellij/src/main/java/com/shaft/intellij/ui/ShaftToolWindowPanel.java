@@ -35,16 +35,12 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 /**
- * Top-level SHAFT IntelliJ tool window content: three stages (Design, Automation, Reporting)
- * with a docked Assistant. Issue #5942.
+ * Top-level SHAFT IntelliJ tool window: Agent, Workflow, and Execution log.
  */
 public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     static final String SURFACE_AGENT = "Agent";
     static final String SURFACE_WORKFLOW = "Workflow";
     static final String SURFACE_LOG = "Execution log";
-    static final String STAGE_DESIGN = "Analysis & Design";
-    static final String STAGE_AUTOMATION = "Automation";
-    static final String STAGE_REPORTING = "Reporting & Analytics";
     private static final Set<ShaftToolWindowPanel> LIVE_PANELS =
             Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
 
@@ -324,7 +320,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             recorderPanel.applyReadyPackUrl(readyUrl);
             recorderPanel.startRecordingAtTarget(context, readyIntent);
         }
-        showSurface(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
+        selectStage(SURFACE_WORKFLOW);
     }
 
     /**
@@ -359,27 +355,6 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         }
         prefillAssistantPrompt("Run " + toolName);
         selectStage(SURFACE_AGENT);
-        for (ShaftFeaturePanel panel : List.<ShaftFeaturePanel>of()) {
-            // The Recorder tab's visible WorkflowView component is the composite RecorderToolPanel,
-            // not its embedded ShaftFeaturePanel held here for tool-name lookup (issue #3665 part B)
-            // -- routing through RecorderToolPanel#prefillTool both keeps that identity match working
-            // for selectWorkflow() below and expands its Advanced section for a tool the curated
-            // Quick Start section does not surface.
-            boolean isRecorderFeaturePanel = recorderPanel != null
-                    && Objects.equals(panel, recorderPanel.featurePanel());
-            boolean matched = isRecorderFeaturePanel
-                    ? recorderPanel.prefillTool(toolName, arguments)
-                    : panel.prefillTool(toolName, arguments);
-            if (matched) {
-                showSurfaceForComponent(isRecorderFeaturePanel ? recorderPanel : panel);
-                return;
-            }
-        }
-        ensureMoreTools();
-        if (advancedTools != null) {
-            advancedTools.prefillTool(toolName, arguments);
-            showSurface("More", "Advanced", advancedTools);
-        }
     }
 
     /**
@@ -433,7 +408,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         disposeApiRecordingPanel();
         apiRecordingPanel = new ApiRecordingSessionPanel(project, targetUrl, null);
         addAutomationTab("API Recording", apiRecordingPanel);
-        showSurface(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
+        selectStage(SURFACE_WORKFLOW);
 
         ShaftMcpInvocationService.getInstance(project)
                 .startTool("capture_api_start", startArguments)
@@ -467,7 +442,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         apiRecordingPanel = new ApiRecordingSessionPanel(
                 project, ApiRecordingSessionPanel.CaptureMode.PURE_API, headerText, null);
         addAutomationTab("API Recording", apiRecordingPanel);
-        showSurface(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
+        selectStage(SURFACE_WORKFLOW);
 
         ShaftMcpInvocationService.getInstance(project)
                 .startTool("capture_api_start", startArguments)
@@ -626,40 +601,10 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         automationTabs.addTab(title, ShaftIcons.VIEW, component);
     }
 
-    private void ensureMoreTools() {
-        if (moreToolsPanel == null || workflowCards == null || workflowSelector == null) {
-            return;
-        }
-        if (advancedTools == null) {
-            advancedTools = new ShaftFeaturePanel(project, settings);
-            featurePanels = new ArrayList<>(featurePanels);
-            featurePanels.add(advancedTools);
-            moreToolsPanel.removeAll();
-            JBTabbedPane moreTabs = new JBTabbedPane();
-            moreTabs.addTab("Advanced", ShaftIcons.HELP, advancedTools);
-            moreToolsPanel.add(moreTabs, BorderLayout.CENTER);
-        }
-        boolean hasMore = false;
-        for (WorkflowView view : workflowViews) {
-            if ("More".equals(view.label())) {
-                hasMore = true;
-                break;
-            }
-        }
-        if (!hasMore) {
-            WorkflowView moreView = new WorkflowView("More", moreToolsPanel, ShaftIcons.SETTINGS);
-            List<WorkflowView> updated = new ArrayList<>(workflowViews);
-            updated.add(moreView);
-            workflowViews = updated;
-            workflowCards.add(moreToolsPanel, moreView.label());
-            workflowSelector.setModel(new DefaultComboBoxModel<>(workflowViews.toArray(new WorkflowView[0])));
-        }
-    }
-
     private void showSurfaceForComponent(JComponent component) {
         if (showKnownAutomationSurface(component)
-                || showTabbedSurface(automationTabs, STAGE_AUTOMATION, component)
-                || showTabbedSurface(reportingTabs, STAGE_REPORTING, component)
+                || showTabbedSurface(automationTabs, SURFACE_WORKFLOW, component)
+                || showTabbedSurface(reportingTabs, SURFACE_AGENT, component)
                 || showMoreSurface(component)) {
             return;
         }
@@ -667,28 +612,13 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     }
 
     private boolean showKnownAutomationSurface(JComponent component) {
-        if (isRecorderComponent(component)) {
-            if (settings.advancedUiEnabled && moreToolsPanel != null) {
-                ensureMoreTools();
-                showSurface("More", "Recorder", recorderPanel);
-            } else {
-                showSurface(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
-            }
-            return true;
-        }
-        if (automationStagePanel != null
-                && Objects.equals(component, automationStagePanel.locatorPlaygroundPanel())) {
-            showSurface(STAGE_AUTOMATION, AutomationStagePanel.LOCATOR_PICKER_TAB,
-                    automationStagePanel.locatorPlaygroundPanel());
-            return true;
-        }
-        if (Objects.equals(component, guidedWorkflowPanel)
-                || (automationStagePanel != null && Objects.equals(component, automationStagePanel))) {
-            showSurface(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
-            return true;
-        }
-        if (Objects.equals(component, apiRecordingPanel)) {
-            showSurface(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
+        if (isRecorderComponent(component)
+                || (automationStagePanel != null
+                    && Objects.equals(component, automationStagePanel.locatorPlaygroundPanel()))
+                || Objects.equals(component, guidedWorkflowPanel)
+                || (automationStagePanel != null && Objects.equals(component, automationStagePanel))
+                || Objects.equals(component, apiRecordingPanel)) {
+            selectStage(SURFACE_WORKFLOW);
             return true;
         }
         return false;
@@ -743,7 +673,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             return;
         }
         String resolved = switch (stage) {
-            case SURFACE_WORKFLOW, STAGE_AUTOMATION, "More", "Recorder" -> SURFACE_WORKFLOW;
+            case SURFACE_WORKFLOW, "More", "Recorder" -> SURFACE_WORKFLOW;
             case SURFACE_LOG -> SURFACE_LOG;
             default -> SURFACE_AGENT;
         };
@@ -757,14 +687,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     }
 
     private JBTabbedPane tabsForStage(String stage) {
-        if (STAGE_AUTOMATION.equals(stage)) {
+        if (SURFACE_WORKFLOW.equals(stage)) {
             return automationTabs;
-        }
-        if (STAGE_REPORTING.equals(stage)) {
-            return reportingTabs;
-        }
-        if ("More".equals(stage)) {
-            return firstTabbedPane(moreToolsPanel);
         }
         return null;
     }
@@ -850,34 +774,10 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
 
     private SurfaceTarget surfaceTarget(String savedKey) {
         return switch (savedKey) {
-            case "Assistant", SURFACE_AGENT, STAGE_DESIGN -> new SurfaceTarget(SURFACE_AGENT, SURFACE_AGENT, assistantPanel);
-            case "Guided", AutomationStagePanel.LIVE_RECORD_TAB ->
-                    new SurfaceTarget(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
-            case AutomationStagePanel.LOCATOR_PICKER_TAB ->
-                    new SurfaceTarget(
-                            STAGE_AUTOMATION,
-                            AutomationStagePanel.LOCATOR_PICKER_TAB,
-                            automationStagePanel == null ? null : automationStagePanel.locatorPlaygroundPanel());
-            case "Recorder" -> settings.advancedUiEnabled
-                    ? new SurfaceTarget("More", "Recorder", recorderPanel)
-                    : new SurfaceTarget(STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
-            case "Inspector" -> new SurfaceTarget(STAGE_AUTOMATION, "Inspector", null);
-            case "SHAFT Tests" -> new SurfaceTarget(STAGE_AUTOMATION, "SHAFT Tests", null);
-            case "API Recording" -> new SurfaceTarget(STAGE_AUTOMATION, "API Recording", apiRecordingPanel);
-            case ReportingHistoryPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingHistoryPanel.TAB_TITLE, null);
-            case ReportingFlakePanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingStagePanel.OVERVIEW_TAB, null);
-            case ReportingSmartTagsPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingSmartTagsPanel.TAB_TITLE, null);
-            case ReportingClustersPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingClustersPanel.TAB_TITLE, null);
-            case ReportingLabelsPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingLabelsPanel.TAB_TITLE, null);
-            case ReportingDoctorPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingStagePanel.OVERVIEW_TAB, null);
-            case ReportingHealPanel.TAB_TITLE -> new SurfaceTarget(STAGE_REPORTING, ReportingStagePanel.OVERVIEW_TAB, null);
-            case "Triage" -> new SurfaceTarget(STAGE_REPORTING, "Triage", null);
-            case "Visual Baselines" -> new SurfaceTarget(STAGE_REPORTING, "Visual Baselines", null);
-            case "Evidence" -> new SurfaceTarget(STAGE_REPORTING, "Evidence", null);
-            case "Projects", "Advanced", "More" -> new SurfaceTarget("More", savedKey, null);
-            case STAGE_AUTOMATION -> new SurfaceTarget(
-                    STAGE_AUTOMATION, AutomationStagePanel.LIVE_RECORD_TAB, guidedWorkflowPanel);
-            case STAGE_REPORTING -> new SurfaceTarget(STAGE_REPORTING, ReportingStagePanel.OVERVIEW_TAB, null);
+            case SURFACE_WORKFLOW, "Guided", "Recorder", "Automation", "Inspector", "API Recording",
+                    "SHAFT Tests", "More" ->
+                    new SurfaceTarget(SURFACE_WORKFLOW, SURFACE_WORKFLOW, guidedWorkflowPanel);
+            case SURFACE_LOG -> new SurfaceTarget(SURFACE_LOG, SURFACE_LOG, executionLogPanel);
             default -> new SurfaceTarget(SURFACE_AGENT, SURFACE_AGENT, assistantPanel);
         };
     }
@@ -909,7 +809,6 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             case SURFACE_AGENT -> "Ask the agent and review its transcript";
             case SURFACE_WORKFLOW -> "Record a flow and run its command in the console";
             case SURFACE_LOG -> "Read the command placed in the console and its output";
-            case STAGE_AUTOMATION -> "Record a flow and run its command in the console";
             default -> "";
         };
     }
