@@ -1835,7 +1835,7 @@ public class AllureManager {
      * @return the command prefix (e.g. quoted {@code node}/{@code cli.js} or {@code "npx --yes allure@3.x.x"}),
      *         or {@code null} when no CLI could be resolved or downloaded
      */
-    private static String resolveAllureCommandPrefix() {
+    private static synchronized String resolveAllureCommandPrefix() {
         if (cachedAllureCommandPrefix != null) {
             // "" means "already tried, nothing found"
             return cachedAllureCommandPrefix.isEmpty() ? null : cachedAllureCommandPrefix;
@@ -1870,21 +1870,23 @@ public class AllureManager {
             cachedAllureCommandPrefix = provisionedPrefix;
             ReportManager.logDiscrete("Allure 3 CLI resolved: using Maven-provisioned binary at "
                     + getProvisionedAllureCliJs(allure3Version) + ".");
-            return cachedAllureCommandPrefix;
+            return provisionedPrefix;
         }
 
         if (isExecutableOnPath("npx")) {
-            cachedAllureCommandPrefix = "npx --yes allure@" + allure3Version;
+            String npxPrefix = "npx --yes allure@" + allure3Version;
+            cachedAllureCommandPrefix = npxPrefix;
             ReportManager.logDiscrete("Allure 3 CLI resolved: using configured npx allure@" + allure3Version + ".");
-            return cachedAllureCommandPrefix;
+            return npxPrefix;
         }
 
         ReportManager.logDiscrete("Node.js not found on PATH. Downloading portable Node.js v" + nodeLtsVersion + " to bootstrap Allure 3 CLI...");
         String downloadedNpxPath = downloadNodeJsPortable();
         if (downloadedNpxPath != null) {
-            cachedAllureCommandPrefix = q(downloadedNpxPath) + " --yes allure@" + allure3Version;
+            String downloadedPrefix = q(downloadedNpxPath) + " --yes allure@" + allure3Version;
+            cachedAllureCommandPrefix = downloadedPrefix;
             ReportManager.logDiscrete("Allure 3 CLI resolved: using downloaded Node.js npx.");
-            return cachedAllureCommandPrefix;
+            return downloadedPrefix;
         }
 
         cachedAllureCommandPrefix = "";

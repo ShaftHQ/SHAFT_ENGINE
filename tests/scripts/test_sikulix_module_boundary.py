@@ -70,6 +70,24 @@ class SikuliXModuleBoundaryTest(unittest.TestCase):
         self.assertIn("shaft-sikulix", managed_artifacts)
         self.assertIn(("io.github.shafthq", "shaft-sikulix"), fixture_dependencies)
         self.assertIn(("io.github.shafthq", "shaft-sikulix"), combined_fixture_dependencies)
+        combined = ET.parse(
+            ROOT / "tools/modularization/consumer-fixtures/combined-modules/pom.xml"
+        ).getroot()
+        ignored = {
+            (
+                dependency.findtext("m:groupId", namespaces=NAMESPACE),
+                dependency.findtext("m:artifactId", namespaces=NAMESPACE),
+            )
+            for dependency in combined.findall(".//m:ignoredDependencies/m:dependency", NAMESPACE)
+        }
+        self.assertIn(("io.github.oculix-org", "oculixapi"), ignored)
+        self.assertIn(("io.github.julienmerconsulting.apertix", "opencv"), ignored)
+        self.assertIn(("org.openpnp", "opencv"), ignored)
+        patterns = {
+            pattern.text
+            for pattern in combined.findall(".//m:ignoredResourcePattern", NAMESPACE)
+        }
+        self.assertIn("tessdata/eng[.]traineddata", patterns)
 
 
 if __name__ == "__main__":

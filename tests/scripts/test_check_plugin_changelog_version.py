@@ -41,7 +41,9 @@ class PluginChangelogVersionTest(unittest.TestCase):
         self.assertTrue(defects(root))
 
     def test_repository_reads_the_root_pom_version(self) -> None:
-        self.assertRegex(engine_version(ROOT), r"^\d+\.\d+\.\d+")
+        version = engine_version(ROOT)
+        self.assertRegex(version, r"^\d+\.\d+\.\d+")
+        self.assertEqual([], defects(ROOT), f"plugin docs must cover {version}")
 
     def test_pr_gate_runs_the_check_when_the_version_or_changelog_moves(self) -> None:
         workflow = yaml.safe_load((ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8"))

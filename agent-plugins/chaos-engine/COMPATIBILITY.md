@@ -1,6 +1,6 @@
 # Compatibility
 
-This page describes `chaos-engine` 10.3.20260911; package evidence was last refreshed
+This page describes `chaos-engine` 10.3.20260930; package evidence was last refreshed
 for 10.3.20260824 on 2026-08-24 (see the table for native loads). This release exposes
 one discoverable `chaos-engine` skill; its consultation and retrieval stages
 remain available as internal references, including the mandatory executable

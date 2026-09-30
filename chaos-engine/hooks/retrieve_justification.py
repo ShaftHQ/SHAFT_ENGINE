@@ -5,7 +5,13 @@ Reads and searches run. A broad search records `retrieveOwed` for the hook
 session until that session has one `used`, `skipped`, or `degraded` retrieve.
 Cheap one-file reads do not owe a retrieve. A command that only touches paths
 outside this checkout, such as a log download and unzip into a scratch
-directory, is not a project read. Running a script is not reading it, harness
+directory, is not a project read. Downloading a GitHub Actions job log
+(`gh api` `.../actions/jobs/<id>/logs`, `gh run view --log` / `--log-failed`,
+or curl of that logs URL) is not a project read and does not require
+MemPalace or Graphify, including a pipeline that only filters that download
+(`sed`, `head`, `tail`) or writes it under a scratch directory. A project
+file opened in the same command still requires a retrieve. Running a script
+is not reading it, harness
 files (everything `harness-index.json` names) are exempt, the project root is
 walked up like `retrieve.project_root()`, and a graph with no project nodes
 fails open as `skipped(no-project-index)` (#6174). The ledger is the portable
@@ -75,6 +81,12 @@ _INSTRUCTION_MARKERS = (
 _STORE_HEADS = frozenset({"mempalace", "graphify"})
 _PY = frozenset({"py", "python", "python3"})
 _SHELL_PATH = re.compile(r"(?<![\w@])(/?\.?[\w.-]+(?:/[\w.-]+)+\.[\w.]+)")
+_JOB_LOG_DOWNLOAD = re.compile(
+    r"actions/jobs/\d+/logs\b|gh(?:\.exe)?\s+run\s+view\b[^\n;&|]*--log(?:-failed)?\b",
+    re.IGNORECASE,
+)
+_STDIN_FILTERS = frozenset({"sed", "head", "tail", "cat", "tr", "cut", "awk"})
+_SED_PROGRAM = re.compile(r"^[sSyY]([^\w\s])")
 _RUNNERS = frozenset(
     {"node", "bash", "sh", "zsh", "pwsh", "powershell", "npx", "deno", "bun", "uv", "java", "mvn", "gradle", "make"}
 )
@@ -1070,8 +1082,43 @@ def _retrieve_attempt(segment: str) -> bool:
     return "mempalace" in folded and "search" in folded
 
 
+def downloads_job_log(command: str) -> bool:
+    """True when the command downloads a GitHub Actions job log, not a checkout file."""
+    return _JOB_LOG_DOWNLOAD.search(command or "") is not None
+
+
+def _filter_token_is_file(token: str) -> bool:
+    """False for flags and sed programs. Those are not checkout paths."""
+    text = _unquote(token)
+    if not text or text.startswith("-") or _SED_PROGRAM.match(text):
+        return False
+    return "/" in text or "." in text
+
+
+def _segment_reads_project(project: Path, segment: str) -> bool:
+    """True when this segment opens an exploratory path inside a checkout."""
+    if segment_kind(segment) != "read":
+        return False
+    head, arguments = _command_head(_tokens(segment))
+    if head in _STDIN_FILTERS:
+        files = [item for item in arguments if _filter_token_is_file(item)]
+        return any(exploratory_project_path(project, item) for item in files)
+    if head in _PY or not head:
+        paths = _shell_read_paths(segment)
+    else:
+        paths = _paths_in_segment(segment)
+    return any(exploratory_project_path(project, path) for path in paths)
+
+
 def _shell_block(project: Path, commands: tuple[str, ...], session_id: str | None = None) -> str | None:
     for command in commands:
+        if downloads_job_log(command):
+            for segment in _pipeline_parts(command):
+                if _retrieve_attempt(segment):
+                    _mark_awaiting_receipt(project, session_id)
+                if _segment_reads_project(project, segment):
+                    return BLOCK_REASON
+            continue
         if _PY_HEREDOC.search(command or ""):
             # #6219: a heredoc body is one program; `;` inside it is not a shell split.
             if _ungated(project, _shell_read_paths(command)):

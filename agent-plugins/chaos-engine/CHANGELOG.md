@@ -1,5 +1,9 @@
 # Changelog
 
+## 10.3.20260930 - 2026-09-30
+
+- Align the portable plugin version with SHAFT Engine release 10.3.20260930.
+
 ## 10.3.20260911 - 2026-09-11
 
 - Breaking: the router `SKILL.md` becomes a core card; always-composed

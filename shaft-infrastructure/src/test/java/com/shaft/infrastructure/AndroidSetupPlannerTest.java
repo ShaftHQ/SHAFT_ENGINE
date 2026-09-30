@@ -139,10 +139,13 @@ class AndroidSetupPlannerTest {
                     .replace("\r\n", "\n").replace('\r', '\n');
         }
         assertTrue(packageJson.contains("\"sharp\": \"0.35.4\""), packageResource);
-        assertTrue(packageJson.contains("\"morgan\": \"1.12.0\""), packageResource);
+        assertTrue(packageJson.contains("\"morgan\": \"1.12.1\""), packageResource);
+        assertTrue(packageJson.contains("\"fast-uri\": \"3.1.7\""), packageResource);
         assertTrue(lock.matches("(?s).*\"node_modules/sharp\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"0\\.35\\.4\".*"),
                 lockResource);
-        assertTrue(lock.matches("(?s).*\"node_modules/morgan\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"1\\.12\\.0\".*"),
+        assertTrue(lock.matches("(?s).*\"node_modules/morgan\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"1\\.12\\.1\".*"),
+                lockResource);
+        assertTrue(lock.matches("(?s).*\"node_modules/fast-uri\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"3\\.1\\.7\".*"),
                 lockResource);
     }
 

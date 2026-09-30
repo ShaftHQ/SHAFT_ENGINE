@@ -1367,6 +1367,7 @@
     document.documentElement.removeAttribute("data-shaft-assertion-mode");
     const banner = document.getElementById(assertionBannerId);
     if (banner) banner.remove();
+    restoreAssertionLinks();
   };
   const beginElementAssertion = () => {
     uiState.assertionMode = true;
@@ -1396,13 +1397,38 @@
     const actions = cancelAssertionRow(closeAssertionPanel);
     renderAssertionPanel("Add assertion", [list, actions]);
   };
+  // Chrome 153 still follows an <a href> after preventDefault on the click that Selenium
+  // dispatches. Park the href from pointerdown until the click's default action has passed
+  // so an assertion pick stays on the page that was recorded (release capture-journey).
+  const parkAssertionLink = element => {
+    const link = element && element.closest ? element.closest("a[href]") : null;
+    if (!link || link.dataset.shaftAssertionHref != null) return;
+    link.dataset.shaftAssertionHref = link.getAttribute("href");
+    link.removeAttribute("href");
+  };
+  const restoreAssertionLinks = () => {
+    document.querySelectorAll("a[data-shaft-assertion-href]").forEach(link => {
+      const href = link.dataset.shaftAssertionHref;
+      delete link.dataset.shaftAssertionHref;
+      if (href != null) link.setAttribute("href", href);
+    });
+  };
+  const armAssertionNavigationGuard = event => {
+    if (!uiState.assertionMode || uiState.locatorMode || uiState.stopped || uiState.paused) return;
+    const element = eventElement(event);
+    if (isControlElement(element)) return;
+    parkAssertionLink(element);
+  };
   const captureAssertion = event => {
     if (!uiState.assertionMode || uiState.locatorMode || uiState.stopped || uiState.paused) return false;
     const element = eventElement(event);
     if (isControlElement(element)) return false;
     event.preventDefault();
     event.stopImmediatePropagation();
+    restoreAssertionLinks();
     const target = snapshot(event);
+    parkAssertionLink(element);
+    setTimeout(restoreAssertionLinks, 0);
     if (!target) return true;
     uiState.assertionMode = false;
     endAssertionTargetHints();
@@ -2873,6 +2899,8 @@
     if ((!uiState.locatorMode && !uiState.assertionMode) || uiState.stopped || uiState.paused) return;
     updateLocatorHighlight(eventElement(event));
   }, true);
+  addEventListener("pointerdown", armAssertionNavigationGuard, true);
+  addEventListener("mousedown", armAssertionNavigationGuard, true);
   addEventListener("click", event => {
     if (captureLocatorPick(event)) return;
     if (captureAssertion(event)) return;

@@ -10,7 +10,7 @@
     <description>Validates the published BOM and all optional modules as one consumer graph.</description>
 
     <properties>
-        <shaft.version>10.3.20260911</shaft.version>
+        <shaft.version>10.3.20260930</shaft.version>
     </properties>
 
     <dependencyManagement>
@@ -134,6 +134,20 @@
                                     <groupId>com.browserstack</groupId>
                                     <artifactId>browserstack-java-sdk</artifactId>
                                 </dependency>
+                                <!-- oculixapi embeds com.jcraft.jsch, which differs from shaft-engine's mwiede JSch fork. -->
+                                <dependency>
+                                    <groupId>io.github.oculix-org</groupId>
+                                    <artifactId>oculixapi</artifactId>
+                                </dependency>
+                                <!-- SikuliX brings Apertix OpenCV; shaft-visual brings OpenPnP OpenCV. Same packages, different bytes. -->
+                                <dependency>
+                                    <groupId>io.github.julienmerconsulting.apertix</groupId>
+                                    <artifactId>opencv</artifactId>
+                                </dependency>
+                                <dependency>
+                                    <groupId>org.openpnp</groupId>
+                                    <artifactId>opencv</artifactId>
+                                </dependency>
                             </ignoredDependencies>
                             <ignoredClassPatterns>
                                 <ignoredClassPattern>org[.]json[.]JSONString</ignoredClassPattern>
@@ -142,6 +156,8 @@
                                 <ignoredResourcePattern>draftv[34]/schema</ignoredResourcePattern>
                                 <ignoredResourcePattern>changelog[.]xml</ignoredResourcePattern>
                                 <ignoredResourcePattern>versionchanges[.]txt</ignoredResourcePattern>
+                                <!-- legerix and tess4j ship the same eng.traineddata bytes. -->
+                                <ignoredResourcePattern>tessdata/eng[.]traineddata</ignoredResourcePattern>
                             </ignoredResourcePatterns>
                         </configuration>
                     </execution>

@@ -9,6 +9,10 @@ Use this playbook only for CI failure triage.
 2. If remote data is required, normalize authentication with
    `scripts/ci/github-auth-env.sh`, then fetch failed-job logs and relevant
    artifact metadata only. Do not download successful-job logs by default.
+   A job-log download is not a MemPalace or Graphify retrieve. `gh api`
+   `.../actions/jobs/<id>/logs`, `gh run view --log-failed`, and curl of that
+   logs URL may be saved under a scratch directory and filtered with
+   `sed`/`tail` without a store citation.
 3. Search logs for the first actionable exception and its surrounding setup or
    teardown lines. Separate primary failure from reporting and cleanup noise.
 4. For SHAFT artifacts, follow
