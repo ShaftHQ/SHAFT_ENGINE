@@ -35,6 +35,8 @@ class RecordShaftFlowHereActionRoutingTest {
         assertEquals("Record a SHAFT flow at logsIn in LoginTest",
                 recorder.captureStartArguments().get("sessionGoal").getAsString());
         assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, toolWindow.selectedSurfaceLabel());
+        assertTrue(toolWindow.isAncestorOf(recorder));
+        assertTrue(recorder.isVisible());
     }
 
     @Test

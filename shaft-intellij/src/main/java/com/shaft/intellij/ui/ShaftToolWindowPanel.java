@@ -69,6 +69,7 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private JBTabbedPane reportingTabs;
     private JPanel moreToolsPanel;
     private ExecutionLogPanel executionLogPanel;
+    private JPanel workflowBody;
     private final PluginCommandConsole commandConsole = new PluginCommandConsole();
 
     public ShaftToolWindowPanel(@NotNull Project project) {
@@ -165,17 +166,23 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         GuidedWorkflowPanel guided = new GuidedWorkflowPanel(project, this::prefillTool, settings);
         guidedWorkflowPanel = guided;
         executionLogPanel = new ExecutionLogPanel();
+        workflowBody = new JPanel(new CardLayout());
+        workflowBody.add(guided, "guided");
+        workflowBody.add(recorderPanel, "recorder");
         JPanel workflowCard = new JPanel(new BorderLayout(0, JBUI.scale(6)));
         workflowCard.setBorder(JBUI.Borders.empty(8));
         javax.swing.JButton runCommand = new javax.swing.JButton("Run in console");
         runCommand.getAccessibleContext().setAccessibleName("Run workflow command in console");
-        runCommand.addActionListener(event -> placeCommand(workflowCommand()));
+        runCommand.addActionListener(event -> placeCommand(guided.workflowCommand()));
         workflowCard.add(runCommand, BorderLayout.NORTH);
-        workflowCard.add(guided, BorderLayout.CENTER);
+        workflowCard.add(workflowBody, BorderLayout.CENTER);
+        JPanel logCard = new JPanel(new BorderLayout(0, JBUI.scale(6)));
+        logCard.add(commandConsole, BorderLayout.NORTH);
+        logCard.add(executionLogPanel, BorderLayout.CENTER);
         List<WorkflowView> views = new ArrayList<>();
         views.add(new WorkflowView(SURFACE_AGENT, assistant, ShaftIcons.EDIT));
         views.add(new WorkflowView(SURFACE_WORKFLOW, workflowCard, ShaftIcons.CODE));
-        views.add(new WorkflowView(SURFACE_LOG, executionLogPanel, ShaftIcons.CHECK));
+        views.add(new WorkflowView(SURFACE_LOG, logCard, ShaftIcons.CHECK));
         workflowViews = List.copyOf(views);
         for (WorkflowView view : workflowViews) {
             workflowCards.add(view.component(), view.label());
@@ -319,8 +326,19 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         if (recorderPanel != null) {
             recorderPanel.applyReadyPackUrl(readyUrl);
             recorderPanel.startRecordingAtTarget(context, readyIntent);
+            showRecorderSurface();
         }
         selectStage(SURFACE_WORKFLOW);
+    }
+
+    private void showRecorderSurface() {
+        if (workflowBody == null || recorderPanel == null) {
+            return;
+        }
+        if (recorderPanel.getParent() != workflowBody) {
+            workflowBody.add(recorderPanel, "recorder");
+        }
+        ((CardLayout) workflowBody.getLayout()).show(workflowBody, "recorder");
     }
 
     /**
@@ -331,6 +349,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
      */
     public void placeCommand(@NotNull String command) {
         commandConsole.place(command);
+        String directory = project == null ? null : project.getBasePath();
+        ShaftTerminalCommands.openWithPreparedCommand(project, directory, "SHAFT", command);
         if (executionLogPanel != null) {
             executionLogPanel.note("$ " + command);
         }
@@ -344,7 +364,6 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             selectStage(SURFACE_LOG);
         }
     }
-    private static String workflowCommand() { return "mvn -q -Dtest=AppTest test"; }
     public void prefillTool(@NotNull String toolName, @NotNull JsonObject arguments) {
         if (workflowSelector == null) {
             return;

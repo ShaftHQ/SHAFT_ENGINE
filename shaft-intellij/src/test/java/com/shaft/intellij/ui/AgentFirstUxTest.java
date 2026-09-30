@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
+import javax.swing.text.JTextComponent;
 import java.awt.Component;
 import java.awt.Container;
 import java.lang.reflect.Proxy;
@@ -77,9 +78,12 @@ class AgentFirstUxTest {
     @Test
     void commandLandsInTheConsoleAndLogsDistinguishFailure() {
         ShaftToolWindowPanel panel = readyPanel();
-        String command = "mvn -q -Dtest=AppTest test";
-        panel.placeCommand(command);
+        button(panel, "Run workflow command in console").doClick();
+        String command = panel.guidedWorkflowPanel().workflowCommand();
+        assertTrue(command.contains("GeneratedShaftTest"), command);
+        assertFalse(command.contains("AppTest"), command);
         assertEquals(command, panel.placedCommand());
+        assertEquals(command, textComponent(panel, "In-plugin console"));
         assertTrue(panel.executionLogPanel().text().contains(command));
         panel.showLogChunk("BUILD SUCCESS", false);
         assertEquals("Succeeded", panel.executionLogPanel().state());
@@ -122,6 +126,11 @@ class AgentFirstUxTest {
     private static String text(Component root, String name) {
         JLabel label = find(root, name, JLabel.class);
         return label == null ? "" : label.getText();
+    }
+
+    private static String textComponent(Component root, String name) {
+        JTextComponent area = find(root, name, JTextComponent.class);
+        return area == null ? "" : area.getText();
     }
 
     private static JButton button(Component root, String name) {
