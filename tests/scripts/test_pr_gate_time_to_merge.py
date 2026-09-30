@@ -122,8 +122,12 @@ class ReleaseNoteGovernanceSplitTest(unittest.TestCase):
         self.assertIn("scripts/ci/validate_release_notes.py --event", run)
         self.assertIn("tests.scripts.test_validate_release_notes", run)
         self.assertEqual(
-            "${{ github.event_name == 'pull_request' }}", workflow["concurrency"]["cancel-in-progress"]
+            "${{ github.event_name == 'pull_request' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}",
+            workflow["concurrency"]["cancel-in-progress"],
         )
+        text = (ROOT / ".github/workflows/release-note-governance.yml").read_text(encoding="utf-8")
+        for label in ("breaking-change", "bug", "enhancement", "skip-release-notes"):
+            self.assertIn(label, text)
 
 
 class CodeqlScopeTest(unittest.TestCase):

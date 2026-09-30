@@ -309,13 +309,34 @@ def checkpoint_reason(checkpoint: dict) -> str:
     return (
         f"Reflection required ({checkpoint['depth']}). Sanitized fingerprints: "
         f"{fingerprints}. Pause mutation and unchanged retries. Append a validated "
-        "receipt with `py -3 scripts/agents/reflection.py receipt` "
-        "(installed: `.chaos-engine/hooks/reflection.py receipt`) before resuming. "
+        "receipt with `.chaos-engine/hooks/reflection.py receipt`. "
         "Do not read reflection.py to discover that command."
     )
 
 
-def reflection_recovery(command: str) -> str | None:
+def _reflection_controller() -> Path:
+    return Path(__file__).resolve().with_name("reflection.py")
+
+
+def _loads_same_reflection_controller(path: Path) -> bool:
+    """True for the installed controller or an adapter that loads that file."""
+    try:
+        resolved = path.resolve()
+    except OSError:
+        return False
+    controller = _reflection_controller()
+    if resolved == controller:
+        return True
+    if resolved.name != "reflection.py":
+        return False
+    try:
+        text = resolved.read_text(encoding="utf-8").replace("\\", "/")
+    except OSError:
+        return False
+    return "chaos-engine/hooks/reflection.py" in text or ".chaos-engine/hooks/reflection.py" in text
+
+
+def _reflection_invocation(command: str) -> tuple[Path, str] | None:
     arguments = shell_tokens(command)
     if not arguments or any(item in {";", "&&", "||", "|", "&"} for item in arguments):
         return None
@@ -330,13 +351,26 @@ def reflection_recovery(command: str) -> str | None:
     supplied = Path(remaining[script_index])
     if not supplied.is_absolute():
         supplied = Path.cwd() / supplied
-    try:
-        if supplied.resolve() != Path(__file__).resolve().with_name("reflection.py"):
-            return None
-    except OSError:
-        return None
     operation = remaining[script_index + 1]
-    return operation if operation in {"receipt", "trigger", "non-attempt"} and "--session-id" in remaining else None
+    if operation not in {"receipt", "trigger", "non-attempt"} or "--session-id" not in remaining:
+        return None
+    return supplied, operation
+
+
+def reflection_recovery(command: str) -> str | None:
+    invocation = _reflection_invocation(command)
+    if invocation is None:
+        return None
+    supplied, operation = invocation
+    if not _loads_same_reflection_controller(supplied):
+        return None
+    return operation
+
+
+def denied_reflection_retry(command: str) -> bool:
+    """A reflection CLI attempt whose script is not the installed controller."""
+    invocation = _reflection_invocation(command)
+    return invocation is not None and reflection_recovery(command) is None
 
 
 def tokens(command: str) -> list[str]:
@@ -613,6 +647,9 @@ def _record_failed_result(
     read_only = tool_name in {"Read", "Grep", "Glob", "WebSearch", "WebFetch", "Skill"} or bool(
         commands and all(read_only_diagnostic_command(command) for command in commands)
     )
+    # A denied receipt adapter must not enlarge the fingerprint set the next receipt has to list.
+    if commands and any(denied_reflection_retry(command) for command in commands):
+        return False
     reflection.record_failure(
         session_id,
         phase="tool-outcome",
