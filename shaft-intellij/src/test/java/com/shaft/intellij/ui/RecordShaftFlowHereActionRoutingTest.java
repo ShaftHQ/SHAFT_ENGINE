@@ -50,7 +50,7 @@ class RecordShaftFlowHereActionRoutingTest {
 
         toolWindow.startRecordingAtTarget(context);
 
-        assertNotNull(toolWindow.recorderPanel(), "Recorder is part of the Automation stage, not expert-only");
+        assertNotNull(toolWindow.recorderPanel(), "Recording still starts from the workflow view");
         assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, toolWindow.selectedSurfaceLabel());
     }
     @Test
