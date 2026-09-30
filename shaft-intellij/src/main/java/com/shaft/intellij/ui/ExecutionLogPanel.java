@@ -8,9 +8,7 @@ import com.intellij.util.ui.JBUI;
 import javax.swing.JPanel;
 import java.awt.BorderLayout;
 
-/**
- * Execution log for a command handed to the in-plugin console. Success and failure stay distinct.
- */
+/** Execution log for a command handed to the in-plugin console. */
 public final class ExecutionLogPanel extends JPanel {
     private final JBTextArea log = new JBTextArea();
     private final JBLabel state = new JBLabel("Idle");

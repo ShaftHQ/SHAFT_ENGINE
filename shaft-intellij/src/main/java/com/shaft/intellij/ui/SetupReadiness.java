@@ -1,8 +1,8 @@
 package com.shaft.intellij.ui;
 
 /**
- * Plain-language setup status for the tool window. One next action when a prerequisite is missing,
- * and a ready line when the agent can run.
+ * Plain-language setup status. One next action when a prerequisite is missing, and a ready line
+ * when the agent can run.
  */
 public final class SetupReadiness {
     private SetupReadiness() {
