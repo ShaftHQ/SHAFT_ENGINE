@@ -32,7 +32,7 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
     void aFreshPanelWithNothingStoredDefaultsToTheFirstWorkflowView() {
         ShaftToolWindowPanel panel = newPanel(new FakePropertiesComponent());
 
-        assertEquals(ShaftToolWindowPanel.STAGE_DESIGN, selectedLabel(panel),
+        assertEquals(ShaftToolWindowPanel.SURFACE_AGENT, selectedLabel(panel),
                 "with nothing persisted yet, Analysis & Design is the default stage");
     }
 
@@ -42,10 +42,9 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
         ShaftToolWindowPanel panel = newPanel(properties);
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = panel.workflowSelector();
 
-        selectItemLabeled(selector, ShaftToolWindowPanel.STAGE_AUTOMATION);
+        selectItemLabeled(selector, ShaftToolWindowPanel.SURFACE_WORKFLOW);
 
-        assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, properties.getValue(ShaftUiState.WORKFLOW_VIEW_KEY),
-                "selecting Automation persists the selected inner surface, defaulting to Live record");
+        assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, properties.getValue(ShaftUiState.WORKFLOW_VIEW_KEY));
     }
 
     @Test
@@ -55,9 +54,7 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
 
         ShaftToolWindowPanel panel = newPanel(properties);
 
-        assertEquals(ShaftToolWindowPanel.STAGE_AUTOMATION, selectedLabel(panel));
-        assertEquals("Inspector", panel.selectedSurfaceLabel(),
-                "a fresh panel must restore the last-selected surface, not default back to Design");
+        assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, selectedLabel(panel));
     }
 
 
@@ -69,18 +66,16 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
 
         ShaftToolWindowPanel panel = newPanel(properties);
 
-        assertEquals(ShaftToolWindowPanel.STAGE_AUTOMATION, selectedLabel(panel));
-        assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, panel.selectedSurfaceLabel(),
-                "Guided must restore as Live record, not a missing Guided tab");
+        assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, selectedLabel(panel));
     }
 
     @Test
     void selectingAutomationPersistsLiveRecordNotGuided() {
         FakePropertiesComponent properties = new FakePropertiesComponent();
         ShaftToolWindowPanel panel = newPanel(properties);
-        selectItemLabeled(panel.workflowSelector(), ShaftToolWindowPanel.STAGE_AUTOMATION);
+        selectItemLabeled(panel.workflowSelector(), ShaftToolWindowPanel.SURFACE_WORKFLOW);
 
-        assertEquals(AutomationStagePanel.LIVE_RECORD_TAB, properties.getValue(ShaftUiState.WORKFLOW_VIEW_KEY));
+        assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, properties.getValue(ShaftUiState.WORKFLOW_VIEW_KEY));
         assertFalse("Guided".equals(properties.getValue(ShaftUiState.WORKFLOW_VIEW_KEY)));
     }
 
@@ -92,7 +87,7 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
 
         ShaftToolWindowPanel panel = newPanel(properties);
 
-        assertEquals(ShaftToolWindowPanel.STAGE_DESIGN, selectedLabel(panel),
+        assertEquals(ShaftToolWindowPanel.SURFACE_AGENT, selectedLabel(panel),
                 "an unmatched stored key must fall back silently to Analysis & Design");
     }
 

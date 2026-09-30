@@ -53,7 +53,7 @@ class ShaftAssistantPromptRoutingTest {
         ShaftAssistantPanel assistantPanel = toolWindow.assistantPanel();
         assertNotNull(assistantPanel, "showMainView() must always build and retain the Assistant panel");
         assertEquals("Heal my last failed test run", assistantPanel.promptText());
-        assertEquals(ShaftToolWindowPanel.STAGE_DESIGN, toolWindow.selectedStageLabel());
+        assertEquals(ShaftToolWindowPanel.SURFACE_AGENT, toolWindow.selectedStageLabel());
     }
 
     @Test

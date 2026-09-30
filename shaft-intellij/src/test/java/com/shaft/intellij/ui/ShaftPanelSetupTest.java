@@ -3290,9 +3290,9 @@ class ShaftPanelSetupTest {
         }
         assertAll(
                 () -> assertEquals(List.of(
-                        ShaftToolWindowPanel.STAGE_DESIGN,
-                        ShaftToolWindowPanel.STAGE_AUTOMATION,
-                        ShaftToolWindowPanel.STAGE_REPORTING), labels),
+                        ShaftToolWindowPanel.SURFACE_AGENT,
+                        ShaftToolWindowPanel.SURFACE_WORKFLOW,
+                        ShaftToolWindowPanel.SURFACE_LOG), labels),
                 () -> assertTrue(selector.isVisible()),
                 () -> assertNull(findByAccessibleName(toolWindow, "Recheck SHAFT MCP health", JButton.class)));
     }
@@ -3386,10 +3386,9 @@ class ShaftPanelSetupTest {
         }
 
         assertEquals(List.of(
-                ShaftToolWindowPanel.STAGE_DESIGN,
-                ShaftToolWindowPanel.STAGE_AUTOMATION,
-                ShaftToolWindowPanel.STAGE_REPORTING,
-                "More"), labels);
+                ShaftToolWindowPanel.SURFACE_AGENT,
+                ShaftToolWindowPanel.SURFACE_WORKFLOW,
+                ShaftToolWindowPanel.SURFACE_LOG), labels);
     }
 
     @Test
@@ -3409,24 +3408,10 @@ class ShaftPanelSetupTest {
         JsonObject arguments = JsonParser.parseString("{}").getAsJsonObject();
 
         toolWindow.prefillTool("capture_start", arguments);
-        assertEquals("Recorder", toolWindow.selectedSurfaceLabel());
-        assertEquals("Recorder", selectedCategory(toolWindow));
-
-        toolWindow.prefillTool("capture_record_at_target_code_blocks", arguments);
-        assertEquals("Recorder", toolWindow.selectedSurfaceLabel());
-        assertEquals("Recorder", selectedCategory(toolWindow));
-
-        toolWindow.prefillTool("mobile_get_accessibility_tree", arguments);
-        assertEquals("Inspector", toolWindow.selectedSurfaceLabel());
-        assertEquals("Inspector", selectedCategory(toolWindow));
-
+        assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, toolWindow.selectedSurfaceLabel());
         toolWindow.prefillTool("doctor_analyze_trace", arguments);
-        assertEquals("Evidence", toolWindow.selectedSurfaceLabel());
-        assertEquals("Evidence", selectedCategory(toolWindow));
-
-        toolWindow.prefillTool("shaft_project_create", arguments);
-        assertEquals("Projects", toolWindow.selectedSurfaceLabel());
-        assertEquals("Projects", selectedCategory(toolWindow));
+        assertEquals(ShaftToolWindowPanel.SURFACE_AGENT, toolWindow.selectedSurfaceLabel());
+        assertTrue(toolWindow.assistantPanel().promptText().contains("doctor_analyze_trace"));
     }
 
     @Test

@@ -846,7 +846,9 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         refreshPrerequisites();
         refreshRealChecks();
         if (!currentCommand().isBlank()) {
-            setStatusText(settings.mcpSetupComplete ? ALREADY_VERIFIED_STEP : CHECK_NEXT_STEP);
+            setStatusText(settings.mcpSetupComplete
+                    ? SetupReadiness.message(true, true, true)
+                    : SetupReadiness.message(false, false, false));
         }
         updateActionState(false);
     }
