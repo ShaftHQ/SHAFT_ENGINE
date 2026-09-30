@@ -3409,7 +3409,6 @@ class ShaftPanelSetupTest {
 
         toolWindow.prefillTool("capture_start", arguments);
         assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, toolWindow.selectedSurfaceLabel());
-
         toolWindow.prefillTool("doctor_analyze_trace", arguments);
         assertEquals(ShaftToolWindowPanel.SURFACE_AGENT, toolWindow.selectedSurfaceLabel());
         assertTrue(toolWindow.assistantPanel().promptText().contains("doctor_analyze_trace"));

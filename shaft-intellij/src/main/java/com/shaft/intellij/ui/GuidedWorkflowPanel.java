@@ -1283,6 +1283,15 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
     }
 
     /**
+     * Maven command for the test class this workflow generates. The class name is the same one
+     * passed to the capture generate tools.
+     */
+    String workflowCommand() {
+        String className = api() ? "GeneratedApiCaptureTest" : "GeneratedShaftTest";
+        return "mvn -q -Dtest=" + className + " test";
+    }
+
+    /**
      * Arguments for {@code capture_api_generate} (CaptureService#generateApi), matching the
      * proven-working shape {@code GuidedWorkflowLiveE2ETest#apiGenerate} sends. {@code sessionPath}
      * prefers the path {@code capture_api_start} actually reported ({@link #apiSessionPath}) over the
