@@ -26,7 +26,7 @@ into a host skill, a host guard, or a second policy file. A new harness
 rule is one shared row in `scripts/ci/agent_harness_parity.json`: every
 host column names the same evidence path, and one test runs that decision
 for every host in `hosts`. File reads and file searches follow this rule
-through `hooks/retrieve_justification.py` and `hooks/guard.py`. A cheap read does not wait for a store. A broad search is allowed and owes one retrieve for that session. `tool.py
+through `hooks/retrieve_justification.py` and `hooks/guard.py`. A cheap read does not wait for a store. A broad search is allowed and owes one retrieve for that session. Downloading a GitHub Actions job log (`gh api` `.../actions/jobs/<id>/logs`, `gh run view --log` / `--log-failed`, or curl of that logs URL), including a filter pipeline or a write into a scratch directory, is not a project read and does not require MemPalace or Graphify. Opening a checkout file in that same command still does. `tool.py
 --help` is the same CLI on every host.
 
 Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (see below), N = not applicable.
