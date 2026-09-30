@@ -37,6 +37,13 @@ class ReportingSetupServiceTest {
 
         assertTrue(packageJson.contains("\"adm-zip\": \"0.6.0\""));
         assertTrue(lock.matches("(?s).*\"node_modules/adm-zip\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"0\\.6\\.0\".*"));
+        Path canonicalLock = Files.createTempFile("reporting-lock", ".json");
+        try {
+            Files.writeString(canonicalLock, lock.replace("\r\n", "\n").replace('\r', '\n'));
+            assertEquals(ReportingSetupPlanner.ALLURE_LOCK_SHA256, VerifiedArtifactStore.digest(canonicalLock));
+        } finally {
+            Files.deleteIfExists(canonicalLock);
+        }
     }
 
     @Test
