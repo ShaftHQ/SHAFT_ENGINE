@@ -1,5 +1,9 @@
 # Repository Map
 
+**Humans:** Graphify is an optional local repository map. Generated `graphify-out/` files stay untracked.
+
+**Agents:** load [AGENTS.md](../../AGENTS.md) and follow ChaosEngine. This README explains how to build the map. Do not treat it as policy. Skip it unless the task uses Graphify.
+
 SHAFT_ENGINE uses Graphify for an optional local repository map. The checked-in files only teach agents how to build and query it; generated `graphify-out/` files stay local.
 
 ## Install

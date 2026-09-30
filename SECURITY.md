@@ -1,5 +1,12 @@
 # Security Policy
 
+**Humans:** report vulnerabilities privately using the path below. Product
+usage stays on the user guide at [https://shafthq.github.io/](https://shafthq.github.io/).
+
+**Agents:** load [AGENTS.md](AGENTS.md) for repository work. This file is the
+disclosure policy, not a ChaosEngine policy manual. Skip it unless the task is
+a vulnerability, dependency advisory, or security workflow.
+
 ## Supported Versions
 
 SHAFT Engine follows a **latest-release-only** support model. Security fixes are

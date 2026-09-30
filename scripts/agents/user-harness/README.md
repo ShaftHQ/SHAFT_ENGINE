@@ -1,5 +1,9 @@
 # Claude user-harness template
 
+**Humans:** this directory is a source-controlled template for a generic Claude user-level host file. It does not replace repository policy.
+
+**Agents:** load [AGENTS.md](../../../AGENTS.md) for repository work. Do not treat this template as ChaosEngine policy. Skip it unless the task is the user-harness sync.
+
 This directory is the source-controlled template for the maintainer's generic
 Claude user-level host configuration. Repository policy still starts at the
 repository's `AGENTS.md`; this template does not replace it. It is tracked here

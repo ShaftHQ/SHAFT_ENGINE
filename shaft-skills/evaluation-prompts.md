@@ -1,5 +1,9 @@
 # SHAFT Skill Evaluation Prompts
 
+**Humans:** these prompts pressure-test whether an agent applies a SHAFT skill. They are not the product guide ([https://shafthq.github.io/](https://shafthq.github.io/)).
+
+**Agents:** load `shaft-skills/shaft-developer/SKILL.md` for product work, or [AGENTS.md](../AGENTS.md) when changing this repository. Do not treat these prompts as policy. Skip them unless the task evaluates skill routing.
+
 Use these prompts through IntelliJ Assistant `/partner` or Guided `Plan coding partner` first. Fresh agent sessions are fallback coverage when subagent or model-evaluation access is approved. They are not a substitute for the repo validation checks; they pressure-test whether agents apply the skills under realistic drift.
 
 ## `shaft-automated-test-authoring`

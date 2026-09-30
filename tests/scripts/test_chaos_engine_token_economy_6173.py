@@ -270,6 +270,10 @@ class OverlayCleanupTest(unittest.TestCase):
         text = (SOURCE / "references/permanent-rules.md").read_text(encoding="utf-8")
         self.assertIn("Assistant memory keeps only this pointer", text)
         self.assertIn("no-proxy", text)
+        self.assertIn("not done until pushed", text)
+        gates = (SOURCE / "references/delivery-phase-gates.md").read_text(encoding="utf-8")
+        self.assertIn("## Delivery is merge", gates)
+        self.assertIn("A green local test is not", gates)
 
 
 class HarnessBugsTest(unittest.TestCase):

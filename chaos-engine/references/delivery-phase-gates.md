@@ -35,6 +35,22 @@ Hosts that honor exit-2 / native deny (`HostCapability.process_exit2_honored`)
 hard-block; others still emit deny payloads (see [host-parity-matrix](host-parity-matrix.md)
 GAP-EXIT2).
 
+## Delivery is merge
+
+Implemented repository changes are not complete when the files exist only in
+the working tree or on a local branch. By default, finish the delivery:
+
+1. Commit on a `ChaosEngine/…` branch taken from the fetched default branch.
+2. Push that branch.
+3. Open a pull request. This repository allows merge commits only.
+4. Watch required checks and merge the pull request. A green local test is not
+   a merge.
+
+Stop short of that sequence only when the owner explicitly asked for a local
+change, a draft, or a plan, or when a hard external blocker (credentials,
+denied permission, or a required check that cannot be fixed in this session)
+is stated with evidence.
+
 ## Invariants
 
 - Skills still own thoroughness of the eight-step receipt content.

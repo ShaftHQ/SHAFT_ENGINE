@@ -22,6 +22,7 @@ Assistant memory keeps only this pointer: "Follow the ChaosEngine core card
 | Work-machine writes are parent-run one-shot jobs | [parent shell](../skills/local-agency/references/parent-rog-shell.md) |
 | Task isolation, fresh primary, cleanup scopes | [task isolation](task-isolation.md), [cleanup scopes](cleanup-scopes.md) |
 | Delegates load the delegate card, not the router | [delegate card](delegate-card.md) |
+| Repository changes are not done until pushed, a pull request is open, and that pull request is merged to the default branch | [delivery phase gates](delivery-phase-gates.md) |
 
 Stale memory corrected by this sweep: "Headroom installs by default" is
 false; the no-proxy rule forbids it.
