@@ -108,6 +108,10 @@ class ReflectionCommitCreditTest(unittest.TestCase):
                     }
                 )
                 guard.run_posttooluse(_failure(session, "py -3 -m unittest fourth"))
+            self.assertIsNone(reflection.pending_checkpoint(session))
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(_failure(session, "py -3 -m unittest fifth"))
+                guard.run_posttooluse(_failure(session, "py -3 -m unittest sixth"))
             self.assertIsNotNone(reflection.pending_checkpoint(session))
             blocked = io.StringIO()
             with redirect_stdout(blocked):
@@ -146,12 +150,12 @@ class ReflectionCommitCreditTest(unittest.TestCase):
                     "taskId": "issue-6149",
                     "trigger": checkpoint["trigger"],
                     "failureFingerprints": checkpoint["failureFingerprints"],
-                    "failedAssumption": "The receipt kept the next failure open.",
-                    "approachesCompared": ["Wait for the commit", "Block the fourth failure immediately"],
-                    "chosenExperiment": "Record a fourth failure before git commit.",
-                    "changedApproach": "Reopen the checkpoint as soon as that failure is stored.",
-                    "proofCommandOrCheck": "guard pretooluse after the fourth failure",
-                    "proofOutcome": "The next mutation was blocked.",
+                    "failedAssumption": "One failure after a receipt reopens the checkpoint.",
+                    "approachesCompared": ["Reopen on one failure", "Wait for three new failures"],
+                    "chosenExperiment": "Record one failure before git commit.",
+                    "changedApproach": "A receipt authorizes the next mutation.",
+                    "proofCommandOrCheck": "guard pretooluse after one post-receipt failure",
+                    "proofOutcome": "The next mutation was allowed.",
                     "durableDisposition": "nothing-durable",
                 },
                 token,
@@ -159,6 +163,23 @@ class ReflectionCommitCreditTest(unittest.TestCase):
             self.assertIsNone(reflection.pending_checkpoint(session))
             with redirect_stdout(io.StringIO()):
                 guard.run_posttooluse(_failure(session, "py -3 -m unittest fourth"))
+            self.assertIsNone(reflection.pending_checkpoint(session))
+            allowed = io.StringIO()
+            with redirect_stdout(allowed):
+                guard.run_pretooluse(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "tool_name": "PowerShell",
+                        "tool_input": {"command": "git commit -m fix"},
+                        "session_id": session,
+                        "cwd": ".",
+                    },
+                    "portable",
+                )
+            self.assertNotIn("Reflection required", allowed.getvalue())
+            with redirect_stdout(io.StringIO()):
+                guard.run_posttooluse(_failure(session, "py -3 -m unittest fifth"))
+                guard.run_posttooluse(_failure(session, "py -3 -m unittest sixth"))
             self.assertIsNotNone(reflection.pending_checkpoint(session))
             blocked = io.StringIO()
             with redirect_stdout(blocked):

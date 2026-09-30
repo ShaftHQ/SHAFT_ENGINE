@@ -120,6 +120,46 @@ def _hit_matches_query(path: str, tokens: set[str]) -> bool:
     return any(token in parts or token in lowered for token in tokens)
 
 
+def _query_outside_workspace(project: Path, query: str) -> bool:
+    """True when every absolute path in the query sits outside this checkout.
+
+    An in-repo hit must not be reported as ``used`` for that query (#6312).
+    A query with no absolute path is unchanged.
+    """
+    found = re.findall(r"(?:(?:[A-Za-z]:)?(?:/|\\)[\w .+@-]{1,80}){2,}", query or "")
+    if not found:
+        return False
+    try:
+        root = project.resolve()
+    except OSError:
+        return False
+    saw_outside = False
+    for raw in found:
+        candidate = Path(raw.strip())
+        if not candidate.is_absolute():
+            return False
+        try:
+            resolved = candidate.resolve()
+        except OSError:
+            return False
+        if resolved == root or root in resolved.parents:
+            return False
+        saw_outside = True
+    return saw_outside
+
+
+def _outside_workspace_receipt(project: Path, store: str, query: str) -> dict[str, Any] | None:
+    """Explicit miss when the query is about paths this repo cannot cite (#6312)."""
+    if not _query_outside_workspace(project, query):
+        return None
+    return {
+        "store": store,
+        "status": STATUS_SKIPPED,
+        "reason": "unrelated-in-repo",
+        "query": query,
+    }
+
+
 def _structured_hits(
     body: str, limit: int = _HIT_LIMIT, query: str = ""
 ) -> list[dict[str, object]]:
@@ -512,6 +552,9 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
             "reason": "no-relevant-hits",
             "query": query,
         }
+    outside = _outside_workspace_receipt(project, store, query)
+    if outside is not None:
+        return outside
     hits = _structured_hits(body, query=query)
     excerpt = _bounded_excerpt(body, _EXCERPT_WITH_HITS if hits else 4096)
     receipt = {

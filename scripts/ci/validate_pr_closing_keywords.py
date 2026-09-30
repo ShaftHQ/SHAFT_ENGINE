@@ -236,6 +236,38 @@ def git_show_diff(sha: str) -> str | None:
     return completed.stdout if completed.returncode == 0 else None
 
 
+def find_nightly_tracker_closes(
+    body: str, labels_by_issue: dict[str, list[str]] | None
+) -> list[dict[str, str]]:
+    """Reject a closing keyword on a nightly-failure tracker (#6308).
+
+    ``labels_by_issue`` maps ``#N`` or the issue number to label names.
+    A product pull request may say ``Related to #N`` for that tracker.
+    The tracker closes only after ``jobs=all`` succeeds.
+    """
+    if not body or not labels_by_issue:
+        return []
+    findings: list[dict[str, str]] = []
+    for match in CLOSING_REFERENCE_RE.finditer(body):
+        if _is_negated(body, match.start(1)):
+            continue
+        reference = match.group(2)
+        number = _reference_label(reference).lstrip("#")
+        labels = labels_by_issue.get(number) or labels_by_issue.get(f"#{number}") or []
+        if any(str(label).startswith("nightly-failure:") for label in labels):
+            findings.append(
+                issue(
+                    "nightly-tracker-autoclose",
+                    "pr-body",
+                    f"{match.group(1)} {reference} would close a nightly-failure tracker. "
+                    "Those trackers close only after a successful full-matrix workflow "
+                    "(jobs=all). Say Related to "
+                    f"#{number}.",
+                )
+            )
+    return findings
+
+
 def parse_commits_json(raw: str) -> list[tuple[str, str]]:
     """Parse a JSON array of {"sha": ..., "message": ...} objects (e.g. from `gh api .../commits`)."""
     if not raw:

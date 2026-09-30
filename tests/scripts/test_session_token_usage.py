@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -114,6 +116,43 @@ class SessionTokenUsageTest(unittest.TestCase):
             self.assertIn("tokenUsage", receipt)
             self.assertEqual(receipt["tokenUsage"]["totals"]["localPromptTokens"], 10)
             self.assertIn("retrospective", receipt["tokenUsage"])
+            self.assertIn("activityRetrospective", receipt)
+
+    def test_finalize_names_wait_and_log_ingest_without_usage_events(self) -> None:
+        learn_path = ROOT / "chaos-engine/learning_session.py"
+        reflection_path = ROOT / "chaos-engine/hooks/reflection.py"
+        spec = importlib.util.spec_from_file_location("learning_session_activity", learn_path)
+        assert spec and spec.loader
+        learn = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(learn)
+        reflection_spec = importlib.util.spec_from_file_location("reflection_activity", reflection_path)
+        assert reflection_spec and reflection_spec.loader
+        reflection = importlib.util.module_from_spec(reflection_spec)
+        reflection_spec.loader.exec_module(reflection)
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            previous = Path.cwd()
+            prior_tmp = os.environ.get("TMPDIR")
+            os.environ["TMPDIR"] = temporary
+            os.environ["TEMP"] = temporary
+            try:
+                os.chdir(project)
+                reflection.record_activity("activity-sess", "wait")
+                reflection.record_activity("activity-sess", "log-ingest")
+                receipt = learn.finalize(
+                    "activity-sess", disposition="no-durable", extract_heuristics=False
+                )
+            finally:
+                os.chdir(previous)
+                if prior_tmp is None:
+                    os.environ.pop("TMPDIR", None)
+                else:
+                    os.environ["TMPDIR"] = prior_tmp
+            note = json.dumps(receipt["activityRetrospective"])
+            self.assertIn("wait", note)
+            self.assertIn("log-ingest", note)
+            self.assertIn("do not mean the work was free", receipt["tokenUsage"]["retrospective"])
+            self.assertNotIn(temporary, note)
 
 
 if __name__ == "__main__":

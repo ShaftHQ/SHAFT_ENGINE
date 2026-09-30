@@ -130,23 +130,15 @@ use `repair-or-revert` to record one repair requirement; recurrence freezes the
 candidate and records a revert requirement. The normal git/GitHub workflow
 performs and verifies the repair or revert.
 
-For an orchestrated runtime, the root first runs `create-runtime`. Every
-dispatch then runs `register-participant` atomically before launching its
-delegate. Before finalization, record schema-v2 evidence-bearing disposition
-receipts (`fixed-now` with changed files plus passing proof, `existing`/`new`
-with a tracking URL, or `blocked` with a privacy-safe queued learning payload).
-`finalize-runtime` automatically harvests root and delegate receipts, live
-session ledgers (failures, guard blocks, retries), and sibling incident
-sources, closes membership, and rejects callers that omit a registered
-participant or supply enum-only dispositions without evidence.
-After closure no caller can replace, omit, or add participants. Every
-registered participant must contribute incident dispositions, a structured
-no-learning attestation, or, for an unreachable delegate only, an explicit
-`attest-unavailable` record. Finalization reads membership from the frozen
-closed registry rather than accepting a caller-supplied participant list. It
-writes one immutable root-owned schema-v2 completion. Stop hooks validate that
-artifact and never credit finalize command prose alone. Completions omit
-transcripts, private routes, model identities, credentials, and local paths.
+For an orchestrated runtime, the root runs `create-runtime`. Every dispatch
+runs `register-participant` before its delegate. Disposition receipts are
+schema-v2 and evidence-bearing (`fixed-now`, `existing`/`new`, or `blocked`).
+`finalize-runtime` harvests root and delegate receipts, closes membership, and
+rejects a missing participant or an enum-only disposition. After closure the
+registry is frozen. Each participant contributes dispositions, a no-learning
+attestation, or `attest-unavailable` when the delegate cannot be reached.
+Stop hooks require that completion artifact. Completions omit transcripts,
+private routes, model identities, credentials, and local paths.
 
 ## 7. Push, PR, green, merge, compact
 
@@ -158,6 +150,12 @@ transcripts, private routes, model identities, credentials, and local paths.
   even inside negated or illustrative prose, so partial work says `Related to
   #N`, never a closing keyword adjacent to an issue number. If it lists an issue
   this PR does not fully resolve, unlink it from the PR's Development sidebar.
+- A nightly-failure tracker (label prefix `nightly-failure:`) closes only after
+  a successful full-matrix workflow (`jobs=all`). A product pull request must
+  not use a closing keyword on that tracker. Say `Related to #N` (#6308).
+- ROG writes go through the parent Shell that has `machineId`. A Task child
+  has no `machineId` and must not be described as ROG delivery (#6051).
+  The platform schema is outside this repository.
 - Merge only within granted authority. A companion PR in another publishing
   repository needs its own authority.
 - Compact after a confirmed merge if the host supports it.

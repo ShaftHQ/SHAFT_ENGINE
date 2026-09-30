@@ -233,8 +233,8 @@ def format_retrospective(summary: dict[str, object]) -> str:
     total_usd = float(cost.get("totalEstimatedUsd") or 0.0)
     if local_tokens == 0 and cloud_tokens == 0:
         return (
-            "Token retrospective: no local/cloud usage events were recorded for "
-            "this session (record via session_token_usage.py during work)."
+            "Token retrospective: no local or cloud usage events were recorded. "
+            "Missing events do not mean the work was free."
         )
     classes = summary.get("runtimeClasses") if isinstance(summary.get("runtimeClasses"), list) else []
     class_note = f" Runtime classes: {', '.join(classes)}." if classes else ""

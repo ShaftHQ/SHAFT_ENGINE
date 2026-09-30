@@ -416,7 +416,7 @@ NODE install [src=chaos-engine/install.py loc=L12]
             feature = checkout / "src" / "Sample.feature"
             feature.parent.mkdir()
             feature.write_text("Feature: sample\n", encoding="utf-8")
-            self.assertIsNotNone(
+            self.assertIsNone(
                 gate.file_read_block_reason(
                     project=project,
                     event_name="PreToolUse",
@@ -452,6 +452,18 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     commands=(f"sed -n '1,5p' {harness}",),
                 )
             )
+
+    def test_outside_workspace_query_is_not_a_used_hit(self):
+        retrieve = load("chaos-engine/retrieve.py", "retrieve_outside_query")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            outside = "/tmp/docs-worktree/tests/example.md"
+            self.assertTrue(retrieve._query_outside_workspace(project, outside))
+            self.assertFalse(retrieve._query_outside_workspace(project, "hooks guard"))
+            skipped = retrieve._outside_workspace_receipt(project, "graphify", outside)
+            self.assertIsNotNone(skipped)
+            self.assertEqual("skipped", skipped["status"])
+            self.assertEqual("unrelated-in-repo", skipped["reason"])
 
     def test_cheap_file_grep_never_owes_a_retrieve(self):
         gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_cheap")
