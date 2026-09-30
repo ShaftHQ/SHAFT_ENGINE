@@ -10,7 +10,9 @@ read or migrated.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
+import re
 import shutil
 import subprocess  # nosec B404 - fixed git and store CLIs, no shell.
 import sys
@@ -391,6 +393,110 @@ def _component_current(cwd: Path, component: str) -> bool:
     raise RuntimeError(f"unsupported store component: {component}")
 
 
+_DOC_SUFFIXES = {".md", ".mdx"}
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+_LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+_SKIP_DOC_PARTS = frozenset({".git", "node_modules", "target"})
+
+
+def _documentation_files(root: Path) -> list[Path]:
+    files: list[Path] = []
+    if not root.is_dir():
+        return files
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in _DOC_SUFFIXES:
+            continue
+        relative = path.relative_to(root)
+        if any(part in _SKIP_DOC_PARTS for part in relative.parts):
+            continue
+        files.append(path)
+    return sorted(files)
+
+
+def index_documentation(root: Path) -> dict:
+    """File Markdown and MDX pages and extract their headings and links.
+
+    This is the zero-LLM documentation pass. External mine and code-only
+    extract commands still run; refresh merges this result afterward.
+    """
+    pages: list[dict] = []
+    for path in _documentation_files(root):
+        headings: list[str] = []
+        links: list[str] = []
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            heading = _HEADING_RE.match(line)
+            if heading:
+                headings.append(heading.group(2).strip())
+            links.extend(match.group(1) for match in _LINK_RE.finditer(line))
+        pages.append({
+            "path": path.relative_to(root).as_posix(),
+            "headings": headings,
+            "links": links,
+        })
+    return {"pages": pages}
+
+
+def merge_documentation_graph(graph_json: Path, indexed: dict) -> dict:
+    """Add documentation pages to a Graphify graph.json."""
+    try:
+        graph = json.loads(graph_json.read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeError):
+        graph = {}
+    if not isinstance(graph, dict):
+        graph = {}
+    nodes = graph.get("nodes")
+    edges = graph.get("edges")
+    if not isinstance(nodes, list):
+        nodes = []
+    if not isinstance(edges, list):
+        edges = []
+    for page in indexed.get("pages") or []:
+        if not isinstance(page, dict):
+            continue
+        page_path = str(page.get("path") or "")
+        if not page_path:
+            continue
+        node_id = "docs:" + page_path
+        label = page_path
+        headings = page.get("headings") or []
+        if headings:
+            label = str(headings[0])
+        nodes.append({
+            "id": node_id,
+            "label": label,
+            "kind": "document",
+            "path": page_path,
+            "headings": list(headings),
+        })
+        for link in page.get("links") or []:
+            edges.append({"source": node_id, "target": str(link), "kind": "link"})
+    graph["nodes"] = nodes
+    graph["edges"] = edges
+    graph_json.parent.mkdir(parents=True, exist_ok=True)
+    graph_json.write_text(json.dumps(graph, indent=2) + "\n", encoding="utf-8")
+    return graph
+
+
+def write_documentation_filing(directory: Path, indexed: dict) -> Path:
+    """Record the pages a documentation mine files, including .mdx."""
+    directory.mkdir(parents=True, exist_ok=True)
+    destination = directory / "documentation-pages.json"
+    destination.write_text(json.dumps(indexed, indent=2) + "\n", encoding="utf-8")
+    return destination
+
+
+def _apply_documentation_index(source: Path, *destinations: Path) -> dict:
+    indexed = index_documentation(source)
+    if not indexed["pages"]:
+        return indexed
+    for destination in destinations:
+        if destination.name == "graph.json":
+            merge_documentation_graph(destination, indexed)
+        else:
+            write_documentation_filing(destination, indexed)
+    return indexed
+
+
 def _refresh_graphify(
     cwd: Path,
     *,
@@ -420,6 +526,7 @@ def _refresh_graphify(
     produced = staging / "graphify-out"
     if not (produced / "graph.json").is_file() or not (produced / "manifest.json").is_file():
         raise RuntimeError("graphify extract did not write graph.json and manifest.json")
+    _apply_documentation_index(snapshot, produced / "graph.json", produced)
     target = resolve_graph_out(cwd)
     target.parent.mkdir(parents=True, exist_ok=True)
     backup = target.with_name(target.name + ".replacing")
@@ -467,6 +574,7 @@ def _refresh_mempalace(
     if wing:
         mine.extend(["--wing", wing])
     _run(invoke, mine, snapshot)
+    _apply_documentation_index(snapshot, palace)
 
 
 def refresh(

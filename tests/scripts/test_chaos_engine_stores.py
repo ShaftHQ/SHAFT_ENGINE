@@ -284,6 +284,71 @@ class SharedStoreTest(unittest.TestCase):
         self.assertIn("legacy MemPalace directory", digest)
         self.assertIsNone(self.stores.palace_migration_hint(self.primary))
 
+    def test_documentation_refresh_files_mdx_headings_and_links(self):
+        corpus = self.sandbox / "docs-corpus"
+        (corpus / "journeys").mkdir(parents=True)
+        (corpus / "guide.md").write_text("# Guide page\n\n[Start](journeys/start.mdx)\n", encoding="utf-8")
+        (corpus / "journeys" / "start.mdx").write_text(
+            "# Journey start\n\n[Back](../guide.md)\n",
+            encoding="utf-8",
+        )
+        indexed = self.stores.index_documentation(corpus)
+        paths = {page["path"] for page in indexed["pages"]}
+        self.assertEqual(paths, {"guide.md", "journeys/start.mdx"})
+        mdx = next(page for page in indexed["pages"] if page["path"].endswith(".mdx"))
+        self.assertEqual(mdx["headings"], ["Journey start"])
+        self.assertEqual(mdx["links"], ["../guide.md"])
+
+        scratch = self.sandbox / "graph-scratch"
+        original_which = self.stores.shutil.which
+
+        def which(name, *args, **kwargs):
+            if name in {"graphify", "mempalace"}:
+                return name
+            return original_which(name, *args, **kwargs)
+
+        def graph_runner(command, cwd):
+            produced = scratch / "graph-out" / "graphify-out"
+            produced.mkdir(parents=True, exist_ok=True)
+            (produced / "graph.json").write_text('{"nodes": [], "edges": []}\n', encoding="utf-8")
+            (produced / "manifest.json").write_text("{}\n", encoding="utf-8")
+            return 0
+
+        with unittest.mock.patch.object(self.stores.shutil, "which", side_effect=which):
+            self.stores._refresh_graphify(
+                self.primary,
+                snapshot=corpus,
+                scratch=scratch,
+                revision="c" * 40,
+                invoke=graph_runner,
+            )
+        graph = json.loads((self.stores.resolve_graph_out(self.primary) / "graph.json").read_text(encoding="utf-8"))
+        document = next(node for node in graph["nodes"] if node["path"] == "journeys/start.mdx")
+        self.assertEqual(document["label"], "Journey start")
+        self.assertIn(
+            {"source": "docs:journeys/start.mdx", "target": "../guide.md", "kind": "link"},
+            graph["edges"],
+        )
+        filing = json.loads(
+            (self.stores.resolve_graph_out(self.primary) / "documentation-pages.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("journeys/start.mdx", {page["path"] for page in filing["pages"]})
+
+        def mine_runner(command, cwd):
+            return 0
+
+        with unittest.mock.patch.object(self.stores.shutil, "which", side_effect=which):
+            self.stores._refresh_mempalace(
+                self.primary,
+                snapshot=corpus,
+                primary=self.primary,
+                invoke=mine_runner,
+            )
+        palace_filing = json.loads(
+            (self.stores.resolve_palace(self.primary) / "documentation-pages.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("journeys/start.mdx", {page["path"] for page in palace_filing["pages"]})
+
 
 if __name__ == "__main__":
     unittest.main()
