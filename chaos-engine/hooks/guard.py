@@ -245,6 +245,20 @@ def terminal_delivery_command(command: str) -> bool:
     return "delivery-status" in shell_tokens(command)
 
 
+def pull_request_open_command(command: str) -> bool:
+    """True for opening a pull request, which owes a watch until merge."""
+    parsed = shell_tokens(command)
+    if not parsed or any(item in {";", "&&", "||", "|", "&"} for item in parsed):
+        return False
+    head, arguments = command_head(parsed)
+    return head == "gh" and arguments[:2] == ["pr", "create"]
+
+
+def pull_request_merged_command(command: str) -> bool:
+    """True for gh pr merge, not for delivery-status."""
+    return confirmed_delivery_command(command) and not terminal_delivery_command(command)
+
+
 def confirmed_delivery_command(command: str) -> bool:
     """True for merge delivery that completes a PR without waiting on delivery-status.
 
@@ -611,7 +625,31 @@ def _terminal_reflection_reason(event: dict, session_id: str) -> str:
     )
 
 
+def _open_pull_request_reason(session_id: str) -> str:
+    """A delivery that opened a PR is unfinished until gh pr merge is recorded."""
+    activities = {
+        item.get("activity")
+        for item in reflection.entries(session_id)
+        if item.get("kind") == "task-activity"
+    }
+    if "pull-request-open" not in activities or "pull-request-merged" in activities:
+        return ""
+    return (
+        "Delivery is not complete while the pull request is open. "
+        "Babysit it until merged: classify the release note, arm "
+        "gh pr merge --auto --merge, and watch with "
+        "scripts/agents/watch_pr_checks.py --until-merged. "
+        "Do not stop on an open pull request."
+    )
+
+
 def _stop_block_reason(event: dict, session_id: str) -> str:
+    # An open delivery PR outranks Learning Session and the host stop retry.
+    # Otherwise the turn ends when the PR is only opened.
+    if event.get("hook_event_name") != "SubagentStop":
+        open_reason = _open_pull_request_reason(session_id)
+        if open_reason:
+            return open_reason
     # Learning Session outranks a retrieve citation. Otherwise a delivery-complete
     # Stop ends on the retrieve command and the host retry never asks again.
     if event.get("hook_event_name") != "SubagentStop":
@@ -1010,10 +1048,14 @@ def _run_event(event: dict, _host: str) -> int:
                 reflection.record_activity(session_id, "learning-session-complete")
         elif any(confirmed_delivery_command(candidate) for candidate in commands):
             reflection.record_activity(session_id, "delivery-complete")
+            if any(pull_request_merged_command(candidate) for candidate in commands):
+                reflection.record_activity(session_id, "pull-request-merged")
         elif mutation or any(delivery_command(candidate) for candidate in commands):
             reflection.record_activity(session_id, "mutation")
             if any(git_commit_command(candidate) for candidate in commands):
                 reflection.record_activity(session_id, "fix-commit")
+            if any(pull_request_open_command(candidate) for candidate in commands):
+                reflection.record_activity(session_id, "pull-request-open")
     if event_name in {"Stop", "SubagentStop"}:
         stop_reason = _stop_block_reason(event, session_id)
         if stop_reason:

@@ -1000,6 +1000,52 @@ process.stderr.write(result.stderr || '');
             with patch.dict(os.environ, environment):
                 self.assertTrue(reflection.has_valid_terminal_receipt("portable-delivery"))
 
+    def test_stop_keeps_an_opened_pull_request_until_merge(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "babysit-open-pr"
+            opened = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "gh pr create --base main --title x --body y"},
+                    "tool_response": {"status": "success", "exit_code": 0},
+                    "session_id": session,
+                },
+                environment,
+            )
+            self.assertEqual(0, opened.returncode)
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": session,
+                    "stop_hook_active": True,
+                },
+                environment,
+            )
+            self.assertEqual(2, stopped.returncode)
+            self.assertIn("until merged", stopped.stdout.casefold())
+            merged = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "gh pr merge 6320 --merge"},
+                    "tool_response": {"status": "success", "exit_code": 0},
+                    "session_id": session,
+                },
+                environment,
+            )
+            self.assertEqual(0, merged.returncode)
+            cleared = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": session,
+                    "stop_hook_active": True,
+                },
+                environment,
+            )
+            self.assertNotIn("until merged", cleared.stdout.casefold())
+
     def test_reflection_receipt_alone_does_not_clear_stop_after_delivery(self):
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
