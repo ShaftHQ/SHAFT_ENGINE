@@ -86,6 +86,66 @@ class SessionTokenUsageTest(unittest.TestCase):
                     project=project,
                 )
 
+    def test_ab_table_requires_three_tasks_and_five_runs(self) -> None:
+        rows = []
+        for task in ("overlay-pre-push", "deja-store", "parent-rog-shell"):
+            for run in range(5):
+                rows.append({"task": task, "arm": "control", "run": run, "tokens": 100 + run})
+                rows.append({"task": task, "arm": "deja", "run": run, "tokens": 80 + run})
+        table = self.mod.ab_table(rows)
+        self.assertTrue(table["defaultMayChange"])
+        text = self.mod.format_ab_table(table)
+        self.assertIn("defaultOn may be reconsidered", text)
+        flat = []
+        for task in ("one", "two", "three"):
+            for run in range(5):
+                flat.append({"task": task, "arm": "control", "tokens": 10})
+                flat.append({"task": task, "arm": "deja", "tokens": 10})
+        held = self.mod.ab_table(flat)
+        self.assertFalse(held["defaultMayChange"])
+        self.assertIn("defaultOn stays false", self.mod.format_ab_table(held))
+
+    def test_ab_table_reads_tokens_back_from_record(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            rows = []
+            for task_index, task in enumerate(("alpha", "beta", "gamma")):
+                for run in range(5):
+                    for arm, base in (("control", 40), ("deja", 40)):
+                        session_id = f"{task}-{arm}-{run}"
+                        tokens = base + task_index + run
+                        self.mod.record(
+                            session_id,
+                            channel="local",
+                            prompt_tokens=tokens,
+                            completion_tokens=0,
+                            runtime_class="host-session",
+                            project=project,
+                        )
+                        summary = self.mod.summarize(session_id, project=project)
+                        rows.append(
+                            {
+                                "task": task,
+                                "arm": arm,
+                                "tokens": summary["totals"]["localPromptTokens"],
+                            }
+                        )
+            table = self.mod.ab_table(rows)
+            self.assertFalse(table["defaultMayChange"])
+            self.assertEqual(15, table["control"]["runs"])
+            self.assertEqual(15, table["deja"]["runs"])
+
+    def test_measured_rows_match_the_committed_table(self) -> None:
+        rows_path = ROOT / "chaos-engine/references/details/deja-token-ab-rows.json"
+        table_path = ROOT / "chaos-engine/references/details/deja-token-ab-table.md"
+        rows = json.loads(rows_path.read_text(encoding="utf-8"))
+        table = self.mod.ab_table(rows)
+        rendered = self.mod.format_ab_table(table)
+        self.assertIn(rendered.strip(), table_path.read_text(encoding="utf-8"))
+        self.assertFalse(table["defaultMayChange"])
+        self.assertEqual(3, len(table["tasks"]))
+        self.assertEqual(15, table["control"]["runs"])
+
     def test_finalize_attaches_token_usage(self) -> None:
         learn_path = ROOT / "chaos-engine/learning_session.py"
         spec = importlib.util.spec_from_file_location("learning_session", learn_path)

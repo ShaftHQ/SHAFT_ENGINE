@@ -245,6 +245,113 @@ def format_retrospective(summary: dict[str, object]) -> str:
     )
 
 
+def _median(values: list[int]) -> float:
+    ordered = sorted(values)
+    count = len(ordered)
+    if count == 0:
+        raise ValueError("median requires at least one value")
+    middle = count // 2
+    if count % 2 == 1:
+        return float(ordered[middle])
+    return (ordered[middle - 1] + ordered[middle]) / 2.0
+
+
+def _mean(values: list[int]) -> float:
+    if not values:
+        raise ValueError("mean requires at least one value")
+    return sum(values) / len(values)
+
+
+def ab_table(rows: list[dict[str, object]]) -> dict[str, object]:
+    """Median and mean tokens for control vs deja. Does not change defaultOn.
+
+    Each row is one run: task, arm (``control`` or ``deja``), and tokens.
+    A task needs five runs on each arm. The default may be reconsidered only
+    when both the median and the mean are lower on the deja arm (#6183).
+    """
+    grouped: dict[tuple[str, str], list[int]] = {}
+    for row in rows:
+        task = str(row.get("task") or "")
+        arm = str(row.get("arm") or "")
+        tokens = row.get("tokens")
+        if arm not in {"control", "deja"} or not task:
+            raise ValueError("row needs a task and arm control|deja")
+        if isinstance(tokens, bool) or not isinstance(tokens, int) or tokens < 0:
+            raise ValueError("tokens must be a non-negative int")
+        grouped.setdefault((task, arm), []).append(tokens)
+    tasks = sorted({task for task, _arm in grouped})
+    if len(tasks) < 3:
+        raise ValueError("at least three tasks are required")
+    control_tokens: list[int] = []
+    deja_tokens: list[int] = []
+    per_task: list[dict[str, object]] = []
+    for task in tasks:
+        control = grouped.get((task, "control"))
+        deja = grouped.get((task, "deja"))
+        if control is None or deja is None or len(control) < 5 or len(deja) < 5:
+            raise ValueError(f"{task} needs five control runs and five deja runs")
+        control_tokens.extend(control)
+        deja_tokens.extend(deja)
+        per_task.append(
+            {
+                "task": task,
+                "controlMedian": _median(control),
+                "controlMean": _mean(control),
+                "dejaMedian": _median(deja),
+                "dejaMean": _mean(deja),
+            }
+        )
+    control_median = _median(control_tokens)
+    control_mean = _mean(control_tokens)
+    deja_median = _median(deja_tokens)
+    deja_mean = _mean(deja_tokens)
+    default_may_change = deja_median < control_median and deja_mean < control_mean
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "tasks": per_task,
+        "control": {"median": control_median, "mean": control_mean, "runs": len(control_tokens)},
+        "deja": {"median": deja_median, "mean": deja_mean, "runs": len(deja_tokens)},
+        "defaultMayChange": default_may_change,
+        "source": "session_token_usage rows; not a vendor invoice",
+    }
+
+
+def format_ab_table(table: dict[str, object]) -> str:
+    """Markdown table. States whether defaultOn may change."""
+    lines = [
+        "| task | control median | control mean | deja median | deja mean |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    tasks = table.get("tasks")
+    if isinstance(tasks, list):
+        for row in tasks:
+            if not isinstance(row, dict):
+                continue
+            lines.append(
+                "| {task} | {controlMedian:.1f} | {controlMean:.1f} | {dejaMedian:.1f} | {dejaMean:.1f} |".format(
+                    **row
+                )
+            )
+    control = table.get("control") if isinstance(table.get("control"), dict) else {}
+    deja = table.get("deja") if isinstance(table.get("deja"), dict) else {}
+    lines.append(
+        "| all runs | {cmed:.1f} | {cmean:.1f} | {dmed:.1f} | {dmean:.1f} |".format(
+            cmed=float(control.get("median") or 0),
+            cmean=float(control.get("mean") or 0),
+            dmed=float(deja.get("median") or 0),
+            dmean=float(deja.get("mean") or 0),
+        )
+    )
+    decision = (
+        "defaultOn may be reconsidered"
+        if table.get("defaultMayChange") is True
+        else "defaultOn stays false"
+    )
+    lines.append("")
+    lines.append(decision)
+    return "\n".join(lines) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -265,6 +372,9 @@ def main(argv: list[str] | None = None) -> int:
     summ.add_argument("--session-id", required=True)
     summ.add_argument("--text", action="store_true", help="print retrospective text instead of JSON")
 
+    table_cmd = sub.add_parser("ab-table", help="median and mean from recorded A/B rows")
+    table_cmd.add_argument("--file", type=Path, required=True, help="JSON list of task/arm/tokens rows")
+
     args = parser.parse_args(argv)
     try:
         if args.command == "record":
@@ -284,7 +394,14 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(json.dumps(summary, sort_keys=True))
             return 0
-    except (OSError, ValueError) as error:
+        if args.command == "ab-table":
+            payload = json.loads(args.file.read_text(encoding="utf-8"))
+            if not isinstance(payload, list):
+                raise ValueError("ab-table file must be a JSON list")
+            table = ab_table(payload)
+            print(format_ab_table(table), end="")
+            return 0
+    except (OSError, ValueError, json.JSONDecodeError) as error:
         print(str(error), file=sys.stderr)
         return 1
     print(f"unknown command: {args.command}", file=sys.stderr)
