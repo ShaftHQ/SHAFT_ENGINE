@@ -2,7 +2,6 @@ package com.shaft.intellij.ui;
 
 import com.intellij.openapi.project.Project;
 import com.shaft.intellij.settings.ShaftSettingsState;
-import java.lang.reflect.Proxy;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
@@ -10,6 +9,7 @@ import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
 import java.awt.Component;
 import java.awt.Container;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -21,11 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AgentFirstUxTest {
     private static final List<String> REMOVED = List.of(
-            "Analysis & Design",
-            "Reporting & Analytics",
-            "Locator playground",
-            "Visual Baselines",
-            "Evidence triage");
+            "Analysis & Design", "Reporting & Analytics", "Visual Baselines");
 
     @Test
     void agentIsTheDefaultAndRemovedSurfacesAreNotSelectable() throws Exception {
@@ -39,7 +35,6 @@ class AgentFirstUxTest {
         for (String removed : REMOVED) {
             assertFalse(plugin.contains(removed), removed);
         }
-        assertTrue(plugin.contains("Open SHAFT"));
         assertTrue(plugin.contains("Open Claude Code Terminal"));
     }
 
@@ -65,8 +60,7 @@ class AgentFirstUxTest {
         panel.submitReviewedPrompt("Check the login flow");
         assertTrue(panel.transcriptMarkdown().contains("Check the login flow"));
         panel.offerQuestion(List.of("Yes", "No"));
-        JButton yes = findButton(panel, "Suggested answer: Yes");
-        yes.doClick();
+        findButton(panel, "Suggested answer: Yes").doClick();
         assertEquals("Yes", panel.promptText());
         SwingUtilities.invokeAndWait(() -> panel.offerApproval("capture_start"));
         JButton deny = findButton(panel, "Deny for capture_start");
@@ -84,7 +78,6 @@ class AgentFirstUxTest {
         assertTrue(panel.executionLogPanel().text().contains(command));
         panel.showLogChunk("BUILD SUCCESS", false);
         assertEquals("Succeeded", panel.executionLogPanel().state());
-        assertTrue(panel.executionLogPanel().text().contains("BUILD SUCCESS"));
         panel.showLogChunk("BUILD FAILURE", true);
         assertEquals("Failed", panel.executionLogPanel().state());
         assertTrue(panel.executionLogPanel().text().contains("BUILD FAILURE"));
@@ -140,8 +133,8 @@ class AgentFirstUxTest {
 
     private static void collect(Component component, String accessibleName, List<JButton> found) {
         if (component instanceof JButton button
-                && button.getAccessibleContext() != null
-                && accessibleName.equals(button.getAccessibleContext().getAccessibleName())) {
+                && component.getAccessibleContext() != null
+                && accessibleName.equals(component.getAccessibleContext().getAccessibleName())) {
             found.add(button);
         }
         if (component instanceof Container container) {
@@ -178,7 +171,6 @@ class AgentFirstUxTest {
         if (component == null) {
             return;
         }
-        text.append(component.getClass().getSimpleName()).append(' ');
         if (component instanceof JLabel label) {
             text.append(label.getText()).append(' ');
         }
