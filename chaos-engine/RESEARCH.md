@@ -30,6 +30,19 @@ Primary source: [DeepSeek Harness architecture at commit
 | Bounded asynchronous behavior | Adopted | Bound optional retrieval to one attempt and keep maintenance with its existing owner. |
 | Quiescent teardown | Adopted | Delivery and cleanup receipts prove owned processes/resources are stopped or narrowly degraded. |
 
+## Logo design skill
+
+Accessed: 2026-09-30. Primary source:
+[kaankiziltug/logo-design-skill](https://github.com/kaankiziltug/logo-design-skill).
+
+Decision for issue 6318: **decline**. That repository is an Agent Skills
+process for designing a logo (checkpoint before a kit). It is not an identity
+system for ChaosEngine. [identity.md](identity.md) stays the personality
+source, and [assets/brand/](assets/brand/) stays the origin identity masters.
+Nothing from the upstream skill is vendored: not its SVG logo library, not
+trademark assets, and not its Python audit tools. A later wording change may
+cite one named text principle from that skill. It must not copy the logo corpus.
+
 Rejected runtime scope: the duplicate Node runtime, agent loop, session log,
 goals/todos, and “everything is a plugin” overhead. Cordis offers a strong
 replaceable plugin ecosystem with reversible effects and one event model, but

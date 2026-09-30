@@ -314,7 +314,7 @@ Missing telemetry remains the literal `UNAVAILABLE` (never `0`).
 | [`learning.py`](learning.py) | Privacy-gated queue for reusable improvement candidates |
 | [`RESEARCH.md`](RESEARCH.md) | Dated adoption decisions and their local proof owners |
 | [`STANDALONE.md`](STANDALONE.md) | Origin-only spec for a later standalone source repository |
-| [`assets/brand/`](assets/brand/) | Origin identity masters; not copied into adopter installs |
+| [`assets/brand/`](assets/brand/) | Origin identity masters; not copied into adopter installs. External logo skills are [declined](RESEARCH.md#logo-design-skill) |
 
 The installer records provenance and per-file ownership in the consumer
 project. Host adapters redirect to the canonical skill; they do not fork its
