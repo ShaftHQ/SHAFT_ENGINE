@@ -1610,7 +1610,7 @@ public class TouchActions extends FluentWebDriverAction {
         return ocrFindMiss(target, screenshot, null) == null;
     }
 
-    private boolean displayedExactText(String text) {
+    boolean displayedExactText(String text) {
         if (text == null || text.isBlank()) {
             return false;
         }
