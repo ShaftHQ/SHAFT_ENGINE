@@ -749,6 +749,83 @@ class StructuredLearningReceiptTest(unittest.TestCase):
             candidate_path.write_text(json.dumps(tampered), encoding="utf-8")
             self.assertEqual(len(learning_session.load_candidates(state)), 1)
 
+    def test_one_url_closes_every_receipt_of_the_same_lesson(self):
+        learning_session = self.controller()
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            receipt_ids = []
+            for incident, filename in (("first-action", "first.txt"), ("second-action", "second.txt")):
+                receipt = learning_session.record_signal(
+                    state,
+                    session_id="s",
+                    kind="review_finding",
+                    incident_id=incident,
+                    origin="reviewer",
+                    evidence=self.evidence(state, filename, incident),
+                    evidence_root=state,
+                )
+                receipt_ids.append(receipt["receipt_id"])
+            issue = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/6319"
+            common = dict(
+                hypothesis="One lesson.",
+                owner="scripts/agents/learning_session.py",
+                baseline_ref="e" * 40,
+                allowed_paths=["scripts/agents/learning_session.py"],
+                red_command="red",
+                success_predicates=["fixed"],
+                invariants=["safe"],
+                risk_tier="ordinary",
+            )
+            candidates = learning_session.assess(
+                state, session_id="s", tracking_issue_urls=[issue], **common
+            )
+            closed = [
+                receipt_id
+                for candidate in candidates
+                if candidate["tracking_issue_url"] == issue
+                for receipt_id in candidate["receipt_ids"]
+            ]
+            self.assertEqual(sorted(closed), sorted(receipt_ids))
+            learning_session.record_signal(
+                state,
+                session_id="other",
+                kind="review_finding",
+                incident_id="other-action",
+                origin="reviewer",
+                evidence=self.evidence(state, "other.txt", "other"),
+                evidence_root=state,
+            )
+            with self.assertRaisesRegex(ValueError, "tracking issue already belongs"):
+                learning_session.assess(
+                    state, session_id="other", tracking_issue_urls=[issue], **common
+                )
+            learning_session.record_signal(
+                state,
+                session_id="unrelated",
+                kind="review_finding",
+                incident_id="unrelated-a",
+                origin="reviewer",
+                evidence=self.evidence(state, "ua.txt", "ua"),
+                evidence_root=state,
+            )
+            learning_session.record_signal(
+                state,
+                session_id="unrelated",
+                kind="review_finding",
+                incident_id="unrelated-b",
+                origin="reviewer",
+                evidence=self.evidence(state, "ub.txt", "ub"),
+                evidence_root=state,
+            )
+            repeated = "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/6320"
+            with self.assertRaisesRegex(ValueError, "distinct tracking issue"):
+                learning_session.assess(
+                    state,
+                    session_id="unrelated",
+                    tracking_issue_urls=[repeated, repeated],
+                    **common,
+                )
+
     def test_tracking_issue_mapping_is_global_and_cannot_be_rebound(self):
         learning_session = self.controller()
         with tempfile.TemporaryDirectory() as directory:

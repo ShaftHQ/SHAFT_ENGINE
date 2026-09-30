@@ -628,7 +628,12 @@ def assess(
     risk_tier: str,
     tracking_issue_urls: list[str] | None = None,
 ) -> list[dict]:
-    """Create one complete, quarantined candidate for every session incident."""
+    """Create one quarantined candidate per incident.
+
+    One tracking URL closes every receipt when the session is one lesson.
+    Repeating a URL across unrelated incidents, or reusing it from another
+    session, still fails.
+    """
     if load_session_completion(Path(state), session_id) is not None:
         raise ValueError("learning session is already complete")
     _validate_candidate_spec(
@@ -645,13 +650,21 @@ def assess(
     receipts = load_receipts(Path(state), session_id)
     if not receipts:
         raise ValueError("assessment requires at least one meaningful signal")
-    if len(tracking_issue_urls or []) != len(receipts):
+    urls = list(tracking_issue_urls or [])
+    shared_lesson = len(urls) == 1 and len(receipts) > 1
+    if not shared_lesson and len(urls) != len(receipts):
         raise ValueError("assessment requires one distinct tracking issue per incident")
+    pairs = (
+        [(receipt, urls[0]) for receipt in receipts]
+        if shared_lesson
+        else list(zip(receipts, urls))
+    )
+    session_receipt_ids = {receipt["receipt_id"] for receipt in receipts}
     candidates: list[dict] = []
     with _state_lock(Path(state), "candidate-tracking-issues"):
         directory = _contained_directory(Path(state), "candidates")
         existing_candidates = load_candidates(Path(state))
-        for receipt, tracking_issue_url in zip(receipts, tracking_issue_urls or []):
+        for receipt, tracking_issue_url in pairs:
             identity = {
                 "receipt_ids": [receipt["receipt_id"]],
                 "incident_hash": receipt["incident_hash"],
@@ -690,7 +703,12 @@ def assess(
                 None,
             )
             if issue_candidate is not None and issue_candidate["incident_hash"] != receipt["incident_hash"]:
-                raise ValueError("tracking issue already belongs to a different incident")
+                same_lesson = (
+                    shared_lesson
+                    and set(issue_candidate["receipt_ids"]).issubset(session_receipt_ids)
+                )
+                if not same_lesson:
+                    raise ValueError("tracking issue already belongs to a different incident")
             path = directory / f"{candidate['candidate_id']}.json"
             if path.is_file():
                 try:
