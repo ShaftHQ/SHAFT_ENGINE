@@ -38,7 +38,17 @@ class OverlayPrePushTest(unittest.TestCase):
         self.assertLess(len(text.encode("utf-8")), 16384)
         failures = playbook_contract_failures(text)
         self.assertTrue(any("Before committing any subagent's work" in failure for failure in failures))
-        self.assertFalse(any("16384" in failure for failure in failures))
+
+    def test_live_playbook_has_room_for_another_lesson_without_dropping_promotion(self):
+        playbook = (ROOT / PLAYBOOK).read_text(encoding="utf-8")
+        promotion = (ROOT / "chaos-engine/references/details/work-github-playbook-promotion.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertEqual(playbook_contract_failures(playbook), [])
+        self.assertLessEqual(len(playbook.encode("utf-8")) + 1024, 16384)
+        self.assertIn("work-github-playbook-promotion.md", playbook)
+        self.assertIn("privacy-safe queued learning payload", promotion)
+        self.assertIn("caller-supplied participant list", promotion)
 
     def test_pre_push_runs_the_fixture_only_when_the_diff_touches_overlay(self):
         with tempfile.TemporaryDirectory() as temporary:

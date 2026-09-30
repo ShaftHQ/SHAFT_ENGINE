@@ -114,31 +114,10 @@ records its terminal reflection receipt before the Learning Session.
    Secrets never enter `.memory/memory`; they stay in `.memory/private/`
    (gitignored).
 
-For a meaningful event, record an evidence-consistent `signal`, then `assess`
-it into a quarantined candidate using one distinct `--tracking-issue-url` per
-incident. Behavior changes stay quarantined while
-`evaluate` records a strict improvement comparison on the frozen adherence
-corpus with zero unmeasured rules and no regression. The record is a
-consistency summary, not proof that commands ran or reviewers are authentic.
-Independently derive the live diff, rerun tests, and verify review artifacts.
-Use `promote` to record intent only for the exact evaluated commit after the
-selected terminal assurance; normal GitHub workflow must still perform
-and verify the merge. Kernel-tier changes require
-two independent reviewer keys, correctness/reproduction/safety lenses, and two
-independent runs on the same commit and corpus. If a promoted change regresses,
-use `repair-or-revert` to record one repair requirement; recurrence freezes the
-candidate and records a revert requirement. The normal git/GitHub workflow
-performs and verifies the repair or revert.
+Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
+[work-github-playbook-promotion.md](details/work-github-playbook-promotion.md) so this
+playbook can take another lesson without deleting that guidance (#6313).
 
-For an orchestrated runtime, the root runs `create-runtime`. Every dispatch
-runs `register-participant` before its delegate. Disposition receipts are
-schema-v2 and evidence-bearing (`fixed-now`, `existing`/`new`, or `blocked`).
-`finalize-runtime` harvests root and delegate receipts, closes membership, and
-rejects a missing participant or an enum-only disposition. After closure the
-registry is frozen. Each participant contributes dispositions, a no-learning
-attestation, or `attest-unavailable` when the delegate cannot be reached.
-Stop hooks require that completion artifact. Completions omit transcripts,
-private routes, model identities, credentials, and local paths.
 
 ## 7. Push, PR, green, merge, compact
 
