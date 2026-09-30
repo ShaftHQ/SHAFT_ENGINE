@@ -182,10 +182,15 @@ class ChaosEngineKernelTest(TestCase):
 
     def test_stop_denials_use_each_host_native_output_contract(self):
         for event in ("Stop", "SubagentStop"):
-            expected = {
-                host: {"decision": "block", "reason": "unsafe"}
-                for host in self.kernel.HOST_CAPABILITIES
-            }
+            expected = {}
+            for host, capability in self.kernel.HOST_CAPABILITIES.items():
+                payload = {"decision": "block", "reason": "unsafe"}
+                if not capability.process_exit2_honored:
+                    payload["additionalContext"] = "unsafe"
+                    if host == "copilot":
+                        payload["permissionDecision"] = "deny"
+                        payload["permissionDecisionReason"] = "unsafe"
+                expected[host] = payload
             for host in self.kernel.HOST_CAPABILITIES:
                 with self.subTest(event=event, host=host):
                     self.assertEqual(

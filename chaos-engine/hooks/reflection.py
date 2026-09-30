@@ -401,6 +401,35 @@ def _receipt_commit_state(session_id: str) -> tuple[int, bool]:
     return credit, saw
 
 
+def reflection_controller_drift(start: Path) -> str:
+    """Report when the installed reflection controller and source copy differ."""
+    project = None
+    for candidate in (start, *start.parents):
+        installed = candidate / ".chaos-engine" / "hooks" / "reflection.py"
+        source = candidate / "chaos-engine" / "hooks" / "reflection.py"
+        if installed.is_file() or source.is_file():
+            project = candidate
+            break
+    if project is None:
+        return ""
+    installed = project / ".chaos-engine" / "hooks" / "reflection.py"
+    source = project / "chaos-engine" / "hooks" / "reflection.py"
+    if not installed.is_file() or not source.is_file():
+        return ""
+    try:
+        left = installed.read_bytes()
+        right = source.read_bytes()
+    except OSError:
+        return ""
+    if left == right:
+        return ""
+    return (
+        "Reflection controller drift: `.chaos-engine/hooks/reflection.py` and "
+        "`chaos-engine/hooks/reflection.py` differ. Receipts must use the "
+        "controller the gate executes."
+    )
+
+
 def pending_checkpoint(session_id: str) -> dict | None:
     """Open a receipt on the third attempted failure, then allow one commit."""
     active = active_entries(session_id)

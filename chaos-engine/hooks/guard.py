@@ -320,10 +320,12 @@ def read_only_diagnostic_command(command: str) -> bool:
 
 def checkpoint_reason(checkpoint: dict) -> str:
     fingerprints = ",".join(checkpoint["failureFingerprints"])
+    controller = _reflection_controller()
     return (
         f"Reflection required ({checkpoint['depth']}). Sanitized fingerprints: "
-        f"{fingerprints}. Pause mutation and unchanged retries. Append a validated "
-        "receipt with `.chaos-engine/hooks/reflection.py receipt`. "
+        f"{fingerprints}. Pause mutation and unchanged retries. "
+        f"The gate executed `{controller}`. Append a validated receipt with "
+        f"`{controller}` receipt. "
         "Do not read reflection.py to discover that command."
     )
 
@@ -625,14 +627,46 @@ def _terminal_reflection_reason(event: dict, session_id: str) -> str:
     )
 
 
-def _open_pull_request_reason(session_id: str) -> str:
-    """A delivery that opened a PR is unfinished until gh pr merge is recorded."""
+def delivery_goal_open_pull_request(event: dict) -> bool:
+    """True when delivery-goal state names an open pull request.
+
+    The session ledger is not required to contain ``pull-request-open``.
+    A push-only session still owes a babysit when this state is active.
+    """
+    payload = event.get("deliveryGoal") or event.get("delivery_goal")
+    if not isinstance(payload, dict):
+        cwd = event.get("cwd")
+        payload = None
+        if cwd:
+            path = Path(str(cwd)) / ".chaos-engine-state" / "delivery-goal.json"
+            try:
+                loaded = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                loaded = None
+            if isinstance(loaded, dict):
+                payload = loaded
+    if not isinstance(payload, dict) or payload.get("active") is not True:
+        return False
+    state = str(payload.get("state") or payload.get("pullRequestState") or "").casefold()
+    number = payload.get("pullRequest") or payload.get("pull_request")
+    return state == "open" and number not in (None, "", 0)
+
+
+def _open_pull_request_reason(session_id: str, event: dict) -> str:
+    """An open delivery PR is unfinished until gh pr merge is recorded.
+
+    ``delivery-status`` does not clear the block. An active delivery goal
+    with an open pull request counts even when this session never ran
+    ``gh pr create``.
+    """
     activities = {
         item.get("activity")
         for item in reflection.entries(session_id)
         if item.get("kind") == "task-activity"
     }
-    if "pull-request-open" not in activities or "pull-request-merged" in activities:
+    if "pull-request-merged" in activities:
+        return ""
+    if "pull-request-open" not in activities and not delivery_goal_open_pull_request(event):
         return ""
     return (
         "Delivery is not complete while the pull request is open. "
@@ -647,7 +681,7 @@ def _stop_block_reason(event: dict, session_id: str) -> str:
     # An open delivery PR outranks Learning Session and the host stop retry.
     # Otherwise the turn ends when the PR is only opened.
     if event.get("hook_event_name") != "SubagentStop":
-        open_reason = _open_pull_request_reason(session_id)
+        open_reason = _open_pull_request_reason(session_id, event)
         if open_reason:
             return open_reason
     # Learning Session outranks a retrieve citation. Otherwise a delivery-complete
@@ -1070,7 +1104,11 @@ def _run_event(event: dict, _host: str) -> int:
             return 0
     if event_name == "SessionStart":
         _schedule_store_refresh(Path(str(event.get("cwd") or Path.cwd())))
-        print(json.dumps({"additionalContext": _event_context(event_name, token)}))
+        context = _event_context(event_name, token)
+        drift = reflection.reflection_controller_drift(Path(str(event.get("cwd") or Path.cwd())))
+        if drift:
+            context = f"{context}\n\n{drift}"
+        print(json.dumps({"additionalContext": context}))
         return 0
     complexity_hint = classifier_complexity_gate_hint(
         event_name,

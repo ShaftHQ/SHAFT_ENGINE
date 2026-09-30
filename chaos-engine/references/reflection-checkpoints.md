@@ -10,10 +10,9 @@ source excerpts, or user-specific absolute paths.
 - Two attempted failures do not demand a receipt.
 - The third attempted failure stops for a receipt (`third-fix`, or
   `repeated-fingerprint` when every fingerprint matches). A fourth distinct
-  failure without a new receipt is forbidden. The denial names
-  `py -3 scripts/agents/reflection.py receipt` (repo-only) and the installed
-  `.chaos-engine/hooks/reflection.py receipt`. It does not invite a read of
-  `reflection.py`.
+  failure without a new receipt is forbidden. The denial names the
+  reflection controller the gate executed and tells you to append the receipt
+  with that same file. It does not invite a read of `reflection.py`.
 - A valid receipt authorizes one following `git commit` of that fix. The
   receipt and the commit are separate commands. A combined shell does not
   hide the third failure. The one-hour terminal receipt stays mandatory.
