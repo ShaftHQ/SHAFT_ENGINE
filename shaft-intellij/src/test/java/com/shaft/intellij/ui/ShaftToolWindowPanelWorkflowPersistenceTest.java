@@ -33,7 +33,7 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
         ShaftToolWindowPanel panel = newPanel(new FakePropertiesComponent());
 
         assertEquals(ShaftToolWindowPanel.SURFACE_AGENT, selectedLabel(panel),
-                "with nothing persisted yet, Agent is the default view");
+                "with nothing persisted yet, Analysis & Design is the default stage");
     }
 
     @Test
@@ -88,7 +88,7 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
         ShaftToolWindowPanel panel = newPanel(properties);
 
         assertEquals(ShaftToolWindowPanel.SURFACE_AGENT, selectedLabel(panel),
-                "an unmatched stored key must fall back silently to Agent");
+                "an unmatched stored key must fall back silently to Analysis & Design");
     }
 
     private static void selectItemLabeled(JComboBox<ShaftToolWindowPanel.WorkflowView> selector, String label) {
