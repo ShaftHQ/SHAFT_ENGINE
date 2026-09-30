@@ -10,6 +10,11 @@ name: Release-note governance
 # job named exactly "Release-note governance" reports a conclusion on every
 # pull request event and never leaves a required check pending. If a merge
 # queue is adopted (#6193), add `merge_group:` here too.
+#
+# Issue #6300: adding or removing a classification label (breaking-change, bug,
+# enhancement, skip-release-notes) must start a new run. Label events do not
+# cancel an in-progress governance run, so a corrected label is not dropped
+# when a second label edit arrives before the first correction finishes.
 
 on:
   pull_request:
@@ -23,7 +28,7 @@ permissions:
 
 concurrency:
   group: release-note-governance-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}
 
 jobs:
   release-governance:

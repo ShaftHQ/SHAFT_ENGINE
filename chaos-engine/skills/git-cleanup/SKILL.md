@@ -21,7 +21,8 @@ Name the configured default branch from the remote HEAD or the selected profile.
 1. Fetch and prune the configured upstream. Inventory dirty and untracked paths, extra local branches, linked worktrees, locks, and unique commits before mutation.
 2. Classify each dirty or untracked path as land (commit, push, pull request, merge), delete, or gitignore. Halt on a locked or concurrently owned worktree.
 3. Check out the configured default branch in the primary checkout and fast-forward it so `HEAD` equals the remote tip and `git status` is clean.
-4. Remove extra linked worktrees only after that classification, and only when they are clean, unlocked, and not concurrently owned. Then remove extra local branches that are fully merged into the remote tip, or whose unique commits were explicitly authorized for discard.
+4. Remove extra linked worktrees only after that classification, and only when they are clean, unlocked, and not concurrently owned. Then remove a recreated local branch only when `git branch -r --contains` shows that exact tip on an origin ref. Also remove extra local branches that are fully merged into the remote tip, or whose unique commits were explicitly authorized for discard.
+5. Check out the configured default branch and fast-forward it. Write the verification transcript in the same process, after that fast-forward. Do not check out another branch afterward.
 
 ## Done
 

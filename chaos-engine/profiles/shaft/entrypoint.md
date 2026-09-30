@@ -20,6 +20,7 @@ The canonical [reflection checkpoints](../../references/reflection-checkpoints.m
 apply unchanged to repository and portable installed hosts.
 
 - Repository: `ShaftHQ/SHAFT_ENGINE`; default branch: `main`.
+- Agent commits must be signed with the enrolled GitHub GPG key `F79E3F65DB762CE1` before merge when that secret is on the machine. The owner's own email-matched commits (`Mohab.MohieElDeen@outlook.com`) are not unattributed changes when no second reviewer exists, so a green pull request must not stay blocked solely because those commits are unverified.
 - Task branches use `ChaosEngine/*` and start from fetched `origin/main`.
 - Agents never manually start, rerun, or replace the `E2E Tests` or
   `Local E2E Tests` workflows. Smallest local proof and exact-head PR checks

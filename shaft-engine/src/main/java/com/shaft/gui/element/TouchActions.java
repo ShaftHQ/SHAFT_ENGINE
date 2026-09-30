@@ -815,6 +815,13 @@ public class TouchActions extends FluentWebDriverAction {
                     lastOcrMiss = ocrFindMiss(effectiveOcrTarget, screenshot, swipeDirection);
                     found = lastOcrMiss == null;
                 }
+                if (found && ocrTarget != null && !displayedExactText(ocrTarget.expectedText())) {
+                    // A container screenshot can OCR a clipped or misread label while the
+                    // real text node is still off-screen (Android horizontal TAB 1).
+                    found = false;
+                    lastOcrMiss = "OCR matched \"" + ocrTarget.expectedText()
+                            + "\" but no displayed element has that exact text.";
+                }
                 if (found) {
                     elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
                             Thread.currentThread().getStackTrace()[1].getMethodName(), "direction=" + swipeDirection, null, null);
@@ -1601,6 +1608,28 @@ public class TouchActions extends FluentWebDriverAction {
 
     private boolean findOcr(OcrTarget target, byte[] screenshot) {
         return ocrFindMiss(target, screenshot, null) == null;
+    }
+
+    boolean displayedExactText(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String escaped = text.replace("\\", "\\\\").replace("'", "\\'");
+        try {
+            for (WebElement element : driverFactoryHelper.getDriver().findElements(
+                    By.xpath("//*[@text='" + escaped + "' or @content-desc='" + escaped + "']"))) {
+                try {
+                    if (element.isDisplayed()) {
+                        return true;
+                    }
+                } catch (RuntimeException ignored) {
+                    // Stale node; keep looking.
+                }
+            }
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+        return false;
     }
 
     /** Null when OCR matched; otherwise the last miss including recognized fullText. */
