@@ -30,6 +30,9 @@ STATIC_PATTERNS = (
     "/.graphifyignore",
     "/mempalace.yaml",
     ".chaos-engine-owned-directory",
+    # #6330: research-receipt shims wired for detected Cursor/OpenCode (#6230).
+    "/.cursor/hooks.json",
+    "/.opencode/plugins/chaos-engine-receipt.js",
 )
 _FALSE = {"", "0", "false", "no", "off"}
 

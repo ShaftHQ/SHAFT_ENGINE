@@ -53,7 +53,7 @@ class MemoryTracked5774Test(unittest.TestCase):
         retrieve = RETRIEVE.read_text(encoding="utf-8")
         self.assertIn("MemPalace", retrieve)
         self.assertIn("Graphify", retrieve)
-        self.assertIn("memory search", retrieve)
+        self.assertIn("memory query", retrieve)
         graphify = GRAPHIFY.read_text(encoding="utf-8")
         self.assertIn("graphify query", graphify)
         self.assertIn("Retrieve first", graphify)

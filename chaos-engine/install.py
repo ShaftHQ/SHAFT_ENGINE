@@ -50,6 +50,10 @@ DEPENDENCY_LOCK_MAGIC = b"chaos-engine-dependencies-lock-v1\n"
 # Bounded wait when another install/doctor/repair holds `.chaos-engine.lock` (#6019).
 PROJECT_LOCK_WAIT_SECONDS = 30.0
 PROJECT_LOCK_POLL_SECONDS = 0.1
+# #6328: a creator writes the lock magic right after its O_EXCL create. A reader
+# in that window sees an empty or partial magic: initialization, not a collision.
+LOCK_INIT_GRACE_SECONDS = 1.0
+LOCK_INIT_POLL_SECONDS = 0.02
 MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS = 30.0
 MAVEN_TOOLS_CACHE_BUSY_POLL_SECONDS = 0.2
 CROSS_ROLLBACK_JOURNAL_NAME = ".chaos-engine-cross-rollback"
@@ -1457,6 +1461,33 @@ def lock_busy_message(operation: str, lock_path: Path, *, holders=None) -> str:
     return f"{message}. fix-next: {_LOCK_BUSY_FIX_NEXT}"
 
 
+def read_lock_contents(
+    stream, magic: bytes, *, lock_path: Path, busy_label: str, wait_budget: float
+) -> bytes:
+    """Read a lock file, waiting out mandatory locks and a half-written magic.
+
+    Windows byte-range locks are mandatory: while another handle holds the
+    lock even reading fails, so that waits for ``wait_budget`` (#6205). Empty
+    or partial magic means the creator has not finished its first write, so
+    that waits up to ``LOCK_INIT_GRACE_SECONDS`` (#6328). Foreign bytes return
+    at once so the caller still reports a collision without delay.
+    """
+    started = time.monotonic()
+    while True:
+        stream.seek(0)
+        try:
+            contents = stream.read()
+        except PermissionError as error:
+            if time.monotonic() - started >= wait_budget:
+                raise RuntimeError(lock_busy_message(busy_label, lock_path)) from error
+            time.sleep(PROJECT_LOCK_POLL_SECONDS)
+            continue
+        initializing = contents != magic and magic.startswith(contents)
+        if not initializing or time.monotonic() - started >= LOCK_INIT_GRACE_SECONDS:
+            return contents
+        time.sleep(LOCK_INIT_POLL_SECONDS)
+
+
 @contextmanager
 def project_lock(project: Path, *, wait_seconds: float | None = None):
     """Exclusive project lock with bounded wait for transient dual-op collisions (#6019).
@@ -1492,21 +1523,13 @@ def project_lock(project: Path, *, wait_seconds: float | None = None):
             lock_file.flush()
             os.fsync(lock_file.fileno())
         else:
-            read_deadline = time.monotonic() + wait_budget
-            while True:
-                lock_file.seek(0)
-                try:
-                    lock_contents = lock_file.read()
-                    break
-                except PermissionError as error:
-                    # Windows byte-range locks are mandatory: while another
-                    # handle holds the lock even reading fails, so wait for the
-                    # same bounded budget instead of failing at once (#6205).
-                    if time.monotonic() >= read_deadline:
-                        raise RuntimeError(
-                            lock_busy_message("ChaosEngine operation", lock_path)
-                        ) from error
-                    time.sleep(PROJECT_LOCK_POLL_SECONDS)
+            lock_contents = read_lock_contents(
+                lock_file,
+                LOCK_MAGIC,
+                lock_path=lock_path,
+                busy_label="ChaosEngine operation",
+                wait_budget=wait_budget,
+            )
             if lock_contents != LOCK_MAGIC:
                 raise ValueError(f"ChaosEngine lock collision: {lock_path}")
         lock_file.seek(0)
@@ -1582,13 +1605,13 @@ def dependency_runtime_lock(runtime: Path):
             stream.flush()
             os.fsync(stream.fileno())
         else:
-            stream.seek(0)
-            try:
-                contents = stream.read()
-            except PermissionError as error:
-                raise RuntimeError(
-                    lock_busy_message("dependency runtime operation", lock_path)
-                ) from error
+            contents = read_lock_contents(
+                stream,
+                DEPENDENCY_LOCK_MAGIC,
+                lock_path=lock_path,
+                busy_label="dependency runtime operation",
+                wait_budget=0.0,
+            )
             if contents != DEPENDENCY_LOCK_MAGIC:
                 raise ValueError(f"dependency lock collision: {lock_path}")
         stream.seek(0)
@@ -3349,6 +3372,10 @@ RECEIPT_SHIM_MARKERS = {
     "opencode": (".opencode", "opencode.json", "opencode.jsonc"),
 }
 RECEIPT_SHIM_COMMANDS = {"cursor": ("cursor", "cursor-agent"), "opencode": ("opencode",)}
+RECEIPT_SHIM_TARGETS = {
+    "cursor": ".cursor/hooks.json",
+    "opencode": ".opencode/plugins/chaos-engine-receipt.js",
+}
 
 
 def initialize_account_project_palace(project: Path, controller, host_controller) -> bool:
@@ -3420,17 +3447,28 @@ def receipt_shim_hosts(project: Path, *, which=None) -> tuple[str, ...]:
     )
 
 
+def _consumer_tracked_shim_targets(project: Path) -> set[str]:
+    """#6330: consumer mode never edits a tracked file, receipt shims included."""
+    consumer = _consumer_mode_module()
+    if consumer is None or not consumer.enabled(project):
+        return set()
+    return consumer.tracked(project, RECEIPT_SHIM_TARGETS.values())
+
+
 def wire_receipt_shims(project: Path, *, which=None) -> dict[str, str]:
     """Wire the research-receipt shim for each detected instruction-only host (#6230)."""
     detected = receipt_shim_hosts(project, which=which)
     module = _receipt_shim_module() if detected else None
+    tracked_targets = _consumer_tracked_shim_targets(project) if detected else set()
     result: dict[str, str] = {}
     for host in RECEIPT_SHIM_HOSTS:
-        if module is not None and host in detected:
+        if module is None or host not in detected:
+            result[host] = "absent"
+        elif RECEIPT_SHIM_TARGETS[host] in tracked_targets:
+            result[host] = "untouched-tracked"
+        else:
             module.install(project, host)
             result[host] = "wired"
-        else:
-            result[host] = "absent"
     return result
 
 
