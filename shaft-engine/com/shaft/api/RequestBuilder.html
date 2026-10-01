@@ -291,12 +291,16 @@
 <h3>setTargetStatusCode</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></span>&nbsp;<span class="element-name">setTargetStatusCode</span><wbr><span class="parameters">(int&nbsp;targetStatusCode)</span></div>
-<div class="block">Sets the expected target status code for the API request that you're currently building. By default, this value is set to any number between 200 and 299 which means that the request was successful as per the <a href="https://www.w3.org/Protocols/HTTP/HTRESP.html">W3C Standard documentation</a>.</div>
+<div class="block">Sets the expected target status code for the API request that you're currently building. By default, this value is set to any number between 200 and 299 which means that the request was successful as per the <a href="https://www.w3.org/Protocols/HTTP/HTRESP.html">W3C Standard documentation</a>.
+<p>An explicit target is always asserted, even when <code>automaticallyAssertResponseStatusCode=false</code>;
+that flag only disables the implicit 2xx check for requests without a target.</p></div>
 <dl class="notes">
 <dt>Parameters:</dt>
-<dd><code>targetStatusCode</code> - the expected target status code.</dd>
+<dd><code>targetStatusCode</code> - the expected target status code: a three-digit HTTP status (100-999), or <code>0</code> for no explicit target.</dd>
 <dt>Returns:</dt>
 <dd>a self-reference to be used to continue building your API request</dd>
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/IllegalArgumentException.html" title="class or interface in java.lang" class="external-link">IllegalArgumentException</a></code> - if the value is neither <code>0</code> nor a three-digit status</dd>
 </dl>
 </div>
 </section>

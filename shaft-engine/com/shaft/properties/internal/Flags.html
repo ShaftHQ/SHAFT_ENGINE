@@ -144,7 +144,9 @@ Controls options such as automatic scrolling, click method selection, and W3C co
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#automaticallyAssertResponseStatusCode()" class="member-name-link">automaticallyAssertResponseStatusCode</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Whether an API request without an explicit target status code must return 2xx.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#autoMaximizeBrowserWindow()" class="member-name-link">autoMaximizeBrowserWindow</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
@@ -377,6 +379,14 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("automaticallyAssertResponseStatusCode")
 @DefaultValue("true")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">automaticallyAssertResponseStatusCode</span>()</div>
+<div class="block">Whether an API request without an explicit target status code must return 2xx.
+An explicit <code>setTargetStatusCode(n)</code> is asserted regardless of this flag (#6326).
+Accepts <code>true</code>/<code>false</code> in any case; read when each request is performed.
+<p>Property key: <code>automaticallyAssertResponseStatusCode</code> - default: <code>true</code></div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd><code>true</code> to fail non-2xx responses that have no explicit target</dd>
+</dl>
 </div>
 </section>
 </li>
