@@ -52,6 +52,23 @@
       "path": "skills/self-improve/SKILL.md"
     },
     {
+      "description": "Use when work has several deliverables, tickets, or delegates: board, WIP 1 writer + 2 review, pull rule, Definition of Done, findings fixed or filed.",
+      "family": "delivery",
+      "hosts": {
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "kanban",
+      "path": "skills/kanban/SKILL.md"
+    },
+    {
       "description": "Use when a git worktree is dirty or another local branch or worktree exists. Ask before cleanup unless the session is unattended.",
       "family": "delivery",
       "hosts": {

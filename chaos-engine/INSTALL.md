@@ -750,8 +750,8 @@ Post-delivery Learning Session loads
 [skills/self-improve/SKILL.md](skills/self-improve/SKILL.md) (CC BY 4.0
 attribution for Task Observer methodology). It wraps `learning.py` privacy gates
 for harness + product dual-track observations. Portable Stop / delivery-complete
-hooks enforce the Learning Session after every confirmed delivery (including
-`gh pr merge` and `delivery-status`) even when `chaos-engine/` was untouched.
+hooks enforce the Learning Session after a confirmed delivery (including
+`gh pr merge` and `delivery-status`) only when a trigger fired.
 The Learning Session reason comes before any retrieve citation, and
 `stop_hook_active` does not clear unpaid delivery-complete debt.
 Doctor surfaces the gate under `components.hooks.learningSession`. SessionStart

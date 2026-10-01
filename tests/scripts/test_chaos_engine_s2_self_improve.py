@@ -108,8 +108,7 @@ class S2SelfImproveTests(unittest.TestCase):
 
     def test_session_start_locator_includes_significance_under_budget(self):
         context = self.lifecycle.session_start_context("tok", "activation")
-        self.assertIn("Significance:", context)
-        self.assertIn("no Observer", context)
+        self.assertNotIn("Significance:", context)  # epic #6342: lean SessionStart
         self.assertLessEqual(
             len(context.encode("utf-8")), self.lifecycle.SESSION_START_MAX_BYTES
         )

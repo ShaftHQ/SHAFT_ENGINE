@@ -9,8 +9,8 @@ load reference files or scan observation directories at SessionStart.
 
 Activate the full protocol:
 
-1. **Post-delivery / Learning Session** — after confirmed delivery, before the
-   final report. Portable Stop / delivery-complete hooks own this duty on every
+1. **Post-delivery / Learning Session** — after confirmed delivery, only when a trigger fired
+   (failure, surprise, owner ask), before the final report. Portable Stop / delivery-complete hooks own this duty on every
    supported host (see router skill Learning Session section and
    [lifecycle-hooks](../../../references/lifecycle-hooks.md)).
 2. **Explicit user ask** — "self-improve", "learning session", "observe skills".
@@ -18,8 +18,8 @@ Activate the full protocol:
 
 ## Non-skips (hard)
 
-- **Unchanged `chaos-engine/` files are not a valid skip.** Product-only
-  deliveries still owe one Learning Session.
+- **No trigger, no session.** A product-only delivery owes a Learning Session
+  only when a trigger fired; untouched `chaos-engine/` files do not matter.
 - Agent-local routines or single-host memory are not substitutes. Harness parity
   requires lasting policy to live in the portable ChaosEngine overlay (hooks,
   skills, installer/doctor, host guidance adapters) so Codex, Claude, Grok,

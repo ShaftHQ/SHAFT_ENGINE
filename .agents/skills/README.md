@@ -424,6 +424,7 @@ Generated skill index (`chaos-engine/harness_index.py`):
 - [chaos-engine](../../chaos-engine/skills/chaos-engine/SKILL.md) (portable)
 - [work-item](../../chaos-engine/skills/work-item/SKILL.md) (portable)
 - [self-improve](../../chaos-engine/skills/self-improve/SKILL.md) (portable)
+- [kanban](../../chaos-engine/skills/kanban/SKILL.md) (portable)
 - [git-cleanup](../../chaos-engine/skills/git-cleanup/SKILL.md) (portable)
 - [local-agency](../../chaos-engine/skills/local-agency/SKILL.md) (portable)
 - [local-runtimes](../../chaos-engine/skills/local-runtimes/SKILL.md) (portable)

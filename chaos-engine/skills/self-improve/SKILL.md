@@ -13,9 +13,13 @@ Lean CE-native skill informed by Task Observer methodology
 
 ## When
 
-- **Primary:** root-owned Learning Session after confirmed delivery.
+- **Primary:** root-owned Learning Session after confirmed delivery when a trigger fired (failure, surprise, owner ask).
 - **Secondary:** explicit operator request mid-session.
 - **Not:** every casual turn — keep always-on cost low.
+
+If `assess` refuses `novel_success` under the one-incident rule, still
+finalize: file or update the durable lesson tickets, then complete finalize
+without inventing a second incident for the same success signal.
 
 ## Dual track
 

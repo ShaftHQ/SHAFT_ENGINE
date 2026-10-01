@@ -86,10 +86,10 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertNotIn(caveman, context)
         self.assertNotIn(ponytail, context)
         for name in ("caveman", "ponytail"):
-            locator = f"chaos-engine/vendor/{name}/skills/{name}/SKILL.md"
+            locator = f"chaos-engine/companions/{name}-ultra.md"
             self.assertIn(locator, context)
             self.assertTrue((ROOT / locator).is_file(), locator)
-        self.assertLessEqual(len(result.stdout.encode("utf-8")), 4096)
+        self.assertLessEqual(len(result.stdout.encode("utf-8")), 1024)
 
     def test_allowed_non_start_events_are_silent_for_every_host(self):
         # Stop is excluded on purpose: without a valid Learning Session
@@ -315,6 +315,10 @@ class ChaosEngineHookTest(unittest.TestCase):
                         },
                         environment,
                     )
+                    self.run_hook(
+                        {"hook_event_name": "UserPromptSubmit", "prompt": "Run a Learning Session.", "session_id": session},
+                        environment,
+                    )
                     stopped = self.run_hook(
                         {
                             "hook_event_name": "Stop",
@@ -396,6 +400,10 @@ class ChaosEngineHookTest(unittest.TestCase):
                 environment,
             )
 
+            self.run_hook(
+                {"hook_event_name": "UserPromptSubmit", "prompt": "Run a Learning Session.", "session_id": session},
+                environment,
+            )
             stopped = self.run_hook(
                 {
                     "hook_event_name": "Stop",
@@ -416,11 +424,11 @@ class ChaosEngineHookTest(unittest.TestCase):
         source = self.run_source_hook(event, environment)
         portable_context = json.loads(portable.stdout)["additionalContext"]
         source_context = json.loads(source.stdout)["hookSpecificOutput"]["additionalContext"]
-        selector = "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. Off only: stop caveman, stop ponytail, or normal mode."
+        selector = "Companions (caveman=ultra; ponytail=ultra; off only: stop caveman, stop ponytail, normal mode)"
 
         for context in (portable_context, source_context):
             self.assertEqual(1, context.count(selector))
-            self.assertIn("Required companion: read and follow", context)
+            self.assertIn("companions/caveman-ultra.md", context)
         portable_locators = [
             line for line in portable_context.splitlines() if "Required companion:" in line
         ]
@@ -535,6 +543,26 @@ process.stderr.write(result.stderr || '');
         payload = json.loads(completed.stdout or "{}")
         self.assertIsInstance(payload, dict)
 
+    def test_delivery_without_trigger_does_not_block_stop(self):
+        """Epic #6342: the Learning Session is trigger-based on every host."""
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "learn-untriggered"
+            self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "gh pr merge 1 --merge"},
+                    "session_id": session,
+                },
+                environment,
+            )
+            stopped = self.run_hook(
+                {"hook_event_name": "Stop", "session_id": session, "stop_hook_active": False},
+                environment,
+            )
+            self.assertEqual(0, stopped.returncode)
+
     def test_gh_pr_merge_marks_delivery_complete_for_learning_session(self):
         """Confirmed gh pr merge arms Learning Session even without delivery-status."""
         with tempfile.TemporaryDirectory() as temporary:
@@ -546,6 +574,10 @@ process.stderr.write(result.stderr || '');
                     "tool_input": {"command": "gh pr merge 5639 --merge"},
                     "session_id": "learn-merge",
                 },
+                environment,
+            )
+            self.run_hook(
+                {"hook_event_name": "UserPromptSubmit", "prompt": "Run a Learning Session.", "session_id": "learn-merge"},
                 environment,
             )
             delivered = self.run_hook(
@@ -561,7 +593,7 @@ process.stderr.write(result.stderr || '');
             self.assertTrue(
                 payload["reason"].casefold().startswith("learning session:")
             )
-            self.assertIn("not a valid skip", payload["reason"].casefold())
+            self.assertIn("trigger fired", payload["reason"].casefold())
 
     def test_stop_learning_session_rule_fires_only_after_terminal_delivery(self):
 
@@ -597,6 +629,10 @@ process.stderr.write(result.stderr || '');
                     },
                     "session_id": "learn-delivered",
                 },
+                environment,
+            )
+            self.run_hook(
+                {"hook_event_name": "UserPromptSubmit", "prompt": "Run a Learning Session.", "session_id": "learn-delivered"},
                 environment,
             )
             delivered = self.run_hook(
@@ -645,6 +681,10 @@ process.stderr.write(result.stderr || '');
                     environment,
                 )
 
+            self.run_hook(
+                {"hook_event_name": "UserPromptSubmit", "prompt": "Run a Learning Session.", "session_id": session},
+                environment,
+            )
             stopped = self.run_hook(
                 {
                     "hook_event_name": "Stop",
@@ -677,6 +717,10 @@ process.stderr.write(result.stderr || '');
                     environment,
                 )
 
+            self.run_hook(
+                {"hook_event_name": "UserPromptSubmit", "prompt": "Run a Learning Session.", "session_id": session},
+                environment,
+            )
             stopped = self.run_hook(
                 {
                     "hook_event_name": "Stop",
@@ -810,6 +854,7 @@ process.stderr.write(result.stderr || '');
             project.mkdir()
             with patch.dict(os.environ, environment):
                 module.reflection.record_activity(session, "delivery-complete")
+                module.reflection.record_activity(session, "learning-requested")
                 module.justification._mark_session(project, session, owe=True)
                 gap = module.justification.session_retrieve_gap(project, session)
                 self.assertEqual(module.justification.RETRIEVE_COMMAND, gap)

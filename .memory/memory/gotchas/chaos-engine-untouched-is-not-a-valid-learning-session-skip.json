@@ -1,6 +1,6 @@
 {
   "body_path": "memory/gotchas/chaos-engine-untouched-is-not-a-valid-learning-session-skip.md",
-  "content_hash": "sha256:2e45bb3f2317d6d2954842368c4bca10e4a6d4d78486d5e6f6aefa7bd9bc3795",
+  "content_hash": "sha256:9549fab9ec8e75ae8fc79088ca55c7837791c6d8a91c8a2eb16f660bf4456ee0",
   "created_at": "2026-09-08T00:00:42+03:00",
   "evidence": [
     {
@@ -17,7 +17,8 @@
     "kind": "agent",
     "task": "Learning Session catch-up for #5638 / CE self-improve and Flutter deliveries"
   },
-  "status": "active",
+  "status": "superseded",
+  "superseded_by": "decision.learning-session-is-trigger-based",
   "tags": [
     "learning-session",
     "self-improve",
@@ -26,5 +27,5 @@
   ],
   "title": "chaos-engine untouched is not a valid Learning Session skip",
   "type": "gotcha",
-  "updated_at": "2026-09-08T00:00:42+03:00"
+  "updated_at": "2026-10-01T23:59:00+03:00"
 }

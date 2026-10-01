@@ -56,9 +56,9 @@ class SessionStartLocatorParityTests(unittest.TestCase):
         self.assertNotIn(self.ponytail, context)
         for name in ("caveman", "ponytail"):
             self.assertIn(
-                f"chaos-engine/vendor/{name}/skills/{name}/SKILL.md", context
+                f"chaos-engine/companions/{name}-ultra.md", context
             )
-        self.assertIn("companion intensity", context.casefold())
+        self.assertIn("caveman=ultra; ponytail=ultra", context)
 
     def test_every_host_adapts_identical_locator_context(self):
         token = "parity-session-token"

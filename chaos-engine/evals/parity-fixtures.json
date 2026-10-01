@@ -60,10 +60,10 @@
       },
       "expect": {
         "exit_code": 0,
-        "context_max_bytes": 4096,
+        "context_max_bytes": 600,
         "context_must_include": [
-          "chaos-engine/vendor/caveman/skills/caveman/SKILL.md",
-          "chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md"
+          "chaos-engine/companions/caveman-ultra.md",
+          "chaos-engine/companions/ponytail-ultra.md"
         ],
         "identical_context_across_hosts": true
       }
@@ -173,10 +173,9 @@
       },
       "expect": {
         "exit_code": 0,
-        "context_max_bytes": 4096,
+        "context_max_bytes": 600,
         "context_must_include": [
-          "wake-pack.md",
-          "zero-llm-catalog.md"
+          "identity.md"
         ],
         "context_must_not_include": [
           "memory remember",

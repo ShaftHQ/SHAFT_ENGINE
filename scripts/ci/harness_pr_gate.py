@@ -127,6 +127,7 @@ CHECKS = {
         "guidance",
         (
             "tests.scripts.test_validate_agent_guidance",
+            "tests.scripts.test_ce_lean_harness",
             "tests.scripts.test_omniroute",
             "tests.scripts.test_omniroute_workflow_contract",
             "tests.scripts.test_omniroute_orchestrator_docs",

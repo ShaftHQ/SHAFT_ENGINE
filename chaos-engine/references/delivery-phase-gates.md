@@ -56,8 +56,8 @@ is stated with evidence.
 - Skills still own thoroughness of the eight-step receipt content.
 - Hooks only prove that a preflight marker exists before mutation when enforced.
 - Safety denials and session-identity rules remain higher priority than this gate.
-- Learning Session Stop gate fires after confirmed delivery even when
-  `chaos-engine/` was untouched. Harness lessons, findings, and potential
+- Learning Session Stop gate fires after confirmed delivery only when a trigger
+  fired (failure, surprise, owner ask). Harness lessons, findings, and potential
   enhancements are GitHub issues only. Do not write them to a local queue or
   into chat. Product lessons may report `product queued N` or `nothing durable`.
 - Harness parity: lasting policy lives in the portable overlay, not one agent.

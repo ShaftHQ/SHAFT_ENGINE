@@ -37,9 +37,10 @@ class HarnessImprovementPackPhrasesTest(unittest.TestCase):
         self.assertIn("#5994", owner)
 
     def test_identity_learning_session_novel_success_finalize(self) -> None:
-        identity = _read("chaos-engine/identity.md")
-        self.assertIn("#6015", identity)
-        self.assertIn("novel_success", identity)
+        # Epic #6342: the rule lives with the Learning Session protocol, not identity.
+        skill = _read("chaos-engine/skills/self-improve/SKILL.md")
+        self.assertIn("novel_success", skill)
+        self.assertIn("without inventing a second incident", skill)
 
 
 if __name__ == "__main__":

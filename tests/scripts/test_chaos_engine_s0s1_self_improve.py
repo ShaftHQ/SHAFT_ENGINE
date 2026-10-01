@@ -165,7 +165,7 @@ class S0S1SelfImproveTests(unittest.TestCase):
         self.assertIn("phase_ledger", text)
         self.assertTrue(SILENT_DOC.is_file())
         context = self.lifecycle.session_start_context("tok", "activation")
-        self.assertIn("CLI-over-MCP", context)
+        self.assertNotIn("CLI-over-MCP", context)  # epic #6342: lean SessionStart
         self.assertLessEqual(
             len(context.encode("utf-8")), self.lifecycle.SESSION_START_MAX_BYTES
         )
@@ -198,7 +198,7 @@ class S0S1SelfImproveTests(unittest.TestCase):
                 )
             # SessionStart still locator-only / under budget
             context = self.lifecycle.session_start_context("tok", "activation")
-            self.assertIn("Heuristics:", context)
+            self.assertNotIn("Heuristics:", context)  # epic #6342: lean SessionStart
             self.assertNotIn("Prefer silent verify", context)
             self.assertLessEqual(
                 len(context.encode("utf-8")), self.lifecycle.SESSION_START_MAX_BYTES

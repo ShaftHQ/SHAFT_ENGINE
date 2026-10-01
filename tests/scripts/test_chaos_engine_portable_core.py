@@ -131,8 +131,7 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("profiles/<id>/entrypoint.md", skill)
         self.assertIn("portable entrypoint on purpose", skill)
         self.assertIn("A 404 on the portable link is not a skipped load.", skill)
-        self.assertIn("Peer with the owner", identity)
-        self.assertIn("When the portable path is absent", identity)
+        self.assertIn("measure thrice, cut once", identity)
         truth = identity.split("<!-- CHAOSENGINE-IDENTITY-TRUTH:START -->", 1)[1]
         truth = truth.split("<!-- CHAOSENGINE-IDENTITY-TRUTH:END -->", 1)[0]
         self.assertNotIn("Peer with the owner", truth)
@@ -401,15 +400,15 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         lowered = skill.casefold()
 
-        # #6216: current router-contract wording (lean router, #6176).
-        self.assertIn("do not load companion skill bodies by default", lowered)
-        self.assertIn("**ultra** is mandated", lowered)
+        # Epic #6342: companions apply through the ultra cards on the implement path.
+        self.assertIn("vendor bodies load only on explicit invocation", lowered)
+        self.assertIn("companions/caveman-ultra.md", lowered)
+        self.assertIn("companions/ponytail-ultra.md", lowered)
         self.assertNotIn("Default intensity remains each companion's own", skill)
-        self.assertIn("companion text wins over host prose", lowered)
         compact_hooks = " ".join(hooks.casefold().split())
         self.assertIn("apply companions through entrypoint load", compact_hooks)
         self.assertNotIn("Keep prose natural", agents)
-        self.assertIn("Caveman", agents)
+        self.assertIn("Caveman", skill)
 
     def test_harness_changes_require_five_host_compatibility(self):
         skill = router_text()
@@ -1011,8 +1010,8 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertIn("keep asking follow-ups until the plan is decision-ready", compact_receipt)
         self.assertIn("consultant agent", compact_receipt)
         self.assertIn("consultant agent", compact_consult)
-        self.assertIn("keep asking follow-ups until the plan is decision-ready", compact_skill)
-        self.assertIn("consultant agent", compact_skill)
+        self.assertIn("ask only questions whose answer changes the plan", compact_skill)
+        self.assertIn("go unattended", compact_skill)
 
 
 class OrchestratorModeContractTest(unittest.TestCase):
@@ -1047,7 +1046,7 @@ class OrchestratorModeContractTest(unittest.TestCase):
         self.assertIn("PLUS ULTRA", identity)
         self.assertIn("GANBARU", identity)
         self.assertIn("يُتْقِنَهُ", identity)
-        self.assertIn("attendance", skill.lower())
+        self.assertIn("unattended", skill.lower())
 
     def test_unattended_persistence_survives_compaction_in_overlay(self):
         planning = (CORE / "references/work-github-planning.md").read_text(encoding="utf-8")
@@ -1077,10 +1076,8 @@ class OrchestratorModeContractTest(unittest.TestCase):
         self.assertIn("same host model", delegation)
         self.assertIn("Never assign that review to", delegation)
         self.assertIn("Never use it for independent adversarial review", agency)
-        self.assertIn("## Engineering", identity)
-        self.assertIn("never weaken, delete, or rewrite a test to reach green", identity)
-        self.assertIn("## Self-development", identity)
-        self.assertIn("Self-development has no cap", identity)
+        self.assertIn("## Principles", identity)
+        self.assertIn("Tests protect behavior: never weaken one to reach green.", identity)
 
 
     def test_orchestrator_follow_through_is_inspect_and_adapt_not_waiting(self):

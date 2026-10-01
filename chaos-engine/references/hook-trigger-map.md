@@ -12,7 +12,7 @@ stdout); standing instructions live in the project router, not SessionStart.
 | `PreToolUse` | Claude, Codex, Gemini, Grok, Copilot | enforce | Deny catastrophic or out-of-contract tool use; hold work that owes a reflection receipt; deny primary-checkout mutations when a session worktree exists. |
 | `PostToolUse` | Claude, Codex, Gemini, Grok, Copilot | guide | Record mutation/delivery for reflection. Stay silent unless stdout changes the next decision. |
 | `PostToolUseFailure` | Claude, Codex, Grok, Copilot | guide | Record failure and inject a pending reflection checkpoint only when one is owed. |
-| `Stop` | Claude, Codex, Gemini, Grok, Copilot | enforce | Collect incomplete delivery duties; require the root Learning Session after delivery. |
+| `Stop` | Claude, Codex, Gemini, Grok, Copilot | enforce | Collect incomplete delivery duties; require the root Learning Session after delivery only when a trigger fired. |
 | `SubagentStop` | Claude, Codex, Grok, Copilot | enforce | Delegate-owned completion duties only. Never start the root Learning Session. |
 | `PreCompact` | Claude, Gemini, Copilot | guide | Re-inject compact locators that compaction would drop. |
 | `SessionEnd` | Claude, Codex, Gemini, Grok, Copilot | enforce | Remove this session's worktree after merge is recorded and the tree is clean. |

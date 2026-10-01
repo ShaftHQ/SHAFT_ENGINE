@@ -259,7 +259,7 @@ class S4SelfImproveTests(unittest.TestCase):
         self.assertIn("meta-optimize.md", level1)
         self.assertIn("draft-skill-pr.md", level1)
 
-        agents = AGENTS.read_text(encoding="utf-8")
+        agents = (ROOT / "chaos-engine/references/catalog.md").read_text(encoding="utf-8")  # epic #6342
         self.assertIn("meta-optimize.md", agents)
         self.assertIn("draft-skill-pr.md", agents)
 

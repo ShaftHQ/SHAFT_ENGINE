@@ -90,57 +90,6 @@ def triage_token_budget(triage: str | None) -> str:
     return TRIAGE_TO_TOKEN_BUDGET.get(raw, TOKEN_BUDGET_DEFAULT)
 
 
-def zero_llm_session_guidance() -> str:
-    """Prefer doctor/repair catalog before chat discovery (locator-only)."""
-    return (
-        "Zero-LLM first: references/zero-llm-catalog.md "
-        "(doctor / repair --component / --fix-next-only) before chat discovery."
-    )
-
-
-def level1_catalog_guidance() -> str:
-    """Point at the Level-1 progressive-disclosure surface catalog."""
-    return "Level-1 catalog: references/level-1-catalog.md."
-
-
-def heal_route_guidance() -> str:
-    """Router Heal surface always reachable by file path."""
-    return "Heal: references/heal-route.md (install one-liner / repair --component)."
-
-def wake_pack_session_guidance() -> str:
-    """Locator only — never dump wake-pack or Memory/MemPalace prose (#5624)."""
-    return "Wake pack: `.chaos-engine-state/wake-pack.md` (locator only)."
-
-
-def self_improve_session_guidance() -> str:
-    """Cheap SessionStart locator — full protocol runs at Learning Session."""
-    return "Learning: skills/self-improve/SKILL.md."
-
-
-def heuristics_session_guidance() -> str:
-    """ERL heuristic store locator only — never inject heuristic prose (#5656)."""
-    return (
-        "Heuristics: `.chaos-engine-state/heuristics/` "
-        "(retrieve once/task via `retrieve.py heuristics --top 3`; no prose dump)."
-    )
-
-
-def cli_over_mcp_session_guidance() -> str:
-    """CLI-over-MCP iron law locator (#5655)."""
-    return (
-        "CLI-over-MCP: prefer gh / learning.py / doctor / phase_ledger / "
-        "tool.py retrieve over MCP for the same job (zero-llm-catalog)."
-    )
-
-
-def significance_session_guidance() -> str:
-    """Significance-filtered capture locator only — never Observer (#5658)."""
-    return (
-        "Significance: `.chaos-engine-state/significance/` "
-        "(soft fail/deny marks; Learning Session drain; no Observer)."
-    )
-
-
 ULTRA_SELECTOR = (
     "ChaosEngine companion intensity: caveman=ultra; ponytail=ultra. "
     "Off only: stop caveman, stop ponytail, or normal mode."
@@ -180,18 +129,6 @@ def _search_roots() -> list[Path]:
     return list(dict.fromkeys(candidates))
 
 
-def _read_companion(name: str) -> str | None:
-    for root in _search_roots():
-        for relative in _skill_relatives(name):
-            path = root / relative
-            try:
-                if path.is_file():
-                    return path.read_text(encoding="utf-8")
-            except OSError:
-                continue
-    return None
-
-
 def _workspace_locator(path: Path) -> str:
     """Return a companion path resolvable from the active project root."""
     anchors = (
@@ -209,70 +146,55 @@ def _workspace_locator(path: Path) -> str:
     return path.as_posix()
 
 
+SESSION_START_LEAN_MAX_BYTES = 600
+COMPANION_CARDS = {
+    "caveman": "companions/caveman-ultra.md",
+    "ponytail": "companions/ponytail-ultra.md",
+}
+
+
+def _locate(relatives: tuple[str, ...]) -> str | None:
+    for root in _search_roots():
+        for relative in relatives:
+            path = root / relative
+            if path.is_file():
+                return _workspace_locator(path)
+    return None
+
+
 def session_start_context(token: str | None, activation: str) -> str:
-    """Return compact activation; agents load canonical skills from owned paths."""
+    """Return the compact SessionStart locator line set (<= 600 bytes)."""
     parts = [f"ChaosEngine: {activation}"]
     if token:
         parts.append(f"Reflection session token (never track it): {token}")
-    parts.append(ULTRA_SELECTOR)
-    budget = resolve_token_budget_mode()
-    parts.append(token_budget_guidance(budget))
-    parts.append(zero_llm_session_guidance())
-    parts.append(level1_catalog_guidance())
-    parts.append(heal_route_guidance())
-    parts.append(wake_pack_session_guidance())
-    parts.append(self_improve_session_guidance())
-    parts.append(heuristics_session_guidance())
-    parts.append(cli_over_mcp_session_guidance())
-    parts.append(significance_session_guidance())
-    for name in COMPANION_NAMES:
-        for root in _search_roots():
-            path = next(
-                (root / candidate for candidate in _skill_relatives(name) if (root / candidate).is_file()),
-                None,
-            )
-            if path is not None:
-                locator = _workspace_locator(path)
-                parts.append(f"Required companion: read and follow `{locator}` before responding.")
-                break
+    cards = [
+        _locate((card, f".chaos-engine/{card}", f"chaos-engine/{card}"))
+        or f".chaos-engine/{card}"
+        for card in COMPANION_CARDS.values()
+    ]
+    parts.append(
+        "Companions (caveman=ultra; ponytail=ultra; off only: stop caveman, stop ponytail, "
+        "normal mode): " + ", ".join(f"`{card}`" for card in cards)
+    )
     for name in ADVISORY_COMPANION_NAMES:
-        for root in _search_roots():
-            path = next(
-                (root / candidate for candidate in _skill_relatives(name) if (root / candidate).is_file()),
-                None,
-            )
-            if path is not None:
-                locator = _workspace_locator(path)
-                parts.append(
-                    "Advisory companion (design/structure): load "
-                    f"`{locator}` when the task is ICM / workspace structure / "
-                    '"ICM this" / folder-as-architecture work.'
-                )
-                break
-    # Identity pointer (#5807) — locator only, never inline the body.
-    identity_hit = False
-    for root in _search_roots():
-        for candidate in (
-            root / "identity.md",
-            root / ".chaos-engine" / "identity.md",
-            root / "chaos-engine" / "identity.md",
-        ):
-            if candidate.is_file():
-                locator = _workspace_locator(candidate)
-                parts.append(
-                    f"Identity: read and follow `{locator}` "
-                    "(Truth section protected from silent Learning rewrites)."
-                )
-                identity_hit = True
-                break
-        if identity_hit:
-            break
-    if not identity_hit:
-        parts.append(
-            "Identity: read and follow `.chaos-engine/identity.md` "
-            "(create-on-heal via doctor/activate if missing)."
+        path = next(
+            (
+                root / candidate
+                for root in _search_roots()
+                for candidate in _skill_relatives(name)
+                if (root / candidate).is_file()
+            ),
+            None,
         )
-    rendered = "\n\n".join(parts)
+        if path is not None:
+            parts.append(
+                f"Advisory companion (design/structure): load `{_workspace_locator(path)}` "
+                "for ICM / workspace-structure work."
+            )
+    identity = _locate(("identity.md", ".chaos-engine/identity.md", "chaos-engine/identity.md"))
+    parts.append(f"Identity: `{identity or '.chaos-engine/identity.md'}`")
+    parts.append(f"Token budget: {resolve_token_budget_mode()}")
+    rendered = "\n".join(parts)
     with contextlib.suppress(Exception):
         counters_path = Path(__file__).resolve().parents[1] / "learning_counters.py"
         if counters_path.is_file():

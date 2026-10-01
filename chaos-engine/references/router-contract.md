@@ -1,17 +1,17 @@
 # Router contract
 
-Detail moved out of the always-loaded [router core](../skills/chaos-engine/SKILL.md)
-(#6176). The core keeps the iron laws, triage, and route table; this file owns
-the operating contract, ethics detail, companions, portability, validation
-scope, roles, ownership, reflection, and the Learning Session. Load it once
-per task when the route needs any of them; delegates use the
-[delegate card](delegate-card.md) instead.
+On-demand detail behind the [core card](../skills/chaos-engine/SKILL.md). The
+card owns laws, triage, companions, review, CI and Learning Session triggers;
+this file adds ethics detail, profile selection, portability, roles, and
+ownership. Load it only when a route needs one of these; delegates use the
+[delegate card](delegate-card.md).
 
 ## Implementation preflight
 
-Load the [research receipt](research-receipt.md) before the
-first implementation mutation. Mechanical one-file reversible work names its
-eight steps, then records store irrelevance without querying. For research or
+For module or public-contract triage, use the
+[research receipt](research-receipt.md) as the plan template and
+[consult-first](consult-first.md) for rival approaches. One-file reversible
+work needs no receipt. For research or
 multi-file explore, apply the [context firewall](context-firewall.md):
 spawn an isolated subagent/Task when the host supports it; return
 `filepath:line` citations and a distillate only — never raw transcripts.
@@ -38,7 +38,9 @@ that profile automatically and must link it from its discoverable skill.
 
 The repository-local [installer](../install.py), [bootstrap](../bootstrap.py),
 [dependency doctor](../dependencies.py), and [host adapters](../hosts.py)
-own install, status, rollback, and uninstall. See INSTALL (repo-only `chaos-engine/INSTALL.md`).
+own install, status, rollback, and uninstall;
+`tests/scripts/test_chaos_engine_bootstrap.py` runs the clean/update/failure
+flow on Linux, macOS, and Windows. See INSTALL (repo-only `chaos-engine/INSTALL.md`).
 
 ## Task isolation
 
@@ -59,13 +61,13 @@ would start without ChaosEngine.
 
 1. Orient on requested outcome and concrete proof of done.
 2. Read current instructions and live files before acting.
-3. Plan by uncertainty, blast radius, and reversibility; test riskiest premise first; keep asking follow-ups until the plan is decision-ready. After owner approval, go unattended and dispatch a consultant agent for execution ambiguity.
+3. Plan by uncertainty, blast radius, and reversibility; test the riskiest premise first. Planning phase: ask only questions whose answer changes the plan. Execution phase (after approval): go unattended; stop only for a genuine owner decision.
 4. Implement the full approved scope as one coherent batch. Fix root owner of
    an invariant, not each symptom; do not interrupt implementation with review,
    test, commit, push, or validation gates.
 5. After the final scope commit, triage automated CI, annotations, bots, and PR
-   comments first. Then run approved terminal review and extra local tests.
-6. Report outcome, exact checks, failures, and Learning Session result.
+   comments first. Then one fresh-context review; a second round only for blockers.
+6. Report outcome, exact checks, failures, and every finding as fixed or filed.
 
 Consult [field heuristics](heuristics.md) only for deeper
 investigation, risk analysis, or review.
@@ -91,20 +93,12 @@ For the short decision procedure and boundary cases, load
 
 ### Companions
 
-This file is the only router; it does not restate companion rules.
-
-Do not load companion skill bodies by default. [Lifecycle hooks](lifecycle-hooks.md)
-inject SessionStart locators; load a companion `SKILL.md` only when invoked or
-intensity must apply. Hosts that ignore SessionStart still owe intensity via
-this catalog, not inlined vendor text.
-
-**Ultra** is mandated for Caveman+Ponytail (not a preference). Off only:
-`stop caveman`, `stop ponytail`, or `normal mode`. Lite/full only when named.
-
-**Implement path (required):** load both at ultra before first mutation.
-SessionStart is locator-only. Exempt: `--without-caveman` / `--without-ponytail`;
-else doctor flags gaps. Once loaded, companion text wins over host prose filler;
-safety, ethics, and persisted artifacts stay as vendor files carve out.
+The core card owns companion policy: Caveman and Ponytail at **ultra** through
+the [Caveman card](../companions/caveman-ultra.md) and
+[Ponytail card](../companions/ponytail-ultra.md), loaded before the first edit.
+Do not load companion skill bodies by default; vendor bodies load only on
+explicit invocation. Exempt only with
+`--without-caveman` / `--without-ponytail`; doctor flags gaps.
 
 ### Harness portability
 
@@ -124,10 +118,10 @@ for behavior that lacked proof.
 
 ### Validation scope and CI failures
 
-During planning, ask attendance mode then offer three validation scopes:
-only tests created or edited by the task; those plus directly impacted tests
-(balanced default); or the full suite. Separately ask terminal adversarial
-review (recommend on; ≤2 rounds). Details:
+Validation scope (balanced default): tests created or edited by the task plus
+directly impacted tests; the owner may pick only tests created or edited, or
+the full suite. Review is one
+fresh-context review, with a second round only for blocker findings. Details:
 [work-github-planning](work-github-planning.md).
 
 When a CI job fails, inspect the failing job and isolate its exact failing
@@ -140,6 +134,10 @@ Caveman, Ponytail, and TDD adaptations retain their MIT notices under
 [LICENSE](../LICENSE) and [third-party notices](../THIRD_PARTY_NOTICES.md).
 
 ## Route notes
+
+Bound reads with [context economy](context-economy.md), prefer
+[script first](script-first.md), and retrieve through
+[retrieve-first](retrieve-first.md) when it pays.
 Routing also orders applicable knowledge retrieval before broad manual
 discovery. One bounded attempt is enough; never retry, repair, refresh, mine,
 checkpoint, poll, or watch a store for an ordinary task, and never treat an
@@ -168,14 +166,13 @@ writer limits. Optional local peers follow that file's transport-order table
 weaken the workflow. [local-agency](../skills/local-agency/SKILL.md) (OpenCode) stays
 an optional loopback peer, not a workflow owner.
 
-When orchestrating, load
-[process-owner](process-owner-scrum-master.md).
+When orchestrating, run the [kanban](../skills/kanban/SKILL.md) flow first;
+load [process-owner](process-owner-scrum-master.md) only for its status format.
 [Delegation](delegation.md) owns dispatch, status, integration,
 and review. Apply
 [orchestrator follow-through](orchestrator-follow-through.md)
 automatically while work is live. [Roles](roles.md) owns role
-boundaries. Main orchestrator enforces process-owner duties and owns the
-sole terminal Learning Session.
+boundaries. The main orchestrator owns any triggered Learning Session.
 
 Implementation follows [TDD and its PDCA boundary](tdd.md#workflow).
 The selected project profile may link its concrete PDCA playbook without
@@ -197,8 +194,8 @@ actual diff, and keep external actions within granted authority.
 Opening a PR does not end the duty. Arm auto-merge once terminal assurance passes
 and the tracker or epic's initial scope is complete (every in-scope sub-issue merged
 or explicitly dropped on the tracker; no dropped FR/SC),
-then watch with `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged` until the remote confirms (repo-only)
-merged. Red and conflicting are yours to fix, not to hand back; stale emits no
+then make one blocking wait per push (`gh pr checks --watch --fail-fast`, or
+repo-only `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged`) and confirm the merge once. Red and conflicting are yours to fix, not to hand back; stale emits no
 event, so ask for it. The duty survives compaction, a dead delegate, and the
 task that opened the PR:
 [PR-merger workflow](work-github-playbook.md#pr-merger-workflow-arm-watch-fix-confirm).
@@ -211,27 +208,20 @@ leftover risks become `gh` issues, never chat-only.
 
 ## Learning Session
 
-After confirmed delivery and any terminal reflection, run exactly one root-owned
-Learning Session immediately before the final report. Portable Stop /
-delivery-complete hooks enforce this on every supported host — including when
-`chaos-engine/` files were untouched. On that Stop the Learning Session reason
-is emitted before any retrieve citation, including when `stop_hook_active` is
-set. The same unpaid debt blocks again until a completion artifact exists. Load
-[self-improve](../skills/self-improve/SKILL.md) for the dual-track harness + product
-protocol. Never start it from a
-commit, guard refusal, failed diagnostic, delegate stop, or intermediate push.
-Unchanged ChaosEngine sources are not a valid skip. A ChaosEngine harness
-lesson, finding, or potential enhancement is a GitHub issue only. Do not write
-it to a local queue or into chat. Product lessons may report `product queued N`
-or `nothing durable`. Run the
+Trigger-based. After confirmed delivery, run exactly one root-owned Learning
+Session immediately before the final report, and only when a trigger fired: a
+failure or escaped defect, a surprise that contradicted the harness, or the
+owner asked. The Stop hook enforces exactly
+that. Otherwise write one line in the final report. When triggered, load
+[self-improve](../skills/self-improve/SKILL.md). A ChaosEngine harness lesson is
+a GitHub issue only, never a local queue or chat. Product lessons may report
+`product queued N` or `nothing durable`. Route a product learning once: native
+Memory, MemPalace, Graphify, or `learning.py queue --track product`. Nothing
+durable is a valid result. Scan the session for failures, traps, and guard
+blocks; prefer a smaller discriminating observation; search before writing. Self-development has no cap. Follow the
 [learned-lessons workflow](work-github-playbook.md#learned-lessons-workflow).
-Scan the session for failures, traps, and guard blocks. Route a product
-learning once: native Memory, MemPalace, Graphify, or `learning.py queue
---track product`. Prefer a smaller discriminating observation. Self-development
-has no cap. Nothing durable is a valid result. Search before writing.
 
 Harness parity: lasting policy lives in the portable overlay, not only in
 one agent's memory or routines; the inventory is
 [permanent rules](permanent-rules.md).
 
-Gambaru.
