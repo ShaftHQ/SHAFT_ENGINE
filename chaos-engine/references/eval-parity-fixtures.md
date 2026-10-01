@@ -1,8 +1,7 @@
 # Eval / parity fixture suite
 
 Minimal regression harness for ChaosEngine policy outcomes across the five
-hosts (Claude Code, Codex, Grok, Gemini, GitHub Copilot). Parent epic #5569 /
-issue #5584.
+hosts (Claude Code, Codex, Grok, Gemini, GitHub Copilot).
 
 Parity here means **same policy outcomes** under simulated hook runners — not
 UI chrome parity and not driving hosts as child processes.
@@ -68,7 +67,7 @@ A `workflow_dispatch` may name installer jobs and skip that exhaustive job.
 - [Zero-LLM catalog](zero-llm-catalog.md)
 
 
-## Wave C expansions (#5625)
+## Wave C expansions
 
 Additional fixtures cover triage-scaled research, SessionStart wake-pack
 (no Memory prose), and portable Learning Session finalize. Plugin activation /
@@ -77,6 +76,6 @@ the Wave A health-truth suite; Learning Session Stop continues to require a
 terminal finalize (portable or monorepo) with **issues-first** disposition and
 **no** auto draft PRs.
 
-## Skill compress apply gate (#5659)
+## Skill compress apply gate
 
 Propose-only audits live in [`skill_compress_audit.py`](../skill_compress_audit.py). Any future apply path (S4/#8) must keep this fixture suite green and remain opt-in — never auto-merge skill mutations.

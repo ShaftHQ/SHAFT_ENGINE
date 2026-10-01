@@ -8,7 +8,7 @@ the host session model (see [delegation](../../../references/delegation.md)).
    The OpenCode prompt is **only** that executable line (e.g.
    `bash <abs-dir>/apply.sh`). No extra English nouns such as
    `git add product files` — those trigger Glob/Grep then
-   `context_length_exceeded` (#5996/#5997). Keep `git add` of exact paths
+   `context_length_exceeded`. Keep `git add` of exact paths
    **inside** the script; commit stays orchestrator-owned.
 2. OpenCode invokes **exactly that one bash command**. Multi-step specs in
    chat are writer failures: EXIT 0 with zero tool calls is writer failure,
@@ -18,7 +18,7 @@ the host session model (see [delegation](../../../references/delegation.md)).
    Glob/Grep of prompt English before the named bash command,
    or overflow with no worktree mutation, is writer failure — run the same
    command in the worktree; do not retry the oversized prompt.
-3. OpenCode bash tool wall-clock is **120s** (#5998). Maven/Gradle apply
+3. OpenCode bash tool wall-clock is **120s**. Build tools apply
    scripts that need longer must not be left half-applied: treat the 120s
    kill as writer failure and re-run the **same** apply.sh from the
    orchestrator (scripts must be idempotent). Prefer patch-only OpenCode
@@ -30,7 +30,7 @@ the host session model (see [delegation](../../../references/delegation.md)).
 6. On `context_length_exceeded`, fail the turn. Shrink prompt and tool output
    and drop a high/reasoning variant before asking the operator to serve a
    larger checkpoint. Advertised `context_length` from `/v1/models` is not
-   usable KV. Do not OpenCode-`Read` a 200-line Java file; pass the exact
+   usable KV. Do not OpenCode-`Read` a 200-line source file; pass the exact
    line change. Soak on this class of host: keep the prompt well under 8k
    combined prompt+generation.
 7. Size-class soak: prove the current READY checkpoint with these knobs.

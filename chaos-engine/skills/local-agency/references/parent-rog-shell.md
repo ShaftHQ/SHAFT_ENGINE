@@ -1,4 +1,4 @@
-# Parent work-machine Shell playbook (#6051)
+# Parent work-machine Shell playbook
 
 ## When this applies
 
@@ -33,6 +33,6 @@ machine's project checkout.
 ```text
 HARD_BLOCKER: Task Shell has no machineId
 hostname=<box>
-Need parent Shell(machineId=<work-machine>) for work-machine FreeToken/OpenCode (#6051).
+Need parent Shell(machineId=<work-machine>) for work-machine FreeToken/OpenCode.
 Locked adopter default writer is **openai-compat / llamacpp** on `127.0.0.1:8080` (`dispatch.py --prefer llamacpp`); FreeToken is optional companion, not the default.
 ```

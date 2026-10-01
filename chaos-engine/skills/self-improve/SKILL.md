@@ -90,7 +90,7 @@ python3 -c "from pathlib import Path; assert Path('chaos-engine/skills/self-impr
 ```
 
 
-## Token retrospective (#5981)
+## Token retrospective
 
 Helper: [`session_token_usage.py`](../../session_token_usage.py).
 

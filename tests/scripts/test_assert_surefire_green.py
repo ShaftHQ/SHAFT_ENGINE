@@ -90,7 +90,12 @@ class AssertSurefireGreenTest(unittest.TestCase):
         )
         # The wave checklist heading is now the human PR open checklist.
         self.assertIn("Human PR open checklist", playbook)
-        self.assertIn("assert_surefire_green.py", playbook)
+        # Epic #6342: the Java-specific helper lives in the SHAFT pack playbook.
+        pack = (root / "chaos-engine/profiles/shaft/references/playbooks/java-tests.md").read_text(
+            encoding="utf-8",
+        )
+        self.assertIn("assert_surefire_green.py", pack)
+        self.assertNotIn("assert_surefire_green.py", playbook)
 
 
 if __name__ == "__main__":

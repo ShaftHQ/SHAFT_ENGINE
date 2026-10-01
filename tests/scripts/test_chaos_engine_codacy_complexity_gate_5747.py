@@ -12,7 +12,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-GATE = ROOT / "chaos-engine/references/codacy-complexity-gate.md"
+GATE = ROOT / "chaos-engine/references/complexity-gate.md"
 LEVEL1 = ROOT / "chaos-engine/references/level-1-catalog.md"
 SKILL = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
 PLAYBOOK = ROOT / "chaos-engine/references/work-github-playbook.md"
@@ -37,18 +37,17 @@ class CodacyComplexityGate5747Tests(unittest.TestCase):
         self.assertIn("ACTION_REQUIRED", text)
         self.assertIn("unit", text.casefold())
         self.assertIn("kind-family", text.casefold())
-        self.assertIn("classify*", text)
-        self.assertIn("#5747", text)
+        self.assertIn("complexityHint", text)
 
     def test_catalog_and_router_point_at_checklist(self):
         level1 = LEVEL1.read_text(encoding="utf-8")
         skill = SKILL.read_text(encoding="utf-8")
         playbook = PLAYBOOK.read_text(encoding="utf-8")
-        self.assertIn("codacy-complexity-gate.md", level1)
-        self.assertIn("Codacy Complexity", level1)
-        self.assertIn("codacy-complexity-gate.md", skill)
-        self.assertIn("| Codacy Complexity |", skill)
-        self.assertIn("codacy-complexity-gate.md", playbook)
+        self.assertIn("complexity-gate.md", level1)
+        self.assertIn("Complexity gate", level1)
+        self.assertIn("complexity-gate.md", skill)
+        self.assertIn("| Complexity gate |", skill)
+        self.assertIn("complexity-gate.md", playbook)
         self.assertIn("ACTION_REQUIRED", playbook)
 
     def test_hint_fires_for_element_classifier_edit(self):
@@ -67,7 +66,7 @@ class CodacyComplexityGate5747Tests(unittest.TestCase):
         )
         self.assertIsNotNone(hint)
         self.assertIn("ACTION_REQUIRED", hint)
-        self.assertIn("codacy-complexity-gate.md", hint)
+        self.assertIn("complexity-gate.md", hint)
 
     def test_hint_skips_unrelated_mutation(self):
         hint = self.guard.classifier_complexity_gate_hint(

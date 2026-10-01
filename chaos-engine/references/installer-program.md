@@ -6,16 +6,15 @@ implement it. Live operator steps today remain in `chaos-engine/INSTALL.md` (rep
 Caller matrices and acceptance proof live in
 [`installer-program-executable-spec.md`](installer-program-executable-spec.md).
 
-Triggered by Windows verify failure #5667 (`CE-INSTALL-FAILED`, unhealthy
+Triggered by Windows verify failure (`CE-INSTALL-FAILED`, unhealthy
 `hooks` + `mcps`, `win32`, `distribution=repository`, core rematerialized).
-Related closed reports of the same template: #5636, #5630, #5606, #5556.
 Those closed items repaired other failure classes; they do not cover this
 program.
 
 ## Goal
 
 One official one-liner installs or upgrades ChaosEngine in three project
-shapes (empty, Java/Maven matching the repository profile, non-Java) and
+shapes (empty, pack-matched (repository profile), unmatched) and
 leaves the operator with either:
 
 1. **Healthy doctor**, or
@@ -26,11 +25,14 @@ Unmergeable foreign agent configuration is not an install failure.
 
 ## Profiles
 
-| Profile | Target shape | Distribution | Maven Tools MCP |
+The shipped [java pack](../packs/java/pack.md) is the only pack matcher today:
+it matches root build-manifest artifact ids and requires its tool server.
+
+| Profile | Target shape | Distribution | Pack tool server |
 | --- | --- | --- | --- |
-| Empty | New directory, no `pom.xml`, no prior ChaosEngine or host files | `portable` | Absent; optional, not required for health |
-| Java | Root `pom.xml` whose project, module, or dependency artifact ids include a profile `installWhen.mavenArtifactIds` value | `repository` | Required when a root `pom.xml` exists |
-| Non-Java | Existing project files, no matching Maven artifact id (Python, Node, mixed, or a Java POM that does not match) | `portable` | Optional; absence is not unhealthy |
+| Empty | New directory, no build manifest, no prior ChaosEngine or host files | `portable` | Absent; optional, not required for health |
+| Pack-matched | Root build manifest whose project, module, or dependency artifact ids include a profile `installWhen.mavenArtifactIds` value | `repository` | Required when a root build manifest exists |
+| Unmatched | Existing project files, no matching pack artifact id (Python, Node, mixed, or a build manifest that does not match) | `portable` | Optional; absence is not unhealthy |
 
 Upgrade of a profile is the same one-liner on a tree that already has a verified
 `.chaos-engine/` from that profile.
@@ -53,14 +55,14 @@ paragraph if they drift; re-read before implementing.
 - Verify (`install.py` `doctor_with_dependencies`): if managed Python is
   missing, **both** `hooks` and `mcps` become `recovery-required` with **no**
   component `detail` or `code`. That is the cheapest shared explanation for
-  #5667 listing both names after a successful core rematerialize.
+  listing both names after a successful core rematerialize.
 - Hook probe (`hosts.py` `hook_runtime_healthy`): run `UserPromptSubmit`,
   `PreToolUse`, `PostToolUse` through
   `{managed_python} .chaos-engine/hooks/guard.py`. Any non-zero exit, invalid
   JSON, timeout, or missing interpreter returns `False`.
 - MCP probe (`hosts.py` `mcp_runtime_status`): palace health, then
   `memory-mcp` + `mempalace-mcp` initialize/tools-list. Memory
-  `HEAD != origin/<default>` is already `compatible-legacy` (#5630). Other probe
+  `HEAD != origin/<default>` is already `compatible-legacy` . Other probe
   failures fail verify.
 
 ## Deterministic merge
@@ -102,7 +104,7 @@ byte-identical to before this run.
    and `.chaos-engine/`; gitignore runtime markers must contain
    `.chaos-engine-runtime/` and `.chaos-engine-state/`; gitattributes EOL
    markers must contain `.chaos-engine/** text eol=lf`.
-   Cite #5790 — auto-upgrade recognized CE-owned interiors in-installer; hand off
+   Auto-upgrade recognized CE-owned interiors in-installer; hand off
    only true operator edits / bad marker counts / invalid UTF-8.
 3. A same-name MCP server / hook command exists with unknown ownership.
 4. The file is not valid UTF-8 or does not parse, so a span cannot be located
@@ -166,7 +168,7 @@ from local `chaos-engine/` → `.chaos-engine/` (byte-identical) and rewrite
 overlay `manifest.json` `files` digests. Only if heal is still impossible:
 write `.chaos-engine-state/overlay-handoff.md` and print one backtick-wrapped
 agentic prompt (same UX as merge-handoff; no bare "Reinstall…" fixNext).
-Adopter projects (no SOURCE) are unchanged. Cite #5795 / product #5794.
+Adopter projects (no SOURCE) are unchanged.
 
 ## Install guide
 
@@ -174,8 +176,8 @@ Human path. Python is not required before the wrapper.
 
 ### First install
 
-1. `cd` into the target directory (empty, Java/Maven repository-profile, or
-   non-Java).
+1. `cd` into the target directory (empty, pack-matched, or
+   unmatched).
 2. Run exactly one official one-liner from `chaos-engine/INSTALL.md` (repo-only)
    (Windows PowerShell `install.ps1`, or macOS/Linux `install.sh`). Do not
    substitute a different upstream URL.
@@ -212,8 +214,8 @@ merge or success plus the backtick prompt. They should not see
 
 ## Agentic one-command prompt
 
-Paste this into a coding agent in the target project (empty, Java, or
-non-Java). It is the agent-facing equivalent of the human one-liner.
+Paste this into a coding agent in the target project (empty, pack-matched, or
+unmatched). It is the agent-facing equivalent of the human one-liner.
 
 ```
 Install or upgrade ChaosEngine in this project.
@@ -228,27 +230,26 @@ Install or upgrade ChaosEngine in this project.
 
 File these as GitHub sub-issues of the program epic. Delivery PRs close
 children only (`Fixes #<child>`). Never put a closing keyword on the epic.
-#5667 is closed by the verify-failure child, not by this spec PR.
+is closed by the verify-failure child, not by this spec PR.
 
 | Order | Stream | Proof |
 | --- | --- | --- |
-| 1 | #5680 Fix #5667 hooks/mcps verify on Windows | Focused doctor/probe tests plus a win32 fixture where core is present and managed Python / MCP probes no longer emit a bare dual `recovery-required` |
-| 2 | #5676 First install empty | `scripts/ci/chaos_engine_empty_project_smoke.py` + doctor healthy, `portable` |
-| 3 | #5673 First install Java | Fixture root POM with matching `installWhen.mavenArtifactIds`; `repository` distribution; Maven Tools present; doctor healthy |
-| 4 | #5677 First install non-Java | Fixture with files but no matching Maven id; `portable`; Maven Tools absent does not fail health |
-| 5 | #5671 Upgrade empty | Second one-liner on the empty fixture; foreign bytes preserved; doctor healthy or handoff |
-| 6 | #5672 Upgrade Java | Second one-liner on the Java fixture; POM bytes unchanged; `repository` stays |
-| 7 | #5678 Upgrade non-Java | Second one-liner on the non-Java fixture; `portable` stays |
-| 8 | #5679 Conflict with existing agent configs | Fixtures for mergeable foreign + each impossible class; mergeable stays silent; impossible is exit 0 + handoff md + backtick prompt; no `CE-INSTALL-FAILED` |
+| 1 | Fix hooks/mcps verify on Windows | Focused doctor/probe tests plus a win32 fixture where core is present and managed Python / MCP probes no longer emit a bare dual `recovery-required` |
+| 2 | First install empty | `scripts/ci/chaos_engine_empty_project_smoke.py` + doctor healthy, `portable` |
+| 3 | First install Pack-matched | Fixture root build manifest with matching `installWhen.mavenArtifactIds`; `repository` distribution; pack tool server present; doctor healthy |
+| 4 | First install unmatched | Fixture with files but no matching pack id; `portable`; pack tool server absent does not fail health |
+| 5 | Upgrade empty | Second one-liner on the empty fixture; foreign bytes preserved; doctor healthy or handoff |
+| 6 | Upgrade Pack-matched | Second one-liner on the pack-matched fixture; build-manifest bytes unchanged; `repository` stays |
+| 7 | Upgrade unmatched | Second one-liner on the unmatched fixture; `portable` stays |
+| 8 | Conflict with existing agent configs | Fixtures for mergeable foreign + each impossible class; mergeable stays silent; impossible is exit 0 + handoff md + backtick prompt; no `CE-INSTALL-FAILED` |
 
-Implement #5667 first: it is a live adopter failure and unblocks Windows
+Implement first: it is a live adopter failure and unblocks Windows
 verify. First-install empty next (golden path). Conflict last; it depends on
 success-with-agent-prompt plumbing.
 
 
-## Official self-heal (#5811)
-
-Required third parties self-heal via each item's official install command (CE vendor publish for companions). See `chaos-engine/INSTALL.md` (repo-only) inventory and [`official_self_heal.py`](../official_self_heal.py). Related: epic #5803, companions slice #5810.
+## Official self-heal 
+Required third parties self-heal via each item's official install command (CE vendor publish for companions). See `chaos-engine/INSTALL.md` (repo-only) inventory and [`official_self_heal.py`](../official_self_heal.py).
 
 ## Out of scope
 

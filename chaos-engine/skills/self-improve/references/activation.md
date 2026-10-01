@@ -37,9 +37,9 @@ Activate the full protocol:
 4. A product lesson may use `python3 .chaos-engine/learning.py queue --track product`.
    Submit confirmed product candidates with `learning.py submit`.
 5. Persist durable Memory knowledge with `memory save --stdin` only — never
-   hand-edit `.memory/**` sidecars (#5852). If a body changed outside
+   hand-edit `.memory/**` sidecars. If a body changed outside
    `memory save`, run `python3 .chaos-engine/skills/local-agency/scripts/tip_preflight.py --rehash <sidecar>`
-   before push ([tip-churn preflight](../../../references/tip-churn-preflight.md), #6169).
+   before push ([tip-churn preflight](../../../references/tip-churn-preflight.md)).
 6. Do **not** auto-edit skills/hooks. Propose a harness change as a GitHub issue.
 7. Do not report harness lesson text. Product counts may be `product queued N`
    or `nothing durable`.

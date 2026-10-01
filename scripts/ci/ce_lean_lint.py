@@ -17,8 +17,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CORE = "chaos-engine"
 ALLOWLIST = Path(__file__).with_name("ce_lean_allowlist.json")
+# Build-tool command tokens (mvn, gradle, npm) are ecosystem-neutral detection
+# inputs, not product leaks; prose names (Maven, Java) still count.
 LEAK_TERMS = re.compile(
-    r"SHAFT|ShaftHQ|shafthq|shaft-|\bshaft\b|\bMaven\b|\bmvn\b|\bJava\b|pom\.xml|[Ss]urefire|"
+    r"SHAFT|ShaftHQ|shafthq|shaft-|\bshaft\b|\bMaven\b|\bJava\b|pom\.xml|[Ss]urefire|"
     r"\b[Aa]llure\b|[Cc]odacy|TestNG|IntelliJ|Mohab|F79E3F65"
 )
 ISSUE_TAG = re.compile(r"(?<![\w&/])#\d{4}\b")

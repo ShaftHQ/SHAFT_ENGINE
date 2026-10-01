@@ -9,6 +9,10 @@
   "defaultBranch": "main",
   "taskBranchPrefix": "ChaosEngine/",
   "mcpServers": ["maven-tools-mcp"],
+  "complexityHint": {
+    "pathMarkers": ["elementclassifier", "/interaction/", "\\interaction\\"],
+    "nameMarkers": ["elementclassifier", "classifymobilenative", "classifywindowsdesktop", "classifybytag", "classifybyrole", "classifyinput"]
+  },
   "components": {
     "playbooks": {"owner": "installer", "scope": "repository", "lifecycle": "receipt-owned", "taskImpact": "required"},
     "retrieval-config": {"owner": "project", "scope": "project", "lifecycle": "persistent-data", "taskImpact": "required"},

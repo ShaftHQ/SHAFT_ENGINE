@@ -43,7 +43,7 @@
 # DIGEST (#6162 / #6163):
 #     ``--digest`` prints ONE bounded JSON digest on terminal states
 #     (``{sha, state, failing[<=10], failing_total, pending_count,
-#     codacy_action_required, updated_at}``; RED keeps ``failingJobs`` in the
+#     static_analysis_action_required, updated_at}``; RED keeps ``failingJobs`` in the
 #     same object). ``--digest-out PATH`` / ``--status-lease`` publish the digest
 #     and the one-status-channel lease on state change only -- never a
 #     heartbeat and never the raw ``statusCheckRollup``.
@@ -476,7 +476,7 @@ def build_digest(sha: str | None, bucket: str, checks: list[dict], failing: list
         "failing": rows,
         "failing_total": len(failing),
         "pending_count": pending_count,
-        "codacy_action_required": codacy[:DIGEST_FAILING_CAP],
+        "static_analysis_action_required": codacy[:DIGEST_FAILING_CAP],
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() if now is None else now)),
     }
 
@@ -486,8 +486,8 @@ def format_digest_line(digest: dict) -> str:
     sha = (digest.get("sha") or "unknown")[:12]
     names = ", ".join(row["name"] for row in digest.get("failing", []))
     line = f"{digest.get('state')} sha={sha} failing={digest.get('failing_total', 0)} pending={digest.get('pending_count', 0)}"
-    if digest.get("codacy_action_required"):
-        line += f" codacy_action_required={len(digest['codacy_action_required'])} (blocking)"
+    if digest.get("static_analysis_action_required"):
+        line += f" static_analysis_action_required={len(digest['static_analysis_action_required'])} (blocking)"
     if names:
         line += f" :: {names}"
     return line

@@ -18,8 +18,6 @@ class Learning5795Test(unittest.TestCase):
         self.assertIn("owned_source_files()", text)
         self.assertIn("overlay-source-mismatch", text)
         self.assertIn("overlay-handoff.md", text)
-        self.assertIn("#5795", text)
-        self.assertIn("#5794", text)
 
     def test_gotcha_md_and_json_exist_and_cite_issue(self) -> None:
         md = GOTCHAS / f"{SLUG}.md"

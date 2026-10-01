@@ -621,7 +621,7 @@
       "path": "references/host-parity-matrix.md"
     },
     {
-      "description": "Use when a classifier or interaction change must treat Codacy Complexity ACTION_REQUIRED as a unit failure.",
+      "description": "Use when a hot-spot dispatch change must treat a static-analysis Complexity ACTION_REQUIRED as a unit failure.",
       "family": "reference",
       "hosts": {
         "claude": "catalog",
@@ -634,8 +634,8 @@
         "opencode": "catalog"
       },
       "kind": "route",
-      "name": "Codacy Complexity",
-      "path": "references/codacy-complexity-gate.md"
+      "name": "Complexity gate",
+      "path": "references/complexity-gate.md"
     }
   ],
   "generator": "harness_index.py",

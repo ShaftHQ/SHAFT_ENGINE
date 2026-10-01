@@ -31,7 +31,7 @@ REFS = ROOT / "chaos-engine/references"
 PLAYBOOK = REFS / "work-github-playbook.md"
 CI_ECONOMY = REFS / "ci-status-economy.md"
 TIP_DOC = REFS / "tip-churn-preflight.md"
-CODACY_GATE = REFS / "codacy-action-required-gate.md"
+CODACY_GATE = REFS / "static-analysis-gate.md"
 PROCESS_OWNER = REFS / "process-owner-scrum-master.md"
 ORCHESTRATOR = REFS / "orchestrator-follow-through.md"
 ELIMINATE = REFS / "eliminate-waste.md"
@@ -121,7 +121,6 @@ class BanditB607PreflightTest(unittest.TestCase):
         doc = text(TIP_DOC)
         self.assertIn("B603", doc)
         self.assertIn("shutil.which", doc)
-        self.assertIn("#6165", doc)
 
 
 def _failing_checks(count: int) -> list[dict]:
@@ -157,15 +156,15 @@ class DigestCiStatusTest(unittest.TestCase):
         checks = [{"name": "unit", "state": "IN_PROGRESS", "link": ""}]
         bucket, failing = watch_pr_checks.classify_checks(checks)
         digest = watch_pr_checks.build_digest(None, bucket, checks, failing)
-        self.assertEqual({"sha", "state", "failing", "failing_total", "pending_count", "codacy_action_required", "updated_at"}, set(digest))
+        self.assertEqual({"sha", "state", "failing", "failing_total", "pending_count", "static_analysis_action_required", "updated_at"}, set(digest))
         self.assertEqual("pending", digest["state"])
         self.assertEqual(1, digest["pending_count"])
 
-    def test_codacy_action_required_is_blocking_in_digest(self):
+    def test_static_analysis_action_required_is_blocking_in_digest(self):
         checks = [{"name": "Codacy Static Code Analysis", "state": "ACTION_REQUIRED", "link": "https://app.codacy.com/x"}, {"name": "unit", "state": "SUCCESS", "link": ""}]
         bucket, failing = watch_pr_checks.classify_checks(checks)
         digest = watch_pr_checks.build_digest("b" * 40, bucket, checks, failing)
-        self.assertEqual(["Codacy Static Code Analysis"], digest["codacy_action_required"])
+        self.assertEqual(["Codacy Static Code Analysis"], digest["static_analysis_action_required"])
         self.assertIn("(blocking)", watch_pr_checks.format_digest_line(digest))
 
     def test_red_digest_keeps_failing_jobs_and_publishes_lease(self):
@@ -413,7 +412,6 @@ class GraphifyEmptyOutputAbsorbTest(unittest.TestCase):
     def test_babysit_fingerprint_table_says_no_tip(self):
         economy = text(CI_ECONOMY)
         self.assertIn(FINGERPRINT, economy)
-        self.assertIn("#6166", economy)
         self.assertIn("do not open a tip", economy)
 
 
@@ -422,24 +420,24 @@ class CodacyActionRequiredGateTest(unittest.TestCase):
 
     def test_gate_covers_every_category_and_keeps_complexity(self):
         gate = text(CODACY_GATE)
-        for token in ("ACTION_REQUIRED", "any category", "≥medium", "codacy-complexity-gate.md", "#6165", "auto-merge"):
+        for token in ("ACTION_REQUIRED", "any category", "≥medium", "complexity-gate.md", "auto-merge"):
             with self.subTest(token=token):
                 self.assertIn(token, gate)
 
     def test_playbook_pr_merger_treats_codacy_like_unit_red(self):
         playbook = text(PLAYBOOK)
-        self.assertIn("codacy-action-required-gate.md", playbook)
+        self.assertIn("static-analysis-gate.md", playbook)
         self.assertIn("any category", playbook)
-        self.assertIn("codacy-complexity-gate.md", playbook)
+        self.assertIn("complexity-gate.md", playbook)
 
     def test_level1_lists_the_gate_and_complexity_checklist(self):
         level1 = text(LEVEL1)
-        self.assertIn("codacy-action-required-gate.md", level1)
-        self.assertIn("codacy-complexity-gate.md", level1)
+        self.assertIn("static-analysis-gate.md", level1)
+        self.assertIn("complexity-gate.md", level1)
 
     def test_process_owner_rag_is_red_on_codacy(self):
         owner = text(PROCESS_OWNER)
-        self.assertIn("Codacy `ACTION_REQUIRED`", owner)
+        self.assertIn("Static-analysis `ACTION_REQUIRED`", owner)
         self.assertIn("`red`", owner)
         self.assertIn("Blocked", owner)
 
@@ -525,7 +523,7 @@ class LocalWriterOptionalTest(unittest.TestCase):
     def test_decision_rule_and_jobs_are_portable(self):
         """The rule lives in the portable local-agency skill, not a host adapter."""
         rule = text(LOCAL_RULE)
-        for token in (self.RULE, *self.JOBS, "#6171", "no host-only memory exception") + HOSTS:
+        for token in (self.RULE, *self.JOBS, "no host-only memory exception") + HOSTS:
             with self.subTest(token=token):
                 self.assertIn(token, rule)
         self.assertIn("implementers write code directly", rule)
@@ -559,11 +557,8 @@ class HarnessParityTest(unittest.TestCase):
 
     def test_new_references_name_every_host_and_their_tickets(self):
         """Each new reference names all six hosts and its ticket ids."""
-        cases = (
-            (CI_ECONOMY, ("#6162", "#6163", "#6166", "#6167")),
-            (TIP_DOC, ("#6164", "#6165", "#6169")),
-            (CODACY_GATE, ("#6168",)),
-        )
+        # Epic #6342: core references carry no issue tags; provenance lives in git.
+        cases = ((CI_ECONOMY, ()), (TIP_DOC, ()), (CODACY_GATE, ()))
         for path, tickets in cases:
             body = text(path)
             for token in HOSTS + tickets:

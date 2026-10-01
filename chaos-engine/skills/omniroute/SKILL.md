@@ -8,4 +8,4 @@ license: MIT
 
 # OmniRoute
 
-Compatibility pointer: folded into [local-runtimes](../local-runtimes/SKILL.md) (#6200). Open [OmniRoute](../local-runtimes/references/omniroute.md); scripts stay in this directory.
+Compatibility pointer: folded into [local-runtimes](../local-runtimes/SKILL.md). Open [OmniRoute](../local-runtimes/references/omniroute.md); scripts stay in this directory.

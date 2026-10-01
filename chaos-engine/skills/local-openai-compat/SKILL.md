@@ -8,4 +8,4 @@ license: MIT
 
 # Local OpenAI-compat runtimes
 
-Compatibility pointer: folded into [local-runtimes](../local-runtimes/SKILL.md) (#6200). Open [Local OpenAI-compat runtimes](../local-runtimes/references/local-openai-compat.md); scripts stay in this directory.
+Compatibility pointer: folded into [local-runtimes](../local-runtimes/SKILL.md). Open [Local OpenAI-compat runtimes](../local-runtimes/references/local-openai-compat.md); scripts stay in this directory.

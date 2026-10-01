@@ -101,6 +101,7 @@ class ReflectionReceiptAdapterTest(unittest.TestCase):
 class OwnerCommitAttributionGuidanceTest(unittest.TestCase):
     def test_profile_does_not_treat_owner_email_as_unattributed_without_a_reviewer(self) -> None:
         text = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(encoding="utf-8")
-        self.assertIn("F79E3F65DB762CE1", text)
-        self.assertIn("Mohab.MohieElDeen@outlook.com", text)
-        self.assertIn("are not unattributed changes when no second reviewer exists", text)
+        # Epic #6342 / CE-12: the key and owner email live in user-level config.
+        self.assertNotIn("F79E3F65DB762CE1", text)
+        self.assertNotIn("Mohab.MohieElDeen@outlook.com", text)
+        self.assertIn("owner email attribution", text)

@@ -1,4 +1,4 @@
-# SkillOpt-style SKILL.md compression audit (#5659 / Top 10 #6)
+# SkillOpt-style SKILL.md compression audit
 
 
 Module: [`skill_compress_audit.py`](../skill_compress_audit.py).
@@ -23,7 +23,7 @@ python3 .chaos-engine/skill_compress_audit.py audit --strict   # exit 1 if over 
 
 `--diff` embeds bounded unified-diff **stubs** in JSON only — files stay unchanged.
 
-## Apply gate (S4 #8 / #5665) — opt-in draft PRs
+## Apply gate — opt-in draft PRs
 
 Propose-only remains the default. Draft PRs are available **only** via
 [`draft-skill-pr.md`](draft-skill-pr.md) / [`draft_skill_pr.py`](../draft_skill_pr.py):

@@ -470,27 +470,15 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         ):
             self.assertNotIn(retired_link, content)
 
-    def test_act_as_mohab_preserves_bounded_drive_sharing_authorization(self):
+    def test_personal_sharing_authorization_moved_to_user_level_config(self):
+        # Epic #6342 / CE-12: personal authorizations are not tracked in the repository.
         content = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(
             encoding="utf-8"
         )
-        section = re.search(
-            r"## Standing artifact sharing authorization\s+(.*)",
-            content,
-            re.DOTALL,
-        )
-        self.assertIsNotNone(section)
-        self.assertEqual(
-            re.sub(r"\s+", " ", section.group(1)).strip(),
-            "The standing authorization applies to artifacts produced for SHAFT "
-            "repository tasks: they may be uploaded to Google Drive and set to "
-            "**Anyone with the link — Viewer** without asking again, in present and "
-            "future sessions. It covers only the intended task artifacts. It does "
-            "not cover unrelated Drive content, folder-wide permission changes, "
-            "editor access, or secret-bearing artifacts. Verify the intended "
-            "artifact and resulting permission after each upload; if either scope "
-            "or secret safety is uncertain, stop before publishing.",
-        )
+        self.assertNotIn("Anyone with the link", content)
+        compact = re.sub(r"\s+", " ", content)
+        self.assertIn("~/.config/chaos-engine/authorizations.md", compact)
+        self.assertIn("ask before signing as, attributing to, or sharing for the owner", compact)
 
     def test_act_as_mohab_requires_fresh_task_branch_from_fetched_main(self):
         content = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(

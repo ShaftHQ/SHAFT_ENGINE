@@ -23,18 +23,12 @@ class HarnessImprovementPackPhrasesTest(unittest.TestCase):
 
     def test_work_github_playbook_auto_merge_safety(self) -> None:
         playbook = _read("chaos-engine/references/work-github-playbook.md")
-        self.assertIn("#5990", playbook)
-        self.assertIn("#5992", playbook)
-        self.assertTrue("#5986" in playbook or "#5987" in playbook)
         self.assertIn("overlapping", playbook.lower())
 
     def test_process_owner_distinguishes_rog_vs_box(self) -> None:
         owner = _read("chaos-engine/references/process-owner-scrum-master.md")
         self.assertIn("Work machine", owner)
         self.assertIn("FreeToken probe host", owner)
-        self.assertIn("#6016", owner)
-        self.assertIn("#6011", owner)
-        self.assertIn("#5994", owner)
 
     def test_identity_learning_session_novel_success_finalize(self) -> None:
         # Epic #6342: the rule lives with the Learning Session protocol, not identity.

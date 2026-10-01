@@ -19,25 +19,21 @@ class Learning5852Test(unittest.TestCase):
     def test_playbook_requires_memory_save_not_manual_sidecars(self) -> None:
         text = PLAYBOOK.read_text(encoding="utf-8")
         self.assertIn("memory save --stdin", text)
-        self.assertIn("#5852", text)
         self.assertIn("hand-author `.memory/**` sidecars", text)
         self.assertNotIn("`memory remember`", text)
 
     def test_retrieve_first_completion_uses_memory_save(self) -> None:
         text = RETRIEVE.read_text(encoding="utf-8")
         self.assertIn("`memory save --stdin`", text)
-        self.assertIn("#5852", text)
         self.assertIn("hand-edit `.memory/**`", text)
         self.assertNotIn("`memory remember`", text)
 
     def test_process_owner_and_activation_drop_manual_sidecars(self) -> None:
         process = PROCESS.read_text(encoding="utf-8")
         self.assertIn("memory save --stdin", process)
-        self.assertIn("#5852", process)
         self.assertIn("Manual `.memory/**` sidecar authoring", process)
         activation = ACTIVATION.read_text(encoding="utf-8")
         self.assertIn("memory save --stdin", activation)
-        self.assertIn("#5852", activation)
         self.assertIn("hand-edit `.memory/**` sidecars", activation)
 
     def test_gotcha_md_and_json_exist_runtime_shaped_and_cite_issue(self) -> None:

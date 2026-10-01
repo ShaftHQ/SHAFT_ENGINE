@@ -29,7 +29,7 @@ inspected. Silent acceptance of a delegate narrative is forbidden. Keep one
 writer per overlapping file scope; serial is default; parallel writers stay
 file-disjoint and capped by execution-workflow policy. Implementers write code
 directly; a local model writer is optional per
-[when-to-use-local](../skills/local-agency/references/when-to-use-local.md) (#6171).
+[when-to-use-local](../skills/local-agency/references/when-to-use-local.md).
 
 ### TDD and PDCA quality boundary
 
@@ -52,7 +52,7 @@ diff observations. Status tables and handoffs reject narrative-only progress.
 Assignment alone is not progress.
 
 Every RAG / status table that mentions FreeToken or OpenCode MUST distinguish
-(#6016):
+:
 
 - **Work machine:** `ROG` | `box` | `mixed`
 - **FreeToken probe host:** `ROG` | `box` | `none` (where `:1919` was probed)
@@ -61,14 +61,14 @@ Every RAG / status table that mentions FreeToken or OpenCode MUST distinguish
 Do not claim "FreeToken READY" when only the parent saw ROG FreeToken while
 the writer ran on the box.
 
-### Task / executor machine binding (#6011)
+### Task / executor machine binding
 
 Grok Bot Task / executor subagents MUST receive the same ROG `machineId` and
 FreeToken loopback preference as the parent when the owner named them. A child
 that cannot reach ROG Shell or `:1919` MUST report **box fallback** explicitly
 and must not silently claim ROG delivery.
 
-### Task Shell has no machineId — hard blocker (#6021 / #6051)
+### Task Shell has no machineId — hard blocker
 
 Grok Bot Task tool schema has **no** `machineId`. Executor Shell cannot target
 ROG. This is a **platform gap**, not a missing prompt line.
@@ -83,18 +83,18 @@ Gates: `require_rog_freetoken.py`, `assert_parent_rog_shell.py`, and
 `dispatch.py resolve --prefer freetoken` (fail closed unless ROG hostname,
 ROG checkout path, or `CE_ALLOW_BOX_LOCAL_AGENCY=1`).
 
-### Compaction dual-loop (#5994)
+### Compaction dual-loop
 
 After session compaction, the resumed main thread is the sole process-owner.
 Cancel or close any pre-compaction general-purpose / Task loop that would act
 as a second process-owner (extra worktrees, competing PRs). Do not leave two
 orchestrators live.
 
-### One status channel (#6163)
+### One status channel
 
 While an unattended watch is armed for PR N there is exactly one status channel: that watch (`watch_pr_checks.py --until-merged --digest --status-lease`). Scheduled status routines call `python3 scripts/agents/status_lease.py routine --pr <n> --last-reported <state>` and stay silent while it prints nothing. The parent does not re-narrate CI unless the watch returned RED or MERGED or the owner asked. Status content comes from the digest, never a raw check list. See [CI status economy](ci-status-economy.md). (repo-only)
 
-Codacy `ACTION_REQUIRED` (≥medium, any category) makes the RAG line `red` and the ticket row `Blocked` with the pattern id; it is never reported as pending ([gate](codacy-action-required-gate.md)).
+Static-analysis `ACTION_REQUIRED` (≥medium, any category) makes the RAG line `red` and the ticket row `Blocked` with the pattern id; it is never reported as pending ([gate](static-analysis-gate.md)).
 
 ### Status report format
 
@@ -196,13 +196,13 @@ authoritative research to improve the process itself.
 - Host WiFi and unrelated lab network recovery are out of scope for ChaosEngine
   delivery and Learning Sessions; escalate outside CE and keep harness work moving.
 - Learning Session Memory writes use `memory save --stdin` as the default path
-  (#5852). Drop manual `.memory/**` sidecar authoring; report save failures
+ . Drop manual `.memory/**` sidecar authoring; report save failures
   instead of hand-editing runtime-shaped JSON/markdown. If a body changed
   anyway, `tip_preflight.py --rehash` recomputes `content_hash` in the same
-  tip before push ([tip-churn preflight](tip-churn-preflight.md), #6169).
+  tip before push ([tip-churn preflight](tip-churn-preflight.md)).
 
 - An open `ci-main-red` issue is P0: a post-merge `main` PR Gate leg failed
-  (filed by `Main red reaction`, #6185). Route a fix-forward or the auto-opened
+  (filed by `Main red reaction`). Route a fix-forward or the auto-opened
   revert PR before new work; CE adopters install from `main`.
 
 See also [identity push-back](identity-push-back.md) (fact-grounded opinion / push-back).
@@ -220,6 +220,6 @@ See also [identity push-back](identity-push-back.md) (fact-grounded opinion / pu
 | Premature close: Done without verify receipts | Re-open; require CI, silent verify, doctor, or E2E evidence before Done |
 | WiFi / host-network rabbit hole inside CE delivery | Declare out of scope; escalate outside CE; resume harness or product work |
 | Skip dual-checkout reinstall after a CE harness merge | Reinstall official CE on desktop and agent checkouts; doctor; then continue |
-| Manual `.memory/**` sidecar authoring in Learning Session | Use `memory save --stdin`; never hand-edit JSON/markdown sidecars (#5852) |
-| Overlapping status channels: status routine + babysit poll + parent narration on one PR | Keep exactly one status channel (the live watch lease); routines run `status_lease.py routine` (#6163) |
-| Codacy `ACTION_REQUIRED` reported as "pending checks" | RAG `red`, row `Blocked`, pattern id named ([gate](codacy-action-required-gate.md), #6168) |
+| Manual `.memory/**` sidecar authoring in Learning Session | Use `memory save --stdin`; never hand-edit JSON/markdown sidecars |
+| Overlapping status channels: status routine + babysit poll + parent narration on one PR | Keep exactly one status channel (the live watch lease); routines run `status_lease.py routine` |
+| Static-analysis `ACTION_REQUIRED` reported as "pending checks" | RAG `red`, row `Blocked`, pattern id named ([gate](static-analysis-gate.md)) |

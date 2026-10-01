@@ -57,5 +57,5 @@ accepts the draft only after `design_turn_gate.py` citation passes.
 ## Related
 
 - [coach-loop.md](coach-loop.md) section D
-- `ce_brief.py` (#6067)
-- Dispatch modes (#6073)
+- `ce_brief.py`
+- Dispatch modes
