@@ -43,7 +43,7 @@ The native store is source-controlled, and its contract travels with it:
 `.memory/schema/object.schema.json`, `.memory/schema/relation.schema.json`,
 `.memory/schema/event.schema.json`, `.memory/schema/patch.schema.json` and
 `.memory/schema/config.schema.json` validate every write. The entries
-themselves are data the CLI owns; reach them with a bounded `memory search`,
+themselves are data the CLI owns; reach them with a bounded `memory query`,
 then `memory inspect` only for selected records. SessionStart injects tracked
 locators only and never starts an optional retrieval process.
 

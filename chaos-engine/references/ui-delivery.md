@@ -37,9 +37,9 @@ assertion.
 
 ## Wide tables
 
-- Scroll the table, not the page: wrap the real `<table>` in `<div
-  role="region" tabindex="0" aria-labelledby="<caption or heading id>">` with
-  `overflow-x: auto` and a 3:1 `:focus-visible` outline. WCAG 2.2 1.4.10
+- Scroll the table, not the page: wrap the real `<table>` in
+  `<div role="region" tabindex="0" aria-labelledby="{caption-or-heading-id}">`
+  with `overflow-x: auto` and a 3:1 `:focus-visible` outline. WCAG 2.2 1.4.10
   exempts only the table, so `scrollWidth <= innerWidth` still holds at 320;
   2.1.1 needs the tab stop.
 - Keep table semantics: a `<caption>` or labelled heading, `<th scope>`. No
@@ -76,7 +76,7 @@ and the matrix screenshots.
 ## PR body and report
 
 - `CI coverage`: when PR CI does not run the changed surface, write "PR CI
-  green does not cover <surface>" and attach the local run (command, counts,
+  green does not cover `<surface>`" and attach the local run (command, counts,
   screenshots).
 - `Post-merge deploy`: when deploy is manual (`workflow_dispatch`, for
   example GitHub Pages), name the workflow and the command to run after merge

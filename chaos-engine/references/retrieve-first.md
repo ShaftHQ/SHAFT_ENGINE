@@ -47,7 +47,7 @@ range. Do not turn the path into an absolute path or read the whole file.
 
 | Question you actually have | Store |
 | --- | --- |
-| Has this constraint or gotcha already bitten us? | native Memory — `memory search`, then `memory inspect <id>` |
+| Has this constraint or gotcha already bitten us? | native Memory — `memory query`, then `memory inspect <id>` |
 | What happened around this before, and what does it touch? | MemPalace |
 | What calls or depends on this? | [Graphify](graphify.md) — unclassified extract skips are coverage, not a failed install |
 | What does the code do right now? | targeted `rg` and exact reads; a cheap read does not wait for a store |
@@ -65,7 +65,7 @@ only after a live authoritative source confirms it. SessionStart deliberately
 injects no Memory or MemPalace prose, because untargeted recall has neither the
 task scope nor the evidence needed to earn authority.
 
-Use a bounded `memory search`, then inspect only the selected records. Never
+Use a bounded `memory query`, then inspect only the selected records. Never
 compile or inject a whole-store context pack.
 
 ## Retrieve orchestrator (#5624)

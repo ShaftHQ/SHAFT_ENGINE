@@ -56,6 +56,20 @@ class ConsumerFixture(unittest.TestCase):
         )
         patcher.start()
         self.addCleanup(patcher.stop)
+        # #6330: host detection must not read the developer's PATH (a real
+        # Cursor or OpenCode install would wire receipt shims into the fixture).
+        self.host_commands: set[str] = set()
+        detect = MODULE.receipt_shim_hosts
+        hermetic = mock.patch.object(
+            MODULE,
+            "receipt_shim_hosts",
+            side_effect=lambda project, which=None: detect(
+                project,
+                which=which or (lambda command: f"/opt/{command}" if command in self.host_commands else None),
+            ),
+        )
+        hermetic.start()
+        self.addCleanup(hermetic.stop)
 
     def install(self, consumer: bool = True):
         value = {"CHAOS_ENGINE_CONSUMER": "1"} if consumer else {}
@@ -88,6 +102,32 @@ class ConsumerModeInstallTest(ConsumerFixture):
         hosts = load(self.project / ".chaos-engine/hosts.py", "ce_hosts_consumer_verify")
         self.assertEqual("healthy", hosts.verify(self.project)["status"])
         self.assertEqual([], hosts.competing_policy_errors(self.project))
+
+    def test_fixture_host_detection_ignores_the_developer_path(self):
+        """#6330: Cursor/OpenCode on the real PATH must not leak into the fixture."""
+        with mock.patch.object(MODULE.shutil, "which", return_value="/usr/bin/cursor"):
+            self.assertEqual((), MODULE.receipt_shim_hosts(self.project))
+
+    def test_consumer_install_with_cursor_and_opencode_keeps_git_status_clean(self):
+        """#6330: a consumer with Cursor/OpenCode gets shims that stay out of git status."""
+        self.host_commands = {"cursor", "opencode"}
+        self.install()
+        self.assertTrue((self.project / ".cursor/hooks.json").is_file())
+        self.assertTrue((self.project / ".opencode/plugins/chaos-engine-receipt.js").is_file())
+        self.assertEqual("", self.status())
+
+    def test_consumer_install_never_rewrites_a_tracked_cursor_hooks_file(self):
+        """#6330: consumer mode never edits a tracked file, receipt shims included."""
+        hooks = self.project / ".cursor/hooks.json"
+        hooks.parent.mkdir()
+        original = b'{"version": 1, "hooks": {}}\n'
+        hooks.write_bytes(original)
+        git(self.project, "add", ".cursor/hooks.json")
+        git(self.project, "commit", "-qm", "cursor hooks")
+        self.host_commands = {"cursor"}
+        self.install()
+        self.assertEqual(original, hooks.read_bytes())
+        self.assertEqual("", self.status())
 
     def test_mode_persists_so_reinstall_keeps_one_block_and_a_clean_status(self):
         self.install()

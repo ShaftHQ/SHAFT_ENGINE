@@ -117,7 +117,7 @@ class UiDeliveryLessonTests(unittest.TestCase):
         report = section(self.raw, "PR body and report")
         self.assertIn('rg -n "pull_request|playwright|e2e" .github/workflows', plan)
         self.assertIn("CI coverage gap", plan)
-        self.assertIn("PR CI green does not cover <surface>", report)
+        self.assertIn("PR CI green does not cover `<surface>`", report)
         self.assertIn("attach the local run", report)
 
     def test_adversarial_review_is_mandatory_and_cheap(self):
@@ -179,6 +179,86 @@ class UiDeliveryLessonTests(unittest.TestCase):
         heal = compact(HEAL)
         self.assertIn("rate limit", heal)
         self.assertIn('GITHUB_TOKEN="$(gh auth token)"', heal)
+
+
+# #6331: pinned agnix (XML-001) reads a bare `<word ...>` outside a one-line
+# code span as an unclosed XML tag. A code span that wraps across lines does
+# not protect it, which is how `<caption or heading id>` slipped through.
+_FENCE = re.compile(r"^\s*(```|~~~)")
+_INLINE_CODE = re.compile(r"`[^`\n]*`")
+_OPEN_TAG = re.compile(r"<([A-Za-z][\w-]*)(?:\s[^<>]*)?(/?)>")
+_CLOSE_TAG = re.compile(r"</([A-Za-z][\w-]*)\s*>")
+_VOID_TAGS = {"br", "hr", "img", "input", "meta", "link", "wbr", "source"}
+AGNIX_CONTRACT = ROOT / "scripts/ci/agnix_conformance.json"
+
+
+def bare_unclosed_tags(text: str) -> list[tuple[int, str]]:
+    """Return (line, tag) for placeholders agnix XML-001 would flag."""
+    lines: list[tuple[int, str]] = []
+    fenced = False
+    for number, line in enumerate(text.splitlines(), 1):
+        if _FENCE.match(line):
+            fenced = not fenced
+            continue
+        if not fenced:
+            lines.append((number, _INLINE_CODE.sub("", line)))
+    closed = {match.group(1).lower() for _, line in lines for match in _CLOSE_TAG.finditer(line)}
+    found = []
+    for number, line in lines:
+        for match in _OPEN_TAG.finditer(line):
+            name = match.group(1).lower()
+            if match.group(2) or name in _VOID_TAGS or name in closed:
+                continue
+            found.append((number, match.group(0)))
+    return found
+
+
+def agnix_staged_markdown() -> list[Path]:
+    """Markdown under the pinned agnix staging paths, minus its exclusions."""
+    contract = json.loads(AGNIX_CONTRACT.read_text(encoding="utf-8"))
+    excluded = [ROOT / item["path"] for item in contract.get("staging_exclusions", [])]
+    files: list[Path] = []
+    for relative in contract["staging_paths"]:
+        path = ROOT / relative
+        candidates = sorted(path.rglob("*.md")) if path.is_dir() else [path]
+        for candidate in candidates:
+            if candidate.suffix != ".md" or not candidate.is_file():
+                continue
+            if any(candidate.is_relative_to(item) for item in excluded):
+                continue
+            files.append(candidate)
+    return files
+
+
+class AgnixBarePlaceholderTest(unittest.TestCase):
+    def test_detector_flags_the_placeholders_that_failed_pinned_agnix(self):
+        before = (
+            "- wrap it in `<div\n"
+            '  role="region" aria-labelledby="<caption or heading id>">` with\n'
+            '- write "PR CI green does not cover <surface>" here\n'
+        )
+        self.assertEqual(
+            [(2, "<caption or heading id>"), (3, "<surface>")],
+            bare_unclosed_tags(before),
+        )
+
+    def test_detector_ignores_code_spans_fences_and_closed_tags(self):
+        clean = (
+            "Use `<surface>` and `<div role=\"region\">`.\n"
+            "```\n<raw placeholder>\n```\n"
+            "<details><summary>x</summary></details>\n"
+        )
+        self.assertEqual([], bare_unclosed_tags(clean))
+
+    def test_agnix_staged_markdown_has_no_bare_placeholders(self):
+        files = agnix_staged_markdown()
+        self.assertIn(UI, files)
+        offenders = [
+            f"{path.relative_to(ROOT).as_posix()}:{line}: {tag}"
+            for path in files
+            for line, tag in bare_unclosed_tags(path.read_text(encoding="utf-8"))
+        ]
+        self.assertEqual([], offenders)
 
 
 if __name__ == "__main__":

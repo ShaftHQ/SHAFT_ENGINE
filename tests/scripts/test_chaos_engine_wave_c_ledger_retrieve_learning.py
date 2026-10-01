@@ -174,6 +174,44 @@ class WaveCLedgerRetrieveLearningTests(unittest.TestCase):
         self.assertEqual(len(receipt["excerpt"].encode("utf-8")), receipt["bytes"])
         self.assertLess(len(receipt["excerpt"]), len(body))
 
+    def test_memory_store_uses_the_pinned_cli_query_verb(self):
+        """#6329: `memory search` does not exist; the pinned CLI answers `memory query`."""
+        completed = mock.Mock(returncode=0, stdout="# Memory\n1 matched", stderr="")
+        with (
+            mock.patch.object(self.retrieve.subprocess, "run", return_value=completed) as run,
+            mock.patch.object(self.retrieve, "_tool_py", return_value=ROOT / "chaos-engine/tool.py"),
+            mock.patch.object(self.retrieve, "_record_store_outcome"),
+        ):
+            receipt = self.retrieve._run_store(ROOT, "memory", "project lock collision")
+        argv = run.call_args.args[0]
+        self.assertEqual(["memory", "query", "project lock collision"], argv[2:])
+        self.assertEqual("used", receipt["status"])
+
+    def test_memory_query_verb_exists_in_the_installed_memory_cli(self):
+        """#6329: contract against the real pinned CLI when this machine has it."""
+        try:
+            completed = subprocess.run(  # nosec B603 - fixed owned tool.py argv.
+                [sys.executable, str(TOOL), "memory", "--help"],
+                cwd=ROOT, capture_output=True, text=True, timeout=60, check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            self.skipTest(f"memory CLI unavailable: {error}")
+        if completed.returncode != 0 or "Commands:" not in completed.stdout:
+            self.skipTest("memory CLI is not installed on this machine")
+        commands = {
+            line.split()[0]
+            for line in completed.stdout.split("Commands:", 1)[1].splitlines()
+            if line.startswith("  ") and line.strip()
+        }
+        self.assertIn("query", commands)
+        self.assertNotIn("search", commands)
+
+    def test_retrieve_first_guidance_names_the_real_memory_verb(self):
+        """#6329: guidance must not teach a verb the pinned CLI rejects."""
+        guidance = RETRIEVE_DOC.read_text(encoding="utf-8")
+        self.assertIn("memory query", guidance)
+        self.assertNotIn("memory search", guidance)
+
     def test_portable_learning_finalize_no_draft_prs(self):
         with tempfile.TemporaryDirectory() as temporary:
             cwd = Path.cwd()

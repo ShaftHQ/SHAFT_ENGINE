@@ -482,7 +482,7 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
         return _run_deja(project, query, host=None, mode="search")
     # Map store → advisory CLI shape (bounded; never writes).
     if store == "memory":
-        args = [sys.executable, str(tool), "memory", "search", query]
+        args = [sys.executable, str(tool), "memory", "query", query]
     elif store == "mempalace":
         args = [sys.executable, str(tool), "mempalace", "search", query]
     else:
