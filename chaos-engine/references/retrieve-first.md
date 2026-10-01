@@ -68,7 +68,7 @@ task scope nor the evidence needed to earn authority.
 Use a bounded `memory query`, then inspect only the selected records. Never
 compile or inject a whole-store context pack.
 
-## Retrieve orchestrator (#5624)
+## Retrieve orchestrator
 
 One store, one bounded query, receipt status `used` | `skipped` | `degraded`:
 
@@ -83,7 +83,7 @@ Owner-curated wake pack (≤~120 tokens) lives at
 `wake-pack.mempalace-draft.md` only — never silent overwrite. SessionStart
 injects the wake-pack **locator**, never Memory/MemPalace prose.
 
-## Heuristics once per task (#5656)
+## Heuristics once per task
 
 Learning Session may extract ≤N privacy-safe heuristics into
 `.chaos-engine-state/heuristics/`. SessionStart injects the **locator
@@ -123,7 +123,7 @@ task responsible for keeping derived stores usable:
 - `memory save --stdin` for a durable fact, decision, or gotcha, with the
   evidence (intent-first JSON: `{task, nodes, stale, supersede, delete}`).
   Do **not** hand-edit `.memory/**` JSON or markdown sidecars; if save rejects,
-  report the reason and fix the input (#5852).
+  report the reason and fix the input.
 - A structural change may be flagged for the configured Graphify maintenance
   owner; the task does not refresh or watch it.
 - A cross-session relation may be written when useful; the task never mines the

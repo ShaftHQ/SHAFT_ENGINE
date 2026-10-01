@@ -999,24 +999,24 @@ def _record_denial_with_significance(event: dict, event_name: str, tool_name: st
     )
 
 
-# Soft Codacy Complexity reminder for classifier / interaction mutations (#5747).
-_CLASSIFIER_PATH_MARKERS = (
-    "elementclassifier",
-    "/interaction/",
-    "\\interaction\\",
-)
-_CLASSIFIER_NAME_MARKERS = (
-    "elementclassifier",
-    "classifymobilenative",
-    "classifywindowsdesktop",
-    "classifybytag",
-    "classifybyrole",
-    "classifyinput",
-)
-CODACY_COMPLEXITY_GATE_HINT = (
-    "Codacy Complexity gate (#5747): kind-family helpers / rule tables before "
-    "fat classify* arms; Complexity ACTION_REQUIRED == unit red. "
-    "Checklist: references/codacy-complexity-gate.md"
+# Soft complexity reminder for hot-spot mutations. Profiles declare the
+# hot-spot markers in their profile.json `complexityHint`; the core ships none.
+def _complexity_hint_markers() -> tuple[tuple[str, ...], tuple[str, ...]]:
+    paths: list[str] = []
+    names: list[str] = []
+    profiles = Path(__file__).resolve().parents[1] / "profiles"
+    for profile in sorted(profiles.glob("*/profile.json")):
+        with contextlib.suppress(OSError, ValueError, AttributeError, TypeError):
+            hint = json.loads(profile.read_text(encoding="utf-8")).get("complexityHint") or {}
+            paths.extend(str(item).casefold() for item in hint.get("pathMarkers", ()))
+            names.extend(str(item).casefold() for item in hint.get("nameMarkers", ()))
+    return tuple(paths), tuple(names)
+
+
+COMPLEXITY_GATE_HINT = (
+    "Complexity gate: kind-family helpers / rule tables before "
+    "fat dispatch arms; Complexity ACTION_REQUIRED == unit red. "
+    "Checklist: references/complexity-gate.md"
 )
 
 
@@ -1055,10 +1055,11 @@ def classifier_complexity_gate_hint(
     blob = _mutation_path_blobs(tool_name, tool_input, commands)
     if not blob:
         return None
-    path_hit = any(marker in blob for marker in _CLASSIFIER_PATH_MARKERS)
-    name_hit = any(marker in blob for marker in _CLASSIFIER_NAME_MARKERS)
+    path_markers, name_markers = _complexity_hint_markers()
+    path_hit = any(marker in blob for marker in path_markers)
+    name_hit = any(marker in blob for marker in name_markers)
     if path_hit or name_hit:
-        return CODACY_COMPLEXITY_GATE_HINT
+        return COMPLEXITY_GATE_HINT
     return None
 
 

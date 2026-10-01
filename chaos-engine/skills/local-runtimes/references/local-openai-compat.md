@@ -1,4 +1,3 @@
-<!-- Folded from skills/local-openai-compat/SKILL.md (#6200). -->
 # Local OpenAI-compat runtimes
 
 Peer ports for FreeToken, Colibri, OmniRoute, and local OpenAI-compat are the [transport-order table](../../../references/execution-workflows.md#transport-is-orthogonal).

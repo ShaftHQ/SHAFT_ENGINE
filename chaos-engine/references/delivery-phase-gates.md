@@ -1,7 +1,7 @@
 # Delivery workflow phase gates
 
 Maps the ChaosEngine delivery loop to **hooks** (machine-checkable) vs **skills**
-(judgment). Parent epic #5569 / issue #5583.
+(judgment).
 
 | Phase | Guarantee owner | Hook / surface | Skill judgment |
 | --- | --- | --- | --- |
@@ -63,7 +63,7 @@ is stated with evidence.
 - Harness parity: lasting policy lives in the portable overlay, not one agent.
 
 
-## Triage-scaled research gate (#5623)
+## Triage-scaled research gate
 
 The zero-LLM phase ledger (`.chaos-engine-state/phase-ledger.json`) records
 triage and phase markers without an LLM:

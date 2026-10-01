@@ -132,11 +132,10 @@ class RequireRogFreetokenTest(unittest.TestCase):
         bound = {"state": "READY", "bound": True}
 
         def probe(runtime: str):
-            base = (
-                dispatch.FREETOKEN_OPENAI_BASE
-                if runtime == "freetoken"
-                else dispatch.OPENAI_COMPAT_BASES[runtime]
-            )
+            base = {
+                "freetoken": dispatch.FREETOKEN_OPENAI_BASE,
+                "colibri": dispatch.COLIBRI_OPENAI_BASE,
+            }.get(runtime) or dispatch.OPENAI_COMPAT_BASES[runtime]
             return {
                 "runtime": runtime,
                 "state": "ABSENT",
@@ -158,8 +157,7 @@ class RequireRogFreetokenTest(unittest.TestCase):
         guide = _read("chaos-engine/guides/local-agency.md")
         owner = _read("chaos-engine/references/process-owner-scrum-master.md")
         lessons = _read("chaos-engine/skills/omniroute/references/living-lessons.md")
-        for text in (skill, guide, owner, lessons):
-            self.assertIn("#6021", text)
+        self.assertIn("#6021", guide)  # epic #6342: core refs carry no issue tags
         self.assertIn("CE_ALLOW_BOX_LOCAL_AGENCY", skill)
         self.assertIn("must **not** claim FreeToken", skill)
         self.assertIn("require_rog_freetoken.py", guide)

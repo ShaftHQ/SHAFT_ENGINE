@@ -68,7 +68,7 @@ what to change, external proof, lesson for the next attempt, bounded retry,
 committed next action, durable carry-forward, and token consumption
 optimization. Token consumption optimization means the least tokens that still
 complete the same kind of task next time, plus one further cut so later
-sessions keep using fewer tokens. Include the local vs cloud token retrospective from [`session_token_usage.py`](../session_token_usage.py) / finalize `tokenUsage` when events were recorded (#5981).
+sessions keep using fewer tokens. Include the local vs cloud token retrospective from [`session_token_usage.py`](../session_token_usage.py) / finalize `tokenUsage` when events were recorded.
 
 Leftover risks and out-of-scope items must not remain only in chat. Search for
 duplicates, then open GitHub issues with `gh` (never GitHub MCP). Put those

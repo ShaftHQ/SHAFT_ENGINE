@@ -70,7 +70,7 @@ KNOWN_FINGERPRINTS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("inventory-drift", re.compile(r"source-derived inventory drift: [\w-]+")),
     ("bandit-b607", re.compile(r"\bB607\b|Bandit_B607")),
     ("memory-content-hash", re.compile(r"memory-content-hash|ObjectContentHashMismatch|content_hash .* does not match")),
-    ("codacy-action-required", re.compile(r"\bACTION_REQUIRED\b"))
+    ("static-analysis-action-required", re.compile(r"\bACTION_REQUIRED\b"))
 )
 
 

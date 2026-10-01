@@ -781,7 +781,7 @@ reports, caches, runtime indexes, or `graphify-out/`.
 ## Read next
 
 - [Delivery phase gates](references/delivery-phase-gates.md) — hooks vs skills map + research-before-mutation.
-- [Codacy Complexity gate](references/codacy-complexity-gate.md) — classifier helpers; Complexity ACTION_REQUIRED == unit red.
+- [Codacy Complexity gate](references/complexity-gate.md) — classifier helpers; Complexity ACTION_REQUIRED == unit red.
 
 - [Zero-LLM catalog](references/zero-llm-catalog.md) — deterministic doctor/install/repair paths.
 - [Context firewall](references/context-firewall.md) — research/explore subagent isolation; distillate only.

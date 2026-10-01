@@ -618,8 +618,8 @@ SURFACE_PATTERNS = {
     "token-waste": (
         "chaos-engine/references/ci-status-economy.md",
         "chaos-engine/references/tip-churn-preflight.md",
-        "chaos-engine/references/codacy-action-required-gate.md",
-        "chaos-engine/references/codacy-complexity-gate.md",
+        "chaos-engine/references/static-analysis-gate.md",
+        "chaos-engine/references/complexity-gate.md",
         "chaos-engine/references/eliminate-waste.md",
         "chaos-engine/references/context-economy.md",
         "chaos-engine/references/work-github-playbook.md",

@@ -12,7 +12,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Install / upgrade | One-liners in INSTALL.md (repo-only `chaos-engine/INSTALL.md`) | Fresh or upgraded payload + healthy doctor |
 | Human doctor | `python3 .chaos-engine/install.py doctor --project .` | Component health + fix-next lines |
 | Fix-next only | `python3 .chaos-engine/install.py doctor --project . --fix-next-only` | Prints only actionable repair lines (exit 0 if none) |
-| Component repair | `python3 .chaos-engine/install.py repair --project . --component <id>` | Targeted quarantine/republish without full wipe (#5620/#5621) |
+| Component repair | `python3 .chaos-engine/install.py repair --project . --component <id>` | Targeted quarantine/republish without full wipe |
 | Heal route | [`heal-route.md`](heal-route.md) | File-path Heal surface even if marketplace plugin absent |
 | Level-1 catalog | [`level-1-catalog.md`](level-1-catalog.md) | Progressive-disclosure secondary surfaces |
 | JSON doctor | `... doctor --project . --json` | Schema v2 machine contract |
@@ -31,33 +31,33 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Wake pack | [`wake_pack.py`](../wake_pack.py) + `.chaos-engine-state/wake-pack.md` | Owner-curated ≤~120 tokens; draft-only MemPalace |
 | Portable Learning Session | [`learning_session.py`](../learning_session.py) `finalize` | Issues-first; **no** auto draft PRs |
 | Research preflight marker | `python3 .chaos-engine/hooks/reflection.py research-preflight --session-id <id>` | Unblocks opt-in research-before-mutation gate |
-| Eval / parity fixtures | `python3 scripts/ci/chaos_engine_eval_parity.py` | Cross-host CE policy fixture suite (#5584) (repo-only) |
-| Learning metrics | [`learning.py`](../learning.py) `metrics` + [`learning_counters.py`](../learning_counters.py) (+ `doctor --json.learningMetrics`) | Queued→submitted rates, SessionStart bytes, denials, digests (#5653) |
-| CE brief | [`ce_brief.py`](../ce_brief.py) | Locator-only byte-capped system brief for local-agency design turns (#6067) |
+| Eval / parity fixtures | `python3 scripts/ci/chaos_engine_eval_parity.py` | Cross-host CE policy fixture suite (repo-only) |
+| Learning metrics | [`learning.py`](../learning.py) `metrics` + [`learning_counters.py`](../learning_counters.py) (+ `doctor --json.learningMetrics`) | Queued→submitted rates, SessionStart bytes, denials, digests |
+| CE brief | [`ce_brief.py`](../ce_brief.py) | Locator-only byte-capped system brief for local-agency design turns |
 | Design-turn gate | citation+schema zero-LLM gate for local design/spec turns | [`../skills/local-agency/scripts/design_turn_gate.py`](../skills/local-agency/scripts/design_turn_gate.py) |
-| Dispatch CE brief | [`skills/local-agency/scripts/dispatch.py`](../skills/local-agency/scripts/dispatch.py) `brief` / `--with-ce-brief` | Attach locator-only brief to OpenCode/chat paths (#6068/#6071) |
-| CE brief eval fixtures | [`../evals/ce-brief-unit-fixtures.json`](../evals/ce-brief-unit-fixtures.json) | Locator-only / byte-cap / no-secret unit contracts (#6072) |
-| Silent verify | [`silent_verify.py`](../silent_verify.py) / `finalize --silent` | Success silent exit 0; failure one stderr line (#5654) |
-| Heuristics retrieve | [`retrieve.py`](../retrieve.py) `heuristics --top 3` | Once-per-task ERL heuristics; SessionStart locator only (#5656) |
+| Dispatch CE brief | [`skills/local-agency/scripts/dispatch.py`](../skills/local-agency/scripts/dispatch.py) `brief` / `--with-ce-brief` | Attach locator-only brief to OpenCode/chat paths |
+| CE brief eval fixtures | [`../evals/ce-brief-unit-fixtures.json`](../evals/ce-brief-unit-fixtures.json) | Locator-only / byte-cap / no-secret unit contracts |
+| Silent verify | [`silent_verify.py`](../silent_verify.py) / `finalize --silent` | Success silent exit 0; failure one stderr line |
+| Heuristics retrieve | [`retrieve.py`](../retrieve.py) `heuristics --top 3` | Once-per-task ERL heuristics; SessionStart locator only |
 | Heuristics CLI | [`heuristics.py`](../heuristics.py) `locator|retrieve|add` | Privacy-safe heuristic store under `.chaos-engine-state/heuristics/` |
-| Significance capture | [`significance.py`](../significance.py) `mark|list|drain|locator` | Soft fail/deny marks → Learning Session drain; no Task Observer (#5658) |
-| Skill compress audit | [`skill_compress_audit.py`](../skill_compress_audit.py) `audit` | Propose-only SKILL.md filler/bloat report; never auto-apply (#5659) |
-| Javadoc `@param` arity | `scripts/ci/check_javadoc_param_arity.py` (repo-only) | Fail fast when `@param` names do not match method parameters in engine interaction packages (#5748) |
-| Meta-optimize review | [`meta_optimize.py`](../meta_optimize.py) `review`/`cadence` | Periodic aggregation of significance + learning metrics + compress proposals; not continuous (#5664) |
-| Draft skill PR gate | [`draft_skill_pr.py`](../draft_skill_pr.py) `status`/`prepare`/`open` | Opt-in draft PRs only; default OFF; never auto-merge (#5665) |
+| Significance capture | [`significance.py`](../significance.py) `mark|list|drain|locator` | Soft fail/deny marks → Learning Session drain; no Task Observer |
+| Skill compress audit | [`skill_compress_audit.py`](../skill_compress_audit.py) `audit` | Propose-only SKILL.md filler/bloat report; never auto-apply |
+| Javadoc `@param` arity | `scripts/ci/check_javadoc_param_arity.py` (repo-only) | Fail fast when `@param` names do not match method parameters in engine interaction packages |
+| Meta-optimize review | [`meta_optimize.py`](../meta_optimize.py) `review`/`cadence` | Periodic aggregation of significance + learning metrics + compress proposals; not continuous |
+| Draft skill PR gate | [`draft_skill_pr.py`](../draft_skill_pr.py) `status`/`prepare`/`open` | Opt-in draft PRs only; default OFF; never auto-merge |
 | Learn-traces collect | [`learn_traces.py`](../learn_traces.py) `collect --out <dir>` | Portable session-trace run dir |
-| Learn-traces portable /learn | [`learn_traces.py`](../learn_traces.py) + [`learn_traces_mrv.py`](../learn_traces_mrv.py) `learn --out <dir>` | Map-reduce-verify file contract → `report.md` + git-tracked `actions.json`; never `~/.grok/skills` (#5847) |
+| Learn-traces portable /learn | [`learn_traces.py`](../learn_traces.py) + [`learn_traces_mrv.py`](../learn_traces_mrv.py) `learn --out <dir>` | Map-reduce-verify file contract → `report.md` + git-tracked `actions.json`; never `~/.grok/skills` |
 | Deep-research scaffold | [`deep_research.py`](../deep_research.py) `init --query … --out <dir>` | Portable research run dir; phases are host agents |
 
 ## Notes
 
-`--fix-next-only` (#5582) lets scripts scrape repair actions without parsing the
-full human doctor essay or invoking a model. The eval runner (#5584) exercises
+`--fix-next-only` lets scripts scrape repair actions without parsing the
+full human doctor essay or invoking a model. The eval runner exercises
 fixture tasks under simulated hook runners; failures ratchet into hooks/skills
 per [eval-parity-fixtures](eval-parity-fixtures.md).
 
 
-## CLI-over-MCP iron law (#5655)
+## CLI-over-MCP iron law
 
 Prefer training-data CLIs over MCP schema tax when both can do the job:
 

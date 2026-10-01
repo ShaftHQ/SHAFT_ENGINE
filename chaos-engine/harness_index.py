@@ -147,8 +147,8 @@ ROUTES = (
      "Use when a task would install, pin, or wrap a traffic proxy. Never install one."),
     ("GAP-EXIT2 UX", "references/host-parity-matrix.md",
      "Use when Grok or Copilot may not honor an exit-2 hard block and the compensating checklist applies."),
-    ("Codacy Complexity", "references/codacy-complexity-gate.md",
-     "Use when a classifier or interaction change must treat Codacy Complexity ACTION_REQUIRED as a unit failure."),
+    ("Complexity gate", "references/complexity-gate.md",
+     "Use when a hot-spot dispatch change must treat a static-analysis Complexity ACTION_REQUIRED as a unit failure."),
 )
 ROUTE_START = "<!-- HARNESS-ROUTES:START -->"
 ROUTE_END = "<!-- HARNESS-ROUTES:END -->"
@@ -253,8 +253,14 @@ ROUTER_USE = {
     "Prefer CLI over MCP": "CLI and MCP both fit",
     "No proxy": "a task would add a traffic proxy",
     "GAP-EXIT2 UX": "host ignores exit-2 hard blocks",
-    "Codacy Complexity": "static-analysis complexity gate",
+    "Complexity gate": "static-analysis complexity gate",
 }
+
+
+LOCAL_LLM_SKILLS = frozenset({
+    "local-runtimes", "local-agency", "omniroute", "freetoken", "colibri",
+    "local-openai-compat", "local-coding-delegate",
+})
 
 
 def render_route_table(index: dict) -> str:
@@ -265,7 +271,16 @@ def render_route_table(index: dict) -> str:
         or (entry["kind"] in {"portable", "route"} and entry["name"] != "chaos-engine")
     ]
     selected.sort(key=lambda entry: entry.get("family") == "reference")
+    local = [entry for entry in selected if entry["name"] in LOCAL_LLM_SKILLS]
+    if local:
+        links = ", ".join(
+            f"[{entry['name']}](../{entry['path'][len('skills/'):]})"
+            for entry in sorted(local, key=lambda entry: entry["name"] != "local-runtimes")
+        )
+        lines.append(f"| Local LLM | optional local runtime or local agents | {links} |")
     for entry in selected:
+        if entry in local:
+            continue
         path = entry["path"]
         filename = path.rsplit("/", 1)[-1]
         href = "../" + path[len("skills/"):] if path.startswith("skills/") else "../../" + path

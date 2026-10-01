@@ -14,8 +14,6 @@ working-policy owner. Do not restate its policies here or in host
 adapters. `CLAUDE.md` and `GEMINI.md` only import this file (`@AGENTS.md`).
 Cleanup scope: [cleanup-scopes](chaos-engine/references/cleanup-scopes.md).
 Duty ownership: [agent_ownership.json](scripts/ci/agent_ownership.json).
-Lasting harness behavior lives in the portable ChaosEngine overlay, never only
-in one agent's memory.
 
 ## Repository safety
 

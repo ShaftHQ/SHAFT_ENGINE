@@ -9,4 +9,4 @@ license: MIT
 
 # FreeToken
 
-Compatibility pointer: folded into [local-runtimes](../local-runtimes/SKILL.md) (#6200). Open [FreeToken](../local-runtimes/references/freetoken.md); scripts stay in this directory.
+Compatibility pointer: folded into [local-runtimes](../local-runtimes/SKILL.md). Open [FreeToken](../local-runtimes/references/freetoken.md); scripts stay in this directory.

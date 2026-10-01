@@ -12,7 +12,11 @@ The canonical [reflection checkpoints](../../references/reflection-checkpoints.m
 apply unchanged to repository and portable installed hosts.
 
 - Repository: `ShaftHQ/SHAFT_ENGINE`; default branch: `main`.
-- Agent commits must be signed with the enrolled GitHub GPG key `F79E3F65DB762CE1` before merge when that secret is on the machine. The owner's own email-matched commits (`Mohab.MohieElDeen@outlook.com`) are not unattributed changes when no second reviewer exists, so a green pull request must not stay blocked solely because those commits are unverified.
+- Personal authorizations (commit-signing key, owner email attribution,
+  artifact sharing) live in user-level config, never in this repository:
+  `~/.config/chaos-engine/authorizations.md` (Windows
+  `%APPDATA%\chaos-engine\authorizations.md`). Load it when present; without
+  it, ask before signing as, attributing to, or sharing for the owner.
 - Task branches use `ChaosEngine/*` and start from fetched `origin/main`.
 - Agents never manually start, rerun, or replace the `E2E Tests` or
   `Local E2E Tests` workflows. Smallest local proof and exact-head PR checks
@@ -45,13 +49,3 @@ to say "orchestrate".
 - Remaining chunks run one at a time, ordered by dependency then priority.
 - After a chunk's PR is merged, destroy that writer and start the next from a
   fresh `ChaosEngine/*` branch off fetched `origin/main`.
-
-## Standing artifact sharing authorization
-
-The standing authorization applies to artifacts produced for SHAFT repository
-tasks: they may be uploaded to Google Drive and set to **Anyone with the link —
-Viewer** without asking again, in present and future sessions. It covers only
-the intended task artifacts. It does not cover unrelated Drive content,
-folder-wide permission changes, editor access, or secret-bearing artifacts.
-Verify the intended artifact and resulting permission after each upload; if
-either scope or secret safety is uncertain, stop before publishing.

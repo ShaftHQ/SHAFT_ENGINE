@@ -52,26 +52,26 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 
 | ID | Host(s) | Severity | Gap | Evidence / next |
 | --- | --- | --- | --- | --- |
-| GAP-EXIT2 | Grok, Copilot | high | `HostCapability.process_exit2_honored=False`; ChaosEngine still returns deny exit 2 + native deny payload (`decision`/`permissionDecision`). Owner doctor surfaces `blockingGap`. | Proven by `tests/scripts/test_chaos_engine_exit2_fidelity.py`; fields on HOST_CAPABILITIES (#5579). |
-| GAP-SESSIONSTART | — (cleared) | info | ChaosEngine emits identical locator-only SessionStart context (`SESSION_START_MAX_BYTES`=4096) on all five hosts; residual risk is a host ignoring SessionStart output (companions still load via entrypoint). | Proven by `tests/scripts/test_chaos_engine_sessionstart_locator_parity.py` (#5580). |
-| GAP-HOOK-TRUST | Grok | medium | Project hook trust (`/hooks-trust`, projectTrusted) is host-gated; doctor stays healthy and reports sync-advisory until the operator trusts hooks. Never flip overall doctor to recovery-required for Grok trust alone when hosts verify is healthy. | Host onboarding card + grok_runtime_status (advisory); #5791. |
-| GAP-GROK-LEAN | Grok | medium | Dual Claude-compat + native `.grok` hooks double CE context; installer merges lean `[compat.*]` into user `~/.grok/config.toml`; optional `--lean-grok-skills`; skill adapters stay pointers. | [`grok_lean_config.py`](../grok_lean_config.py) + doctor sync-advisory; #5802 #5804 #5805. |
-| GAP-IMPL-COMPANIONS | all | medium | Implementation must load Caveman+Ponytail at ultra via portable overlay; not optional and not SessionStart-only. Doctor **self-heals** missing companions from CE vendor (official publish); agentic handoff with official repair/install only if heal fails. | `rematerialize_companions` + doctor; #5806 #5811. |
-| GAP-IDENTITY-MD | all | medium | Durable `.chaos-engine/identity.md` with protected Truth markers; SessionStart/instruction pointer inject; doctor create-on-heal. | [`identity_md.py`](../identity_md.py) + seed [`identity.md`](../identity.md); #5807. |
+| GAP-EXIT2 | Grok, Copilot | high | `HostCapability.process_exit2_honored=False`; ChaosEngine still returns deny exit 2 + native deny payload (`decision`/`permissionDecision`). Owner doctor surfaces `blockingGap`. | Proven by `tests/scripts/test_chaos_engine_exit2_fidelity.py`; fields on HOST_CAPABILITIES. |
+| GAP-SESSIONSTART | — (cleared) | info | ChaosEngine emits identical locator-only SessionStart context (`SESSION_START_MAX_BYTES`=4096) on all five hosts; residual risk is a host ignoring SessionStart output (companions still load via entrypoint). | Proven by `tests/scripts/test_chaos_engine_sessionstart_locator_parity.py`. |
+| GAP-HOOK-TRUST | Grok | medium | Project hook trust (`/hooks-trust`, projectTrusted) is host-gated; doctor stays healthy and reports sync-advisory until the operator trusts hooks. Never flip overall doctor to recovery-required for Grok trust alone when hosts verify is healthy. | Host onboarding card + grok_runtime_status (advisory);. |
+| GAP-GROK-LEAN | Grok | medium | Dual Claude-compat + native `.grok` hooks double CE context; installer merges lean `[compat.*]` into user `~/.grok/config.toml`; optional `--lean-grok-skills`; skill adapters stay pointers. | [`grok_lean_config.py`](../grok_lean_config.py) + doctor sync-advisory. |
+| GAP-IMPL-COMPANIONS | all | medium | Implementation must load Caveman+Ponytail at ultra via portable overlay; not optional and not SessionStart-only. Doctor **self-heals** missing companions from CE vendor (official publish); agentic handoff with official repair/install only if heal fails. | `rematerialize_companions` + doctor. |
+| GAP-IDENTITY-MD | all | medium | Durable `.chaos-engine/identity.md` with protected Truth markers; SessionStart/instruction pointer inject; doctor create-on-heal. | [`identity_md.py`](../identity_md.py) + seed [`identity.md`](../identity.md);. |
 | GAP-MARKETPLACE-CLI | Claude, Codex | low | Marketplace/plugin auto-activation needs host CLI on PATH; absent CLI still installs adapters but activation is manual. | Onboarding cards. |
 | GAP-COPILOT-DETECT | Copilot | low | Detection is soft (`gh` / `code` / `cursor`); IDE/cloud hosting is outside install probes. | Onboarding card. |
 | GAP-GEMINI-NODE | Gemini | low | Hook launcher needs Node.js; unsupported native events remain explicit capability gaps. | Onboarding card + launch.js. |
-| GAP-OPENCODE-HOOKS | OpenCode | medium | Instruction-only host: reads `AGENTS.md`, no project hook runtime ChaosEngine can install. The read gate and SessionStart locators are replaced by the research-receipt `retrieve:` field and the Learning Session check. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt; #6178. |
-| GAP-CURSOR-HOOKS | Cursor | medium | Instruction-only host: reads `AGENTS.md` (and project rules); no portable pre-tool hook. Same receipt substitution as OpenCode. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt; #6178. |
-| GAP-GROKBOT-HOOKS | Grok Bot | medium | Instruction-only cloud agent: reads `AGENTS.md` from the checkout; no hook runtime. Same receipt substitution; `worktree_overlay.py verify` reports it as instruction-only. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt; #6178. |
-| GAP-GROK-BUNDLED | Grok | info | Grok product bundled skills (pdf/pptx/imagine/game-*) and session GitHub MCP cannot be deleted from the install tree. CE does not vendor them; doctor strips user GitHub MCP when gh is healthy and documents this limit. | #5780 #5785; prefer-cli-over-mcp. |
+| GAP-OPENCODE-HOOKS | OpenCode | medium | Instruction-only host: reads `AGENTS.md`, no project hook runtime ChaosEngine can install. The read gate and SessionStart locators are replaced by the research-receipt `retrieve:` field and the Learning Session check. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
+| GAP-CURSOR-HOOKS | Cursor | medium | Instruction-only host: reads `AGENTS.md` (and project rules); no portable pre-tool hook. Same receipt substitution as OpenCode. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
+| GAP-GROKBOT-HOOKS | Grok Bot | medium | Instruction-only cloud agent: reads `AGENTS.md` from the checkout; no hook runtime. Same receipt substitution; `worktree_overlay.py verify` reports it as instruction-only. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
+| GAP-GROK-BUNDLED | Grok | info | Grok product bundled skills (pdf/pptx/imagine/game-*) and session GitHub MCP cannot be deleted from the install tree. CE does not vendor them; doctor strips user GitHub MCP when gh is healthy and documents this limit. | prefer-cli-over-mcp. |
 | GAP-GROK-CAVEMAN | — (cleared) | info | Always-on CE card (`caveman=ultra` in `hooks/lifecycle.py`) is the Grok communication constitution. Do not copy Caveman skill bodies into `AGENTS.md`. | Closed: locator-only host guidance plus lifecycle ultra selector. No proxy. |
 
 
 
-## Official self-heal (#5811)
+## Official self-heal
 
-Doctor runs each required third party's **official install command** (or CE vendor rematerialize for Caveman/Ponytail) before agentic handoff. Inventory and heal wiring live in [`official_self_heal.py`](../official_self_heal.py) + `chaos-engine/INSTALL.md` (repo-only). Opt-out `--without-*` stays off. Parent epic: #5803.
+Doctor runs each required third party's **official install command** (or CE vendor rematerialize for Caveman/Ponytail) before agentic handoff. Inventory and heal wiring live in [`official_self_heal.py`](../official_self_heal.py) + `chaos-engine/INSTALL.md` (repo-only). Opt-out `--without-*` stays off. Parent epic:.
 
 ## How to refresh
 

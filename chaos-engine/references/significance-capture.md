@@ -1,4 +1,4 @@
-# Significance-filtered mid-session capture (#5658 / Top 10 #4)
+# Significance-filtered mid-session capture
 
 
 Module: [`significance.py`](../significance.py).

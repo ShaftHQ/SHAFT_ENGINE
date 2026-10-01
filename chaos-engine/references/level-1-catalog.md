@@ -37,8 +37,8 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Retrieve-first | A store can shorten discovery; one bounded attempt | [`retrieve-first.md`](retrieve-first.md) |
 | Research receipt | Before implementation mutation; triage scales depth | [`research-receipt.md`](research-receipt.md) |
 | Delivery phase gates | Phase ledger / research-before-mutation enforcement | [`delivery-phase-gates.md`](delivery-phase-gates.md) |
-| Codacy Complexity gate | Classifier / interaction PRs; Complexity ACTION_REQUIRED == unit red | [`codacy-complexity-gate.md`](codacy-complexity-gate.md) |
-| Codacy ACTION_REQUIRED gate | Any ≥medium Codacy ACTION_REQUIRED (any category) == unit red; never arm auto-merge on it | [`codacy-action-required-gate.md`](codacy-action-required-gate.md) |
+| Complexity gate | Hot-spot dispatch PRs; Complexity ACTION_REQUIRED == unit red | [`complexity-gate.md`](complexity-gate.md) |
+| Static-analysis ACTION_REQUIRED gate | Any ≥medium static-analysis ACTION_REQUIRED (any category) == unit red; never arm auto-merge on it | [`static-analysis-gate.md`](static-analysis-gate.md) |
 | CI status economy | Babysit: digest-only CI status, one status channel, fingerprint-first logs, executor prompt schema | [`ci-status-economy.md`](ci-status-economy.md) |
 | Tip-churn preflight | Before push: B607, README inventory, Memory content_hash; batch micro-fixes | [`tip-churn-preflight.md`](tip-churn-preflight.md) |
 | Eval-parity fixtures | Cross-host CE policy fixture suite | [`eval-parity-fixtures.md`](eval-parity-fixtures.md) |

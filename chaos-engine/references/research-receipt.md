@@ -81,11 +81,11 @@ OpenCode, Cursor and Grok Bot load `AGENTS.md` but run no project hook, so the
 `retrieve:` field replaces the read gate. Write the receipt to
 `.chaos-engine-state/research-receipt.md` (untracked); `tool.py retrieve`
 also fills the retrieve ledger. `learning_session.py finalize --host <id>`
-flags `missing-retrieve-receipt` when neither exists; it never blocks (#6201).
+flags `missing-retrieve-receipt` when neither exists; it never blocks.
 
-Receipt shims (#6218): Copilot cloud opens it in its setup job; install and `repair --component hooks` wire the
+Receipt shims: Copilot cloud opens it in its setup job; install and `repair --component hooks` wire the
 [receipt shim](../hooks/receipt_shim.py) for each host with a project marker or
-CLI on PATH, and uninstall removes it (#6230); it opens a pending receipt before the first
+CLI on PATH, and uninstall removes it; it opens a pending receipt before the first
 project read, never blocks, never overwrites, and never fills `retrieve:`.
 
 | Host | Native surface | Verdict |

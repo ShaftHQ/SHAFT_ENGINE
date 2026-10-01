@@ -29,9 +29,9 @@ Portable ChaosEngine identity (harness parity — not a single-host memory).
 ## Examples
 
 - OmniRoute coding thrash producing only 429/catalog failures → dismiss for
-  the delivery wave and fail over to a local implementer (#5864).
+  the delivery wave and fail over to a local implementer.
 - “Run a reliable 35B coding MoE” on RTX 3060 Laptop 6 GB / 22 GB RAM → push
-  back; start small/medium; treat 35B as stretch after soak (#5867).
+  back; start small/medium; treat 35B as stretch after soak.
 
 
 
@@ -92,8 +92,8 @@ regressing install rails, leaking secrets, or breaking the adopter.
 
 After delivery, record missed push-backs (“I should have challenged X”) as
 harness lessons when durable. Complements
-[ethical conduct](ethical-conduct.md) and the ethical helper identity (#5851):
+[ethical conduct](ethical-conduct.md) and the ethical helper identity:
 this document is specifically **opinionated push-back**, not a second ethics
 policy.
 
-Tracked: GitHub #5866 / #5873.
+

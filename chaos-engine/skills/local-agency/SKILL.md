@@ -38,13 +38,13 @@ first.
 - Installer / doctor / status must **not** fail because OpenCode or a local
   runtime is missing.
 - Never bind or probe a non-loopback URL from ChaosEngine.
-- **ROG FreeToken bind (#6021):** Task/box writers must **not** claim FreeToken.
+- **ROG FreeToken bind:** Task/box writers must **not** claim FreeToken.
   `dispatch.py resolve --prefer freetoken` and
   [`require_rog_freetoken.py`](scripts/require_rog_freetoken.py) fail closed unless
   the hostname looks like ROG, cwd is the operator ROG checkout (see
   local-agency guide (repo-only `chaos-engine/guides/local-agency.md`)), or
   `CE_ALLOW_BOX_LOCAL_AGENCY=1`. Process-owner Shell with `machineId` on ROG is **mandatory** for ROG
-  FreeToken/OpenCode writers (#6051). Do **not** dispatch those writers via
+  FreeToken/OpenCode writers. Do **not** dispatch those writers via
   Task until Grok Bot exposes `machineId` to Task/executor Shell. Diagnostic:
   [`assert_parent_rog_shell.py`](scripts/assert_parent_rog_shell.py). Clear error when FreeToken
   is not READY on this host.
@@ -77,8 +77,8 @@ python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp 
 python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp chat --prompt '…' --with-ce-brief
 ```
 
-Do not dump full SKILL bodies into the model context (#6067/#6068).
-Unit/eval contracts: [`ce-brief-unit-fixtures.json`](../../evals/ce-brief-unit-fixtures.json) (#6072).
+Do not dump full SKILL bodies into the model context.
+Unit/eval contracts: [`ce-brief-unit-fixtures.json`](../../evals/ce-brief-unit-fixtures.json).
 
 
 ## CE project pointers (OpenCode preflight)
@@ -90,10 +90,10 @@ target worktree has ChaosEngine project pointers:
 - `.agents/skills/chaos-engine/` (install-generated skill adapter)
 
 `--pure` only disables external plugins; it does **not** load ChaosEngine and does **not**
-replace those pointers (#6070). Missing pointers → `state=UNHEALTHY` with `ce_pointers.missing`.
+replace those pointers. Missing pointers → `state=UNHEALTHY` with `ce_pointers.missing`.
 
 
-## Dispatch modes (#6073)
+## Dispatch modes
 
 `--mode mechanical` (**default** for small local coding models / 7B tool loops): treat the
 prompt as one bounded apply command; do not auto-attach CE brief (still allowed via
@@ -108,7 +108,7 @@ Design/spec turns must follow [design-turn-contract.md](references/design-turn-c
 
 
 Parent parser uses `allow_abbrev=False` so `--mode` cannot abbreviate to `--model`
-(#6087). Keep that guard when adding short overlapping flags.
+. Keep that guard when adding short overlapping flags.
 
 ```text
 python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --mode mechanical argv --prompt 'bash <abs-dir>/apply.sh'
@@ -118,16 +118,19 @@ python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --mode design argv
 ## Mechanical dispatch
 
 A READY local coder is a mechanical runner. Procedure:
-[mechanical-dispatch.md](references/mechanical-dispatch.md).
+[mechanical-dispatch.md](references/mechanical-dispatch.md). The OpenCode bash
+timeout is **120s**: after a timeout kill of an apply script, re-run the same
+idempotent script from the orchestrator so product files are not left
+half-applied.
 
-## Session token usage (#6069)
+## Session token usage
 
 When `dispatch.py chat` returns OpenAI-compat `usage` and `--session-id` is set, dispatch records
 `session_token_usage.py` with `--channel local` and a coarse `--runtime-class`
 (`freetoken` / `openai-compat` / `colibri`). Never write model or provider ids into the ledger.
 `brief` / `config` / `argv` do not call the model, so they do not record usage.
 
-## When to use local (#6171)
+## When to use local
 
 Implementers write code directly; this skill is optional. Use local only when the
 handoff cost is well below generation cost (bulk mechanical edits, spec or ticket
@@ -138,7 +141,7 @@ drafting, log summarization, offline or private work). See
 
 A chosen local writer needs an active coach: verify every artifact, give
 grounded feedback, and never let it finish unsupervised. Playbook:
-[coach-loop.md](references/coach-loop.md) (#6075).
+[coach-loop.md](references/coach-loop.md).
 
 ## Folded: local-coding-delegate
 
@@ -153,9 +156,9 @@ this skill when the adopter names OpenCode or “local agents”.
 - Local OpenAI-compat: [local-openai-compat](../local-runtimes/references/local-openai-compat.md)
 - OmniRoute (explicit cloud only): [omniroute](../local-runtimes/references/omniroute.md)
 - Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
-- Coach loop: [coach-loop.md](references/coach-loop.md) (#6075)
-- When to use local: [when-to-use-local.md](references/when-to-use-local.md) (#6171)
+- Coach loop: [coach-loop.md](references/coach-loop.md)
+- When to use local: [when-to-use-local.md](references/when-to-use-local.md)
 - Design-turn contract: [design-turn-contract.md](references/design-turn-contract.md)
 - Design-turn gate: [`design_turn_gate.py`](scripts/design_turn_gate.py)
-- Parent ROG Shell playbook: [parent-rog-shell.md](references/parent-rog-shell.md) (#6051)
-- Parent ROG Shell assert smoke: [test_assert_parent_rog_shell.py](scripts/tests/test_assert_parent_rog_shell.py) (#6051)
+- Parent ROG Shell playbook: [parent-rog-shell.md](references/parent-rog-shell.md)
+- Parent ROG Shell assert smoke: [test_assert_parent_rog_shell.py](scripts/tests/test_assert_parent_rog_shell.py)

@@ -70,7 +70,7 @@ criterion/invariant.
 | Criterion or invariant | Positive proof | Negative or mutation proof | Command |
 | --- | --- | --- | --- |
 
-Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each applicable scenario:
+Treat these as mandatory regression prompts when relevant. Cover each applicable scenario:
 
 - Effective working-directory/path resolution.
 - Interpreter/version/conditional dependency marker.

@@ -184,3 +184,55 @@ class LearningTriggerTests(unittest.TestCase):
             guard.reflection.entries = lambda _sid, e=entries: e
             with self.subTest(trigger=trigger):
                 self.assertIn("trigger fired", guard.learning_session_reason("s", {}))
+
+
+AGNOSTIC_SCOPES = (
+    "chaos-engine/references/",
+    "chaos-engine/skills/",
+    "chaos-engine/hooks/",
+    "chaos-engine/identity.md",
+    "chaos-engine/companions/",
+)
+LOCAL_LLM_SKILLS = (
+    "omniroute",
+    "local-agency",
+    "local-runtimes",
+    "local-openai-compat",
+    "colibri",
+    "freetoken",
+    "local-coding-delegate",
+)
+
+
+class AgnosticCoreTests(unittest.TestCase):
+    """CE-12/13/14 (#6354, #6355, #6356)."""
+
+    def test_allowlist_is_empty_for_the_agnostic_core_scopes(self):
+        allow = json.loads((ROOT / "scripts/ci/ce_lean_allowlist.json").read_text(encoding="utf-8"))
+        for kind in ("leaks", "issueTags"):
+            scoped = sorted(path for path in allow[kind] if path.startswith(AGNOSTIC_SCOPES))
+            self.assertEqual([], scoped, kind)
+        self.assertEqual({}, allow["nearDuplicates"])
+
+    def test_personal_authorizations_live_outside_the_repository(self):
+        for path in (CE / "profiles").rglob("*.md"):
+            text = path.read_text(encoding="utf-8")
+            for secret in ("F79E3F65", "Mohab.MohieElDeen@", "Anyone with the link"):
+                self.assertNotIn(secret, text, path)
+        entry = (CE / "profiles/shaft/entrypoint.md").read_text(encoding="utf-8")
+        self.assertIn("chaos-engine/authorizations.md", entry)
+
+    def test_local_llm_skills_share_one_router_entry(self):
+        router = _router_text()
+        rows = [line for line in router.splitlines() if "local-runtimes/SKILL.md" in line]
+        self.assertEqual(1, len(rows), rows)
+        pack = (CE / "skills/local-runtimes/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("references/loopback-runtime-contract.md", pack)
+        route = router.split("## Route", 1)[1].split("\n## ", 1)[0]
+        local_rows = [
+            line for line in route.splitlines()
+            if any(f"/{name}/SKILL.md" in line for name in LOCAL_LLM_SKILLS)
+        ]
+        self.assertEqual(1, len(local_rows), local_rows)
+        for name in LOCAL_LLM_SKILLS:
+            self.assertIn(f"{name}/SKILL.md", router, name)

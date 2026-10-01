@@ -175,9 +175,9 @@ a row that already exists.
 | `unspecified-predicate` | the rule re-guesses a decision the ticket never made | nothing -- it needs a ruling on the issue |
 | `credit-not-in-diff` | prose credits work the diff does not contain | the credit scan in `validate_pr_closing_keywords.py` |
 | `sibling-left` | the instance was fixed and its twin was not | the docstring duplicate scan in `validate_agent_guidance.py` |
-| `fires-on-correct-work` | the gate refuses work that satisfied it | nothing yet, and it is past three: R19 refusing an out-of-repo write, R13 refusing an already-merged branch (#4569), and the three in #4559 item 6 -- so it has earned that item's check, which runs every new rule against the branch adding it |
+| `fires-on-correct-work` | the gate refuses work that satisfied it | nothing yet, and it is past three: R19 refusing an out-of-repo write, R13 refusing an already-merged branch, and three more recorded refusals -- so it has earned that item's check, which runs every new rule against the branch adding it |
 | `live-state-in-tests` | the test's answer depends on the machine | `StopTestsAreIndependentOfLiveStateTest` |
-| `wrong-width-check` | the command measured is not the command that matters | nothing -- see #4559 item 3 |
+| `wrong-width-check` | the command measured is not the command that matters | nothing yet |
 
 ### Review disposition
 

@@ -136,7 +136,7 @@ gh issue close <tracker>
 
 ## 3c. GitHub sub-issues + CE program epic auto-close
 
-CE program epics (currently #5569, or any issue labeled `ce-program-epic`) track
+CE program epics (currently, or any issue labeled `ce-program-epic`) track
 delivery through **GitHub native sub-issues**, not checkbox prose alone.
 
 - File each subtask as a real issue and attach it as a sub-issue of the epic.

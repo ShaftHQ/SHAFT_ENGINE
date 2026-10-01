@@ -8,4 +8,4 @@ license: MIT
 
 # Local coding delegate (folded)
 
-Compatibility pointer: folded into [local-runtimes](../local-runtimes/SKILL.md) (#6200). Open [Local coding delegate (folded)](../local-runtimes/references/local-coding-delegate.md); scripts stay in this directory.
+Compatibility pointer: folded into [local-runtimes](../local-runtimes/SKILL.md). Open [Local coding delegate (folded)](../local-runtimes/references/local-coding-delegate.md); scripts stay in this directory.

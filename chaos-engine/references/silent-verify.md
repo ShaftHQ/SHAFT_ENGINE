@@ -11,7 +11,7 @@ actionable line.
 | Success | empty | empty | `0` |
 | Failure | empty | one actionable line | `2` (preferred) |
 
-Companion pattern: doctor `--fix-next-only` (#5582).
+Companion pattern: doctor `--fix-next-only`.
 
 ## Portable helper
 

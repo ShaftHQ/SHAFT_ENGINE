@@ -81,17 +81,11 @@ on explicit invocation.
 <!-- HARNESS-ROUTES:START -->
 | Route | Use when | Load |
 | --- | --- | --- |
+| Local LLM | optional local runtime or local agents | [local-runtimes](../local-runtimes/SKILL.md), [local-agency](../local-agency/SKILL.md), [omniroute](../omniroute/SKILL.md), [freetoken](../freetoken/SKILL.md), [colibri](../colibri/SKILL.md), [local-openai-compat](../local-openai-compat/SKILL.md), [local-coding-delegate](../local-coding-delegate/SKILL.md) |
 | work-item | open or rewrite an issue or work item | [SKILL.md](../work-item/SKILL.md) |
 | self-improve | Learning Session trigger fired | [SKILL.md](../self-improve/SKILL.md) |
 | kanban | several deliverables, tickets, or delegates | [SKILL.md](../kanban/SKILL.md) |
 | Git cleanup | dirty worktree or stray branches | [SKILL.md](../git-cleanup/SKILL.md) |
-| local-agency | delegate to local OSS agents | [SKILL.md](../local-agency/SKILL.md) |
-| local-runtimes | pick a local inference runtime | [SKILL.md](../local-runtimes/SKILL.md) |
-| omniroute | OmniRoute runtime selected | [SKILL.md](../omniroute/SKILL.md) |
-| freetoken | FreeToken runtime selected | [SKILL.md](../freetoken/SKILL.md) |
-| colibri | Colibri runtime selected | [SKILL.md](../colibri/SKILL.md) |
-| local-openai-compat | loopback OpenAI-compatible server | [SKILL.md](../local-openai-compat/SKILL.md) |
-| local-coding-delegate | probe local hardware size class | [SKILL.md](../local-coding-delegate/SKILL.md) |
 | Zero-LLM first | install, doctor, repair by script | [zero-llm-catalog.md](../../references/zero-llm-catalog.md) |
 | Heal | drifted or unhealthy install | [heal-route.md](../../references/heal-route.md) |
 | Level-1 catalog | secondary skill or tool needed | [level-1-catalog.md](../../references/level-1-catalog.md) |
@@ -108,7 +102,7 @@ on explicit invocation.
 | Prefer CLI over MCP | CLI and MCP both fit | [prefer-cli-over-mcp.md](../../references/prefer-cli-over-mcp.md) |
 | No proxy | a task would add a traffic proxy | [no-proxy.md](../../references/no-proxy.md) |
 | GAP-EXIT2 UX | host ignores exit-2 hard blocks | [host-parity-matrix.md](../../references/host-parity-matrix.md) |
-| Codacy Complexity | static-analysis complexity gate | [codacy-complexity-gate.md](../../references/codacy-complexity-gate.md) |
+| Complexity gate | static-analysis complexity gate | [complexity-gate.md](../../references/complexity-gate.md) |
 <!-- HARNESS-ROUTES:END -->
 
 ## Catalog

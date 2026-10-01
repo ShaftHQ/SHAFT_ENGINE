@@ -1,7 +1,7 @@
 # Playbook: promotion and orchestrated runtime
 
 Moved out of [work-github-playbook.md](../work-github-playbook.md) so that file
-can take another lesson without deleting this guidance (#6313).
+can take another lesson without deleting this guidance.
 
 For a meaningful event, record an evidence-consistent `signal`, then `assess`
 it into a quarantined candidate using one distinct `--tracking-issue-url` per

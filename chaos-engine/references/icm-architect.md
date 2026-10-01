@@ -1,6 +1,6 @@
 # ICM Architect
 
-Installer-owned advisory companion (#6001). Upstream:
+Installer-owned advisory companion. Upstream:
 [RinDig/icm-architect](https://github.com/RinDig/icm-architect).
 
 ## Role
