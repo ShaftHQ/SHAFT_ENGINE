@@ -70,6 +70,93 @@ TRACE_LIMIT = 12 if (
     or os.environ.get("CHAOS_ENGINE_QUIET") == "1"
 ) else 40
 STALL_SECONDS = 8.0
+HEARTBEAT_SECONDS = 15.0
+LIVE_TRACE_CONCISE = 4
+SPINNER_UNICODE = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+SPINNER_ASCII = "-\\|/"
+# (unicode, ascii) pairs. Meaning never rides on color alone: every glyph has a
+# distinct ASCII fallback and a word (STATUS_WORDS) next to it where it matters.
+STATUS_GLYPHS = {
+    "ok": ("✓", "+"),
+    "fail": ("✗", "x"),
+    "warn": ("!", "!"),
+    "info": ("i", "i"),
+    "pending": ("·", " "),
+    "running": ("◉", "*"),
+}
+STATUS_WORDS = {
+    "ok": "done",
+    "fail": "failed",
+    "warn": "warning",
+    "info": "info",
+    "pending": "pending",
+    "running": "running",
+}
+UNHEALTHY_DOCTOR_STATUSES = frozenset(
+    {"degraded", "recovery-required", "broken", "failed", "unhealthy"}
+)
+UNICODE_PROBE = "✓✗◉·…█▀▄┬├┴╱◆⠋"
+
+
+def status_glyph(kind: str, *, unicode: bool) -> str:
+    """Return one status glyph with its ASCII fallback (#6325)."""
+    fancy, plain = STATUS_GLYPHS[kind]
+    return fancy if unicode else plain
+
+
+def terminal_color_enabled(*, tty: bool, environ=None) -> bool:
+    """Color only on a real terminal; honor NO_COLOR (no-color.org) and TERM=dumb."""
+    environ = os.environ if environ is None else environ
+    return bool(tty) and environ.get("TERM") != "dumb" and not environ.get("NO_COLOR")
+
+
+def ascii_forced(environ=None) -> bool:
+    """`CHAOS_ENGINE_ASCII=1` forces ASCII glyphs even on a UTF-8 terminal."""
+    environ = os.environ if environ is None else environ
+    return environ.get("CHAOS_ENGINE_ASCII") == "1"
+
+
+def verbose_enabled(environ=None) -> bool:
+    """`CHAOS_ENGINE_VERBOSE=1` (or `--verbose`) streams every trace line."""
+    environ = os.environ if environ is None else environ
+    return environ.get("CHAOS_ENGINE_VERBOSE") == "1"
+
+
+def stream_supports_unicode(stream) -> bool:
+    """True when the stream can encode the installer glyph set and ASCII is not forced."""
+    if ascii_forced():
+        return False
+    try:
+        UNICODE_PROBE.encode(getattr(stream, "encoding", None) or "utf-8")
+    except (LookupError, UnicodeEncodeError):
+        return False
+    return True
+
+
+def stream_is_tty(stream) -> bool:
+    if os.environ.get("TERM") == "dumb":
+        return False
+    isatty = getattr(stream, "isatty", None)
+    try:
+        return bool(isatty()) if callable(isatty) else False
+    except (OSError, ValueError):
+        return False
+
+
+def harden_stream_encoding(stream) -> None:
+    """Windows legacy consoles (cp1252/cp437) must never crash on a glyph or path."""
+    reconfigure = getattr(stream, "reconfigure", None)
+    if not callable(reconfigure):
+        return
+    try:
+        UNICODE_PROBE.encode(getattr(stream, "encoding", None) or "utf-8")
+        return
+    except (LookupError, UnicodeEncodeError):
+        pass
+    try:
+        reconfigure(errors="replace")
+    except (AttributeError, OSError, ValueError):
+        return
 MAX_ISSUE_URL_CHARS = 7800
 MAX_ISSUE_BODY_CHARS = 60000
 HEAL_HANDOFF_RELATIVE = ".chaos-engine-state/heal-handoff.md"
@@ -751,8 +838,12 @@ class InstallReporter:
         self._thread: threading.Thread | None = None
         self._lines = 0
         self._tty = self._stderr_is_tty()
-        self._color = self._tty and "NO_COLOR" not in os.environ
-        self._unicode = self._encodable("✓◉·…█▀▄┬├┴╱◆")
+        self._color = terminal_color_enabled(tty=self._tty)
+        self._unicode = self._encodable(UNICODE_PROBE) and not ascii_forced()
+        self._verbose = verbose_enabled()
+        self._frame = 0
+        self._last_heartbeat: float | None = None
+        self.failed_operation: str | None = None
         if self._tty and os.name == "nt" and not self._enable_windows_vt():
             self._color = False
         if os.environ.get("CHAOS_ENGINE_BRAND_SHOWN") != "1":
@@ -797,7 +888,7 @@ class InstallReporter:
             self.trace_count += 1
             if self._tty:
                 self._render_locked()
-            else:
+            elif self._verbose:
                 self.stream.write(self._truncate(f"  {message}") + "\n")
                 self.stream.flush()
 
@@ -915,7 +1006,9 @@ class InstallReporter:
                     if detail and self._unicode
                     else (f" - {detail}" if detail else "")
                 )
-                self.stream.write(self._truncate(f"START {operation}{suffix}") + "\n")
+                self.stream.write(
+                    self._truncate(f"{self._step_label(operation)}START {operation}{suffix}") + "\n"
+                )
                 self.stream.flush()
 
     def complete(self, operation: str, *, remaining: tuple[str, ...] = ()) -> None:
@@ -938,11 +1031,37 @@ class InstallReporter:
             if self._tty:
                 self._render_locked()
             else:
-                self.stream.write(f"DONE  {operation}\n")
+                self.stream.write(f"{self._step_label(operation)}DONE  {operation}\n")
                 self.stream.write(
                     f"[+{self._duration(now - self.started)}] PASS {operation} "
                     f"({self._duration(duration)})\n"
                 )
+                self.stream.flush()
+
+    @property
+    def color_enabled(self) -> bool:
+        """Whether this reporter paints ANSI color (TTY, NO_COLOR unset, VT ready)."""
+        return self._color
+
+    def enable_verbose(self) -> None:
+        """Stream every trace line (`--verbose`)."""
+        self._verbose = True
+
+    def fail(self) -> None:
+        """Mark the running step failed so the last frame never says `running` (#6325)."""
+        with self._lock:
+            operation = self.current_operation or (self._in_flight[-1] if self._in_flight else None)
+            if operation is None:
+                return
+            self._pause_current(self.clock())
+            self.failed_operation = operation
+            self.history.append((self.clock() - self.started, "FAIL", operation, 0.0))
+            self.traces.append((self.clock() - self.started, f"FAIL {operation}"))
+            self.trace_count += 1
+            if self._tty:
+                self._render_locked()
+            else:
+                self.stream.write(f"{self._step_label(operation)}FAIL  {operation}\n")
                 self.stream.flush()
 
     def begin_download(self, total: int | None, *, detail: str | None = None) -> None:
@@ -980,7 +1099,46 @@ class InstallReporter:
     def _ticker(self) -> None:
         while not self._stop.wait(1.0):
             with self._lock:
-                self._render_locked()
+                self._frame += 1
+                if self._tty:
+                    self._render_locked()
+                else:
+                    self._heartbeat_locked()
+
+    def _heartbeat_locked(self) -> None:
+        """Pipes/CI get one plain line per stall window, never ANSI redraw frames."""
+        now = self.clock()
+        if not self._transfer_stalled(now):
+            return
+        if self._last_heartbeat is not None and now - self._last_heartbeat < HEARTBEAT_SECONDS:
+            return
+        self._last_heartbeat = now
+        operation = self.current_operation or "install"
+        self.stream.write(
+            self._truncate(
+                f"  ... waiting for data ({operation}, +{self._duration(now - self.started)})"
+            )
+            + "\n"
+        )
+        self.stream.flush()
+
+    def _operations(self) -> list[str]:
+        return list(
+            dict.fromkeys(
+                [
+                    *self.completed_operations,
+                    *self._in_flight,
+                    *([self.current_operation] if self.current_operation else []),
+                    *self.remaining_operations,
+                ]
+            )
+        )
+
+    def _step_label(self, operation: str) -> str:
+        operations = self._operations()
+        if operation not in operations:
+            return ""
+        return f"[{operations.index(operation) + 1}/{len(operations)}] "
 
     def _transfer_stalled(self, now: float) -> bool:
         return bool(
@@ -1010,19 +1168,14 @@ class InstallReporter:
         return f"{value:.1f} {units[-1]}"
 
     def _render_locked(self) -> None:
-        operations = list(
-            dict.fromkeys(
-                [
-                    *self.completed_operations,
-                    *self._in_flight,
-                    *([self.current_operation] if self.current_operation else []),
-                    *self.remaining_operations,
-                ]
-            )
-        )
+        operations = self._operations()
         now = self.clock()
         elapsed = max(0.0, now - self.started)
-        check, active, empty = (("✓", "◉", " ") if self._unicode else ("x", "*", " "))
+        frames = SPINNER_UNICODE if self._unicode else SPINNER_ASCII
+        check = status_glyph("ok", unicode=self._unicode)
+        active = frames[self._frame % len(frames)]
+        empty = status_glyph("pending", unicode=self._unicode)
+        name_width = max((len(item) for item in operations), default=0)
         lines = [""]
         if self.project_root:
             lines.append(self._aligned_live_row("Project", self.project_root))
@@ -1033,16 +1186,23 @@ class InstallReporter:
         for item in operations:
             if item in self.completed_operations:
                 duration = self._duration(self._completed_elapsed.get(item, 0.0))
-                lines.append(self._paint(self._truncate(f"  [{check}] {item}  {duration}"), "32"))
+                lines.append(
+                    self._paint(self._truncate(f"  [{check}] {item:<{name_width}}  {duration}"), "32")
+                )
+            elif item == self.failed_operation:
+                failed = status_glyph("fail", unicode=self._unicode)
+                lines.append(
+                    self._paint(self._truncate(f"  [{failed}] {item:<{name_width}}  failed"), "31")
+                )
             elif item == self.current_operation or item in self._in_flight:
                 lines.append(
                     self._paint(
-                        self._truncate(f"  [{active}] {item}  running"),
+                        self._truncate(f"  [{active}] {item:<{name_width}}  running"),
                         ION_BLUE,
                     )
                 )
             else:
-                lines.append(self._truncate(f"  [{empty}] {item}"))
+                lines.append(self._paint(self._truncate(f"  [{empty}] {item}"), "2"))
         separator = " · " if self._unicode else " | "
         done = sum(1 for item in operations if item in self.completed_operations)
         total = len(operations)
@@ -1052,9 +1212,10 @@ class InstallReporter:
             metrics.append(self._size(rate))
         if self._transfer_stalled(now):
             metrics.append("waiting for data")
-        log = self.traces[-TRACE_LIMIT:] or [
+        limit = TRACE_LIMIT if self._verbose else min(TRACE_LIMIT, LIVE_TRACE_CONCISE)
+        log = self.traces[-limit:] or [
             (ended, f"{result} {operation} ({self._duration(duration)})")
-            for ended, result, operation, duration in self.history[-TRACE_LIMIT:]
+            for ended, result, operation, duration in self.history[-limit:]
         ]
         trace_path = self.trace_path or Path(".chaos-engine-state/install-trace.json")
         lines.extend(
@@ -1230,7 +1391,7 @@ def _align_report(label: str, value: str, *, color: bool = False) -> str:
 
 
 def format_first_session_brief(*, clients: dict[str, object] | None = None) -> str:
-    """Return bun-style next steps plus a First-session brief synonym heading."""
+    """Return the First-session brief heading followed by three numbered next steps."""
     client_names = sorted(clients) if isinstance(clients, dict) else []
     if client_names:
         open_host = (
@@ -1244,11 +1405,11 @@ def format_first_session_brief(*, clients: dict[str, object] | None = None) -> s
             "(Codex, Claude Code, Grok, Gemini, or GitHub Copilot)."
         )
     lines = [
-        "To get started:",
-        f"    {open_host}",
-        "    Ask the agent to load / use the `chaos-engine` skill.",
-        "    Run a small sample task (for example: ask doctor status, or a one-file reversible edit).",
         "First-session brief:",
+        "  To get started:",
+        f"    1. {open_host}",
+        "    2. Ask the agent to load / use the `chaos-engine` skill.",
+        "    3. Run a small sample task (for example: ask doctor status, or a one-file reversible edit).",
     ]
     return "\n".join(lines) + "\n"
 
@@ -1262,6 +1423,14 @@ def format_landed_untracked_lines() -> list[str]:
         "    (`.chaos-engine-runtime*`, dependency/host receipts, `graphify-out`, local tool caches).",
         "    Canonical adapters and config stay trackable.",
     ]
+
+
+def _doctor_glyph_kind(doctor_status: str) -> str:
+    if doctor_status == "healthy":
+        return "ok"
+    if doctor_status in UNHEALTHY_DOCTOR_STATUSES:
+        return "warn"
+    return "info"
 
 
 def format_install_report(
@@ -1280,8 +1449,15 @@ def format_install_report(
     unicode: bool = False,
     width: int = 80,
 ) -> str:
-    """Render the unattended finish receipt (bun/uv rhythm, rustup table)."""
-    headline = _report_style("Installation Successful!", "32", enabled=color)
+    """Render the finish receipt: headline, aligned facts, numbered next steps (#6325)."""
+    unhealthy = doctor_status in UNHEALTHY_DOCTOR_STATUSES
+    tone = "33" if unhealthy else "32"
+    title = "Installed with warnings" if unhealthy else "Installation Successful!"
+    glyph = status_glyph("warn" if unhealthy else "ok", unicode=unicode)
+    headline = (
+        f"{_report_style(glyph, tone, enabled=color)} "
+        f"{_report_style(title, tone, enabled=color)}"
+    )
     lines = ["", f"  {headline}  ({elapsed})"]
     if width >= 48:
         rule = "──" if unicode else "--"
@@ -1292,19 +1468,16 @@ def format_install_report(
         lines.append(_align_report("Source", source_label, color=color))
     if commit is not None:
         short = commit[:12] + ("…" if unicode else "...") if len(commit) == 40 else commit
-        remainder = commit[12:] if len(commit) == 40 else ""
-        if remainder and color:
-            short = short + _report_style(remainder, "2", enabled=True)
         lines.append(_align_report("Commit", short, color=color))
-        lines.append(f"Resolved commit: {commit}")
+    doctor_glyph = status_glyph(_doctor_glyph_kind(doctor_status), unicode=unicode)
+    doctor_value = f"{doctor_glyph} {doctor_status}"
     if total:
-        doctor_line = f"Doctor: {doctor_status} ({healthy}/{total} components healthy)"
-    else:
-        doctor_line = f"Doctor: {doctor_status}"
-    lines.append(doctor_line)
+        doctor_value += f"  {healthy}/{total} components"
+    lines.append(_align_report("Doctor", doctor_value, color=color))
     client_names = sorted(clients) if isinstance(clients, dict) else []
-    if client_names:
-        lines.append(f"Clients: {', '.join(client_names)}")
+    lines.append(
+        _align_report("Hosts", ", ".join(client_names) or "none activated yet", color=color)
+    )
     lines.append("")
     started = format_first_session_brief(clients=clients).rstrip("\n")
     if color:
@@ -1337,9 +1510,21 @@ def format_install_report(
         guide_shown = f"\x1b]8;;{guide}\x1b\\{guide}\x1b]8;;\x1b\\"
     lines.append(_align_report("Guide", guide_shown, color=color))
     trace = install_trace_path(Path(project)).as_posix()
-    trace_value = _report_style(trace, "2", enabled=color)
-    lines.append(_align_report("Trace", trace_value, color=color))
-    lines.append(f"Full install trace: {trace}")
+    # Stable machine-readable receipt lines (agents and tests parse these).
+    receipt = []
+    if commit is not None:
+        receipt.append(f"Resolved commit: {commit}")
+    if total:
+        receipt.append(f"Doctor: {doctor_status} ({healthy}/{total} components healthy)")
+    else:
+        receipt.append(f"Doctor: {doctor_status}")
+    if client_names:
+        receipt.append(f"Clients: {', '.join(client_names)}")
+    receipt.append(f"Full install trace: {trace}")
+    lines.append(_align_report("Receipt", _report_style(receipt[0], "2", enabled=color), color=color))
+    lines.extend(
+        "             " + _report_style(item, "2", enabled=color) for item in receipt[1:]
+    )
     lines.extend(format_landed_untracked_lines())
     lines.append("")
     return "\n".join(lines) + "\n"
@@ -1513,33 +1698,39 @@ def run_first_run_wizard(
     hosts = detect_install_hosts(which=which)
     present = [label for _host_id, label, found in hosts if found]
     absent = [label for _host_id, label, found in hosts if not found]
+    unicode = stream_supports_unicode(output)
+    found_glyph = status_glyph("ok", unicode=unicode)
+    missing_glyph = status_glyph("pending", unicode=unicode)
     output.write("ChaosEngine first-run wizard\n")
     output.write(_align_report("Project", str(project)) + "\n")
     output.write(_align_report("Source", repository) + "\n")
+    output.write("\n  1. What gets installed\n")
     output.write(
-        "This install will add the portable ChaosEngine core, lifecycle hooks, "
-        "Memory, MemPalace, Graphify CLI, five host adapters, and the Caveman + "
-        "Ponytail companion skills (on by default; your off-switches still win).\n"
+        "     The portable ChaosEngine core, lifecycle hooks, Memory, MemPalace,\n"
+        "     Graphify CLI, five host adapters, and the Caveman + Ponytail companion\n"
+        "     skills (on by default; your off-switches still win).\n"
     )
     if with_maven_tools:
-        output.write("Maven Tools MCP will also be installed for this project.\n")
+        output.write("     Maven Tools MCP will also be installed for this project.\n")
+    output.write("\n  2. Hosts\n")
     if present:
-        output.write("Detected host CLIs: " + ", ".join(present) + "\n")
+        output.write("     Detected host CLIs: " + ", ".join(present) + "\n")
     else:
         output.write(
-            "No host CLIs detected yet (Claude Code, Codex, Grok, Gemini, or IDE). "
-            "Adapters still install for all five hosts.\n"
+            "     No host CLIs detected yet (Claude Code, Codex, Grok, Gemini, or IDE).\n"
+            "     Adapters still install for all five hosts.\n"
         )
     if absent:
-        output.write("Not detected on PATH: " + ", ".join(absent) + "\n")
-    output.write("Hosts\n")
-    for host_id, label, found in hosts:
+        output.write("     Not detected on PATH: " + ", ".join(absent) + "\n")
+    for _host_id, label, found in hosts:
+        glyph = found_glyph if found else missing_glyph
         status = "on PATH" if found else "not on PATH"
-        output.write(f"    {label:<16} {status}\n")
-    output.write("Next after install:\n")
+        output.write(f"       {glyph} {label:<16} {status}\n")
+    output.write("\n  3. Next after install\n")
     for host_id, label, found in hosts:
-        marker = "*" if found else "-"
-        output.write(f"  {marker} {label}: {HOST_NEXT_ACTIONS[host_id]}\n")
+        glyph = found_glyph if found else missing_glyph
+        output.write(f"     {glyph} {label}: {HOST_NEXT_ACTIONS[host_id]}\n")
+    output.write("\n")
     output.flush()
     confirm_operation("Install companions (Caveman + Ponytail) with the core", input_stream=input_stream, output=output)
     confirm_operation("Continue ChaosEngine install", input_stream=input_stream, output=output)
@@ -2193,6 +2384,11 @@ def parser() -> argparse.ArgumentParser:
         ),
     )
     result.add_argument("--interactive", action="store_true")
+    result.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Stream every trace line (same as CHAOS_ENGINE_VERBOSE=1).",
+    )
     return result
 
 
@@ -2374,6 +2570,60 @@ def publish_installer_issue(
     return encode_issue_form_url(repository, title, fields, extra=extra)
 
 
+def next_fix_hint(code: str, error: BaseException, prefix: str | None) -> str:
+    """Return exactly one actionable fix-next for every failure (#6325)."""
+    cause = one_line_cause(error).casefold()
+    rerun = "then rerun the same install one-liner."
+    rules = (
+        (
+            isinstance(error, InstallHealthError) or "doctor did not report" in cause,
+            "paste the heal prompt below into any supported host in this folder.",
+        ),
+        (
+            code == "CE-GITHUB-RATE-LIMIT",
+            'export GITHUB_TOKEN="$(gh auth token)" (or GH_TOKEN, or run '
+            f"`gh auth login`), {rerun}",
+        ),
+        ("checksum" in cause, f"check network/proxy interference, {rerun}"),
+        (
+            "timed out" in cause or "temporary failure" in cause or "network" in cause,
+            f"restore network connectivity, {rerun}",
+        ),
+        (
+            "python" in cause and ("not found" in cause or "required" in cause),
+            "install Python 3 (or leave it absent so the wrapper bootstraps uv), "
+            + rerun,
+        ),
+        (
+            "core is missing" in cause or "ce_core_missing" in cause,
+            "rerun the same install one-liner so ChaosEngine can restore "
+            ".chaos-engine under the existing host receipt (or uninstall, then install).",
+        ),
+        (
+            "no download found" in cause,
+            "the requested runtime is not downloadable yet; update ChaosEngine "
+            f"(newer releases fall back to the newest downloadable patch), {rerun}",
+        ),
+    )
+    for matched, hint in rules:
+        if matched:
+            return hint
+    if prefix:
+        return f"run `{prefix} doctor --project .` and follow each fix-next, {rerun}"
+    return f"attach the install trace to the issue below, {rerun}"
+
+
+def terminal_issue_link(issue_url: str, *, saved: bool, live: bool) -> str:
+    """Keep a multi-kilobyte prefilled URL off an interactive screen (#6325)."""
+    if not live or not saved or len(issue_url) <= 300:
+        return issue_url
+    label = issue_url.split("?", 1)[0] + " (prefilled installer report)"
+    return (
+        f"\x1b]8;;{issue_url}\x1b\\{label}\x1b]8;;\x1b\\\n"
+        f"Full URL: {HEAL_HANDOFF_RELATIVE}"
+    )
+
+
 def emit_install_failure(
     code: str,
     error: BaseException,
@@ -2383,8 +2633,21 @@ def emit_install_failure(
     opener=urllib.request.urlopen,
     token: str | None = None,
 ) -> str | None:
+    unicode = stream_supports_unicode(sys.stderr)
+    color = (
+        reporter.color_enabled
+        if reporter is not None
+        else terminal_color_enabled(tty=stream_is_tty(sys.stderr))
+    )
+    prefix = installer_cli_prefix(project)
     print(file=sys.stderr)
-    print("  Installation failed", file=sys.stderr)
+    print(
+        "  "
+        + _report_style(status_glyph("fail", unicode=unicode), "31", enabled=color)
+        + " "
+        + _report_style(f"Installation failed ({code})", "31", enabled=color),
+        file=sys.stderr,
+    )
     print(file=sys.stderr)
     if code == "CE-INSTALL-CANCELLED":
         print(f"{code}: installation interrupted", file=sys.stderr)
@@ -2392,40 +2655,7 @@ def emit_install_failure(
         print("Rerun the same install command to continue.", file=sys.stderr)
     else:
         print(f"{code}: {one_line_cause(error)}", file=sys.stderr)
-        cause = one_line_cause(error).casefold()
-        if isinstance(error, InstallHealthError) or "doctor did not report" in cause:
-            print(
-                "Next fix: paste the heal prompt below into any supported host in this folder.",
-                file=sys.stderr,
-            )
-        elif code == "CE-GITHUB-RATE-LIMIT":
-            print(
-                'Next fix: export GITHUB_TOKEN="$(gh auth token)" (or GH_TOKEN, or run '
-                "`gh auth login`), then rerun the same install one-liner.",
-                file=sys.stderr,
-            )
-        elif "checksum" in cause:
-            print(
-                "Next fix: check network/proxy interference, then rerun the same install one-liner.",
-                file=sys.stderr,
-            )
-        elif "timed out" in cause or "temporary failure" in cause or "network" in cause:
-            print(
-                "Next fix: restore network connectivity, then rerun the same install one-liner.",
-                file=sys.stderr,
-            )
-        elif "python" in cause and ("not found" in cause or "required" in cause):
-            print(
-                "Next fix: install Python 3 (or leave it absent so the wrapper bootstraps uv), "
-                "then rerun the same install one-liner.",
-                file=sys.stderr,
-            )
-        elif "core is missing" in cause or "ce_core_missing" in cause:
-            print(
-                "Next fix: rerun the same install one-liner so ChaosEngine can restore "
-                ".chaos-engine under the existing host receipt (or uninstall, then install).",
-                file=sys.stderr,
-            )
+        print(f"Next fix: {next_fix_hint(code, error, prefix)}", file=sys.stderr)
     print(file=sys.stderr)
     if project is not None:
         try:
@@ -2459,7 +2689,6 @@ def emit_install_failure(
             # Best-effort diagnostics only; path resolution/stat failures must not hide the install error.
             pass
     print(f"Help: {installer_help_url(repository)}", file=sys.stderr)
-    prefix = installer_cli_prefix(project)
     status_command = f"{prefix} status --project . --json" if prefix else None
     doctor_command = f"{prefix} doctor --project . --json" if prefix else None
     if prefix:
@@ -2497,7 +2726,14 @@ def emit_install_failure(
             print("Open issue:", file=sys.stderr)
         else:
             print("GitHub issue:", file=sys.stderr)
-        print(issue_url, file=sys.stderr)
+        print(
+            terminal_issue_link(
+                issue_url,
+                saved=project is not None and core_install_py(project),
+                live=stream_is_tty(sys.stderr) and color and unicode,
+            ),
+            file=sys.stderr,
+        )
         print(file=sys.stderr)
         print("Agent prompt (copy the backtick block):", file=sys.stderr)
         print(f"`{prompt}`", file=sys.stderr)
@@ -2510,8 +2746,11 @@ def emit_install_failure(
 
 
 def main() -> int:
+    harden_stream_encoding(sys.stderr)
     reporter = InstallReporter()
     args = parser().parse_args()
+    if getattr(args, "verbose", False):
+        reporter.enable_verbose()
     if getattr(args, "consumer", False):
         os.environ["CHAOS_ENGINE_CONSUMER"] = "1"
     try:
@@ -2541,6 +2780,7 @@ def main() -> int:
     except BaseException as error:
         if isinstance(error, SystemExit):
             raise
+        reporter.fail()
         reporter.close()
         code = classify_install_error(error)
         write_install_trace(

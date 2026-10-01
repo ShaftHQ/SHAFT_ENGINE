@@ -1196,5 +1196,95 @@ class DefaultMcpOptOutAcceptanceTest(TestCase):
         self.assertIn("with_mcp=False", source)
 
 
+
+LAG_DETAIL = (
+    "CE-INSTALL-FAILED: dependency command failed: uv: error: No download found for "
+    "request: cpython-3.14.8-linux-x86_64-gnu; failed phase: Provision dependencies; "
+    "unhealthy: not reported"
+)
+
+
+class BasePythonDownloadLag6325Test(TestCase):
+    """#6325: an immutable base that pins an undownloadable CPython is upstream lag."""
+
+    def test_lag_detection_is_exact(self):
+        module = load_acceptance()
+        base = module.KNOWN_BASE_SHA
+        command = module.public_wrapper_command(base, windows=False)
+        lag = module.AcceptanceCommandFailure(command, 1, LAG_DETAIL)
+        self.assertEqual("3.14.8", module.upstream_python_lag(lag))
+        windows = module.AcceptanceCommandFailure(
+            command, 1, LAG_DETAIL.replace("uv:", "uv.exe:").replace("linux-x86_64-gnu", "windows-x86_64-none")
+        )
+        self.assertEqual("3.14.8", module.upstream_python_lag(windows))
+        for detail in (
+            LAG_DETAIL.replace("Provision dependencies", "Verify installation"),
+            "CE-INSTALL-FAILED: dependency command failed: npm: error: EACCES; failed phase: Provision dependencies",
+            LAG_DETAIL.replace("cpython-3.14.8", "pypy-3.14.8"),
+        ):
+            with self.subTest(detail=detail):
+                self.assertIsNone(module.upstream_python_lag(module.AcceptanceCommandFailure(command, 1, detail)))
+        self.assertIsNone(module.upstream_python_lag(RuntimeError(LAG_DETAIL)))
+
+    def test_base_lag_skips_only_the_base_chain_and_still_runs_fresh_phases(self):
+        module = load_acceptance()
+        base = module.KNOWN_BASE_SHA
+        candidate = "c" * 40
+        installs = []
+
+        def wrapper(commit, project, **_kwargs):
+            installs.append((commit, project.name))
+            if commit == base:
+                raise module.AcceptanceCommandFailure(
+                    module.public_wrapper_command(base, windows=False), 1, LAG_DETAIL
+                )
+            state = project / ".chaos-engine-state/mempalace"
+            state.mkdir(parents=True, exist_ok=True)
+            state.joinpath(".mined").write_bytes(b"current\n")
+            project.joinpath(".chaos-engine-dependencies.json").write_text(
+                json.dumps({"commands": {"uv": "uv"}}), encoding="utf-8"
+            )
+
+        verify_results = iter(({"actions": {"uv": "installed"}}, {"actions": {"uv": "reused"}}))
+        evidence = {"phases": []}
+        with tempfile.TemporaryDirectory() as temporary, \
+                mock.patch.object(module, "run_public_wrapper_with_diagnostics", side_effect=wrapper), \
+                mock.patch.object(module, "verify_account_phase", side_effect=lambda *a, **k: dict(next(verify_results))), \
+                mock.patch.object(module, "account_receipt_commands", return_value={"uv": "uv"}), \
+                mock.patch.object(module, "assert_account_search_paths"), \
+                mock.patch.object(module, "assert_local_mempalace"), \
+                mock.patch.object(module, "assert_single_generated_mempalace"):
+            module.run_acceptance(Path(temporary), evidence, candidate_sha=candidate, base_sha=base)
+        statuses = {phase["name"]: phase["status"] for phase in evidence["phases"]}
+        self.assertEqual("skipped", statuses["base-public-wrapper"])
+        for name in (
+            "base-offline-no-mutation", "upgrade-candidate-wrapper",
+            "rollback-base-account-and-hosts", "reupgrade-candidate-wrapper",
+        ):
+            self.assertEqual("skipped", statuses[name])
+        self.assertEqual("pass", statuses["fresh-account-candidate-wrapper"])
+        self.assertEqual("pass", statuses["fresh-account-rerun"])
+        self.assertEqual("upstream-python-download-lag", evidence["baseUpgradeChain"]["reason"])
+        self.assertEqual("3.14.8", evidence["baseUpgradeChain"]["requestedPython"])
+        self.assertEqual([candidate, candidate], [commit for commit, _ in installs[1:]])
+
+    def test_non_lag_base_failure_still_fails_the_run(self):
+        module = load_acceptance()
+        base = module.KNOWN_BASE_SHA
+
+        def wrapper(commit, project, **_kwargs):
+            raise module.AcceptanceCommandFailure(
+                module.public_wrapper_command(base, windows=False), 1,
+                "CE-INSTALL-FAILED: dependency command failed: npm: error: EACCES; failed phase: Provision dependencies",
+            )
+
+        evidence = {"phases": []}
+        with tempfile.TemporaryDirectory() as temporary, \
+                mock.patch.object(module, "run_public_wrapper_with_diagnostics", side_effect=wrapper):
+            with self.assertRaises(module.AcceptancePhaseFailure):
+                module.run_acceptance(Path(temporary), evidence, candidate_sha="c" * 40, base_sha=base)
+        self.assertEqual("fail", evidence["phases"][0]["status"])
+
+
 if __name__ == "__main__":
     main()

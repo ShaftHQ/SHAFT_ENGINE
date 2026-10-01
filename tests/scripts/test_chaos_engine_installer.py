@@ -4227,18 +4227,20 @@ module.install_with_dependencies(project, source, "3" * 40)
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
             project.mkdir()
+            held = threading.Event()
             released = threading.Event()
             acquired = threading.Event()
             errors = []
 
             def holder():
                 with MODULE.project_lock(project, wait_seconds=0):
+                    held.set()
                     released.wait(timeout=5)
                     time_module.sleep(0.05)
 
             def waiter():
                 try:
-                    with MODULE.project_lock(project, wait_seconds=2.0):
+                    with MODULE.project_lock(project, wait_seconds=5.0):
                         acquired.set()
                 except Exception as error:  # noqa: BLE001 - collect for assertion
                     errors.append(error)
@@ -4246,7 +4248,9 @@ module.install_with_dependencies(project, source, "3" * 40)
             thread_holder = threading.Thread(target=holder)
             thread_waiter = threading.Thread(target=waiter)
             thread_holder.start()
-            time_module.sleep(0.05)
+            # #6325: never start the waiter before the holder owns the lock; a
+            # loaded runner can schedule the holder later than any fixed sleep.
+            self.assertTrue(held.wait(timeout=5))
             thread_waiter.start()
             time_module.sleep(0.1)
             self.assertFalse(acquired.is_set())

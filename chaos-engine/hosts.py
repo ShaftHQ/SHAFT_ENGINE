@@ -5223,9 +5223,23 @@ def doctor_digest(report: dict[str, object]) -> str:
         return f"ChaosEngine doctor: {status} ({len(items)} checks)" + hint
     lines = [f"ChaosEngine doctor: {status}; {len(failing)} failing"]
     for name, item in failing:
-        fix = item.get("fixNext") or item.get("fix_next") or item.get("detail") or ""
-        lines.append(f"- {name}: {item.get('status')}" + (f"; fix-next: {fix}" if fix else ""))
+        lines.extend(doctor_digest_row(name, item))
     return "\n".join(lines) + hint
+
+
+DIGEST_SEVERITY_BY_IMPACT = {"advisory": "warning", "optional": "info"}
+
+
+def doctor_digest_row(name: str, item: dict) -> list[str]:
+    """#6325: one failing check in the same row grammar as human `doctor`."""
+    impact = str(item.get("taskImpact") or "required")
+    severity = DIGEST_SEVERITY_BY_IMPACT.get(impact, "error")
+    suffix = f" ({impact})" if impact != "required" else ""
+    rows = [f"[{severity}] {name} — {item.get('status')}{suffix}"]
+    fix = item.get("fixNext") or item.get("fix_next") or item.get("detail") or ""
+    if fix:
+        rows.append(f"  fix-next: {fix}")
+    return rows
 
 
 HOOK_PYTHON_POINTER = ".chaos-engine-state/hook-python"

@@ -6444,7 +6444,8 @@ def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
         gap = str(meta.get("blockingGap") or "").strip()
         honored = meta.get("processExit2Honored", True)
         if gap and honored is False:
-            lines.append(f"warning  host/{host}: {gap}")
+            # #6325: same "[severity] name — detail" row grammar as components.
+            lines.append(f"[warning] host/{host} — {gap}")
     return lines
 
 
@@ -6562,9 +6563,7 @@ def format_fix_next_only(document: dict[str, object]) -> str:
             if fix:
                 lines.append(f"{name}: {fix}")
     lines.extend(
-        line.split("warning  ", 1)[-1]
-        if line.startswith("warning  ")
-        else line
+        line.removeprefix("[warning] ").replace(" — ", ": ", 1)
         for line in format_blocking_fidelity_warnings(document)
     )
     return ("\n".join(lines) + "\n") if lines else ""

@@ -362,6 +362,95 @@ def prerequisite_command_plan(
     return plan
 
 
+
+UV_PYTHON_VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+
+
+def uv_downloadable_python(
+    uv_command: str, requested: str, minimum: str, project: Path, *, runner=subprocess.run
+) -> str | None:
+    """#6325: newest CPython uv can download, never newer than the stable channel.
+
+    python.org can publish a patch (for example 3.14.8) days before uv's
+    download metadata knows it, and ``uv python install 3.14.8`` then fails.
+    Returns ``None`` when uv cannot be asked, so callers keep the request.
+    """
+    match = UV_PYTHON_VERSION.fullmatch(requested or "")
+    if match is None:
+        return None
+    try:
+        result = _run_account_command(
+            [
+                uv_command, "python", "list", "--only-downloads", "--all-versions",
+                "--output-format", "json", f"{match.group(1)}.{match.group(2)}",
+            ],
+            project,
+            runner=runner,
+            timeout=120,
+        )
+        entries = json.loads(result.stdout or "[]")
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+        return None
+    if not isinstance(entries, list):
+        return None
+    candidates = {
+        str(entry.get("version"))
+        for entry in entries
+        if isinstance(entry, dict)
+        and entry.get("implementation") == "cpython"
+        and entry.get("variant", "default") == "default"
+        and UV_PYTHON_VERSION.fullmatch(str(entry.get("version")))
+    }
+    eligible = [
+        version for version in candidates
+        if version_key(version) <= version_key(requested) and version_at_least(version, minimum)
+    ]
+    return max(eligible, key=version_key) if eligible else None
+
+
+def clamp_python_to_uv_downloads(
+    record: dict[str, object], uv_command: str, project: Path, *, minimum: str,
+    runner=subprocess.run,
+) -> str:
+    """#6325: lower a python.org-resolved request to what uv can download now."""
+    action = str(record.get("action"))
+    requested = str(record.get("resolvedVersion") or "")
+    if action not in {"installed", "upgraded", "repaired"}:
+        return action
+    available = uv_downloadable_python(uv_command, requested, minimum, project, runner=runner)
+    if available is None or version_key(available) >= version_key(requested):
+        return action
+    record["upstreamResolvedVersion"] = requested
+    record["resolvedVersion"] = available
+    record["downloadLag"] = f"python.org lists {requested}; uv downloads {available}"
+    installed = record.get("installedVersion")
+    if (
+        record.get("healthy") is True
+        and isinstance(installed, str)
+        and installed.lstrip("v") == available
+    ):
+        record["action"] = "reused"
+    return str(record["action"])
+
+
+
+def plan_downloadable_python(
+    record: dict[str, object], specification: dict[str, object], uv_command: str,
+    project: Path, *, runner=subprocess.run,
+) -> tuple[str, list[list[str]]]:
+    """#6325: return the python action and its uv command after the download clamp."""
+    contract = specification["dependencies"]["python"]  # type: ignore[index]
+    action = clamp_python_to_uv_downloads(
+        record, uv_command, project,
+        minimum=str(contract.get("minimumVersion") or "0"),  # type: ignore[union-attr]
+        runner=runner,
+    )
+    if action == "reused":
+        return action, []
+    version = str(record.get("resolvedVersion") or "")
+    return action, [["uv", "python", "install", version, "--no-progress"]]
+
+
 _GH_CLI_TOKEN: list[str | None] = []
 
 
@@ -1299,6 +1388,13 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             which=which,
         )
         for name in ("uv", "python", "node", "java"):
+            if name == "python" and prerequisite_actions["python"] != "reused":
+                prerequisite_actions["python"], prerequisite_commands["python"] = (
+                    plan_downloadable_python(
+                        actions["python"], specification, commands.get("uv", "uv"),
+                        project, runner=runner,
+                    )
+                )
             for command in prerequisite_commands[name]:
                 if command[0] == "uv" and commands.get("uv"):
                     command = [commands["uv"], *command[1:]]

@@ -390,6 +390,27 @@ def exact_base_compatibility_transition(
     return "post-provision-doctor"
 
 
+
+UPSTREAM_PYTHON_LAG = re.compile(
+    r"dependency command failed: uv(?:\.exe)?: error: No download found for request: "
+    r"cpython-(\d+\.\d+\.\d+)-[a-z0-9_-]+; failed phase: Provision dependencies(?:;|$)"
+)
+BASE_CHAIN_SKIP_REASON = "upstream-python-download-lag"
+
+
+def upstream_python_lag(error: Exception) -> str | None:
+    """#6325: name the CPython patch an immutable base requested before uv shipped it.
+
+    The base installer resolves the newest python.org release and asks uv for that
+    exact patch. During the window before uv's download metadata includes it, the
+    base cannot install anywhere; that is upstream lag, not a candidate regression.
+    """
+    if not isinstance(error, AcceptanceCommandFailure):
+        return None
+    match = UPSTREAM_PYTHON_LAG.search(str(error))
+    return match.group(1) if match else None
+
+
 def offline_environment(
     base: dict[str, str] | None = None, *, block_path: bool = False
 ) -> dict[str, str]:
@@ -1478,6 +1499,24 @@ def record_phase(
     return checks
 
 
+
+def record_skipped_base_chain(
+    evidence: dict[str, object], base_result: dict[str, object]
+) -> None:
+    """#6325: mark the base upgrade chain skipped with its upstream-lag reason."""
+    phases = evidence["phases"]
+    phases[-1]["status"] = "skipped"  # type: ignore[index]
+    evidence["baseUpgradeChain"] = {
+        "status": "skipped",
+        "reason": BASE_CHAIN_SKIP_REASON,
+        "requestedPython": base_result.get("requestedPython"),
+    }
+    for skipped in BASE_UPGRADE_CHAIN_AFTER_BASE:
+        phases.append(  # type: ignore[union-attr]
+            {"name": skipped, "status": "skipped", "reason": BASE_CHAIN_SKIP_REASON}
+        )
+
+
 def project_snapshot(project: Path) -> dict[str, bytes]:
     """Read disposable-project state for an exact offline no-mutation proof."""
     return {
@@ -1592,6 +1631,13 @@ def run_acceptance(
                     environment=account_environment,
                 )
             except Exception as error:
+                lag = upstream_python_lag(error)
+                if lag is not None:
+                    return {
+                        "status": "skipped",
+                        "reason": BASE_CHAIN_SKIP_REASON,
+                        "requestedPython": lag,
+                    }
                 transition = exact_base_compatibility_transition(
                     error, base_sha, windows=os.name == "nt"
                 )
@@ -1605,89 +1651,92 @@ def run_acceptance(
                 "accountCommandNames": sorted(commands),
             }
 
-        record_phase(
+        base_result = record_phase(
             evidence,
             "base-public-wrapper",
             establish_base,
         )
-        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
-            raise RuntimeError("base public install rewrote valid user configuration")
-        if base_sentinel.read_bytes() != b"preserve base user data\n":
-            raise RuntimeError("base public install rewrote user sentinel")
-        if (base_project / ".chaos-engine-runtime-current.json").exists():
-            raise RuntimeError("base account install unexpectedly created a generation")
-        base_snapshot = snapshot_base_state(base_project)
-        offline_source = fetch_exact_base_source(
-            root,
-            base_sha,
-            read_json(base_project / ".chaos-engine/manifest.json"),
-            base_project / ".chaos-engine",
-        )
-        base_before_offline = project_snapshot(base_project)
-
-        def base_offline_no_mutation() -> dict[str, object]:
-            run_offline_rerun(
-                base_project, offline_source, environment=account_environment
+        if base_result.get("status") != "skipped":
+            if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+                raise RuntimeError("base public install rewrote valid user configuration")
+            if base_sentinel.read_bytes() != b"preserve base user data\n":
+                raise RuntimeError("base public install rewrote user sentinel")
+            if (base_project / ".chaos-engine-runtime-current.json").exists():
+                raise RuntimeError("base account install unexpectedly created a generation")
+            base_snapshot = snapshot_base_state(base_project)
+            offline_source = fetch_exact_base_source(
+                root,
+                base_sha,
+                read_json(base_project / ".chaos-engine/manifest.json"),
+                base_project / ".chaos-engine",
             )
-            if project_snapshot(base_project) != base_before_offline:
-                raise RuntimeError("offline base rerun mutated the account project")
-            commands = account_receipt_commands(base_project, account_root)
-            return {"status": "unchanged", "accountCommandNames": sorted(commands)}
+            base_before_offline = project_snapshot(base_project)
 
-        record_phase(evidence, "base-offline-no-mutation", base_offline_no_mutation)
-        record_phase(
-            evidence,
-            "upgrade-candidate-wrapper",
-            lambda: install_candidate_and_verify(
-                base_project, account_root, environment=account_environment,
-                with_mcp=False,
-            ),
-        )
-        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
-            raise RuntimeError("candidate upgrade rewrote valid user configuration")
-        assert_local_mempalace(base_project)
-        assert_single_generated_mempalace(base_project, with_mcp=False)
+            def base_offline_no_mutation() -> dict[str, object]:
+                run_offline_rerun(
+                    base_project, offline_source, environment=account_environment
+                )
+                if project_snapshot(base_project) != base_before_offline:
+                    raise RuntimeError("offline base rerun mutated the account project")
+                commands = account_receipt_commands(base_project, account_root)
+                return {"status": "unchanged", "accountCommandNames": sorted(commands)}
 
-        def rollback_base() -> dict[str, object]:
-            installed = base_project / ".chaos-engine/install.py"
-            result = json.loads(
-                run_checked(
-                    [
-                        sys.executable, str(installed), "rollback", "--project",
-                        str(base_project),
-                    ],
-                    cwd=base_project,
-                    environment=account_environment,
-                ).stdout
+            record_phase(evidence, "base-offline-no-mutation", base_offline_no_mutation)
+            record_phase(
+                evidence,
+                "upgrade-candidate-wrapper",
+                lambda: install_candidate_and_verify(
+                    base_project, account_root, environment=account_environment,
+                    with_mcp=False,
+                ),
             )
-            if result.get("status") != "rolled-back":
-                raise RuntimeError("candidate rollback did not report rolled-back")
-            assert_base_state_restored(base_project, base_snapshot)
-            commands = account_receipt_commands(base_project, account_root)
-            return {
-                "status": "rolled-back",
-                "legacyDoctor": "recovery-required",
-                "accountCommandNames": sorted(commands),
-            }
+            if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+                raise RuntimeError("candidate upgrade rewrote valid user configuration")
+            assert_local_mempalace(base_project)
+            assert_single_generated_mempalace(base_project, with_mcp=False)
 
-        record_phase(evidence, "rollback-base-account-and-hosts", rollback_base)
-        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
-            raise RuntimeError("rollback rewrote valid user configuration")
-        if base_sentinel.read_bytes() != b"preserve base user data\n":
-            raise RuntimeError("rollback rewrote user sentinel")
+            def rollback_base() -> dict[str, object]:
+                installed = base_project / ".chaos-engine/install.py"
+                result = json.loads(
+                    run_checked(
+                        [
+                            sys.executable, str(installed), "rollback", "--project",
+                            str(base_project),
+                        ],
+                        cwd=base_project,
+                        environment=account_environment,
+                    ).stdout
+                )
+                if result.get("status") != "rolled-back":
+                    raise RuntimeError("candidate rollback did not report rolled-back")
+                assert_base_state_restored(base_project, base_snapshot)
+                commands = account_receipt_commands(base_project, account_root)
+                return {
+                    "status": "rolled-back",
+                    "legacyDoctor": "recovery-required",
+                    "accountCommandNames": sorted(commands),
+                }
 
-        record_phase(
-            evidence,
-            "reupgrade-candidate-wrapper",
-            lambda: install_candidate_and_verify(
-                base_project, account_root, environment=account_environment,
-                with_mcp=False,
-            ),
-        )
-        if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
-            raise RuntimeError("candidate reupgrade rewrote valid user configuration")
-        assert_local_mempalace(base_project)
-        assert_single_generated_mempalace(base_project, with_mcp=False)
+            record_phase(evidence, "rollback-base-account-and-hosts", rollback_base)
+            if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+                raise RuntimeError("rollback rewrote valid user configuration")
+            if base_sentinel.read_bytes() != b"preserve base user data\n":
+                raise RuntimeError("rollback rewrote user sentinel")
+
+            record_phase(
+                evidence,
+                "reupgrade-candidate-wrapper",
+                lambda: install_candidate_and_verify(
+                    base_project, account_root, environment=account_environment,
+                    with_mcp=False,
+                ),
+            )
+            if base_project.joinpath("mempalace.yaml").read_bytes() != user_config:
+                raise RuntimeError("candidate reupgrade rewrote valid user configuration")
+            assert_local_mempalace(base_project)
+            assert_single_generated_mempalace(base_project, with_mcp=False)
+        else:
+            record_skipped_base_chain(evidence, base_result)
 
         first_fresh = record_phase(
             evidence,
@@ -1747,6 +1796,15 @@ def run_acceptance(
             raise RuntimeError("candidate rerun rewrote fresh user sentinel")
         assert_local_mempalace(fresh_project)
         assert_single_generated_mempalace(fresh_project)
+
+
+
+BASE_UPGRADE_CHAIN_AFTER_BASE = (
+    "base-offline-no-mutation",
+    "upgrade-candidate-wrapper",
+    "rollback-base-account-and-hosts",
+    "reupgrade-candidate-wrapper",
+)
 
 
 def write_evidence(path: Path, evidence: dict[str, object]) -> None:

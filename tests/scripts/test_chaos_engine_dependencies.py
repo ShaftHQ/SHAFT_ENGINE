@@ -2289,5 +2289,109 @@ class DefaultBranchResolution6216Test(unittest.TestCase):
             self.assertNotIn("origin/main", message)
 
 
+
+UV_LIST_PAYLOAD = json.dumps([
+    {"key": "cpython-3.14.7-linux-x86_64-gnu", "version": "3.14.7", "implementation": "cpython", "variant": "default"},
+    {"key": "cpython-3.14.7+freethreaded-linux-x86_64-gnu", "version": "3.14.7", "implementation": "cpython", "variant": "freethreaded"},
+    {"key": "cpython-3.14.6-linux-x86_64-gnu", "version": "3.14.6", "implementation": "cpython", "variant": "default"},
+    {"key": "pypy-3.14.9-linux-x86_64-gnu", "version": "3.14.9", "implementation": "pypy", "variant": "default"},
+])
+
+
+class PythonDownloadLag6325Test(unittest.TestCase):
+    """#6325: python.org can publish a CPython patch before uv can download it."""
+
+    def _runner(self, calls, payload=UV_LIST_PAYLOAD, returncode=0):
+        def runner(command, **_kwargs):
+            calls.append(list(command))
+            if command[1:3] == ["python", "list"]:
+                return SimpleNamespace(returncode=returncode, stdout=payload, stderr="")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        return runner
+
+    def test_newest_downloadable_python_never_exceeds_the_stable_channel(self):
+        module = load_controller()
+        calls = []
+        with tempfile.TemporaryDirectory() as temporary:
+            found = module.uv_downloadable_python(
+                "/tools/uv", "3.14.8", "3.14.0", Path(temporary), runner=self._runner(calls)
+            )
+            self.assertEqual("3.14.7", found)
+            self.assertEqual(
+                ["python", "list", "--only-downloads", "--all-versions", "--output-format", "json", "3.14"],
+                calls[0][1:],
+            )
+            self.assertIsNone(module.uv_downloadable_python(
+                "/tools/uv", "3.14.8", "3.14.7.1", Path(temporary), runner=self._runner([], payload="[]")
+            ))
+
+    def test_lagging_uv_reuses_the_installed_python_instead_of_failing(self):
+        module = load_controller()
+        record = {
+            "action": "upgraded", "healthy": True, "installedVersion": "3.14.7",
+            "resolvedVersion": "3.14.8", "minimumVersion": "3.14.0",
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            action = module.clamp_python_to_uv_downloads(
+                record, "/tools/uv", Path(temporary), minimum="3.14.0", runner=self._runner([])
+            )
+        self.assertEqual("reused", action)
+        self.assertEqual("3.14.7", record["resolvedVersion"])
+        self.assertEqual("3.14.8", record["upstreamResolvedVersion"])
+
+    def test_uv_listing_failure_keeps_the_original_request(self):
+        module = load_controller()
+        record = {"action": "installed", "resolvedVersion": "3.14.8"}
+        with tempfile.TemporaryDirectory() as temporary:
+            action = module.clamp_python_to_uv_downloads(
+                record, "/tools/uv", Path(temporary), minimum="3.14.0",
+                runner=self._runner([], payload="not json"),
+            )
+            self.assertEqual("installed", action)
+            self.assertEqual("3.14.8", record["resolvedVersion"])
+            failing = module.clamp_python_to_uv_downloads(
+                dict(record), "/tools/uv", Path(temporary), minimum="3.14.0",
+                runner=self._runner([], returncode=2),
+            )
+            self.assertEqual("installed", failing)
+
+    def test_account_install_requests_only_a_python_uv_can_download(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        names = ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+        local = {name: {"healthy": True, "version": "1.0", "detail": "passed"} for name in names}
+        commands = {"uv": "/tools/uv", "npm": "/tools/npm", "mempalace": "/tools/mempalace"}
+        actions = {name: {"action": "reused"} for name in names}
+        actions["python"] = {"action": "installed", "resolvedVersion": "3.14.8", "installedVersion": None}
+        calls = []
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            interpreter = project / "python3.14"
+            interpreter.write_text("", encoding="utf-8")
+
+            def runner(command, **_kwargs):
+                calls.append(list(command))
+                if command[1:3] == ["python", "list"]:
+                    return SimpleNamespace(returncode=0, stdout=UV_LIST_PAYLOAD, stderr="")
+                if command[1:3] == ["python", "install"] and command[3] == "3.14.8":
+                    return SimpleNamespace(returncode=2, stdout="", stderr="error: No download found for request: cpython-3.14.8")
+                if command[1:3] == ["python", "find"]:
+                    return SimpleNamespace(returncode=0, stdout=str(interpreter), stderr="")
+                return SimpleNamespace(returncode=0, stdout="Python 3.14.7", stderr="")
+
+            with mock.patch.object(module, "discover_account_commands", side_effect=lambda *_a, **_k: (local, dict(commands))), \
+                    mock.patch.object(module, "resolve_account_actions", return_value=actions), \
+                    mock.patch.object(module, "resolve_account_launcher", side_effect=lambda name, **_kw: name), \
+                    mock.patch.object(module, "probe_account_dependency", return_value={"healthy": True, "version": "3.14.7", "detail": "passed"}), \
+                    mock.patch.object(module, "project_setup_plan", return_value=[]):
+                try:
+                    module.install_account_dependencies(project, specification, runner=runner, allow_root=True)
+                except RuntimeError as error:  # later phases are out of scope for this regression
+                    self.assertNotIn("No download found", str(error))
+        installs = [command for command in calls if command[1:3] == ["python", "install"]]
+        self.assertEqual([["/tools/uv", "python", "install", "3.14.7", "--no-progress"]], installs)
+        self.assertIn(["/tools/uv", "python", "find", "3.14.7"], calls)
+
+
 if __name__ == "__main__":
     unittest.main()

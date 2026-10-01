@@ -92,11 +92,13 @@ EOF
 with_maven_tools=
 maven_tools_mode=native
 interactive=
+verbose=
 without_flags=
 for argument in "$@"; do
   [ "$argument" = "--with-maven-tools" ] && with_maven_tools=1
   [ "$argument" = "--maven-tools-mode=docker" ] && maven_tools_mode=docker
   [ "$argument" = "--interactive" ] && interactive=1
+  [ "$argument" = "--verbose" ] && verbose=1
   case "$argument" in
     --without-memory|--without-mempalace|--without-graphify|--without-ponytail|--without-caveman)
       without_flags="$without_flags $argument"
@@ -202,6 +204,7 @@ fi
 [ -n "$with_maven_tools" ] && set -- "$@" --with-maven-tools
 [ "$maven_tools_mode" = "docker" ] && set -- "$@" --maven-tools-mode docker
 [ -n "$interactive" ] && set -- "$@" "--interactive"
+[ -n "$verbose" ] && set -- "$@" "--verbose"
 # shellcheck disable=SC2086
 for without_flag in $without_flags; do
   set -- "$@" "$without_flag"
