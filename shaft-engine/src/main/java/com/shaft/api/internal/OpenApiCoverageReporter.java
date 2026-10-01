@@ -56,8 +56,7 @@ public final class OpenApiCoverageReporter {
      */
     public static void start(String specUrlOrDefinition, int threshold) {
         if (isBlank(specUrlOrDefinition)) {
-            throw new IllegalArgumentException(
-                    "OpenAPI coverage reporting requires swagger.validation.url to be configured.");
+            throw new IllegalArgumentException(ApiSettings.missingSpecUrlMessage(ApiSettings.COVERAGE_ENABLED_KEY));
         }
         validateThreshold(threshold);
         coverageFor(specUrlOrDefinition).setThreshold(threshold);
@@ -166,9 +165,7 @@ public final class OpenApiCoverageReporter {
     }
 
     private static void validateThreshold(int threshold) {
-        if (threshold < 0 || threshold > 100) {
-            throw new IllegalArgumentException("OpenAPI coverage threshold must be between 0 and 100.");
-        }
+        ApiSettings.validateCoverageThreshold(threshold);
     }
 
     private static String formatPercent(double value) {

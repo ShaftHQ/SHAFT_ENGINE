@@ -81,6 +81,14 @@ public interface Flags extends EngineProperties<Flags> {
     @DefaultValue("true")
     boolean autoCloseDriverInstance();
 
+    /**
+     * Whether an API request without an explicit target status code must return 2xx.
+     * An explicit {@code setTargetStatusCode(n)} is asserted regardless of this flag (#6326).
+     * Accepts {@code true}/{@code false} in any case; read when each request is performed.
+     * <p>Property key: {@code automaticallyAssertResponseStatusCode} - default: {@code true}
+     *
+     * @return {@code true} to fail non-2xx responses that have no explicit target
+     */
     @Key("automaticallyAssertResponseStatusCode")
     @DefaultValue("true")
     boolean automaticallyAssertResponseStatusCode();

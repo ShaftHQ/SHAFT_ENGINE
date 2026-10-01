@@ -1,5 +1,6 @@
 package com.shaft.api;
 
+import com.shaft.api.internal.ApiSettings;
 import com.shaft.api.internal.OpenApiCoverageReporter;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
@@ -99,12 +100,15 @@ public class RequestBuilder {
 
     /**
      * Sets the expected target status code for the API request that you're currently building. By default, this value is set to any number between 200 and 299 which means that the request was successful as per the <a href="https://www.w3.org/Protocols/HTTP/HTRESP.html">W3C Standard documentation</a>.
+     * <p>An explicit target is always asserted, even when {@code automaticallyAssertResponseStatusCode=false};
+     * that flag only disables the implicit 2xx check for requests without a target.</p>
      *
-     * @param targetStatusCode the expected target status code.
+     * @param targetStatusCode the expected target status code: a three-digit HTTP status (100-999), or {@code 0} for no explicit target.
      * @return a self-reference to be used to continue building your API request
+     * @throws IllegalArgumentException if the value is neither {@code 0} nor a three-digit status
      */
     public RequestBuilder setTargetStatusCode(int targetStatusCode) {
-        this.targetStatusCode = targetStatusCode;
+        this.targetStatusCode = ApiSettings.validateTargetStatusCode(targetStatusCode);
         return this;
     }
 
@@ -352,12 +356,13 @@ public class RequestBuilder {
      */
     @Step("Perform {this.requestType} request to {this.serviceURI}{this.serviceName}")
     public SHAFT.API perform() {
+        ApiSettings.validateRequestSettings();
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
         RequestSpecification specs = prepareRequestSpecifications();
-        boolean openApiCoverageEnabled = SHAFT.Properties.api.openApiCoverageReportEnabled();
+        boolean openApiCoverageEnabled = ApiSettings.openApiCoverageReportEnabled();
         String openApiSpec = SHAFT.Properties.api.swaggerValidationUrl();
         if (openApiCoverageEnabled) {
-            OpenApiCoverageReporter.start(openApiSpec, SHAFT.Properties.api.openApiCoverageThreshold());
+            OpenApiCoverageReporter.start(openApiSpec, ApiSettings.openApiCoverageThreshold());
         }
 
         setupAuthentication(specs);
@@ -496,7 +501,8 @@ public class RequestBuilder {
         boolean responseStatus = session.evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
         String reportMessage = appendRetryDetails(session.prepareReportMessage(response, targetStatusCode, requestType, serviceName, contentType, urlArguments), retryState);
         if (!Boolean.TRUE.equals(responseStatus)) {
-            throw new AssertionError("Invalid response status code; Expected " + targetStatusCode + " but found " + response.getStatusCode() + "." + retryState.reportSuffix());
+            String expected = targetStatusCode == 0 ? "a 2xx status" : String.valueOf(targetStatusCode);
+            throw new AssertionError("Invalid response status code; Expected " + expected + " but found " + response.getStatusCode() + "." + retryState.reportSuffix());
         }
 
         if (!reportMessage.isEmpty()) {
