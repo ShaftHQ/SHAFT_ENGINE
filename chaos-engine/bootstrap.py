@@ -603,7 +603,12 @@ def clear_stale_install_failure_artifacts(project: Path) -> None:
             return
     except OSError:
         return
-    for name in ("heal-handoff.md", "doctor-failure.json", "install-console.log"):
+    for name in (
+        "heal-handoff.md",
+        "doctor-failure.json",
+        "install-console.log",
+        "install-rollback.json",
+    ):
         path = state / name
         try:
             if _is_reparse(path) or not path.is_file():
@@ -611,6 +616,65 @@ def clear_stale_install_failure_artifacts(project: Path) -> None:
             path.unlink()
         except OSError:
             continue
+
+
+INSTALL_ROLLBACK_RELATIVE = ".chaos-engine-state/install-rollback.json"
+
+
+def installed_core_commit(project: Path) -> str | None:
+    """Read the installed core commit straight from `.chaos-engine/manifest.json`."""
+    raw = _regular_file_bytes(Path(project) / ".chaos-engine" / "manifest.json")
+    if raw is None:
+        return None
+    try:
+        manifest = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    source = manifest.get("source") if isinstance(manifest, dict) else None
+    commit = source.get("commit") if isinstance(source, dict) else None
+    return commit if isinstance(commit, str) and COMMIT.fullmatch(commit) else None
+
+
+def record_install_rollback(project: Path, requested: str, restored: str) -> None:
+    """Persist a verify-failure rollback so status/doctor can name it (#6338)."""
+    target = Path(project) / INSTALL_ROLLBACK_RELATIVE
+    try:
+        if _is_reparse(target.parent) or _is_reparse(target):
+            return
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            json.dumps(
+                {
+                    "schemaVersion": 1,
+                    "status": "rolled-back",
+                    "requestedCommit": requested,
+                    "restoredCommit": restored,
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    except OSError:
+        # Best-effort evidence; the failure output still names the rollback.
+        return
+
+
+def install_rollback_summary(error: BaseException) -> str | None:
+    """One line saying a failed install rolled the core back, and to which commit."""
+    restored = getattr(error, "rolled_back_to", None)
+    if not isinstance(restored, str) or COMMIT.fullmatch(restored) is None:
+        return None
+    requested = getattr(error, "rolled_back_from", None)
+    requested_text = (
+        f"requested core {requested[:12]}"
+        if isinstance(requested, str) and COMMIT.fullmatch(requested)
+        else "the new core"
+    )
+    return (
+        f"Rolled back: {requested_text} was not kept; the previous core "
+        f"{restored[:12]} is installed again, so status/doctor report {restored[:12]}."
+    )
 
 
 def _inexact_prior_rollback(error: BaseException) -> bool:
@@ -2330,6 +2394,13 @@ def install_latest(
                     )
                     if not (_inexact_prior_rollback(rollback_error) and core_unchanged):
                         raise
+                else:
+                    # #6338: say which core is installed after the rollback.
+                    restored = installed_core_commit(project)
+                    if restored is not None:
+                        error.rolled_back_to = restored  # type: ignore[attr-defined]
+                        error.rolled_back_from = commit  # type: ignore[attr-defined]
+                        record_install_rollback(project, commit, restored)
         if terminal_context is not None:
             terminal_context.__exit__(*sys.exc_info())
         raise
@@ -2545,7 +2616,14 @@ def installer_issue_fields(
         "doctor_json": doctor_json,
         "status_command": status_command,
         "doctor_command": doctor_command,
-        "additional": "Auto-filled by the ChaosEngine installer.",
+        "additional": " ".join(
+            part
+            for part in (
+                "Auto-filled by the ChaosEngine installer.",
+                install_rollback_summary(error),
+            )
+            if part
+        ),
     }
 
 
@@ -2583,6 +2661,13 @@ def next_fix_hint(code: str, error: BaseException, prefix: str | None) -> str:
             code == "CE-GITHUB-RATE-LIMIT",
             'export GITHUB_TOKEN="$(gh auth token)" (or GH_TOKEN, or run '
             f"`gh auth login`), {rerun}",
+        ),
+        (
+            "maven tools" in cause
+            and any(token in cause for token in ("checksum", "crc", "receipt validation")),
+            f"run `{prefix or 'python3 .chaos-engine/install.py'} repair --project . "
+            "--component maven-tools-mcp` (discards the corrupt cached JAR, then reuses "
+            "a healthy version or reinstalls), then rerun doctor.",
         ),
         ("checksum" in cause, f"check network/proxy interference, {rerun}"),
         (
@@ -2655,6 +2740,9 @@ def emit_install_failure(
         print("Rerun the same install command to continue.", file=sys.stderr)
     else:
         print(f"{code}: {one_line_cause(error)}", file=sys.stderr)
+        rollback_line = install_rollback_summary(error)
+        if rollback_line:
+            print(rollback_line, file=sys.stderr)
         print(f"Next fix: {next_fix_hint(code, error, prefix)}", file=sys.stderr)
     print(file=sys.stderr)
     if project is not None:

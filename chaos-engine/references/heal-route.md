@@ -15,7 +15,7 @@ points here; do not require plugin activation to heal.
 3. Component repair (no full wipe):  
    `python3 .chaos-engine/install.py repair --project . --component <id>`  
    Components: `plugins`, `hosts`, `core`, `mempalace`, `graphify`,
-   `memory`, `hooks`, `mcps`, `skills`, `roles`, `tools`
+   `memory`, `hooks`, `mcps`, `skills`, `roles`, `tools`, `maven-tools-mcp`
    `core` also removes a nested `.chaos-engine/.chaos-engine` tree and other
    dot-prefixed install residue from the overlay (`policy-overlay` row).
    `status --digest` carries the same row as doctor.
