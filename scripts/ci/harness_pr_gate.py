@@ -358,6 +358,8 @@ CHECKS = {
             # #6236/#6237: MemPalace init on repair/account install, consumer mode.
             "tests.scripts.test_chaos_engine_mempalace_init_6236",
             "tests.scripts.test_chaos_engine_consumer_mode_6237",
+            # #6336-#6339: Maven Tools doctor/repair and rollback truth.
+            "tests.scripts.test_chaos_engine_maven_tools_reinstall_6336",
         ),
     ),
     # #6244: modules that were red on main and selected by nothing.
@@ -506,6 +508,7 @@ SURFACE_PATTERNS = {
         "chaos-engine/consumer_mode.py",
         "tests/scripts/test_chaos_engine_mempalace_init_6236.py",
         "tests/scripts/test_chaos_engine_consumer_mode_6237.py",
+        "tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py",
     ),
     "hosts": (
         "chaos-engine/hosts.py",
