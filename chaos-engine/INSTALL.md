@@ -584,6 +584,41 @@ shows only the active phase as running. Interactive installs default to a richer
 live trace (downloads, tool commands with secrets redacted); set
 `CHAOS_ENGINE_QUIET=1` or run under `CI=1` for the compact trace window.
 
+### Installer output: one visual language (#6325)
+
+The installer, `doctor`, and `status --digest` share one grammar.
+
+| Surface | TTY | Pipe, CI, `TERM=dumb` |
+| --- | --- | --- |
+| Steps | Fixed-height checklist with a spinner on the running row and aligned durations | `[n/N] START <step>`, `[n/N] DONE  <step>`, and `[+mm:ss] PASS <step> (mm:ss)`. No ANSI escapes and no redraw frames |
+| Detail | The last 4 trace lines (all of them with `--verbose`) | Trace lines only with `--verbose` or `CHAOS_ENGINE_VERBOSE=1`. A stalled download prints one `... waiting for data` line per 15 s |
+| Glyphs | `✓` done, `✗` failed, `!` warning, braille spinner | ASCII `+`, `x`, `!`, spinner `-\|/`. Every glyph sits next to a word or a duration, so meaning never depends on color |
+| Summary | Headline, aligned `Project/Source/Commit/Doctor/Hosts` rows, numbered next steps, a `Receipt` block with the stable `Resolved commit:`, `Doctor:`, `Clients:`, and `Full install trace:` lines | Same text, no color |
+| Failure | `✗ Installation failed (<code>)`, `<code>: <one-line cause>`, then exactly one `Next fix:` | Same. A long prefilled issue URL becomes a terminal hyperlink on a TTY, and the full URL is saved in `.chaos-engine-state/heal-handoff.md` |
+| Doctor rows | `[error\|warning\|info] <name> — <status>` plus `  fix-next: <command>` | `status --digest` prints the same rows for failing checks only |
+
+Color follows [no-color.org](https://no-color.org/): a non-empty `NO_COLOR`
+turns it off, and so does `TERM=dumb` or a non-TTY stream. Set
+`CHAOS_ENGINE_ASCII=1` to force ASCII glyphs on terminals whose font lacks
+them. Glyphs fall back to ASCII automatically when the stream encoding
+(for example a Windows `cp1252` console) cannot encode them. On such consoles
+the installer switches stderr to `errors=replace`, so a path containing `Ω`
+cannot crash the install. POSIX callers pass `--verbose` after the one-liner
+URL, and PowerShell callers pass `-Verbose` or set `CHAOS_ENGINE_VERBOSE=1`.
+
+### Python patch lag (#6325)
+
+ChaosEngine resolves the newest CPython from python.org and installs it with uv.
+python.org can publish a patch (for example 3.14.8) before uv can download it.
+The installer then asks `uv python list --only-downloads` for the newest
+downloadable patch that is no newer than python.org's and no older than the
+minimum, and installs that one. When that patch is already installed and
+healthy, the step is `reused`. The account receipt records
+`upstreamResolvedVersion` and `downloadLag`. The scheduled live acceptance
+marks the immutable-base upgrade chain `skipped` with the reason
+`upstream-python-download-lag` only when the frozen base fails for exactly this
+reason. The fresh candidate phases still run in the same window.
+
 
 
 ## Optional native Maven Tools MCP

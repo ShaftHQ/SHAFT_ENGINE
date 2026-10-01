@@ -5,6 +5,7 @@ import inspect
 import io
 import json
 import os
+import re
 import tempfile
 import threading
 import time
@@ -320,7 +321,7 @@ class InstallerUxTests(unittest.TestCase):
                 reporter.downloaded(250)
                 reporter._render_locked()
                 output = stream.getvalue()
-                self.assertIn("Resolve source  00:04", output)
+                self.assertRegex(output, r"Resolve source +00:04")  # #6325: aligned duration column
                 self.assertIn("Install core", output)
                 self.assertIn("Verify installation", output)
                 self.assertIn("250 B/s", output)
@@ -617,7 +618,7 @@ class InstallerUxTests(unittest.TestCase):
                 self.assertIn("Verify installation", reporter.remaining_operations)
                 self.assertIn("download https://example.test/tool.tgz", output)
                 self.assertIn("run uv python install 3.12 --no-progress", output)
-                self.assertIn("Resolve source  00:04", output)
+                self.assertRegex(output, r"Resolve source +00:04")  # #6325: aligned duration column
                 self.assertNotRegex(output, r"remaining \d{2}:\d{2}")
             finally:
                 reporter._stop.set()
@@ -1921,6 +1922,297 @@ class InstallerUxTests(unittest.TestCase):
         self.assertIn("Download {name} runtime", dependencies)
         self.assertIn("Install {tool} package", dependencies)
         self.assertIn("Activate {name} plugin for {client}", hosts)
+
+
+
+HOSTS = load("chaos_engine_hosts_ux", ROOT / "chaos-engine/hosts.py")
+
+
+class _Tty(io.StringIO):
+    encoding = "utf-8"
+
+    def isatty(self):
+        return True
+
+
+class InstallerVisualLanguage6325Tests(unittest.TestCase):
+    """#6325 installer polish: shared glyphs, color policy, pipe safety, summary."""
+
+    def _clean_env(self, **extra):
+        environment = {
+            key: value for key, value in os.environ.items()
+            if key not in {"NO_COLOR", "CHAOS_ENGINE_ASCII", "CHAOS_ENGINE_VERBOSE", "CI", "CHAOS_ENGINE_BRAND_SHOWN"}
+        }
+        environment["TERM"] = "xterm-256color"
+        environment.update(extra)
+        return environment
+
+    def test_color_policy_follows_no_color_spec_term_and_tty(self):
+        enabled = BOOTSTRAP.terminal_color_enabled
+        self.assertTrue(enabled(tty=True, environ={"TERM": "xterm"}))
+        self.assertFalse(enabled(tty=False, environ={"TERM": "xterm"}))
+        self.assertFalse(enabled(tty=True, environ={"TERM": "xterm", "NO_COLOR": "1"}))
+        # no-color.org: only a present *and non-empty* NO_COLOR disables color.
+        self.assertTrue(enabled(tty=True, environ={"TERM": "xterm", "NO_COLOR": ""}))
+        self.assertFalse(enabled(tty=True, environ={"TERM": "dumb"}))
+
+    def test_status_glyphs_have_ascii_fallback_and_words(self):
+        kinds = ("ok", "fail", "warn", "info", "pending", "running")
+        for kind in kinds:
+            with self.subTest(kind=kind):
+                ascii_glyph = BOOTSTRAP.status_glyph(kind, unicode=False)
+                self.assertEqual(1, len(ascii_glyph))
+                ascii_glyph.encode("ascii")
+                self.assertTrue(BOOTSTRAP.STATUS_WORDS[kind])
+        # ASCII "done" must never look like a failure mark.
+        self.assertNotEqual("x", BOOTSTRAP.status_glyph("ok", unicode=False))
+        self.assertEqual("✓", BOOTSTRAP.status_glyph("ok", unicode=True))
+        self.assertEqual("✗", BOOTSTRAP.status_glyph("fail", unicode=True))
+        self.assertNotEqual(
+            BOOTSTRAP.status_glyph("ok", unicode=False),
+            BOOTSTRAP.status_glyph("fail", unicode=False),
+        )
+
+    def test_ascii_env_forces_ascii_checklist_on_utf8_tty(self):
+        stream = _Tty()
+        with unittest.mock.patch.dict(os.environ, self._clean_env(CHAOS_ENGINE_ASCII="1", NO_COLOR="1"), clear=True), \
+                unittest.mock.patch.object(BOOTSTRAP.threading.Thread, "start", lambda self: None):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
+            reporter.start("Resolve source", remaining=("Download source",))
+            reporter.complete("Resolve source", remaining=("Download source",))
+            reporter.close()
+        output = stream.getvalue()
+        self.assertNotIn("✓", output)
+        self.assertNotIn("█", output)
+        self.assertIn("[+] Resolve source", output)
+
+    def test_pipe_ticker_writes_plain_heartbeat_never_ansi_frames(self):
+        class Clock:
+            now = 0.0
+
+            def __call__(self):
+                return self.now
+
+        clock = Clock()
+        stream = io.StringIO()
+        with unittest.mock.patch.dict(os.environ, self._clean_env(), clear=True), \
+                unittest.mock.patch.object(BOOTSTRAP.threading.Thread, "start", lambda self: None):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=clock)
+            reporter.start("Download source")
+            reporter.begin_download(1000)
+        reporter._stop = unittest.mock.Mock()
+        stream.seek(0)
+        stream.truncate(0)
+        clock.now = 2.0
+        reporter.downloaded(100)
+        reporter._stop.wait.side_effect = (False, True)
+        reporter._ticker()
+        self.assertEqual("", stream.getvalue(), "a healthy pipe transfer stays quiet")
+        clock.now = 30.0
+        reporter._stop.wait.side_effect = (False, True)
+        reporter._ticker()
+        output = stream.getvalue()
+        self.assertIn("waiting for data", output)
+        self.assertIn("Download source", output)
+        self.assertNotIn("\x1b", output)
+        self.assertEqual(1, len(output.splitlines()))
+
+    def test_pipe_steps_carry_a_step_counter(self):
+        stream = io.StringIO()
+        with unittest.mock.patch.dict(os.environ, self._clean_env(), clear=True):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
+            reporter.start("Resolve source", remaining=("Download source",))
+            reporter.complete("Resolve source", remaining=("Download source",))
+            reporter.start("Download source", remaining=())
+        output = stream.getvalue()
+        self.assertIn("[1/2] START Resolve source", output)
+        self.assertIn("[1/2] DONE  Resolve source", output)
+        self.assertIn("[2/2] START Download source", output)
+
+    def test_pipe_trace_detail_is_hidden_unless_verbose(self):
+        quiet = io.StringIO()
+        with unittest.mock.patch.dict(os.environ, self._clean_env(), clear=True):
+            reporter = BOOTSTRAP.InstallReporter(stream=quiet, clock=lambda: 1.0)
+            reporter.trace("run uv python install 3.14.7")
+        self.assertNotIn("run uv python install", quiet.getvalue())
+        self.assertEqual("run uv python install 3.14.7", reporter.traces[-1][1])
+        loud = io.StringIO()
+        with unittest.mock.patch.dict(os.environ, self._clean_env(CHAOS_ENGINE_VERBOSE="1"), clear=True):
+            reporter = BOOTSTRAP.InstallReporter(stream=loud, clock=lambda: 1.0)
+            reporter.trace("run uv python install 3.14.7")
+        self.assertIn("run uv python install 3.14.7", loud.getvalue())
+
+    def test_verbose_flag_is_parsed_and_forwarded_by_the_posix_wrapper(self):
+        args = BOOTSTRAP.parser().parse_args(["--repository", "owner/repo", "--verbose"])
+        self.assertTrue(args.verbose)
+        self.assertFalse(BOOTSTRAP.parser().parse_args(["--repository", "owner/repo"]).verbose)
+        wrapper = (ROOT / "chaos-engine/install.sh").read_text(encoding="utf-8")
+        self.assertIn("--verbose", wrapper)
+
+    def test_tty_spinner_advances_and_ascii_uses_plain_frames(self):
+        for unicode_stream, frames in ((True, BOOTSTRAP.SPINNER_UNICODE), (False, BOOTSTRAP.SPINNER_ASCII)):
+            with self.subTest(unicode=unicode_stream):
+                stream = _Tty()
+                env = self._clean_env(NO_COLOR="1")
+                if not unicode_stream:
+                    env["CHAOS_ENGINE_ASCII"] = "1"
+                with unittest.mock.patch.dict(os.environ, env, clear=True), \
+                        unittest.mock.patch.object(BOOTSTRAP.threading.Thread, "start", lambda self: None):
+                    reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
+                    reporter.start("Download source", remaining=("Install core",))
+                    first = [line for line in stream.getvalue().splitlines() if "running" in line][-1]
+                    reporter._frame += 1
+                    reporter._render_locked()
+                    second = [line for line in stream.getvalue().splitlines() if "running" in line][-1]
+                    reporter.close()
+                self.assertIn(f"[{frames[0]}]", first)
+                self.assertIn(f"[{frames[1]}]", second)
+
+    def test_tty_checklist_aligns_durations_in_one_column(self):
+        stream = _Tty()
+        with unittest.mock.patch.dict(os.environ, self._clean_env(NO_COLOR="1"), clear=True), \
+                unittest.mock.patch.object(BOOTSTRAP.threading.Thread, "start", lambda self: None):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream, clock=lambda: 1.0)
+            reporter.start("Resolve source", remaining=("Provision dependencies",))
+            reporter.complete("Resolve source", remaining=("Provision dependencies",))
+            reporter.start("Provision dependencies", remaining=())
+            reporter.complete("Provision dependencies", remaining=())
+            reporter.close()
+        rows = [
+            line.replace("\x1b[K", "") for line in stream.getvalue().splitlines()
+            if line.startswith("  [") and not line.startswith("  [+") and "00:00" in line
+        ]
+        last_resolve = [row for row in rows if "Resolve source" in row][-1]
+        last_provision = [row for row in rows if "Provision dependencies" in row][-1]
+        self.assertEqual(last_resolve.index("00:00"), last_provision.index("00:00"))
+
+    def test_summary_headline_reflects_unhealthy_doctor_without_color(self):
+        stream = io.StringIO()
+        with unittest.mock.patch.dict(os.environ, self._clean_env(), clear=True):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream)
+            reporter.success(
+                Path("/project"),
+                {"commit": "c" * 40, "status": "degraded", "components": {"core": {"status": "healthy"}, "memory": {"status": "broken"}}},
+                {"codex": {"status": "healthy"}},
+                repository="ShaftHQ/SHAFT_ENGINE",
+            )
+        output = stream.getvalue()
+        self.assertNotIn("Installation Successful!", output)
+        self.assertIn("Installed with warnings", output)
+        self.assertIn("Doctor: degraded (1/2 components healthy)", output)
+        self.assertNotIn("\x1b", output)
+
+    def test_summary_rows_are_aligned_and_next_steps_are_numbered(self):
+        stream = io.StringIO()
+        with unittest.mock.patch.dict(os.environ, self._clean_env(CHAOS_ENGINE_ASCII="1"), clear=True):
+            reporter = BOOTSTRAP.InstallReporter(stream=stream)
+            reporter.success(
+                Path("/project"),
+                {"commit": "d" * 40, "status": "healthy", "components": {"core": {"status": "healthy"}}},
+                {"claude": {"status": "healthy"}},
+                repository="ShaftHQ/SHAFT_ENGINE",
+            )
+        output = stream.getvalue()
+        report = output[output.index("Installation Successful!"):]
+        self.assertRegex(report, r"\n  Doctor     \+ healthy  1/1 components\n")
+        self.assertRegex(report, r"\n  Hosts      claude\n")
+        self.assertIn("    1. Open one activated host (claude)", report)
+        self.assertIn("    2. Ask the agent to load / use the `chaos-engine` skill.", report)
+        self.assertIn("    3. Run a small sample task", report)
+        self.assertLessEqual(len(report.splitlines()), 40)
+        for line in report.splitlines():
+            if re.match(r"  (Project|Doctor|Hosts|Commit) {2,}\S", line):
+                self.assertEqual(" ", line[12], line)
+                self.assertNotEqual(" ", line[13], line)
+
+    def test_failure_block_always_names_cause_and_next_fix(self):
+        stderr = io.StringIO()
+        with unittest.mock.patch.object(BOOTSTRAP.sys, "stderr", stderr), \
+                unittest.mock.patch.dict(os.environ, self._clean_env(CHAOS_ENGINE_ASCII="1"), clear=True):
+            BOOTSTRAP.emit_install_failure(
+                "CE-INSTALL-FAILED",
+                RuntimeError("dependency command failed: npm: error: EACCES"),
+                "owner/repo",
+            )
+        err = stderr.getvalue()
+        self.assertIn("x Installation failed (CE-INSTALL-FAILED)", err)
+        self.assertIn("CE-INSTALL-FAILED: dependency command failed: npm: error: EACCES", err)
+        self.assertIn("Next fix:", err)
+        self.assertNotIn("\x1b", err)
+
+    def test_failure_marks_the_running_step_failed_on_pipe_and_tty(self):
+        pipe = io.StringIO()
+        with unittest.mock.patch.dict(os.environ, self._clean_env(), clear=True):
+            reporter = BOOTSTRAP.InstallReporter(stream=pipe, clock=lambda: 1.0)
+            reporter.start("Provision dependencies", remaining=("Verify installation",))
+            reporter.fail()
+        self.assertIn("[1/2] FAIL  Provision dependencies", pipe.getvalue())
+        tty = _Tty()
+        with unittest.mock.patch.dict(os.environ, self._clean_env(NO_COLOR="1", CHAOS_ENGINE_ASCII="1"), clear=True), \
+                unittest.mock.patch.object(BOOTSTRAP.threading.Thread, "start", lambda self: None):
+            reporter = BOOTSTRAP.InstallReporter(stream=tty, clock=lambda: 1.0)
+            reporter.start("Provision dependencies", remaining=("Verify installation",))
+            reporter.fail()
+            reporter.close()
+        last = [
+            line for line in tty.getvalue().splitlines()
+            if "Provision dependencies" in line and not line.startswith("  [+")
+        ][-1]
+        self.assertIn("[x] Provision dependencies", last)
+        self.assertIn("failed", last)
+        self.assertNotIn("running", last)
+
+    def test_harden_stream_encoding_replaces_unencodable_text_on_legacy_consoles(self):
+        class Legacy:
+            encoding = "cp1252"
+            errors = "strict"
+
+            def __init__(self):
+                self.calls = []
+
+            def reconfigure(self, **kwargs):
+                self.calls.append(kwargs)
+
+        legacy = Legacy()
+        BOOTSTRAP.harden_stream_encoding(legacy)
+        self.assertEqual([{"errors": "replace"}], legacy.calls)
+        modern = Legacy()
+        modern.encoding = "utf-8"
+        BOOTSTRAP.harden_stream_encoding(modern)
+        self.assertEqual([], modern.calls)
+        BOOTSTRAP.harden_stream_encoding(object())  # no reconfigure: must not raise
+
+
+class DoctorDigestParity6325Tests(unittest.TestCase):
+    """#6325: doctor rows and status --digest rows share one severity grammar."""
+
+    def test_doctor_host_warnings_use_bracketed_severity_rows(self):
+        document = {
+            "status": "healthy",
+            "commit": "a" * 40,
+            "components": {"core": {"status": "healthy"}},
+            "kernel": {"capabilities": {"grok": {"processExit2Honored": False, "blockingGap": "GAP-EXIT2: verify host trust."}}},
+        }
+        rendered = INSTALL.format_health_report(document)
+        self.assertIn("[warning] host/grok — GAP-EXIT2: verify host trust.", rendered)
+        self.assertFalse(any(line.startswith("warning  ") for line in rendered.splitlines()))
+        self.assertIn("host/grok: GAP-EXIT2: verify host trust.", INSTALL.format_fix_next_only(document))
+
+    def test_digest_rows_match_doctor_rows(self):
+        broken = HOSTS.doctor_digest({
+            "status": "recovery-required",
+            "components": {
+                "core": {"status": "recovery-required", "taskImpact": "required", "fixNext": "repair core"},
+                "memory": {"status": "broken", "taskImpact": "advisory", "fixNext": "repair memory"},
+                "hooks": {"status": "healthy"},
+            },
+        })
+        lines = broken.splitlines()
+        self.assertEqual("ChaosEngine doctor: recovery-required; 2 failing", lines[0])
+        self.assertIn("[error] core — recovery-required", lines)
+        self.assertIn("  fix-next: repair core", lines)
+        self.assertIn("[warning] memory — broken (advisory)", lines)
+        self.assertNotIn("hooks", broken)
 
 
 if __name__ == "__main__":

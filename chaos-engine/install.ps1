@@ -308,6 +308,8 @@ try {
     if ($WithMavenTools) { $arguments += "--with-maven-tools" }
     if ($MavenToolsMode -eq "docker") { $arguments += @("--maven-tools-mode", "docker") }
     if ($interactiveRequested) { $arguments += "--interactive" }
+    # -Verbose is the CmdletBinding common parameter; irm|iex callers use CHAOS_ENGINE_VERBOSE=1.
+    if ($PSBoundParameters.ContainsKey("Verbose")) { $arguments += "--verbose" }
     if ($WithoutMemory) { $arguments += "--without-memory" }
     if ($WithoutMempalace) { $arguments += "--without-mempalace" }
     if ($WithoutGraphify) { $arguments += "--without-graphify" }
