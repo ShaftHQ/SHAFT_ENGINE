@@ -1,10 +1,12 @@
-"""Java pack installer hooks: POM artifact detection and Maven Tools provisioning.
+"""
+Java pack installer hooks: POM artifact detection and Maven Tools provisioning.
 
 Bound into ``install.py`` by ``pack_binding.bind_pack``.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -17,8 +19,22 @@ import time
 from pathlib import Path
 
 # Core helpers resolved through the install controller namespace after binding.
-_doctor_python_cli = file_sha256 = load_dependency_controller = None
-load_installed_controller = None
+
+
+def _core_helper(name: str):
+    """Stand-in for a core helper; binding replaces it with the controller's own."""
+
+    def unbound(*_args, **_kwargs):
+        raise RuntimeError(f"java pack helper {name} is resolved by the controller binding")
+
+    unbound.__name__ = name
+    return unbound
+
+
+_doctor_python_cli = _core_helper("_doctor_python_cli")
+file_sha256 = _core_helper("file_sha256")
+load_dependency_controller = _core_helper("load_dependency_controller")
+load_installed_controller = _core_helper("load_installed_controller")
 
 __all__ = (
     "MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS",
@@ -154,13 +170,11 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
                 raise RuntimeError("Maven Tools MCP cache is busy")
             if not busy_announced:
                 if reporter is not None and hasattr(reporter, "detail"):
-                    try:
+                    with contextlib.suppress(Exception):  # reporter is best-effort
                         reporter.detail(
                             "Waiting for Maven Tools MCP cache lock "
                             f"(up to {MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS:g}s)…"
                         )
-                    except Exception:  # noqa: BLE001 - reporter is best-effort
-                        pass
                 print(
                     "ChaosEngine: waiting for Maven Tools MCP cache "
                     f"(up to {MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS:g}s)…",

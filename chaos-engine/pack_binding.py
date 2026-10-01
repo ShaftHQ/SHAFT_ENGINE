@@ -1,4 +1,5 @@
-"""Bind a pack module's API into a ChaosEngine controller namespace.
+"""
+Bind a pack module's API into a ChaosEngine controller namespace.
 
 Packs keep their code in their own module (for example the java pack's
 ``packs/java/maven_tools.py``). A controller such as ``hosts.py`` binds the

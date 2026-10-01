@@ -1,4 +1,5 @@
-"""Java pack: managed Temurin JDK, managed Maven, and the Maven Tools MCP runtime.
+"""
+Java pack: managed Temurin JDK, managed Maven, and the Maven Tools MCP runtime.
 
 Bound into ``hosts.py`` by ``pack_binding.bind_pack``; functions resolve core
 helpers through the host controller namespace.
@@ -24,10 +25,30 @@ import time
 from pathlib import Path
 
 # Core helpers resolved through the hosts controller namespace after binding.
-_cache_anchor = _discard_tree_nofollow = _load_dependencies_controller = None
-_path_is_under = _rename_no_replace = _rmdir_stable_cache_directory = None
-_runtime_contract = _tools_host_platform = _unlink_stable_cache_file = None
-_validate_cache_path = is_link_or_reparse = portable_python_server = None
+
+
+def _core_helper(name: str):
+    """Stand-in for a core helper; binding replaces it with the controller's own."""
+
+    def unbound(*_args, **_kwargs):
+        raise RuntimeError(f"java pack helper {name} is resolved by the controller binding")
+
+    unbound.__name__ = name
+    return unbound
+
+
+_cache_anchor = _core_helper("_cache_anchor")
+_discard_tree_nofollow = _core_helper("_discard_tree_nofollow")
+_load_dependencies_controller = _core_helper("_load_dependencies_controller")
+_path_is_under = _core_helper("_path_is_under")
+_rename_no_replace = _core_helper("_rename_no_replace")
+_rmdir_stable_cache_directory = _core_helper("_rmdir_stable_cache_directory")
+_runtime_contract = _core_helper("_runtime_contract")
+_tools_host_platform = _core_helper("_tools_host_platform")
+_unlink_stable_cache_file = _core_helper("_unlink_stable_cache_file")
+_validate_cache_path = _core_helper("_validate_cache_path")
+is_link_or_reparse = _core_helper("is_link_or_reparse")
+portable_python_server = _core_helper("portable_python_server")
 
 __all__ = (
     "MAVEN_TOOLS_JAR_SUFFIX",
@@ -70,6 +91,15 @@ __all__ = (
     "exact_legacy_native_maven_server",
     "_LEGACY_NATIVE_MAVEN_CODEX_BLOCK",
     "remove_exact_legacy_native_maven_codex_block",
+    "_temurin_java_relative",
+    "_runtime_artifact",
+    "_write_runtime_receipt",
+    "_materialize_runtime",
+    "_prepare_temurin",
+    "_prepare_maven",
+    "_ambient_maven",
+    "_staged_maven_tools_version",
+    "_reuse_or_collide",
 )
 
 
@@ -214,86 +244,54 @@ def verified_managed_maven(candidate: Path, host_platform: str, *, version: str)
     return candidate.resolve()
 
 
-def ensure_managed_temurin_jdk(
-    specification: dict[str, object] | None = None,
-    *,
-    opener=None,
-    reporter=None,
-    confirmer=None,
-) -> Path | None:
-    """Provision checksum-verified Temurin JDK into the CE tools cache when needed (#5630)."""
-    system, architecture, host_platform = _tools_host_platform()
-    temurin = _runtime_contract(specification, "temurin")
-    version = (
-        str(temurin["version"])
-        if isinstance(temurin, dict) and isinstance(temurin.get("version"), str)
-        else "25.0.4+7"
-    )
-    root = managed_temurin_root(version)
-    java = root / (
+def _temurin_java_relative() -> str:
+    return (
         "bin/java.exe" if os.name == "nt" else
         "Contents/Home/bin/java" if sys.platform == "darwin" else "bin/java"
     )
-    verified = verified_managed_temurin(java, host_platform, version=version)
-    if verified is not None and java_compiler_present(verified):
-        return verified
-    if specification is None or temurin is None:
-        return None
-    artifacts = temurin.get("artifacts")
+
+
+def _runtime_artifact(contract: dict[str, object], host_platform: str) -> tuple[str, str] | None:
+    """The (url, sha256) pair a runtime contract pins for this host, if any."""
+    artifacts = contract.get("artifacts")
     artifact = artifacts.get(host_platform) if isinstance(artifacts, dict) else None
     if not isinstance(artifact, dict):
         return None
     url, digest = artifact.get("url"), artifact.get("sha256")
     if not isinstance(url, str) or not isinstance(digest, str):
         return None
-    module = _load_dependencies_controller()
-    if module is None:
-        return None
-    open_url = opener or urllib.request.urlopen
-    parent = root.parent
-    parent.mkdir(parents=True, exist_ok=True)
-    if confirmer is not None:
-        confirmer(f"Download Temurin JDK {version} from {url}")
-    if reporter is not None:
-        reporter.trace(f"provision managed Temurin JDK {version}")
-    suffix = ".zip" if str(url).endswith(".zip") else ".tar.gz"
-    transaction = parent / f".{version}-{architecture}.{secrets.token_hex(8)}.building"
-    archive = transaction.with_suffix(suffix)
-    try:
-        if root.exists() or is_link_or_reparse(root):
-            # Incomplete prior attempt — refuse to clobber without a clean tree.
-            if verified_managed_temurin(java, host_platform, version=version) is None:
-                raise ValueError("existing managed Temurin JDK tree is invalid")
-            return java.resolve()
-        module._download_artifact(str(url), archive, str(digest), open_url, reporter=reporter)
-        module._extract_runtime_archive(archive, transaction)
-        # Write runtime receipt expected by verified_managed_temurin.
-        relative_java = (
-            "bin/java.exe" if os.name == "nt" else
-            "Contents/Home/bin/java" if sys.platform == "darwin" else "bin/java"
-        )
-        installed_java = transaction / relative_java
-        if not installed_java.is_file():
-            raise ValueError("Temurin JDK archive did not contain java")
-        javac = installed_java.with_name("javac.exe" if os.name == "nt" else "javac")
-        if not javac.is_file():
-            raise ValueError("Temurin JDK archive did not contain javac")
-        expected_architecture = (
+    return url, digest
+
+
+def _write_runtime_receipt(
+    transaction: Path, runtime: str, version: str, host_platform: str, key: str, relative: str
+) -> None:
+    """Write the receipt the verified_managed_* probes expect."""
+    receipt = {
+        "schemaVersion": 1,
+        "runtime": runtime,
+        "version": version,
+        "hostPlatform": host_platform,
+        "artifactArchitecture": (
             "x64" if host_platform == "windows-arm64" else host_platform.split("-", 1)[1]
-        )
-        receipt = {
-            "schemaVersion": 1,
-            "runtime": "temurin",
-            "version": version,
-            "hostPlatform": host_platform,
-            "artifactArchitecture": expected_architecture,
-            "emulated": host_platform == "windows-arm64",
-            "java": relative_java,
-            "javaSha256": hashlib.sha256(installed_java.read_bytes()).hexdigest(),
-        }
-        (transaction / TEMURIN_RECEIPT).write_text(
-            json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        ),
+        "emulated": host_platform == "windows-arm64",
+        key: relative,
+        f"{key}Sha256": hashlib.sha256((transaction / relative).read_bytes()).hexdigest(),
+    }
+    (transaction / TEMURIN_RECEIPT).write_text(
+        json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
+def _materialize_runtime(module, artifact: tuple[str, str], open_url, transaction: Path, root: Path, *, reporter, prepare) -> None:
+    """Download and extract into ``transaction``, validate with ``prepare``, publish to ``root``."""
+    url, digest = artifact
+    archive = transaction.with_suffix(".zip" if url.endswith(".zip") else ".tar.gz")
+    try:
+        module._download_artifact(url, archive, digest, open_url, reporter=reporter)
+        module._extract_runtime_archive(archive, transaction)
+        prepare(transaction)
         transaction.rename(root)
     except BaseException:
         archive.unlink(missing_ok=True)
@@ -302,10 +300,89 @@ def ensure_managed_temurin_jdk(
         raise
     finally:
         archive.unlink(missing_ok=True)
+
+
+def _prepare_temurin(transaction: Path, version: str, host_platform: str) -> None:
+    relative_java = _temurin_java_relative()
+    installed_java = transaction / relative_java
+    if not installed_java.is_file():
+        raise ValueError("Temurin JDK archive did not contain java")
+    javac = installed_java.with_name("javac.exe" if os.name == "nt" else "javac")
+    if not javac.is_file():
+        raise ValueError("Temurin JDK archive did not contain javac")
+    _write_runtime_receipt(transaction, "temurin", version, host_platform, "java", relative_java)
+
+
+def _prepare_maven(transaction: Path, version: str, host_platform: str) -> None:
+    relative_mvn = "bin/mvn.cmd" if os.name == "nt" else "bin/mvn"
+    installed = transaction / relative_mvn
+    if not installed.is_file():
+        raise ValueError("Maven archive did not contain mvn")
+    if os.name != "nt":
+        installed.chmod(installed.stat().st_mode | stat.S_IXUSR)
+    _write_runtime_receipt(transaction, "maven", version, host_platform, "mvn", relative_mvn)
+
+
+def ensure_managed_temurin_jdk(
+    specification: dict[str, object] | None = None,
+    *,
+    opener=None,
+    reporter=None,
+    confirmer=None,
+) -> Path | None:
+    """Provision checksum-verified Temurin JDK into the CE tools cache when needed (#5630)."""
+    _, architecture, host_platform = _tools_host_platform()
+    temurin = _runtime_contract(specification, "temurin")
+    version = (
+        str(temurin["version"])
+        if isinstance(temurin, dict) and isinstance(temurin.get("version"), str)
+        else "25.0.4+7"
+    )
+    root = managed_temurin_root(version)
+    java = root / _temurin_java_relative()
+    verified = verified_managed_temurin(java, host_platform, version=version)
+    if verified is not None and java_compiler_present(verified):
+        return verified
+    if specification is None or temurin is None:
+        return None
+    artifact = _runtime_artifact(temurin, host_platform)
+    module = _load_dependencies_controller() if artifact is not None else None
+    if module is None:
+        return None
+    parent = root.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    if confirmer is not None:
+        confirmer(f"Download Temurin JDK {version} from {artifact[0]}")
+    if reporter is not None:
+        reporter.trace(f"provision managed Temurin JDK {version}")
+    if root.exists() or is_link_or_reparse(root):
+        # Incomplete prior attempt — refuse to clobber without a clean tree.
+        if verified_managed_temurin(java, host_platform, version=version) is None:
+            raise ValueError("existing managed Temurin JDK tree is invalid")
+        return java.resolve()
+    _materialize_runtime(
+        module,
+        artifact,
+        opener or urllib.request.urlopen,
+        parent / f".{version}-{architecture}.{secrets.token_hex(8)}.building",
+        root,
+        reporter=reporter,
+        prepare=lambda transaction: _prepare_temurin(transaction, version, host_platform),
+    )
     verified = verified_managed_temurin(java, host_platform, version=version)
     if verified is None or not java_compiler_present(verified):
         raise ValueError("managed Temurin JDK provision did not produce a usable javac")
     return verified
+
+
+def _ambient_maven(module, minimum: str, which) -> Path | None:
+    ambient = which("mvn")
+    if not ambient or module is None:
+        return None
+    observed = maven_version(Path(ambient))
+    if observed is not None and module.version_at_least(observed, minimum):
+        return Path(ambient).resolve()
+    return None
 
 
 def ensure_managed_maven(
@@ -324,80 +401,42 @@ def ensure_managed_maven(
         if isinstance(maven, dict) and isinstance(maven.get("minimumVersion"), str)
         else "3.9.0"
     )
-    ambient = which("mvn")
-    if ambient:
-        observed = maven_version(Path(ambient))
-        if (
-            observed is not None
-            and module is not None
-            and module.version_at_least(observed, minimum)
-        ):
-            return Path(ambient).resolve()
+    ambient = _ambient_maven(module, minimum, which)
+    if ambient is not None:
+        return ambient
     if specification is None or maven is None or module is None:
         return None
     version = str(maven.get("version") or "")
     if not version:
         return None
-    system, architecture, host_platform = _tools_host_platform()
+    _, architecture, host_platform = _tools_host_platform()
     root = managed_maven_root(version)
     mvn = root / ("bin/mvn.cmd" if os.name == "nt" else "bin/mvn")
     verified = verified_managed_maven(mvn, host_platform, version=version)
     if verified is not None:
         return verified
-    artifacts = maven.get("artifacts")
-    artifact = artifacts.get(host_platform) if isinstance(artifacts, dict) else None
-    if not isinstance(artifact, dict):
+    artifact = _runtime_artifact(maven, host_platform)
+    if artifact is None:
         return None
-    url, digest = artifact.get("url"), artifact.get("sha256")
-    if not isinstance(url, str) or not isinstance(digest, str):
-        return None
-    open_url = opener or urllib.request.urlopen
     parent = root.parent
     parent.mkdir(parents=True, exist_ok=True)
     if confirmer is not None:
-        confirmer(f"Download Apache Maven {version} from {url}")
+        confirmer(f"Download Apache Maven {version} from {artifact[0]}")
     if reporter is not None:
         reporter.trace(f"provision managed Apache Maven {version}")
-    suffix = ".zip" if str(url).endswith(".zip") else ".tar.gz"
-    transaction = parent / f".maven-{version}-{architecture}.{secrets.token_hex(8)}.building"
-    archive = transaction.with_suffix(suffix)
-    try:
-        if root.exists() or is_link_or_reparse(root):
-            if verified_managed_maven(mvn, host_platform, version=version) is None:
-                raise ValueError("existing managed Maven tree is invalid")
-            return mvn.resolve()
-        module._download_artifact(str(url), archive, str(digest), open_url, reporter=reporter)
-        module._extract_runtime_archive(archive, transaction)
-        relative_mvn = "bin/mvn.cmd" if os.name == "nt" else "bin/mvn"
-        installed = transaction / relative_mvn
-        if not installed.is_file():
-            raise ValueError("Maven archive did not contain mvn")
-        if os.name != "nt":
-            installed.chmod(installed.stat().st_mode | stat.S_IXUSR)
-        expected_architecture = (
-            "x64" if host_platform == "windows-arm64" else host_platform.split("-", 1)[1]
-        )
-        receipt = {
-            "schemaVersion": 1,
-            "runtime": "maven",
-            "version": version,
-            "hostPlatform": host_platform,
-            "artifactArchitecture": expected_architecture,
-            "emulated": host_platform == "windows-arm64",
-            "mvn": relative_mvn,
-            "mvnSha256": hashlib.sha256(installed.read_bytes()).hexdigest(),
-        }
-        (transaction / TEMURIN_RECEIPT).write_text(
-            json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8"
-        )
-        transaction.rename(root)
-    except BaseException:
-        archive.unlink(missing_ok=True)
-        if transaction.exists() and not is_link_or_reparse(transaction):
-            shutil.rmtree(transaction)
-        raise
-    finally:
-        archive.unlink(missing_ok=True)
+    if root.exists() or is_link_or_reparse(root):
+        if verified_managed_maven(mvn, host_platform, version=version) is None:
+            raise ValueError("existing managed Maven tree is invalid")
+        return mvn.resolve()
+    _materialize_runtime(
+        module,
+        artifact,
+        opener or urllib.request.urlopen,
+        parent / f".maven-{version}-{architecture}.{secrets.token_hex(8)}.building",
+        root,
+        reporter=reporter,
+        prepare=lambda transaction: _prepare_maven(transaction, version, host_platform),
+    )
     verified = verified_managed_maven(mvn, host_platform, version=version)
     if verified is None:
         raise ValueError("managed Maven provision did not produce a usable mvn")
@@ -458,7 +497,8 @@ def _maven_tools_version_directory(root: Path, version: str) -> Path:
 
 
 def _read_maven_tools_cache_lock(stream) -> bytes:
-    """Read the cache lock, waiting out a creator that has not finished writing the magic.
+    """
+    Read the cache lock, waiting out a creator that has not finished writing the magic.
 
     Empty or partial magic is re-read for up to ``MAVEN_TOOLS_CACHE_LOCK_INIT_GRACE_SECONDS``
     (#6333, same rule as the #6328 project lock). Foreign bytes return at once so the
@@ -640,7 +680,8 @@ def purge_maven_tools_cache(
 def discard_invalid_maven_tools_cache(
     version: str, *, root: Path | None = None
 ) -> dict[str, str]:
-    """Discard an invalid Maven Tools version tree so install can rebuild it.
+    """
+    Discard an invalid Maven Tools version tree so install can rebuild it.
 
     Healthy trees stay purge-only via purge_maven_tools_cache. Never follows
     links out of the cache root: linked leaves are unlinked in place.
@@ -717,16 +758,8 @@ def _reuse_healthy_maven_tools_cache(
     return None
 
 
-def publish_maven_tools_cache(staging: Path, *, root: Path | None = None) -> Path:
-    """Publish a staged Maven Tools MCP version into the shared user cache.
-
-    An already-present *healthy* version is reused (idempotent install / dual
-    reinstall) instead of raising CE-INSTALL-FAILED. Invalid or colliding trees
-    still fail closed.
-    """
-    staging = staging.absolute()
-    cache_root = (root or maven_tools_cache_root()).absolute()
-    anchor = _cache_anchor(cache_root)
+def _staged_maven_tools_version(staging: Path, cache_root: Path) -> str:
+    """Validate a staged Maven Tools MCP pair and return its version."""
     try:
         staged_receipt = json.loads(
             (staging / MAVEN_TOOLS_MCP_RECEIPT).read_text(encoding="utf-8")
@@ -740,48 +773,56 @@ def publish_maven_tools_cache(staging: Path, *, root: Path | None = None) -> Pat
     if is_link_or_reparse(staging) or not staging.is_dir():
         raise ValueError("Maven Tools MCP staging directory is invalid")
     jar = staging / f"maven-tools-mcp-{version}.jar"
-    expected_names = {jar.name, MAVEN_TOOLS_MCP_RECEIPT}
     try:
         names = {path.name for path in staging.iterdir()}
     except OSError as error:
         raise ValueError("Maven Tools MCP staging pair is inaccessible") from error
-    if names != expected_names or verified_maven_tools_jar(jar) is None:
+    if names != {jar.name, MAVEN_TOOLS_MCP_RECEIPT} or verified_maven_tools_jar(jar) is None:
         raise ValueError("Maven Tools MCP staging pair is invalid")
+    return version
+
+
+def _reuse_or_collide(
+    cache_root: Path, version: str, *, anchor, target: Path, error: OSError | None = None
+) -> Path:
+    """Reuse a healthy published version; otherwise fail closed on the collision."""
+    reused = _reuse_healthy_maven_tools_cache(cache_root, version, anchor=anchor, target=target)
+    if reused is not None:
+        return reused
+    raise ValueError(f"Maven Tools MCP cache version already exists: {target}") from error
+
+
+def publish_maven_tools_cache(staging: Path, *, root: Path | None = None) -> Path:
+    """
+    Publish a staged Maven Tools MCP version into the shared user cache.
+
+    An already-present *healthy* version is reused (idempotent install / dual
+    reinstall) instead of raising CE-INSTALL-FAILED. Invalid or colliding trees
+    still fail closed.
+    """
+    staging = staging.absolute()
+    cache_root = (root or maven_tools_cache_root()).absolute()
+    anchor = _cache_anchor(cache_root)
+    version = _staged_maven_tools_version(staging, cache_root)
     cache_root.mkdir(parents=True, exist_ok=True)
     with maven_tools_cache_lock(cache_root, anchor=anchor):
         target = _maven_tools_version_directory(cache_root, version)
         if target.exists() or is_link_or_reparse(target):
-            reused = _reuse_healthy_maven_tools_cache(
-                cache_root, version, anchor=anchor, target=target
-            )
-            if reused is not None:
-                return reused
-            raise ValueError(f"Maven Tools MCP cache version already exists: {target}")
+            return _reuse_or_collide(cache_root, version, anchor=anchor, target=target)
         if os.stat(staging).st_dev != os.stat(cache_root).st_dev:
             raise ValueError("Maven Tools MCP staging directory must use the cache filesystem")
         try:
             _rename_no_replace(staging, target)
-        except FileExistsError as error:
-            reused = _reuse_healthy_maven_tools_cache(
-                cache_root, version, anchor=anchor, target=target
-            )
-            if reused is not None:
-                return reused
-            raise ValueError(f"Maven Tools MCP cache version already exists: {target}") from error
         except OSError as error:
-            if error.errno == errno.EEXIST:
-                reused = _reuse_healthy_maven_tools_cache(
-                    cache_root, version, anchor=anchor, target=target
-                )
-                if reused is not None:
-                    return reused
-                raise ValueError(f"Maven Tools MCP cache version already exists: {target}") from error
-            raise
+            if not isinstance(error, FileExistsError) and error.errno != errno.EEXIST:
+                raise
+            return _reuse_or_collide(cache_root, version, anchor=anchor, target=target, error=error)
         return target
 
 
 def maven_tools_cached_versions(*, root: Path | None = None) -> list[str]:
-    """Return numeric cached Maven Tools versions, newest first.
+    """
+    Return numeric cached Maven Tools versions, newest first.
 
     Runtime discovery and doctor share this order so doctor judges the version
     the installer actually reuses instead of a pinned release (#6336).
@@ -803,7 +844,8 @@ def _configured_maven_tools_jar() -> Path | None:
 
 
 def selected_maven_tools_cache_status(*, root: Path | None = None) -> dict[str, str]:
-    """Report the Maven Tools JAR that runtime discovery would select (#6336).
+    """
+    Report the Maven Tools JAR that runtime discovery would select (#6336).
 
     Order matches ``discover_maven_tools_runtime``: a verified configured JAR,
     then the newest cached version whose receipt verifies. With no healthy
