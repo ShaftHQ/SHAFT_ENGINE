@@ -121,6 +121,39 @@ class JavaPackTests(unittest.TestCase):
         self.assertIn("maven-tools-mcp", install.maven_tools_repair_fix_next())
 
 
+class PackBindingContractTests(unittest.TestCase):
+    def test_every_pack_function_is_exported_so_binding_resolves_it(self):
+        import ast
+
+        for module in ("maven_tools.py", "installer.py"):
+            path = ROOT / "chaos-engine/packs/java" / module
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            exported = next(
+                ast.literal_eval(node.value)
+                for node in tree.body
+                if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "__all__"
+            )
+            defined = [
+                node.name
+                for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name != "_core_helper"
+            ]
+            with self.subTest(module=module):
+                self.assertEqual([], [name for name in defined if name not in exported])
+
+    def test_core_placeholders_are_callable_until_bound(self):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "ce_pack_placeholder_probe", ROOT / "chaos-engine/packs/java/maven_tools.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertTrue(callable(module.is_link_or_reparse))
+        with self.assertRaises(RuntimeError):
+            module.is_link_or_reparse(ROOT)
+
+
 class BootstrapPackDownloadTests(unittest.TestCase):
     def test_bootstrap_downloads_ce_pack_directories_next_to_the_core(self):
         bootstrap = _load("ce_bootstrap_packs", CE / "bootstrap.py")
