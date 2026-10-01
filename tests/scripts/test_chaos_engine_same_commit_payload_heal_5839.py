@@ -24,7 +24,15 @@ SPEC.loader.exec_module(MODULE)
 
 def copy_source(destination: Path) -> Path:
     ignored = shutil.ignore_patterns("__pycache__", "*.pyc")
-    return Path(shutil.copytree(SOURCE, destination, ignore=ignored))
+    copied = Path(shutil.copytree(SOURCE, destination, ignore=ignored))
+    # CE-10: the project pack ships beside the core tree.
+    shutil.copytree(
+        SOURCE.parent / "shaft-skills/ce-pack",
+        copied.parent / "shaft-skills/ce-pack",
+        ignore=ignored,
+        dirs_exist_ok=True,
+    )
+    return copied
 
 
 class SameCommitPayloadHeal5839Test(unittest.TestCase):

@@ -47,7 +47,7 @@ applyTo: "**/src/test/java/**/*.java"
   default branch: `switch` must be exhaustive (`default` where Codacy
   `MissingDefaultCase` requires it). Confirm before the first push.
 - Codacy is this repository's static-analysis app: its `ACTION_REQUIRED` is the
-  [static-analysis gate](../../../../references/static-analysis-gate.md).
+  static-analysis gate (`.chaos-engine/references/static-analysis-gate.md`).
 - N-run / flake-proof scripts that invoke Maven under the engine Surefire
   profile must not treat process exit alone as green: after each proof
   invocation, require a zero failed count from Surefire `TEST-*.xml` or TestNG

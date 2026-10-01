@@ -183,7 +183,7 @@ class ChaosEngineInstallWrapperTest(unittest.TestCase):
     def test_shaft_profile_keeps_the_real_url_without_an_env_preamble(self):
 
         profile = (
-            ROOT / "chaos-engine/profiles/shaft/entrypoint.md"
+            ROOT / "shaft-skills/ce-pack/entrypoint.md"
         ).read_text(encoding="utf-8")
         self.assertIn(
             "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/"

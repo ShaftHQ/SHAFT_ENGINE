@@ -40,7 +40,7 @@ ENTRYPOINT = CANONICAL_SKILLS / "chaos-engine/SKILL.md"
 ROUTER_CONTRACT = ROOT / "chaos-engine/references/router-contract.md"
 ROUTER_CATALOG = ROOT / "chaos-engine/references/catalog.md"
 DELEGATE_CARD = ROOT / "chaos-engine/references/delegate-card.md"
-REFERENCES = ROOT / "chaos-engine/profiles/shaft/references"
+REFERENCES = ROOT / "shaft-skills/ce-pack/references"
 ROUTING = REFERENCES / "routing.md"
 CORE_REFERENCES = ROOT / "chaos-engine/references"
 ROLES = CORE_REFERENCES / "roles.md"
@@ -1387,8 +1387,14 @@ class RouterTableTest(unittest.TestCase):
             with self.subTest(row=deliverable):
                 self.assertTrue(deliverable, "every row names a deliverable")
                 match = re.search(r"\[[^]]+\]\(([^)]+)\)", target)
-                self.assertIsNotNone(match, f"row target is not a link: {target}")
-                resolved = (ROUTING.parent / match.group(1).split("#", 1)[0]).resolve()
+                core = re.search(r"`\.chaos-engine/([^`#]+)(?:#[^`]*)?`", target)
+                self.assertTrue(match or core, f"row target is not a link: {target}")
+                # Pack rows link inside the pack; core targets are installed-path code spans.
+                resolved = (
+                    (ROUTING.parent / match.group(1).split("#", 1)[0]).resolve()
+                    if match
+                    else ROOT / "chaos-engine" / core.group(1)
+                )
                 self.assertTrue(resolved.is_file(), f"row points at a missing file: {target}")
 
     def test_router_links_every_mastery_chapter_directly(self):
@@ -1419,8 +1425,8 @@ class RouterTableTest(unittest.TestCase):
         for surface in ("delegation.md", "roles.md"):
             self.assertIn(surface, content, f"entrypoint does not reach {surface}")
         adapter = host_file_text(".agents/skills/chaos-engine/SKILL.md")
-        self.assertIn("profiles/shaft/entrypoint.md", adapter)
-        profile = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(encoding="utf-8")
+        self.assertIn("packs/shaft/entrypoint.md", adapter)
+        profile = (ROOT / "shaft-skills/ce-pack/entrypoint.md").read_text(encoding="utf-8")
         self.assertIn("references/routing.md", profile)
 
     def test_retired_indirection_files_are_gone(self):
@@ -1994,7 +2000,7 @@ class NoDuplicationTest(unittest.TestCase):
         ".agents/skills/README.md",
         "chaos-engine/skills/*/SKILL.md",
         "chaos-engine/references/**/*.md",
-        "chaos-engine/profiles/shaft/references/**/*.md",
+        "shaft-skills/ce-pack/references/**/*.md",
         # #6215: `.claude/skills`, `.claude/agents` and `.github/skills` are
         # installer-generated host wiring, no longer tracked, so they left the
         # scan; a glob that matches nothing fails loudly by design.
@@ -2304,7 +2310,7 @@ class SoloOrOrchestrateTest(unittest.TestCase):
         ".agents/skills/README.md",
         "chaos-engine/skills/*/SKILL.md",
         "chaos-engine/references/**/*.md",
-        "chaos-engine/profiles/shaft/references/**/*.md",
+        "shaft-skills/ce-pack/references/**/*.md",
         # #6215: installer-generated host wiring (.claude, .codex agents,
         # .github/skills) is untracked now; the tracked surfaces stay.
         ".github/copilot-instructions.md",

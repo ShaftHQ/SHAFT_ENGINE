@@ -2,7 +2,7 @@
 
 Personas are phases, not agent identities. They run sequentially in the main
 session. PDCA does not select an execution mode. Select one through
-[execution workflows](../../../../references/execution-workflows.md), then keep
+execution workflows (`.chaos-engine/references/execution-workflows.md`), then keep
 these phases sequential inside it.
 
 - Kevin phase plans spec, value, acceptance, risks, and any useful Mermaid or wireframe.
@@ -23,4 +23,4 @@ rounds. Bruce judges the actual diff plus real checks, never a self-report;
 hunt stubs and weakened assertions. Gaps are closed by whoever the mode says
 implements. Record which phase produced each commit.
 
-Use the canonical [TDD/PDCA phase boundary](../../../../references/tdd.md#workflow).
+Use the canonical TDD/PDCA phase boundary (`.chaos-engine/references/tdd.md#workflow`).

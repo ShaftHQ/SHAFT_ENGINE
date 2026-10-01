@@ -36,9 +36,20 @@ CLI_EQUIVALENT_MCP_IDS = frozenset({"chaosengine-memory", "chaosengine-mempalace
 OPTIONAL_MCP_IDS = ("chaosengine-memory", "chaosengine-mempalace", "context7")
 
 
+def _profile_named(path: Path, profile: str) -> bool:
+    """True when ``path`` is the profile.json of the profile or pack called ``profile``."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("name") == profile
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
 def profile_mcp_ids(profile: str) -> tuple[str, ...]:
     """MCP servers a selected profile declares (`mcpServers` in its profile.json)."""
-    path = Path(__file__).resolve().parent / "profiles" / profile / "profile.json"
+    root = Path(__file__).resolve().parent
+    candidates = [root / "profiles" / profile / "profile.json", root / "packs" / profile / "profile.json"]
+    candidates.extend(sorted(root.parent.glob("*/ce-pack/profile.json")))
+    path = next((item for item in candidates if _profile_named(item, profile)), candidates[0])
     try:
         declared = json.loads(path.read_text(encoding="utf-8")).get("mcpServers", [])
     except (OSError, ValueError, AttributeError):

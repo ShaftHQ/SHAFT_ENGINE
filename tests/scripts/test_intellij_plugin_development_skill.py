@@ -19,11 +19,11 @@ SKILL_NAME = "intellij-plugin-development"
 ADAPTER = ROOT / ".agents/skills" / SKILL_NAME / "SKILL.md"
 PLAYBOOK = (
     ROOT
-    / "chaos-engine/profiles/shaft/references/playbooks"
+    / "shaft-skills/ce-pack/references/playbooks"
     / f"{SKILL_NAME}.md"
 )
-MASTERY = ROOT / "chaos-engine/profiles/shaft/references/shaft-mastery/intellij-plugin.md"
-ROUTING = ROOT / "chaos-engine/profiles/shaft/references/routing.md"
+MASTERY = ROOT / "shaft-skills/ce-pack/references/shaft-mastery/intellij-plugin.md"
+ROUTING = ROOT / "shaft-skills/ce-pack/references/routing.md"
 BUDGET = ROOT / "scripts/ci/agent_guidance_budget.json"
 SKILLS_MAP = ROOT / ".agents/skills/README.md"
 

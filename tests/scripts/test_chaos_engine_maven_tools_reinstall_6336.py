@@ -393,7 +393,7 @@ class RollbackTruth6338Test(unittest.TestCase):
 
 class UpstreamSourceBuild6339Test(unittest.TestCase):
     def test_source_build_skips_upstream_tests(self):
-        source = (SOURCE / "install.py").read_text(encoding="utf-8")
+        source = (SOURCE / "packs" / "java" / "installer.py").read_text(encoding="utf-8")
         self.assertIn('"-B", "clean", "package", "-Pci", "-DskipTests"', source)
         guide = (SOURCE / "INSTALL.md").read_text(encoding="utf-8")
         self.assertIn("./mvnw -B clean package -Pci -DskipTests", guide)

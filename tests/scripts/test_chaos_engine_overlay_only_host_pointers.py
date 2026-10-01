@@ -66,9 +66,10 @@ class OverlayOnlyHostPointerTests(unittest.TestCase):
             skill = project / "chaos-engine/skills/chaos-engine/SKILL.md"
             skill.parent.mkdir(parents=True)
             skill.write_text("canonical\n", encoding="utf-8")
-            profile = project / "chaos-engine/profiles/shaft/entrypoint.md"
+            profile = project / "shaft-skills/ce-pack/entrypoint.md"
             profile.parent.mkdir(parents=True)
             profile.write_text("profile\n", encoding="utf-8")
+            profile.with_name("profile.json").write_text('{"name": "shaft"}\n', encoding="utf-8")
             before = {key: None for key in self.hosts.managed_paths()}
             after = self.hosts.desired_content(
                 before,
@@ -84,7 +85,7 @@ class OverlayOnlyHostPointerTests(unittest.TestCase):
             self.assertIn("../.chaos-engine/skills/chaos-engine/SKILL.md", copilot)
             self.assertNotIn("skills/../chaos-engine", copilot)
             self.assertIn("../../../.chaos-engine/skills/chaos-engine/SKILL.md", adapter)
-            self.assertIn("profiles/shaft/entrypoint.md", adapter)
+            self.assertIn("packs/shaft/entrypoint.md", adapter)
 
 
 if __name__ == "__main__":

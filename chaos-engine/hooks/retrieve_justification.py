@@ -77,6 +77,8 @@ _INSTRUCTION_MARKERS = (
     ".chaos-engine/references/",
     ".chaos-engine/skills/",
     ".chaos-engine/profiles/",
+    "chaos-engine/packs/",
+    "/ce-pack/",
 )
 _STORE_HEADS = frozenset({"mempalace", "graphify"})
 _PY = frozenset({"py", "python", "python3"})

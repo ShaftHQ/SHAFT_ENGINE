@@ -52,7 +52,14 @@ def git(cwd: Path, *args: str) -> str:
 
 def copy_source(destination: Path) -> None:
     ignored = shutil.ignore_patterns("__pycache__", "*.pyc")
-    shutil.copytree(SOURCE, destination, ignore=ignored)
+    copied = Path(shutil.copytree(SOURCE, destination, ignore=ignored))
+    # CE-10: the project pack ships beside the core tree.
+    shutil.copytree(
+        SOURCE.parent / "shaft-skills/ce-pack",
+        copied.parent / "shaft-skills/ce-pack",
+        ignore=ignored,
+        dirs_exist_ok=True,
+    )
 
 
 class OverlayCommitBytes6121Test(unittest.TestCase):
@@ -132,7 +139,7 @@ class OverlayCommitBytes6121Test(unittest.TestCase):
         project.mkdir()
         copy_source(project / "chaos-engine")
         git(project, "init", "-b", "older")
-        git(project, "add", "chaos-engine")
+        git(project, "add", "chaos-engine", "shaft-skills/ce-pack")
         git(project, "commit", "-m", "old")
         git(project, "checkout", "-b", "newer")
         identity = project / "chaos-engine" / "identity.md"
@@ -145,6 +152,8 @@ class OverlayCommitBytes6121Test(unittest.TestCase):
         new_sha = git(project, "rev-parse", "HEAD")
         source_new = root / "source-new"
         shutil.copytree(project / "chaos-engine", source_new)
+        # CE-10: the project pack ships beside the copied core tree.
+        shutil.copytree(project / "shaft-skills/ce-pack", root / "shaft-skills/ce-pack")
         git(project, "checkout", "older")
         return project, new_sha, source_new
 

@@ -1,7 +1,7 @@
 # Product-track self-improve (SHAFT + ChaosGauge)
 
 Profile extension of the portable
-[product-track playbook](../../../skills/self-improve/references/product-track.md).
+product-track playbook (`.chaos-engine/skills/self-improve/references/product-track.md`).
 
 ## SHAFT filing cues
 

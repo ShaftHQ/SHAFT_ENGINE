@@ -17,14 +17,39 @@ import re
 import runpy
 import secrets
 import shutil
-import stat
-import subprocess  # nosec B404 - fixed list-form Maven build commands.
+import subprocess  # nosec B404 - fixed list-form tool commands.
 import sys
 import tempfile
 import time
 import types
 import zipfile
 from pathlib import Path, PurePosixPath
+
+
+def _bind_java_pack() -> dict[str, object]:
+    """Bind the java pack (installer.py) into this controller's namespace."""
+    root = Path(__file__).resolve().parent
+    spec = importlib.util.spec_from_file_location(
+        "chaos_engine_pack_binding", root / "pack_binding.py"
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError("ChaosEngine pack_binding.py cannot load")
+    binding = importlib.util.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(binding)
+    finally:
+        sys.dont_write_bytecode = previous
+    return binding.bind_pack(globals(), root / "packs" / "java" / "installer.py")
+
+
+_JAVA_PACK = _bind_java_pack()
+repair_maven_tools = _JAVA_PACK["repair_maven_tools"]
+project_maven_ids = _JAVA_PACK["project_maven_ids"]
+maven_tools_repair_fix_next = _JAVA_PACK["maven_tools_repair_fix_next"]
+ensure_maven_tools = _JAVA_PACK["ensure_maven_tools"]
+java_pack_enabled = _JAVA_PACK["java_pack_enabled"]
 
 
 INSTALL_DIRECTORY = ".chaos-engine"
@@ -34,6 +59,11 @@ DIAGNOSTIC_SCHEMA_VERSION = 2
 CANONICAL_IDENTITY = "chaos-engine"
 DEFAULT_DISTRIBUTION = "portable"
 DISTRIBUTIONS_NAME = "distributions.json"
+# Project packs live next to the core tree (`<repo>/<dir>/ce-pack/profile.json`)
+# and install under `.chaos-engine/packs/<name>/`.
+PROJECT_PACK_GLOB = "*/ce-pack/profile.json"
+PACKS_DIRECTORY = "packs"
+_PACK_NAME = re.compile(r"[a-z0-9][a-z0-9-]*")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 BRANCH_PATTERN = re.compile(r"[^\x00-\x20\x7f~^:?*\\\[\]]+")
@@ -54,8 +84,6 @@ PROJECT_LOCK_POLL_SECONDS = 0.1
 # in that window sees an empty or partial magic: initialization, not a collision.
 LOCK_INIT_GRACE_SECONDS = 1.0
 LOCK_INIT_POLL_SECONDS = 0.02
-MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS = 30.0
-MAVEN_TOOLS_CACHE_BUSY_POLL_SECONDS = 0.2
 CROSS_ROLLBACK_JOURNAL_NAME = ".chaos-engine-cross-rollback"
 ACCOUNT_ROLLBACK_JOURNAL_NAME = ".chaos-engine-account-rollback"
 CAPABILITY_FIELDS = {"owner", "scope", "lifecycle", "taskImpact"}
@@ -149,7 +177,7 @@ def overlay_unchanged(source: Path, installed: Path, distribution: str = DEFAULT
     if not installed.is_dir():
         return False
     for path in source_files(source, distribution):
-        target = installed / path.relative_to(source)
+        target = installed / payload_relative(source, path)
         try:
             if not target.is_file() or target.read_bytes() != path.read_bytes():
                 return False
@@ -259,61 +287,6 @@ def require_absent(path: Path, label: str) -> None:
         raise ValueError(f"{label} collision: {path}")
 
 
-_XML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
-_XML_TAG = re.compile(
-    r"<(/?)(?:[\w.-]+:)?([A-Za-z_][\w.-]*)(?:\s[^>]*)?(/?)>",
-    re.DOTALL,
-)
-_MAX_POM_BYTES = 2_000_000
-_MAVEN_ID_PARENTS = {
-    ("project", "artifactId"),
-    ("modules", "module"),
-    ("dependency", "artifactId"),
-}
-
-
-def maven_coordinate_ids(pom: Path) -> set[str]:
-    """Return project, module, and dependency artifact ids from one POM."""
-    try:
-        raw = pom.read_bytes()
-    except OSError:
-        return set()
-    if len(raw) > _MAX_POM_BYTES:
-        return set()
-    try:
-        text = _XML_COMMENT.sub("", raw.decode("utf-8"))
-    except UnicodeDecodeError:
-        return set()
-    ids: set[str] = set()
-    stack: list[str] = []
-    pending_parent: str | None = None
-    last_end = 0
-    for match in _XML_TAG.finditer(text):
-        if pending_parent is not None:
-            value = text[last_end:match.start()].strip()
-            if value:
-                ids.add(value)
-            pending_parent = None
-        closing, name, self_close = match.group(1), match.group(2), match.group(3)
-        last_end = match.end()
-        if closing:
-            if stack and stack[-1] == name:
-                stack.pop()
-            continue
-        if self_close:
-            continue
-        stack.append(name)
-        if len(stack) >= 2 and (stack[-2], stack[-1]) in _MAVEN_ID_PARENTS:
-            pending_parent = stack[-2]
-    return ids
-
-
-def project_maven_ids(project: Path) -> set[str]:
-    pom = project / "pom.xml"
-    if not pom.is_file():
-        return set()
-    return maven_coordinate_ids(pom)
-
 
 def profile_install_predicate(profile: dict[str, object]) -> set[str]:
     when = profile.get("installWhen")
@@ -329,12 +302,111 @@ def profile_install_predicate(profile: dict[str, object]) -> set[str]:
     return {item.strip() for item in raw}
 
 
-def detect_distribution(project: Path, source: Path) -> str:
-    """Select a distribution from profile predicates; default stays portable."""
-    catalog = json.loads((source / DISTRIBUTIONS_NAME).read_text(encoding="utf-8"))
-    distributions = catalog.get("distributions")
+def project_packs(source: Path) -> dict[str, Path]:
+    """Project packs shipped beside the core tree, keyed by their profile name."""
+    packs: dict[str, Path] = {}
+    for profile_path in sorted(source.parent.glob(PROJECT_PACK_GLOB)):
+        root = profile_path.parent
+        if is_link_or_reparse(root) or is_link_or_reparse(profile_path):
+            raise ValueError(f"ChaosEngine project pack is a link or reparse point: {root}")
+        try:
+            name = json.loads(profile_path.read_text(encoding="utf-8")).get("name")
+        except (OSError, ValueError, AttributeError) as error:
+            raise ValueError(f"invalid ChaosEngine project pack: {root}") from error
+        if not isinstance(name, str) or _PACK_NAME.fullmatch(name) is None:
+            raise ValueError(f"invalid ChaosEngine project pack name: {root}")
+        if name in packs or (source / PACKS_DIRECTORY / name).exists() or (source / "profiles" / name).exists():
+            raise ValueError(f"duplicate ChaosEngine pack name: {name}")
+        packs[name] = root
+    return packs
+
+
+def profile_root(source: Path, profile: str) -> Path:
+    """Core profiles live in `profiles/`; project packs are discovered beside the core."""
+    core = source / "profiles" / profile
+    if core.is_dir():
+        return core
+    pack = project_packs(source).get(profile)
+    if pack is None:
+        raise ValueError(f"ChaosEngine distribution profile is incomplete: {profile}")
+    return pack
+
+
+def payload_relative(source: Path, path: Path) -> Path:
+    """Installed relative path: core files keep theirs, pack files land in packs/<name>/."""
+    if path.is_relative_to(source):
+        return path.relative_to(source)
+    for name, root in project_packs(source).items():
+        if path.is_relative_to(root):
+            return Path(PACKS_DIRECTORY) / name / path.relative_to(root)
+    raise ValueError(f"path is outside the ChaosEngine payload: {path}")
+
+
+def distribution_catalog(source: Path) -> dict[str, dict[str, object]]:
+    """Core distributions plus the one each project pack declares in profile.json."""
+    try:
+        catalog = json.loads((source / DISTRIBUTIONS_NAME).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine distribution catalog is invalid") from error
+    distributions = catalog.get("distributions") if isinstance(catalog, dict) else None
     if not isinstance(distributions, dict):
         raise ValueError("ChaosEngine distribution catalog is invalid")
+    merged = dict(distributions)
+    portable_forbidden: list[str] = []
+    for name, root in project_packs(source).items():
+        pack_profile = json.loads((root / "profile.json").read_text(encoding="utf-8"))
+        tokens = pack_profile.get("portableForbiddenTokens", [])
+        if not isinstance(tokens, list) or not all(isinstance(token, str) and token for token in tokens):
+            raise ValueError(f"invalid portableForbiddenTokens in ChaosEngine pack: {name}")
+        portable_forbidden.extend(tokens)
+        declared = pack_profile.get("distribution")
+        if declared is None:
+            continue
+        identifier = declared.get("id") if isinstance(declared, dict) else None
+        if not isinstance(identifier, str) or _PACK_NAME.fullmatch(identifier) is None:
+            raise ValueError(f"invalid distribution in ChaosEngine pack: {name}")
+        if identifier in merged:
+            raise ValueError(f"duplicate ChaosEngine distribution: {identifier}")
+        policy = {key: value for key, value in declared.items() if key != "id"}
+        policy["profile"] = name
+        merged[identifier] = policy
+    default = merged.get(DEFAULT_DISTRIBUTION)
+    if portable_forbidden and isinstance(default, dict) and isinstance(default.get("forbiddenTokens"), list):
+        # Each pack keeps its own identity out of the portable payload.
+        tokens = [*default["forbiddenTokens"], *portable_forbidden]
+        merged[DEFAULT_DISTRIBUTION] = {**default, "forbiddenTokens": list(dict.fromkeys(tokens))}
+    return merged
+
+
+def legacy_profile_layout(target: Path) -> list[str]:
+    """Pack names still installed under the pre-pack `profiles/<name>` layout."""
+    profiles = target / "profiles"
+    if not profiles.is_dir() or is_link_or_reparse(profiles):
+        return []
+    return sorted(
+        path.name
+        for path in profiles.iterdir()
+        if path.is_dir() and path.name != DEFAULT_DISTRIBUTION
+    )
+
+
+def hard_cut_message(names: list[str], *, replaced: bool = False) -> str:
+    """Migration notice for the profiles/<name> -> packs/<name> hard cut."""
+    listed = ", ".join(names)
+    moves = "; ".join(
+        f"{INSTALL_DIRECTORY}/profiles/{name} -> {INSTALL_DIRECTORY}/{PACKS_DIRECTORY}/{name}"
+        for name in names
+    )
+    return (
+        f"ChaosEngine hard cut: project packs moved ({moves}). "
+        f"The old profiles layout ({listed}) is no longer read and no shim is kept; "
+        + ("this install replaced it." if replaced else "rerun the installer to replace it.")
+    )
+
+
+def detect_distribution(project: Path, source: Path) -> str:
+    """Select a distribution from profile predicates; default stays portable."""
+    distributions = distribution_catalog(source)
     declared = project_maven_ids(project)
     matches: list[str] = []
     for name, policy in distributions.items():
@@ -345,7 +417,10 @@ def detect_distribution(project: Path, source: Path) -> str:
         profile_name = policy.get("profile")
         if not isinstance(profile_name, str):
             continue
-        profile_path = source / "profiles" / profile_name / "profile.json"
+        try:
+            profile_path = profile_root(source, profile_name) / "profile.json"
+        except ValueError:
+            continue
         if not profile_path.is_file():
             continue
         profile = json.loads(profile_path.read_text(encoding="utf-8"))
@@ -363,9 +438,8 @@ def detect_distribution(project: Path, source: Path) -> str:
 
 def load_distribution(source: Path, distribution: str) -> tuple[dict[str, object], str]:
     try:
-        catalog = json.loads((source / DISTRIBUTIONS_NAME).read_text(encoding="utf-8"))
-        policy = catalog["distributions"][distribution]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        policy = distribution_catalog(source)[distribution]
+    except (KeyError, TypeError) as error:
         raise ValueError(f"unknown ChaosEngine distribution: {distribution}") from error
     if not isinstance(policy, dict):
         raise ValueError(f"unknown ChaosEngine distribution: {distribution}")
@@ -389,8 +463,8 @@ def load_distribution(source: Path, distribution: str) -> tuple[dict[str, object
         )
     ):
         raise ValueError("ChaosEngine distribution policy is invalid")
-    profile_root = source / "profiles" / profile
-    if not all((profile_root / name).is_file() for name in ("entrypoint.md", "profile.json")):
+    root = profile_root(source, profile)
+    if not all((root / name).is_file() for name in ("entrypoint.md", "profile.json")):
         raise ValueError(f"ChaosEngine distribution profile is incomplete: {profile}")
     encoded = json.dumps(policy, sort_keys=True, separators=(",", ":")).encode()
     return policy, hashlib.sha256(encoded).hexdigest()
@@ -416,7 +490,7 @@ def load_capability_policy(source: Path, distribution: str) -> tuple[dict[str, d
     policy, _ = load_distribution(source, distribution)
     profile_name = str(policy["profile"])
     try:
-        profile = json.loads((source / "profiles" / profile_name / "profile.json").read_text(encoding="utf-8"))
+        profile = json.loads((profile_root(source, profile_name) / "profile.json").read_text(encoding="utf-8"))
         dependencies = json.loads((source / "dependencies.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, TypeError) as error:
         raise ValueError("ChaosEngine capability policy is invalid") from error
@@ -522,8 +596,12 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
     forbidden_tokens = tuple(str(token).casefold() for token in policy["forbiddenTokens"])
     runtime_files = frozenset(str(relative) for relative in policy["runtimeFiles"])
     files: list[Path] = []
-    for path in sorted(source.rglob("*")):
-        relative = path.relative_to(source)
+    roots = [source]
+    if not (source / "profiles" / selected_profile).is_dir():
+        roots.append(profile_root(source, selected_profile))
+    candidates = [path for root in roots for path in sorted(root.rglob("*"))]
+    for path in candidates:
+        relative = payload_relative(source, path)
         if is_generated_python_cache(relative):
             continue
         if relative.as_posix() == DISTRIBUTIONS_NAME:
@@ -546,7 +624,7 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
                     f"distribution policy rejected forbidden content: {relative.as_posix()}"
                 )
             files.append(path)
-    packaged = {path.relative_to(source).as_posix() for path in files}
+    packaged = {payload_relative(source, path).as_posix() for path in files}
     if not runtime_files <= packaged:
         raise ValueError("ChaosEngine distribution runtime inventory is incomplete")
     return tuple(files)
@@ -743,7 +821,6 @@ def orphan_host_anchors_without_core(project: Path) -> bool:
         ):
             return True
     return False
-
 
 
 def orphan_core_without_hosts_receipt(project: Path) -> bool:
@@ -2320,7 +2397,6 @@ def recover_transaction(project: Path) -> None:
         _recover_transaction(project)
 
 
-
 def sync_repository_overlay_from_source(project: Path, commit: str | None = None) -> None:
     """After core publish, heal `.chaos-engine` from local SOURCE on origin checkouts.
 
@@ -2381,7 +2457,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
     _, policy_digest = load_distribution(source, distribution)
     capabilities, capability_digest = load_capability_policy(source, distribution)
     files = source_files(source, distribution)
-    ownership = {path.relative_to(source).as_posix(): file_sha256(path) for path in files}
+    ownership = {payload_relative(source, path).as_posix(): file_sha256(path) for path in files}
     target = project / INSTALL_DIRECTORY
     backup = project / BACKUP_NAME
     displaced = project / NEXT_BACKUP_NAME
@@ -2460,7 +2536,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
         stage = Path(tempfile.mkdtemp(prefix=f"{INSTALL_DIRECTORY}-stage-", dir=project))
         try:
             for path in files:
-                relative = path.relative_to(source)
+                relative = payload_relative(source, path)
                 destination = stage / relative
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(path, destination)
@@ -2556,8 +2632,6 @@ def clear_install_rollback(project: Path) -> None:
     with contextlib.suppress(OSError):
         if not is_link_or_reparse(path) and path.is_file():
             path.unlink()
-
-
 
 
 def _restore_captured_host_snapshot(project: Path, controller, saved: object) -> None:
@@ -3085,11 +3159,11 @@ def staged_candidate_host_controller(
     _, policy_digest = load_distribution(source, distribution)
     capabilities, capability_digest = load_capability_policy(source, distribution)
     files = source_files(source, distribution)
-    ownership = {path.relative_to(source).as_posix(): file_sha256(path) for path in files}
+    ownership = {payload_relative(source, path).as_posix(): file_sha256(path) for path in files}
     with tempfile.TemporaryDirectory(prefix=f"{INSTALL_DIRECTORY}-candidate-", dir=project) as name:
         stage = Path(name)
         for path in files:
-            destination = stage / path.relative_to(source)
+            destination = stage / payload_relative(source, path)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(path, destination)
         verify_staged_payload(stage, ownership)
@@ -3115,177 +3189,6 @@ def staged_candidate_host_controller(
 
 def load_dependency_controller(installed_root: Path):
     return load_installed_controller(installed_root, "dependencies")
-
-
-def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one transaction.
-    target: Path, specification: dict[str, object], *, runner=subprocess.run,
-    reporter=None, confirmer=None, opener=None, mode: str = "native",
-) -> tuple[Path, Path] | dict[str, str]:
-    hosts = load_installed_controller(target, "hosts")
-    dependencies = load_dependency_controller(target)
-    contract = specification["dependencies"]["maven-tools-mcp"]
-    resolver_options = {} if opener is None else {"opener": opener}
-    version = dependencies.resolve_stable_version(
-        "maven-tools-mcp", contract, **resolver_options
-    )
-    if mode == "docker":
-        docker = shutil.which("docker")
-        if not docker:
-            raise ValueError("explicit Maven Tools Docker mode requires healthy Docker")
-        probe = runner(
-            [docker, "version", "--format", "{{.Server.Version}}"],
-            capture_output=True, text=True, check=False, timeout=30,
-        )
-        if probe.returncode != 0:
-            raise ValueError("explicit Maven Tools Docker mode requires healthy Docker")
-        return {
-            "mode": "docker",
-            "command": str(Path(docker).resolve()),
-            "image": f"arvindand/maven-tools-mcp:{version}",
-        }
-    if mode != "native":
-        raise ValueError("unsupported Maven Tools mode")
-    tag = f"v{version}"
-    cache_deadline = time.monotonic() + MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS
-    busy_announced = False
-    while True:
-        cache_status = hosts.maven_tools_cache_status(version)
-        status = cache_status.get("status")
-        if status == "healthy":
-            existing = hosts.discover_maven_tools_runtime()
-            if existing is not None:
-                # Healthy shared cache is reuse (action:reused); probe flakes must
-                # not force a rebuild that then hits "cache version already exists".
-                return existing
-            break
-        if status == "busy":
-            remaining = cache_deadline - time.monotonic()
-            if remaining <= 0:
-                raise RuntimeError("Maven Tools MCP cache is busy")
-            if not busy_announced:
-                if reporter is not None and hasattr(reporter, "detail"):
-                    try:
-                        reporter.detail(
-                            "Waiting for Maven Tools MCP cache lock "
-                            f"(up to {MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS:g}s)…"
-                        )
-                    except Exception:  # noqa: BLE001 - reporter is best-effort
-                        pass
-                print(
-                    "ChaosEngine: waiting for Maven Tools MCP cache "
-                    f"(up to {MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS:g}s)…",
-                    file=sys.stderr,
-                )
-                busy_announced = True
-            time.sleep(min(MAVEN_TOOLS_CACHE_BUSY_POLL_SECONDS, remaining))
-            continue
-        if status != "absent":
-            discard = getattr(hosts, "discard_invalid_maven_tools_cache", None)
-            if not callable(discard):
-                raise ValueError("Maven Tools MCP cache is invalid")
-            discard(version)
-        break
-    java_minimum = "25.0.0"
-    java_contract = specification.get("dependencies", {}).get("java") if isinstance(
-        specification.get("dependencies"), dict
-    ) else None
-    if isinstance(java_contract, dict) and isinstance(java_contract.get("minimumVersion"), str):
-        java_minimum = str(java_contract["minimumVersion"])
-    try:
-        java_minimum_major = int(str(java_minimum).split(".", 1)[0])
-    except ValueError:
-        java_minimum_major = 25
-    java_candidates = []
-    configured = os.environ.get("CHAOSENGINE_JAVA")
-    java_home = os.environ.get("JAVA_HOME")
-    path_java = shutil.which("java")
-    if configured:
-        java_candidates.append(Path(configured).expanduser())
-    if java_home:
-        java_candidates.append(Path(java_home) / "bin" / ("java.exe" if os.name == "nt" else "java"))
-    if path_java:
-        java_candidates.append(Path(path_java))
-    java = next(
-        (
-            item.resolve()
-            for item in java_candidates
-            if item.is_file()
-            and (hosts.java_major(item.resolve()) or 0) >= java_minimum_major
-        ),
-        None,
-    )
-    compiler_present = getattr(hosts, "java_compiler_present", None)
-    if java is not None and callable(compiler_present) and not compiler_present(java):
-        # JRE-only Java cannot compile Maven Tools; prefer managed Temurin JDK.
-        java = None
-    if java is None:
-        provision = getattr(hosts, "ensure_managed_temurin_jdk", None)
-        if callable(provision):
-            managed = provision(
-                specification, opener=opener, reporter=reporter, confirmer=confirmer,
-            )
-            if managed is not None:
-                java = managed
-    if java is None:
-        raise ValueError(
-            "Temurin JDK 25 with javac is required for Maven Tools MCP "
-            "(JRE-only Java is not enough); install Temurin 25 JDK or set CHAOSENGINE_JAVA"
-        )
-    # Ensure a Maven CLI exists for operators when ambient mvn is missing/too old.
-    # Upstream build still prefers mvnw below; managed Maven is provisioned into the
-    # CE tools cache during this dependencies phase rather than after a failure.
-    ensure_maven = getattr(hosts, "ensure_managed_maven", None)
-    if callable(ensure_maven):
-        ensure_maven(
-            specification, opener=opener, reporter=reporter, confirmer=confirmer,
-        )
-    cache_root = hosts.maven_tools_cache_root()
-    cache_root.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=".maven-tools-source-") as source_name:
-        source = Path(source_name) / "source"
-        git = shutil.which("git")
-        if not git:
-            raise ValueError("git is required to install Maven Tools MCP")
-        if confirmer is not None:
-            confirmer(f"Download Maven Tools {tag} source with git")
-        if reporter is not None:
-            reporter.start("Install Maven Tools", detail=tag)
-        runner([
-            git, "clone", "--branch", tag, "--depth", "1",
-            "https://github.com/arvindand/maven-tools-mcp.git", str(source),
-        ], check=True, timeout=300)
-        revision = runner(
-            [git, "-C", str(source), "rev-parse", "HEAD"], check=True,
-            capture_output=True, text=True, timeout=30,
-        ).stdout.strip().casefold()
-        if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
-            raise ValueError("Maven Tools stable tag did not resolve to an immutable commit")
-        wrapper = source / ("mvnw.cmd" if os.name == "nt" else "mvnw")
-        if not wrapper.is_file():
-            raise ValueError("Maven Tools upstream wrapper is missing")
-        if os.name != "nt":
-            wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-        environment = os.environ.copy()
-        environment["JAVA_HOME"] = str(java.parent.parent)
-        if confirmer is not None:
-            confirmer("Build and install Maven Tools")
-        # Upstream tests are skipped: they are upstream CI's job, and a crashing
-        # upstream test (#6339) must not block installing a tagged release.
-        runner([str(wrapper), "-B", "clean", "package", "-Pci", "-DskipTests"], cwd=source, env=environment, check=True, timeout=900)
-        built = source / f"target/maven-tools-mcp-{version}.jar"
-        if not built.is_file() or built.stat().st_size == 0:
-            raise ValueError("Maven Tools build did not produce the pinned JAR")
-        with tempfile.TemporaryDirectory(prefix=".publishing-", dir=cache_root) as staging_name:
-            staging = Path(staging_name)
-            jar = staging / built.name
-            shutil.copyfile(built, jar)
-            receipt = {"version": version, "commit": revision, "jar": jar.name, "sha256": file_sha256(jar)}
-            (staging / hosts.MAVEN_TOOLS_MCP_RECEIPT).write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
-            hosts.publish_maven_tools_cache(staging)
-    runtime = hosts.discover_maven_tools_runtime()
-    if runtime is None or not hosts.probe_maven_tools_runtime(*runtime):
-        raise ValueError("Maven Tools MCP publication probe failed")
-    return runtime
 
 
 def installed_kernel_status(installed_root: Path) -> dict[str, object]:
@@ -3335,7 +3238,6 @@ def installed_kernel_status(installed_root: Path) -> dict[str, object]:
         }
     except (OSError, RuntimeError, ValueError) as error:
         return {"status": "recovery-required", "errors": [str(error)]}
-
 
 
 def _reporter_transition_to_provision(reporter, *, detail: str | None = None) -> None:
@@ -3543,7 +3445,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     source = source.absolute()
     reject_link_or_reparse(source)
     source = source.resolve()
-    with_maven_tools = with_maven_tools or (project / "pom.xml").is_file()
+    with_maven_tools = with_maven_tools or java_pack_enabled(project)
     bundle = normalize_bundle_options(bundle_options)
     write_bundle_options(project, bundle)
     consumer = _consumer_mode_module()
@@ -4001,7 +3903,6 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
         return target
 
 
-
 def default_bundle_options() -> dict[str, bool]:
     """Return bundle enablement. Default-on components are true; opt-in stays false."""
     options = {name: True for name in DEFAULT_BUNDLE_COMPONENTS}
@@ -4153,7 +4054,6 @@ def required_component_statuses(document: dict[str, object]) -> dict[str, str]:
         if isinstance(status, str):
             result[name] = status
     return result
-
 
 
 DOCTOR_NON_ESCALATING_STATUSES = frozenset({
@@ -4989,7 +4889,6 @@ def apply_hooks_host_environment_probe(
     )
 
 
-
 def apply_ce_plugin_pin_doctor(
     result: dict[str, object],
     components: object,
@@ -5035,8 +4934,6 @@ def apply_ce_plugin_pin_doctor(
         components["plugins"]["fixNext"] = (
             "Enable only chaos-engine, caveman, and ponytail plugins."
         )
-
-
 
 
 def apply_dual_grok_hook_doctor(result: dict[str, object], project: Path) -> None:
@@ -5213,8 +5110,8 @@ def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
             "taskImpact": "required",
             "detail": f"{name}-missing-after-heal-attempt",
             "fixNext": (
-                f"Complete companion heal using .chaos-engine-state/companion-handoff.md "
-                f"(official repair/install), then rerun doctor. (#5806/#5811)"
+                "Complete companion heal using .chaos-engine-state/companion-handoff.md "
+                "(official repair/install), then rerun doctor. (#5806/#5811)"
             ),
             "agentPrompt": prompt,
         }
@@ -5893,52 +5790,6 @@ def finalize_dependency_tombstone(removing: Path) -> None:
     removing.rmdir()
 
 
-
-def maven_tools_repair_fix_next() -> str:
-    """Return the targeted repair for a corrupt or missing Maven Tools JAR (#6337)."""
-    cli = _doctor_python_cli()
-    return (
-        f"Run `{cli} .chaos-engine/install.py repair --project . --component maven-tools-mcp` "
-        "(discards a corrupt cached JAR, then reuses a healthy cached version or "
-        f"reinstalls), then `{cli} .chaos-engine/install.py doctor --project .`."
-    )
-
-
-def repair_maven_tools(
-    project: Path,
-    target: Path,
-    host_controller,
-    *,
-    runner=None,
-    rebind=None,
-) -> dict[str, object]:
-    """Discard corrupt Maven Tools caches, then reuse a healthy version or reinstall (#6337)."""
-    discarded: list[str] = []
-    for version in host_controller.maven_tools_cached_versions():
-        if host_controller.maven_tools_cache_status(version).get("status") == "invalid":
-            host_controller.discard_invalid_maven_tools_cache(version)
-            discarded.append(version)
-    selected = host_controller.selected_maven_tools_cache_status()
-    action = "reused"
-    if selected.get("status") != "healthy":
-        controller = load_dependency_controller(target)
-        specification = controller.load_specification(target / "dependencies.json")
-        ensure_maven_tools(target, specification, runner=runner or subprocess.run)
-        selected = host_controller.selected_maven_tools_cache_status()
-        action = "reinstalled"
-    healthy = selected.get("status") == "healthy"
-    if healthy and rebind is not None:
-        rebind()
-    return {
-        "status": "repaired" if healthy else "recovery-required",
-        "component": "maven-tools-mcp",
-        "action": action,
-        "discarded": discarded,
-        "version": selected.get("version"),
-        "cacheStatus": selected.get("status"),
-    }
-
-
 def repair_component(  # noqa: MC0001 - component switch keeps one operator entrypoint.
     project: Path,
     component: str,
@@ -6543,9 +6394,9 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
         )
     if name == "maven-tools-mcp":
         return (
-            "For Maven projects, rerun install with Maven Tools enabled "
-            "(`--with-maven-tools` or root `pom.xml`); otherwise optional absence "
-            "is fine."
+            "For projects the java pack enables, rerun install with "
+            "`--with-maven-tools` (see packs/java/pack.md); otherwise optional "
+            "absence is fine."
         )
     if status == "migration-required":
         return (
@@ -6577,7 +6428,6 @@ def format_doctor_host_onboarding(clients: dict[str, object] | None = None) -> s
         detected=module.detect_install_hosts(),
         activated=clients if isinstance(clients, dict) else {},
     )
-
 
 
 def reflection_controller_drift(project: Path) -> str:
@@ -6654,7 +6504,6 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
             if isinstance(fix, str) and fix.strip():
                 lines.append(f"  fix-next: {fix.strip()}")
     return lines
-
 
 
 AGENT_SUMMARY_MAX_LINES = 4
@@ -6853,6 +6702,7 @@ def main() -> int:
             ):
                 print(json.dumps({"status": "unchanged", "root": str(args.project / INSTALL_DIRECTORY)}))
                 return 0
+            legacy_packs = legacy_profile_layout(args.project / INSTALL_DIRECTORY)
             bundle = bundle_from_install_args(args)
             write_bundle_options(args.project, bundle)
             record_mcp_opt_in(args.project, args)
@@ -6877,6 +6727,11 @@ def main() -> int:
                 )
             )
             result: object = {"status": "installed", "root": str(target), "bundle": bundle}
+            if legacy_packs:
+                # CE-10 hard cut: the old profiles/<name> layout is replaced, never shimmed.
+                notice = hard_cut_message(legacy_packs, replaced=not legacy_profile_layout(target))
+                result["migration"] = {"hardCut": notice}
+                print(notice, file=sys.stderr)
             consumer = _consumer_mode_module()
             if consumer is not None and consumer.enabled(args.project):
                 consumer.record(args.project)
@@ -6907,6 +6762,9 @@ def main() -> int:
             result = status_json(args.project)
         elif args.command == "doctor":
             result = status_json(args.project, active_probes=True)
+            legacy_packs = legacy_profile_layout(args.project / INSTALL_DIRECTORY)
+            if legacy_packs:
+                result["migration"] = {"hardCut": hard_cut_message(legacy_packs)}
         elif args.command == "explain":
             result = explain_json(
                 args.project,
@@ -7055,6 +6913,9 @@ def main() -> int:
         else:
             print(format_health_report(result, kind=args.command), end="")
         if args.command == "doctor":
+            migration = result.get("migration")
+            if isinstance(migration, dict) and migration.get("hardCut"):
+                print(f"WARNING: {migration['hardCut']}")
             clients = result.get("clients")
             print(
                 format_doctor_host_onboarding(

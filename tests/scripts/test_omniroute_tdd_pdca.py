@@ -9,7 +9,7 @@ class OmniRouteTddPdcaTest(unittest.TestCase):
     def test_docs_link_workflow_and_phase_boundary(self):
         paths = (
             "chaos-engine/references/tdd.md",
-            "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md",
+            "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md",
         )
         statement = (
             "Focused RED-GREEN-REFACTOR runs occur during PDCA Do; consolidated "
@@ -24,7 +24,7 @@ class OmniRouteTddPdcaTest(unittest.TestCase):
         self.assertIn(statement, normalized[paths[0]])
         self.assertEqual(1, sum(content.count(statement) for content in normalized.values()))
         self.assertIn(
-            "../../../../references/tdd.md#workflow",
+            "`.chaos-engine/references/tdd.md#workflow`",
             contents[paths[1]],
         )
 

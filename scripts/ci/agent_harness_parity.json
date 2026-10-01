@@ -193,32 +193,32 @@
     },
     {
       "id": "pdca",
-      "owner": "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md",
+      "owner": "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md",
       "claude": [
-        "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md"
+        "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
       ],
       "codex": [
-        "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md"
+        "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
       ],
       "check": "tests/scripts/test_agent_harness_portability.py::test_pdca_personas_are_main_thread_phases_that_follow_the_mode",
       "mode": "shared",
       "copilot": [
-        "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md"
+        "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
       ],
       "gemini": [
-        "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md"
+        "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
       ],
       "grok": [
-        "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md"
+        "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
       ],
       "opencode": [
-        "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md"
+        "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
       ],
       "cursor": [
-        "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md"
+        "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
       ],
       "grok-bot": [
-        "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md"
+        "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
       ]
     },
     {

@@ -13,24 +13,9 @@
     "chaos-engine/plugin-adapters/caveman/SKILL.md": 1,
     "chaos-engine/plugin-adapters/icm-architect/SKILL.md": 1
   },
-  "leaks": {
-    "chaos-engine/INSTALL.md": 45,
-    "chaos-engine/README.md": 28,
-    "chaos-engine/RESEARCH.md": 1,
-    "chaos-engine/STANDALONE.md": 37,
-    "chaos-engine/bootstrap.py": 8,
-    "chaos-engine/decision-quality-baseline.md": 8,
-    "chaos-engine/decision-quality-report.md": 5,
-    "chaos-engine/dependencies.py": 3,
-    "chaos-engine/distributions.json": 2,
-    "chaos-engine/guides/freetoken-5867-closeout-proof.md": 1,
-    "chaos-engine/guides/local-agency.md": 3,
-    "chaos-engine/guides/omniroute.md": 1,
-    "chaos-engine/hosts.py": 42,
-    "chaos-engine/install.py": 29,
-    "chaos-engine/learning_session.py": 1,
-    "chaos-engine/official_self_heal.py": 5,
-    "chaos-engine/profiles/README.md": 1
-  },
-  "nearDuplicates": {}
+  "leaks": {},
+  "nearDuplicates": {},
+  "ecosystemTerms": {
+    "chaos-engine/bootstrap.py": 8
+  }
 }
