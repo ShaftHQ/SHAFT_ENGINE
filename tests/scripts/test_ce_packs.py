@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import sys
@@ -123,8 +124,6 @@ class JavaPackTests(unittest.TestCase):
 
 class PackBindingContractTests(unittest.TestCase):
     def test_every_pack_function_is_exported_so_binding_resolves_it(self):
-        import ast
-
         for module in ("maven_tools.py", "installer.py"):
             path = ROOT / "chaos-engine/packs/java" / module
             tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -142,8 +141,6 @@ class PackBindingContractTests(unittest.TestCase):
                 self.assertEqual([], [name for name in defined if name not in exported])
 
     def test_core_placeholders_are_callable_until_bound(self):
-        import importlib.util
-
         spec = importlib.util.spec_from_file_location(
             "ce_pack_placeholder_probe", ROOT / "chaos-engine/packs/java/maven_tools.py"
         )
