@@ -32,7 +32,12 @@ public class ApiStatusCodeFlagFamilyUnitTest {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/status/", exchange -> {
             String path = exchange.getRequestURI().getPath();
-            int code = Integer.parseInt(path.substring(path.lastIndexOf('/') + 1));
+            int code;
+            try {
+                code = Integer.parseInt(path.substring(path.lastIndexOf('/') + 1));
+            } catch (NumberFormatException notAStatus) {
+                code = 400;
+            }
             byte[] body = "{}".getBytes();
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(code, body.length);
