@@ -352,7 +352,8 @@ Doctor row `mempalace-backend` flags a backend selection other than
 ```
 
 Supported components: `plugins`, `hosts`, `core`, `mempalace`,
-`graphify`, `memory`, `hooks`, `mcps`, `skills`, `roles`, `tools`. One-command
+`graphify`, `memory`, `hooks`, `mcps`, `skills`, `roles`, `tools`,
+`maven-tools-mcp`. One-command
 **update** is the same install one-liner (repair/reinstall semantics aligned with
 this health truth).
 
@@ -369,6 +370,13 @@ Use these when a first install goes wrong and you need a clean retry.
 - uninstall: python3 .chaos-engine/install.py uninstall --project .
 
 On Windows, use py -3 instead of python3. Prefer rollback for a bad upgrade; prefer uninstall then the one-liner for a wiped or drifted tree.
+
+When an upgrade installs but fails verification, the installer rolls the core
+back automatically. The failure output then says
+`Rolled back: requested core <new> was not kept; the previous core <old> is installed again`.
+It also records `.chaos-engine-state/install-rollback.json`, so `status` and
+`doctor` report the installed commit plus `lastInstall: rolled-back` until a
+later install completes (#6338).
 
 ### What is removed vs retained
 
@@ -637,8 +645,9 @@ A root `pom.xml`, or `--with-maven-tools`, performs the upstream native JAR flow
    Resolve the latest compatible stable GitHub release, clone its tag with
    `--depth 1`, record the tag's immutable commit, ensure `./mvnw` is executable,
    set `JAVA_HOME` to the managed/ambient JDK, and run
-   `./mvnw -B clean package -Pci`. Git is required; the upstream wrapper remains
-   the build entrypoint.
+   `./mvnw -B clean package -Pci -DskipTests`. Git is required; the upstream
+   wrapper remains the build entrypoint. Upstream tests stay upstream CI's job,
+   so a crashing upstream test cannot block a tagged release (#6339).
 3. Stage `maven-tools-mcp-<resolved-version>.jar` under a fresh unique directory on the same
    filesystem as the current user's data directory, then publish that directory
    with a no-overwrite rename to
@@ -652,6 +661,13 @@ A root `pom.xml`, or `--with-maven-tools`, performs the upstream native JAR flow
    differently pinned receipt. The version directory is an immutable,
    receipt-owned shared cache: parallel projects may read the verified pair, while
    project uninstall never changes or removes it.
+   Doctor and `cache status` judge the JAR that discovery selects: the verified
+   `CHAOSENGINE_MAVEN_TOOLS_MCP_JAR`, else the newest cached version whose
+   receipt verifies, never a pinned release (#6336). A corrupt cached JAR
+   (checksum or CRC failure) reports `invalid` with
+   `python3 .chaos-engine/install.py repair --project . --component maven-tools-mcp`
+   as its fix-next. That repair discards invalid version trees, reuses a healthy
+   cached version or reinstalls the latest stable one, then rebinds hosts (#6337).
 4. Host installation discovers both files and atomically rewrites project MCP
    JSON, Gemini settings, and the generated Codex config with their resolved
    absolute paths. Upgrades repeat

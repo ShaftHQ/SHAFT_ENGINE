@@ -3651,10 +3651,14 @@ def publish_maven_tools_cache(staging: Path, *, root: Path | None = None) -> Pat
         return target
 
 
-def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
-    configured_jar = os.environ.get("CHAOSENGINE_MAVEN_TOOLS_MCP_JAR")
-    cache = maven_tools_cache_root()
-    versions = sorted(
+def maven_tools_cached_versions(*, root: Path | None = None) -> list[str]:
+    """Return numeric cached Maven Tools versions, newest first.
+
+    Runtime discovery and doctor share this order so doctor judges the version
+    the installer actually reuses instead of a pinned release (#6336).
+    """
+    cache = root or maven_tools_cache_root()
+    return sorted(
         (
             path.name for path in cache.iterdir()
             if path.is_dir() and re.fullmatch(r"\d+(?:\.\d+){1,3}", path.name)
@@ -3662,7 +3666,49 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
         key=lambda value: tuple(int(part) for part in value.split(".")),
         reverse=True,
     ) if cache.is_dir() else []
-    jar_candidates = [Path(configured_jar).expanduser() if configured_jar else None, *(
+
+
+def _configured_maven_tools_jar() -> Path | None:
+    configured_jar = os.environ.get("CHAOSENGINE_MAVEN_TOOLS_MCP_JAR")
+    return Path(configured_jar).expanduser() if configured_jar else None
+
+
+def selected_maven_tools_cache_status(*, root: Path | None = None) -> dict[str, str]:
+    """Report the Maven Tools JAR that runtime discovery would select (#6336).
+
+    Order matches ``discover_maven_tools_runtime``: a verified configured JAR,
+    then the newest cached version whose receipt verifies. With no healthy
+    candidate, report busy, then the newest invalid tree (with its reason),
+    then absent.
+    """
+    cache_root = (root or maven_tools_cache_root()).absolute()
+    configured = _configured_maven_tools_jar()
+    verified = verified_maven_tools_jar(configured) if configured is not None else None
+    if verified is not None:
+        receipt = json.loads((verified.parent / MAVEN_TOOLS_MCP_RECEIPT).read_text(encoding="utf-8"))
+        return {
+            "component": "maven-tools-mcp",
+            "version": str(receipt["version"]),
+            "path": str(verified.parent),
+            "status": "healthy",
+            "commit": str(receipt["commit"]),
+            "source": "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR",
+        }
+    observed = [
+        maven_tools_cache_status(version, root=cache_root)
+        for version in maven_tools_cached_versions(root=cache_root)
+    ]
+    for wanted in ("healthy", "busy", "invalid"):
+        match = next((item for item in observed if item.get("status") == wanted), None)
+        if match is not None:
+            return match
+    return {"component": "maven-tools-mcp", "path": str(cache_root), "status": "absent"}
+
+
+def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
+    cache = maven_tools_cache_root()
+    versions = maven_tools_cached_versions(root=cache)
+    jar_candidates = [_configured_maven_tools_jar(), *(
         cache / version / f"maven-tools-mcp-{version}.jar" for version in versions
     )]
     jar = next(

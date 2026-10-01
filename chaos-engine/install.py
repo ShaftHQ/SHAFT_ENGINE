@@ -105,7 +105,10 @@ REPAIRABLE_COMPONENTS = frozenset({
     "skills",
     "roles",
     "tools",
+    "maven-tools-mcp",
 })
+# #6338: the bootstrap records a verify-failure rollback here; status/doctor surface it.
+INSTALL_ROLLBACK_RELATIVE = ".chaos-engine-state/install-rollback.json"
 
 
 # #6216: branch-agnostic doctor fallback when a status carries no fix-next.
@@ -2507,11 +2510,52 @@ def status(project: Path) -> dict[str, str]:
     with project_lock(project):
         manifest = verify_install(project / INSTALL_DIRECTORY)
         state = "recovery-required" if (project / JOURNAL_NAME).exists() else "healthy"
-        return {
+        commit = str(manifest["source"]["commit"])  # type: ignore[index]
+        result: dict[str, object] = {
             "status": state,
-            "commit": str(manifest["source"]["commit"]),  # type: ignore[index]
+            "commit": commit,
             "distribution": str(manifest["distribution"]["id"]),  # type: ignore[index]
         }
+        last_install = read_install_rollback(project, commit)
+        if last_install is not None:
+            result["lastInstall"] = last_install
+        return result
+
+
+def read_install_rollback(project: Path, installed_commit: str) -> dict[str, str] | None:
+    """Return the last failed install's rollback record when it matches the installed core.
+
+    The bootstrap writes it after a failed verify rolls `.chaos-engine` back, so
+    status/doctor can say the requested core was not kept (#6338). A record for a
+    different installed core is stale and ignored.
+    """
+    path = Path(project) / INSTALL_ROLLBACK_RELATIVE
+    try:
+        if is_link_or_reparse(path) or not path.is_file():
+            return None
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(record, dict) or record.get("status") != "rolled-back":
+        return None
+    requested = record.get("requestedCommit")
+    restored = record.get("restoredCommit")
+    if not all(
+        isinstance(value, str) and COMMIT_PATTERN.fullmatch(value) is not None
+        for value in (requested, restored)
+    ):
+        return None
+    if restored != installed_commit:
+        return None
+    return {"status": "rolled-back", "requestedCommit": requested, "restoredCommit": restored}
+
+
+def clear_install_rollback(project: Path) -> None:
+    """Drop a stale rollback record once a later install completes."""
+    path = Path(project) / INSTALL_ROLLBACK_RELATIVE
+    with contextlib.suppress(OSError):
+        if not is_link_or_reparse(path) and path.is_file():
+            path.unlink()
 
 
 
@@ -3225,7 +3269,9 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
         environment["JAVA_HOME"] = str(java.parent.parent)
         if confirmer is not None:
             confirmer("Build and install Maven Tools")
-        runner([str(wrapper), "-B", "clean", "package", "-Pci"], cwd=source, env=environment, check=True, timeout=900)
+        # Upstream tests are skipped: they are upstream CI's job, and a crashing
+        # upstream test (#6339) must not block installing a tagged release.
+        runner([str(wrapper), "-B", "clean", "package", "-Pci", "-DskipTests"], cwd=source, env=environment, check=True, timeout=900)
         built = source / f"target/maven-tools-mcp-{version}.jar"
         if not built.is_file() or built.stat().st_size == 0:
             raise ValueError("Maven Tools build did not produce the pinned JAR")
@@ -3949,6 +3995,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 shutil.rmtree(project_setup_snapshot, ignore_errors=True)
         sync_repository_overlay_from_source(project, commit)
         wire_receipt_shims(project)
+        clear_install_rollback(project)
         if not _running_under_tests():
             refresh_stale_graph(project)
         return target
@@ -4462,13 +4509,24 @@ def attach_component_status(
         if mempalace_state.get("status") != "healthy":
             components["mempalace"] = {**mempalace_state, **capabilities["mempalace"]}
     _apply_shared_store_doctor(project, components)
-    cache_state = host_controller.maven_tools_cache_status()
+    # #6336: judge the version runtime discovery selects (configured JAR, then the
+    # newest verified cache), never a pinned release the installer did not pick.
+    selected = getattr(host_controller, "selected_maven_tools_cache_status", None)
+    cache_state = (
+        selected() if callable(selected) else host_controller.maven_tools_cache_status()
+    )
     components["maven-tools-mcp"] = {
         **cache_state,
         **capabilities["maven-tools-mcp"],
     }
     if result.get("distribution") == "repository":
         components["maven-tools-mcp"]["taskImpact"] = "required"
+    maven_row = components["maven-tools-mcp"]
+    if maven_row.get("status") == "invalid" or (
+        maven_row.get("status") == "absent" and maven_row.get("taskImpact") == "required"
+    ):
+        # #6337: a corrupt (checksum/CRC) or missing JAR has one targeted repair.
+        maven_row["fixNext"] = maven_tools_repair_fix_next()
     bundle = read_bundle_options(project)
     if "deja" in capabilities:
         enabled = bool(bundle.get("deja", False))
@@ -4529,6 +4587,9 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 "distribution": str(manifest["distribution"]["id"]),  # type: ignore[index]
                 "policySha256": str(manifest["distribution"]["policySha256"]),  # type: ignore[index]
             }
+            last_install = read_install_rollback(project, str(result["commit"]))
+            if last_install is not None:
+                result["lastInstall"] = last_install
             result["kernel"] = installed_kernel_status(target)
             if result["kernel"]["status"] != "healthy":  # type: ignore[index]
                 result["status"] = "recovery-required"
@@ -5480,13 +5541,13 @@ _DIAGNOSTIC_FIELDS = {
     "status": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components",
-        "reflectionControllerDrift",
+        "reflectionControllerDrift", "lastInstall",
     },
     "doctor": {
         "schemaVersion", "identity", "kind", "status", "commit", "distribution",
         "policySha256", "kernel", "hosts", "dependencies", "components", "clients",
         "activationProof", "phaseLedger", "learningMetrics", "ceBrief", "officialSelfHeal",
-        "reflectionControllerDrift",
+        "reflectionControllerDrift", "lastInstall",
     },
     "explain": {
         "schemaVersion", "identity", "kind", "host", "event", "phase", "decision",
@@ -5494,8 +5555,8 @@ _DIAGNOSTIC_FIELDS = {
     },
 }
 _DIAGNOSTIC_OPTIONAL_FIELDS = {
-    "status": frozenset({"reflectionControllerDrift"}),
-    "doctor": frozenset({"reflectionControllerDrift"}),
+    "status": frozenset({"reflectionControllerDrift", "lastInstall"}),
+    "doctor": frozenset({"reflectionControllerDrift", "lastInstall"}),
 }
 _DIAGNOSTIC_REQUIRED_FIELDS = {
     kind: frozenset(fields) - _DIAGNOSTIC_OPTIONAL_FIELDS.get(kind, frozenset())
@@ -5833,6 +5894,51 @@ def finalize_dependency_tombstone(removing: Path) -> None:
 
 
 
+def maven_tools_repair_fix_next() -> str:
+    """Return the targeted repair for a corrupt or missing Maven Tools JAR (#6337)."""
+    cli = _doctor_python_cli()
+    return (
+        f"Run `{cli} .chaos-engine/install.py repair --project . --component maven-tools-mcp` "
+        "(discards a corrupt cached JAR, then reuses a healthy cached version or "
+        f"reinstalls), then `{cli} .chaos-engine/install.py doctor --project .`."
+    )
+
+
+def repair_maven_tools(
+    project: Path,
+    target: Path,
+    host_controller,
+    *,
+    runner=None,
+    rebind=None,
+) -> dict[str, object]:
+    """Discard corrupt Maven Tools caches, then reuse a healthy version or reinstall (#6337)."""
+    discarded: list[str] = []
+    for version in host_controller.maven_tools_cached_versions():
+        if host_controller.maven_tools_cache_status(version).get("status") == "invalid":
+            host_controller.discard_invalid_maven_tools_cache(version)
+            discarded.append(version)
+    selected = host_controller.selected_maven_tools_cache_status()
+    action = "reused"
+    if selected.get("status") != "healthy":
+        controller = load_dependency_controller(target)
+        specification = controller.load_specification(target / "dependencies.json")
+        ensure_maven_tools(target, specification, runner=runner or subprocess.run)
+        selected = host_controller.selected_maven_tools_cache_status()
+        action = "reinstalled"
+    healthy = selected.get("status") == "healthy"
+    if healthy and rebind is not None:
+        rebind()
+    return {
+        "status": "repaired" if healthy else "recovery-required",
+        "component": "maven-tools-mcp",
+        "action": action,
+        "discarded": discarded,
+        "version": selected.get("version"),
+        "cacheStatus": selected.get("status"),
+    }
+
+
 def repair_component(  # noqa: MC0001 - component switch keeps one operator entrypoint.
     project: Path,
     component: str,
@@ -5898,6 +6004,23 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
                 }
         # Clear stale account journals that block bind when hosts receipt is gone (#5636).
         recover_account_rollback_journal(project)
+        if name == "maven-tools-mcp":
+            host_receipt = project / ".chaos-engine-hosts.json"
+
+            def rebind() -> None:
+                if not host_receipt.exists() and not is_link_or_reparse(host_receipt):
+                    return
+                quarantine_orphaned_host_receipt(project)
+                host_controller.install(
+                    project,
+                    core_commit=repair_core_commit,
+                    capability_policy_digest=repair_capability,
+                    account_commands=account_commands,
+                )
+
+            return repair_maven_tools(
+                project, target, host_controller, runner=runner, rebind=rebind
+            )
         if name == "plugins":
             # Republish marketplace/plugins via host install preflight path, then
             # activate detected clients — no full dependency wipe.
@@ -6184,6 +6307,12 @@ def clear_soft_status_install_failure_fix_next(components: object) -> None:
             item.pop("fixNext", None)
 
 
+def _has_targeted_repair_fix_next(item: dict[str, object]) -> bool:
+    """Keep a component's own one-command repair over a generic handoff (#6337)."""
+    fix_next = item.get("fixNext")
+    return isinstance(fix_next, str) and "--component maven-tools-mcp" in fix_next
+
+
 def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
     """Point doctor fix-next at the merge handoff instead of a blind reinstall."""
     if not isinstance(components, dict):
@@ -6227,6 +6356,8 @@ def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
                 continue
             if _component_severity(item) == "ok" or _is_soft_doctor_status(item):
                 continue
+            if _has_targeted_repair_fix_next(item):
+                continue
             item["fixNext"] = message
         clear_soft_status_install_failure_fix_next(components)
         return
@@ -6240,6 +6371,8 @@ def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
             if not isinstance(item, dict):
                 continue
             if _component_severity(item) == "ok" or _is_soft_doctor_status(item):
+                continue
+            if _has_targeted_repair_fix_next(item):
                 continue
             item["fixNext"] = message
         clear_soft_status_install_failure_fix_next(components)
@@ -6256,6 +6389,8 @@ def apply_merge_handoff_fix_next(project: Path, components: object) -> None:
         if not isinstance(item, dict):
             continue
         if _component_severity(item) == "ok" or _is_soft_doctor_status(item):
+            continue
+        if _has_targeted_repair_fix_next(item):
             continue
         item["fixNext"] = message
     clear_soft_status_install_failure_fix_next(components)
@@ -6628,6 +6763,13 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
         f"ChaosEngine {label}: {status}",
         f"commit: {commit_text}",
     ]
+    last_install = document.get("lastInstall")
+    if isinstance(last_install, dict) and last_install.get("status") == "rolled-back":
+        requested = str(last_install.get("requestedCommit") or "")[:12] or "unknown"
+        lines.append(
+            f"last install: rolled back; requested core {requested} was not kept, "
+            f"installed core is {commit_text[:12]}"
+        )
     if total:
         lines.append(f"components: {healthy}/{total} healthy")
     advisories = format_host_environment_findings(document)
@@ -6757,7 +6899,7 @@ def main() -> int:
         elif args.command == "cache":
             controller = load_source_controller("hosts")
             result = (
-                controller.maven_tools_cache_status()
+                controller.selected_maven_tools_cache_status()
                 if args.cache_command == "status"
                 else controller.purge_maven_tools_cache(args.version)
             )

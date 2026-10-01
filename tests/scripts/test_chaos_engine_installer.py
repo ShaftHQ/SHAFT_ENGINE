@@ -1371,7 +1371,9 @@ module.install_with_dependencies(project, source, "3" * 40)
                  "https://github.com/arvindand/maven-tools-mcp.git", calls[0][-1]],
                 calls,
             )
-            self.assertTrue(any(command[-3:] == ["clean", "package", "-Pci"] for command in calls))
+            self.assertTrue(
+                any(command[-4:] == ["clean", "package", "-Pci", "-DskipTests"] for command in calls)
+            )
             self.assertEqual(1, len(published))
 
     def test_ensure_maven_tools_reuses_healthy_cache_without_rebuild(self):
