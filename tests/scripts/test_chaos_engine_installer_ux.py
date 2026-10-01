@@ -1901,6 +1901,9 @@ class InstallerUxTests(unittest.TestCase):
         )
         self.assertIn("First-session brief:", with_clients)
         self.assertIn("To get started:", with_clients)
+        # #6325: the heading introduces the steps; it never dangles after them.
+        self.assertLess(with_clients.index("First-session brief:"), with_clients.index("1. "))
+        self.assertTrue(with_clients.rstrip().endswith("reversible edit)."))
         self.assertIn("Open one activated host (codex)", with_clients)
         self.assertIn("chaos-engine", with_clients)
         self.assertIn("sample task", with_clients)

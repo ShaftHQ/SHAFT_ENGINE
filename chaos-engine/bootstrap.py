@@ -1391,7 +1391,7 @@ def _align_report(label: str, value: str, *, color: bool = False) -> str:
 
 
 def format_first_session_brief(*, clients: dict[str, object] | None = None) -> str:
-    """Return bun-style next steps plus a First-session brief synonym heading."""
+    """Return the First-session brief heading followed by three numbered next steps."""
     client_names = sorted(clients) if isinstance(clients, dict) else []
     if client_names:
         open_host = (
@@ -1405,11 +1405,11 @@ def format_first_session_brief(*, clients: dict[str, object] | None = None) -> s
             "(Codex, Claude Code, Grok, Gemini, or GitHub Copilot)."
         )
     lines = [
-        "To get started:",
+        "First-session brief:",
+        "  To get started:",
         f"    1. {open_host}",
         "    2. Ask the agent to load / use the `chaos-engine` skill.",
         "    3. Run a small sample task (for example: ask doctor status, or a one-file reversible edit).",
-        "First-session brief:",
     ]
     return "\n".join(lines) + "\n"
 
