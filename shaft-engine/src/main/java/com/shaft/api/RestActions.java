@@ -1,5 +1,6 @@
 package com.shaft.api;
 
+import com.shaft.api.internal.ApiSettings;
 import com.shaft.tools.io.internal.CheckpointStatus;
 import com.shaft.api.internal.OpenApiCoverageReporter;
 import tools.jackson.core.JacksonException;
@@ -98,10 +99,6 @@ public class RestActions {
     private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
     private static final String GRAPHQL_END_POINT = "graphql";
     static final ShaftRestAssuredFilter allureFilter = new ShaftRestAssuredFilter();
-    private static boolean AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = true;
-    private static int HTTP_SOCKET_TIMEOUT;
-    private static int HTTP_CONNECTION_TIMEOUT;
-    private static int HTTP_CONNECTION_MANAGER_TIMEOUT;
     private final String serviceURI;
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
@@ -1065,14 +1062,10 @@ public class RestActions {
     }
 
     private static void initializeSystemProperties() {
+        // API flags and timeouts are read per request through ApiSettings (#6326), so a set() after
+        // session creation applies and per-thread timeouts never leak through shared static state.
         if (!com.shaft.properties.internal.Properties.isInitialized())
             DriverFactory.reloadProperties();
-        HTTP_SOCKET_TIMEOUT = SHAFT.Properties.timeouts.apiSocketTimeout();
-        // timeout between two consecutive data packets in seconds
-        HTTP_CONNECTION_TIMEOUT = SHAFT.Properties.timeouts.apiConnectionTimeout();
-        // timeout until a connection is established in seconds
-        HTTP_CONNECTION_MANAGER_TIMEOUT = SHAFT.Properties.timeouts.apiConnectionManagerTimeout();
-        AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = SHAFT.Properties.flags.automaticallyAssertResponseStatusCode();
     }
 
     SHAFT.API getDriver() {
@@ -1307,9 +1300,9 @@ public class RestActions {
         RestAssuredConfig userConfigs = sessionConfig.and().encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")
                         .appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
                 .httpClient(HttpClientConfig.httpClientConfig()
-                        .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
-                        .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
-                        .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000));
+                        .setParam("http.connection.timeout", ApiSettings.apiConnectionTimeoutSeconds() * 1000)
+                        .setParam("http.socket.timeout", ApiSettings.apiSocketTimeoutSeconds() * 1000)
+                        .setParam("http.connection-manager.timeout", ApiSettings.apiConnectionManagerTimeoutSeconds() * 1000));
         builder.setConfig(userConfigs);
         // timeouts documentation
         /*
@@ -1396,15 +1389,15 @@ public class RestActions {
 
         RequestSpecBuilder builder = initializeBuilder(cookies, headers, config, appendDefaultContentCharsetToContentTypeIfUndefined);
 
-        boolean isSwaggerValidationEnabled = SHAFT.Properties.api.swaggerValidationEnabled();
+        boolean isSwaggerValidationEnabled = ApiSettings.swaggerValidationEnabled();
 
         if (isSwaggerValidationEnabled) {
             String swaggerUrl = SHAFT.Properties.api.swaggerValidationUrl();
 
-            if (swaggerUrl == null || swaggerUrl.isEmpty()) {
-                failAction("Swagger Validation is enabled, but OpenAPI URL is not set in properties.");
-                return builder.build();
+            if (swaggerUrl == null || swaggerUrl.isBlank()) {
+                throw new IllegalArgumentException(ApiSettings.missingSpecUrlMessage(ApiSettings.SWAGGER_ENABLED_KEY));
             }
+            swaggerUrl = swaggerUrl.trim();
 
             // Ensure URL format is correct (replace Windows-style `\` with `/`)
             swaggerUrl = swaggerUrl.replace("\\", "/");
@@ -1601,25 +1594,30 @@ public class RestActions {
     }
 
     protected boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
+        // Read outside the try: an invalid flag value must surface as its own clear error,
+        // not as a status-code mismatch.
+        boolean assertImplicitSuccess = ApiSettings.automaticallyAssertResponseStatusCode();
         boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
         try {
             ReportManagerHelper.setDiscreteLogging(true);
             var statusCode = response.getStatusCode();
             ReportManager.logDiscrete("Response status: " + statusCode + " (" + response.getStatusLine() + ").", Level.DEBUG);
-            if (AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE) {
-                if (targetStatusCode != 0) {
-                    if (targetStatusCode == statusCode) {
-                        ReportManager.logDiscrete("Response status matched the expected code " + targetStatusCode + ".", Level.DEBUG);
-                    } else {
-                        failAction("Actual response status code \"" + statusCode + "\" does not match the expected one \"" + targetStatusCode + "\".");
-                    }
+            if (targetStatusCode != 0) {
+                // An explicit target is always asserted; the flag only governs the implicit 2xx check (#6326).
+                if (targetStatusCode == statusCode) {
+                    ReportManager.logDiscrete("Response status matched the expected code " + targetStatusCode + ".", Level.DEBUG);
                 } else {
-                    if (statusCode >= 200 && statusCode < 300) {
-                        ReportManager.logDiscrete("Response status is successful (2xx).", Level.DEBUG);
-                    } else {
-                        failAction("Actual response status code \"" + statusCode + "\" is a failure (Not between 200 and 299).");
-                    }
+                    failAction("Actual response status code \"" + statusCode + "\" does not match the expected one \"" + targetStatusCode + "\".");
                 }
+            } else if (assertImplicitSuccess) {
+                if (statusCode >= 200 && statusCode < 300) {
+                    ReportManager.logDiscrete("Response status is successful (2xx).", Level.DEBUG);
+                } else {
+                    failAction("Actual response status code \"" + statusCode + "\" is a failure (Not between 200 and 299).");
+                }
+            } else {
+                ReportManager.logDiscrete("Implicit 2xx status check skipped because "
+                        + ApiSettings.AUTO_ASSERT_KEY + "=false and no target status code was set.", Level.DEBUG);
             }
             return true;
         } catch (AssertionError | RuntimeException rootCauseException) {

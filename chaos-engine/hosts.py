@@ -24,6 +24,7 @@ import stat
 import subprocess  # nosec B404 - probes a resolved local Java executable.
 import sys
 import threading
+import time
 from pathlib import Path, PurePosixPath
 
 
@@ -2597,6 +2598,10 @@ MAVEN_TOOLS_MCP_COMMIT = "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36"
 MAVEN_TOOLS_MCP_RECEIPT = "install-receipt.json"
 MAVEN_TOOLS_CACHE_LOCK = ".cache.lock"
 MAVEN_TOOLS_CACHE_LOCK_MAGIC = b"chaos-engine-maven-tools-cache-lock-v1\n"
+# The creator writes the magic right after O_EXCL; an opener in that window sees
+# empty or partial magic and waits this long before calling it a collision (#6333).
+MAVEN_TOOLS_CACHE_LOCK_INIT_GRACE_SECONDS = 1.0
+MAVEN_TOOLS_CACHE_LOCK_INIT_POLL_SECONDS = 0.02
 TEMURIN_RECEIPT = "runtime-receipt.json"
 LEGACY_MAVEN_TOOLS_SERVER = {
     "command": "docker",
@@ -3268,6 +3273,26 @@ def _maven_tools_version_directory(root: Path, version: str) -> Path:
     return root.absolute() / version
 
 
+def _read_maven_tools_cache_lock(stream) -> bytes:
+    """Read the cache lock, waiting out a creator that has not finished writing the magic.
+
+    Empty or partial magic is re-read for up to ``MAVEN_TOOLS_CACHE_LOCK_INIT_GRACE_SECONDS``
+    (#6333, same rule as the #6328 project lock). Foreign bytes return at once so the
+    caller still reports a collision without delay; an abandoned partial lock is
+    returned after the grace and also reported.
+    """
+    started = time.monotonic()
+    while True:
+        stream.seek(0)
+        contents = stream.read()
+        initializing = contents != MAVEN_TOOLS_CACHE_LOCK_MAGIC and MAVEN_TOOLS_CACHE_LOCK_MAGIC.startswith(
+            contents
+        )
+        if not initializing or time.monotonic() - started >= MAVEN_TOOLS_CACHE_LOCK_INIT_GRACE_SECONDS:
+            return contents
+        time.sleep(MAVEN_TOOLS_CACHE_LOCK_INIT_POLL_SECONDS)
+
+
 @contextmanager
 def maven_tools_cache_lock(root: Path | None = None, *, anchor: Path | None = None):
     root = (root or maven_tools_cache_root()).absolute()
@@ -3299,10 +3324,8 @@ def maven_tools_cache_lock(root: Path | None = None, *, anchor: Path | None = No
             stream.write(MAVEN_TOOLS_CACHE_LOCK_MAGIC)
             stream.flush()
             os.fsync(stream.fileno())
-        else:
-            stream.seek(0)
-            if stream.read() != MAVEN_TOOLS_CACHE_LOCK_MAGIC:
-                raise ValueError(f"Maven Tools MCP cache lock collision: {lock_path}")
+        elif _read_maven_tools_cache_lock(stream) != MAVEN_TOOLS_CACHE_LOCK_MAGIC:
+            raise ValueError(f"Maven Tools MCP cache lock collision: {lock_path}")
         stream.seek(0)
         if os.name == "nt":
             import msvcrt  # pylint: disable=import-outside-toplevel

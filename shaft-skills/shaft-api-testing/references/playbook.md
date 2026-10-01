@@ -21,6 +21,12 @@
 - Verify an unauthorized request returns the specified status and safe error shape without logging the credential.
 - Validate an eventually consistent job with bounded polling for the documented terminal state.
 
+## Status-code contract
+
+- An explicit `setTargetStatusCode(n)` is always asserted. `automaticallyAssertResponseStatusCode=false` only turns off the implicit 2xx check for requests without a target, so a negative test sets the 4xx it expects instead of turning the flag off.
+- `0` means no explicit target; other values must be three-digit statuses (100-999).
+- API flags and timeouts (`apiSocketTimeout`, `apiConnectionTimeout`, `apiConnectionManagerTimeout`, 0 = no timeout) are read when the request runs, so a `set()` after `new SHAFT.API(...)` applies. Invalid values fail with the key and a `Fix:` line.
+
 ## Boundary
 
 - Use API capture only to discover traffic or draft code; the final test still needs reviewed contracts, deterministic data, explicit oracles, and focused verification.

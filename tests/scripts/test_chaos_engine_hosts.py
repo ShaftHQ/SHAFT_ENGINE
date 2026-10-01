@@ -12,6 +12,8 @@ import shutil
 import sqlite3
 import subprocess  # nosec B404 - fixed Git acceptance commands.
 import tempfile
+import threading
+import time
 import unittest
 import unittest.mock as mock
 from pathlib import Path
@@ -3176,6 +3178,56 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     module.discard_invalid_maven_tools_cache(
                         module.MAVEN_TOOLS_MCP_VERSION, root=root
                     )
+
+    def test_maven_tools_cache_lock_waits_out_a_creator_still_writing_the_magic(self):
+        """#6333: a reader racing the creator's write must not report a lock collision."""
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_partial_magic")
+        for partial in (b"", module.MAVEN_TOOLS_CACHE_LOCK_MAGIC[:7]):
+            with self.subTest(partial=partial), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary) / "cache"
+                root.mkdir()
+                lock = root / module.MAVEN_TOOLS_CACHE_LOCK
+                lock.write_bytes(partial)  # creator mid-write
+                acquired = False
+                finished = threading.Timer(
+                    0.2, lambda: lock.write_bytes(module.MAVEN_TOOLS_CACHE_LOCK_MAGIC)
+                )
+                finished.start()
+                try:
+                    with module.maven_tools_cache_lock(root):
+                        acquired = True
+                finally:
+                    finished.cancel()
+                # Read after release: Windows byte-range locks are mandatory (#6205).
+                self.assertTrue(acquired)
+                self.assertEqual(module.MAVEN_TOOLS_CACHE_LOCK_MAGIC, lock.read_bytes())
+
+    def test_maven_tools_cache_lock_still_rejects_foreign_contents_at_once(self):
+        """#6333: only an empty or partial magic is waited out; foreign bytes fail fast."""
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_foreign_magic")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            root.mkdir()
+            (root / module.MAVEN_TOOLS_CACHE_LOCK).write_bytes(b"someone-else\n")
+            started = time.monotonic()
+            with self.assertRaisesRegex(ValueError, "lock collision"):
+                with module.maven_tools_cache_lock(root):
+                    pass
+            self.assertLess(time.monotonic() - started, 0.5)
+
+    def test_maven_tools_cache_lock_reports_an_abandoned_partial_lock_after_the_grace(self):
+        """#6333: a partial magic that never completes is still a collision, after a bounded wait."""
+        module = load(HOSTS, "chaos_engine_hosts_maven_cache_abandoned_magic")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "cache"
+            root.mkdir()
+            (root / module.MAVEN_TOOLS_CACHE_LOCK).write_bytes(module.MAVEN_TOOLS_CACHE_LOCK_MAGIC[:3])
+            started = time.monotonic()
+            with mock.patch.object(module, "MAVEN_TOOLS_CACHE_LOCK_INIT_GRACE_SECONDS", 0.2):
+                with self.assertRaisesRegex(ValueError, "lock collision"):
+                    with module.maven_tools_cache_lock(root):
+                        pass
+            self.assertLess(time.monotonic() - started, 2.0)
 
     def test_maven_tools_cache_status_maps_inaccessible_lock_to_invalid(self):
         module = load(HOSTS, "chaos_engine_hosts_maven_cache_inaccessible")
