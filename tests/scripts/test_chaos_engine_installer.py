@@ -4269,13 +4269,17 @@ module.install_with_dependencies(project, source, "3" * 40)
             project.mkdir()
             lock = project / MODULE.LOCK_NAME
             lock.write_bytes(MODULE.LOCK_MAGIC[:5])  # creator mid-write
+            acquired = False
             finished = threading.Timer(0.2, lambda: lock.write_bytes(MODULE.LOCK_MAGIC))
             finished.start()
             try:
                 with MODULE.project_lock(project, wait_seconds=0):
-                    self.assertEqual(MODULE.LOCK_MAGIC, lock.read_bytes())
+                    acquired = True
             finally:
                 finished.cancel()
+            # Read after release: Windows byte-range locks are mandatory (#6205).
+            self.assertTrue(acquired)
+            self.assertEqual(MODULE.LOCK_MAGIC, lock.read_bytes())
 
     def test_project_lock_still_rejects_foreign_contents_at_once(self):
         """#6328: only an empty or partial magic is waited out; foreign bytes fail fast."""
@@ -4302,15 +4306,19 @@ module.install_with_dependencies(project, source, "3" * 40)
             runtime.mkdir()
             lock = runtime.with_name(f"{runtime.name}.lock")
             lock.write_bytes(b"")
+            acquired = False
             finished = threading.Timer(
                 0.2, lambda: lock.write_bytes(MODULE.DEPENDENCY_LOCK_MAGIC)
             )
             finished.start()
             try:
                 with MODULE.dependency_runtime_lock(runtime):
-                    self.assertEqual(MODULE.DEPENDENCY_LOCK_MAGIC, lock.read_bytes())
+                    acquired = True
             finally:
                 finished.cancel()
+            # Read after release: Windows byte-range locks are mandatory (#6205).
+            self.assertTrue(acquired)
+            self.assertEqual(MODULE.DEPENDENCY_LOCK_MAGIC, lock.read_bytes())
 
     def test_format_lock_holder_detail_includes_pid_and_truncates_cmdline(self):
         detail = MODULE.format_lock_holder_detail(
