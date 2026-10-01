@@ -96,8 +96,8 @@ For the short decision procedure and boundary cases, load
 The core card owns companion policy: Caveman and Ponytail at **ultra** through
 the [Caveman card](../companions/caveman-ultra.md) and
 [Ponytail card](../companions/ponytail-ultra.md), loaded before the first edit.
-Do not load companion skill bodies by default; vendor bodies load only on
-explicit invocation. Exempt only with
+Do not load companion skill bodies by default.
+Vendor bodies load only on explicit invocation. Exempt only with
 `--without-caveman` / `--without-ponytail`; doctor flags gaps.
 
 ### Harness portability

@@ -16,7 +16,7 @@ class Learning5767to5770Test(unittest.TestCase):
     def test_playbook_requires_release_note_label_on_every_human_pr(self) -> None:
         text = PLAYBOOK.read_text(encoding="utf-8")
         self.assertIn("Human PR open checklist", text)
-        self.assertIn("exactly one** release-note classification label", text)
+        self.assertIn("Apply exactly one classification label", text)
         self.assertIn("gh pr create", text)
         self.assertIn("skill-md byte budget", text)
         self.assertIn("validate_agent_setup.py --skip-external", text)

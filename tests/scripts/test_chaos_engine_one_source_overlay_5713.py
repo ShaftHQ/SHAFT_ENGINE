@@ -100,7 +100,8 @@ class OneSourceOverlayTests(unittest.TestCase):
     def test_claude_md_has_no_graphify_essay(self):
         text = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
         self.assertNotIn("graphify-out/", text)
-        self.assertIn(self.hosts.START, text)
+        # The repository CLAUDE.md is a one-line import of the single AGENTS.md root.
+        self.assertEqual("@AGENTS.md", text.strip())
 
     def test_skill_inventory_passes_on_source_tree(self):
         errors = self.inventory.validate_skill_inventory(ROOT)
