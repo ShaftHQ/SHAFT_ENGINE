@@ -74,7 +74,7 @@ class S3SelfImproveTests(unittest.TestCase):
         self.assertIn("context-firewall.md", router_contract)
         self.assertIn("filepath:line", router_contract)
 
-        agents = AGENTS.read_text(encoding="utf-8")
+        agents = (ROOT / "chaos-engine/references/catalog.md").read_text(encoding="utf-8")  # epic #6342
         self.assertIn("context-firewall.md", agents)
 
         delegation = DELEGATION.read_text(encoding="utf-8")

@@ -571,6 +571,7 @@ NODE install [src=chaos-engine/install.py loc=L12]
             self.assertIsNone(guard.learning_session_reason("never-delivered", quiet))
             self.assertEqual(_OWED_RETRIEVE, guard._stop_block_reason(quiet, session))
             guard.reflection.record_activity(session, "delivery-complete")
+            guard.reflection.record_activity(session, "learning-requested")
             reason = guard._stop_block_reason(quiet, session)
             self.assertTrue(str(reason).casefold().startswith("learning session:"))
             self.assertNotEqual(_OWED_RETRIEVE, reason)

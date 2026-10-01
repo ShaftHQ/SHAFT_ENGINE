@@ -378,6 +378,7 @@ class LearningWriteOutcomeTest(unittest.TestCase):
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
                 module.reflection.record_activity(session, "delivery-complete")
+                module.reflection.record_activity(session, "learning-requested")
                 guard._portable_hook_guard.cache_clear()
                 reason = guard.check_r16_learning_session(
                     {"hook_event_name": "Stop", "session_id": session}

@@ -1234,3 +1234,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.macos-live-installer-phase-budget-is-900s-linux-stays-600s","timestamp":"2026-09-15T22:26:50+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.human-prs-need-exactly-one-release-note-classification-label","timestamp":"2026-09-16T21:40:43+03:00"}
 {"actor":"agent","event":"memory.updated","id":"gotcha.sikulix-migrated-to-oculix-4-0-0","timestamp":"2026-09-24T17:54:00+03:00"}
+{"actor":"agent","event":"memory.superseded","id":"gotcha.chaos-engine-untouched-is-not-a-valid-learning-session-skip","timestamp":"2026-10-01T23:59:00+03:00"}
+{"actor":"agent","event":"memory.created","id":"decision.learning-session-is-trigger-based","timestamp":"2026-10-01T23:59:00+03:00"}

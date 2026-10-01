@@ -80,9 +80,11 @@ class WaveBRouterCatalogTests(unittest.TestCase):
         context = self.lifecycle.session_start_context("tok", "activation")
         encoded = context.encode("utf-8")
         self.assertLessEqual(len(encoded), self.lifecycle.SESSION_START_MAX_BYTES)
-        self.assertIn("zero-llm-catalog.md", context.casefold())
-        self.assertIn("level-1-catalog.md", context.casefold())
-        self.assertIn("heal-route.md", context.casefold())
+        # Epic #6342: locators moved from SessionStart to the router route table.
+        router = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        for locator in ("zero-llm-catalog.md", "level-1-catalog.md", "heal-route.md"):
+            self.assertNotIn(locator, context.casefold())
+            self.assertIn(locator, router)
         # Still locator-only: no catalog body dump.
         self.assertNotIn(LEVEL1.read_text(encoding="utf-8")[:80], context)
 

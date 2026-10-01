@@ -246,7 +246,7 @@ class OverlayCleanupTest(unittest.TestCase):
     ALWAYS_LOADED = ("AGENTS.md", "chaos-engine/identity.md", "chaos-engine/skills/chaos-engine/SKILL.md")
 
     def test_identity_line_matches_6171(self):
-        identity = (SOURCE / "identity.md").read_text(encoding="utf-8")
+        identity = (SOURCE / "references/delegation.md").read_text(encoding="utf-8")
         self.assertIn("Cloud implementers write code directly", identity)
         self.assertIn("local runtimes are optional for narrow mechanical or offline jobs", identity)
 

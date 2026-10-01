@@ -1272,11 +1272,12 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertGreaterEqual(module.DOWNLOAD_WORKERS, 2)
 
     def test_bootstrap_is_reachable_and_runs_in_three_os_ci(self):
-        skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        # Epic #6342: install detail lives in the on-demand router contract.
+        skill = (ROOT / "chaos-engine/references/router-contract.md").read_text(encoding="utf-8")
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         budget = json.loads((ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8"))
 
-        self.assertIn("../../bootstrap.py", skill)
+        self.assertIn("../bootstrap.py", skill)
         self.assertIn("tests/scripts/test_chaos_engine_bootstrap.py", skill)
         self.assertIn("python scripts/ci/harness_pr_gate.py", workflow)
         gate = (ROOT / "scripts/ci/harness_pr_gate.py").read_text(encoding="utf-8")

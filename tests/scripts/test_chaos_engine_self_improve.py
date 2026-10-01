@@ -51,8 +51,7 @@ class SelfImproveSkillTests(unittest.TestCase):
 
     def test_session_start_locator_is_cheap(self):
         context = self.lifecycle.session_start_context(None, "activation")
-        self.assertIn("self-improve", context.casefold())
-        self.assertIn("self-improve", context.casefold())
+        self.assertNotIn("self-improve", context.casefold())
         self.assertLessEqual(
             len(context.encode("utf-8")),
             self.lifecycle.SESSION_START_MAX_BYTES,
@@ -102,20 +101,20 @@ class SelfImproveSkillTests(unittest.TestCase):
 
     def test_activation_forbids_ce_untouched_skip(self):
         activation = ACTIVATION.read_text(encoding="utf-8")
-        self.assertIn("not a valid skip", activation.casefold())
+        self.assertIn("trigger fired", activation.casefold())
         self.assertIn("harness parity", activation.casefold())
         self.assertIn("hooks own", activation.casefold())
         self.assertIn("learning session", activation.casefold())
         router = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("untouched", router.casefold())
-        self.assertIn("do not write it to a local queue or into chat", router.casefold())
+        self.assertIn("learning session only on trigger", router.casefold())
+        self.assertIn("never local queues", router.casefold())
         life = (ROOT / "chaos-engine/references/lifecycle-hooks.md").read_text(
             encoding="utf-8"
         )
         self.assertIn("gh pr merge", life)
-        self.assertIn("not a valid skip", life.casefold())
+        self.assertIn("trigger fired", life.casefold())
 
     def test_portable_guard_marks_pr_merge_as_confirmed_delivery(self):
         guard = load(ROOT / "chaos-engine/hooks/guard.py", "ce_guard_si_delivery")
@@ -131,7 +130,7 @@ class SelfImproveSkillTests(unittest.TestCase):
             guard.confirmed_delivery_command("gh pr create --title x --body y")
         )
         source = (ROOT / "chaos-engine/hooks/guard.py").read_text(encoding="utf-8")
-        self.assertIn("not a valid skip", source)
+        self.assertIn("learning_triggered", source)
         self.assertIn("confirmed_delivery_command", source)
         self.assertIn("Do not write them to a local queue or into chat.", source)
         self.assertNotIn("harness queued N", source)

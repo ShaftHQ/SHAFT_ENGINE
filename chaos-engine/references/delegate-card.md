@@ -1,7 +1,7 @@
 # Delegate card
 
 Load this instead of the full router when a role adapter dispatches you
-(#6176). The parent owns routing, planning, and the terminal Learning Session.
+(#6176). The parent owns routing, planning, and any triggered Learning Session.
 
 ## Covenant
 

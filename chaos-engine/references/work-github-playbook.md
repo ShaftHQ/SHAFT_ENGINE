@@ -75,7 +75,7 @@ changes in the companion documentation repository require their own PR.
 ## 6. Terminal Learning Session
 
 Collect durable findings during work, but route them through exactly one root-owned
-Learning Session only after confirmed delivery and immediately before the final report.
+Learning Session only after confirmed delivery, only when a trigger fired, immediately before the final report.
 Delegates and intermediate pushes never start another session.
 When reflection is required, put the changed approach and focused proof on the
 tracker before resuming. The hook never writes issues; the agent files leftover

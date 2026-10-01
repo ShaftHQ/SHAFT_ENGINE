@@ -66,6 +66,9 @@ SKILLS = (
     ("self-improve", "portable", "skills/self-improve/SKILL.md",
      "Use when running ChaosEngine Learning Session self-improve. Harness lessons "
      "are GitHub issues only. Product lessons may queue after delivery or on request.", "learning"),
+    ("kanban", "portable", "skills/kanban/SKILL.md",
+     "Use when work has several deliverables, tickets, or delegates: board, WIP 1 writer + 2 "
+     "review, pull rule, Definition of Done, findings fixed or filed.", "delivery"),
     ("git-cleanup", "portable", "skills/git-cleanup/SKILL.md",
      "Use when a git worktree is dirty or another local branch or worktree exists. "
      "Ask before cleanup unless the session is unattended.", "delivery"),
@@ -222,17 +225,51 @@ def render_catalog(index: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+ROUTER_USE = {
+    "kanban": "several deliverables, tickets, or delegates",
+    "work-item": "open or rewrite an issue or work item",
+    "self-improve": "Learning Session trigger fired",
+    "git-cleanup": "dirty worktree or stray branches",
+    "local-agency": "delegate to local OSS agents",
+    "local-runtimes": "pick a local inference runtime",
+    "omniroute": "OmniRoute runtime selected",
+    "freetoken": "FreeToken runtime selected",
+    "colibri": "Colibri runtime selected",
+    "local-openai-compat": "loopback OpenAI-compatible server",
+    "local-coding-delegate": "probe local hardware size class",
+    "Zero-LLM first": "install, doctor, repair by script",
+    "Heal": "drifted or unhealthy install",
+    "Level-1 catalog": "secondary skill or tool needed",
+    "Context firewall": "isolate research or broad explore",
+    "harness-learn": "traces show the overlay should change",
+    "design-loop": "design doc needs review rounds",
+    "deep-research": "cited multi-source research",
+    "ui-delivery": "user-visible UI",
+    "learn-traces": "turn traces into lessons",
+    "Meta-optimize": "periodic offline log review",
+    "Draft skill PR": "opt-in eval-gated skill PR",
+    "Token budget": "pick lean, balanced, or deep budget",
+    "Eliminate waste": "a hop or retry adds no decision",
+    "Prefer CLI over MCP": "CLI and MCP both fit",
+    "No proxy": "a task would add a traffic proxy",
+    "GAP-EXIT2 UX": "host ignores exit-2 hard blocks",
+    "Codacy Complexity": "static-analysis complexity gate",
+}
+
+
 def render_route_table(index: dict) -> str:
     lines = ["| Route | Use when | Load |", "| --- | --- | --- |"]
     selected = [
         entry for entry in index["entries"]
-        if entry.get("family") == "reference" or entry["name"] == "git-cleanup"
+        if entry.get("family") == "reference"
+        or (entry["kind"] in {"portable", "route"} and entry["name"] != "chaos-engine")
     ]
-    selected.sort(key=lambda entry: entry["name"] == "git-cleanup")
+    selected.sort(key=lambda entry: entry.get("family") == "reference")
     for entry in selected:
         path = entry["path"]
         filename = path.rsplit("/", 1)[-1]
         href = "../" + path[len("skills/"):] if path.startswith("skills/") else "../../" + path
+        use = ROUTER_USE[entry["name"]]
         label = {
             "harness-learn": "Harness learn",
             "design-loop": "Design loop",
@@ -241,9 +278,6 @@ def render_route_table(index: dict) -> str:
             "learn-traces": "Learn traces",
             "git-cleanup": "Git cleanup",
         }.get(entry["name"], entry["name"])
-        # The catalog already carries the full description. The always-loaded
-        # router keeps a locator, plus the one phrase a router test requires.
-        use = "user-visible UI" if entry["name"] == "ui-delivery" else "Open the file."
         lines.append(f"| {label} | {use} | [{filename}]({href}) |")
     return "\n".join(lines)
 

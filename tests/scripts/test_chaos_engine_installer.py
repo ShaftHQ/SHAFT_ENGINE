@@ -2593,8 +2593,11 @@ module.install_with_dependencies(project, source, "3" * 40)
             ):
                 vendor = install_root / relative
                 self.assertTrue(vendor.is_file(), relative)
-                self.assertIn(relative, installed_context)
+                self.assertNotIn(relative, installed_context)
                 self.assertNotIn(vendor.read_text(encoding="utf-8"), installed_context)
+            for relative in ("companions/caveman-ultra.md", "companions/ponytail-ultra.md"):
+                self.assertTrue((install_root / relative).is_file(), relative)
+                self.assertIn(relative, installed_context)
             self.assertIn("caveman=ultra; ponytail=ultra", installed_context)
             self.assertEqual(0, first.returncode, first.stderr)
             self.assertEqual(0, second.returncode, second.stderr)
