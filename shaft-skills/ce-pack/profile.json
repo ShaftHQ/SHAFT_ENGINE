@@ -5,6 +5,20 @@
   "installWhen": {
     "mavenArtifactIds": ["shaft-engine"]
   },
+  "portableForbiddenTokens": ["shaft"],
+  "distribution": {
+    "id": "repository",
+    "forbiddenTokens": [],
+    "runtimeFiles": ["hooks/kernel.py", "hooks/launch.js", "hooks/lifecycle.py", "hooks/matchers.json"],
+    "components": {
+      "core": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+      "skills": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+      "hooks": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+      "plugins": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+      "roles": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+      "mcps": {"owner": "project", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"}
+    }
+  },
   "repository": "ShaftHQ/SHAFT_ENGINE",
   "defaultBranch": "main",
   "taskBranchPrefix": "ChaosEngine/",

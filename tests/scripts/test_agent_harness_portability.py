@@ -472,7 +472,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
 
     def test_personal_sharing_authorization_moved_to_user_level_config(self):
         # Epic #6342 / CE-12: personal authorizations are not tracked in the repository.
-        content = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(
+        content = (ROOT / "shaft-skills/ce-pack/entrypoint.md").read_text(
             encoding="utf-8"
         )
         self.assertNotIn("Anyone with the link", content)
@@ -481,7 +481,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         self.assertIn("ask before signing as, attributing to, or sharing for the owner", compact)
 
     def test_act_as_mohab_requires_fresh_task_branch_from_fetched_main(self):
-        content = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(
+        content = (ROOT / "shaft-skills/ce-pack/entrypoint.md").read_text(
             encoding="utf-8"
         )
         compact = re.sub(r"\s+", " ", content)
@@ -492,7 +492,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             self.assertIn(required, compact)
 
     def test_shaft_profile_orchestrates_multi_ticket_assignments_by_default(self):
-        content = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(
+        content = (ROOT / "shaft-skills/ce-pack/entrypoint.md").read_text(
             encoding="utf-8"
         )
         compact = re.sub(r"\s+", " ", content)
@@ -641,12 +641,12 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         """
         pdca = (
             ROOT
-            / "chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md"
+            / "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
         ).read_text(encoding="utf-8")
         compact = re.sub(r"\s+", " ", pdca)
         self.assertIn("personas are phases, not agent identities", pdca.lower())
         self.assertIn(
-            "[execution workflows](../../../../references/execution-workflows.md)",
+            "execution workflows (`.chaos-engine/references/execution-workflows.md`)",
             pdca,
         )
         workflows = (ROOT / "chaos-engine/references/execution-workflows.md").read_text(

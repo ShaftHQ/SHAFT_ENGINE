@@ -153,7 +153,15 @@ def sha256(path: Path) -> str:
 
 def copy_source(destination: Path) -> Path:
     ignored = shutil.ignore_patterns("__pycache__", "*.pyc")
-    return Path(shutil.copytree(SOURCE, destination, ignore=ignored))
+    copied = Path(shutil.copytree(SOURCE, destination, ignore=ignored))
+    # CE-10: the project pack ships beside the core tree.
+    shutil.copytree(
+        SOURCE.parent / "shaft-skills/ce-pack",
+        copied.parent / "shaft-skills/ce-pack",
+        ignore=ignored,
+        dirs_exist_ok=True,
+    )
+    return copied
 
 
 def tree_digest(root: Path) -> dict[str, str]:
@@ -2411,7 +2419,7 @@ module.install_with_dependencies(project, source, "3" * 40)
 
     def test_detect_distribution_selects_repository_from_matching_pom(self):
         wanted = json.loads(
-            (SOURCE / "profiles/shaft/profile.json").read_text(encoding="utf-8")
+            (ROOT / "shaft-skills/ce-pack/profile.json").read_text(encoding="utf-8")
         )["installWhen"]["mavenArtifactIds"][0]
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
@@ -2440,7 +2448,7 @@ module.install_with_dependencies(project, source, "3" * 40)
 
     def test_maven_coordinate_ids_ignore_plugins_comments_and_broken_xml(self):
         wanted = json.loads(
-            (SOURCE / "profiles/shaft/profile.json").read_text(encoding="utf-8")
+            (ROOT / "shaft-skills/ce-pack/profile.json").read_text(encoding="utf-8")
         )["installWhen"]["mavenArtifactIds"][0]
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

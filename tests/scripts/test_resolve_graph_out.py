@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "tools/repository-map/resolve_graph_out.py"
-GRAPHIFY_GUIDANCE = ROOT / "chaos-engine/profiles/shaft/references/graphify.md"
+GRAPHIFY_GUIDANCE = ROOT / "shaft-skills/ce-pack/references/graphify.md"
 
 
 class ResolveGraphOutTest(unittest.TestCase):

@@ -19,7 +19,7 @@ import secrets
 import shutil
 import sqlite3
 import stat
-import subprocess  # nosec B404 - probes a resolved local Java executable.
+import subprocess  # nosec B404 - probes resolved local tool executables.
 import sys
 from pathlib import Path, PurePosixPath
 
@@ -2678,23 +2678,28 @@ def copilot_instruction_block(tree: str = INSTALLED_TREE) -> str:
 
 
 def selected_profile_name(project: Path | None, tree: str) -> str | None:
-    """Return the non-portable profile directory name when exactly one exists."""
+    """Return the installed project pack name when exactly one ships an entrypoint."""
     if project is None:
         return None
     for candidate in (INSTALLED_TREE, SOURCE_TREE, tree):
-        profiles = project / candidate / "profiles"
-        if not profiles.is_dir():
+        packs = project / candidate / "packs"
+        if not packs.is_dir():
             continue
         names = sorted(
             path.name
-            for path in profiles.iterdir()
-            if path.is_dir()
-            and path.name != "portable"
-            and (path / "entrypoint.md").is_file()
+            for path in packs.iterdir()
+            if path.is_dir() and (path / "entrypoint.md").is_file()
         )
         if len(names) == 1:
             return names[0]
-    return None
+    # A source repository carries its project pack beside the core (`<dir>/ce-pack`).
+    names = []
+    for profile in sorted(project.glob("*/ce-pack/profile.json")):
+        with contextlib.suppress(OSError, ValueError, AttributeError):
+            name = json.loads(profile.read_text(encoding="utf-8")).get("name")
+            if isinstance(name, str) and (profile.parent / "entrypoint.md").is_file():
+                names.append(name)
+    return names[0] if len(names) == 1 else None
 
 
 def skill_adapter_bytes(tree: str, *, profile: str | None = None) -> bytes:
@@ -2710,7 +2715,7 @@ def skill_adapter_bytes(tree: str, *, profile: str | None = None) -> bytes:
             "---\n\n"
             f"Follow the [canonical portable entrypoint]({canonical}),\n"
             f"review the [profiles catalog](../../../{tree}/profiles/README.md), then\n"
-            f"load the [selected project profile](../../../{tree}/profiles/{profile}/entrypoint.md).\n"
+            f"load the [selected project pack](../../../{tree}/packs/{profile}/entrypoint.md).\n"
             "The [repository harness map](../README.md) inventories every local adapter and\n"
             "enforcement surface.\n"
         ).encode()
@@ -2882,12 +2887,12 @@ def _validate_cache_path(path: Path, anchor: Path) -> None:
     try:
         relative = path.relative_to(anchor)
     except ValueError as error:
-        raise ValueError("Maven Tools MCP cache path escapes its data root") from error
+        raise ValueError("managed tool cache path escapes its data root") from error
     current = anchor
     for part in (Path(), *relative.parts):
         current = current / part
         if is_link_or_reparse(current):
-            raise ValueError(f"Maven Tools MCP cache path is linked: {current}")
+            raise ValueError(f"managed tool cache path is linked: {current}")
 
 
 def _cache_anchor(root: Path | None) -> Path:
@@ -2935,7 +2940,7 @@ def _unlink_stable_cache_file(path: Path, expected: os.stat_result) -> None:
         != (expected.st_dev, expected.st_ino, 1)
         or is_link_or_reparse(path)
     ):
-        raise ValueError("Maven Tools MCP cache changed before purge")
+        raise ValueError("managed tool cache changed before purge")
     path.unlink()
 
 
@@ -2945,7 +2950,7 @@ def _rmdir_stable_cache_directory(path: Path, expected: os.stat_result) -> None:
         (current.st_dev, current.st_ino) != (expected.st_dev, expected.st_ino)
         or is_link_or_reparse(path)
     ):
-        raise ValueError("Maven Tools MCP cache directory changed before purge")
+        raise ValueError("managed tool cache directory changed before purge")
     path.rmdir()
 
 
@@ -2962,7 +2967,7 @@ def _discard_tree_nofollow(path: Path, cache_root: Path) -> None:
     path = path.absolute()
     cache_root = cache_root.absolute()
     if not _path_is_under(path, cache_root):
-        raise ValueError("Maven Tools MCP discard path escapes cache root")
+        raise ValueError("managed tool discard path escapes cache root")
     if is_link_or_reparse(path):
         path.unlink()
         return
@@ -2973,7 +2978,7 @@ def _discard_tree_nofollow(path: Path, cache_root: Path) -> None:
         return
     for child in list(path.iterdir()):
         if not _path_is_under(child, cache_root):
-            raise ValueError("Maven Tools MCP discard path escapes cache root")
+            raise ValueError("managed tool discard path escapes cache root")
         if is_link_or_reparse(child):
             child.unlink()
         elif child.is_dir():
@@ -4239,8 +4244,8 @@ def codex_content(
         for candidate in (block, block.replace("\n", "\r\n")):
             if candidate in existing:
                 return existing.replace(candidate, block).encode()
-        for platform in ("nt", "posix"):
-            legacy = legacy_codex_python_block(platform)
+        for os_family in ("nt", "posix"):
+            legacy = legacy_codex_python_block(os_family)
             for candidate in (legacy, legacy.replace("\n", "\r\n")):
                 if candidate in existing:
                     return existing.replace(candidate, block).encode()

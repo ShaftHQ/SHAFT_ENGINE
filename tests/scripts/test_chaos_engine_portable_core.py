@@ -34,7 +34,8 @@ from tests.scripts.ce_host_files import installed_overlay_text  # noqa: E402  (#
 OVERLAY = session_overlay(ROOT)
 REPOSITORY_ADAPTER = OVERLAY / ".agents/skills/chaos-engine/SKILL.md"
 COMPATIBILITY_ALIAS = OVERLAY / ".agents/skills/chaos-engine/SKILL.md"
-SHAFT_PROFILE = CORE / "profiles/shaft/profile.json"
+SHAFT_PACK = ROOT / "shaft-skills/ce-pack"
+SHAFT_PROFILE = SHAFT_PACK / "profile.json"
 PORTABLE_README = CORE / "README.md"
 BRAND_ASSETS = CORE / "assets/brand"
 _POSIX_PATH_CANDIDATE = re.compile(
@@ -673,10 +674,10 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
         self.assertNotIn("../shafthq.github.io", profile_text)
 
     def test_shaft_agents_leave_e2e_execution_to_scheduled_nightly_workflows(self):
-        entry_path = Path("profiles/shaft/entrypoint.md")
-        forensics_path = Path("profiles/shaft/references/shaft-mastery/ci-forensics.md")
-        entry_source = (CORE / entry_path).read_text(encoding="utf-8")
-        forensics_source = (CORE / forensics_path).read_text(encoding="utf-8")
+        entry_path = Path("packs/shaft/entrypoint.md")
+        forensics_path = Path("packs/shaft/references/shaft-mastery/ci-forensics.md")
+        entry_source = (SHAFT_PACK / "entrypoint.md").read_text(encoding="utf-8")
+        forensics_source = (SHAFT_PACK / "references/shaft-mastery/ci-forensics.md").read_text(encoding="utf-8")
         self.assertEqual(
             entry_source,
             installed_overlay_text(entry_path.as_posix()),
@@ -730,10 +731,10 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                     )
 
     def test_shaft_user_facing_changes_require_companion_docs_prs(self):
-        entry = (CORE / "profiles/shaft/entrypoint.md").read_text(encoding="utf-8")
+        entry = (SHAFT_PACK / "entrypoint.md").read_text(encoding="utf-8")
         playbook = (
-            CORE
-            / "profiles/shaft/references/playbooks/public-behavior-docs-synchronizer.md"
+            SHAFT_PACK
+            / "references/playbooks/public-behavior-docs-synchronizer.md"
         ).read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         profile_text = SHAFT_PROFILE.read_text(encoding="utf-8")
@@ -890,9 +891,9 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
                 self.assertNotIn(leak, combined)
 
     def test_shaft_workstation_playbook_is_routed_and_names_the_loop(self):
-        playbook = CORE / "profiles/shaft/references/playbooks/workstation-local-coding-agent.md"
-        shaft_entry = CORE / "profiles/shaft/entrypoint.md"
-        shaft_routing = CORE / "profiles/shaft/references/routing.md"
+        playbook = SHAFT_PACK / "references/playbooks/workstation-local-coding-agent.md"
+        shaft_entry = SHAFT_PACK / "entrypoint.md"
+        shaft_routing = SHAFT_PACK / "references/routing.md"
         required = (
             "scripts/local-coding-agent/shaft-java-agent.ps1",
             "scripts/local-coding-agent/shaft-architect.ps1",

@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 FIREWALL = ROOT / "chaos-engine/references/context-firewall.md"
 PRODUCT = ROOT / "chaos-engine/skills/self-improve/references/product-track.md"
-PROFILE_PRODUCT = ROOT / "chaos-engine/profiles/shaft/references/product-track.md"
+PROFILE_PRODUCT = ROOT / "shaft-skills/ce-pack/references/product-track.md"
 LEVEL1 = ROOT / "chaos-engine/references/level-1-catalog.md"
 CE_SKILL = ROOT / "chaos-engine/skills/chaos-engine/SKILL.md"
 ROUTER_CONTRACT = ROOT / "chaos-engine/references/router-contract.md"
@@ -16,7 +16,7 @@ SI_SKILL = ROOT / "chaos-engine/skills/self-improve/SKILL.md"
 AGENTS = ROOT / "AGENTS.md"
 DELEGATION = ROOT / "chaos-engine/references/delegation.md"
 CONTEXT = ROOT / "chaos-engine/references/context-economy.md"
-ROUTING = ROOT / "chaos-engine/profiles/shaft/references/routing.md"
+ROUTING = ROOT / "shaft-skills/ce-pack/references/routing.md"
 TAXONOMY = ROOT / "chaos-engine/skills/self-improve/references/observation-taxonomy.md"
 RECEIPT = ROOT / "chaos-engine/references/research-receipt.md"
 

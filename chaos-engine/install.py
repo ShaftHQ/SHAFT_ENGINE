@@ -17,7 +17,7 @@ import re
 import runpy
 import secrets
 import shutil
-import subprocess  # nosec B404 - fixed list-form Maven build commands.
+import subprocess  # nosec B404 - fixed list-form tool commands.
 import sys
 import tempfile
 import time
@@ -49,6 +49,7 @@ repair_maven_tools = _JAVA_PACK["repair_maven_tools"]
 project_maven_ids = _JAVA_PACK["project_maven_ids"]
 maven_tools_repair_fix_next = _JAVA_PACK["maven_tools_repair_fix_next"]
 ensure_maven_tools = _JAVA_PACK["ensure_maven_tools"]
+java_pack_enabled = _JAVA_PACK["java_pack_enabled"]
 
 
 INSTALL_DIRECTORY = ".chaos-engine"
@@ -58,6 +59,11 @@ DIAGNOSTIC_SCHEMA_VERSION = 2
 CANONICAL_IDENTITY = "chaos-engine"
 DEFAULT_DISTRIBUTION = "portable"
 DISTRIBUTIONS_NAME = "distributions.json"
+# Project packs live next to the core tree (`<repo>/<dir>/ce-pack/profile.json`)
+# and install under `.chaos-engine/packs/<name>/`.
+PROJECT_PACK_GLOB = "*/ce-pack/profile.json"
+PACKS_DIRECTORY = "packs"
+_PACK_NAME = re.compile(r"[a-z0-9][a-z0-9-]*")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 BRANCH_PATTERN = re.compile(r"[^\x00-\x20\x7f~^:?*\\\[\]]+")
@@ -171,7 +177,7 @@ def overlay_unchanged(source: Path, installed: Path, distribution: str = DEFAULT
     if not installed.is_dir():
         return False
     for path in source_files(source, distribution):
-        target = installed / path.relative_to(source)
+        target = installed / payload_relative(source, path)
         try:
             if not target.is_file() or target.read_bytes() != path.read_bytes():
                 return False
@@ -296,12 +302,111 @@ def profile_install_predicate(profile: dict[str, object]) -> set[str]:
     return {item.strip() for item in raw}
 
 
-def detect_distribution(project: Path, source: Path) -> str:
-    """Select a distribution from profile predicates; default stays portable."""
-    catalog = json.loads((source / DISTRIBUTIONS_NAME).read_text(encoding="utf-8"))
-    distributions = catalog.get("distributions")
+def project_packs(source: Path) -> dict[str, Path]:
+    """Project packs shipped beside the core tree, keyed by their profile name."""
+    packs: dict[str, Path] = {}
+    for profile_path in sorted(source.parent.glob(PROJECT_PACK_GLOB)):
+        root = profile_path.parent
+        if is_link_or_reparse(root) or is_link_or_reparse(profile_path):
+            raise ValueError(f"ChaosEngine project pack is a link or reparse point: {root}")
+        try:
+            name = json.loads(profile_path.read_text(encoding="utf-8")).get("name")
+        except (OSError, ValueError, AttributeError) as error:
+            raise ValueError(f"invalid ChaosEngine project pack: {root}") from error
+        if not isinstance(name, str) or _PACK_NAME.fullmatch(name) is None:
+            raise ValueError(f"invalid ChaosEngine project pack name: {root}")
+        if name in packs or (source / PACKS_DIRECTORY / name).exists() or (source / "profiles" / name).exists():
+            raise ValueError(f"duplicate ChaosEngine pack name: {name}")
+        packs[name] = root
+    return packs
+
+
+def profile_root(source: Path, profile: str) -> Path:
+    """Core profiles live in `profiles/`; project packs are discovered beside the core."""
+    core = source / "profiles" / profile
+    if core.is_dir():
+        return core
+    pack = project_packs(source).get(profile)
+    if pack is None:
+        raise ValueError(f"ChaosEngine distribution profile is incomplete: {profile}")
+    return pack
+
+
+def payload_relative(source: Path, path: Path) -> Path:
+    """Installed relative path: core files keep theirs, pack files land in packs/<name>/."""
+    if path.is_relative_to(source):
+        return path.relative_to(source)
+    for name, root in project_packs(source).items():
+        if path.is_relative_to(root):
+            return Path(PACKS_DIRECTORY) / name / path.relative_to(root)
+    raise ValueError(f"path is outside the ChaosEngine payload: {path}")
+
+
+def distribution_catalog(source: Path) -> dict[str, dict[str, object]]:
+    """Core distributions plus the one each project pack declares in profile.json."""
+    try:
+        catalog = json.loads((source / DISTRIBUTIONS_NAME).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError("ChaosEngine distribution catalog is invalid") from error
+    distributions = catalog.get("distributions") if isinstance(catalog, dict) else None
     if not isinstance(distributions, dict):
         raise ValueError("ChaosEngine distribution catalog is invalid")
+    merged = dict(distributions)
+    portable_forbidden: list[str] = []
+    for name, root in project_packs(source).items():
+        pack_profile = json.loads((root / "profile.json").read_text(encoding="utf-8"))
+        tokens = pack_profile.get("portableForbiddenTokens", [])
+        if not isinstance(tokens, list) or not all(isinstance(token, str) and token for token in tokens):
+            raise ValueError(f"invalid portableForbiddenTokens in ChaosEngine pack: {name}")
+        portable_forbidden.extend(tokens)
+        declared = pack_profile.get("distribution")
+        if declared is None:
+            continue
+        identifier = declared.get("id") if isinstance(declared, dict) else None
+        if not isinstance(identifier, str) or _PACK_NAME.fullmatch(identifier) is None:
+            raise ValueError(f"invalid distribution in ChaosEngine pack: {name}")
+        if identifier in merged:
+            raise ValueError(f"duplicate ChaosEngine distribution: {identifier}")
+        policy = {key: value for key, value in declared.items() if key != "id"}
+        policy["profile"] = name
+        merged[identifier] = policy
+    default = merged.get(DEFAULT_DISTRIBUTION)
+    if portable_forbidden and isinstance(default, dict) and isinstance(default.get("forbiddenTokens"), list):
+        # Each pack keeps its own identity out of the portable payload.
+        tokens = [*default["forbiddenTokens"], *portable_forbidden]
+        merged[DEFAULT_DISTRIBUTION] = {**default, "forbiddenTokens": list(dict.fromkeys(tokens))}
+    return merged
+
+
+def legacy_profile_layout(target: Path) -> list[str]:
+    """Pack names still installed under the pre-pack `profiles/<name>` layout."""
+    profiles = target / "profiles"
+    if not profiles.is_dir() or is_link_or_reparse(profiles):
+        return []
+    return sorted(
+        path.name
+        for path in profiles.iterdir()
+        if path.is_dir() and path.name != DEFAULT_DISTRIBUTION
+    )
+
+
+def hard_cut_message(names: list[str], *, replaced: bool = False) -> str:
+    """Migration notice for the profiles/<name> -> packs/<name> hard cut."""
+    listed = ", ".join(names)
+    moves = "; ".join(
+        f"{INSTALL_DIRECTORY}/profiles/{name} -> {INSTALL_DIRECTORY}/{PACKS_DIRECTORY}/{name}"
+        for name in names
+    )
+    return (
+        f"ChaosEngine hard cut: project packs moved ({moves}). "
+        f"The old profiles layout ({listed}) is no longer read and no shim is kept; "
+        + ("this install replaced it." if replaced else "rerun the installer to replace it.")
+    )
+
+
+def detect_distribution(project: Path, source: Path) -> str:
+    """Select a distribution from profile predicates; default stays portable."""
+    distributions = distribution_catalog(source)
     declared = project_maven_ids(project)
     matches: list[str] = []
     for name, policy in distributions.items():
@@ -312,7 +417,10 @@ def detect_distribution(project: Path, source: Path) -> str:
         profile_name = policy.get("profile")
         if not isinstance(profile_name, str):
             continue
-        profile_path = source / "profiles" / profile_name / "profile.json"
+        try:
+            profile_path = profile_root(source, profile_name) / "profile.json"
+        except ValueError:
+            continue
         if not profile_path.is_file():
             continue
         profile = json.loads(profile_path.read_text(encoding="utf-8"))
@@ -330,9 +438,8 @@ def detect_distribution(project: Path, source: Path) -> str:
 
 def load_distribution(source: Path, distribution: str) -> tuple[dict[str, object], str]:
     try:
-        catalog = json.loads((source / DISTRIBUTIONS_NAME).read_text(encoding="utf-8"))
-        policy = catalog["distributions"][distribution]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+        policy = distribution_catalog(source)[distribution]
+    except (KeyError, TypeError) as error:
         raise ValueError(f"unknown ChaosEngine distribution: {distribution}") from error
     if not isinstance(policy, dict):
         raise ValueError(f"unknown ChaosEngine distribution: {distribution}")
@@ -356,8 +463,8 @@ def load_distribution(source: Path, distribution: str) -> tuple[dict[str, object
         )
     ):
         raise ValueError("ChaosEngine distribution policy is invalid")
-    profile_root = source / "profiles" / profile
-    if not all((profile_root / name).is_file() for name in ("entrypoint.md", "profile.json")):
+    root = profile_root(source, profile)
+    if not all((root / name).is_file() for name in ("entrypoint.md", "profile.json")):
         raise ValueError(f"ChaosEngine distribution profile is incomplete: {profile}")
     encoded = json.dumps(policy, sort_keys=True, separators=(",", ":")).encode()
     return policy, hashlib.sha256(encoded).hexdigest()
@@ -383,7 +490,7 @@ def load_capability_policy(source: Path, distribution: str) -> tuple[dict[str, d
     policy, _ = load_distribution(source, distribution)
     profile_name = str(policy["profile"])
     try:
-        profile = json.loads((source / "profiles" / profile_name / "profile.json").read_text(encoding="utf-8"))
+        profile = json.loads((profile_root(source, profile_name) / "profile.json").read_text(encoding="utf-8"))
         dependencies = json.loads((source / "dependencies.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, TypeError) as error:
         raise ValueError("ChaosEngine capability policy is invalid") from error
@@ -489,8 +596,12 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
     forbidden_tokens = tuple(str(token).casefold() for token in policy["forbiddenTokens"])
     runtime_files = frozenset(str(relative) for relative in policy["runtimeFiles"])
     files: list[Path] = []
-    for path in sorted(source.rglob("*")):
-        relative = path.relative_to(source)
+    roots = [source]
+    if not (source / "profiles" / selected_profile).is_dir():
+        roots.append(profile_root(source, selected_profile))
+    candidates = [path for root in roots for path in sorted(root.rglob("*"))]
+    for path in candidates:
+        relative = payload_relative(source, path)
         if is_generated_python_cache(relative):
             continue
         if relative.as_posix() == DISTRIBUTIONS_NAME:
@@ -513,7 +624,7 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
                     f"distribution policy rejected forbidden content: {relative.as_posix()}"
                 )
             files.append(path)
-    packaged = {path.relative_to(source).as_posix() for path in files}
+    packaged = {payload_relative(source, path).as_posix() for path in files}
     if not runtime_files <= packaged:
         raise ValueError("ChaosEngine distribution runtime inventory is incomplete")
     return tuple(files)
@@ -2346,7 +2457,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
     _, policy_digest = load_distribution(source, distribution)
     capabilities, capability_digest = load_capability_policy(source, distribution)
     files = source_files(source, distribution)
-    ownership = {path.relative_to(source).as_posix(): file_sha256(path) for path in files}
+    ownership = {payload_relative(source, path).as_posix(): file_sha256(path) for path in files}
     target = project / INSTALL_DIRECTORY
     backup = project / BACKUP_NAME
     displaced = project / NEXT_BACKUP_NAME
@@ -2425,7 +2536,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
         stage = Path(tempfile.mkdtemp(prefix=f"{INSTALL_DIRECTORY}-stage-", dir=project))
         try:
             for path in files:
-                relative = path.relative_to(source)
+                relative = payload_relative(source, path)
                 destination = stage / relative
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(path, destination)
@@ -3048,11 +3159,11 @@ def staged_candidate_host_controller(
     _, policy_digest = load_distribution(source, distribution)
     capabilities, capability_digest = load_capability_policy(source, distribution)
     files = source_files(source, distribution)
-    ownership = {path.relative_to(source).as_posix(): file_sha256(path) for path in files}
+    ownership = {payload_relative(source, path).as_posix(): file_sha256(path) for path in files}
     with tempfile.TemporaryDirectory(prefix=f"{INSTALL_DIRECTORY}-candidate-", dir=project) as name:
         stage = Path(name)
         for path in files:
-            destination = stage / path.relative_to(source)
+            destination = stage / payload_relative(source, path)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(path, destination)
         verify_staged_payload(stage, ownership)
@@ -3334,7 +3445,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     source = source.absolute()
     reject_link_or_reparse(source)
     source = source.resolve()
-    with_maven_tools = with_maven_tools or (project / "pom.xml").is_file()
+    with_maven_tools = with_maven_tools or java_pack_enabled(project)
     bundle = normalize_bundle_options(bundle_options)
     write_bundle_options(project, bundle)
     consumer = _consumer_mode_module()
@@ -4999,8 +5110,8 @@ def apply_companion_and_identity_doctor(result: dict, project: Path) -> None:
             "taskImpact": "required",
             "detail": f"{name}-missing-after-heal-attempt",
             "fixNext": (
-                f"Complete companion heal using .chaos-engine-state/companion-handoff.md "
-                f"(official repair/install), then rerun doctor. (#5806/#5811)"
+                "Complete companion heal using .chaos-engine-state/companion-handoff.md "
+                "(official repair/install), then rerun doctor. (#5806/#5811)"
             ),
             "agentPrompt": prompt,
         }
@@ -6283,9 +6394,9 @@ def component_fix_next(name: str, item: dict[str, object]) -> str | None:
         )
     if name == "maven-tools-mcp":
         return (
-            "For Maven projects, rerun install with Maven Tools enabled "
-            "(`--with-maven-tools` or root `pom.xml`); otherwise optional absence "
-            "is fine."
+            "For projects the java pack enables, rerun install with "
+            "`--with-maven-tools` (see packs/java/pack.md); otherwise optional "
+            "absence is fine."
         )
     if status == "migration-required":
         return (
@@ -6591,6 +6702,7 @@ def main() -> int:
             ):
                 print(json.dumps({"status": "unchanged", "root": str(args.project / INSTALL_DIRECTORY)}))
                 return 0
+            legacy_packs = legacy_profile_layout(args.project / INSTALL_DIRECTORY)
             bundle = bundle_from_install_args(args)
             write_bundle_options(args.project, bundle)
             record_mcp_opt_in(args.project, args)
@@ -6615,6 +6727,11 @@ def main() -> int:
                 )
             )
             result: object = {"status": "installed", "root": str(target), "bundle": bundle}
+            if legacy_packs:
+                # CE-10 hard cut: the old profiles/<name> layout is replaced, never shimmed.
+                notice = hard_cut_message(legacy_packs, replaced=not legacy_profile_layout(target))
+                result["migration"] = {"hardCut": notice}
+                print(notice, file=sys.stderr)
             consumer = _consumer_mode_module()
             if consumer is not None and consumer.enabled(args.project):
                 consumer.record(args.project)
@@ -6645,6 +6762,9 @@ def main() -> int:
             result = status_json(args.project)
         elif args.command == "doctor":
             result = status_json(args.project, active_probes=True)
+            legacy_packs = legacy_profile_layout(args.project / INSTALL_DIRECTORY)
+            if legacy_packs:
+                result["migration"] = {"hardCut": hard_cut_message(legacy_packs)}
         elif args.command == "explain":
             result = explain_json(
                 args.project,
@@ -6793,6 +6913,9 @@ def main() -> int:
         else:
             print(format_health_report(result, kind=args.command), end="")
         if args.command == "doctor":
+            migration = result.get("migration")
+            if isinstance(migration, dict) and migration.get("hardCut"):
+                print(f"WARNING: {migration['hardCut']}")
             clients = result.get("clients")
             print(
                 format_doctor_host_onboarding(

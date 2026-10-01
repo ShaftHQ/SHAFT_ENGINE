@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import re
 import sys
 import tempfile
 import unittest
@@ -83,6 +82,15 @@ class ProjectPackTests(unittest.TestCase):
         self.assertIn("hard cut", message.casefold())
         self.assertIn("profiles/shaft", message)
         self.assertIn("packs/shaft", message)
+        self.assertIn("rerun the installer", message)
+        self.assertIn("replaced", self.install.hard_cut_message(["shaft"], replaced=True))
+
+    def test_doctor_and_install_surface_the_hard_cut_notice(self):
+        source = (ROOT / "chaos-engine/install.py").read_text(encoding="utf-8")
+        bootstrap = (ROOT / "chaos-engine/bootstrap.py").read_text(encoding="utf-8")
+        self.assertIn('print(f"WARNING: {migration[\'hardCut\']}")', source)
+        self.assertIn("print(notice, file=sys.stderr)", source)
+        self.assertIn("installer.hard_cut_message(legacy_packs", bootstrap)
 
 
 class JavaPackTests(unittest.TestCase):

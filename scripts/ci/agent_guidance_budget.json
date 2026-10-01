@@ -30,7 +30,7 @@
     "shaft-mcp/.github/copilot-instructions.md": {
       "max_chars": 1500
     },
-    "chaos-engine/profiles/shaft/references/**/*.md": {
+    "shaft-skills/ce-pack/references/**/*.md": {
       "max_bytes": 16384
     },
     "chaos-engine/references/*.md": {
@@ -81,7 +81,7 @@
     ]
   },
   "routing_bridges": {
-    "source": "chaos-engine/profiles/shaft/references/routing.md",
+    "source": "shaft-skills/ce-pack/references/routing.md",
     "skill_roots": [
       "chaos-engine/skills",
       "shaft-skills"
@@ -97,7 +97,7 @@
     "chaos-engine/skills/chaos-engine/SKILL.md",
     "chaos-engine/skills/local-agency/references/*.md",
     "chaos-engine/references/*.md",
-    "chaos-engine/profiles/shaft/**/*.md",
+    "shaft-skills/ce-pack/**/*.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md"
   ],
@@ -115,7 +115,7 @@
     "chaos-engine/skills/work-item/SKILL.md",
     "chaos-engine/skills/self-improve/SKILL.md",
     "chaos-engine/references/*.md",
-    "chaos-engine/profiles/shaft/**/*.md",
+    "shaft-skills/ce-pack/**/*.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md"
   ],
@@ -155,6 +155,7 @@
     "element_globs": [
       ".agents/**",
       "chaos-engine/**",
+      "shaft-skills/ce-pack/**",
       ".claude-plugin/*.json",
       ".claude/agents/*.md",
       ".claude/settings.json",
@@ -232,7 +233,7 @@
     "chaos-engine/skills/work-item/SKILL.md",
     "chaos-engine/skills/self-improve/SKILL.md",
     "chaos-engine/references/*.md",
-    "chaos-engine/profiles/shaft/**/*.md",
+    "shaft-skills/ce-pack/**/*.md",
     ".github/copilot-instructions.md",
     ".github/instructions/*.instructions.md",
     ".github/pull_request_template.md"
@@ -312,7 +313,7 @@
     "common": [
       "chaos-engine/skills/chaos-engine/SKILL.md",
       "chaos-engine/identity.md",
-      "chaos-engine/profiles/shaft/entrypoint.md"
+      "shaft-skills/ce-pack/entrypoint.md"
     ],
     "hosts": {
       "claude": [
@@ -355,7 +356,7 @@
       "chaos-engine/companions/caveman-ultra.md",
       "chaos-engine/companions/ponytail-ultra.md"
     ],
-    "profile": "chaos-engine/profiles/shaft/entrypoint.md",
+    "profile": "shaft-skills/ce-pack/entrypoint.md",
     "orchestrate": [
       "chaos-engine/skills/kanban/SKILL.md",
       "chaos-engine/references/delegate-card.md"

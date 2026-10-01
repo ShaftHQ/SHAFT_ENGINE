@@ -219,7 +219,7 @@ class AgnosticCoreTests(unittest.TestCase):
             text = path.read_text(encoding="utf-8")
             for secret in ("F79E3F65", "Mohab.MohieElDeen@", "Anyone with the link"):
                 self.assertNotIn(secret, text, path)
-        entry = (CE / "profiles/shaft/entrypoint.md").read_text(encoding="utf-8")
+        entry = (ROOT / "shaft-skills/ce-pack/entrypoint.md").read_text(encoding="utf-8")
         self.assertIn("chaos-engine/authorizations.md", entry)
 
     def test_local_llm_skills_share_one_router_entry(self):

@@ -236,7 +236,7 @@ class ClassifierTest(unittest.TestCase):
             "chaos-engine/dependencies.json",
             "chaos-engine/distributions.json",
             "chaos-engine/profiles/portable/profile.json",
-            "chaos-engine/profiles/shaft/profile.json",
+            "shaft-skills/ce-pack/profile.json",
             "chaos-engine/vendor/caveman/PIN.json",
             "chaos-engine/vendor/ponytail/PIN.json",
             "chaos-engine/vendor/caveman/src/hooks/package.json",
@@ -1043,9 +1043,9 @@ class WeeklyOnlyModulesOnPrGateTest(unittest.TestCase):
             # #6240: every input of the two formerly unselected suites.
             (".agents/skills/README.md", "intellij-skill-contract"),
             ("scripts/ci/agent_guidance_budget.json", "intellij-skill-contract"),
-            ("chaos-engine/profiles/shaft/references/routing.md", "intellij-skill-contract"),
+            ("shaft-skills/ce-pack/references/routing.md", "intellij-skill-contract"),
             (
-                "chaos-engine/profiles/shaft/references/shaft-mastery/intellij-plugin.md",
+                "shaft-skills/ce-pack/references/shaft-mastery/intellij-plugin.md",
                 "intellij-skill-contract",
             ),
             ("chaos-engine/skills/chaos-engine/SKILL.md", "self-improve-overlay-contract"),

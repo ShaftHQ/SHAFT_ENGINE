@@ -1004,8 +1004,10 @@ def _record_denial_with_significance(event: dict, event_name: str, tool_name: st
 def _complexity_hint_markers() -> tuple[tuple[str, ...], tuple[str, ...]]:
     paths: list[str] = []
     names: list[str] = []
-    profiles = Path(__file__).resolve().parents[1] / "profiles"
-    for profile in sorted(profiles.glob("*/profile.json")):
+    tree = Path(__file__).resolve().parents[1]
+    declared = [*tree.glob("profiles/*/profile.json"), *tree.glob("packs/*/profile.json")]
+    declared.extend(tree.parent.glob("*/ce-pack/profile.json"))
+    for profile in sorted(declared):
         with contextlib.suppress(OSError, ValueError, AttributeError, TypeError):
             hint = json.loads(profile.read_text(encoding="utf-8")).get("complexityHint") or {}
             paths.extend(str(item).casefold() for item in hint.get("pathMarkers", ()))

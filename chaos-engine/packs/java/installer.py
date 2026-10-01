@@ -27,6 +27,7 @@ __all__ = (
     "_MAVEN_ID_PARENTS",
     "_XML_COMMENT",
     "_XML_TAG",
+    "java_pack_enabled",
     "maven_coordinate_ids",
     "project_maven_ids",
     "ensure_maven_tools",
@@ -56,6 +57,11 @@ _MAVEN_ID_PARENTS = {
     ("modules", "module"),
     ("dependency", "artifactId"),
 }
+
+
+def java_pack_enabled(project: Path) -> bool:
+    """The java pack enables its tools for a project with a root build file."""
+    return (project / "pom.xml").is_file()
 
 
 def maven_coordinate_ids(pom: Path) -> set[str]:

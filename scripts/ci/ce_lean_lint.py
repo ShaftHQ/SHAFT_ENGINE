@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import importlib.util
 import re
 import sys
 from pathlib import Path
@@ -17,12 +18,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CORE = "chaos-engine"
 ALLOWLIST = Path(__file__).with_name("ce_lean_allowlist.json")
-# Build-tool command tokens (mvn, gradle, npm) are ecosystem-neutral detection
-# inputs, not product leaks; prose names (Maven, Java) still count.
+# SHAFT leaks: product, owner, and SHAFT-toolchain names. The shipped core must
+# carry none (CE-10 enforces zero, allowlist empty).
 LEAK_TERMS = re.compile(
-    r"SHAFT|ShaftHQ|shafthq|shaft-|\bshaft\b|\bMaven\b|\bJava\b|pom\.xml|[Ss]urefire|"
+    r"SHAFT|ShaftHQ|shafthq|shaft-|\bshaft\b|[Ss]urefire|"
     r"\b[Aa]llure\b|[Cc]odacy|TestNG|IntelliJ|Mohab|F79E3F65"
 )
+# Ecosystem names belong to the java pack (`packs/java/`). Core wiring that
+# activates the pack still names them; that count is tracked and may only shrink.
+# Build-tool command tokens (mvn, gradle, npm) are neutral detection inputs.
+ECOSYSTEM_TERMS = re.compile(r"\bMaven\b|\bJava\b|pom\.xml")
 ISSUE_TAG = re.compile(r"(?<![\w&/])#\d{4}\b")
 ZERO_TAG_FILES = (
     "chaos-engine/skills/chaos-engine/SKILL.md",
@@ -64,13 +69,46 @@ def _text(path: Path) -> str:
         return ""
 
 
-def leak_counts(root: Path = ROOT) -> dict[str, int]:
+# The distribution's own origin slug (install one-liners, source receipts) is
+# the address adopters install from, not a product leak.
+ORIGIN_SLUG = "ShaftHQ/SHAFT_ENGINE"
+
+
+def _origin_only(root: Path):
+    """The installer's own predicate for origin docs that never ship to adopters."""
+    spec = importlib.util.spec_from_file_location("ce_lean_install", root / CORE / "install.py")
+    if spec is None or spec.loader is None:
+        raise ImportError("ChaosEngine install.py cannot load")
+    module = importlib.util.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
+    return module.is_origin_only
+
+
+def _shipped_counts(root: Path, terms: re.Pattern[str]) -> dict[str, int]:
+    origin_only = _origin_only(root)
     counts = {}
     for path in core_files(root):
-        hits = len(LEAK_TERMS.findall(_text(path)))
+        if origin_only(path.relative_to(root / CORE)):
+            continue
+        hits = len(terms.findall(_text(path).replace(ORIGIN_SLUG, "")))
         if hits:
             counts[path.relative_to(root).as_posix()] = hits
     return counts
+
+
+def ecosystem_counts(root: Path = ROOT) -> dict[str, int]:
+    """Java-pack ecosystem names left in the shipped core (allowlisted, shrink-only)."""
+    return _shipped_counts(root, ECOSYSTEM_TERMS)
+
+
+def leak_counts(root: Path = ROOT) -> dict[str, int]:
+    """SHAFT terms in the payload the installer ships to adopters (must be zero)."""
+    return _shipped_counts(root, LEAK_TERMS)
 
 
 def issue_tag_counts(root: Path = ROOT) -> dict[str, int]:
@@ -124,6 +162,7 @@ def _over(actual: dict, allowed: dict, label: str) -> list[str]:
 def violations(root: Path = ROOT, allowlist: dict | None = None) -> list[str]:
     allowed = allowlist if allowlist is not None else load_allowlist()
     errors = _over(leak_counts(root), allowed.get("leaks", {}), "core-leak")
+    errors += _over(ecosystem_counts(root), allowed.get("ecosystemTerms", {}), "ecosystem-term")
     tags = issue_tag_counts(root)
     errors += _over(tags, allowed.get("issueTags", {}), "issue-tag")
     errors += [f"issue-tag: {name} must carry none" for name in ZERO_TAG_FILES if tags.get(name)]
@@ -140,7 +179,9 @@ def violations(root: Path = ROOT, allowlist: dict | None = None) -> list[str]:
 
 def main() -> int:
     errors = violations()
-    print(f"core leaks: {sum(leak_counts().values())} hits in {len(leak_counts())} files")
+    leaks, ecosystem = leak_counts(), ecosystem_counts()
+    print(f"core leaks: {sum(leaks.values())} hits in {len(leaks)} files")
+    print(f"ecosystem terms (java pack wiring): {sum(ecosystem.values())} hits in {len(ecosystem)} files")
     for error in errors:
         print(error)
     return 1 if errors else 0

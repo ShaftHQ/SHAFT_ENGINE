@@ -59,7 +59,20 @@ def installed_overlay_text(relative: str) -> str:
     """`.chaos-engine/<relative>` when installed; else the source it is copied from."""
     installed = ROOT / ".chaos-engine" / relative
     source = ROOT / "chaos-engine" / relative
+    if Path(relative).parts[:1] == ("packs",) and not source.is_file():
+        source = _source_pack_path(Path(*Path(relative).parts[1:]))
     return (installed if installed.is_file() else source).read_text(encoding="utf-8")
+
+
+def _source_pack_path(relative: Path) -> Path:
+    """`.chaos-engine/packs/<name>/x` maps to the `<dir>/ce-pack/x` it installs from."""
+    import json
+
+    name, *rest = relative.parts
+    for profile in sorted(ROOT.glob("*/ce-pack/profile.json")):
+        if json.loads(profile.read_text(encoding="utf-8")).get("name") == name:
+            return profile.parent.joinpath(*rest)
+    return ROOT / "chaos-engine" / "packs" / relative
 
 
 def host_link_targets(relative: str) -> list[Path]:
@@ -79,6 +92,8 @@ def host_link_targets(relative: str) -> list[Path]:
         if not target or re.match(r"^[a-z][a-z0-9+.-]*:", target, re.I):
             continue
         resolved = (anchor / target).resolve()
+        if not resolved.exists() and resolved.is_relative_to(overlay / "packs"):
+            resolved = _source_pack_path(resolved.relative_to(overlay / "packs"))
         if not resolved.exists() and resolved.is_relative_to(overlay):
             resolved = ROOT / "chaos-engine" / resolved.relative_to(overlay)
         targets.append(resolved)

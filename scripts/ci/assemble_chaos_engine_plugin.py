@@ -37,13 +37,15 @@ RUNTIME_SOURCES = (
     Path("scripts/agents/status_lease.py"),
     Path("scripts/agents/watch_pr_checks.py"),
 )
+# The repository's project pack ships beside the core and lands in packs/shaft/.
+PROJECT_PACK = Path("shaft-skills/ce-pack")
 RUNTIME_MAIN = b"from chaos_engine_cli import main\nraise SystemExit(main())\n"
 PACKAGE_PROFILE_SELECTION = """
 
 ## Bundled project profile
 
 This standalone distribution bundles exactly one profile. Load the
-[bundled project profile](../../profiles/shaft/entrypoint.md) before
+[bundled project profile](../../packs/shaft/entrypoint.md) before
 task-specific work.
 """
 
@@ -75,6 +77,7 @@ def tracked_source_files(repository_root: Path) -> set[Path]:
             "-z",
             "--",
             "chaos-engine",
+            PROJECT_PACK.as_posix(),
         ],
         cwd=repository_root,
         check=True,
@@ -234,6 +237,8 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
     if canonical_skill not in allowed_files:
         raise ValueError("canonical skill must be tracked: chaos-engine")
     copy_tree(canonical_root, package_root, allowed_files)
+    if (repository_root / PROJECT_PACK).is_dir():
+        copy_tree(repository_root / PROJECT_PACK, package_root / "packs/shaft", allowed_files)
     packaged_skill = package_root / "skills/chaos-engine/SKILL.md"
     packaged_skill.write_text(
         packaged_skill.read_text(encoding="utf-8").rstrip() + PACKAGE_PROFILE_SELECTION,

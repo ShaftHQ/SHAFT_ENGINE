@@ -49,6 +49,15 @@ def source_payload(marker: str) -> dict[str, bytes]:
     return payload
 
 
+def pack_payload() -> dict[str, bytes]:
+    """Project pack files the bootstrap downloads beside the core (CE-10)."""
+    return {
+        path.relative_to(ROOT).as_posix(): path.read_bytes()
+        for path in ROOT.glob("*/ce-pack/**/*")
+        if path.is_file() and "__pycache__" not in path.parts
+    }
+
+
 class Response(io.BytesIO):
     def __enter__(self):
         return self
@@ -733,12 +742,16 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                         "size": len(content),
                     }
                     for relative, content in payload.items()
+                ] + [
+                    {"path": path, "mode": "100644", "type": "blob", "size": len(content)}
+                    for path, content in pack_payload().items()
                 ]
                 return Response(json.dumps({"tree": tree, "truncated": False}).encode())
             self.assertEqual("raw.githubusercontent.com", urlparse(url).netloc)
-            prefix = f"/{commit}/chaos-engine/"
-            encoded_path = urlparse(url).path.split(prefix, 1)[1]
-            return Response(payload[unquote(encoded_path)])
+            encoded_path = unquote(urlparse(url).path.split(f"/{commit}/", 1)[1])
+            if not encoded_path.startswith("chaos-engine/"):
+                return Response(pack_payload()[encoded_path])
+            return Response(payload[encoded_path.removeprefix("chaos-engine/")])
 
         return open_url, calls
 

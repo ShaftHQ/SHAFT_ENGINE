@@ -53,6 +53,11 @@ def _install_module():
     return module
 
 
+def _payload_relative(source: Path, path: Path) -> Path:
+    """Installed relative path; project pack files land under packs/<name>/."""
+    return _install_module().payload_relative(source, path)
+
+
 def owned_source_files(source: Path) -> tuple[Path, ...]:
     """Same payload source_files() copies for distribution=repository."""
     return _install_module().source_files(source, REPOSITORY_DISTRIBUTION)
@@ -63,13 +68,13 @@ _GIT_RELATIVE = re.compile(r"[A-Za-z0-9_./+-]+")
 
 
 def _git_show_owned(project: Path, commit: str, relative: str) -> bytes | None:
-    """Return the blob for one owned path, or None when git cannot show it."""
+    """Return the blob for one owned repository path, or None when git cannot show it."""
     if _GIT_COMMIT.fullmatch(commit) is None or _GIT_RELATIVE.fullmatch(relative) is None:
         return None
     if ".." in Path(relative).parts:
         return None
     shown = subprocess.run(  # nosec B603 B607 - fixed git binary, validated commit and path
-        ["git", "-C", str(project), "show", f"{commit}:chaos-engine/{relative}"],
+        ["git", "-C", str(project), "show", f"{commit}:{relative}"],
         capture_output=True,
         check=False,
         shell=False,
@@ -79,10 +84,31 @@ def _git_show_owned(project: Path, commit: str, relative: str) -> bytes | None:
     return shown.stdout
 
 
-def _owned_rels_at_commit(project: Path, commit: str) -> list[str] | None:
-    """Owned paths from the commit tree, including paths the working tree lacks."""
-    archived = subprocess.run(  # nosec B603 B607 - fixed git archive of one tree
-        ["git", "-C", str(project), "archive", commit, "chaos-engine"],
+_PACK_PROFILE = re.compile(r"[A-Za-z0-9_.-]+/ce-pack/profile\.json")
+
+
+def _pack_trees_at_commit(project: Path, commit: str) -> list[str]:
+    """Project pack directories (`<dir>/ce-pack`) present in the commit tree."""
+    listed = subprocess.run(  # nosec B603 B607 - fixed git binary, validated commit
+        ["git", "-C", str(project), "ls-tree", "-r", "--name-only", commit],
+        capture_output=True,
+        check=False,
+        shell=False,
+        text=True,
+    )
+    if listed.returncode != 0:
+        return []
+    return [
+        line.removesuffix("/profile.json")
+        for line in listed.stdout.splitlines()
+        if _PACK_PROFILE.fullmatch(line)
+    ]
+
+
+def _owned_rels_at_commit(project: Path, commit: str) -> list[tuple[str, str]] | None:
+    """(installed, repository) path pairs from the commit tree, incl. paths the working tree lacks."""
+    archived = subprocess.run(  # nosec B603 B607 - fixed git archive of the core and pack trees
+        ["git", "-C", str(project), "archive", commit, SOURCE_DIR, *_pack_trees_at_commit(project, commit)],
         capture_output=True,
         check=False,
         shell=False,
@@ -92,10 +118,14 @@ def _owned_rels_at_commit(project: Path, commit: str) -> list[str] | None:
     with tempfile.TemporaryDirectory() as temporary:
         with tarfile.open(fileobj=io.BytesIO(archived.stdout), mode="r:") as bundle:
             bundle.extractall(temporary, filter="data")  # nosec B202 - archive of our own commit
-        source = Path(temporary) / "chaos-engine"
+        root = Path(temporary)
+        source = root / SOURCE_DIR
         if not (source / "skills/chaos-engine/SKILL.md").is_file():
             return None
-        return [path.relative_to(source).as_posix() for path in owned_source_files(source)]
+        return [
+            (_payload_relative(source, path).as_posix(), path.relative_to(root).as_posix())
+            for path in owned_source_files(source)
+        ]
 
 
 def owned_tree_differs_from_commit(project: Path, tree: Path, commit: str) -> list[str] | None:
@@ -112,12 +142,14 @@ def owned_tree_differs_from_commit(project: Path, tree: Path, commit: str) -> li
     relatives = _owned_rels_at_commit(project, commit)
     if relatives is None:
         return None
+    # The SOURCE tree is compared at repository paths; an overlay at installed paths.
+    source_side = tree.resolve() == (project / SOURCE_DIR).resolve()
     differing: list[str] = []
-    for relative in relatives:
-        current = tree / relative
-        blob = _git_show_owned(project, commit, relative)
+    for installed, repository in relatives:
+        current = project / repository if source_side else tree / installed
+        blob = _git_show_owned(project, commit, repository)
         if blob is None or not current.is_file() or current.read_bytes() != blob:
-            differing.append(relative)
+            differing.append(installed)
     return differing
 
 
@@ -173,7 +205,7 @@ def core_matches_source(project: Path) -> dict[str, object]:
         }
     mismatches: list[str] = []
     for path in owned_source_files(source):
-        relative = path.relative_to(source).as_posix()
+        relative = _payload_relative(source, path).as_posix()
         other = overlay / relative
         if not other.is_file() or _sha256(path) != _sha256(other):
             mismatches.append(relative)
@@ -317,9 +349,9 @@ def sync_overlay_from_source(project: Path) -> dict[str, object]:
     for path in owned_source_files(source):
         if hasattr(install, "is_link_or_reparse") and install.is_link_or_reparse(path):
             raise ValueError(
-                f"source contains a link or reparse point: {path.relative_to(source)}"
+                f"source contains a link or reparse point: {_payload_relative(source, path)}"
             )
-        relative = path.relative_to(source)
+        relative = _payload_relative(source, path)
         destination = overlay / relative
         if hasattr(install, "is_link_or_reparse") and destination.exists():
             if install.is_link_or_reparse(destination):

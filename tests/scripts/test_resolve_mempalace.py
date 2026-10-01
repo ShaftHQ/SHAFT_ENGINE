@@ -96,10 +96,10 @@ class ResolveMempalaceTest(unittest.TestCase):
             encoding="utf-8"
         )
         readme = (ROOT / "tools/repository-map/README.md").read_text(encoding="utf-8")
-        entrypoint = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(
+        entrypoint = (ROOT / "shaft-skills/ce-pack/entrypoint.md").read_text(
             encoding="utf-8"
         )
-        routing = (ROOT / "chaos-engine/profiles/shaft/references/routing.md").read_text(
+        routing = (ROOT / "shaft-skills/ce-pack/references/routing.md").read_text(
             encoding="utf-8"
         )
 
