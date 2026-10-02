@@ -2764,14 +2764,10 @@ MARKER_POLICY_FILES = (
 )
 # #6178: hosts that read AGENTS.md but have no project hook runtime ChaosEngine installs.
 # The research-receipt `retrieve:` field substitutes for the read gate on these hosts.
-BOT_ENTRY = "chaos-engine/references/bot-entry.md"
 INSTRUCTION_ONLY_HOSTS = {
     "opencode": {"instructions": "AGENTS.md", "gap": "GAP-OPENCODE-HOOKS"},
     "cursor": {"instructions": "AGENTS.md", "gap": "GAP-CURSOR-HOOKS"},
-    # #6377: bots that auto-load nothing from the checkout (Grok Bot, GPTs, other
-    # independent agents) start from the bot entry instead of AGENTS.md.
-    "grok-bot": {"instructions": BOT_ENTRY, "gap": "GAP-GROKBOT-HOOKS"},
-    "independent-bot": {"instructions": BOT_ENTRY, "gap": "GAP-BOT-ENTRY"},
+    "grok-bot": {"instructions": "AGENTS.md", "gap": "GAP-GROKBOT-HOOKS"},
 }
 GITATTRIBUTES_START = "# CHAOSENGINE-EOL:START"
 GITATTRIBUTES_END = "# CHAOSENGINE-EOL:END"

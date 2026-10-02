@@ -341,7 +341,7 @@
         "AGENTS.md"
       ],
       "grok-bot": [
-        "chaos-engine/references/bot-entry.md"
+        "AGENTS.md"
       ]
     }
   },
@@ -362,9 +362,7 @@
       "chaos-engine/references/delegate-card.md"
     ],
     "on_trigger": [
-      "chaos-engine/skills/self-improve/SKILL.md",
-      "chaos-engine/references/retrieve-first.md",
-      "chaos-engine/references/bot-entry.md"
+      "chaos-engine/skills/self-improve/SKILL.md"
     ],
     "hosts": {
       "claude": [

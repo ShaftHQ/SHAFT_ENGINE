@@ -50,10 +50,7 @@ A card is done when all hold:
 5. Every finding raised while working is closed (see below).
 6. Merged or handed off as instructed; worktree cleaned.
 7. After any CE harness change merges, every agent and delegate reloads the
-   latest harness from main before continuing. After each completed delivery
-   run `python3 .chaos-engine/tool.py maintain` (fast-forward with local edits
-   kept, reinstall, doctor, stale-store refresh, reload).
-8. Ship to-deliver items in the fewest pull requests; group related issues.
+   latest harness from main before continuing.
 
 ## Findings policy
 

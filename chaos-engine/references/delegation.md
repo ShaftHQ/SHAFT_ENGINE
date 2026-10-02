@@ -2,9 +2,6 @@
 
 Cloud implementers write code directly; local runtimes are optional for narrow mechanical or offline jobs, and a local runtime never reviews its own diff.
 
-Default is single-thread: the main agent does the work itself. Delegate only
-when the owner enables delegation for the session or project.
-
 Delegation distributes work, never responsibility. Select capability from
 uncertainty, blast radius, and reversibility. Never bind policy to a vendor,
 product name, or runtime setting.

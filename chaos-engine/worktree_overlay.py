@@ -29,9 +29,6 @@ ROUTER = f"{TREE}/skills/chaos-engine/SKILL.md"
 GUARD = f"{TREE}/hooks/guard.py"
 HOOK_HOSTS = ("claude", "codex", "copilot", "gemini", "grok")
 INSTRUCTION_ONLY_HOSTS = ("opencode", "cursor", "grok-bot")
-# Bots that auto-load nothing start from the bot entry; independent bots use the grok-bot path.
-BOT_ENTRY = "chaos-engine/references/bot-entry.md"
-BOT_HOSTS = ("grok-bot",)
 HOSTS = (*HOOK_HOSTS, *INSTRUCTION_ONLY_HOSTS)
 HOST_FILES = {
     "claude": (".claude/settings.json", ".claude/skills/chaos-engine/SKILL.md", "CLAUDE.md"),
@@ -41,7 +38,7 @@ HOST_FILES = {
     "grok": (".grok/hooks",),
     "opencode": ("AGENTS.md",),
     "cursor": ("AGENTS.md",),
-    "grok-bot": (BOT_ENTRY,),
+    "grok-bot": ("AGENTS.md",),
 }
 SHARED_FILES = ("AGENTS.md", ".mcp.json", ".claude/agents", ".codex/agents")
 SKIP_PARTS = {"__pycache__", ".pytest_cache"}
@@ -99,8 +96,7 @@ def _host_reason(root: Path, host: str, primary: Path | None) -> str:
         return "missing-overlay"
     if host in HOOK_HOSTS and not (root / GUARD).is_file():
         return "missing-guard"
-    agents_md_host = host in INSTRUCTION_ONLY_HOSTS and host not in BOT_HOSTS
-    if agents_md_host and not (root / "AGENTS.md").is_file():
+    if not (root / "AGENTS.md").is_file() and host in INSTRUCTION_ONLY_HOSTS:
         return "missing-agents-md"
     if primary is not None:
         for relative in HOST_FILES[host]:

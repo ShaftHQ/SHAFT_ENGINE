@@ -45,12 +45,8 @@ Answer in one line each before task-specific discovery:
 | One module, reversible | Short plan: premises, two options, chosen one, proof. |
 | Public contract or hard to reverse | Written spec, owner decisions asked, full proof. |
 
-Re-triage when a premise is false, a third fix fails, or scope grows. Before
-the first broad search or unnamed read in a project area, run one
-`python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "<q>"`
-(graphify: structure; mempalace: history) and record `retrieve: used` or
-`skipped(<reason>)` ([retrieve-first](../../references/retrieve-first.md)).
-Bound reads; prefer one script.
+Re-triage when a premise is false, a third fix fails, or scope grows. Retrieve
+from graph or memory first when it pays; bound reads; prefer one script.
 
 ## Plan, then go
 
@@ -61,10 +57,9 @@ request contradicts the plan.
 
 ## Implement
 
-Load both companion cards at task start, before discovery:
+Load both companion cards before the first edit:
 [Caveman ultra](../../companions/caveman-ultra.md) (chat, internal notes,
-handoffs) and [Ponytail ultra](../../companions/ponytail-ultra.md). Bots
-without hooks start from [bot entry](../../references/bot-entry.md). Off only
+handoffs) and [Ponytail ultra](../../companions/ponytail-ultra.md). Off only
 with `stop caveman`, `stop ponytail`, or `normal mode`. Vendor bodies load only
 on explicit invocation.
 

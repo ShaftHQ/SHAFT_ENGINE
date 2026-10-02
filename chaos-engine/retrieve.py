@@ -21,7 +21,6 @@ STATUS_SKIPPED = "skipped"
 STATUS_DEGRADED = "degraded"
 QUERY_MAX = 240
 TIMEOUT_SECONDS = 8
-_EMPTY_RESULT = re.compile(r"^\s*no results( found)?\b", re.I)
 PALACE_BACKEND = "sqlite_exact"
 BACKEND_MISMATCH_FIX = (
     "run `python3 .chaos-engine/install.py doctor --project .`, then "
@@ -32,30 +31,6 @@ BACKEND_MISMATCH_FIX = (
 
 _GRAPHIFY_HINT = re.compile(r"\b(call(s|er|ees?)?|depend|graph|import|edge)\b", re.I)
 _MEMPALACE_HINT = re.compile(r"\b(history|palace|session|timeline|before)\b", re.I)
-
-
-
-_REAL_RUN = subprocess.run
-
-
-def run_until_stalled(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
-    """Run without a wall-clock cap; stores.py stops it only when it stalls (#6377)."""
-    import importlib.util as _ilu
-
-    spec = _ilu.spec_from_file_location(
-        "chaos_engine_stores_watchdog", Path(__file__).with_name("stores.py")
-    )
-    if spec is None or spec.loader is None:
-        raise RuntimeError("stores.py watchdog is unavailable")
-    module = _ilu.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.run_until_stalled(args, **kwargs)
-
-
-def is_empty_result(body: str) -> bool:
-    """True for a store's plain 'no results' answer (#6377)."""
-    text = body.strip()
-    return not text or text.casefold() in {"[]", "{}", "none"} or bool(_EMPTY_RESULT.match(text))
 
 
 def project_root(start: Path | None = None) -> Path:
@@ -517,13 +492,12 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
         # An ambient selection (e.g. chroma) must not override the owned palace (#6212).
         env["MEMPALACE_BACKEND"] = PALACE_BACKEND
     try:
-        # A patched subprocess.run (tests) is used as-is; the real one gets the watchdog.
-        runner = run_until_stalled if subprocess.run is _REAL_RUN else subprocess.run
-        completed = runner(  # nosec B603 - fixed owned tool.py only.
+        completed = subprocess.run(  # nosec B603 - fixed owned tool.py only.
             args,
             cwd=project,
             capture_output=True,
             text=True,
+            timeout=TIMEOUT_SECONDS,
             env=env,
             check=False,
         )
@@ -571,7 +545,7 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
             print(f"retrieve: MemPalace backend mismatch; {BACKEND_MISMATCH_FIX}", file=sys.stderr)
         return degraded
     body = (completed.stdout or "").strip()
-    if is_empty_result(body):
+    if not body or body.casefold() in {"[]", "{}", "none", "no results"}:
         return {
             "store": store,
             "status": STATUS_SKIPPED,

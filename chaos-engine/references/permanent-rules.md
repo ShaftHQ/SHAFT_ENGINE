@@ -23,16 +23,6 @@ Assistant memory keeps only this pointer: "Follow the ChaosEngine core card
 | Task isolation, fresh primary, cleanup scopes | [task isolation](task-isolation.md), [cleanup scopes](cleanup-scopes.md) |
 | Delegates load the delegate card, not the router | [delegate card](delegate-card.md) |
 | Repository changes are not done until pushed, a pull request is open, and that pull request is merged to the default branch | [delivery phase gates](delivery-phase-gates.md) |
-| Owner autonomy: act within the delegated scope; ask the owner for opinions, never for approval | [kanban](../skills/kanban/SKILL.md) |
-| Single thread by default; delegate only when the owner enables delegation | [delegation](delegation.md) |
-| Fewest pull requests: group to-deliver issues | [kanban](../skills/kanban/SKILL.md) |
-| After each delivery run `tool.py maintain` (fast-forward keeping edits, reinstall, doctor, refresh, reload) | [kanban](../skills/kanban/SKILL.md) |
-| Status reports are tables | [core card](../skills/chaos-engine/SKILL.md) |
-| Each pull request carries exactly one release-note label, merges by merge commit via auto-merge; static analysis blocks | [static-analysis gate](static-analysis-gate.md) |
-| Work in the agent's own sandbox when cost is equal; the owner workstation only runs the final install and doctor | [task isolation](task-isolation.md) |
-| Short messages; no duplicate verification; one cheap call per status check | [CI status economy](ci-status-economy.md) |
-| Retrieve and load companion cards at task start; store runs stop only on a stall, never a fixed timeout | [retrieve-first](retrieve-first.md) |
-| Non-TTY shells: always pass a path to `rg` (it otherwise waits on stdin) | [eliminate-waste](eliminate-waste.md) |
 
 Stale memory corrected by this sweep: "Headroom installs by default" is
 false; the no-proxy rule forbids it.
