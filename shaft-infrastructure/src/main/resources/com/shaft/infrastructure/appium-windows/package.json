@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "appium": "3.6.0",
-    "appium-inspector-plugin": "2026.7.1",
-    "appium-windows-driver": "6.1.0"
+    "appium": "3.8.0",
+    "appium-inspector-plugin": "2026.9.2",
+    "appium-windows-driver": "6.3.0"
   },
   "overrides": {
     "fast-uri": "3.1.8",
