@@ -4232,6 +4232,22 @@ module.install_with_dependencies(project, source, "3" * 40)
             if Path("/proc/locks").is_file():
                 self.assertIn(f"pid={os.getpid()}", message)
 
+    def test_lock_holders_match_overlayfs_device_mismatch_by_open_fd(self):
+        """Containers on overlayfs: /proc/locks dev differs from st_dev; confirm via fd."""
+        with tempfile.TemporaryDirectory() as temporary:
+            lock = Path(temporary) / ".chaos-engine.lock"
+            lock.write_text("", encoding="utf-8")
+            inode = lock.stat().st_ino
+            locks = (
+                f"1: FLOCK  ADVISORY  WRITE 4242 ff:ff:{inode} 0 EOF\n"
+                f"2: FLOCK  ADVISORY  WRITE 5151 ff:ff:{inode} 0 EOF\n"
+            )
+            holders = MODULE.linux_flock_holders(
+                lock, locks_text=locks, cmdline_by_pid={4242: "python3 install.py"},
+                fd_paths_by_pid={4242: [str(lock)], 5151: ["/elsewhere"]},
+            )
+            self.assertEqual([4242], [pid for pid, _cmd, _elapsed in holders])
+
     def test_project_lock_waits_then_acquires_after_release(self):
         """#6019: transient dual-op lock should wait instead of failing Install core."""
         import threading

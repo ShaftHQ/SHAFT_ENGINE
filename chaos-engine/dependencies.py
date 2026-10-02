@@ -1724,8 +1724,11 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     if unhealthy:
         raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
     # An injected runner without mine_spawner keeps the mine synchronous.
+    # install.py wraps subprocess.run for tracing (``.inner``); unwrap before deciding.
     background_mine = mempalace_mine_mode() == "background" and (
-        mine_spawner is not None or runner is subprocess.run
+        mine_spawner is not None
+        or runner is subprocess.run
+        or getattr(runner, "inner", None) is subprocess.run
     )
     for command in project_setup_plan(project, commands):
         environment = mempalace_project_setup_environment(project, command)
