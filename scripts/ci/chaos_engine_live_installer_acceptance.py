@@ -602,9 +602,13 @@ def installer_failure_detail(value: str) -> str:
             ("candidate_component_details", "candidate component details"),
             ("failed_phase", "failed phase"),
             ("unhealthy", "unhealthy"),
+            ("cause", "cause"),
         ):
             values = query.get(key)
             if not values:
+                continue
+            # A bare headline (no ": detail") otherwise hides why the install failed.
+            if key == "cause" and "CE-INSTALL-FAILED:" in headline:
                 continue
             value = values[0]
             if key == "observed_commit" and re.fullmatch(r"[0-9a-f]{40}", value) is None:

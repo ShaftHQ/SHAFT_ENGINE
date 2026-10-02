@@ -3681,6 +3681,9 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 # Require an explicit runner parameter (not bare **kwargs mocks).
                 if "runner" in parameters:
                     kwargs["runner"] = account_runner
+                # A detached mine would race the upgrade's MemPalace rollback image.
+                if "background_mine_allowed" in parameters:
+                    kwargs["background_mine_allowed"] = old_manifest is None
                 account_receipt = install_account(project, specification, **kwargs)
                 if bundle.get("mempalace", True):
                     # #6236: inside the rollback capture window below.
