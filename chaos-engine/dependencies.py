@@ -9,6 +9,7 @@ import ctypes.wintypes
 import errno
 import hashlib
 import json
+import math
 import os
 import platform
 import re
@@ -1395,6 +1396,8 @@ def _run_transient_mempalace_mine(
     """Mine with no wall-clock cap (stall watchdog, #6377); retry a transient TLS EOF."""
     if runner is subprocess.run:
         runner = run_until_stalled
+    elif getattr(runner, "inner", None) is subprocess.run and callable(getattr(runner, "rewrap", None)):
+        runner = runner.rewrap(run_until_stalled)
     deadline = time.monotonic() + budget
     for attempt in range(3):
         remaining = deadline - time.monotonic()
@@ -1406,7 +1409,8 @@ def _run_transient_mempalace_mine(
                 project,
                 runner=runner,
                 extra_environment=extra_environment,
-                timeout=remaining,
+                # subprocess cannot wait on float("inf"); None means no wall-clock cap.
+                timeout=remaining if math.isfinite(remaining) else None,
             )
         except _AccountCommandError as error:
             if attempt == 2 or TRANSIENT_MEMPALACE_TLS_EOF not in error.full_output.upper():

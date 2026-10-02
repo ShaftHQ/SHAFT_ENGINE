@@ -197,6 +197,37 @@ class DoctorEmptyPalaceTest(unittest.TestCase):
             self.assertEqual("degraded", self._finding({"status": state})["status"])
 
 
+class SynchronousMineTest(unittest.TestCase):
+    """The synchronous upgrade mine never hands float('inf') to a runner (#6377)."""
+
+    def test_unbounded_mine_passes_no_infinite_timeout(self):
+        dependencies = _load("dependencies")
+        seen = {}
+
+        def runner(args, **kwargs):
+            seen.update(kwargs)
+            return subprocess.CompletedProcess(args, 0, "", "")
+
+        with mock.patch.object(dependencies, "resolve_account_launcher", lambda c, **_k: c):
+            dependencies._run_transient_mempalace_mine([sys.executable, "-V"], Path.cwd(), runner=runner)
+        self.assertIsNone(seen["timeout"])
+
+    def test_traced_subprocess_runner_gets_the_stall_watchdog(self):
+        dependencies = _load("dependencies")
+        install = _load("install")
+
+        class Reporter:
+            def trace(self, _line):
+                pass
+
+        traced = install._tracing_dependency_runner(Reporter(), subprocess.run)
+        with mock.patch.object(dependencies, "run_until_stalled") as watchdog, \
+                mock.patch.object(dependencies, "resolve_account_launcher", lambda c, **_k: c):
+            watchdog.return_value = subprocess.CompletedProcess([], 0, "", "")
+            dependencies._run_transient_mempalace_mine([sys.executable, "-V"], Path.cwd(), runner=traced)
+        watchdog.assert_called_once()
+
+
 class NoResultsTest(unittest.TestCase):
     def test_no_results_text_is_not_used(self):
         retrieve = _load("retrieve")

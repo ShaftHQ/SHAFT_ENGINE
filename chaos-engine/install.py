@@ -3311,6 +3311,9 @@ def _tracing_dependency_runner(reporter, runner):
                 pass
         return runner(*args, **kwargs)
 
+    # #6377: dependencies.py swaps the inner subprocess.run for its stall watchdog.
+    traced.inner = runner
+    traced.rewrap = lambda inner: _tracing_dependency_runner(reporter, inner)
     return traced
 
 
