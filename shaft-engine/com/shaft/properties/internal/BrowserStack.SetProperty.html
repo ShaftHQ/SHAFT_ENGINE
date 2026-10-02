@@ -530,7 +530,10 @@ properties at runtime. All setter methods return <code>this</code> to support me
 <h3>enableBiometric</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserStack.SetProperty.html" title="class in com.shaft.properties.internal">BrowserStack.SetProperty</a></span>&nbsp;<span class="element-name">enableBiometric</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
-<div class="block">Overrides the <code>browserStack.enableBiometric</code> property at runtime.</div>
+<div class="block">Overrides the <code>browserStack.enableBiometric</code> property at runtime.
+<p>There is no typed getter for this key; like other <code>browserStack.*</code> overrides it is
+passed through to the <code>bstack:options.enableBiometric</code> capability for native app sessions.
+Only enable it when your BrowserStack plan includes biometric authentication.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>value</code> - <code>true</code> to enable biometric authentication on the test device</dd>
