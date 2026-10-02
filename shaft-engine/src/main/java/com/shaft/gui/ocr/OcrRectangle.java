@@ -11,22 +11,37 @@ public record OcrRectangle(int x, int y, int width, int height) {
         }
     }
 
+    /**
+     * Returns the x coordinate of the right edge.
+     */
     public int right() {
         return Math.addExact(x, width);
     }
 
+    /**
+     * Returns the y coordinate of the bottom edge.
+     */
     public int bottom() {
         return Math.addExact(y, height);
     }
 
+    /**
+     * Returns the horizontal center.
+     */
     public int centerX() {
         return x + width / 2;
     }
 
+    /**
+     * Returns the vertical center.
+     */
     public int centerY() {
         return y + height / 2;
     }
 
+    /**
+     * Returns the smallest rectangle that contains this rectangle and the other one.
+     */
     public OcrRectangle union(OcrRectangle other) {
         if (other == null) {
             throw new IllegalArgumentException("OCR rectangle to union cannot be null.");
@@ -38,6 +53,9 @@ public record OcrRectangle(int x, int y, int width, int height) {
         return new OcrRectangle(left, top, right - left, bottom - top);
     }
 
+    /**
+     * Returns this rectangle moved by the given offsets.
+     */
     public OcrRectangle translate(int xOffset, int yOffset) {
         return new OcrRectangle(Math.addExact(x, xOffset), Math.addExact(y, yOffset), width, height);
     }

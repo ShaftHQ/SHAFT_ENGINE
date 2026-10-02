@@ -98,6 +98,9 @@ public class AutobotService {
      */
     @Tool(name = "autobot_local_agent_clients",
             description = "lists local SHAFT Autobot CLI clients that do not require SHAFT cloud API keys")
+    /**
+     * Lists the local coding-agent command-line clients found on this machine.
+     */
     public List<AutobotLocalAgentClient> localAgentClients() {
         return java.util.Arrays.stream(LocalAgentClient.values())
                 .map(client -> new AutobotLocalAgentClient(client.name(), client.displayName(),
@@ -120,6 +123,9 @@ public class AutobotService {
      */
     @Tool(name = "autobot_local_agent_run",
             description = "routes Ask, Plan, or approved Agent requests to Codex, Claude Code, or Copilot CLI")
+    /**
+     * Runs a prompt through a local coding-agent client in the given working directory.
+     */
     public LocalAgentResponse runLocalAgent(
             String client,
             String mode,
@@ -157,6 +163,9 @@ public class AutobotService {
      */
     @Tool(name = "autobot_provider_chat",
             description = "routes Ask or Plan requests to configured SHAFT cloud providers without source mutation")
+    /**
+     * Sends a chat prompt to the given AI provider and model.
+     */
     public AutobotProviderChatResponse runProviderChat(
             String provider,
             String model,
@@ -225,6 +234,9 @@ public class AutobotService {
     @Tool(name = "autobot_provider_status",
             description = "reports the configured SHAFT cloud provider, model, API-key presence (never the value),"
                     + " and structured-output support for the IntelliJ readiness view")
+    /**
+     * Reports whether the given AI provider and model are reachable and configured.
+     */
     public AutobotProviderStatus providerStatus(String provider, String model) {
         String normalizedProvider = normalizeProvider(provider);
         String environmentVariable = keyEnvironmentVariable(normalizedProvider);
@@ -266,6 +278,9 @@ public class AutobotService {
      */
     @Tool(name = "autobot_provider_models",
             description = "discovers model IDs from the configured SHAFT provider without exposing responses, headers, or credentials")
+    /**
+     * Lists the models available from the given AI provider.
+     */
     public AutobotProviderModels providerModels(String provider, String model) {
         String normalizedProvider = normalizeProvider(provider);
         try {

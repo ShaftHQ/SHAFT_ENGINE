@@ -7,10 +7,19 @@ import org.openqa.selenium.By;
  * Public contract for driver-level soft verifications.
  */
 public interface DriverVerifications {
+    /**
+     * Starts a soft verification on the browser.
+     */
     BrowserAssertions browser();
 
+    /**
+     * Starts a soft verification on the located element.
+     */
     ElementAssertions element(By elementLocator);
 
+    /**
+     * Starts a soft verification on the element found by the SHAFT locator.
+     */
     default ElementAssertions element(ShaftLocator elementLocator) {
         return element(elementLocator.toBy());
     }
@@ -25,6 +34,9 @@ public interface DriverVerifications {
         return element(elementTarget.toBy());
     }
 
+    /**
+     * Starts a soft verification on any object value.
+     */
     NativeValidationsBuilder object(Object actual);
 
     /**

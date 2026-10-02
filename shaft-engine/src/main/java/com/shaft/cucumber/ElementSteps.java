@@ -103,6 +103,9 @@ public class ElementSteps {
     @SuppressWarnings("SpellCheckingInspection")
     @When("I Type {string} into the element found by {string}: {string}")
 //    @عندما("اقوم بكتابة {string} بداخل مربع الكتابة المحدد بإستخدام {string} بقيمة {string}")
+    /**
+     * Types the given text into the located element, replacing its current value.
+     */
     public void type(String text, String locatorType, String locatorValue) {
         driver.get().element().type(getLocatorFromTypeAndValue(locatorType, locatorValue), text);
     }
@@ -116,6 +119,9 @@ public class ElementSteps {
      */
     @When("I Press {string} into the element found by {string}: {string}")
 //    @عندما("اقوم بكتابة {string} بداخل مربع الكتابة المحدد بإستخدام {string} بقيمة {string}")
+    /**
+     * Presses the given keyboard key on the located element.
+     */
     public void keyPress(String key, String locatorType, String locatorValue) {
         driver.get().element().type(getLocatorFromTypeAndValue(locatorType, locatorValue), Keys.valueOf(key.toUpperCase()));
     }

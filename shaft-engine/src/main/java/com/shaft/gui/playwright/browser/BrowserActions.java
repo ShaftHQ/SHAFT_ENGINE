@@ -55,6 +55,9 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
 
     private final PlaywrightSession session;
 
+    /**
+     * Creates browser actions for the given Playwright session.
+     */
     public BrowserActions(PlaywrightSession session) {
         this.session = session;
         FailureTraceReporter.activateBrowserEvidenceOwner(session);
@@ -838,6 +841,9 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
         return new AccessibilityActions(page(), this);
     }
 
+    /**
+     * Returns the underlying Playwright browser context.
+     */
     public BrowserContext getNativeContext() {
         return session.browserContext();
     }
@@ -1193,10 +1199,16 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
         }
     }
 
+    /**
+     * Returns the underlying Playwright page.
+     */
     public Page getNativePage() {
         return page();
     }
 
+    /**
+     * Returns a Playwright locator for the given selector on the current page.
+     */
     public Locator locator(String selector) {
         return page().locator(selector);
     }
@@ -1216,6 +1228,9 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
                 successMessage);
     }
 
+    /**
+     * Registers a network interception rule and reports the given message once it is active.
+     */
     public BrowserActions registerNetworkInterceptionRule(BrowserNetworkInterceptionRule rule, String successMessage) {
         session.networkInterceptor().addRule(rule);
         ReportManager.log(successMessage);

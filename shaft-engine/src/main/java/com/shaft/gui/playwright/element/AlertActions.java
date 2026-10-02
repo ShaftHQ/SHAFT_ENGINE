@@ -5,6 +5,9 @@ import com.shaft.gui.playwright.internal.PlaywrightSession;
 public class AlertActions implements com.shaft.gui.driver.AlertActionsContract {
     private final PlaywrightSession session;
 
+    /**
+     * Creates alert actions for the given Playwright session.
+     */
     public AlertActions(PlaywrightSession session) {
         this.session = session;
     }

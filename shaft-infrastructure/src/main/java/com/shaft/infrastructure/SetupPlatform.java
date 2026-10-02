@@ -8,10 +8,16 @@ public enum SetupPlatform {
     MACOS,
     LINUX;
 
+    /**
+     * Returns the operating system of the running JVM.
+     */
     public static SetupPlatform current() {
         return fromOsName(System.getProperty("os.name"));
     }
 
+    /**
+     * Maps an {@code os.name} value to a setup platform.
+     */
     public static SetupPlatform fromOsName(String osName) {
         if (osName == null || osName.isBlank()) {
             throw new IllegalArgumentException("Operating-system name must not be blank.");

@@ -17,6 +17,9 @@ public record SetupReport(int schemaVersion, SetupProfile profile, SetupReadines
         }
     }
 
+    /**
+     * Creates a report from one provider status.
+     */
     public static SetupReport from(SetupProfileStatus status) {
         Objects.requireNonNull(status, "status");
         return new SetupReport(1, status.profile(), status.readiness(), status.targets(), List.of());

@@ -13,6 +13,9 @@ public final class SetupPlanJson {
 
     private SetupPlanJson() { }
 
+    /**
+     * Serializes a plan to JSON.
+     */
     public static String write(SetupPlan plan) {
         tools.jackson.databind.node.ObjectNode tree = JSON.valueToTree(plan);
         if (plan.schemaVersion() == 2) tree.remove("executionPolicyDigest");
@@ -23,6 +26,9 @@ public final class SetupPlanJson {
         return JSON.writerWithDefaultPrettyPrinter().writeValueAsString(tree) + System.lineSeparator();
     }
 
+    /**
+     * Parses a plan from JSON.
+     */
     public static SetupPlan read(String json) {
         try {
             tools.jackson.databind.JsonNode tree = JSON.readTree(json);

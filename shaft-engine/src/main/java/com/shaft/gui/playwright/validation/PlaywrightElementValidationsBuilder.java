@@ -49,12 +49,19 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
                 .object(OcrProcessingActions.recognize(resolvedLocator().screenshot(), options).fullText());
     }
 
+    /**
+     * Creates element validations of the given category for the Playwright locator.
+     */
     public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
                                                PlaywrightSession session,
                                                Locator locator) {
         this(validationCategory, session, locator, String.valueOf(locator));
     }
 
+    /**
+     * Creates element validations of the given category for the Playwright locator, reported under
+     * the given name.
+     */
     public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
                                                PlaywrightSession session,
                                                Locator locator,
@@ -66,6 +73,9 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
         this.locatorDescription = locatorDescription;
     }
 
+    /**
+     * Creates element validations of the given category for the resolved element target.
+     */
     public PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory,
                                                PlaywrightSession session,
                                                ElementTarget elementTarget) {

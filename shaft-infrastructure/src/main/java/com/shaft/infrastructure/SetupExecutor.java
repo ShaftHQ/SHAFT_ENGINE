@@ -10,6 +10,9 @@ import java.util.function.Consumer;
 public final class SetupExecutor {
     private SetupExecutor() { }
 
+    /**
+     * Runs every action of an approved plan in order and returns the receipt.
+     */
     public static SetupReceipt execute(SetupPlan plan, SetupApproval approval,
                                        Consumer<SetupAction> actionExecutor) {
         validate(plan, approval);

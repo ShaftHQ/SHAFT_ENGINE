@@ -19,6 +19,9 @@ import java.util.function.Function;
 /** OpenAI-compatible local LM Studio adapter. */
 public final class LmStudioProvider extends OpenAiProvider {
     private static final HttpClient LOOPBACK_CLIENT = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
+    /**
+     * Creates an LM Studio provider that talks to the local OpenAI-compatible LM Studio server.
+     */
     public LmStudioProvider() { super(); }
     LmStudioProvider(HttpClient client, Function<String, String> environment) { super(client, environment); }
 

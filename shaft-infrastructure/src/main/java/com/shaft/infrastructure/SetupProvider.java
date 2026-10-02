@@ -5,10 +5,19 @@ import java.util.function.Consumer;
 
 /** Provider SPI used by Java, CLI, MCP, and IDE setup adapters. */
 public interface SetupProvider {
+    /**
+     * Returns the setup profile this provider owns.
+     */
     SetupProfile profile();
 
+    /**
+     * Plans the changes this provider needs for the options, platform and architecture.
+     */
     SetupPlan plan(SetupOptions options, SetupPlatform platform, SetupArchitecture architecture);
 
+    /**
+     * Plans the changes this provider needs for the selected components.
+     */
     default SetupPlan plan(SetupOptions options, SetupSelection selection,
                            SetupPlatform platform, SetupArchitecture architecture) {
         if (!selection.components().isEmpty()) {
@@ -17,6 +26,9 @@ public interface SetupProvider {
         return plan(options, platform, architecture);
     }
 
+    /**
+     * Plans the given operation for the selected components.
+     */
     default SetupPlan plan(SetupOptions options, SetupSelection selection, SetupOperation operation,
                            SetupPlatform platform, SetupArchitecture architecture) {
         java.util.Objects.requireNonNull(operation, "operation");
@@ -32,8 +44,14 @@ public interface SetupProvider {
         return SetupSelection.defaults();
     }
 
+    /**
+     * Reports the current state of this provider's setup.
+     */
     SetupReport status(SetupOptions options, SetupPlatform platform, SetupArchitecture architecture);
 
+    /**
+     * Reports the current state of the selected components.
+     */
     default SetupReport status(SetupOptions options, SetupSelection selection,
                                SetupPlatform platform, SetupArchitecture architecture) {
         if (!selection.components().isEmpty()) {
@@ -42,14 +60,30 @@ public interface SetupProvider {
         return status(options, platform, architecture);
     }
 
+    /**
+     * Installs an approved plan.
+     *
+     * @throws IOException when an artifact cannot be fetched or written
+     */
     SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException;
 
+    /**
+     * Installs an approved plan, reporting progress as it runs.
+     *
+     * @throws IOException when an artifact cannot be fetched or written
+     */
     default SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
                                  Consumer<SetupProgress> progress) throws IOException {
         java.util.Objects.requireNonNull(progress, "progress");
         return install(plan, approval, options);
     }
 
+    /**
+     * Installs an approved plan if needed and starts its services; providers without services only
+     * install.
+     *
+     * @throws IOException when an artifact cannot be fetched or written
+     */
     default ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options)
             throws IOException {
         throw new UnsupportedOperationException("Profile " + profile() + " does not own a startable service.");

@@ -117,32 +117,74 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("Emulation actions are not supported by this browser facade.");
     }
 
+    /**
+     * Returns this instance to chain the next browser action.
+     */
     BrowserActionsContract and();
 
+    /**
+     * Starts a hard assertion on the browser; a failure stops the test.
+     */
     BrowserAssertions assertThat();
 
+    /**
+     * Starts a soft verification on the browser; failures are reported at the end of the test.
+     */
     BrowserAssertions verifyThat();
 
+    /**
+     * Attaches a snapshot of the current page to the report.
+     */
     BrowserActionsContract capturePageSnapshot();
 
+    /**
+     * Returns the URL of the current page.
+     */
     String getCurrentURL();
 
+    /**
+     * Returns the title of the current window.
+     */
     String getCurrentWindowTitle();
 
+    /**
+     * Returns the source of the current page.
+     */
     String getPageSource();
 
+    /**
+     * Returns the handle of the current window.
+     */
     String getWindowHandle();
 
+    /**
+     * Returns the position of the current window.
+     */
     String getWindowPosition();
 
+    /**
+     * Returns the size of the current window.
+     */
     String getWindowSize();
 
+    /**
+     * Returns the height of the current window.
+     */
     String getWindowHeight();
 
+    /**
+     * Returns the width of the current window.
+     */
     String getWindowWidth();
 
+    /**
+     * Navigates to the target URL in the current window.
+     */
     BrowserActionsContract navigateToURL(String targetUrl);
 
+    /**
+     * Opens the target URL in a new tab or window.
+     */
     BrowserActionsContract navigateToURL(String targetUrl, WindowType windowType);
 
     /**
@@ -165,37 +207,88 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("openNewWindow is not supported by this browser actions implementation.");
     }
 
+    /**
+     * Navigates to the target URL and waits for the redirect to the expected URL.
+     */
     BrowserActionsContract navigateToURL(String targetUrl, String targetUrlAfterRedirection);
 
+    /**
+     * Navigates to a page protected by HTTP basic authentication and waits for the expected URL
+     * after logging in.
+     */
     BrowserActionsContract navigateToURLWithBasicAuthentication(String targetUrl, String username, String password,
                                                        String targetUrlAfterAuthentication);
 
+    /**
+     * Navigates back in the browser history.
+     */
     BrowserActionsContract navigateBack();
 
+    /**
+     * Navigates forward in the browser history.
+     */
     BrowserActionsContract navigateForward();
 
+    /**
+     * Reloads the current page.
+     */
     BrowserActionsContract refreshCurrentPage();
 
+    /**
+     * Closes the current window.
+     */
     void closeCurrentWindow();
 
+    /**
+     * Maximizes the current window.
+     */
     BrowserActionsContract maximizeWindow();
 
+    /**
+     * Resizes the current window to the given width and height in pixels.
+     */
     BrowserActionsContract setWindowSize(int width, int height);
 
+    /**
+     * Answers every request that matches the predicate with the mocked response.
+     */
     BrowserActionsContract mock(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse);
 
+    /**
+     * Starts building a network interception rule.
+     */
     NetworkInterceptionRequestBuilder interceptRequest();
 
+    /**
+     * Intercepts every request that matches the predicate and replies with the given response.
+     */
     BrowserActionsContract intercept(Predicate<HttpRequest> requestPredicate, HttpResponse mockedResponse);
 
+    /**
+     * Removes every network mock and interception rule.
+     */
     BrowserActionsContract clearNetworkInterceptors();
 
+    /**
+     * Starts recording API traffic whose URL contains any of the given fragments into a contract
+     * file.
+     */
     BrowserActionsContract startContractRecording(String contractFilePath, String... urlContains);
 
+    /**
+     * Asserts that recorded traffic still matches the contract file; a failure stops the test.
+     */
     BrowserActionsContract assertContract(String contractFilePath, String... urlContains);
 
+    /**
+     * Verifies that recorded traffic still matches the contract file; failures are reported at the
+     * end of the test.
+     */
     BrowserActionsContract verifyContract(String contractFilePath, String... urlContains);
 
+    /**
+     * Replays the responses saved in the contract file instead of calling the real services.
+     */
     BrowserActionsContract replayContract(String contractFilePath);
 
     /**
@@ -206,8 +299,14 @@ public interface BrowserActionsContract {
      */
     BrowserActionsContract routeFromHar(String harFilePath);
 
+    /**
+     * Switches the current window to full screen.
+     */
     BrowserActionsContract fullScreenWindow();
 
+    /**
+     * Switches to the window with the given name or handle.
+     */
     BrowserActionsContract switchToWindow(String nameOrHandle);
 
     /**
@@ -256,30 +355,69 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("typeIntoPromptAlert is not supported by this browser actions implementation.");
     }
 
+    /**
+     * Adds a cookie with the given name and value to the current domain.
+     */
     BrowserActionsContract addCookie(String key, String value);
 
+    /**
+     * Returns the cookie with the given name.
+     */
     Cookie getCookie(String cookieName);
 
+    /**
+     * Returns every cookie of the current domain.
+     */
     Set<Cookie> getAllCookies();
 
+    /**
+     * Returns the domain of the cookie with the given name.
+     */
     String getCookieDomain(String cookieName);
 
+    /**
+     * Returns the value of the cookie with the given name.
+     */
     String getCookieValue(String cookieName);
 
+    /**
+     * Returns the path of the cookie with the given name.
+     */
     String getCookiePath(String cookieName);
 
+    /**
+     * Deletes the cookie with the given name.
+     */
     BrowserActionsContract deleteCookie(String cookieName);
 
+    /**
+     * Deletes every cookie of the current domain.
+     */
     BrowserActionsContract deleteAllCookies();
 
+    /**
+     * Attaches a screenshot of the current page to the report.
+     */
     BrowserActionsContract captureScreenshot();
 
+    /**
+     * Attaches a screenshot of the given type to the report.
+     */
     BrowserActionsContract captureScreenshot(Screenshots type);
 
+    /**
+     * Attaches a full page snapshot (MHTML) to the report.
+     */
     BrowserActionsContract captureSnapshot();
 
+    /**
+     * Generates a Lighthouse performance report for the current page.
+     */
     void generateLightHouseReport();
 
+    /**
+     * Waits until lazily loaded content on the current page has finished loading.
+     */
     BrowserActionsContract waitForLazyLoading();
 
     /**
@@ -300,13 +438,28 @@ public interface BrowserActionsContract {
         throw new UnsupportedOperationException("scrollToLoadAll is not supported by this browser actions implementation.");
     }
 
+    /**
+     * Returns the current mobile context, such as {@code NATIVE_APP} or a web view.
+     */
     String getContext();
 
+    /**
+     * Switches to the given mobile context.
+     */
     BrowserActionsContract setContext(String context);
 
+    /**
+     * Returns the handles of all open windows.
+     */
     List<String> getWindowHandles();
 
+    /**
+     * Returns the names of all available mobile contexts.
+     */
     List<String> getContextHandles();
 
+    /**
+     * Returns the accessibility actions for the current page.
+     */
     AccessibilityActions accessibility();
 }

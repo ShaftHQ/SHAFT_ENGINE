@@ -24,43 +24,67 @@ public record OcrOptions(List<String> languages,
         preprocessingMode = Objects.requireNonNull(preprocessingMode, "preprocessingMode");
     }
 
+    /**
+     * Returns OCR options built from the configured OCR properties.
+     */
     public static OcrOptions defaults() {
         return new OcrOptions(List.of(), DEFAULT_MINIMUM_CONFIDENCE, false, true, null,
                 OcrPageSegmentationMode.AUTO, OcrPreprocessingMode.AUTO);
     }
 
+    /**
+     * Returns a copy that recognizes the given languages.
+     */
     public OcrOptions withLanguages(String... configuredLanguages) {
         Objects.requireNonNull(configuredLanguages, "configuredLanguages");
         return new OcrOptions(Arrays.asList(configuredLanguages), minimumConfidence, caseSensitive,
                 normalizeWhitespace, region, pageSegmentationMode, preprocessingMode);
     }
 
+    /**
+     * Returns a copy that only accepts text at or above the given confidence.
+     */
     public OcrOptions withMinimumConfidence(double configuredMinimumConfidence) {
         return new OcrOptions(languages, configuredMinimumConfidence, caseSensitive, normalizeWhitespace,
                 region, pageSegmentationMode, preprocessingMode);
     }
 
+    /**
+     * Returns a copy with case-sensitive matching turned on or off.
+     */
     public OcrOptions withCaseSensitive(boolean configuredCaseSensitive) {
         return new OcrOptions(languages, minimumConfidence, configuredCaseSensitive, normalizeWhitespace,
                 region, pageSegmentationMode, preprocessingMode);
     }
 
+    /**
+     * Returns a copy with whitespace normalization turned on or off.
+     */
     public OcrOptions withWhitespaceNormalization(boolean configuredNormalization) {
         return new OcrOptions(languages, minimumConfidence, caseSensitive, configuredNormalization,
                 region, pageSegmentationMode, preprocessingMode);
     }
 
+    /**
+     * Returns a copy that only reads text inside the given screen region.
+     */
     public OcrOptions within(OcrRectangle configuredRegion) {
         return new OcrOptions(languages, minimumConfidence, caseSensitive, normalizeWhitespace,
                 Objects.requireNonNull(configuredRegion, "configuredRegion"), pageSegmentationMode,
                 preprocessingMode);
     }
 
+    /**
+     * Returns a copy that uses the given page segmentation mode.
+     */
     public OcrOptions withPageSegmentationMode(OcrPageSegmentationMode configuredMode) {
         return new OcrOptions(languages, minimumConfidence, caseSensitive, normalizeWhitespace, region,
                 configuredMode, preprocessingMode);
     }
 
+    /**
+     * Returns a copy that uses the given image preprocessing mode.
+     */
     public OcrOptions withPreprocessingMode(OcrPreprocessingMode configuredMode) {
         return new OcrOptions(languages, minimumConfidence, caseSensitive, normalizeWhitespace, region,
                 pageSegmentationMode, configuredMode);

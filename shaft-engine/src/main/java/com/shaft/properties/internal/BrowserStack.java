@@ -345,6 +345,11 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     @DefaultValue("")
     String customBrowserStackYmlPath();
 
+    /**
+     * Starts a fluent, thread-local override of these properties for the current test thread.
+     *
+     * @return a new {@link SetProperty} builder
+     */
     default SetProperty set() {
         return new SetProperty();
     }

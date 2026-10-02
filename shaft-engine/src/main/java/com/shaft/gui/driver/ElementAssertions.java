@@ -30,44 +30,105 @@ public interface ElementAssertions {
         throw unsupported("elementRole");
     }
 
+    /**
+     * Validates that the element exists.
+     */
     ValidationsExecutor exists();
 
+    /**
+     * Validates that the element does not exist.
+     */
     ValidationsExecutor doesNotExist();
 
+    /**
+     * Validates that the element matches its stored reference image.
+     */
     ValidationsExecutor matchesReferenceImage();
 
+    /**
+     * Validates that the element matches its stored reference image using the given visual engine.
+     */
     ValidationsExecutor matchesReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine);
 
+    /**
+     * Validates that the element does not match its stored reference image.
+     */
     ValidationsExecutor doesNotMatchReferenceImage();
 
+    /**
+     * Validates that the element does not match its stored reference image using the given visual
+     * engine.
+     */
     ValidationsExecutor doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine);
 
+    /**
+     * Validates the given element attribute.
+     */
     NativeValidationsBuilder attribute(String attribute);
 
+    /**
+     * Validates the given DOM attribute.
+     */
     NativeValidationsBuilder domAttribute(String domAttribute);
 
+    /**
+     * Validates the given DOM property.
+     */
     NativeValidationsBuilder domProperty(String domProperty);
 
+    /**
+     * Validates the given element property.
+     */
     NativeValidationsBuilder property(String domProperty);
 
+    /**
+     * Validates that the element is selected.
+     */
     ValidationsExecutor isSelected();
 
+    /**
+     * Validates that the element is checked.
+     */
     ValidationsExecutor isChecked();
 
+    /**
+     * Validates that the element is visible.
+     */
     ValidationsExecutor isVisible();
 
+    /**
+     * Validates that the element is enabled.
+     */
     ValidationsExecutor isEnabled();
 
+    /**
+     * Validates that the element is not selected.
+     */
     ValidationsExecutor isNotSelected();
 
+    /**
+     * Validates that the element is not checked.
+     */
     ValidationsExecutor isNotChecked();
 
+    /**
+     * Validates that the element is hidden.
+     */
     ValidationsExecutor isHidden();
 
+    /**
+     * Validates that the element is disabled.
+     */
     ValidationsExecutor isDisabled();
 
+    /**
+     * Validates the element text.
+     */
     NativeValidationsBuilder text();
 
+    /**
+     * Validates the element text with surrounding whitespace removed.
+     */
     NativeValidationsBuilder textTrimmed();
 
     /** Recognizes the target element screenshot and starts a native string assertion. */
@@ -80,6 +141,9 @@ public interface ElementAssertions {
         throw unsupported("ocrText");
     }
 
+    /**
+     * Validates the given CSS property of the element.
+     */
     NativeValidationsBuilder cssProperty(String elementCssProperty);
 
     /**

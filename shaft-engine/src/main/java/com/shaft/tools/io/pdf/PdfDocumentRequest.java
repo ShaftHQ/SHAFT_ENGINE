@@ -12,6 +12,9 @@ public record PdfDocumentRequest(Path source, PdfDocumentOptions options, List<P
         exports = List.copyOf(Objects.requireNonNull(exports, "exports"));
     }
 
+    /**
+     * Creates a request to read the PDF document at the given path.
+     */
     public static PdfDocumentRequest of(Path source) {
         return new PdfDocumentRequest(source, PdfDocumentOptions.defaults(), List.of());
     }

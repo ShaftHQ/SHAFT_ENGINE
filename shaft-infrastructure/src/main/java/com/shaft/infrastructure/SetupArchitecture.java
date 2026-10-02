@@ -13,14 +13,23 @@ public enum SetupArchitecture {
         this.artifactName = artifactName;
     }
 
+    /**
+     * Returns the architecture name used in artifact file names.
+     */
     public String artifactName() {
         return artifactName;
     }
 
+    /**
+     * Returns the architecture of the running JVM.
+     */
     public static SetupArchitecture current() {
         return fromOsArch(System.getProperty("os.arch"));
     }
 
+    /**
+     * Maps an {@code os.arch} value to a setup architecture.
+     */
     public static SetupArchitecture fromOsArch(String osArch) {
         if (osArch == null || osArch.isBlank()) {
             throw new IllegalArgumentException("Operating-system architecture must not be blank.");

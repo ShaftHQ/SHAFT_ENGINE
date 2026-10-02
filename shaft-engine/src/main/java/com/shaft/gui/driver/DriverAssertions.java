@@ -7,10 +7,19 @@ import org.openqa.selenium.By;
  * Public contract for driver-level hard assertions.
  */
 public interface DriverAssertions {
+    /**
+     * Starts a hard assertion on the browser.
+     */
     BrowserAssertions browser();
 
+    /**
+     * Starts a hard assertion on the located element.
+     */
     ElementAssertions element(By elementLocator);
 
+    /**
+     * Starts a hard assertion on the element found by the SHAFT locator.
+     */
     default ElementAssertions element(ShaftLocator elementLocator) {
         return element(elementLocator.toBy());
     }
@@ -25,6 +34,9 @@ public interface DriverAssertions {
         return element(elementTarget.toBy());
     }
 
+    /**
+     * Starts a hard assertion on any object value.
+     */
     NativeValidationsBuilder object(Object object);
 
     /**

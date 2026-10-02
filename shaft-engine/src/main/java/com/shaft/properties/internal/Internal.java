@@ -17,10 +17,25 @@ import org.aeonbits.owner.Config.Sources;
         "classpath:internal.properties",
 })
 public interface Internal extends EngineProperties<Internal> {
+    /**
+     * Engine version used by update checks, telemetry metadata, and internal tooling.
+     *
+     * <p>Default: {@code 10.3.20260930}. Possible values: version string.
+     *
+     * @return the configured value of {@code shaftEngineVersion}
+     */
     @Key("shaftEngineVersion")
     @DefaultValue("10.3.20260930")
     String shaftEngineVersion();
 
+    /**
+     * Default watermark image used by screenshot processing.
+     *
+     * <p>Default: {@code https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-
+     * engine/src/main/resources/images/shaft_white_bg.png}. Possible values: URL or file path.
+     *
+     * @return the configured value of {@code watermarkImagePath}
+     */
     @Key("watermarkImagePath")
     @DefaultValue("https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-engine/src/main/resources/images/shaft_white_bg.png")
     String watermarkImagePath();

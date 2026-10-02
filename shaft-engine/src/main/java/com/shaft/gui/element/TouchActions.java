@@ -82,14 +82,23 @@ import static java.util.Arrays.asList;
 @SuppressWarnings({"unused", "UnusedReturnValue"})
 public class TouchActions extends FluentWebDriverAction {
     private Boolean appiumImagesAvailable;
+    /**
+     * Creates touch actions for the current driver of this thread.
+     */
     public TouchActions() {
         initialize();
     }
 
+    /**
+     * Creates touch actions for the given driver.
+     */
     public TouchActions(WebDriver driver) {
         initialize(driver);
     }
 
+    /**
+     * Creates touch actions for the driver managed by the given helper.
+     */
     public TouchActions(DriverFactoryHelper helper) {
         initialize(helper);
     }
@@ -99,10 +108,16 @@ public class TouchActions extends FluentWebDriverAction {
         return this;
     }
 
+    /**
+     * Starts a hard assertion on the located element.
+     */
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
         return new WizardHelpers.WebDriverAssertions(driverFactoryHelper).element(elementLocator);
     }
 
+    /**
+     * Starts a soft verification on the located element.
+     */
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
         return new WizardHelpers.WebDriverVerifications(driverFactoryHelper).element(elementLocator);
     }

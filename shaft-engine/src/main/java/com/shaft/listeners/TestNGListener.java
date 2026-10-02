@@ -85,10 +85,16 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         }
     }
 
+    /**
+     * Detects how the tests are being run, such as from Maven, an IDE or a generated runner.
+     */
     public static ProjectStructureManager.RunType identifyRunType() {
         return ProjectStructureManager.identifyRunType();
     }
 
+    /**
+     * Prepares the engine (properties, reporting and project structure) for the given run type.
+     */
     public static void engineSetup(ProjectStructureManager.RunType runType) {
         ExecutionLifecycleHelper.engineSetup(runType);
     }

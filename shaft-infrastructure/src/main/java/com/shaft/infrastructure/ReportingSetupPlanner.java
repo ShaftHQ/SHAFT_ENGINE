@@ -21,6 +21,9 @@ public final class ReportingSetupPlanner {
 
     private ReportingSetupPlanner() { }
 
+    /**
+     * Plans the reporting (Allure) setup actions for the platform, architecture and mode.
+     */
     public static SetupPlan plan(SetupPlatform platform, SetupArchitecture architecture, SetupMode mode) {
         String platformToken = switch (platform) {
             case WINDOWS -> "win";

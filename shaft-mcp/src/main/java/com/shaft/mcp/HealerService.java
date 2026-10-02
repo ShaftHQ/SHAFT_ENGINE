@@ -77,6 +77,9 @@ public class HealerService {
                     + " and returns review-only fixes plus agent replay guidance; optional backend "
                     + "(web|playwright, defaults to web) selects the generated snippets' engine, "
                     + "absorbing playwright_healer_run_failed_test")
+    /**
+     * Reruns a failed test, applying locator healing between attempts.
+     */
     public McpHealerRunResult runFailedTest(
             String repositoryRoot,
             List<String> testCommand,
@@ -302,6 +305,9 @@ public class HealerService {
             description = "runs a guarded, tokenized Maven verification command (compile, test-compile, test, verify,"
                     + " package) headlessly inside the MCP workspace and returns a bounded pass/fail summary;"
                     + " release and deploy goals are rejected")
+    /**
+     * Runs a focused verification command in the repository.
+     */
     public McpVerificationResult verifyFocused(
             String repositoryRoot,
             List<String> command,

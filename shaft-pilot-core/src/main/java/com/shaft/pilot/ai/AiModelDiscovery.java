@@ -23,6 +23,9 @@ public record AiModelDiscovery(Status status, List<String> models) {
                 .map(String::trim).distinct().sorted().toList();
     }
 
+    /**
+     * Returns a discovery result that reports no models are available.
+     */
     public static AiModelDiscovery unavailable() {
         return new AiModelDiscovery(Status.UNAVAILABLE, List.of());
     }

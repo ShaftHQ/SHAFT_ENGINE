@@ -118,6 +118,9 @@ public class RestActions {
         return headerValue;
     }
 
+    /**
+     * Creates REST actions bound to the given service URI and SHAFT API driver session.
+     */
     public RestActions(String serviceURI, SHAFT.API driver) {
         initializeSystemProperties();
         headerAuthorization = "";
@@ -1130,6 +1133,9 @@ public class RestActions {
         return graphQlRequestHelper(base_URI, requestBody);
     }
 
+    /**
+     * Returns the response of the last request sent by this instance.
+     */
     public Response getResponse() {
         return lastResponse;
     }

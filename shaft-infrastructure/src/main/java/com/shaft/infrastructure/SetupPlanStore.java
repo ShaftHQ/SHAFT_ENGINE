@@ -11,6 +11,11 @@ import java.nio.file.StandardCopyOption;
 public final class SetupPlanStore {
     private SetupPlanStore() { }
 
+    /**
+     * Writes a plan as JSON to the destination file.
+     *
+     * @throws IOException when the file cannot be written
+     */
     public static void write(Path destination, SetupPlan plan) throws IOException {
         Path absolute = destination.toAbsolutePath().normalize();
         Path parent = absolute.getParent();
@@ -29,6 +34,11 @@ public final class SetupPlanStore {
         }
     }
 
+    /**
+     * Reads a plan from a JSON file.
+     *
+     * @throws IOException when the file cannot be read
+     */
     public static SetupPlan read(Path source) throws IOException {
         return SetupPlanJson.read(Files.readString(source.toAbsolutePath().normalize(), StandardCharsets.UTF_8));
     }

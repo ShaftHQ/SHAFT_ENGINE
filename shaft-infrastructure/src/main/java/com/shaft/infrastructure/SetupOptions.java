@@ -23,6 +23,9 @@ public record SetupOptions(SetupProfile profile, SetupMode mode, ShaftCachePaths
         remoteEndpoint.ifPresent(SetupOptions::validateRemoteEndpoint);
     }
 
+    /**
+     * Returns default options for the profile and cache paths.
+     */
     public static SetupOptions defaults(SetupProfile profile, ShaftCachePaths paths) {
         return new SetupOptions(profile, SetupMode.EXTERNAL, paths, false, false,
                 true, true, Duration.ofMinutes(2), Duration.ofSeconds(30), Optional.empty());
@@ -33,6 +36,9 @@ public record SetupOptions(SetupProfile profile, SetupMode mode, ShaftCachePaths
         return remoteEndpoint.isPresent() ? SetupMode.EXTERNAL : mode;
     }
 
+    /**
+     * Returns a copy with the given ownership mode.
+     */
     public SetupOptions withMode(SetupMode value) {
         return copy(value, offline, autoStart, preferSystemTools, reuseOwnedProcesses,
                 startupTimeout, shutdownTimeout, remoteEndpoint);
@@ -49,31 +55,49 @@ public record SetupOptions(SetupProfile profile, SetupMode mode, ShaftCachePaths
                 preferSystemTools, reuseOwnedProcesses, startupTimeout, shutdownTimeout, remoteEndpoint);
     }
 
+    /**
+     * Returns a copy that only uses verified cached artifacts when offline.
+     */
     public SetupOptions withOffline(boolean value) {
         return copy(mode, value, autoStart, preferSystemTools, reuseOwnedProcesses,
                 startupTimeout, shutdownTimeout, remoteEndpoint);
     }
 
+    /**
+     * Returns a copy that starts owned services automatically when enabled.
+     */
     public SetupOptions withAutoStart(boolean value) {
         return copy(mode, offline, value, preferSystemTools, reuseOwnedProcesses,
                 startupTimeout, shutdownTimeout, remoteEndpoint);
     }
 
+    /**
+     * Returns a copy that prefers compatible host tools when enabled.
+     */
     public SetupOptions withPreferSystemTools(boolean value) {
         return copy(mode, offline, autoStart, value, reuseOwnedProcesses,
                 startupTimeout, shutdownTimeout, remoteEndpoint);
     }
 
+    /**
+     * Returns a copy that reuses compatible SHAFT-owned processes when enabled.
+     */
     public SetupOptions withReuseOwnedProcesses(boolean value) {
         return copy(mode, offline, autoStart, preferSystemTools, value,
                 startupTimeout, shutdownTimeout, remoteEndpoint);
     }
 
+    /**
+     * Returns a copy with the given startup and shutdown timeouts.
+     */
     public SetupOptions withTimeouts(Duration startup, Duration shutdown) {
         return copy(mode, offline, autoStart, preferSystemTools, reuseOwnedProcesses,
                 startup, shutdown, remoteEndpoint);
     }
 
+    /**
+     * Returns a copy that uses the given remote service endpoint.
+     */
     public SetupOptions withRemoteEndpoint(URI endpoint) {
         return copy(mode, offline, autoStart, preferSystemTools, reuseOwnedProcesses,
                 startupTimeout, shutdownTimeout, Optional.of(Objects.requireNonNull(endpoint, "endpoint")));

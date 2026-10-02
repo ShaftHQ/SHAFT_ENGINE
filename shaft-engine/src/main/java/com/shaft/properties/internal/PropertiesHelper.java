@@ -121,6 +121,9 @@ public class PropertiesHelper {
         Properties.initialized = true;
     }
 
+    /**
+     * Loads the paths configuration and publishes the system properties that Selenium, Log4j and ReportPortal read directly from {@link System}.
+     */
     public static void setKeySystemProperties() {
         //load paths as the default properties path is needed for the next step
         Properties.basePaths = ConfigFactory.create(Paths.class);
@@ -293,6 +296,9 @@ public class PropertiesHelper {
         }
     }
 
+    /**
+     * Copies the target platform into the mobile {@code platformName} property when the target is Android or iOS.
+     */
     public static void setMobilePlatform() {
         String targetOperatingSystem = Properties.platform.targetPlatform();
         if (Arrays.asList("android", "ios").contains(targetOperatingSystem.toLowerCase())) {

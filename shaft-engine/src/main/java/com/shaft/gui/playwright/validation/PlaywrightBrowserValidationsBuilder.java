@@ -22,6 +22,10 @@ public class PlaywrightBrowserValidationsBuilder implements BrowserAssertions {
     private final PlaywrightSession session;
     private final StringBuilder reportMessageBuilder = new StringBuilder("the browser ");
 
+    /**
+     * Creates browser validations of the given category (assertion or verification) for the
+     * Playwright session.
+     */
     public PlaywrightBrowserValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, PlaywrightSession session) {
         this.validationCategory = validationCategory;
         this.session = session;

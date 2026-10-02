@@ -204,6 +204,9 @@ public class EngineService {
             + "engine selects web (default) | playwright | mobile_native | mobile_web; for mobile engines, "
             + "optional nested mobileOptions carries native/web-emulation parameters, absorbing "
             + "mobile_initialize_native/mobile_initialize_web_emulation")
+    /**
+     * Starts a driver for the WEB or mobile engine with the given browser and options.
+     */
     public void initializeDriver(
             @ToolParam(required = false, description = "browser to launch on the WEB engine; blank/omitted "
                     + "defers to the configured targetBrowserName property (default chrome); PLAYWRIGHT/MOBILE "

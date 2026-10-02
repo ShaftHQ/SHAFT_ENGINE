@@ -14,6 +14,9 @@ import org.openqa.selenium.By;
 public class PlaywrightDriverVerifications implements DriverVerifications {
     private final PlaywrightSession session;
 
+    /**
+     * Creates soft verifications for the given Playwright session.
+     */
     public PlaywrightDriverVerifications(PlaywrightSession session) {
         this.session = session;
     }
@@ -39,6 +42,9 @@ public class PlaywrightDriverVerifications implements DriverVerifications {
                 ValidationEnums.ValidationCategory.SOFT_ASSERT, session, elementTarget);
     }
 
+    /**
+     * Starts a soft verification on the given Playwright element.
+     */
     public ElementAssertions element(com.microsoft.playwright.Locator elementLocator) {
         return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.SOFT_ASSERT, session,
                 elementLocator, String.valueOf(elementLocator));

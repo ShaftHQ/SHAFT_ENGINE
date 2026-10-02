@@ -76,6 +76,9 @@ public class DoctorService {
      */
     @Tool(name = "doctor_managed_local_ai_status",
             description = "returns read-only managed local AI configuration, eligibility, cache health, runtime and model diagnostics")
+    /**
+     * Reports the status of SHAFT's managed local AI runtime.
+     */
     public McpManagedLocalAiStatus managedLocalAiStatus() {
         return McpManagedLocalAiStatus.from(
                 Objects.requireNonNull(managedLocalAiStatus.get(), "managed local AI status"));
@@ -104,6 +107,9 @@ public class DoctorService {
                     + "AllureReport.html; when allureResultPaths is empty, automatically analyzes the newest such "
                     + "evidence found in the workspace; optional backend (web|playwright, defaults to web) selects "
                     + "the generated remediation snippets' engine, absorbing playwright_doctor_analyze_failed_allure")
+    /**
+     * Analyzes failed Allure results and groups failures by likely cause.
+     */
     public McpAnalysisReport analyzeFailedAllure(
             List<String> allureResultPaths,
             List<String> historicalBundlePaths,
@@ -214,6 +220,9 @@ public class DoctorService {
             description = "confirms or suggests persisted Doctor defect labels keyed by signature "
                     + "(PRODUCT/TEST/ENVIRONMENT/LOCATOR/TIMING); local gitignored store; "
                     + "override replaces; evidence paths redacted; no cloud ML")
+    /**
+     * Lists, sets or clears the cause label of a failure signature.
+     */
     public McpCauseLabelResult causeLabel(
             String action,
             String signature,
@@ -247,6 +256,9 @@ public class DoctorService {
             description = "returns copy-paste remediation code blocks from an existing SHAFT Doctor report; "
                     + "optional backend (web|playwright, defaults to web) selects the generated snippets' engine, "
                     + "absorbing playwright_doctor_suggest_fix")
+    /**
+     * Suggests source fixes for an analysis report, optionally using AI.
+     */
     public McpAnalysisReport suggestFix(
             String jsonReportPath,
             String repositoryRoot,
@@ -413,6 +425,9 @@ public class DoctorService {
     @Tool(name = "doctor_propose_healed_locator",
             description = "maps a verified SHAFT Heal report to one reviewable locator patch"
                     + " without editing source or publishing")
+    /**
+     * Proposes a healed locator from a healing report, optionally patching the source.
+     */
     public HealingLocatorProposal proposeHealedLocator(
             String repositoryRoot,
             String healingReportPath,
@@ -452,6 +467,9 @@ public class DoctorService {
     @Tool(name = "doctor_propose_advisory_locator",
             description = "maps a low-trust SHAFT Heal report to one reviewable advisory locator"
                     + " comment proposal without editing, replacing, or publishing")
+    /**
+     * Proposes an advisory locator from a healing report without asserting it is the fix.
+     */
     public HealingLocatorProposal proposeAdvisoryLocator(
             String repositoryRoot,
             String healingReportPath,

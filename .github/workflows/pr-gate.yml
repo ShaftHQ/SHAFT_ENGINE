@@ -58,6 +58,7 @@ jobs:
       javacore: ${{ steps.filter.outputs.javacore }}
       dependencies: ${{ steps.filter.outputs.dependencies }}
       module_boundary: ${{ steps.filter.outputs.module_boundary }}
+      javadoc: ${{ steps.filter.outputs.javadoc }}
       pr_gate: ${{ steps.filter.outputs.pr_gate }}
       infra: ${{ steps.filter.outputs.infra }}
       workflows: ${{ steps.filter.outputs.workflows }}
@@ -328,6 +329,12 @@ jobs:
             # (shaft-bom, the consumer fixture), so it gets its own leg naming
             # exactly what it reads rather than being bolted onto the closest
             # one.
+            # #6375: every customer-facing public member keeps a Javadoc.
+            javadoc:
+              - '*/src/main/java/**'
+              - 'scripts/ci/validate_javadoc_coverage.py'
+              - 'scripts/ci/javadoc_coverage_baseline.json'
+              - 'tests/scripts/test_validate_javadoc_coverage.py'
             module_boundary:
               - 'shaft-engine/pom.xml'
               - 'shaft-pilot-core/pom.xml'
@@ -965,6 +972,25 @@ jobs:
   # agent-guidance leg runs. An enforcement module CI never runs is a rule
   # nobody enforces, which is the same reason
   # test_agent_harness_reachability.py exists for the harness surface.
+  # #6375: shrink-only ratchet; a new undocumented public member fails the gate.
+  javadoc-coverage:
+    name: Javadoc Coverage Ratchet
+    needs: changes
+    if: needs.changes.outputs.javadoc == 'true' || needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Run Javadoc coverage unit tests
+        run: python3 -m unittest tests.scripts.test_validate_javadoc_coverage -v
+      - name: Enforce the Javadoc coverage baseline
+        run: python3 scripts/ci/validate_javadoc_coverage.py
+
   module-boundary:
     name: Pilot Module Boundary Gate
     needs: changes
@@ -1215,6 +1241,7 @@ jobs:
       - template-coupling
       - workflow-timeouts
       - module-boundary
+      - javadoc-coverage
       - orphaned-suite-files
       - pr-body-autoclose-guard
       - dependency-changes
@@ -1240,6 +1267,7 @@ jobs:
           TEMPLATES_RESULT: ${{ needs.template-coupling.result }}
           WORKFLOW_TIMEOUTS_RESULT: ${{ needs.workflow-timeouts.result }}
           MODULE_BOUNDARY_RESULT: ${{ needs.module-boundary.result }}
+          JAVADOC_COVERAGE_RESULT: ${{ needs.javadoc-coverage.result }}
           ORPHANED_SUITE_FILES_RESULT: ${{ needs.orphaned-suite-files.result }}
           PR_BODY_AUTOCLOSE_GUARD_RESULT: ${{ needs.pr-body-autoclose-guard.result }}
           DEPENDENCY_CHANGES_RESULT: ${{ needs.dependency-changes.result }}
@@ -1265,6 +1293,7 @@ jobs:
             echo "| template-coupling | ${TEMPLATES_RESULT} |"
             echo "| workflow-timeouts | ${WORKFLOW_TIMEOUTS_RESULT} |"
             echo "| module-boundary | ${MODULE_BOUNDARY_RESULT} |"
+            echo "| javadoc-coverage | ${JAVADOC_COVERAGE_RESULT} |"
             echo "| orphaned-suite-files | ${ORPHANED_SUITE_FILES_RESULT} |"
             echo "| pr-body-autoclose-guard | ${PR_BODY_AUTOCLOSE_GUARD_RESULT} |"
             echo "| dependency-changes | ${DEPENDENCY_CHANGES_RESULT} |"
@@ -1279,7 +1308,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)

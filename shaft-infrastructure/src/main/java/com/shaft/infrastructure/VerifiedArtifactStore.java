@@ -21,14 +21,27 @@ public final class VerifiedArtifactStore {
     private static final long MAX_PLAYWRIGHT_BROWSER_BYTES = 512L * 1024 * 1024;
     private final Path downloads;
 
+    /**
+     * Creates a store that keeps verified downloads in the given folder.
+     */
     public VerifiedArtifactStore(Path downloads) {
         this.downloads = downloads.toAbsolutePath().normalize();
     }
 
+    /**
+     * Fetches the action's artifact and verifies its checksum.
+     *
+     * @throws IOException when the artifact cannot be fetched or fails verification
+     */
     public Path fetch(SetupAction action) throws IOException {
         return fetch(action, false);
     }
 
+    /**
+     * Fetches the action's artifact, using only the cache when offline, and verifies its checksum.
+     *
+     * @throws IOException when the artifact cannot be fetched or fails verification
+     */
     public Path fetch(SetupAction action, boolean offline) throws IOException {
         return fetchInternal(action, offline, null);
     }
@@ -257,6 +270,11 @@ public final class VerifiedArtifactStore {
         return (int) Math.min(maximum, remainingMillis);
     }
 
+    /**
+     * Returns the SHA-256 digest of the file.
+     *
+     * @throws IOException when the file cannot be read
+     */
     public static String digest(Path file) throws IOException {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

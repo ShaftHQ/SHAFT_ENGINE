@@ -34,6 +34,10 @@ import java.util.List;
 public class PdfFileManager {
     private final File file;
 
+    /**
+     * Opens the PDF file in the given folder, retrying the given number of times while it is still
+     * being written.
+     */
     public PdfFileManager(String folderName, String fileName, int numberOfRetries) {
         boolean exists = FileActions.getInstance(true).doesFileExist(folderName, fileName, numberOfRetries);
         file = new File(FileActions.getInstance(true).getAbsolutePath(folderName, fileName));
@@ -43,6 +47,9 @@ public class PdfFileManager {
         }
     }
 
+    /**
+     * Opens the PDF file at the given path.
+     */
     public PdfFileManager(String pdfFilePath) {
         String resolved = JavaHelper.appendTestDataToRelativePath(pdfFilePath);
         boolean exists = FileActions.getInstance(true).doesFileExist(resolved);
@@ -75,6 +82,9 @@ public class PdfFileManager {
         return content;
     }
 
+    /**
+     * Reads the text content of the PDF file.
+     */
     public String readFileContent() {
         return readFileContent(file.getPath());
     }

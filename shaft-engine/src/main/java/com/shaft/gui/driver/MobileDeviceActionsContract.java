@@ -39,5 +39,8 @@ public interface MobileDeviceActionsContract {
     /** Returns text clipboard controls. */
     MobileClipboardActionsContract clipboard();
 
+    /**
+     * Returns the mobile actions to chain the next action.
+     */
     MobileActionsContract and();
 }

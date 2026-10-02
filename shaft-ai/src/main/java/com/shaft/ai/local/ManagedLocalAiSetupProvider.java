@@ -36,6 +36,9 @@ import java.util.function.Consumer;
 public final class ManagedLocalAiSetupProvider implements SetupProvider {
     private final LifecycleFactory lifecycles;
 
+    /**
+     * Creates the setup provider that installs and verifies SHAFT's managed local AI runtime.
+     */
     public ManagedLocalAiSetupProvider() {
         this(ignored -> new ServiceLifecycle(new ManagedLocalAiService()));
     }

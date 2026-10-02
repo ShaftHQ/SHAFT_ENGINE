@@ -53,6 +53,9 @@ public final class McpAppiumLocatorSuggester {
                 && action.toLowerCase(java.util.Locale.ROOT).contains("coordinates");
     }
 
+    /**
+     * Parses an Appium page source, returning empty when it is not valid XML.
+     */
     public static Optional<McpAppiumLocatorSuggester> parse(String sourceXml) {
         if (sourceXml == null || sourceXml.isBlank()) {
             return Optional.empty();
@@ -72,6 +75,9 @@ public final class McpAppiumLocatorSuggester {
         }
     }
 
+    /**
+     * Suggests a locator for the element at the given screen point.
+     */
     public Optional<LocatorSuggestion> locatorAt(int x, int y) {
         return elements().stream()
                 .filter(element -> bounds(element).map(rectangle -> rectangle.contains(x, y)).orElse(false))

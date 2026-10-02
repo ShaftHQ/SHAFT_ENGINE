@@ -24,6 +24,9 @@ public interface MobileRecordingActionsContract {
         throw unsupported();
     }
 
+    /**
+     * Returns the mobile actions to chain the next action.
+     */
     MobileActionsContract and();
 
     private static UnsupportedOperationException unsupported() {

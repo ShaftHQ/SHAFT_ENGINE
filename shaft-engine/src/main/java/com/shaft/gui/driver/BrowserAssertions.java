@@ -9,10 +9,19 @@ import com.shaft.validation.internal.ValidationsExecutor;
  * Public contract for browser-level hard/soft validation starters.
  */
 public interface BrowserAssertions {
+    /**
+     * Validates the given browser attribute.
+     */
     NativeValidationsBuilder attribute(String browserAttribute);
 
+    /**
+     * Validates the current URL.
+     */
     NativeValidationsBuilder url();
 
+    /**
+     * Validates the current page title.
+     */
     NativeValidationsBuilder title();
 
     /**
@@ -24,20 +33,35 @@ public interface BrowserAssertions {
         throw new UnsupportedOperationException("alertText is not supported by this browser assertions implementation.");
     }
 
+    /**
+     * Validates the visible text of the current page.
+     */
     NativeValidationsBuilder text();
 
+    /**
+     * Validates the source of the current page.
+     */
     default NativeValidationsBuilder pageSourceValue() {
         throw new UnsupportedOperationException("pageSourceValue is not supported by this browser assertions implementation.");
     }
 
+    /**
+     * Validates the handle of the current window.
+     */
     default NativeValidationsBuilder windowHandleValue() {
         throw new UnsupportedOperationException("windowHandleValue is not supported by this browser assertions implementation.");
     }
 
+    /**
+     * Validates the position of the current window.
+     */
     default NativeValidationsBuilder windowPositionValue() {
         throw new UnsupportedOperationException("windowPositionValue is not supported by this browser assertions implementation.");
     }
 
+    /**
+     * Validates the size of the current window.
+     */
     default NativeValidationsBuilder windowSizeValue() {
         throw new UnsupportedOperationException("windowSizeValue is not supported by this browser assertions implementation.");
     }

@@ -19,6 +19,9 @@ public record SetupSelection(List<String> components) {
         components = List.copyOf(normalized);
     }
 
+    /**
+     * Returns the default selection of components.
+     */
     public static SetupSelection defaults() {
         return new SetupSelection(List.of());
     }

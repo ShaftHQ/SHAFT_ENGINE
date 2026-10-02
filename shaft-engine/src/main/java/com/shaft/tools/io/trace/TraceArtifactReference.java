@@ -10,6 +10,10 @@ import java.util.Map;
  */
 public record TraceArtifactReference(String id, String kind, String path, String mimeType, boolean omitted,
                                      Map<String, String> metadata) {
+    /**
+     * Creates a reference to an artifact (such as a screenshot) recorded in a trace, validating its
+     * fields.
+     */
     public TraceArtifactReference(String id, String kind, String path, String mimeType, boolean omitted,
                                   Map<String, String> metadata) {
         this.id = required(id, "id");
