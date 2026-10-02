@@ -38,7 +38,7 @@
         "AGENTS.md"
       ],
       "grok-bot": [
-        "AGENTS.md"
+        "chaos-engine/references/bot-entry.md"
       ]
     },
     {

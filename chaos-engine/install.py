@@ -4411,6 +4411,9 @@ def attach_component_status(
         index = _mempalace_index_finding(target, project)
         if index is not None:
             components["mempalace"] = {**components["mempalace"], "index": index}
+        empty = _mempalace_empty_finding(project, index)
+        if empty is not None and components["mempalace"].get("status") == "healthy":
+            components["mempalace"] = {**components["mempalace"], **empty}
     _apply_shared_store_doctor(project, components)
     # #6336: judge the version runtime discovery selects (configured JAR, then the
     # newest verified cache), never a pinned release the installer did not pick.
@@ -6455,6 +6458,26 @@ def reflection_controller_drift(project: Path) -> str:
         "`chaos-engine/hooks/reflection.py` differ. Receipts must use the "
         "controller the gate executes."
     )
+
+
+def _mempalace_empty_finding(
+    project: Path, index: dict[str, object] | None
+) -> dict[str, object] | None:
+    """#6377: a palace with zero drawers is not healthy unless a mine is running."""
+    if isinstance(index, dict) and index.get("status") == "running":
+        return None
+    try:
+        stores = _load_stores_module()
+        count = stores["palace_drawer_count"](stores["resolve_palace"](project))
+    except (OSError, ImportError, KeyError, RuntimeError, SyntaxError, ValueError):
+        return None
+    if count != 0:
+        return None
+    return {
+        "status": "degraded",
+        "detail": "MemPalace palace has zero drawers; retrieval returns nothing",
+        "fixNext": "python3 .chaos-engine/install.py repair --project . --component mempalace",
+    }
 
 
 def _mempalace_index_finding(target: Path, project: Path) -> dict[str, object] | None:

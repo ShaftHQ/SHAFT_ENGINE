@@ -166,7 +166,7 @@ def protect_identity_truth_if_present(project, before: bytes | None, after: byte
 
 # #6201: instruction-only hosts have no read gate or Stop hook; their research
 # receipt `retrieve:` field is checked here and flagged, never blocking.
-INSTRUCTION_ONLY_HOSTS = ("opencode", "cursor", "grok-bot")
+INSTRUCTION_ONLY_HOSTS = ("opencode", "cursor", "grok-bot", "independent-bot")
 RESEARCH_RECEIPT_SINK = ".chaos-engine-state/research-receipt.md"
 RETRIEVE_LEDGER = ".chaos-engine-state/retrieve-justification.json"
 
