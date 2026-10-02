@@ -27,10 +27,11 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import http.client
 import json
 import re
 import sys
-import urllib.request
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional, Sequence
@@ -197,8 +198,19 @@ def _verified_tarball(package: str, locked: _Locked, fetch: Fetch) -> bytes:
 
 
 def default_fetch(url: str) -> bytes:
-    with urllib.request.urlopen(url, timeout=120) as response:  # noqa: S310 - registry-only URL checked above
+    """Download a registry tarball over HTTPS only; no other scheme or host is ever opened."""
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme != "https" or parts.hostname != urllib.parse.urlsplit(REGISTRY).hostname:
+        raise PinError(f"refusing to download {url!r}")
+    connection = http.client.HTTPSConnection(parts.hostname, timeout=120)
+    try:
+        connection.request("GET", parts.path)
+        response = connection.getresponse()
+        if response.status != 200:
+            raise PinError(f"{url}: HTTP {response.status}")
         return response.read()
+    finally:
+        connection.close()
 
 
 def refresh_packages(root: Path, pins: Sequence[PackagePin] = PACKAGE_PINS, *, write: bool,

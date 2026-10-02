@@ -19,6 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * are impossible without an npm override (#6358).
  */
 class BundledAppiumSecurityOverridesTest {
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+
     @ParameterizedTest
     @ValueSource(strings = {"appium", "appium-ios", "appium-windows"})
     void appiumBundlesOverrideAxiosToThePatchedRelease(String bundle) throws Exception {
@@ -67,8 +69,6 @@ class BundledAppiumSecurityOverridesTest {
         }
         return 0;
     }
-
-    private static final JsonMapper JSON = JsonMapper.builder().build();
 
     private static String read(String resource) throws Exception {
         try (var input = BundledAppiumSecurityOverridesTest.class.getResourceAsStream(resource)) {
