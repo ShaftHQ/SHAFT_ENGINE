@@ -48,12 +48,12 @@ public class DesktopInteractionStrategiesTest {
     @BeforeMethod
     public void configureWindowsDesktopMockSession() {
         SHAFT.Properties.reporting.set().captureElementName(false);
-        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
-        SHAFT.Properties.flags.set().scrollingMode("legacy");
-        SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
-        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
-        SHAFT.Properties.flags.set().attemptToClickBeforeTyping(false);
-        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(false);
+        SHAFT.Properties.flags.setForCurrentThread().forceCheckElementLocatorIsUnique(false);
+        SHAFT.Properties.flags.setForCurrentThread().scrollingMode("legacy");
+        SHAFT.Properties.flags.setForCurrentThread().clearBeforeTypingMode("off");
+        SHAFT.Properties.flags.setForCurrentThread().forceCheckTextWasTypedCorrectly(false);
+        SHAFT.Properties.flags.setForCurrentThread().attemptToClickBeforeTyping(false);
+        SHAFT.Properties.flags.setForCurrentThread().clickUsingJavascriptWhenWebDriverClickFails(false);
         SHAFT.Properties.visuals.set().createAnimatedGif(false);
         SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
         SHAFT.Properties.visuals.set().screenshotParamsWatermark(false);
@@ -135,7 +135,7 @@ public class DesktopInteractionStrategiesTest {
 
     @Test
     public void typeEditWithNativeClearDoesClickClearSendKeys() {
-        SHAFT.Properties.flags.set().clearBeforeTypingMode("native");
+        SHAFT.Properties.flags.setForCurrentThread().clearBeforeTypingMode("native");
         WindowsDriver driver = mockWindowsDriver();
         WebElement element = uiaElement("ControlType.Edit");
         when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
@@ -291,7 +291,7 @@ public class DesktopInteractionStrategiesTest {
     public void webDefaultsUnchangedWhenNotWindowsDesktop() {
         SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
         SHAFT.Properties.web.set().targetBrowserName("chrome");
-        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
+        SHAFT.Properties.flags.setForCurrentThread().clickUsingJavascriptWhenWebDriverClickFails(true);
 
         WindowsDriver driver = mockWindowsDriver();
         WebElement element = mock(WebElement.class);

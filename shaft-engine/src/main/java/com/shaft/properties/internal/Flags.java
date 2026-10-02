@@ -15,12 +15,19 @@ import org.aeonbits.owner.ConfigFactory;
 @SuppressWarnings("unused")
 @Sources({"system:properties", "file:src/main/resources/properties/PlatformFlags.properties", "file:src/main/resources/properties/default/PlatformFlags.properties", "classpath:PlatformFlags.properties",})
 public interface Flags extends EngineProperties<Flags> {
+    private static void setThreadProperty(String key, String value) {
+        ThreadLocalPropertiesManager.setProperty(key, value);
+        Properties.refreshThreadFlags();
+        EngineProperties.logPropertyUpdate(key, value);
+    }
+
     private static void setProperty(String key, String value) {
         // Engine-wide flags are updated under a dedicated lock and then safely
         // published through the volatile Properties.baseFlags reference.
         synchronized (Properties.class) {
             ThreadLocalPropertiesManager.setGlobalProperty(key, value);
             Properties.baseFlags = ConfigFactory.create(Flags.class, ThreadLocalPropertiesManager.getGlobalOverrides());
+            Properties.flagsVersion++;
         }
         EngineProperties.logPropertyUpdate(key, value);
     }
@@ -311,15 +318,40 @@ public interface Flags extends EngineProperties<Flags> {
     boolean telemetryEnabled();
 
     /**
-     * Starts a fluent, thread-local override of these properties for the current test thread.
+     * Starts a fluent, engine-global override of these flags. The new values are visible to every
+     * thread. Use {@link #setForCurrentThread()} in tests that run in parallel.
      *
      * @return a new {@link SetProperty} builder
      */
     default SetProperty set() {
-        return new SetProperty();
+        return new SetProperty(false);
+    }
+
+    /**
+     * Starts a fluent override of these flags for the current thread only. Values set this way win
+     * over engine-global values on this thread and are cleared at the next test-class boundary, so
+     * parallel tests that flip a flag cannot race each other.
+     *
+     * @return a new thread-scoped {@link SetProperty} builder
+     */
+    default SetProperty setForCurrentThread() {
+        return new SetProperty(true);
     }
 
     class SetProperty implements EngineProperties.SetProperty {
+        private final boolean currentThreadOnly;
+
+        SetProperty(boolean currentThreadOnly) {
+            this.currentThreadOnly = currentThreadOnly;
+        }
+
+        private void setProperty(String key, String value) {
+            if (currentThreadOnly) {
+                setThreadProperty(key, value);
+            } else {
+                Flags.setProperty(key, value);
+            }
+        }
 
         /**
          * Overrides the {@code automaticallyAddRecommendedChromeOptions} property at runtime.

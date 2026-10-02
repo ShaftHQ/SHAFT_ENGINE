@@ -11,14 +11,12 @@ import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
  * Checks GitHub for the latest published SHAFT Engine version.
  */
 public class UpdateChecker {
-    public static AtomicReference<String> latestVersion = new AtomicReference<>();
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     /**
