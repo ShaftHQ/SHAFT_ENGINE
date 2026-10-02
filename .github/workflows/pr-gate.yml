@@ -335,6 +335,10 @@ jobs:
               - 'scripts/ci/validate_javadoc_coverage.py'
               - 'scripts/ci/javadoc_coverage_baseline.json'
               - 'tests/scripts/test_validate_javadoc_coverage.py'
+              - '*/src/test/java/**'
+              - 'scripts/ci/validate_test_reference_coverage.py'
+              - 'scripts/ci/test_reference_baseline.json'
+              - 'tests/scripts/test_validate_test_reference_coverage.py'
             module_boundary:
               - 'shaft-engine/pom.xml'
               - 'shaft-pilot-core/pom.xml'
@@ -987,9 +991,11 @@ jobs:
         with:
           python-version: "3.13"
       - name: Run Javadoc coverage unit tests
-        run: python3 -m unittest tests.scripts.test_validate_javadoc_coverage -v
+        run: python3 -m unittest tests.scripts.test_validate_javadoc_coverage tests.scripts.test_validate_test_reference_coverage -v
       - name: Enforce the Javadoc coverage baseline
         run: python3 scripts/ci/validate_javadoc_coverage.py
+      - name: Enforce the test reference baseline
+        run: python3 scripts/ci/validate_test_reference_coverage.py
 
   module-boundary:
     name: Pilot Module Boundary Gate
