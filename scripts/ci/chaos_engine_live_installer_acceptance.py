@@ -197,6 +197,8 @@ def isolated_account_environment(root: Path) -> dict[str, str]:
     ):
         environment.pop(name, None)
     environment.update({
+        # Acceptance asserts the .mined marker right after install; mine in-process.
+        "CHAOS_ENGINE_MEMPALACE_MINE": "foreground",
         "HOME": str(home),
         "USERPROFILE": str(home),
         "APPDATA": str(roots["appdata"]),

@@ -89,6 +89,7 @@ public final class LocalAgentApprovalBridge implements AutoCloseable {
     private final Set<CompletableFuture<Decision>> pending = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicInteger pendingCount = new AtomicInteger();
+    private final AtomicInteger inFlightExchanges = new AtomicInteger();
     private final AtomicLong accumulatedPendingMillis = new AtomicLong();
     private volatile Instant pendingSince;
 
@@ -159,6 +160,7 @@ public final class LocalAgentApprovalBridge implements AutoCloseable {
         // writing its HTTP response before the listening socket closes; stop() returns as soon as
         // outstanding exchanges finish rather than always waiting the full delay, so this only slows
         // down close() in the rare case where a response is still in flight.
+        awaitInFlightExchanges(Duration.ofSeconds(2));
         server.stop(2);
         executor.shutdownNow();
         try {
@@ -169,7 +171,25 @@ public final class LocalAgentApprovalBridge implements AutoCloseable {
         }
     }
 
+    /**
+     * HttpServer.stop() can return before an exchange unblocked by close() writes its reply, and the
+     * following executor.shutdownNow() then interrupts that write (client sees EOF). Wait, bounded,
+     * for every handler to finish first.
+     */
+    private void awaitInFlightExchanges(Duration budget) {
+        long deadline = System.nanoTime() + budget.toNanos();
+        while (inFlightExchanges.get() > 0 && System.nanoTime() < deadline) {
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
     private void handle(HttpExchange exchange) throws IOException {
+        inFlightExchanges.incrementAndGet();
         try {
             if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                 exchange.sendResponseHeaders(405, -1);
@@ -196,6 +216,7 @@ public final class LocalAgentApprovalBridge implements AutoCloseable {
             writeJson(exchange, 200, response);
         } finally {
             exchange.close();
+            inFlightExchanges.decrementAndGet();
         }
     }
 
