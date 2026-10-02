@@ -130,5 +130,27 @@ class DoctorAgentSummaryTest(unittest.TestCase):
             self.assertIn(f"{number}. ", laws)
 
 
+    def test_doctor_exit_code_fails_on_recovery_required_for_every_output(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from unittest import mock
+
+        broken = _document(status="recovery-required")
+        for extra in ([], ["--json"]):
+            with self.subTest(extra=extra), mock.patch.object(
+                INSTALL, "status_json", return_value=broken
+            ), mock.patch.object(INSTALL, "legacy_profile_layout", return_value=[]), mock.patch(
+                "sys.argv", ["install.py", "doctor", "--project", ".", *extra]
+            ), redirect_stdout(StringIO()):
+                self.assertEqual(1, INSTALL.main())
+        for status in ("healthy", "sync-advisory"):
+            with self.subTest(status=status), mock.patch.object(
+                INSTALL, "status_json", return_value=_document(status=status)
+            ), mock.patch.object(INSTALL, "legacy_profile_layout", return_value=[]), mock.patch(
+                "sys.argv", ["install.py", "doctor", "--project", "."]
+            ), redirect_stdout(StringIO()):
+                self.assertEqual(0, INSTALL.main())
+
+
 if __name__ == "__main__":
     unittest.main()

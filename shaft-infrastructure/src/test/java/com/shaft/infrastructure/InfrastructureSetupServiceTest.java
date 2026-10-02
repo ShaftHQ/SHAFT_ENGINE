@@ -588,4 +588,11 @@ class InfrastructureSetupServiceTest {
             return SetupProfile.LOCAL_AI;
         }
     }
+
+    @Test
+    void playwrightRuntimeResolutionRejectsOtherProfiles(@TempDir Path temp) {
+        SetupOptions reporting = SetupOptions.defaults(SetupProfile.REPORTING, paths(temp));
+        assertThrows(IllegalArgumentException.class, () -> PlaywrightRuntime.resolveBrowserRoot(reporting));
+        assertThrows(NullPointerException.class, () -> PlaywrightRuntime.resolveBrowserRoot(null));
+    }
 }

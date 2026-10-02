@@ -123,4 +123,31 @@ final class EqualWebDriver implements WebDriver, HasDevTools {
     @Override public TargetLocator switchTo() { throw new UnsupportedOperationException(); }
     @Override public Navigation navigate() { throw new UnsupportedOperationException(); }
     @Override public Options manage() { throw new UnsupportedOperationException(); }
+
+    @Test(description = "Issue #6385: request-builder matchers combine into one interception predicate")
+    public void requestBuilderMatchersCombineIntoOnePredicate() {
+        AtomicReference<BrowserNetworkInterceptionRule> registered = new AtomicReference<>();
+        com.shaft.gui.driver.BrowserActionsContract actions = Mockito.mock(com.shaft.gui.driver.BrowserActionsContract.class);
+        com.shaft.gui.driver.BrowserActionsContract returned = new com.shaft.gui.browser.NetworkInterceptionRequestBuilder<>(actions, (rule, message) -> {
+            registered.set(rule);
+            return actions;
+        })
+                .get()
+                .urlMatches("https://shop\\.test/api/.*")
+                .pathContains("/cart")
+                .matching(request -> request.getHeader("X-Test") != null)
+                .verifyResponse(validation -> { });
+
+        Assert.assertSame(returned, actions);
+        HttpRequest cart = new HttpRequest(HttpMethod.GET, "https://shop.test/api/cart?id=1");
+        cart.addHeader("X-Test", "1");
+        Assert.assertTrue(registered.get().matches(cart));
+        Assert.assertFalse(registered.get().matches(new HttpRequest(HttpMethod.GET, "https://shop.test/api/cart")));
+        HttpRequest post = new HttpRequest(HttpMethod.POST, "https://shop.test/api/cart");
+        post.addHeader("X-Test", "1");
+        Assert.assertFalse(registered.get().matches(post));
+        HttpRequest other = new HttpRequest(HttpMethod.GET, "https://shop.test/api/orders");
+        other.addHeader("X-Test", "1");
+        Assert.assertFalse(registered.get().matches(other));
+    }
 }

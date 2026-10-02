@@ -540,6 +540,9 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
 
         /**
          * Overrides the {@code browserStack.enableBiometric} property at runtime.
+         * <p>There is no typed getter for this key; like other {@code browserStack.*} overrides it is
+         * passed through to the {@code bstack:options.enableBiometric} capability for native app sessions.
+         * Only enable it when your BrowserStack plan includes biometric authentication.
          *
          * @param value {@code true} to enable biometric authentication on the test device
          * @return this {@link SetProperty} instance for chaining

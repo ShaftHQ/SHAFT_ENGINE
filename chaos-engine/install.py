@@ -6619,6 +6619,14 @@ def format_agent_summary(document: dict[str, object]) -> str:
     return "\n".join(lines[:AGENT_SUMMARY_MAX_LINES]) + "\n"
 
 
+DOCTOR_FAILING_STATUSES = frozenset({"recovery-required", "failed"})
+
+
+def doctor_exit_code(document: dict[str, object]) -> int:
+    """Doctor exits non-zero when recovery is required, in every output mode."""
+    return 1 if str(document.get("status") or "") in DOCTOR_FAILING_STATUSES else 0
+
+
 def agent_summary_exit_code(document: dict[str, object]) -> int:
     """Fail closed when policy hash drifted or the summary cannot stay bounded."""
     rendered = format_agent_summary(document)
@@ -6987,9 +6995,10 @@ def main() -> int:
                 ),
                 end="",
             )
+            return doctor_exit_code(result)
         return 0
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
-    return 0
+    return doctor_exit_code(result) if args.command == "doctor" else 0
 
 
 if __name__ == "__main__":
