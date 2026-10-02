@@ -15,8 +15,7 @@ import importlib.util
 import json
 import os
 import tempfile
-import unittest
-from unittest import mock
+from unittest import TestCase, main, mock
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -49,7 +48,7 @@ class FakeSpawner:
         return self.calls[0][0]
 
 
-class BackgroundMineInstallTest(unittest.TestCase):
+class BackgroundMineInstallTest(TestCase):
     def setUp(self) -> None:
         self.module = load(CONTROLLER, "ce_deps_background_mine")
         self.specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
@@ -115,7 +114,7 @@ class BackgroundMineInstallTest(unittest.TestCase):
             self.assertEqual([], spawner.calls)
 
 
-class BackgroundMineRunnerTest(unittest.TestCase):
+class BackgroundMineRunnerTest(TestCase):
     def setUp(self) -> None:
         self.module = load(CONTROLLER, "ce_deps_background_runner")
 
@@ -168,7 +167,7 @@ class BackgroundMineRunnerTest(unittest.TestCase):
                 self.assertNotIn(mine, self.module.project_setup_plan(project, {"mempalace": "/tools/mempalace"}))
 
 
-class DoctorIndexFindingTest(unittest.TestCase):
+class DoctorIndexFindingTest(TestCase):
     def test_doctor_prints_index_finding_with_fix_next(self):
         installer = load(INSTALLER, "ce_installer_index_finding")
         document = {"components": {"mempalace": {"status": "healthy", "index": {
@@ -183,4 +182,4 @@ class DoctorIndexFindingTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()
