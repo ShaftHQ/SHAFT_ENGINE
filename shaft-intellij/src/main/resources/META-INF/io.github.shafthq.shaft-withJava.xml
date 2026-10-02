@@ -6,6 +6,16 @@
              bundled "JUnit" and "TestNG-J" plugins, not to com.intellij.java itself. -->
         <runLineMarkerContributor language="JAVA"
                    implementationClass="com.shaft.intellij.testrunner.ShaftTestLineMarkerContributor"/>
+        <!-- Editor intelligence (issues #6418, #6419, #6420). -->
+        <localInspection language="JAVA" shortName="ShaftThreadSleep" displayName="Thread.sleep in a SHAFT test"
+                         groupName="SHAFT" enabledByDefault="true" level="WARNING"
+                         implementationClass="com.shaft.intellij.inspections.ShaftThreadSleepInspection"/>
+        <localInspection language="JAVA" shortName="ShaftDeprecatedApi" displayName="Deprecated SHAFT API usage"
+                         groupName="SHAFT" enabledByDefault="true" level="WARNING"
+                         implementationClass="com.shaft.intellij.inspections.ShaftDeprecatedApiInspection"/>
+        <lang.documentationProvider language="JAVA"
+                                    implementationClass="com.shaft.intellij.inspections.ShaftApiDocumentationProvider"/>
+        <defaultLiveTemplates file="liveTemplates/SHAFT.xml"/>
     </extensions>
     <actions>
         <action id="Shaft.RecordJavaTarget"
