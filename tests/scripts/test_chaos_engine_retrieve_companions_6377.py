@@ -94,6 +94,31 @@ class StallWatchdogTest(unittest.TestCase):
                 capture_output=True, text=True,
             )
 
+    def test_ps_fallback_measures_cpu_without_proc(self):
+        with mock.patch.object(self.stores, "_descendant_cpu_ticks", return_value=None):
+            self.assertIsNotNone(self.stores.process_tree_cpu(os.getpid()))
+
+    def test_unmeasurable_cpu_still_stops_a_silent_hang(self):
+        with mock.patch.object(self.stores, "process_tree_cpu", return_value=None), \
+                mock.patch.object(self.stores, "OUTPUT_ONLY_STALL_FACTOR", 2):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                self.stores.run_until_stalled(
+                    [sys.executable, "-c", "import time; time.sleep(30)"], stall_seconds=1,
+                    capture_output=True, text=True,
+                )
+
+    def test_independent_bots_never_drift_from_the_grok_bot_path(self):
+        hosts = _load("hosts")
+        overlay = _load("worktree_overlay")
+        bot = hosts.INSTRUCTION_ONLY_HOSTS["independent-bot"]["instructions"]
+        self.assertEqual(hosts.INSTRUCTION_ONLY_HOSTS["grok-bot"]["instructions"], bot)
+        self.assertEqual((bot,), overlay.HOST_FILES["grok-bot"])
+        matrix = (SOURCE / "references/host-parity-matrix.md").read_text(encoding="utf-8")
+        self.assertIn("GAP-BOT-ENTRY", matrix)
+        self.assertIn("bot-entry.md", matrix)
+        parity = (ROOT / "scripts/ci/agent_harness_parity.json").read_text(encoding="utf-8")
+        self.assertIn(bot, parity)
+
     def test_stall_window_env_override(self):
         with mock.patch.dict(os.environ, {"CHAOS_ENGINE_STALL_SECONDS": "7"}):
             self.assertEqual(7, self.stores.stall_seconds())

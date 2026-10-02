@@ -817,6 +817,67 @@ def _descendant_cpu_ticks(pid: int) -> int | None:
     return total
 
 
+def _ps_cpu_ticks(pid: int) -> int | None:
+    """CPU seconds of a process tree via psutil or POSIX ``ps`` (macOS/BSD); None if neither works."""
+    try:
+        import psutil  # type: ignore[import-not-found]
+
+        root = psutil.Process(pid)
+        total = 0.0
+        for proc in (root, *root.children(recursive=True)):
+            try:
+                times = proc.cpu_times()
+                total += times.user + times.system
+            except psutil.Error:
+                continue
+        return int(total * 100)
+    except ImportError:
+        pass
+    except Exception:  # noqa: BLE001 - process gone or inaccessible: unknown, not progress
+        return None
+    ps = shutil.which("ps")
+    if not ps or os.name == "nt":
+        return None
+    try:
+        listing = subprocess.run(  # nosec B603 - fixed ps argv, no shell.
+            [ps, "-A", "-o", "pid=,ppid=,time="], capture_output=True, text=True, check=False
+        ).stdout
+    except OSError:
+        return None
+    parents: dict[int, list[int]] = {}
+    ticks: dict[int, int] = {}
+    for line in listing.splitlines():
+        fields = line.split()
+        if len(fields) != 3 or not fields[0].isdigit() or not fields[1].isdigit():
+            continue
+        clock = fields[2].replace("-", ":").split(":")
+        try:
+            seconds = 0.0
+            for part in clock:
+                seconds = seconds * 60 + float(part)
+        except ValueError:
+            continue
+        parents.setdefault(int(fields[1]), []).append(int(fields[0]))
+        ticks[int(fields[0])] = int(seconds * 100)
+    if pid not in ticks:
+        return None
+    total, pending = 0, [pid]
+    while pending:
+        current = pending.pop()
+        total += ticks.get(current, 0)
+        pending.extend(parents.get(current, ()))
+    return total
+
+
+def process_tree_cpu(pid: int) -> int | None:
+    """CPU ticks of a process tree: /proc, then psutil or ``ps``; None when unmeasurable."""
+    ticks = _descendant_cpu_ticks(pid)
+    return ticks if ticks is not None else _ps_cpu_ticks(pid)
+
+
+OUTPUT_ONLY_STALL_FACTOR = 5
+
+
 def run_until_stalled(
     args: list[str], *, stall_seconds: float | None = None, **kwargs: Any
 ) -> subprocess.CompletedProcess:
@@ -825,7 +886,8 @@ def run_until_stalled(
     The command runs as long as it progresses: new output or CPU time in its
     process tree. Only ``stall_seconds`` with neither raises
     ``subprocess.TimeoutExpired``. A ``timeout`` argument is ignored. Where CPU
-    time cannot be read, a live process counts as progressing.
+    time cannot be read (no /proc, psutil or ``ps``), only output counts and the
+    stall window is ``OUTPUT_ONLY_STALL_FACTOR`` times longer, so a hang still ends.
     """
     kwargs.pop("timeout", None)
     check = kwargs.pop("check", False)
@@ -839,11 +901,13 @@ def run_until_stalled(
         last_mark, last_progress = None, time.monotonic()
         while process.poll() is None:
             time.sleep(_POLL_SECONDS)
-            cpu = _descendant_cpu_ticks(process.pid)
+            cpu = process_tree_cpu(process.pid)
             mark = (os.fstat(out_file.fileno()).st_size, os.fstat(err_file.fileno()).st_size, cpu)
-            if cpu is None or mark != last_mark:
+            # Failsafe: when CPU is unmeasurable, only output counts and the window widens.
+            limit = window if cpu is not None else window * OUTPUT_ONLY_STALL_FACTOR
+            if mark != last_mark:
                 last_mark, last_progress = mark, time.monotonic()
-            elif time.monotonic() - last_progress >= window:
+            elif time.monotonic() - last_progress >= limit:
                 process.kill()
                 process.wait()
                 raise subprocess.TimeoutExpired(args, window)
