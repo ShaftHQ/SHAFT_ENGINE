@@ -13,6 +13,10 @@ public record ManagedLocalAiStatus(State state, String action) {
         CORRUPT
     }
 
+    /**
+     * Inspects the managed local AI cache and host details and reports whether the runtime is
+     * ready.
+     */
     public static ManagedLocalAiStatus inspect(Path cache, boolean enabled, String osName, String architecture,
                                                String abi, String abiVersion, String installationId) {
         String inventory = reviewedInventory(osName, architecture, abi, abiVersion);

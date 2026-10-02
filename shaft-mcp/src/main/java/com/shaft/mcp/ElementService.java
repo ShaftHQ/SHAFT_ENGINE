@@ -48,6 +48,9 @@ public class ElementService {
      */
     @Tool(name = "element_hover", description = "hovers over an element; dispatches to the active engine and "
             + "records the step when a Playwright recording is active")
+    /**
+     * Hovers over the located element.
+     */
     public ElementActionResult hover(locatorStrategy locatorStrategy, String locatorValue) {
         ActiveEngine engine = EngineService.activeEngine();
         if (engine == ActiveEngine.PLAYWRIGHT) {
@@ -73,6 +76,9 @@ public class ElementService {
     @Tool(name = "element_click", description = "clicks an element; optional mode selects single (default) | "
             + "double | long; dispatches to the active engine and records the step when a mobile or "
             + "Playwright recording is active")
+    /**
+     * Clicks the located element with the given click mode.
+     */
     public ElementActionResult click(
             locatorStrategy locatorStrategy,
             String locatorValue,
@@ -159,6 +165,9 @@ public class ElementService {
             + "appends instead of clearing first, optional clear (default true; false behaves like append=true) "
             + "controls whether the field is cleared before typing; dispatches to the active engine and records "
             + "the step when a mobile or Playwright recording is active")
+    /**
+     * Types text into the located element, optionally appending.
+     */
     public ElementActionResult type(
             locatorStrategy locatorStrategy,
             String locatorValue,
@@ -242,6 +251,9 @@ public class ElementService {
      */
     @Tool(name = "element_clear", description = "clears text from an element; dispatches to the active engine "
             + "and records the step when a mobile or Playwright recording is active")
+    /**
+     * Clears the located element.
+     */
     public ElementActionResult clear(locatorStrategy locatorStrategy, String locatorValue) {
         ActiveEngine engine = EngineService.activeEngine();
         return switch (engine) {
@@ -266,6 +278,9 @@ public class ElementService {
      */
     @Tool(name = "element_upload_file", description = "drops file to an element to upload; dispatches to "
             + "the active engine and records the step when a Playwright recording is active")
+    /**
+     * Drops a file onto the located upload element.
+     */
     public ElementActionResult dropFileToUpload(locatorStrategy locatorStrategy, String locatorValue, String filePath) {
         ActiveEngine engine = EngineService.activeEngine();
         if (engine == ActiveEngine.PLAYWRIGHT) {
@@ -296,6 +311,9 @@ public class ElementService {
     @Tool(name = "element_drag_and_drop", description = "drags and drops an element from source to a target "
             + "locator, or by offsetX/offsetY when no target locator is given; dispatches to the active engine "
             + "and records the step when a Playwright recording is active")
+    /**
+     * Drags the source element onto the target element or by an offset.
+     */
     public ElementActionResult dragAndDrop(
             locatorStrategy sourceLocatorStrategy,
             String sourceLocatorValue,
@@ -458,6 +476,9 @@ public class ElementService {
      */
     @Tool(name = "element_is_displayed", description = "checks if an element is displayed; dispatches to the "
             + "active engine")
+    /**
+     * Returns whether the located element is displayed.
+     */
     public ElementQueryResult isDisplayed(locatorStrategy locatorStrategy, String locatorValue) {
         ActiveEngine engine = EngineService.activeEngine();
         try {
@@ -483,6 +504,9 @@ public class ElementService {
      */
     @Tool(name = "element_is_enabled", description = "checks if an element is enabled; dispatches to the active "
             + "engine")
+    /**
+     * Returns whether the located element is enabled.
+     */
     public ElementQueryResult isEnabled(locatorStrategy locatorStrategy, String locatorValue) {
         ActiveEngine engine = EngineService.activeEngine();
         try {
@@ -510,6 +534,9 @@ public class ElementService {
      */
     @Tool(name = "element_is_selected", description = "checks if an element is selected; dispatches to the "
             + "active engine")
+    /**
+     * Returns whether the located element is selected.
+     */
     public ElementQueryResult isSelected(locatorStrategy locatorStrategy, String locatorValue) {
         ActiveEngine engine = EngineService.activeEngine();
         try {

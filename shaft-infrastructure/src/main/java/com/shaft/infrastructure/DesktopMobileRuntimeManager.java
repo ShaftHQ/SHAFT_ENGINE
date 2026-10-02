@@ -7,10 +7,21 @@ import java.time.Duration;
 public final class DesktopMobileRuntimeManager {
     private DesktopMobileRuntimeManager() { }
 
+    /**
+     * Stops the SHAFT-owned mobile runtime started for the plan, waiting up to the timeout.
+     *
+     * @return whether a running runtime was stopped
+     * @throws IOException when the runtime state cannot be read
+     */
     public static boolean stop(ShaftCachePaths paths, SetupPlan plan, Duration timeout) throws IOException {
         return service(paths, plan).stop(timeout);
     }
 
+    /**
+     * Returns the logs of the SHAFT-owned mobile runtime started for the plan.
+     *
+     * @throws IOException when the logs cannot be read
+     */
     public static String logs(ShaftCachePaths paths, SetupPlan plan) throws IOException {
         return service(paths, plan).logs();
     }

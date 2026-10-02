@@ -21,6 +21,9 @@ public record TraceSession(String id, AutomationBackend backend, Instant generat
                            Map<String, String> metadata) {
     public static final String SCHEMA_VERSION = "2.0";
 
+    /**
+     * Creates a trace session for one test attempt, validating its fields.
+     */
     public TraceSession(String id, AutomationBackend backend, Instant generatedAt, String testId, int attempt,
                         List<TraceEvent> events, List<TraceArtifactReference> artifacts,
                         Map<String, String> metadata) {

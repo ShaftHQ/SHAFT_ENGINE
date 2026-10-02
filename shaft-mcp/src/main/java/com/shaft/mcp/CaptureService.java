@@ -148,6 +148,9 @@ public class CaptureService {
                     + "mobile app, call driver_initialize(engine=mobile_native) or "
                     + "driver_initialize(engine=mobile_web) FIRST to make that engine active, then call "
                     + "capture_start (with no WEB-only args) so it dispatches to the mobile recorder instead")
+    /**
+     * Starts a recording session for web, mobile or API capture.
+     */
     public McpCaptureUnionStatus start(
             @ToolParam(required = false, description = "initial http, https, or file URL; blank opens an empty browser; WEB/NONE only")
             String targetUrl,
@@ -335,6 +338,9 @@ public class CaptureService {
      */
     @Tool(name = "capture_codegen_features",
             description = "returns Playwright codegen features and how SHAFT Capture/MCP maps each feature")
+    /**
+     * Lists the code generation features Capture supports.
+     */
     public List<CodegenFeatureCatalog.Feature> codegenFeatures() {
         return CodegenFeatureCatalog.features();
     }
@@ -352,6 +358,9 @@ public class CaptureService {
                     + "warnings, and output status (when no session is active the warnings list persisted "
                     + "recordings that can be turned into code without a live session); PLAYWRIGHT/mobile "
                     + "return that engine's own recorder status; the union's engine field names which is populated")
+    /**
+     * Returns the status of the active recording session.
+     */
     public McpCaptureUnionStatus status() {
         ActiveEngine engine = EngineService.activeEngine();
         return switch (engine) {
@@ -463,6 +472,9 @@ public class CaptureService {
                     + "outputPath and generate replay-proven code by passing it as sessionPath to "
                     + "capture_generate_replay (or capture_code_blocks for a faster, unproven draft); the "
                     + "union's engine field names which recorder was stopped")
+    /**
+     * Stops the active recording session, optionally discarding it.
+     */
     public McpCaptureUnionStatus stop(boolean discard) {
         ActiveEngine engine = EngineService.activeEngine();
         return switch (engine) {
@@ -487,6 +499,9 @@ public class CaptureService {
             description = "deletes a recorded step by its stable stepId from the active Playwright or mobile "
                     + "recording; returns an actionable error naming the active engine for a WEB CDP "
                     + "capture_start session, whose recording format has no step editor")
+    /**
+     * Deletes a recorded step.
+     */
     public McpMobileRecordingStatus stepDelete(String stepId) {
         ActiveEngine engine = EngineService.activeEngine();
         return switch (engine) {
@@ -509,6 +524,9 @@ public class CaptureService {
             description = "moves a recorded step up or down by its stable stepId (direction: up|down) within "
                     + "the active Playwright or mobile recording; returns an actionable error naming the "
                     + "active engine for a WEB CDP capture_start session, whose recording format has no step editor")
+    /**
+     * Moves a recorded step up or down.
+     */
     public McpMobileRecordingStatus stepReorder(String stepId, String direction) {
         ActiveEngine engine = EngineService.activeEngine();
         return switch (engine) {
@@ -548,6 +566,9 @@ public class CaptureService {
                     + "(the mobile proxy never requires a live Appium/WebDriver session), absorbing "
                     + "mobile_api_record_start (outputPath/mobilePlatform/mobileDeviceLabel are mobile-only and "
                     + "ignored on WEB)")
+    /**
+     * Starts capturing API traffic from a browser session.
+     */
     public McpCaptureApiUnionStatus apiStart(
             String targetUrl,
             String browser,
@@ -595,6 +616,9 @@ public class CaptureService {
             description = "returns SHAFT Capture session status including network transaction count and recent "
                     + "endpoints; dispatches to the mobile loopback MITM proxy when a mobile engine is active, or "
                     + "when a standalone mobile API session (started with no active engine) is already running")
+    /**
+     * Returns the status of the active API capture.
+     */
     public McpCaptureApiUnionStatus apiStatus() {
         if (mobileApiSessionActiveOrEngineIsMobile()) {
             return new McpCaptureApiUnionStatus(EngineService.activeEngine(), null, mobileService.mobileApiRecordStatus());
@@ -612,6 +636,9 @@ public class CaptureService {
             description = "stops SHAFT API Capture with the same single-session lock guarantee as capture_stop; "
                     + "dispatches to the mobile loopback MITM proxy when a mobile engine is active, or when a "
                     + "standalone mobile API session (started with no active engine) is already running")
+    /**
+     * Stops the active API capture, optionally discarding it.
+     */
     public McpCaptureApiUnionStatus apiStop(boolean discard) {
         if (mobileApiSessionActiveOrEngineIsMobile()) {
             return new McpCaptureApiUnionStatus(EngineService.activeEngine(), null, mobileService.mobileApiRecordStop(discard));
@@ -631,6 +658,9 @@ public class CaptureService {
                     + "filtering asset noise on WEB; dispatches to the mobile loopback MITM proxy's transactions "
                     + "when a mobile engine is active, or when a standalone mobile API session is already running "
                     + "(includeAssets/excludePattern are WEB-only there)")
+    /**
+     * Lists captured API transactions, optionally including static assets.
+     */
     public List<NetworkTransaction> apiTransactions(
             boolean includeAssets,
             String excludePattern) {
@@ -689,6 +719,9 @@ public class CaptureService {
      */
     @Tool(name = "capture_api_generate",
             description = "generates, compiles, and returns copy-paste SHAFT.API code blocks from recorded API transactions")
+    /**
+     * Generates API tests from a saved capture session.
+     */
     public McpCaptureReplayResult generateApi(
             String sessionPath,
             String outputDirectory,
@@ -752,6 +785,9 @@ public class CaptureService {
     @Tool(name = "capture_api_response_leaves",
             description = "returns classified response-body leaves (stable/volatile/sensitive) per transaction for a "
                     + "recorded session without generating any test source, for a pin-this-path picker; sensitive values are redacted")
+    /**
+     * Lists the response fields of captured transactions that generated tests can assert on.
+     */
     public List<ApiCaptureGenerator.TransactionLeaves> apiResponseLeaves(
             String sessionPath, List<String> excludedTransactionIds) {
         return new ApiCaptureGenerator().listResponseLeaves(
@@ -791,6 +827,9 @@ public class CaptureService {
     @Tool(name = "capture_checkpoint",
             description = "records a USER_MARKER, ASSERTION, PAGE_TRANSITION, RECOVERY, "
                     + "FLOW_START, or FLOW_END checkpoint")
+    /**
+     * Adds a checkpoint to the active recording.
+     */
     public CaptureStatus checkpoint(String description, String kind) {
         Checkpoint.CheckpointKind checkpointKind = kind == null || kind.isBlank()
                 ? Checkpoint.CheckpointKind.USER_MARKER
@@ -807,6 +846,9 @@ public class CaptureService {
      */
     @Tool(name = "capture_set_mode",
             description = "reads or toggles the active recorder's live authoring mode: record (default) or inspect")
+    /**
+     * Switches the active recording between modes, such as record and assert.
+     */
     public String setMode(String mode) {
         return mode == null || mode.isBlank() ? manager.mode() : manager.setMode(mode);
     }
@@ -830,6 +872,9 @@ public class CaptureService {
      */
     @Tool(name = "capture_pick_locator",
             description = "ranks caller-supplied locator candidates for a picked element and returns a copy-paste SHAFT.GUI.Locator snippet")
+    /**
+     * Lets the user pick one locator from the candidates for the current step.
+     */
     public McpPickLocatorResult pickLocator(List<McpLocatorCandidate> candidates) {
         List<com.shaft.capture.model.LocatorCandidate> parsed = parseCandidates(candidates);
         if (parsed.isEmpty()) {
@@ -999,6 +1044,9 @@ public class CaptureService {
                     + "required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to "
                     + "the active engine (absorbs playwright_capture_generate_replay/playwright_replay_recording/"
                     + "mobile_replay_recording)")
+    /**
+     * Generates replayable test code from a saved capture session.
+     */
     public McpCaptureReplayResult generateReplay(
             // @McpTool-annotated methods register through Spring AI's separate annotation-scanning MCP
             // path (McpJsonSchemaGenerator), which does not honor @ToolParam -- confirmed empirically:
@@ -1103,6 +1151,9 @@ public class CaptureService {
                     + "persisted recording JSON (sessionPath); works on any recording file, no active capture session "
                     + "required; optional backend (web|playwright|mobile) selects the codegen target, defaulting to "
                     + "the active engine (absorbs playwright_capture_code_blocks/mobile_recording_code_blocks)")
+    /**
+     * Returns generated code blocks for a capture session without writing files.
+     */
     public McpCaptureReplayResult codeBlocks(
             @ToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
                     + "blank uses the most recently modified recording under recordings/")
@@ -1170,6 +1221,9 @@ public class CaptureService {
             description = "generates focused Capture snippets for insertion at an existing Java source anchor; "
                     + "optional backend (web|playwright|mobile) selects the codegen target, defaulting to the "
                     + "active engine (absorbs playwright_record_at_target_code_blocks/mobile_record_at_target_code_blocks)")
+    /**
+     * Returns generated code blocks for inserting at a target position in existing code.
+     */
     public McpCaptureReplayResult recordAtTargetCodeBlocks(
             @ToolParam(required = false, description = "persisted Capture JSON path inside the MCP workspace; "
                     + "blank uses the most recently modified recording under recordings/")
@@ -1237,6 +1291,9 @@ public class CaptureService {
      */
     @Tool(name = "capture_target_candidates",
             description = "suggests existing Java Page Object or test targets for Capture record-at-target insertion")
+    /**
+     * Finds candidate Java test files and methods in the repository to insert generated code into.
+     */
     public List<McpJavaTargetScanner.Candidate> targetCandidates(String repositoryPath, int maxResults) {
         return new McpJavaTargetScanner().scan(
                 workspacePolicy.existing(repositoryPath, "Capture target candidate root"),
@@ -1256,6 +1313,9 @@ public class CaptureService {
      */
     @Tool(name = "capture_backend_comparison",
             description = "compares WebDriver and Playwright Capture code-block outputs without editing source")
+    /**
+     * Generates code for the same capture with each backend and compares the results.
+     */
     public CaptureBackendComparisonResult compareCodeBlocks(
             String sessionPath,
             String outputDirectory,
@@ -1312,6 +1372,9 @@ public class CaptureService {
      */
     @Tool(name = "capture_evidence_pack",
             description = "returns a local manifest of Capture source, report, review UI, screenshots, and checks")
+    /**
+     * Builds an evidence pack from a test source, report, review notes and screenshots.
+     */
     public McpEvidencePack evidencePack(
             String sourcePath,
             String reportPath,

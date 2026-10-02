@@ -91,6 +91,9 @@ public class PlannerService {
             description = "crawls the active SHAFT browser session breadth-first from a URL, discovering forms, "
                     + "primary navigation actions, and same-origin links, and writes one deterministic Markdown "
                     + "test plan per discovered flow into specs/ (no AI calls)")
+    /**
+     * Explores the site from the URL and drafts a test plan for the goal.
+     */
     public McpTestPlanExploreResult exploreAndPlan(String targetUrl, String goal, int maxDepth, int maxPages) {
         try {
             getDriver();

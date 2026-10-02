@@ -40,6 +40,9 @@ public final class SshConnectionOptions {
         legacyFacade = builder.legacyFacade;
     }
 
+    /**
+     * Starts building SSH connection options.
+     */
     public static Builder builder() {
         return new Builder();
     }
@@ -63,6 +66,10 @@ public final class SshConnectionOptions {
         return builder.build();
     }
 
+    /**
+     * Validates the options and throws when the host, user or authentication settings are
+     * inconsistent.
+     */
     public void validate() {
         validateHost();
         validateUsername();
@@ -108,6 +115,9 @@ public final class SshConnectionOptions {
         }
     }
 
+    /**
+     * Describes the connection without secrets, safe for logs and reports.
+     */
     public String toRedactedDescription() {
         StringBuilder description = new StringBuilder();
         description.append(host).append(", ").append(port).append(", ").append(username);
@@ -130,46 +140,79 @@ public final class SshConnectionOptions {
         return description.toString();
     }
 
+    /**
+     * Returns the SSH host name or address.
+     */
     public String getHost() {
         return host;
     }
 
+    /**
+     * Returns the SSH port.
+     */
     public int getPort() {
         return port;
     }
 
+    /**
+     * Returns the SSH user name.
+     */
     public String getUsername() {
         return username;
     }
 
+    /**
+     * Returns the private key file used for authentication, or {@code null}.
+     */
     public Path getPrivateKey() {
         return privateKey;
     }
 
+    /**
+     * Returns the passphrase of the private key, or {@code null}.
+     */
     public String getPrivateKeyPassphrase() {
         return privateKeyPassphrase;
     }
 
+    /**
+     * Returns the password used for authentication, or {@code null}.
+     */
     public String getPassword() {
         return password;
     }
 
+    /**
+     * Returns the known-hosts file used to verify the server key, or {@code null}.
+     */
     public Path getKnownHosts() {
         return knownHosts;
     }
 
+    /**
+     * Returns whether the server host key must match a known-hosts entry.
+     */
     public boolean isStrictHostKeyChecking() {
         return strictHostKeyChecking;
     }
 
+    /**
+     * Returns the keyboard-interactive responder, or {@code null}.
+     */
     public KeyboardInteractive getKeyboardInteractive() {
         return keyboardInteractive;
     }
 
+    /**
+     * Returns extra JSch configuration entries applied to the session.
+     */
     public Map<String, String> getExtraJschConfig() {
         return extraJschConfig;
     }
 
+    /**
+     * Returns whether verbose SSH logging is enabled.
+     */
     public boolean isVerbose() {
         return verbose;
     }
@@ -204,66 +247,105 @@ public final class SshConnectionOptions {
         private boolean verbose;
         private boolean legacyFacade;
 
+        /**
+         * Marks the options as created by the legacy terminal facade.
+         */
         public Builder legacyFacade(boolean value) {
             legacyFacade = value;
             return this;
         }
 
+        /**
+         * Sets the SSH host name or address.
+         */
         public Builder host(String value) {
             host = value;
             return this;
         }
 
+        /**
+         * Sets the SSH port.
+         */
         public Builder port(int value) {
             port = value;
             return this;
         }
 
+        /**
+         * Sets the SSH user name.
+         */
         public Builder username(String value) {
             username = value;
             return this;
         }
 
+        /**
+         * Sets the private key file used for authentication.
+         */
         public Builder privateKey(Path value) {
             privateKey = value;
             return this;
         }
 
+        /**
+         * Sets the passphrase of the private key.
+         */
         public Builder privateKeyPassphrase(String value) {
             privateKeyPassphrase = value;
             return this;
         }
 
+        /**
+         * Sets the password used for authentication.
+         */
         public Builder password(String value) {
             password = value;
             return this;
         }
 
+        /**
+         * Sets the known-hosts file used to verify the server key.
+         */
         public Builder knownHosts(Path value) {
             knownHosts = value;
             return this;
         }
 
+        /**
+         * Sets whether the server host key must match a known-hosts entry.
+         */
         public Builder strictHostKeyChecking(boolean value) {
             strictHostKeyChecking = value;
             return this;
         }
 
+        /**
+         * Sets the keyboard-interactive responder.
+         */
         public Builder keyboardInteractive(KeyboardInteractive value) {
             keyboardInteractive = value;
             return this;
         }
 
+        /**
+         * Adds an extra JSch configuration entry.
+         */
         public Builder extraJschConfig(String key, String value) {
             extraJschConfig.put(Objects.requireNonNull(key), Objects.requireNonNull(value));
             return this;
         }
 
+        /**
+         * Enables or disables verbose SSH logging.
+         */
         public Builder verbose(boolean value) {
             verbose = value;
             return this;
         }
 
+        /**
+         * Builds and validates the connection options.
+         */
         public SshConnectionOptions build() {
             SshConnectionOptions options = new SshConnectionOptions(this);
             options.validate();

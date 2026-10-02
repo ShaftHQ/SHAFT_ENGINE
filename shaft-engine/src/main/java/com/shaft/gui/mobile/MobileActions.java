@@ -27,6 +27,9 @@ public final class MobileActions implements MobileActionsContract {
     private final SHAFT.GUI.WebDriver owner;
     private final AppiumDriver driver;
 
+    /**
+     * Creates mobile actions bound to the given SHAFT WebDriver.
+     */
     public MobileActions(SHAFT.GUI.WebDriver owner) {
         this.driver = liveAppiumDriver(owner);
         this.owner = owner;

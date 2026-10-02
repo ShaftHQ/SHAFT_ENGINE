@@ -37,6 +37,9 @@ public final class ImageTarget {
         this.matchingMode = matchingMode;
     }
 
+    /**
+     * Creates a target from the image file at the given path.
+     */
     public static ImageTarget fromPath(Path imagePath) {
         Objects.requireNonNull(imagePath, "Image path cannot be null.");
         Path normalizedPath = imagePath.toAbsolutePath().normalize();
@@ -50,11 +53,17 @@ public final class ImageTarget {
         }
     }
 
+    /**
+     * Creates a target from the image file at the given path string.
+     */
     public static ImageTarget fromPath(String imagePath) {
         Objects.requireNonNull(imagePath, "Image path cannot be null.");
         return fromPath(Path.of(imagePath));
     }
 
+    /**
+     * Creates a target from image bytes.
+     */
     public static ImageTarget fromBytes(byte[] imageBytes) {
         if (imageBytes == null || imageBytes.length == 0) {
             throw new IllegalArgumentException("Image target bytes cannot be null or empty.");
@@ -67,6 +76,9 @@ public final class ImageTarget {
                 ImageMatchingMode.AUTO);
     }
 
+    /**
+     * Returns a copy that only accepts matches at or above the given confidence (0.0 to 1.0).
+     */
     public ImageTarget minimumConfidence(double confidence) {
         if (!Double.isFinite(confidence) || confidence < 0 || confidence > 1) {
             throw new IllegalArgumentException("Minimum confidence must be a finite value from 0 through 1.");
@@ -74,6 +86,9 @@ public final class ImageTarget {
         return new ImageTarget(imageBytes, sourcePath, confidence, occurrence, searchRegion, matchingMode);
     }
 
+    /**
+     * Returns a copy that picks the match at the given zero-based occurrence.
+     */
     public ImageTarget occurrence(int zeroBasedOccurrence) {
         if (zeroBasedOccurrence < 0) {
             throw new IllegalArgumentException("Image occurrence cannot be negative.");
@@ -82,36 +97,60 @@ public final class ImageTarget {
                 matchingMode);
     }
 
+    /**
+     * Returns a copy that only searches inside the given screen region.
+     */
     public ImageTarget within(ImageRectangle region) {
         return new ImageTarget(imageBytes, sourcePath, minimumConfidence, occurrence,
                 Objects.requireNonNull(region, "Image search region cannot be null."), matchingMode);
     }
 
+    /**
+     * Returns a copy that uses the given matching mode.
+     */
     public ImageTarget matchingMode(ImageMatchingMode mode) {
         return new ImageTarget(imageBytes, sourcePath, minimumConfidence, occurrence, searchRegion,
                 Objects.requireNonNull(mode, "Image matching mode cannot be null."));
     }
 
+    /**
+     * Returns the image bytes to search for.
+     */
     public byte[] imageBytes() {
         return imageBytes.clone();
     }
 
+    /**
+     * Returns the source file path, when the target was created from a file.
+     */
     public Optional<Path> sourcePath() {
         return Optional.ofNullable(sourcePath);
     }
 
+    /**
+     * Returns the minimum confidence, when one was set.
+     */
     public OptionalDouble minimumConfidence() {
         return minimumConfidence == null ? OptionalDouble.empty() : OptionalDouble.of(minimumConfidence);
     }
 
+    /**
+     * Returns the zero-based occurrence, when one was set.
+     */
     public OptionalInt occurrence() {
         return occurrence == null ? OptionalInt.empty() : OptionalInt.of(occurrence);
     }
 
+    /**
+     * Returns the search region, when one was set.
+     */
     public Optional<ImageRectangle> searchRegion() {
         return Optional.ofNullable(searchRegion);
     }
 
+    /**
+     * Returns the matching mode.
+     */
     public ImageMatchingMode matchingMode() {
         return matchingMode;
     }

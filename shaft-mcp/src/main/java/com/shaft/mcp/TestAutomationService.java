@@ -83,6 +83,9 @@ public class TestAutomationService {
     @Tool(name = "test_automation_scenarios",
             description = "returns SHAFT MCP usage scenarios, agent actions, design patterns, guardrails,"
                     + " and completion criteria for API, GUI, mobile, capture, Doctor, Heal, reporting, and CI work")
+    /**
+     * Finds test automation scenarios for the area and intent.
+     */
     public McpScenarioCatalogResult testAutomationScenarios(String area, String intent, int maxResults) {
         String effectiveArea = normalizeArea(area);
         String effectiveIntent = text(intent);
@@ -119,6 +122,9 @@ public class TestAutomationService {
     @Tool(name = "test_code_guardrails_check",
             description = "checks generated SHAFT test code for lexical anti-patterns such as sleeps, brittle locators,"
                     + " raw driver calls, headed setup, direct system properties, and obvious secrets")
+    /**
+     * Checks generated test code against SHAFT's guardrails.
+     */
     public McpCodeGuardrailResult checkGeneratedCode(String language, String code) {
         String source = code == null ? "" : code;
         GuardrailCheckResult result = GeneratedCodeGuardrails.check(source);

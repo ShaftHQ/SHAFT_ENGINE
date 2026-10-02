@@ -54,6 +54,9 @@ public class MobileService {
     private final McpWorkspacePolicy workspacePolicy;
     private final MobileApiCaptureController apiCaptureController;
 
+    /**
+     * Creates the mobile tool service on top of the engine service.
+     */
     @Autowired
     public MobileService(EngineService engineService) {
         this(engineService, McpWorkspacePolicy.current());
@@ -359,6 +362,9 @@ public class MobileService {
      */
     @Tool(name = "mobile_toolchain_status",
             description = "checks local Appium, Inspector, adb, emulator, and SDK tooling status with repair diagnostics")
+    /**
+     * Reports which mobile tools (Appium, drivers, SDKs) are installed for the platform.
+     */
     public McpMobileToolchainStatus toolchainStatus(String platformName) {
         return inspectorRecorder.toolchainStatus(platformName);
     }
@@ -442,6 +448,9 @@ public class MobileService {
     @Tool(name = "mobile_inspector_record_start",
             description = "prepares and starts a wrapped Appium Inspector recording session in one call, "
                     + "absorbing mobile_inspector_record_prepare")
+    /**
+     * Starts recording mobile Inspector actions into a session file.
+     */
     public McpMobileInspectorRecordingStatus inspectorRecordStart(
             String platformName,
             String outputPath,
@@ -483,6 +492,9 @@ public class MobileService {
             description = "returns the wrapped Appium Inspector recording status; optional action "
                     + "(pause|resume|checkpoint|stop|discard) performs that control first, absorbing "
                     + "mobile_inspector_record_control")
+    /**
+     * Returns the Inspector recording status, or applies a recording action such as a checkpoint.
+     */
     public McpMobileInspectorRecordingStatus inspectorRecordStatus(
             @ToolParam(required = false) String action,
             @ToolParam(required = false) String checkpointName) {
@@ -500,6 +512,9 @@ public class MobileService {
      */
     @Tool(name = "mobile_inspector_record_stop",
             description = "stops a wrapped Appium Inspector recording and returns generated replay code")
+    /**
+     * Stops the Inspector recording, optionally discarding it.
+     */
     public McpMobileInspectorRecordingStatus inspectorRecordStop(boolean discard) {
         return inspectorRecorder.stop(discard);
     }
@@ -563,6 +578,9 @@ public class MobileService {
      */
     @Tool(name = "mobile_get_contexts",
             description = "gets Appium contexts plus current native XML or web DOM source")
+    /**
+     * Lists the available mobile contexts with a trimmed page source.
+     */
     public McpMobileContextSnapshot getContexts(int maxCharacters) {
         WebDriver seleniumDriver = getDriver().getDriver();
         List<String> contexts = new ArrayList<>();
@@ -593,6 +611,9 @@ public class MobileService {
      */
     @Tool(name = "mobile_get_accessibility_tree",
             description = "gets the current Appium native accessibility XML tree or mobile web source")
+    /**
+     * Returns the accessibility tree of the current screen.
+     */
     public McpMobileAccessibilityTree getAccessibilityTree(int maxCharacters) {
         WebDriver seleniumDriver = getDriver().getDriver();
         String currentContext = "";
@@ -647,6 +668,9 @@ public class MobileService {
      */
     @Tool(name = "mobile_switch_context",
             description = "switches Appium context, for example NATIVE_APP or WEBVIEW_*")
+    /**
+     * Switches to the named mobile context.
+     */
     public McpMobileContextSnapshot switchContext(String contextName) {
         WebDriver seleniumDriver = getDriver().getDriver();
         if (!(seleniumDriver instanceof SupportsContextSwitching contextDriver)) {
@@ -805,6 +829,9 @@ public class MobileService {
             + "locator alone (swipe element into view, optional direction) | startX/startY/endX/endY "
             + "(coordinate escape hatch); absorbs mobile_swipe_by_offset/mobile_swipe_coordinates/"
             + "mobile_swipe_element_into_view/mobile_swipe_text_into_view")
+    /**
+     * Swipes on an element, between points or in a direction.
+     */
     public McpMobileActionResult swipe(
             @ToolParam(required = false) locatorStrategy locatorStrategy,
             @ToolParam(required = false) String locatorValue,
@@ -903,6 +930,9 @@ public class MobileService {
      */
     @Tool(name = "mobile_tap_coordinates",
             description = "fallback-only: taps viewport coordinates only after locator-based element_click cannot be used")
+    /**
+     * Taps the given screen point.
+     */
     public McpMobileActionResult tapCoordinates(int x, int y) {
         performTapCoordinates(x, y);
         String code = tapCoordinatesCode(x, y);
@@ -951,6 +981,9 @@ public class MobileService {
      */
     @Tool(name = "mobile_keyboard_key",
             description = "sends a native keyboard action such as DONE, SEARCH, GO, NEXT, or SEND")
+    /**
+     * Presses the given keyboard key on the device.
+     */
     public McpMobileActionResult keyboardKey(String key) {
         TouchActions.KeyboardKeys keyboardKey = enumValue(TouchActions.KeyboardKeys.class, key,
                 TouchActions.KeyboardKeys.DONE);

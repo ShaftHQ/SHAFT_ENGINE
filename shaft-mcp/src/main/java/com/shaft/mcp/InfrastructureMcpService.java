@@ -30,6 +30,9 @@ import java.util.Objects;
 public final class InfrastructureMcpService {
     private final InfrastructureSetupService coordinator;
 
+    /**
+     * Creates the setup tool service with the built-in providers.
+     */
     public InfrastructureMcpService() {
         this(InfrastructureSetupService.builtIn());
     }
@@ -40,12 +43,18 @@ public final class InfrastructureMcpService {
 
     @Tool(name = "setup_catalog",
             description = "returns the deterministic SHAFT setup profiles, targets, and capabilities")
+    /**
+     * Returns the catalog of setup providers.
+     */
     public SetupCatalog setupCatalog() {
         return coordinator.catalog();
     }
 
     @Tool(name = "setup_doctor",
             description = "diagnoses a setup profile without installing, downloading, or starting services")
+    /**
+     * Checks the requested setup and reports problems without changing anything.
+     */
     public SetupReport setupDoctor(@ToolParam(description = "setup profile, paths, policy, and components")
                                    McpSetupRequest request) {
         McpSetupRequest value = requireRequest(request);
@@ -54,6 +63,9 @@ public final class InfrastructureMcpService {
 
     @Tool(name = "setup_status",
             description = "returns actual read-only readiness for a registered setup profile")
+    /**
+     * Reports the current state of the requested setup.
+     */
     public SetupReport setupStatus(@ToolParam(description = "setup profile, paths, policy, and components")
                                    McpSetupRequest request) {
         McpSetupRequest value = requireRequest(request);
@@ -62,6 +74,9 @@ public final class InfrastructureMcpService {
 
     @Tool(name = "setup_verify",
             description = "verifies exact setup readiness without mutating the host")
+    /**
+     * Verifies that the requested setup is installed and healthy.
+     */
     public SetupReport setupVerify(@ToolParam(description = "setup profile, paths, policy, and components")
                                    McpSetupRequest request) {
         McpSetupRequest value = requireRequest(request);
@@ -70,6 +85,9 @@ public final class InfrastructureMcpService {
 
     @Tool(name = "setup_plan",
             description = "creates an exact reviewable setup plan and approval digest without mutating the host")
+    /**
+     * Plans the requested setup and returns the plan with the digest to approve.
+     */
     public McpSetupPlanResult setupPlan(
             @ToolParam(description = "setup profile, ownership mode, paths, policy, and components")
             McpSetupRequest request) {
@@ -83,6 +101,11 @@ public final class InfrastructureMcpService {
 
     @Tool(name = "setup_install",
             description = "installs one reviewed setup plan after exact digest and license approval")
+    /**
+     * Installs an approved plan after checking its digest and accepted licenses.
+     *
+     * @throws IOException when an artifact cannot be fetched or written
+     */
     public SetupReceipt setupInstall(
             @ToolParam(description = "exact plan JSON returned by setup_plan") String planJson,
             @ToolParam(description = "exact plan digest explicitly approved by the caller") String approvedDigest,
@@ -105,6 +128,11 @@ public final class InfrastructureMcpService {
     @Tool(name = "setup_start",
             description = "starts one managed service from an exact reviewed setup plan; profile-only calls remain "
                     + "supported as legacy capability queries")
+    /**
+     * Starts the services of a setup profile (legacy capability query form).
+     *
+     * @throws IOException when the services cannot be started
+     */
     public McpSetupLifecycleResult setupStart(
             @ToolParam(required = false, description = "legacy setup profile capability query") String profile,
             @ToolParam(required = false, description = "exact plan JSON returned by setup_plan") String planJson,
@@ -119,6 +147,11 @@ public final class InfrastructureMcpService {
         return setupStart(planJson, approvedDigest, acceptedLicenses, request);
     }
 
+    /**
+     * Installs an approved plan if needed and starts its services.
+     *
+     * @throws IOException when the services cannot be started
+     */
     public McpSetupLifecycleResult setupStart(
             String planJson, String approvedDigest, List<String> acceptedLicenses, McpSetupRequest request)
             throws IOException {
@@ -140,6 +173,11 @@ public final class InfrastructureMcpService {
     @Tool(name = "setup_stop",
             description = "stops one SHAFT-owned service using an exact reviewed setup plan; profile-only calls "
                     + "remain supported as legacy capability queries")
+    /**
+     * Stops the services of a setup profile (legacy capability query form).
+     *
+     * @throws IOException when the services cannot be stopped
+     */
     public McpSetupLifecycleResult setupStop(
             @ToolParam(required = false, description = "legacy setup profile capability query") String profile,
             @ToolParam(required = false, description = "exact plan JSON returned by setup_plan") String planJson,
@@ -154,6 +192,11 @@ public final class InfrastructureMcpService {
         return setupStop(planJson, approvedDigest, acceptedLicenses, request);
     }
 
+    /**
+     * Stops the services started for an approved plan.
+     *
+     * @throws IOException when the services cannot be stopped
+     */
     public McpSetupLifecycleResult setupStop(
             String planJson, String approvedDigest, List<String> acceptedLicenses, McpSetupRequest request)
             throws IOException {
@@ -174,6 +217,11 @@ public final class InfrastructureMcpService {
     @Tool(name = "setup_logs",
             description = "reads bounded logs for a SHAFT-owned setup service without mutating the host; "
                     + "profile-only calls remain supported as legacy capability queries")
+    /**
+     * Returns the service logs of a setup profile (legacy capability query form).
+     *
+     * @throws IOException when the logs cannot be read
+     */
     public McpSetupLifecycleResult setupLogs(
             @ToolParam(required = false, description = "legacy setup profile capability query") String profile,
             @ToolParam(required = false, description = "setup profile, owned paths, policy, and components")
@@ -183,6 +231,11 @@ public final class InfrastructureMcpService {
         return setupLogs(request);
     }
 
+    /**
+     * Returns the service logs of the requested setup.
+     *
+     * @throws IOException when the logs cannot be read
+     */
     public McpSetupLifecycleResult setupLogs(
             McpSetupRequest request) throws IOException {
         McpSetupRequest value = requireRequest(request);

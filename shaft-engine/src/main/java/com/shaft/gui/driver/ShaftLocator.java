@@ -47,14 +47,23 @@ public final class ShaftLocator {
         this.secondaryValue = Objects.requireNonNullElse(secondaryValue, "");
     }
 
+    /**
+     * Creates a locator from a CSS selector.
+     */
     public static ShaftLocator css(String selector) {
         return new ShaftLocator(Strategy.CSS, selector);
     }
 
+    /**
+     * Creates a locator from an XPath expression.
+     */
     public static ShaftLocator xpath(String xpath) {
         return new ShaftLocator(Strategy.XPATH, xpath);
     }
 
+    /**
+     * Creates a locator that matches an element by its visible text.
+     */
     public static ShaftLocator text(String text) {
         return new ShaftLocator(Strategy.TEXT, text);
     }
@@ -107,6 +116,9 @@ public final class ShaftLocator {
         };
     }
 
+    /**
+     * Creates a locator from a Selenium {@link By}.
+     */
     public static ShaftLocator from(By locator) {
         String locatorText = locator.toString();
         if (locatorText.startsWith("By.cssSelector: ")) {
@@ -136,10 +148,16 @@ public final class ShaftLocator {
         throw new IllegalArgumentException("Unsupported locator conversion for Playwright: " + locatorText);
     }
 
+    /**
+     * Returns the strategy of this locator, such as CSS, XPath or text.
+     */
     public Strategy strategy() {
         return strategy;
     }
 
+    /**
+     * Returns the selector value of this locator.
+     */
     public String value() {
         return value;
     }
@@ -153,6 +171,9 @@ public final class ShaftLocator {
         return secondaryValue;
     }
 
+    /**
+     * Converts this locator to a Selenium {@link By}.
+     */
     public By toBy() {
         return switch (strategy) {
             case CSS -> By.cssSelector(value);
@@ -165,6 +186,9 @@ public final class ShaftLocator {
         };
     }
 
+    /**
+     * Converts this locator to a Playwright locator on the given page.
+     */
     public Locator toPlaywrightLocator(Page page) {
         Objects.requireNonNull(page, "page");
         return switch (strategy) {

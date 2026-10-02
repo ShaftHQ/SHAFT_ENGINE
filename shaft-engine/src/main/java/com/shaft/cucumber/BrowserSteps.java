@@ -29,6 +29,9 @@ public class BrowserSteps {
      */
     @Given("I Open the target browser")
 //    @بفرض("انى قمت بفتح المتصفح المطلوب")
+    /**
+     * Opens a browser session using the configured target browser.
+     */
     public void getBrowser() {
         driver.set(new SHAFT.GUI.WebDriver());
     }
@@ -40,6 +43,9 @@ public class BrowserSteps {
      */
     @When("I Navigate to {string}")
 //    @عندما("اقوم بزيارة هذا الموقع {string}")
+    /**
+     * Navigates the current browser to the target URL.
+     */
     public void navigateToURL(String targetUrl) {
         driver.get().browser().navigateToURL(targetUrl);
     }
@@ -113,6 +119,9 @@ public class BrowserSteps {
      */
     @When("I Close the current window")
 //    @عندما("اقوم بغلق نافذة المتصفح الحالية")
+    /**
+     * Closes the current browser window.
+     */
     public void closeCurrentWindow() {
         driver.get().quit();
     }

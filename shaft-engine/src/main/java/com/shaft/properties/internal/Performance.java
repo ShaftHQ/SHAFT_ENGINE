@@ -25,17 +25,37 @@ public interface Performance extends EngineProperties<Performance> {
         EngineProperties.logPropertyUpdate(key, value);
     }
 
+    /**
+     * Enable WebDriver Lighthouse performance testing execution.
+     *
+     * <p>Default: {@code false}. Possible values: true, false.
+     *
+     * @return the configured value of {@code lightHouseExecution}
+     */
     @Key("lightHouseExecution")
     @DefaultValue("false")
     boolean isEnabled();
 
+    /**
+     * Port to use for Lighthouse performance testing.
+     *
+     * <p>Default: {@code 8888}. Possible values: port number.
+     *
+     * @return the configured value of {@code lightHouseExecution.port}
+     */
     @Key("lightHouseExecution.port")
     @DefaultValue("8888")
     int port();
 
+    /**
+     * Generate API and browser performance report files when timing data exists.
+     *
+     * <p>Default: {@code true}. Possible values: true, false.
+     *
+     * @return the configured value of {@code generatePerformanceReport}
+     */
     @Key("generatePerformanceReport")
     @DefaultValue("true")
-        // Default is enabled
     boolean isEnablePerformanceReport();
 
     /**
@@ -92,22 +112,48 @@ public interface Performance extends EngineProperties<Performance> {
     @DefaultValue("false")
     boolean failOnBrowserPerformanceBudgetViolation();
 
+    /**
+     * Starts a fluent, thread-local override of these properties for the current test thread.
+     *
+     * @return a new {@link SetProperty} builder
+     */
     default SetProperty set() {
         return new SetProperty();
     }
 
     @SuppressWarnings("unused")
     class SetProperty implements EngineProperties.SetProperty {
+        /**
+         * Overrides the {@code lightHouseExecution} property at runtime. Enable WebDriver Lighthouse
+         * performance testing execution.
+         *
+         * @param value the new value of {@code lightHouseExecution}
+         * @return this {@link SetProperty} instance for chaining
+         */
         public SetProperty isEnabled(boolean value) {
             setProperty("lightHouseExecution", String.valueOf(value));
             return this;
         }
 
+        /**
+         * Overrides the {@code lightHouseExecution.port} property at runtime. Port to use for Lighthouse
+         * performance testing.
+         *
+         * @param value the new value of {@code lightHouseExecution.port}
+         * @return this {@link SetProperty} instance for chaining
+         */
         public SetProperty port(int value) {
             setProperty("lightHouseExecution.port", String.valueOf(value));
             return this;
         }
 
+        /**
+         * Overrides the {@code generatePerformanceReport} property at runtime. Generate API and browser
+         * performance report files when timing data exists.
+         *
+         * @param value the new value of {@code generatePerformanceReport}
+         * @return this {@link SetProperty} instance for chaining
+         */
         public SetProperty generatePerformanceReport(boolean value) {
             setProperty("generatePerformanceReport", String.valueOf(value));
             return this;

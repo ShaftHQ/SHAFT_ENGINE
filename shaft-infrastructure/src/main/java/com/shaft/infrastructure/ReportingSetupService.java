@@ -36,10 +36,16 @@ public final class ReportingSetupService {
     private final CommandRunner commandRunner;
     private boolean offline;
 
+    /**
+     * Creates the reporting setup service with network access allowed.
+     */
     public ReportingSetupService(ShaftCachePaths paths, SetupPlatform platform, SetupArchitecture architecture) {
         this(paths, platform, architecture, false);
     }
 
+    /**
+     * Creates the reporting setup service, optionally restricted to verified cached artifacts.
+     */
     public ReportingSetupService(ShaftCachePaths paths, SetupPlatform platform, SetupArchitecture architecture,
                                  boolean offline) {
         this(paths, platform, architecture,
@@ -64,6 +70,9 @@ public final class ReportingSetupService {
         this.offline = offline;
     }
 
+    /**
+     * Reports whether the reporting toolchain is installed.
+     */
     public SetupProfileStatus status() {
         SetupStatus node = nodeStatus();
         SetupStatus allure = probe(SetupTarget.ALLURE, allureEntryPoint(), ReportingSetupPlanner.ALLURE_VERSION);
@@ -109,6 +118,11 @@ public final class ReportingSetupService {
         }
     }
 
+    /**
+     * Installs the reporting toolchain from an approved plan.
+     *
+     * @throws IOException when an artifact cannot be fetched or written
+     */
     public SetupReceipt install(SetupPlan plan, SetupApproval approval) throws IOException {
         requireCompatible(plan);
         SetupExecutor.validate(plan, approval);
@@ -128,6 +142,9 @@ public final class ReportingSetupService {
         }
     }
 
+    /**
+     * Returns the log file written by reporting setup.
+     */
     public Path logFile() {
         return paths.state().resolve("logs/reporting-install.log");
     }

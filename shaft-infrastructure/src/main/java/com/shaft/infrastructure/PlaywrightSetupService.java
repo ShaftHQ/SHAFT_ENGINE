@@ -71,6 +71,9 @@ public final class PlaywrightSetupService {
         }
     }
 
+    /**
+     * Reports whether the Playwright browsers are installed.
+     */
     public SetupProfileStatus status() {
         SetupReadiness receiptReadiness = receiptReadiness();
         SetupReadiness node = nodeOwner.readiness();
@@ -97,6 +100,11 @@ public final class PlaywrightSetupService {
         return new SetupProfileStatus(1, SetupProfile.PLAYWRIGHT, aggregate, targets);
     }
 
+    /**
+     * Installs the Playwright browsers from an approved plan.
+     *
+     * @throws IOException when the browsers cannot be installed
+     */
     public SetupReceipt install(SetupPlan plan, SetupApproval approval) throws IOException {
         requireCompatible(plan);
         SetupExecutor.validate(plan, approval);
@@ -122,6 +130,9 @@ public final class PlaywrightSetupService {
         }
     }
 
+    /**
+     * Returns the folder that holds the Playwright browsers.
+     */
     public Path browserRoot() {
         return browserRoot(paths, hostPlatform);
     }

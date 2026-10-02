@@ -14,5 +14,8 @@ public interface MobileEvidenceActionsContract {
         throw new UnsupportedOperationException("Mobile evidence capture is not supported by this implementation.");
     }
 
+    /**
+     * Returns the mobile actions to chain the next action.
+     */
     MobileActionsContract and();
 }

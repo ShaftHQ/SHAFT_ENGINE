@@ -24,10 +24,16 @@ public record ImageRectangle(int x, int y, int width, int height) {
         }
     }
 
+    /**
+     * Returns the horizontal center of the rectangle in pixels.
+     */
     public int centerX() {
         return Math.addExact(x, width / 2);
     }
 
+    /**
+     * Returns the vertical center of the rectangle in pixels.
+     */
     public int centerY() {
         return Math.addExact(y, height / 2);
     }

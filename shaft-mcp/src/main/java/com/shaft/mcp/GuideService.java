@@ -80,6 +80,9 @@ public class GuideService {
     @Tool(name = "shaft_guide_search",
             description = "searches the live official SHAFT user guide before writing SHAFT tests, page objects,"
                     + " locators, API, GUI, CLI, mobile, troubleshooting, or best-practice code")
+    /**
+     * Searches the SHAFT user guide and returns the best matching sections.
+     */
     public McpGuideSearchResult search(String query, int maxResults) {
         String effectiveQuery = normalizeQuery(query);
         int limit = clamp(maxResults);

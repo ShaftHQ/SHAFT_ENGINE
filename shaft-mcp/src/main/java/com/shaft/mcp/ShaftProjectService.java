@@ -113,6 +113,9 @@ public class ShaftProjectService {
      */
     @Tool(name = "shaft_project_create",
             description = "creates a new SHAFT Maven project from the same examples and rules used by the guide generator")
+    /**
+     * Generates a new SHAFT project from the template.
+     */
     @SuppressWarnings("PMD.ExcessiveParameterList")
     public McpShaftProjectGenerationResult createProject(
             String outputDirectory,
@@ -223,6 +226,9 @@ public class ShaftProjectService {
      */
     @Tool(name = "shaft_project_upgrade",
             description = "runs the existing SHAFT modular project upgrader script against the current Java project")
+    /**
+     * Upgrades an existing SHAFT project, with a dry run and approval step.
+     */
     public McpShaftProjectUpgradeResult upgradeProject(
             String projectRoot,
             String upgradeType,
@@ -312,6 +318,9 @@ public class ShaftProjectService {
                     + "test repo for one or all coding-agent loops (all, claude, codex, opencode, vscode, grok); "
                     + "preserves user-authored instruction text and only overwrites SHAFT-owned skill files when "
                     + "overwrite=true")
+    /**
+     * Writes the AI agent instruction files for the chosen loop into the target folder.
+     */
     public McpShaftProjectInitAgentsResult initAgents(String loop, String targetDirectory, boolean overwrite) {
         String selectedLoop = selectedAgentLoop(loop);
         Path target = workspacePolicy.output(text(targetDirectory).isBlank() ? "." : targetDirectory,

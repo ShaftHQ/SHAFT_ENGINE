@@ -308,6 +308,9 @@ public final class SemanticLocatorAgentBridge {
             return new ResolveOutcome(Optional.empty(), Optional.empty(), reason, evidence);
         }
 
+        /**
+         * Returns whether more than one element matched.
+         */
         public boolean ambiguous() {
             return ambiguity.isPresent();
         }

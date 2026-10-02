@@ -79,6 +79,9 @@ public class CodingPartnerService {
     @Tool(name = "shaft_coding_partner_plan",
             description = "plans a repository-aware SHAFT IntelliJ coding-partner workflow using current source,"
                     + " selected text, existing page objects/tests, capture evidence, and verification guidance")
+    /**
+     * Plans code changes in the repository for the user's intent.
+     */
     public McpCodingPartnerPlan plan(
             String repositoryPath,
             String intent,
@@ -142,6 +145,9 @@ public class CodingPartnerService {
     @Tool(name = "shaft_coding_partner_diff",
             description = "produces a preview-only unified diff that inserts reviewed SHAFT code blocks into an"
                     + " existing Java target at a chosen method or textual anchor; never writes files")
+    /**
+     * Builds the diff that inserts the given code blocks into the target source file.
+     */
     public McpCodingPartnerDiff diff(
             String repositoryPath,
             String targetSourcePath,

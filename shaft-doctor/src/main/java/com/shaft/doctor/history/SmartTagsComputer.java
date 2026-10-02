@@ -30,10 +30,18 @@ public final class SmartTagsComputer {
     private SmartTagsComputer() {
     }
 
+    /**
+     * Computes smart tags (such as flaky or newly failing) from Allure history using the default
+     * window and threshold.
+     */
     public static SmartTagModels.SmartTagTable compute(AllureHistoryModels.HistoryView history) {
         return compute(history, DEFAULT_WINDOW, DEFAULT_FLAKY_TRANSITION_THRESHOLD);
     }
 
+    /**
+     * Computes smart tags from Allure history over the given window of runs, treating a test as
+     * flaky once its pass/fail transitions reach the threshold.
+     */
     public static SmartTagModels.SmartTagTable compute(
             AllureHistoryModels.HistoryView history, int windowSize, int flakyTransitionThreshold) {
         int window = normalizeWindow(windowSize);

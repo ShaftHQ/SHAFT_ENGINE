@@ -346,10 +346,16 @@ public class SHAFT {
         public static class Playwright implements Driver {
             private com.shaft.gui.playwright.internal.PlaywrightSession session;
 
+            /**
+             * Starts a Playwright session using the configured browser.
+             */
             public Playwright() {
                 session = com.shaft.gui.playwright.internal.PlaywrightSessionFactory.create();
             }
 
+            /**
+             * Wraps an existing Playwright page in a SHAFT Playwright session.
+             */
             public Playwright(com.microsoft.playwright.Page page) {
                 session = com.shaft.gui.playwright.internal.PlaywrightSessionFactory.attach(
                         null,
@@ -358,6 +364,10 @@ public class SHAFT {
                         page);
             }
 
+            /**
+             * Wraps an existing Playwright instance, browser, context and page in a SHAFT
+             * Playwright session.
+             */
             public Playwright(com.microsoft.playwright.Playwright playwright,
                                com.microsoft.playwright.Browser browser,
                                com.microsoft.playwright.BrowserContext browserContext,
@@ -437,6 +447,9 @@ public class SHAFT {
                 return session.browserContext();
             }
 
+            /**
+             * Returns the underlying Playwright instance.
+             */
             public com.microsoft.playwright.Playwright getPlaywright() {
                 return session.playwright();
             }
@@ -546,6 +559,9 @@ public class SHAFT {
                     return this;
                 }
 
+                /**
+                 * Clicks the on-screen text matched by OCR.
+                 */
                 public SikuliActions click(com.shaft.gui.ocr.OcrTarget target) {
                     invoke(delegate, "click", new Class<?>[]{com.shaft.gui.ocr.OcrTarget.class}, target);
                     return this;
@@ -665,6 +681,9 @@ public class SHAFT {
                     return this;
                 }
 
+                /**
+                 * Hovers over the on-screen text matched by OCR.
+                 */
                 public SikuliActions hover(com.shaft.gui.ocr.OcrTarget target) {
                     invoke(delegate, "hover", new Class<?>[]{com.shaft.gui.ocr.OcrTarget.class}, target);
                     return this;
@@ -692,6 +711,9 @@ public class SHAFT {
                     return this;
                 }
 
+                /**
+                 * Double-clicks the on-screen text matched by OCR.
+                 */
                 public SikuliActions doubleClick(com.shaft.gui.ocr.OcrTarget target) {
                     invoke(delegate, "doubleClick", new Class<?>[]{com.shaft.gui.ocr.OcrTarget.class}, target);
                     return this;
@@ -1788,71 +1810,136 @@ public class SHAFT {
     public static final class Infrastructure {
         private Infrastructure() { throw new IllegalStateException("Utility class"); }
 
+        /**
+         * Returns the catalog of setup providers SHAFT can manage.
+         */
         public static com.shaft.infrastructure.SetupCatalog catalog() {
             return service().catalog();
         }
 
+        /**
+         * Checks the configured setup and reports problems without changing anything.
+         */
         public static com.shaft.infrastructure.SetupReport doctor() { return doctor(options()); }
+        /**
+         * Checks the setup for the given options and reports problems without changing anything.
+         */
         public static com.shaft.infrastructure.SetupReport doctor(com.shaft.infrastructure.SetupOptions options) {
             return service().doctor(options);
         }
 
+        /**
+         * Reports the current state of the configured setup.
+         */
         public static com.shaft.infrastructure.SetupReport status() { return status(options()); }
+        /**
+         * Reports the current state of the setup for the given options.
+         */
         public static com.shaft.infrastructure.SetupReport status(com.shaft.infrastructure.SetupOptions options) {
             return service().status(options);
         }
+        /**
+         * Reports the current state of the selected setup components.
+         */
         public static com.shaft.infrastructure.SetupReport status(com.shaft.infrastructure.SetupOptions options,
                 com.shaft.infrastructure.SetupSelection selection) {
             return service().status(options, selection);
         }
+        /**
+         * Reports the current state of the setup needed for the given Android request.
+         */
         public static com.shaft.infrastructure.SetupReport status(com.shaft.infrastructure.SetupOptions options,
                 com.shaft.infrastructure.AndroidSetupRequest request) {
             return service().status(options, request);
         }
 
+        /**
+         * Plans the changes needed to reach the configured setup without applying them.
+         */
         public static com.shaft.infrastructure.SetupPlan plan() { return plan(options()); }
+        /**
+         * Plans the changes needed for the given options without applying them.
+         */
         public static com.shaft.infrastructure.SetupPlan plan(com.shaft.infrastructure.SetupOptions options) {
             return service().plan(options);
         }
+        /**
+         * Plans the changes needed for the selected setup components without applying them.
+         */
         public static com.shaft.infrastructure.SetupPlan plan(com.shaft.infrastructure.SetupOptions options,
                 com.shaft.infrastructure.SetupSelection selection) {
             return service().plan(options, selection);
         }
+        /**
+         * Plans the changes needed for the given Android request without applying them.
+         */
         public static com.shaft.infrastructure.SetupPlan plan(com.shaft.infrastructure.SetupOptions options,
                 com.shaft.infrastructure.AndroidSetupRequest request) {
             return service().plan(options, request);
         }
 
+        /**
+         * Verifies that the configured setup is installed and healthy.
+         */
         public static com.shaft.infrastructure.SetupReport verify() { return verify(options()); }
+        /**
+         * Verifies that the setup for the given options is installed and healthy.
+         */
         public static com.shaft.infrastructure.SetupReport verify(com.shaft.infrastructure.SetupOptions options) {
             return service().verify(options);
         }
+        /**
+         * Verifies that the selected setup components are installed and healthy.
+         */
         public static com.shaft.infrastructure.SetupReport verify(com.shaft.infrastructure.SetupOptions options,
                 com.shaft.infrastructure.SetupSelection selection) {
             return service().verify(options, selection);
         }
+        /**
+         * Verifies that the setup for the given Android request is installed and healthy.
+         */
         public static com.shaft.infrastructure.SetupReport verify(com.shaft.infrastructure.SetupOptions options,
                 com.shaft.infrastructure.AndroidSetupRequest request) {
             return service().verify(options, request);
         }
 
+        /**
+         * Installs an approved setup plan.
+         *
+         * @return a receipt describing what was installed
+         */
         public static com.shaft.infrastructure.SetupReceipt install(
                 com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval)
                 throws java.io.IOException {
             return install(plan, approval, options());
         }
 
+        /**
+         * Installs an approved setup plan, reporting progress as it runs.
+         *
+         * @return a receipt describing what was installed
+         */
         public static com.shaft.infrastructure.SetupReceipt install(
                 com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
                 com.shaft.infrastructure.SetupOptions options) throws java.io.IOException {
             return service().install(plan, approval, options);
         }
+        /**
+         * Installs an approved setup plan with the given options.
+         *
+         * @return a receipt describing what was installed
+         */
         public static com.shaft.infrastructure.SetupReceipt install(
                 com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
                 com.shaft.infrastructure.SetupOptions options,
                 com.shaft.infrastructure.SetupSelection selection) throws java.io.IOException {
             return service().install(plan, approval, options, selection);
         }
+        /**
+         * Installs an approved setup plan with the given options, reporting progress as it runs.
+         *
+         * @return a receipt describing what was installed
+         */
         public static com.shaft.infrastructure.SetupReceipt install(
                 com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
                 com.shaft.infrastructure.SetupOptions options,
@@ -1860,17 +1947,32 @@ public class SHAFT {
             return service().install(plan, approval, options, request);
         }
 
+        /**
+         * Installs an approved setup plan if needed and starts the services it owns.
+         *
+         * @return the managed environment to stop when done
+         */
         public static com.shaft.infrastructure.ManagedEnvironment start(
                 com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval)
                 throws java.io.IOException {
             return start(plan, approval, options());
         }
 
+        /**
+         * Installs an approved setup plan if needed and starts its services, reporting progress.
+         *
+         * @return the managed environment to stop when done
+         */
         public static com.shaft.infrastructure.ManagedEnvironment start(
                 com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
                 com.shaft.infrastructure.SetupOptions options) throws java.io.IOException {
             return service().start(plan, approval, options);
         }
+        /**
+         * Installs an approved setup plan if needed and starts its services with the given options.
+         *
+         * @return the managed environment to stop when done
+         */
         public static com.shaft.infrastructure.ManagedEnvironment start(
                 com.shaft.infrastructure.SetupPlan plan, com.shaft.infrastructure.SetupApproval approval,
                 com.shaft.infrastructure.SetupOptions options,
@@ -1878,6 +1980,9 @@ public class SHAFT {
             return service().start(plan, approval, options, request);
         }
 
+        /**
+         * Builds setup options from the current {@code infrastructure.*} properties.
+         */
         public static com.shaft.infrastructure.SetupOptions options() {
             com.shaft.properties.internal.Infrastructure configured = Properties.infrastructure;
             com.shaft.infrastructure.ShaftCachePaths paths = configured.cacheDirectory().isBlank()

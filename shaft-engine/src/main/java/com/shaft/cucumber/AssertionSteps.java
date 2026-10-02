@@ -152,6 +152,9 @@ public class AssertionSteps {
      */
     @Then("I Assert that the {string} attribute of the element found by {string}: {string}, equals {string}")
 //    @اذاً("أقوم بالتأكد من ان قيمة الصفة {string} الخاصة بعنصر الويب المحدد بإستخدام {string} بقيمة {string}, من المفترض أن تكون {string}")
+    /**
+     * Asserts that a DOM attribute of the located element equals the expected value.
+     */
     public void assertelementDomAttributeEquals(String elementAttribute, String locatorType, String locatorValue, String expectedValue) {
         driver.get().assertThat()
                 .element(ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))

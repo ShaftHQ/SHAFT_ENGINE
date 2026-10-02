@@ -46,10 +46,16 @@ public class FileActions {
     private static final String ERROR_CANNOT_CREATE_DIRECTORY = "Could not create directory: ";
     private boolean internalInstance = false;
 
+    /**
+     * Returns a reporting {@code FileActions} instance whose steps appear in the execution report.
+     */
     public static FileActions getInstance() {
         return getInstance(false);
     }
 
+    /**
+     * Returns a {@code FileActions} instance; internal instances do not report their steps.
+     */
     public static FileActions getInstance(boolean internalInstance) {
         var instance = new FileActions();
         instance.internalInstance = internalInstance;
@@ -71,6 +77,9 @@ public class FileActions {
         passAction("Source File: \"" + sourceFilePath + "\" | Destination File: \"" + destinationFilePath + "\"");
     }
 
+    /**
+     * Renames the file at the given path to the new file name in the same folder.
+     */
     public void renameFile(String filePath, String newFileName) {
         try {
             var targetFile = new File(filePath);
@@ -121,6 +130,9 @@ public class FileActions {
         return terminalLog;
     }
 
+    /**
+     * Lists the files directly inside the target directory as a newline-separated string.
+     */
     public String listFilesInDirectory(String targetDirectory) {
         String files = listFiles(targetDirectory, true).stream()
                 .map(File::getName)
@@ -129,6 +141,10 @@ public class FileActions {
         return files.trim();
     }
 
+    /**
+     * Lists the files inside the target directory, recursing into subfolders when a recursive
+     * filter is given.
+     */
     public String listFilesInDirectory(String targetDirectory, TrueFileFilter recursively) {
         String files = listFiles(targetDirectory, TrueFileFilter.TRUE.equals(recursively)).stream()
                 .map(File::getName)
@@ -137,6 +153,9 @@ public class FileActions {
         return files.trim();
     }
 
+    /**
+     * Returns every file inside the target directory and its subfolders.
+     */
     public Collection<File> getFileList(String targetDirectory) {
         Collection<File> filesList = listFiles(targetDirectory, true);
         passAction("Target Directory: \"" + targetDirectory + "\" | Files Found: \"" + filesList.size() + "\"");
@@ -328,11 +347,17 @@ public class FileActions {
         passAction("Target File Path: \"" + targetFilePath + "\", file was " + negation + "deleted.");
     }
 
+    /**
+     * Writes the given lines to a file in the given folder, creating it when needed.
+     */
     public void writeToFile(String fileFolderName, String fileName, List<String> text) {
         byte[] textToBytes = String.join(System.lineSeparator(), text).getBytes();
         writeToFile(fileFolderName, fileName, textToBytes);
     }
 
+    /**
+     * Writes the given bytes to the file at the given path, creating it when needed.
+     */
     public void writeToFile(String filePath, byte[] content) {
         String absoluteFilePath = (new File(filePath)).getAbsolutePath();
         try {
@@ -344,29 +369,47 @@ public class FileActions {
         }
     }
 
+    /**
+     * Writes the given text to the file at the given path, creating it when needed.
+     */
     public void writeToFile(String filePath, String text) {
         byte[] textToBytes = text.getBytes();
         writeToFile(filePath, textToBytes);
     }
 
+    /**
+     * Writes the given bytes to a file in the given folder, creating it when needed.
+     */
     public void writeToFile(String fileFolderName, String fileName, byte[] content) {
         writeToFile(joinFolderAndFile(fileFolderName, fileName), content);
     }
 
+    /**
+     * Writes the given text to a file in the given folder, creating it when needed.
+     */
     public void writeToFile(String fileFolderName, String fileName, String text) {
         byte[] textToBytes = text.getBytes();
         writeToFile(fileFolderName, fileName, textToBytes);
     }
 
+    /**
+     * Reads the text content of a PDF file in the given folder.
+     */
     @SuppressWarnings("unused")
     public String readPDF(String fileFolderName, String fileName) {
         return new PdfFileManager(joinFolderAndFile(fileFolderName, fileName)).readFileContent();
     }
 
+    /**
+     * Reads the text content of the PDF file at the given relative path.
+     */
     public String readPDF(String relativeFilePath) {
         return new PdfFileManager(relativeFilePath).readFileContent();
     }
 
+    /**
+     * Reads a text file in the given folder.
+     */
     public String readFile(String fileFolderName, String fileName) {
         return readFile(joinFolderAndFile(fileFolderName, fileName));
     }
@@ -387,6 +430,9 @@ public class FileActions {
         return fileFolderName + "/" + fileName;
     }
 
+    /**
+     * Reads the file at the given path as a byte array.
+     */
     public byte[] readFileAsByteArray(String pathToTargetImage) {
         byte[] data = new byte[0];
         String absoluteFilePath = getAbsolutePath(pathToTargetImage);
@@ -401,6 +447,9 @@ public class FileActions {
         return data;
     }
 
+    /**
+     * Reads the text file at the given path.
+     */
     public String readFile(String pathToTargetFile) {
         String absoluteFilePath = getAbsolutePath(pathToTargetFile);
         String text = "";
@@ -447,6 +496,9 @@ public class FileActions {
         return doesFileExit;
     }
 
+    /**
+     * Returns whether a file or folder exists at the given path.
+     */
     public boolean doesFileExist(String targetFile) {
         boolean doesFileExit = false;
         try {
@@ -499,6 +551,9 @@ public class FileActions {
         return filePath;
     }
 
+    /**
+     * Copies a folder and its contents to the destination folder.
+     */
     public void copyFolder(String sourceFolderPath, String destinationFolderPath) {
         File sourceFolder = new File(sourceFolderPath);
         File destinationFolder = new File(destinationFolderPath);
@@ -511,6 +566,9 @@ public class FileActions {
         }
     }
 
+    /**
+     * Copies a folder from inside the running JAR to the destination folder.
+     */
     public void copyFolderFromJar(String sourceFolderPath, String destinationFolderPath) {
         try {
             URL url = createJarResourceUrl(sourceFolderPath);
@@ -555,6 +613,9 @@ public class FileActions {
         }
     }
 
+    /**
+     * Copies a single file from a folder inside the running JAR to the destination folder.
+     */
     public void copyFileFromJar(String sourceFolderPath, String destinationFolderPath, String fileName) {
         try {
             URL url = createJarResourceUrl(sourceFolderPath);
@@ -621,6 +682,9 @@ public class FileActions {
         return URI.create("jar:" + jarFileUrl.toURI() + jarEntryPath).toURL();
     }
 
+    /**
+     * Deletes the folder at the given path together with its contents.
+     */
     public void deleteFolder(String folderPath) {
         deleteFile(folderPath);
     }
@@ -642,6 +706,9 @@ public class FileActions {
         }
     }
 
+    /**
+     * Creates the folder at the given path, including missing parents.
+     */
     public void createFolder(String folderPath) {
         try {
             FileUtils.forceMkdir(new File(folderPath));
@@ -651,6 +718,9 @@ public class FileActions {
         }
     }
 
+    /**
+     * Creates an empty file in the given folder.
+     */
     public void createFile(String folderPath, String fileName) {
         try {
             FileUtils.forceMkdir(new File(folderPath));
@@ -663,6 +733,9 @@ public class FileActions {
         }
     }
 
+    /**
+     * Zips the source folder into the destination archive and returns whether it succeeded.
+     */
     @SuppressWarnings("UnusedReturnValue")
     public boolean zipFiles(String srcFolder, String destZipFile) {
         boolean result = false;
@@ -685,6 +758,11 @@ public class FileActions {
         return result;
     }
 
+    /**
+     * Downloads the archive at the URL and unpacks it into the destination folder.
+     *
+     * @return the destination folder
+     */
     @SuppressWarnings("UnusedReturnValue")
     public File unpackArchive(URL url, String destinationFolderPath) {
         File targetDir = new File(destinationFolderPath);
@@ -708,10 +786,21 @@ public class FileActions {
         return unpacked;
     }
 
+    /**
+     * Downloads the file at the URL to the destination path with default timeouts.
+     *
+     * @return the URL of the downloaded file
+     */
     public URL downloadFile(String targetFileURL, String destinationFilePath) {
         return downloadFile(targetFileURL, destinationFilePath, 0, 0);
     }
 
+    /**
+     * Downloads the file at the URL to the destination path with the given connection and read
+     * timeouts in milliseconds.
+     *
+     * @return the URL of the downloaded file
+     */
     public URL downloadFile(String targetFileURL, String destinationFilePath, int connectionTimeout,
                             int readTimeout) {
         if (targetFileURL != null && destinationFilePath != null) {

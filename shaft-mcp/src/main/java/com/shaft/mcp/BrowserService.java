@@ -69,6 +69,9 @@ public class BrowserService {
     private final McpWorkspacePolicy workspacePolicy;
     private final PlaywrightService playwrightService;
 
+    /**
+     * Creates the browser tool service.
+     */
     public BrowserService() {
         this(McpWorkspacePolicy.current(), new PlaywrightService());
     }
@@ -120,6 +123,9 @@ public class BrowserService {
     @Tool(name = "browser_navigate", description = "opens a URL in the active engine's browser session; optional "
             + "newWindow (default false) opens the URL in a new window instead of navigating the current one, "
             + "absorbing playwright_browser_new_window's window-opening behavior on the Playwright engine")
+    /**
+     * Navigates the current browser to the URL, optionally in a new window.
+     */
     public void navigate(String targetUrl, @ToolParam(required = false) Boolean newWindow) {
         try {
             BrowserActionsContract browser = activeBrowser();
@@ -183,6 +189,9 @@ public class BrowserService {
      */
     @Tool(name = "browser_navigate_back", description = "navigates back to the previous page; dispatches to the "
             + "active engine")
+    /**
+     * Navigates back in the browser history.
+     */
     public void navigateBack() {
         try {
             activeBrowser().navigateBack();
@@ -199,6 +208,9 @@ public class BrowserService {
      */
     @Tool(name = "browser_navigate_forward", description = "navigates forward to the next page; dispatches to "
             + "the active engine")
+    /**
+     * Navigates forward in the browser history.
+     */
     public void navigateForward() {
         try {
             activeBrowser().navigateForward();
@@ -221,6 +233,9 @@ public class BrowserService {
     @Tool(name = "browser_set_window_size", description = "sets the browser window to a specific size; optional "
             + "mode selects custom (default, uses width/height) | maximize | fullscreen, absorbing "
             + "browser_maximize_window/browser_fullscreen_window; dispatches to the active engine")
+    /**
+     * Resizes the browser window, or maximizes it or switches it to full screen.
+     */
     public void setWindowSize(int width, int height, @ToolParam(required = false) WindowSizeMode mode) {
         WindowSizeMode resolvedMode = mode == null ? WindowSizeMode.CUSTOM : mode;
         try {
@@ -257,6 +272,9 @@ public class BrowserService {
      */
     @Tool(name = "browser_delete_cookies", description = "deletes a cookie by name, or every cookie when name is "
             + "omitted; dispatches to the active engine; absorbs browser_delete_cookie/browser_delete_all_cookies")
+    /**
+     * Deletes the named cookie, or every cookie when no name is given.
+     */
     public void deleteCookies(@ToolParam(required = false) String name) {
         try {
             BrowserActionsContract browser = activeBrowser();
@@ -370,6 +388,9 @@ public class BrowserService {
     @Tool(name = "browser_get_page_dom",
             description = "returns bounded current-page DOM for locator inspection before element_*; "
                     + "dispatches to the active engine")
+    /**
+     * Returns a trimmed DOM snapshot of the current page.
+     */
     public McpPageDomSnapshot getPageDom(int maxCharacters) {
         if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
             return playwrightService.getPageDom(maxCharacters);
@@ -409,6 +430,9 @@ public class BrowserService {
     @Tool(name = "browser_open_intent",
             description = "opens a URL and returns bounded DOM plus capture-ranked locator candidates for the "
                     + "user intent; dispatches to the active engine")
+    /**
+     * Opens the URL and returns the page elements most relevant to the user's intent.
+     */
     public Map<String, Object> openForIntent(
             String targetUrl,
             String userIntent,
@@ -434,6 +458,9 @@ public class BrowserService {
      */
     @Tool(name = "browser_take_screenshot", description = "takes a PNG screenshot of the current browser "
             + "viewport; dispatches to the active engine (web, mobile, or Playwright)")
+    /**
+     * Saves a screenshot of the current page and optionally returns it as Base64.
+     */
     public McpScreenshotResult takeScreenshot(String outputPath, boolean includeBase64) {
         if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
             return playwrightService.takeScreenshot(outputPath, includeBase64);
@@ -470,6 +497,9 @@ public class BrowserService {
     @Tool(name = "browser_storage_state_save",
             description = "saves the active browser session's cookies, localStorage, and sessionStorage to a "
                     + "JSON file; dispatches to the active engine")
+    /**
+     * Saves the browser storage state (cookies and local storage) to a file.
+     */
     public String saveStorageState(String filePath) {
         if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
             return playwrightService.saveStorageState(filePath);
@@ -499,6 +529,9 @@ public class BrowserService {
     @Tool(name = "browser_storage_state_load",
             description = "loads cookies, localStorage, and sessionStorage from a JSON file into the active "
                     + "browser session; navigate to the target origin first; dispatches to the active engine")
+    /**
+     * Loads browser storage state from a file.
+     */
     public String loadStorageState(String filePath) {
         if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
             return playwrightService.loadStorageState(filePath);
@@ -535,6 +568,9 @@ public class BrowserService {
                     + "browser_network_request tool; requires the "
                     + "DevTools-based network trace capture that is on by default (shaft.trace.enabled and "
                     + "shaft.trace.includeNetwork); not supported on the Playwright engine")
+    /**
+     * Lists recorded network requests, filtered by URL, or returns one request by id.
+     */
     public McpNetworkTransactionList networkRequests(String urlFilter, int limit, @ToolParam(required = false) Integer id) {
         if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
             throw new UnsupportedOperationException("browser_network_requests is not supported on the Playwright "
@@ -601,6 +637,11 @@ public class BrowserService {
                     + "HTTP method and a URL glob (Playwright-style * and ?) or an exact URL, and returning the "
                     + "given status/body/headers instead of the real network response; returns a route id for "
                     + "reference (individual removal is not supported -- browser_unroute always clears every route)")
+    /**
+     * Adds a network route that answers matching requests with the given response.
+     *
+     * @return the id of the new route
+     */
     public String route(String method, String urlGlob, String url, int responseStatus, String responseBody,
                          Map<String, String> responseHeaders) {
         try {
@@ -631,6 +672,9 @@ public class BrowserService {
             description = "clears registered browser mock routes for the active session; routeId is accepted "
                     + "for reference but every route is cleared because SHAFT's network interceptor does not "
                     + "support removing a single rule yet")
+    /**
+     * Removes the network route with the given id.
+     */
     public String unroute(String routeId) {
         try {
             activeBrowser().clearNetworkInterceptors();
@@ -658,6 +702,9 @@ public class BrowserService {
     @Tool(name = "browser_aria_snapshot",
             description = "captures an accessible-name-tree aria snapshot (YAML) of the whole page, or of one "
                     + "element when a locator is supplied; dispatches to the active engine")
+    /**
+     * Returns the ARIA snapshot of the located element.
+     */
     public String ariaSnapshot(locatorStrategy locatorStrategy, String locatorValue) {
         if (EngineService.activeEngine() == ActiveEngine.PLAYWRIGHT) {
             return playwrightService.ariaSnapshot(locatorStrategy, locatorValue);
@@ -689,6 +736,9 @@ public class BrowserService {
             description = "runs a non-asserting axe-core WCAG accessibility audit on the current page and "
                     + "returns the violations found; never fails the call when violations exist; dispatches to "
                     + "the active engine")
+    /**
+     * Runs an accessibility audit on the current page for the given WCAG tags.
+     */
     public McpAccessibilityAuditResult accessibilityAudit(String... wcagTags) {
         try {
             BrowserActionsContract browser = activeBrowser();

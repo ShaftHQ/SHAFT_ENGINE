@@ -31,10 +31,16 @@ public final class SshShellOptions {
         environment = Collections.unmodifiableMap(new LinkedHashMap<>(builder.environment));
     }
 
+    /**
+     * Starts building SSH shell options.
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Validates the options and throws when a value is out of range.
+     */
     public void validate() {
         validatePtyType();
         validateDimensions();
@@ -59,26 +65,44 @@ public final class SshShellOptions {
         }
     }
 
+    /**
+     * Returns whether a pseudo-terminal is requested.
+     */
     public boolean isPty() {
         return pty;
     }
 
+    /**
+     * Returns the requested pseudo-terminal type.
+     */
     public String getPtyType() {
         return ptyType;
     }
 
+    /**
+     * Returns the pseudo-terminal width in columns.
+     */
     public int getColumns() {
         return columns;
     }
 
+    /**
+     * Returns the pseudo-terminal height in rows.
+     */
     public int getRows() {
         return rows;
     }
 
+    /**
+     * Returns the default timeout for shell commands.
+     */
     public Duration getDefaultTimeout() {
         return defaultTimeout;
     }
 
+    /**
+     * Returns the environment variables set for the shell.
+     */
     public Map<String, String> getEnvironment() {
         return environment;
     }
@@ -91,31 +115,49 @@ public final class SshShellOptions {
         private Duration defaultTimeout = DEFAULT_TIMEOUT;
         private final Map<String, String> environment = new LinkedHashMap<>();
 
+        /**
+         * Sets whether a pseudo-terminal is requested.
+         */
         public Builder pty(boolean value) {
             pty = value;
             return this;
         }
 
+        /**
+         * Sets the pseudo-terminal type, such as {@code xterm}.
+         */
         public Builder ptyType(String value) {
             ptyType = value;
             return this;
         }
 
+        /**
+         * Sets the pseudo-terminal width in columns.
+         */
         public Builder columns(int value) {
             columns = value;
             return this;
         }
 
+        /**
+         * Sets the pseudo-terminal height in rows.
+         */
         public Builder rows(int value) {
             rows = value;
             return this;
         }
 
+        /**
+         * Sets the default timeout for shell commands.
+         */
         public Builder defaultTimeout(Duration value) {
             defaultTimeout = value;
             return this;
         }
 
+        /**
+         * Replaces the environment variables set for the shell.
+         */
         public Builder environment(Map<String, String> value) {
             environment.clear();
             if (value != null) {
@@ -124,11 +166,17 @@ public final class SshShellOptions {
             return this;
         }
 
+        /**
+         * Adds one environment variable for the shell.
+         */
         public Builder putEnvironment(String key, String value) {
             environment.put(Objects.requireNonNull(key), Objects.requireNonNull(value));
             return this;
         }
 
+        /**
+         * Builds and validates the shell options.
+         */
         public SshShellOptions build() {
             SshShellOptions options = new SshShellOptions(this);
             options.validate();

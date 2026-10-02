@@ -173,18 +173,31 @@ public class TerminalActions implements AutoCloseable {
         this.dockerUsername = dockerUsername;
     }
 
+    /**
+     * Returns a local, synchronous, reporting terminal.
+     */
     public static TerminalActions getInstance() {
         return new TerminalActions();
     }
 
+    /**
+     * Returns a local reporting terminal that runs commands asynchronously when requested.
+     */
     public static TerminalActions getInstance(boolean asynchronous) {
         return new TerminalActions(asynchronous);
     }
 
+    /**
+     * Returns a local terminal with the given asynchronous and verbose behavior.
+     */
     public static TerminalActions getInstance(boolean asynchronous, boolean verbose) {
         return new TerminalActions(asynchronous, verbose, false);
     }
 
+    /**
+     * Returns a local terminal with the given asynchronous, verbose and internal (unreported)
+     * behavior.
+     */
     public static TerminalActions getInstance(boolean asynchronous, boolean verbose, boolean isInternal) {
         return new TerminalActions(asynchronous, verbose, isInternal);
     }
@@ -317,6 +330,10 @@ public class TerminalActions implements AutoCloseable {
         return message;
     }
 
+    /**
+     * Returns whether this terminal runs commands on a remote host over SSH or in a Docker
+     * container.
+     */
     public boolean isRemoteTerminal() {
         return !sshHostName.isEmpty();
     }
@@ -329,6 +346,9 @@ public class TerminalActions implements AutoCloseable {
         return hasDockerTarget();
     }
 
+    /**
+     * Runs the given commands in order and returns their combined output.
+     */
     public String performTerminalCommands(List<String> commands) {
         return performTerminalCommands(commands, Collections.emptyMap());
     }
@@ -385,6 +405,9 @@ public class TerminalActions implements AutoCloseable {
         }
     }
 
+    /**
+     * Runs one command and returns its output.
+     */
     public String performTerminalCommand(String command) {
         return performTerminalCommands(Collections.singletonList(command));
     }

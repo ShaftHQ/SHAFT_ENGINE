@@ -29,17 +29,26 @@ public record SetupAction(SetupTarget target, SetupActionKind kind, String versi
         }
     }
 
+    /**
+     * Creates a setup action pinned by artifact checksum and dependency lock checksum.
+     */
     public SetupAction(SetupTarget target, SetupActionKind kind, String version, URI source,
                        String checksum, String dependencyLockChecksum,
                        boolean privileged, Set<String> requiredLicenses) {
         this(target, kind, version, source, checksum, 0, dependencyLockChecksum, privileged, requiredLicenses);
     }
 
+    /**
+     * Creates a setup action pinned by artifact checksum.
+     */
     public SetupAction(SetupTarget target, SetupActionKind kind, String version, URI source,
                        String checksum, boolean privileged, Set<String> requiredLicenses) {
         this(target, kind, version, source, checksum, 0, "", privileged, requiredLicenses);
     }
 
+    /**
+     * Creates a setup action pinned by artifact checksum with a known artifact size.
+     */
     public SetupAction(SetupTarget target, SetupActionKind kind, String version, URI source,
                        String checksum, long artifactBytes, boolean privileged, Set<String> requiredLicenses) {
         this(target, kind, version, source, checksum, artifactBytes, "", privileged, requiredLicenses);

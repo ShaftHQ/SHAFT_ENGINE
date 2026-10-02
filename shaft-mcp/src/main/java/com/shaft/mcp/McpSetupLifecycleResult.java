@@ -13,6 +13,9 @@ public record McpSetupLifecycleResult(boolean supported, String profile, String 
         logs = logs == null ? "" : logs;
     }
 
+    /**
+     * Creates a lifecycle result without connection details.
+     */
     public McpSetupLifecycleResult(boolean supported, String profile, String operation, String message) {
         this(supported, profile, operation, message, "", Map.of(), "", "");
     }

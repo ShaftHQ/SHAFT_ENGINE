@@ -20,6 +20,9 @@ public record SetupProgress(SetupProfile profile, String phase, long completedBy
         }
     }
 
+    /**
+     * Creates a progress update for a setup phase.
+     */
     public static SetupProgress of(SetupProfile profile, String phase, long completedBytes, long totalBytes) {
         int percentage = percentage(completedBytes, totalBytes);
         return new SetupProgress(profile, phase, completedBytes, totalBytes, percentage);

@@ -49,6 +49,9 @@ public class DesignService {
             description = "turns pasted user-story or acceptance-criteria text, or a workspace file, "
                     + "into a structured Design pack with actor, outcome, and numbered AC IDs; never "
                     + "writes files and does not fetch URLs")
+    /**
+     * Ingests a requirements or design document from text, a file or a URL.
+     */
     public McpDesignPack ingest(String text, String filePath, String sourceUrl) {
         try {
             Source source = resolveSource(blank(text), blank(filePath), blank(sourceUrl));
@@ -74,6 +77,9 @@ public class DesignService {
             description = "runs the requirements-analysis playbook on a story or workspace file and "
                     + "returns a gap register with stable GAP IDs; never writes files and does not "
                     + "generate Gherkin")
+    /**
+     * Analyzes a design document for testable behaviors and gaps.
+     */
     public McpDesignAnalysis analyze(String text, String filePath, String sourceUrl, String acceptedGapIds) {
         McpDesignPack pack = ingest(text, filePath, sourceUrl);
         return DesignAnalyzer.analyze(pack, DesignAnalyzer.parseAcceptedIds(acceptedGapIds));
@@ -81,12 +87,18 @@ public class DesignService {
 
     @Tool(name = "design_gherkin_draft",
             description = "drafts declarative Gherkin from an analyzed story pack for human review; never writes files or Java")
+    /**
+     * Drafts Gherkin scenarios from a design document.
+     */
     public McpDesignGherkinDraft gherkinDraft(String text, String filePath, String sourceUrl, String acceptedGapIds) {
         return DesignGherkinDrafter.draft(analyze(text, filePath, sourceUrl, acceptedGapIds));
     }
 
     @Tool(name = "design_examples",
             description = "proposes a Scenario Outline and editable Examples rows from an analyzed pack; never writes files")
+    /**
+     * Proposes example data tables for a design document.
+     */
     public McpDesignExamples examples(String text, String filePath, String sourceUrl, String acceptedGapIds,
                                       String droppedExampleIds) {
         return DesignExamplesPlanner.plan(analyze(text, filePath, sourceUrl, acceptedGapIds),
@@ -95,6 +107,9 @@ public class DesignService {
 
     @Tool(name = "design_lexicon",
             description = "suggests or accepts project-local business phrases; never indexes SHAFT locator steps")
+    /**
+     * Looks up, adds or checks phrases in the shared design lexicon.
+     */
     public McpDesignLexicon lexicon(String action, String query, String phrase) {
         try {
             if ("accept".equalsIgnoreCase(action == null ? "" : action.strip())) {
@@ -109,6 +124,9 @@ public class DesignService {
 
     @Tool(name = "design_coverage",
             description = "maps AC IDs to Gherkin @AC-* scenario tags; uncovered AC blocks Ready unless waived with a reason")
+    /**
+     * Measures how well the Gherkin covers the design document.
+     */
     public McpDesignCoverage coverage(String text, String filePath, String sourceUrl, String acceptedGapIds,
                                       String gherkin, String waived) {
         McpDesignPack pack = ingest(text, filePath, sourceUrl);
@@ -121,6 +139,9 @@ public class DesignService {
 
     @Tool(name = "design_lint",
             description = "lints a Gherkin draft for missing Then, click/xpath smells, duplicates, and invented SHAFT APIs; fail closed on errors")
+    /**
+     * Lints Gherkin scenarios written for a design document.
+     */
     public McpDesignLint lint(String text, String filePath, String sourceUrl, String acceptedGapIds,
                               String gherkin, String waived) {
         String feature = gherkin == null ? "" : gherkin.strip();
@@ -132,6 +153,9 @@ public class DesignService {
 
     @Tool(name = "design_gap_map",
             description = "classifies accepted Gherkin steps as mapped to SHAFT fluent API, new-helper, needs-recording, or ambiguous; never writes production Java")
+    /**
+     * Maps the gaps between a design document and its Gherkin scenarios.
+     */
     public McpDesignGapMap gapMap(String text, String filePath, String sourceUrl, String acceptedGapIds,
                                   String gherkin) {
         String feature = gherkin == null ? "" : gherkin.strip();
@@ -143,6 +167,9 @@ public class DesignService {
 
     @Tool(name = "design_readiness",
             description = "evaluates Draft / Needs questions / Ready for a Design pack; handoffAllowed only when Ready after analysis, lint, coverage, and explicit accept")
+    /**
+     * Reports whether a design document and its scenarios are ready for automation.
+     */
     public McpDesignReadiness readiness(String text, String filePath, String sourceUrl, String acceptedGapIds,
                                         String gherkin, String coverageWaived, String lintWaived,
                                         String accept, String acceptedGherkinSnapshot) {
@@ -164,6 +191,9 @@ public class DesignService {
 
     @Tool(name = "design_handoff",
             description = "serializes a Ready Design pack for Automation prefill (scenarios, AC traces, examples, gap map, oracles); sourceUrl is optional start URL only when supplied by the user — never invents locators/URLs or writes Java")
+    /**
+     * Builds the automation handoff package for a design document.
+     */
     public McpDesignHandoff handoff(String text, String filePath, String sourceUrl, String acceptedGapIds,
                                     String gherkin, String coverageWaived, String lintWaived,
                                     String accept, String acceptedGherkinSnapshot) {

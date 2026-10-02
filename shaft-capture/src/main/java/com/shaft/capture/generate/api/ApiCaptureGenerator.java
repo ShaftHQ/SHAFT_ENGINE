@@ -46,10 +46,17 @@ public final class ApiCaptureGenerator {
     private final NetworkBodyStore bodyStore;
     private final CaptureEnrichmentService enrichmentService;
 
+    /**
+     * Creates a generator with the default JSON codec, generated-test validator and network body
+     * store.
+     */
     public ApiCaptureGenerator() {
         this(new CaptureJsonCodec(), new GeneratedTestValidator(), new NetworkBodyStore(), new CaptureEnrichmentService());
     }
 
+    /**
+     * Creates a generator with the given collaborators, mainly for tests.
+     */
     public ApiCaptureGenerator(CaptureJsonCodec codec, GeneratedTestValidator validator, NetworkBodyStore bodyStore) {
         this(codec, validator, bodyStore, new CaptureEnrichmentService());
     }

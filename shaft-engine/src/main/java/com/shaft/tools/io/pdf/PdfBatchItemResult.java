@@ -12,6 +12,9 @@ public record PdfBatchItemResult(Path source, PdfDocumentResult result, String f
         }
     }
 
+    /**
+     * Returns whether this batch item was processed without an error.
+     */
     public boolean successful() {
         return result != null;
     }

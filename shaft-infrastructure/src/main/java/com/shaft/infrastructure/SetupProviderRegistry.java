@@ -9,6 +9,9 @@ import java.util.Objects;
 public final class SetupProviderRegistry {
     private final Map<SetupProfile, SetupProvider> providers;
 
+    /**
+     * Creates a registry, rejecting two providers for the same profile.
+     */
     public SetupProviderRegistry(List<? extends SetupProvider> providers) {
         Objects.requireNonNull(providers, "providers");
         LinkedHashMap<SetupProfile, SetupProvider> indexed = new LinkedHashMap<>();
@@ -21,6 +24,9 @@ public final class SetupProviderRegistry {
         this.providers = Map.copyOf(indexed);
     }
 
+    /**
+     * Returns the provider for the profile, or throws when none is registered.
+     */
     public SetupProvider require(SetupProfile profile) {
         SetupProvider provider = providers.get(Objects.requireNonNull(profile, "profile"));
         if (provider == null) throw new IllegalArgumentException("No setup provider is available for profile "
@@ -28,6 +34,9 @@ public final class SetupProviderRegistry {
         return provider;
     }
 
+    /**
+     * Returns the profiles that have a registered provider.
+     */
     public List<SetupProfile> profiles() {
         return providers.keySet().stream().sorted().toList();
     }

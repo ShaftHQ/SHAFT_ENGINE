@@ -21,10 +21,17 @@ public final class OcrSetupManifest {
 
     private OcrSetupManifest() { }
 
+    /**
+     * Returns the setup actions for the OCR runtime with the baseline languages.
+     */
     public static List<SetupAction> actions(SetupMode mode) {
         return actions(mode, List.of());
     }
 
+    /**
+     * Returns the setup actions for the OCR runtime with the baseline languages plus the requested
+     * ones.
+     */
     public static List<SetupAction> actions(SetupMode mode, List<String> requestedLanguages) {
         SetupActionKind kind = mode == SetupMode.EXTERNAL ? SetupActionKind.DIAGNOSE : SetupActionKind.INSTALL;
         List<String> languages = new SetupSelection(
@@ -38,6 +45,9 @@ public final class OcrSetupManifest {
         }).toList();
     }
 
+    /**
+     * Returns the folder that holds OCR language models in the SHAFT cache.
+     */
     public static Path modelsDirectory(ShaftCachePaths paths) {
         return paths.cache().resolve("ocr/tessdata-fast-" + TESSDATA_REVISION);
     }
@@ -48,6 +58,9 @@ public final class OcrSetupManifest {
                 .resolve(".cache/shaft/ocr/tessdata-fast-" + TESSDATA_REVISION);
     }
 
+    /**
+     * Returns the languages installed by default.
+     */
     public static List<String> baselineLanguages() {
         return BASELINE_LANGUAGES;
     }

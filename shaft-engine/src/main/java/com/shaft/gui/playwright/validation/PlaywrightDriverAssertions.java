@@ -14,6 +14,9 @@ import org.openqa.selenium.By;
 public class PlaywrightDriverAssertions implements DriverAssertions {
     private final PlaywrightSession session;
 
+    /**
+     * Creates hard assertions for the given Playwright session.
+     */
     public PlaywrightDriverAssertions(PlaywrightSession session) {
         this.session = session;
     }
@@ -39,6 +42,9 @@ public class PlaywrightDriverAssertions implements DriverAssertions {
                 ValidationEnums.ValidationCategory.HARD_ASSERT, session, elementTarget);
     }
 
+    /**
+     * Starts a hard assertion on the given Playwright element.
+     */
     public ElementAssertions element(com.microsoft.playwright.Locator elementLocator) {
         return new PlaywrightElementValidationsBuilder(ValidationEnums.ValidationCategory.HARD_ASSERT, session,
                 elementLocator, String.valueOf(elementLocator));

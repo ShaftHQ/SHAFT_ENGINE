@@ -37,6 +37,11 @@ public final class PropertyFileManager {
         throw new IllegalStateException("Utility class");
     }
 
+    /**
+     * Collects the {@code mobile_} prefixed properties as Appium desired capabilities, with thread-local overrides taking precedence over system properties.
+     *
+     * @return the Appium capability names mapped to their values
+     */
     public static Map<String, String> getAppiumDesiredCapabilities() {
         Map<String, String> appiumDesiredCapabilities = new HashMap<>();
 
@@ -130,6 +135,11 @@ public final class PropertyFileManager {
         });
     }
 
+    /**
+     * Builds the custom WebDriver capabilities declared through the effective (system and thread-local) properties.
+     *
+     * @return the custom driver capabilities
+     */
     public static MutableCapabilities getCustomWebDriverDesiredCapabilities() {
         MutableCapabilities customDriverOptions = new MutableCapabilities();
         java.util.Properties props = ThreadLocalPropertiesManager.getEffectiveProperties();
@@ -249,6 +259,11 @@ public final class PropertyFileManager {
         return folderPath + File.separator + fileName;
     }
 
+    /**
+     * Collects the non-blank {@code browserStack.} prefixed properties as BrowserStack options.
+     *
+     * @return the BrowserStack option names mapped to their values
+     */
     public static HashMap<String, Object> getCustomBrowserstackCapabilities() {
         HashMap<String, Object> browserstackOptions = new HashMap<>();
         java.util.Properties props = ThreadLocalPropertiesManager.getEffectiveProperties();
@@ -323,6 +338,9 @@ public final class PropertyFileManager {
         System.getProperties().putAll(loadedFromFiles);
     }
 
+    /**
+     * Reads every property file in the configured properties folder (or the default custom properties folder) into the system properties.
+     */
     public static void readCustomPropertyFiles() {
         readPropertyFiles(Objects.requireNonNullElse(Properties.paths.properties(), CUSTOM_PROPERTIES_FOLDER_PATH));
     }

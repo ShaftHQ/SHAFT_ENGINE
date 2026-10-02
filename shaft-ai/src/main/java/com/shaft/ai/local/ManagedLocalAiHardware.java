@@ -343,8 +343,18 @@ final class ManagedLocalAiHardware {
     }
 
     private static final class SystemHostAccess implements HostAccess {
+        /**
+         * Returns the operating system name reported by the JVM, or an empty string.
+         */
         public String osName() { return System.getProperty("os.name", ""); }
+        /**
+         * Returns the CPU architecture reported by the JVM, or an empty string.
+         */
         public String architecture() { return System.getProperty("os.arch", ""); }
+        /**
+         * Returns the C library ABI of the host (for example glibc or musl), or an empty string
+         * when unknown.
+         */
         public String abi() {
             return switch (normalizedOs(osName())) {
                 case "windows" -> "windows-msvc";
@@ -353,6 +363,9 @@ final class ManagedLocalAiHardware {
                 default -> "unsupported";
             };
         }
+        /**
+         * Returns the version of the host C library ABI, or an empty string when unknown.
+         */
         public String abiVersion() {
             if (!"linux".equals(normalizedOs(osName()))) return "";
             try {
@@ -372,12 +385,27 @@ final class ManagedLocalAiHardware {
                 return "";
             }
         }
+        /**
+         * Returns the physical memory available to the host in bytes.
+         */
         public long availableMemoryBytes() {
             java.lang.management.OperatingSystemMXBean bean = ManagementFactory.getOperatingSystemMXBean();
             return bean instanceof OperatingSystemMXBean extended ? extended.getFreeMemorySize() : 0;
         }
+        /**
+         * Returns the number of processors available to the JVM.
+         */
         public int availableProcessors() { return Runtime.getRuntime().availableProcessors(); }
+        /**
+         * Returns the usable disk space, in bytes, of the volume that holds the given existing
+         * directory.
+         */
         public long usableSpace(Path existingAncestor) { return existingAncestor.toFile().getUsableSpace(); }
+        /**
+         * Reads a text file from the host, such as an operating system release file.
+         *
+         * @throws IOException when the file cannot be read
+         */
         public String read(String path) throws IOException { return Files.readString(Path.of(path)); }
     }
 }

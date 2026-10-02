@@ -12,6 +12,9 @@ public final class InfrastructureSetupService {
     private final SetupPlatform platform;
     private final SetupArchitecture architecture;
 
+    /**
+     * Creates a setup service over the given providers for the given platform and architecture.
+     */
     public InfrastructureSetupService(SetupProviderRegistry providers, SetupPlatform platform,
                                       SetupArchitecture architecture) {
         this.providers = Objects.requireNonNull(providers, "providers");
@@ -19,10 +22,16 @@ public final class InfrastructureSetupService {
         this.architecture = Objects.requireNonNull(architecture, "architecture");
     }
 
+    /**
+     * Creates a setup service with the built-in providers for the current platform.
+     */
     public static InfrastructureSetupService builtIn() {
         return builtIn(SetupPlatform.current(), SetupArchitecture.current());
     }
 
+    /**
+     * Creates a setup service with the built-in providers for the given platform and architecture.
+     */
     public static InfrastructureSetupService builtIn(SetupPlatform platform, SetupArchitecture architecture) {
         List<SetupProvider> providers = new java.util.ArrayList<>(List.of(
                 new ReportingSetupProvider(), new OcrSetupProvider(), new LighthouseSetupProvider(),
@@ -37,6 +46,9 @@ public final class InfrastructureSetupService {
         return new InfrastructureSetupService(new SetupProviderRegistry(providers), platform, architecture);
     }
 
+    /**
+     * Returns the catalog of setup providers this service can manage.
+     */
     public SetupCatalog catalog() {
         return SetupCatalog.builtIn();
     }
@@ -56,14 +68,24 @@ public final class InfrastructureSetupService {
         return providers.require(Objects.requireNonNull(plan, "plan").profile()).selectionFromPlan(plan);
     }
 
+    /**
+     * Plans the changes needed for the given options without applying them.
+     */
     public SetupPlan plan(SetupOptions options) {
         return plan(options, SetupSelection.defaults());
     }
 
+    /**
+     * Plans the changes needed for the selected components without applying them.
+     */
     public SetupPlan plan(SetupOptions options, SetupSelection selection) {
         return plan(options, selection, SetupOperation.INSTALL);
     }
 
+    /**
+     * Plans the given operation (such as install or remove) for the selected components without
+     * applying it.
+     */
     public SetupPlan plan(SetupOptions options, SetupSelection selection, SetupOperation operation) {
         SetupOptions value = Objects.requireNonNull(options, "options");
         SetupPlan plan = providers.require(value.profile()).plan(value, Objects.requireNonNull(selection, "selection"),
@@ -78,14 +100,23 @@ public final class InfrastructureSetupService {
         return plan(options, Objects.requireNonNull(request, "request").toSelection());
     }
 
+    /**
+     * Checks the setup for the given options and reports problems without changing anything.
+     */
     public SetupReport doctor(SetupOptions options) {
         return status(options);
     }
 
+    /**
+     * Reports the current state of the setup for the given options.
+     */
     public SetupReport status(SetupOptions options) {
         return status(options, SetupSelection.defaults());
     }
 
+    /**
+     * Reports the current state of the selected components.
+     */
     public SetupReport status(SetupOptions options, SetupSelection selection) {
         SetupOptions value = Objects.requireNonNull(options, "options");
         SetupReport report = providers.require(value.profile()).status(value,
@@ -103,10 +134,16 @@ public final class InfrastructureSetupService {
         return status(options, Objects.requireNonNull(request, "request").toSelection());
     }
 
+    /**
+     * Verifies that the setup for the given options is installed and healthy.
+     */
     public SetupReport verify(SetupOptions options) {
         return status(options);
     }
 
+    /**
+     * Verifies that the selected components are installed and healthy.
+     */
     public SetupReport verify(SetupOptions options, SetupSelection selection) {
         return status(options, selection);
     }
@@ -116,22 +153,42 @@ public final class InfrastructureSetupService {
         return status(options, request);
     }
 
+    /**
+     * Installs an approved plan.
+     *
+     * @throws IOException when an artifact cannot be fetched or written
+     */
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options) throws IOException {
         return install(plan, approval, options,
                 authorizedSelectionFromPlan(plan, approval, options, "mutate the host"));
     }
 
+    /**
+     * Installs an approved plan, reporting progress as it runs.
+     *
+     * @throws IOException when an artifact cannot be fetched or written
+     */
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
                                 Consumer<SetupProgress> progress) throws IOException {
         return install(plan, approval, options,
                 authorizedSelectionFromPlan(plan, approval, options, "mutate the host"), progress);
     }
 
+    /**
+     * Installs the selected components of an approved plan.
+     *
+     * @throws IOException when an artifact cannot be fetched or written
+     */
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
                                 SetupSelection selection) throws IOException {
         return install(plan, approval, options, selection, ignored -> { });
     }
 
+    /**
+     * Installs the selected components of an approved plan, reporting progress as it runs.
+     *
+     * @throws IOException when an artifact cannot be fetched or written
+     */
     public SetupReceipt install(SetupPlan plan, SetupApproval approval, SetupOptions options,
                                 SetupSelection selection, Consumer<SetupProgress> progress) throws IOException {
         SetupProvider provider = authorize(plan, approval, options, selection, "mutate the host");
@@ -148,12 +205,22 @@ public final class InfrastructureSetupService {
         return install(plan, approval, options, Objects.requireNonNull(request, "request").toSelection());
     }
 
+    /**
+     * Installs an approved plan if needed and starts the services it owns.
+     *
+     * @throws IOException when an artifact cannot be fetched or written
+     */
     public ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options)
             throws IOException {
         return start(plan, approval, options,
                 authorizedSelectionFromPlan(plan, approval, options, "start a managed service"));
     }
 
+    /**
+     * Installs the selected components of an approved plan if needed and starts their services.
+     *
+     * @throws IOException when an artifact cannot be fetched or written
+     */
     public ManagedEnvironment start(SetupPlan plan, SetupApproval approval, SetupOptions options,
                                     SetupSelection selection) throws IOException {
         SetupProvider provider = authorize(plan, approval, options, selection, "start a managed service");

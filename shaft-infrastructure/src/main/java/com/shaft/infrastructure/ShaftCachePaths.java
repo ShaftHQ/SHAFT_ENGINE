@@ -15,14 +15,23 @@ public record ShaftCachePaths(Path cacheRoot, Path dataRoot, Path downloads, Pat
         receipts = child(dataRoot, receipts, "receipts");
     }
 
+    /**
+     * Returns the folder that holds downloaded artifacts.
+     */
     public Path cache() { return cacheRoot.resolve("artifacts"); }
 
+    /**
+     * Returns the SHAFT cache paths for the current user and platform.
+     */
     public static ShaftCachePaths current() {
         Path home = Path.of(System.getProperty("user.home")).toAbsolutePath();
         return resolve(SetupPlatform.current(), home, environmentPath("LOCALAPPDATA"),
                 environmentPath("XDG_CACHE_HOME"), environmentPath("XDG_DATA_HOME"));
     }
 
+    /**
+     * Resolves the SHAFT cache paths for the platform from the given home and cache folders.
+     */
     public static ShaftCachePaths resolve(SetupPlatform platform, Path userHome, Path windowsLocalAppData,
                                           Path xdgCacheHome, Path xdgDataHome) {
         Objects.requireNonNull(platform, "platform");

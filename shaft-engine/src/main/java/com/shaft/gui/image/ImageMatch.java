@@ -26,10 +26,16 @@ public record ImageMatch(ImageRectangle bounds, double confidence, double scale,
         diagnostics = diagnostics == null ? Map.of() : Map.copyOf(diagnostics);
     }
 
+    /**
+     * Returns the horizontal center of the match in pixels.
+     */
     public int centerX() {
         return bounds.centerX();
     }
 
+    /**
+     * Returns the vertical center of the match in pixels.
+     */
     public int centerY() {
         return bounds.centerY();
     }

@@ -38,6 +38,9 @@ public record SetupPlan(int schemaVersion, SetupProfile profile, SetupPlatform p
         if (!expected.equals(digest)) throw new IllegalArgumentException("Plan digest does not match its content.");
     }
 
+    /**
+     * Creates a plan and computes the digest an approval must match.
+     */
     public static SetupPlan create(SetupProfile profile, SetupPlatform platform, SetupArchitecture architecture,
                                    SetupMode mode, List<SetupAction> actions) {
         List<SetupAction> immutable = List.copyOf(actions);

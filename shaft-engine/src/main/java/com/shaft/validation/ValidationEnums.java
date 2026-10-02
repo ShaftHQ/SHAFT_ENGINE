@@ -28,6 +28,9 @@ public class ValidationEnums {
             this.value = type;
         }
 
+        /**
+         * Returns the boolean value this constant stands for.
+         */
         public boolean getValue() {
             return value;
         }
@@ -122,6 +125,9 @@ public class ValidationEnums {
             this.value = type;
         }
 
+        /**
+         * Returns the boolean value this constant stands for.
+         */
         public boolean getValue() {
             return value;
         }

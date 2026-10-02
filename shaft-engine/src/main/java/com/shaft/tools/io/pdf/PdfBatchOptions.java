@@ -10,6 +10,9 @@ public record PdfBatchOptions(int parallelism, long maximumInFlightRasterBytes, 
         }
     }
 
+    /**
+     * Returns batch options built from the configured OCR document properties.
+     */
     public static PdfBatchOptions defaults() {
         return new PdfBatchOptions(Properties.ocr.documentBatchParallelism(),
                 Properties.ocr.documentMaximumInFlightRasterBytes(), false);

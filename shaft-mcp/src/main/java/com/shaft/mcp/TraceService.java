@@ -105,6 +105,9 @@ public class TraceService {
      */
     @Tool(name = "trace_latest",
             description = "returns recent persisted SHAFT trace indexes from target/shaft-traces")
+    /**
+     * Lists the most recent trace files.
+     */
     public McpTraceLatestResult traceLatest(int maxResults) {
         Path traceRoot = workspacePolicy.output("target/shaft-traces", "SHAFT trace directory");
         if (!Files.isDirectory(traceRoot)) {
@@ -140,6 +143,9 @@ public class TraceService {
      */
     @Tool(name = "trace_read",
             description = "returns redacted SHAFT trace JSON from a trace path with explicit output bounds")
+    /**
+     * Reads a trace file, trimmed to the given length.
+     */
     public McpTraceReadResult traceRead(String tracePath, int maxCharacters) {
         TraceDocument trace = readTrace(tracePath);
         String content = redact(trace.content());
@@ -162,6 +168,9 @@ public class TraceService {
      */
     @Tool(name = "trace_summarize",
             description = "returns a deterministic summary of a persisted SHAFT trace without AI")
+    /**
+     * Summarizes a trace file.
+     */
     public McpTraceSummary traceSummarize(String tracePath) {
         return summarize(readTrace(tracePath));
     }
@@ -177,6 +186,9 @@ public class TraceService {
      */
     @Tool(name = "trace_open_viewer",
             description = "resolves (extracting from the trace ZIP if needed) the offline SHAFT Trace Report HTML viewer for a persisted trace")
+    /**
+     * Opens a trace file in the trace viewer.
+     */
     public McpTraceViewerResult traceOpenViewer(String tracePath) {
         Path path = workspacePolicy.existing(tracePath, "Trace path");
         Path directory = Files.isDirectory(path) ? path : path.getParent();
@@ -237,6 +249,9 @@ public class TraceService {
      */
     @Tool(name = "report_merge_shards",
             description = "merges N per-shard Allure/trace/doctor-intelligence blobs into one Allure result set plus a flaky-clustering speedboard HTML")
+    /**
+     * Merges report shard blobs into one report.
+     */
     public McpMergeShardsResult reportMergeShards(List<String> shardBlobPaths, String outputDirectory) {
         List<Path> shardRoots = workspacePolicy.existingList(shardBlobPaths, "Shard blob path");
         Path output = outputDirectory == null || outputDirectory.isBlank()
@@ -269,6 +284,9 @@ public class TraceService {
      */
     @Tool(name = "report_history",
             description = "ingests Allure history.jsonl plus optional Doctor JSON for cross-run history in the Reporting canvas; never replaces allure-results; missing history is empty-state")
+    /**
+     * Returns the Allure history view.
+     */
     public AllureHistoryModels.HistoryView reportHistory(
             @ToolParam(required = false) String historyPath,
             @ToolParam(required = false) String doctorReportPath,
@@ -297,6 +315,9 @@ public class TraceService {
      */
     @Tool(name = "report_flake",
             description = "builds a dual flake table with separate retry-hidden (intra-run) and cross-launch transition tags; never a single combined score; unknown history is explicit; CI commit metadata optional")
+    /**
+     * Returns the flaky test table from Allure history.
+     */
     public FlakeModels.FlakeTable reportFlake(
             @ToolParam(required = false) String historyPath,
             @ToolParam(required = false) String doctorReportPath,
@@ -329,6 +350,9 @@ public class TraceService {
      */
     @Tool(name = "report_smart_tags",
             description = "computes New / Always-failing / Flaky / Regressed / Fixed smart tags from Allure history; first-seen failure is New not Regressed; insufficient history never invents Flaky; duration anomaly optional when timings exist")
+    /**
+     * Returns the smart tags table from Allure history.
+     */
     public SmartTagModels.SmartTagTable reportSmartTags(
             @ToolParam(required = false) String historyPath,
             @ToolParam(required = false) String doctorReportPath,
@@ -359,6 +383,9 @@ public class TraceService {
      */
     @Tool(name = "report_clusters",
             description = "clusters failed Allure results by Doctor historical-signature keys into error → impacted tests; deterministic, no cloud ML; empty results are empty-state")
+    /**
+     * Groups failures in Allure results into error clusters.
+     */
     public ErrorClusterModels.ClusterTable reportClusters(
             @ToolParam(required = false) String allureResultsPath,
             @ToolParam(required = false) String doctorReportPath) {
@@ -383,6 +410,9 @@ public class TraceService {
      */
     @Tool(name = "report_heal",
             description = "dashboards SHAFT Heal insights by HealingDecision status with persist-on-pass review gate; RECOVERED+pass offers reviewable patch; AMBIGUOUS cannot apply source; NO_CANDIDATES shown; never auto-writes locators")
+    /**
+     * Returns insights from healing reports and proposals.
+     */
     public HealInsightModels.HealInsightsTable reportHeal(
             @ToolParam(required = false) String reportsPath,
             @ToolParam(required = false) String proposalsPath) {
@@ -406,6 +436,9 @@ public class TraceService {
      */
     @Tool(name = "report_open",
             description = "opens the newest Allure HTML report when present; empty-state returns generate_test_report CTA; never rewrites Allure HTML; CLI/MCP parity for Reporting canvas Open Allure")
+    /**
+     * Opens the report and returns where to view it.
+     */
     public ReportSummaryModels.OpenView reportOpen(
             @ToolParam(required = false) String reportPath,
             @ToolParam(required = false) String allureResultsPath,
@@ -453,6 +486,9 @@ public class TraceService {
      */
     @Tool(name = "report_summary",
             description = "builds engineer and stakeholder Reporting summaries with reconciled Allure counts, flake and heal tallies; playbook-shaped; never includes secrets; empty-state cites generate_test_report CTA")
+    /**
+     * Summarizes the test results.
+     */
     public ReportSummaryModels.SummaryView reportSummary(
             @ToolParam(required = false) String allureResultsPath,
             @ToolParam(required = false) String reportPath,
@@ -518,6 +554,9 @@ public class TraceService {
      */
     @Tool(name = "report_mute",
             description = "local flake mute/quarantine with required reason and recover-after-N-local-passes; never writes Maven Surefire excludes by default; store is gitignored .shaft/local-mutes.json unless muteStorePath opts into a shared project file")
+    /**
+     * Lists, adds or removes local test mutes.
+     */
     public LocalMuteModels.MuteTable reportMute(
             @ToolParam(required = false) String action,
             @ToolParam(required = false) String testId,
@@ -648,6 +687,9 @@ public class TraceService {
      */
     @Tool(name = "doctor_analyze_trace",
             description = "analyzes a persisted SHAFT trace and returns deterministic Doctor remediation guidance")
+    /**
+     * Analyzes a trace file for the likely failure cause.
+     */
     public McpAnalysisReport doctorAnalyzeTrace(String tracePath, String backend) {
         TraceDocument trace = readTrace(tracePath);
         McpTraceSummary summary = summarize(trace);

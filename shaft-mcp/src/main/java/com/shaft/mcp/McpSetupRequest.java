@@ -26,6 +26,9 @@ public record McpSetupRequest(String profile, String mode, String cacheRoot, Str
         components = components == null ? List.of() : List.copyOf(components);
     }
 
+    /**
+     * Creates a setup request; blank values fall back to the configured properties.
+     */
     public McpSetupRequest(String profile, String mode, String cacheRoot, String dataRoot,
                            Boolean offline, Boolean autoStart, Boolean preferSystemTools,
                            Boolean reuseOwnedProcesses, String startupTimeout, String shutdownTimeout,
