@@ -1,0 +1,20 @@
+FROM ghcr.io/shafthq/shaft-engine-mcp:latest
+
+# Let the server run as a non-root user. SHAFT writes its properties and
+# reports under the working directory, and the MCP runtime falls back to
+# $HOME, so both must be writable.
+RUN apt-get update && apt-get install -y --no-install-recommends dumb-init \
+    && rm -rf /var/lib/apt/lists/* \
+    && chgrp 0 /app && chmod g+rwx /app
+
+LABEL io.modelcontextprotocol.server.name="io.github.ShaftHQ/shaft-mcp"
+
+EXPOSE 8081
+ENV HOME=/tmp
+ENV SPRING_PROFILES_ACTIVE=http
+
+# dumb-init reaps the Chrome processes each browser session leaves behind.
+ENTRYPOINT ["dumb-init", "--"]
+# Chrome's sandbox can't start in this container as a non-root user, so turn
+# on SHAFT's recommended Chrome options, which include --no-sandbox.
+CMD ["java", "-XX:+UseSerialGC", "-Xms128m", "-Xmx384m", "-XX:+TieredCompilation", "-XX:TieredStopAtLevel=1", "-DheadlessExecution=true", "-DautomaticallyAddRecommendedChromeOptions=true", "-cp", "/app/shaft-mcp.jar:/app/lib/*", "com.shaft.mcp.ShaftMcpApplication"]
