@@ -49,6 +49,8 @@ A card is done when all hold:
    and report. Never re-verify what already passed.
 5. Every finding raised while working is closed (see below).
 6. Merged or handed off as instructed; worktree cleaned.
+7. After any CE harness change merges, every agent and delegate reloads the
+   latest harness from main before continuing.
 
 ## Findings policy
 

@@ -76,3 +76,29 @@ class RefreshSetupLockPinsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SetupNpmAutomationContractTest(unittest.TestCase):
+    """#6369 Dependabot npm coverage and #6370 BOT_TOKEN guard."""
+
+    ROOT = Path(__file__).resolve().parents[2]
+
+    def test_dependabot_npm_entry_covers_every_bundled_setup_lockfile(self):
+        text = (self.ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
+        self.assertEqual(1, text.count('package-ecosystem: "npm"'))
+        block = text.split('package-ecosystem: "npm"', 1)[1].split("package-ecosystem:", 1)[0]
+        for lock in (self.ROOT / "shaft-infrastructure/src/main/resources/com/shaft/infrastructure").glob(
+            "*/package-lock.json"
+        ):
+            with self.subTest(lock=lock.parent.name):
+                self.assertIn(f'- "/{lock.parent.relative_to(self.ROOT).as_posix()}"', block)
+        self.assertIn('interval: "weekly"', block)
+        self.assertIn("groups:", block)
+
+    def test_refresh_job_guards_bot_token_and_names_fallback(self):
+        text = (self.ROOT / ".github/workflows/setup-lock-pins.yml").read_text(encoding="utf-8")
+        self.assertIn("Verify BOT_TOKEN can push", text)
+        self.assertIn("BOT_TOKEN expired or lacks push", text)
+        self.assertIn("Lock-pin push rejected", text)
+        self.assertGreaterEqual(text.count("refresh_setup_lock_pins.py --write' on the PR branch"), 2)
+        self.assertLess(text.index("Verify BOT_TOKEN can push"), text.index("Checkout Dependabot head"))

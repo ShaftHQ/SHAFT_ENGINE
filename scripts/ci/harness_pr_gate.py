@@ -364,6 +364,8 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_maven_tools_reinstall_6336",
             # #6363: doctor prints each warning row once.
             "tests.scripts.test_chaos_engine_doctor_dedupe_6363",
+            # Fresh-clone MemPalace mine runs in the background with doctor status.
+            "tests.scripts.test_mempalace_background_index",
         ),
     ),
     # #6244: modules that were red on main and selected by nothing.
@@ -517,6 +519,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_consumer_mode_6237.py",
         "tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py",
         "tests/scripts/test_chaos_engine_doctor_dedupe_6363.py",
+        "tests/scripts/test_mempalace_background_index.py",
     ),
     "hosts": (
         "chaos-engine/hosts.py",

@@ -102,6 +102,7 @@ jobs:
               - 'tests/scripts/test_chaos_engine_mempalace_init_6236.py'
               - 'tests/scripts/test_chaos_engine_consumer_mode_6237.py'
               - 'tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py'
+              - 'tests/scripts/test_mempalace_background_index.py'
             docs:
               - "**/*.md"
               - "**/*.mdx"
@@ -235,6 +236,7 @@ jobs:
               - 'tests/scripts/test_chaos_engine_mempalace_init_6236.py'
               - 'tests/scripts/test_chaos_engine_consumer_mode_6237.py'
               - 'tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py'
+              - 'tests/scripts/test_mempalace_background_index.py'
               # #6239: repo-state guard for the script suites.
               - 'tests/scripts/conftest.py'
               - 'tests/scripts/repo_state_guard.py'
