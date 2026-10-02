@@ -1474,7 +1474,25 @@ def _pid_elapsed(pid: int):
     return f"{elapsed / 3600:.1f}h"
 
 
-def linux_flock_holders(lock_path: Path, *, locks_text=None, cmdline_by_pid=None):
+def _pid_has_open_path(pid: int, lock_path: Path, fd_paths_by_pid=None) -> bool:
+    """Whether ``pid`` holds ``lock_path`` open (``/proc/<pid>/fd`` links; test seam)."""
+    target = os.path.realpath(lock_path)
+    if fd_paths_by_pid is not None:
+        return any(os.path.realpath(path) == target for path in fd_paths_by_pid.get(pid, ()))
+    try:
+        descriptors = list(Path(f"/proc/{pid}/fd").iterdir())
+    except OSError:
+        return False
+    for descriptor in descriptors:
+        try:
+            if os.path.realpath(os.readlink(descriptor)) == target:
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def linux_flock_holders(lock_path: Path, *, locks_text=None, cmdline_by_pid=None, fd_paths_by_pid=None):
     """Best-effort Linux flock holders for ``lock_path`` via ``/proc/locks``.
 
     Returns a list of ``(pid, cmdline, elapsed_or_none)``. Empty on race,
@@ -1508,10 +1526,14 @@ def linux_flock_holders(lock_path: Path, *, locks_text=None, cmdline_by_pid=None
             continue
         maj_s, min_s, ino_s = identity.split(":")
         try:
-            if int(maj_s, 16) != major or int(min_s, 16) != minor or int(ino_s) != inode:
+            if int(ino_s) != inode:
                 continue
             pid = int(parts[4])
+            same_device = int(maj_s, 16) == major and int(min_s, 16) == minor
         except ValueError:
+            continue
+        # overlayfs (containers) reports a different st_dev than /proc/locks; confirm by open fd.
+        if not same_device and not _pid_has_open_path(pid, lock_path, fd_paths_by_pid):
             continue
         if pid in seen or pid <= 0:
             continue
@@ -3659,6 +3681,9 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 # Require an explicit runner parameter (not bare **kwargs mocks).
                 if "runner" in parameters:
                     kwargs["runner"] = account_runner
+                # A detached mine would race the upgrade's MemPalace rollback image.
+                if "background_mine_allowed" in parameters:
+                    kwargs["background_mine_allowed"] = old_manifest is None
                 account_receipt = install_account(project, specification, **kwargs)
                 if bundle.get("mempalace", True):
                     # #6236: inside the rollback capture window below.
@@ -6619,6 +6644,14 @@ def format_agent_summary(document: dict[str, object]) -> str:
     return "\n".join(lines[:AGENT_SUMMARY_MAX_LINES]) + "\n"
 
 
+DOCTOR_FAILING_STATUSES = frozenset({"recovery-required", "failed"})
+
+
+def doctor_exit_code(document: dict[str, object]) -> int:
+    """Doctor exits non-zero when recovery is required, in every output mode."""
+    return 1 if str(document.get("status") or "") in DOCTOR_FAILING_STATUSES else 0
+
+
 def agent_summary_exit_code(document: dict[str, object]) -> int:
     """Fail closed when policy hash drifted or the summary cannot stay bounded."""
     rendered = format_agent_summary(document)
@@ -6987,9 +7020,10 @@ def main() -> int:
                 ),
                 end="",
             )
+            return doctor_exit_code(result)
         return 0
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
-    return 0
+    return doctor_exit_code(result) if args.command == "doctor" else 0
 
 
 if __name__ == "__main__":

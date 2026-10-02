@@ -85,4 +85,17 @@ class AiProviderRegistryTest {
                     request.deterministicFallback());
         }
     }
+
+    @Test
+    void explicitProviderFlagFollowsRegisterAndClear() {
+        AiProviderRegistry registry = new AiProviderRegistry();
+        assertEquals(false, registry.hasExplicitProviderForCurrentThread());
+        registry.registerForCurrentThread(new MinimalProvider("explicit"));
+        try {
+            assertEquals(true, registry.hasExplicitProviderForCurrentThread());
+        } finally {
+            registry.clearForCurrentThread();
+        }
+        assertEquals(false, registry.hasExplicitProviderForCurrentThread());
+    }
 }

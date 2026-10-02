@@ -1826,7 +1826,7 @@ class InstallerUxTests(unittest.TestCase):
             "argv",
             ["install.py", "doctor", "--project", "."],
         ):
-            self.assertEqual(0, INSTALL.main())
+            self.assertEqual(1, INSTALL.main())
         failing = stdout.getvalue()
         self.assertIn("fix-next:", failing)
         self.assertIn("[error] hooks", failing)

@@ -80,6 +80,17 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             module.installer_failure_detail(diagnostic),
         )
 
+        bare = "\n".join((
+            "x Installation failed (CE-INSTALL-FAILED)",
+            "https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?"
+            "failed_phase=Provision+dependencies&cause=mempalace+mine+failed",
+        ))
+        self.assertEqual(
+            "x Installation failed (CE-INSTALL-FAILED); "
+            "failed phase: Provision dependencies; cause: mempalace mine failed",
+            module.installer_failure_detail(bare),
+        )
+
     def test_managed_python_version_comes_from_installed_contract(self):
         module = load_acceptance()
         self.assertIsNotNone(module)

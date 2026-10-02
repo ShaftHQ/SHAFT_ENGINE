@@ -1534,6 +1534,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     allow_root: bool = False,
     now: datetime | None = None,
     mine_spawner=None,
+    background_mine_allowed: bool = True,
 ) -> dict[str, object]:
     """Install/upgrade required tools for the invoking account, then initialize cwd."""
     project = project.resolve()
@@ -1724,8 +1725,12 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     if unhealthy:
         raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
     # An injected runner without mine_spawner keeps the mine synchronous.
-    background_mine = mempalace_mine_mode() == "background" and (
-        mine_spawner is not None or runner is subprocess.run
+    # install.py wraps subprocess.run for tracing (``.inner``); unwrap before deciding.
+    # Upgrades snapshot MemPalace state for rollback, so the mine must finish first.
+    background_mine = background_mine_allowed and mempalace_mine_mode() == "background" and (
+        mine_spawner is not None
+        or runner is subprocess.run
+        or getattr(runner, "inner", None) is subprocess.run
     )
     for command in project_setup_plan(project, commands):
         environment = mempalace_project_setup_environment(project, command)

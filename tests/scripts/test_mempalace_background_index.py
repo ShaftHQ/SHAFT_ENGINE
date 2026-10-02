@@ -96,6 +96,44 @@ class BackgroundMineInstallTest(TestCase):
             self.assertEqual("running", status["status"])
             self.assertIn("log", status["fixNext"])
 
+    def test_installer_tracing_runner_still_detaches_the_mine(self):
+        """install.py wraps subprocess.run for tracing; that must not force a blocking mine."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            mine = self.module.mempalace_project_cli("/tools/mempalace", "mine", project)
+
+            def traced(command, **_kwargs):
+                self.fail(f"mine must not run synchronously: {command}")
+
+            traced.inner = self.module.subprocess.run
+            traced.rewrap = lambda inner: traced
+
+            with mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE_MINE": ""}), \
+                    mock.patch.object(self.module, "start_background_mempalace_mine") as detached:
+                self.install(project, mine, runner=traced)
+
+            detached.assert_called_once()
+            self.assertEqual(mine, detached.call_args.args[0])
+
+    def test_upgrade_rollback_window_keeps_mine_synchronous(self):
+        """An upgrade snapshots MemPalace state for rollback; a detached mine would race it."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            mine = self.module.mempalace_project_cli("/tools/mempalace", "mine", project)
+            spawner = FakeSpawner()
+            calls = []
+
+            def runner(command, **_kwargs):
+                calls.append(command)
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            with mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE_MINE": ""}):
+                self.install(project, mine, runner=runner, mine_spawner=spawner,
+                             background_mine_allowed=False)
+
+            self.assertEqual([mine], calls)
+            self.assertEqual([], spawner.calls)
+
     def test_foreground_override_keeps_synchronous_mine(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)

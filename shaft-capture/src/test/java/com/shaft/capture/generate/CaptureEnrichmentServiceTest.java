@@ -245,4 +245,24 @@ class CaptureEnrichmentServiceTest {
         new CaptureJsonCodec().write(sessionPath, session);
         return sessionPath;
     }
+
+    @Test
+    void apiScenarioNamePreviewSendsOnlySummariesAndFailsClosedWhenProviderUnavailable() {
+        AtomicReference<AiRequest> captured = new AtomicReference<>();
+        CaptureEnrichmentService unavailable = new CaptureEnrichmentService(request -> {
+            captured.set(request);
+            return AiResponse.failure(AiResponseStatus.PROVIDER_UNAVAILABLE, "none", "", "unavailable",
+                    Duration.ZERO, request.deterministicFallback());
+        });
+
+        IllegalStateException failure = org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> unavailable.previewApiScenarioName("session-1", "0123456789abcdef0123",
+                        List.of("GET /api/cart", "POST /api/checkout"), "CartTest", "checkout",
+                        new ApprovalPolicy(true, true, Set.of(EvidenceCategory.TEXT))));
+
+        assertTrue(failure.getMessage().contains("PROVIDER_UNAVAILABLE"), failure.getMessage());
+        assertEquals("capture-api-enrichment-0123456789abcdef", captured.get().requestId());
+        String evidence = captured.get().evidence().getFirst().content();
+        assertTrue(evidence.contains("POST /api/checkout"), evidence);
+    }
 }

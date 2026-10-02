@@ -11,11 +11,14 @@ import com.shaft.doctor.model.Finding;
 import com.shaft.doctor.model.RedactionSummary;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.api.io.TempDir;
+
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -148,5 +151,12 @@ class ProjectPatternRuleLoaderTest {
                 evidence,
                 new RedactionSummary(List.of(), List.of(), 0),
                 Map.of("minimumAllureResultCount", "1"));
+    }
+
+    @Test
+    void discoveryWithoutRuleFilesKeepsTheSameEngine(@TempDir Path temp) {
+        DeterministicRuleEngine engine = new DeterministicRuleEngine();
+        assertSame(engine, engine.withDiscoveredProjectRules(List.of(temp)));
+        assertSame(engine, engine.withDiscoveredProjectRules(null));
     }
 }
