@@ -64,4 +64,43 @@ public class OcrPublicContractTest {
         Assert.expectThrows(IllegalArgumentException.class,
                 () -> OcrOptions.defaults().withLanguages("English", " "));
     }
+
+    @Test
+    public void optionCopiesChangeOnlyTheRequestedSetting() {
+        OcrOptions defaults = OcrOptions.defaults();
+        OcrPageSegmentationMode[] segmentationModes = OcrPageSegmentationMode.values();
+        OcrPageSegmentationMode lastMode = segmentationModes[segmentationModes.length - 1];
+        OcrOptions tuned = defaults.withCaseSensitive(!defaults.caseSensitive())
+                .withWhitespaceNormalization(!defaults.normalizeWhitespace())
+                .withPageSegmentationMode(lastMode)
+                .withPreprocessingMode(OcrPreprocessingMode.BINARY);
+
+        Assert.assertEquals(tuned.caseSensitive(), !defaults.caseSensitive());
+        Assert.assertEquals(tuned.normalizeWhitespace(), !defaults.normalizeWhitespace());
+        Assert.assertEquals(tuned.pageSegmentationMode(), lastMode);
+        Assert.assertEquals(tuned.preprocessingMode(), OcrPreprocessingMode.BINARY);
+        Assert.assertEquals(tuned.languages(), defaults.languages());
+        Assert.assertEquals(tuned.minimumConfidence(), defaults.minimumConfidence());
+    }
+
+    @Test
+    public void pdfDocumentAndExportCopiesAreImmutable() {
+        com.shaft.tools.io.pdf.PdfDocumentOptions defaults = com.shaft.tools.io.pdf.PdfDocumentOptions.defaults();
+        OcrOptions caseSensitive = OcrOptions.defaults().withCaseSensitive(true);
+        com.shaft.tools.io.pdf.PdfDocumentOptions tuned = defaults.withOcrOptions(caseSensitive)
+                .withPageTimeout(java.time.Duration.ofSeconds(7));
+        Assert.assertEquals(tuned.ocrOptions(), caseSensitive);
+        Assert.assertEquals(tuned.pageTimeout(), java.time.Duration.ofSeconds(7));
+        Assert.assertEquals(tuned.renderDpi(), defaults.renderDpi());
+        Assert.expectThrows(IllegalArgumentException.class, () -> defaults.withPageTimeout(java.time.Duration.ZERO));
+
+        com.shaft.tools.io.pdf.PdfExportRequest request = com.shaft.tools.io.pdf.PdfExportRequest.to(
+                com.shaft.tools.io.pdf.PdfExportFormat.TSV, java.nio.file.Path.of("out.tsv"));
+        Assert.assertFalse(request.replaceExisting());
+        Assert.assertFalse(request.allowSignatureInvalidation());
+        com.shaft.tools.io.pdf.PdfExportRequest permissive = request.replacingExisting().allowingSignatureInvalidation();
+        Assert.assertTrue(permissive.replaceExisting());
+        Assert.assertTrue(permissive.allowSignatureInvalidation());
+        Assert.assertTrue(permissive.output().isAbsolute());
+    }
 }
