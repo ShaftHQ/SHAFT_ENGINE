@@ -4622,7 +4622,7 @@ class TokenEconomyWave2HostsParityTest(unittest.TestCase):
 
     def test_ce_pointer_loads_once_on_every_host(self):
         self.assertEqual(b"@AGENTS.md\n", self.hosts.claude_pointer_bytes())
-        self.assertEqual({"opencode", "cursor", "grok-bot"}, set(self.hosts.INSTRUCTION_ONLY_HOSTS))
+        self.assertEqual({"opencode", "cursor", "grok-bot", "independent-bot"}, set(self.hosts.INSTRUCTION_ONLY_HOSTS))
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         self.assertEqual(1, agents.count("skills/chaos-engine/SKILL.md"))
 

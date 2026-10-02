@@ -9,6 +9,7 @@ import ctypes.wintypes
 import errno
 import hashlib
 import json
+import math
 import os
 import platform
 import re
@@ -101,7 +102,6 @@ DEPENDENCY_ACTIONS = frozenset({"reused", "installed", "upgraded", "repaired", "
 ACCOUNT_COMMAND_TIMEOUT_SECONDS = 900
 # A fresh repository mine can embed tens of thousands of drawers on CPU, far past
 # the synchronous budget, so install hands it to a detached incremental runner.
-BACKGROUND_MINE_TIMEOUT_SECONDS = 6 * 3600
 MEMPALACE_MINE_MODE_ENV = "CHAOS_ENGINE_MEMPALACE_MINE"
 MEMPALACE_INDEX_SUBCOMMAND = "mempalace-index"
 MEMPALACE_INDEX_STATUS_NAME = "mempalace-index.json"
@@ -980,8 +980,15 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
 
 
 def mempalace_project_setup_complete(project: Path) -> bool:
-    """Return whether a valid configuration already has exact local state."""
-    return (mempalace_project_palace(project) / "sqlite_exact.sqlite3").is_file()
+    """Return whether a valid configuration already has mined exact state (#6377)."""
+    import runpy
+
+    palace = mempalace_project_palace(project)
+    path = Path(__file__).resolve().with_name("stores.py")
+    if not path.is_file():
+        return (palace / "sqlite_exact.sqlite3").is_file()
+    namespace = runpy.run_path(str(path), run_name="_chaos_engine_stores_count")
+    return bool(namespace["palace_drawer_count"](palace))
 
 
 def mempalace_project_configuration_exists(project: Path) -> bool:
@@ -1256,8 +1263,7 @@ def run_mempalace_index(project: Path, command: list[str], *, runner=subprocess.
         project, _index_document("running", command, pid=os.getpid(), log=str(log_path))
     )
     try:
-        _run_transient_mempalace_mine(command, project, runner=runner,
-                                      budget=BACKGROUND_MINE_TIMEOUT_SECONDS)
+        _run_transient_mempalace_mine(command, project, runner=runner)
         mark_mempalace_project_setup(project)
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
         _write_index_status(project, _index_document("failed", command, detail=str(error)[:400]))
@@ -1367,12 +1373,31 @@ class _AccountCommandError(RuntimeError):
         self.full_output = f"{stderr}\n{stdout}"
 
 
+
+def run_until_stalled(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
+    """Run without a wall-clock cap; stores.py stops it only when it stalls (#6377)."""
+    import importlib.util as _ilu
+
+    spec = _ilu.spec_from_file_location(
+        "chaos_engine_stores_watchdog", Path(__file__).with_name("stores.py")
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("stores.py watchdog is unavailable")
+    module = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.run_until_stalled(args, **kwargs)
+
+
 def _run_transient_mempalace_mine(
     command: list[str], project: Path, *, runner=subprocess.run,
     extra_environment: dict[str, str] | None = None,
-    budget: float = ACCOUNT_COMMAND_TIMEOUT_SECONDS,
+    budget: float = float("inf"),
 ) -> subprocess.CompletedProcess[str]:
-    """Retry a transient MemPalace TLS EOF within one setup timeout budget."""
+    """Mine with no wall-clock cap (stall watchdog, #6377); retry a transient TLS EOF."""
+    if runner is subprocess.run:
+        runner = run_until_stalled
+    elif getattr(runner, "inner", None) is subprocess.run and callable(getattr(runner, "rewrap", None)):
+        runner = runner.rewrap(run_until_stalled)
     deadline = time.monotonic() + budget
     for attempt in range(3):
         remaining = deadline - time.monotonic()
@@ -1384,7 +1409,8 @@ def _run_transient_mempalace_mine(
                 project,
                 runner=runner,
                 extra_environment=extra_environment,
-                timeout=remaining,
+                # subprocess cannot wait on float("inf"); None means no wall-clock cap.
+                timeout=remaining if math.isfinite(remaining) else None,
             )
         except _AccountCommandError as error:
             if attempt == 2 or TRANSIENT_MEMPALACE_TLS_EOF not in error.full_output.upper():

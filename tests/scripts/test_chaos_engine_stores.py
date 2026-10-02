@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shutil
+import sqlite3
 import subprocess  # nosec B404 - tests run fixed local Git commands.
 import tempfile
 import unittest
@@ -157,7 +158,12 @@ class SharedStoreTest(unittest.TestCase):
         )
         palace = self.stores.resolve_palace(self.primary)
         palace.mkdir(parents=True)
-        (palace / "sqlite_exact.sqlite3").write_bytes(b"")
+        # #6377: a palace counts as current only with at least one document row.
+        connection = sqlite3.connect(palace / "sqlite_exact.sqlite3")
+        connection.execute("create table documents (id integer primary key, body text)")
+        connection.execute("insert into documents (body) values ('x')")
+        connection.commit()
+        connection.close()
         calls = []
 
         fresh, _message = self.stores.graph_freshness(self.primary)

@@ -17,10 +17,11 @@ import shutil
 import subprocess  # nosec B404 - fixed git and store CLIs, no shell.
 import sys
 import tempfile
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Iterator
+from typing import Any, Callable, Iterator
 
 
 PALACE_BACKEND = "sqlite_exact"
@@ -368,7 +369,7 @@ def refresh_lock(common_dir: Path) -> Iterator[None]:
 
 def _run(runner: Runner, command: list[str], cwd: Path) -> None:
     if runner is subprocess.run:
-        completed = subprocess.run(  # nosec B603 - caller-built argv, no shell.
+        completed = run_until_stalled(
             command,
             cwd=cwd,
             capture_output=True,
@@ -384,12 +385,31 @@ def _run(runner: Runner, command: list[str], cwd: Path) -> None:
         raise RuntimeError(f"command failed with exit {result}")
 
 
+def palace_drawer_count(palace: Path) -> int | None:
+    """Documents in a sqlite_exact palace; None when absent or unreadable (#6377)."""
+    database = palace / "sqlite_exact.sqlite3"
+    if not database.is_file():
+        return None
+    import sqlite3
+
+    try:
+        connection = sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+        try:
+            row = connection.execute("select count(*) from documents").fetchone()
+        finally:
+            connection.close()
+    except sqlite3.Error:
+        return None
+    return int(row[0]) if row else 0
+
+
 def _component_current(cwd: Path, component: str) -> bool:
     if component == "graphify":
         fresh, _message = graph_freshness(cwd)
         return fresh
     if component == "mempalace":
-        return (resolve_palace(cwd) / "sqlite_exact.sqlite3").is_file()
+        # #6377: an initialized but never-mined palace is not current.
+        return bool(palace_drawer_count(resolve_palace(cwd)))
     raise RuntimeError(f"unsupported store component: {component}")
 
 
@@ -759,3 +779,153 @@ def schedule_installed(home: Path | None = None) -> bool:
         root / "AppData/Local/ChaosEngine/stores-refresh.cmd",
     )
     return any(path.is_file() for path in candidates)
+
+
+DEFAULT_STALL_SECONDS = 120
+STALL_ENV = "CHAOS_ENGINE_STALL_SECONDS"
+_POLL_SECONDS = 0.5
+
+
+def stall_seconds() -> int:
+    """Seconds without progress before a store command counts as stalled (#6377)."""
+    raw = os.environ.get(STALL_ENV, "").strip()
+    return int(raw) if raw.isdigit() and int(raw) > 0 else DEFAULT_STALL_SECONDS
+
+
+def _descendant_cpu_ticks(pid: int) -> int | None:
+    """CPU ticks of a process tree from /proc; None where /proc is unavailable."""
+    proc = Path("/proc")
+    if not (proc / str(pid) / "stat").is_file():
+        return None
+    parents: dict[int, list[int]] = {}
+    ticks: dict[int, int] = {}
+    for entry in proc.iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            fields = (entry / "stat").read_text(encoding="ascii").rsplit(")", 1)[1].split()
+        except (OSError, IndexError, UnicodeDecodeError):
+            continue
+        child = int(entry.name)
+        parents.setdefault(int(fields[1]), []).append(child)
+        ticks[child] = int(fields[11]) + int(fields[12])
+    return _tree_total(pid, parents, ticks)
+
+
+def _tree_total(pid: int, parents: dict[int, list[int]], ticks: dict[int, int]) -> int:
+    total, pending = 0, [pid]
+    while pending:
+        current = pending.pop()
+        total += ticks.get(current, 0)
+        pending.extend(parents.get(current, ()))
+    return total
+
+
+def _psutil_cpu_ticks(pid: int) -> int | None:
+    """CPU ticks of a process tree via psutil; None when psutil is missing or fails."""
+    try:
+        import psutil  # type: ignore[import-not-found]
+    except ImportError:
+        return None
+    try:
+        root = psutil.Process(pid)
+        processes = (root, *root.children(recursive=True))
+    except psutil.Error:
+        return None
+    total = 0.0
+    for proc in processes:
+        try:
+            times = proc.cpu_times()
+        except psutil.Error:
+            continue
+        total += times.user + times.system
+    return int(total * 100)
+
+
+def _clock_ticks(clock: str) -> int | None:
+    """``[[dd-]hh:]mm:ss`` from ``ps`` as 1/100 s ticks; None when unparsable."""
+    seconds = 0.0
+    try:
+        for part in clock.replace("-", ":").split(":"):
+            seconds = seconds * 60 + float(part)
+    except ValueError:
+        return None
+    return int(seconds * 100)
+
+
+def _ps_cpu_ticks(pid: int) -> int | None:
+    """CPU ticks of a process tree via POSIX ``ps`` (macOS/BSD); None when unavailable."""
+    ps = shutil.which("ps")
+    if not ps or os.name == "nt":
+        return None
+    try:
+        listing = subprocess.run(  # nosec B603 - resolved ps, fixed argv, no shell.
+            [ps, "-A", "-o", "pid=,ppid=,time="], capture_output=True, text=True, check=False
+        ).stdout
+    except OSError:
+        return None
+    parents: dict[int, list[int]] = {}
+    ticks: dict[int, int] = {}
+    for fields in (line.split() for line in listing.splitlines()):
+        if len(fields) != 3 or not (fields[0].isdigit() and fields[1].isdigit()):
+            continue
+        value = _clock_ticks(fields[2])
+        if value is not None:
+            parents.setdefault(int(fields[1]), []).append(int(fields[0]))
+            ticks[int(fields[0])] = value
+    return _tree_total(pid, parents, ticks) if pid in ticks else None
+
+
+def process_tree_cpu(pid: int) -> int | None:
+    """CPU ticks of a process tree: /proc, then psutil or ``ps``; None when unmeasurable."""
+    for probe in (_descendant_cpu_ticks, _psutil_cpu_ticks, _ps_cpu_ticks):
+        ticks = probe(pid)
+        if ticks is not None:
+            return ticks
+    return None
+
+
+OUTPUT_ONLY_STALL_FACTOR = 5
+
+
+def run_until_stalled(
+    args: list[str], *, stall_seconds: float | None = None, **kwargs: Any
+) -> subprocess.CompletedProcess:
+    """Drop-in for ``subprocess.run`` without a wall-clock cap (#6377)."""
+    # The command runs as long as it progresses: new output or CPU time in its
+    # process tree. Only ``stall_seconds`` with neither raises
+    # ``subprocess.TimeoutExpired``. A ``timeout`` argument is ignored. Where CPU
+    # time cannot be read (no /proc, psutil or ``ps``), only output counts and the
+    # stall window is ``OUTPUT_ONLY_STALL_FACTOR`` times longer, so a hang still ends.
+    kwargs.pop("timeout", None)
+    check = kwargs.pop("check", False)
+    text = bool(kwargs.pop("text", False) or kwargs.pop("universal_newlines", False))
+    capture = kwargs.pop("capture_output", False)
+    window = float(stall_seconds or globals()["stall_seconds"]())
+    with tempfile.TemporaryFile() as out_file, tempfile.TemporaryFile() as err_file:
+        if capture:
+            kwargs["stdout"], kwargs["stderr"] = out_file, err_file
+        process = subprocess.Popen(args, **kwargs)  # nosec B603 - caller-built argv, no shell.
+        last_mark, last_progress = None, time.monotonic()
+        while process.poll() is None:
+            time.sleep(_POLL_SECONDS)
+            cpu = process_tree_cpu(process.pid)
+            mark = (os.fstat(out_file.fileno()).st_size, os.fstat(err_file.fileno()).st_size, cpu)
+            # Failsafe: when CPU is unmeasurable, only output counts and the window widens.
+            limit = window if cpu is not None else window * OUTPUT_ONLY_STALL_FACTOR
+            if mark != last_mark:
+                last_mark, last_progress = mark, time.monotonic()
+            elif time.monotonic() - last_progress >= limit:
+                process.kill()
+                process.wait()
+                raise subprocess.TimeoutExpired(args, window)
+        out_file.seek(0)
+        err_file.seek(0)
+        stdout, stderr = (out_file.read(), err_file.read()) if capture else (None, None)
+    if text and capture:
+        stdout = stdout.decode("utf-8", errors="replace")
+        stderr = stderr.decode("utf-8", errors="replace")
+    completed = subprocess.CompletedProcess(args, process.returncode, stdout, stderr)
+    if check:
+        completed.check_returncode()
+    return completed

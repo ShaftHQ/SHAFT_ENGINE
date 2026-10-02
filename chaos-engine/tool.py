@@ -24,14 +24,115 @@ HELP_FLAGS = frozenset({"--help", "-h", "help"})
 _CAPTURE_STORES = frozenset({"mempalace", "graphify"})
 
 
+ENTRY_FILES = (
+    "identity.md",
+    "skills/chaos-engine/SKILL.md",
+    "companions/caveman-ultra.md",
+    "companions/ponytail-ultra.md",
+)
+ENTRY_RETRIEVE = (
+    "Next: run `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "
+    '"<q>"` before the first broad search, then record `retrieve: used` or '
+    "`skipped(<reason>)`.\n"
+)
+
+
+def entry_bundle(installed_root: Path) -> str:
+    """#6377: one startup bundle for bots that auto-load nothing (Grok Bot, GPTs)."""
+    parts = []
+    for relative in ENTRY_FILES:
+        path = installed_root / relative
+        if path.is_file():
+            parts.append(f"<!-- {relative} -->\n{path.read_text(encoding='utf-8').strip()}\n")
+    parts.append(ENTRY_RETRIEVE)
+    return "\n".join(parts)
+
+
+MAINTAIN_STASH = "chaos-engine-maintain"
+MAINTAIN_RELOAD = (
+    "Reload now: re-read `.chaos-engine/skills/chaos-engine/SKILL.md` and both companion "
+    "cards (bots without hooks: `tool.py entry`, see references/bot-entry.md).\n"
+)
+
+
+def _maintain_git(project: Path, *args: str, runner=subprocess.run) -> subprocess.CompletedProcess:
+    return runner(  # nosec B603 - fixed Git argv, no shell.
+        [_git_executable(), *args], cwd=project, capture_output=True, text=True, check=False
+    )
+
+
+def maintain_sync(project: Path, *, runner=subprocess.run) -> tuple[bool, str]:
+    """Fast-forward the default-branch checkout, keeping tracked edits (#6377)."""
+    def git(*args: str) -> subprocess.CompletedProcess:
+        return _maintain_git(project, *args, runner=runner)
+
+    branch = default_branch_name(project)
+    current = git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+    if current != branch:
+        return True, f"sync: skipped (on {current or 'detached HEAD'}, not {branch})"
+    if git("fetch", DEFAULT_REMOTE, branch).returncode != 0:
+        return False, f"sync: failed (git fetch {DEFAULT_REMOTE} {branch})"
+    behind = git("rev-list", "--count", f"HEAD..{DEFAULT_REMOTE}/{branch}").stdout.strip()
+    if behind in {"", "0"}:
+        return True, "sync: current"
+    dirty = bool(git("status", "--porcelain", "--untracked-files=no").stdout.strip())
+    if dirty and git("stash", "push", "-m", MAINTAIN_STASH).returncode != 0:
+        return False, "sync: failed (could not stash tracked edits)"
+    merged = git("merge", "--ff-only", f"{DEFAULT_REMOTE}/{branch}").returncode == 0
+    if dirty and git("stash", "pop").returncode != 0:
+        return False, f"sync: conflict restoring edits; they stay in `git stash list` ({MAINTAIN_STASH})"
+    if not merged:
+        return False, f"sync: failed (not a fast-forward of {DEFAULT_REMOTE}/{branch})"
+    return True, f"sync: fast-forwarded {behind} commit(s)" + (", edits kept" if dirty else "")
+
+
+def maintain_commands(installed_root: Path, project: Path) -> list[list[str]]:
+    """Reinstall from the recorded source, then doctor and a stale-store refresh."""
+    import json
+
+    manifest = json.loads((installed_root / "manifest.json").read_text(encoding="utf-8"))
+    source = manifest.get("source", {})
+    python = sys.executable
+    return [
+        [python, str(installed_root / "bootstrap.py"), "--project", str(project),
+         "--repository", str(source.get("repository", "")),
+         "--branch", str(source.get("branch", "")),
+         "--distribution", str(manifest.get("distribution", {}).get("id", ""))],
+        [python, str(installed_root / "install.py"), "doctor", "--project", str(project)],
+        [python, str(installed_root / "tool.py"), "stores", "refresh", "--if-stale"],
+    ]
+
+
+def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
+    """`tool.py maintain`: sync, reinstall, doctor, refresh, reload (#6377)."""
+    project = shared_project_root(installed_root.resolve().parent)
+    ok, summary = maintain_sync(project, runner=runner)
+    print(summary)
+    if not ok:
+        return 1
+    for command in maintain_commands(installed_root, project):
+        completed = runner(command, cwd=project, check=False)  # nosec B603 - fixed owned argv.
+        if completed.returncode != 0:
+            print(f"maintain: failed at `{' '.join(command[1:3])}`", file=sys.stderr)
+            return completed.returncode or 1
+    print(MAINTAIN_RELOAD, end="")
+    return 0
+
+
 def tool_help_text() -> str:
     """One usage text for every host. There is no per-host help."""
-    names = ", ".join(sorted(TOOLS | {"retrieve"}))
+    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain"}))
     return (
         "usage: tool.py <tool|retrieve> [args...]\n"
         "       tool.py --help\n"
         "\n"
         f"tools: {names}\n"
+        "\n"
+        "entry (bots without hooks: print core card, companions, retrieve step):\n"
+        "  tool.py entry\n"
+        "\n"
+        "maintain (after each delivery: fast-forward, reinstall, doctor, refresh, reload):\n"
+        "  tool.py maintain\n"
         "\n"
         "retrieve (MemPalace or Graphify checks justify later file reads):\n"
         "  tool.py retrieve [--store {memory,mempalace,graphify,deja}] [--project PATH] [--dry-run] QUERY\n"
@@ -332,6 +433,11 @@ def main() -> int:
         installed_root = Path(__file__).resolve().parent
         tool = sys.argv[1]
         arguments = sys.argv[2:]
+        if tool == "entry":
+            print(entry_bundle(installed_root), end="")
+            return 0
+        if tool == "maintain":
+            return maintain(installed_root)
         if tool == "stores":
             return stores_command(installed_root, arguments)
         if tool == "retrieve":

@@ -8,6 +8,7 @@ import importlib.util
 import json
 import os
 import shutil
+import sqlite3
 import tempfile
 import unittest
 import unittest.mock as mock
@@ -1026,7 +1027,12 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             state.joinpath(".mined").write_text("current\n", encoding="utf-8")
             self.assertNotIn(init_command, module.project_setup_plan(project, commands))
             self.assertIn(mine_command, module.project_setup_plan(project, commands))
-            state.joinpath("sqlite_exact.sqlite3").write_bytes(b"SQLite format 3\\x00")
+            # #6377: an empty palace file is not indexed; it needs a document row.
+            connection = sqlite3.connect(state / "sqlite_exact.sqlite3")
+            connection.execute("create table documents (id integer primary key, body text)")
+            connection.execute("insert into documents (body) values ('x')")
+            connection.commit()
+            connection.close()
             state.joinpath(".mined").unlink()
             self.assertNotIn(init_command, module.project_setup_plan(project, commands))
             self.assertNotIn(mine_command, module.project_setup_plan(project, commands))
@@ -1221,7 +1227,8 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             self.assertEqual([mine, mine, mine], [command for command, _environment, _timeout in calls])
             self.assertEqual(calls[0][1], calls[1][1])
             self.assertEqual(calls[1][1], calls[2][1])
-            self.assertEqual([900, 898, 896], [timeout for _command, _environment, timeout in calls])
+            # #6377: no wall-clock cap; the stall watchdog stops a stuck mine.
+            self.assertEqual([None] * 3, [timeout for _command, _environment, timeout in calls])
             sleep.assert_has_calls((mock.call(1), mock.call(2)))
             self.assertEqual(b"current\n", (project / ".chaos-engine-state/mempalace/.mined").read_bytes())
 
@@ -1315,7 +1322,8 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
 
                 with mock.patch.object(module.time, "monotonic", return_value=0), mock.patch.object(module.time, "sleep") as sleep:
                     module._run_transient_mempalace_mine(
-                        ["/tools/mempalace", "mine", "."], Path(temporary), runner=runner
+                        ["/tools/mempalace", "mine", "."], Path(temporary), runner=runner,
+                        budget=900,
                     )
 
                 self.assertEqual(3, len(calls))
@@ -1352,7 +1360,8 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             with mock.patch.object(module.time, "monotonic", side_effect=(0, 0, 899)), mock.patch.object(module.time, "sleep") as sleep:
                 with self.assertRaisesRegex(RuntimeError, "UNEXPECTED_EOF_WHILE_READING"):
                     module._run_transient_mempalace_mine(
-                        ["/tools/mempalace", "mine", "."], Path(temporary), runner=runner
+                        ["/tools/mempalace", "mine", "."], Path(temporary), runner=runner,
+                        budget=900,
                     )
 
             self.assertEqual([["/tools/mempalace", "mine", "."]], calls)

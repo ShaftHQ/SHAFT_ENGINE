@@ -77,7 +77,8 @@ and are enforced by `tests/scripts/test_chaos_engine_installer.py`,
 
 ## Instruction-only hosts
 
-OpenCode, Cursor and Grok Bot load `AGENTS.md` but run no project hook, so the
+OpenCode and Cursor load `AGENTS.md`; Grok Bot and other independent bots start
+from [bot entry](bot-entry.md). None runs a project hook, so the
 `retrieve:` field replaces the read gate. Write the receipt to
 `.chaos-engine-state/research-receipt.md` (untracked); `tool.py retrieve`
 also fills the retrieve ledger. `learning_session.py finalize --host <id>`

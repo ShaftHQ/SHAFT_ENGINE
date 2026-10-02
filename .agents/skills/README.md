@@ -174,6 +174,7 @@ sends you there; the rest by
 - [shaft profile: self improve master plan](../../shaft-skills/ce-pack/references/self-improve-master-plan.md)
 - [shaft profile: self improve research synthesis](../../shaft-skills/ce-pack/references/self-improve-research-synthesis.md)
 - [research receipt](../../chaos-engine/references/research-receipt.md)
+- [bot entry](../../chaos-engine/references/bot-entry.md): start path for bots without hooks (Grok Bot, GPTs)
 - [TDD](../../chaos-engine/references/tdd.md)
 - [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
 - [context economy](../../chaos-engine/references/context-economy.md)

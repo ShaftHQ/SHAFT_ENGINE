@@ -4,7 +4,7 @@ description: Use when Grok or Copilot may not honor an exit-2 hard block and the
 
 # Host Parity Matrix v0
 
-Living adapter-outcome matrix for ChaosEngine across Claude Code, Codex, Grok, Gemini, GitHub Copilot, OpenCode, Cursor, and Grok Bot.
+Living adapter-outcome matrix for ChaosEngine across Claude Code, Codex, Grok, Gemini, GitHub Copilot, OpenCode, Cursor, and Grok Bot; independent bots (GPTs and others) follow the Grok Bot column via the bot entry.
 
 Parity means the same workflow *outcomes* on all eight hosts (not UI chrome parity).
 Machine-checkable capability pins also live in `scripts/ci/agent_harness_parity.json`.
@@ -36,7 +36,7 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 | Surface | Claude Code | Codex | Grok | Gemini | Copilot | OpenCode | Cursor | Grok Bot |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Install / doctor human UX | P | P | P | P | P | P | P | P |
-| Host onboarding / activation path | A marketplace/plugin | A marketplace/plugin | A file/hook | A file/hook | A file/hook | A AGENTS.md | A AGENTS.md | A AGENTS.md |
+| Host onboarding / activation path | A marketplace/plugin | A marketplace/plugin | A file/hook | A file/hook | A file/hook | A AGENTS.md | A AGENTS.md | A bot entry |
 | Router skill (`chaos-engine`) | P | P | P | P | P | P | P | P |
 | Lifecycle hooks | A | A | A | A | A | G | G | G |
 | Exit-2 / blocking denial fidelity | A | A | G | A | G | G | G | G |
@@ -63,7 +63,8 @@ Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (
 | GAP-GEMINI-NODE | Gemini | low | Hook launcher needs Node.js; unsupported native events remain explicit capability gaps. | Onboarding card + launch.js. |
 | GAP-OPENCODE-HOOKS | OpenCode | medium | Instruction-only host: reads `AGENTS.md`, no project hook runtime ChaosEngine can install. The read gate and SessionStart locators are replaced by the research-receipt `retrieve:` field and the Learning Session check. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
 | GAP-CURSOR-HOOKS | Cursor | medium | Instruction-only host: reads `AGENTS.md` (and project rules); no portable pre-tool hook. Same receipt substitution as OpenCode. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
-| GAP-GROKBOT-HOOKS | Grok Bot | medium | Instruction-only cloud agent: reads `AGENTS.md` from the checkout; no hook runtime. Same receipt substitution; `worktree_overlay.py verify` reports it as instruction-only. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
+| GAP-GROKBOT-HOOKS | Grok Bot | medium | Instruction-only agent: auto-loads nothing from the checkout and has no hook runtime. At task start it reads the core card and both companion cards itself, then runs one retrieve. Same receipt substitution; `worktree_overlay.py verify` reports it as instruction-only. | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
+| GAP-BOT-ENTRY | Independent bots (GPTs, Claude Projects, others) | medium | No checkout auto-load and no hooks: start from [bot entry](bot-entry.md) (`tool.py entry`, or an exported entry file for bots without repository access). | `hosts.INSTRUCTION_ONLY_HOSTS`; research receipt;. |
 | GAP-GROK-BUNDLED | Grok | info | Grok product bundled skills (pdf/pptx/imagine/game-*) and session GitHub MCP cannot be deleted from the install tree. CE does not vendor them; doctor strips user GitHub MCP when gh is healthy and documents this limit. | prefer-cli-over-mcp. |
 | GAP-GROK-CAVEMAN | — (cleared) | info | Always-on CE card (`caveman=ultra` in `hooks/lifecycle.py`) is the Grok communication constitution. Do not copy Caveman skill bodies into `AGENTS.md`. | Closed: locator-only host guidance plus lifecycle ultra selector. No proxy. |
 
