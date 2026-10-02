@@ -1,4 +1,5 @@
-"""Fresh-clone MemPalace mine runs in the background with a doctor status.
+"""
+Fresh-clone MemPalace mine runs in the background with a doctor status.
 
 Measured root cause: a fresh SHAFT_ENGINE clone mines 3,196 files into about
 56k drawers. CPU embedding runs at about 30 drawers/s, which is well past the
@@ -15,7 +16,7 @@ import json
 import os
 import tempfile
 import unittest
-import unittest.mock as mock
+from unittest import mock
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -43,6 +44,9 @@ class FakeSpawner:
     def __call__(self, argv, **kwargs):
         self.calls.append((list(argv), kwargs))
         return SimpleNamespace(pid=4242)
+
+    def argv(self) -> list[str]:
+        return self.calls[0][0]
 
 
 class BackgroundMineInstallTest(unittest.TestCase):
@@ -122,7 +126,7 @@ class BackgroundMineRunnerTest(unittest.TestCase):
             mine = self.module.mempalace_project_cli("/tools/mempalace", "mine", project)
             seen = {}
 
-            def runner(command, **kwargs):
+            def runner(_command, **kwargs):
                 seen["timeout"] = kwargs.get("timeout")
                 status = self.module.mempalace_index_status(project, alive=lambda _pid: True)
                 seen["during"] = status["status"]
@@ -142,7 +146,7 @@ class BackgroundMineRunnerTest(unittest.TestCase):
             self.module.prepare_mempalace_project_target(project)
             mine = self.module.mempalace_project_cli("/tools/mempalace", "mine", project)
 
-            def failing(command, **_kwargs):
+            def failing(_command, **_kwargs):
                 return SimpleNamespace(returncode=1, stdout="", stderr="boom")
 
             self.assertEqual(1, self.module.run_mempalace_index(project, mine, runner=failing))

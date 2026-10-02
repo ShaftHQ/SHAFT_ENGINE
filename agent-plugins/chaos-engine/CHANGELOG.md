@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Fix: a fresh-clone install no longer fails with CE-INSTALL-FAILED when the
+  first MemPalace mine outlasts the 900 s setup budget. Install creates the
+  exact palace synchronously, then runs the incremental mine in a detached
+  background runner (`mempalace-index.json` beside the palace). Doctor shows
+  `[info] mempalace/index` with a fix-next line while it is running,
+  interrupted, or failed, and the next install resumes an unfinished mine. Set
+  `CHAOS_ENGINE_MEMPALACE_MINE=foreground` to keep the old synchronous mine.
 - Breaking (hard cut, CE-10): the repository's project profile moves out of
   the core to `shaft-skills/ce-pack/` and installs under
   `.chaos-engine/packs/shaft/`. The old `.chaos-engine/profiles/shaft/` layout
