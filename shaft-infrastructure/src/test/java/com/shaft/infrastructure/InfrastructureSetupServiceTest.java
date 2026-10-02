@@ -102,12 +102,11 @@ class InfrastructureSetupServiceTest {
                 .map(SetupAction::target).toList());
         SetupAction lighthouse = plan.actions().get(1);
         assertEquals(SetupActionKind.INSTALL, lighthouse.kind());
-        assertEquals("13.4.1", lighthouse.version());
-        assertEquals(URI.create("https://registry.npmjs.org/lighthouse/-/lighthouse-13.4.1.tgz"),
-                lighthouse.source());
-        assertEquals("sha256:110759ba9e863c024e214e9b08ed2b0344d89b492286227235d4dfb990dc3e54",
-                lighthouse.checksum());
-        assertEquals("sha256:5691359da63475578daef5b322a620311110ff6a09953cdb898bee314106c4dd",
+        assertEquals(LighthouseSetupPlanner.LIGHTHOUSE_VERSION, lighthouse.version());
+        assertEquals(URI.create("https://registry.npmjs.org/lighthouse/-/lighthouse-"
+                + LighthouseSetupPlanner.LIGHTHOUSE_VERSION + ".tgz"), lighthouse.source());
+        assertEquals("sha256:" + LighthouseSetupPlanner.LIGHTHOUSE_SHA256, lighthouse.checksum());
+        assertEquals("sha256:" + LighthouseSetupPlanner.LIGHTHOUSE_LOCK_SHA256,
                 lighthouse.dependencyLockChecksum());
         assertTrue(lighthouse.requiredLicenses().isEmpty());
         assertTrue(Files.notExists(paths.cacheRoot()));
@@ -194,8 +193,9 @@ class InfrastructureSetupServiceTest {
         }
         String canonical = new String(lock, StandardCharsets.UTF_8).replace("\r\n", "\n").replace('\r', '\n');
 
-        assertTrue(new String(packageJson, StandardCharsets.UTF_8).contains("\"lighthouse\": \"13.4.1\""));
-        assertTrue(canonical.contains("\"lighthouse\": \"13.4.1\""));
+        String approved = "\"lighthouse\": \"" + LighthouseSetupPlanner.LIGHTHOUSE_VERSION + "\"";
+        assertTrue(new String(packageJson, StandardCharsets.UTF_8).contains(approved));
+        assertTrue(canonical.contains(approved));
         var digest = java.security.MessageDigest.getInstance("SHA-256")
                 .digest(canonical.getBytes(StandardCharsets.UTF_8));
         assertEquals(LighthouseSetupPlanner.LIGHTHOUSE_LOCK_SHA256, java.util.HexFormat.of().formatHex(digest));
