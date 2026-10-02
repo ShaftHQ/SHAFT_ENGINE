@@ -153,6 +153,21 @@ jobs:
             printf '::error::failing harness module: %s\n' "${failed[@]}"
             exit 1
           fi
+      - name: Run PR-ungated harness modules
+        # #6362: modules on the PR-gate allowlist never run on a PR, so run
+        # all of them here and report every failure instead of drifting.
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t ungated < <(python scripts/ci/harness_pr_gate.py --list-ungated)
+          failed=()
+          for module in "${ungated[@]}"; do
+            python -m unittest "$module" || failed+=("$module")
+          done
+          if ((${#failed[@]})); then
+            printf '::error::failing ungated harness module: %s\n' "${failed[@]}"
+            exit 1
+          fi
       - name: Validate full harness aggregation
         run: |
           python scripts/ci/validate_agent_setup.py --skip-external

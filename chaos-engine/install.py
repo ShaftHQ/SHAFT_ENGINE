@@ -6481,8 +6481,24 @@ def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
         honored = meta.get("processExit2Honored", True)
         if gap and honored is False:
             # #6325: same "[severity] name — detail" row grammar as components.
-            lines.append(f"[warning] host/{host} — {gap}")
+            line = f"[warning] host/{host} — {gap}"
+            # #6363: one row per (host, gap) even when detection repeats it.
+            if line not in lines:
+                lines.append(line)
     return lines
+
+
+def _dedupe_severity_rows(lines: list[str]) -> list[str]:
+    """Drop repeated ``[severity]`` rows in one report, keeping first order (#6363)."""
+    seen: set[str] = set()
+    result: list[str] = []
+    for line in lines:
+        if line.startswith("[") and line in seen:
+            continue
+        if line.startswith("["):
+            seen.add(line)
+        result.append(line)
+    return result
 
 
 def format_host_environment_findings(document: dict[str, object]) -> list[str]:
@@ -6651,7 +6667,7 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
         note = document.get("reflectionControllerDrift")
         if isinstance(note, str) and note.strip():
             lines.append(note.strip())
-        return "\n".join(lines) + "\n"
+        return "\n".join(_dedupe_severity_rows(lines)) + "\n"
     counts: dict[str, int] = {"error": 0, "warning": 0, "info": 0}
     for _name, _item, severity in failures:
         counts[severity] = counts.get(severity, 0) + 1
@@ -6681,7 +6697,7 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
     note = document.get("reflectionControllerDrift")
     if isinstance(note, str) and note.strip():
         lines.append(note.strip())
-    return "\n".join(lines) + "\n"
+    return "\n".join(_dedupe_severity_rows(lines)) + "\n"
 
 
 def validate_install_options(args: argparse.Namespace) -> None:

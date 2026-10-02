@@ -362,6 +362,8 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_consumer_mode_6237",
             # #6336-#6339: Maven Tools doctor/repair and rollback truth.
             "tests.scripts.test_chaos_engine_maven_tools_reinstall_6336",
+            # #6363: doctor prints each warning row once.
+            "tests.scripts.test_chaos_engine_doctor_dedupe_6363",
             # Fresh-clone MemPalace mine runs in the background with doctor status.
             "tests.scripts.test_mempalace_background_index",
         ),
@@ -516,6 +518,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_mempalace_init_6236.py",
         "tests/scripts/test_chaos_engine_consumer_mode_6237.py",
         "tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py",
+        "tests/scripts/test_chaos_engine_doctor_dedupe_6363.py",
         "tests/scripts/test_mempalace_background_index.py",
     ),
     "hosts": (
@@ -839,6 +842,10 @@ SURFACE_PATTERNS = {
 UNGATED_TEST_ALLOWLIST_REASON = (
     'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
 )
+# #6362: the allowlist may only shrink. Lower this ceiling when a module gains a
+# PR-gate check; never raise it. Every allowlisted module still runs weekly in
+# the "Full deterministic harness" acceptance job via --list-ungated.
+UNGATED_TEST_ALLOWLIST_CEILING = 98
 UNGATED_TEST_ALLOWLIST = {
     'tests.scripts.test_assemble_javadocs': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_assemble_shard_blob': UNGATED_TEST_ALLOWLIST_REASON,
@@ -1547,8 +1554,13 @@ def render_text(payload: dict[str, Any]) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
-    parser.add_argument("--base", required=True)
-    parser.add_argument("--head", required=True)
+    parser.add_argument("--base")
+    parser.add_argument("--head")
+    parser.add_argument(
+        "--list-ungated",
+        action="store_true",
+        help="print the allowlisted ungated test modules, one per line, and exit (#6362)",
+    )
     parser.add_argument("--reviews", type=Path)
     parser.add_argument("--budget-seconds", type=int, default=PR_BUDGET_SECONDS)
     parser.add_argument(
@@ -1569,7 +1581,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
+    if args.list_ungated:
+        print("\n".join(sorted(UNGATED_TEST_ALLOWLIST)))
+        return 0
+    if not args.base or not args.head:
+        parser.error("--base and --head are required unless --list-ungated is given")
     try:
         if args.budget_seconds < 1 or args.budget_seconds > 1200:
             raise GateError("budget must be between 1 and 1200 seconds")
