@@ -5,7 +5,7 @@
   "dependencies": {
     "appium": "3.8.0",
     "appium-inspector-plugin": "2026.9.2",
-    "appium-uiautomator2-driver": "8.7.0"
+    "appium-uiautomator2-driver": "8.2.2"
   },
   "overrides": {
     "fast-uri": "3.1.8",
