@@ -133,7 +133,8 @@ class BackgroundMineRunnerTest(TestCase):
 
             self.assertEqual(0, self.module.run_mempalace_index(project, mine, runner=runner))
             self.assertEqual("running", seen["during"])
-            self.assertGreater(seen["timeout"], self.module.ACCOUNT_COMMAND_TIMEOUT_SECONDS)
+            # #6377: None means no wall-clock cap (subprocess cannot wait on float("inf")).
+            self.assertIsNone(seen["timeout"])
             self.assertEqual("complete", self.module.mempalace_index_status(project)["status"])
             palace = self.module.mempalace_project_palace(project)
             self.assertEqual(b"current\n", (palace / ".mined").read_bytes())

@@ -1228,7 +1228,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             self.assertEqual(calls[0][1], calls[1][1])
             self.assertEqual(calls[1][1], calls[2][1])
             # #6377: no wall-clock cap; the stall watchdog stops a stuck mine.
-            self.assertEqual([float("inf")] * 3, [timeout for _command, _environment, timeout in calls])
+            self.assertEqual([None] * 3, [timeout for _command, _environment, timeout in calls])
             sleep.assert_has_calls((mock.call(1), mock.call(2)))
             self.assertEqual(b"current\n", (project / ".chaos-engine-state/mempalace/.mined").read_bytes())
 
