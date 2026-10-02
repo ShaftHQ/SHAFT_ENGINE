@@ -1,4 +1,5 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.tasks.RunIdeTask
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 import org.gradle.process.CommandLineArgumentProvider
@@ -27,6 +28,11 @@ dependencies {
         // (see io.github.shafthq.shaft-withJUnit.xml / shaft-withTestNG.xml), not in com.intellij.java.
         bundledPlugin("JUnit")
         bundledPlugin("TestNG-J")
+        // SHAFT property completion/validation/docs (#6417, #6418) need the Properties PSI.
+        bundledPlugin("com.intellij.properties")
+        // Editor fixtures (BasePlatformTestCase) for completion, inspection and template tests.
+        testFramework(TestFrameworkType.Platform)
+        testFramework(TestFrameworkType.Plugin.Java)
         // The verifier's default is dynamic (latest), which makes the CI verdict depend on cache age.
         // Keep upgrades reviewable and prevent a remote version-list lookup during verification.
         pluginVerifier("1.409")
@@ -34,7 +40,8 @@ dependencies {
     implementation("com.google.code.gson:gson:2.14.0")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
     testImplementation(gradleTestKit())
-    testRuntimeOnly("junit:junit:4.13.2")
+    testImplementation("junit:junit:4.13.2")
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:6.1.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -71,6 +78,10 @@ intellijPlatform {
               slash commands cover recording, inspection, test generation, and failed-test triage.</li>
               <li><b>Web recorder</b> — capture real browser sessions and turn them into SHAFT tests, with
               Pick-Locator results flowing straight into the editor.</li>
+              <li><b>Editor intelligence</b> — completion, typo detection, value checks and quick docs for SHAFT
+              properties, inspections for <code>Thread.sleep</code> and deprecated SHAFT APIs, and
+              <code>shtest</code>/<code>shclick</code>/<code>shtype</code>/<code>shassert</code>/<code>shapi</code>
+              live templates.</li>
               <li><b>Run from the gutter</b> — SHAFT-aware JUnit and TestNG run configurations for test classes
               and methods.</li>
               <li><b>SHAFT Tests panel</b> — recent runs at a glance, with one-click Doctor diagnosis and Healer
@@ -184,7 +195,51 @@ tasks {
         options.compilerArgs.addAll(listOf("-Xlint:deprecation", "-Werror"))
     }
 
+    // SHAFT property catalog (#6417): parsed from the engine's @Key interfaces at build time, so the
+    // editor's completion, validation and quick docs can never drift from the engine source.
+    val generateShaftPropertyCatalog by registering {
+        val sources = project.fileTree("../shaft-engine/src/main/java/com/shaft/properties/internal") {
+            include("*.java")
+        }
+        val catalog = layout.buildDirectory.file("generated/shaft-property-catalog/property-catalog.tsv")
+        inputs.files(sources)
+        outputs.file(catalog)
+        doLast {
+            val entry = Regex(
+                """(?:/\*\*((?:(?!\*/)[\s\S])*)\*/\s*)?(?:@\w+(?:\([^)]*\))?\s*)*@Key\("([^"]+)"\)\s*""" +
+                    """(?:@DefaultValue\("((?:[^"\\]|\\.)*)"\)\s*)?(?:@\w+(?:\([^)]*\))?\s*)*([\w.<>\[\]]+)\s+\w+\(\)"""
+            )
+            fun summary(javadoc: String) = javadoc.lines()
+                .map { it.trim().removePrefix("*").trim() }
+                .takeWhile { !it.startsWith("@") }
+                .joinToString(" ")
+                .replace(Regex("""\{@\w+\s+([^}]*)}"""), "$1")
+                .replace(Regex("<[^>]+>"), " ")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            val rows = sources.files.sortedBy { it.name }.flatMap { file ->
+                entry.findAll(file.readText()).map { match ->
+                    listOf(
+                        match.groupValues[2],
+                        match.groupValues[4],
+                        match.groupValues[3].replace("\\\"", "\"").replace("\\\\", "\\"),
+                        summary(match.groupValues[1]),
+                        file.nameWithoutExtension,
+                    ).joinToString("\t") { it.replace('\t', ' ').replace('\n', ' ') }
+                }.toList()
+            }.distinctBy { it.substringBefore('\t') }
+            check(rows.size > 100) { "SHAFT property catalog is suspiciously small (${rows.size} keys)" }
+            catalog.get().asFile.apply {
+                parentFile.mkdirs()
+                writeText(rows.joinToString("\n", postfix = "\n"))
+            }
+        }
+    }
+
     processResources {
+        from(generateShaftPropertyCatalog) {
+            into("META-INF/shaft-engine")
+        }
         inputs.property("pluginVersion", project.version.toString())
         filesMatching("messages/*.properties") {
             expand("pluginVersion" to project.version.toString())

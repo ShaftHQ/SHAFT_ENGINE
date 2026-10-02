@@ -1,0 +1,29 @@
+<templateSet group="SHAFT">
+  <template name="shtest" value="@org.testng.annotations.Test&#10;public void $NAME$() {&#10;    $END$&#10;}" description="SHAFT TestNG test method" toReformat="true" toShortenFQNames="true">
+    <variable name="NAME" expression="" defaultValue="&quot;shouldDoSomething&quot;" alwaysStopAt="true"/>
+    <context><option name="JAVA_DECLARATION" value="true"/></context>
+  </template>
+  <template name="shclick" value="$DRIVER$.element().click($LOCATOR$);" description="SHAFT element click" toReformat="true" toShortenFQNames="true">
+    <variable name="DRIVER" expression="variableOfType(&quot;com.shaft.driver.SHAFT.GUI.WebDriver&quot;)" defaultValue="&quot;driver&quot;" alwaysStopAt="true"/>
+    <variable name="LOCATOR" expression="variableOfType(&quot;org.openqa.selenium.By&quot;)" defaultValue="" alwaysStopAt="true"/>
+    <context><option name="JAVA_STATEMENT" value="true"/></context>
+  </template>
+  <template name="shtype" value="$DRIVER$.element().type($LOCATOR$, $TEXT$);" description="SHAFT element type" toReformat="true" toShortenFQNames="true">
+    <variable name="DRIVER" expression="variableOfType(&quot;com.shaft.driver.SHAFT.GUI.WebDriver&quot;)" defaultValue="&quot;driver&quot;" alwaysStopAt="true"/>
+    <variable name="LOCATOR" expression="variableOfType(&quot;org.openqa.selenium.By&quot;)" defaultValue="" alwaysStopAt="true"/>
+    <variable name="TEXT" expression="" defaultValue="&quot;\&quot;\&quot;&quot;" alwaysStopAt="true"/>
+    <context><option name="JAVA_STATEMENT" value="true"/></context>
+  </template>
+  <template name="shassert" value="$DRIVER$.assertThat().element($LOCATOR$).text().isEqualTo($EXPECTED$).perform();" description="SHAFT element text assertion" toReformat="true" toShortenFQNames="true">
+    <variable name="DRIVER" expression="variableOfType(&quot;com.shaft.driver.SHAFT.GUI.WebDriver&quot;)" defaultValue="&quot;driver&quot;" alwaysStopAt="true"/>
+    <variable name="LOCATOR" expression="variableOfType(&quot;org.openqa.selenium.By&quot;)" defaultValue="" alwaysStopAt="true"/>
+    <variable name="EXPECTED" expression="" defaultValue="&quot;\&quot;\&quot;&quot;" alwaysStopAt="true"/>
+    <context><option name="JAVA_STATEMENT" value="true"/></context>
+  </template>
+  <template name="shapi" value="$API$.get($PATH$).setTargetStatusCode($STATUS$).perform();" description="SHAFT API GET request with status check" toReformat="true" toShortenFQNames="true">
+    <variable name="API" expression="variableOfType(&quot;com.shaft.driver.SHAFT.API&quot;)" defaultValue="&quot;api&quot;" alwaysStopAt="true"/>
+    <variable name="PATH" expression="" defaultValue="&quot;\&quot;/\&quot;&quot;" alwaysStopAt="true"/>
+    <variable name="STATUS" expression="" defaultValue="&quot;200&quot;" alwaysStopAt="true"/>
+    <context><option name="JAVA_STATEMENT" value="true"/></context>
+  </template>
+</templateSet>

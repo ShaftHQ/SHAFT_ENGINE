@@ -1,0 +1,12 @@
+<idea-plugin>
+    <!-- SHAFT property completion, validation and quick documentation (issues #6417, #6418). -->
+    <extensions defaultExtensionNs="com.intellij">
+        <completion.contributor language="Properties"
+                                implementationClass="com.shaft.intellij.properties.ShaftPropertyCompletionContributor"/>
+        <localInspection language="Properties" shortName="ShaftProperty" displayName="SHAFT property key or value"
+                         groupName="SHAFT" enabledByDefault="true" level="WARNING"
+                         implementationClass="com.shaft.intellij.properties.ShaftPropertyInspection"/>
+        <lang.documentationProvider language="Properties" order="first"
+                                    implementationClass="com.shaft.intellij.properties.ShaftPropertyDocumentationProvider"/>
+    </extensions>
+</idea-plugin>
