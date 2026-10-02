@@ -8,8 +8,8 @@ import subprocess  # nosec B404 - tests run fixed local Git and Python commands.
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "chaos-engine"
@@ -96,12 +96,12 @@ class StallWatchdogTest(unittest.TestCase):
             )
 
     def test_ps_fallback_measures_cpu_without_proc(self):
-        with mock.patch.object(self.stores, "_descendant_cpu_ticks", return_value=None):
+        with unittest.mock.patch.object(self.stores, "_descendant_cpu_ticks", return_value=None):
             self.assertIsNotNone(self.stores.process_tree_cpu(os.getpid()))
 
     def test_unmeasurable_cpu_still_stops_a_silent_hang(self):
-        with mock.patch.object(self.stores, "process_tree_cpu", return_value=None), \
-                mock.patch.object(self.stores, "OUTPUT_ONLY_STALL_FACTOR", 2):
+        with unittest.mock.patch.object(self.stores, "process_tree_cpu", return_value=None), \
+                unittest.mock.patch.object(self.stores, "OUTPUT_ONLY_STALL_FACTOR", 2):
             with self.assertRaises(subprocess.TimeoutExpired):
                 self.stores.run_until_stalled(
                     [sys.executable, "-c", "import time; time.sleep(30)"], stall_seconds=1,
@@ -121,9 +121,9 @@ class StallWatchdogTest(unittest.TestCase):
         self.assertIn(bot, parity)
 
     def test_stall_window_env_override(self):
-        with mock.patch.dict(os.environ, {"CHAOS_ENGINE_STALL_SECONDS": "7"}):
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_STALL_SECONDS": "7"}):
             self.assertEqual(7, self.stores.stall_seconds())
-        with mock.patch.dict(os.environ, {"CHAOS_ENGINE_STALL_SECONDS": "junk"}):
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_STALL_SECONDS": "junk"}):
             self.assertEqual(self.stores.DEFAULT_STALL_SECONDS, self.stores.stall_seconds())
 
     def test_mine_paths_use_the_watchdog(self):
@@ -161,16 +161,16 @@ class EmptyPalaceTest(unittest.TestCase):
 
     def test_empty_palace_is_not_current(self):
         empty = self._make(0)
-        with mock.patch.dict(self.stores._component_current.__globals__, {"resolve_palace": lambda _cwd: empty}):
+        with unittest.mock.patch.dict(self.stores._component_current.__globals__, {"resolve_palace": lambda _cwd: empty}):
             self.assertFalse(self.stores._component_current(self.tmp, "mempalace"))
         full = self._make(2, "b")
-        with mock.patch.dict(self.stores._component_current.__globals__, {"resolve_palace": lambda _cwd: full}):
+        with unittest.mock.patch.dict(self.stores._component_current.__globals__, {"resolve_palace": lambda _cwd: full}):
             self.assertTrue(self.stores._component_current(self.tmp, "mempalace"))
 
     def test_setup_incomplete_when_empty(self):
         dependencies = _load("dependencies")
         empty = self._make(0)
-        with mock.patch.dict(dependencies.mempalace_project_setup_complete.__globals__, {"mempalace_project_palace": lambda _p: empty}):
+        with unittest.mock.patch.dict(dependencies.mempalace_project_setup_complete.__globals__, {"mempalace_project_palace": lambda _p: empty}):
             self.assertFalse(dependencies.mempalace_project_setup_complete(self.tmp))
 
 
@@ -185,7 +185,7 @@ class DoctorEmptyPalaceTest(unittest.TestCase):
 
     def _finding(self, index):
         stores = {"palace_drawer_count": lambda _p: 0, "resolve_palace": lambda _p: self.empty}
-        with mock.patch.object(self.install, "_load_stores_module", return_value=stores):
+        with unittest.mock.patch.object(self.install, "_load_stores_module", return_value=stores):
             return self.install._mempalace_empty_finding(self.tmp, index)
 
     def test_no_mine_record_or_running_mine_is_not_degraded(self):
@@ -208,7 +208,7 @@ class SynchronousMineTest(unittest.TestCase):
             seen.update(kwargs)
             return subprocess.CompletedProcess(args, 0, "", "")
 
-        with mock.patch.object(dependencies, "resolve_account_launcher", lambda c, **_k: c):
+        with unittest.mock.patch.object(dependencies, "resolve_account_launcher", lambda c, **_k: c):
             dependencies._run_transient_mempalace_mine([sys.executable, "-V"], Path.cwd(), runner=runner)
         self.assertIsNone(seen["timeout"])
 
@@ -221,8 +221,8 @@ class SynchronousMineTest(unittest.TestCase):
                 pass
 
         traced = install._tracing_dependency_runner(Reporter(), subprocess.run)
-        with mock.patch.object(dependencies, "run_until_stalled") as watchdog, \
-                mock.patch.object(dependencies, "resolve_account_launcher", lambda c, **_k: c):
+        with unittest.mock.patch.object(dependencies, "run_until_stalled") as watchdog, \
+                unittest.mock.patch.object(dependencies, "resolve_account_launcher", lambda c, **_k: c):
             watchdog.return_value = subprocess.CompletedProcess([], 0, "", "")
             dependencies._run_transient_mempalace_mine([sys.executable, "-V"], Path.cwd(), runner=traced)
         watchdog.assert_called_once()
