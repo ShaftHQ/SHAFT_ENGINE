@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -20,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class BundledAppiumSecurityOverridesTest {
     private static final JsonMapper JSON = JsonMapper.builder().build();
+    private static final Pattern SEMVER = Pattern.compile("([0-9]+)\\.([0-9]+)\\.([0-9]+)");
 
     @ParameterizedTest
     @ValueSource(strings = {"appium", "appium-ios", "appium-windows"})
@@ -59,15 +62,22 @@ class BundledAppiumSecurityOverridesTest {
     }
 
     private static int compareVersions(String left, String right) {
-        String[] a = left.split("[.+-]");
-        String[] b = right.split("[.+-]");
-        for (int i = 0; i < 3; i++) {
-            int difference = Integer.compare(Integer.parseInt(a[i]), Integer.parseInt(b[i]));
+        Matcher a = SEMVER.matcher(left);
+        Matcher b = SEMVER.matcher(right);
+        assertTrue(a.lookingAt() && b.lookingAt(), "not semver: " + left + " / " + right);
+        for (int group = 1; group <= 3; group++) {
+            int difference = compareDigits(a.group(group), b.group(group));
             if (difference != 0) {
                 return difference;
             }
         }
         return 0;
+    }
+
+    private static int compareDigits(String left, String right) {
+        String a = left.replaceFirst("^0+(?=.)", "");
+        String b = right.replaceFirst("^0+(?=.)", "");
+        return a.length() != b.length() ? Integer.compare(a.length(), b.length()) : a.compareTo(b);
     }
 
     private static String read(String resource) throws Exception {
