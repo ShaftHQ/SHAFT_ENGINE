@@ -6,11 +6,11 @@ import java.util.Set;
 
 /** Release-coupled planner for the managed Lighthouse command-line runtime. */
 public final class LighthouseSetupPlanner {
-    public static final String LIGHTHOUSE_VERSION = "13.4.1";
+    public static final String LIGHTHOUSE_VERSION = "13.5.0";
     public static final String LIGHTHOUSE_LOCK_SHA256 =
-            "5691359da63475578daef5b322a620311110ff6a09953cdb898bee314106c4dd";
+            "f82003256f3e7c7167a8ac0b1727938d9485cabd7bf6c168dfaad5a69a36946b";
     static final String LIGHTHOUSE_SHA256 =
-            "110759ba9e863c024e214e9b08ed2b0344d89b492286227235d4dfb990dc3e54";
+            "4be86876145663e10e8bb3178ebe27b2613a1debd4c04b4e0ec92a0487a4e6e2";
 
     private LighthouseSetupPlanner() { }
 
