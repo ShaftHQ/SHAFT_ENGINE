@@ -19,14 +19,18 @@ $ErrorActionPreference = "Stop"
 $script:ChaosEngineInvocationLine = [string]$MyInvocation.Line
 
 function Get-ChaosEnginePython {
+    # Python 3.11 is the supported floor; an older interpreter falls back to uv-managed Python.
+    $floor = "import sys; sys.exit(sys.version_info < (3, 11))"
     $py = Get-Command py -ErrorAction SilentlyContinue
     if ($null -ne $py) {
-        return @($py.Source, "-3")
+        & $py.Source -3 -c $floor 2>$null
+        if ($LASTEXITCODE -eq 0) { return @($py.Source, "-3") }
     }
     foreach ($name in @("python3", "python")) {
         $found = Get-Command $name -ErrorAction SilentlyContinue
         if ($null -ne $found) {
-            return @($found.Source)
+            & $found.Source -c $floor 2>$null
+            if ($LASTEXITCODE -eq 0) { return @($found.Source) }
         }
     }
     return $null

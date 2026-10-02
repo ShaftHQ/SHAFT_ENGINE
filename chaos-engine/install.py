@@ -3213,6 +3213,19 @@ def load_dependency_controller(installed_root: Path):
     return load_installed_controller(installed_root, "dependencies")
 
 
+def exit2_capability(capability: object, which=shutil.which) -> str:
+    """Probe one host's exit-2 fidelity as ``verified``, ``unsupported`` or ``unknown`` (#6408).
+
+    Hosts that honor exit 2 are verified by the kernel contract tests. A thin host
+    whose CLI is installed is unsupported (the GAP-EXIT2 warning applies); when the
+    CLI is absent, nothing on this machine can run its hooks, so the state is unknown.
+    """
+    if getattr(capability, "process_exit2_honored", True):
+        return "verified"
+    cli = str(getattr(capability, "cli", "") or "")
+    return "unsupported" if cli and which(cli) else "unknown"
+
+
 def installed_kernel_status(installed_root: Path) -> dict[str, object]:
     """Report canonical kernel health and declared host coverage."""
     try:
@@ -3253,6 +3266,7 @@ def installed_kernel_status(installed_root: Path) -> dict[str, object]:
                     "blockingGap": str(
                         getattr(kernel.HOST_CAPABILITIES[host], "blocking_gap", "") or ""
                     ),
+                    "exit2": exit2_capability(kernel.HOST_CAPABILITIES[host]),
                 }
                 for host in hosts
             },
@@ -5617,10 +5631,18 @@ def explain_json(
     })
 
 
-def uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, and core teardown.
+def uninstall_with_dependencies(project: Path) -> None:
+    """Remove ChaosEngine, then its install residue (#6407). Knowledge stores stay."""
+    project = project.resolve()
+    _uninstall_with_dependencies(project)
+    for residue in (project / BUNDLE_OPTIONS_PATH, project / LOCK_NAME):
+        with contextlib.suppress(FileNotFoundError):
+            residue.unlink()
+
+
+def _uninstall_with_dependencies(  # noqa: MC0001 - coordinated host, runtime, and core teardown.
     project: Path,
 ) -> None:
-    project = project.resolve()
     with project_lock(project):
         _recover_transaction(project)
         if read_account_rollback_journal(project) is not None:
@@ -6537,6 +6559,9 @@ def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
         if gap and honored is False:
             # #6325: same "[severity] name — detail" row grammar as components.
             line = f"[warning] host/{host} — {gap}"
+            if meta.get("exit2") == "unknown":
+                # #6408: the host CLI is not installed here, so the gap is informational.
+                line = f"[info] host/{host} — exit-2 fidelity unknown: the {host} CLI is not installed on this machine."
             # #6363: one row per (host, gap) even when detection repeats it.
             if line not in lines:
                 lines.append(line)
@@ -6684,6 +6709,7 @@ def format_fix_next_only(document: dict[str, object]) -> str:
     lines.extend(
         line.removeprefix("[warning] ").replace(" — ", ": ", 1)
         for line in format_blocking_fidelity_warnings(document)
+        if line.startswith("[warning] ")
     )
     return ("\n".join(lines) + "\n") if lines else ""
 
@@ -6786,7 +6812,20 @@ def record_mcp_opt_in(project: Path, args: argparse.Namespace) -> None:
             marker.unlink()
 
 
+MINIMUM_PYTHON = (3, 11)
+
+
+def python_floor_message(version: tuple[int, ...] | None = None) -> str:
+    """Explain the supported Python floor (3.10 reaches end of life in October 2026)."""
+    found = ".".join(str(part) for part in (version or sys.version_info)[:3])
+    return (f"ChaosEngine requires Python {MINIMUM_PYTHON[0]}.{MINIMUM_PYTHON[1]} or newer; found {found}. "
+            "Rerun the install one-liner, which provisions a supported Python through uv.\n")
+
+
 def main() -> int:
+    if sys.version_info < MINIMUM_PYTHON:
+        sys.stderr.write(python_floor_message())
+        return 2
     args = parser().parse_args()
     try:
         validate_install_options(args)

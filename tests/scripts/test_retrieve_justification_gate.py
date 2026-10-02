@@ -255,7 +255,8 @@ NODE install [src=chaos-engine/install.py loc=L12]
             ):
                 receipt = retrieve.retrieve("guard.py calls", store="graphify", project=project)
             self.assertEqual("used", receipt["status"])
-            self.assertEqual(1, run.call_count)
+            # #6409: the freshness probe may ask git for the branch tip; the store runs once.
+            self.assertEqual(1, sum(1 for call in run.call_args_list if Path(str(call.args[0][0])).stem != "git"))
             self.assertIsNone(gate.session_retrieve_gap(project, "first"))
             self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "second"))
 

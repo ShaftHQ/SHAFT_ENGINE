@@ -113,6 +113,10 @@ elif command -v python >/dev/null 2>&1; then
 else
   python=
 fi
+# Python 3.11 is the supported floor; an older interpreter falls back to uv-managed Python.
+if [ -n "$python" ] && ! "$python" -c 'import sys; sys.exit(sys.version_info < (3, 11))' >/dev/null 2>&1; then
+  python=
+fi
 
 if command -v curl >/dev/null 2>&1; then
   fetch() {
