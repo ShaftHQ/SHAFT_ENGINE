@@ -1778,6 +1778,8 @@ class ManagedCaptureRecorderBrowserTest {
             waitFor(() -> stepDescriptions(recorder).stream()
                     .anyMatch(description -> description.startsWith("Assert text contains")));
             recorder.stop(false);
+            // #6392: the CI-only replay miss needs the recorded steps to diagnose.
+            String recorded = Files.readString(output);
 
             com.shaft.capture.generate.CaptureGenerationResult linkResult =
                     new com.shaft.capture.generate.CaptureGenerator().generate(
@@ -1798,9 +1800,9 @@ class ManagedCaptureRecorderBrowserTest {
 
             assertAll(
                     () -> assertTrue(linkResult.successful(),
-                            linkResult.report().replay().diagnostics().toString()),
+                            linkResult.report().replay().diagnostics() + " recorded session: " + recorded),
                     () -> assertTrue(spanResult.successful(),
-                            spanResult.report().replay().diagnostics().toString()),
+                            spanResult.report().replay().diagnostics() + " recorded session: " + recorded),
                     () -> assertEquals(
                             com.shaft.capture.generate.CaptureGenerationReport.Validation.ValidationStatus.PASSED,
                             linkResult.report().replay().status()),
