@@ -40,3 +40,16 @@ applyTo: "**/src/test/java/**/*.java"
 - Capture screenshots only when the tested behavior is visual.
 - For flaky failures, use
   [the stabilization playbook](flaky-test-stabilizer.md).
+
+## Static analysis and proof runs
+
+- Strategy-matrix / Wave PRs fail static analysis when Java switches lack a
+  default branch: `switch` must be exhaustive (`default` where Codacy
+  `MissingDefaultCase` requires it). Confirm before the first push.
+- Codacy is this repository's static-analysis app: its `ACTION_REQUIRED` is the
+  static-analysis gate (`.chaos-engine/references/static-analysis-gate.md`).
+- N-run / flake-proof scripts that invoke Maven under the engine Surefire
+  profile must not treat process exit alone as green: after each proof
+  invocation, require a zero failed count from Surefire `TEST-*.xml` or TestNG
+  `testng-results.xml` (and set `-Dmaven.test.failure.ignore=false` for defense
+  in depth). Use `scripts/ci/assert_surefire_green.py` (repo-only).

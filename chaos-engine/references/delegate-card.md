@@ -1,7 +1,7 @@
 # Delegate card
 
 Load this instead of the full router when a role adapter dispatches you
-(#6176). The parent owns routing, planning, and the terminal Learning Session.
+. The parent owns routing, planning, and any triggered Learning Session.
 
 ## Covenant
 
@@ -13,7 +13,7 @@ work, public API, secrets, and safety boundaries. Ethics EC1-EC7 in the
 
 When this card was loaded through a role adapter, load
 [retrieve-first](retrieve-first.md) before task-specific discovery,
-including one-file reversible work. You missed SessionStart (#4570).
+including one-file reversible work. You missed SessionStart.
 
 ## Iron laws
 
@@ -31,7 +31,7 @@ before the first edit.
 
 ## Shared git state
 
-Never run mutating `git stash` in a worktree (R8, #6223): the stash is shared
+Never run mutating `git stash` in a worktree (R8): the stash is shared
 across worktrees. Commit to your branch; for baselines use
 `git worktree add --detach <dir> <base-ref>`.
 

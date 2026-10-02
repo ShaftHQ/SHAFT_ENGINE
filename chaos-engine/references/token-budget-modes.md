@@ -34,7 +34,7 @@ Machine-readable labels live in `hooks/lifecycle.py` (`TOKEN_BUDGET_MODES`).
 
 
 
-## Triage → token budget defaults (#5621)
+## Triage → token budget defaults
 
 When `CHAOS_ENGINE_TOKEN_BUDGET` is **unset**, pick the default from triage
 (blast radius). Env override always wins.

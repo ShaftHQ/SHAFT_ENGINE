@@ -120,7 +120,7 @@ REQUIRED_HARNESS_SURFACES = (
     "tools/repository-map/graphify_maintenance.py",
     "chaos-engine/skills/local-coding-delegate/SKILL.md",
     "chaos-engine/skills/local-coding-delegate/scripts/probe_hardware.py",
-    "chaos-engine/profiles/shaft/references/playbooks/workstation-local-coding-agent.md",
+    "shaft-skills/ce-pack/references/playbooks/workstation-local-coding-agent.md",
     "chaos-engine/install.ps1",
     "chaos-engine/install.sh",
     "scripts/local-coding-agent/shaft-java-agent.ps1",
@@ -790,7 +790,7 @@ class EntrypointDutyTest(unittest.TestCase):
             with self.subTest(clause=clause):
                 self.assertIn(clause, compact.lower() if clause.islower() else compact)
 
-        repository_profile = (ROOT / "chaos-engine/profiles/shaft/entrypoint.md").read_text(
+        repository_profile = (ROOT / "shaft-skills/ce-pack/entrypoint.md").read_text(
             encoding="utf-8"
         )
         self.assertIn("`scripts/ci/watch_pr_checks.py`", repository_profile)

@@ -42,14 +42,14 @@ Grok product bundles (pdf, pptx, imagine, game-*) and session GitHub MCP
 injection cannot be deleted from the Grok install tree. ChaosEngine does not
 vendor those bundles into the overlay catalog. Where the host allows it,
 doctor/repair disables user GitHub MCP when `gh` is healthy and reports the
-remaining host-product limit (`GAP-GROK-BUNDLED`, issues #5780 / #5785).
+remaining host-product limit (`GAP-GROK-BUNDLED`).
 
-## Maven Tools MCP
+## Pack tool servers
 
-Git-tracked project `.mcp.json` must never embed workstation-absolute
-java/jar paths. Native mode publishes
-`.chaos-engine/tool.py maven-tools-mcp`, which resolves the shared
-ChaosEngine cache at runtime. Docker mode may publish a portable image ref.
+Git-tracked project `.mcp.json` must never embed workstation-absolute runtime
+paths. A pack tool server publishes `.chaos-engine/tool.py <server>`, which
+resolves the shared ChaosEngine cache at runtime; Docker mode may publish a
+portable image ref. Pack specifics: [java pack](../packs/java/pack.md).
 
 ## Plugins
 

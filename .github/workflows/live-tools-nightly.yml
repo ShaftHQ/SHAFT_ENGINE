@@ -90,7 +90,7 @@ jobs:
           distribution: 'zulu'
           check-latest: true
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6.3.0
+        uses: gradle/actions/setup-gradle@v6.4.0
       - name: Run live IntelliJ chat-panel tool tests (Tool + Capture)
         run: >-
           bash shaft-intellij/gradlew -p shaft-intellij test
@@ -140,7 +140,7 @@ jobs:
           distribution: 'zulu'
           check-latest: true
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6.3.0
+        uses: gradle/actions/setup-gradle@v6.4.0
       - name: Run live IntelliJ chat-panel tool tests (Diagnostics)
         run: >-
           bash shaft-intellij/gradlew -p shaft-intellij test
@@ -188,7 +188,7 @@ jobs:
           distribution: 'zulu'
           check-latest: true
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6.3.0
+        uses: gradle/actions/setup-gradle@v6.4.0
       # ShaftAssistantPanelLiveAuthoringToolE2ETest's two other methods
       # (shaft_guide_search -> shafthq.github.io, test_plan_explore ->
       # example.com) reach third-party hosts; run them in the separate,
@@ -272,7 +272,7 @@ jobs:
           check-latest: true
       - name: Set up Gradle
         if: env.GEMINI_API_KEY != ''
-        uses: gradle/actions/setup-gradle@v6.3.0
+        uses: gradle/actions/setup-gradle@v6.4.0
       - name: Run live Gemini E2E test
         if: env.GEMINI_API_KEY != ''
         run: >-

@@ -546,7 +546,7 @@ def resolve_stable_version(
     elif name == "java":
         releases = payload.get("versions") if isinstance(payload, dict) else None
         if not isinstance(releases, list):
-            raise ValueError("Java stable-channel response is invalid")
+            raise ValueError("JDK stable-channel response is invalid")
         candidates = [
             {"version": match.group(0), "yanked": False}
             for item in releases
@@ -1877,7 +1877,7 @@ def install_exact_java(
     if executable.is_file():
         return str(executable.resolve())
     if root.exists() or is_link_or_reparse(root):
-        raise ValueError("existing Java account runtime is invalid")
+        raise ValueError("existing JDK account runtime is invalid")
     parent = root.parent
     parent.mkdir(parents=True, exist_ok=True)
     transaction = parent / f".{feature}-{build}.{secrets.token_hex(8)}.building"
@@ -1894,7 +1894,7 @@ def install_exact_java(
     finally:
         archive.unlink(missing_ok=True)
     if not executable.is_file():
-        raise ValueError("installed Java account runtime is incomplete")
+        raise ValueError("installed JDK account runtime is incomplete")
     return str(executable.resolve())
 
 

@@ -1,7 +1,7 @@
 # Permanent rules (single home)
 
 Lasting harness rules live in the portable overlay, never only in one
-assistant's memory or routine (#6180, [harness parity](host-parity-matrix.md)).
+assistant's memory or routine ([harness parity](host-parity-matrix.md)).
 Assistant memory keeps only this pointer: "Follow the ChaosEngine core card
 (`.chaos-engine/skills/chaos-engine/SKILL.md`); permanent rules are in
 `.chaos-engine/references/permanent-rules.md`."
@@ -9,12 +9,12 @@ Assistant memory keeps only this pointer: "Follow the ChaosEngine core card
 | Rule | CE home |
 | --- | --- |
 | One portable implementation for every host; a new rule is one parity row | [host-parity-matrix](host-parity-matrix.md) |
-| Learning Session after every delivery; unchanged overlay is not a skip | [router contract](router-contract.md) |
+| Learning Session only on trigger (failure, surprise, owner ask); otherwise one report line | [router contract](router-contract.md) |
 | No traffic proxy of any kind (Headroom-style included); nothing installs one by default | [no-proxy](no-proxy.md) |
 | Token optimization is Kanban eliminate-waste | [eliminate-waste](eliminate-waste.md) |
 | Retrieve before read, once per task area; harness files are exempt | [retrieve-first](retrieve-first.md) |
 | Prefer `gh` for GitHub; CLI over MCP; no GitHub MCP in defaults | [prefer-cli-over-mcp](prefer-cli-over-mcp.md) |
-| Codacy `ACTION_REQUIRED` is a hard blocker, never "pending" | [codacy gate](codacy-action-required-gate.md) |
+| Static-analysis `ACTION_REQUIRED` is a hard blocker, never "pending" | [static-analysis gate](static-analysis-gate.md) |
 | One watch per PR, bounded polls, digest only, silence when unchanged | [CI status economy](ci-status-economy.md) |
 | Delta-only status; full report only on a RAG change or owner request | [process owner](process-owner-scrum-master.md) |
 | Cost and avoided-spend lines only when a local channel was actually used | [process owner](process-owner-scrum-master.md) |

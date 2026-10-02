@@ -688,7 +688,7 @@ EXECUTABLE_SPEC_PLANNING_CLAUSE = (
     "Record the completed executable-specification matrices on the target GitHub issue comment before the first implementing commit."
 )
 EXECUTABLE_SPEC_REGRESSION_INTRO = (
-    "Use #4649 and #4650 as mandatory regression prompts when relevant. Cover each applicable scenario:"
+    "Treat these as mandatory regression prompts when relevant. Cover each applicable scenario:"
 )
 EXECUTABLE_SPEC_REGRESSION_SCENARIOS = (
     "- Effective working-directory/path resolution.",

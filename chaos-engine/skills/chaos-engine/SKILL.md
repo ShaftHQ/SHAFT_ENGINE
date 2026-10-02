@@ -9,98 +9,106 @@ license: MIT
 
 # ChaosEngine
 
-Router core card for every host, main thread, and delegate. Host adapters
-point here and never restate policy. Size the work, pick the one surface it
-needs, load that surface, and work under the contract below.
+Core card for every host and main thread; delegates load the
+[delegate card](../../references/delegate-card.md). Adapters never restate
+policy. Identity: [identity](../../identity.md).
 
 ## Iron laws
 
-1. Research and plan before implementation. Complete the
-   [research receipt](../../references/research-receipt.md) for every task;
-   triage changes depth, never ordering.
+1. Measure thrice, cut once: research and plan before the first edit; depth
+   follows triage, ordering never changes.
 2. Evidence over inference. Inspect or run before claiming.
-3. Complete implementation before its consolidated Check phase. Never claim
-   success before that Check runs.
-4. Never weaken, delete, or rewrite a test to reach green. When a test and the
-   requirement disagree, stop and report which one you believe is wrong.
+3. Never weaken, delete, or rewrite a test to reach green. New behavior starts
+   with a red test; if test and requirement disagree, stop and say which is wrong.
+4. Smallest correct change, industry-standard output. Complete implementation
+   before its consolidated Check phase.
 5. Never claim a check you did not run.
-6. Terminal adversarial review is on. Run at most two rounds only after
-   complete implementation and CI fixes. No hook may force tests or reviews
-   mid-implementation.
-7. During planning, ask the open decisions. Skip those questions only when
-   the owner explicitly asked for unattended planning.
+6. Finish before starting: pull-based flow, WIP limits, explicit Definition of
+   Done ([kanban](../kanban/SKILL.md)). Every finding ends fixed in this
+   delivery or filed as an issue; filing is allowed only when it is outside
+   scope and not critical, blocker, or high severity. Nothing stays only in
+   chat, a report, or a local file.
+7. Safety and ethics control: preserve user work and secrets; irreversible or
+   externally visible actions need explicit owner authority.
 
 ## Triage
 
-Before task-specific discovery, answer both in one line each:
+Answer in one line each before task-specific discovery:
 
-- **Blast radius** — one file, one module, or a public contract and its callers.
-- **Reversibility** — undone by deleting the diff, or does it touch persisted
-  data, a published artifact, or an external system?
+- **Blast radius**: one file, one module, or a public contract and its callers.
+- **Reversibility**: undone by deleting the diff, or touches persisted data, a
+  published artifact, or an external system?
 
-Take depth from the worse answer; every row loads
-[consult-first](../../references/consult-first.md):
-
-| Triage result | Depth |
+| Worse answer | Depth |
 | --- | --- |
-| One file, reversible | Concise complete receipt. |
-| One module, reversible | Normal full pass. |
-| Public contract, many callers, or hard to reverse | Executable specification and full pass. |
+| One file, reversible | Read, fix, prove. No plan document. |
+| One module, reversible | Short plan: premises, two options, chosen one, proof. |
+| Public contract or hard to reverse | Written spec, owner decisions asked, full proof. |
 
-Re-triage when a premise turns out false, the third fix for one symptom fails,
-the blast radius grows, or the user adds scope.
+Re-triage when a premise is false, a third fix fails, or scope grows. Retrieve
+from graph or memory first when it pays; bound reads; prefer one script.
 
-Retrieve: graph and memory first, when it pays — one bounded retrieve per
-project task area, never for harness files, script runs, or named files
-([retrieve-first](../../references/retrieve-first.md)). Bound reads:
-[context economy](../../references/context-economy.md); prefer one script over
-a long tool chain: [script first](../../references/script-first.md).
+## Plan, then go
 
-## Contract
+During planning, ask only questions whose answer changes the plan, and never
+one the repository or sources can answer. Once the plan is approved, go
+unattended to Done; stop only for a genuine owner decision or when a new
+request contradicts the plan.
 
-Load the [router contract](../../references/router-contract.md) for the
-operating contract, implementation preflight, red flags, project profile,
-task isolation, ethics (EC1-EC7, controlling), companions (Caveman +
-Ponytail at ultra on the implement path), portability, validation scope,
-roles, ownership, reflection, and the Learning Session. Delegates load the
-[delegate card](../../references/delegate-card.md) instead. After confirmed
-delivery run exactly one root-owned Learning Session immediately before the
-final report. Untouched chaos-engine files are not a valid skip. Load
-self-improve for that session. A ChaosEngine harness lesson, finding, or
-potential enhancement is a GitHub issue only. Do not write it to a local queue or into chat. The [installer](../../install.py) and
-[bootstrap](../../bootstrap.py) own install;
-`tests/scripts/test_chaos_engine_bootstrap.py` runs the clean/update/failure
-flow on Linux, macOS, and Windows.
+## Implement
+
+Load both companion cards before the first edit:
+[Caveman ultra](../../companions/caveman-ultra.md) (chat, internal notes,
+handoffs) and [Ponytail ultra](../../companions/ponytail-ultra.md). Off only
+with `stop caveman`, `stop ponytail`, or `normal mode`. Vendor bodies load only
+on explicit invocation.
+
+## Check and deliver
+
+- Finish the implementation, then one Check: new or edited tests plus directly
+  impacted tests.
+- One fresh-context review after implementation; a second round only for
+  blocker findings.
+- One blocking CI wait per push; on failure fix the isolated cause, retry at
+  most once, then stop and report. Never re-run checks that already passed.
+- Learning Session only on trigger: a defect escaped, a surprise contradicted
+  the harness, or the owner asks. Then load
+  [self-improve](../self-improve/SKILL.md). Otherwise one line in the final
+  report. Harness lessons become issues, never local queues.
 
 ## Route
-
-Load one surface from the table, finish its deliverable, then return here.
 
 <!-- HARNESS-ROUTES:START -->
 | Route | Use when | Load |
 | --- | --- | --- |
-| Zero-LLM first | Open the file. | [zero-llm-catalog.md](../../references/zero-llm-catalog.md) |
-| Heal | Open the file. | [heal-route.md](../../references/heal-route.md) |
-| Level-1 catalog | Open the file. | [level-1-catalog.md](../../references/level-1-catalog.md) |
-| Context firewall | Open the file. | [context-firewall.md](../../references/context-firewall.md) |
-| Harness learn | Open the file. | [harness-learn.md](../../references/harness-learn.md) |
-| Design loop | Open the file. | [design-loop.md](../../references/design-loop.md) |
-| Deep research | Open the file. | [deep-research.md](../../references/deep-research.md) |
+| Local LLM | optional local runtime or local agents | [local-runtimes](../local-runtimes/SKILL.md), [local-agency](../local-agency/SKILL.md), [omniroute](../omniroute/SKILL.md), [freetoken](../freetoken/SKILL.md), [colibri](../colibri/SKILL.md), [local-openai-compat](../local-openai-compat/SKILL.md), [local-coding-delegate](../local-coding-delegate/SKILL.md) |
+| work-item | open or rewrite an issue or work item | [SKILL.md](../work-item/SKILL.md) |
+| self-improve | Learning Session trigger fired | [SKILL.md](../self-improve/SKILL.md) |
+| kanban | several deliverables, tickets, or delegates | [SKILL.md](../kanban/SKILL.md) |
+| Git cleanup | dirty worktree or stray branches | [SKILL.md](../git-cleanup/SKILL.md) |
+| Zero-LLM first | install, doctor, repair by script | [zero-llm-catalog.md](../../references/zero-llm-catalog.md) |
+| Heal | drifted or unhealthy install | [heal-route.md](../../references/heal-route.md) |
+| Level-1 catalog | secondary skill or tool needed | [level-1-catalog.md](../../references/level-1-catalog.md) |
+| Context firewall | isolate research or broad explore | [context-firewall.md](../../references/context-firewall.md) |
+| Harness learn | traces show the overlay should change | [harness-learn.md](../../references/harness-learn.md) |
+| Design loop | design doc needs review rounds | [design-loop.md](../../references/design-loop.md) |
+| Deep research | cited multi-source research | [deep-research.md](../../references/deep-research.md) |
 | UI delivery | user-visible UI | [ui-delivery.md](../../references/ui-delivery.md) |
-| Learn traces | Open the file. | [learn-traces.md](../../references/learn-traces.md) |
-| Meta-optimize | Open the file. | [meta-optimize.md](../../references/meta-optimize.md) |
-| Draft skill PR | Open the file. | [draft-skill-pr.md](../../references/draft-skill-pr.md) |
-| Token budget | Open the file. | [token-budget-modes.md](../../references/token-budget-modes.md) |
-| Eliminate waste | Open the file. | [eliminate-waste.md](../../references/eliminate-waste.md) |
-| Prefer CLI over MCP | Open the file. | [prefer-cli-over-mcp.md](../../references/prefer-cli-over-mcp.md) |
-| No proxy | Open the file. | [no-proxy.md](../../references/no-proxy.md) |
-| GAP-EXIT2 UX | Open the file. | [host-parity-matrix.md](../../references/host-parity-matrix.md) |
-| Codacy Complexity | Open the file. | [codacy-complexity-gate.md](../../references/codacy-complexity-gate.md) |
-| Git cleanup | Open the file. | [SKILL.md](../git-cleanup/SKILL.md) |
+| Learn traces | turn traces into lessons | [learn-traces.md](../../references/learn-traces.md) |
+| Meta-optimize | periodic offline log review | [meta-optimize.md](../../references/meta-optimize.md) |
+| Draft skill PR | opt-in eval-gated skill PR | [draft-skill-pr.md](../../references/draft-skill-pr.md) |
+| Token budget | pick lean, balanced, or deep budget | [token-budget-modes.md](../../references/token-budget-modes.md) |
+| Eliminate waste | a hop or retry adds no decision | [eliminate-waste.md](../../references/eliminate-waste.md) |
+| Prefer CLI over MCP | CLI and MCP both fit | [prefer-cli-over-mcp.md](../../references/prefer-cli-over-mcp.md) |
+| No proxy | a task would add a traffic proxy | [no-proxy.md](../../references/no-proxy.md) |
+| GAP-EXIT2 UX | host ignores exit-2 hard blocks | [host-parity-matrix.md](../../references/host-parity-matrix.md) |
+| Complexity gate | static-analysis complexity gate | [complexity-gate.md](../../references/complexity-gate.md) |
 <!-- HARNESS-ROUTES:END -->
 
 ## Catalog
 
-Skills, vendor companions, roles, and routes live in the generated
-[catalog](../../references/catalog.md) from
-[harness-index.json](../../harness-index.json). Load a body on demand.
+On demand: [catalog](../../references/catalog.md),
+[router contract](../../references/router-contract.md),
+[context economy](../../references/context-economy.md),
+[retrieve-first](../../references/retrieve-first.md),
+[script first](../../references/script-first.md).

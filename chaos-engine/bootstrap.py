@@ -2041,6 +2041,11 @@ def resolve_latest(repository: str, branch: str | None, opener=urllib.request.ur
     return commit, branch
 
 
+def is_pack_path(path: PurePosixPath) -> bool:
+    """A project pack file (`<dir>/ce-pack/...`) that installs beside the core."""
+    return len(path.parts) >= 3 and path.parts[1] == "ce-pack"
+
+
 def download_source(
     repository: str,
     commit: str,
@@ -2075,7 +2080,7 @@ def download_source(
         path = PurePosixPath(entry["path"])
         if path.is_absolute() or ".." in path.parts or not path.parts:
             raise ValueError("ChaosEngine source tree contains an unsafe path")
-        if path.parts[0] != "chaos-engine":
+        if path.parts[0] != "chaos-engine" and not is_pack_path(path):
             continue
         if entry.get("type") == "tree":
             continue
@@ -2084,6 +2089,10 @@ def download_source(
         size = entry.get("size")
         if not isinstance(size, int) or size < 0 or size > MAX_FILE_BYTES:
             raise ValueError("ChaosEngine source file exceeds the download limit")
+        if is_pack_path(path):
+            selected.append((path, size))
+            total += size
+            continue
         relative = PurePosixPath(*path.parts[1:])
         if not relative.parts:
             raise ValueError("ChaosEngine source tree has an unexpected layout")
@@ -2092,7 +2101,7 @@ def download_source(
             "STANDALONE.md",
         }:
             continue
-        selected.append((relative, size))
+        selected.append((path, size))
         total += size
 
     if not selected:
@@ -2110,17 +2119,17 @@ def download_source(
     mkdir_lock = threading.Lock()
 
     def fetch_blob(item: tuple[PurePosixPath, int]) -> None:
-        relative, expected_size = item
-        encoded_path = "/".join(urllib.parse.quote(part, safe="") for part in relative.parts)
+        repository_path, expected_size = item
+        encoded_path = "/".join(urllib.parse.quote(part, safe="") for part in repository_path.parts)
         content = read_response(
             opener,
-            f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/chaos-engine/{encoded_path}",
+            f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/{encoded_path}",
             limit=MAX_FILE_BYTES,
             progress=None if reporter is None else reporter.downloaded,
         )
         if len(content) != expected_size:
             raise ValueError("ChaosEngine source file does not match the resolved tree")
-        target = source.joinpath(*relative.parts)
+        target = destination.joinpath(*repository_path.parts)
         with mkdir_lock:
             target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
@@ -2233,6 +2242,8 @@ def install_latest(
                 "branch": resolved_branch,
                 "commit": commit,
             }
+        legacy_layout = getattr(installer, "legacy_profile_layout", None)
+        legacy_packs = legacy_layout(project / ".chaos-engine") if callable(legacy_layout) else []
         confirm("Install core")
         reporter.start("Install core", remaining=remaining("Install core"))
         reporter.trace(f"install core commit={commit} distribution={distribution}")
@@ -2277,6 +2288,10 @@ def install_latest(
                 reporter.current_operation == "Install core"
             ):
                 reporter.complete("Install core", remaining=remaining("Install core"))
+        if legacy_packs:
+            # CE-10 hard cut: name the replaced profiles/<name> layout once.
+            replaced = not legacy_layout(project / ".chaos-engine")
+            print(installer.hard_cut_message(legacy_packs, replaced=replaced), file=sys.stderr)
         temporary.cleanup()
     except BaseException:
         reporter.close()

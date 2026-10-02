@@ -1,6 +1,6 @@
 # OmniRoute runner
 
-Moved from [OmniRoute](../SKILL.md) (#6176) so the skill body stays under its cap.
+Moved from [OmniRoute](../SKILL.md) so the skill body stays under its cap.
 
 Use only the standard-library [runner](../scripts/runner.py) (proof helpers in [proof](../scripts/proof.py)):
 

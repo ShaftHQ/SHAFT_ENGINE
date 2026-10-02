@@ -143,7 +143,7 @@ class RetrieveGateScopeTest(unittest.TestCase):
         finally:
             os.chdir(previous)
         locators = self.gate.session_start_locators(context)
-        self.assertTrue(any("vendor/caveman" in item for item in locators), context)
+        self.assertTrue(any("companions/caveman-ultra.md" in item for item in locators), context)
         for locator in locators:
             with self.subTest(locator=locator):
                 self.assertIsNone(self.block(tool_input={"file_path": locator}))

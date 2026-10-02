@@ -135,11 +135,11 @@ discoverable skills.
 
 Never loaded by default. The first four are described by the entrypoint as it
 sends you there; the rest by
-[routing](../../chaos-engine/profiles/shaft/references/routing.md).
+[routing](../../shaft-skills/ce-pack/references/routing.md).
 
-- [selected shaft profile](../../chaos-engine/profiles/shaft/entrypoint.md)
-- [shaft profile.json](../../chaos-engine/profiles/shaft/profile.json)
-- [routing](../../chaos-engine/profiles/shaft/references/routing.md)
+- [selected shaft profile](../../shaft-skills/ce-pack/entrypoint.md)
+- [shaft profile.json](../../shaft-skills/ce-pack/profile.json)
+- [routing](../../shaft-skills/ce-pack/references/routing.md)
 - [ethical conduct](../../chaos-engine/references/ethical-conduct.md)
 - [delegation](../../chaos-engine/references/delegation.md)
 - [execution workflows](../../chaos-engine/references/execution-workflows.md)
@@ -169,10 +169,10 @@ sends you there; the rest by
 - [work item](../../chaos-engine/references/work-item.md)
 - [work-item adapters](../../chaos-engine/references/work-item-adapters.md)
 - [graphify](../../chaos-engine/references/graphify.md)
-- [repository Graphify procedure](../../chaos-engine/profiles/shaft/references/graphify.md)
-- [shaft profile: product track](../../chaos-engine/profiles/shaft/references/product-track.md)
-- [shaft profile: self improve master plan](../../chaos-engine/profiles/shaft/references/self-improve-master-plan.md)
-- [shaft profile: self improve research synthesis](../../chaos-engine/profiles/shaft/references/self-improve-research-synthesis.md)
+- [repository Graphify procedure](../../shaft-skills/ce-pack/references/graphify.md)
+- [shaft profile: product track](../../shaft-skills/ce-pack/references/product-track.md)
+- [shaft profile: self improve master plan](../../shaft-skills/ce-pack/references/self-improve-master-plan.md)
+- [shaft profile: self improve research synthesis](../../shaft-skills/ce-pack/references/self-improve-research-synthesis.md)
 - [research receipt](../../chaos-engine/references/research-receipt.md)
 - [TDD](../../chaos-engine/references/tdd.md)
 - [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
@@ -183,8 +183,8 @@ sends you there; the rest by
 - [script first](../../chaos-engine/references/script-first.md)
 - [catalog](../../chaos-engine/references/catalog.md)
 - [ci status economy](../../chaos-engine/references/ci-status-economy.md)
-- [codacy action required gate](../../chaos-engine/references/codacy-action-required-gate.md)
-- [codacy complexity gate](../../chaos-engine/references/codacy-complexity-gate.md)
+- [codacy action required gate](../../chaos-engine/references/static-analysis-gate.md)
+- [codacy complexity gate](../../chaos-engine/references/complexity-gate.md)
 - [delegate card](../../chaos-engine/references/delegate-card.md)
 - [delivery phase gates](../../chaos-engine/references/delivery-phase-gates.md)
 - [eliminate waste](../../chaos-engine/references/eliminate-waste.md)
@@ -221,43 +221,43 @@ entrypoint: [Caveman](../../chaos-engine/vendor/caveman/INVENTORY.md),
 ### Repository playbooks
 
 One per kind of work in this repository. Which deliverable sends you to which
-playbook is stated once, in [routing](../../chaos-engine/profiles/shaft/references/routing.md) — this
+playbook is stated once, in [routing](../../shaft-skills/ce-pack/references/routing.md) — this
 list is the inventory, not a second copy of the triggers.
 
-- [agent guidance](../../chaos-engine/profiles/shaft/references/playbooks/agent-guidance-boundary-guard.md)
-- [PDCA](../../chaos-engine/profiles/shaft/references/playbooks/agentic-pdca-loop.md)
-- [framework source](../../chaos-engine/profiles/shaft/references/playbooks/framework-source.md)
-- [Java tests](../../chaos-engine/profiles/shaft/references/playbooks/java-tests.md)
-- [CI failures](../../chaos-engine/profiles/shaft/references/playbooks/ci-failure-investigator.md)
-- [flaky tests](../../chaos-engine/profiles/shaft/references/playbooks/flaky-test-stabilizer.md)
-- [release and dependencies](../../chaos-engine/profiles/shaft/references/playbooks/release-dependency-guard.md)
-- [MCP transport](../../chaos-engine/profiles/shaft/references/playbooks/mcp-transport-contract-auditor.md)
-- [module boundaries](../../chaos-engine/profiles/shaft/references/playbooks/modular-boundary-auditor.md)
-- [reports](../../chaos-engine/profiles/shaft/references/playbooks/allure-extent-report-operator.md)
-- [public docs](../../chaos-engine/profiles/shaft/references/playbooks/public-behavior-docs-synchronizer.md)
-- [UI design](../../chaos-engine/profiles/shaft/references/playbooks/shaft-ui-design.md)
-- [marketing](../../chaos-engine/profiles/shaft/references/playbooks/shaft-marketing-ad-producer.md)
-- [workstation local coding](../../chaos-engine/profiles/shaft/references/playbooks/workstation-local-coding-agent.md)
-- [IntelliJ plugin development](../../chaos-engine/profiles/shaft/references/playbooks/intellij-plugin-development.md)
-- [intellij design automation apply paths](../../chaos-engine/profiles/shaft/references/playbooks/intellij-design-automation-apply-paths.md)
-- [intellij ui test conventions](../../chaos-engine/profiles/shaft/references/playbooks/intellij-ui-test-conventions.md)
+- [agent guidance](../../shaft-skills/ce-pack/references/playbooks/agent-guidance-boundary-guard.md)
+- [PDCA](../../shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md)
+- [framework source](../../shaft-skills/ce-pack/references/playbooks/framework-source.md)
+- [Java tests](../../shaft-skills/ce-pack/references/playbooks/java-tests.md)
+- [CI failures](../../shaft-skills/ce-pack/references/playbooks/ci-failure-investigator.md)
+- [flaky tests](../../shaft-skills/ce-pack/references/playbooks/flaky-test-stabilizer.md)
+- [release and dependencies](../../shaft-skills/ce-pack/references/playbooks/release-dependency-guard.md)
+- [MCP transport](../../shaft-skills/ce-pack/references/playbooks/mcp-transport-contract-auditor.md)
+- [module boundaries](../../shaft-skills/ce-pack/references/playbooks/modular-boundary-auditor.md)
+- [reports](../../shaft-skills/ce-pack/references/playbooks/allure-extent-report-operator.md)
+- [public docs](../../shaft-skills/ce-pack/references/playbooks/public-behavior-docs-synchronizer.md)
+- [UI design](../../shaft-skills/ce-pack/references/playbooks/shaft-ui-design.md)
+- [marketing](../../shaft-skills/ce-pack/references/playbooks/shaft-marketing-ad-producer.md)
+- [workstation local coding](../../shaft-skills/ce-pack/references/playbooks/workstation-local-coding-agent.md)
+- [IntelliJ plugin development](../../shaft-skills/ce-pack/references/playbooks/intellij-plugin-development.md)
+- [intellij design automation apply paths](../../shaft-skills/ce-pack/references/playbooks/intellij-design-automation-apply-paths.md)
+- [intellij ui test conventions](../../shaft-skills/ce-pack/references/playbooks/intellij-ui-test-conventions.md)
 
 ### SHAFT mastery chapters
 
 Ten expert domains. Each encodes incident history that is expensive to
 re-derive, so read the one the task touches and skip the rest — which one that
-is, [routing](../../chaos-engine/profiles/shaft/references/routing.md) says.
+is, [routing](../../shaft-skills/ce-pack/references/routing.md) says.
 
-- [Selenium BiDi](../../chaos-engine/profiles/shaft/references/shaft-mastery/selenium-bidi.md)
-- [Allure internals](../../chaos-engine/profiles/shaft/references/shaft-mastery/allure-internals.md)
-- [Appium mobile](../../chaos-engine/profiles/shaft/references/shaft-mastery/appium-mobile.md)
-- [Maven release](../../chaos-engine/profiles/shaft/references/shaft-mastery/maven-release.md)
-- [TestNG lifecycle](../../chaos-engine/profiles/shaft/references/shaft-mastery/testng-lifecycle.md)
-- [IntelliJ plugin](../../chaos-engine/profiles/shaft/references/shaft-mastery/intellij-plugin.md)
-- [MCP protocol](../../chaos-engine/profiles/shaft/references/shaft-mastery/mcp-protocol.md)
-- [CI forensics](../../chaos-engine/profiles/shaft/references/shaft-mastery/ci-forensics.md)
-- [Wait strategies](../../chaos-engine/profiles/shaft/references/shaft-mastery/wait-strategies.md)
-- [Locator healing](../../chaos-engine/profiles/shaft/references/shaft-mastery/locator-healing.md)
+- [Selenium BiDi](../../shaft-skills/ce-pack/references/shaft-mastery/selenium-bidi.md)
+- [Allure internals](../../shaft-skills/ce-pack/references/shaft-mastery/allure-internals.md)
+- [Appium mobile](../../shaft-skills/ce-pack/references/shaft-mastery/appium-mobile.md)
+- [Maven release](../../shaft-skills/ce-pack/references/shaft-mastery/maven-release.md)
+- [TestNG lifecycle](../../shaft-skills/ce-pack/references/shaft-mastery/testng-lifecycle.md)
+- [IntelliJ plugin](../../shaft-skills/ce-pack/references/shaft-mastery/intellij-plugin.md)
+- [MCP protocol](../../shaft-skills/ce-pack/references/shaft-mastery/mcp-protocol.md)
+- [CI forensics](../../shaft-skills/ce-pack/references/shaft-mastery/ci-forensics.md)
+- [Wait strategies](../../shaft-skills/ce-pack/references/shaft-mastery/wait-strategies.md)
+- [Locator healing](../../shaft-skills/ce-pack/references/shaft-mastery/locator-healing.md)
 
 ### The product pack
 
@@ -424,6 +424,7 @@ Generated skill index (`chaos-engine/harness_index.py`):
 - [chaos-engine](../../chaos-engine/skills/chaos-engine/SKILL.md) (portable)
 - [work-item](../../chaos-engine/skills/work-item/SKILL.md) (portable)
 - [self-improve](../../chaos-engine/skills/self-improve/SKILL.md) (portable)
+- [kanban](../../chaos-engine/skills/kanban/SKILL.md) (portable)
 - [git-cleanup](../../chaos-engine/skills/git-cleanup/SKILL.md) (portable)
 - [local-agency](../../chaos-engine/skills/local-agency/SKILL.md) (portable)
 - [local-runtimes](../../chaos-engine/skills/local-runtimes/SKILL.md) (portable)

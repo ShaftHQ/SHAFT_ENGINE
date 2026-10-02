@@ -9,26 +9,11 @@ requested goal and affected files.
 
 ## Canonical policy
 
-Before every task, read and follow ChaosEngine through the single marker
-pointer at the end of this file. It is the only router and
-working-policy owner. Its selected profile and references own lifecycle hooks,
-roles, capability levels, skills, tools, Caveman, Ponytail, TDD, research,
-memory, task isolation, cleanup, delegation, review, delivery, and completion.
-Do not restate those policies in host adapters.
-
-Cleanup scope is defined only by
-[cleanup-scopes](chaos-engine/references/cleanup-scopes.md). Harness duty
-ownership is machine-readable in
-[agent_ownership.json](scripts/ci/agent_ownership.json). `CLAUDE.md` and
-`GEMINI.md` only import this file (`@AGENTS.md`); host skills and provider
-guidance remain thin pointers to the canonical router.
-
-Harness parity (permanent): lasting behavior and policy — including Learning
-Session after every delivery — must live in the portable ChaosEngine overlay
-(hooks, skills, installer/doctor, host guidance adapters), never only in one
-agent's memory or routines. Unchanged `chaos-engine/` files are not a valid
-Learning Session skip. Research/explore isolation follows
-[context firewall](chaos-engine/references/context-firewall.md) (all hosts); periodic [meta-optimize](chaos-engine/references/meta-optimize.md); opt-in [draft skill PRs](chaos-engine/references/draft-skill-pr.md) default OFF.
+ChaosEngine, through the marker pointer at the end of this file, is the only router and
+working-policy owner. Do not restate its policies here or in host
+adapters. `CLAUDE.md` and `GEMINI.md` only import this file (`@AGENTS.md`).
+Cleanup scope: [cleanup-scopes](chaos-engine/references/cleanup-scopes.md).
+Duty ownership: [agent_ownership.json](scripts/ci/agent_ownership.json).
 
 ## Repository safety
 

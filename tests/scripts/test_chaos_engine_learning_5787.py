@@ -18,7 +18,6 @@ class Learning5787Test(unittest.TestCase):
         self.assertIn("host-parity", text)
         self.assertIn("unmerged scaffold", text)
         self.assertIn("absorb it into the follow-on PR", text)
-        self.assertIn("#5787", text)
 
     def test_gotcha_md_and_json_exist_and_cite_issue(self) -> None:
         md = GOTCHAS / f"{SLUG}.md"

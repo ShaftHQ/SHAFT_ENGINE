@@ -1,8 +1,8 @@
 # CI status economy (babysit, digest, one channel)
 
-Learned in the PR #6158 coalesce wave (epic #6161): babysit, process-owner, and parent turns burned tokens re-reading unchanged CI state. This policy is portable. Codex, Claude, Grok CLI, Gemini, Copilot, and Grok Bot share it; no host-only memory exception.
+Learned in coalesce wave: babysit, process-owner, and parent turns burned tokens re-reading unchanged CI state. This policy is portable. Codex, Claude, Grok CLI, Gemini, Copilot, and Grok Bot share it; no host-only memory exception.
 
-## Agent Plugin Live Acceptance dispatch (#6283)
+## Agent Plugin Live Acceptance dispatch
 
 - Dispatch only the jobs the gate names. Installer part 1 on windows-2025 and
   macos-15 is `workflow_dispatch` input
@@ -15,7 +15,7 @@ Learned in the PR #6158 coalesce wave (epic #6161): babysit, process-owner, and 
   intermediate `gh run view` rows into the agent. Hosts share this helper;
   do not keep a private poll loop.
 
-## Digest only (#6162)
+## Digest only
 
 - Agent-facing CI status comes from `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest` (one blocking watch). (repo-only)
 - Never paste a raw `statusCheckRollup` or a full check-runs list into chat, an executor prompt, or a status report.
@@ -28,7 +28,7 @@ Learned in the PR #6158 coalesce wave (epic #6161): babysit, process-owner, and 
   "failing": [{"name": "...", "url": "..."}],
   "failing_total": 0,
   "pending_count": 0,
-  "codacy_action_required": [],
+  "static_analysis_action_required": [],
   "updated_at": "<UTC>"
 }
 ```
@@ -37,14 +37,14 @@ Learned in the PR #6158 coalesce wave (epic #6161): babysit, process-owner, and 
 - The watch emits only on state change or terminal state; no heartbeat tokens.
 - `rollup_is_waste()` in the same script flags a tool result that pastes a rollup above the digest budget.
 
-## One status channel (#6163)
+## One status channel
 
 - Exactly one status channel per in-flight PR: the armed watch. Start it with `--status-lease --digest-out .chaos-engine/runtime/digest-<pr>.json`; it records `.chaos-engine/runtime/status-lease-<pr>.json`.
 - Scheduled process-owner status routines run `python3 scripts/agents/status_lease.py routine --pr <n> --last-reported <state>`; it prints nothing while the lease is live and unchanged, and one line on `red` / `merged` or when no live watch exists. (repo-only)
 - Parent re-entry does not re-narrate unless the watch returned RED/MERGED or the owner asked (`--owner-asked`).
 - Link: [process-owner](process-owner-scrum-master.md), [orchestrator follow-through](orchestrator-follow-through.md).
 
-## Fingerprint-first failed logs (#6167)
+## Fingerprint-first failed logs
 
 - If the job summary, annotation, or evidence JSON already names a fingerprint, read at most 40 lines around it:
 
@@ -58,13 +58,13 @@ Learned in the PR #6158 coalesce wave (epic #6161): babysit, process-owner, and 
 
 | Fingerprint | Meaning | Babysit move |
 |-------------|---------|--------------|
-| `graphify-empty-output-after-version` | Windows graphify.exe exited non-zero with empty streams after a healthy `--version` (#6166); installer retries once, then absorbs and emits the fingerprint | Known flake: do not open a tip; the installer on `main` absorbs it |
+| `graphify-empty-output-after-version` | Windows graphify.exe exited non-zero with empty streams after a healthy `--version`; installer retries once, then absorbs and emits the fingerprint | Known flake: do not open a tip; the installer on `main` absorbs it |
 | `inventory-drift` | `source-derived inventory drift: <section>` | Refresh README inventory in the same tip ([tip-churn preflight](tip-churn-preflight.md)) |
 | `bandit-b607` | partial executable path | Resolve with `shutil.which`; see [tip-churn preflight](tip-churn-preflight.md) |
 | `memory-content-hash` | stale Memory `content_hash` | `tip_preflight.py --rehash` in the same tip |
-| `codacy-action-required` | Codacy ≥medium finding | Blocking; see [Codacy ACTION_REQUIRED gate](codacy-action-required-gate.md) |
+| `static-analysis-action-required` | static-analysis ≥medium finding | Blocking; see [Static-analysis ACTION_REQUIRED gate](static-analysis-gate.md) |
 
-## Executor prompt schema (#6167)
+## Executor prompt schema
 
 Task / executor / `codex exec` prompts carry a pointer plus the delta slice only; lint with `executor_brief.py lint` (cap 4096 inline bytes; no completed todos from another wave).
 
@@ -79,4 +79,4 @@ red: python3 -m unittest <module> -v
 ## Related
 
 - `scripts/agents/watch_pr_checks.py` (repo-only), `scripts/agents/status_lease.py` (repo-only), [`executor_brief.py`](../skills/local-agency/scripts/executor_brief.py)
-- [Tip-churn preflight](tip-churn-preflight.md) · [Codacy ACTION_REQUIRED gate](codacy-action-required-gate.md)
+- [Tip-churn preflight](tip-churn-preflight.md) · [Static-analysis ACTION_REQUIRED gate](static-analysis-gate.md)

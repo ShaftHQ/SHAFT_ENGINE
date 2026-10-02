@@ -49,6 +49,15 @@ def source_payload(marker: str) -> dict[str, bytes]:
     return payload
 
 
+def pack_payload() -> dict[str, bytes]:
+    """Project pack files the bootstrap downloads beside the core (CE-10)."""
+    return {
+        path.relative_to(ROOT).as_posix(): path.read_bytes()
+        for path in ROOT.glob("*/ce-pack/**/*")
+        if path.is_file() and "__pycache__" not in path.parts
+    }
+
+
 class Response(io.BytesIO):
     def __enter__(self):
         return self
@@ -733,12 +742,16 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                         "size": len(content),
                     }
                     for relative, content in payload.items()
+                ] + [
+                    {"path": path, "mode": "100644", "type": "blob", "size": len(content)}
+                    for path, content in pack_payload().items()
                 ]
                 return Response(json.dumps({"tree": tree, "truncated": False}).encode())
             self.assertEqual("raw.githubusercontent.com", urlparse(url).netloc)
-            prefix = f"/{commit}/chaos-engine/"
-            encoded_path = urlparse(url).path.split(prefix, 1)[1]
-            return Response(payload[unquote(encoded_path)])
+            encoded_path = unquote(urlparse(url).path.split(f"/{commit}/", 1)[1])
+            if not encoded_path.startswith("chaos-engine/"):
+                return Response(pack_payload()[encoded_path])
+            return Response(payload[encoded_path.removeprefix("chaos-engine/")])
 
         return open_url, calls
 
@@ -1272,11 +1285,12 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
             self.assertGreaterEqual(module.DOWNLOAD_WORKERS, 2)
 
     def test_bootstrap_is_reachable_and_runs_in_three_os_ci(self):
-        skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        # Epic #6342: install detail lives in the on-demand router contract.
+        skill = (ROOT / "chaos-engine/references/router-contract.md").read_text(encoding="utf-8")
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         budget = json.loads((ROOT / "scripts/ci/agent_guidance_budget.json").read_text(encoding="utf-8"))
 
-        self.assertIn("../../bootstrap.py", skill)
+        self.assertIn("../bootstrap.py", skill)
         self.assertIn("tests/scripts/test_chaos_engine_bootstrap.py", skill)
         self.assertIn("python scripts/ci/harness_pr_gate.py", workflow)
         gate = (ROOT / "scripts/ci/harness_pr_gate.py").read_text(encoding="utf-8")

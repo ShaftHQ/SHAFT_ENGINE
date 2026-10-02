@@ -1,4 +1,3 @@
-<!-- Folded from skills/local-coding-delegate/SKILL.md (#6200). -->
 # Local coding delegate (folded)
 
 This skill is a **compatibility shim**.

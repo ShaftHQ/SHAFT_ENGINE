@@ -32,7 +32,7 @@ does. A single stream skips this file and is worked solo, in sequence.
 9. Review the actual diff and tests as [delegation](delegation.md) defines.
    Main thread owns synthesis and final verification. Collect the writer's
    bounded learning handoff, then destroy the finished writer and continue.
-10. After every delivery completes, run the one root Learning Session immediately before the final report.
+10. After delivery, run the one root Learning Session only when a trigger fired (failure, surprise, owner ask).
 
 For branch, tracker, and PR mechanics use
 [work GitHub](work-github-playbook.md).

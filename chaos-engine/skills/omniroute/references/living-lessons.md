@@ -1,8 +1,7 @@
 # OmniRoute living lessons
 
 Append dated bullets here (and optional `.memory` gotchas) as deliveries learn
-more. Seed list absorbed from #5864 (2026-09-16 process-owner wave with
-#5858/#5455). Related enforcement: #5863 /
+more. Seed list absorbed from the 2026-09-16 process-owner wave. Related enforcement:
 [proof-of-dispatch.md](proof-of-dispatch.md).
 
 ## 2026-09-16 — agent machine vs user machine (ROG)
@@ -50,18 +49,18 @@ more. Seed list absorbed from #5864 (2026-09-16 process-owner wave with
 3. Link the issue/PR when useful.
 4. Keep secrets, account emails, and raw tokens out of this file.
 
-## 2026-09-19 — Task executors must inherit ROG + FreeToken (#6011)
+## 2026-09-19 — Task executors must inherit ROG + FreeToken
 
 Parent orchestrator with ROG Local Execution + FreeToken READY is not enough:
 Task/executor children must bind the same `machineId` and probe `:1919` on that
 host. A box-only Shell that reports FreeToken down is **box fallback**, not
 "ROG offline" when the parent still has ROG.
 
-## 2026-09-19 — Task Shell lacks machineId; ROG FreeToken is process-owner-only (#6021)
+## 2026-09-19 — Task Shell lacks machineId; ROG FreeToken is process-owner-only
 
 Fail closed on box FreeToken claims (`require_rog_freetoken.py` / `resolve --prefer freetoken`); process-owner Shell with machineId on ROG until Grok Bot exposes machineId to Task.
 
-## 2026-09-20 — Task Shell still has no machineId (#6051)
+## 2026-09-20 — Task Shell still has no machineId
 
 Empirical: parent Task tool schema has no `machineId`; executor implementers
 report box `hostname=cursor` and cannot reach ROG `:1919`/`:8080`. CE workaround

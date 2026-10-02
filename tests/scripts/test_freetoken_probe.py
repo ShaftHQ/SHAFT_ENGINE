@@ -16,8 +16,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PROBE = ROOT / "chaos-engine/skills/freetoken/scripts/probe.py"
 
-sys.path.insert(0, str(PROBE.parent))
-import probe  # noqa: E402
+import importlib.util  # noqa: E402
+
+# Load by unique name: both runtimes ship scripts/probe.py, and a shared
+# "probe" module name lets one test file shadow the other under xdist.
+_SPEC = importlib.util.spec_from_file_location("freetoken_probe", PROBE)
+probe = importlib.util.module_from_spec(_SPEC)
+sys.modules["freetoken_probe"] = probe
+_SPEC.loader.exec_module(probe)
 
 
 class _Handler(BaseHTTPRequestHandler):

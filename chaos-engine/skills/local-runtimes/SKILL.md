@@ -9,7 +9,7 @@ license: MIT
 
 # Local runtimes
 
-Cloud implementers write code directly (#6171). A local runtime is optional
+Cloud implementers write code directly. A local runtime is optional
 and only pays for narrow mechanical or offline jobs; never let it review its
 own diff. Pick one row, then open only that route.
 
@@ -21,6 +21,8 @@ own diff. Pick one row, then open only that route.
 | Frontier MoE through disk/RAM/VRAM tiers | Colibri | [colibri](references/colibri.md) |
 | OmniRoute runner with delegate continuity | OmniRoute | [omniroute](references/omniroute.md) |
 | Local agents (OpenCode / OSS agency) | agency | [local-agency](../local-agency/SKILL.md) |
+
+FreeToken and Colibri share the [loopback runtime contract](references/loopback-runtime-contract.md).
 
 Rules:
 

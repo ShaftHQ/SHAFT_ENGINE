@@ -119,25 +119,46 @@ TERMINAL_LABELS = (
 )
 
 
+LEARNING_TRIGGER_KINDS = frozenset({"task-failure", "reflection-trigger"})
+LEARNING_TRIGGER_ACTIVITIES = frozenset({"learning-requested", "surprise", "defect-escaped"})
+
+
+LEARNING_REQUEST = re.compile(r"(?i)\b(?:learning session|self-improve|run a retro(?:spective)?)\b")
+
+
+def learning_requested(event: dict) -> bool:
+    """True when the owner's prompt asks for a Learning Session."""
+    prompt = event.get("prompt") or event.get("user_prompt") or ""
+    return isinstance(prompt, str) and bool(LEARNING_REQUEST.search(prompt))
+
+
+def learning_triggered(recorded: list[dict]) -> bool:
+    """A Learning Session is owed only on a trigger: failure, surprise, or owner ask."""
+    return any(
+        item.get("kind") in LEARNING_TRIGGER_KINDS
+        or (item.get("kind") == "task-activity" and item.get("activity") in LEARNING_TRIGGER_ACTIVITIES)
+        for item in recorded
+    )
+
+
 def learning_session_reason(session_id: str, event: dict) -> str | None:
-    # stop_hook_active is the host retry after an earlier Stop block. A retrieve
-    # citation used to be that block, and the retry then returned without a
-    # Learning Session (#6281 session). Delivery-complete still owes the session.
+    # Trigger-based (epic #6342): delivery-complete alone owes nothing; a
+    # failure, surprise, or owner request during the session does.
     recorded = reflection.entries(session_id)
     activities = {
         item.get("activity")
         for item in recorded
         if item.get("kind") == "task-activity"
     }
-    if "delivery-complete" not in activities:
+    if "delivery-complete" not in activities or not learning_triggered(recorded):
         return None
     if learning_completion_artifact(session_id) is not None:
         return None
     return (
-        "Learning Session: delivery is complete. File each durable ChaosEngine "
-        "harness lesson, finding, or potential enhancement as a GitHub issue. "
-        "Do not write them to a local queue or into chat. Product lessons may "
-        "queue. Unchanged chaos-engine files are not a valid skip."
+        "Learning Session: delivery is complete and a trigger fired (failure, "
+        "surprise, or owner ask). File each durable ChaosEngine harness lesson, "
+        "finding, or potential enhancement as a GitHub issue. "
+        "Do not write them to a local queue or into chat. Product lessons may queue."
     )
 
 
@@ -978,24 +999,26 @@ def _record_denial_with_significance(event: dict, event_name: str, tool_name: st
     )
 
 
-# Soft Codacy Complexity reminder for classifier / interaction mutations (#5747).
-_CLASSIFIER_PATH_MARKERS = (
-    "elementclassifier",
-    "/interaction/",
-    "\\interaction\\",
-)
-_CLASSIFIER_NAME_MARKERS = (
-    "elementclassifier",
-    "classifymobilenative",
-    "classifywindowsdesktop",
-    "classifybytag",
-    "classifybyrole",
-    "classifyinput",
-)
-CODACY_COMPLEXITY_GATE_HINT = (
-    "Codacy Complexity gate (#5747): kind-family helpers / rule tables before "
-    "fat classify* arms; Complexity ACTION_REQUIRED == unit red. "
-    "Checklist: references/codacy-complexity-gate.md"
+# Soft complexity reminder for hot-spot mutations. Profiles declare the
+# hot-spot markers in their profile.json `complexityHint`; the core ships none.
+def _complexity_hint_markers() -> tuple[tuple[str, ...], tuple[str, ...]]:
+    paths: list[str] = []
+    names: list[str] = []
+    tree = Path(__file__).resolve().parents[1]
+    declared = [*tree.glob("profiles/*/profile.json"), *tree.glob("packs/*/profile.json")]
+    declared.extend(tree.parent.glob("*/ce-pack/profile.json"))
+    for profile in sorted(declared):
+        with contextlib.suppress(OSError, ValueError, AttributeError, TypeError):
+            hint = json.loads(profile.read_text(encoding="utf-8")).get("complexityHint") or {}
+            paths.extend(str(item).casefold() for item in hint.get("pathMarkers", ()))
+            names.extend(str(item).casefold() for item in hint.get("nameMarkers", ()))
+    return tuple(paths), tuple(names)
+
+
+COMPLEXITY_GATE_HINT = (
+    "Complexity gate: kind-family helpers / rule tables before "
+    "fat dispatch arms; Complexity ACTION_REQUIRED == unit red. "
+    "Checklist: references/complexity-gate.md"
 )
 
 
@@ -1034,10 +1057,11 @@ def classifier_complexity_gate_hint(
     blob = _mutation_path_blobs(tool_name, tool_input, commands)
     if not blob:
         return None
-    path_hit = any(marker in blob for marker in _CLASSIFIER_PATH_MARKERS)
-    name_hit = any(marker in blob for marker in _CLASSIFIER_NAME_MARKERS)
+    path_markers, name_markers = _complexity_hint_markers()
+    path_hit = any(marker in blob for marker in path_markers)
+    name_hit = any(marker in blob for marker in name_markers)
     if path_hit or name_hit:
-        return CODACY_COMPLEXITY_GATE_HINT
+        return COMPLEXITY_GATE_HINT
     return None
 
 
@@ -1108,6 +1132,8 @@ def _run_event(event: dict, _host: str) -> int:
         if event_name not in {"SubagentStop", "SessionEnd"}:
             reflection.record_session_start(session_id, estimated=True)
         token = None
+    if event_name == "UserPromptSubmit" and learning_requested(event):
+        reflection.record_activity(session_id, "learning-requested")
     if _record_failed_result(event, event_name, commands, tool_name, session_id):
         return 0
     receipt_command, mutation, guard_reason = _command_guard_state(

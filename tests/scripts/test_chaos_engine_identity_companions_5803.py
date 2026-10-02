@@ -41,8 +41,8 @@ class IdentityMdTests(unittest.TestCase):
             self.assertNotIn("omitting awkward facts", protected)
             # Non-truth edits allowed
             refined = before.replace(
-                "Kind mentor and honest worker",
-                "Kind mentor, honest worker, slightly warmer tone",
+                "Lean engineer: measure thrice, cut once.",
+                "Lean engineer, slightly warmer tone: measure thrice, cut once.",
             )
             kept = mod.protect_truth_section(before, refined)
             self.assertIn("slightly warmer tone", kept)
@@ -67,15 +67,15 @@ class CompanionPolicyTests(unittest.TestCase):
         contract = (ROOT / "chaos-engine/references/router-contract.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("Implement path (required)", contract)
-        self.assertIn("load both at ultra before first mutation", contract)
-        self.assertIn("Caveman+Ponytail", contract)
+        self.assertIn("companions/caveman-ultra.md", contract)
+        self.assertIn("companions/ponytail-ultra.md", contract)
+        self.assertIn("loaded before the first edit", contract)
         self.assertIn("--without-caveman", contract)
         skill = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
             encoding="utf-8"
         )
         self.assertIn("router-contract.md", skill)
-        self.assertIn("Ponytail at ultra", skill)
+        self.assertIn("companions/ponytail-ultra.md", skill)
 
     def test_implementer_role_mentions_companions(self):
         hosts = load(ROOT / "chaos-engine/hosts.py", "hosts_impl_5803")

@@ -36,15 +36,15 @@ the PR with an explicit base. Persist its `baseRefName`, PR identity, and
 ### Human PR open checklist (before first push)
 
 Human-authored PRs fail Release-note governance without a classification label.
-Strategy-matrix / Wave PRs also fail static analysis when Java switches lack a
-default branch. Before the first push of **any** human PR:
+Language-specific static-analysis rules come from the active profile's
+playbooks. Before the first push of **any** human PR:
 
 1. Apply exactly one classification label in the same `gh pr create` step
    (`breaking-change`, `enhancement`, `bug`, or `skip-release-notes`).
    Governance reads live PR labels when the event payload has none.
    A `chaos-engine/` push runs the portable-core path check first.
-2. Wave / strategy-matrix Java: `switch` must be exhaustive (`default` where
-   Codacy `MissingDefaultCase` requires it). Confirm before the first push.
+2. Confirm the active profile's language rules (for example exhaustive
+   `switch` defaults) before the first push.
 3. When editing ChaosEngine `SKILL.md` bodies: keep each skill under the
    skill-md byte budget (Agent Guidance Gate). Compress overlapping sections in
    the same PR and run `python3 scripts/ci/validate_agent_setup.py --skip-external` (repo-only)
@@ -57,14 +57,11 @@ default branch. Before the first push of **any** human PR:
 5. Before stacking host-parity / harness follow-ons on an unmerged scaffold
    PR: merge the scaffold first **or** absorb it into the follow-on PR and
    close both together.
-   Cite #5787.
 
-N-run / flake-proof scripts that invoke Maven under the engine Surefire
-profile must not treat process exit alone as green: after each proof
-invocation, require a zero failed count from Surefire `TEST-*.xml` or
-TestNG `testng-results.xml` (and set `-Dmaven.test.failure.ignore=false`
-for defense in depth). Use
-`scripts/ci/assert_surefire_green.py` (repo-only).
+
+N-run / flake-proof scripts must not treat process exit alone as green: after
+each proof invocation, require a zero failed count from the test reports. The
+profile playbooks name the report format and the helper.
 
 ## 5. Docs, catalog, and screenshots — only where real
 
@@ -75,7 +72,7 @@ changes in the companion documentation repository require their own PR.
 ## 6. Terminal Learning Session
 
 Collect durable findings during work, but route them through exactly one root-owned
-Learning Session only after confirmed delivery and immediately before the final report.
+Learning Session only after confirmed delivery, only when a trigger fired, immediately before the final report.
 Delegates and intermediate pushes never start another session.
 When reflection is required, put the changed approach and focused proof on the
 tracker before resuming. The hook never writes issues; the agent files leftover
@@ -106,7 +103,7 @@ records its terminal reflection receipt before the Learning Session.
    canonical URL during `assess`. A receipt, Memory entry, Graphify flag, or old
    issue comment is evidence only and never replaces the action ticket.
 5. Write the knowledge result via `memory save --stdin` (default write path
-   after Memory migrate; #5852), or explicitly record that nothing durable or
+   after Memory migrate), or explicitly record that nothing durable or
    actionable surfaced. Do not manufacture an issue for a genuinely no-action
    result. Do **not** hand-author `.memory/**` sidecars; never bypass a rejected
    save by editing JSON/markdown under `.memory/` directly. Non-private Memory
@@ -116,7 +113,7 @@ records its terminal reflection receipt before the Learning Session.
 
 Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
 [work-github-playbook-promotion.md](details/work-github-playbook-promotion.md) so this
-playbook can take another lesson without deleting that guidance (#6313).
+playbook can take another lesson without deleting that guidance.
 
 
 ## 7. Push, PR, green, merge, compact
@@ -131,9 +128,9 @@ playbook can take another lesson without deleting that guidance (#6313).
   this PR does not fully resolve, unlink it from the PR's Development sidebar.
 - A nightly-failure tracker (label prefix `nightly-failure:`) closes only after
   a successful full-matrix workflow (`jobs=all`). A product pull request must
-  not use a closing keyword on that tracker. Say `Related to #N` (#6308).
+  not use a closing keyword on that tracker. Say `Related to #N`.
 - ROG writes go through the parent Shell that has `machineId`. A Task child
-  has no `machineId` and must not be described as ROG delivery (#6051).
+  has no `machineId` and must not be described as ROG delivery.
   The platform schema is outside this repository.
 - Merge only within granted authority. A companion PR in another publishing
   repository needs its own authority.
@@ -198,7 +195,7 @@ and focused proofs observed; it must not represent remote checks as green.
    auto-merge. If the head or remote feedback changes afterward, the receipt is
    stale: clear only that new observable state, then run one replacement
    acceptance against the new exact head. Unchanged state never triggers a retry.
-#### Auto-merge safety (#5986/#5987/#5990/#5992)
+#### Auto-merge safety
 
 Before arming: one `Fixes #N` → one open PR (close twins); all in-scope commits
 on the **remote** head; at most one armed PR per overlapping product path. On
@@ -219,9 +216,9 @@ re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
    branch, or merge the fetched configured upstream default branch for a
    conflict or stale head, then return to watch. Never force-push away
    owner-visible history. Any new push restarts the comment gate before
-   auto-merge may remain armed. Codacy `ACTION_REQUIRED` (≥medium, any category)
-   is unit red ([gate](codacy-action-required-gate.md),
-   [Complexity](codacy-complexity-gate.md)); never keep auto-merge armed on it.
+   auto-merge may remain armed. Static-analysis `ACTION_REQUIRED` (≥medium, any category)
+   is unit red ([gate](static-analysis-gate.md),
+   [Complexity](complexity-gate.md)); never keep auto-merge armed on it.
 
 Unresolved `reviewThreads` block auto-merge. Fix or answer, reply, and
 `resolveReviewThread` before returning to the watch.

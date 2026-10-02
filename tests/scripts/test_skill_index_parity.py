@@ -146,7 +146,6 @@ class SkillIndexParityTest(unittest.TestCase):
         descriptions = [
             entry["description"]
             for entry in payload["entries"]
-            if entry.get("family") == "reference" or entry["name"] == "git-cleanup"
         ]
         self.assertGreater(len(descriptions), 10)
         self.assertLess(len(table), sum(len(item) for item in descriptions))

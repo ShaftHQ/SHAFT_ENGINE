@@ -1,4 +1,4 @@
-# When to use a local writer (#6171)
+# When to use a local writer
 
 Session and cloud implementers write code directly. A local model writer
 through [local-agency](../SKILL.md) is **optional**: a tool the implementer may

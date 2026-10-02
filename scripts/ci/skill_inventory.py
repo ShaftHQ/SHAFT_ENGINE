@@ -28,6 +28,8 @@ SOURCE_SKILL_GLOBS = (
     ".chaos-engine/vendor/*/skills/*/SKILL.md",
     "chaos-engine/profiles/*/references/playbooks/*.md",
     ".chaos-engine/profiles/*/references/playbooks/*.md",
+    "shaft-skills/ce-pack/references/playbooks/*.md",
+    ".chaos-engine/packs/*/references/playbooks/*.md",
 )
 
 PRODUCT_SKILL_GLOB = "shaft-skills/**/SKILL.md"

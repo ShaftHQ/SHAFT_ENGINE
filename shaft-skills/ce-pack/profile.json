@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "name": "shaft",
+  "entrypoint": "./entrypoint.md",
+  "installWhen": {
+    "mavenArtifactIds": ["shaft-engine"]
+  },
+  "portableForbiddenTokens": ["shaft"],
+  "distribution": {
+    "id": "repository",
+    "forbiddenTokens": [],
+    "runtimeFiles": ["hooks/kernel.py", "hooks/launch.js", "hooks/lifecycle.py", "hooks/matchers.json"],
+    "components": {
+      "core": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+      "skills": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+      "hooks": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+      "plugins": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+      "roles": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"},
+      "mcps": {"owner": "project", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"}
+    }
+  },
+  "repository": "ShaftHQ/SHAFT_ENGINE",
+  "defaultBranch": "main",
+  "taskBranchPrefix": "ChaosEngine/",
+  "mcpServers": ["maven-tools-mcp"],
+  "complexityHint": {
+    "pathMarkers": ["elementclassifier", "/interaction/", "\\interaction\\"],
+    "nameMarkers": ["elementclassifier", "classifymobilenative", "classifywindowsdesktop", "classifybytag", "classifybyrole", "classifyinput"]
+  },
+  "components": {
+    "playbooks": {"owner": "installer", "scope": "repository", "lifecycle": "receipt-owned", "taskImpact": "required"},
+    "retrieval-config": {"owner": "project", "scope": "project", "lifecycle": "persistent-data", "taskImpact": "required"},
+    "projection-policy": {"owner": "installer", "scope": "project", "lifecycle": "receipt-owned", "taskImpact": "required"}
+  },
+  "companionRepositories": [
+    {
+      "purpose": "public-documentation",
+      "repository": "ShaftHQ/shafthq.github.io",
+      "defaultBranch": "master"
+    }
+  ]
+}

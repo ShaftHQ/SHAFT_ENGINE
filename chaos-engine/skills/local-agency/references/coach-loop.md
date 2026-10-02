@@ -6,7 +6,7 @@ Only deliveries where the implementer **chose** a READY local OpenAI-compat /
 llamacpp / FreeToken coder through [local-agency](../SKILL.md) `dispatch.py`.
 Choosing local is optional. Use it only when the
 handoff cost is well below generation cost
-([when-to-use-local.md](when-to-use-local.md), #6171). Otherwise
+([when-to-use-local.md](when-to-use-local.md)). Otherwise
 the implementer writes the code directly.
 
 The **host process-owner** is teacher / mentor / coach / consultant. The local
@@ -67,7 +67,7 @@ next prompt is the failing assertion only.
 ### D. Design / spec turns
 
 Inject a locator-only system brief via `chaos-engine/ce_brief.py` when present
-(`python3 .chaos-engine/ce_brief.py --json`; #6067). Do not paste full SKILL bodies.
+(`python3 .chaos-engine/ce_brief.py --json`). Do not paste full SKILL bodies.
 Host still reviews the design before implementation.
 
 Follow the [design-turn contract](design-turn-contract.md). The first design
@@ -85,7 +85,7 @@ Prefer:
 python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp resolve
 ```
 
-Parent Shell must use `machineId` on the work machine (#6051). See
+Parent Shell must use `machineId` on the work machine. See
 [parent-rog-shell.md](parent-rog-shell.md). FreeToken remains optional; do not
 claim READY from a box probe of the work-machine ports.
 
@@ -98,12 +98,12 @@ claim READY from a box probe of the work-machine ports.
 | `context_length_exceeded` | Shrink prompt + tool output; drop high reasoning; one command only |
 | Bad imports / empty file / syntax error after free-form | Worked-example reproduce + runtime evidence |
 | Inventory / reachability CI red | Host updates catalogs + skill links; refresh README inventory with the validator `--write` |
-| Task child cannot see work-machine loopback | Stop Task writer; parent Shell `machineId` (#6051) |
+| Task child cannot see work-machine loopback | Stop Task writer; parent Shell `machineId` |
 | Design output cites fake CE locators / missing `CE_BRIEF_LOCATORS` | Reject. The first ask is the frozen `CE_BRIEF_LOCATORS` skeleton. Accept only after `design_turn_gate.py` citation |
 | Spec names missing files without `NEW` | Reject; host pastes `rg`/`find` evidence |
-| 7B writer copies `x; if ...` pseudo-code, drops docstrings, or regresses an existing function | Spec as real multi-line Python; after two failed rounds on an existing-function edit, switch to section A mechanical apply (#6161) |
+| 7B writer copies `x; if ...` pseudo-code, drops docstrings, or regresses an existing function | Spec as real multi-line Python; after two failed rounds on an existing-function edit, switch to section A mechanical apply |
 
-## Pre-push tip preflight (#6164)
+## Pre-push tip preflight
 
 1. Run `python3 .chaos-engine/skills/local-agency/scripts/tip_preflight.py` before every push (the `git push` guard runs it too).
 2. Bandit B607: resolve argv0 with `shutil.which`; `# nosec B603` alone does not cover a bare executable.
@@ -116,7 +116,7 @@ Executor / Task prompts: `brief_path:` pointer plus the delta slice only; check 
 ## After every delivery
 
 1. Dual CE reinstall when harness files changed (work machine + agent canonical).
-2. Learning Session even if `chaos-engine/` looked untouched — durable lessons
+2. Learning Session when a trigger fired — durable lessons
    belong in git-tracked `.memory/` / harness PRs, not only host chat memory.
 3. Fold new durable coach moves back into **this** reference (keep it short).
 
@@ -124,7 +124,7 @@ Executor / Task prompts: `brief_path:` pointer plus the delta slice only; check 
 
 - Skill: [local-agency SKILL.md](../SKILL.md)
 - Guide: local-agency.md (repo-only `chaos-engine/guides/local-agency.md`)
-- CE brief builder: `chaos-engine/ce_brief.py` (#6067; land with CE-Brief P0)
+- CE brief builder: `chaos-engine/ce_brief.py`
 - Design/spec contract: [design-turn-contract.md](design-turn-contract.md)
-- Parent ROG Shell: [parent-rog-shell.md](parent-rog-shell.md) (#6051)
+- Parent ROG Shell: [parent-rog-shell.md](parent-rog-shell.md)
 - Delegation / review stays host: [delegation.md](../../../references/delegation.md)

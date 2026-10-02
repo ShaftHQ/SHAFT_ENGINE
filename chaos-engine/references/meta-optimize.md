@@ -2,7 +2,7 @@
 description: Use when a periodic offline review of shared logs is due. This is not a continuous session hook.
 ---
 
-# Periodic meta-optimize over shared logs (#5664 / Top 10 #9)
+# Periodic meta-optimize over shared logs
 
 Module: [`meta_optimize.py`](../meta_optimize.py).
 
@@ -17,7 +17,7 @@ and optional **issue candidates**.
 | Run periodically (weekly / post Learning Session burst) | Wire into SessionStart |
 | Script-first aggregation (zero/low LLM) | Continuous Task Observer |
 | Emit propose-only issue candidates | Auto-open issues or mutate skills |
-| Leave skill apply to opt-in draft-PR gate (#5665) | Always-on observation |
+| Leave skill apply to opt-in draft-PR gate | Always-on observation |
 
 ## CLI
 
@@ -32,7 +32,7 @@ python3 .chaos-engine/meta_optimize.py review --write   # .chaos-engine-state/me
 1. After a delivery / Learning Session burst, or on a weekly operator schedule.
 2. Run `review` and triage `issueCandidates` with `gh issue create` (human).
 3. Skill compress proposals stay propose-only until the **opt-in** draft-skill-PR
-   gate (#5665 / Top 10 #8) passes eval-parity + unit tests.
+   gate passes eval-parity + unit tests.
 4. **Never** SessionStart / always-on Task Observer.
 
 ## Reject

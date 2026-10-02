@@ -133,7 +133,7 @@ class WaveCLedgerRetrieveLearningTests(unittest.TestCase):
         self.assertLessEqual(
             len(context.encode("utf-8")), self.lifecycle.SESSION_START_MAX_BYTES
         )
-        self.assertIn("wake-pack.md", context)
+        self.assertNotIn("wake-pack.md", context)  # epic #6342: lean SessionStart
         self.assertNotIn("memory remember", context.casefold())
         self.assertNotIn("MemPalace palace dump", context)
 

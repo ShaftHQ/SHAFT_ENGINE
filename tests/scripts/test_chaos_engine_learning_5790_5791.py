@@ -18,7 +18,6 @@ class Learning5790Test(unittest.TestCase):
         text = INSTALLER.read_text(encoding="utf-8")
         self.assertIn("recognized legacy owned block", text)
         self.assertIn("Recognized-legacy fingerprints auto-upgrade", text)
-        self.assertIn("#5790", text)
 
     def test_gotcha_md_and_json_exist_and_cite_issue(self) -> None:
         md = GOTCHAS / f"{SLUG_5790}.md"
@@ -38,7 +37,6 @@ class Learning5791Test(unittest.TestCase):
         self.assertIn("GAP-HOOK-TRUST", text)
         self.assertIn("sync-advisory", text)
         self.assertIn("/hooks-trust", text)
-        self.assertIn("#5791", text)
         # Learning: never treat Grok trust alone as install recovery.
         self.assertIn("recovery-required", text)
         self.assertIn("Grok trust alone", text)

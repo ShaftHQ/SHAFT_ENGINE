@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Breaking (hard cut, CE-10): the repository's project profile moves out of
+  the core to `shaft-skills/ce-pack/` and installs under
+  `.chaos-engine/packs/shaft/`. The old `.chaos-engine/profiles/shaft/` layout
+  is no longer read and no shim is kept; install and doctor print the migration
+  notice until a reinstall replaces it. `distributions.json` keeps only
+  `portable`; the pack's `profile.json` declares its own distribution.
+- Breaking (CE-11): managed JDK, managed Maven, and the Maven Tools MCP runtime
+  move from `hosts.py`/`install.py` into the java pack (`packs/java/`), bound
+  into the controllers by `pack_binding.py`.
+  `repair --component maven-tools-mcp` is unchanged.
+
 ## 10.3.20260930 - 2026-09-30
 
 - Align the portable plugin version with SHAFT Engine release 10.3.20260930.

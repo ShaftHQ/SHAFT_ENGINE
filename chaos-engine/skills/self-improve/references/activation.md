@@ -9,8 +9,8 @@ load reference files or scan observation directories at SessionStart.
 
 Activate the full protocol:
 
-1. **Post-delivery / Learning Session** — after confirmed delivery, before the
-   final report. Portable Stop / delivery-complete hooks own this duty on every
+1. **Post-delivery / Learning Session** — after confirmed delivery, only when a trigger fired
+   (failure, surprise, owner ask), before the final report. Portable Stop / delivery-complete hooks own this duty on every
    supported host (see router skill Learning Session section and
    [lifecycle-hooks](../../../references/lifecycle-hooks.md)).
 2. **Explicit user ask** — "self-improve", "learning session", "observe skills".
@@ -18,8 +18,8 @@ Activate the full protocol:
 
 ## Non-skips (hard)
 
-- **Unchanged `chaos-engine/` files are not a valid skip.** Product-only
-  deliveries still owe one Learning Session.
+- **No trigger, no session.** A product-only delivery owes a Learning Session
+  only when a trigger fired; untouched `chaos-engine/` files do not matter.
 - Agent-local routines or single-host memory are not substitutes. Harness parity
   requires lasting policy to live in the portable ChaosEngine overlay (hooks,
   skills, installer/doctor, host guidance adapters) so Codex, Claude, Grok,
@@ -37,9 +37,9 @@ Activate the full protocol:
 4. A product lesson may use `python3 .chaos-engine/learning.py queue --track product`.
    Submit confirmed product candidates with `learning.py submit`.
 5. Persist durable Memory knowledge with `memory save --stdin` only — never
-   hand-edit `.memory/**` sidecars (#5852). If a body changed outside
+   hand-edit `.memory/**` sidecars. If a body changed outside
    `memory save`, run `python3 .chaos-engine/skills/local-agency/scripts/tip_preflight.py --rehash <sidecar>`
-   before push ([tip-churn preflight](../../../references/tip-churn-preflight.md), #6169).
+   before push ([tip-churn preflight](../../../references/tip-churn-preflight.md)).
 6. Do **not** auto-edit skills/hooks. Propose a harness change as a GitHub issue.
 7. Do not report harness lesson text. Product counts may be `product queued N`
    or `nothing durable`.

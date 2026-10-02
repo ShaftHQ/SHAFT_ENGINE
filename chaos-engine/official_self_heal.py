@@ -48,8 +48,8 @@ OFFICIAL_INSTALL_COMMANDS: dict[str, str] = {
         "(CE: hosts.ensure_managed_temurin_jdk / dependencies.install_exact_java)"
     ),
     "maven": (
-        "Apache Maven from https://maven.apache.org/download.cgi "
-        "(CE: hosts.ensure_managed_maven)"
+        "official build tool from https://maven.apache.org/download.cgi "
+        "(CE java pack: hosts.ensure_managed_maven)"
     ),
     "gh": "Official GitHub CLI from https://cli.github.com/",
     "mcps": (
@@ -275,7 +275,7 @@ def heal_managed_runtimes(
     runner=None,
     repair: Callable[..., dict[str, object]] | None = None,
 ) -> dict[str, object]:
-    """Heal managed Node/Java/Maven via official CE tools repair (#5813)."""
+    """Heal managed Node, JDK, and build tools via official CE tools repair (#5813)."""
     install = _install_module()
     repair_fn = repair or install.repair_component
     result = _call_repair_component(
@@ -765,7 +765,7 @@ def _doctor_heal_managed_runtimes(
     runner,
     repair: Callable[..., dict[str, object]] | None,
 ) -> None:
-    """Heal managed Node/Java/Maven via official CE helpers (#5813)."""
+    """Heal managed Node, JDK, and build tools via official CE helpers (#5813)."""
     dependencies = result.get("dependencies")
     # Skip noop tools repair when doctor already reports healthy deps (#5853).
     if isinstance(dependencies, dict) and dependencies.get("status") == "healthy":

@@ -48,7 +48,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         references = canonical_root / "references"
         references.mkdir()
         (references / "roles.md").write_text("# Roles\n", encoding="utf-8")
-        profile = canonical_root / "profiles/shaft"
+        profile = source_root / "shaft-skills/ce-pack"
         profile.mkdir(parents=True)
         (profile / "entrypoint.md").write_text("# Test profile\n", encoding="utf-8")
         (profile / "profile.json").write_text('{"schemaVersion":1}\n', encoding="utf-8")
@@ -78,7 +78,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         )
         subprocess.run([git_executable(), "init", "--quiet"], cwd=source_root, check=True)  # nosec B603
         subprocess.run(
-            [git_executable(), "add", "chaos-engine", "LICENSE", "agent-plugins", "scripts/agents"],
+            [git_executable(), "add", "chaos-engine", "shaft-skills", "LICENSE", "agent-plugins", "scripts/agents"],
             cwd=source_root,
             check=True,
         )  # nosec B603
@@ -100,7 +100,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         }
         self.assertEqual(
             packaged_skills,
-            {"chaos-engine", "colibri", "freetoken", "git-cleanup", "local-agency", "local-coding-delegate", "local-openai-compat", "local-runtimes", "omniroute", "self-improve", "work-item"},
+            {"chaos-engine", "colibri", "freetoken", "git-cleanup", "kanban", "local-agency", "local-coding-delegate", "local-openai-compat", "local-runtimes", "omniroute", "self-improve", "work-item"},
         )
         for relative in ("plugin.json", ".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
             manifest = json.loads((self.package_root / relative).read_text(encoding="utf-8"))
@@ -126,7 +126,8 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
         packaged_core = (self.package_root / "skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
         canonical_core = (CANONICAL_ROOT / "skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
         self.assertTrue(packaged_core.startswith(canonical_core.rstrip()))
-        self.assertIn("../../profiles/shaft/entrypoint.md", packaged_core)
+        self.assertIn("../../packs/shaft/entrypoint.md", packaged_core)
+        self.assertTrue((self.package_root / "packs/shaft/entrypoint.md").is_file())
         self.assertFalse((self.package_root / "skills/act-as-mohab").exists())
         self.assertFalse((self.package_root / "skills/consult-first").exists())
         self.assertFalse((self.package_root / "skills/retrieve-first").exists())

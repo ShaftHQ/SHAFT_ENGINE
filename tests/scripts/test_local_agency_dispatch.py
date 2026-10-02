@@ -55,10 +55,10 @@ class LocalAgencyDispatchTest(unittest.TestCase):
         self.assertIn("command in the worktree", mechanical)
         self.assertIn("zero tool calls is writer failure", mechanical)
         self.assertIn("Never use it for independent adversarial review", mechanical)
-        self.assertIn("Do not OpenCode-`Read` a 200-line Java file", mechanical)
+        self.assertIn("Do not OpenCode-`Read` a 200-line source file", mechanical)
         self.assertIn("mechanical-dispatch.md", skill)
         self.assertIn("`ft launch` / `ft serve`", skill)
-        self.assertIn("#6021", skill)
+        self.assertNotIn("#6021", skill)  # epic #6342: no issue tags in core skills
         self.assertIn("CE_ALLOW_BOX_LOCAL_AGENCY", skill)
 
     def test_delegation_treats_local_coder_as_mechanical_runner(self):

@@ -108,7 +108,7 @@ def _activity_retrospective(session_id: str) -> dict[str, object]:
     ranked = sorted(counts.items(), key=lambda pair: (-pair[1], pair[0]))
     optimizations = {
         "wait": "One watcher event is enough; do not narrate an unchanged pending list.",
-        "log-ingest": "Return surefire failure names only; do not place the raw job log in context.",
+        "log-ingest": "Return test-runner failure names only; do not place the raw job log in context.",
         "re-entry": "Carry a short completed-check digest; do not replay the plan on continuation.",
         "retrieve": "Keep a citation gate out of the model context and skip a repeated query.",
         "implementation": "After a red matrix names a test, rerun that test before another full matrix.",

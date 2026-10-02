@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "scripts/ci/check_javadoc_param_arity.py"
 FRAMEWORK_SOURCE = (
     ROOT
-    / "chaos-engine/profiles/shaft/references/playbooks/framework-source.md"
+    / "shaft-skills/ce-pack/references/playbooks/framework-source.md"
 )
 ZERO_LLM = ROOT / "chaos-engine/references/zero-llm-catalog.md"
 HARNESS_PR_GATE = ROOT / "scripts/ci/harness_pr_gate.py"

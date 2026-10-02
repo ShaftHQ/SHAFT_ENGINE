@@ -36,5 +36,5 @@ Companion upstream text aligned with the installed release:
 
 On the studied ROG, `usage logs` were dominated by `model=connection-test`
 rows with `tokens=0` across providers — CredentialHealth-style probes, not
-coding sessions. That matches issue #5863/#5864: probes must not count as
+coding sessions. That matches : probes must not count as
 OmniRoute delivery progress.
