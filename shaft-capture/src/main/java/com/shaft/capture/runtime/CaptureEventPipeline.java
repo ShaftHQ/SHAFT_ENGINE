@@ -324,9 +324,7 @@ final class CaptureEventPipeline implements AutoCloseable {
             case "step_update" -> updateStep(signal);
             case "step_delete" -> deleteStep(signal);
             case "step_reorder" -> reorderStep(signal);
-            case "window_open" -> append(new CaptureEvent.WindowEvent(
-                    context(signal), CaptureEvent.WindowAction.OPEN_TAB, logicalWindow(resolveBrowsingContextId(signal))),
-                    RedactionSummary.empty(), List.of());
+            case "window_open" -> emitWindowOpen(signal);
             case "window_close" -> append(new CaptureEvent.WindowEvent(
                     context(signal), CaptureEvent.WindowAction.CLOSE, logicalWindow(resolveBrowsingContextId(signal))),
                     RedactionSummary.empty(), List.of());
@@ -1049,6 +1047,19 @@ final class CaptureEventPipeline implements AutoCloseable {
         // references, not externalized test data); intentionally falls through to
         // the empty default below. Wiring network evidence cleanup is P2 territory.
         return List.of();
+    }
+
+    private void emitWindowOpen(BrowserSignal signal) {
+        String contextId = resolveBrowsingContextId(signal);
+        String key = contextId == null || contextId.isBlank() ? "default" : contextId;
+        // #6392: the start tab's window_open can land after its first navigation under load;
+        // replaying that late OPEN_TAB would move every later step to a blank tab.
+        if ("window-1".equals(logicalWindows.get(key))) {
+            return;
+        }
+        append(new CaptureEvent.WindowEvent(
+                context(signal), CaptureEvent.WindowAction.OPEN_TAB, logicalWindow(contextId)),
+                RedactionSummary.empty(), List.of());
     }
 
     private String logicalWindow(String contextId) {
