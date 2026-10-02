@@ -75,6 +75,7 @@
 <li><a href="#disableSslCertificateCheck()" tabindex="0">disableSslCertificateCheck()</a></li>
 <li><a href="#telemetryEnabled()" tabindex="0">telemetryEnabled()</a></li>
 <li><a href="#set()" tabindex="0">set()</a></li>
+<li><a href="#setForCurrentThread()" tabindex="0">setForCurrentThread()</a></li>
 </ol>
 </li>
 </ol>
@@ -252,22 +253,27 @@ possible with a 400% calculated performance boost.</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
-<div class="block">Starts a fluent, thread-local override of these properties for the current test thread.</div>
+<div class="block">Starts a fluent, engine-global override of these flags.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#skipTestsWithLinkedIssues()" class="member-name-link">skipTestsWithLinkedIssues</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#setForCurrentThread()" class="member-name-link">setForCurrentThread</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Starts a fluent override of these flags for the current thread only.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#skipTestsWithLinkedIssues()" class="member-name-link">skipTestsWithLinkedIssues</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">It is recommended to leave this feature disabled unless you explicitly want to skip any tests
 that have the @Issue or @Issues annotation.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#telemetryEnabled()" class="member-name-link">telemetryEnabled</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#telemetryEnabled()" class="member-name-link">telemetryEnabled</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Enable telemetry data collection for SHAFT usage analytics.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#validateSwipeToElement()" class="member-name-link">validateSwipeToElement</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#validateSwipeToElement()" class="member-name-link">validateSwipeToElement</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Validate swipe to element action on mobile.</div>
 </div>
 </div>
@@ -722,12 +728,28 @@ Default false preserves historical behavior; iOS hideKeyboard can be unreliable.
 <h3>set</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></span>&nbsp;<span class="element-name">set</span>()</div>
-<div class="block">Starts a fluent, thread-local override of these properties for the current test thread.</div>
+<div class="block">Starts a fluent, engine-global override of these flags. The new values are visible to every
+thread. Use <a href="#setForCurrentThread()"><code>setForCurrentThread()</code></a> in tests that run in parallel.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="EngineProperties.html#set()">set</a></code>&nbsp;in interface&nbsp;<code><a href="EngineProperties.html" title="interface in com.shaft.properties.internal">EngineProperties</a>&lt;<a href="Flags.html" title="interface in com.shaft.properties.internal">Flags</a>&gt;</code></dd>
 <dt>Returns:</dt>
 <dd>a new <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal"><code>Flags.SetProperty</code></a> builder</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="setForCurrentThread()">
+<h3>setForCurrentThread</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></span>&nbsp;<span class="element-name">setForCurrentThread</span>()</div>
+<div class="block">Starts a fluent override of these flags for the current thread only. Values set this way win
+over engine-global values on this thread and are cleared at the next test-class boundary, so
+parallel tests that flip a flag cannot race each other.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>a new thread-scoped <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal"><code>Flags.SetProperty</code></a> builder</dd>
 </dl>
 </div>
 </section>
