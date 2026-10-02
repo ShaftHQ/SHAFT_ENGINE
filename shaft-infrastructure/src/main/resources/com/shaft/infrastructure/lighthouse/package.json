@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "lighthouse": "13.4.1"
+    "lighthouse": "13.5.0"
   }
 }

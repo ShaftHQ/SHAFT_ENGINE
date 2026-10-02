@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "allure": "3.14.3"
+    "allure": "3.19.0"
   },
   "overrides": {
     "adm-zip": "0.6.1"

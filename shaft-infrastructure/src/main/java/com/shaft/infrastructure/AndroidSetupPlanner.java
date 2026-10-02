@@ -10,11 +10,11 @@ import java.util.Set;
 
 /** Release-coupled planner for the managed Appium and Android emulator toolchain. */
 public final class AndroidSetupPlanner {
-    public static final String APPIUM_VERSION = "3.6.0";
-    public static final String INSPECTOR_PLUGIN_VERSION = "2026.7.1";
+    public static final String APPIUM_VERSION = "3.8.0";
+    public static final String INSPECTOR_PLUGIN_VERSION = "2026.9.2";
     public static final String UIAUTOMATOR2_VERSION = "8.2.2";
     public static final String APPIUM_LOCK_SHA256 =
-            "ddcfb40189126b6945259995ed07f4a6fe1a9b8027846593b6ca981e7a4da599";
+            "fbabdd246ad849902186dbcdec3fc623319f1a60b00eb271630e114e72a23955";
     public static final String COMMAND_LINE_TOOLS_VERSION = "15859902";
     public static final String PLATFORM_TOOLS_VERSION = "37.0.1";
     public static final String EMULATOR_VERSION = "37.1.11";
@@ -30,9 +30,9 @@ public final class AndroidSetupPlanner {
     public static final String ANDROID_SDK_LICENSE = "android-sdk-license";
 
     private static final String APPIUM_SHA256 =
-            "ea722c272d117ffac7e265e6565651f3835efbcea670f82a16f4e75de120b76e";
+            "4c1e263a856b5de3fb382aced3eff2b34782637f5bdd9bc98804dc05cce6c3b6";
     private static final String INSPECTOR_SHA256 =
-            "fcaf8d9434a9809fc0c5df16902b87b6c5920bb8f446f05e85ab77301ed9e99d";
+            "aba1d2e2b53975b7b49c28066b6bb6d2e5adf374c67286f95123aae0ca6c9e23";
     private static final String UIAUTOMATOR2_SHA256 =
             "a53c05850eaf08372672dc425298e77a2094f6334bb2b1ac220b705255483a22";
 
