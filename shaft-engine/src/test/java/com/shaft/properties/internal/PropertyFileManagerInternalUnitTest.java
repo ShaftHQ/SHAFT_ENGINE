@@ -44,4 +44,15 @@ public class PropertyFileManagerInternalUnitTest {
         String expected = new java.io.File(System.getProperty("user.dir"), "apps/foo.apk").getAbsolutePath();
         Assert.assertEquals(capabilities.get("mobile_app"), expected);
     }
+
+    @Test(description = "Issue #6385: bundled defaults and custom.properties template resolve to existing locations")
+    public void bundledDefaultsAndTemplateResolve() {
+        String defaults = PropertyFileManager.resolveBundledDefaultPropertiesFolderPath();
+        Assert.assertFalse(defaults.isBlank());
+        String template = PropertyFileManager.resolveCustomPropertiesTemplatePath();
+        Assert.assertTrue(template.endsWith("custom.properties"), template);
+        Assert.assertTrue(template.startsWith("jar:") || new java.io.File(template).isFile(), template);
+        String log4j = PropertyFileManager.getLog4jConfigPath();
+        Assert.assertTrue(log4j.contains("log4j2.properties"), log4j);
+    }
 }

@@ -95,4 +95,17 @@ class SemanticLocatorAgentBridgeTest {
         return new LocatorCandidate(strategy, expression, uniqueness, true, true,
                 EnumSet.of(LocatorCandidate.LocatorSignal.ACCESSIBLE));
     }
+
+    @Test
+    void evidenceFromKeepsNotesAndPreferredStrategyFollowsResolution() {
+        ElementSnapshot snapshot = snapshot(
+                "button", "button", "Pay", "",
+                List.of(candidate(LocatorCandidate.LocatorStrategy.ROLE, "button:Pay", 1)));
+
+        assertEquals("mcp-dom inspection", SemanticLocatorAgentBridge.evidenceFrom(snapshot).inspectionNotes());
+        assertEquals("aria seed", SemanticLocatorAgentBridge.evidenceFrom(snapshot, "aria seed").inspectionNotes());
+        assertEquals("", SemanticLocatorAgentBridge.evidenceFrom(snapshot, null).inspectionNotes());
+        assertEquals(java.util.Optional.of("ROLE"),
+                SemanticLocatorAgentBridge.resolve(snapshot).preferredCaptureStrategy());
+    }
 }

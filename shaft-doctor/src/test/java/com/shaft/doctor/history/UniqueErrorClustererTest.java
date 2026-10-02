@@ -128,4 +128,18 @@ class UniqueErrorClustererTest {
                         "signature", fingerprint),
                 new EvidenceProvenance("allure-result-json", "root/" + id + ".json", "sha-" + id));
     }
+
+    @Test
+    void clusterableFailureAcceptsFailedStatusOrFingerprintOnly() {
+        assertTrue(DeterministicRuleEngine.clusterableFailure(clusteredFailure("a", "login", "fp-1")));
+        EvidenceItem passed = clusteredFailure("b", "home", "");
+        EvidenceItem passedWithoutFingerprint = new EvidenceItem(passed.id(), passed.category(), passed.mediaType(),
+                passed.relativePath(), passed.sha256(), passed.sizeBytes(), passed.content(), false, false,
+                Map.of("status", "passed"), passed.provenance());
+        assertFalse(DeterministicRuleEngine.clusterableFailure(passedWithoutFingerprint));
+        EvidenceItem fingerprinted = new EvidenceItem(passed.id(), passed.category(), passed.mediaType(),
+                passed.relativePath(), passed.sha256(), passed.sizeBytes(), passed.content(), false, false,
+                Map.of("status", "passed", "clusterFingerprint", "fp-2"), passed.provenance());
+        assertTrue(DeterministicRuleEngine.clusterableFailure(fingerprinted));
+    }
 }

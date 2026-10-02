@@ -1065,4 +1065,13 @@ class TraceServiceTest {
                 .toString()
                 .replace('\\', '/');
     }
+
+    @Test
+    void historyFlakeSmartTagsAndClustersReturnEmptyStateWithoutArtifacts(@TempDir Path temp) {
+        TraceService traceService = service(temp);
+        assertTrue(traceService.reportHistory(null, null, null, null).empty());
+        assertTrue(traceService.reportFlake(null, null, null, null, null).empty());
+        assertTrue(traceService.reportSmartTags(null, null, null, null, null).empty());
+        assertTrue(traceService.reportClusters(null, null).empty());
+    }
 }
