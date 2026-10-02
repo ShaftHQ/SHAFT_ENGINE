@@ -22,6 +22,28 @@ updates:
     labels:
       - "dependencies"
 
+  # Bundled setup npm trees (#6369). Weekly, one grouped PR per directory.
+  # setup-lock-pins.yml refreshes the planner SHA-256 pins automatically.
+  # Exact Appium/Allure versions stay pinned in package.json.
+  - package-ecosystem: "npm"
+    directories:
+      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium"
+      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios"
+      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows"
+      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/lighthouse"
+      - "/shaft-infrastructure/src/main/resources/com/shaft/infrastructure/reporting"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "00:00"
+      timezone: "Africa/Cairo"
+    labels:
+      - "dependencies"
+    groups:
+      setup-npm:
+        patterns:
+          - "*"
+
   # Maintain dependencies for maven
   - package-ecosystem: "maven"
     directories:
