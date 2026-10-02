@@ -2,6 +2,7 @@ package com.shaft.listeners;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.browser.internal.BrowserConsoleErrorGate;
 import com.shaft.listeners.internal.ExecutionFailureContext;
 import com.shaft.listeners.internal.ExecutionLifecycleHelper;
 import com.shaft.listeners.internal.RetryAnalyzer;
@@ -101,6 +102,12 @@ public class JunitExtension implements BeforeAllCallback, AfterAllCallback, Befo
 
     @Override
     public void afterTestExecution(ExtensionContext context) throws Exception {
+        if (context.getExecutionException().isEmpty()) {
+            AssertionError consoleFailure = BrowserConsoleErrorGate.checkCurrentTest();
+            if (consoleFailure != null) {
+                throw consoleFailure;
+            }
+        }
         AssertionError verificationError = ValidationsHelper.getVerificationErrorToForceFail();
         if (verificationError != null) {
             ValidationsHelper.attachVerificationSummary();

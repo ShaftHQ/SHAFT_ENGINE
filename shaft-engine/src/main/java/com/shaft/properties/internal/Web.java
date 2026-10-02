@@ -228,6 +228,30 @@ public interface Web extends EngineProperties<Web> {
     String storageStatePath();
 
     /**
+     * Fail a passing test when the browser console captured error-level messages that do not match
+     * {@code browserConsoleErrorAllowlist}. The messages are attached to the report.
+     *
+     * <p>Default: {@code false}. Possible values: true, false.
+     *
+     * @return the configured value of {@code failOnBrowserConsoleErrors}
+     */
+    @Key("failOnBrowserConsoleErrors")
+    @DefaultValue("false")
+    boolean failOnBrowserConsoleErrors();
+
+    /**
+     * Java regular expression for console errors that never fail a test; combine several patterns with
+     * {@code |}, for example {@code favicon\.ico|ResizeObserver loop}.
+     *
+     * <p>Default: empty (nothing is allowlisted).
+     *
+     * @return the configured value of {@code browserConsoleErrorAllowlist}
+     */
+    @Key("browserConsoleErrorAllowlist")
+    @DefaultValue("")
+    String browserConsoleErrorAllowlist();
+
+    /**
      * Starts a fluent, thread-local override of these properties for the current test thread.
      *
      * @return a new {@link SetProperty} builder
@@ -432,6 +456,28 @@ public interface Web extends EngineProperties<Web> {
          */
         public SetProperty storageStatePath(String value) {
             setProperty("storageStatePath", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code failOnBrowserConsoleErrors} property at runtime.
+         *
+         * @param value the new value of {@code failOnBrowserConsoleErrors}
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty failOnBrowserConsoleErrors(boolean value) {
+            setProperty("failOnBrowserConsoleErrors", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code browserConsoleErrorAllowlist} property at runtime.
+         *
+         * @param value the new value of {@code browserConsoleErrorAllowlist}
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty browserConsoleErrorAllowlist(String value) {
+            setProperty("browserConsoleErrorAllowlist", value);
             return this;
         }
     }

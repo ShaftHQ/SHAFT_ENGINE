@@ -123,6 +123,18 @@ public interface Reporting extends EngineProperties<Reporting> {
     boolean attachFullLog();
 
     /**
+     * Attach one redacted "Failure evidence" JSON (at most 256 KB) when an element action fails: locator,
+     * match counts per frame, nearest candidates, URL, title, and screenshot reference.
+     *
+     * <p>Default: {@code true}. Possible values: true, false.
+     *
+     * @return the configured value of {@code attachFailureEvidence}
+     */
+    @Key("attachFailureEvidence")
+    @DefaultValue("true")
+    boolean attachFailureEvidence();
+
+    /**
      * Select the evidence profile. Profile values except CUSTOM override granular screenshot, page-
      * source, GIF, video, WebDriver-log, full-log, diagnostics, and trace controls.
      *
@@ -525,6 +537,18 @@ public interface Reporting extends EngineProperties<Reporting> {
          */
         public SetProperty attachFullLog(boolean value) {
             setProperty("attachFullLog", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code attachFailureEvidence} property at runtime. Attach one redacted failure
+         * evidence JSON when an element action fails.
+         *
+         * @param value the new value of {@code attachFailureEvidence}
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty attachFailureEvidence(boolean value) {
+            setProperty("attachFailureEvidence", String.valueOf(value));
             return this;
         }
 

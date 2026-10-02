@@ -1031,6 +1031,8 @@ public class Actions extends ElementActions {
                 }
                 exception.addSuppressed(screenshotException);
             }
+            FailureEvidence.attach(locator, driverFactoryHelper.getDriver(), foundElements.get(), exception,
+                    actionability, screenshot.get(0) != null);
             recordFlakeProfile(flakeProfile, false);
             try {
                 // report broken - always reported against the ORIGINAL exception
