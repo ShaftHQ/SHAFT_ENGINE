@@ -174,6 +174,29 @@ class EmptyPalaceTest(unittest.TestCase):
             self.assertFalse(dependencies.mempalace_project_setup_complete(self.tmp))
 
 
+class DoctorEmptyPalaceTest(unittest.TestCase):
+    """Doctor degrades an empty palace only after a recorded mine stops (#6377)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.install = _load("install")
+        self.empty = _palace(self.tmp, 0)
+
+    def _finding(self, index):
+        stores = {"palace_drawer_count": lambda _p: 0, "resolve_palace": lambda _p: self.empty}
+        with mock.patch.object(self.install, "_load_stores_module", return_value=stores):
+            return self.install._mempalace_empty_finding(self.tmp, index)
+
+    def test_no_mine_record_or_running_mine_is_not_degraded(self):
+        self.assertIsNone(self._finding(None))
+        self.assertIsNone(self._finding({"status": "running"}))
+
+    def test_stopped_mine_with_zero_drawers_is_degraded(self):
+        for state in ("complete", "failed", "interrupted"):
+            self.assertEqual("degraded", self._finding({"status": state})["status"])
+
+
 class NoResultsTest(unittest.TestCase):
     def test_no_results_text_is_not_used(self):
         retrieve = _load("retrieve")

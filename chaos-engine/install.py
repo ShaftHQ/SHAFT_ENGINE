@@ -6463,8 +6463,12 @@ def reflection_controller_drift(project: Path) -> str:
 def _mempalace_empty_finding(
     project: Path, index: dict[str, object] | None
 ) -> dict[str, object] | None:
-    """#6377: a palace with zero drawers is not healthy unless a mine is running."""
-    if isinstance(index, dict) and index.get("status") == "running":
+    """#6377: a finished, failed or interrupted mine that left zero drawers is degraded.
+
+    No index record means the installer never started a mine; a running mine is
+    still filling the palace. Neither is evidence of an empty index yet.
+    """
+    if not isinstance(index, dict) or index.get("status") == "running":
         return None
     try:
         stores = _load_stores_module()
