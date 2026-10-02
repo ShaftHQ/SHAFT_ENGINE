@@ -809,6 +809,10 @@ def _descendant_cpu_ticks(pid: int) -> int | None:
         child = int(entry.name)
         parents.setdefault(int(fields[1]), []).append(child)
         ticks[child] = int(fields[11]) + int(fields[12])
+    return _tree_total(pid, parents, ticks)
+
+
+def _tree_total(pid: int, parents: dict[int, list[int]], ticks: dict[int, int]) -> int:
     total, pending = 0, [pid]
     while pending:
         current = pending.pop()
@@ -817,62 +821,68 @@ def _descendant_cpu_ticks(pid: int) -> int | None:
     return total
 
 
-def _ps_cpu_ticks(pid: int) -> int | None:
-    """CPU seconds of a process tree via psutil or POSIX ``ps`` (macOS/BSD); None if neither works."""
+def _psutil_cpu_ticks(pid: int) -> int | None:
+    """CPU ticks of a process tree via psutil; None when psutil is missing or fails."""
     try:
         import psutil  # type: ignore[import-not-found]
-
-        root = psutil.Process(pid)
-        total = 0.0
-        for proc in (root, *root.children(recursive=True)):
-            try:
-                times = proc.cpu_times()
-                total += times.user + times.system
-            except psutil.Error:
-                continue
-        return int(total * 100)
     except ImportError:
-        pass
-    except Exception:  # noqa: BLE001 - process gone or inaccessible: unknown, not progress
         return None
+    try:
+        root = psutil.Process(pid)
+        processes = (root, *root.children(recursive=True))
+    except psutil.Error:
+        return None
+    total = 0.0
+    for proc in processes:
+        try:
+            times = proc.cpu_times()
+        except psutil.Error:
+            continue
+        total += times.user + times.system
+    return int(total * 100)
+
+
+def _clock_ticks(clock: str) -> int | None:
+    """``[[dd-]hh:]mm:ss`` from ``ps`` as 1/100 s ticks; None when unparsable."""
+    seconds = 0.0
+    try:
+        for part in clock.replace("-", ":").split(":"):
+            seconds = seconds * 60 + float(part)
+    except ValueError:
+        return None
+    return int(seconds * 100)
+
+
+def _ps_cpu_ticks(pid: int) -> int | None:
+    """CPU ticks of a process tree via POSIX ``ps`` (macOS/BSD); None when unavailable."""
     ps = shutil.which("ps")
     if not ps or os.name == "nt":
         return None
     try:
-        listing = subprocess.run(  # nosec B603 - fixed ps argv, no shell.
+        listing = subprocess.run(  # nosec B603 - resolved ps, fixed argv, no shell.
             [ps, "-A", "-o", "pid=,ppid=,time="], capture_output=True, text=True, check=False
         ).stdout
     except OSError:
         return None
     parents: dict[int, list[int]] = {}
     ticks: dict[int, int] = {}
-    for line in listing.splitlines():
-        fields = line.split()
-        if len(fields) != 3 or not fields[0].isdigit() or not fields[1].isdigit():
+    for fields in (line.split() for line in listing.splitlines()):
+        if len(fields) != 3 or not (fields[0].isdigit() and fields[1].isdigit()):
             continue
-        clock = fields[2].replace("-", ":").split(":")
-        try:
-            seconds = 0.0
-            for part in clock:
-                seconds = seconds * 60 + float(part)
-        except ValueError:
-            continue
-        parents.setdefault(int(fields[1]), []).append(int(fields[0]))
-        ticks[int(fields[0])] = int(seconds * 100)
-    if pid not in ticks:
-        return None
-    total, pending = 0, [pid]
-    while pending:
-        current = pending.pop()
-        total += ticks.get(current, 0)
-        pending.extend(parents.get(current, ()))
-    return total
+        value = _clock_ticks(fields[2])
+        if value is not None:
+            parents.setdefault(int(fields[1]), []).append(int(fields[0]))
+            ticks[int(fields[0])] = value
+    return _tree_total(pid, parents, ticks) if pid in ticks else None
 
 
 def process_tree_cpu(pid: int) -> int | None:
     """CPU ticks of a process tree: /proc, then psutil or ``ps``; None when unmeasurable."""
-    ticks = _descendant_cpu_ticks(pid)
-    return ticks if ticks is not None else _ps_cpu_ticks(pid)
+    for probe in (_descendant_cpu_ticks, _psutil_cpu_ticks, _ps_cpu_ticks):
+        ticks = probe(pid)
+        if ticks is not None:
+            return ticks
+    return None
 
 
 OUTPUT_ONLY_STALL_FACTOR = 5
@@ -881,14 +891,12 @@ OUTPUT_ONLY_STALL_FACTOR = 5
 def run_until_stalled(
     args: list[str], *, stall_seconds: float | None = None, **kwargs: Any
 ) -> subprocess.CompletedProcess:
-    """Drop-in for ``subprocess.run`` without a wall-clock cap (#6377).
-
-    The command runs as long as it progresses: new output or CPU time in its
-    process tree. Only ``stall_seconds`` with neither raises
-    ``subprocess.TimeoutExpired``. A ``timeout`` argument is ignored. Where CPU
-    time cannot be read (no /proc, psutil or ``ps``), only output counts and the
-    stall window is ``OUTPUT_ONLY_STALL_FACTOR`` times longer, so a hang still ends.
-    """
+    """Drop-in for ``subprocess.run`` without a wall-clock cap (#6377)."""
+    # The command runs as long as it progresses: new output or CPU time in its
+    # process tree. Only ``stall_seconds`` with neither raises
+    # ``subprocess.TimeoutExpired``. A ``timeout`` argument is ignored. Where CPU
+    # time cannot be read (no /proc, psutil or ``ps``), only output counts and the
+    # stall window is ``OUTPUT_ONLY_STALL_FACTOR`` times longer, so a hang still ends.
     kwargs.pop("timeout", None)
     check = kwargs.pop("check", False)
     text = bool(kwargs.pop("text", False) or kwargs.pop("universal_newlines", False))

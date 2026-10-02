@@ -2,8 +2,9 @@
 
 import importlib.util
 import os
+import shutil
 import sqlite3
-import subprocess
+import subprocess  # nosec B404 - tests run fixed local Git and Python commands.
 import sys
 import tempfile
 import unittest
@@ -181,8 +182,9 @@ class NoResultsTest(unittest.TestCase):
 
 
 def _git(path: Path, *args: str) -> str:
-    return subprocess.run(
-        ["git", *args], cwd=path, capture_output=True, text=True, check=True
+    git = shutil.which("git") or "git"
+    return subprocess.run(  # nosec B603 B607 - resolved git, fixed test argv.
+        [git, *args], cwd=path, capture_output=True, text=True, check=True
     ).stdout.strip()
 
 
