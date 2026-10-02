@@ -1140,7 +1140,7 @@ class UngatedModulesRunInCiTest(unittest.TestCase):
         self.assertLessEqual(len(UNGATED_TEST_ALLOWLIST), UNGATED_TEST_ALLOWLIST_CEILING)
 
     def test_list_ungated_prints_every_allowlisted_module(self) -> None:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 - fixed interpreter and repo script.
             [sys.executable, str(ROOT / "scripts/ci/harness_pr_gate.py"), "--list-ungated"],
             capture_output=True, text=True, check=False, timeout=60,
         )
@@ -1148,7 +1148,7 @@ class UngatedModulesRunInCiTest(unittest.TestCase):
         self.assertEqual(sorted(UNGATED_TEST_ALLOWLIST), result.stdout.split())
 
     def test_base_and_head_still_required_without_list_ungated(self) -> None:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 - fixed interpreter and repo script.
             [sys.executable, str(ROOT / "scripts/ci/harness_pr_gate.py")],
             capture_output=True, text=True, check=False, timeout=60,
         )
