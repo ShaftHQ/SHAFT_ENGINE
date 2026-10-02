@@ -39,6 +39,12 @@ updates:
       timezone: "Africa/Cairo"
     labels:
       - "dependencies"
+    ignore:
+      # #6382: these releases bundle axios 1.19.0 (high-severity advisories) that
+      # npm overrides cannot reach; later releases are still proposed and gated by
+      # BundledAppiumSecurityOverridesTest.
+      - dependency-name: "appium-uiautomator2-driver"
+        versions: ["8.6.x", "8.7.0"]
     groups:
       setup-npm:
         patterns:
