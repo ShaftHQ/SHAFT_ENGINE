@@ -1142,6 +1142,7 @@
   const closeAssertionPanel = () => {
     const panel = document.getElementById("shaft-capture-assertion-panel");
     if (panel) panel.remove();
+    restoreAssertionLinks();
   };
   const manualLocatorCandidate = (strategy, expression) => ({
     strategy,
@@ -1363,11 +1364,11 @@
     banner.textContent = "Assertion: click the element you want to verify. This click is not recorded as a step. Press Esc to cancel.";
     document.body.appendChild(banner);
   };
-  const endAssertionTargetHints = () => {
+  const endAssertionTargetHints = (keepLinksParked = false) => {
     document.documentElement.removeAttribute("data-shaft-assertion-mode");
     const banner = document.getElementById(assertionBannerId);
     if (banner) banner.remove();
-    restoreAssertionLinks();
+    if (!keepLinksParked) restoreAssertionLinks();
   };
   const beginElementAssertion = () => {
     uiState.assertionMode = true;
@@ -1428,10 +1429,14 @@
     restoreAssertionLinks();
     const target = snapshot(event);
     parkAssertionLink(element);
-    setTimeout(restoreAssertionLinks, 0);
-    if (!target) return true;
+    // #6392: restoring the href in this click handler (or a 0 ms timer) lets Chrome still follow
+    // it under load; keep it parked until the assertion panel closes.
+    if (!target) {
+      setTimeout(restoreAssertionLinks, 0);
+      return true;
+    }
     uiState.assertionMode = false;
-    endAssertionTargetHints();
+    endAssertionTargetHints(true);
     clearLocatorHighlight();
     persist();
     showLocatorPickStep(target, element);
