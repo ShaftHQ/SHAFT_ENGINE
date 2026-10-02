@@ -155,6 +155,8 @@ def locked_package(root: Path, pin: PackagePin) -> _Locked:
         if manifest is None or manifest != entry.get("version"):
             raise PinError(f"{bundle}: package.json {pin.package}={manifest} but lockfile has {entry.get('version')}")
         seen.add(_Locked(entry["version"], entry.get("resolved", ""), entry.get("integrity", "")))
+    if any(_VERSION.fullmatch(locked.version) is None for locked in seen):
+        raise PinError(f"{pin.package}: refusing non-semver version {sorted(locked.version for locked in seen)}")
     if len(seen) != 1:
         raise PinError(f"{pin.package}: bundles {', '.join(pin.bundles)} disagree: "
                        f"{sorted(locked.version for locked in seen)}")
@@ -178,9 +180,13 @@ def _find(sources: dict[str, str], root: Path, ref: JavaConstant, pattern) -> re
     return match
 
 
-def _verified_tarball(locked: _Locked, fetch: Fetch) -> bytes:
-    if not locked.resolved.startswith(REGISTRY):
-        raise PinError(f"refusing non-registry tarball URL {locked.resolved!r}")
+_VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?")
+
+
+def _verified_tarball(package: str, locked: _Locked, fetch: Fetch) -> bytes:
+    expected = f"{REGISTRY}{package}/-/{package.rsplit('/', 1)[-1]}-{locked.version}.tgz"
+    if locked.resolved != expected:
+        raise PinError(f"refusing tarball URL {locked.resolved!r}; the planner downloads {expected}")
     if not locked.integrity.startswith("sha512-"):
         raise PinError(f"{locked.resolved}: lockfile integrity is not sha512")
     data = fetch(locked.resolved)
@@ -215,7 +221,7 @@ def refresh_packages(root: Path, pins: Sequence[PackagePin] = PACKAGE_PINS, *, w
         stage(pin.version, version_match, locked.version)
         if not (version_changed and write) and not verify_artifacts:
             continue
-        data = _verified_tarball(locked, fetch)
+        data = _verified_tarball(pin.package, locked, fetch)
         for ref in pin.digests:
             stage(ref, _find(sources, root, ref, _string_pattern), hashlib.sha256(data).hexdigest())
         if pin.size is not None:

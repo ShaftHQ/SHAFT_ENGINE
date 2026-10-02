@@ -186,6 +186,20 @@ class RefreshSetupPackagePinsTest(unittest.TestCase):
             pins.refresh_packages(self.root, self.pins, write=True, fetch=self.fetch)
         self.assertEqual([], self.fetched)
 
+    def test_tarball_url_other_than_the_planner_download_is_rejected(self):
+        other = "https://registry.npmjs.org/other/-/other-2.0.0.tgz"
+        for bundle in ("one", "two"):
+            self._bundle(bundle, "2.0.0", other, TARBALL_INTEGRITY)
+        with self.assertRaises(pins.PinError):
+            pins.refresh_packages(self.root, self.pins, write=True, fetch=self.fetch)
+        self.assertEqual([], self.fetched)
+
+    def test_version_that_could_break_out_of_the_java_literal_is_rejected(self):
+        for bundle in ("one", "two"):
+            self._bundle(bundle, '2.0.0\\"; int x = 1; //', URL, TARBALL_INTEGRITY)
+        with self.assertRaises(pins.PinError):
+            pins.refresh_packages(self.root, self.pins, write=True, fetch=self.fetch)
+
     def test_verify_artifacts_reports_digest_drift_at_an_unchanged_version(self):
         pins.refresh_packages(self.root, self.pins, write=True, fetch=self.fetch)
         b = self.root / "B.java"
