@@ -69,5 +69,6 @@ passed downstream (Poppendieck's seven wastes).
 
 ## Status
 
-Report from the board: one line per card (`id column proof-or-blocker`). No
-separate status rituals.
+Every status report is a Markdown table, one row per card
+(`ID | Issue(s) | PR | Status | Proof or blocker`), then Risks. Never prose or
+bullet lists. No separate status rituals.
