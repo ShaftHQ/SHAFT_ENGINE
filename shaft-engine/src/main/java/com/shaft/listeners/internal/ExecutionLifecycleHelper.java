@@ -1,5 +1,6 @@
 package com.shaft.listeners.internal;
 
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.internal.OpenApiCoverageReporter;
 import com.shaft.driver.SHAFT;
@@ -163,6 +164,7 @@ public final class ExecutionLifecycleHelper {
      */
     public static void engineTearDown(long executionStartTime, ExecutionCountsTracker.Counts counts) {
         ReportManagerHelper.setDiscreteLogging(true);
+        DriverFactoryHelper.closeLeakedDrivers();
         AssertionError openApiCoverageFailure = OpenApiCoverageReporter.reportAndGetThresholdFailure();
         AssertionError locatorHealthFailure = LocatorHealthReporter.reportAndGetFailure();
         AssertionError flakeProfilerFailure = FlakeProfiler.reportAndGetFailure();

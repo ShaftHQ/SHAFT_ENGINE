@@ -237,6 +237,32 @@ public class ThreadLocalPropertiesTest {
         }
     }
 
+    @Test(description = "Thread-scoped flag overrides are isolated per thread and win over global flags (#6395)")
+    public void testThreadScopedFlagsAreIsolatedAcrossThreads() throws InterruptedException {
+        boolean original = SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails();
+        try {
+            SHAFT.Properties.flags.setForCurrentThread().clickUsingJavascriptWhenWebDriverClickFails(!original);
+            final Boolean[] otherThreadValue = {null};
+            Thread otherThread = new Thread(() -> otherThreadValue[0] =
+                    SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails());
+            otherThread.start();
+            otherThread.join(THREAD_JOIN_TIMEOUT_MS);
+
+            Assert.assertEquals(SHAFT.Properties.flags.clickUsingJavascriptWhenWebDriverClickFails(), !original,
+                    "Current thread should see its thread-scoped flag");
+            Assert.assertEquals(otherThreadValue[0], Boolean.valueOf(original),
+                    "Other threads must not see a thread-scoped flag");
+
+            int retry = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(retry + 1);
+            Assert.assertEquals(SHAFT.Properties.flags.retryMaximumNumberOfAttempts(), retry + 1,
+                    "Global flag changes stay visible on a thread that has thread-scoped flags");
+            SHAFT.Properties.flags.set().retryMaximumNumberOfAttempts(retry);
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+        }
+    }
+
     @Test(description = "Global overrides should take precedence over system properties")
     public void testGlobalOverridesTakePrecedenceOverSystemProperties() {
         String key = "shaft.test.global.override";

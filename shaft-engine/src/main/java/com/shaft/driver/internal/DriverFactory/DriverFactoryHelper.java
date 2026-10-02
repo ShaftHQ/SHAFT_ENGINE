@@ -74,6 +74,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -113,6 +115,7 @@ public class DriverFactoryHelper {
     private static final ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();
     private static final ThreadLocal<WebDriver> activeDriver = new ThreadLocal<>();
     private static final ThreadLocal<DriverFactoryHelper> activeHelper = new ThreadLocal<>();
+    private static final Set<WebDriver> liveDrivers = ConcurrentHashMap.newKeySet();
     private static final Object LOCAL_DRIVER_INITIALIZATION_LOCK = new Object();
     @Getter(AccessLevel.PUBLIC)
     private static final Dimension TARGET_WINDOW_SIZE = new Dimension(1920, 1080);
@@ -173,16 +176,54 @@ public class DriverFactoryHelper {
      * @param driver the current WebDriver, or {@code null} to clear the thread state
      */
     public void setDriver(WebDriver driver) {
+        WebDriver previous = this.driver;
         this.driver = driver;
+        if (previous != null && previous != driver) {
+            liveDrivers.remove(previous);
+        }
         if (driver == null) {
             activeDriver.remove();
             if (activeHelper.get() == this) {
                 activeHelper.remove();
             }
         } else {
+            liveDrivers.add(driver);
             activeDriver.set(driver);
             activeHelper.set(this);
         }
+    }
+
+    /**
+     * Reports WebDriver sessions that SHAFT opened but the tests never closed, and quits them unless
+     * {@code autoCloseDriverInstance} is {@code false}. Called once at the end of the run.
+     *
+     * @return the number of leaked sessions found
+     */
+    public static int closeLeakedDrivers() {
+        List<WebDriver> leaked = new ArrayList<>(liveDrivers);
+        liveDrivers.removeAll(leaked);
+        if (leaked.isEmpty()) {
+            return 0;
+        }
+        boolean quit = SHAFT.Properties.flags.autoCloseDriverInstance();
+        StringBuilder details = new StringBuilder();
+        for (WebDriver leakedDriver : leaked) {
+            details.append(leakedDriver.getClass().getSimpleName()).append(System.lineSeparator());
+            if (quit) {
+                try {
+                    leakedDriver.quit();
+                } catch (Exception e) {
+                    ReportManagerHelper.logDiscrete(e, Level.DEBUG);
+                }
+            }
+        }
+        String message = leaked.size() + " WebDriver session(s) were never closed by the tests"
+                + (quit ? " and were quit by SHAFT at the end of the run."
+                : "; they were left open because autoCloseDriverInstance is false.")
+                + " Close each driver in an @After method to avoid resource leaks in parallel runs.";
+        ReportManagerHelper.logDiscrete(message, Level.WARN);
+        ReportManagerHelper.attach("Warning", "Leaked WebDriver sessions", message + System.lineSeparator() + details);
+        return leaked.size();
     }
 
     /**
@@ -917,6 +958,7 @@ public class DriverFactoryHelper {
             } catch (Exception e) {
                 ReportManagerHelper.logDiscrete(e);
             } finally {
+                liveDrivers.remove(driver);
                 HealingManager.clear(driver);
                 if (browserNetworkInterceptor != null && browserNetworkInterceptor.owns(driver)) {
                     closeBrowserNetworkInterceptor();

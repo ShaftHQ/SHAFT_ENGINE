@@ -11,8 +11,8 @@ import org.openqa.selenium.By;
  * @see com.shaft.gui.internal.locator.LocatorBuilder#insideShadowDom(org.openqa.selenium.By)
  */
 public class ShadowLocatorBuilder {
-    public static ThreadLocal<By> shadowDomLocator = new ThreadLocal<>();
-    public static ThreadLocal<By> cssSelector = new ThreadLocal<>();
+    public static final ThreadLocal<By> shadowDomLocator = new ThreadLocal<>();
+    public static final ThreadLocal<By> cssSelector = new ThreadLocal<>();
 
     public ShadowLocatorBuilder(By shadowDomLocator, By cssSelector) {
         ShadowLocatorBuilder.shadowDomLocator.set(shadowDomLocator);

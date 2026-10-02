@@ -51,13 +51,13 @@ public class MobileInteractionStrategiesTest {
     @BeforeMethod
     public void configureMobileNativeMockSession() {
         SHAFT.Properties.reporting.set().captureElementName(false);
-        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
-        SHAFT.Properties.flags.set().scrollingMode("legacy");
-        SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
-        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
-        SHAFT.Properties.flags.set().attemptToClickBeforeTyping(false);
-        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(false);
-        SHAFT.Properties.flags.set().hideKeyboardAfterTyping(false);
+        SHAFT.Properties.flags.setForCurrentThread().forceCheckElementLocatorIsUnique(false);
+        SHAFT.Properties.flags.setForCurrentThread().scrollingMode("legacy");
+        SHAFT.Properties.flags.setForCurrentThread().clearBeforeTypingMode("off");
+        SHAFT.Properties.flags.setForCurrentThread().forceCheckTextWasTypedCorrectly(false);
+        SHAFT.Properties.flags.setForCurrentThread().attemptToClickBeforeTyping(false);
+        SHAFT.Properties.flags.setForCurrentThread().clickUsingJavascriptWhenWebDriverClickFails(false);
+        SHAFT.Properties.flags.setForCurrentThread().hideKeyboardAfterTyping(false);
         SHAFT.Properties.visuals.set().createAnimatedGif(false);
         SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
         SHAFT.Properties.visuals.set().screenshotParamsWatermark(false);
@@ -154,7 +154,7 @@ public class MobileInteractionStrategiesTest {
 
     @Test
     public void typeWithNativeClearMayUseReplaceElementValue() {
-        SHAFT.Properties.flags.set().clearBeforeTypingMode("native");
+        SHAFT.Properties.flags.setForCurrentThread().clearBeforeTypingMode("native");
         AppiumDriver driver = mockAppiumDriver();
         RemoteWebElement element = mock(RemoteWebElement.class);
         when(element.isDisplayed()).thenReturn(true);
@@ -208,7 +208,7 @@ public class MobileInteractionStrategiesTest {
     public void hideKeyboardRunsWhenFlagEnabled() {
         SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
         SHAFT.Properties.mobile.set().browserName("");
-        SHAFT.Properties.flags.set().hideKeyboardAfterTyping(true);
+        SHAFT.Properties.flags.setForCurrentThread().hideKeyboardAfterTyping(true);
         AppiumDriver driver = mockAppiumDriver();
         WebElement element = nativeElement("android.widget.EditText");
         when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
@@ -239,7 +239,7 @@ public class MobileInteractionStrategiesTest {
     public void webDefaultsUnchangedWhenNotMobileNative() {
         SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.name());
         SHAFT.Properties.mobile.set().browserName("chrome");
-        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
+        SHAFT.Properties.flags.setForCurrentThread().clickUsingJavascriptWhenWebDriverClickFails(true);
 
         AppiumDriver driver = mockAppiumDriver();
         // Use a plain WebDriver-style mock path: still AppiumDriver but isMobileNativeExecution is false.

@@ -49,6 +49,10 @@ public class Properties {
      * not leak into the next test class sharing the same Surefire fork.
      */
     static volatile Flags pristineBaseFlags;
+    /** Bumped on every engine-global flag change so thread-scoped flag views can rebuild. */
+    static volatile long flagsVersion;
+    static final ThreadLocal<Flags> flagsOverride = new ThreadLocal<>();
+    private static final ThreadLocal<Long> flagsOverrideVersion = new ThreadLocal<>();
     static Reporting baseReporting;
     static Allure baseAllure;
     static Timeouts baseTimeouts;
@@ -105,7 +109,7 @@ public class Properties {
     public static final Mobile mobile = createProxy(Mobile.class, mobileOverride, () -> baseMobile);
     public static final Paths paths = createProxy(Paths.class, pathsOverride, () -> basePaths);
     public static final Pattern pattern = createProxy(Pattern.class, patternOverride, () -> basePattern);
-    public static final Flags flags = createGlobalProxy(Flags.class, () -> baseFlags);
+    public static final Flags flags = createProxy(Flags.class, currentThreadFlags(), () -> baseFlags);
     public static final Reporting reporting = createProxy(Reporting.class, reportingOverride, () -> baseReporting);
     public static final Allure allure = createProxy(Allure.class, allureOverride, () -> baseAllure);
     public static final Timeouts timeouts = createProxy(Timeouts.class, timeoutsOverride, () -> baseTimeouts);
@@ -176,37 +180,31 @@ public class Properties {
     }
 
     /**
-     * Creates a dynamic proxy for engine-global configuration that always resolves
-     * against the globally initialized base instance.
-     *
-     * <p>The supplied base instance must be safely published because the proxy
-     * shares that instance across all execution threads. The current retry-flags
-     * implementation synchronizes updates and publishes the refreshed config
-     * through the volatile {@code baseFlags} reference.</p>
-     *
-     * @param <T>          the config interface type
-     * @param configClass  the config interface class
-     * @param baseSupplier a supplier for the global base instance
-     * @return a proxy that implements {@code T}
+     * Returns a view of the thread-scoped flag overrides that rebuilds itself when an engine-global
+     * flag changed after the thread-scoped view was created, so global changes are never hidden.
      */
-    @SuppressWarnings("unchecked")
-    static <T extends EngineProperties<T>> T createGlobalProxy(
-            Class<T> configClass,
-            java.util.function.Supplier<T> baseSupplier) {
-        return (T) Proxy.newProxyInstance(
-                configClass.getClassLoader(),
-                new Class<?>[]{configClass},
-                (proxy, method, args) -> {
-                    T instance = baseSupplier.get();
-                    if (instance == null) {
-                        instance = ConfigFactory.create(configClass);
-                    }
-                    try {
-                        return method.invoke(instance, args);
-                    } catch (InvocationTargetException e) {
-                        throw e.getCause() != null ? e.getCause() : e;
-                    }
-                });
+    private static ThreadLocal<Flags> currentThreadFlags() {
+        return new ThreadLocal<>() {
+            @Override
+            public Flags get() {
+                Flags current = flagsOverride.get();
+                Long version = flagsOverrideVersion.get();
+                if (current != null && (version == null || version != flagsVersion)) {
+                    refreshThreadFlags();
+                    current = flagsOverride.get();
+                }
+                return current;
+            }
+        };
+    }
+
+    /** Rebuilds the current thread's flag view from its overrides layered over the global overrides. */
+    static void refreshThreadFlags() {
+        synchronized (Properties.class) {
+            flagsOverride.set(ConfigFactory.create(Flags.class,
+                    ThreadLocalPropertiesManager.getOverrides(), ThreadLocalPropertiesManager.getGlobalOverrides()));
+            flagsOverrideVersion.set(flagsVersion);
+        }
     }
 
     /**
@@ -248,6 +246,8 @@ public class Properties {
         reportingOverride.remove();
         allureOverride.remove();
         timeoutsOverride.remove();
+        flagsOverride.remove();
+        flagsOverrideVersion.remove();
         tinkeyOverride.remove();
         visualsOverride.remove();
         webOverride.remove();
@@ -264,6 +264,7 @@ public class Properties {
         synchronized (Properties.class) {
             if (pristineBaseFlags != null) {
                 baseFlags = pristineBaseFlags;
+                flagsVersion++;
             }
         }
     }

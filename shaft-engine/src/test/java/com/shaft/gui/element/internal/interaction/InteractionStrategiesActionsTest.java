@@ -42,12 +42,12 @@ public class InteractionStrategiesActionsTest {
     @BeforeMethod
     public void configureFastMockFriendlyProperties() {
         SHAFT.Properties.reporting.set().captureElementName(false);
-        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
-        SHAFT.Properties.flags.set().scrollingMode("legacy");
-        SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
-        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
-        SHAFT.Properties.flags.set().attemptToClickBeforeTyping(false);
-        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
+        SHAFT.Properties.flags.setForCurrentThread().forceCheckElementLocatorIsUnique(false);
+        SHAFT.Properties.flags.setForCurrentThread().scrollingMode("legacy");
+        SHAFT.Properties.flags.setForCurrentThread().clearBeforeTypingMode("off");
+        SHAFT.Properties.flags.setForCurrentThread().forceCheckTextWasTypedCorrectly(false);
+        SHAFT.Properties.flags.setForCurrentThread().attemptToClickBeforeTyping(false);
+        SHAFT.Properties.flags.setForCurrentThread().clickUsingJavascriptWhenWebDriverClickFails(true);
         SHAFT.Properties.visuals.set().createAnimatedGif(false);
         SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("ValidationPointsOnly");
         SHAFT.Properties.visuals.set().screenshotParamsWatermark(false);
@@ -96,7 +96,7 @@ public class InteractionStrategiesActionsTest {
 
     @Test
     public void typeSelectUsesNativeSelectApiNotBlindSendKeys() {
-        SHAFT.Properties.flags.set().handleNonSelectDropDown(false);
+        SHAFT.Properties.flags.setForCurrentThread().handleNonSelectDropDown(false);
         WebDriver driver = mockDriver();
         WebElement dropdown = baseElement();
         when(dropdown.getTagName()).thenReturn("select");
@@ -131,7 +131,7 @@ public class InteractionStrategiesActionsTest {
 
     @Test
     public void typeContentEditableUsesJsInsertNotClear() {
-        SHAFT.Properties.flags.set().clearBeforeTypingMode("native");
+        SHAFT.Properties.flags.setForCurrentThread().clearBeforeTypingMode("native");
         WebDriver driver = mockDriver();
         WebElement element = baseElement();
         when(element.getTagName()).thenReturn("div");
@@ -162,7 +162,7 @@ public class InteractionStrategiesActionsTest {
 
     @Test
     public void clickLadderRetriesAfterScrollThenUsesFlaggedJs() {
-        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
+        SHAFT.Properties.flags.setForCurrentThread().clickUsingJavascriptWhenWebDriverClickFails(true);
         WebDriver driver = mockDriver();
         WebElement element = baseElement();
         when(element.getTagName()).thenReturn("button");
@@ -178,7 +178,7 @@ public class InteractionStrategiesActionsTest {
 
     @Test
     public void clickPreservesExceptionWhenJsFallbackDisabled() {
-        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(false);
+        SHAFT.Properties.flags.setForCurrentThread().clickUsingJavascriptWhenWebDriverClickFails(false);
         WebDriver driver = mockDriver();
         WebElement element = baseElement();
         when(element.getTagName()).thenReturn("button");

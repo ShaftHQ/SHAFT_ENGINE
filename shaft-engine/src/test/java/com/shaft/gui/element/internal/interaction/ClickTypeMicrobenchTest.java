@@ -47,11 +47,11 @@ public class ClickTypeMicrobenchTest {
             throw new SkipException("Wave F microbench requires local Chrome.");
         }
         SHAFT.Properties.web.set().headlessExecution(true).targetBrowserName("chrome");
-        SHAFT.Properties.flags.set().clickUsingJavascriptWhenWebDriverClickFails(true);
-        SHAFT.Properties.flags.set().forceCheckElementLocatorIsUnique(false);
-        SHAFT.Properties.flags.set().clearBeforeTypingMode("off");
-        SHAFT.Properties.flags.set().forceCheckTextWasTypedCorrectly(false);
-        SHAFT.Properties.flags.set().attemptToClickBeforeTyping(false);
+        SHAFT.Properties.flags.setForCurrentThread().clickUsingJavascriptWhenWebDriverClickFails(true);
+        SHAFT.Properties.flags.setForCurrentThread().forceCheckElementLocatorIsUnique(false);
+        SHAFT.Properties.flags.setForCurrentThread().clearBeforeTypingMode("off");
+        SHAFT.Properties.flags.setForCurrentThread().forceCheckTextWasTypedCorrectly(false);
+        SHAFT.Properties.flags.setForCurrentThread().attemptToClickBeforeTyping(false);
         SHAFT.Properties.visuals.set().createAnimatedGif(false);
         SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never");
         SHAFT.Properties.visuals.set().screenshotParamsWatermark(false);
