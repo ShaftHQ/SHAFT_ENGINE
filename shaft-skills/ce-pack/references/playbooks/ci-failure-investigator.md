@@ -30,6 +30,14 @@ Use this playbook only for CI failure triage.
 8. Validate with the narrowest local reproduction. Request a remote rerun only
    when local evidence cannot prove the environment-specific behavior.
 
+## Known SHAFT fingerprints
+
+- `setup-lock-pin-drift`: a bundled setup `package-lock.json` changed but the
+  planner SHA-256 pin did not, so `Unit Tests (shaft-infrastructure)` fails
+  with "lock does not match the approved plan". Keep the pin. Same-repo
+  Dependabot pull requests self-heal through `setup-lock-pins.yml`; otherwise
+  run `python3 scripts/ci/refresh_setup_lock_pins.py --write` in the same tip.
+
 ## Output
 
 Report the run/job, concise signature, root cause and confidence, affected

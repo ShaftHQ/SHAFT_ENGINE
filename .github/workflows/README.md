@@ -42,6 +42,7 @@ changing that token silently breaks both distribution publishers.
 | File | Trigger | Responsibility |
 |---|---|---|
 | `pr-gate.yml` | pull request (no label events), push to `main` | Required path-aware gate: documentation boundaries, agent guidance, unit tests, installer/plugin checks, CLI, Capture E2E, dependency review, and template coupling. |
+| `setup-lock-pins.yml` | pull request touching setup lockfiles/planners/tooling; `pull_request_target` for Dependabot setup lockfile bumps | Checks that planner lock SHA-256 pins match the bundled `package-lock.json` files; on same-repo Dependabot PRs runs the base `refresh_setup_lock_pins.py --write` against the PR tree and pushes the refreshed pins with `BOT_TOKEN` so PR Gate reruns (#6357). |
 | `installer-macos-rerun.yml` | pull request `labeled` | Adding `ci:installer-macos` re-runs the newest PR Gate run for the head commit (cancelling it first if running) so the macOS installer legs join; other labels skip (#6208). |
 | `release-note-governance.yml` | pull request (incl. label/body edits), push to `main` | Required `Release-note governance` check: exactly one release-note classification label, release template placeholders, and the release-notes renderer tests; always reports, no path filter (#6190, #6232). |
 | `copilot-setup-steps.yml` | manual; push/pull request touching itself | Copilot cloud setup job: opens the pending ChaosEngine research receipt before the agent's first read (#6218). |
