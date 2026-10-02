@@ -117,22 +117,34 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#healEnabled(boolean)" class="member-name-link">healEnabled</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>heal-enabled</code> property at runtime.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#imitatePort(int)" class="member-name-link">imitatePort</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>imitatePort</code> property at runtime.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#recoveryTries(int)" class="member-name-link">recoveryTries</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>recovery-tries</code> property at runtime.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#scoreCap(java.lang.String)" class="member-name-link">scoreCap</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>score-cap</code> property at runtime.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#serverHost(java.lang.String)" class="member-name-link">serverHost</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>serverHost</code> property at runtime.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#serverPort(int)" class="member-name-link">serverPort</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>serverPort</code> property at runtime.</div>
+</div>
 </div>
 </div>
 </div>
@@ -174,6 +186,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>recoveryTries</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></span>&nbsp;<span class="element-name">recoveryTries</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
+<div class="block">Overrides the <code>recovery-tries</code> property at runtime. Number of Healenium self-healing
+recovery attempts before giving up on a broken locator.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>recovery-tries</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal"><code>Healenium.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -182,6 +202,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>scoreCap</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></span>&nbsp;<span class="element-name">scoreCap</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>score-cap</code> property at runtime. Minimum Healenium similarity score required
+to accept a healed locator candidate.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>score-cap</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal"><code>Healenium.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -190,6 +218,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>healEnabled</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></span>&nbsp;<span class="element-name">healEnabled</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Overrides the <code>heal-enabled</code> property at runtime. Enable the Healenium self-healing proxy
+for this run.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>heal-enabled</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal"><code>Healenium.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -198,6 +234,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>serverHost</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></span>&nbsp;<span class="element-name">serverHost</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>serverHost</code> property at runtime. Hostname of the Healenium server that
+scores locator-healing candidates.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>serverHost</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal"><code>Healenium.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -206,6 +250,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>serverPort</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></span>&nbsp;<span class="element-name">serverPort</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
+<div class="block">Overrides the <code>serverPort</code> property at runtime. Port of the Healenium server that scores
+locator-healing candidates.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>serverPort</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal"><code>Healenium.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -214,6 +266,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>imitatePort</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></span>&nbsp;<span class="element-name">imitatePort</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
+<div class="block">Overrides the <code>imitatePort</code> property at runtime. Local port SHAFT uses so Healenium can
+intercept browser traffic.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>imitatePort</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal"><code>Healenium.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>

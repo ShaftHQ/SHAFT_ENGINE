@@ -126,7 +126,9 @@ when an enum role is known, else role-attribute xpath.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#css(java.lang.String)" class="member-name-link">css</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;selector)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Creates a locator from a CSS selector.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#from(com.shaft.gui.internal.locator.semantic.SemanticLocatorResolution)" class="member-name-link">from</a><wbr>(<a href="../internal/locator/semantic/SemanticLocatorResolution.html" title="class in com.shaft.gui.internal.locator.semantic">SemanticLocatorResolution</a>&nbsp;resolution)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
@@ -135,7 +137,9 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#from(org.openqa.selenium.By)" class="member-name-link">from</a><wbr>(org.openqa.selenium.By&nbsp;locator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Creates a locator from a Selenium <code>By</code>.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#role(java.lang.String,java.lang.String)" class="member-name-link">role</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;role,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;accessibleName)</code></div>
@@ -149,13 +153,19 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ShaftLocator.Strategy.html" title="enum class in com.shaft.gui.driver">ShaftLocator.Strategy</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#strategy()" class="member-name-link">strategy</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the strategy of this locator, such as CSS, XPath or text.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#text(java.lang.String)" class="member-name-link">text</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Creates a locator that matches an element by its visible text.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>org.openqa.selenium.By</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toBy()" class="member-name-link">toBy</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Converts this locator to a Selenium <code>By</code>.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Locator</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toPlaywrightLocator(com.microsoft.playwright.Locator)" class="member-name-link">toPlaywrightLocator</a><wbr>(com.microsoft.playwright.Locator&nbsp;parent)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -163,7 +173,9 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Locator</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toPlaywrightLocator(com.microsoft.playwright.Page)" class="member-name-link">toPlaywrightLocator</a><wbr>(com.microsoft.playwright.Page&nbsp;page)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Converts this locator to a Playwright locator on the given page.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#toPlaywrightSelector()" class="member-name-link">toPlaywrightSelector</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -174,10 +186,14 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#value()" class="member-name-link">value</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the selector value of this locator.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#xpath(java.lang.String)" class="member-name-link">xpath</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;xpath)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Creates a locator from an XPath expression.</div>
+</div>
 </div>
 </div>
 </div>
@@ -200,6 +216,7 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 <h3>css</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></span>&nbsp;<span class="element-name">css</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;selector)</span></div>
+<div class="block">Creates a locator from a CSS selector.</div>
 </div>
 </section>
 </li>
@@ -208,6 +225,7 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 <h3>xpath</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></span>&nbsp;<span class="element-name">xpath</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;xpath)</span></div>
+<div class="block">Creates a locator from an XPath expression.</div>
 </div>
 </section>
 </li>
@@ -216,6 +234,7 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 <h3>text</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></span>&nbsp;<span class="element-name">text</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</span></div>
+<div class="block">Creates a locator that matches an element by its visible text.</div>
 </div>
 </section>
 </li>
@@ -272,6 +291,7 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 <h3>from</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ShaftLocator.html" title="class in com.shaft.gui.driver">ShaftLocator</a></span>&nbsp;<span class="element-name">from</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;locator)</span></div>
+<div class="block">Creates a locator from a Selenium <code>By</code>.</div>
 </div>
 </section>
 </li>
@@ -280,6 +300,7 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 <h3>strategy</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ShaftLocator.Strategy.html" title="enum class in com.shaft.gui.driver">ShaftLocator.Strategy</a></span>&nbsp;<span class="element-name">strategy</span>()</div>
+<div class="block">Returns the strategy of this locator, such as CSS, XPath or text.</div>
 </div>
 </section>
 </li>
@@ -288,6 +309,7 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 <h3>value</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">value</span>()</div>
+<div class="block">Returns the selector value of this locator.</div>
 </div>
 </section>
 </li>
@@ -309,6 +331,7 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 <h3>toBy</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">org.openqa.selenium.By</span>&nbsp;<span class="element-name">toBy</span>()</div>
+<div class="block">Converts this locator to a Selenium <code>By</code>.</div>
 </div>
 </section>
 </li>
@@ -317,6 +340,7 @@ ACCESSIBLE_NAME strategies when selected by <code>SemanticLocatorResolver</code>
 <h3>toPlaywrightLocator</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">com.microsoft.playwright.Locator</span>&nbsp;<span class="element-name">toPlaywrightLocator</span><wbr><span class="parameters">(com.microsoft.playwright.Page&nbsp;page)</span></div>
+<div class="block">Converts this locator to a Playwright locator on the given page.</div>
 </div>
 </section>
 </li>

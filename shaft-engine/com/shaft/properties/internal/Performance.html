@@ -138,10 +138,14 @@ Controls Lighthouse audit thresholds and performance measurement parameters.
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#isEnabled()" class="member-name-link">isEnabled</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Enable WebDriver Lighthouse performance testing execution.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#isEnablePerformanceReport()" class="member-name-link">isEnablePerformanceReport</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Generate API and browser performance report files when timing data exists.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#pageLoadPerformanceBudgets()" class="member-name-link">pageLoadPerformanceBudgets</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
@@ -149,12 +153,13 @@ Controls Lighthouse audit thresholds and performance measurement parameters.
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#port()" class="member-name-link">port</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Port to use for Lighthouse performance testing.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal">Performance.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
-<div class="block">Returns a fluent <a href="EngineProperties.SetProperty.html" title="interface in com.shaft.properties.internal"><code>EngineProperties.SetProperty</code></a> builder that allows programmatic override
-of individual configuration properties at runtime.</div>
+<div class="block">Starts a fluent, thread-local override of these properties for the current test thread.</div>
 </div>
 </div>
 </div>
@@ -177,6 +182,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("lightHouseExecution")
 @DefaultValue("false")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">isEnabled</span>()</div>
+<div class="block">Enable WebDriver Lighthouse performance testing execution.
+
+<p>Default: <code>false</code>. Possible values: true, false.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>lightHouseExecution</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -187,6 +199,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("lightHouseExecution.port")
 @DefaultValue("8888")
 </span><span class="return-type">int</span>&nbsp;<span class="element-name">port</span>()</div>
+<div class="block">Port to use for Lighthouse performance testing.
+
+<p>Default: <code>8888</code>. Possible values: port number.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>lightHouseExecution.port</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -197,6 +216,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("generatePerformanceReport")
 @DefaultValue("true")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">isEnablePerformanceReport</span>()</div>
+<div class="block">Generate API and browser performance report files when timing data exists.
+
+<p>Default: <code>true</code>. Possible values: true, false.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>generatePerformanceReport</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -289,14 +315,12 @@ to apply a default budget to every recorded browser action.</div>
 <h3>set</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal">Performance.SetProperty</a></span>&nbsp;<span class="element-name">set</span>()</div>
-<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="EngineProperties.html#set()">EngineProperties</a></code></span></div>
-<div class="block">Returns a fluent <a href="EngineProperties.SetProperty.html" title="interface in com.shaft.properties.internal"><code>EngineProperties.SetProperty</code></a> builder that allows programmatic override
-of individual configuration properties at runtime.</div>
+<div class="block">Starts a fluent, thread-local override of these properties for the current test thread.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="EngineProperties.html#set()">set</a></code>&nbsp;in interface&nbsp;<code><a href="EngineProperties.html" title="interface in com.shaft.properties.internal">EngineProperties</a>&lt;<a href="Performance.html" title="interface in com.shaft.properties.internal">Performance</a>&gt;</code></dd>
 <dt>Returns:</dt>
-<dd>a new <a href="EngineProperties.SetProperty.html" title="interface in com.shaft.properties.internal"><code>EngineProperties.SetProperty</code></a> instance for chaining property overrides</dd>
+<dd>a new <a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal"><code>Performance.SetProperty</code></a> builder</dd>
 </dl>
 </div>
 </section>

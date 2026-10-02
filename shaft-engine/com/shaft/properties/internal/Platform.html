@@ -121,22 +121,34 @@ Controls the target execution address, port, and operating-system configuration.
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#crossBrowserMode()" class="member-name-link">crossBrowserMode</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Cross Browser Mode allows SHAFT to run your test class against Chrome, Firefox, and Safari!</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#driverProxySettings()" class="member-name-link">driverProxySettings</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">To enable or disable the driver proxy.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#enableBiDi()" class="member-name-link">enableBiDi</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">To enable or disable the WebDriver BiDi protocol.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#executionAddress()" class="member-name-link">executionAddress</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">For Appium, set the below settings and move to the Mobile tab to continue.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#jvmProxySettings()" class="member-name-link">jvmProxySettings</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">To enable or disable the JVM proxy.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#proxy()" class="member-name-link">proxy</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Used to configure testing behind a proxy. e.g. corporate proxy.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#remoteAdaptiveSessionThrottling()" class="member-name-link">remoteAdaptiveSessionThrottling</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
@@ -160,12 +172,13 @@ Controls the target execution address, port, and operating-system configuration.
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Platform.SetProperty.html" title="class in com.shaft.properties.internal">Platform.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
-<div class="block">Returns a fluent <a href="EngineProperties.SetProperty.html" title="interface in com.shaft.properties.internal"><code>EngineProperties.SetProperty</code></a> builder that allows programmatic override
-of individual configuration properties at runtime.</div>
+<div class="block">Starts a fluent, thread-local override of these properties for the current test thread.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#targetPlatform()" class="member-name-link">targetPlatform</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">The target operating system for test execution.</div>
+</div>
 </div>
 </div>
 </div>
@@ -187,6 +200,17 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("SHAFT.CrossBrowserMode")
 @DefaultValue("off")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">crossBrowserMode</span>()</div>
+<div class="block">Cross Browser Mode allows SHAFT to run your test class against Chrome, Firefox, and Safari! You
+need to have 'Docker Desktop' installed on your machine, and configured to use Linux images. Off
+→ Your tests will run normally and respect your configuration. Sequential → Your tests will run
+on Chrome, Firefox, and Safari in sequence. Parallelized → Your tests will run on Chrome,
+Firefox and Safari in parallel. And for each browser they will run in sequence.
+
+<p>Default: <code>off</code>. Possible values: off, sequential, parallelized.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>SHAFT.CrossBrowserMode</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -197,6 +221,16 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("executionAddress")
 @DefaultValue("local")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">executionAddress</span>()</div>
+<div class="block">For Appium, set the below settings and move to the Mobile tab to continue. For BrowserStack, set
+the "Target Operating System" below, and the "Automation Name" in the Mobile tab, then configure
+the "browserStack.properties" file in your project directory.
+
+<p>Default: <code>local</code>. Possible values: local, dockerized, browserstack, host:port,
+http://host:port/wd/hub.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>executionAddress</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -207,6 +241,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("targetOperatingSystem")
 @DefaultValue("Linux")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">targetPlatform</span>()</div>
+<div class="block">The target operating system for test execution.
+
+<p>Default: <code>Linux</code>. Possible values: Linux, Windows, Mac, Android, iOS.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>targetOperatingSystem</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -217,6 +258,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("com.SHAFT.proxySettings")
 @DefaultValue("")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">proxy</span>()</div>
+<div class="block">Used to configure testing behind a proxy. e.g. corporate proxy.
+
+<p>Possible values: host:port.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>com.SHAFT.proxySettings</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -227,6 +275,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("driverProxySettings")
 @DefaultValue("true")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">driverProxySettings</span>()</div>
+<div class="block">To enable or disable the driver proxy.
+
+<p>Default: <code>true</code>. Possible values: true, false.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>driverProxySettings</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -237,6 +292,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("jvmProxySettings")
 @DefaultValue("true")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">jvmProxySettings</span>()</div>
+<div class="block">To enable or disable the JVM proxy.
+
+<p>Default: <code>true</code>. Possible values: true, false.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>jvmProxySettings</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -247,6 +309,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("enableBiDi")
 @DefaultValue("true")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">enableBiDi</span>()</div>
+<div class="block">To enable or disable the WebDriver BiDi protocol.
+
+<p>Default: <code>true</code>. Possible values: true, false.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>enableBiDi</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -315,14 +384,12 @@ of individual configuration properties at runtime.</div>
 <h3>set</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="Platform.SetProperty.html" title="class in com.shaft.properties.internal">Platform.SetProperty</a></span>&nbsp;<span class="element-name">set</span>()</div>
-<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="EngineProperties.html#set()">EngineProperties</a></code></span></div>
-<div class="block">Returns a fluent <a href="EngineProperties.SetProperty.html" title="interface in com.shaft.properties.internal"><code>EngineProperties.SetProperty</code></a> builder that allows programmatic override
-of individual configuration properties at runtime.</div>
+<div class="block">Starts a fluent, thread-local override of these properties for the current test thread.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="EngineProperties.html#set()">set</a></code>&nbsp;in interface&nbsp;<code><a href="EngineProperties.html" title="interface in com.shaft.properties.internal">EngineProperties</a>&lt;<a href="Platform.html" title="interface in com.shaft.properties.internal">Platform</a>&gt;</code></dd>
 <dt>Returns:</dt>
-<dd>a new <a href="EngineProperties.SetProperty.html" title="interface in com.shaft.properties.internal"><code>EngineProperties.SetProperty</code></a> instance for chaining property overrides</dd>
+<dd>a new <a href="Platform.SetProperty.html" title="class in com.shaft.properties.internal"><code>Platform.SetProperty</code></a> builder</dd>
 </dl>
 </div>
 </section>

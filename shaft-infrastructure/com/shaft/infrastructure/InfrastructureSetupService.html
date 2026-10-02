@@ -115,7 +115,9 @@
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(com.shaft.infrastructure.SetupProviderRegistry,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" class="member-name-link">InfrastructureSetupService</a><wbr>(<a href="SetupProviderRegistry.html" title="class in com.shaft.infrastructure">SetupProviderRegistry</a>&nbsp;providers,
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates a setup service over the given providers for the given platform and architecture.</div>
+</div>
 </div>
 </section>
 </li>
@@ -132,22 +134,32 @@
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="InfrastructureSetupService.html" title="class in com.shaft.infrastructure">InfrastructureSetupService</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#builtIn()" class="member-name-link">builtIn</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Creates a setup service with the built-in providers for the current platform.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="InfrastructureSetupService.html" title="class in com.shaft.infrastructure">InfrastructureSetupService</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#builtIn(com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" class="member-name-link">builtIn</a><wbr>(<a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Creates a setup service with the built-in providers for the given platform and architecture.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupCatalog.html" title="class in com.shaft.infrastructure">SetupCatalog</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#catalog()" class="member-name-link">catalog</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the catalog of setup providers this service can manage.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#doctor(com.shaft.infrastructure.SetupOptions)" class="member-name-link">doctor</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Checks the setup for the given options and reports problems without changing anything.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" class="member-name-link">install</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Installs an approved plan.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">install</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
@@ -161,20 +173,26 @@
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Installs the selected components of an approved plan.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,java.util.function.Consumer)" class="member-name-link">install</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="SetupProgress.html" title="class in com.shaft.infrastructure">SetupProgress</a>&gt;&nbsp;progress)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Installs the selected components of an approved plan, reporting progress as it runs.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,java.util.function.Consumer)" class="member-name-link">install</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="SetupProgress.html" title="class in com.shaft.infrastructure">SetupProgress</a>&gt;&nbsp;progress)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Installs an approved plan, reporting progress as it runs.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#logs(com.shaft.infrastructure.SetupOptions)" class="member-name-link">logs</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -188,7 +206,9 @@
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Plans the changes needed for the given options without applying them.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="AndroidSetupRequest.html" title="class in com.shaft.infrastructure">AndroidSetupRequest</a>&nbsp;request)</code></div>
@@ -198,12 +218,17 @@
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Plans the changes needed for the selected components without applying them.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#plan(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection,com.shaft.infrastructure.SetupOperation)" class="member-name-link">plan</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
  <a href="SetupOperation.html" title="enum class in com.shaft.infrastructure">SetupOperation</a>&nbsp;operation)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Plans the given operation (such as install or remove) for the selected components without
+applying it.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#selectionFromPlan(com.shaft.infrastructure.SetupPlan)" class="member-name-link">selectionFromPlan</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -213,7 +238,9 @@
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" class="member-name-link">start</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Installs an approved plan if needed and starts the services it owns.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ManagedEnvironment.html" title="class in com.shaft.infrastructure">ManagedEnvironment</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#start(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">start</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
@@ -227,10 +254,14 @@
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Installs the selected components of an approved plan if needed and starts their services.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reports the current state of the setup for the given options.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="AndroidSetupRequest.html" title="class in com.shaft.infrastructure">AndroidSetupRequest</a>&nbsp;request)</code></div>
@@ -240,7 +271,9 @@
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">status</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reports the current state of the selected components.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#stop(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval,com.shaft.infrastructure.SetupOptions)" class="member-name-link">stop</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
@@ -263,7 +296,9 @@
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions)" class="member-name-link">verify</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Verifies that the setup for the given options is installed and healthy.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.AndroidSetupRequest)" class="member-name-link">verify</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="AndroidSetupRequest.html" title="class in com.shaft.infrastructure">AndroidSetupRequest</a>&nbsp;request)</code></div>
@@ -273,7 +308,9 @@
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verify(com.shaft.infrastructure.SetupOptions,com.shaft.infrastructure.SetupSelection)" class="member-name-link">verify</a><wbr>(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Verifies that the selected components are installed and healthy.</div>
+</div>
 </div>
 </div>
 </div>
@@ -298,6 +335,7 @@
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">InfrastructureSetupService</span><wbr><span class="parameters">(<a href="SetupProviderRegistry.html" title="class in com.shaft.infrastructure">SetupProviderRegistry</a>&nbsp;providers,
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</span></div>
+<div class="block">Creates a setup service over the given providers for the given platform and architecture.</div>
 </div>
 </section>
 </li>
@@ -314,6 +352,7 @@
 <h3>builtIn</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="InfrastructureSetupService.html" title="class in com.shaft.infrastructure">InfrastructureSetupService</a></span>&nbsp;<span class="element-name">builtIn</span>()</div>
+<div class="block">Creates a setup service with the built-in providers for the current platform.</div>
 </div>
 </section>
 </li>
@@ -323,6 +362,7 @@
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="InfrastructureSetupService.html" title="class in com.shaft.infrastructure">InfrastructureSetupService</a></span>&nbsp;<span class="element-name">builtIn</span><wbr><span class="parameters">(<a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</span></div>
+<div class="block">Creates a setup service with the built-in providers for the given platform and architecture.</div>
 </div>
 </section>
 </li>
@@ -331,6 +371,7 @@
 <h3>catalog</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupCatalog.html" title="class in com.shaft.infrastructure">SetupCatalog</a></span>&nbsp;<span class="element-name">catalog</span>()</div>
+<div class="block">Returns the catalog of setup providers this service can manage.</div>
 </div>
 </section>
 </li>
@@ -363,6 +404,7 @@
 <h3>plan</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></span>&nbsp;<span class="element-name">plan</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</span></div>
+<div class="block">Plans the changes needed for the given options without applying them.</div>
 </div>
 </section>
 </li>
@@ -372,6 +414,7 @@
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></span>&nbsp;<span class="element-name">plan</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</span></div>
+<div class="block">Plans the changes needed for the selected components without applying them.</div>
 </div>
 </section>
 </li>
@@ -382,6 +425,8 @@
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a></span>&nbsp;<span class="element-name">plan</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
  <a href="SetupOperation.html" title="enum class in com.shaft.infrastructure">SetupOperation</a>&nbsp;operation)</span></div>
+<div class="block">Plans the given operation (such as install or remove) for the selected components without
+applying it.</div>
 </div>
 </section>
 </li>
@@ -400,6 +445,7 @@
 <h3>doctor</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></span>&nbsp;<span class="element-name">doctor</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</span></div>
+<div class="block">Checks the setup for the given options and reports problems without changing anything.</div>
 </div>
 </section>
 </li>
@@ -408,6 +454,7 @@
 <h3>status</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></span>&nbsp;<span class="element-name">status</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</span></div>
+<div class="block">Reports the current state of the setup for the given options.</div>
 </div>
 </section>
 </li>
@@ -417,6 +464,7 @@
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></span>&nbsp;<span class="element-name">status</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</span></div>
+<div class="block">Reports the current state of the selected components.</div>
 </div>
 </section>
 </li>
@@ -435,6 +483,7 @@
 <h3>verify</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></span>&nbsp;<span class="element-name">verify</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</span></div>
+<div class="block">Verifies that the setup for the given options is installed and healthy.</div>
 </div>
 </section>
 </li>
@@ -444,6 +493,7 @@
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupReport.html" title="class in com.shaft.infrastructure">SetupReport</a></span>&nbsp;<span class="element-name">verify</span><wbr><span class="parameters">(<a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</span></div>
+<div class="block">Verifies that the selected components are installed and healthy.</div>
 </div>
 </section>
 </li>
@@ -465,9 +515,10 @@
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</span>
                      throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Installs an approved plan.</div>
 <dl class="notes">
 <dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - when an artifact cannot be fetched or written</dd>
 </dl>
 </div>
 </section>
@@ -481,9 +532,10 @@
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="SetupProgress.html" title="class in com.shaft.infrastructure">SetupProgress</a>&gt;&nbsp;progress)</span>
                      throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Installs an approved plan, reporting progress as it runs.</div>
 <dl class="notes">
 <dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - when an artifact cannot be fetched or written</dd>
 </dl>
 </div>
 </section>
@@ -497,9 +549,10 @@
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</span>
                      throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Installs the selected components of an approved plan.</div>
 <dl class="notes">
 <dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - when an artifact cannot be fetched or written</dd>
 </dl>
 </div>
 </section>
@@ -514,9 +567,10 @@
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Consumer.html" title="class or interface in java.util.function" class="external-link">Consumer</a>&lt;<a href="SetupProgress.html" title="class in com.shaft.infrastructure">SetupProgress</a>&gt;&nbsp;progress)</span>
                      throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Installs the selected components of an approved plan, reporting progress as it runs.</div>
 <dl class="notes">
 <dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - when an artifact cannot be fetched or written</dd>
 </dl>
 </div>
 </section>
@@ -546,9 +600,10 @@
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval,
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options)</span>
                          throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Installs an approved plan if needed and starts the services it owns.</div>
 <dl class="notes">
 <dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - when an artifact cannot be fetched or written</dd>
 </dl>
 </div>
 </section>
@@ -562,9 +617,10 @@
  <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a>&nbsp;options,
  <a href="SetupSelection.html" title="class in com.shaft.infrastructure">SetupSelection</a>&nbsp;selection)</span>
                          throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Installs the selected components of an approved plan if needed and starts their services.</div>
 <dl class="notes">
 <dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - when an artifact cannot be fetched or written</dd>
 </dl>
 </div>
 </section>

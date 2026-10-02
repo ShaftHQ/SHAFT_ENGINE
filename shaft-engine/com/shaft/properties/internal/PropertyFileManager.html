@@ -94,13 +94,19 @@ properties into <code>MutableCapabilities</code> for Appium sessions.</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getAppiumDesiredCapabilities()" class="member-name-link">getAppiumDesiredCapabilities</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Collects the <code>mobile_</code> prefixed properties as Appium desired capabilities, with thread-local overrides taking precedence over system properties.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/HashMap.html" title="class or interface in java.util" class="external-link">HashMap</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getCustomBrowserstackCapabilities()" class="member-name-link">getCustomBrowserstackCapabilities</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Collects the non-blank <code>browserStack.</code> prefixed properties as BrowserStack options.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static org.openqa.selenium.MutableCapabilities</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getCustomWebDriverDesiredCapabilities()" class="member-name-link">getCustomWebDriverDesiredCapabilities</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Builds the custom WebDriver capabilities declared through the effective (system and thread-local) properties.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getLog4jConfigPath()" class="member-name-link">getLog4jConfigPath</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
@@ -114,7 +120,9 @@ and falling back to the bundled default file when the custom file has not been c
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#readCustomPropertyFiles()" class="member-name-link">readCustomPropertyFiles</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Reads every property file in the configured properties folder (or the default custom properties folder) into the system properties.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#resolveBundledDefaultPropertiesFolderPath()" class="member-name-link">resolveBundledDefaultPropertiesFolderPath</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
@@ -152,6 +160,11 @@ and falling back to the bundled default file when the custom file has not been c
 <h3>getAppiumDesiredCapabilities</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</span>&nbsp;<span class="element-name">getAppiumDesiredCapabilities</span>()</div>
+<div class="block">Collects the <code>mobile_</code> prefixed properties as Appium desired capabilities, with thread-local overrides taking precedence over system properties.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the Appium capability names mapped to their values</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -160,6 +173,11 @@ and falling back to the bundled default file when the custom file has not been c
 <h3>getCustomWebDriverDesiredCapabilities</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">org.openqa.selenium.MutableCapabilities</span>&nbsp;<span class="element-name">getCustomWebDriverDesiredCapabilities</span>()</div>
+<div class="block">Builds the custom WebDriver capabilities declared through the effective (system and thread-local) properties.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the custom driver capabilities</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -237,6 +255,11 @@ and falling back to the bundled default file when the custom file has not been c
 <h3>getCustomBrowserstackCapabilities</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/HashMap.html" title="class or interface in java.util" class="external-link">HashMap</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;</span>&nbsp;<span class="element-name">getCustomBrowserstackCapabilities</span>()</div>
+<div class="block">Collects the non-blank <code>browserStack.</code> prefixed properties as BrowserStack options.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the BrowserStack option names mapped to their values</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -245,6 +268,7 @@ and falling back to the bundled default file when the custom file has not been c
 <h3>readCustomPropertyFiles</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">readCustomPropertyFiles</span>()</div>
+<div class="block">Reads every property file in the configured properties folder (or the default custom properties folder) into the system properties.</div>
 </div>
 </section>
 </li>

@@ -139,10 +139,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal">Performance.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#generatePerformanceReport(boolean)" class="member-name-link">generatePerformanceReport</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>generatePerformanceReport</code> property at runtime.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal">Performance.SetProperty</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isEnabled(boolean)" class="member-name-link">isEnabled</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>lightHouseExecution</code> property at runtime.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal">Performance.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#pageLoadPerformanceBudgets(java.lang.String)" class="member-name-link">pageLoadPerformanceBudgets</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -150,7 +154,9 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal">Performance.SetProperty</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#port(int)" class="member-name-link">port</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>lightHouseExecution.port</code> property at runtime.</div>
+</div>
 </div>
 </div>
 </div>
@@ -192,6 +198,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>isEnabled</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal">Performance.SetProperty</a></span>&nbsp;<span class="element-name">isEnabled</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Overrides the <code>lightHouseExecution</code> property at runtime. Enable WebDriver Lighthouse
+performance testing execution.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>lightHouseExecution</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal"><code>Performance.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -200,6 +214,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>port</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal">Performance.SetProperty</a></span>&nbsp;<span class="element-name">port</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
+<div class="block">Overrides the <code>lightHouseExecution.port</code> property at runtime. Port to use for Lighthouse
+performance testing.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>lightHouseExecution.port</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal"><code>Performance.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -208,6 +230,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>generatePerformanceReport</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal">Performance.SetProperty</a></span>&nbsp;<span class="element-name">generatePerformanceReport</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Overrides the <code>generatePerformanceReport</code> property at runtime. Generate API and browser
+performance report files when timing data exists.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>generatePerformanceReport</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Performance.SetProperty.html" title="class in com.shaft.properties.internal"><code>Performance.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>

@@ -163,7 +163,9 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 <div class="table-header col-first">Constructor</div>
 <div class="table-header col-last">Description</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(com.shaft.gui.playwright.internal.PlaywrightSession)" class="member-name-link">BrowserActions</a><wbr>(<a href="../internal/PlaywrightSession.html" title="class in com.shaft.gui.playwright.internal">PlaywrightSession</a>&nbsp;session)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates browser actions for the given Playwright session.</div>
+</div>
 </div>
 </section>
 </li>
@@ -185,14 +187,20 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/accessibility/AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#accessibility()" class="member-name-link">accessibility</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the accessibility actions for the current page.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#addCookie(java.lang.String,java.lang.String)" class="member-name-link">addCookie</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Adds a cookie with the given name and value to the current domain.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#and()" class="member-name-link">and</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns this instance to chain the next browser action.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#assertContract(java.lang.String,java.lang.String...)" class="member-name-link">assertContract</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
@@ -201,7 +209,9 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../validation/PlaywrightBrowserValidationsBuilder.html" title="class in com.shaft.gui.playwright.validation">PlaywrightBrowserValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#assertThat()" class="member-name-link">assertThat</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts a hard assertion on the browser; a failure stops the test.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="AuthenticationActions.html" title="class in com.shaft.gui.playwright.browser">AuthenticationActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#authentication()" class="member-name-link">authentication</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -209,22 +219,34 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#capturePageSnapshot()" class="member-name-link">capturePageSnapshot</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Attaches a snapshot of the current page to the report.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureScreenshot()" class="member-name-link">captureScreenshot</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Attaches a screenshot of the current page to the report.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureScreenshot(com.shaft.enums.internal.Screenshots)" class="member-name-link">captureScreenshot</a><wbr>(<a href="../../../enums/internal/Screenshots.html" title="enum class in com.shaft.enums.internal">Screenshots</a>&nbsp;type)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Attaches a screenshot of the given type to the report.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureSnapshot()" class="member-name-link">captureSnapshot</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Attaches a full page snapshot (MHTML) to the report.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#clearNetworkInterceptors()" class="member-name-link">clearNetworkInterceptors</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Removes every network mock and interception rule.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#closeCurrentWindow()" class="member-name-link">closeCurrentWindow</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Closes the current window.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ConsoleActions.html" title="class in com.shaft.gui.playwright.browser">ConsoleActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#console()" class="member-name-link">console</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -237,10 +259,14 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#deleteAllCookies()" class="member-name-link">deleteAllCookies</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Deletes every cookie of the current domain.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#deleteCookie(java.lang.String)" class="member-name-link">deleteCookie</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Deletes the cookie with the given name.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="DialogActions.html" title="class in com.shaft.gui.playwright.browser">DialogActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#dialog()" class="member-name-link">dialog</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -263,10 +289,14 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#fullScreenWindow()" class="member-name-link">fullScreenWindow</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Switches the current window to full screen.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#generateLightHouseReport()" class="member-name-link">generateLightHouseReport</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Generates a Lighthouse performance report for the current page.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getAlertText()" class="member-name-link">getAlertText</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -274,65 +304,105 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a><wbr>&lt;org.openqa.selenium.Cookie&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getAllCookies()" class="member-name-link">getAllCookies</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns every cookie of the current domain.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getContext()" class="member-name-link">getContext</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the current mobile context, such as <code>NATIVE_APP</code> or a web view.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getContextHandles()" class="member-name-link">getContextHandles</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the names of all available mobile contexts.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>org.openqa.selenium.Cookie</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getCookie(java.lang.String)" class="member-name-link">getCookie</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the cookie with the given name.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getCookieDomain(java.lang.String)" class="member-name-link">getCookieDomain</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the domain of the cookie with the given name.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getCookiePath(java.lang.String)" class="member-name-link">getCookiePath</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the path of the cookie with the given name.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getCookieValue(java.lang.String)" class="member-name-link">getCookieValue</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the value of the cookie with the given name.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getCurrentURL()" class="member-name-link">getCurrentURL</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the URL of the current page.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getCurrentWindowTitle()" class="member-name-link">getCurrentWindowTitle</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the title of the current window.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.BrowserContext</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getNativeContext()" class="member-name-link">getNativeContext</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the underlying Playwright browser context.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Page</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getNativePage()" class="member-name-link">getNativePage</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the underlying Playwright page.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getPageSource()" class="member-name-link">getPageSource</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the source of the current page.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getWindowHandle()" class="member-name-link">getWindowHandle</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the handle of the current window.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getWindowHandles()" class="member-name-link">getWindowHandles</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the handles of all open windows.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getWindowHeight()" class="member-name-link">getWindowHeight</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the height of the current window.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getWindowPosition()" class="member-name-link">getWindowPosition</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the position of the current window.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getWindowSize()" class="member-name-link">getWindowSize</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the size of the current window.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getWindowWidth()" class="member-name-link">getWindowWidth</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the width of the current window.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#intercept(java.util.function.Predicate,org.openqa.selenium.remote.http.HttpResponse)" class="member-name-link">intercept</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Predicate.html" title="class or interface in java.util.function" class="external-link">Predicate</a>&lt;org.openqa.selenium.remote.http.HttpRequest&gt;&nbsp;requestPredicate,
  org.openqa.selenium.remote.http.HttpResponse&nbsp;mockedResponse)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Intercepts every request that matches the predicate and replies with the given response.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../browser/NetworkInterceptionRequestBuilder.html" title="class in com.shaft.gui.browser">NetworkInterceptionRequestBuilder</a><wbr>&lt;<a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#interceptRequest()" class="member-name-link">interceptRequest</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts building a network interception rule.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isAlertPresent()" class="member-name-link">isAlertPresent</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -345,37 +415,56 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.microsoft.playwright.Locator</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locator(java.lang.String)" class="member-name-link">locator</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;selector)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a Playwright locator for the given selector on the current page.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#maximizeWindow()" class="member-name-link">maximizeWindow</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Maximizes the current window.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#mock(java.util.function.Predicate,org.openqa.selenium.remote.http.HttpResponse)" class="member-name-link">mock</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Predicate.html" title="class or interface in java.util.function" class="external-link">Predicate</a>&lt;org.openqa.selenium.remote.http.HttpRequest&gt;&nbsp;requestPredicate,
  org.openqa.selenium.remote.http.HttpResponse&nbsp;mockedResponse)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Answers every request that matches the predicate with the mocked response.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigateBack()" class="member-name-link">navigateBack</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Navigates back in the browser history.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigateForward()" class="member-name-link">navigateForward</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Navigates forward in the browser history.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigateToURL(java.lang.String)" class="member-name-link">navigateToURL</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Navigates to the target URL in the current window.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigateToURL(java.lang.String,java.lang.String)" class="member-name-link">navigateToURL</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrlAfterRedirection)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Navigates to the target URL and waits for the redirect to the expected URL.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigateToURL(java.lang.String,org.openqa.selenium.WindowType)" class="member-name-link">navigateToURL</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  org.openqa.selenium.WindowType&nbsp;windowType)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Opens the target URL in a new tab or window.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#navigateToURLWithBasicAuthentication(java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">navigateToURLWithBasicAuthentication</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;username,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;password,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrlAfterAuthentication)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Navigates to a page protected by HTTP basic authentication and waits for the expected URL
+after logging in.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="NetworkActions.html" title="class in com.shaft.gui.playwright.browser">NetworkActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#network()" class="member-name-link">network</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -398,11 +487,15 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#refreshCurrentPage()" class="member-name-link">refreshCurrentPage</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reloads the current page.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#registerNetworkInterceptionRule(com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule,java.lang.String)" class="member-name-link">registerNetworkInterceptionRule</a><wbr>(<a href="../../browser/internal/BrowserNetworkInterceptionRule.html" title="class in com.shaft.gui.browser.internal">BrowserNetworkInterceptionRule</a>&nbsp;rule,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;successMessage)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Registers a network interception rule and reports the given message once it is active.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#replayContract(java.lang.String)" class="member-name-link">replayContract</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -425,11 +518,15 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setContext(java.lang.String)" class="member-name-link">setContext</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Switches to the given mobile context.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setWindowSize(int,int)" class="member-name-link">setWindowSize</a><wbr>(int&nbsp;width,
  int&nbsp;height)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Resizes the current window to the given width and height in pixels.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#startContractRecording(java.lang.String,java.lang.String...)" class="member-name-link">startContractRecording</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;contractFilePath,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>...&nbsp;urlContains)</code></div>
@@ -443,7 +540,9 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToWindow(java.lang.String)" class="member-name-link">switchToWindow</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;nameOrHandle)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Switches to the window with the given name or handle.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeIntoPromptAlert(java.lang.String)" class="member-name-link">typeIntoPromptAlert</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;text)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -457,10 +556,14 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../validation/PlaywrightBrowserValidationsBuilder.html" title="class in com.shaft.gui.playwright.validation">PlaywrightBrowserValidationsBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat()" class="member-name-link">verifyThat</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Starts a soft verification on the browser; failures are reported at the end of the test.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitForLazyLoading()" class="member-name-link">waitForLazyLoading</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Waits until lazily loaded content on the current page has finished loading.</div>
+</div>
 </div>
 </div>
 </div>
@@ -486,6 +589,7 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 <h3>BrowserActions</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">BrowserActions</span><wbr><span class="parameters">(<a href="../internal/PlaywrightSession.html" title="class in com.shaft.gui.playwright.internal">PlaywrightSession</a>&nbsp;session)</span></div>
+<div class="block">Creates browser actions for the given Playwright session.</div>
 </div>
 </section>
 </li>
@@ -502,6 +606,8 @@ implements <a href="../../driver/BrowserActionsContract.html" title="interface i
 <h3>and</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">and</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#and()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns this instance to chain the next browser action.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#and()">and</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -682,6 +788,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>assertThat</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../validation/PlaywrightBrowserValidationsBuilder.html" title="class in com.shaft.gui.playwright.validation">PlaywrightBrowserValidationsBuilder</a></span>&nbsp;<span class="element-name">assertThat</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#assertThat()">BrowserActionsContract</a></code></span></div>
+<div class="block">Starts a hard assertion on the browser; a failure stops the test.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#assertThat()">assertThat</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -694,6 +802,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>verifyThat</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../validation/PlaywrightBrowserValidationsBuilder.html" title="class in com.shaft.gui.playwright.validation">PlaywrightBrowserValidationsBuilder</a></span>&nbsp;<span class="element-name">verifyThat</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#verifyThat()">BrowserActionsContract</a></code></span></div>
+<div class="block">Starts a soft verification on the browser; failures are reported at the end of the test.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#verifyThat()">verifyThat</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -706,6 +816,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>capturePageSnapshot</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">capturePageSnapshot</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#capturePageSnapshot()">BrowserActionsContract</a></code></span></div>
+<div class="block">Attaches a snapshot of the current page to the report.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#capturePageSnapshot()">capturePageSnapshot</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -718,6 +830,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>getCurrentURL</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getCurrentURL</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getCurrentURL()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the URL of the current page.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getCurrentURL()">getCurrentURL</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -730,6 +844,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>getCurrentWindowTitle</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getCurrentWindowTitle</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getCurrentWindowTitle()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the title of the current window.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getCurrentWindowTitle()">getCurrentWindowTitle</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -742,6 +858,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>getPageSource</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getPageSource</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getPageSource()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the source of the current page.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getPageSource()">getPageSource</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -754,6 +872,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>getWindowHandle</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getWindowHandle</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getWindowHandle()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the handle of the current window.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getWindowHandle()">getWindowHandle</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -766,6 +886,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>getWindowPosition</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getWindowPosition</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getWindowPosition()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the position of the current window.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getWindowPosition()">getWindowPosition</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -778,6 +900,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>getWindowSize</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getWindowSize</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getWindowSize()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the size of the current window.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getWindowSize()">getWindowSize</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -790,6 +914,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>getWindowHeight</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getWindowHeight</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getWindowHeight()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the height of the current window.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getWindowHeight()">getWindowHeight</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -802,6 +928,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>getWindowWidth</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getWindowWidth</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getWindowWidth()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the width of the current window.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getWindowWidth()">getWindowWidth</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -814,6 +942,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>navigateToURL</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">navigateToURL</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#navigateToURL(java.lang.String)">BrowserActionsContract</a></code></span></div>
+<div class="block">Navigates to the target URL in the current window.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#navigateToURL(java.lang.String)">navigateToURL</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -827,6 +957,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">navigateToURL</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  org.openqa.selenium.WindowType&nbsp;windowType)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#navigateToURL(java.lang.String,org.openqa.selenium.WindowType)">BrowserActionsContract</a></code></span></div>
+<div class="block">Opens the target URL in a new tab or window.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#navigateToURL(java.lang.String,org.openqa.selenium.WindowType)">navigateToURL</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -874,6 +1006,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">navigateToURL</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrl,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrlAfterRedirection)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#navigateToURL(java.lang.String,java.lang.String)">BrowserActionsContract</a></code></span></div>
+<div class="block">Navigates to the target URL and waits for the redirect to the expected URL.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#navigateToURL(java.lang.String,java.lang.String)">navigateToURL</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -889,6 +1023,9 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;username,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;password,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;targetUrlAfterAuthentication)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#navigateToURLWithBasicAuthentication(java.lang.String,java.lang.String,java.lang.String,java.lang.String)">BrowserActionsContract</a></code></span></div>
+<div class="block">Navigates to a page protected by HTTP basic authentication and waits for the expected URL
+after logging in.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#navigateToURLWithBasicAuthentication(java.lang.String,java.lang.String,java.lang.String,java.lang.String)">navigateToURLWithBasicAuthentication</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -901,6 +1038,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>navigateBack</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">navigateBack</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#navigateBack()">BrowserActionsContract</a></code></span></div>
+<div class="block">Navigates back in the browser history.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#navigateBack()">navigateBack</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -913,6 +1052,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>navigateForward</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">navigateForward</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#navigateForward()">BrowserActionsContract</a></code></span></div>
+<div class="block">Navigates forward in the browser history.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#navigateForward()">navigateForward</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -925,6 +1066,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>refreshCurrentPage</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">refreshCurrentPage</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#refreshCurrentPage()">BrowserActionsContract</a></code></span></div>
+<div class="block">Reloads the current page.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#refreshCurrentPage()">refreshCurrentPage</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -937,6 +1080,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>closeCurrentWindow</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">closeCurrentWindow</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#closeCurrentWindow()">BrowserActionsContract</a></code></span></div>
+<div class="block">Closes the current window.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#closeCurrentWindow()">closeCurrentWindow</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -949,6 +1094,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>maximizeWindow</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">maximizeWindow</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#maximizeWindow()">BrowserActionsContract</a></code></span></div>
+<div class="block">Maximizes the current window.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#maximizeWindow()">maximizeWindow</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -962,6 +1109,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">setWindowSize</span><wbr><span class="parameters">(int&nbsp;width,
  int&nbsp;height)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#setWindowSize(int,int)">BrowserActionsContract</a></code></span></div>
+<div class="block">Resizes the current window to the given width and height in pixels.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#setWindowSize(int,int)">setWindowSize</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -975,6 +1124,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">mock</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Predicate.html" title="class or interface in java.util.function" class="external-link">Predicate</a>&lt;org.openqa.selenium.remote.http.HttpRequest&gt;&nbsp;requestPredicate,
  org.openqa.selenium.remote.http.HttpResponse&nbsp;mockedResponse)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#mock(java.util.function.Predicate,org.openqa.selenium.remote.http.HttpResponse)">BrowserActionsContract</a></code></span></div>
+<div class="block">Answers every request that matches the predicate with the mocked response.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#mock(java.util.function.Predicate,org.openqa.selenium.remote.http.HttpResponse)">mock</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -987,6 +1138,8 @@ for <a href="../../driver/BrowserActionsContract.html#network()"><code>BrowserAc
 <h3>interceptRequest</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../browser/NetworkInterceptionRequestBuilder.html" title="class in com.shaft.gui.browser">NetworkInterceptionRequestBuilder</a>&lt;<a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a>&gt;</span>&nbsp;<span class="element-name">interceptRequest</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#interceptRequest()">BrowserActionsContract</a></code></span></div>
+<div class="block">Starts building a network interception rule.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#interceptRequest()">interceptRequest</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1101,6 +1254,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">intercept</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Predicate.html" title="class or interface in java.util.function" class="external-link">Predicate</a>&lt;org.openqa.selenium.remote.http.HttpRequest&gt;&nbsp;requestPredicate,
  org.openqa.selenium.remote.http.HttpResponse&nbsp;mockedResponse)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#intercept(java.util.function.Predicate,org.openqa.selenium.remote.http.HttpResponse)">BrowserActionsContract</a></code></span></div>
+<div class="block">Intercepts every request that matches the predicate and replies with the given response.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#intercept(java.util.function.Predicate,org.openqa.selenium.remote.http.HttpResponse)">intercept</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1113,6 +1268,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <h3>clearNetworkInterceptors</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">clearNetworkInterceptors</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#clearNetworkInterceptors()">BrowserActionsContract</a></code></span></div>
+<div class="block">Removes every network mock and interception rule.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#clearNetworkInterceptors()">clearNetworkInterceptors</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1125,6 +1282,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <h3>fullScreenWindow</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">fullScreenWindow</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#fullScreenWindow()">BrowserActionsContract</a></code></span></div>
+<div class="block">Switches the current window to full screen.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#fullScreenWindow()">fullScreenWindow</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1137,6 +1296,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <h3>switchToWindow</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">switchToWindow</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;nameOrHandle)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#switchToWindow(java.lang.String)">BrowserActionsContract</a></code></span></div>
+<div class="block">Switches to the window with the given name or handle.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#switchToWindow(java.lang.String)">switchToWindow</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1227,6 +1388,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">addCookie</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;key,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#addCookie(java.lang.String,java.lang.String)">BrowserActionsContract</a></code></span></div>
+<div class="block">Adds a cookie with the given name and value to the current domain.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#addCookie(java.lang.String,java.lang.String)">addCookie</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1239,6 +1402,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <h3>getCookie</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">org.openqa.selenium.Cookie</span>&nbsp;<span class="element-name">getCookie</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getCookie(java.lang.String)">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the cookie with the given name.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getCookie(java.lang.String)">getCookie</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1251,6 +1416,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <h3>getAllCookies</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Set.html" title="class or interface in java.util" class="external-link">Set</a>&lt;org.openqa.selenium.Cookie&gt;</span>&nbsp;<span class="element-name">getAllCookies</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getAllCookies()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns every cookie of the current domain.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getAllCookies()">getAllCookies</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1263,6 +1430,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <h3>getCookieDomain</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getCookieDomain</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getCookieDomain(java.lang.String)">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the domain of the cookie with the given name.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getCookieDomain(java.lang.String)">getCookieDomain</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1275,6 +1444,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <h3>getCookieValue</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getCookieValue</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getCookieValue(java.lang.String)">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the value of the cookie with the given name.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getCookieValue(java.lang.String)">getCookieValue</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1287,6 +1458,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <h3>getCookiePath</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getCookiePath</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getCookiePath(java.lang.String)">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the path of the cookie with the given name.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getCookiePath(java.lang.String)">getCookiePath</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1299,6 +1472,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <h3>deleteCookie</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">deleteCookie</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;cookieName)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#deleteCookie(java.lang.String)">BrowserActionsContract</a></code></span></div>
+<div class="block">Deletes the cookie with the given name.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#deleteCookie(java.lang.String)">deleteCookie</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1311,6 +1486,8 @@ driver.browser().navigateToURL("https://shop.example/checkout");
 <h3>deleteAllCookies</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">deleteAllCookies</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#deleteAllCookies()">BrowserActionsContract</a></code></span></div>
+<div class="block">Deletes every cookie of the current domain.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#deleteAllCookies()">deleteAllCookies</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1365,6 +1542,8 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>captureScreenshot</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">captureScreenshot</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#captureScreenshot()">BrowserActionsContract</a></code></span></div>
+<div class="block">Attaches a screenshot of the current page to the report.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#captureScreenshot()">captureScreenshot</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1377,6 +1556,8 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>captureScreenshot</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">captureScreenshot</span><wbr><span class="parameters">(<a href="../../../enums/internal/Screenshots.html" title="enum class in com.shaft.enums.internal">Screenshots</a>&nbsp;type)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#captureScreenshot(com.shaft.enums.internal.Screenshots)">BrowserActionsContract</a></code></span></div>
+<div class="block">Attaches a screenshot of the given type to the report.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#captureScreenshot(com.shaft.enums.internal.Screenshots)">captureScreenshot</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1389,6 +1570,8 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>captureSnapshot</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">captureSnapshot</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#captureSnapshot()">BrowserActionsContract</a></code></span></div>
+<div class="block">Attaches a full page snapshot (MHTML) to the report.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#captureSnapshot()">captureSnapshot</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1401,6 +1584,8 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>generateLightHouseReport</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">generateLightHouseReport</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#generateLightHouseReport()">BrowserActionsContract</a></code></span></div>
+<div class="block">Generates a Lighthouse performance report for the current page.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#generateLightHouseReport()">generateLightHouseReport</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1413,6 +1598,8 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>waitForLazyLoading</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">waitForLazyLoading</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#waitForLazyLoading()">BrowserActionsContract</a></code></span></div>
+<div class="block">Waits until lazily loaded content on the current page has finished loading.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#waitForLazyLoading()">waitForLazyLoading</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1425,6 +1612,8 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>getContext</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">getContext</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getContext()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the current mobile context, such as <code>NATIVE_APP</code> or a web view.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getContext()">getContext</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1437,6 +1626,8 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>setContext</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">setContext</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;context)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#setContext(java.lang.String)">BrowserActionsContract</a></code></span></div>
+<div class="block">Switches to the given mobile context.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#setContext(java.lang.String)">setContext</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1449,6 +1640,8 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>getWindowHandles</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</span>&nbsp;<span class="element-name">getWindowHandles</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getWindowHandles()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the handles of all open windows.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getWindowHandles()">getWindowHandles</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1461,6 +1654,8 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>getContextHandles</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</span>&nbsp;<span class="element-name">getContextHandles</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#getContextHandles()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the names of all available mobile contexts.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#getContextHandles()">getContextHandles</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1473,6 +1668,8 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>accessibility</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/accessibility/AccessibilityActions.html" title="class in com.shaft.validation.accessibility">AccessibilityActions</a></span>&nbsp;<span class="element-name">accessibility</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/BrowserActionsContract.html#accessibility()">BrowserActionsContract</a></code></span></div>
+<div class="block">Returns the accessibility actions for the current page.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/BrowserActionsContract.html#accessibility()">accessibility</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/BrowserActionsContract.html" title="interface in com.shaft.gui.driver">BrowserActionsContract</a></code></dd>
@@ -1485,6 +1682,7 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>getNativeContext</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">com.microsoft.playwright.BrowserContext</span>&nbsp;<span class="element-name">getNativeContext</span>()</div>
+<div class="block">Returns the underlying Playwright browser context.</div>
 </div>
 </section>
 </li>
@@ -1493,6 +1691,7 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>getNativePage</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">com.microsoft.playwright.Page</span>&nbsp;<span class="element-name">getNativePage</span>()</div>
+<div class="block">Returns the underlying Playwright page.</div>
 </div>
 </section>
 </li>
@@ -1501,6 +1700,7 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <h3>locator</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">com.microsoft.playwright.Locator</span>&nbsp;<span class="element-name">locator</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;selector)</span></div>
+<div class="block">Returns a Playwright locator for the given selector on the current page.</div>
 </div>
 </section>
 </li>
@@ -1510,6 +1710,7 @@ Reads the same JSON schema as the WebDriver backend's <code>loadStorageState</co
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="BrowserActions.html" title="class in com.shaft.gui.playwright.browser">BrowserActions</a></span>&nbsp;<span class="element-name">registerNetworkInterceptionRule</span><wbr><span class="parameters">(<a href="../../browser/internal/BrowserNetworkInterceptionRule.html" title="class in com.shaft.gui.browser.internal">BrowserNetworkInterceptionRule</a>&nbsp;rule,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;successMessage)</span></div>
+<div class="block">Registers a network interception rule and reports the given message once it is active.</div>
 </div>
 </section>
 </li>

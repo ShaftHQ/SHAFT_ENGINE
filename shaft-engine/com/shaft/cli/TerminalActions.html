@@ -217,19 +217,28 @@ local <a href="#performTerminalCommand(java.lang.String)"><code>performTerminalC
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TerminalActions.html" title="class in com.shaft.cli">TerminalActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getInstance()" class="member-name-link">getInstance</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns a local, synchronous, reporting terminal.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TerminalActions.html" title="class in com.shaft.cli">TerminalActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getInstance(boolean)" class="member-name-link">getInstance</a><wbr>(boolean&nbsp;asynchronous)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns a local reporting terminal that runs commands asynchronously when requested.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TerminalActions.html" title="class in com.shaft.cli">TerminalActions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getInstance(boolean,boolean)" class="member-name-link">getInstance</a><wbr>(boolean&nbsp;asynchronous,
  boolean&nbsp;verbose)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns a local terminal with the given asynchronous and verbose behavior.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TerminalActions.html" title="class in com.shaft.cli">TerminalActions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#getInstance(boolean,boolean,boolean)" class="member-name-link">getInstance</a><wbr>(boolean&nbsp;asynchronous,
  boolean&nbsp;verbose,
  boolean&nbsp;isInternal)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns a local terminal with the given asynchronous, verbose and internal (unreported)
+behavior.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>com.jcraft.jsch.Session</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#getJschSession()" class="member-name-link">getJschSession</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -270,7 +279,10 @@ to discrete logs while the remote command is still running.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isRemoteTerminal()" class="member-name-link">isRemoteTerminal</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns whether this terminal runs commands on a remote host over SSH or in a Docker
+container.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SshShellSession.html" title="class in com.shaft.cli">SshShellSession</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#openShell(com.shaft.cli.SshShellOptions)" class="member-name-link">openShell</a><wbr>(<a href="SshShellOptions.html" title="class in com.shaft.cli">SshShellOptions</a>&nbsp;options)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -295,7 +307,9 @@ to discrete logs while the remote command is still running.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#performTerminalCommand(java.lang.String)" class="member-name-link">performTerminalCommand</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;command)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Runs one command and returns its output.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#performTerminalCommand(java.lang.String,java.util.Map)" class="member-name-link">performTerminalCommand</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;command,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;environmentVariables)</code></div>
@@ -304,7 +318,9 @@ to discrete logs while the remote command is still running.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#performTerminalCommands(java.util.List)" class="member-name-link">performTerminalCommands</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;commands)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Runs the given commands in order and returns their combined output.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#performTerminalCommands(java.util.List,java.util.Map)" class="member-name-link">performTerminalCommands</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;commands,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;environmentVariables)</code></div>
@@ -467,6 +483,7 @@ local <a href="#performTerminalCommand(java.lang.String)"><code>performTerminalC
 <h3>getInstance</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="TerminalActions.html" title="class in com.shaft.cli">TerminalActions</a></span>&nbsp;<span class="element-name">getInstance</span>()</div>
+<div class="block">Returns a local, synchronous, reporting terminal.</div>
 </div>
 </section>
 </li>
@@ -475,6 +492,7 @@ local <a href="#performTerminalCommand(java.lang.String)"><code>performTerminalC
 <h3>getInstance</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="TerminalActions.html" title="class in com.shaft.cli">TerminalActions</a></span>&nbsp;<span class="element-name">getInstance</span><wbr><span class="parameters">(boolean&nbsp;asynchronous)</span></div>
+<div class="block">Returns a local reporting terminal that runs commands asynchronously when requested.</div>
 </div>
 </section>
 </li>
@@ -484,6 +502,7 @@ local <a href="#performTerminalCommand(java.lang.String)"><code>performTerminalC
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="TerminalActions.html" title="class in com.shaft.cli">TerminalActions</a></span>&nbsp;<span class="element-name">getInstance</span><wbr><span class="parameters">(boolean&nbsp;asynchronous,
  boolean&nbsp;verbose)</span></div>
+<div class="block">Returns a local terminal with the given asynchronous and verbose behavior.</div>
 </div>
 </section>
 </li>
@@ -494,6 +513,8 @@ local <a href="#performTerminalCommand(java.lang.String)"><code>performTerminalC
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="TerminalActions.html" title="class in com.shaft.cli">TerminalActions</a></span>&nbsp;<span class="element-name">getInstance</span><wbr><span class="parameters">(boolean&nbsp;asynchronous,
  boolean&nbsp;verbose,
  boolean&nbsp;isInternal)</span></div>
+<div class="block">Returns a local terminal with the given asynchronous, verbose and internal (unreported)
+behavior.</div>
 </div>
 </section>
 </li>
@@ -567,6 +588,8 @@ to discrete logs while the remote command is still running.</div>
 <h3>isRemoteTerminal</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isRemoteTerminal</span>()</div>
+<div class="block">Returns whether this terminal runs commands on a remote host over SSH or in a Docker
+container.</div>
 </div>
 </section>
 </li>
@@ -588,6 +611,7 @@ to discrete logs while the remote command is still running.</div>
 <h3>performTerminalCommands</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">performTerminalCommands</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;commands)</span></div>
+<div class="block">Runs the given commands in order and returns their combined output.</div>
 </div>
 </section>
 </li>
@@ -620,6 +644,7 @@ variables.</p></div>
 <h3>performTerminalCommand</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">performTerminalCommand</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;command)</span></div>
+<div class="block">Runs one command and returns its output.</div>
 </div>
 </section>
 </li>

@@ -116,27 +116,38 @@ Controls whether Healenium is enabled and its recovery score threshold.
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#healEnabled()" class="member-name-link">healEnabled</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Enable the Healenium self-healing proxy for this run.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#imitatePort()" class="member-name-link">imitatePort</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Local port SHAFT uses so Healenium can intercept browser traffic.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#recoveryTries()" class="member-name-link">recoveryTries</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Number of Healenium self-healing recovery attempts before giving up on a broken locator.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#scoreCap()" class="member-name-link">scoreCap</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Minimum Healenium similarity score required to accept a healed locator candidate.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#serverHost()" class="member-name-link">serverHost</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Hostname of the Healenium server that scores locator-healing candidates.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#serverPort()" class="member-name-link">serverPort</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Port of the Healenium server that scores locator-healing candidates.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
-<div class="block">Returns a fluent <a href="EngineProperties.SetProperty.html" title="interface in com.shaft.properties.internal"><code>EngineProperties.SetProperty</code></a> builder that allows programmatic override
-of individual configuration properties at runtime.</div>
+<div class="block">Starts a fluent, thread-local override of these properties for the current test thread.</div>
 </div>
 </div>
 </div>
@@ -159,6 +170,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("recovery-tries")
 @DefaultValue("1")
 </span><span class="return-type">int</span>&nbsp;<span class="element-name">recoveryTries</span>()</div>
+<div class="block">Number of Healenium self-healing recovery attempts before giving up on a broken locator.
+
+<p>Default: <code>1</code>. Possible values: positive integer.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>recovery-tries</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -169,6 +187,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("score-cap")
 @DefaultValue("0.5")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">scoreCap</span>()</div>
+<div class="block">Minimum Healenium similarity score required to accept a healed locator candidate.
+
+<p>Default: <code>0.5</code>. Possible values: 0.0 to 1.0.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>score-cap</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -179,6 +204,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("heal-enabled")
 @DefaultValue("false")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">healEnabled</span>()</div>
+<div class="block">Enable the Healenium self-healing proxy for this run.
+
+<p>Default: <code>false</code>. Possible values: true, false.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>heal-enabled</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -189,6 +221,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("serverHost")
 @DefaultValue("localhost")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">serverHost</span>()</div>
+<div class="block">Hostname of the Healenium server that scores locator-healing candidates.
+
+<p>Default: <code>localhost</code>. Possible values: hostname.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>serverHost</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -199,6 +238,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("serverPort")
 @DefaultValue("7878")
 </span><span class="return-type">int</span>&nbsp;<span class="element-name">serverPort</span>()</div>
+<div class="block">Port of the Healenium server that scores locator-healing candidates.
+
+<p>Default: <code>7878</code>. Possible values: port number.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>serverPort</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -209,6 +255,13 @@ of individual configuration properties at runtime.</div>
 <div class="member-signature"><span class="annotations">@Key("imitatePort")
 @DefaultValue("8000")
 </span><span class="return-type">int</span>&nbsp;<span class="element-name">imitatePort</span>()</div>
+<div class="block">Local port SHAFT uses so Healenium can intercept browser traffic.
+
+<p>Default: <code>8000</code>. Possible values: port number.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>imitatePort</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -217,14 +270,12 @@ of individual configuration properties at runtime.</div>
 <h3>set</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal">Healenium.SetProperty</a></span>&nbsp;<span class="element-name">set</span>()</div>
-<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="EngineProperties.html#set()">EngineProperties</a></code></span></div>
-<div class="block">Returns a fluent <a href="EngineProperties.SetProperty.html" title="interface in com.shaft.properties.internal"><code>EngineProperties.SetProperty</code></a> builder that allows programmatic override
-of individual configuration properties at runtime.</div>
+<div class="block">Starts a fluent, thread-local override of these properties for the current test thread.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="EngineProperties.html#set()">set</a></code>&nbsp;in interface&nbsp;<code><a href="EngineProperties.html" title="interface in com.shaft.properties.internal">EngineProperties</a>&lt;<a href="Healenium.html" title="interface in com.shaft.properties.internal">Healenium</a>&gt;</code></dd>
 <dt>Returns:</dt>
-<dd>a new <a href="EngineProperties.SetProperty.html" title="interface in com.shaft.properties.internal"><code>EngineProperties.SetProperty</code></a> instance for chaining property overrides</dd>
+<dd>a new <a href="Healenium.SetProperty.html" title="class in com.shaft.properties.internal"><code>Healenium.SetProperty</code></a> builder</dd>
 </dl>
 </div>
 </section>

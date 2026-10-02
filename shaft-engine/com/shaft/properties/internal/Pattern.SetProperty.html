@@ -113,10 +113,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Pattern.SetProperty.html" title="class in com.shaft.properties.internal">Pattern.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#allureLinkIssuePattern(java.lang.String)" class="member-name-link">allureLinkIssuePattern</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>allure.link.issue.pattern</code> property at runtime.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Pattern.SetProperty.html" title="class in com.shaft.properties.internal">Pattern.SetProperty</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#testDataColumnNamePrefix(java.lang.String)" class="member-name-link">testDataColumnNamePrefix</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>testDataColumnNamePrefix</code> property at runtime.</div>
+</div>
 </div>
 </div>
 </div>
@@ -158,6 +162,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>testDataColumnNamePrefix</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Pattern.SetProperty.html" title="class in com.shaft.properties.internal">Pattern.SetProperty</a></span>&nbsp;<span class="element-name">testDataColumnNamePrefix</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>testDataColumnNamePrefix</code> property at runtime. Prefix used when naming
+generated data-provider parameters in test reports.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>testDataColumnNamePrefix</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Pattern.SetProperty.html" title="class in com.shaft.properties.internal"><code>Pattern.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -166,6 +178,15 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>allureLinkIssuePattern</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Pattern.SetProperty.html" title="class in com.shaft.properties.internal">Pattern.SetProperty</a></span>&nbsp;<span class="element-name">allureLinkIssuePattern</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>allure.link.issue.pattern</code> property at runtime. URL pattern used to turn
+@Issue/@Issues annotation values into clickable links in the Allure
+report; use {} as the issue-ID placeholder.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>allure.link.issue.pattern</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Pattern.SetProperty.html" title="class in com.shaft.properties.internal"><code>Pattern.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>

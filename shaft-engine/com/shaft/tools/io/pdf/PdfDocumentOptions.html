@@ -145,7 +145,9 @@
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#defaults()" class="member-name-link">defaults</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns document options built from the configured OCR document properties.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#deskew()" class="member-name-link">deskew</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -223,21 +225,31 @@
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withAllureEvidence(boolean)" class="member-name-link">withAllureEvidence</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy that attaches evidence to the Allure report when enabled.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withOcrOptions(com.shaft.gui.ocr.OcrOptions)" class="member-name-link">withOcrOptions</a><wbr>(<a href="../../../gui/ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy that uses the given OCR options for scanned pages.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withPageTimeout(java.time.Duration)" class="member-name-link">withPageTimeout</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy with the given time limit per page.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withRenderDpi(int)" class="member-name-link">withRenderDpi</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy that rasterizes pages at the given DPI.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withResourceLimits(long,int,long)" class="member-name-link">withResourceLimits</a><wbr>(long&nbsp;inputBytes,
  int&nbsp;pages,
  long&nbsp;pixelsPerPage)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy with the given input size, page count and pixels-per-page limits.</div>
+</div>
 </div>
 </div>
 </div>
@@ -305,6 +317,7 @@
 <h3>defaults</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></span>&nbsp;<span class="element-name">defaults</span>()</div>
+<div class="block">Returns document options built from the configured OCR document properties.</div>
 </div>
 </section>
 </li>
@@ -313,6 +326,7 @@
 <h3>withOcrOptions</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></span>&nbsp;<span class="element-name">withOcrOptions</span><wbr><span class="parameters">(<a href="../../../gui/ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;value)</span></div>
+<div class="block">Returns a copy that uses the given OCR options for scanned pages.</div>
 </div>
 </section>
 </li>
@@ -321,6 +335,7 @@
 <h3>withRenderDpi</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></span>&nbsp;<span class="element-name">withRenderDpi</span><wbr><span class="parameters">(int&nbsp;value)</span></div>
+<div class="block">Returns a copy that rasterizes pages at the given DPI.</div>
 </div>
 </section>
 </li>
@@ -331,6 +346,7 @@
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></span>&nbsp;<span class="element-name">withResourceLimits</span><wbr><span class="parameters">(long&nbsp;inputBytes,
  int&nbsp;pages,
  long&nbsp;pixelsPerPage)</span></div>
+<div class="block">Returns a copy with the given input size, page count and pixels-per-page limits.</div>
 </div>
 </section>
 </li>
@@ -339,6 +355,7 @@
 <h3>withPageTimeout</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></span>&nbsp;<span class="element-name">withPageTimeout</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;value)</span></div>
+<div class="block">Returns a copy with the given time limit per page.</div>
 </div>
 </section>
 </li>
@@ -347,6 +364,7 @@
 <h3>withAllureEvidence</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="PdfDocumentOptions.html" title="class in com.shaft.tools.io.pdf">PdfDocumentOptions</a></span>&nbsp;<span class="element-name">withAllureEvidence</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Returns a copy that attaches evidence to the Allure report when enabled.</div>
 </div>
 </section>
 </li>

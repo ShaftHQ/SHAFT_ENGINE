@@ -107,7 +107,9 @@
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(com.shaft.infrastructure.SetupAction,com.shaft.infrastructure.SetupReceipt,java.lang.RuntimeException)" class="member-name-link">SetupExecutionException</a><wbr>(<a href="SetupAction.html" title="class in com.shaft.infrastructure">SetupAction</a>&nbsp;failedAction,
  <a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a>&nbsp;partialReceipt,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/RuntimeException.html" title="class or interface in java.lang" class="external-link">RuntimeException</a>&nbsp;cause)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates an exception for a failed setup action, keeping what was already installed.</div>
+</div>
 </div>
 </section>
 </li>
@@ -124,10 +126,14 @@
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupAction.html" title="class in com.shaft.infrastructure">SetupAction</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failedAction()" class="member-name-link">failedAction</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the action that failed.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#partialReceipt()" class="member-name-link">partialReceipt</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the receipt of what was installed before the failure.</div>
+</div>
 </div>
 </div>
 </div>
@@ -155,6 +161,7 @@
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">SetupExecutionException</span><wbr><span class="parameters">(<a href="SetupAction.html" title="class in com.shaft.infrastructure">SetupAction</a>&nbsp;failedAction,
  <a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a>&nbsp;partialReceipt,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/RuntimeException.html" title="class or interface in java.lang" class="external-link">RuntimeException</a>&nbsp;cause)</span></div>
+<div class="block">Creates an exception for a failed setup action, keeping what was already installed.</div>
 </div>
 </section>
 </li>
@@ -171,6 +178,7 @@
 <h3>failedAction</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupAction.html" title="class in com.shaft.infrastructure">SetupAction</a></span>&nbsp;<span class="element-name">failedAction</span>()</div>
+<div class="block">Returns the action that failed.</div>
 </div>
 </section>
 </li>
@@ -179,6 +187,7 @@
 <h3>partialReceipt</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></span>&nbsp;<span class="element-name">partialReceipt</span>()</div>
+<div class="block">Returns the receipt of what was installed before the failure.</div>
 </div>
 </section>
 </li>

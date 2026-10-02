@@ -145,7 +145,9 @@
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#defaults(com.shaft.infrastructure.SetupProfile,com.shaft.infrastructure.ShaftCachePaths)" class="member-name-link">defaults</a><wbr>(<a href="SetupProfile.html" title="enum class in com.shaft.infrastructure">SetupProfile</a>&nbsp;profile,
  <a href="ShaftCachePaths.html" title="class in com.shaft.infrastructure">ShaftCachePaths</a>&nbsp;paths)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns default options for the profile and cache paths.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupMode.html" title="enum class in com.shaft.infrastructure">SetupMode</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#effectiveMode()" class="member-name-link">effectiveMode</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -218,16 +220,24 @@
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withAutoStart(boolean)" class="member-name-link">withAutoStart</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy that starts owned services automatically when enabled.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withMode(com.shaft.infrastructure.SetupMode)" class="member-name-link">withMode</a><wbr>(<a href="SetupMode.html" title="enum class in com.shaft.infrastructure">SetupMode</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy with the given ownership mode.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withOffline(boolean)" class="member-name-link">withOffline</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy that only uses verified cached artifacts when offline.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withPreferSystemTools(boolean)" class="member-name-link">withPreferSystemTools</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy that prefers compatible host tools when enabled.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withProfile(com.shaft.infrastructure.SetupProfile)" class="member-name-link">withProfile</a><wbr>(<a href="SetupProfile.html" title="enum class in com.shaft.infrastructure">SetupProfile</a>&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -235,14 +245,20 @@
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withRemoteEndpoint(java.net.URI)" class="member-name-link">withRemoteEndpoint</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/net/URI.html" title="class or interface in java.net" class="external-link">URI</a>&nbsp;endpoint)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy that uses the given remote service endpoint.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withReuseOwnedProcesses(boolean)" class="member-name-link">withReuseOwnedProcesses</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy that reuses compatible SHAFT-owned processes when enabled.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withTimeouts(java.time.Duration,java.time.Duration)" class="member-name-link">withTimeouts</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;startup,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;shutdown)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns a copy with the given startup and shutdown timeouts.</div>
+</div>
 </div>
 </div>
 </div>
@@ -305,6 +321,7 @@
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></span>&nbsp;<span class="element-name">defaults</span><wbr><span class="parameters">(<a href="SetupProfile.html" title="enum class in com.shaft.infrastructure">SetupProfile</a>&nbsp;profile,
  <a href="ShaftCachePaths.html" title="class in com.shaft.infrastructure">ShaftCachePaths</a>&nbsp;paths)</span></div>
+<div class="block">Returns default options for the profile and cache paths.</div>
 </div>
 </section>
 </li>
@@ -322,6 +339,7 @@
 <h3>withMode</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></span>&nbsp;<span class="element-name">withMode</span><wbr><span class="parameters">(<a href="SetupMode.html" title="enum class in com.shaft.infrastructure">SetupMode</a>&nbsp;value)</span></div>
+<div class="block">Returns a copy with the given ownership mode.</div>
 </div>
 </section>
 </li>
@@ -345,6 +363,7 @@
 <h3>withOffline</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></span>&nbsp;<span class="element-name">withOffline</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Returns a copy that only uses verified cached artifacts when offline.</div>
 </div>
 </section>
 </li>
@@ -353,6 +372,7 @@
 <h3>withAutoStart</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></span>&nbsp;<span class="element-name">withAutoStart</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Returns a copy that starts owned services automatically when enabled.</div>
 </div>
 </section>
 </li>
@@ -361,6 +381,7 @@
 <h3>withPreferSystemTools</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></span>&nbsp;<span class="element-name">withPreferSystemTools</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Returns a copy that prefers compatible host tools when enabled.</div>
 </div>
 </section>
 </li>
@@ -369,6 +390,7 @@
 <h3>withReuseOwnedProcesses</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></span>&nbsp;<span class="element-name">withReuseOwnedProcesses</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Returns a copy that reuses compatible SHAFT-owned processes when enabled.</div>
 </div>
 </section>
 </li>
@@ -378,6 +400,7 @@
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></span>&nbsp;<span class="element-name">withTimeouts</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;startup,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;shutdown)</span></div>
+<div class="block">Returns a copy with the given startup and shutdown timeouts.</div>
 </div>
 </section>
 </li>
@@ -386,6 +409,7 @@
 <h3>withRemoteEndpoint</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupOptions.html" title="class in com.shaft.infrastructure">SetupOptions</a></span>&nbsp;<span class="element-name">withRemoteEndpoint</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/net/URI.html" title="class or interface in java.net" class="external-link">URI</a>&nbsp;endpoint)</span></div>
+<div class="block">Returns a copy that uses the given remote service endpoint.</div>
 </div>
 </section>
 </li>

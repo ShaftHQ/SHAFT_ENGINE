@@ -133,12 +133,18 @@ Duration-anomaly is optional when timings exist.</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="SmartTagModels.SmartTagTable.html" title="class in com.shaft.doctor.history">SmartTagModels.SmartTagTable</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#compute(com.shaft.doctor.history.AllureHistoryModels.HistoryView)" class="member-name-link">compute</a><wbr>(<a href="AllureHistoryModels.HistoryView.html" title="class in com.shaft.doctor.history">AllureHistoryModels.HistoryView</a>&nbsp;history)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Computes smart tags (such as flaky or newly failing) from Allure history using the default
+window and threshold.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="SmartTagModels.SmartTagTable.html" title="class in com.shaft.doctor.history">SmartTagModels.SmartTagTable</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#compute(com.shaft.doctor.history.AllureHistoryModels.HistoryView,int,int)" class="member-name-link">compute</a><wbr>(<a href="AllureHistoryModels.HistoryView.html" title="class in com.shaft.doctor.history">AllureHistoryModels.HistoryView</a>&nbsp;history,
  int&nbsp;windowSize,
  int&nbsp;flakyTransitionThreshold)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Computes smart tags from Allure history over the given window of runs, treating a test as
+flaky once its pass/fail transitions reach the threshold.</div>
+</div>
 </div>
 </div>
 </div>
@@ -252,6 +258,8 @@ Duration-anomaly is optional when timings exist.</div>
 <h3>compute</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="SmartTagModels.SmartTagTable.html" title="class in com.shaft.doctor.history">SmartTagModels.SmartTagTable</a></span>&nbsp;<span class="element-name">compute</span><wbr><span class="parameters">(<a href="AllureHistoryModels.HistoryView.html" title="class in com.shaft.doctor.history">AllureHistoryModels.HistoryView</a>&nbsp;history)</span></div>
+<div class="block">Computes smart tags (such as flaky or newly failing) from Allure history using the default
+window and threshold.</div>
 </div>
 </section>
 </li>
@@ -262,6 +270,8 @@ Duration-anomaly is optional when timings exist.</div>
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="SmartTagModels.SmartTagTable.html" title="class in com.shaft.doctor.history">SmartTagModels.SmartTagTable</a></span>&nbsp;<span class="element-name">compute</span><wbr><span class="parameters">(<a href="AllureHistoryModels.HistoryView.html" title="class in com.shaft.doctor.history">AllureHistoryModels.HistoryView</a>&nbsp;history,
  int&nbsp;windowSize,
  int&nbsp;flakyTransitionThreshold)</span></div>
+<div class="block">Computes smart tags from Allure history over the given window of runs, treating a test as
+flaky once its pass/fail transitions reach the threshold.</div>
 </div>
 </section>
 </li>

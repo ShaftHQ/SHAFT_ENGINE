@@ -115,16 +115,24 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal">Tinkey.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#keysetFilename(java.lang.String)" class="member-name-link">keysetFilename</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>tinkey.keysetFilename</code> property at runtime.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal">Tinkey.SetProperty</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#kmsCredentialPath(java.lang.String)" class="member-name-link">kmsCredentialPath</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>tinkey.kms.credentialPath</code> property at runtime.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal">Tinkey.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#kmsMasterKeyUri(java.lang.String)" class="member-name-link">kmsMasterKeyUri</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>tinkey.kms.masterKeyUri</code> property at runtime.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal">Tinkey.SetProperty</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#kmsServerType(java.lang.String)" class="member-name-link">kmsServerType</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>tinkey.kms.serverType</code> property at runtime.</div>
+</div>
 </div>
 </div>
 </div>
@@ -166,6 +174,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>keysetFilename</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal">Tinkey.SetProperty</a></span>&nbsp;<span class="element-name">keysetFilename</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>tinkey.keysetFilename</code> property at runtime. Path to the Google Tink keyset
+file used to encrypt/decrypt sensitive test data.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>tinkey.keysetFilename</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal"><code>Tinkey.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -174,6 +190,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>kmsServerType</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal">Tinkey.SetProperty</a></span>&nbsp;<span class="element-name">kmsServerType</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>tinkey.kms.serverType</code> property at runtime. Key Management Service provider
+backing the Tink keyset (e.g.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>tinkey.kms.serverType</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal"><code>Tinkey.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -182,6 +206,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>kmsCredentialPath</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal">Tinkey.SetProperty</a></span>&nbsp;<span class="element-name">kmsCredentialPath</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>tinkey.kms.credentialPath</code> property at runtime. Path to the KMS provider
+credential file used to access the remote master key.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>tinkey.kms.credentialPath</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal"><code>Tinkey.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>
@@ -190,6 +222,14 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <h3>kmsMasterKeyUri</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal">Tinkey.SetProperty</a></span>&nbsp;<span class="element-name">kmsMasterKeyUri</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>tinkey.kms.masterKeyUri</code> property at runtime. URI of the remote KMS master
+key used to encrypt/decrypt the local Tink keyset.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>tinkey.kms.masterKeyUri</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Tinkey.SetProperty.html" title="class in com.shaft.properties.internal"><code>Tinkey.SetProperty</code></a> instance for chaining</dd>
+</dl>
 </div>
 </section>
 </li>

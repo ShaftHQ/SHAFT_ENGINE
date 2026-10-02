@@ -195,10 +195,14 @@ Allure 3 CLI (#5801).</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#shaftEngineVersion()" class="member-name-link">shaftEngineVersion</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Engine version used by update checks, telemetry metadata, and internal tooling.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#watermarkImagePath()" class="member-name-link">watermarkImagePath</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Default watermark image used by screenshot processing.</div>
+</div>
 </div>
 </div>
 </div>
@@ -223,6 +227,13 @@ Allure 3 CLI (#5801).</div>
 <div class="member-signature"><span class="annotations">@Key("shaftEngineVersion")
 @DefaultValue("10.3.20260930")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">shaftEngineVersion</span>()</div>
+<div class="block">Engine version used by update checks, telemetry metadata, and internal tooling.
+
+<p>Default: <code>10.3.20260930</code>. Possible values: version string.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>shaftEngineVersion</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -233,6 +244,14 @@ Allure 3 CLI (#5801).</div>
 <div class="member-signature"><span class="annotations">@Key("watermarkImagePath")
 @DefaultValue("https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-engine/src/main/resources/images/shaft_white_bg.png")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">watermarkImagePath</span>()</div>
+<div class="block">Default watermark image used by screenshot processing.
+
+<p>Default: <code>https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/shaft-
+engine/src/main/resources/images/shaft_white_bg.png</code>. Possible values: URL or file path.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>watermarkImagePath</code></dd>
+</dl>
 </div>
 </section>
 </li>

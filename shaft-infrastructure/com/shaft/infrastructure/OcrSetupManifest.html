@@ -113,14 +113,21 @@
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="SetupAction.html" title="class in com.shaft.infrastructure">SetupAction</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#actions(com.shaft.infrastructure.SetupMode)" class="member-name-link">actions</a><wbr>(<a href="SetupMode.html" title="enum class in com.shaft.infrastructure">SetupMode</a>&nbsp;mode)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns the setup actions for the OCR runtime with the baseline languages.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="SetupAction.html" title="class in com.shaft.infrastructure">SetupAction</a>&gt;</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#actions(com.shaft.infrastructure.SetupMode,java.util.List)" class="member-name-link">actions</a><wbr>(<a href="SetupMode.html" title="enum class in com.shaft.infrastructure">SetupMode</a>&nbsp;mode,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;requestedLanguages)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns the setup actions for the OCR runtime with the baseline languages plus the requested
+ones.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a><wbr>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#baselineLanguages()" class="member-name-link">baselineLanguages</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns the languages installed by default.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#legacyModelsDirectory(java.nio.file.Path)" class="member-name-link">legacyModelsDirectory</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;userHome)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
@@ -128,7 +135,9 @@
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#modelsDirectory(com.shaft.infrastructure.ShaftCachePaths)" class="member-name-link">modelsDirectory</a><wbr>(<a href="ShaftCachePaths.html" title="class in com.shaft.infrastructure">ShaftCachePaths</a>&nbsp;paths)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns the folder that holds OCR language models in the SHAFT cache.</div>
+</div>
 </div>
 </div>
 </div>
@@ -191,6 +200,7 @@
 <h3>actions</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="SetupAction.html" title="class in com.shaft.infrastructure">SetupAction</a>&gt;</span>&nbsp;<span class="element-name">actions</span><wbr><span class="parameters">(<a href="SetupMode.html" title="enum class in com.shaft.infrastructure">SetupMode</a>&nbsp;mode)</span></div>
+<div class="block">Returns the setup actions for the OCR runtime with the baseline languages.</div>
 </div>
 </section>
 </li>
@@ -200,6 +210,8 @@
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="SetupAction.html" title="class in com.shaft.infrastructure">SetupAction</a>&gt;</span>&nbsp;<span class="element-name">actions</span><wbr><span class="parameters">(<a href="SetupMode.html" title="enum class in com.shaft.infrastructure">SetupMode</a>&nbsp;mode,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;requestedLanguages)</span></div>
+<div class="block">Returns the setup actions for the OCR runtime with the baseline languages plus the requested
+ones.</div>
 </div>
 </section>
 </li>
@@ -208,6 +220,7 @@
 <h3>modelsDirectory</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></span>&nbsp;<span class="element-name">modelsDirectory</span><wbr><span class="parameters">(<a href="ShaftCachePaths.html" title="class in com.shaft.infrastructure">ShaftCachePaths</a>&nbsp;paths)</span></div>
+<div class="block">Returns the folder that holds OCR language models in the SHAFT cache.</div>
 </div>
 </section>
 </li>
@@ -225,6 +238,7 @@
 <h3>baselineLanguages</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;</span>&nbsp;<span class="element-name">baselineLanguages</span>()</div>
+<div class="block">Returns the languages installed by default.</div>
 </div>
 </section>
 </li>

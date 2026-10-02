@@ -88,14 +88,18 @@
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture,
  <a href="AndroidSetupRequest.html" title="class in com.shaft.infrastructure">AndroidSetupRequest</a>&nbsp;request)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Returns the logs of the SHAFT-owned Android emulator for the request.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#stop(com.shaft.infrastructure.ShaftCachePaths,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture,com.shaft.infrastructure.AndroidSetupRequest,java.time.Duration)" class="member-name-link">stop</a><wbr>(<a href="ShaftCachePaths.html" title="class in com.shaft.infrastructure">ShaftCachePaths</a>&nbsp;paths,
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture,
  <a href="AndroidSetupRequest.html" title="class in com.shaft.infrastructure">AndroidSetupRequest</a>&nbsp;request,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Stops the SHAFT-owned Android emulator for the request, waiting up to the timeout.</div>
+</div>
 </div>
 </div>
 </div>
@@ -123,9 +127,12 @@
  <a href="AndroidSetupRequest.html" title="class in com.shaft.infrastructure">AndroidSetupRequest</a>&nbsp;request,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</span>
                     throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Stops the SHAFT-owned Android emulator for the request, waiting up to the timeout.</div>
 <dl class="notes">
+<dt>Returns:</dt>
+<dd>whether a running emulator was stopped</dd>
 <dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - when the runtime state cannot be read</dd>
 </dl>
 </div>
 </section>
@@ -139,9 +146,10 @@
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture,
  <a href="AndroidSetupRequest.html" title="class in com.shaft.infrastructure">AndroidSetupRequest</a>&nbsp;request)</span>
                    throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Returns the logs of the SHAFT-owned Android emulator for the request.</div>
 <dl class="notes">
 <dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - when the logs cannot be read</dd>
 </dl>
 </div>
 </section>

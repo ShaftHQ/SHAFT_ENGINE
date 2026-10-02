@@ -91,12 +91,16 @@
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(com.shaft.infrastructure.ShaftCachePaths,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture)" class="member-name-link">ReportingSetupService</a><wbr>(<a href="ShaftCachePaths.html" title="class in com.shaft.infrastructure">ShaftCachePaths</a>&nbsp;paths,
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates the reporting setup service with network access allowed.</div>
+</div>
 <div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(com.shaft.infrastructure.ShaftCachePaths,com.shaft.infrastructure.SetupPlatform,com.shaft.infrastructure.SetupArchitecture,boolean)" class="member-name-link">ReportingSetupService</a><wbr>(<a href="ShaftCachePaths.html" title="class in com.shaft.infrastructure">ShaftCachePaths</a>&nbsp;paths,
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture,
  boolean&nbsp;offline)</code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-last odd-row-color">
+<div class="block">Creates the reporting setup service, optionally restricted to verified cached artifacts.</div>
+</div>
 </div>
 </section>
 </li>
@@ -114,13 +118,19 @@
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#install(com.shaft.infrastructure.SetupPlan,com.shaft.infrastructure.SetupApproval)" class="member-name-link">install</a><wbr>(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Installs the reporting toolchain from an approved plan.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#logFile()" class="member-name-link">logFile</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Returns the log file written by reporting setup.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SetupProfileStatus.html" title="class in com.shaft.infrastructure">SetupProfileStatus</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#status()" class="member-name-link">status</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Reports whether the reporting toolchain is installed.</div>
+</div>
 </div>
 </div>
 </div>
@@ -145,6 +155,7 @@
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">ReportingSetupService</span><wbr><span class="parameters">(<a href="ShaftCachePaths.html" title="class in com.shaft.infrastructure">ShaftCachePaths</a>&nbsp;paths,
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture)</span></div>
+<div class="block">Creates the reporting setup service with network access allowed.</div>
 </div>
 </section>
 </li>
@@ -156,6 +167,7 @@
  <a href="SetupPlatform.html" title="enum class in com.shaft.infrastructure">SetupPlatform</a>&nbsp;platform,
  <a href="SetupArchitecture.html" title="enum class in com.shaft.infrastructure">SetupArchitecture</a>&nbsp;architecture,
  boolean&nbsp;offline)</span></div>
+<div class="block">Creates the reporting setup service, optionally restricted to verified cached artifacts.</div>
 </div>
 </section>
 </li>
@@ -172,6 +184,7 @@
 <h3>status</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupProfileStatus.html" title="class in com.shaft.infrastructure">SetupProfileStatus</a></span>&nbsp;<span class="element-name">status</span>()</div>
+<div class="block">Reports whether the reporting toolchain is installed.</div>
 </div>
 </section>
 </li>
@@ -182,9 +195,10 @@
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SetupReceipt.html" title="class in com.shaft.infrastructure">SetupReceipt</a></span>&nbsp;<span class="element-name">install</span><wbr><span class="parameters">(<a href="SetupPlan.html" title="class in com.shaft.infrastructure">SetupPlan</a>&nbsp;plan,
  <a href="SetupApproval.html" title="class in com.shaft.infrastructure">SetupApproval</a>&nbsp;approval)</span>
                      throws <span class="exceptions"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Installs the reporting toolchain from an approved plan.</div>
 <dl class="notes">
 <dt>Throws:</dt>
-<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code></dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - when an artifact cannot be fetched or written</dd>
 </dl>
 </div>
 </section>
@@ -194,6 +208,7 @@
 <h3>logFile</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></span>&nbsp;<span class="element-name">logFile</span>()</div>
+<div class="block">Returns the log file written by reporting setup.</div>
 </div>
 </section>
 </li>

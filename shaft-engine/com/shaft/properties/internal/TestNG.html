@@ -111,19 +111,30 @@ Controls parallel execution mode, thread count, and suite-level configuration.
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#dataProviderThreadCount()" class="member-name-link">dataProviderThreadCount</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Number of threads TestNG uses to run @DataProvider-fed test invocations in parallel.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#groupByInstances()" class="member-name-link">groupByInstances</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Group parallel test methods by instance instead of running them independently.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#parallel()" class="member-name-link">parallel</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">TestNG parallel execution mode (maps to the generated suite's parallel attribute).</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#parallelMode()" class="member-name-link">parallelMode</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Selects how setThreadCount is applied: STATIC uses it as-is, DYNAMIC multiplies it by the
+available processor cores.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#preserveOrder()" class="member-name-link">preserveOrder</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Preserve declaration order of test methods/classes instead of TestNG's default ordering.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>long</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#testSuiteTimeout()" class="member-name-link">testSuiteTimeout</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
@@ -132,10 +143,14 @@ Default is 1440 minutes == 24 hours</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>double</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#threadCount()" class="member-name-link">threadCount</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">ThreadCount is used as-is in case of STATIC mode.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#verbose()" class="member-name-link">verbose</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">TestNG verbose logging level for the generated suite (0 = silent).</div>
+</div>
 </div>
 </div>
 </div>
@@ -160,6 +175,13 @@ Default is 1440 minutes == 24 hours</div>
 <div class="member-signature"><span class="annotations">@Key("setParallel")
 @DefaultValue("NONE")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">parallel</span>()</div>
+<div class="block">TestNG parallel execution mode (maps to the generated suite's parallel attribute).
+
+<p>Default: <code>NONE</code>. Possible values: METHODS, CLASSES, TESTS, INSTANCES.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>setParallel</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -170,6 +192,14 @@ Default is 1440 minutes == 24 hours</div>
 <div class="member-signature"><span class="annotations">@Key("setParallelMode")
 @DefaultValue("STATIC")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">parallelMode</span>()</div>
+<div class="block">Selects how setThreadCount is applied: STATIC uses it as-is, DYNAMIC multiplies it by the
+available processor cores.
+
+<p>Default: <code>STATIC</code>. Possible values: STATIC, DYNAMIC.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>setParallelMode</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -180,6 +210,14 @@ Default is 1440 minutes == 24 hours</div>
 <div class="member-signature"><span class="annotations">@Key("setThreadCount")
 @DefaultValue("1.0d")
 </span><span class="return-type">double</span>&nbsp;<span class="element-name">threadCount</span>()</div>
+<div class="block">ThreadCount is used as-is in case of STATIC mode. Total ThreadCount is automatically calculated
+for DYNAMIC mode; (Total ThreadCount = Number of available processor cores * setThreadCount).
+
+<p>Default: <code>1.0d</code>.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>setThreadCount</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -190,6 +228,13 @@ Default is 1440 minutes == 24 hours</div>
 <div class="member-signature"><span class="annotations">@Key("setVerbose")
 @DefaultValue("0")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Integer.html" title="class or interface in java.lang" class="external-link">Integer</a></span>&nbsp;<span class="element-name">verbose</span>()</div>
+<div class="block">TestNG verbose logging level for the generated suite (0 = silent).
+
+<p>Default: <code>0</code>.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>setVerbose</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -200,6 +245,13 @@ Default is 1440 minutes == 24 hours</div>
 <div class="member-signature"><span class="annotations">@Key("setPreserveOrder")
 @DefaultValue("false")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">preserveOrder</span>()</div>
+<div class="block">Preserve declaration order of test methods/classes instead of TestNG's default ordering.
+
+<p>Default: <code>false</code>. Possible values: true, false.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>setPreserveOrder</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -210,6 +262,13 @@ Default is 1440 minutes == 24 hours</div>
 <div class="member-signature"><span class="annotations">@Key("setGroupByInstances")
 @DefaultValue("false")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">groupByInstances</span>()</div>
+<div class="block">Group parallel test methods by instance instead of running them independently.
+
+<p>Default: <code>false</code>. Possible values: true, false.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>setGroupByInstances</code></dd>
+</dl>
 </div>
 </section>
 </li>
@@ -220,6 +279,13 @@ Default is 1440 minutes == 24 hours</div>
 <div class="member-signature"><span class="annotations">@Key("setDataProviderThreadCount")
 @DefaultValue("1")
 </span><span class="return-type">int</span>&nbsp;<span class="element-name">dataProviderThreadCount</span>()</div>
+<div class="block">Number of threads TestNG uses to run @DataProvider-fed test invocations in parallel.
+
+<p>Default: <code>1</code>.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>setDataProviderThreadCount</code></dd>
+</dl>
 </div>
 </section>
 </li>

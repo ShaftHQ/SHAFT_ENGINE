@@ -129,7 +129,7 @@ additional metadata, artifact kinds, and event categories in later compatible re
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="TraceArtifactReference.html" title="class in com.shaft.tools.io.trace">TraceArtifactReference</a>&gt;&nbsp;artifacts,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;metadata)</code></div>
 <div class="col-last even-row-color">
-<div class="block">Creates an instance of a <code>TraceSession</code> record class.</div>
+<div class="block">Creates a trace session for one test attempt, validating its fields.</div>
 </div>
 </div>
 </section>
@@ -253,18 +253,7 @@ additional metadata, artifact kinds, and event categories in later compatible re
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="TraceEvent.html" title="class in com.shaft.tools.io.trace">TraceEvent</a>&gt;&nbsp;events,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/List.html" title="class or interface in java.util" class="external-link">List</a>&lt;<a href="TraceArtifactReference.html" title="class in com.shaft.tools.io.trace">TraceArtifactReference</a>&gt;&nbsp;artifacts,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;metadata)</span></div>
-<div class="block">Creates an instance of a <code>TraceSession</code> record class.</div>
-<dl class="notes">
-<dt>Parameters:</dt>
-<dd><code>id</code> - the value for the <code>id</code> record component</dd>
-<dd><code>backend</code> - the value for the <code>backend</code> record component</dd>
-<dd><code>generatedAt</code> - the value for the <code>generatedAt</code> record component</dd>
-<dd><code>testId</code> - the value for the <code>testId</code> record component</dd>
-<dd><code>attempt</code> - the value for the <code>attempt</code> record component</dd>
-<dd><code>events</code> - the value for the <code>events</code> record component</dd>
-<dd><code>artifacts</code> - the value for the <code>artifacts</code> record component</dd>
-<dd><code>metadata</code> - the value for the <code>metadata</code> record component</dd>
-</dl>
+<div class="block">Creates a trace session for one test attempt, validating its fields.</div>
 </div>
 </section>
 </li>

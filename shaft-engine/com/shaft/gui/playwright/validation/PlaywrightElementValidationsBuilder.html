@@ -122,16 +122,23 @@ implements <a href="../../driver/ElementAssertions.html" title="interface in com
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(com.shaft.validation.ValidationEnums.ValidationCategory,com.shaft.gui.playwright.internal.PlaywrightSession,com.microsoft.playwright.Locator)" class="member-name-link">PlaywrightElementValidationsBuilder</a><wbr>(<a href="../../../validation/ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
  <a href="../internal/PlaywrightSession.html" title="class in com.shaft.gui.playwright.internal">PlaywrightSession</a>&nbsp;session,
  com.microsoft.playwright.Locator&nbsp;locator)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates element validations of the given category for the Playwright locator.</div>
+</div>
 <div class="col-constructor-name odd-row-color"><code><a href="#%3Cinit%3E(com.shaft.validation.ValidationEnums.ValidationCategory,com.shaft.gui.playwright.internal.PlaywrightSession,com.microsoft.playwright.Locator,java.lang.String)" class="member-name-link">PlaywrightElementValidationsBuilder</a><wbr>(<a href="../../../validation/ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
  <a href="../internal/PlaywrightSession.html" title="class in com.shaft.gui.playwright.internal">PlaywrightSession</a>&nbsp;session,
  com.microsoft.playwright.Locator&nbsp;locator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorDescription)</code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-last odd-row-color">
+<div class="block">Creates element validations of the given category for the Playwright locator, reported under
+the given name.</div>
+</div>
 <div class="col-constructor-name even-row-color"><code><a href="#%3Cinit%3E(com.shaft.validation.ValidationEnums.ValidationCategory,com.shaft.gui.playwright.internal.PlaywrightSession,com.shaft.gui.driver.ElementTarget)" class="member-name-link">PlaywrightElementValidationsBuilder</a><wbr>(<a href="../../../validation/ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
  <a href="../internal/PlaywrightSession.html" title="class in com.shaft.gui.playwright.internal">PlaywrightSession</a>&nbsp;session,
  <a href="../../driver/ElementTarget.html" title="class in com.shaft.gui.driver">ElementTarget</a>&nbsp;elementTarget)</code></div>
-<div class="col-last even-row-color">&nbsp;</div>
+<div class="col-last even-row-color">
+<div class="block">Creates element validations of the given category for the resolved element target.</div>
+</div>
 </div>
 </section>
 </li>
@@ -148,25 +155,40 @@ implements <a href="../../driver/ElementAssertions.html" title="interface in com
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#attribute(java.lang.String)" class="member-name-link">attribute</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attribute)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates the given element attribute.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#cssProperty(java.lang.String)" class="member-name-link">cssProperty</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementCssProperty)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates the given CSS property of the element.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#doesNotExist()" class="member-name-link">doesNotExist</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element does not exist.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#doesNotMatchReferenceImage()" class="member-name-link">doesNotMatchReferenceImage</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element does not match its stored reference image.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#doesNotMatchReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)" class="member-name-link">doesNotMatchReferenceImage</a><wbr>(<a href="../../../validation/ValidationEnums.VisualValidationEngine.html" title="enum class in com.shaft.validation">ValidationEnums.VisualValidationEngine</a>&nbsp;visualValidationEngine)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element does not match its stored reference image using the given visual
+engine.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#domAttribute(java.lang.String)" class="member-name-link">domAttribute</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domAttribute)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates the given DOM attribute.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#domProperty(java.lang.String)" class="member-name-link">domProperty</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates the given DOM property.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#elementAccessibleName()" class="member-name-link">elementAccessibleName</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -189,31 +211,49 @@ implements <a href="../../driver/ElementAssertions.html" title="interface in com
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#exists()" class="member-name-link">exists</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element exists.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isChecked()" class="member-name-link">isChecked</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element is checked.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isDisabled()" class="member-name-link">isDisabled</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element is disabled.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isEnabled()" class="member-name-link">isEnabled</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element is enabled.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isHidden()" class="member-name-link">isHidden</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element is hidden.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isNotChecked()" class="member-name-link">isNotChecked</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element is not checked.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isNotSelected()" class="member-name-link">isNotSelected</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element is not selected.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isSelected()" class="member-name-link">isSelected</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element is selected.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isVisible()" class="member-name-link">isVisible</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element is visible.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesAriaSnapshot(java.lang.String)" class="member-name-link">matchesAriaSnapshot</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;snapshotFileName)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -221,10 +261,14 @@ implements <a href="../../driver/ElementAssertions.html" title="interface in com
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesReferenceImage()" class="member-name-link">matchesReferenceImage</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element matches its stored reference image.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)" class="member-name-link">matchesReferenceImage</a><wbr>(<a href="../../../validation/ValidationEnums.VisualValidationEngine.html" title="enum class in com.shaft.validation">ValidationEnums.VisualValidationEngine</a>&nbsp;visualValidationEngine)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates that the element matches its stored reference image using the given visual engine.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesScreenshot()" class="member-name-link">matchesScreenshot</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -243,13 +287,19 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#property(java.lang.String)" class="member-name-link">property</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates the given element property.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#text()" class="member-name-link">text</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates the element text.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#textTrimmed()" class="member-name-link">textTrimmed</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Validates the element text with surrounding whitespace removed.</div>
+</div>
 </div>
 </div>
 </div>
@@ -277,6 +327,7 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">PlaywrightElementValidationsBuilder</span><wbr><span class="parameters">(<a href="../../../validation/ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
  <a href="../internal/PlaywrightSession.html" title="class in com.shaft.gui.playwright.internal">PlaywrightSession</a>&nbsp;session,
  com.microsoft.playwright.Locator&nbsp;locator)</span></div>
+<div class="block">Creates element validations of the given category for the Playwright locator.</div>
 </div>
 </section>
 </li>
@@ -288,6 +339,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
  <a href="../internal/PlaywrightSession.html" title="class in com.shaft.gui.playwright.internal">PlaywrightSession</a>&nbsp;session,
  com.microsoft.playwright.Locator&nbsp;locator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locatorDescription)</span></div>
+<div class="block">Creates element validations of the given category for the Playwright locator, reported under
+the given name.</div>
 </div>
 </section>
 </li>
@@ -298,6 +351,7 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">PlaywrightElementValidationsBuilder</span><wbr><span class="parameters">(<a href="../../../validation/ValidationEnums.ValidationCategory.html" title="enum class in com.shaft.validation">ValidationEnums.ValidationCategory</a>&nbsp;validationCategory,
  <a href="../internal/PlaywrightSession.html" title="class in com.shaft.gui.playwright.internal">PlaywrightSession</a>&nbsp;session,
  <a href="../../driver/ElementTarget.html" title="class in com.shaft.gui.driver">ElementTarget</a>&nbsp;elementTarget)</span></div>
+<div class="block">Creates element validations of the given category for the resolved element target.</div>
 </div>
 </section>
 </li>
@@ -384,6 +438,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>exists</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">exists</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#exists()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element exists.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#exists()">exists</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -396,6 +452,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>doesNotExist</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">doesNotExist</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#doesNotExist()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element does not exist.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#doesNotExist()">doesNotExist</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -408,6 +466,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>matchesReferenceImage</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">matchesReferenceImage</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#matchesReferenceImage()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element matches its stored reference image.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#matchesReferenceImage()">matchesReferenceImage</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -420,6 +480,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>matchesReferenceImage</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">matchesReferenceImage</span><wbr><span class="parameters">(<a href="../../../validation/ValidationEnums.VisualValidationEngine.html" title="enum class in com.shaft.validation">ValidationEnums.VisualValidationEngine</a>&nbsp;visualValidationEngine)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#matchesReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element matches its stored reference image using the given visual engine.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#matchesReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)">matchesReferenceImage</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -432,6 +494,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>doesNotMatchReferenceImage</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">doesNotMatchReferenceImage</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#doesNotMatchReferenceImage()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element does not match its stored reference image.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#doesNotMatchReferenceImage()">doesNotMatchReferenceImage</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -444,6 +508,9 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>doesNotMatchReferenceImage</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">doesNotMatchReferenceImage</span><wbr><span class="parameters">(<a href="../../../validation/ValidationEnums.VisualValidationEngine.html" title="enum class in com.shaft.validation">ValidationEnums.VisualValidationEngine</a>&nbsp;visualValidationEngine)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#doesNotMatchReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element does not match its stored reference image using the given visual
+engine.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#doesNotMatchReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)">doesNotMatchReferenceImage</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -456,6 +523,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>attribute</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">attribute</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;attribute)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#attribute(java.lang.String)">ElementAssertions</a></code></span></div>
+<div class="block">Validates the given element attribute.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#attribute(java.lang.String)">attribute</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -468,6 +537,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>domAttribute</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">domAttribute</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domAttribute)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#domAttribute(java.lang.String)">ElementAssertions</a></code></span></div>
+<div class="block">Validates the given DOM attribute.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#domAttribute(java.lang.String)">domAttribute</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -480,6 +551,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>domProperty</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">domProperty</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#domProperty(java.lang.String)">ElementAssertions</a></code></span></div>
+<div class="block">Validates the given DOM property.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#domProperty(java.lang.String)">domProperty</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -492,6 +565,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>property</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">property</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#property(java.lang.String)">ElementAssertions</a></code></span></div>
+<div class="block">Validates the given element property.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#property(java.lang.String)">property</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -504,6 +579,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>isSelected</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">isSelected</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#isSelected()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element is selected.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#isSelected()">isSelected</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -516,6 +593,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>isChecked</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">isChecked</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#isChecked()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element is checked.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#isChecked()">isChecked</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -528,6 +607,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>isVisible</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">isVisible</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#isVisible()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element is visible.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#isVisible()">isVisible</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -540,6 +621,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>isEnabled</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">isEnabled</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#isEnabled()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element is enabled.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#isEnabled()">isEnabled</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -552,6 +635,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>isNotSelected</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">isNotSelected</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#isNotSelected()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element is not selected.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#isNotSelected()">isNotSelected</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -564,6 +649,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>isNotChecked</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">isNotChecked</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#isNotChecked()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element is not checked.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#isNotChecked()">isNotChecked</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -576,6 +663,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>isHidden</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">isHidden</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#isHidden()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element is hidden.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#isHidden()">isHidden</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -588,6 +677,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>isDisabled</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">isDisabled</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#isDisabled()">ElementAssertions</a></code></span></div>
+<div class="block">Validates that the element is disabled.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#isDisabled()">isDisabled</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -600,6 +691,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>text</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">text</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#text()">ElementAssertions</a></code></span></div>
+<div class="block">Validates the element text.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#text()">text</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -612,6 +705,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>textTrimmed</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">textTrimmed</span>()</div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#textTrimmed()">ElementAssertions</a></code></span></div>
+<div class="block">Validates the element text with surrounding whitespace removed.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#textTrimmed()">textTrimmed</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
@@ -624,6 +719,8 @@ options (see <a href="../../../validation/VisualComparisonOptions.html" title="c
 <h3>cssProperty</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="../../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></span>&nbsp;<span class="element-name">cssProperty</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;elementCssProperty)</span></div>
+<div class="block"><span class="description-from-type-label">Description copied from interface:&nbsp;<code><a href="../../driver/ElementAssertions.html#cssProperty(java.lang.String)">ElementAssertions</a></code></span></div>
+<div class="block">Validates the given CSS property of the element.</div>
 <dl class="notes">
 <dt>Specified by:</dt>
 <dd><code><a href="../../driver/ElementAssertions.html#cssProperty(java.lang.String)">cssProperty</a></code>&nbsp;in interface&nbsp;<code><a href="../../driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
