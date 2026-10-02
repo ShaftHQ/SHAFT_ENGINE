@@ -24,7 +24,7 @@ class LighthouseSetupProviderTest {
     void externalStatusNeverExecutesInstalledManagedTools(@TempDir Path temp) throws Exception {
         ShaftCachePaths paths = paths(temp);
         Path node = paths.tools().resolve("node/24.19.0/windows-x64/node.exe");
-        Path lighthouse = paths.tools().resolve("lighthouse/13.4.1/node_modules/lighthouse/cli/index.js");
+        Path lighthouse = paths.tools().resolve("lighthouse/" + LighthouseSetupPlanner.LIGHTHOUSE_VERSION + "/node_modules/lighthouse/cli/index.js");
         Files.createDirectories(node.getParent());
         Files.createDirectories(lighthouse.getParent());
         if (SetupPlatform.current() == SetupPlatform.WINDOWS) {
@@ -131,7 +131,7 @@ class LighthouseSetupProviderTest {
                     }
                     return new ReportingSetupService.ProcessResult(0,
                             command.stream().anyMatch(part -> part.endsWith("index.js"))
-                                    ? lighthouseHealthy.get() ? "13.4.1" : "13.4.0"
+                                    ? lighthouseHealthy.get() ? LighthouseSetupPlanner.LIGHTHOUSE_VERSION : "0.0.0"
                                     : "v24.19.0");
                 }, false);
         SetupPlan plan = LighthouseSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
@@ -169,7 +169,7 @@ class LighthouseSetupProviderTest {
                         Files.writeString(entry, "lighthouse");
                     }
                     return new ReportingSetupService.ProcessResult(0,
-                            command.stream().anyMatch(part -> part.endsWith("index.js")) ? "13.4.1" : "v24.19.0");
+                            command.stream().anyMatch(part -> part.endsWith("index.js")) ? LighthouseSetupPlanner.LIGHTHOUSE_VERSION : "v24.19.0");
                 }, false);
         SetupPlan plan = LighthouseSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
                 SetupMode.MANAGED);
@@ -203,7 +203,7 @@ class LighthouseSetupProviderTest {
                         Files.writeString(entry, "wrong lighthouse");
                     }
                     return new ReportingSetupService.ProcessResult(0,
-                            command.stream().anyMatch(part -> part.endsWith("index.js")) ? "13.4.0" : "v24.19.0");
+                            command.stream().anyMatch(part -> part.endsWith("index.js")) ? "0.0.0" : "v24.19.0");
                 }, false);
         SetupPlan plan = LighthouseSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
                 SetupMode.MANAGED);
@@ -212,7 +212,7 @@ class LighthouseSetupProviderTest {
                 new SetupApproval(plan.digest(), Instant.EPOCH, Set.of())));
 
         assertEquals(SetupTarget.LIGHTHOUSE, failure.failedAction().target());
-        assertFalse(Files.exists(paths.tools().resolve("lighthouse/13.4.1")));
+        assertFalse(Files.exists(paths.tools().resolve("lighthouse/" + LighthouseSetupPlanner.LIGHTHOUSE_VERSION)));
         assertFalse(Files.exists(paths.receipts().resolve("lighthouse.json")));
     }
 
@@ -231,7 +231,7 @@ class LighthouseSetupProviderTest {
                         Files.writeString(entry, "lighthouse");
                     }
                     return new ReportingSetupService.ProcessResult(0,
-                            command.stream().anyMatch(part -> part.endsWith("index.js")) ? "13.4.1" : "v24.19.0");
+                            command.stream().anyMatch(part -> part.endsWith("index.js")) ? LighthouseSetupPlanner.LIGHTHOUSE_VERSION : "v24.19.0");
                 }, false);
         SetupPlan plan = LighthouseSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64, SetupMode.HYBRID);
 
@@ -253,7 +253,7 @@ class LighthouseSetupProviderTest {
                 Files.writeString(entry, "lighthouse");
             }
             return new ReportingSetupService.ProcessResult(0,
-                    command.stream().anyMatch(part -> part.endsWith("index.js")) ? "13.4.1" : "v24.19.0");
+                    command.stream().anyMatch(part -> part.endsWith("index.js")) ? LighthouseSetupPlanner.LIGHTHOUSE_VERSION : "v24.19.0");
         };
         SetupPlan plan = LighthouseSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
                 SetupMode.MANAGED);
@@ -285,7 +285,7 @@ class LighthouseSetupProviderTest {
                 Files.writeString(entry, "lighthouse");
             }
             return new ReportingSetupService.ProcessResult(0,
-                    command.stream().anyMatch(part -> part.endsWith("index.js")) ? "13.4.1" : "v24.19.0");
+                    command.stream().anyMatch(part -> part.endsWith("index.js")) ? LighthouseSetupPlanner.LIGHTHOUSE_VERSION : "v24.19.0");
         };
         LighthouseSetupService first = new LighthouseSetupService(paths, SetupPlatform.WINDOWS,
                 SetupArchitecture.X64, fetcher, runner, false);

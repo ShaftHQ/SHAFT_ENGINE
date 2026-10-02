@@ -22,6 +22,7 @@ from scripts.ci.harness_pr_gate import (
     SURFACE_CHECKS,
     SURFACE_PATTERNS,
     UNGATED_TEST_ALLOWLIST,
+    UNGATED_TEST_ALLOWLIST_CEILING,
     Check,
     GateError,
     GatePlan,
@@ -1130,6 +1131,35 @@ class UngatedScriptModuleGuardTest(unittest.TestCase):
         for dotted, reason in UNGATED_TEST_ALLOWLIST.items():
             self.assertTrue(str(reason).strip(), dotted)
             self.assertNotIn(dotted, gated, dotted)
+
+
+class UngatedModulesRunInCiTest(unittest.TestCase):
+    """#6362: allowlisted modules run on a schedule and the list only shrinks."""
+
+    def test_allowlist_never_exceeds_the_ceiling(self) -> None:
+        self.assertLessEqual(len(UNGATED_TEST_ALLOWLIST), UNGATED_TEST_ALLOWLIST_CEILING)
+
+    def test_list_ungated_prints_every_allowlisted_module(self) -> None:
+        result = subprocess.run(  # nosec B603 - fixed interpreter and repo script.
+            [sys.executable, str(ROOT / "scripts/ci/harness_pr_gate.py"), "--list-ungated"],
+            capture_output=True, text=True, check=False, timeout=60,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(sorted(UNGATED_TEST_ALLOWLIST), result.stdout.split())
+
+    def test_base_and_head_still_required_without_list_ungated(self) -> None:
+        result = subprocess.run(  # nosec B603 - fixed interpreter and repo script.
+            [sys.executable, str(ROOT / "scripts/ci/harness_pr_gate.py")],
+            capture_output=True, text=True, check=False, timeout=60,
+        )
+        self.assertEqual(2, result.returncode)
+        self.assertIn("--base and --head are required", result.stderr)
+
+    def test_full_harness_job_runs_the_ungated_list(self) -> None:
+        workflow = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
+        job = workflow.split("deterministic-harness-full:", 1)[1].split("\n  chaos-engine-cross-platform:", 1)[0]
+        self.assertIn("harness_pr_gate.py --list-ungated", job)
+        self.assertIn("failing ungated harness module", job)
 
 
 if __name__ == "__main__":

@@ -171,7 +171,7 @@ class ReportingSetupServiceTest {
                         Files.writeString(entry, "allure");
                     }
                     return new ReportingSetupService.ProcessResult(0,
-                            command.stream().anyMatch(part -> part.endsWith("cli.js")) ? "3.14.3" : "v24.19.0");
+                            command.stream().anyMatch(part -> part.endsWith("cli.js")) ? ReportingSetupPlanner.ALLURE_VERSION : "v24.19.0");
                 }, true);
         SetupPlan plan = ReportingSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
                 SetupMode.MANAGED);
@@ -224,7 +224,7 @@ class ReportingSetupServiceTest {
         ShaftCachePaths paths = new ShaftCachePaths(cache, data, cache.resolve("downloads"),
                 data.resolve("tools"), data.resolve("state"), data.resolve("receipts"));
         Path node = data.resolve("tools/node/24.19.0/windows-x64/node.exe");
-        Path allure = data.resolve("tools/allure/3.14.3/node_modules/allure/cli.js");
+        Path allure = data.resolve("tools/allure/" + ReportingSetupPlanner.ALLURE_VERSION + "/node_modules/allure/cli.js");
         Files.createDirectories(node.getParent());
         Files.createDirectories(allure.getParent());
         Files.writeString(node, "node");
@@ -232,7 +232,7 @@ class ReportingSetupServiceTest {
         ReportingSetupService service = new ReportingSetupService(paths, SetupPlatform.WINDOWS,
                 SetupArchitecture.X64, action -> { throw new AssertionError(); },
                 (command, log, timeout) -> new ReportingSetupService.ProcessResult(0,
-                        command.stream().anyMatch(part -> part.endsWith("cli.js")) ? "3.14.30" : "v24.19.01"));
+                        command.stream().anyMatch(part -> part.endsWith("cli.js")) ? ReportingSetupPlanner.ALLURE_VERSION + "0" : "v24.19.01"));
 
         SetupProfileStatus status = service.status();
         assertEquals(SetupReadiness.DEGRADED, status.readiness());
@@ -454,7 +454,7 @@ class ReportingSetupServiceTest {
             }
             return new ReportingSetupService.ProcessResult(0,
                     command.stream().anyMatch(part -> part.endsWith("allure/cli.js") || part.endsWith("allure\\cli.js"))
-                            ? "3.14.3" : "v24.19.0");
+                            ? ReportingSetupPlanner.ALLURE_VERSION : "v24.19.0");
         };
         ReportingSetupService service = new ReportingSetupService(paths, platform, SetupArchitecture.X64,
                 fetcher, runner);

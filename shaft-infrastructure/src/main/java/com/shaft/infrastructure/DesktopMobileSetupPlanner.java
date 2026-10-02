@@ -32,6 +32,8 @@ final class DesktopMobileSetupPlanner {
             "cd1e3c0acf6f799c5458ecae028994f29504dffd325dbef5331afd40c1b68741";
     private static final String WINDOWS_DRIVER_SHA256 =
             "f16ed78b40425fb2f6cbbea0693d416733c5c5d9a4f4f46bc9b60447ca36458c";
+    private static final long XCUITEST_ARTIFACT_BYTES = 715958L;
+    private static final long WINDOWS_DRIVER_ARTIFACT_BYTES = 125443L;
     private static final String WINAPPDRIVER_SHA256 =
             "a76a8f4e44b29bad331acf6b6c248fcc65324f502f28826ad2acd5f3c80857fe";
 
@@ -55,7 +57,7 @@ final class DesktopMobileSetupPlanner {
                 new SetupAction(SetupTarget.APPIUM_XCUITEST_DRIVER, kind, XCUITEST_VERSION,
                         URI.create("https://registry.npmjs.org/appium-xcuitest-driver/-/"
                                 + "appium-xcuitest-driver-" + XCUITEST_VERSION + ".tgz"),
-                        "sha256:" + XCUITEST_SHA256, 715_958, IOS_LOCK_SHA256, false, Set.of()),
+                        "sha256:" + XCUITEST_SHA256, XCUITEST_ARTIFACT_BYTES, IOS_LOCK_SHA256, false, Set.of()),
                 diagnostic(SetupTarget.XCODE, "14.3+", URI.create("urn:shaft:host:xcode")),
                 diagnostic(SetupTarget.IOS_SIMULATOR, simulatorSpec,
                         URI.create("urn:shaft:ios-simulator:" + simulator + ":port:" + port))));
@@ -76,7 +78,7 @@ final class DesktopMobileSetupPlanner {
                 new SetupAction(SetupTarget.APPIUM_WINDOWS_DRIVER, kind, WINDOWS_DRIVER_VERSION,
                         URI.create("https://registry.npmjs.org/appium-windows-driver/-/"
                                 + "appium-windows-driver-" + WINDOWS_DRIVER_VERSION + ".tgz"),
-                        "sha256:" + WINDOWS_DRIVER_SHA256, 125_443, WINDOWS_LOCK_SHA256, false, Set.of()),
+                        "sha256:" + WINDOWS_DRIVER_SHA256, WINDOWS_DRIVER_ARTIFACT_BYTES, WINDOWS_LOCK_SHA256, false, Set.of()),
                 new SetupAction(SetupTarget.WINAPPDRIVER, SetupActionKind.DIAGNOSE,
                         "wad=" + WINAPPDRIVER_VERSION + ",appiumPort=" + port,
                         URI.create("https://github.com/microsoft/WinAppDriver/releases/download/v1.2.1/"

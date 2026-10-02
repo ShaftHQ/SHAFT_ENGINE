@@ -4408,6 +4408,9 @@ def attach_component_status(
         mempalace_state = host_controller.mempalace_runtime_status(project)
         if mempalace_state.get("status") != "healthy":
             components["mempalace"] = {**mempalace_state, **capabilities["mempalace"]}
+        index = _mempalace_index_finding(target, project)
+        if index is not None:
+            components["mempalace"] = {**components["mempalace"], "index": index}
     _apply_shared_store_doctor(project, components)
     # #6336: judge the version runtime discovery selects (configured JAR, then the
     # newest verified cache), never a pinned release the installer did not pick.
@@ -6454,6 +6457,16 @@ def reflection_controller_drift(project: Path) -> str:
     )
 
 
+def _mempalace_index_finding(target: Path, project: Path) -> dict[str, object] | None:
+    """Background initial-mine status from the installed dependency controller."""
+    try:
+        controller = load_dependency_controller(target)
+    except (OSError, ImportError, RuntimeError, SyntaxError, ValueError):
+        return None
+    reader = getattr(controller, "mempalace_index_status", None)
+    return reader(project) if callable(reader) else None
+
+
 def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
     """Owner-visible warnings when a host may not honor exit-2 hard blocks (#5579)."""
     lines: list[str] = []
@@ -6468,8 +6481,24 @@ def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
         honored = meta.get("processExit2Honored", True)
         if gap and honored is False:
             # #6325: same "[severity] name — detail" row grammar as components.
-            lines.append(f"[warning] host/{host} — {gap}")
+            line = f"[warning] host/{host} — {gap}"
+            # #6363: one row per (host, gap) even when detection repeats it.
+            if line not in lines:
+                lines.append(line)
     return lines
+
+
+def _dedupe_severity_rows(lines: list[str]) -> list[str]:
+    """Drop repeated ``[severity]`` rows in one report, keeping first order (#6363)."""
+    seen: set[str] = set()
+    result: list[str] = []
+    for line in lines:
+        if line.startswith("[") and line in seen:
+            continue
+        if line.startswith("["):
+            seen.add(line)
+        result.append(line)
+    return result
 
 
 def format_host_environment_findings(document: dict[str, object]) -> list[str]:
@@ -6482,6 +6511,11 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
         item = components[name]
         if not isinstance(item, dict):
             continue
+        index = item.get("index")
+        if isinstance(index, dict) and index.get("status") in {"running", "interrupted", "failed"}:
+            lines.append(f"[info] {name}/index — {index.get('detail') or index.get('status')}")
+            if isinstance(index.get("fixNext"), str) and index["fixNext"].strip():
+                lines.append(f"  fix-next: {index['fixNext'].strip()}")
         finding = item.get("hostEnvironment")
         if not isinstance(finding, dict):
             continue
@@ -6633,7 +6667,7 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
         note = document.get("reflectionControllerDrift")
         if isinstance(note, str) and note.strip():
             lines.append(note.strip())
-        return "\n".join(lines) + "\n"
+        return "\n".join(_dedupe_severity_rows(lines)) + "\n"
     counts: dict[str, int] = {"error": 0, "warning": 0, "info": 0}
     for _name, _item, severity in failures:
         counts[severity] = counts.get(severity, 0) + 1
@@ -6663,7 +6697,7 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
     note = document.get("reflectionControllerDrift")
     if isinstance(note, str) and note.strip():
         lines.append(note.strip())
-    return "\n".join(lines) + "\n"
+    return "\n".join(_dedupe_severity_rows(lines)) + "\n"
 
 
 def validate_install_options(args: argparse.Namespace) -> None:

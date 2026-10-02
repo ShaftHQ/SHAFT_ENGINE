@@ -111,7 +111,7 @@ Scrum-master. Keep each report to one screen and use this shape:
 4. **Risks and Decisions** — close with open risks and decisions needed.
 
 **Delta-only status:** nothing changed means no message; a small change
-means one line; the full format above is used only on a RAG change or when
+means a one-row status table (status is always tabular); the full format above is used only on a RAG change or when
 the owner asks. The [status lease](ci-status-economy.md) replaces fixed
 schedules.
 

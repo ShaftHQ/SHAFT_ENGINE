@@ -115,7 +115,8 @@ class FlowTests(unittest.TestCase):
         self.assertLessEqual(len(raw.encode("utf-8")), 6144)
         text = " ".join(raw.split())
         for phrase in ("WIP **1 writer**", "WIP **2**", "## Pull rule", "## Definition of Done",
-                       "red first", "fixed", "filed", "not critical, blocker, or high"):
+                       "red first", "fixed", "filed", "not critical, blocker, or high",
+                       "Every status report is a Markdown table"):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
 
@@ -124,7 +125,8 @@ class FlowTests(unittest.TestCase):
         for phrase in ("One fresh-context review", "second round only for",
                        "Learning Session only on trigger", "One blocking CI wait per push",
                        "retry at most once", "Every finding ends fixed",
-                       "not critical, blocker, or high", "Measure thrice"):
+                       "not critical, blocker, or high", "Measure thrice",
+                       "Status reports are always a Markdown table"):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, text)
 

@@ -271,10 +271,10 @@ class AndroidSetupServiceTest {
             if (command.contains("plugin")) {
                 output = "{\"inspector\":{\"pkgName\":\"appium-inspector-plugin\",\"version\":\"0.0.0\"}}";
             } else if (command.contains("driver")) {
-                output = "{\"uiautomator2\":{\"pkgName\":\"appium-uiautomator2-driver\",\"version\":\"8.2.2\"}}";
+                output = "{\"uiautomator2\":{\"pkgName\":\"appium-uiautomator2-driver\",\"version\":\"" + AndroidSetupPlanner.UIAUTOMATOR2_VERSION + "\"}}";
             } else {
                 output = command.stream().anyMatch(part -> part.endsWith("appium/index.js")
-                        || part.endsWith("appium\\index.js")) ? "3.6.0" : "v24.19.0";
+                        || part.endsWith("appium\\index.js")) ? AndroidSetupPlanner.APPIUM_VERSION : "v24.19.0";
             }
             return new ReportingSetupService.ProcessResult(0, output);
         };
@@ -291,7 +291,7 @@ class AndroidSetupServiceTest {
                         Set.of(AndroidSetupPlanner.ANDROID_SDK_LICENSE))));
 
         assertTrue(failure.getCause().getCause().getMessage().contains("not registered at the approved version"));
-        assertFalse(Files.exists(paths.tools().resolve("appium/3.6.0")));
+        assertFalse(Files.exists(paths.tools().resolve("appium/" + AndroidSetupPlanner.APPIUM_VERSION)));
         assertFalse(Files.exists(paths.receipts().resolve("mobile-android.json")));
     }
 
@@ -421,9 +421,9 @@ class AndroidSetupServiceTest {
         assertTrue(Files.isRegularFile(paths.tools().resolve("android-sdk/15859902-api36-x86_64/"
                 + "build-tools/36.0.0/aapt2.exe")));
         String extensionManifest = Files.readString(paths.tools().resolve(
-                "appium/3.6.0/node_modules/.cache/appium/extensions.yaml"));
+                "appium/" + AndroidSetupPlanner.APPIUM_VERSION + "/node_modules/.cache/appium/extensions.yaml"));
         assertFalse(extensionManifest.contains(".staging-"));
-        assertTrue(extensionManifest.contains(paths.tools().resolve("appium/3.6.0").toString()));
+        assertTrue(extensionManifest.contains(paths.tools().resolve("appium/" + AndroidSetupPlanner.APPIUM_VERSION).toString()));
         assertTrue(runner.commands.stream().noneMatch(command -> command.contains("--licenses")));
         assertEquals(List.of("y\n"), runner.sdkPackageInputs);
         assertTrue(runner.commands.stream().anyMatch(command -> command.contains("build-tools;36.0.0")));
@@ -483,11 +483,11 @@ class AndroidSetupServiceTest {
         Files.createDirectories(staging.resolve("node_modules/appium-inspector-plugin"));
         Files.createDirectories(staging.resolve("node_modules/appium-uiautomator2-driver"));
         Files.writeString(staging.resolve("node_modules/appium/index.js"), "appium");
-        Files.writeString(staging.resolve("node_modules/appium/package.json"), "{\"version\":\"3.6.0\"}");
+        Files.writeString(staging.resolve("node_modules/appium/package.json"), "{\"version\":\"" + AndroidSetupPlanner.APPIUM_VERSION + "\"}");
         Files.writeString(staging.resolve("node_modules/appium-inspector-plugin/package.json"),
-                "{\"version\":\"2026.7.1\"}");
+                "{\"version\":\"" + AndroidSetupPlanner.INSPECTOR_PLUGIN_VERSION + "\"}");
         Files.writeString(staging.resolve("node_modules/appium-uiautomator2-driver/package.json"),
-                "{\"version\":\"8.2.2\"}");
+                "{\"version\":\"" + AndroidSetupPlanner.UIAUTOMATOR2_VERSION + "\"}");
     }
 
     private static void createSdkFixture(Path root) throws IOException {
@@ -587,10 +587,10 @@ class AndroidSetupServiceTest {
         private static String output(List<String> command) {
             if (command.contains("--list_installed")) return exactInstalledPackages();
             if (command.contains("driver")) return "dbug Appium refreshed extension cache\n"
-                    + "{\"uiautomator2\":{\"pkgName\":\"appium-uiautomator2-driver\",\"version\":\"8.2.2\"}}";
+                    + "{\"uiautomator2\":{\"pkgName\":\"appium-uiautomator2-driver\",\"version\":\"" + AndroidSetupPlanner.UIAUTOMATOR2_VERSION + "\"}}";
             if (command.contains("plugin")) return "dbug Appium refreshed extension cache\n"
-                    + "{\"inspector\":{\"pkgName\":\"appium-inspector-plugin\",\"version\":\"2026.7.1\"}}";
-            return isAppium(command) ? "dbug Appium refreshed extension cache\n3.6.0" : "v24.19.0";
+                    + "{\"inspector\":{\"pkgName\":\"appium-inspector-plugin\",\"version\":\"" + AndroidSetupPlanner.INSPECTOR_PLUGIN_VERSION + "\"}}";
+            return isAppium(command) ? "dbug Appium refreshed extension cache\n" + AndroidSetupPlanner.APPIUM_VERSION : "v24.19.0";
         }
 
         private static boolean isAppium(List<String> command) {

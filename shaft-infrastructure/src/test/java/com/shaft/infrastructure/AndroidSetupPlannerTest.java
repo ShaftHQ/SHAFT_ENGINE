@@ -104,9 +104,11 @@ class AndroidSetupPlannerTest {
         String manifest = new String(packageJson, StandardCharsets.UTF_8);
         String canonicalLock = new String(lock, StandardCharsets.UTF_8)
                 .replace("\r\n", "\n").replace('\r', '\n');
-        assertTrue(manifest.contains("\"appium\": \"3.6.0\""));
-        assertTrue(manifest.contains("\"appium-inspector-plugin\": \"2026.7.1\""));
-        assertTrue(manifest.contains("\"appium-uiautomator2-driver\": \"8.2.2\""));
+        assertTrue(manifest.contains("\"appium\": \"" + AndroidSetupPlanner.APPIUM_VERSION + "\""));
+        assertTrue(manifest.contains("\"appium-inspector-plugin\": \""
+                + AndroidSetupPlanner.INSPECTOR_PLUGIN_VERSION + "\""));
+        assertTrue(manifest.contains("\"appium-uiautomator2-driver\": \""
+                + AndroidSetupPlanner.UIAUTOMATOR2_VERSION + "\""));
         assertTrue(canonicalLock.contains("\"node_modules/appium\""));
         assertTrue(canonicalLock.contains("\"node_modules/appium-inspector-plugin\""));
         assertTrue(canonicalLock.contains("\"node_modules/appium-uiautomator2-driver\""));
