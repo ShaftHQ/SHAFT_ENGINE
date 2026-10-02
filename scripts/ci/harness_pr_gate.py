@@ -362,6 +362,8 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_consumer_mode_6237",
             # #6336-#6339: Maven Tools doctor/repair and rollback truth.
             "tests.scripts.test_chaos_engine_maven_tools_reinstall_6336",
+            # Fresh-clone MemPalace mine runs in the background with doctor status.
+            "tests.scripts.test_mempalace_background_index",
         ),
     ),
     # #6244: modules that were red on main and selected by nothing.
@@ -514,6 +516,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_mempalace_init_6236.py",
         "tests/scripts/test_chaos_engine_consumer_mode_6237.py",
         "tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py",
+        "tests/scripts/test_mempalace_background_index.py",
     ),
     "hosts": (
         "chaos-engine/hosts.py",

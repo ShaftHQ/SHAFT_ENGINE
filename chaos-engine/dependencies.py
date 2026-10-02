@@ -13,6 +13,7 @@ import os
 import platform
 import re
 import secrets
+import shlex
 import shutil
 import sqlite3
 import stat
@@ -98,6 +99,13 @@ ACCOUNT_RECEIPT_SCHEMA = 2
 ACCOUNT_RECEIPT_NAME = ".chaos-engine-dependencies.json"
 DEPENDENCY_ACTIONS = frozenset({"reused", "installed", "upgraded", "repaired", "blocked"})
 ACCOUNT_COMMAND_TIMEOUT_SECONDS = 900
+# A fresh repository mine can embed tens of thousands of drawers on CPU, far past
+# the synchronous budget, so install hands it to a detached incremental runner.
+BACKGROUND_MINE_TIMEOUT_SECONDS = 6 * 3600
+MEMPALACE_MINE_MODE_ENV = "CHAOS_ENGINE_MEMPALACE_MINE"
+MEMPALACE_INDEX_SUBCOMMAND = "mempalace-index"
+MEMPALACE_INDEX_STATUS_NAME = "mempalace-index.json"
+MEMPALACE_INDEX_LOG_NAME = "mempalace-index.log"
 TRANSIENT_MEMPALACE_TLS_EOF = "[SSL: UNEXPECTED_EOF_WHILE_READING]"
 _UNSTABLE_VERSION = re.compile(
     r"(?:alpha|beta|rc|pre|preview|dev|snapshot|nightly)", re.IGNORECASE
@@ -944,8 +952,11 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     mempalace = commands.get("mempalace")
     if mempalace:
         configured = mempalace_project_configuration_exists(project)
-        if configured and not mempalace_project_setup_complete(project):
-            planned.append(mempalace_project_cli(mempalace, "mine", project))
+        index = mempalace_index_status(project) if configured else None
+        resume = index is not None and index["status"] in {"failed", "interrupted"}
+        if configured and (resume or not mempalace_project_setup_complete(project)):
+            if index is None or index["status"] != "running":
+                planned.append(mempalace_project_cli(mempalace, "mine", project))
         elif not configured:
             planned.append(mempalace_project_cli(mempalace, "init", project))
     graphify = commands.get("graphify")
@@ -1094,15 +1105,173 @@ def adopt_mempalace_default_palace(project: Path) -> None:
             shutil.copy2(candidate, palace / name)
 
 
-def mark_mempalace_project_setup(project: Path) -> None:
-    """Mark only a successful sqlite_exact project setup as mined."""
+def prepare_mempalace_project_target(project: Path) -> Path:
+    """Adopt or create the exact palace so retrieval works before any mine."""
     adopt_mempalace_default_palace(project)
     palace = mempalace_project_palace(project)
     if not (palace / "sqlite_exact.sqlite3").is_file():
         ensure_mempalace_exact_target(project)
     if not (palace / "sqlite_exact.sqlite3").is_file():
         raise RuntimeError("MemPalace init did not create the exact target")
+    return palace
+
+
+def mark_mempalace_project_setup(project: Path) -> None:
+    """Mark only a successful sqlite_exact project setup as mined."""
+    palace = prepare_mempalace_project_target(project)
     (palace / ".mined").write_bytes(b"current\n")
+
+
+def mempalace_index_paths(project: Path) -> tuple[Path, Path]:
+    """Return the background index status and log beside (never inside) the palace."""
+    parent = mempalace_project_palace(project).parent
+    return parent / MEMPALACE_INDEX_STATUS_NAME, parent / MEMPALACE_INDEX_LOG_NAME
+
+
+def mempalace_mine_mode(environ=None) -> str:
+    """Return background (default) or the explicit foreground override."""
+    value = (os.environ if environ is None else environ).get(MEMPALACE_MINE_MODE_ENV, "")
+    return "foreground" if value.strip().casefold() == "foreground" else "background"
+
+
+def _process_alive(pid: int) -> bool:
+    """Probe a pid without signalling it (Windows os.kill would terminate it)."""
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        handle = kernel32.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return False
+        code = ctypes.wintypes.DWORD(0)
+        try:
+            ok = kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+        finally:
+            kernel32.CloseHandle(handle)
+        return bool(ok) and code.value == 259
+    try:
+        os.kill(pid, 0)
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _write_index_status(project: Path, document: dict[str, object]) -> None:
+    status_path, _log = mempalace_index_paths(project)
+    status_path.parent.mkdir(parents=True, exist_ok=True)
+    scratch = status_path.with_name(f".{status_path.name}.{os.getpid()}.tmp")
+    scratch.write_text(json.dumps(document, sort_keys=True) + "\n", encoding="utf-8")
+    scratch.replace(status_path)
+
+
+def _index_document(state: str, command: list[str], **extra: object) -> dict[str, object]:
+    document: dict[str, object] = {
+        "schemaVersion": 1,
+        "status": state,
+        "command": list(command),
+        "updatedAt": datetime.now(timezone.utc).isoformat(),
+    }
+    document.update(extra)
+    return document
+
+
+def _rerun_hint(command: object) -> str:
+    if isinstance(command, list) and all(isinstance(part, str) for part in command):
+        return (
+            "rerun the ChaosEngine installer (the mine resumes incrementally) or run: "
+            + shlex.join(command)
+        )
+    return "rerun the ChaosEngine installer; the mine resumes incrementally"
+
+
+def mempalace_index_status(project: Path, *, alive=None) -> dict[str, object] | None:
+    """Classify the background initial mine for doctor: running/complete/failed/interrupted."""
+    status_path, log_path = mempalace_index_paths(project)
+    try:
+        document = json.loads(status_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(document, dict):
+        return None
+    state = document.get("status")
+    command = document.get("command")
+    if state == "complete":
+        return {"status": "complete", "detail": "MemPalace initial index complete"}
+    if state == "running":
+        pid = document.get("pid")
+        probe = _process_alive if alive is None else alive
+        if not isinstance(pid, int) or probe(pid):
+            return {
+                "status": "running",
+                "detail": (
+                    "MemPalace initial index running in background; "
+                    "retrieval is partial until it finishes"
+                ),
+                "fixNext": f"no action needed; runner log: {log_path}",
+            }
+        return {
+            "status": "interrupted",
+            "detail": "MemPalace initial index stopped before finishing",
+            "fixNext": _rerun_hint(command),
+        }
+    detail = document.get("detail")
+    return {
+        "status": "failed",
+        "detail": "MemPalace initial index failed"
+        + (f": {detail}" if isinstance(detail, str) and detail else ""),
+        "fixNext": _rerun_hint(command),
+    }
+
+
+def start_background_mempalace_mine(
+    command: list[str], project: Path, *, extra_environment: dict[str, str] | None = None,
+    spawner=subprocess.Popen,
+) -> None:
+    """Prepare the exact palace, then detach the incremental mine from install."""
+    prepare_mempalace_project_target(project)
+    _status_path, log_path = mempalace_index_paths(project)
+    _write_index_status(project, _index_document("running", command, log=str(log_path)))
+    environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment.update(extra_environment or {})
+    argv = [sys.executable, str(Path(__file__).resolve()), MEMPALACE_INDEX_SUBCOMMAND,
+            str(project.resolve()), "--", *command]
+    options: dict[str, object] = {"cwd": str(project), "env": environment,
+                                  "stdin": subprocess.DEVNULL, "stderr": subprocess.STDOUT,
+                                  "close_fds": True}
+    if os.name == "nt":
+        options["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000
+    else:
+        options["start_new_session"] = True
+    with open(log_path, "ab") as log:
+        spawner(argv, stdout=log, **options)  # nosec B603 - fixed list-form argv.
+
+
+def run_mempalace_index(project: Path, command: list[str], *, runner=subprocess.run) -> int:
+    """Detached runner body: mine incrementally, then record complete or failed."""
+    _status_path, log_path = mempalace_index_paths(project)
+    _write_index_status(
+        project, _index_document("running", command, pid=os.getpid(), log=str(log_path))
+    )
+    try:
+        _run_transient_mempalace_mine(command, project, runner=runner,
+                                      budget=BACKGROUND_MINE_TIMEOUT_SECONDS)
+        mark_mempalace_project_setup(project)
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+        _write_index_status(project, _index_document("failed", command, detail=str(error)[:400]))
+        return 1
+    _write_index_status(project, _index_document("complete", command))
+    return 0
+
+
+def mempalace_index_entry(argv: list[str]) -> int:
+    """``dependencies.py mempalace-index <project> -- <mine argv>``."""
+    if len(argv) < 4 or argv[0] != MEMPALACE_INDEX_SUBCOMMAND or argv[2] != "--":
+        print("usage: dependencies.py mempalace-index <project> -- <command>", file=sys.stderr)
+        return 2
+    return run_mempalace_index(Path(argv[1]), argv[3:])
 
 
 def detected_package_provider(system: str | None = None, *, which=shutil.which) -> str:
@@ -1201,9 +1370,10 @@ class _AccountCommandError(RuntimeError):
 def _run_transient_mempalace_mine(
     command: list[str], project: Path, *, runner=subprocess.run,
     extra_environment: dict[str, str] | None = None,
+    budget: float = ACCOUNT_COMMAND_TIMEOUT_SECONDS,
 ) -> subprocess.CompletedProcess[str]:
     """Retry a transient MemPalace TLS EOF within one setup timeout budget."""
-    deadline = time.monotonic() + ACCOUNT_COMMAND_TIMEOUT_SECONDS
+    deadline = time.monotonic() + budget
     for attempt in range(3):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -1337,6 +1507,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     provider: str | None = None,
     allow_root: bool = False,
     now: datetime | None = None,
+    mine_spawner=None,
 ) -> dict[str, object]:
     """Install/upgrade required tools for the invoking account, then initialize cwd."""
     project = project.resolve()
@@ -1526,11 +1697,21 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     ]
     if unhealthy:
         raise RuntimeError("dependency verification failed: " + ", ".join(unhealthy))
+    # An injected runner without mine_spawner keeps the mine synchronous.
+    background_mine = mempalace_mine_mode() == "background" and (
+        mine_spawner is not None or runner is subprocess.run
+    )
     for command in project_setup_plan(project, commands):
         environment = mempalace_project_setup_environment(project, command)
         action = mempalace_project_setup_action(command)
         # MemPalace init prompts to mine unless --auto-mine; decline via EOF.
         stdin = subprocess.DEVNULL if action == "init" else None
+        if action == "mine" and background_mine:
+            start_background_mempalace_mine(
+                command, project, extra_environment=environment,
+                spawner=mine_spawner or subprocess.Popen,
+            )
+            continue
         if action == "mine":
             _run_transient_mempalace_mine(
                 command, project, runner=runner, extra_environment=environment
@@ -4761,4 +4942,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == [MEMPALACE_INDEX_SUBCOMMAND]:
+        raise SystemExit(mempalace_index_entry(sys.argv[1:]))
     raise SystemExit(main())

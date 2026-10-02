@@ -4408,6 +4408,9 @@ def attach_component_status(
         mempalace_state = host_controller.mempalace_runtime_status(project)
         if mempalace_state.get("status") != "healthy":
             components["mempalace"] = {**mempalace_state, **capabilities["mempalace"]}
+        index = _mempalace_index_finding(target, project)
+        if index is not None:
+            components["mempalace"] = {**components["mempalace"], "index": index}
     _apply_shared_store_doctor(project, components)
     # #6336: judge the version runtime discovery selects (configured JAR, then the
     # newest verified cache), never a pinned release the installer did not pick.
@@ -6454,6 +6457,16 @@ def reflection_controller_drift(project: Path) -> str:
     )
 
 
+def _mempalace_index_finding(target: Path, project: Path) -> dict[str, object] | None:
+    """Background initial-mine status from the installed dependency controller."""
+    try:
+        controller = load_dependency_controller(target)
+    except (OSError, ImportError, RuntimeError, SyntaxError, ValueError):
+        return None
+    reader = getattr(controller, "mempalace_index_status", None)
+    return reader(project) if callable(reader) else None
+
+
 def format_blocking_fidelity_warnings(document: dict[str, object]) -> list[str]:
     """Owner-visible warnings when a host may not honor exit-2 hard blocks (#5579)."""
     lines: list[str] = []
@@ -6482,6 +6495,11 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
         item = components[name]
         if not isinstance(item, dict):
             continue
+        index = item.get("index")
+        if isinstance(index, dict) and index.get("status") in {"running", "interrupted", "failed"}:
+            lines.append(f"[info] {name}/index — {index.get('detail') or index.get('status')}")
+            if isinstance(index.get("fixNext"), str) and index["fixNext"].strip():
+                lines.append(f"  fix-next: {index['fixNext'].strip()}")
         finding = item.get("hostEnvironment")
         if not isinstance(finding, dict):
             continue
