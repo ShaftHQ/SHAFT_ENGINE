@@ -19,6 +19,14 @@ class LocatorMatchCountTest {
     }
 
     @Test
+    void builderChainsUseTheShaftLocatorStrategy() {
+        JsonObject arguments = LocatorMatchCount.chainArguments(
+                java.util.List.of(java.util.List.of("hasTagName", "a"), java.util.List.of("isFirst")));
+        assertEquals("SHAFT_LOCATOR", arguments.get("locatorStrategy").getAsString());
+        assertEquals("[[\"hasTagName\",\"a\"],[\"isFirst\"]]", arguments.get("locatorValue").getAsString());
+    }
+
+    @Test
     void liveSessionShowsMatchCount() {
         String wrapped = "{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"activeEngine\\\":\\\"WEB\\\",\\\"count\\\":3}\"}]}";
         assertEquals("3 matches", LocatorMatchCount.message(new ShaftMcpToolResult(true, wrapped, null, null)));

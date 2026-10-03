@@ -81,6 +81,22 @@ public class ShaftPlatformIntegrationTest extends LightJavaCodeInsightFixtureTes
         assertNotNull(new ShaftTestLineMarkerContributor().getInfo(identifier));
     }
 
+    public void testKotlinTestMethodResolvesShaftTestNgRunConfiguration() {
+        myFixture.configureByText("LoginTest.kt", """
+                class LoginTest { @org.testng.annotations.Test fun log<caret>in() {} }
+                """);
+        PsiElement identifier = myFixture.getFile().findElementAt(myFixture.getCaretOffset());
+        var data = SimpleDataContext.builder()
+                .add(CommonDataKeys.PROJECT, getProject())
+                .add(PlatformCoreDataKeys.MODULE, getModule())
+                .add(com.intellij.execution.Location.DATA_KEY, com.intellij.execution.PsiLocation.fromPsiElement(identifier))
+                .build();
+        ConfigurationFromContext fromContext = RunConfigurationProducer.getInstance(ShaftTestNgRunConfigurationProducer.class)
+                .createConfigurationFromContext(ConfigurationContext.getFromContext(data, "test"));
+        assertNotNull(fromContext);
+        assertTrue(fromContext.getConfiguration().getName().contains("login"));
+    }
+
     public void testStartupWorkRunsOffTheEdtWithinBudget() throws Exception {
         assertTrue(ApplicationManager.getApplication().isDispatchThread());
         long start = System.nanoTime();

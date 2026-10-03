@@ -15,5 +15,7 @@ public enum locatorStrategy {
     ACCESSIBILITY_ID,
     ANDROID_UIAUTOMATOR,
     IOS_PREDICATE,
-    IOS_CLASS_CHAIN
+    IOS_CLASS_CHAIN,
+    /** SHAFT Locator builder chain as JSON steps, e.g. [["hasTagName","button"],["isFirst"]]. */
+    SHAFT_LOCATOR
 }

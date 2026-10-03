@@ -27,6 +27,14 @@ public final class LocatorMatchCount {
         return STRATEGIES.containsKey(factory);
     }
 
+    /** Tool arguments for a {@code Locator.hasTagName(..)...build()} chain given as {@code [name, args...]} steps. */
+    public static JsonObject chainArguments(java.util.List<java.util.List<String>> steps) {
+        JsonObject arguments = new JsonObject();
+        arguments.addProperty("locatorStrategy", "SHAFT_LOCATOR");
+        arguments.addProperty("locatorValue", new com.google.gson.Gson().toJson(steps));
+        return arguments;
+    }
+
     /** Tool arguments for {@code By.<factory>(value)}, or null when the factory is unsupported. */
     public static JsonObject arguments(String factory, String value) {
         String strategy = STRATEGIES.get(factory);

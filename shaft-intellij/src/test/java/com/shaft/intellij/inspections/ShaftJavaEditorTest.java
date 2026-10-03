@@ -35,6 +35,29 @@ public class ShaftJavaEditorTest extends LightJavaCodeInsightFixtureTestCase {
                 """);
     }
 
+    public void testLocatorBuilderChainBecomesAnElementCountChain() {
+        myFixture.addClass("""
+                package com.shaft.gui.internal.locator;
+                public class LocatorBuilder {
+                    public LocatorBuilder containsText(String t) { return this; }
+                    public LocatorBuilder hasIndex(int i) { return this; }
+                    public org.openqa.selenium.By build() { return null; }
+                }
+                """);
+        myFixture.addClass("""
+                package com.shaft.gui.internal.locator;
+                public class Locator { public static LocatorBuilder hasTagName(String t) { return new LocatorBuilder(); } }
+                """);
+        myFixture.configureByText("Page.java", """
+                import com.shaft.gui.internal.locator.Locator;
+                class Page { Object save = Locator.hasTagName("button").containsText("Save").hasIndex(2).bu<caret>ild(); }
+                """);
+        var call = (com.intellij.psi.PsiMethodCallExpression) myFixture.getFile()
+                .findElementAt(myFixture.getCaretOffset()).getParent().getParent();
+        assertEquals(java.util.List.of(java.util.List.of("hasTagName", "button"), java.util.List.of("containsText", "Save"),
+                java.util.List.of("hasIndex", "2")), com.shaft.intellij.locators.LocatorMatchCountLineMarkerProvider.builderSteps(call));
+    }
+
     public void testThreadSleepInAShaftTestIsFlagged() {
         myFixture.enableInspections(new ShaftThreadSleepInspection());
         myFixture.configureByText("LoginTest.java", """

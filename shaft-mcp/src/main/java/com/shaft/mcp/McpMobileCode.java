@@ -84,6 +84,7 @@ final class McpMobileCode {
             case ANDROID_UIAUTOMATOR -> "SHAFT.GUI.Locator.androidUiAutomator(" + literal + ")";
             case IOS_PREDICATE -> "SHAFT.GUI.Locator.iosPredicateString(" + literal + ")";
             case IOS_CLASS_CHAIN -> "SHAFT.GUI.Locator.iosClassChain(" + literal + ")";
+            case SHAFT_LOCATOR -> ShaftLocatorChain.code(value);
         };
     }
 
