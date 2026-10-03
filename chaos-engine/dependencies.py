@@ -22,6 +22,7 @@ import subprocess  # nosec B404 - fixed list-form dependency commands from track
 import sys
 import tarfile
 import time
+import urllib.error
 import urllib.request
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -163,15 +164,14 @@ def dependency_action(
     healthy: bool,
     latest_version_verified: bool,
 ) -> str:
-    """Classify one dependency without guessing when the stable channel is unavailable."""
+    """Classify one dependency; a healthy install survives an unreachable stable channel."""
     if installed_version is None:
         return "installed" if latest_version_verified and resolved_version else "blocked"
     if not healthy:
         return "repaired" if latest_version_verified and resolved_version else "blocked"
-    if not latest_version_verified:
-        return "blocked"
-    if resolved_version is None:
-        return "blocked"
+    if not latest_version_verified or resolved_version is None:
+        # Registry unreachable: keep the healthy install; doctor warns (unverified).
+        return "reused"
     return (
         "reused"
         if installed_version.lstrip("v") == resolved_version.lstrip("v")
@@ -487,6 +487,28 @@ def _github_api_token() -> str | None:
     return _GH_CLI_TOKEN[0]
 
 
+NETWORK_ATTEMPTS = 3
+NETWORK_BACKOFF_SECONDS = 2.0
+
+
+def _open_with_retry(opener, target, *, timeout: float):
+    """Open one URL, retrying transient network failures so a single blip cannot fail setup."""
+    last_error: OSError | None = None
+    for attempt in range(NETWORK_ATTEMPTS):
+        if attempt:
+            time.sleep(NETWORK_BACKOFF_SECONDS * attempt)
+        try:
+            return opener(target, timeout=timeout)
+        except urllib.error.HTTPError as error:
+            if error.code < 500 and error.code != 429:
+                raise
+            last_error = error
+        except OSError as error:
+            last_error = error
+    assert last_error is not None
+    raise last_error
+
+
 def _read_json_url(url: str, *, opener=urllib.request.urlopen) -> object:
     headers = {"Accept": "application/json", "User-Agent": "ChaosEngine-installer"}
     github_token = _github_api_token() if url.startswith("https://api.github.com/") else None
@@ -496,7 +518,7 @@ def _read_json_url(url: str, *, opener=urllib.request.urlopen) -> object:
         url,
         headers=headers,
     )
-    with opener(request, timeout=30) as response:
+    with _open_with_retry(opener, request, timeout=30) as response:
         payload = response.read(MAX_CONTROL_BYTES + 1)
     if len(payload) > MAX_CONTROL_BYTES:
         raise ValueError("stable-channel response exceeds the size limit")
@@ -721,23 +743,14 @@ def discover_account_commands(
     return components, commands
 
 
-STABLE_CHANNEL_ATTEMPTS = 3
-STABLE_CHANNEL_BACKOFF_SECONDS = 2.0
-
-
-def _resolve_stable_version_with_retry(
+def _resolve_stable_version_or_error(
     name: str, contract: dict[str, object], *, opener=urllib.request.urlopen
 ) -> tuple[str | None, str | None]:
-    """Retry a transient stable-channel miss so one registry blip cannot block setup."""
-    lookup_error = None
-    for attempt in range(STABLE_CHANNEL_ATTEMPTS):
-        if attempt:
-            time.sleep(STABLE_CHANNEL_BACKOFF_SECONDS * attempt)
-        try:
-            return resolve_stable_version(name, contract, opener=opener), None
-        except (OSError, ValueError, json.JSONDecodeError) as error:
-            lookup_error = type(error).__name__
-    return None, lookup_error
+    """Resolve the stable version, or return the lookup error type after network retries."""
+    try:
+        return resolve_stable_version(name, contract, opener=opener), None
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        return None, type(error).__name__
 
 
 def describe_blocked_dependencies(actions: dict[str, dict[str, object]]) -> str:
@@ -789,7 +802,7 @@ def resolve_account_actions(
             latest = pinned_mempalace_version
             verified = True
         else:
-            latest, lookup_error = _resolve_stable_version_with_retry(
+            latest, lookup_error = _resolve_stable_version_or_error(
                 name, contract, opener=opener
             )
             verified = lookup_error is None
@@ -1969,7 +1982,7 @@ def _download_artifact(
     digest = hashlib.sha256()
     total = 0
     try:
-        with opener(url, timeout=60) as response, destination.open("xb") as stream:
+        with _open_with_retry(opener, url, timeout=60) as response, destination.open("xb") as stream:
             length = None
             headers = getattr(response, "headers", None)
             if headers is not None:
@@ -2066,7 +2079,7 @@ def install_exact_node(
     suffix = ".zip" if system == "windows" else ".tar.gz" if system == "macos" else ".tar.xz"
     filename = f"node-v{version}-{platform_name}-{architecture}{suffix}"
     base = f"https://nodejs.org/download/release/v{version}"
-    with opener(f"{base}/SHASUMS256.txt", timeout=30) as response:
+    with _open_with_retry(opener, f"{base}/SHASUMS256.txt", timeout=30) as response:
         checksums = response.read(MAX_CONTROL_BYTES + 1)
     if len(checksums) > MAX_CONTROL_BYTES:
         raise ValueError("Node checksum manifest exceeds the size limit")
@@ -2152,7 +2165,7 @@ def install_exact_java(
         "https://github.com/adoptium/temurin25-binaries/releases/download/"
         f"{tag}/{filename}"
     )
-    with opener(f"{url}.sha256.txt", timeout=30) as response:
+    with _open_with_retry(opener, f"{url}.sha256.txt", timeout=30) as response:
         checksum = response.read(MAX_CONTROL_BYTES + 1)
     if len(checksum) > MAX_CONTROL_BYTES:
         raise ValueError("Temurin checksum manifest exceeds the size limit")
