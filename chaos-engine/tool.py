@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import os
 import runpy
@@ -46,6 +47,30 @@ def entry_bundle(installed_root: Path) -> str:
             parts.append(f"<!-- {relative} -->\n{path.read_text(encoding='utf-8').strip()}\n")
     parts.append(ENTRY_RETRIEVE)
     return "\n".join(parts)
+
+
+def entry_output(installed_root: Path, full: bool = False) -> str:
+    """Installed re-runs print one line while the bundle is unchanged (token economy)."""
+    bundle = entry_bundle(installed_root)
+    if installed_root.name != ".chaos-engine":
+        return bundle
+    digest = hashlib.sha256(bundle.encode("utf-8")).hexdigest()[:12]
+    stamp = installed_root / "runtime" / "entry-stamp"
+    try:
+        unchanged = stamp.read_text(encoding="utf-8").strip() == digest
+    except OSError:
+        unchanged = False
+    if unchanged and not full:
+        return (
+            f"ChaosEngine entry unchanged ({digest}); if the cards are not in this context, "
+            "run `python3 .chaos-engine/tool.py entry --full`.\n"
+        )
+    try:
+        stamp.parent.mkdir(parents=True, exist_ok=True)
+        stamp.write_text(digest + "\n", encoding="utf-8")
+    except OSError:
+        pass  # read-only installs simply print the bundle every time
+    return bundle
 
 
 MAINTAIN_STASH = "chaos-engine-maintain"
@@ -129,7 +154,7 @@ def tool_help_text() -> str:
         f"tools: {names}\n"
         "\n"
         "entry (bots without hooks: print core card, companions, retrieve step):\n"
-        "  tool.py entry\n"
+        "  tool.py entry [--full]  (one line while unchanged; --full reprints)\n"
         "\n"
         "maintain (after each delivery: fast-forward, reinstall, doctor, refresh, reload):\n"
         "  tool.py maintain\n"
@@ -434,7 +459,7 @@ def main() -> int:
         tool = sys.argv[1]
         arguments = sys.argv[2:]
         if tool == "entry":
-            print(entry_bundle(installed_root), end="")
+            print(entry_output(installed_root, full="--full" in arguments), end="")
             return 0
         if tool == "maintain":
             return maintain(installed_root)

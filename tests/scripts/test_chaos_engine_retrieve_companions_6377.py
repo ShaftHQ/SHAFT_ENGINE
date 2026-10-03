@@ -61,6 +61,27 @@ class GrokBotTest(unittest.TestCase):
         self.assertIn("Ponytail", bundle)
         self.assertIn("tool.py retrieve", bundle)
 
+    def test_entry_reprints_one_line_while_unchanged(self):
+        tool = _load("tool")
+        with tempfile.TemporaryDirectory() as tmp:
+            installed = Path(tmp) / ".chaos-engine"
+            shutil.copytree(SOURCE / "skills", installed / "skills")
+            shutil.copytree(SOURCE / "companions", installed / "companions")
+            shutil.copy(SOURCE / "identity.md", installed / "identity.md")
+            first = tool.entry_output(installed)
+            self.assertIn("# ChaosEngine", first)
+            again = tool.entry_output(installed)
+            self.assertEqual(1, len(again.strip().splitlines()))
+            self.assertIn("entry --full", again)
+            self.assertIn("# ChaosEngine", tool.entry_output(installed, full=True))
+            (installed / "companions/caveman-ultra.md").write_text("changed", encoding="utf-8")
+            self.assertIn("changed", tool.entry_output(installed))
+
+    def test_source_tree_entry_always_prints_the_bundle(self):
+        tool = _load("tool")
+        self.assertIn("# ChaosEngine", tool.entry_output(SOURCE))
+        self.assertIn("# ChaosEngine", tool.entry_output(SOURCE))
+
     def test_matrix_row_does_not_claim_agents_md(self):
         matrix = (SOURCE / "references/host-parity-matrix.md").read_text(encoding="utf-8")
         row = next(line for line in matrix.splitlines() if line.startswith("| GAP-GROKBOT-HOOKS"))

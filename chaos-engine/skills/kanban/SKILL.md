@@ -38,7 +38,8 @@ comments, auto-merge off), then `doing`, then shipped bugs or red default
 branch. Pull a new `ready` card only when nothing downstream is actionable, and
 only while `review` has capacity; waiting on CI counts as idle. Never leave a
 started card to start another. Never push work forward. Group related cards
-into the fewest safe pull requests.
+into the fewest safe pull requests. Avoid PRs that depend on other open PRs;
+land them in order and merge base once before the final push.
 
 ## Definition of Done
 
@@ -50,7 +51,9 @@ A card is done when all hold:
 4. Required checks are green on the exact head after one blocking wait per push
    (`gh pr checks --watch --fail-fast` or `gh run watch`); retry once, then stop
    and report. Never re-verify what already passed.
-5. Every finding raised while working is closed (see below).
+5. Every finding raised while working is closed (see below), including
+   static-analysis and code-quality review threads (fix or reply, then resolve)
+   before the PR counts as ready.
 6. Merged or handed off as instructed; worktree cleaned.
 7. After any CE harness change merges, every agent and delegate reloads the
    latest harness from main before continuing. After each completed delivery
@@ -82,4 +85,5 @@ passed downstream (Poppendieck's seven wastes).
 
 Every status report is a Markdown table, one row per card
 (`ID | Issue(s) | PR | Status | Proof or blocker`), then Risks. Never prose or
-bullet lists. No separate status rituals.
+bullet lists. No separate status rituals. Report only rows that changed since
+the last report; say nothing when nothing changed.

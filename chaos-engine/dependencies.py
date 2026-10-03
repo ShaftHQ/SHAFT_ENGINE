@@ -297,11 +297,10 @@ def resolve_account_launcher(
     """Resolve one CreateProcess-safe launcher (Windows PATHEXT / pwsh→powershell) (#5629)."""
     if not command:
         raise ValueError("dependency launcher is empty")
-    path = Path(command)
     # Absolute or explicit path forms: pass through so mocked/account receipt
     # paths are not re-resolved (and missing fixtures stay FileNotFound at exec).
     if (
-        path.is_absolute()
+        os.path.isabs(command)
         or "/" in command
         or "\\" in command
         or (os.name == "nt" and len(command) >= 3 and command[1:3] in {":\\", ":/"})
@@ -3315,7 +3314,7 @@ def generation_install_plan(
         raise ValueError("Python runtime specification is invalid")
     if not isinstance(graphify, dict) or not isinstance(mempalace, dict):
         raise ValueError("tool dependency specification is invalid")
-    uv_commands = [[uv, "--version"]] if Path(uv).is_file() else [
+    uv_commands = [[uv, "--version"]] if os.path.isfile(uv) else [
         [sys.executable, "-m", "venv", "--copies", str(bootstrap)],
         [executable(bootstrap / scripts, "python"), "-m", "pip", "install", "--no-cache-dir", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
     ]

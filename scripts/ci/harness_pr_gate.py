@@ -15,7 +15,7 @@ import sys
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -265,6 +265,7 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_bootstrap",
             "tests.scripts.test_ce_packs",
             "tests.scripts.test_chaos_engine_dependencies",
+            "tests.scripts.test_chaos_engine_installer_self_heal_5630",
             "tests.scripts.test_chaos_engine_offline_cache",
             "tests.scripts.test_chaos_engine_generation_runtime",
             "tests.scripts.test_chaos_engine_live_installer_acceptance",
@@ -512,6 +513,7 @@ SURFACE_PATTERNS = {
         "scripts/ci/chaos_engine_live_installer_acceptance.py",
         "tests/scripts/test_chaos_engine_bootstrap.py",
         "tests/scripts/test_chaos_engine_dependencies.py",
+        "tests/scripts/test_chaos_engine_installer_self_heal_5630.py",
         "tests/scripts/test_chaos_engine_generation_runtime.py",
         "tests/scripts/test_chaos_engine_installer.py",
         "tests/scripts/test_chaos_engine_installer_ux.py",
@@ -871,7 +873,7 @@ UNGATED_TEST_ALLOWLIST_REASON = (
 # #6362: the allowlist may only shrink. Lower this ceiling when a module gains a
 # PR-gate check; never raise it. Every allowlisted module still runs weekly in
 # the "Full deterministic harness" acceptance job via --list-ungated.
-UNGATED_TEST_ALLOWLIST_CEILING = 98
+UNGATED_TEST_ALLOWLIST_CEILING = 97
 UNGATED_TEST_ALLOWLIST = {
     'tests.scripts.test_assemble_javadocs': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_assemble_shard_blob': UNGATED_TEST_ALLOWLIST_REASON,
@@ -893,7 +895,6 @@ UNGATED_TEST_ALLOWLIST = {
     'tests.scripts.test_chaos_engine_install_verify_5699': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_chaos_engine_install_verify_5703': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_chaos_engine_installer_host_adapter_drift_5633': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_installer_self_heal_5630': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_chaos_engine_learn_contracts': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_chaos_engine_learning_5767_5770': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_chaos_engine_learning_5776': UNGATED_TEST_ALLOWLIST_REASON,
@@ -1026,6 +1027,28 @@ HARNESS_PATTERNS = (
 )
 
 
+def touched_allowlisted_modules(root: Path, paths: list[str]) -> tuple[str, ...]:
+    """Weekly-only modules whose test file names a changed ``chaos-engine/<name>.py`` (token economy)."""
+    names = {
+        PurePosixPath(path).stem
+        for path in (raw.replace("\\", "/") for raw in paths)
+        if path.startswith("chaos-engine/") and path.endswith(".py")
+    }
+    if not names:
+        return ()
+    needles = tuple(f"{name}.py" for name in names) + tuple(f'"{name}"' for name in names)
+    touched: list[str] = []
+    for module in sorted(UNGATED_TEST_ALLOWLIST):
+        test_file = root / (module.replace(".", "/") + ".py")
+        try:
+            text = test_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if any(needle in text for needle in needles):
+            touched.append(module)
+    return tuple(touched)
+
+
 def classify_paths(paths: list[str]) -> GatePlan:
     selected: list[str] = []
     unknown: list[str] = []
@@ -1073,13 +1096,17 @@ def classify_paths(paths: list[str]) -> GatePlan:
     for protected_id in ("protected-ownership", "protected-secret-safety"):
         if protected_id not in check_ids:
             check_ids.append(protected_id)
-    return GatePlan(
-        tuple(selected),
-        (
-            *tuple(CHECKS[check_id] for check_id in dict.fromkeys(check_ids)),
-        ),
-        tuple(sorted(set(unknown))),
-    )
+    checks = tuple(CHECKS[check_id] for check_id in dict.fromkeys(check_ids))
+    return GatePlan(tuple(selected), checks, tuple(sorted(set(unknown))))
+
+
+def plan_for_changes(paths: list[str], root: Path) -> GatePlan:
+    """``classify_paths`` plus weekly-only tests that name a changed harness module."""
+    plan = classify_paths(paths)
+    touched = touched_allowlisted_modules(root, paths)
+    if not touched:
+        return plan
+    return replace(plan, checks=plan.checks + (Check("ungated-touched", "fallback", touched),))
 
 
 def write_generated_artifacts(root: Path, plan: GatePlan) -> tuple[str, ...]:
@@ -1622,7 +1649,7 @@ def main() -> int:
         if args.plan_only and args.write_generated:
             raise GateError("plan-only cannot write generated artifacts")
         root = args.root.resolve()
-        plan = classify_paths(changed_paths(root, args.base, args.head))
+        plan = plan_for_changes(changed_paths(root, args.base, args.head), root)
         written = write_generated_artifacts(root, plan) if args.write_generated else ()
         if args.plan_only:
             payload = json.loads(
