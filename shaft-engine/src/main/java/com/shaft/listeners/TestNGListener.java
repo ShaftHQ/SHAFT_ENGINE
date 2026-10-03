@@ -60,7 +60,7 @@ import java.util.stream.Collectors;
  * @see com.shaft.listeners.internal.TestNGListenerHelper
  */
 public class TestNGListener implements IAlterSuiteListener, IAnnotationTransformer,
-        IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener, IResultListener2, IMethodInterceptor {
+        IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener, IResultListener2, IMethodInterceptor, IClassListener {
 
     private static final Logger logger = LogManager.getLogger(TestNGListener.class);
 
@@ -390,8 +390,19 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     /**
      * gets invoked at the very last (after attachTestArtifacts generation phase), before TestNG exits the JVM.
      */
+    /**
+     * Quits browsers kept alive by {@code reuseBrowserSession} once their class finishes.
+     *
+     * @param testClass the finished test class
+     */
+    @Override
+    public void onAfterClass(ITestClass testClass) {
+        com.shaft.driver.internal.BrowserSessionReuse.closeForClass(testClass.getName());
+    }
+
     @Override
     public void onExecutionFinish() {
+        com.shaft.driver.internal.BrowserSessionReuse.closeAll();
         try {
             TestExecutionCounts counts = getDeduplicatedTestExecutionCounts();
             Throwable engineTearDownFailure = null;

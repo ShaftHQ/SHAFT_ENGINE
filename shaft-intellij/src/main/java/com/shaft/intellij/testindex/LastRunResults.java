@@ -98,7 +98,12 @@ public final class LastRunResults {
             if (!matcher.find()) {
                 continue;
             }
-            Frame frame = new Frame(matcher.group(1), matcher.group(2), Integer.parseInt(matcher.group(3)));
+            Frame frame;
+            try {
+                frame = new Frame(matcher.group(1), matcher.group(2), Integer.parseInt(matcher.group(3)));
+            } catch (NumberFormatException overflow) {
+                continue;
+            }
             if (frame.className().equals(testClass)) {
                 return frame;
             }
