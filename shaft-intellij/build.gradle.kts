@@ -17,6 +17,10 @@ repositories {
     mavenCentral()
     intellijPlatform {
         defaultRepositories()
+        // Nightly EAP verification (#6429) resolves LATEST-EAP-SNAPSHOT from the snapshots repository.
+        if (providers.gradleProperty("verifyEap").isPresent) {
+            snapshots()
+        }
     }
 }
 
@@ -28,6 +32,10 @@ dependencies {
         // (see io.github.shafthq.shaft-withJUnit.xml / shaft-withTestNG.xml), not in com.intellij.java.
         bundledPlugin("JUnit")
         bundledPlugin("TestNG-J")
+        // Gradle run-configuration overrides (#6428).
+        bundledPlugin("com.intellij.gradle")
+        // Kotlin SHAFT gutter (#6427).
+        bundledPlugin("org.jetbrains.kotlin")
         // SHAFT property completion/validation/docs (#6417, #6418) need the Properties PSI.
         bundledPlugin("com.intellij.properties")
         // Editor fixtures (BasePlatformTestCase) for completion, inspection and template tests.
@@ -152,6 +160,10 @@ intellijPlatform {
             // Pin the build that rejected 10.3.20260707 (LafManager.removeLafManagerListener removal)
             // so a future platform-API removal is caught locally instead of at Marketplace review time.
             create(IntelliJPlatformType.IntellijIdeaUltimate, "262.8665.81")
+            // Nightly only (-PverifyEap, #6429): catch next-IDE API breaks before they ship.
+            if (providers.gradleProperty("verifyEap").isPresent) {
+                create(IntelliJPlatformType.IntellijIdeaUltimate, "LATEST-EAP-SNAPSHOT") { useInstaller = false }
+            }
         }
     }
 }

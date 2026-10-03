@@ -27,15 +27,18 @@ Columns: `backlog` -> `ready` -> `doing` -> `review` -> `done`.
 
 - `ready` requires acceptance criteria and a proof command. No criteria, no pull.
 - `doing` WIP **1 writer** per repository: one card being edited at a time.
-- `review` WIP **2**: when two cards wait for review or CI, stop pulling and help
-  finish them.
+- `review` WIP **2**: at two cards waiting for review or CI, pull nothing new.
 - `done` only when the Definition of Done holds.
 
 ## Pull rule
 
-Pull the highest-priority `ready` card only when the downstream column has
-capacity. Never push work forward; never start a card to fill idle time while
-review is full. Group related cards into the fewest safe pull requests.
+Every session, turn, and wake starts by draining right to left: open PRs and
+`review` (red or `ACTION_REQUIRED` checks, behind base, conflicts, review
+comments, auto-merge off), then `doing`, then shipped bugs or red default
+branch. Pull a new `ready` card only when nothing downstream is actionable, and
+only while `review` has capacity; waiting on CI counts as idle. Never leave a
+started card to start another. Never push work forward. Group related cards
+into the fewest safe pull requests.
 
 ## Definition of Done
 
@@ -54,6 +57,9 @@ A card is done when all hold:
    run `python3 .chaos-engine/tool.py maintain` (fast-forward with local edits
    kept, reinstall, doctor, stale-store refresh, reload).
 8. Ship to-deliver items in the fewest pull requests; group related issues.
+
+Check items 2 and 4 plus labels and links with `python3 .chaos-engine/tool.py dod <PR>` ([`dod.py`](../../dod.py))
+(table; exit 1 names each gap).
 
 ## Findings policy
 
