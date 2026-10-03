@@ -165,7 +165,9 @@ checked-out tree). Change into the target project or folder first; both scripts
 install into the current working directory.
 
 Python is not required before either command. The wrapper bootstraps Python as
-needed. The installer then discovers the invoking account's tools, resolves
+needed. ChaosEngine supports Python 3.11 or newer (3.10 reaches end of life in
+October 2026); the wrappers ignore an older interpreter and the Python entry
+points exit with a clear message. The installer then discovers the invoking account's tools, resolves
 official stable channels, and chooses `reused`, `installed`, `upgraded`,
 `repaired`, or `blocked` per dependency. It installs latest stable Python
 through uv, uv itself through Astral, active

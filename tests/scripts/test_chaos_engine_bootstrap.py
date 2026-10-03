@@ -67,6 +67,19 @@ class Response(io.BytesIO):
 
 
 class ChaosEngineBootstrapTest(unittest.TestCase):
+    def test_python_below_floor_exits_with_clear_message(self):
+        # #6410: entry points and wrappers share the 3.11 floor.
+        install_spec = importlib.util.spec_from_file_location("chaos_engine_install_floor", ROOT / "chaos-engine/install.py")
+        installer = importlib.util.module_from_spec(install_spec)
+        install_spec.loader.exec_module(installer)
+        for module in (load(), installer):
+            stderr = io.StringIO()
+            with mock.patch.object(module.sys, "version_info", (3, 10, 14)), mock.patch.object(module.sys, "stderr", stderr):
+                self.assertEqual(2, module.main())
+            self.assertIn("requires Python 3.11 or newer; found 3.10.14", stderr.getvalue())
+        for wrapper in ("install.sh", "install.ps1"):
+            self.assertIn("sys.version_info < (3, 11)", (ROOT / "chaos-engine" / wrapper).read_text(encoding="utf-8"))
+
     def test_exact_commit_source_does_not_require_revision_lookup(self):
         bootstrap = load()
         opener = mock.Mock(side_effect=AssertionError("network lookup was attempted"))

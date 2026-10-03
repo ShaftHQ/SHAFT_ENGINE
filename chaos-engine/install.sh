@@ -113,6 +113,10 @@ elif command -v python >/dev/null 2>&1; then
 else
   python=
 fi
+# Python 3.11 is the supported floor; an older interpreter falls back to uv-managed Python.
+if [ -n "$python" ] && ! "$python" -c 'import sys; sys.exit(sys.version_info < (3, 11))' >/dev/null 2>&1; then
+  python=
+fi
 
 if command -v curl >/dev/null 2>&1; then
   fetch() {
@@ -195,7 +199,7 @@ if [ -z "$python" ]; then
   tar -xzf "$uv_archive" -C "$work"
   uv="$work/uv-${uv_target}/uv"
   [ -x "$uv" ] || fail "uv archive is missing its executable"
-  export UV_PYTHON_INSTALL_DIR="$work/python"
+  export UV_PYTHON_INSTALL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/chaos-engine/python"
   "$uv" python install --no-progress
   set -- "$uv" run --no-project --managed-python "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
 else

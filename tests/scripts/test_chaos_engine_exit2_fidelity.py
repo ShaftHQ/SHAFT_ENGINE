@@ -143,6 +143,22 @@ class Exit2FidelityTests(unittest.TestCase):
         self.assertIn("host/grok", rendered)
         self.assertIn("host/copilot", rendered)
 
+    def test_exit2_capability_has_three_states_and_only_unsupported_warns(self):
+        install = load_module("ce_install_exit2_probe", "chaos-engine/install.py")
+        caps = self.kernel.HOST_CAPABILITIES
+        self.assertEqual("verified", install.exit2_capability(caps["claude"], which=lambda _: None))
+        self.assertEqual("unknown", install.exit2_capability(caps["grok"], which=lambda _: None))
+        self.assertEqual("unsupported", install.exit2_capability(caps["grok"], which=lambda cli: "/usr/bin/" + cli))
+        document = {"kernel": {"capabilities": {
+            host: {"processExit2Honored": caps[host].process_exit2_honored, "blockingGap": caps[host].blocking_gap,
+                   "exit2": state}
+            for host, state in (("claude", "verified"), ("grok", "unsupported"), ("copilot", "unknown"))
+        }}}
+        lines = install.format_blocking_fidelity_warnings(document)
+        self.assertEqual(2, len(lines))
+        self.assertTrue(lines[0].startswith("[info] host/copilot"))
+        self.assertTrue(lines[1].startswith("[warning] host/grok"))
+
 
 if __name__ == "__main__":
     unittest.main()
