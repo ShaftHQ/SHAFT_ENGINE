@@ -1,0 +1,52 @@
+name: IntelliJ EAP Plugin Verifier Nightly
+
+# Issue #6429: verifyPlugin normally checks only configured IDE releases, so next-IDE
+# API breaks surface after release. This nightly adds LATEST-EAP-SNAPSHOT (-PverifyEap)
+# and opens or updates one tracking issue when the verifier fails.
+
+on:
+  schedule:
+    - cron: '45 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: intellij-eap-verify
+  cancel-in-progress: true
+
+jobs:
+  verify-eap:
+    name: Verify IntelliJ plugin against next EAP
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Run Plugin Verifier with latest EAP
+        working-directory: shaft-intellij
+        run: ./gradlew --no-daemon verifyPlugin -PverifyEap=true
+      - name: Report nightly failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="IntelliJ plugin fails Plugin Verifier on latest EAP"
+          number=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "Still failing: $RUN_URL"
+          else
+            gh issue create --title "$title" --label bug --body "Nightly EAP verification failed: $RUN_URL"
+          fi
