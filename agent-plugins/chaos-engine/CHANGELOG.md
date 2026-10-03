@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 10.4.20261003 - 2026-10-03
+
+- Align the portable plugin version with SHAFT Engine release 10.4.20261003.
 - Fix: every installer network call (stable-channel lookups, Python, Node and
   Java runtime downloads, checksum manifests) retries transient failures
   three times with backoff; client errors such as 404 are not retried. When
