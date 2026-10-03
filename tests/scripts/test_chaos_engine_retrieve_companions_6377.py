@@ -73,6 +73,7 @@ class GrokBotTest(unittest.TestCase):
             again = tool.entry_output(installed)
             self.assertEqual(1, len(again.strip().splitlines()))
             self.assertIn("entry --full", again)
+            self.assertIn("context summary", again)
             self.assertIn("# ChaosEngine", tool.entry_output(installed, full=True))
             (installed / "companions/caveman-ultra.md").write_text("changed", encoding="utf-8")
             self.assertIn("changed", tool.entry_output(installed))

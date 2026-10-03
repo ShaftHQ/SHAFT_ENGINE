@@ -18,8 +18,18 @@ Projects, and any other independent bot. `AGENTS.md` is not read for you.
    [research receipt](research-receipt.md).
 
 Re-runs print one line while the harness is unchanged; `--full` reprints the
-cards. Keep one delivery per thread and write a handoff note (state, open PRs,
+cards. Run `--full` at the start of every conversation and after every
+context summary or compaction: CLI hosts re-inject the cards on SessionStart
+and PreCompact, so a bot must do it itself. Keep one delivery per thread and write a handoff note (state, open PRs,
 next step) at each delivery boundary instead of carrying a long transcript.
+
+## After each delivery
+
+CLI hosts' Stop hook requires the Learning Session after a confirmed delivery
+(PR merged, issue closed). A bot runs it itself: follow
+[self-improve](../skills/self-improve/SKILL.md) once per delivery, then run
+`python3 .chaos-engine/tool.py maintain` to fast-forward, reinstall, and
+re-check doctor before the next task.
 
 ## Make it automatic
 
