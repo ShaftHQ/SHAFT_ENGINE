@@ -182,6 +182,7 @@ public class EngineService {
             case ANDROID_UIAUTOMATOR -> AppiumBy.androidUIAutomator(locatorValue);
             case IOS_PREDICATE -> AppiumBy.iOSNsPredicateString(locatorValue);
             case IOS_CLASS_CHAIN -> AppiumBy.iOSClassChain(locatorValue);
+            case SHAFT_LOCATOR -> ShaftLocatorChain.build(locatorValue);
         };
     }
 
