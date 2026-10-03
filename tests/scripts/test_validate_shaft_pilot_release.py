@@ -710,6 +710,18 @@ class ShaftPilotReleaseIsolationTest(unittest.TestCase):
         ):
             self.assertGreater(blob.index(check), prepare, check)
 
+    def test_every_unittest_step_installs_ci_python_dependencies_first(self):
+        workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+        for name, job in workflow["jobs"].items():
+            blob = _step_blob(job)
+            if "python3 -m unittest" not in blob:
+                continue
+            with self.subTest(job=name):
+                self.assertIn("requirements-ci.txt", blob)
+                self.assertLess(
+                    blob.index("requirements-ci.txt"), blob.index("python3 -m unittest")
+                )
+
     def test_nightly_run_files_or_recovers_one_tracking_issue(self):
         workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
         triggers = workflow.get("on", workflow.get(True))
