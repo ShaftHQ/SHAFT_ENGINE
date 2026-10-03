@@ -65,6 +65,6 @@ JSON; refresh ChaosGauge digests if the `chaos-engine/` tree hash changes.
 ## Regression gate
 
 `scripts/ci/decision_quality_gate.py` scores protective parity fixtures plus calibration
-correctness against `decision-quality-score.baseline.json` and fails the harness PR gate on a
+correctness against [`decision-quality-score.baseline.json`](decision-quality-score.baseline.json) and fails the harness PR gate on a
 drop. For an intended change, add the PR label `decision-quality-override` and lower the baseline
 in the same PR.
