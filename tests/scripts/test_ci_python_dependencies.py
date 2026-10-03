@@ -35,6 +35,9 @@ EXPECTED_INSTALLS = {
     ".github/workflows/publish-shaft-mcp.yml": (
         "python3 -m pip install --no-deps --requirement ../requirements-ci.txt --quiet",
     ),
+    ".github/workflows/shaft-pilot-release.yml": (
+        "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
+    ),
     ".github/workflows/chaos-gauge-public-canary.yml": (
         "pip install --system --require-hashes --requirement scripts/ci/chaos_gauge/requirements.lock",
     ),
