@@ -7,6 +7,7 @@ import com.epam.reportportal.testng.TestNGService;
 import com.epam.reportportal.utils.MemoizingSupplier;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.gui.browser.internal.BrowserConsoleErrorGate;
 import com.shaft.listeners.internal.*;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.ThreadLocalPropertiesManager;
@@ -361,6 +362,13 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void afterInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult, ITestContext iTestContext) {
+        if (iInvokedMethod.isTestMethod() && iTestResult.getStatus() == ITestResult.SUCCESS) {
+            AssertionError consoleFailure = BrowserConsoleErrorGate.checkCurrentTest();
+            if (consoleFailure != null) {
+                iTestResult.setStatus(ITestResult.FAILURE);
+                iTestResult.setThrowable(consoleFailure);
+            }
+        }
         ReportContext.setStatus(toAllureStatus(iTestResult));
         IssueReporter.updateTestStatusInCaseOfVerificationFailure(iTestResult);
         ReportContext.setStatus(toAllureStatus(iTestResult));

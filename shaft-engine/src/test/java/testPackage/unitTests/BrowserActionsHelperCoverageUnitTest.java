@@ -191,6 +191,9 @@ public class BrowserActionsHelperCoverageUnitTest {
         Assert.assertTrue(httpsAuthUrl.startsWith("https://user:pass@example.com"));
 
         Assert.assertEquals(helper.getDomainNameFromUrl("https://www.sub.example.co.uk/path"), "example.co.uk");
+        Assert.assertEquals(helper.getDomainNameFromUrl("http://127.0.0.1:8080/__basic_auth"), "127.0.0.1");
+        Assert.assertEquals(helper.getDomainNameFromUrl("http://localhost:8080/"), "localhost");
+        Assert.assertEquals(helper.getDomainNameFromUrl("http://host.docker.internal:8080/"), "host.docker.internal");
     }
 
     @Test
