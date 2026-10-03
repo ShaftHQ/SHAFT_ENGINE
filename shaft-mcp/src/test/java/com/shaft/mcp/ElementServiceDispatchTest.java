@@ -390,6 +390,29 @@ class ElementServiceDispatchTest {
         assertEquals("PLAYWRIGHT", pwSelected.activeEngine());
     }
 
+    @Test
+    void elementCountReturnsTheLiveMatchCountPerEngine() {
+        Actions element = mock(Actions.class);
+        when(element.getElementsCount(any(By.class))).thenReturn(3);
+        SHAFT.GUI.WebDriver shaftDriver = mockShaftDriver(element, mock(TouchActions.class));
+        EngineService.setActiveEngine(ActiveEngine.WEB);
+        try (MockedStatic<EngineService> mocked = mockStatic(EngineService.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
+            mocked.when(EngineService::getDriver).thenReturn(shaftDriver);
+            ElementCountResult web = new ElementService(mock(PlaywrightService.class), mock(MobileService.class))
+                    .count(locatorStrategy.CSSSELECTOR, "li");
+            assertEquals(3, web.count());
+            assertEquals("WEB", web.activeEngine());
+        }
+
+        PlaywrightService playwrightService = mock(PlaywrightService.class);
+        when(playwrightService.count(locatorStrategy.ID, "banner")).thenReturn(0);
+        EngineService.setActiveEngine(ActiveEngine.PLAYWRIGHT);
+        ElementCountResult pw = new ElementService(playwrightService, mock(MobileService.class))
+                .count(locatorStrategy.ID, "banner");
+        assertEquals(0, pw.count());
+        assertEquals("PLAYWRIGHT", pw.activeEngine());
+    }
+
     private static SHAFT.GUI.WebDriver mockShaftDriver(Actions element, TouchActions touch) {
         SHAFT.GUI.WebDriver shaftDriver = mock(SHAFT.GUI.WebDriver.class);
         when(shaftDriver.element()).thenReturn(element);

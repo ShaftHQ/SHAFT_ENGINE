@@ -1037,6 +1037,11 @@
         "stakeholder reporting",
         "copy summary"
       ]
+    },
+    "element_count": {
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
     }
   }
 }

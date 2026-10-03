@@ -128,6 +128,7 @@ final class ReportingStagePanel extends JPanel {
         allureActions.add(generateReport);
         allureActions.add(refreshSummaries);
         allureActions.add(copyEngineer);
+        allureActions.add(goToLastFailureButton());
         allureActions.add(copyStakeholder);
 
         JPanel summaries = new JPanel(new GridLayout(1, 2, JBUI.scale(8), 0));
@@ -426,5 +427,20 @@ final class ReportingStagePanel extends JPanel {
         }
         String trimmed = value.trim();
         return trimmed.length() <= 400 ? trimmed : trimmed.substring(0, 400) + "…";
+    }
+
+    /** Runs the Go to Last SHAFT Failure action (#6423), resolved on click so headless panels need no platform. */
+    private JButton goToLastFailureButton() {
+        JButton button = new JButton("Go to last failure");
+        button.getAccessibleContext().setAccessibleName("Go to the failing line of the last run");
+        button.addActionListener(event -> {
+            com.intellij.openapi.actionSystem.ActionManager actions =
+                    com.intellij.openapi.actionSystem.ActionManager.getInstance();
+            com.intellij.openapi.actionSystem.AnAction action = actions.getAction("Shaft.GoToLastFailure");
+            if (action != null) {
+                actions.tryToExecute(action, null, this, "SHAFT Reporting", true);
+            }
+        });
+        return button;
     }
 }

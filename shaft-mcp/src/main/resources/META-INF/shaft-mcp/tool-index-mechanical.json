@@ -1436,6 +1436,21 @@
       "description" : null
     } ]
   }, {
+    "name" : "element_count",
+    "service" : "ElementService",
+    "description" : "counts the elements a locator matches on the live page; dispatches to the active engine",
+    "params" : [ {
+      "name" : "locatorStrategy",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "locatorValue",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    } ]
+  }, {
     "name" : "element_drag_and_drop",
     "service" : "ElementService",
     "description" : "drags and drops an element from source to a target locator, or by offsetX/offsetY when no target locator is given; dispatches to the active engine and records the step when a Playwright recording is active",
