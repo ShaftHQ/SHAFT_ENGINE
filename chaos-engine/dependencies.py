@@ -721,6 +721,37 @@ def discover_account_commands(
     return components, commands
 
 
+STABLE_CHANNEL_ATTEMPTS = 3
+STABLE_CHANNEL_BACKOFF_SECONDS = 2.0
+
+
+def _resolve_stable_version_with_retry(
+    name: str, contract: dict[str, object], *, opener=urllib.request.urlopen
+) -> tuple[str | None, str | None]:
+    """Retry a transient stable-channel miss so one registry blip cannot block setup."""
+    lookup_error = None
+    for attempt in range(STABLE_CHANNEL_ATTEMPTS):
+        if attempt:
+            time.sleep(STABLE_CHANNEL_BACKOFF_SECONDS * attempt)
+        try:
+            return resolve_stable_version(name, contract, opener=opener), None
+        except (OSError, ValueError, json.JSONDecodeError) as error:
+            lookup_error = type(error).__name__
+    return None, lookup_error
+
+
+def describe_blocked_dependencies(actions: dict[str, dict[str, object]]) -> str:
+    """Name each blocked required dependency with its cause."""
+    parts = []
+    for name in sorted(actions):
+        record = actions[name]
+        if record.get("action") != "blocked" or record.get("taskImpact") == "optional":
+            continue
+        error = record.get("lookupError")
+        parts.append(f"{name} (stable-channel lookup failed: {error})" if error else name)
+    return ", ".join(parts)
+
+
 def resolve_account_actions(
     specification: dict[str, object],
     local: dict[str, dict[str, object]],
@@ -758,11 +789,10 @@ def resolve_account_actions(
             latest = pinned_mempalace_version
             verified = True
         else:
-            try:
-                latest = resolve_stable_version(name, contract, opener=opener)
-                verified = True
-            except (OSError, ValueError, json.JSONDecodeError) as error:
-                lookup_error = type(error).__name__
+            latest, lookup_error = _resolve_stable_version_with_retry(
+                name, contract, opener=opener
+            )
+            verified = lookup_error is None
         installed = record.get("version") if isinstance(record.get("version"), str) else None
         healthy = record.get("healthy") is True
         action = dependency_action(
@@ -1557,13 +1587,9 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     actions = resolve_account_actions(
         specification, local, opener=opener
     )
-    blocked = sorted(
-        name
-        for name, record in actions.items()
-        if record.get("action") == "blocked" and record.get("taskImpact") != "optional"
-    )
+    blocked = describe_blocked_dependencies(actions)
     if blocked:
-        raise RuntimeError("dependency setup blocked: " + ", ".join(blocked))
+        raise RuntimeError("dependency setup blocked: " + blocked)
 
     selected_system = system or (
         "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"

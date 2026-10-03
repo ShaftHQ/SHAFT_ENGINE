@@ -428,6 +428,49 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertEqual("3.8.0", actions["mempalace"]["resolvedVersion"])
         self.assertEqual("upgraded", actions["mempalace"]["action"])
 
+    def test_transient_stable_channel_failure_is_retried_before_blocking(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        local = {name: {"healthy": True, "version": "1.0.0"} for name in specification["dependencies"]}
+        local["mempalace"] = {"healthy": True, "version": "3.8.0"}
+        calls = {}
+
+        def flaky(name, *_args, **_kwargs):
+            calls[name] = calls.get(name, 0) + 1
+            if name == "graphify" and calls[name] == 1:
+                raise OSError("timed out")
+            return "1.0.0"
+
+        with mock.patch.object(module, "resolve_stable_version", side_effect=flaky), \
+                mock.patch.object(module.time, "sleep") as sleep:
+            actions = module.resolve_account_actions(specification, local)
+        self.assertEqual("reused", actions["graphify"]["action"])
+        self.assertEqual(2, calls["graphify"])
+        sleep.assert_called()
+
+    def test_persistent_stable_channel_failure_blocks_with_the_lookup_error(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        local = {name: {"healthy": True, "version": "1.0.0"} for name in specification["dependencies"]}
+        local["mempalace"] = {"healthy": True, "version": "3.8.0"}
+
+        def down(name, *_args, **_kwargs):
+            if name == "graphify":
+                raise OSError("timed out")
+            return "1.0.0"
+
+        with mock.patch.object(module, "resolve_stable_version", side_effect=down) as resolver, \
+                mock.patch.object(module.time, "sleep"):
+            actions = module.resolve_account_actions(specification, local)
+        graphify_calls = [c for c in resolver.call_args_list if c.args[0] == "graphify"]
+        self.assertEqual(module.STABLE_CHANNEL_ATTEMPTS, len(graphify_calls))
+        self.assertEqual("blocked", actions["graphify"]["action"])
+        self.assertEqual("OSError", actions["graphify"]["lookupError"])
+        self.assertEqual(
+            "graphify (stable-channel lookup failed: OSError)",
+            module.describe_blocked_dependencies(actions),
+        )
+
     def test_account_tool_plan_uses_resolved_stable_versions_then_matching_rerun_reuses(self):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))

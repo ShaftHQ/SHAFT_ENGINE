@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fix: a single transient stable-channel lookup failure (PyPI or npm timeout)
+  no longer blocks install with `dependency setup blocked: graphify` while the
+  tool is installed and healthy. The lookup is retried three times with
+  backoff, and a persistent failure now names its cause, for example
+  `graphify (stable-channel lookup failed: OSError)`.
 - Fix: a fresh-clone install no longer fails with CE-INSTALL-FAILED when the
   first MemPalace mine outlasts the 900 s setup budget. Install creates the
   exact palace synchronously, then runs the incremental mine in a detached

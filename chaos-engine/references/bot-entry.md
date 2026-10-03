@@ -21,6 +21,16 @@ Re-runs print one line while the harness is unchanged; `--full` reprints the
 cards. Keep one delivery per thread and write a handoff note (state, open PRs,
 next step) at each delivery boundary instead of carrying a long transcript.
 
+## Make it automatic
+
+A bot only follows this page when something loads it every task. Put one
+always-loaded instruction in the host's persistent slot (Grok Bot shared user
+memory or a global skill, GPT instructions, Claude Project instructions):
+"In a checkout with `.chaos-engine/`, run `python3 .chaos-engine/tool.py entry`
+first and follow `.chaos-engine/references/bot-entry.md`." New agents on that
+host then inherit the entry, retrieve-first, and receipts with no per-agent
+setup. Keep the rules here; the host slot holds only the pointer.
+
 ## Bots without repository access (GPTs)
 
 Save `python3 .chaos-engine/tool.py entry > chaos-engine-entry.md` and load
