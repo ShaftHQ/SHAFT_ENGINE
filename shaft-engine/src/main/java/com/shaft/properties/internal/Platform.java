@@ -44,7 +44,7 @@ public interface Platform extends EngineProperties<Platform> {
      * the "Target Operating System" below, and the "Automation Name" in the Mobile tab, then configure
      * the "browserStack.properties" file in your project directory.
      *
-     * <p>Default: {@code local}. Possible values: local, dockerized, browserstack, host:port,
+     * <p>Default: {@code local}. Possible values: local, dockerized, testcontainers, browserstack, host:port,
      * http://host:port/wd/hub.
      *
      * @return the configured value of {@code executionAddress}
