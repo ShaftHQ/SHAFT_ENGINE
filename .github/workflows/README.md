@@ -53,6 +53,7 @@ changing that token silently breaks both distribution publishers.
 | `maven-central-reconcile.yml` | manual only | Safely completes a partially published immutable Maven Central version; dry-run defaults on. |
 | `prepare-release-pr.yml` | manual only | Updates the dated reactor and tool versions and opens the release PR. |
 | `publishJavaDocs.yml` | successful Maven Central workflow, manual | Publishes aggregate JavaDocs to the `javadoc` branch. |
+| `intellij-eap-verify.yml` | nightly schedule, manual | Builds and tests the IntelliJ plugin against the latest EAP snapshot (`-PverifyEap`). |
 | `publish-intellij-plugin.yml` | published GitHub release, manual | Checks out the release tag, verifies, signs, and publishes the IntelliJ plugin. |
 | `publish-shaft-mcp.yml` | published GitHub release, manual | Publishes MCP images and registry metadata. |
 | `deploy-shaft-mcp.yml` | successful MCP distribution workflow, manual | Deploys configured MCP services and records optional-provider handoffs. |

@@ -76,7 +76,8 @@ on explicit invocation.
   blocker findings.
 - One blocking CI wait per push; on failure fix the isolated cause, retry at
   most once, then stop and report. Never re-run checks that already passed.
-- Status reports are always a Markdown table (one row per item), then Risks.
+- Status reports are always a Markdown table (one row per item), then Risks;
+  token use per task: `python3 .chaos-engine/tool.py usage`.
 - Learning Session only on trigger: a defect escaped, a surprise contradicted
   the harness, or the owner asks. Then load
   [self-improve](../self-improve/SKILL.md). Otherwise one line in the final

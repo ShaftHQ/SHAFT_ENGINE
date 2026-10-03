@@ -6043,8 +6043,13 @@ def parser() -> argparse.ArgumentParser:
     commands = result.add_subparsers(dest="command", required=True)
     install_command = commands.add_parser("install")
     install_command.add_argument("--project", required=True, type=Path)
-    install_command.add_argument("--source", required=True, type=Path)
-    install_command.add_argument("--commit", required=True)
+    install_command.add_argument("--source", type=Path)
+    install_command.add_argument("--commit")
+    install_command.add_argument(
+        "--from-bundle",
+        type=Path,
+        help="Install offline from a checksum-verified `install.py bundle` zip (#6415).",
+    )
     install_command.add_argument("--distribution", default=DEFAULT_DISTRIBUTION)
     install_command.add_argument("--skip-tools", action="store_true")
     install_command.add_argument(
@@ -6142,13 +6147,17 @@ def parser() -> argparse.ArgumentParser:
     explain.add_argument("--cancelled", action="store_true")
     explain.add_argument("--timeout", action="store_true")
     explain.add_argument("--json", action="store_true")
+    bundle_command = commands.add_parser("bundle", help="Build an offline install bundle (#6415).")
+    bundle_command.add_argument("--source", required=True, type=Path)
+    bundle_command.add_argument("--commit", required=True)
+    bundle_command.add_argument("--output", required=True, type=Path)
     cache = commands.add_parser("cache")
     cache_commands = cache.add_subparsers(dest="cache_command", required=True)
     cache_status = cache_commands.add_parser("status")
-    cache_status.add_argument("--component", choices=("maven-tools-mcp",), required=True)
+    cache_status.add_argument("--component", choices=("maven-tools-mcp", "downloads"), required=True)
     cache_purge = cache_commands.add_parser("purge")
-    cache_purge.add_argument("--component", choices=("maven-tools-mcp",), required=True)
-    cache_purge.add_argument("--version", required=True)
+    cache_purge.add_argument("--component", choices=("maven-tools-mcp", "downloads"), required=True)
+    cache_purge.add_argument("--version", help="required for maven-tools-mcp")
     return result
 
 
@@ -6789,6 +6798,58 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
     return "\n".join(_dedupe_severity_rows(lines)) + "\n"
 
 
+BUNDLE_MANIFEST = "chaos-engine-bundle.json"
+
+
+def build_bundle(source: Path, commit: str, output: Path) -> Path:
+    """Zip the portable source tree with a sha256 manifest for offline installs (#6415)."""
+    source_files(source)  # same source validation as install
+    files: dict[str, str] = {}
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(source.rglob("*")):
+            relative = path.relative_to(source)
+            if not path.is_file() or is_generated_python_cache(relative):
+                continue
+            reject_link_or_reparse(path)
+            files[relative.as_posix()] = file_sha256(path)
+            archive.write(path, relative.as_posix())
+        archive.writestr(BUNDLE_MANIFEST, json.dumps({"commit": commit, "files": files}, indent=2, sort_keys=True))
+    return output
+
+
+def extract_bundle(bundle: Path, destination: Path) -> tuple[Path, str]:
+    """Verify every bundle member against its manifest, then extract; fail closed on any mismatch."""
+    with zipfile.ZipFile(bundle) as archive:
+        manifest = json.loads(archive.read(BUNDLE_MANIFEST))
+        files = manifest["files"]
+        commit = str(manifest["commit"])
+        if COMMIT_PATTERN.fullmatch(commit) is None:
+            raise ValueError("bundle manifest has an invalid commit")
+        members = [name for name in archive.namelist() if name != BUNDLE_MANIFEST]
+        for name in members:
+            pure = PurePosixPath(name)
+            if pure.is_absolute() or ".." in pure.parts or "\\" in name:
+                raise ValueError(f"bundle member escapes the bundle: {name}")
+        if set(members) != set(files) or len(members) != len(set(members)):
+            raise ValueError("bundle members do not match the manifest checksum list")
+        for name in members:
+            if hashlib.sha256(archive.read(name)).hexdigest() != files[name]:
+                raise ValueError(f"bundle checksum mismatch: {name}")
+        stage = Path(tempfile.mkdtemp(prefix=".ce-bundle-", dir=destination.parent if destination.parent.exists() else None))
+        try:
+            for name in members:
+                target = stage / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(archive.read(name))
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(stage, destination)
+        except BaseException:
+            shutil.rmtree(stage, ignore_errors=True)
+            raise
+    return destination, commit
+
+
 def validate_install_options(args: argparse.Namespace) -> None:
     if getattr(args, "skip_tools", False) and getattr(args, "with_maven_tools", False):
         raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
@@ -6830,6 +6891,12 @@ def main() -> int:
     try:
         validate_install_options(args)
         if args.command == "install":
+            if args.from_bundle is not None:
+                args.source, args.commit = extract_bundle(
+                    args.from_bundle, Path(tempfile.mkdtemp(prefix="chaos-engine-bundle-")) / "chaos-engine"
+                )
+            elif args.source is None or args.commit is None:
+                raise ValueError("install needs --source and --commit, or --from-bundle")
             refusal = linked_worktree_refusal(args.project)
             if refusal:
                 raise RuntimeError(refusal)
@@ -6887,7 +6954,18 @@ def main() -> int:
             _install_store_schedule(args.project)
         elif args.command == "repair":
             result = repair_component(args.project, args.component)
+        elif args.command == "bundle":
+            result = {"status": "bundled", "bundle": str(build_bundle(args.source, args.commit, args.output))}
+        elif args.command == "cache" and args.component == "downloads":
+            controller = load_source_controller("dependencies")
+            result = (
+                controller.download_cache_status()
+                if args.cache_command == "status"
+                else controller.purge_download_cache()
+            )
         elif args.command == "cache":
+            if args.cache_command == "purge" and not args.version:
+                raise ValueError("cache purge --component maven-tools-mcp needs --version")
             controller = load_source_controller("hosts")
             result = (
                 controller.selected_maven_tools_cache_status()

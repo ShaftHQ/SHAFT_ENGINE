@@ -265,6 +265,7 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_bootstrap",
             "tests.scripts.test_ce_packs",
             "tests.scripts.test_chaos_engine_dependencies",
+            "tests.scripts.test_chaos_engine_offline_cache",
             "tests.scripts.test_chaos_engine_generation_runtime",
             "tests.scripts.test_chaos_engine_live_installer_acceptance",
         ),
@@ -426,6 +427,11 @@ CHECKS = {
         "process-owner",
         ("tests.scripts.test_process_owner_scrum_master",),
     ),
+    "ce-h2-gates-contract": Check(
+        "ce-h2-gates-contract",
+        "ce-h2-gates",
+        ("tests.scripts.test_ce_h2_gates",),
+    ),
     "visual-ocr-workflow-contract": Check(
         "visual-ocr-workflow-contract",
         "visual-ocr-workflow",
@@ -478,6 +484,7 @@ SURFACE_CHECKS = {
     "omniroute-calibration": ("omniroute-calibration-contract",),
     "process-owner": ("process-owner-contract",),
     "visual-ocr-workflow": ("visual-ocr-workflow-contract",),
+    "ce-h2-gates": ("ce-h2-gates-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -832,6 +839,22 @@ SURFACE_PATTERNS = {
         "chaos-engine/references/orchestrator-follow-through.md",
         "chaos-engine/references/execution-workflows.md",
         "tests/scripts/test_process_owner_scrum_master.py",
+    ),
+    # #6411-#6414: decision-quality gate, dod, latency budgets, usage table.
+    "ce-h2-gates": (
+        "chaos-engine/evals/*",
+        "chaos-engine/decision-quality-*",
+        "chaos-engine/dod.py",
+        "chaos-engine/session_token_usage.py",
+        "chaos-engine/tool.py",
+        "chaos-engine/retrieve.py",
+        "chaos-engine/install.py",
+        "chaos-engine/INSTALL.md",
+        "chaos-engine/skills/kanban/SKILL.md",
+        "chaos-engine/skills/chaos-engine/SKILL.md",
+        "scripts/ci/decision_quality_gate.py",
+        "tests/fixtures/ce_dod/*",
+        "tests/scripts/test_ce_h2_gates.py",
     ),
     "visual-ocr-workflow": (
         ".github/workflows/e2eTests.yml",
