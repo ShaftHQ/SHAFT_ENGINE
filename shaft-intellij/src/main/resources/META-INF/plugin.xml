@@ -9,6 +9,8 @@
     <depends optional="true" config-file="io.github.shafthq.shaft-withTerminal.xml">org.jetbrains.plugins.terminal</depends>
     <depends optional="true" config-file="io.github.shafthq.shaft-withJUnit.xml">JUnit</depends>
     <depends optional="true" config-file="io.github.shafthq.shaft-withTestNG.xml">TestNG-J</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withGradle.xml">com.intellij.gradle</depends>
+    <depends optional="true" config-file="io.github.shafthq.shaft-withKotlin.xml">org.jetbrains.kotlin</depends>
 
     <resource-bundle>messages.ShaftBundle</resource-bundle>
 
