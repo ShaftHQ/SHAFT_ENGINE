@@ -44,7 +44,8 @@ def phase_timeout_seconds(system: str | None = None) -> int:
 
 
 PHASE_TIMEOUT_SECONDS = phase_timeout_seconds()
-MCP_START_TIMEOUT_SECONDS = 10
+# Cold Windows runners import MemPalace/Chroma slowly; match MCP client startup budgets.
+MCP_START_TIMEOUT_SECONDS = 45
 MCP_PROTOCOL_VERSION = "2025-06-18"
 COMMIT = re.compile(r"[0-9a-f]{40}")
 HEX_ID = re.compile(r"[0-9a-f]{32}")
@@ -1104,11 +1105,14 @@ def probe_mcp(
     except subprocess.TimeoutExpired:
         process.terminate()
         try:
-            process.communicate(timeout=5)
+            _late_stdout, late_stderr = process.communicate(timeout=5)
         except subprocess.TimeoutExpired:
             process.kill()
-            process.communicate(timeout=5)
-        raise RuntimeError("MCP initialize timed out")
+            _late_stdout, late_stderr = process.communicate(timeout=5)
+        raise RuntimeError(
+            f"MCP initialize timed out after {MCP_START_TIMEOUT_SECONDS}s: "
+            f"{sanitize(' '.join(command))}: {sanitize(late_stderr or '')}"
+        )
     try:
         responses = parse_mcp_stdout_frames(stdout)
     except (IndexError, TypeError, ValueError, json.JSONDecodeError) as error:
