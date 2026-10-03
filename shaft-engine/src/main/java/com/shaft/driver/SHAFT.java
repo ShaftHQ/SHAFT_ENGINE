@@ -913,6 +913,26 @@ public class SHAFT {
         }
 
         /**
+         * Starts a stub-free gRPC client for unary calls with JSON requests and responses.
+         *
+         * @param target gRPC target, for example {@code "localhost:50051"}
+         * @return a new {@link com.shaft.api.GrpcActions}
+         */
+        public static com.shaft.api.GrpcActions grpc(String target) {
+            return new com.shaft.api.GrpcActions(target);
+        }
+
+        /**
+         * Starts a stub-free gRPC client on a caller-managed channel (TLS, in-process).
+         *
+         * @param channel the channel
+         * @return a new {@link com.shaft.api.GrpcActions}
+         */
+        public static com.shaft.api.GrpcActions grpc(io.grpc.Channel channel) {
+            return new com.shaft.api.GrpcActions(channel);
+        }
+
+        /**
          * Builds a GET request for the specified service endpoint.
          *
          * @param serviceName the endpoint path (appended to the base URI)

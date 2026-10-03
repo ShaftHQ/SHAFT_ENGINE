@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dynamic Loading Fixture</title>
+</head>
+<body>
+<!-- example=1: #finish exists but is hidden; example=2: #finish is rendered after loading (#6398). -->
+<div id="start"><button>Start</button></div>
+<div id="loading" style="display:none">Loading...</div>
+<div id="finish-host"></div>
+<script>
+    const renderLater = new URLSearchParams(location.search).get('example') === '2';
+    const host = document.getElementById('finish-host');
+    if (!renderLater) {
+        host.innerHTML = '<div id="finish" style="display:none"><h4>Hello World!</h4></div>';
+    }
+    document.querySelector('#start button').addEventListener('click', () => {
+        document.getElementById('start').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('loading').style.display = 'none';
+            if (renderLater) {
+                host.innerHTML = '<div id="finish"><h4>Hello World!</h4></div>';
+            } else {
+                document.getElementById('finish').style.display = 'block';
+            }
+        }, 1500);
+    });
+</script>
+</body>
+</html>

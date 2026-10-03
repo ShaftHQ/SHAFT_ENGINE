@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import runpy
 import subprocess  # nosec B404 - optional advisory store CLIs only.
 import sys
 from pathlib import Path
@@ -619,6 +620,23 @@ def _recorded_mismatch(project: Path, store: str, recheck: bool) -> dict[str, An
     }
 
 
+def graph_freshness_field(project: Path) -> dict[str, str]:
+    """Never answer from an outdated graph silently (#6409): report fresh, stale or absent."""
+    try:
+        fresh, detail = runpy.run_path(
+            str(Path(__file__).resolve().with_name("stores.py")), run_name="_chaos_engine_stores"
+        )["graph_freshness"](project)
+    except (OSError, KeyError, RuntimeError, ValueError) as error:
+        return {"status": "unknown", "detail": str(error)}
+    if fresh:
+        return {"status": "fresh", "detail": detail}
+    return {
+        "status": detail.split(" ", 1)[0] if detail.startswith(("stale", "absent")) else "stale",
+        "detail": detail,
+        "refresh": "python3 .chaos-engine/tool.py stores refresh --if-stale",
+    }
+
+
 def retrieve(
     query: str,
     *,
@@ -656,6 +674,8 @@ def retrieve(
     else:
         outcome = _run_store(root, chosen, cleaned)
     receipt.update(outcome)
+    if chosen == "graphify":
+        receipt["freshness"] = graph_freshness_field(root)
     if receipt.get("status") in {STATUS_DEGRADED, STATUS_SKIPPED}:
         _record_store_outcome(
             root,

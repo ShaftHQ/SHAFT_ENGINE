@@ -19,7 +19,8 @@ public class LocalE2EPublicLoginHostGuardTest {
             "practicetestautomation" + ".com",
             "saucedemo.com" + "/v1",
             "selenium.dev" + "/selenium/web/login.html",
-            "moatazeldebsy" + ".github.io"
+            "moatazeldebsy" + ".github.io",
+            "the-internet" + ".herokuapp.com"
     );
 
     @Test
@@ -47,6 +48,8 @@ public class LocalE2EPublicLoginHostGuardTest {
                 "selenium.dev login.html was migrated and must stay forbidden");
         Assert.assertTrue(containsForbiddenHost("https://moatazeldebsy" + ".github.io/test-automation-practices/#/login"),
                 "moatazeldebsy forms were migrated and must stay forbidden");
+        Assert.assertTrue(containsForbiddenHost("https://the-internet" + ".herokuapp.com/dynamic_loading/2"),
+                "the-internet pages were ported to TestPageServer fixtures (#6398) and must stay forbidden");
         Assert.assertTrue(containsForbiddenHost("https://practicetestautomation" + ".com/practice-test-login/"),
                 "practice-test-automation host remains forbidden");
     }
@@ -59,8 +62,8 @@ public class LocalE2EPublicLoginHostGuardTest {
                 "selenium web-form stays on cloud/grid jobs");
         Assert.assertFalse(containsForbiddenHost("https://hub.browserstack.com/wd/hub"),
                 "BrowserStack/cloud hosts must not be forbidden");
-        Assert.assertFalse(containsForbiddenHost("https://the-internet.herokuapp.com/dynamic_loading/2"),
-                "leftover live URLs kept on purpose must not be forbidden");
+        Assert.assertFalse(containsForbiddenHost("https://restful-booker" + ".herokuapp.com/booking"),
+                "API-only hosts are outside the GUI guard");
     }
 
     private static boolean isLocalE2EGuiTest(Path path) {

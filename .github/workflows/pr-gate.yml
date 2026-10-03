@@ -258,6 +258,11 @@ jobs:
               - 'tests/scripts/test_extract_allure_failures.py'
             intellij:
               - 'shaft-intellij/**'
+              # Issue #6438: the shaft-mcp contract validator ran only nightly, so a
+              # Dockerfile it rejects merged unseen. Its inputs gate this job too.
+              - 'shaft-mcp/Dockerfile*'
+              - 'scripts/ci/validate_shaft_mcp_configuration.py'
+              - 'tests/scripts/test_validate_shaft_mcp_configuration.py'
               - '.github/workflows/publish-intellij-plugin.yml'
               - 'scripts/mcp/**'
               - 'tests/scripts/test_install_shaft_mcp.py'
@@ -528,6 +533,8 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           REVIEWS_PATH: ${{ runner.temp }}/chaos-engine-reviews.json
+          # #6411: `decision-quality-override` lets an intended score drop pass.
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: >-
           python scripts/ci/harness_pr_gate.py
           --base "$BASE_SHA"
@@ -577,6 +584,8 @@ jobs:
           check-latest: true
       - name: Run unittest for installer script
         run: python -m unittest tests.scripts.test_install_shaft_mcp tests.scripts.test_generate_shaft_skills_tool_catalog tests.scripts.test_mcp_tool_catalog_sync tests.scripts.test_generate_tool_index tests.scripts.test_validate_tool_index_examples tests.scripts.test_validate_shaft_mcp_configuration -v
+      - name: Validate shaft-mcp configuration contract
+        run: python scripts/ci/validate_shaft_mcp_configuration.py
       - name: Validate installer contract
         run: python scripts/ci/validate_installer_contract.py
       - name: Verify installer release

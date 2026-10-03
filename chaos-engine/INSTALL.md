@@ -165,7 +165,9 @@ checked-out tree). Change into the target project or folder first; both scripts
 install into the current working directory.
 
 Python is not required before either command. The wrapper bootstraps Python as
-needed. The installer then discovers the invoking account's tools, resolves
+needed. ChaosEngine supports Python 3.11 or newer (3.10 reaches end of life in
+October 2026); the wrappers ignore an older interpreter and the Python entry
+points exit with a clear message. The installer then discovers the invoking account's tools, resolves
 official stable channels, and chooses `reused`, `installed`, `upgraded`,
 `repaired`, or `blocked` per dependency. It installs latest stable Python
 through uv, uv itself through Astral, active
@@ -358,6 +360,13 @@ Supported components: `plugins`, `hosts`, `core`, `mempalace`,
 this health truth).
 
 
+
+
+### Offline install and shared download cache
+
+- Build a bundle where you have network access: `python3 chaos-engine/install.py bundle --source chaos-engine --commit <sha> --output ce.zip`.
+- Install offline with `python3 install.py install --project . --from-bundle ce.zip`. Every file is checked against the bundle's sha256 manifest first, and any mismatch aborts the install.
+- Runtime downloads are cached per user and keyed by sha256 (`~/.cache/chaos-engine/downloads`, `%LOCALAPPDATA%\chaos-engine\downloads`, or `CHAOS_ENGINE_CACHE_DIR`), so a second project reuses them. Inspect or empty the cache with `install.py cache status|purge --component downloads`.
 
 ## Uninstall / rollback (first-time recovery)
 
@@ -758,3 +767,9 @@ Doctor surfaces the gate under `components.hooks.learningSession`. SessionStart
 stays locator-only; the heavy protocol runs on the delivery Stop path (not an
 always-on Task Observer). Harness parity: lasting policy lives in this overlay
 so every supported host shares the same outcomes.
+
+## Latency budgets
+
+CI (`tests/scripts/test_ce_h2_gates.py`) fails when a per-turn command exceeds its budget:
+`tool.py entry` under 1 s, `retrieve --store graphify` under 5 s, `install.py doctor --json`
+under 10 s on a fixture project.

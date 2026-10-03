@@ -6284,6 +6284,19 @@ def role_adapter_desired(relative: str, *, legacy: bool = False) -> bytes | None
     return None
 
 
+def created_file_residue(original: bytes | None, residue: bytes | None) -> bytes | None:
+    """Keep a file ChaosEngine created absent on uninstall when only an empty skeleton remains (#6407)."""
+    if original is not None or residue is None:
+        return residue
+    if not residue.strip():
+        return None
+    try:
+        document = json.loads(residue)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return residue
+    return None if isinstance(document, dict) and not any(document.values()) else residue
+
+
 def upgrade_before_images(
     project: Path,
     before: dict[str, bytes | None],
@@ -6299,20 +6312,20 @@ def upgrade_before_images(
             restored[relative] = observed
             continue
         if relative == ".mcp.json" and observed is not None:
-            restored[relative] = strip_known_json_ownership(
+            restored[relative] = created_file_residue(before[relative], strip_known_json_ownership(
                 observed, before[relative], after[relative], label="MCP"
-            )
+            ))
             continue
         if relative == ".gemini/settings.json" and observed is not None:
             stripped = strip_known_json_ownership(
                 observed, before[relative], after[relative], label="Gemini"
             )
-            restored[relative] = without_chaos_hooks(stripped, "Gemini")
+            restored[relative] = created_file_residue(before[relative], without_chaos_hooks(stripped, "Gemini"))
             continue
         if relative == ".codex/config.toml" and observed is not None:
-            restored[relative] = strip_known_codex_ownership(
+            restored[relative] = created_file_residue(before[relative], strip_known_codex_ownership(
                 observed, before[relative], after[relative]
-            )
+            ))
             continue
         if observed in (before[relative], after[relative]):
             continue

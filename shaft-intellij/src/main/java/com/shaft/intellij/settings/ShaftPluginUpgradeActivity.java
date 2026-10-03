@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * mirroring the process-wide {@code AtomicBoolean} pattern used by
  * {@link com.shaft.intellij.ui.ShaftRecordingActivity#active()}.
  *
- * <p>{@code execute} itself only schedules the check via {@code invokeLater} rather than running
+ * <p>{@code execute} itself only schedules the check on a pooled thread (never the EDT, #6426) rather than running
  * it inline: the platform invokes {@code ProjectActivity.execute} on its shared background
  * coroutine dispatcher, and the actual work (settings I/O, credential/tool-approval reset) has no
  * reason to hold that thread once scheduling is possible -- returning immediately keeps this
@@ -48,11 +48,20 @@ public final class ShaftPluginUpgradeActivity implements ProjectActivity {
     @Override
     public Object execute(@NotNull Project project, @NotNull Continuation<? super Unit> continuation) {
         if (CHECKED.compareAndSet(false, true)) {
-            ApplicationManager.getApplication().invokeLater(() ->
-                    checkForUpgrade(runningPluginVersion(), ShaftSettingsState.getInstance(),
-                            ShaftPluginResetService.getInstance()));
+            schedule(() -> checkForUpgrade(runningPluginVersion(), ShaftSettingsState.getInstance(),
+                    ShaftPluginResetService.getInstance()));
         }
         return Unit.INSTANCE;
+    }
+
+    /**
+     * Runs the upgrade check on a pooled thread so settings and credential I/O never block the EDT (#6426).
+     *
+     * @param check the upgrade check
+     * @return the pending check
+     */
+    static java.util.concurrent.Future<?> schedule(@NotNull Runnable check) {
+        return ApplicationManager.getApplication().executeOnPooledThread(check);
     }
 
     /**
