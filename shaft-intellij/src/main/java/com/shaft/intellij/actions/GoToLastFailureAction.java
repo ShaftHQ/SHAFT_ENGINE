@@ -3,10 +3,11 @@ package com.shaft.intellij.actions;
 import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.application.ReadAction;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Computable;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.JavaPsiFacade;
@@ -69,7 +70,7 @@ public final class GoToLastFailureAction extends AnAction implements DumbAware {
         LastRunResults.Frame frame = result.frame();
         String className = frame != null ? frame.className()
                 : result.fullName().substring(0, Math.max(0, result.fullName().lastIndexOf('.')));
-        VirtualFile file = ReadAction.compute(() -> {
+        VirtualFile file = ApplicationManager.getApplication().runReadAction((Computable<VirtualFile>) () -> {
             PsiClass psiClass = JavaPsiFacade.getInstance(project)
                     .findClass(className.replace('$', '.'), GlobalSearchScope.projectScope(project));
             return psiClass == null || psiClass.getContainingFile() == null

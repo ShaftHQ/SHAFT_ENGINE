@@ -473,8 +473,7 @@ public class ElementService {
      * @param locatorValue locator value
      * @return the active engine and the match count
      */
-    @Tool(name = "element_count", description = "counts the elements a locator matches on the live page; "
-            + "dispatches to the active engine")
+    @Tool(name = "element_count", description = "counts the elements a locator matches on the live page; dispatches to the active engine")
     public ElementCountResult count(locatorStrategy locatorStrategy, String locatorValue) {
         ActiveEngine engine = EngineService.activeEngine();
         int count = engine == ActiveEngine.PLAYWRIGHT
