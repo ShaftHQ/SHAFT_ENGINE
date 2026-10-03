@@ -43,11 +43,20 @@ public class PerformanceBudgetTest {
         paths.forEach((name, op) -> {
             double nanos = medianNanosPerOp(op);
             measured.append(name).append('=').append(Math.round(nanos)).append(' ');
-            double limit = Double.parseDouble(baseline.getProperty(name)) * THRESHOLD;
-            Assert.assertFalse(exceedsBudget(nanos, Double.parseDouble(baseline.getProperty(name))),
+            double budget = baselineNanos(baseline, name);
+            double limit = budget * THRESHOLD;
+            Assert.assertFalse(exceedsBudget(nanos, budget),
                     name + " took " + nanos + " ns/op; budget " + limit + " ns/op. measured: " + measured);
         });
         System.out.println("PerformanceBudgetTest measured: " + measured);
+    }
+
+    private static double baselineNanos(Properties baseline, String name) {
+        try {
+            return Double.parseDouble(baseline.getProperty(name, ""));
+        } catch (NumberFormatException invalid) {
+            throw new AssertionError("Missing or invalid performance baseline for " + name, invalid);
+        }
     }
 
     /**
