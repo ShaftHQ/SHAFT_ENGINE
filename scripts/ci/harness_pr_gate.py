@@ -265,6 +265,7 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_bootstrap",
             "tests.scripts.test_ce_packs",
             "tests.scripts.test_chaos_engine_dependencies",
+            "tests.scripts.test_chaos_engine_installer_self_heal_5630",
             "tests.scripts.test_chaos_engine_offline_cache",
             "tests.scripts.test_chaos_engine_generation_runtime",
             "tests.scripts.test_chaos_engine_live_installer_acceptance",
@@ -512,6 +513,7 @@ SURFACE_PATTERNS = {
         "scripts/ci/chaos_engine_live_installer_acceptance.py",
         "tests/scripts/test_chaos_engine_bootstrap.py",
         "tests/scripts/test_chaos_engine_dependencies.py",
+        "tests/scripts/test_chaos_engine_installer_self_heal_5630.py",
         "tests/scripts/test_chaos_engine_generation_runtime.py",
         "tests/scripts/test_chaos_engine_installer.py",
         "tests/scripts/test_chaos_engine_installer_ux.py",
@@ -871,7 +873,7 @@ UNGATED_TEST_ALLOWLIST_REASON = (
 # #6362: the allowlist may only shrink. Lower this ceiling when a module gains a
 # PR-gate check; never raise it. Every allowlisted module still runs weekly in
 # the "Full deterministic harness" acceptance job via --list-ungated.
-UNGATED_TEST_ALLOWLIST_CEILING = 98
+UNGATED_TEST_ALLOWLIST_CEILING = 97
 UNGATED_TEST_ALLOWLIST = {
     'tests.scripts.test_assemble_javadocs': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_assemble_shard_blob': UNGATED_TEST_ALLOWLIST_REASON,
@@ -893,7 +895,6 @@ UNGATED_TEST_ALLOWLIST = {
     'tests.scripts.test_chaos_engine_install_verify_5699': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_chaos_engine_install_verify_5703': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_chaos_engine_installer_host_adapter_drift_5633': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_chaos_engine_installer_self_heal_5630': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_chaos_engine_learn_contracts': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_chaos_engine_learning_5767_5770': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_chaos_engine_learning_5776': UNGATED_TEST_ALLOWLIST_REASON,
