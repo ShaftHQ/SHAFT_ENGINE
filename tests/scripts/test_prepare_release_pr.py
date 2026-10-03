@@ -125,6 +125,62 @@ String androidCommandLineToolsVersion();
             self.assertEqual("Plugin 10.2.20260630\n", catalog)
             self.assertNotIn(root / "modular-era-feature-catalog.md", changed)
 
+    def test_rolls_plugin_changelog_and_compatibility_to_release_version(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write(
+                root / "pom.xml",
+                """<project xmlns="http://maven.apache.org/POM/4.0.0">
+<version>10.3.20260930</version>
+</project>
+""",
+            )
+            _write(
+                root / "shaft-engine/src/main/java/com/shaft/properties/internal/Internal.java",
+                """interface Internal {
+@DefaultValue("10.3.20260930")
+String shaftEngineVersion();
+
+@DefaultValue("3.1.0")
+String allure3Version();
+}
+""",
+            )
+            _write(root / "shaft-intellij/gradle.properties", "pluginVersion=10.3.20260930\n")
+            _write(
+                root / "agent-plugins/release.json",
+                '{"packages": [{"name": "chaos-engine", "version": "10.3.20260930"}]}',
+            )
+            _write(
+                root / "agent-plugins/chaos-engine/CHANGELOG.md",
+                "# Changelog\n\n## Unreleased\n\n- Fix: pending entry.\n\n"
+                "## 10.3.20260930 - 2026-09-30\n\n- Older entry.\n",
+            )
+            _write(
+                root / "agent-plugins/chaos-engine/COMPATIBILITY.md",
+                "This page describes `chaos-engine` 10.3.20260930; evidence for 10.3.20260824.\n",
+            )
+
+            _, release_version, changed = MODULE.prepare_release(
+                root, "2026-10-03", internal_versions={"allure3Version": "3.1.0"}
+            )
+
+            self.assertEqual("10.4.20261003", release_version)
+            changelog = (root / "agent-plugins/chaos-engine/CHANGELOG.md").read_text(encoding="utf-8")
+            self.assertEqual(
+                "# Changelog\n\n## Unreleased\n\n## 10.4.20261003 - 2026-10-03\n\n"
+                "- Align the portable plugin version with SHAFT Engine release 10.4.20261003.\n"
+                "- Fix: pending entry.\n\n## 10.3.20260930 - 2026-09-30\n\n- Older entry.\n",
+                changelog,
+            )
+            compatibility = (root / "agent-plugins/chaos-engine/COMPATIBILITY.md").read_text(encoding="utf-8")
+            self.assertEqual(
+                "This page describes `chaos-engine` 10.4.20261003; evidence for 10.3.20260824.\n",
+                compatibility,
+            )
+            self.assertIn(root / "agent-plugins/chaos-engine/CHANGELOG.md", changed)
+            self.assertIn(root / "agent-plugins/chaos-engine/COMPATIBILITY.md", changed)
+
     def test_rejects_non_newer_release_date(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
