@@ -297,11 +297,10 @@ def resolve_account_launcher(
     """Resolve one CreateProcess-safe launcher (Windows PATHEXT / pwsh→powershell) (#5629)."""
     if not command:
         raise ValueError("dependency launcher is empty")
-    path = Path(command)
     # Absolute or explicit path forms: pass through so mocked/account receipt
     # paths are not re-resolved (and missing fixtures stay FileNotFound at exec).
     if (
-        path.is_absolute()
+        os.path.isabs(command)
         or "/" in command
         or "\\" in command
         or (os.name == "nt" and len(command) >= 3 and command[1:3] in {":\\", ":/"})
