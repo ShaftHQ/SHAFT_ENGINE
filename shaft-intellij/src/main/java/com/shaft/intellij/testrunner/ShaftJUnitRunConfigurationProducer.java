@@ -11,7 +11,6 @@ import com.intellij.openapi.util.Ref;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiMethod;
-import com.intellij.psi.util.PsiTreeUtil;
 import com.shaft.intellij.project.ShaftProjectDetector;
 import org.jetbrains.annotations.NotNull;
 
@@ -41,7 +40,7 @@ public final class ShaftJUnitRunConfigurationProducer extends LazyRunConfigurati
             return false;
         }
         PsiElement element = context.getPsiLocation();
-        PsiMethod method = PsiTreeUtil.getParentOfType(element, PsiMethod.class, false);
+        PsiMethod method = ShaftTestContext.method(element);
         if (method != null && ShaftTestMethodAnnotations.isShaftRunnableTestMethod(annotationQualifiedNames(method))) {
             Module module = configuration.getPersistentData().setTestMethod(PsiLocation.fromPsiElement(method));
             if (module != null) {
@@ -51,7 +50,7 @@ public final class ShaftJUnitRunConfigurationProducer extends LazyRunConfigurati
             sourceElement.set(method);
             return true;
         }
-        PsiClass psiClass = PsiTreeUtil.getParentOfType(element, PsiClass.class, false);
+        PsiClass psiClass = ShaftTestContext.testClass(element);
         if (psiClass != null && psiClass.getName() != null && hasRunnableMethod(psiClass)) {
             configuration.beClassConfiguration(psiClass);
             sourceElement.set(psiClass);
