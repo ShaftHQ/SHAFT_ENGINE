@@ -5,6 +5,18 @@
 ## 10.4.20261003 - 2026-10-03
 
 - Align the portable plugin version with SHAFT Engine release 10.4.20261003.
+- Fix: every installer network call (stable-channel lookups, Python, Node and
+  Java runtime downloads, checksum manifests) retries transient failures
+  three times with backoff; client errors such as 404 are not retried. When
+  the registry stays unreachable, an installed healthy tool is reused instead
+  of blocking install, and doctor prints
+  `[info] dependency/<name> — reused <version> unverified` with a fix-next.
+  A missing or broken tool still blocks, naming the lookup error.
+- Fix: a single transient stable-channel lookup failure (PyPI or npm timeout)
+  no longer blocks install with `dependency setup blocked: graphify` while the
+  tool is installed and healthy. The lookup is retried three times with
+  backoff, and a persistent failure now names its cause, for example
+  `graphify (stable-channel lookup failed: OSError)`.
 - Fix: a fresh-clone install no longer fails with CE-INSTALL-FAILED when the
   first MemPalace mine outlasts the 900 s setup budget. Install creates the
   exact palace synchronously, then runs the incremental mine in a detached

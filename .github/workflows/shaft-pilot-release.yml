@@ -12,6 +12,10 @@ on:
       - ".github/workflows/shaft-pilot-release.yml"
       - ".github/actions/reclaim-disk-space/action.yml"
       - ".github/actions/upload-jacoco-coverage/action.yml"
+  schedule:
+    # Nightly release dry run on main: surfaces release-only failures days before
+    # a release PR instead of on it; the notify job files one tracking issue.
+    - cron: '41 2 * * *'
   workflow_dispatch:
 
 permissions:
@@ -263,6 +267,30 @@ jobs:
           container-name: shaft-pilot-release-smoke
           client-name: release-smoke
 
+  release-prep-dry-run:
+    needs: detect-shaft-version-change
+    if: needs.detect-shaft-version-change.outputs.changed == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Prepare release metadata for tomorrow
+        run: python3 scripts/ci/prepare_release_pr.py --release-date "$(date -u -d tomorrow +%F)"
+      - name: Check plugin changelog covers the prepared version
+        run: python3 scripts/ci/check_plugin_changelog_version.py
+      - name: Validate release contracts on the prepared tree
+        uses: ./.github/actions/release-contract-validators
+      - name: Run release-sensitive plugin tests on the prepared tree
+        run: >-
+          python3 -m unittest
+          tests.scripts.test_check_plugin_changelog_version
+          tests.scripts.test_assemble_chaos_engine_plugin
+
   release-candidate:
     name: release-candidate
     needs:
@@ -273,6 +301,7 @@ jobs:
       - capture-journey
       - package-and-validate
       - container-smoke
+      - release-prep-dry-run
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 5
@@ -287,6 +316,7 @@ jobs:
           CAPTURE_RESULT: ${{ needs.capture-journey.result }}
           PACKAGE_RESULT: ${{ needs.package-and-validate.result }}
           CONTAINER_RESULT: ${{ needs.container-smoke.result }}
+          PREP_RESULT: ${{ needs.release-prep-dry-run.result }}
         run: |
           set -uo pipefail
 
@@ -300,6 +330,7 @@ jobs:
             echo "| capture-journey | ${CAPTURE_RESULT} |"
             echo "| package-and-validate | ${PACKAGE_RESULT} |"
             echo "| container-smoke | ${CONTAINER_RESULT} |"
+            echo "| release-prep-dry-run | ${PREP_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "${DETECT_RESULT}" != "success" ]; then
@@ -313,7 +344,7 @@ jobs:
           fi
 
           status=0
-          for result in "${INTELLIJ_RESULT}" "${CONTRACTS_RESULT}" "${PILOT_RESULT}" "${CAPTURE_RESULT}" "${PACKAGE_RESULT}" "${CONTAINER_RESULT}"; do
+          for result in "${INTELLIJ_RESULT}" "${CONTRACTS_RESULT}" "${PILOT_RESULT}" "${CAPTURE_RESULT}" "${PACKAGE_RESULT}" "${CONTAINER_RESULT}" "${PREP_RESULT}"; do
             case "$result" in
               success) ;;
               *)
@@ -323,3 +354,22 @@ jobs:
             esac
           done
           exit "${status}"
+
+  notify:
+    name: Notify on nightly failure
+    needs: [release-candidate]
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: File or recover the nightly tracking issue
+        uses: ./.github/actions/notify-nightly-failure
+        with:
+          outcome: ${{ needs.release-candidate.result == 'failure' && 'failure' || (needs.release-candidate.result == 'success' && 'success' || 'skip') }}
+          workflow-name: ${{ github.workflow }}
+          label: 'nightly-failure:release-candidate'

@@ -283,6 +283,7 @@ ISOLATED_RELEASE_CANDIDATE_JOBS = (
     "capture-journey",
     "package-and-validate",
     "container-smoke",
+    "release-prep-dry-run",
 )
 
 def _workflow_job_block(workflow_text: str, job_id: str) -> str | None:

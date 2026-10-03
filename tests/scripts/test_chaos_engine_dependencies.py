@@ -6,6 +6,8 @@ import copy
 import io
 import importlib.util
 import json
+import urllib.error
+import re
 import os
 import shutil
 import sqlite3
@@ -428,6 +430,61 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertEqual("3.8.0", actions["mempalace"]["resolvedVersion"])
         self.assertEqual("upgraded", actions["mempalace"]["action"])
 
+    def test_transient_network_failure_is_retried_then_succeeds(self):
+        module = load_controller()
+        response = mock.MagicMock()
+        response.__enter__.return_value = response
+        opener = mock.Mock(side_effect=[OSError("timed out"), response])
+        with mock.patch.object(module.time, "sleep") as sleep:
+            self.assertIs(response, module._open_with_retry(opener, "https://x", timeout=5))
+        self.assertEqual(2, opener.call_count)
+        sleep.assert_called_once()
+
+    def test_persistent_network_failure_raises_after_bounded_attempts(self):
+        module = load_controller()
+        opener = mock.Mock(side_effect=OSError("timed out"))
+        with mock.patch.object(module.time, "sleep"), self.assertRaises(OSError):
+            module._open_with_retry(opener, "https://x", timeout=5)
+        self.assertEqual(module.NETWORK_ATTEMPTS, opener.call_count)
+
+    def test_client_http_error_is_not_retried(self):
+        module = load_controller()
+        error = urllib.error.HTTPError("https://x", 404, "missing", {}, None)
+        opener = mock.Mock(side_effect=error)
+        with mock.patch.object(module.time, "sleep"), self.assertRaises(urllib.error.HTTPError):
+            module._open_with_retry(opener, "https://x", timeout=5)
+        self.assertEqual(1, opener.call_count)
+
+    def test_every_installer_network_call_uses_the_retrying_opener(self):
+        source = (ROOT / "chaos-engine/dependencies.py").read_text(encoding="utf-8")
+        self.assertEqual([], re.findall(r"with opener\(", source))
+
+    def test_unreachable_registry_reuses_a_healthy_tool_unverified(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        local = {name: {"healthy": True, "version": "1.0.0"} for name in specification["dependencies"]}
+        local["mempalace"] = {"healthy": True, "version": "3.8.0"}
+        with mock.patch.object(module, "resolve_stable_version", side_effect=OSError("down")):
+            actions = module.resolve_account_actions(specification, local)
+        self.assertEqual("reused", actions["graphify"]["action"])
+        self.assertFalse(actions["graphify"]["latestVersionVerified"])
+        self.assertEqual("OSError", actions["graphify"]["lookupError"])
+        self.assertEqual("", module.describe_blocked_dependencies(actions))
+
+    def test_unreachable_registry_still_blocks_a_missing_tool_with_its_cause(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        local = {name: {"healthy": True, "version": "1.0.0"} for name in specification["dependencies"]}
+        local["mempalace"] = {"healthy": True, "version": "3.8.0"}
+        local["graphify"] = {"healthy": False, "version": None, "status": "absent"}
+        with mock.patch.object(module, "resolve_stable_version", side_effect=OSError("down")):
+            actions = module.resolve_account_actions(specification, local)
+        self.assertEqual("blocked", actions["graphify"]["action"])
+        self.assertEqual(
+            "graphify (stable-channel lookup failed: OSError)",
+            module.describe_blocked_dependencies(actions),
+        )
+
     def test_account_tool_plan_uses_resolved_stable_versions_then_matching_rerun_reuses(self):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
@@ -629,7 +686,8 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             ("2.0.0", "1.1.0", True, True, "upgraded"),
             ("1.1.0+1", "1.1.0+2", True, True, "upgraded"),
             ("1.1.0", "1.1.0", False, True, "repaired"),
-            ("1.0.0", None, True, False, "blocked"),
+            ("1.0.0", None, True, False, "reused"),
+            ("1.0.0", None, False, False, "blocked"),
             (None, None, False, False, "blocked"),
         )
         for installed, latest, healthy, verified, expected in cases:
