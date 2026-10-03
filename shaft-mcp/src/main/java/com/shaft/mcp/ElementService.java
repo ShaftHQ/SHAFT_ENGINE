@@ -466,6 +466,25 @@ public class ElementService {
     }
 
     /**
+     * Counts the live elements a locator matches on the active engine, so editors can validate a
+     * locator in place without acting on the page (issue #6421).
+     *
+     * @param locatorStrategy locator strategy
+     * @param locatorValue locator value
+     * @return the active engine and the match count
+     */
+    @Tool(name = "element_count", description = "counts the elements a locator matches on the live page; "
+            + "dispatches to the active engine")
+    public ElementCountResult count(locatorStrategy locatorStrategy, String locatorValue) {
+        ActiveEngine engine = EngineService.activeEngine();
+        int count = engine == ActiveEngine.PLAYWRIGHT
+                ? playwrightService.count(locatorStrategy, locatorValue)
+                : getDriver().element().getElementsCount(getLocator(locatorStrategy, locatorValue));
+        logger.info("Element match count retrieved: {}", count);
+        return new ElementCountResult(engine.name(), count);
+    }
+
+    /**
      * Checks whether an element is displayed, dispatching to whichever engine is currently active.
      * Mobile engines (MOBILE_NATIVE/MOBILE_WEB) share the same WebDriver-backed session as WEB and use
      * the same code path; only Playwright uses a distinct driver instance.
