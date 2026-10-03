@@ -45,6 +45,8 @@ public class ShaftPlatformIntegrationTest extends LightJavaCodeInsightFixtureTes
         Path root = Path.of(getProject().getBasePath());
         Files.createDirectories(root);
         Files.writeString(root.resolve("pom.xml"), "<project><dependency>io.github.shafthq</dependency></project>");
+        // The light project is shared across test classes; an earlier class may have cached "not SHAFT".
+        com.shaft.intellij.project.ShaftProjectDetectorAccess.clearCache();
         myFixture.addClass("package org.testng.annotations; public @interface Test {}");
     }
 
