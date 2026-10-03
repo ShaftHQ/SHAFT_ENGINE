@@ -760,3 +760,9 @@ Doctor surfaces the gate under `components.hooks.learningSession`. SessionStart
 stays locator-only; the heavy protocol runs on the delivery Stop path (not an
 always-on Task Observer). Harness parity: lasting policy lives in this overlay
 so every supported host shares the same outcomes.
+
+## Latency budgets
+
+CI (`tests/scripts/test_ce_h2_gates.py`) fails when a per-turn command exceeds its budget:
+`tool.py entry` under 1 s, `retrieve --store graphify` under 5 s, `install.py doctor --json`
+under 10 s on a fixture project.

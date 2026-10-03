@@ -438,6 +438,10 @@ def main() -> int:
             return 0
         if tool == "maintain":
             return maintain(installed_root)
+        if tool in {"dod", "usage"}:
+            script = "dod.py" if tool == "dod" else "session_token_usage.py"
+            module = runpy.run_path(str(installed_root / script), run_name=f"_chaos_engine_{tool}")
+            return int(module["main"](arguments if tool == "dod" else ["usage", *arguments]))
         if tool == "stores":
             return stores_command(installed_root, arguments)
         if tool == "retrieve":
