@@ -196,6 +196,18 @@ public interface Flags extends EngineProperties<Flags> {
     boolean autoCloseDriverInstance();
 
     /**
+     * Reuse one browser per thread within a test class. {@code quit()} resets state (cookies, storage, extra tabs,
+     * about:blank) and the real quit happens when the class finishes.
+     *
+     * <p>Default: {@code false}. Possible values: true, false.
+     *
+     * @return the configured value of {@code reuseBrowserSession}
+     */
+    @Key("reuseBrowserSession")
+    @DefaultValue("false")
+    boolean reuseBrowserSession();
+
+    /**
      * Whether an API request without an explicit target status code must return 2xx.
      * An explicit {@code setTargetStatusCode(n)} is asserted regardless of this flag (#6326).
      * Accepts {@code true}/{@code false} in any case; read when each request is performed.
@@ -543,6 +555,18 @@ public interface Flags extends EngineProperties<Flags> {
          */
         public SetProperty autoCloseDriverInstance(boolean value) {
             setProperty("autoCloseDriverInstance", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code reuseBrowserSession} property at runtime. Reuse one browser per thread within a
+         * test class.
+         *
+         * @param value the new value of {@code reuseBrowserSession}
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty reuseBrowserSession(boolean value) {
+            setProperty("reuseBrowserSession", String.valueOf(value));
             return this;
         }
 
