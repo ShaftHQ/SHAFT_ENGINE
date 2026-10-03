@@ -126,7 +126,13 @@ public class SHAFT {
              * the execution properties.
              */
             public WebDriver() {
-                helper = factory.getHelper();
+                helper = com.shaft.driver.internal.BrowserSessionReuse.reusable();
+                if (helper == null) {
+                    helper = factory.getHelper();
+                    com.shaft.driver.internal.BrowserSessionReuse.register(helper);
+                } else {
+                    factory.setHelper(helper);
+                }
             }
 
             /**
@@ -173,7 +179,7 @@ public class SHAFT {
 
             @Override
             public void quit() {
-                if (helper != null)
+                if (helper != null && !com.shaft.driver.internal.BrowserSessionReuse.resetInsteadOfQuit(helper))
                     helper.closeDriver();
                 if (factory != null)
                     factory.setHelper(null);
