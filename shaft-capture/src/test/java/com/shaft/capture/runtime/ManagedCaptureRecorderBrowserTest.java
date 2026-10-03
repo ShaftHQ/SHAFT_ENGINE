@@ -121,7 +121,7 @@ class ManagedCaptureRecorderBrowserTest {
 
         // Regression for issue #3816: `eventTypes.contains(WindowEvent.class)` alone let a phantom
         // SWITCH slip through undetected, since any legitimate window event already satisfied it.
-        // This journey's window-event shape is deterministic: one OPEN_TAB for the original tab plus
+        // This journey's window-event shape is deterministic: no OPEN_TAB for the original tab (#6392),
         // one OPEN_TAB/CLOSE pair for the real popup, and exactly one SWITCH into the same-origin
         // iframe and one back out of it (BiDi reports a same-origin iframe's own browsing-context id
         // as its script-channel message source, which the pipeline treats as a distinct logical
@@ -136,11 +136,11 @@ class ManagedCaptureRecorderBrowserTest {
                         .count(),
                 "Exactly two SWITCH events are expected (into and out of the iframe); a phantom "
                         + "SWITCH means a signal was attributed to the wrong logical window: " + windowEvents);
-        assertEquals(2, windowEvents.stream()
+        assertEquals(1, windowEvents.stream()
                         .filter(event -> event.action() == CaptureEvent.WindowAction.OPEN_TAB)
                         .count(),
-                "Exactly two OPEN_TAB events are expected (the original tab and the real popup): "
-                        + windowEvents);
+                "Exactly one OPEN_TAB event is expected (the real popup; replay registers the "
+                        + "original tab at setup, #6392): " + windowEvents);
         assertEquals(1, windowEvents.stream()
                         .filter(event -> event.action() == CaptureEvent.WindowAction.CLOSE)
                         .count(),
@@ -252,19 +252,17 @@ class ManagedCaptureRecorderBrowserTest {
         assertEquals(2, typed.size(), "Both async-typed fields must be recorded exactly once: " + typed);
 
         // This is a genuine single-tab session -- no window was ever opened besides the original
-        // tab -- so the only WindowEvent may be the initial OPEN_TAB for that one tab; a SWITCH or a
-        // second OPEN_TAB here is a phantom window from a loopback signal that was not resolved back
-        // to the real BiDi context, regardless of which delivery channel won the race for the
+        // tab -- and replay registers that tab at setup (#6392), so no WindowEvent is expected; a
+        // SWITCH or an OPEN_TAB here is a phantom window from a loopback signal that was not resolved
+        // back to the real BiDi context, regardless of which delivery channel won the race for the
         // delayed typed signals.
         List<CaptureEvent.WindowEvent> windowEvents = session.events().stream()
                 .filter(CaptureEvent.WindowEvent.class::isInstance)
                 .map(CaptureEvent.WindowEvent.class::cast)
                 .toList();
-        assertEquals(List.of(CaptureEvent.WindowAction.OPEN_TAB), windowEvents.stream()
-                        .map(CaptureEvent.WindowEvent::action)
-                        .toList(),
-                "A single-tab async-typed session must emit exactly one WindowEvent -- the initial "
-                        + "OPEN_TAB -- and never a SWITCH: " + windowEvents);
+        assertEquals(List.of(), windowEvents,
+                "A single-tab async-typed session must emit no WindowEvent -- no OPEN_TAB for the "
+                        + "start tab and never a SWITCH: " + windowEvents);
 
         // Every event -- including whichever ones the loopback channel may have delivered -- must
         // share one logical window: proof that a loopback win (if it happened for either field in
