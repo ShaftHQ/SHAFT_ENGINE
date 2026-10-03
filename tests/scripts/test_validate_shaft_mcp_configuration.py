@@ -594,6 +594,32 @@ class ValidateShaftMcpConfigurationFullContractTest(unittest.TestCase):
             "Dockerfile must launch the thin shaft-mcp classpath, not java -jar", errors
         )
 
+    def test_derived_image_dockerfile_skips_build_contract(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_mcp_root(root)
+            _write_text(
+                root / "shaft-mcp/Dockerfile.derived",
+                "FROM ghcr.io/shafthq/shaft-engine-mcp:latest\n"
+                'CMD ["java", "-DheadlessExecution=true", "-cp", "/app/shaft-mcp.jar:/app/lib/*", "x"]\n',
+            )
+
+            self.assertEqual([], MODULE.validate(root))
+
+    def test_derived_image_dockerfile_still_requires_headless_classpath(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_mcp_root(root)
+            _write_text(
+                root / "shaft-mcp/Dockerfile.derived",
+                'FROM ghcr.io/shafthq/shaft-engine-mcp:latest\nCMD ["java", "-jar", "x.jar"]\n',
+            )
+
+            errors = MODULE.validate(root)
+
+        self.assertIn("Dockerfile.derived must launch Chrome headlessly in its container", errors)
+        self.assertIn("Dockerfile.derived must launch the thin shaft-mcp classpath, not java -jar", errors)
+
 
 if __name__ == "__main__":
     unittest.main()
