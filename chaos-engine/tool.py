@@ -62,7 +62,7 @@ def entry_output(installed_root: Path, full: bool = False) -> str:
         unchanged = False
     if unchanged and not full:
         return (
-            f"ChaosEngine entry unchanged ({digest}); if the cards are not in this context, "
+            f"ChaosEngine entry unchanged ({digest}); new conversation, context summary, or cards not in context: "
             "run `python3 .chaos-engine/tool.py entry --full`.\n"
         )
     try:

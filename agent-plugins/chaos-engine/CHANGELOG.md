@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Docs: hookless bots (Grok Bot, Cursor bots) reload the Caveman/Ponytail
+  cards with `tool.py entry --full` at every conversation start and after every
+  context summary, and run the Learning Session plus `tool.py maintain` after
+  each delivery, matching the CLI Stop hook. The quiet `entry` hint says so.
+
 ## 10.4.20261003 - 2026-10-03
 
 - Align the portable plugin version with SHAFT Engine release 10.4.20261003.
