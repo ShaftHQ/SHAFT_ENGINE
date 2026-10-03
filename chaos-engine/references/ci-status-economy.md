@@ -41,6 +41,8 @@ Learned in coalesce wave: babysit, process-owner, and parent turns burned tokens
 
 - Exactly one status channel per in-flight PR: the armed watch. Start it with `--status-lease --digest-out .chaos-engine/runtime/digest-<pr>.json`; it records `.chaos-engine/runtime/status-lease-<pr>.json`.
 - Scheduled process-owner status routines run `python3 scripts/agents/status_lease.py routine --pr <n> --last-reported <state>`; it prints nothing while the lease is live and unchanged, and one line on `red` / `merged` or when no live watch exists. (repo-only)
+- A scheduled status run reports directly in one capped table of changed rows; no relay turn, no unchanged rows, silence when nothing changed.
+- Bots wait with the armed watch only: no ad-hoc wait or poll scripts, and no automatic update-branch (each one restarts every check).
 - Parent re-entry does not re-narrate unless the watch returned RED/MERGED or the owner asked (`--owner-asked`).
 - Link: [process-owner](process-owner-scrum-master.md), [orchestrator follow-through](orchestrator-follow-through.md).
 
@@ -62,6 +64,7 @@ Learned in coalesce wave: babysit, process-owner, and parent turns burned tokens
 | `inventory-drift` | `source-derived inventory drift: <section>` | Refresh README inventory in the same tip ([tip-churn preflight](tip-churn-preflight.md)) |
 | `bandit-b607` | partial executable path | Resolve with `shutil.which`; see [tip-churn preflight](tip-churn-preflight.md) |
 | `memory-content-hash` | stale Memory `content_hash` | `tip_preflight.py --rehash` in the same tip |
+| `unresolved-review-threads` | all checks green but merge state `BLOCKED` by unresolved review threads; the watch goes RED | Fix or reply, then resolve each thread; see [Static-analysis gate](static-analysis-gate.md) |
 | `static-analysis-action-required` | static-analysis ≥medium finding | Blocking; see [Static-analysis ACTION_REQUIRED gate](static-analysis-gate.md) |
 
 ## Executor prompt schema

@@ -426,6 +426,16 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         self.assertEqual("PENDING", bucket)
         self.assertEqual([], failing)
 
+    def test_green_but_blocked_by_unresolved_review_threads_is_red(self):
+        checks = [{"name": "PR Gate Summary", "state": "SUCCESS", "link": "https://checks/1"}]
+        pull = {"state": "OPEN", "mergeStateStatus": "BLOCKED", "autoMergeRequest": {"enabledAt": "t"},
+                "unresolvedReviewThreads": 3}
+        bucket, failing = watch_pr_checks.classify_unattended(checks, pull)
+        self.assertEqual("RED", bucket)
+        self.assertEqual([{"name": "unresolved-review-threads", "link": "3"}], failing)
+        pull["unresolvedReviewThreads"] = 0
+        self.assertEqual("GREEN", watch_pr_checks.classify_unattended(checks, pull)[0])
+
     def test_unattended_command_is_one_blocking_watch(self):
         command = watch_pr_checks.unattended_watch_command(9, repo="ShaftHQ/SHAFT_ENGINE")
         self.assertIn("scripts/agents/watch_pr_checks.py", command)

@@ -163,7 +163,12 @@ def classify_unattended(checks: list[dict], pull: dict | None) -> tuple[str, lis
     merge_state = str(view.get("mergeStateStatus") or "").upper()
     if merge_state in {"DIRTY", "BEHIND"}:
         return "RED", [{"name": "mergeStateStatus", "link": merge_state}]
-    return classify_checks(checks)
+    bucket, failing = classify_checks(checks)
+    # Green but BLOCKED by unresolved review threads never merges on its own.
+    unresolved = int(view.get("unresolvedReviewThreads") or 0)
+    if bucket == "GREEN" and merge_state == "BLOCKED" and unresolved:
+        return "RED", [{"name": "unresolved-review-threads", "link": str(unresolved)}]
+    return bucket, failing
 
 class CheckWatchError(RuntimeError):
     """Raised for gh/environment failures that map to exit code 3."""
@@ -312,7 +317,28 @@ def fetch_pull(gh_executable: str, root: Path, repo: str, pr: int) -> dict:
         raise CheckWatchError(f"gh pr view returned unparseable JSON: {error}") from error
     if not isinstance(payload, dict):
         raise CheckWatchError("gh pr view returned a non-object payload")
+    if str(payload.get("mergeStateStatus") or "").upper() == "BLOCKED":
+        payload["unresolvedReviewThreads"] = count_unresolved_threads(gh_executable, root, repo, pr)
     return payload
+
+
+def count_unresolved_threads(gh_executable: str, root: Path, repo: str, pr: int) -> int:
+    """Unresolved review threads; a lookup failure counts as none (stays pending)."""
+    owner, _, name = repo.partition("/")
+    query = (
+        "query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n){pullRequest(number:$p)"
+        "{reviewThreads(first:100){nodes{isResolved}}}}}"
+    )
+    proc = run_gh(
+        gh_executable,
+        ["api", "graphql", "-f", f"query={query}", "-F", f"o={owner}", "-F", f"n={name}", "-F", f"p={pr}",
+         "--jq", "[.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved|not)]|length"],
+        root,
+    )
+    try:
+        return int((proc.stdout or "0").strip()) if proc.returncode == 0 else 0
+    except ValueError:
+        return 0
 
 
 def fetch_head_sha(gh_executable: str, root: Path, repo: str, pr: int) -> str | None:

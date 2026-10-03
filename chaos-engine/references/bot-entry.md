@@ -17,6 +17,10 @@ Projects, and any other independent bot. `AGENTS.md` is not read for you.
 3. Record `retrieve: used|skipped(<reason>)|exempt(harness)` in the
    [research receipt](research-receipt.md).
 
+Re-runs print one line while the harness is unchanged; `--full` reprints the
+cards. Keep one delivery per thread and write a handoff note (state, open PRs,
+next step) at each delivery boundary instead of carrying a long transcript.
+
 ## Bots without repository access (GPTs)
 
 Save `python3 .chaos-engine/tool.py entry > chaos-engine-entry.md` and load

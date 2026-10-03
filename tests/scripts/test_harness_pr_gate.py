@@ -145,6 +145,16 @@ class ClassifierTest(unittest.TestCase):
             self.assertIn("tests.scripts.test_check_javadoc_param_arity", modules)
             self.assertIn("tests.scripts.test_chaos_engine_zero_llm_catalog", modules)
 
+    def test_changed_harness_module_runs_weekly_only_tests_that_name_it(self) -> None:
+        plan = classify_paths(["chaos-engine/dependencies.py"], ROOT)
+        touched = next(check for check in plan.checks if check.id == "ungated-touched")
+        self.assertFalse(touched.protected)
+        self.assertIn("tests.scripts.test_chaos_engine_installer_self_heal_5630", touched.modules)
+        self.assertTrue(set(touched.modules) <= set(UNGATED_TEST_ALLOWLIST))
+        self.assertNotIn(
+            "ungated-touched", {check.id for check in classify_paths(["chaos-engine/dependencies.py"]).checks}
+        )
+
     def test_kernel_change_selects_only_focused_and_protected_checks(self) -> None:
         plan = classify_paths(["chaos-engine/hooks/kernel.py"])
 
