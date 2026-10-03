@@ -185,6 +185,13 @@ def _update_agent_plugin_versions(path: Path, version: str) -> bool:
     return changed
 
 
+def _roll_plugin_changelog(path: Path, version: str, release_date: str) -> bool:
+    """Open the release entry under ``## Unreleased`` and absorb its pending notes (#6222)."""
+    heading = f"## {version} - {release_date}"
+    note = f"- Align the portable plugin version with SHAFT Engine release {version}.\n"
+    return _replace(path, re.compile(r"^## Unreleased\n\n", re.MULTILINE), f"## Unreleased\n\n{heading}\n\n{note}")
+
+
 def _module_poms(root: Path) -> list[Path]:
     parent = ET.parse(root / "pom.xml").getroot()
     return [
@@ -244,6 +251,14 @@ def prepare_release(
     plugin_release = root / "agent-plugins/release.json"
     if _update_agent_plugin_versions(plugin_release, release_version):
         changed.append(plugin_release)
+
+    plugin_docs = root / "agent-plugins/chaos-engine"
+    if (plugin_docs / "CHANGELOG.md").is_file():
+        if _roll_plugin_changelog(plugin_docs / "CHANGELOG.md", release_version, release_date):
+            changed.append(plugin_docs / "CHANGELOG.md")
+        compatibility = plugin_docs / "COMPATIBILITY.md"
+        if _replace_literal(compatibility, f"`chaos-engine` {current_version}", f"`chaos-engine` {release_version}"):
+            changed.append(compatibility)
 
     return current_version, release_version, sorted(set(changed))
 

@@ -119,6 +119,28 @@ class CaptureEventPipelineTest {
     }
 
     @Test
+    void earlyWindowOpenForTheInitialTabDoesNotRecordAnOpenTab(@TempDir Path temp) throws Exception {
+        // #6392: replay registers the start tab at setup, so an OPEN_TAB for it opens a stray blank
+        // tab whether its window_open arrives before or after the first navigation.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+        pipeline.accept(signalFromContext(
+                "window_open", START, "context-tab-1", Map.of(), Map.of(), Map.of()));
+        pipeline.accept(signalFromContext(
+                "navigation", START.plusMillis(40), "context-tab-1", Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/start")));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        assertFalse(events.stream().anyMatch(CaptureEvent.WindowEvent.class::isInstance),
+                "The initial tab's window_open must not be recorded as a new tab: " + events);
+    }
+
+    @Test
     void asyncTypedInteractionDeliveredThroughLoopbackSinkStaysInTheSameLogicalWindow(
             @TempDir Path temp) throws Exception {
         // Issue #3803: BrowserEventSink -- the loopback HTTP channel wired as a second delivery

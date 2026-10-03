@@ -1050,15 +1050,13 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private void emitWindowOpen(BrowserSignal signal) {
-        String contextId = resolveBrowsingContextId(signal);
-        String key = contextId == null || contextId.isBlank() ? "default" : contextId;
-        // #6392: the start tab's window_open can land after its first navigation under load;
-        // replaying that late OPEN_TAB would move every later step to a blank tab.
-        if ("window-1".equals(logicalWindows.get(key))) {
+        String logicalWindow = logicalWindow(resolveBrowsingContextId(signal));
+        // #6392: replay registers the start tab at setup, so its window_open (early or late) must
+        // not become an OPEN_TAB that opens a stray blank tab.
+        if ("window-1".equals(logicalWindow)) {
             return;
         }
-        append(new CaptureEvent.WindowEvent(
-                context(signal), CaptureEvent.WindowAction.OPEN_TAB, logicalWindow(contextId)),
+        append(new CaptureEvent.WindowEvent(context(signal), CaptureEvent.WindowAction.OPEN_TAB, logicalWindow),
                 RedactionSummary.empty(), List.of());
     }
 
