@@ -249,6 +249,10 @@ public final class TestPageServer {
         }
 
         String executionAddress = SHAFT.Properties.platform.executionAddress();
+        if ("testcontainers".equalsIgnoreCase(executionAddress)) {
+            org.testcontainers.Testcontainers.exposeHostPorts(port);
+            return "host.testcontainers.internal";
+        }
         if (executionAddress != null
                 && (executionAddress.contains("localhost:4444")
                 || executionAddress.contains("127.0.0.1:4444")

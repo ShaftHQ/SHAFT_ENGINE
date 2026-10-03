@@ -87,6 +87,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     //After each step starts inside the methods
     @Override
     public void afterStepStart(StepResult result) {
+        com.shaft.tools.io.internal.OpenTelemetryTracing.start("step", result.getName());
         StepLifecycleListener.super.afterStepStart(result);
     }
 
@@ -117,6 +118,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
      */
     @Override
     public void afterStepStop(StepResult result) {
+        com.shaft.tools.io.internal.OpenTelemetryTracing.stop(result.getStatus(), result.getStatusDetails());
         var iTestResult = TestNGListener.getITestResult();
         if (iTestResult != null) {
             TestNGListenerHelper.updateConfigurationMethods(iTestResult);
@@ -247,6 +249,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     //After The @test starts
     @Override
     public void afterTestStart(TestResult result) {
+        com.shaft.tools.io.internal.OpenTelemetryTracing.start("test", result.getFullName() == null ? result.getName() : result.getFullName());
         TestLifecycleListener.super.afterTestStart(result);
     }
 
@@ -326,6 +329,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     //After The @test stops
     @Override
     public void afterTestStop(TestResult result) {
+        com.shaft.tools.io.internal.OpenTelemetryTracing.stop(result.getStatus(), result.getStatusDetails());
         TestLifecycleListener.super.afterTestStop(result);
     }
 
