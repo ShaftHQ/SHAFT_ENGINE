@@ -149,7 +149,7 @@ class ClassifierTest(unittest.TestCase):
         plan = classify_paths(["chaos-engine/dependencies.py"], ROOT)
         touched = next(check for check in plan.checks if check.id == "ungated-touched")
         self.assertFalse(touched.protected)
-        self.assertIn("tests.scripts.test_chaos_engine_installer_self_heal_5630", touched.modules)
+        self.assertIn("tests.scripts.test_chaos_engine_install_verify_5699", touched.modules)
         self.assertTrue(set(touched.modules) <= set(UNGATED_TEST_ALLOWLIST))
         self.assertNotIn(
             "ungated-touched", {check.id for check in classify_paths(["chaos-engine/dependencies.py"]).checks}
