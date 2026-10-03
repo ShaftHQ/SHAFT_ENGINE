@@ -64,6 +64,7 @@
 <li><a href="#openExecutionSummaryReportAfterExecution(boolean)" tabindex="0">openExecutionSummaryReportAfterExecution(boolean)</a></li>
 <li><a href="#disableLogging(boolean)" tabindex="0">disableLogging(boolean)</a></li>
 <li><a href="#attachFullLog(boolean)" tabindex="0">attachFullLog(boolean)</a></li>
+<li><a href="#attachFailureEvidence(boolean)" tabindex="0">attachFailureEvidence(boolean)</a></li>
 <li><a href="#evidenceLevel(java.lang.String)" tabindex="0">evidenceLevel(String)</a></li>
 <li><a href="#locatorHealthReportEnabled(boolean)" tabindex="0">locatorHealthReportEnabled(boolean)</a></li>
 <li><a href="#slowLocatorThresholdMillis(int)" tabindex="0">slowLocatorThresholdMillis(int)</a></li>
@@ -150,173 +151,178 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <div class="block">Overrides the <code>alwaysLogDiscreetly</code> property at runtime.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#attachFullLog(boolean)" class="member-name-link">attachFullLog</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#attachFailureEvidence(boolean)" class="member-name-link">attachFailureEvidence</a><wbr>(boolean&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>attachFailureEvidence</code> property at runtime.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#attachFullLog(boolean)" class="member-name-link">attachFullLog</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>attachFullLog</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureElementName(boolean)" class="member-name-link">captureElementName</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureElementName(boolean)" class="member-name-link">captureElementName</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>captureElementName</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureWebDriverLogs(boolean)" class="member-name-link">captureWebDriverLogs</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#captureWebDriverLogs(boolean)" class="member-name-link">captureWebDriverLogs</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>captureWebDriverLogs</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#debugMode(boolean)" class="member-name-link">debugMode</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#debugMode(boolean)" class="member-name-link">debugMode</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>debugMode</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#diagnosticsBundleEnabled(boolean)" class="member-name-link">diagnosticsBundleEnabled</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#diagnosticsBundleEnabled(boolean)" class="member-name-link">diagnosticsBundleEnabled</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.diagnostics.enabled</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#diagnosticsMaxArtifactMb(int)" class="member-name-link">diagnosticsMaxArtifactMb</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#diagnosticsMaxArtifactMb(int)" class="member-name-link">diagnosticsMaxArtifactMb</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.diagnostics.maxArtifactMb</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#disableLogging(boolean)" class="member-name-link">disableLogging</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#disableLogging(boolean)" class="member-name-link">disableLogging</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>disableLogging</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#evidenceLevel(java.lang.String)" class="member-name-link">evidenceLevel</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#evidenceLevel(java.lang.String)" class="member-name-link">evidenceLevel</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>evidenceLevel</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failOnLocatorHealthWarnings(boolean)" class="member-name-link">failOnLocatorHealthWarnings</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failOnLocatorHealthWarnings(boolean)" class="member-name-link">failOnLocatorHealthWarnings</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>failOnLocatorHealthWarnings</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#flakeProfilerAttachPerTest(boolean)" class="member-name-link">flakeProfilerAttachPerTest</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#flakeProfilerAttachPerTest(boolean)" class="member-name-link">flakeProfilerAttachPerTest</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.flakeProfiler.attachPerTest</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#flakeProfilerEnabled(boolean)" class="member-name-link">flakeProfilerEnabled</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#flakeProfilerEnabled(boolean)" class="member-name-link">flakeProfilerEnabled</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.flakeProfiler.enabled</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#flakeProfilerFailOnSevereFlakeRisk(boolean)" class="member-name-link">flakeProfilerFailOnSevereFlakeRisk</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#flakeProfilerFailOnSevereFlakeRisk(boolean)" class="member-name-link">flakeProfilerFailOnSevereFlakeRisk</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.flakeProfiler.failOnSevereFlakeRisk</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#flakeProfilerSlowActionThresholdMs(int)" class="member-name-link">flakeProfilerSlowActionThresholdMs</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#flakeProfilerSlowActionThresholdMs(int)" class="member-name-link">flakeProfilerSlowActionThresholdMs</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.flakeProfiler.slowActionThresholdMs</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#forceCheckForElementVisibility(boolean)" class="member-name-link">forceCheckForElementVisibility</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#forceCheckForElementVisibility(boolean)" class="member-name-link">forceCheckForElementVisibility</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>forceCheckForElementVisibility</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locatorHealthAttachDashboard(boolean)" class="member-name-link">locatorHealthAttachDashboard</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locatorHealthAttachDashboard(boolean)" class="member-name-link">locatorHealthAttachDashboard</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.locatorHealth.attachDashboard</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locatorHealthEnabled(boolean)" class="member-name-link">locatorHealthEnabled</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locatorHealthEnabled(boolean)" class="member-name-link">locatorHealthEnabled</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.locatorHealth.enabled</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locatorHealthFailBelowScore(int)" class="member-name-link">locatorHealthFailBelowScore</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locatorHealthFailBelowScore(int)" class="member-name-link">locatorHealthFailBelowScore</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.locatorHealth.failBelowScore</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locatorHealthReportEnabled(boolean)" class="member-name-link">locatorHealthReportEnabled</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locatorHealthReportEnabled(boolean)" class="member-name-link">locatorHealthReportEnabled</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>locatorHealthReportEnabled</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locatorHealthWarnBelowScore(int)" class="member-name-link">locatorHealthWarnBelowScore</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locatorHealthWarnBelowScore(int)" class="member-name-link">locatorHealthWarnBelowScore</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.locatorHealth.warnBelowScore</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#openExecutionSummaryReportAfterExecution(boolean)" class="member-name-link">openExecutionSummaryReportAfterExecution</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#openExecutionSummaryReportAfterExecution(boolean)" class="member-name-link">openExecutionSummaryReportAfterExecution</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>openExecutionSummaryReportAfterExecution</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#openLighthouseReportWhileExecution(boolean)" class="member-name-link">openLighthouseReportWhileExecution</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#openLighthouseReportWhileExecution(boolean)" class="member-name-link">openLighthouseReportWhileExecution</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>openLighthouseReportWhileExecution</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#slowLocatorThresholdMillis(int)" class="member-name-link">slowLocatorThresholdMillis</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#slowLocatorThresholdMillis(int)" class="member-name-link">slowLocatorThresholdMillis</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>slowLocatorThresholdMillis</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceEnabled(boolean)" class="member-name-link">traceEnabled</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceEnabled(boolean)" class="member-name-link">traceEnabled</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.enabled</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeCodeContext(boolean)" class="member-name-link">traceIncludeCodeContext</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeCodeContext(boolean)" class="member-name-link">traceIncludeCodeContext</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.includeCodeContext</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeConsole(boolean)" class="member-name-link">traceIncludeConsole</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeConsole(boolean)" class="member-name-link">traceIncludeConsole</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.includeConsole</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeDomSnapshots(boolean)" class="member-name-link">traceIncludeDomSnapshots</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeDomSnapshots(boolean)" class="member-name-link">traceIncludeDomSnapshots</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.includeDomSnapshots</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeFullPageSnapshots(boolean)" class="member-name-link">traceIncludeFullPageSnapshots</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeFullPageSnapshots(boolean)" class="member-name-link">traceIncludeFullPageSnapshots</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.includeFullPageSnapshots</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeNativePageSource(boolean)" class="member-name-link">traceIncludeNativePageSource</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeNativePageSource(boolean)" class="member-name-link">traceIncludeNativePageSource</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.includeNativePageSource</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeNetwork(boolean)" class="member-name-link">traceIncludeNetwork</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeNetwork(boolean)" class="member-name-link">traceIncludeNetwork</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.includeNetwork</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeScreenshots(boolean)" class="member-name-link">traceIncludeScreenshots</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceIncludeScreenshots(boolean)" class="member-name-link">traceIncludeScreenshots</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.includeScreenshots</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceMaxArtifactMb(int)" class="member-name-link">traceMaxArtifactMb</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceMaxArtifactMb(int)" class="member-name-link">traceMaxArtifactMb</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.maxArtifactMb</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceMaxSessionMb(int)" class="member-name-link">traceMaxSessionMb</a><wbr>(int&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceMaxSessionMb(int)" class="member-name-link">traceMaxSessionMb</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.maxSessionMb</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceMode(java.lang.String)" class="member-name-link">traceMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceMode(java.lang.String)" class="member-name-link">traceMode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.mode</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceRetainFailedAttempts(boolean)" class="member-name-link">traceRetainFailedAttempts</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#traceRetainFailedAttempts(boolean)" class="member-name-link">traceRetainFailedAttempts</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.retainFailedAttempts</code> property at runtime.</div>
 </div>
 </div>
@@ -492,6 +498,22 @@ live log file.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>value</code> - the new value of <code>attachFullLog</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal"><code>Reporting.SetProperty</code></a> instance for chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="attachFailureEvidence(boolean)">
+<h3>attachFailureEvidence</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></span>&nbsp;<span class="element-name">attachFailureEvidence</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Overrides the <code>attachFailureEvidence</code> property at runtime. Attach one redacted failure
+evidence JSON when an element action fails.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>attachFailureEvidence</code></dd>
 <dt>Returns:</dt>
 <dd>this <a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal"><code>Reporting.SetProperty</code></a> instance for chaining</dd>
 </dl>

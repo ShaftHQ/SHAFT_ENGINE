@@ -72,6 +72,8 @@
 <li><a href="#pageLoadStrategy(java.lang.String)" tabindex="0">pageLoadStrategy(String)</a></li>
 <li><a href="#readinessState(java.lang.String)" tabindex="0">readinessState(String)</a></li>
 <li><a href="#storageStatePath(java.lang.String)" tabindex="0">storageStatePath(String)</a></li>
+<li><a href="#failOnBrowserConsoleErrors(boolean)" tabindex="0">failOnBrowserConsoleErrors(boolean)</a></li>
+<li><a href="#browserConsoleErrorAllowlist(java.lang.String)" tabindex="0">browserConsoleErrorAllowlist(String)</a></li>
 </ol>
 </li>
 </ol>
@@ -132,14 +134,24 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <div class="block">Overrides the <code>baseURL</code> property at runtime.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Web.SetProperty.html" title="class in com.shaft.properties.internal">Web.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#browserWindowHeight(int)" class="member-name-link">browserWindowHeight</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#browserConsoleErrorAllowlist(java.lang.String)" class="member-name-link">browserConsoleErrorAllowlist</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Overrides the <code>browserWindowHeight</code> property at runtime.</div>
+<div class="block">Overrides the <code>browserConsoleErrorAllowlist</code> property at runtime.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Web.SetProperty.html" title="class in com.shaft.properties.internal">Web.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#browserWindowWidth(int)" class="member-name-link">browserWindowWidth</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#browserWindowHeight(int)" class="member-name-link">browserWindowHeight</a><wbr>(int&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>browserWindowHeight</code> property at runtime.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Web.SetProperty.html" title="class in com.shaft.properties.internal">Web.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#browserWindowWidth(int)" class="member-name-link">browserWindowWidth</a><wbr>(int&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>browserWindowWidth</code> property at runtime.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Web.SetProperty.html" title="class in com.shaft.properties.internal">Web.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#failOnBrowserConsoleErrors(boolean)" class="member-name-link">failOnBrowserConsoleErrors</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>failOnBrowserConsoleErrors</code> property at runtime.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Web.SetProperty.html" title="class in com.shaft.properties.internal">Web.SetProperty</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#forceBrowserDownload(boolean)" class="member-name-link">forceBrowserDownload</a><wbr>(boolean&nbsp;value)</code></div>
@@ -505,6 +517,36 @@ automatically loaded into a freshly-initialized driver.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>value</code> - the new value of <code>storageStatePath</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Web.SetProperty.html" title="class in com.shaft.properties.internal"><code>Web.SetProperty</code></a> instance for chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="failOnBrowserConsoleErrors(boolean)">
+<h3>failOnBrowserConsoleErrors</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Web.SetProperty.html" title="class in com.shaft.properties.internal">Web.SetProperty</a></span>&nbsp;<span class="element-name">failOnBrowserConsoleErrors</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Overrides the <code>failOnBrowserConsoleErrors</code> property at runtime.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>failOnBrowserConsoleErrors</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Web.SetProperty.html" title="class in com.shaft.properties.internal"><code>Web.SetProperty</code></a> instance for chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="browserConsoleErrorAllowlist(java.lang.String)">
+<h3>browserConsoleErrorAllowlist</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Web.SetProperty.html" title="class in com.shaft.properties.internal">Web.SetProperty</a></span>&nbsp;<span class="element-name">browserConsoleErrorAllowlist</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>browserConsoleErrorAllowlist</code> property at runtime.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>browserConsoleErrorAllowlist</code></dd>
 <dt>Returns:</dt>
 <dd>this <a href="Web.SetProperty.html" title="class in com.shaft.properties.internal"><code>Web.SetProperty</code></a> instance for chaining</dd>
 </dl>

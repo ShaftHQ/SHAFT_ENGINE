@@ -66,6 +66,8 @@
 <li><a href="#pageLoadStrategy()" tabindex="0">pageLoadStrategy()</a></li>
 <li><a href="#readinessState()" tabindex="0">readinessState()</a></li>
 <li><a href="#storageStatePath()" tabindex="0">storageStatePath()</a></li>
+<li><a href="#failOnBrowserConsoleErrors()" tabindex="0">failOnBrowserConsoleErrors()</a></li>
+<li><a href="#browserConsoleErrorAllowlist()" tabindex="0">browserConsoleErrorAllowlist()</a></li>
 <li><a href="#set()" tabindex="0">set()</a></li>
 </ol>
 </li>
@@ -130,15 +132,27 @@ Controls target browser type, headless mode, window size, page load strategy, an
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Base URL for the application under test.</div>
 </div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#browserConsoleErrorAllowlist()" class="member-name-link">browserConsoleErrorAllowlist</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Java regular expression for console errors that never fail a test; combine several patterns with
+<code>|</code>, for example <code>favicon\.ico|ResizeObserver loop</code>.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#browserWindowHeight()" class="member-name-link">browserWindowHeight</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Won't work if autoMaximizeBrowserWindow is enabled.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#browserWindowHeight()" class="member-name-link">browserWindowHeight</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#browserWindowWidth()" class="member-name-link">browserWindowWidth</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Won't work if autoMaximizeBrowserWindow is enabled.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>int</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#browserWindowWidth()" class="member-name-link">browserWindowWidth</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#failOnBrowserConsoleErrors()" class="member-name-link">failOnBrowserConsoleErrors</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Won't work if autoMaximizeBrowserWindow is enabled.</div>
+<div class="block">Fail a passing test when the browser console captured error-level messages that do not match
+<code>browserConsoleErrorAllowlist</code>.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#forceBrowserDownload()" class="member-name-link">forceBrowserDownload</a>()</code></div>
@@ -532,6 +546,42 @@ navigation are restored. A failure to load (missing file, unreachable origin, et
 warning and does not fail driver initialization.
 
 <p>Default is blank, meaning the feature is disabled.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="failOnBrowserConsoleErrors()">
+<h3>failOnBrowserConsoleErrors</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("failOnBrowserConsoleErrors")
+@DefaultValue("false")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">failOnBrowserConsoleErrors</span>()</div>
+<div class="block">Fail a passing test when the browser console captured error-level messages that do not match
+<code>browserConsoleErrorAllowlist</code>. The messages are attached to the report.
+
+<p>Default: <code>false</code>. Possible values: true, false.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>failOnBrowserConsoleErrors</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="browserConsoleErrorAllowlist()">
+<h3>browserConsoleErrorAllowlist</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("browserConsoleErrorAllowlist")
+@DefaultValue("")
+</span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">browserConsoleErrorAllowlist</span>()</div>
+<div class="block">Java regular expression for console errors that never fail a test; combine several patterns with
+<code>|</code>, for example <code>favicon\.ico|ResizeObserver loop</code>.
+
+<p>Default: empty (nothing is allowlisted).</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>browserConsoleErrorAllowlist</code></dd>
+</dl>
 </div>
 </section>
 </li>
