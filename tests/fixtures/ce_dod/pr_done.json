@@ -1,0 +1,1 @@
+{"pr": {"labels": [{"name": "enhancement"}], "body": "Closes #6412", "files": [{"path": "chaos-engine/dod.py"}, {"path": "tests/scripts/test_ce_h2_gates.py"}]}, "checks": [{"name": "PR Gate Summary", "state": "SUCCESS"}]}
