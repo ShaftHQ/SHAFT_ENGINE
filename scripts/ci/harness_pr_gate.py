@@ -1097,10 +1097,12 @@ def classify_paths(paths: list[str], root: Path | None = None) -> GatePlan:
         if protected_id not in check_ids:
             check_ids.append(protected_id)
     checks = tuple(CHECKS[check_id] for check_id in dict.fromkeys(check_ids))
+    return GatePlan(tuple(selected), checks + _touched_checks(root, paths), tuple(sorted(set(unknown))))
+
+
+def _touched_checks(root: Path | None, paths: list[str]) -> tuple[Check, ...]:
     touched = touched_allowlisted_modules(root, paths) if root is not None else ()
-    if touched:
-        checks += (Check("ungated-touched", "fallback", touched),)
-    return GatePlan(tuple(selected), checks, tuple(sorted(set(unknown))))
+    return (Check("ungated-touched", "fallback", touched),) if touched else ()
 
 
 def write_generated_artifacts(root: Path, plan: GatePlan) -> tuple[str, ...]:
