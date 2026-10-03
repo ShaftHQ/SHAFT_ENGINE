@@ -63,6 +63,7 @@
 <li><a href="#forceCheckStatusOfRemoteServer()" tabindex="0">forceCheckStatusOfRemoteServer()</a></li>
 <li><a href="#clickUsingJavascriptWhenWebDriverClickFails()" tabindex="0">clickUsingJavascriptWhenWebDriverClickFails()</a></li>
 <li><a href="#autoCloseDriverInstance()" tabindex="0">autoCloseDriverInstance()</a></li>
+<li><a href="#reuseBrowserSession()" tabindex="0">reuseBrowserSession()</a></li>
 <li><a href="#automaticallyAssertResponseStatusCode()" tabindex="0">automaticallyAssertResponseStatusCode()</a></li>
 <li><a href="#maximumPerformanceMode()" tabindex="0">maximumPerformanceMode()</a></li>
 <li><a href="#skipTestsWithLinkedIssues()" tabindex="0">skipTestsWithLinkedIssues()</a></li>
@@ -245,35 +246,40 @@ possible with a 400% calculated performance boost.</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Maximum number of retry attempts after the first failed execution.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#scrollingMode()" class="member-name-link">scrollingMode</a>()</code></div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#reuseBrowserSession()" class="member-name-link">reuseBrowserSession</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Reuse one browser per thread within a test class.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#scrollingMode()" class="member-name-link">scrollingMode</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Mode for scrolling to elements.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Starts a fluent, engine-global override of these flags.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#setForCurrentThread()" class="member-name-link">setForCurrentThread</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Flags.SetProperty.html" title="class in com.shaft.properties.internal">Flags.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#setForCurrentThread()" class="member-name-link">setForCurrentThread</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Starts a fluent override of these flags for the current thread only.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#skipTestsWithLinkedIssues()" class="member-name-link">skipTestsWithLinkedIssues</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#skipTestsWithLinkedIssues()" class="member-name-link">skipTestsWithLinkedIssues</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">It is recommended to leave this feature disabled unless you explicitly want to skip any tests
 that have the @Issue or @Issues annotation.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#telemetryEnabled()" class="member-name-link">telemetryEnabled</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#telemetryEnabled()" class="member-name-link">telemetryEnabled</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Enable telemetry data collection for SHAFT usage analytics.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#validateSwipeToElement()" class="member-name-link">validateSwipeToElement</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#validateSwipeToElement()" class="member-name-link">validateSwipeToElement</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Validate swipe to element action on mobile.</div>
 </div>
 </div>
@@ -533,6 +539,24 @@ intercepted-click failures.
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the configured value of <code>autoCloseDriverInstance</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="reuseBrowserSession()">
+<h3>reuseBrowserSession</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("reuseBrowserSession")
+@DefaultValue("false")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">reuseBrowserSession</span>()</div>
+<div class="block">Reuse one browser per thread within a test class. <code>quit()</code> resets state (cookies, storage, extra tabs,
+about:blank) and the real quit happens when the class finishes.
+
+<p>Default: <code>false</code>. Possible values: true, false.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>reuseBrowserSession</code></dd>
 </dl>
 </div>
 </section>
