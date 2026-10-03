@@ -868,6 +868,10 @@ public class DriverFactoryHelper {
             return;
         }
         executionAddress = executionAddress.trim();
+        if (executionAddress.equalsIgnoreCase(TestcontainersGrid.EXECUTION_ADDRESS)) {
+            setTargetHubUrl(TestcontainersGrid.hubUrl(SHAFT.Properties.web.targetBrowserName()));
+            return;
+        }
         setTargetHubUrl(executionAddress.toLowerCase(Locale.ROOT).startsWith("http")
                 ? executionAddress
                 : "http://" + executionAddress);
@@ -877,8 +881,12 @@ public class DriverFactoryHelper {
      * Performs configured Selenium Grid preflight during framework suite startup.
      */
     public static void preflightRemoteGridIfConfigured() {
-        initializeSystemProperties();
         var executionAddress = SHAFT.Properties.platform.executionAddress();
+        if (TestcontainersGrid.EXECUTION_ADDRESS.equalsIgnoreCase(executionAddress)) {
+            return;
+        }
+        initializeSystemProperties();
+        executionAddress = SHAFT.Properties.platform.executionAddress();
         if (executionAddress == null
                 || executionAddress.equalsIgnoreCase("local")
                 || executionAddress.equalsIgnoreCase("dockerized")) {
