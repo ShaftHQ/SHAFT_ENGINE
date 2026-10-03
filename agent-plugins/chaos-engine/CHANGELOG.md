@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 10.4.20261003 - 2026-10-03
+
+- Align the portable plugin version with SHAFT Engine release 10.4.20261003.
 - Fix: a fresh-clone install no longer fails with CE-INSTALL-FAILED when the
   first MemPalace mine outlasts the 900 s setup budget. Install creates the
   exact palace synchronously, then runs the incremental mine in a detached
