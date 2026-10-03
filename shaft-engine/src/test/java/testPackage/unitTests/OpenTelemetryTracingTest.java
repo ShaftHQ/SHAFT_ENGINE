@@ -12,7 +12,6 @@ import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.opentelemetry.sdk.trace.export.SpanExporter;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StatusDetails;
-import io.qameta.allure.model.StepResult;
 import io.qameta.allure.model.TestResult;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
