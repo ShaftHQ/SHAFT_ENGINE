@@ -2,6 +2,12 @@
 
 Plan SHAFT ads without fake claims.
 
+When the optional `design-skills` add-on is installed
+(`.chaos-engine/addons/design-skills/SKILL.md`), follow its technical-video
+pipeline and cards (brief, capture, voice-over, captions, loudness, delivery QC)
+with this playbook's SHAFT facts and guardrails; run its `design_qc.py` gates.
+Without it, use the workflow below.
+
 ## Stack
 
 - Strategy/scenes: plan in the brief/storyboard; no dedicated tool.

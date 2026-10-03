@@ -386,7 +386,7 @@ def validate_delivery(skills_root: Path, tool_index: dict) -> list[str]:
     canonical_names = {tool["name"] for tool in tool_index.get("tools", []) if tool.get("name")}
     skill_dirs = sorted(
         # `ce-pack` is the repository's ChaosEngine project pack, not a skill (CE-10).
-        path for path in skills_root.iterdir() if path.is_dir() and path.name not in {"references", "ce-pack"}
+        path for path in skills_root.iterdir() if path.is_dir() and path.name not in {"references", "ce-pack", "ce-addons"}
     )
     specialist_names = {path.name for path in skill_dirs} - {HUB_SKILL_NAME}
 

@@ -2417,7 +2417,7 @@ module.install_with_dependencies(project, source, "3" * 40)
             )
             self.assertEqual("portable", MODULE.detect_distribution(project, SOURCE))
 
-    def test_detect_distribution_selects_repository_from_matching_pom(self):
+    def test_detect_distribution_only_suggests_the_pack_for_a_matching_pom(self):
         wanted = json.loads(
             (ROOT / "shaft-skills/ce-pack/profile.json").read_text(encoding="utf-8")
         )["installWhen"]["mavenArtifactIds"][0]
@@ -2441,10 +2441,16 @@ module.install_with_dependencies(project, source, "3" * 40)
                 """,
                 encoding="utf-8",
             )
-            self.assertEqual("repository", MODULE.detect_distribution(project, SOURCE))
+            # Hard cut: a matching pom only suggests the add-on; it never selects it.
+            self.assertEqual("portable", MODULE.detect_distribution(project, SOURCE))
+            self.assertEqual(["shaft-core-developers"], MODULE.suggest_addons(project, SOURCE))
 
-    def test_detect_distribution_selects_repository_from_reactor_module(self):
-        self.assertEqual("repository", MODULE.detect_distribution(ROOT, SOURCE))
+    def test_reactor_module_is_suggested_and_the_addon_flag_selects_repository(self):
+        self.assertEqual("portable", MODULE.detect_distribution(ROOT, SOURCE))
+        self.assertIn("shaft-core-developers", MODULE.suggest_addons(ROOT, SOURCE))
+        distribution, addons = MODULE.plan_install(ROOT, SOURCE, {"shaft-core-developers"}, set(), environ={})
+        self.assertEqual("repository", distribution)
+        self.assertIn("shaft-engine-users", addons)
 
     def test_maven_coordinate_ids_ignore_plugins_comments_and_broken_xml(self):
         wanted = json.loads(

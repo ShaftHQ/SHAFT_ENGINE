@@ -147,6 +147,8 @@ ROUTES = (
      "Use when a task would install, pin, or wrap a traffic proxy. Never install one."),
     ("GAP-EXIT2 UX", "references/host-parity-matrix.md",
      "Use when Grok or Copilot may not honor an exit-2 hard block and the compensating checklist applies."),
+    ("Add-ons", "references/addons.md",
+     "Use when a task fits an optional add-on (design, video, or a project pack): list, install, remove, or load one."),
     ("Complexity gate", "references/complexity-gate.md",
      "Use when a hot-spot dispatch change must treat a static-analysis Complexity ACTION_REQUIRED as a unit failure."),
 )
@@ -253,6 +255,7 @@ ROUTER_USE = {
     "Prefer CLI over MCP": "CLI and MCP both fit",
     "No proxy": "a task would add a traffic proxy",
     "GAP-EXIT2 UX": "host ignores exit-2 hard blocks",
+    "Add-ons": "optional add-on: design, video, project pack",
     "Complexity gate": "static-analysis complexity gate",
 }
 

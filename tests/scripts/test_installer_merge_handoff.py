@@ -215,7 +215,7 @@ class InstallProfileSelectionTest(unittest.TestCase):
         self.hosts = load_hosts()
         self.hosts.consume_merge_handoffs()
 
-    def test_empty_and_non_java_stay_portable_java_shaft_selects_repository(self) -> None:
+    def test_projects_stay_portable_and_only_the_core_developers_addon_selects_repository(self) -> None:
         source = ROOT / "chaos-engine"
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -232,7 +232,12 @@ class InstallProfileSelectionTest(unittest.TestCase):
             )
             self.assertEqual(self.install.detect_distribution(empty, source), "portable")
             self.assertEqual(self.install.detect_distribution(non_java, source), "portable")
-            self.assertEqual(self.install.detect_distribution(java, source), "repository")
+            # Hard cut: a pom never selects the contributor distribution; the add-on flag does.
+            self.assertEqual(self.install.detect_distribution(java, source), "portable")
+            self.assertEqual(
+                self.install.plan_install(java, source, {"shaft-core-developers"}, set(), environ={})[0],
+                "repository",
+            )
 
     def _required_names(self, project: Path) -> dict[str, str]:
         doctor = self.install.status_with_dependencies(project)
@@ -265,7 +270,9 @@ class InstallProfileSelectionTest(unittest.TestCase):
             pom_path = project / "pom.xml"
             pom_path.write_text(pom, encoding="utf-8")
             digest = sha256_bytes(pom_path.read_bytes())
-            distribution = self.install.detect_distribution(project, SOURCE)
+            distribution, _ = self.install.plan_install(
+                project, SOURCE, {"shaft-core-developers"}, set(), environ={}
+            )
             self.assertEqual("repository", distribution)
             seed_core(project, self.install, distribution=distribution)
             bind_hosts(self.hosts, project)

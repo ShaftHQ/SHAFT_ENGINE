@@ -172,11 +172,16 @@ def legacy_capability_policy() -> dict[str, dict[str, str]]:
     return _validated_capabilities(result)
 
 
-def overlay_unchanged(source: Path, installed: Path, distribution: str = DEFAULT_DISTRIBUTION) -> bool:
+def overlay_unchanged(
+    source: Path,
+    installed: Path,
+    distribution: str = DEFAULT_DISTRIBUTION,
+    addons: tuple[str, ...] = (),
+) -> bool:
     """#6179: True when every staged overlay file already matches byte-for-byte."""
     if not installed.is_dir():
         return False
-    for path in source_files(source, distribution):
+    for path in source_files(source, distribution, addons):
         target = installed / payload_relative(source, path)
         try:
             if not target.is_file() or target.read_bytes() != path.read_bytes():
@@ -339,6 +344,9 @@ def payload_relative(source: Path, path: Path) -> Path:
     for name, root in project_packs(source).items():
         if path.is_relative_to(root):
             return Path(PACKS_DIRECTORY) / name / path.relative_to(root)
+    relative = external_addon_relative(source, path)
+    if relative is not None:
+        return relative
     raise ValueError(f"path is outside the ChaosEngine payload: {path}")
 
 
@@ -404,36 +412,127 @@ def hard_cut_message(names: list[str], *, replaced: bool = False) -> str:
     )
 
 
+def addon_catalog():
+    """The add-on catalog module that ships beside this installer."""
+    cached = globals().get("_ADDON_CATALOG")
+    if cached is not None:
+        return cached
+    module_path = Path(__file__).resolve().with_name("addon_catalog.py")
+    spec = importlib.util.spec_from_file_location("ce_addon_catalog", module_path)
+    if spec is None or spec.loader is None:
+        raise ValueError("ChaosEngine add-on catalog is missing")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    globals()["_ADDON_CATALOG"] = module
+    return module
+
+
+def is_unselected_addon(relative: Path, addons: tuple[str, ...]) -> bool:
+    """Core-tree add-ons (`addons/<name>/`) ship only when the user selected them."""
+    parts = relative.parts
+    return len(parts) >= 2 and parts[0] == addon_catalog().DIRECTORY and parts[1] not in addons
+
+
+def addon_source_files(source: Path, distribution: str, addons: tuple[str, ...]) -> list[Path]:
+    """Files of selected repository-shipped add-ons; their own content is explicitly opted in."""
+    if not addons:
+        return []
+    catalog = addon_catalog()
+    found = catalog.discover(source)
+    policy, _ = load_distribution(source, distribution)
+    pack_tokens = set()
+    for root in project_packs(source).values():
+        profile = json.loads((root / "profile.json").read_text(encoding="utf-8"))
+        pack_tokens.update(str(token).casefold() for token in profile.get("portableForbiddenTokens", []))
+    # Selecting an add-on is the explicit opt-in the pack token guard exists for;
+    # the distribution's own tokens (personal identity) still apply.
+    tokens = tuple(
+        token for token in (str(item).casefold() for item in policy["forbiddenTokens"])
+        if token not in pack_tokens
+    )
+    files: list[Path] = []
+    for name in addons:
+        for path, relative in catalog.external_files(found, name).items():
+            content = path.read_text(encoding="utf-8", errors="ignore").casefold()
+            if any(token in content for token in tokens):
+                raise ValueError(f"distribution policy rejected forbidden content: {relative.as_posix()}")
+            files.append(path)
+    return files
+
+
+def external_addon_relative(source: Path, path: Path) -> Path | None:
+    catalog = addon_catalog()
+    found = catalog.discover(source)
+    for name, entry in found.items():
+        if entry["internal"]:
+            continue
+        relative = catalog.external_files(found, name).get(path)
+        if relative is not None:
+            return relative
+    return None
+
+
+def installed_record(project: Path) -> tuple[dict[str, object], str | None]:
+    """(owned files, distribution id) of an existing install, or empty when absent."""
+    try:
+        manifest = json.loads((Path(project) / INSTALL_DIRECTORY / MANIFEST_NAME).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}, None
+    if not isinstance(manifest, dict):
+        return {}, None
+    files = manifest.get("files") if isinstance(manifest.get("files"), dict) else {}
+    distribution = manifest.get("distribution")
+    identifier = distribution.get("id") if isinstance(distribution, dict) else None
+    return files, identifier if isinstance(identifier, str) else None
+
+
+def plan_install(
+    project: Path,
+    source: Path,
+    requested: set[str] | None = None,
+    removed: set[str] | None = None,
+    environ: dict[str, str] | None = None,
+) -> tuple[str, tuple[str, ...]]:
+    """Distribution and add-ons for this install: explicit choices, then the recorded ones.
+
+    No add-on is ever selected because of what the project contains.
+    """
+    catalog = addon_catalog()
+    found = catalog.discover(source)
+    files, current = installed_record(project)
+    persisted = catalog.installed(found, files, current)
+    wanted = set(requested or ()) | catalog.environment_names(environ)
+    selected = catalog.resolve(found, wanted, set(removed or ()), persisted)
+    return catalog.distribution(found, selected, DEFAULT_DISTRIBUTION), tuple(selected)
+
+
 def detect_distribution(project: Path, source: Path) -> str:
-    """Select a distribution from profile predicates; default stays portable."""
-    distributions = distribution_catalog(source)
+    """The distribution recorded add-ons imply; default stays portable (no auto-selection)."""
+    return plan_install(project, source)[0]
+
+
+def suggest_addons(project: Path, source: Path, selected: tuple[str, ...] = ()) -> list[str]:
+    """Add-ons whose project pack predicate matches; printed as a tip, never installed."""
     declared = project_maven_ids(project)
-    matches: list[str] = []
-    for name, policy in distributions.items():
-        if not isinstance(name, str) or not isinstance(policy, dict):
+    suggestions = []
+    for name, entry in addon_catalog().discover(source).items():
+        distribution = entry["manifest"].get("distribution")
+        if name in selected or not distribution:
             continue
-        if name == DEFAULT_DISTRIBUTION:
-            continue
-        profile_name = policy.get("profile")
+        policy = distribution_catalog(source).get(distribution)
+        profile_name = policy.get("profile") if isinstance(policy, dict) else None
         if not isinstance(profile_name, str):
             continue
-        try:
-            profile_path = profile_root(source, profile_name) / "profile.json"
-        except ValueError:
-            continue
-        if not profile_path.is_file():
-            continue
-        profile = json.loads(profile_path.read_text(encoding="utf-8"))
-        if not isinstance(profile, dict):
-            raise ValueError(f"invalid ChaosEngine profile: {profile_name}")
+        profile = json.loads((profile_root(source, profile_name) / "profile.json").read_text(encoding="utf-8"))
         wanted = profile_install_predicate(profile)
         if wanted and wanted & declared:
-            matches.append(name)
-    if len(matches) > 1:
-        raise ValueError("multiple ChaosEngine distributions match this project")
-    if len(matches) == 1:
-        return matches[0]
-    return DEFAULT_DISTRIBUTION
+            suggestions.append(name)
+    return sorted(suggestions)
+
+
+def addon_tip(names: list[str]) -> str:
+    flags = " ".join(f"--with-{name}" for name in names)
+    return f"ChaosEngine tip: this project matches optional add-ons; add {flags} to install them."
 
 
 def load_distribution(source: Path, distribution: str) -> tuple[dict[str, object], str]:
@@ -585,7 +684,9 @@ def remove_nested_install_artifacts(target: Path) -> list[str]:
     return removed
 
 
-def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tuple[Path, ...]:
+def source_files(
+    source: Path, distribution: str = DEFAULT_DISTRIBUTION, addons: tuple[str, ...] = ()
+) -> tuple[Path, ...]:
     reject_link_or_reparse(source)
     if not (source / "skills/chaos-engine/SKILL.md").is_file():
         raise ValueError(f"source is not a portable ChaosEngine tree: {source}")
@@ -614,6 +715,8 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
             continue
         if is_origin_only(relative) or is_nested_install_artifact(relative):
             continue
+        if is_unselected_addon(relative, addons):
+            continue
         if is_link_or_reparse(path):
             raise ValueError(f"source contains a link or reparse point: {relative}")
         if path.is_file():
@@ -624,6 +727,7 @@ def source_files(source: Path, distribution: str = DEFAULT_DISTRIBUTION) -> tupl
                     f"distribution policy rejected forbidden content: {relative.as_posix()}"
                 )
             files.append(path)
+    files.extend(addon_source_files(source, distribution, addons))
     packaged = {payload_relative(source, path).as_posix() for path in files}
     if not runtime_files <= packaged:
         raise ValueError("ChaosEngine distribution runtime inventory is incomplete")
@@ -2455,6 +2559,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
     _locked: bool = False,
     source_record: dict[str, str] | None = None,
     distribution: str = DEFAULT_DISTRIBUTION,
+    addons: tuple[str, ...] = (),
 ) -> Path:
     project = project.resolve()
     reject_link_or_reparse(source.absolute())
@@ -2479,7 +2584,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
         raise ValueError(f"source contains the reserved manifest path: {MANIFEST_NAME}")
     _, policy_digest = load_distribution(source, distribution)
     capabilities, capability_digest = load_capability_policy(source, distribution)
-    files = source_files(source, distribution)
+    files = source_files(source, distribution, tuple(addons))
     ownership = {payload_relative(source, path).as_posix(): file_sha256(path) for path in files}
     target = project / INSTALL_DIRECTORY
     backup = project / BACKUP_NAME
@@ -3164,6 +3269,7 @@ def staged_candidate_host_controller(
     commit: str,
     source_record: dict[str, str] | None,
     distribution: str,
+    addons: tuple[str, ...] = (),
 ):
     """Load preflight hosts only from an ownership-verified candidate stage."""
     source = source.resolve()
@@ -3181,7 +3287,7 @@ def staged_candidate_host_controller(
         raise ValueError(f"source contains the reserved manifest path: {MANIFEST_NAME}")
     _, policy_digest = load_distribution(source, distribution)
     capabilities, capability_digest = load_capability_policy(source, distribution)
-    files = source_files(source, distribution)
+    files = source_files(source, distribution, tuple(addons))
     ownership = {payload_relative(source, path).as_posix(): file_sha256(path) for path in files}
     with tempfile.TemporaryDirectory(prefix=f"{INSTALL_DIRECTORY}-candidate-", dir=project) as name:
         stage = Path(name)
@@ -3479,6 +3585,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     reporter=None,
     confirmer=None,
     bundle_options: dict[str, bool] | None = None,
+    addons: tuple[str, ...] = (),
 ) -> Path:
     project = project.resolve()
     reject_nested_project(project)
@@ -3530,7 +3637,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             if old_manifest is not None:
                 old_commit = str(old_manifest["source"]["commit"])
                 with staged_candidate_host_controller(
-                    project, source, commit, source_record, distribution
+                    project, source, commit, source_record, distribution, tuple(addons)
                 ) as candidate_host_controller:
                     host_receipt_path = project / candidate_host_controller.RECEIPT_NAME
                     if host_receipt_path.exists() or is_link_or_reparse(host_receipt_path):
@@ -3584,6 +3691,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                 _locked=True,
                 source_record=source_record,
                 distribution=distribution,
+                addons=tuple(addons),
             )
         except BaseException:
             if project_setup_snapshot is not None:
@@ -6042,7 +6150,14 @@ def linked_worktree_refusal(project: Path) -> str | None:
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     commands = result.add_subparsers(dest="command", required=True)
-    install_command = commands.add_parser("install")
+    install_command = commands.add_parser(
+        "install",
+        epilog=(
+            "Optional add-ons are never installed by default. Add one with --with-<addon> "
+            "and remove it with --without-<addon> (or set CHAOS_ENGINE_ADDONS=a,b). "
+            "List them with: install.py addons --project ."
+        ),
+    )
     install_command.add_argument("--project", required=True, type=Path)
     install_command.add_argument("--source", type=Path)
     install_command.add_argument("--commit")
@@ -6051,7 +6166,9 @@ def parser() -> argparse.ArgumentParser:
         type=Path,
         help="Install offline from a checksum-verified `install.py bundle` zip (#6415).",
     )
-    install_command.add_argument("--distribution", default=DEFAULT_DISTRIBUTION)
+    install_command.add_argument(
+        "--distribution", default=None, help="override the distribution the add-on selection implies"
+    )
     install_command.add_argument("--skip-tools", action="store_true")
     install_command.add_argument(
         "--if-changed",
@@ -6136,6 +6253,12 @@ def parser() -> argparse.ArgumentParser:
                 action="store_true",
                 help="Print only fix-next repair lines (zero-LLM / script-first).",
             )
+    addons_command = commands.add_parser(
+        "addons", help="List optional add-ons, installed and available (never installs)."
+    )
+    addons_command.add_argument("--project", required=True, type=Path)
+    addons_command.add_argument("--source", type=Path, default=Path(__file__).resolve().parent)
+    addons_command.add_argument("--json", action="store_true")
     explain = commands.add_parser("explain")
     explain.add_argument("event")
     explain.add_argument("--project", required=True, type=Path)
@@ -6912,8 +7035,11 @@ def main() -> int:
     if sys.version_info < MINIMUM_PYTHON:
         sys.stderr.write(python_floor_message())
         return 2
-    args = parser().parse_args()
+    args, extra = parser().parse_known_args()
     try:
+        requested, removed, unknown = addon_catalog().split_flags(extra)
+        if unknown or ((requested or removed) and args.command != "install"):
+            parser().parse_args()  # argparse reports the unrecognized arguments and exits
         validate_install_options(args)
         if args.command == "install":
             if args.from_bundle is not None:
@@ -6925,8 +7051,10 @@ def main() -> int:
             refusal = linked_worktree_refusal(args.project)
             if refusal:
                 raise RuntimeError(refusal)
+            planned, addons = plan_install(args.project, args.source, requested, removed)
+            args.distribution = args.distribution or planned
             if getattr(args, "if_changed", False) and overlay_unchanged(
-                args.source, args.project / INSTALL_DIRECTORY, args.distribution
+                args.source, args.project / INSTALL_DIRECTORY, args.distribution, addons
             ):
                 print(json.dumps({"status": "unchanged", "root": str(args.project / INSTALL_DIRECTORY)}))
                 return 0
@@ -6942,6 +7070,7 @@ def main() -> int:
                     args.source,
                     args.commit,
                     distribution=args.distribution,
+                    addons=addons,
                 )
                 if args.skip_tools
                 else install_with_dependencies(
@@ -6952,9 +7081,15 @@ def main() -> int:
                     with_maven_tools=args.with_maven_tools,
                     maven_tools_mode=args.maven_tools_mode,
                     bundle_options=bundle,
+                    addons=addons,
                 )
             )
-            result: object = {"status": "installed", "root": str(target), "bundle": bundle}
+            result: object = {
+                "status": "installed", "root": str(target), "bundle": bundle, "addons": list(addons)
+            }
+            tips = suggest_addons(args.project, args.source, addons)
+            if tips:
+                print(addon_tip(tips), file=sys.stderr)
             if legacy_packs:
                 # CE-10 hard cut: the old profiles/<name> layout is replaced, never shimmed.
                 notice = hard_cut_message(legacy_packs, replaced=not legacy_profile_layout(target))
@@ -6979,6 +7114,15 @@ def main() -> int:
             _install_store_schedule(args.project)
         elif args.command == "repair":
             result = repair_component(args.project, args.component)
+        elif args.command == "addons":
+            catalog = addon_catalog()
+            found = catalog.discover(args.source)
+            files, current = installed_record(args.project)
+            selected = sorted(catalog.installed(found, files, current))
+            if not args.json:
+                print("\n".join(catalog.index_rows(found, selected)) or "no add-ons available")
+                return 0
+            result = {"installed": selected, "available": sorted(set(found) - set(selected))}
         elif args.command == "bundle":
             result = {"status": "bundled", "bundle": str(build_bundle(args.source, args.commit, args.output))}
         elif args.command == "cache" and args.component == "downloads":

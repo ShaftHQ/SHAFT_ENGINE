@@ -122,7 +122,7 @@ def directories_missing_skill_md(root: Path, source: str) -> list[str]:
         entry.name
         for entry in (root / source).iterdir()
         # `ce-pack` is the repository's ChaosEngine project pack, not a skill (CE-10).
-        if entry.is_dir() and entry.name not in {"references", "ce-pack"} and not (entry / "SKILL.md").is_file()
+        if entry.is_dir() and entry.name not in {"references", "ce-pack", "ce-addons"} and not (entry / "SKILL.md").is_file()
     )
 
 

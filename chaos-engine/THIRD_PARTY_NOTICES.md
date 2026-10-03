@@ -68,3 +68,26 @@ See [references/test-driven-development.LICENSE](references/test-driven-developm
 Capability seams, orthogonal outcomes, tool-result pruning, spill, and code
 mode were reimplemented as portable guidance and installer contracts. The
 Node runtime, Cordis kernel, session log, agent loop, and UI were not copied.
+
+## Design skills add-on (optional)
+
+The optional `addons/design-skills/` cards re-express, in their own words and
+with attribution, rules from these published sources. No upstream file is
+copied. Commits are pinned in `addons/design-skills/INVENTORY.md` (present
+when the add-on is installed).
+
+- Anthropic skills (frontend-design, canvas-design, algorithmic-art,
+  brand-guidelines, theme-factory): Apache-2.0 (per-skill LICENSE.txt).
+  https://github.com/anthropics/skills
+- impeccable: Apache-2.0; its NOTICE terms apply.
+  https://github.com/pbakaus/impeccable
+- taste-skill: MIT. https://github.com/leonxlnx/taste-skill
+- Web Interface Guidelines: MIT.
+  https://github.com/vercel-labs/web-interface-guidelines
+- HyperFrames: Apache-2.0. https://github.com/heygen-com/hyperframes
+- claude-remotion-skill: MIT. https://github.com/haidrrrry/claude-remotion-skill
+- ffmpeg-video-editor: MIT. https://github.com/bryanwhl/ffmpeg-video-editor
+- video-editor: MIT. https://github.com/naveedharri/video-editor
+
+Tools the cards call (VHS, Manim, Kokoro, whisper.cpp, DeepFilterNet,
+Real-ESRGAN, VMAF, FFmpeg) are installed by the user and are not bundled.
