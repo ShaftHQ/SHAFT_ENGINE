@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 import xml.etree.ElementTree as ET
 import json
@@ -307,14 +308,16 @@ def validate(root: Path = ROOT) -> list[str]:
         content = dockerfile.read_text(encoding="utf-8")
         if "repo1.maven.org" in content or "shaft-mcp/10." in content:
             errors.append(f"{dockerfile.name} must build from the reactor without a hardcoded release")
-        if "-pl shaft-mcp -am" not in content:
-            errors.append(f"{dockerfile.name} must build shaft-mcp from the root reactor")
-        if "-pl shaft-mcp -am install" not in content:
-            errors.append(f"{dockerfile.name} must install reactor artifacts before copying thin runtime dependencies")
-        if "dependency:copy-dependencies" not in content or "-DoutputDirectory=/build/shaft-mcp-lib" not in content:
-            errors.append(f"{dockerfile.name} must copy shaft-mcp runtime dependencies into /build/shaft-mcp-lib")
-        if "google-chrome-stable" not in content:
-            errors.append(f"{dockerfile.name} must install Chrome and its runtime dependencies")
+        # Images derived from the published MCP image inherit its reactor build and Chrome.
+        if not re.search(r"^FROM ghcr\.io/shafthq/shaft-engine-mcp[:@]", content, re.MULTILINE):
+            if "-pl shaft-mcp -am" not in content:
+                errors.append(f"{dockerfile.name} must build shaft-mcp from the root reactor")
+            if "-pl shaft-mcp -am install" not in content:
+                errors.append(f"{dockerfile.name} must install reactor artifacts before copying thin runtime dependencies")
+            if "dependency:copy-dependencies" not in content or "-DoutputDirectory=/build/shaft-mcp-lib" not in content:
+                errors.append(f"{dockerfile.name} must copy shaft-mcp runtime dependencies into /build/shaft-mcp-lib")
+            if "google-chrome-stable" not in content:
+                errors.append(f"{dockerfile.name} must install Chrome and its runtime dependencies")
         if '"-DheadlessExecution=true"' not in content:
             errors.append(f"{dockerfile.name} must launch Chrome headlessly in its container")
         if '"-jar"' in content or "BOOT-INF/lib" in content:
