@@ -2,6 +2,7 @@ package com.shaft.intellij.testrunner;
 
 import com.intellij.execution.configurations.GeneralCommandLine;
 import com.intellij.execution.configurations.JavaParameters;
+import com.intellij.execution.configurations.SimpleJavaParameters;
 import com.intellij.execution.configurations.ParametersList;
 import com.intellij.execution.configurations.RunConfigurationBase;
 import com.intellij.openapi.options.SettingsEditor;
@@ -105,7 +106,7 @@ final class ShaftRunConfigurationExtensionSupport {
     }
 
     /** Shared apply routine for {@code updateJavaParameters} (the JVM's {@code -D} parameters list). */
-    static void applyOverrides(RunConfigurationBase<?> configuration, JavaParameters javaParameters) {
+    static void applyOverrides(RunConfigurationBase<?> configuration, SimpleJavaParameters javaParameters) {
         ShaftRunConfigurationOverrides overrides = configuration.getCopyableUserData(OVERRIDES_KEY);
         if (overrides == null || !overrides.isEnabled()) {
             return;
