@@ -220,5 +220,19 @@ class DoctorIndexFindingTest(TestCase):
         self.assertEqual([], installer.format_host_environment_findings(document))
 
 
+    def test_doctor_warns_when_a_healthy_tool_was_reused_unverified(self):
+        installer = load(INSTALLER, "ce_installer_unverified_dependency")
+        document = {"components": {}, "dependencies": {"components": {"graphify": {
+            "action": "reused", "latestVersionVerified": False,
+            "installedVersion": "0.9.74", "lookupError": "OSError",
+        }}}}
+        lines = installer.format_host_environment_findings(document)
+        self.assertIn(
+            "[info] dependency/graphify — reused 0.9.74 unverified: stable channel lookup failed (OSError)",
+            lines,
+        )
+        document["dependencies"]["components"]["graphify"]["latestVersionVerified"] = True
+        self.assertEqual([], installer.format_host_environment_findings(document))
+
 if __name__ == "__main__":
     main()

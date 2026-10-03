@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Fix: every installer network call (stable-channel lookups, Python, Node and
+  Java runtime downloads, checksum manifests) retries transient failures
+  three times with backoff; client errors such as 404 are not retried. When
+  the registry stays unreachable, an installed healthy tool is reused instead
+  of blocking install, and doctor prints
+  `[info] dependency/<name> — reused <version> unverified` with a fix-next.
+  A missing or broken tool still blocks, naming the lookup error.
 - Fix: a single transient stable-channel lookup failure (PyPI or npm timeout)
   no longer blocks install with `dependency setup blocked: graphify` while the
   tool is installed and healthy. The lookup is retried three times with

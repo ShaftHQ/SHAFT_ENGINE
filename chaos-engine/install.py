@@ -6591,6 +6591,29 @@ def _dedupe_severity_rows(lines: list[str]) -> list[str]:
     return result
 
 
+def format_unverified_dependency_findings(document: dict[str, object]) -> list[str]:
+    """Warn when a healthy tool was reused because its stable channel was unreachable."""
+    dependencies = document.get("dependencies")
+    components = dependencies.get("components") if isinstance(dependencies, dict) else None
+    if not isinstance(components, dict):
+        return []
+    lines: list[str] = []
+    for name in sorted(str(item) for item in components):
+        item = components[name]
+        if not isinstance(item, dict) or item.get("taskImpact") == "optional":
+            continue
+        if item.get("action") != "reused" or item.get("latestVersionVerified") is not False:
+            continue
+        version = item.get("installedVersion") or item.get("version") or "unknown"
+        cause = item.get("lookupError") or "unreachable"
+        lines.append(
+            f"[info] dependency/{name} — reused {version} unverified: "
+            f"stable channel lookup failed ({cause})"
+        )
+        lines.append("  fix-next: rerun install when the registry is reachable to verify the latest version")
+    return lines
+
+
 def format_host_environment_findings(document: dict[str, object]) -> list[str]:
     """Surface install-owned-healthy host-environment advisories (#5699)."""
     lines: list[str] = []
@@ -6617,6 +6640,7 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
         lines.append(f"[info] {name}/hostEnvironment — {detail_text}")
         if isinstance(fix, str) and fix.strip():
             lines.append(f"  fix-next: {fix.strip()}")
+    lines.extend(format_unverified_dependency_findings(document))
     hosts = document.get("hosts")
     if isinstance(hosts, dict):
         finding = hosts.get("hostEnvironment")
