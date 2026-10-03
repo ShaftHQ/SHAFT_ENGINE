@@ -15,7 +15,7 @@ import sys
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -1049,7 +1049,7 @@ def touched_allowlisted_modules(root: Path, paths: list[str]) -> tuple[str, ...]
     return tuple(touched)
 
 
-def classify_paths(paths: list[str], root: Path | None = None) -> GatePlan:
+def classify_paths(paths: list[str]) -> GatePlan:
     selected: list[str] = []
     unknown: list[str] = []
     dependency_closure = False
@@ -1097,12 +1097,16 @@ def classify_paths(paths: list[str], root: Path | None = None) -> GatePlan:
         if protected_id not in check_ids:
             check_ids.append(protected_id)
     checks = tuple(CHECKS[check_id] for check_id in dict.fromkeys(check_ids))
-    return GatePlan(tuple(selected), checks + _touched_checks(root, paths), tuple(sorted(set(unknown))))
+    return GatePlan(tuple(selected), checks, tuple(sorted(set(unknown))))
 
 
-def _touched_checks(root: Path | None, paths: list[str]) -> tuple[Check, ...]:
-    touched = touched_allowlisted_modules(root, paths) if root is not None else ()
-    return (Check("ungated-touched", "fallback", touched),) if touched else ()
+def plan_for_changes(paths: list[str], root: Path) -> GatePlan:
+    """``classify_paths`` plus weekly-only tests that name a changed harness module."""
+    plan = classify_paths(paths)
+    touched = touched_allowlisted_modules(root, paths)
+    if not touched:
+        return plan
+    return replace(plan, checks=plan.checks + (Check("ungated-touched", "fallback", touched),))
 
 
 def write_generated_artifacts(root: Path, plan: GatePlan) -> tuple[str, ...]:
@@ -1645,7 +1649,7 @@ def main() -> int:
         if args.plan_only and args.write_generated:
             raise GateError("plan-only cannot write generated artifacts")
         root = args.root.resolve()
-        plan = classify_paths(changed_paths(root, args.base, args.head), root)
+        plan = plan_for_changes(changed_paths(root, args.base, args.head), root)
         written = write_generated_artifacts(root, plan) if args.write_generated else ()
         if args.plan_only:
             payload = json.loads(

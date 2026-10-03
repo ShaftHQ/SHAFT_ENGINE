@@ -29,6 +29,7 @@ from scripts.ci.harness_pr_gate import (
     WaiverReceipt,
     changed_paths,
     classify_paths,
+    plan_for_changes,
     event_waiver,
     parse_waiver,
     LONG_RUNNING_CHECK_IDS,
@@ -146,7 +147,7 @@ class ClassifierTest(unittest.TestCase):
             self.assertIn("tests.scripts.test_chaos_engine_zero_llm_catalog", modules)
 
     def test_changed_harness_module_runs_weekly_only_tests_that_name_it(self) -> None:
-        plan = classify_paths(["chaos-engine/dependencies.py"], ROOT)
+        plan = plan_for_changes(["chaos-engine/dependencies.py"], ROOT)
         touched = next(check for check in plan.checks if check.id == "ungated-touched")
         self.assertFalse(touched.protected)
         self.assertIn("tests.scripts.test_chaos_engine_install_verify_5699", touched.modules)
