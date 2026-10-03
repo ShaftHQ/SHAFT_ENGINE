@@ -58,6 +58,8 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#getInstance(java.lang.String)" tabindex="0">getInstance(String)</a></li>
+<li><a href="#grpc(java.lang.String)" tabindex="0">grpc(String)</a></li>
+<li><a href="#grpc(io.grpc.Channel)" tabindex="0">grpc(Channel)</a></li>
 <li><a href="#get(java.lang.String)" tabindex="0">get(String)</a></li>
 <li><a href="#post(java.lang.String)" tabindex="0">post(String)</a></li>
 <li><a href="#patch(java.lang.String)" tabindex="0">patch(String)</a></li>
@@ -279,6 +281,16 @@ in this session.</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Extracts a list of values from the most recent XML response using an XPath expression.</div>
 </div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="../api/GrpcActions.html" title="class in com.shaft.api">GrpcActions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#grpc(io.grpc.Channel)" class="member-name-link">grpc</a><wbr>(io.grpc.Channel&nbsp;channel)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Starts a stub-free gRPC client on a caller-managed channel (TLS, in-process).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="../api/GrpcActions.html" title="class in com.shaft.api">GrpcActions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#grpc(java.lang.String)" class="member-name-link">grpc</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;target)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Starts a stub-free gRPC client for unary calls with JSON requests and responses.</div>
+</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../api/RequestBuilder.html" title="class in com.shaft.api">RequestBuilder</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#head(java.lang.String)" class="member-name-link">head</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;serviceName)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
@@ -426,6 +438,36 @@ file produced by <code>driver.browser().saveStorageState(String)</code>).</div>
 <dd><code>serviceURI</code> - the base URI of the target web service</dd>
 <dt>Returns:</dt>
 <dd>a new <a href="SHAFT.API.html" title="class in com.shaft.driver"><code>SHAFT.API</code></a> instance</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="grpc(java.lang.String)">
+<h3>grpc</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="../api/GrpcActions.html" title="class in com.shaft.api">GrpcActions</a></span>&nbsp;<span class="element-name">grpc</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;target)</span></div>
+<div class="block">Starts a stub-free gRPC client for unary calls with JSON requests and responses.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>target</code> - gRPC target, for example <code>"localhost:50051"</code></dd>
+<dt>Returns:</dt>
+<dd>a new <a href="../api/GrpcActions.html" title="class in com.shaft.api"><code>GrpcActions</code></a></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="grpc(io.grpc.Channel)">
+<h3>grpc</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="../api/GrpcActions.html" title="class in com.shaft.api">GrpcActions</a></span>&nbsp;<span class="element-name">grpc</span><wbr><span class="parameters">(io.grpc.Channel&nbsp;channel)</span></div>
+<div class="block">Starts a stub-free gRPC client on a caller-managed channel (TLS, in-process).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>channel</code> - the channel</dd>
+<dt>Returns:</dt>
+<dd>a new <a href="../api/GrpcActions.html" title="class in com.shaft.api"><code>GrpcActions</code></a></dd>
 </dl>
 </div>
 </section>
