@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import platform
+import fnmatch
 import re
 import shlex
 import runpy
@@ -2042,8 +2043,93 @@ def resolve_latest(repository: str, branch: str | None, opener=urllib.request.ur
 
 
 def is_pack_path(path: PurePosixPath) -> bool:
-    """A project pack file (`<dir>/ce-pack/...`) that installs beside the core."""
-    return len(path.parts) >= 3 and path.parts[1] == "ce-pack"
+    """A project pack or add-on manifest file that ships beside the core.
+
+    `<dir>/ce-pack/...` is a project pack; `<dir>/ce-addons/...` holds optional
+    add-on manifests. Files an add-on includes from elsewhere are fetched only
+    after the user selected it (`download_addon_files`).
+    """
+    return len(path.parts) >= 3 and path.parts[1] in {"ce-pack", "ce-addons"}
+
+
+ADDON_FLAG = re.compile(r"--(with|without)-([a-z][a-z0-9-]*)")
+
+
+def split_addon_flags(arguments: list[str]) -> tuple[set[str], set[str], list[str]]:
+    """`--with-<addon>` / `--without-<addon>` are validated against manifests after download."""
+    requested: set[str] = set()
+    removed: set[str] = set()
+    rest: list[str] = []
+    for argument in arguments:
+        match = ADDON_FLAG.fullmatch(argument)
+        if match is None:
+            rest.append(argument)
+            continue
+        (requested if match.group(1) == "with" else removed).add(match.group(2))
+    return requested, removed, rest
+
+
+def download_addon_files(
+    repository: str,
+    commit: str,
+    destination: Path,
+    source: Path,
+    addons: tuple[str, ...],
+    *,
+    opener=urllib.request.urlopen,
+    reporter: InstallReporter | None = None,
+) -> int:
+    """Fetch files selected repository-shipped add-ons include from outside their folder."""
+    catalog_path = source / "addon_catalog.py"
+    if not addons or not catalog_path.is_file():
+        return 0
+    catalog = types.SimpleNamespace(**runpy.run_path(str(catalog_path)))
+    found = catalog.discover(source)
+    patterns = []
+    for name in addons:
+        entry = found[name]
+        if entry["internal"] or not entry["manifest"].get("include"):
+            continue
+        manifest_path = PurePosixPath(Path(entry["root"]).relative_to(destination).as_posix()) / catalog.MANIFEST
+        patterns.extend(catalog.repository_paths(manifest_path, entry["manifest"]))
+    if not patterns:
+        return 0
+    encoded_repository = "/".join(urllib.parse.quote(part, safe="") for part in repository.split("/"))
+    document = read_response(
+        opener, f"https://api.github.com/repos/{encoded_repository}/git/trees/{commit}?recursive=1"
+    )
+    value = json.loads(document)
+    if not isinstance(value, dict) or value.get("truncated") is not False:
+        raise ValueError("GitHub returned an incomplete ChaosEngine source tree")
+    selected = []
+    for entry in value.get("tree", []):
+        path = PurePosixPath(str(entry.get("path", "")))
+        if entry.get("type") != "blob" or ".." in path.parts or path.is_absolute():
+            continue
+        if destination.joinpath(*path.parts).is_file():
+            continue
+        for base, pattern in patterns:
+            if path.is_relative_to(base) and fnmatch.fnmatchcase(path.relative_to(base).as_posix(), pattern):
+                size = entry.get("size")
+                if not isinstance(size, int) or size < 0 or size > MAX_FILE_BYTES:
+                    raise ValueError("ChaosEngine source file exceeds the download limit")
+                selected.append(path)
+                break
+    if len(selected) > MAX_FILES:
+        raise ValueError("ChaosEngine add-on contains too many files")
+    for path in selected:
+        encoded_path = "/".join(urllib.parse.quote(part, safe="") for part in path.parts)
+        content = read_response(
+            opener,
+            f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/{encoded_path}",
+            limit=MAX_FILE_BYTES,
+        )
+        target = destination.joinpath(*path.parts)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+    if reporter is not None:
+        reporter.trace(f"download {len(selected)} add-on files")
+    return len(selected)
 
 
 def download_source(
@@ -2175,6 +2261,8 @@ def install_latest(
     reporter: InstallReporter | None = None,
     terminal_factory=interactive_terminal,
     bundle_options: dict[str, bool] | None = None,
+    addons_requested: set[str] | None = None,
+    addons_removed: set[str] | None = None,
 ) -> dict[str, object]:
     if skip_tools and with_maven_tools:
         raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
@@ -2227,7 +2315,20 @@ def install_latest(
         )
         reporter.complete("Download source", remaining=remaining("Download source"))
         installer = load_installer(source)
+        addons: tuple[str, ...] = ()
+        plan = getattr(installer, "plan_install", None)
+        planned = plan(project, source, addons_requested or set(), addons_removed or set()) if callable(plan) else None
+        if isinstance(planned, tuple) and len(planned) == 2 and isinstance(planned[0], str):
+            distribution = distribution or planned[0]
+            addons = tuple(planned[1])
+            if addons:
+                download_addon_files(
+                    repository, commit, Path(temporary.name), source, addons, opener=opener, reporter=reporter
+                )
+        elif addons_requested or addons_removed:
+            raise ValueError("this ChaosEngine revision does not support optional add-ons")
         distribution = resolve_distribution(installer, project, source, distribution)
+        addon_options = {"addons": addons} if addons else {}
         if distribution == "portable":
             provenance = {
                 "kind": "git-digest",
@@ -2249,7 +2350,8 @@ def install_latest(
         reporter.trace(f"install core commit={commit} distribution={distribution}")
         if skip_tools:
             target = installer.install(
-                project, source, commit, source_record=provenance, distribution=distribution
+                project, source, commit, source_record=provenance, distribution=distribution,
+                **addon_options,
             )
             reporter.complete("Install core", remaining=remaining("Install core"))
         else:
@@ -2270,6 +2372,7 @@ def install_latest(
                 reporter=reporter,
                 confirmer=confirm,
                 bundle_options=bundle_options,
+                **addon_options,
             )
             if with_maven_tools and "Install Maven Tools" in getattr(
                 reporter, "_in_flight", ()
@@ -2288,6 +2391,10 @@ def install_latest(
                 reporter.current_operation == "Install core"
             ):
                 reporter.complete("Install core", remaining=remaining("Install core"))
+        suggest = getattr(installer, "suggest_addons", None)
+        tips = suggest(project, source, addons) if callable(suggest) else []
+        if tips:
+            print(installer.addon_tip(tips), file=sys.stderr)
         if legacy_packs:
             # CE-10 hard cut: name the replaced profiles/<name> layout once.
             replaced = not legacy_layout(project / ".chaos-engine")
@@ -2468,6 +2575,10 @@ def parser() -> argparse.ArgumentParser:
             "Recommended for ChaosEngine: disable Grok bundled game-* and imagine "
             "skills via ~/.grok/config.toml (or CHAOS_ENGINE_LEAN_GROK_SKILLS=1)."
         ),
+    )
+    result.epilog = (
+        "Optional add-ons are never installed by default: add one with --with-<addon>, "
+        "remove it with --without-<addon>, or set CHAOS_ENGINE_ADDONS=a,b."
     )
     result.add_argument("--interactive", action="store_true")
     result.add_argument(
@@ -2864,7 +2975,10 @@ def main() -> int:
         sys.stderr.write(python_floor_message())
         return 2
     reporter = InstallReporter()
-    args = parser().parse_args()
+    args, extra = parser().parse_known_args()
+    addons_requested, addons_removed, unknown = split_addon_flags(extra)
+    if unknown:
+        parser().parse_args()  # argparse reports the unrecognized arguments and exits
     if getattr(args, "verbose", False):
         reporter.enable_verbose()
     if getattr(args, "consumer", False):
@@ -2891,6 +3005,8 @@ def main() -> int:
             interactive=args.interactive,
             reporter=reporter,
             bundle_options=bundle_options,
+            addons_requested=addons_requested,
+            addons_removed=addons_removed,
         )
         write_install_trace(Path(args.project).resolve(), result, reporter.traces)
     except BaseException as error:

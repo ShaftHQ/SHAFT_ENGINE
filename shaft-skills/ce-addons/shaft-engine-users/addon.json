@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "kind": "addon",
+  "name": "shaft-engine-users",
+  "title": "SHAFT engine users",
+  "description": "SHAFT test-authoring skills for projects that use SHAFT: the shaft-developer router and its specialists.",
+  "useWhen": "writing, running, or repairing SHAFT tests in a project that depends on SHAFT",
+  "requires": [],
+  "router": "shaft-developer/SKILL.md",
+  "include": [
+    {"from": "../..", "globs": ["shaft-*/**/*", "references/**/*"]}
+  ]
+}

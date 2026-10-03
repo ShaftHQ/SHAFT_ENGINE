@@ -8,7 +8,8 @@ description: Use when a change touches user-visible UI, layout, styling, or them
 Load when the deliverable changes what a user sees: layout, styling,
 components, pages, themes, or responsive behavior. Pair with
 [deep research](deep-research.md) when the issue asks for best practices.
-Return to the router after delivery.
+Return to the router after delivery. The optional `design-skills`
+[add-on](addons.md) adds design cards on top of this contract.
 
 ## Plan
 

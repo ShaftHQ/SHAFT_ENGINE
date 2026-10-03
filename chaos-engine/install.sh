@@ -93,7 +93,7 @@ with_maven_tools=
 maven_tools_mode=native
 interactive=
 verbose=
-without_flags=
+forwarded_flags=
 for argument in "$@"; do
   [ "$argument" = "--with-maven-tools" ] && with_maven_tools=1
   [ "$argument" = "--maven-tools-mode=docker" ] && maven_tools_mode=docker
@@ -101,7 +101,14 @@ for argument in "$@"; do
   [ "$argument" = "--verbose" ] && verbose=1
   case "$argument" in
     --without-memory|--without-mempalace|--without-graphify|--without-ponytail|--without-caveman)
-      without_flags="$without_flags $argument"
+      forwarded_flags="$forwarded_flags $argument"
+      ;;
+    --with-maven-tools)
+      ;;
+    # Optional add-ons (--with-<name> / --without-<name>): none is installed by
+    # default; bootstrap.py validates names against the shipped manifests.
+    --with-?*|--without-?*)
+      forwarded_flags="$forwarded_flags $argument"
       ;;
   esac
 done
@@ -210,7 +217,7 @@ fi
 [ -n "$interactive" ] && set -- "$@" "--interactive"
 [ -n "$verbose" ] && set -- "$@" "--verbose"
 # shellcheck disable=SC2086
-for without_flag in $without_flags; do
-  set -- "$@" "$without_flag"
+for forwarded_flag in $forwarded_flags; do
+  set -- "$@" "$forwarded_flag"
 done
 "$@"

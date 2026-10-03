@@ -958,7 +958,7 @@ class InstallShaftMcpTest(unittest.TestCase):
         )
         directories = sorted(
             entry for entry in source.iterdir()
-            if entry.is_dir() and entry.name not in {"references", "ce-pack"}
+            if entry.is_dir() and entry.name not in {"references", "ce-pack", "ce-addons"}
         )
         self.assertEqual(
             [],

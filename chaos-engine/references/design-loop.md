@@ -27,6 +27,9 @@ spec.
 - Keep one design-doc path, one summary path, and one review path for the
   whole loop. Every claimed spawn is a real dispatch in the same turn.
 
+Video briefs, storyboards, and visual-direction documents from the optional
+`design-skills` [add-on](addons.md) use this same loop.
+
 This contract does not execute the PR plan; delivery stays on
 [work-github-playbook](work-github-playbook.md).
 

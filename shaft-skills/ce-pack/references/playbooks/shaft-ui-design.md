@@ -2,7 +2,10 @@
 
 Use for every visible SHAFT interface: reports, core tools, the public guide,
 and app-like product UI. Read this file fully before planning, editing,
-reviewing, or validating UI work.
+reviewing, or validating UI work. When the optional `design-skills` add-on is
+installed (`.chaos-engine/addons/design-skills/SKILL.md`), its visual-direction,
+typography, color, image, and audit cards supply the generic rules; this file
+adds the SHAFT specifics and wins on conflict.
 
 ## Sources Of Truth
 
