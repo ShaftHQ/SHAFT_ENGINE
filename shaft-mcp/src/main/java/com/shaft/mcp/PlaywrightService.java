@@ -546,6 +546,13 @@ public class PlaywrightService {
     }
 
     /**
+     * Counts the Playwright elements a locator matches.
+     */
+    public int count(locatorStrategy locatorStrategy, String locatorValue) {
+        return locator(locatorStrategy, locatorValue).count();
+    }
+
+    /**
      * Checks Playwright element enabled state.
      */
     public boolean isEnabled(locatorStrategy locatorStrategy, String locatorValue) {

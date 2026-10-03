@@ -159,7 +159,7 @@ public final class SmartTagHistoryReader {
         return flips;
     }
 
-    private static String toMethodKey(String fullName) {
+    static String toMethodKey(String fullName) {
         if (fullName == null || fullName.isBlank()) {
             return "";
         }
@@ -180,13 +180,13 @@ public final class SmartTagHistoryReader {
         return root.getAsJsonObject(name);
     }
 
-    private static String text(JsonObject object, String name) {
+    static String text(JsonObject object, String name) {
         return object.has(name) && !object.get(name).isJsonNull()
                 ? object.get(name).getAsString().trim()
                 : "";
     }
 
-    private static long longValue(JsonObject object, String name) {
+    static long longValue(JsonObject object, String name) {
         return object.has(name) && object.get(name).isJsonPrimitive()
                 ? object.get(name).getAsLong()
                 : 0L;

@@ -46,7 +46,7 @@
   "shaft-engine/src/main/java/com/shaft/gui/playwright/validation/PlaywrightBrowserValidationsBuilder.java": 1,
   "shaft-engine/src/main/java/com/shaft/gui/playwright/validation/PlaywrightValidationsExecutor.java": 1,
   "shaft-engine/src/main/java/com/shaft/listeners/JunitExtension.java": 5,
-  "shaft-engine/src/main/java/com/shaft/listeners/TestNGListener.java": 5,
+  "shaft-engine/src/main/java/com/shaft/listeners/TestNGListener.java": 4,
   "shaft-engine/src/main/java/com/shaft/properties/internal/API.java": 1,
   "shaft-engine/src/main/java/com/shaft/properties/internal/Allure.java": 1,
   "shaft-engine/src/main/java/com/shaft/properties/internal/BrowserStack.java": 1,
