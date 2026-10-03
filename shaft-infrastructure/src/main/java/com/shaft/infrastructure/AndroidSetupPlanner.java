@@ -12,9 +12,9 @@ import java.util.Set;
 public final class AndroidSetupPlanner {
     public static final String APPIUM_VERSION = "3.8.0";
     public static final String INSPECTOR_PLUGIN_VERSION = "2026.9.2";
-    public static final String UIAUTOMATOR2_VERSION = "8.2.2";
+    public static final String UIAUTOMATOR2_VERSION = "8.5.2";
     public static final String APPIUM_LOCK_SHA256 =
-            "fbabdd246ad849902186dbcdec3fc623319f1a60b00eb271630e114e72a23955";
+            "251114b7ebd1160509c962646c9659cad4a3050b804df1e1d2ebfc16b48a9915";
     public static final String COMMAND_LINE_TOOLS_VERSION = "15859902";
     public static final String PLATFORM_TOOLS_VERSION = "37.0.1";
     public static final String EMULATOR_VERSION = "37.1.11";
@@ -34,7 +34,7 @@ public final class AndroidSetupPlanner {
     private static final String INSPECTOR_SHA256 =
             "aba1d2e2b53975b7b49c28066b6bb6d2e5adf374c67286f95123aae0ca6c9e23";
     private static final String UIAUTOMATOR2_SHA256 =
-            "a53c05850eaf08372672dc425298e77a2094f6334bb2b1ac220b705255483a22";
+            "a0d38d8daa57f96b55cba77dea2e454811ac7ffc8a97b90a1e0b63bc11a9a557";
 
     private AndroidSetupPlanner() { }
 
