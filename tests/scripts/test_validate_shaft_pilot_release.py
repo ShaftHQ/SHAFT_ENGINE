@@ -21,6 +21,7 @@ ISOLATED_SLICES = (
     "capture-journey",
     "package-and-validate",
     "container-smoke",
+    "release-prep-dry-run",
 )
 
 
@@ -690,11 +691,40 @@ class ShaftPilotReleaseIsolationTest(unittest.TestCase):
             "capture-journey": "./.github/actions/capture-browser-e2e",
             "package-and-validate": "Validate packaged release outputs and MCP transports",
             "container-smoke": "./.github/actions/mcp-container-smoke",
+            "release-prep-dry-run": "scripts/ci/prepare_release_pr.py",
         }
 
         for name, token in required.items():
             self.assertIn(name, jobs, f'missing isolated job {name}')
             self.assertIn(token, _step_blob(jobs[name]), name)
+
+    def test_release_prep_dry_run_validates_the_prepared_tree(self):
+        workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+        blob = _step_blob(workflow["jobs"]["release-prep-dry-run"])
+
+        prepare = blob.index("scripts/ci/prepare_release_pr.py")
+        for check in (
+            "scripts/ci/check_plugin_changelog_version.py",
+            "./.github/actions/release-contract-validators",
+            "tests.scripts.test_assemble_chaos_engine_plugin",
+        ):
+            self.assertGreater(blob.index(check), prepare, check)
+
+    def test_nightly_run_files_or_recovers_one_tracking_issue(self):
+        workflow = yaml.safe_load(WORKFLOW_PATH.read_text(encoding="utf-8"))
+        triggers = workflow.get("on", workflow.get(True))
+        self.assertTrue(triggers.get("schedule"), "release candidate must run nightly on main")
+
+        notify = workflow["jobs"]["notify"]
+        self.assertEqual(["release-candidate"], _needs_list(notify))
+        self.assertEqual("always() && github.event_name == 'schedule'", notify.get("if"))
+        self.assertEqual("write", notify.get("permissions", {}).get("issues"))
+        step = next(
+            step for step in notify["steps"]
+            if step.get("uses") == "./.github/actions/notify-nightly-failure"
+        )
+        self.assertEqual("nightly-failure:release-candidate", step["with"]["label"])
+        self.assertIn("needs.release-candidate.result", step["with"]["outcome"])
 
     def test_dropping_slice_changed_if_fails_isolation(self):
         text = WORKFLOW_PATH.read_text(encoding="utf-8")
