@@ -15,7 +15,7 @@ import sys
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -1027,6 +1027,28 @@ HARNESS_PATTERNS = (
 )
 
 
+def touched_allowlisted_modules(root: Path, paths: list[str]) -> tuple[str, ...]:
+    """Weekly-only modules whose test file names a changed ``chaos-engine/<name>.py`` (token economy)."""
+    names = {
+        PurePosixPath(path).stem
+        for path in (raw.replace("\\", "/") for raw in paths)
+        if path.startswith("chaos-engine/") and path.endswith(".py")
+    }
+    if not names:
+        return ()
+    needles = tuple(f"{name}.py" for name in names) + tuple(f'"{name}"' for name in names)
+    touched: list[str] = []
+    for module in sorted(UNGATED_TEST_ALLOWLIST):
+        test_file = root / (module.replace(".", "/") + ".py")
+        try:
+            text = test_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if any(needle in text for needle in needles):
+            touched.append(module)
+    return tuple(touched)
+
+
 def classify_paths(paths: list[str]) -> GatePlan:
     selected: list[str] = []
     unknown: list[str] = []
@@ -1074,13 +1096,17 @@ def classify_paths(paths: list[str]) -> GatePlan:
     for protected_id in ("protected-ownership", "protected-secret-safety"):
         if protected_id not in check_ids:
             check_ids.append(protected_id)
-    return GatePlan(
-        tuple(selected),
-        (
-            *tuple(CHECKS[check_id] for check_id in dict.fromkeys(check_ids)),
-        ),
-        tuple(sorted(set(unknown))),
-    )
+    checks = tuple(CHECKS[check_id] for check_id in dict.fromkeys(check_ids))
+    return GatePlan(tuple(selected), checks, tuple(sorted(set(unknown))))
+
+
+def plan_for_changes(paths: list[str], root: Path) -> GatePlan:
+    """``classify_paths`` plus weekly-only tests that name a changed harness module."""
+    plan = classify_paths(paths)
+    touched = touched_allowlisted_modules(root, paths)
+    if not touched:
+        return plan
+    return replace(plan, checks=plan.checks + (Check("ungated-touched", "fallback", touched),))
 
 
 def write_generated_artifacts(root: Path, plan: GatePlan) -> tuple[str, ...]:
@@ -1623,7 +1649,7 @@ def main() -> int:
         if args.plan_only and args.write_generated:
             raise GateError("plan-only cannot write generated artifacts")
         root = args.root.resolve()
-        plan = classify_paths(changed_paths(root, args.base, args.head))
+        plan = plan_for_changes(changed_paths(root, args.base, args.head), root)
         written = write_generated_artifacts(root, plan) if args.write_generated else ()
         if args.plan_only:
             payload = json.loads(

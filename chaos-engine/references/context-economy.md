@@ -21,6 +21,9 @@ the next decision. Stop exploring when that decision is supported.
 - Do not reread an unchanged input.
 - Prefer a path plus a discriminating excerpt over a full dump.
 - Failed CI logs: when the summary already names a fingerprint, read at most 40 lines around it; otherwise spill the log and keep path plus fingerprint ([CI status economy](ci-status-economy.md)).
+- Builds run in quiet mode; read pass/fail from the test-report files the build writes (JUnit XML), not from console output.
+- Scope searches to source directories; never search build, cache, or IDE-sandbox trees.
+- Locally run only the red test and directly affected modules; CI runs the rest.
 - Doctor reloads use `--agent-summary` (four lines). Keep full `--json` for humans and contract tests.
 
 ## Spill large tool output
