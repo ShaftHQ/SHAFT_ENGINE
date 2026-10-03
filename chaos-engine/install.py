@@ -1505,8 +1505,9 @@ def linux_flock_holders(lock_path: Path, *, locks_text=None, cmdline_by_pid=None
         named = os.stat(lock_path, follow_symlinks=False)
     except OSError:
         return []
-    major = os.major(named.st_dev)
-    minor = os.minor(named.st_dev)
+    # os.major/os.minor are POSIX-only; without them only the open-fd check can match.
+    major = os.major(named.st_dev) if hasattr(os, "major") else -1
+    minor = os.minor(named.st_dev) if hasattr(os, "minor") else -1
     inode = named.st_ino
     holders = []
     seen = set()
