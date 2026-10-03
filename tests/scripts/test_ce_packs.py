@@ -48,7 +48,7 @@ class ProjectPackTests(unittest.TestCase):
         self.assertTrue((SHAFT_PACK / "entrypoint.md").is_file())
         self.assertTrue((SHAFT_PACK / "references/playbooks/java-tests.md").is_file())
 
-    def test_matching_project_selects_the_pack_and_installs_it_under_packs(self):
+    def test_matching_project_only_suggests_the_pack_and_the_flag_installs_it_under_packs(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             (project / "pom.xml").write_text(
@@ -56,7 +56,14 @@ class ProjectPackTests(unittest.TestCase):
                 "<artifactId>shaft-engine</artifactId></dependency></dependencies></project>",
                 encoding="utf-8",
             )
-            self.assertEqual("repository", self.install.detect_distribution(project, CE))
+            # Hard cut: project files never select an add-on; they only produce a tip.
+            self.assertEqual("portable", self.install.detect_distribution(project, CE))
+            self.assertIn("shaft-core-developers", self.install.suggest_addons(project, CE))
+            distribution, addons = self.install.plan_install(
+                project, CE, {"shaft-core-developers"}, set(), environ={}
+            )
+            self.assertEqual("repository", distribution)
+            self.assertEqual(("shaft-core-developers", "shaft-engine-users"), addons)
         files = self.install.source_files(CE, "repository")
         relatives = {self.install.payload_relative(CE, path).as_posix() for path in files}
         self.assertIn("packs/shaft/entrypoint.md", relatives)

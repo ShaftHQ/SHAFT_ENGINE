@@ -6,6 +6,7 @@ import ast
 import hashlib
 import importlib.util
 import json
+import subprocess
 import os
 import sys
 import tempfile
@@ -136,6 +137,22 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
             elif isinstance(node, ast.ImportFrom) and node.module:
                 imported.add(node.module.split(".", 1)[0])
         self.assertTrue(imported <= sys.stdlib_module_names, imported - sys.stdlib_module_names)
+
+    def test_mcp_probe_timeout_names_the_server_and_allows_a_cold_start(self):
+        module = load_acceptance()
+        self.assertGreaterEqual(module.MCP_START_TIMEOUT_SECONDS, 30)
+        process = mock.Mock()
+        process.communicate.side_effect = [
+            subprocess.TimeoutExpired("fixture-mcp", 1),
+            ("", "loading chromadb\n"),
+        ]
+        with self.assertRaisesRegex(
+            RuntimeError, r"MCP initialize timed out after \d+s: .*mempalace-mcp.*loading chromadb"
+        ):
+            module.probe_mcp(
+                ["python", "tool.py", "mempalace-mcp"], ROOT,
+                popen=lambda *_args, **_kwargs: process,
+            )
 
     def test_mcp_probe_requires_successful_initialize_response(self):
         module = load_acceptance()

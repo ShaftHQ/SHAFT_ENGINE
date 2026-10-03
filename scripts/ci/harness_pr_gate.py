@@ -264,6 +264,7 @@ CHECKS = {
         (
             "tests.scripts.test_chaos_engine_bootstrap",
             "tests.scripts.test_ce_packs",
+            "tests.scripts.test_ce_addons",
             "tests.scripts.test_chaos_engine_dependencies",
             "tests.scripts.test_chaos_engine_installer_self_heal_5630",
             "tests.scripts.test_chaos_engine_offline_cache",

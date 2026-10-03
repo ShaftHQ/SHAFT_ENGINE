@@ -109,6 +109,7 @@ on explicit invocation.
 | Prefer CLI over MCP | CLI and MCP both fit | [prefer-cli-over-mcp.md](../../references/prefer-cli-over-mcp.md) |
 | No proxy | a task would add a traffic proxy | [no-proxy.md](../../references/no-proxy.md) |
 | GAP-EXIT2 UX | host ignores exit-2 hard blocks | [host-parity-matrix.md](../../references/host-parity-matrix.md) |
+| Add-ons | optional add-on: design, video, project pack | [addons.md](../../references/addons.md) |
 | Complexity gate | static-analysis complexity gate | [complexity-gate.md](../../references/complexity-gate.md) |
 <!-- HARNESS-ROUTES:END -->
 

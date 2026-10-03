@@ -63,7 +63,55 @@ On Windows use py -3 instead of python3. A successful install also prints a
 first-session brief and five host onboarding cards. You can stop reading here
 for a normal first install.
 
+## Optional add-ons
 
+The default install is the lean core only. These add-ons are never installed
+by default and never auto-selected; opt in with a flag:
+
+| Add-on | For | sh / bootstrap.py / install.py | PowerShell |
+| --- | --- | --- | --- |
+| `design-skills` | Anyone designing web pages, images, motion graphics, or videos: 20 verified design cards and the zero-LLM `design_qc.py` | `--with-design-skills` | `-WithDesignSkills` |
+| `shaft-engine-users` | Projects that use SHAFT: the `shaft-developer` router and its specialist skills | `--with-shaft-engine-users` | `-WithShaftEngineUsers` |
+| `shaft-core-developers` | Contributors to `ShaftHQ/SHAFT_ENGINE`: repository profile, playbooks, mastery chapters (adds `shaft-engine-users`) | `--with-shaft-core-developers` | `-WithShaftCoreDevelopers` |
+
+Remove with `--without-<name>` or `-Without<Name>`. Combine any of them.
+
+PowerShell needs the script-block form to pass switches:
+
+```powershell
+& ([scriptblock]::Create((irm "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1"))) -WithDesignSkills -WithShaftEngineUsers
+```
+
+or an environment variable with the plain one-liner (any installer):
+
+```powershell
+$env:CHAOS_ENGINE_ADDONS = "design-skills,shaft-engine-users"; irm https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.ps1 | iex
+```
+
+macOS or Linux:
+
+```bash
+url="https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/install.sh"
+curl -fsSL "$url" | bash -s -- "$url" --with-design-skills --with-shaft-engine-users
+```
+
+- The selection is recorded in `.chaos-engine/manifest.json`; a later upgrade
+  without flags keeps it. An explicit `--without-<name>` wins.
+- Unknown names fail closed and list the valid ones. Removing an add-on that a
+  selected add-on requires (for example `shaft-engine-users` while
+  `shaft-core-developers` stays) is refused.
+- List what is available and installed:
+  `python3 .chaos-engine/install.py addons --project .` (`--json` for tools).
+- Files land under `.chaos-engine/addons/<name>/`; `shaft-core-developers`
+  switches the profile to the repository distribution (`packs/shaft/`).
+- Existing SHAFT_ENGINE checkouts that already run the repository profile keep
+  it on upgrade and gain `shaft-engine-users`.
+- Sources: the catalog and resolver [addon_catalog.py](addon_catalog.py); the
+  [design-skills router](addons/design-skills/SKILL.md) and its
+  [manifest](addons/design-skills/addon.json); the SHAFT manifests
+  `shaft-skills/ce-addons/shaft-engine-users/addon.json` and
+  `shaft-skills/ce-pack/addon.json`; the agent route
+  [addons.md](references/addons.md).
 
 ## Grok lean defaults (#5802 / #5803 / #5805)
 
@@ -220,10 +268,11 @@ branch (otherwise `main`). The bootstrap resolves that mutable branch through
 the GitHub API, downloads the exact commit's declared harness files, rejects
 unsafe tree entries, and records repository, immutable provenance digests and
 the commit in `.chaos-engine/manifest.json`.
-The public default is the neutral `portable` distribution. A bundled
-repository profile is installed only when the target project's root `pom.xml`
-matches that profile's declared Maven artifact ids. Pass `--distribution` to
-the bootstrap if you need to override the detected choice. Re-running the
+The public default is the neutral `portable` distribution. Project files never
+select anything else (hard cut: a matching root `pom.xml` used to select the
+repository profile; it now only prints a tip). The repository profile comes
+from the `shaft-core-developers` add-on, or from an earlier install that
+already recorded it; see [Optional add-ons](#optional-add-ons). Re-running the
 same command upgrades to the latest resolved commit; an offline or invalid
 download leaves the last verified installation unchanged. A drifted, CRLF-converted,
 extra-file, or otherwise broken `.chaos-engine` directory is replaced with a

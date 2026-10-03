@@ -11,12 +11,28 @@ param(
     [switch]$WithoutMempalace,
     [switch]$WithoutGraphify,
     [switch]$WithoutPonytail,
-    [switch]$WithoutCaveman
+    [switch]$WithoutCaveman,
+    # Optional add-ons: -With<Name> / -Without<Name> (for example -WithDesignSkills).
+    # None is installed by default; bootstrap.py validates names against the manifests.
+    [Parameter(ValueFromRemainingArguments = $true)][string[]]$AddOnSwitches
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $script:ChaosEngineInvocationLine = [string]$MyInvocation.Line
+
+function ConvertTo-ChaosEngineAddOnFlags([string[]]$tokens) {
+    # -WithDesignSkills -> --with-designskills; bootstrap.py maps it to the add-on name.
+    $flags = @()
+    foreach ($token in @($tokens | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
+        $match = [regex]::Match($token, '^-(Without|With)([A-Za-z0-9]+)$', [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+        if (-not $match.Success) {
+            throw "Unknown ChaosEngine install argument: $token. Add-ons use -With<Name> or -Without<Name> (see INSTALL.md)."
+        }
+        $flags += "--" + $match.Groups[1].Value.ToLowerInvariant() + "-" + $match.Groups[2].Value.ToLowerInvariant()
+    }
+    return $flags
+}
 
 function Get-ChaosEnginePython {
     # Python 3.11 is the supported floor; an older interpreter falls back to uv-managed Python.
@@ -319,6 +335,7 @@ try {
     if ($WithoutGraphify) { $arguments += "--without-graphify" }
     if ($WithoutPonytail) { $arguments += "--without-ponytail" }
     if ($WithoutCaveman) { $arguments += "--without-caveman" }
+    $arguments += @(ConvertTo-ChaosEngineAddOnFlags $AddOnSwitches)
     if ($null -eq $python) {
         $uv = Install-ChaosEngineUv $work
         $env:UV_PYTHON_INSTALL_DIR = Join-Path $env:LOCALAPPDATA "chaos-engine\python"

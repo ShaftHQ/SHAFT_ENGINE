@@ -621,6 +621,23 @@
       "path": "references/host-parity-matrix.md"
     },
     {
+      "description": "Use when a task fits an optional add-on (design, video, or a project pack): list, install, remove, or load one.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Add-ons",
+      "path": "references/addons.md"
+    },
+    {
       "description": "Use when a hot-spot dispatch change must treat a static-analysis Complexity ACTION_REQUIRED as a unit failure.",
       "family": "reference",
       "hosts": {
