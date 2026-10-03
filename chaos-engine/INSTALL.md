@@ -361,6 +361,13 @@ this health truth).
 
 
 
+
+### Offline install and shared download cache
+
+- Build a bundle where you have network access: `python3 chaos-engine/install.py bundle --source chaos-engine --commit <sha> --output ce.zip`.
+- Install offline with `python3 install.py install --project . --from-bundle ce.zip`. Every file is checked against the bundle's sha256 manifest first, and any mismatch aborts the install (#6415).
+- Runtime downloads are cached per user and keyed by sha256 (`~/.cache/chaos-engine/downloads`, `%LOCALAPPDATA%\chaos-engine\downloads`, or `CHAOS_ENGINE_CACHE_DIR`), so a second project reuses them. Inspect or empty the cache with `install.py cache status|purge --component downloads` (#6416).
+
 ## Uninstall / rollback (first-time recovery)
 
 Use these when a first install goes wrong and you need a clean retry.

@@ -265,6 +265,7 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_bootstrap",
             "tests.scripts.test_ce_packs",
             "tests.scripts.test_chaos_engine_dependencies",
+            "tests.scripts.test_chaos_engine_offline_cache",
             "tests.scripts.test_chaos_engine_generation_runtime",
             "tests.scripts.test_chaos_engine_live_installer_acceptance",
         ),
