@@ -2495,6 +2495,15 @@ module.install_with_dependencies(project, source, "3" * 40)
         self.assertNotIn("ElementTree", installer)
         self.assertNotIn("Write-Host", (SOURCE / "install.ps1").read_text(encoding="utf-8"))
 
+    def test_one_liner_keeps_uv_managed_python_after_bootstrap_exits(self):
+        # Wrappers exec the interpreter that installed them, so it must outlive the temp work dir.
+        shell = (SOURCE / "install.sh").read_text(encoding="utf-8")
+        powershell = (SOURCE / "install.ps1").read_text(encoding="utf-8")
+        self.assertNotIn('UV_PYTHON_INSTALL_DIR="$work', shell)
+        self.assertIn('UV_PYTHON_INSTALL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/chaos-engine/python"', shell)
+        self.assertNotIn('UV_PYTHON_INSTALL_DIR = Join-Path $work', powershell)
+        self.assertIn('Join-Path $env:LOCALAPPDATA "chaos-engine\\python"', powershell)
+
     def test_portable_installer_source_does_not_name_the_repository_profile(self):
         text = INSTALLER.read_text(encoding="utf-8").casefold()
         self.assertNotIn("shaft", text)

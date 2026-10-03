@@ -199,7 +199,7 @@ if [ -z "$python" ]; then
   tar -xzf "$uv_archive" -C "$work"
   uv="$work/uv-${uv_target}/uv"
   [ -x "$uv" ] || fail "uv archive is missing its executable"
-  export UV_PYTHON_INSTALL_DIR="$work/python"
+  export UV_PYTHON_INSTALL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/chaos-engine/python"
   "$uv" python install --no-progress
   set -- "$uv" run --no-project --managed-python "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
 else
