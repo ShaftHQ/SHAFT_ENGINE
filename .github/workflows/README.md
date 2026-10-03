@@ -48,7 +48,7 @@ changing that token silently breaks both distribution publishers.
 | `copilot-setup-steps.yml` | manual; push/pull request touching itself | Copilot cloud setup job: opens the pending ChaosEngine research receipt before the agent's first read (#6218). |
 | `chaos-gauge-public-canary.yml` | manual | Runs one excluded public two-arm ChaosGauge canary through private draft evidence retention; never launches the pilot. |
 | `security.yml` | Maven Java pull request, push to `main`, weekly, manual | CodeQL Java analysis; PRs only when Java/POM/resources change, `main` and the weekly scan cover everything (#6192). |
-| `shaft-pilot-release.yml` | release-relevant pull request, manual | Rehearses the release contract, consumers, IntelliJ candidate, Capture, MCP transports, and container. |
+| `shaft-pilot-release.yml` | release-relevant pull request, nightly, manual | Rehearses the release contract, consumers, IntelliJ candidate, Capture, MCP transports, container, and a release-prep dry run; a failed nightly run files or recovers one `nightly-failure:release-candidate` issue. |
 | `mavenCentral_cd.yml` | release-relevant push to `main`, manual | Validates, signs, publishes, verifies, releases with minimal notes from `scripts/ci/render_release_notes.py` (#6232), dispatches the guide, and announces. |
 | `maven-central-reconcile.yml` | manual only | Safely completes a partially published immutable Maven Central version; dry-run defaults on. |
 | `prepare-release-pr.yml` | manual only | Updates the dated reactor and tool versions and opens the release PR. |
