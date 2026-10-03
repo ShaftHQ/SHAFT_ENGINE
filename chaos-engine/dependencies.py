@@ -1875,9 +1875,64 @@ def node_dispatch(generation: Path, script: Path) -> dict[str, object]:
     }
 
 
+def download_cache_root() -> Path:
+    """Return the user-level, project-independent artifact cache keyed by sha256 (#6416)."""
+    override = os.environ.get("CHAOS_ENGINE_CACHE_DIR")
+    if override:
+        base = Path(override)
+    elif os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData/Local") / "chaos-engine"
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library/Caches/chaos-engine"
+    else:
+        base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "chaos-engine"
+    return base / "downloads"
+
+
+def download_cache_status() -> dict[str, object]:
+    """Report the shared download cache size."""
+    root = download_cache_root()
+    entries = [path for path in root.glob("*") if path.is_file()] if root.is_dir() else []
+    return {"root": str(root), "artifacts": len(entries), "bytes": sum(path.stat().st_size for path in entries)}
+
+
+def purge_download_cache() -> dict[str, object]:
+    """Empty the shared download cache."""
+    root = download_cache_root()
+    removed = 0
+    for path in root.glob("*") if root.is_dir() else ():
+        if path.is_file():
+            path.unlink()
+            removed += 1
+    return {"root": str(root), "removed": removed}
+
+
+def _cached_artifact(expected: str, destination: Path) -> bool:
+    entry = download_cache_root() / expected
+    if not entry.is_file() or hashlib.sha256(entry.read_bytes()).hexdigest() != expected:
+        return False
+    shutil.copyfile(entry, destination)
+    return True
+
+
+def _remember_artifact(expected: str, source: Path) -> None:
+    root = download_cache_root()
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        partial = root / f".{expected}.{os.getpid()}.part"
+        shutil.copyfile(source, partial)
+        os.replace(partial, root / expected)
+    except OSError:
+        return  # the cache is an optimisation; a read-only home must not fail the install
+
+
 def _download_artifact(
     url: str, destination: Path, expected: str, opener=urllib.request.urlopen, *, reporter=None
 ) -> None:
+    if _cached_artifact(expected, destination):
+        if reporter is not None:
+            reporter.trace(f"cache hit {expected[:12]} → {destination.name}")
+        return
     if reporter is not None:
         # Keep Provision as the sole running phase; refresh detail/trace only.
         if getattr(reporter, "current_operation", None) != "Provision dependencies":
@@ -1917,6 +1972,7 @@ def _download_artifact(
     except BaseException:
         destination.unlink(missing_ok=True)
         raise
+    _remember_artifact(expected, destination)
 
 
 def _safe_archive_members(archive: Path) -> list[tuple[str, bytes, int]]:
