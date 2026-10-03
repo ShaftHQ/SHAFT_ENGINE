@@ -40,7 +40,7 @@ public final class LocatorMatchCountLineMarkerProvider implements LineMarkerProv
             return null;
         }
         return new LineMarkerInfo<>(element, element.getTextRange(), AllIcons.Actions.Find,
-                ignored -> "Count live matches for this locator",
+                com.intellij.util.FunctionUtil.constant("Count live matches for this locator"),
                 (mouseEvent, identifier) -> check(identifier, reference.getReferenceName(), literal(call)),
                 GutterIconRenderer.Alignment.LEFT, () -> "Count live matches for this locator");
     }
