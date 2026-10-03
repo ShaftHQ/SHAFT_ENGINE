@@ -352,6 +352,34 @@ def format_ab_table(table: dict[str, object]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def usage_rows(directory: Path | None = None) -> list[dict[str, object]]:
+    """One row per recorded task ledger (#6414): tokens in and out plus ballpark cost."""
+    folder = directory if directory is not None else _state_dir()
+    rows = []
+    for path in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+        totals = json.loads(path.read_text(encoding="utf-8")).get("totals", {})
+        tokens_in = int(totals.get("localPromptTokens", 0)) + int(totals.get("cloudPromptTokens", 0))
+        tokens_out = int(totals.get("localCompletionTokens", 0)) + int(totals.get("cloudCompletionTokens", 0))
+        cost = float(estimate_cost_usd(totals)["totalEstimatedUsd"])
+        rows.append({"task": path.stem, "tokensIn": tokens_in, "tokensOut": tokens_out, "estimatedUsd": cost})
+    return rows
+
+
+def usage_json(directory: Path | None = None) -> str:
+    """JSON passthrough of the usage rows."""
+    return json.dumps(usage_rows(directory), sort_keys=True)
+
+
+def usage_table(directory: Path | None = None) -> str:
+    """Markdown table for status reports."""
+    lines = ["| Task | Tokens in | Tokens out | Est. cost (USD) |", "|---|---|---|---|"]
+    lines += [
+        f"| {row['task']} | {row['tokensIn']} | {row['tokensOut']} | {row['estimatedUsd']:.4f} |"
+        for row in usage_rows(directory)
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -375,8 +403,15 @@ def main(argv: list[str] | None = None) -> int:
     table_cmd = sub.add_parser("ab-table", help="median and mean from recorded A/B rows")
     table_cmd.add_argument("--file", type=Path, required=True, help="JSON list of task/arm/tokens rows")
 
+    usage_cmd = sub.add_parser("usage", help="Markdown table of task token usage (#6414)")
+    usage_cmd.add_argument("--fixture", type=Path, default=None, help="directory of ledger JSON files")
+    usage_cmd.add_argument("--json", action="store_true", help="print rows as JSON")
+
     args = parser.parse_args(argv)
     try:
+        if args.command == "usage":
+            print(usage_json(args.fixture) if args.json else usage_table(args.fixture).rstrip("\n"))
+            return 0
         if args.command == "record":
             ledger = record(
                 args.session_id,

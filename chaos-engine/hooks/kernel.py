@@ -97,6 +97,8 @@ class HostCapability:
     # from ChaosEngine; trust the adapter and surface blocking_gap to owners.
     process_exit2_honored: bool = True
     blocking_gap: str = ""
+    # Host CLI executable doctor probes for exit-2 fidelity (#6408).
+    cli: str = ""
 
 
 
@@ -193,6 +195,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
         deny_exit_code=2,
         process_exit2_honored=False,
         blocking_gap=GAP_EXIT2_SENTENCE,
+        cli="grok",
     ),
     "copilot": HostCapability(
         ("AGENTS.md", ".github/copilot-instructions.md", ".github/skills/chaos-engine/SKILL.md"),
@@ -214,6 +217,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
         deny_exit_code=2,
         process_exit2_honored=False,
         blocking_gap=GAP_EXIT2_SENTENCE,
+        cli="copilot",
     ),
 }
 

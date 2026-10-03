@@ -55,6 +55,9 @@ A card is done when all hold:
    kept, reinstall, doctor, stale-store refresh, reload).
 8. Ship to-deliver items in the fewest pull requests; group related issues.
 
+Check items 2 and 4 plus labels and links with `python3 .chaos-engine/tool.py dod <PR>` ([`dod.py`](../../dod.py))
+(table; exit 1 names each gap).
+
 ## Findings policy
 
 Every finding ends as exactly one of:

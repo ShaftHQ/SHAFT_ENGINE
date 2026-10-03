@@ -177,6 +177,27 @@ class SharedStoreTest(unittest.TestCase):
         self.assertEqual(0, result)
         self.assertEqual([], calls)
 
+    def test_retrieve_reports_graph_freshness_after_a_new_commit(self):
+        # #6409: retrieve never answers from an outdated graph silently.
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("ce_retrieve_6409", ROOT / "chaos-engine" / "retrieve.py")
+        retrieve = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(retrieve)
+        self.assertEqual("absent", retrieve.graph_freshness_field(self.primary)["status"])
+        graph_out = self.primary / "graphify-out"
+        graph_out.mkdir()
+        (graph_out / "graph.json").write_text("{}\n", encoding="utf-8")
+        (graph_out / "manifest.json").write_text('{"nodes": 1}\n', encoding="utf-8")
+        self.stores.write_marker(graph_out, self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip())
+        self.assertEqual("fresh", retrieve.graph_freshness_field(self.primary)["status"])
+        (self.primary / "source.py").write_text("print('changed')\n", encoding="utf-8")
+        self.git("commit", "-am", "new commit", cwd=self.primary)
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD", cwd=self.primary)
+        stale = retrieve.graph_freshness_field(self.primary)
+        self.assertEqual("stale", stale["status"])
+        self.assertIn("stores refresh", stale["refresh"])
+
     def test_refresh_does_not_create_a_home_palace(self):
         bare = self.sandbox / "no-origin"
         bare.mkdir()

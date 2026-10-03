@@ -2848,8 +2848,21 @@ def emit_install_failure(
     return None
 
 
+MINIMUM_PYTHON = (3, 11)
+
+
+def python_floor_message(version: tuple[int, ...] | None = None) -> str:
+    """Explain the supported Python floor (3.10 reaches end of life in October 2026)."""
+    found = ".".join(str(part) for part in (version or sys.version_info)[:3])
+    return (f"ChaosEngine requires Python {MINIMUM_PYTHON[0]}.{MINIMUM_PYTHON[1]} or newer; found {found}. "
+            "Rerun the install one-liner, which provisions a supported Python through uv.\n")
+
+
 def main() -> int:
     harden_stream_encoding(sys.stderr)
+    if sys.version_info < MINIMUM_PYTHON:
+        sys.stderr.write(python_floor_message())
+        return 2
     reporter = InstallReporter()
     args = parser().parse_args()
     if getattr(args, "verbose", False):

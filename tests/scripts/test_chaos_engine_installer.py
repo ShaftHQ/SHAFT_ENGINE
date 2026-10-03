@@ -2495,6 +2495,15 @@ module.install_with_dependencies(project, source, "3" * 40)
         self.assertNotIn("ElementTree", installer)
         self.assertNotIn("Write-Host", (SOURCE / "install.ps1").read_text(encoding="utf-8"))
 
+    def test_one_liner_keeps_uv_managed_python_after_bootstrap_exits(self):
+        # Wrappers exec the interpreter that installed them, so it must outlive the temp work dir.
+        shell = (SOURCE / "install.sh").read_text(encoding="utf-8")
+        powershell = (SOURCE / "install.ps1").read_text(encoding="utf-8")
+        self.assertNotIn('UV_PYTHON_INSTALL_DIR="$work', shell)
+        self.assertIn('UV_PYTHON_INSTALL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/chaos-engine/python"', shell)
+        self.assertNotIn('UV_PYTHON_INSTALL_DIR = Join-Path $work', powershell)
+        self.assertIn('Join-Path $env:LOCALAPPDATA "chaos-engine\\python"', powershell)
+
     def test_portable_installer_source_does_not_name_the_repository_profile(self):
         text = INSTALLER.read_text(encoding="utf-8").casefold()
         self.assertNotIn("shaft", text)
@@ -3752,6 +3761,40 @@ module.install_with_dependencies(project, source, "3" * 40)
 
             self.assertFalse(project.joinpath(".chaos-engine").exists())
             self.assertFalse(project.joinpath(".chaos-engine-runtime").exists())
+
+    def test_lifecycle_install_upgrade_uninstall_restores_the_exact_tree(self):
+        # #6407: fresh install, upgrade, status, uninstall leaves no CE-owned file.
+        def snapshot(project: Path) -> dict[str, bytes]:
+            return {
+                path.relative_to(project).as_posix(): path.read_bytes()
+                for path in sorted(project.rglob("*"))
+                if path.is_file()
+            }
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary).resolve()
+            project = root / "consumer"
+            project.mkdir()
+            project.joinpath("AGENTS.md").write_bytes(b"user instructions\n")
+            project.joinpath("src").mkdir()
+            project.joinpath("src/app.py").write_text("print('user')\n", encoding="utf-8")
+            before = snapshot(project)
+            source = copy_source(root / "source")
+            noop = lambda *_args, **_kwargs: None  # noqa: E731
+
+            MODULE.install_with_dependencies(project, source, TEST_COMMIT, provisioner=noop)
+            source.joinpath("profiles/README.md").write_text("upgraded\n", encoding="utf-8")
+            MODULE.install_with_dependencies(project, source, "2" * 40, provisioner=noop)
+            self.assertEqual("2" * 40, MODULE.status(project)["commit"])
+            MODULE.uninstall_with_dependencies(project)
+
+            # Knowledge stores are retained by design (INSTALL.md "What is removed vs retained").
+            after = {
+                path: content for path, content in snapshot(project).items()
+                if path != "mempalace.yaml" and not path.startswith(".chaos-engine-state/mempalace/")
+            }
+            self.assertEqual(sorted(before), sorted(after), "uninstall left or removed files")
+            self.assertEqual(before, after)
 
     def test_default_uninstall_restores_host_files_and_configs(self):
         with tempfile.TemporaryDirectory() as temporary:

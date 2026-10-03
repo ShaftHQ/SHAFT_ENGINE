@@ -4473,7 +4473,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
         current = dict(after)
         current[".codex/config.toml"] = legacy_spelling(managed)
         snapshot = module.upgrade_before_images(Path("."), before, after, current)
-        self.assertEqual(b"", snapshot[".codex/config.toml"])
+        self.assertIsNone(snapshot[".codex/config.toml"])  # #6407: CE-created file stays absent
 
         mutated = dict(current)
         mutated[".codex/config.toml"] = mutated[".codex/config.toml"].replace(

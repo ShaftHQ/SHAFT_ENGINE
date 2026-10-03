@@ -146,7 +146,15 @@ class CiPythonDependenciesTest(unittest.TestCase):
                     if step.get("uses") == expected_action
                 ]
                 self.assertTrue(setup_steps, "install job must set up repository-standard Python")
-                self.assertEqual(setup_steps[-1].get("with", {}).get("python-version"), expected_version)
+                version = setup_steps[-1].get("with", {}).get("python-version")
+                if version == "${{ matrix.python }}":
+                    # #6410: a supported-range matrix must still cover the repository standard.
+                    workflow = __import__("yaml").safe_load(
+                        (ROOT / relative_path).read_text(encoding="utf-8")
+                    )
+                    matrix = workflow["jobs"][job_name]["strategy"]["matrix"]["python"]
+                    version = expected_version if expected_version in matrix else version
+                self.assertEqual(version, expected_version)
 
     def test_chaos_gauge_installs_dependencies_before_contracts(self):
         yaml = __import__("yaml")

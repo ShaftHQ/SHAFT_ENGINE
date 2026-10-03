@@ -12,6 +12,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.Locale;
 import java.util.concurrent.Executors;
 
@@ -47,6 +48,28 @@ public final class TestPageServer {
         ensureStarted();
         return "http://" + browserHost() + ":" + port + "/__download_page?file="
                 + URLEncoder.encode(safeDownloadFileName(fileName), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Page guarded by HTTP Basic authentication ({@code user}/{@code pass}). Local-only
+     * replacement for the live basic-auth hosts (#6398).
+     */
+    public static String basicAuthUrl(boolean embedCredentials) {
+        ensureStarted();
+        return "http://" + (embedCredentials ? "user:pass@" : "") + browserHost() + ":" + port + "/__basic_auth";
+    }
+
+    private static void serveBasicAuth(HttpExchange exchange) throws IOException {
+        try (exchange) {
+            String expected = "Basic " + Base64.getEncoder().encodeToString("user:pass".getBytes(StandardCharsets.UTF_8));
+            if (!expected.equals(exchange.getRequestHeaders().getFirst("Authorization"))) {
+                exchange.getResponseHeaders().set("WWW-Authenticate", "Basic realm=\"shaft\"");
+                send(exchange, 401, "Unauthorized".getBytes(StandardCharsets.UTF_8), "text/plain; charset=utf-8");
+                return;
+            }
+            send(exchange, 200, "<!doctype html><html><body><h1>Login Success</h1></body></html>".getBytes(StandardCharsets.UTF_8),
+                    "text/html; charset=utf-8");
+        }
     }
 
     private static void serveDownloadPage(HttpExchange exchange) throws IOException {
@@ -136,6 +159,7 @@ public final class TestPageServer {
                 newServer.createContext("/__download", TestPageServer::serveDownload);
                 newServer.createContext("/__download_page", TestPageServer::serveDownloadPage);
                 newServer.createContext("/__sse", TestPageServer::serveSse);
+                newServer.createContext("/__basic_auth", TestPageServer::serveBasicAuth);
                 newServer.setExecutor(Executors.newCachedThreadPool(runnable -> {
                     Thread thread = new Thread(runnable, "test-page-server");
                     thread.setDaemon(true);

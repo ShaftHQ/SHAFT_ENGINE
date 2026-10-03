@@ -643,8 +643,11 @@ public class BrowserActionsHelper {
         // https://www.baeldung.com/java-domain-name-from-url#using-the-internetdomainname-class-from-guava-library
         URI uri = new URI(url);
         String host = uri.getHost();
-        InternetDomainName internetDomainName = InternetDomainName.from(host).topPrivateDomain();
-        return internetDomainName.toString();
+        if (!InternetDomainName.isValid(host) || !InternetDomainName.from(host).isUnderPublicSuffix()) {
+            // IP literals, localhost, and private hosts (e.g. host.docker.internal) have no registrable domain
+            return host;
+        }
+        return InternetDomainName.from(host).topPrivateDomain().toString();
     }
 
     /**

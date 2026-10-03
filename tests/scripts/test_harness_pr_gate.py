@@ -1155,6 +1155,12 @@ class UngatedModulesRunInCiTest(unittest.TestCase):
         self.assertEqual(2, result.returncode)
         self.assertIn("--base and --head are required", result.stderr)
 
+    def test_full_harness_job_certifies_the_supported_python_range(self) -> None:
+        workflow = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
+        job = workflow.split("deterministic-harness-full:", 1)[1].split("\n  chaos-engine-cross-platform:", 1)[0]
+        self.assertIn("python: ['3.11', '3.13', '3.14']", job)
+        self.assertIn("python-version: ${{ matrix.python }}", job)
+
     def test_full_harness_job_runs_the_ungated_list(self) -> None:
         workflow = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
         job = workflow.split("deterministic-harness-full:", 1)[1].split("\n  chaos-engine-cross-platform:", 1)[0]

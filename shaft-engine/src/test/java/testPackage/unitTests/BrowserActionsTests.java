@@ -1,6 +1,7 @@
 package testPackage.unitTests;
 
 import com.shaft.driver.SHAFT;
+import testPackage.TestPageServer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -10,24 +11,24 @@ public class BrowserActionsTests {
 
     @Test
     public void navigateToURL() {
-        driver.get().browser().navigateToURL("https://duckduckgo.com/?");
+        driver.get().browser().navigateToURL(TestPageServer.url("dropdownFixture.html"));
     }
 
     @Test
     public void navigateBack() {
-        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/xhtmlTest.html");
-        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/simpleTest.html");
+        driver.get().browser().navigateToURL(TestPageServer.url("clickableFixture.html"));
+        driver.get().browser().navigateToURL(TestPageServer.url("dropdownFixture.html"));
         driver.get().browser().navigateBack();
-        driver.get().assertThat().browser().url().contains("xhtmlTest").perform();
+        driver.get().assertThat().browser().url().contains("clickableFixture").perform();
     }
 
     @Test
     public void navigateForward() {
-        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/xhtmlTest.html");
-        driver.get().browser().navigateToURL("https://www.selenium.dev/selenium/web/simpleTest.html");
+        driver.get().browser().navigateToURL(TestPageServer.url("clickableFixture.html"));
+        driver.get().browser().navigateToURL(TestPageServer.url("dropdownFixture.html"));
         driver.get().browser().navigateBack();
         driver.get().browser().navigateForward();
-        driver.get().assertThat().browser().url().contains("simpleTest").perform();
+        driver.get().assertThat().browser().url().contains("dropdownFixture").perform();
     }
 
     @Test
@@ -83,7 +84,7 @@ public class BrowserActionsTests {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(new SHAFT.GUI.WebDriver());
-        driver.get().browser().navigateToURL("https://shafthq.github.io/");
+        driver.get().browser().navigateToURL(TestPageServer.url("cookieFixture.html"));
     }
 
     @AfterMethod(alwaysRun = true)

@@ -85,6 +85,15 @@ public class PropertiesUnitTest {
         Assert.assertFalse(attachFullLog, "attachFullLog should default to false for better performance");
     }
 
+    @Test(description = "Test Reporting properties - attach failure evidence defaults to true and is settable")
+    public void testReportingAttachFailureEvidence() {
+        boolean original = SHAFT.Properties.reporting.attachFailureEvidence();
+        Assert.assertTrue(original, "attachFailureEvidence should default to true");
+        SHAFT.Properties.reporting.set().attachFailureEvidence(false);
+        Assert.assertFalse(SHAFT.Properties.reporting.attachFailureEvidence());
+        SHAFT.Properties.reporting.set().attachFailureEvidence(original);
+    }
+
     @Test(description = "Test Reporting properties - attach full log setter")
     public void testReportingAttachFullLogSetter() {
         // Test that the setter works correctly
