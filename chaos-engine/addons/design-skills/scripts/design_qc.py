@@ -11,10 +11,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404 - list-form argv for resolved media tools, never a shell.
 import sys
 from pathlib import Path
 
@@ -39,7 +38,7 @@ def need(tool: str) -> str:
 
 
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, capture_output=True, text=True, check=False)
+    return subprocess.run(command, capture_output=True, text=True, check=False)  # nosec B603 - list argv, no shell.
 
 
 def ffprobe(path: str) -> dict:
@@ -404,15 +403,16 @@ def cmd_ssim(args: argparse.Namespace) -> int:
 
 
 def has_libvmaf() -> bool:
-    if not shutil.which("ffmpeg"):
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
         return False
-    return "libvmaf" in run(["ffmpeg", "-hide_banner", "-filters"]).stdout
+    return "libvmaf" in run([ffmpeg, "-hide_banner", "-filters"]).stdout
 
 
 def cmd_vmaf(args: argparse.Namespace) -> int:
     if not has_libvmaf():
         raise Skip("ffmpeg has no libvmaf filter (install a build with libvmaf or the vmaf CLI)")
-    result = run(["ffmpeg", "-hide_banner", "-nostats", "-i", args.file, "-i", args.reference,
+    result = run([need("ffmpeg"), "-hide_banner", "-nostats", "-i", args.file, "-i", args.reference,
                   "-lavfi", "[0:v][1:v]scale2ref[a][b];[a][b]libvmaf", "-f", "null", "-"])
     match = re.search(r"VMAF score:\s*([\d.]+)", result.stderr)
     if not match:

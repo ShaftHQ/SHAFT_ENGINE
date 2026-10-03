@@ -6,7 +6,7 @@ import importlib.util
 import json
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404 - fixed list-form argv in tests, never a shell.
 import sys
 import tempfile
 import unittest
@@ -29,7 +29,8 @@ CARDS = (
 def _load(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
+    if spec is None or spec.loader is None:
+        raise ImportError(path)
     sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
@@ -156,8 +157,10 @@ class WrapperContractTests(unittest.TestCase):
             "FunctionDefinitionAst] -and $args[0].Name -eq 'ConvertTo-ChaosEngineAddOnFlags'},$true)[0];"
             "Invoke-Expression $f.Extent.Text;ConvertTo-ChaosEngineAddOnFlags @('-WithDesignSkills','-WithoutX1')"
         )
-        result = subprocess.run(["pwsh", "-NoLogo", "-NoProfile", "-Command", script],
-                                capture_output=True, text=True, check=True)
+        pwsh = shutil.which("pwsh")
+        result = subprocess.run(  # nosec B603 - resolved pwsh path, fixed argv.
+            [pwsh, "-NoLogo", "-NoProfile", "-Command", script], capture_output=True, text=True, check=True
+        )
         self.assertEqual(["--with-designskills", "--without-x1"], result.stdout.split())
 
 
@@ -192,7 +195,9 @@ class DesignQcTests(unittest.TestCase):
     qc = _load("ce_design_qc_test", QC)
 
     def run_qc(self, *args: str) -> tuple[int, dict]:
-        result = subprocess.run([sys.executable, str(QC), *args], capture_output=True, text=True, check=False)
+        result = subprocess.run(  # nosec B603 - current interpreter, fixed script.
+            [sys.executable, str(QC), *args], capture_output=True, text=True, check=False
+        )
         return result.returncode, json.loads(result.stdout.strip().splitlines()[-1])
 
     def test_contrast_ratio_matches_wcag_examples(self):
@@ -248,8 +253,8 @@ class DesignQcTests(unittest.TestCase):
     def test_delivery_and_levels_on_a_generated_clip(self):
         with tempfile.TemporaryDirectory() as temporary:
             clip = Path(temporary) / "clip.mp4"
-            subprocess.run([
-                "ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+            subprocess.run([  # nosec B603 - resolved ffmpeg path, fixed argv.
+                shutil.which("ffmpeg"), "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
                 "color=c=gray:s=1920x1080:r=30:d=1", "-f", "lavfi", "-i", "sine=f=440:d=1:sample_rate=48000",
                 "-vf", "format=yuv420p", "-c:v", "libx264", "-profile:v", "high",
                 "-x264-params", "colorprim=bt709:transfer=bt709:colormatrix=bt709", "-color_range", "tv",
