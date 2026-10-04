@@ -655,6 +655,34 @@ def run_checked(
     return result
 
 
+TRANSIENT_NETWORK_FAILURE = re.compile(
+    r"Could not resolve host|Connection (?:reset|refused|timed out)|Operation timed out|"
+    r"Failed to connect|early EOF|unexpected disconnect|TLS connection|"
+    r"The requested URL returned error: (?:429|5\d\d)|RPC failed",
+    re.IGNORECASE,
+)
+NETWORK_ATTEMPTS = 3
+NETWORK_BACKOFF_SECONDS = (5, 15)
+
+
+def run_network_checked(
+    command: list[str],
+    *,
+    cwd: Path,
+    environment: dict[str, str] | None = None,
+    sleep=time.sleep,
+) -> subprocess.CompletedProcess[str]:
+    """#6538: retry only transient network failures (runner DNS or connection flakes)."""
+    for attempt in range(1, NETWORK_ATTEMPTS + 1):
+        try:
+            return run_checked(command, cwd=cwd, environment=environment)
+        except AcceptanceCommandFailure as error:
+            if attempt == NETWORK_ATTEMPTS or not TRANSIENT_NETWORK_FAILURE.search(str(error)):
+                raise
+            sleep(NETWORK_BACKOFF_SECONDS[min(attempt - 1, len(NETWORK_BACKOFF_SECONDS) - 1)])
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
 def read_json(path: Path) -> dict[str, object]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
@@ -765,7 +793,7 @@ def fetch_exact_base_source(
         cwd=root,
         environment=environment,
     )
-    run_checked(
+    run_network_checked(
         [git, "-C", str(repository), "fetch", "--no-tags", "--depth=1", "origin", base_sha],
         cwd=root,
         environment=environment,
