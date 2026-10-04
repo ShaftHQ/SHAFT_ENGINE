@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Installer (#6499): the verify gate runs doctor from the installed core, so it
+  checks the same components as `install.py doctor`; a repository with no commits
+  shows Graphify as waiting for the first commit with a commit-first fix-next.
+
 - Faster reruns (#6498): a same-commit rerun mines MemPalace in the background
   when the palace is shared (179 s to about 15 s), and an add-on-only rerun
   records Graphify digests without copying `graphify-out/` (4.3 s saved on SHAFT).
