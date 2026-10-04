@@ -89,11 +89,12 @@ class PolicyHashDoctorTest(unittest.TestCase):
 
     def test_absent_store_degraded_does_not_block_doctor(self):
         result = {"status": "healthy", "components": {}}
-        overlay_match.apply_policy_hash_doctor(
-            result,
-            Path("."),
-            retrieve_reports=[{"store": "graphify", "status": "degraded", "reason": "nonzero-exit"}],
-        )
+        with tempfile.TemporaryDirectory() as project:
+            overlay_match.apply_policy_hash_doctor(
+                result,
+                Path(project),
+                retrieve_reports=[{"store": "graphify", "status": "degraded", "reason": "nonzero-exit"}],
+            )
         self.assertNotIn("retrieve-graphify", result["components"])
         self.assertEqual("healthy", result["status"])
 

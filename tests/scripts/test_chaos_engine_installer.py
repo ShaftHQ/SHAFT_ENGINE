@@ -2446,11 +2446,17 @@ module.install_with_dependencies(project, source, "3" * 40)
             self.assertEqual(["shaft-core-developers"], MODULE.suggest_addons(project, SOURCE))
 
     def test_reactor_module_is_suggested_and_the_addon_flag_selects_repository(self):
-        self.assertEqual("portable", MODULE.detect_distribution(ROOT, SOURCE))
-        self.assertIn("shaft-core-developers", MODULE.suggest_addons(ROOT, SOURCE))
-        distribution, addons = MODULE.plan_install(ROOT, SOURCE, {"shaft-core-developers"}, set(), environ={})
-        self.assertEqual("repository", distribution)
-        self.assertIn("shaft-engine-users", addons)
+        # A clean project with SHAFT's root pom: the dev checkout's own recorded add-ons must not leak in.
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            shutil.copy2(ROOT / "pom.xml", project / "pom.xml")
+            self.assertEqual("portable", MODULE.detect_distribution(project, SOURCE))
+            self.assertIn("shaft-core-developers", MODULE.suggest_addons(project, SOURCE))
+            distribution, addons = MODULE.plan_install(
+                project, SOURCE, {"shaft-core-developers"}, set(), environ={}
+            )
+            self.assertEqual("repository", distribution)
+            self.assertIn("shaft-engine-users", addons)
 
     def test_maven_coordinate_ids_ignore_plugins_comments_and_broken_xml(self):
         wanted = json.loads(
