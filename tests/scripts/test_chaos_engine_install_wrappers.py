@@ -504,14 +504,14 @@ Write-Output (Get-ChaosEngineHeader $message.Headers 'X-Missing')
         samples = ",\n".join(f"    '{url}'" for url, _ref, _prefix in SLASH_REF_CASES)
         script = (
             "Set-StrictMode -Version Latest\n"
-            "$ErrorActionPreference = 'Stop'\n"
-            ". $args[0] -ParseOnly\n"
-            "$samples = @(\n" + samples + "\n)\n"
-            "foreach ($sample in $samples) {\n"
-            "    $parsed = ConvertFrom-ChaosEngineRawUrl $sample\n"
-            "    Write-Output ($parsed.Repository + '|' + $parsed.Ref + '|' + "
-            "$parsed.Prefix + '|' + $parsed.BootstrapUrl)\n"
-            "}\n"
+            + "$ErrorActionPreference = 'Stop'\n"
+            + ". $args[0] -ParseOnly\n"
+            + "$samples = @(\n" + samples + "\n)\n"
+            + "foreach ($sample in $samples) {\n"
+            + "    $parsed = ConvertFrom-ChaosEngineRawUrl $sample\n"
+            + "    Write-Output ($parsed.Repository + '|' + $parsed.Ref + '|' + "
+            + "$parsed.Prefix + '|' + $parsed.BootstrapUrl)\n"
+            + "}\n"
         )
         with tempfile.NamedTemporaryFile("w", suffix=".ps1", delete=False, encoding="utf-8") as handle:
             handle.write(script)

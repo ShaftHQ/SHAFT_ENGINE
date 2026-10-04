@@ -1499,11 +1499,9 @@ class InstallSummaryMatchesDoctorTest(unittest.TestCase):
             target = Path(temporary) / ".chaos-engine"
             target.mkdir()
             (target / "install.py").write_text(
-                "CALLS = []\n"
                 "def doctor_with_dependencies(project, **options):\n"
-                "    CALLS.append(options)\n"
-                f"    return {{'status': 'healthy', 'components': {self.DOCTOR['components']!r}, "
-                "'options': options}\n",
+                + f"    return {{'status': 'healthy', 'components': {self.DOCTOR['components']!r}, "
+                + "'options': options}\n",
                 encoding="utf-8",
             )
             fallback = {"status": "healthy", "components": {"core": {"status": "healthy"}}}
