@@ -20,7 +20,8 @@ final class RestCountriesCredentials {
         if (apiKey == null) {
             throw new IllegalStateException("REST Countries API key is not configured. Set restCountries.apiKey in "
                     + "src/main/resources/properties/secrets.properties, pass -DrestCountries.apiKey, or set the "
-                    + "RESTCOUNTRIES_API_KEY environment variable. See README.md for details.");
+                    + "RESTCOUNTRIES_API_KEY environment variable. See "
+                    + "src/main/resources/properties/secrets.properties.example for details.");
         }
         return apiKey;
     }
