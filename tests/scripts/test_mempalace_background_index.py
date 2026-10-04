@@ -234,5 +234,97 @@ class DoctorIndexFindingTest(TestCase):
         document["dependencies"]["components"]["graphify"]["latestVersionVerified"] = True
         self.assertEqual([], installer.format_host_environment_findings(document))
 
+
+class SameCommitRerunBackgroundMineTest(TestCase):
+    """#6498: a same-commit rerun detaches the first mine when the palace is shared."""
+
+    def setUp(self) -> None:
+        self.installer = load(INSTALLER, "ce_installer_rerun_background_mine")
+        self.project = Path(tempfile.mkdtemp())
+
+    def controller(self, palace: Path):
+        return SimpleNamespace(mempalace_project_palace=lambda project: palace)
+
+    def test_fresh_install_detaches(self):
+        allowed = self.installer.background_mine_allowed_for(
+            self.project, self.controller(self.project / "x"), None, None, "abc")
+        self.assertTrue(allowed)
+
+    def test_same_commit_rerun_with_shared_palace_detaches(self):
+        shared = self.project / ".git/chaos-engine/mempalace"
+        allowed = self.installer.background_mine_allowed_for(
+            self.project, self.controller(shared), {"source": {}}, "abc", "abc")
+        self.assertTrue(allowed)
+
+    def test_same_commit_rerun_with_project_palace_stays_synchronous(self):
+        local = self.project / ".chaos-engine-state/mempalace"
+        allowed = self.installer.background_mine_allowed_for(
+            self.project, self.controller(local), {"source": {}}, "abc", "abc")
+        self.assertFalse(allowed)
+
+    def test_upgrade_stays_synchronous(self):
+        shared = self.project / ".git/chaos-engine/mempalace"
+        allowed = self.installer.background_mine_allowed_for(
+            self.project, self.controller(shared), {"source": {}}, "old", "new")
+        self.assertFalse(allowed)
+
+    def test_unknown_palace_stays_synchronous(self):
+        def broken(project):
+            raise OSError("no palace")
+        allowed = self.installer.background_mine_allowed_for(
+            self.project, SimpleNamespace(mempalace_project_palace=broken),
+            {"source": {}}, "abc", "abc")
+        self.assertFalse(allowed)
+        self.assertFalse(self.installer.background_mine_allowed_for(
+            self.project, SimpleNamespace(), {"source": {}}, "abc", "abc"))
+
+    def test_provision_passes_the_decision_to_the_controller(self):
+        seen = {}
+
+        def install_account_dependencies(project, specification, background_mine_allowed=True):
+            seen["allowed"] = background_mine_allowed
+            return {}
+
+        controller = SimpleNamespace(install_account_dependencies=install_account_dependencies)
+        self.installer.provision_account_dependencies(
+            self.project, controller, None, {}, bundle={"mempalace": False},
+            upgrade=True, background_mine=True)
+        self.assertTrue(seen["allowed"])
+        self.installer.provision_account_dependencies(
+            self.project, controller, None, {}, bundle={"mempalace": False}, upgrade=True)
+        self.assertFalse(seen["allowed"])
+
+
+
+class AddonRerunGraphifySnapshotTest(TestCase):
+    """#6498: an add-on-only rerun records Graphify digests without copying the tree."""
+
+    def test_digest_only_snapshot_skips_the_graphify_copy_and_restores_safely(self):
+        import shutil
+        installer = load(INSTALLER, "ce_installer_graphify_snapshot")
+        project = Path(tempfile.mkdtemp())
+        (project / "graphify-out").mkdir()
+        (project / "graphify-out/graph.json").write_text("{}", encoding="utf-8")
+        (project / ".agents/skills/graphify").mkdir(parents=True)
+        (project / ".agents/skills/graphify/SKILL.md").write_text("s", encoding="utf-8")
+        snapshot, before = installer.snapshot_project_setup_outputs(
+            project, copy_graphify_output=False)
+        try:
+            self.assertIn("graph.json", before["graphify-out"][1])
+            self.assertFalse((snapshot / "graphify-out").exists())
+            self.assertTrue((snapshot / ".agents/skills/graphify/SKILL.md").is_file())
+            (project / "graphify-out/graph.json").write_text("new", encoding="utf-8")
+            after = installer.project_setup_after_images(project)
+            installer.restore_project_setup_outputs(project, snapshot, before, after)
+            self.assertEqual("new", (project / "graphify-out/graph.json").read_text())
+        finally:
+            shutil.rmtree(snapshot, ignore_errors=True)
+        snapshot, _ = installer.snapshot_project_setup_outputs(project)
+        try:
+            self.assertTrue((snapshot / "graphify-out/graph.json").is_file())
+        finally:
+            shutil.rmtree(snapshot, ignore_errors=True)
+
+
 if __name__ == "__main__":
     main()

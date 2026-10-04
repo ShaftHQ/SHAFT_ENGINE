@@ -519,6 +519,29 @@ def reusable_account_receipt(controller, project: Path, reporter=None) -> dict[s
     return receipt
 
 
+def background_mine_allowed_for(
+    project: Path, controller, old_manifest, old_commit, commit
+) -> bool:
+    """Whether the first MemPalace mine may run detached for this install (#6498).
+
+    A fresh install may. A same-commit rerun writes no account rollback journal,
+    and the rollback image covers only the project-local palace, so a detached
+    mine into the shared palace cannot race it. An upgrade must mine first.
+    """
+    if old_manifest is None:
+        return True
+    if old_commit is None or old_commit != commit:
+        return False
+    resolver = getattr(controller, "mempalace_project_palace", None)
+    if resolver is None:
+        return False
+    try:
+        palace = Path(resolver(project)).resolve()
+    except Exception:  # noqa: BLE001 - unknown palace: keep the safe synchronous mine
+        return False
+    return palace != (project.resolve() / MEMPALACE_STATE_OUTPUT)
+
+
 def provision_account_dependencies(
     project: Path,
     controller,
@@ -528,6 +551,7 @@ def provision_account_dependencies(
     bundle: dict[str, bool],
     reporter=None,
     upgrade: bool,
+    background_mine: bool | None = None,
 ) -> dict[str, object]:
     """Install or verify every account tool, then initialize the project palace."""
     account_runner = _tracing_dependency_runner(reporter, subprocess.run)
@@ -542,7 +566,9 @@ def provision_account_dependencies(
         kwargs["runner"] = account_runner
     # A detached mine would race the upgrade's MemPalace rollback image.
     if "background_mine_allowed" in parameters:
-        kwargs["background_mine_allowed"] = not upgrade
+        kwargs["background_mine_allowed"] = (
+            not upgrade if background_mine is None else background_mine
+        )
     account_receipt = install_account(project, specification, **kwargs)
     if bundle.get("mempalace", True):
         # #6236: inside the rollback capture window below.
@@ -1354,8 +1380,15 @@ def project_setup_output_files(project: Path, relative: str) -> tuple[bool, dict
 
 def snapshot_project_setup_outputs(
     project: Path,
+    *,
+    copy_graphify_output: bool = True,
 ) -> tuple[Path, dict[str, tuple[bool, dict[str, str]]]]:
-    """Keep Graphify preimages until host setup commits under the project lock."""
+    """Keep Graphify preimages until host setup commits under the project lock.
+
+    ``copy_graphify_output=False`` records only digests for ``graphify-out`` (#6498):
+    an add-on-only rerun reuses the account stores, and only provisioning or a
+    store refresh writes that tree, so copying hundreds of MB is waste.
+    """
     snapshot = Path(tempfile.mkdtemp(prefix="chaos-engine-project-setup-"))
     before: dict[str, tuple[bool, dict[str, str]]] = {}
     try:
@@ -1363,7 +1396,7 @@ def snapshot_project_setup_outputs(
             original = project / relative
             exists, files = project_setup_output_files(project, relative)
             before[relative] = (exists, files)
-            if not exists:
+            if not exists or (relative == "graphify-out" and not copy_graphify_output):
                 continue
             saved = snapshot / relative
             saved.parent.mkdir(parents=True, exist_ok=True)
@@ -1575,6 +1608,9 @@ def restore_project_setup_outputs(
                 continue
             if current_digest == published_digest and prior_digest != published_digest:
                 saved = snapshot / relative / child
+                if not saved.is_file():
+                    # #6498: digest-only preimage; keep the newer file, never crash rollback.
+                    continue
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(saved.read_bytes())
         if not prior_exists and root.exists() and root.is_dir():
@@ -3693,6 +3729,7 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
             and not is_link_or_reparse(account_receipt_path) else None
         )
         project_setup_snapshot = None
+        project_setup_copy_deferred = False
         project_setup_before: dict[str, tuple[bool, dict[str, str]]] = {}
         project_setup_after: dict[str, dict[str, str]] | None = None
         mempalace_state_before = (False, {})
@@ -3738,8 +3775,10 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                         old_specification_sha256 = None
                         old_core_sha256 = None
         if account_mode:
+            # #6498: an add-on-only rerun copies Graphify output only if it must provision.
+            project_setup_copy_deferred = addon_change_only and old_commit == commit
             project_setup_snapshot, project_setup_before = snapshot_project_setup_outputs(
-                project
+                project, copy_graphify_output=not project_setup_copy_deferred
             )
             mempalace_state_before = project_setup_output_files(
                 project, MEMPALACE_STATE_OUTPUT
@@ -3865,10 +3904,20 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                     reusable_account_receipt(controller, project, reporter)
                     if addon_change_only and old_commit == commit else None
                 )
+                if account_receipt is None and project_setup_copy_deferred:
+                    shutil.rmtree(project_setup_snapshot, ignore_errors=True)
+                    project_setup_snapshot = None
+                    project_setup_snapshot, project_setup_before = (
+                        snapshot_project_setup_outputs(project)
+                    )
+                    project_setup_copy_deferred = False
                 if account_receipt is None:
                     account_receipt = provision_account_dependencies(
                         project, controller, host_controller, specification,
                         bundle=bundle, reporter=reporter, upgrade=old_manifest is not None,
+                        background_mine=background_mine_allowed_for(
+                            project, controller, old_manifest, old_commit, commit
+                        ),
                     )
                 account_receipt_after = (
                     account_receipt_path.read_bytes()

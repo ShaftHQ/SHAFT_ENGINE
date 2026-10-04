@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Faster reruns (#6498): a same-commit rerun mines MemPalace in the background
+  when the palace is shared (179 s to about 15 s), and an add-on-only rerun
+  records Graphify digests without copying `graphify-out/` (4.3 s saved on SHAFT).
+
 - Docs: hookless bots (Grok Bot, Cursor bots) reload the Caveman/Ponytail
   cards with `tool.py entry --full` at every conversation start and after every
   context summary, and run the Learning Session plus `tool.py maintain` after
