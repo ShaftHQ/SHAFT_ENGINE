@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "package": "chaos-engine",
+  "description": "Harness eval suite (#6519): outcome-graded capability + regression tasks from real CE failures; reports pass@k; PR Gate on chaos-engine/ changes.",
+  "thresholds": {
+    "pass_at_k": 1.0,
+    "default_k": 1,
+    "min_tasks": 20,
+    "min_capability": 6,
+    "min_regression": 12
+  },
+  "tasks": [
+    {
+      "id": "cap-kernel-host-contract",
+      "set": "capability",
+      "area": "hooks",
+      "module": "tests.scripts.test_chaos_engine_kernel",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "cap-exit2-fidelity",
+      "set": "capability",
+      "area": "hooks",
+      "module": "tests.scripts.test_chaos_engine_exit2_fidelity",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "cap-eval-parity-fixtures",
+      "set": "capability",
+      "area": "hooks",
+      "module": "tests.scripts.test_chaos_engine_eval_parity_fixtures",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "cap-sessionstart-locator",
+      "set": "capability",
+      "area": "entry",
+      "module": "tests.scripts.test_chaos_engine_sessionstart_locator_parity",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "cap-ce-brief-fixtures",
+      "set": "capability",
+      "area": "entry",
+      "module": "tests.scripts.test_chaos_engine_ce_brief_eval_fixtures",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "cap-host-parity-matrix",
+      "set": "capability",
+      "area": "hooks",
+      "module": "tests.scripts.test_chaos_engine_host_parity_matrix",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "cap-install-golden-path",
+      "set": "capability",
+      "area": "installer",
+      "module": "tests.scripts.test_chaos_engine_install_golden_path",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "cap-retrieve-justification",
+      "set": "capability",
+      "area": "retrieve",
+      "module": "tests.scripts.test_retrieve_justification_gate",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-doctor-dedupe-6363",
+      "set": "regression",
+      "area": "doctor",
+      "source_issue": 6363,
+      "module": "tests.scripts.test_chaos_engine_doctor_dedupe_6363",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-installer-self-heal-5630",
+      "set": "regression",
+      "area": "installer",
+      "source_issue": 5630,
+      "module": "tests.scripts.test_chaos_engine_installer_self_heal_5630",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-g1-doctor-heal-5812",
+      "set": "regression",
+      "area": "doctor",
+      "source_issue": 5812,
+      "module": "tests.scripts.test_chaos_engine_g1_doctor_heal_5812_5813",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-same-commit-heal-5839",
+      "set": "regression",
+      "area": "installer",
+      "source_issue": 5839,
+      "module": "tests.scripts.test_chaos_engine_same_commit_payload_heal_5839",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-soft-fixnext-5831",
+      "set": "regression",
+      "area": "doctor",
+      "source_issue": 5831,
+      "module": "tests.scripts.test_chaos_engine_soft_fixnext_5831",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-official-self-heal-5811",
+      "set": "regression",
+      "area": "installer",
+      "source_issue": 5811,
+      "module": "tests.scripts.test_chaos_engine_official_self_heal_5811",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-install-verify-5699",
+      "set": "regression",
+      "area": "installer",
+      "source_issue": 5699,
+      "module": "tests.scripts.test_chaos_engine_install_verify_5699",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-one-source-overlay-5713",
+      "set": "regression",
+      "area": "installer",
+      "source_issue": 5713,
+      "module": "tests.scripts.test_chaos_engine_one_source_overlay_5713",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-host-adapter-drift-5633",
+      "set": "regression",
+      "area": "installer",
+      "source_issue": 5633,
+      "module": "tests.scripts.test_chaos_engine_installer_host_adapter_drift_5633",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-consumer-mode-6237",
+      "set": "regression",
+      "area": "installer",
+      "source_issue": 6237,
+      "module": "tests.scripts.test_chaos_engine_consumer_mode_6237",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-retrieve-companions-6377",
+      "set": "regression",
+      "area": "retrieve",
+      "source_issue": 6377,
+      "module": "tests.scripts.test_chaos_engine_retrieve_companions_6377",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-mempalace-backend-6212",
+      "set": "regression",
+      "area": "retrieve",
+      "source_issue": 6212,
+      "module": "tests.scripts.test_mempalace_backend_mismatch_6212",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-identity-companions-5803",
+      "set": "regression",
+      "area": "entry",
+      "source_issue": 5803,
+      "module": "tests.scripts.test_chaos_engine_identity_companions_5803",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-portable-learn-5847",
+      "set": "regression",
+      "area": "entry",
+      "source_issue": 5847,
+      "module": "tests.scripts.test_chaos_engine_portable_learn_5847",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-memory-tracked-5774",
+      "set": "regression",
+      "area": "entry",
+      "source_issue": 5774,
+      "module": "tests.scripts.test_chaos_engine_memory_tracked_5774",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-learning-5852",
+      "set": "regression",
+      "area": "entry",
+      "source_issue": 5852,
+      "module": "tests.scripts.test_chaos_engine_learning_5852",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-token-economy-6173",
+      "set": "regression",
+      "area": "entry",
+      "source_issue": 6173,
+      "module": "tests.scripts.test_chaos_engine_token_economy_6173",
+      "k": 1,
+      "runner": "unittest"
+    },
+    {
+      "id": "reg-token-waste-6161",
+      "set": "regression",
+      "area": "entry",
+      "source_issue": 6161,
+      "module": "tests.scripts.test_chaos_engine_token_waste_6161",
+      "k": 1,
+      "runner": "unittest"
+    }
+  ]
+}

@@ -32,6 +32,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Portable Learning Session | [`learning_session.py`](../learning_session.py) `finalize` | Issues-first; **no** auto draft PRs |
 | Research preflight marker | `python3 .chaos-engine/hooks/reflection.py research-preflight --session-id <id>` | Unblocks opt-in research-before-mutation gate |
 | Eval / parity fixtures | `python3 scripts/ci/chaos_engine_eval_parity.py` | Cross-host CE policy fixture suite (repo-only) |
+| Harness eval suite | `python3 scripts/ci/chaos_engine_harness_eval_suite.py` (repo-only) · [harness-eval-suite](harness-eval-suite.md) | Capability + regression pass@k gate (issue 6519) |
 | Learning metrics | [`learning.py`](../learning.py) `metrics` + [`learning_counters.py`](../learning_counters.py) (+ `doctor --json.learningMetrics`) | Queued→submitted rates, SessionStart bytes, denials, digests |
 | CE brief | [`ce_brief.py`](../ce_brief.py) | Locator-only byte-capped system brief for local-agency design turns |
 | Design-turn gate | citation+schema zero-LLM gate for local design/spec turns | [`../skills/local-agency/scripts/design_turn_gate.py`](../skills/local-agency/scripts/design_turn_gate.py) |

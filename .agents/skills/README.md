@@ -191,6 +191,7 @@ sends you there; the rest by
 - [delivery phase gates](../../chaos-engine/references/delivery-phase-gates.md)
 - [eliminate waste](../../chaos-engine/references/eliminate-waste.md)
 - [eval parity fixtures](../../chaos-engine/references/eval-parity-fixtures.md)
+- [harness eval suite](../../chaos-engine/references/harness-eval-suite.md)
 - [heal route](../../chaos-engine/references/heal-route.md)
 - [host parity matrix](../../chaos-engine/references/host-parity-matrix.md)
 - [icm architect](../../chaos-engine/references/icm-architect.md)

@@ -43,6 +43,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | CI status economy | Babysit: digest-only CI status, one status channel, fingerprint-first logs, executor prompt schema | [`ci-status-economy.md`](ci-status-economy.md) |
 | Tip-churn preflight | Before push: B607, README inventory, Memory content_hash; batch micro-fixes | [`tip-churn-preflight.md`](tip-churn-preflight.md) |
 | Eval-parity fixtures | Cross-host CE policy fixture suite | [`eval-parity-fixtures.md`](eval-parity-fixtures.md) |
+| Harness eval suite | Capability + regression pass@k gate for chaos-engine changes | [`harness-eval-suite.md`](harness-eval-suite.md) |
 | Self-improve | Learning Session dual-track harness + product observations | [`../skills/self-improve/SKILL.md`](../skills/self-improve/SKILL.md) |
 | Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
 | OmniRoute | Optional local transport; never required for canonical workflows | [`../skills/omniroute/SKILL.md`](../skills/local-runtimes/references/omniroute.md) |

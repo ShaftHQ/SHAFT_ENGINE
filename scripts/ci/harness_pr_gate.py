@@ -440,6 +440,11 @@ CHECKS = {
         "visual-ocr-workflow",
         ("tests.scripts.test_visual_ocr_workflow",),
     ),
+    "harness-eval-suite-contract": Check(
+        "harness-eval-suite-contract",
+        "harness-eval",
+        ("tests.scripts.test_chaos_engine_harness_eval_suite",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -488,6 +493,7 @@ SURFACE_CHECKS = {
     "process-owner": ("process-owner-contract",),
     "visual-ocr-workflow": ("visual-ocr-workflow-contract",),
     "ce-h2-gates": ("ce-h2-gates-contract",),
+    "harness-eval": ("harness-eval-suite-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -868,7 +874,13 @@ SURFACE_PATTERNS = {
         "shaft-engine/src/test/java/testPackage/appium/IOSBasicInteractionsTest.java",
         "tests/scripts/test_visual_ocr_workflow.py",
     ),
+    "harness-eval": (
+        "chaos-engine/**",
+        "scripts/ci/chaos_engine_harness_eval_suite.py",
+        "tests/scripts/test_chaos_engine_harness_eval_suite.py",
+    ),
 }
+
 
 UNGATED_TEST_ALLOWLIST_REASON = (
     'Pre-existing tests/scripts module outside the #6244 triage. Not a harness PR input yet; a new module with no check and no row fails the guard.'
