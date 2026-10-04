@@ -153,6 +153,8 @@ ROUTES = (
      "Use when a hot-spot dispatch change must treat a static-analysis Complexity ACTION_REQUIRED as a unit failure."),
     ("Durable jobs", "references/durable-jobs.md",
      "Use when work runs longer than a few minutes and must survive the agent session being killed, with no duplicate workers."),
+    ("Memory provenance", "references/memory-provenance.md",
+     "Use when writing or retrieving learned heuristics, lessons, or skill drafts: stamp origin + trust; keep untrusted quarantined until verified."),
 )
 ROUTE_START = "<!-- HARNESS-ROUTES:START -->"
 ROUTE_END = "<!-- HARNESS-ROUTES:END -->"
@@ -260,6 +262,7 @@ ROUTER_USE = {
     "Add-ons": "optional add-on: design, video, project pack",
     "Complexity gate": "static-analysis complexity gate",
     "Durable jobs": "long work must outlive the session",
+    "Memory provenance": "stamp origin + trust; quarantine untrusted",
 }
 
 
