@@ -1,7 +1,7 @@
 # Harness eval suite
 
 Outcome-graded ChaosEngine harness evals for capability and regression
-coverage (#6519). This is the safety floor for harness self-improvement: every
+coverage (issue 6519). This is the safety floor for harness self-improvement: every
 change under `chaos-engine/` runs the suite through the PR Gate before merge.
 
 ## Corpus and runner
@@ -9,9 +9,9 @@ change under `chaos-engine/` runs the suite through the PR Gate before merge.
 | Piece | Path |
 | --- | --- |
 | Manifest | [`evals/harness-suite/manifest.json`](../evals/harness-suite/manifest.json) |
-| Runner | `python3 scripts/ci/chaos_engine_harness_eval_suite.py` |
-| Machine report | `python3 scripts/ci/chaos_engine_harness_eval_suite.py --json` |
-| Validate only | `python3 scripts/ci/chaos_engine_harness_eval_suite.py --validate-only` |
+| Runner | `python3 scripts/ci/chaos_engine_harness_eval_suite.py` (repo-only) |
+| Machine report | `python3 scripts/ci/chaos_engine_harness_eval_suite.py --json` (repo-only) |
+| Validate only | `python3 scripts/ci/chaos_engine_harness_eval_suite.py --validate-only` (repo-only) |
 | Unittest | `python3 -m unittest tests.scripts.test_chaos_engine_harness_eval_suite -v` |
 | PR Gate check | `harness-eval-suite-contract` (surface `harness-eval`, paths `chaos-engine/**`) |
 

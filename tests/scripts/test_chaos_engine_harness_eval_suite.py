@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
-from unittest import mock
 
 from scripts.ci.chaos_engine_harness_eval_suite import (
     evaluate_suite,
@@ -31,7 +30,7 @@ class HarnessEvalSuiteTests(unittest.TestCase):
         sets = {row["set"] for row in document["tasks"]}
         self.assertEqual({"capability", "regression"}, sets)
         areas = {row["area"] for row in document["tasks"]}
-        self.assertTrue({"installer", "doctor", "entry", "hooks", "retrieve"} <= areas)
+        self.assertLessEqual({"installer", "doctor", "entry", "hooks", "retrieve"}, areas)
         regression_issues = {
             row["source_issue"] for row in document["tasks"] if row["set"] == "regression"
         }
@@ -110,7 +109,7 @@ class HarnessEvalSuiteTests(unittest.TestCase):
                 }
             ],
         }
-        with mock.patch(
+        with unittest.mock.patch(
             "scripts.ci.chaos_engine_harness_eval_suite._run_unittest",
             return_value=(False, "boom"),
         ):
