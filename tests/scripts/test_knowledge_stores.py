@@ -264,5 +264,31 @@ class MempalaceBackendPinSuite6212(unittest.TestCase):
         self.assertEqual([], problems)
 
 
+class GraphifyNoCommitRowTest(unittest.TestCase):
+    """#6499: a repository with no commits gets a commit-first graphify fix-next."""
+
+    def test_no_commit_repository_is_waiting_not_degraded(self):
+        import runpy
+        import subprocess
+        stores = runpy.run_path(str(Path(__file__).resolve().parents[2] / "chaos-engine/stores.py"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            subprocess.run(["git", "init", "-q", str(project)], check=True)
+            (project / "graphify-out").mkdir()
+            (project / "graphify-out/graph.json").write_text("{}", encoding="utf-8")
+            (project / "graphify-out/manifest.json").write_text("{}", encoding="utf-8")
+            row = stores["graphify_doctor_row"](project)
+            self.assertEqual("absent", row["status"])
+            self.assertIn("commit once", row["fixNext"])
+            (project / "a.txt").write_text("a", encoding="utf-8")
+            subprocess.run(["git", "-C", str(project), "add", "a.txt"], check=True)
+            subprocess.run(
+                ["git", "-C", str(project), "-c", "user.email=a@b", "-c", "user.name=a",
+                 "commit", "-qm", "init"], check=True)
+            row = stores["graphify_doctor_row"](project)
+            self.assertEqual("degraded", row["status"])
+            self.assertIn("repair --project . --component graphify", row["fixNext"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1514,5 +1514,28 @@ class InstallSummaryMatchesDoctorTest(unittest.TestCase):
         self.assertIs(fallback, missing)
 
 
+    def test_verify_gate_runs_doctor_from_the_installed_core(self):
+        """#6499: the gate checks the same component set as install.py doctor."""
+        module = load()
+        downloaded = mock.Mock()
+        downloaded.doctor_with_dependencies.return_value = {"components": {"core": {}}}
+        with tempfile.TemporaryDirectory() as temporary:
+            target = Path(temporary) / ".chaos-engine"
+            target.mkdir()
+            (target / "install.py").write_text(
+                "def doctor_with_dependencies(project, **options):\n"
+                + f"    return {{'components': {self.DOCTOR['components']!r}, 'options': options}}\n",
+                encoding="utf-8",
+            )
+            gate = module.verify_gate_doctor(downloaded, target, Path(temporary))
+            summary = module.final_install_doctor(target, Path(temporary), {})
+            fallback = module.verify_gate_doctor(downloaded, Path(temporary) / "absent", Path(temporary))
+
+        self.assertEqual({"verify_clients": False}, gate["options"])
+        self.assertEqual(set(summary["components"]), set(gate["components"]))
+        downloaded.doctor_with_dependencies.assert_called_once_with(Path(temporary), verify_clients=False)
+        self.assertEqual({"components": {"core": {}}}, fallback)
+
+
 if __name__ == "__main__":
     unittest.main()

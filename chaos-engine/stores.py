@@ -294,6 +294,21 @@ def write_marker(graph_out: Path, revision: str) -> Path:
     return marker
 
 
+def _has_commit(cwd: Path) -> bool:
+    """True when HEAD resolves; unknown git state counts as having one."""
+    try:
+        _git(cwd, "rev-parse", "--verify", "--quiet", "HEAD^{commit}")
+    except RuntimeError:
+        try:
+            _git(cwd, "rev-parse", "--git-dir")
+        except (RuntimeError, OSError):
+            return True
+        return False
+    except OSError:
+        return True
+    return True
+
+
 def graphify_doctor_row(cwd: Path) -> dict[str, str] | None:
     """Doctor row for an existing shared graph. Missing caches stay the setup plan."""
     graph_out = resolve_graph_out(cwd)
@@ -302,6 +317,16 @@ def graphify_doctor_row(cwd: Path) -> dict[str, str] | None:
     fresh, message = graph_freshness(cwd)
     if fresh:
         return {"status": "healthy", "detail": message}
+    if not _has_commit(cwd):
+        # #6499: repair cannot index a repository with no commits; say so.
+        return {
+            "status": "absent",
+            "detail": "waiting for the first commit - Graphify indexes a revision",
+            "fixNext": (
+                "commit once (git add -A && git commit -m init), then "
+                "python3 .chaos-engine/install.py repair --project . --component graphify"
+            ),
+        }
     return {
         "status": "degraded",
         "detail": message,

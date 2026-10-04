@@ -1511,15 +1511,36 @@ def final_install_doctor(target: Path, project: Path, fallback: dict[str, object
     sibling probes (companions, identity, overlay, shared-store freshness) would
     be skipped silently and the summary would count fewer, healthier components.
     """
-    core = Path(target) / "install.py"
-    if not core.is_file():
+    run = installed_core_doctor(target)
+    if run is None:
         return fallback
     try:
-        run = runpy.run_path(str(core)).get("doctor_with_dependencies")
-        document = run(project, probe_retrieve=True) if callable(run) else None
+        document = run(project, probe_retrieve=True)
     except (OSError, RuntimeError, ValueError, TypeError, ImportError):
         return fallback
     return document if isinstance(document, dict) else fallback
+
+
+def installed_core_doctor(target: Path):
+    """Return the installed core's ``doctor_with_dependencies``, or None (#6499).
+
+    The downloaded installer's folder is gone after install, so only the installed
+    core still sees every sibling probe that ``install.py doctor`` runs.
+    """
+    core = Path(target) / "install.py"
+    if not core.is_file():
+        return None
+    try:
+        run = runpy.run_path(str(core)).get("doctor_with_dependencies")
+    except (OSError, RuntimeError, ValueError, TypeError, ImportError, SyntaxError):
+        return None
+    return run if callable(run) else None
+
+
+def verify_gate_doctor(installer, target: Path, project: Path) -> dict[str, object]:
+    """Verify gate from the installed core so it checks what ``install.py doctor`` does (#6499)."""
+    run = installed_core_doctor(target) or installer.doctor_with_dependencies
+    return run(project, verify_clients=False)
 
 
 def _doctor_glyph_kind(doctor_status: str) -> str:
@@ -2453,7 +2474,7 @@ def install_latest(
         migrate = getattr(host_controller, "migrate_legacy_memory_store", None)
         if callable(migrate):
             migrate(project)
-        doctor = installer.doctor_with_dependencies(project, verify_clients=False)
+        doctor = verify_gate_doctor(installer, target, project)
         if _required_install_unhealthy(doctor):
             health_error = InstallHealthError("Verify installation", doctor)
             if not prior_install and core_install_py(project):
