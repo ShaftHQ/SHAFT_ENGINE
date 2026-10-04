@@ -28,8 +28,8 @@ Legacy items with no provenance fields are treated as `trusted` /
 | Learning queue stamp | [`learning.py`](../learning.py) `queue` |
 | Skill-promotion skip | [`draft_skill_pr.py`](../draft_skill_pr.py) `provenance_promotion_status` |
 | Doctor | `learningMetrics.provenance` / `heuristics.provenance` |
-| CLI | `python3 chaos-engine/memory_provenance.py summary\|stamp\|verify` |
-| Unittest | `python3 -m unittest tests.scripts.test_chaos_engine_memory_provenance_6520 -v` |
+| CLI | `python3 chaos-engine/memory_provenance.py summary\|stamp\|verify` (repo-only) |
+| Unittest | `python3 -m unittest tests.scripts.test_chaos_engine_memory_provenance_6520 -v` (repo-only) |
 | PR Gate check | `memory-provenance-contract` (surface `memory-provenance`) |
 
 ## Rules

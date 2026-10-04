@@ -41,7 +41,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Silent verify | [`silent_verify.py`](../silent_verify.py) / `finalize --silent` | Success silent exit 0; failure one stderr line |
 | Heuristics retrieve | [`retrieve.py`](../retrieve.py) `heuristics --top 3` | Once-per-task ERL heuristics; SessionStart locator only |
 | Heuristics CLI | [`heuristics.py`](../heuristics.py) `locator|retrieve|add` | Privacy-safe heuristic store under `.chaos-engine-state/heuristics/` |
-| Memory provenance | [`memory_provenance.py`](../memory_provenance.py) `summary\|stamp\|verify` · [memory-provenance](memory-provenance.md) | Origin + trust; quarantine filter for retrieve/promotion (issue 6520) |
+| Memory provenance | [`memory_provenance.py`](../memory_provenance.py) `summary\|stamp\|verify` (repo-only) · [memory-provenance](memory-provenance.md) | Origin + trust; quarantine filter for retrieve/promotion (issue 6520) |
 | Significance capture | [`significance.py`](../significance.py) `mark|list|drain|locator` | Soft fail/deny marks → Learning Session drain; no Task Observer |
 | Skill compress audit | [`skill_compress_audit.py`](../skill_compress_audit.py) `audit` | Propose-only SKILL.md filler/bloat report; never auto-apply |
 | Javadoc `@param` arity | `scripts/ci/check_javadoc_param_arity.py` (repo-only) | Fail fast when `@param` names do not match method parameters in engine interaction packages |
