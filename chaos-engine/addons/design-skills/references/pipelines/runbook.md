@@ -10,11 +10,25 @@ work. Five stages, in order; one CPU-heavy job at a time.
 
 ## 1. Detached build
 
-- Launch renders detached with a log, never inside one long agent turn:
-  `setsid nohup nice -n 19 python build.py --only master > logs/build.log 2>&1 &`.
-- After every step append one timestamped line to `STATUS.md`: what
-  finished, what is next, open findings. On resume read `STATUS.md` and the
-  log tail first; never restart a finished step.
+- Launch every render as a core [durable job](../../../../references/durable-jobs.md),
+  never inside one long agent turn and never as a bare background command:
+  `python3 .chaos-engine/tool.py job start build --part-dir cache --part-dir out -- nice -n 19 python build.py --only master`.
+  A second worker is refused while the lease is live. Sessions die at about
+  45-50 min, and the job keeps running.
+- The build records each finished step with
+  `python3 .chaos-engine/tool.py job checkpoint build <step>` and skips a step
+  that `job checkpoint build <step> --check` (or its cached output) already
+  shows done. Every scene, cache, and encode writes `<file>.part`, then
+  renames it into place.
+- `STATUS.md` stays the human log: one timestamped line per step (what
+  finished, what is next, open findings). It is never the liveness signal. A
+  live build can go 30 min without a STATUS line.
+- On resume, run `python3 .chaos-engine/tool.py job status build` first.
+  `live` means leave it alone. Otherwise `python3 .chaos-engine/tool.py job resume build`
+  kills the old run's survivors, deletes its `.part` orphans, and restarts it.
+  A watchdog runs only `job resume build` (recipe in durable-jobs.md). Never
+  restart a finished step, and never start a second `--only` build beside a
+  live one.
 - Incremental: cache each scene render under a hash of its inputs (source
   files, shared CSS and tokens, timing, parameters). `--only <target,...>`
   rebuilds just the affected outputs; a one-target fix never rebuilds all.
