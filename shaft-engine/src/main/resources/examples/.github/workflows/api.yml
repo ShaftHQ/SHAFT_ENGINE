@@ -20,6 +20,8 @@ jobs:
           distribution: 'zulu'
 
       - name: Run Tests
+        env:
+          RESTCOUNTRIES_API_KEY: ${{ secrets.RESTCOUNTRIES_API_KEY }}
         run: |
           mvn -e clean test "-DgenerateAllureReportArchive=true" "-DretryMaximumNumberOfAttempts=1" "-DsetParallel=NONE" "-DsetParallelMode=DYNAMIC"
 
