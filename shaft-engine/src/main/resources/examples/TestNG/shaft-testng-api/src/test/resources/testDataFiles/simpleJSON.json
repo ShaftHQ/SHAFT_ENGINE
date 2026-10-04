@@ -1,3 +1,7 @@
 {
-  "expectedCountryName": "Egypt"
+  "expectedCountryName": "Egypt",
+  "expectedCountryCode": "EG",
+  "expectedTimezone": "Africa/Cairo",
+  "cityName": "Cairo",
+  "cityId": "360630"
 }

@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "Open-Meteo geocoding location",
+  "type": "object",
+  "required": ["id", "name", "latitude", "longitude", "country_code", "country", "timezone"],
+  "properties": {
+    "id": {"type": "integer"},
+    "name": {"type": "string"},
+    "latitude": {"type": "number", "minimum": -90, "maximum": 90},
+    "longitude": {"type": "number", "minimum": -180, "maximum": 180},
+    "elevation": {"type": "number"},
+    "country_code": {"type": "string", "pattern": "^[A-Z]{2}$"},
+    "country": {"type": "string"},
+    "timezone": {"type": "string"},
+    "population": {"type": "integer", "minimum": 0}
+  }
+}
