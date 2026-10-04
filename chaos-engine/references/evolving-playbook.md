@@ -39,4 +39,4 @@ Legacy items missing counters read as `0` / `0`.
 
 - Provenance floor: [memory-provenance](memory-provenance.md)
 - Feedback and deltas feed the same Learning Session disposition path as other harness lessons
-- Program epic: #6518 Phase 2
+- Program epic: ChaosEngine program epic Phase 2
