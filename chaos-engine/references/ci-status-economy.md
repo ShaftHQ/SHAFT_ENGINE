@@ -15,6 +15,23 @@ Learned in coalesce wave: babysit, process-owner, and parent turns burned tokens
   intermediate `gh run view` rows into the agent. Hosts share this helper;
   do not keep a private poll loop.
 
+## Wait by event wake, never by LLM poll
+
+This applies to all GitHub work on every host. While checks run, the agent ends its turn. It wakes on an event, not on a timer it pays tokens for.
+
+Use the first option the host supports:
+
+1. **Host event listener (preferred).** Arm a listener scoped to the PR for `ci-passed`, `ci-failed`, `pr-merged`, and `pr-closed`. Examples are a Grok Bot routine with a GitHub trigger, or a Cursor automation. Including `pr-merged` and `pr-closed` makes it remove itself. It costs no tokens while it waits.
+2. **Zero-LLM armed watch.** Run `watch_pr_checks.py --until-merged --digest --status-lease` as a background shell job. It is a script, not a model, and it emits only on a state change.
+3. **Scheduled resume.** A coarse routine that is silent while the status lease is live and unchanged (see One status channel).
+
+Forbidden:
+
+- An LLM worker, executor, or subagent whose job is to poll CI. That spends tokens on every check.
+- Foreground poll loops that keep a turn alive while waiting. Long-lived turns get killed by hosts (about 50 minutes has been observed), and the work dies with them.
+
+A zero-token waiter (option 1 or 2) is the only exception to [single thread](delegation.md). Real work stays on the one thread. When the wake fires, merge on green or fix on red, then continue the queue without asking the owner whether to proceed.
+
 ## Digest only
 
 - Agent-facing CI status comes from `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest` (one blocking watch). (repo-only)

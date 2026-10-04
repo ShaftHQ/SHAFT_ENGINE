@@ -16,6 +16,7 @@ Assistant memory keeps only this pointer: "Follow the ChaosEngine core card
 | Prefer `gh` for GitHub; CLI over MCP; no GitHub MCP in defaults | [prefer-cli-over-mcp](prefer-cli-over-mcp.md) |
 | Static-analysis `ACTION_REQUIRED` is a hard blocker, never "pending" | [static-analysis gate](static-analysis-gate.md) |
 | One watch per PR, bounded polls, digest only, silence when unchanged | [CI status economy](ci-status-economy.md) |
+| Wait for CI by event wake, never an LLM poll: end the turn while checks run; the only exception to single thread is a zero-token waiter | [CI status economy](ci-status-economy.md#wait-by-event-wake-never-by-llm-poll) |
 | Delta-only status; full report only on a RAG change or owner request | [process owner](process-owner-scrum-master.md) |
 | Cost and avoided-spend lines only when a local channel was actually used | [process owner](process-owner-scrum-master.md) |
 | Cloud implementers write code; local runtimes optional for narrow jobs | [identity](../identity.md), [local-runtimes](../skills/local-runtimes/SKILL.md) |
