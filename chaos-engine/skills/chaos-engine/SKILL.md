@@ -74,6 +74,8 @@ on explicit invocation.
   impacted tests.
 - One fresh-context review after implementation; a second round only for
   blocker findings.
+- Sessions die at ~45-50 min: long work runs as a
+  [durable job](../../references/durable-jobs.md); check its status before resuming.
 - One blocking CI wait per push; on failure fix the isolated cause, retry at
   most once, then stop and report. Never re-run checks that already passed.
 - Status reports are always a Markdown table (one row per item), then Risks;
@@ -111,6 +113,7 @@ on explicit invocation.
 | GAP-EXIT2 UX | host ignores exit-2 hard blocks | [host-parity-matrix.md](../../references/host-parity-matrix.md) |
 | Add-ons | optional add-on: design, video, project pack | [addons.md](../../references/addons.md) |
 | Complexity gate | static-analysis complexity gate | [complexity-gate.md](../../references/complexity-gate.md) |
+| Durable jobs | long work must outlive the session | [durable-jobs.md](../../references/durable-jobs.md) |
 <!-- HARNESS-ROUTES:END -->
 
 ## Catalog

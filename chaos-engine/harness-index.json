@@ -653,6 +653,23 @@
       "kind": "route",
       "name": "Complexity gate",
       "path": "references/complexity-gate.md"
+    },
+    {
+      "description": "Use when work runs longer than a few minutes and must survive the agent session being killed, with no duplicate workers.",
+      "family": "reference",
+      "hosts": {
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "route",
+      "name": "Durable jobs",
+      "path": "references/durable-jobs.md"
     }
   ],
   "generator": "harness_index.py",

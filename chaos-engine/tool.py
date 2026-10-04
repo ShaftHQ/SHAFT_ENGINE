@@ -146,7 +146,7 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
 
 def tool_help_text() -> str:
     """One usage text for every host. There is no per-host help."""
-    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain"}))
+    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job"}))
     return (
         "usage: tool.py <tool|retrieve> [args...]\n"
         "       tool.py --help\n"
@@ -166,6 +166,13 @@ def tool_help_text() -> str:
         "  tool.py stores refresh [--if-stale]\n"
         "  tool.py stores install-schedule\n"
         "  tool.py stores status\n"
+        "\n"
+        "job (long work that outlives the session; one worker per job; references/durable-jobs.md):\n"
+        "  tool.py job start NAME [--heartbeat S] [--stale S] [--part-dir D]... -- CMD...\n"
+        "  tool.py job status NAME [--json]  (exit 0 live/done, 3 stale, 4 failed, 5 stopped, 6 absent)\n"
+        "  tool.py job resume NAME  (watchdog: no-op while live or done)\n"
+        "  tool.py job stop NAME\n"
+        "  tool.py job checkpoint NAME STEP [--check]\n"
     )
 
 
@@ -469,6 +476,10 @@ def main() -> int:
             return int(module["main"](arguments if tool == "dod" else ["usage", *arguments]))
         if tool == "stores":
             return stores_command(installed_root, arguments)
+        if tool == "job":
+            # #6525: durable jobs outlive the agent session (lease, heartbeat, checkpoints).
+            module = runpy.run_path(str(installed_root / "jobs.py"), run_name="_chaos_engine_job")
+            return int(module["main"](arguments))
         if tool == "retrieve":
             path = installed_root / "retrieve.py"
             if not path.is_file():

@@ -787,6 +787,7 @@ reports, caches, runtime indexes, or `graphify-out/`.
 
 - [Delivery phase gates](references/delivery-phase-gates.md) — hooks vs skills map + research-before-mutation.
 - [Codacy Complexity gate](references/complexity-gate.md) — classifier helpers; Complexity ACTION_REQUIRED == unit red.
+- [Durable jobs](references/durable-jobs.md) — `tool.py job start|status|resume|stop|checkpoint`; long work outlives the session, one worker per job.
 
 - [Zero-LLM catalog](references/zero-llm-catalog.md) — deterministic doctor/install/repair paths.
 - [Context firewall](references/context-firewall.md) — research/explore subagent isolation; distillate only.

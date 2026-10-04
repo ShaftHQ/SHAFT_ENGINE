@@ -151,6 +151,8 @@ ROUTES = (
      "Use when a task fits an optional add-on (design, video, or a project pack): list, install, remove, or load one."),
     ("Complexity gate", "references/complexity-gate.md",
      "Use when a hot-spot dispatch change must treat a static-analysis Complexity ACTION_REQUIRED as a unit failure."),
+    ("Durable jobs", "references/durable-jobs.md",
+     "Use when work runs longer than a few minutes and must survive the agent session being killed, with no duplicate workers."),
 )
 ROUTE_START = "<!-- HARNESS-ROUTES:START -->"
 ROUTE_END = "<!-- HARNESS-ROUTES:END -->"
@@ -257,6 +259,7 @@ ROUTER_USE = {
     "GAP-EXIT2 UX": "host ignores exit-2 hard blocks",
     "Add-ons": "optional add-on: design, video, project pack",
     "Complexity gate": "static-analysis complexity gate",
+    "Durable jobs": "long work must outlive the session",
 }
 
 
