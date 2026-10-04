@@ -54,6 +54,27 @@ def _load_sibling(name: str):
     return module
 
 
+
+def provenance_promotion_status(root: Path) -> dict[str, Any]:
+    """Report learned-item quarantine; quarantined items are skipped, not promoted."""
+    try:
+        prov = _load_sibling("memory_provenance.py")
+        heur = _load_sibling("heuristics.py")
+    except RuntimeError as error:
+        return {"ok": False, "reason": str(error)}
+    summary = prov.doctor_provenance_summary(root)
+    items = heur.load_index(root).get("items") or []
+    if not isinstance(items, list):
+        items = []
+    promotable = prov.filter_promotable(items)
+    return {
+        **summary,
+        "ok": True,
+        "promotable": len(promotable),
+        "policy": "quarantined items skipped for skill promotion until verify()",
+    }
+
+
 def opt_in_enabled(*, flag: bool = False, environ: dict[str, str] | None = None) -> bool:
     """Require BOTH CLI flag and env=1. Default OFF."""
     env = environ if environ is not None else os.environ
@@ -78,10 +99,12 @@ def gate_status(*, flag: bool = False, environ: dict[str, str] | None = None) ->
             "eval-parity green",
             "unit tests green",
             "draft PR only (never auto-merge)",
+            "quarantined learned items skipped for promotion (#6520)",
         ],
         "policy": (
             "Default OFF. Skill patches stay propose-only until opt-in + gates. "
-            "Never auto-merge skill mutations. Never apply without gate."
+            "Never auto-merge skill mutations. Never apply without gate. "
+            "Untrusted-origin learned items stay quarantined until verified."
         ),
     }
 
@@ -229,6 +252,7 @@ def evaluate_gates(
             "blocked": None,
             "evalParity": {"ok": True, "skipped": True},
             "unitTests": {"ok": True, "skipped": True},
+            "provenance": provenance_promotion_status(root),
         }
     eval_result = run_eval_parity(root, python=python)
     unit_result = run_unit_tests(root, python=python)
@@ -238,12 +262,17 @@ def evaluate_gates(
         blocked = "eval-parity failed"
     elif not unit_result.get("ok"):
         blocked = "unit tests failed"
+    provenance = provenance_promotion_status(root)
+    if not provenance.get("ok"):
+        passed = False
+        blocked = blocked or "memory provenance unavailable"
     return {
         **status,
         "passed": passed,
         "blocked": blocked,
         "evalParity": eval_result,
         "unitTests": unit_result,
+        "provenance": provenance,
     }
 
 

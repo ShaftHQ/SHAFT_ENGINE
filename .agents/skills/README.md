@@ -200,6 +200,7 @@ sends you there; the rest by
 - [installer program executable spec](../../chaos-engine/references/installer-program-executable-spec.md)
 - [installer program](../../chaos-engine/references/installer-program.md)
 - [level 1 catalog](../../chaos-engine/references/level-1-catalog.md)
+- [memory provenance](../../chaos-engine/references/memory-provenance.md)
 - [no proxy](../../chaos-engine/references/no-proxy.md)
 - [permanent rules](../../chaos-engine/references/permanent-rules.md)
 - [prefer cli over mcp](../../chaos-engine/references/prefer-cli-over-mcp.md)

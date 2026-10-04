@@ -11,6 +11,18 @@ import time
 from pathlib import Path
 from typing import Any
 
+
+def _provenance():
+    import importlib.util as _ilu
+
+    path = Path(__file__).resolve().with_name("memory_provenance.py")
+    spec = _ilu.spec_from_file_location("chaos_engine_memory_provenance", path)
+    if spec is None or spec.loader is None:
+        raise ImportError("memory_provenance.py missing")
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
 SCHEMA_VERSION = 1
 INDEX_RELATIVE = Path(".chaos-engine-state") / "heuristics" / "index.json"
 MAX_STORE = 32
@@ -86,11 +98,13 @@ def add_heuristic(
     text: str,
     *,
     source: str = "learning-session",
+    origin: str | None = None,
     project: Path | None = None,
 ) -> dict[str, Any]:
     """Append one privacy-safe heuristic; dedupe by content hash."""
     cleaned = _sanitize_text(text)
     source_name = re.sub(r"[^a-z0-9_-]+", "-", str(source).strip().casefold())[:32] or "unknown"
+    origin_name = origin if origin is not None else source_name
     item_id = hashlib.sha256(cleaned.encode("utf-8")).hexdigest()[:24]
     document = load_index(project)
     items = document.setdefault("items", [])
@@ -105,6 +119,7 @@ def add_heuristic(
         "text": cleaned,
         "source": source_name,
         "at": int(time.time()),
+        **_provenance().stamp_fields(origin=origin_name),
     }
     items.append(item)
     document["items"] = items[-MAX_STORE:]
@@ -118,6 +133,7 @@ def extract_from_lessons(
     limit: int = DEFAULT_TOP,
     project: Path | None = None,
     source: str = "learning-session",
+    origin: str | None = None,
 ) -> list[dict[str, Any]]:
     """Extract ≤N privacy-safe heuristics from lesson strings (Stop/Learning Session)."""
     if limit < 1:
@@ -127,21 +143,28 @@ def extract_from_lessons(
         if len(added) >= limit:
             break
         try:
-            added.append(add_heuristic(lesson, source=source, project=project))
+            added.append(
+                add_heuristic(lesson, source=source, origin=origin, project=project)
+            )
         except ValueError:
             continue
     return added
 
 
 def retrieve_top(top: int = DEFAULT_TOP, project: Path | None = None) -> list[dict[str, Any]]:
-    """Return newest ≤top heuristics (once-per-task; never SessionStart prose)."""
+    """Return newest ≤top retrievable heuristics (quarantined skipped; #6520)."""
     if top < 1:
         raise ValueError("top must be >= 1")
     items = load_index(project).get("items") or []
     if not isinstance(items, list):
         return []
-    selected = [item for item in items if isinstance(item, dict) and isinstance(item.get("text"), str)]
-    return selected[-top:]
+    eligible = [
+        item
+        for item in items
+        if isinstance(item, dict) and isinstance(item.get("text"), str)
+    ]
+    # Newest first among retrievable (trusted/verified) only.
+    return _provenance().filter_retrievable(list(reversed(eligible)), limit=top)
 
 
 def session_start_locator(project: Path | None = None) -> str:
@@ -160,11 +183,25 @@ def doctor_heuristics_summary(project: Path | None = None) -> dict[str, Any]:
     document = load_index(project)
     items = document.get("items") or []
     count = len(items) if isinstance(items, list) else 0
+    provenance = _provenance().doctor_provenance_summary(project) if count else {
+        "schemaVersion": 1,
+        "kind": "memory-provenance-summary",
+        "total": 0,
+        "trusted": 0,
+        "verified": 0,
+        "quarantined": 0,
+        "status": "absent",
+        "store": "heuristics",
+    }
     return {
         "schemaVersion": SCHEMA_VERSION,
         "count": count,
         "status": "healthy" if count else "absent",
         "updatedAt": document.get("updatedAt"),
+        "provenance": provenance,
+        "promotable": sum(
+            1 for item in (items if isinstance(items, list) else []) if isinstance(item, dict) and _provenance().is_promotable(item)
+        ),
     }
 
 
@@ -174,6 +211,7 @@ def main(argv: list[str] | None = None) -> int:
     add = sub.add_parser("add")
     add.add_argument("--text", required=True)
     add.add_argument("--source", default="learning-session")
+    add.add_argument("--origin", default=None)
     add.add_argument("--project", type=Path, default=None)
     top = sub.add_parser("retrieve")
     top.add_argument("--top", type=int, default=DEFAULT_TOP)
@@ -185,7 +223,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "add":
-            print(json.dumps(add_heuristic(args.text, source=args.source, project=args.project), sort_keys=True))
+            print(json.dumps(
+                add_heuristic(
+                    args.text,
+                    source=args.source,
+                    origin=args.origin,
+                    project=args.project,
+                ),
+                sort_keys=True,
+            ))
             return 0
         if args.command == "retrieve":
             print(json.dumps({"items": retrieve_top(args.top, args.project)}, sort_keys=True))
