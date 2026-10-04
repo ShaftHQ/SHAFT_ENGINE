@@ -106,26 +106,33 @@ def atomic_output(path: str | os.PathLike) -> Iterator[Path]:
             part.unlink()
 
 
+def _create_lock(path: Path) -> bool:
+    """Create the lock file exclusively; False when another holder has it."""
+    try:
+        handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return False
+    try:
+        os.write(handle, str(os.getpid()).encode())
+    finally:
+        os.close(handle)
+    return True
+
+
 @contextlib.contextmanager
 def start_lock(directory: Path, wait: float = 10.0) -> Iterator[None]:
     """Serialize start/resume/stop of one job (two watchdogs firing together)."""
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / "start.lock"
     deadline = time.monotonic() + wait
-    while True:
-        try:
-            handle = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(handle, str(os.getpid()).encode())
-            os.close(handle)
-            break
-        except FileExistsError:
-            with contextlib.suppress(OSError):
-                if time.time() - path.stat().st_mtime > START_LOCK_STALE:
-                    path.unlink()
-                    continue
-            if time.monotonic() > deadline:
-                raise RuntimeError(f"another start/stop of this job holds {path}")
-            time.sleep(0.1)
+    while not _create_lock(path):
+        with contextlib.suppress(OSError):
+            if time.time() - path.stat().st_mtime > START_LOCK_STALE:
+                path.unlink()
+                continue
+        if time.monotonic() > deadline:
+            raise RuntimeError(f"another start/stop of this job holds {path}")
+        time.sleep(0.1)
     try:
         yield
     finally:

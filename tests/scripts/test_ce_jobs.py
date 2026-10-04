@@ -175,10 +175,12 @@ class DurableJobTests(unittest.TestCase):
     def test_atomic_output_never_leaves_a_partial_file(self):
         target = self.base / "out.txt"
         target.write_text("old")
-        with self.assertRaises(RuntimeError):
+        def killed_mid_write():
             with self.jobs.atomic_output(target) as part:
                 part.write_text("half")
                 raise RuntimeError("killed mid-write")
+
+        self.assertRaises(RuntimeError, killed_mid_write)
         self.assertEqual("old", target.read_text())
         self.assertFalse((self.base / "out.txt.part").exists())
         with self.jobs.atomic_output(target) as part:
