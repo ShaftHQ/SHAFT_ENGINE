@@ -450,6 +450,11 @@ CHECKS = {
         "harness-eval",
         ("tests.scripts.test_chaos_engine_harness_eval_suite",),
     ),
+    "memory-provenance-contract": Check(
+        "memory-provenance-contract",
+        "memory-provenance",
+        ("tests.scripts.test_chaos_engine_memory_provenance_6520",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -500,6 +505,7 @@ SURFACE_CHECKS = {
     "ce-h2-gates": ("ce-h2-gates-contract",),
     "harness-eval": ("harness-eval-suite-contract",),
     "durable-jobs": ("durable-jobs-contract",),
+    "memory-provenance": ("memory-provenance-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -893,6 +899,14 @@ SURFACE_PATTERNS = {
         "chaos-engine/**",
         "scripts/ci/chaos_engine_harness_eval_suite.py",
         "tests/scripts/test_chaos_engine_harness_eval_suite.py",
+    ),
+    "memory-provenance": (
+        "chaos-engine/memory_provenance.py",
+        "chaos-engine/heuristics.py",
+        "chaos-engine/learning.py",
+        "chaos-engine/draft_skill_pr.py",
+        "chaos-engine/references/memory-provenance.md",
+        "tests/scripts/test_chaos_engine_memory_provenance_6520.py",
     ),
 }
 

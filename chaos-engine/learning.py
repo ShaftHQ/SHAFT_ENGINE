@@ -47,7 +47,7 @@ PRIVATE = (
 )
 LIMITS = {"title": 100, "lesson": 400, "proposedChange": 300, "benefit": 300}
 QUEUED_KEYS = ALLOWED_KEYS | {"id", "status", "upstream"}
-OPTIONAL_ITEM_KEYS = {"lastError", "issueUrl", "fallbackUrl"}
+OPTIONAL_ITEM_KEYS = {"lastError", "issueUrl", "fallbackUrl", "origin", "trust", "verifiedBy", "verifiedAt"}
 THREAD_LOCK = threading.RLock()
 
 
@@ -262,6 +262,19 @@ def write_queue(state: Path, document: dict[str, object]) -> None:
             temporary.unlink()
 
 
+
+def _provenance():
+    import importlib.util as _ilu
+
+    path = Path(__file__).resolve().with_name("memory_provenance.py")
+    spec = _ilu.spec_from_file_location("chaos_engine_memory_provenance_learning", path)
+    if spec is None or spec.loader is None:
+        raise ImportError("memory_provenance.py missing")
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 HARNESS_LOCAL_REFUSAL = (
     "ChaosEngine harness learning, findings, and potential enhancements "
     "are GitHub issues only. Do not write them to a local queue or into chat."
@@ -274,6 +287,7 @@ def queue_learning(
     upstream: str,
     *,
     track: str | None = None,
+    origin: str = "learning-session",
 ) -> dict[str, object]:
     if track != "product":
         raise ValueError(HARNESS_LOCAL_REFUSAL)
@@ -288,7 +302,12 @@ def queue_learning(
         for item in items:
             if isinstance(item, dict) and item.get("id") == learning_id:
                 return item
-        item = {"id": learning_id, "status": "queued", **safe}
+        item = {
+            "id": learning_id,
+            "status": "queued",
+            **safe,
+            **_provenance().stamp_fields(origin=origin),
+        }
         items.append(item)
         write_queue(state, document)
         return item
@@ -546,6 +565,10 @@ def learning_metrics(
 def doctor_learning_metrics(project: Path | None = None) -> dict[str, object]:
     """Bounded doctor --json learningMetrics surface (no secrets)."""
     metrics = learning_metrics(project=project)
+    try:
+        provenance = _provenance().doctor_provenance_summary(project)
+    except (OSError, ImportError, ValueError):
+        provenance = {"schemaVersion": 1, "status": "absent", "quarantined": 0}
     return {
         "schemaVersion": metrics.get("schemaVersion", 1),
         "status": metrics.get("status"),
@@ -558,6 +581,7 @@ def doctor_learning_metrics(project: Path | None = None) -> dict[str, object]:
         "sessionStartBytesMax": metrics.get("sessionStartBytesMax"),
         "denials": metrics.get("denials"),
         "heuristics": metrics.get("heuristics"),
+        "provenance": provenance,
         "deliveryDigestCount": len(metrics.get("deliveryDigests") or []),
         "learningSessionDigestCount": len(metrics.get("learningSessionDigests") or []),
     }

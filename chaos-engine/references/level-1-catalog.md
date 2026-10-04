@@ -45,6 +45,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Tip-churn preflight | Before push: B607, README inventory, Memory content_hash; batch micro-fixes | [`tip-churn-preflight.md`](tip-churn-preflight.md) |
 | Eval-parity fixtures | Cross-host CE policy fixture suite | [`eval-parity-fixtures.md`](eval-parity-fixtures.md) |
 | Harness eval suite | Capability + regression pass@k gate for chaos-engine changes | [`harness-eval-suite.md`](harness-eval-suite.md) |
+| Memory provenance | Origin + trust on learned items; quarantine untrusted until verified | [`memory-provenance.md`](memory-provenance.md) |
 | Self-improve | Learning Session dual-track harness + product observations | [`../skills/self-improve/SKILL.md`](../skills/self-improve/SKILL.md) |
 | Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
 | OmniRoute | Optional local transport; never required for canonical workflows | [`../skills/omniroute/SKILL.md`](../skills/local-runtimes/references/omniroute.md) |
