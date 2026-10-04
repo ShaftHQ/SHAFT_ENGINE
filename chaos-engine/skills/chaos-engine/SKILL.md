@@ -114,7 +114,6 @@ on explicit invocation.
 | Add-ons | optional add-on: design, video, project pack | [addons.md](../../references/addons.md) |
 | Complexity gate | static-analysis complexity gate | [complexity-gate.md](../../references/complexity-gate.md) |
 | Durable jobs | long work must outlive the session | [durable-jobs.md](../../references/durable-jobs.md) |
-| Memory provenance | stamp origin + trust; quarantine untrusted | [memory-provenance.md](../../references/memory-provenance.md) |
 <!-- HARNESS-ROUTES:END -->
 
 ## Catalog

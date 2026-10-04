@@ -670,23 +670,6 @@
       "kind": "route",
       "name": "Durable jobs",
       "path": "references/durable-jobs.md"
-    },
-    {
-      "description": "Use when writing or retrieving learned heuristics, lessons, or skill drafts: stamp origin + trust; keep untrusted quarantined until verified.",
-      "family": "reference",
-      "hosts": {
-        "claude": "catalog",
-        "codex": "catalog",
-        "copilot": "catalog",
-        "cursor": "catalog",
-        "gemini": "catalog",
-        "grok": "catalog",
-        "grok-bot": "catalog",
-        "opencode": "catalog"
-      },
-      "kind": "route",
-      "name": "Memory provenance",
-      "path": "references/memory-provenance.md"
     }
   ],
   "generator": "harness_index.py",
