@@ -339,6 +339,12 @@ final class CaptureEventPipeline implements AutoCloseable {
         SafePage page = page(signal);
         String url = page.context().url();
         String source = signal.dataString("navigationSource");
+        // #6491: a collector-observed about:blank after a real page is the start tab's initial
+        // blank load arriving late (Edge), never a user step; it must not reset the debounce either.
+        if ("about:blank".equals(url) && !lastAppendedNavigationUrl.isEmpty()
+                && !Set.of("user_traversal", "user_reported", "user_annotation", "history").contains(source)) {
+            return;
+        }
         boolean duplicateDelivery = url.equals(lastNavigationUrl)
                 && Duration.between(lastNavigationAt, signal.timestamp()).abs()
                 .compareTo(NAVIGATION_DEBOUNCE) < 0;

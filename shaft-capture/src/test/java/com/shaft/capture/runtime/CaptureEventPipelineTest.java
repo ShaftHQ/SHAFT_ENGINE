@@ -641,6 +641,34 @@ class CaptureEventPipelineTest {
     }
 
     @Test
+    void ignoresLateStartupBlankPageAndItsStartUrlEcho(@TempDir Path temp) {
+        // #6491: Edge can deliver the start tab's initial about:blank load after the start URL's
+        // first navigation. Recording it added a phantom about:blank step and, because the debounce
+        // compared against about:blank, re-recorded the start URL.
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+
+        pipeline.accept(signal("navigation", START, Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/nav-a")));
+        pipeline.accept(signal("navigation", START.plusMillis(200), Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "about:blank")));
+        pipeline.accept(signal("navigation", START.plusMillis(400), Map.of(),
+                Map.of("action", "OPEN"), Map.of("url", "https://example.test/nav-a")));
+        pipeline.close();
+
+        List<String> urls = store.read().events().stream()
+                .filter(CaptureEvent.NavigationEvent.class::isInstance)
+                .map(CaptureEvent.NavigationEvent.class::cast)
+                .map(CaptureEvent.NavigationEvent::targetUrl)
+                .toList();
+        assertEquals(List.of("https://example.test/nav-a"), urls);
+    }
+
+    @Test
     void suppressesNavigationsCausedByRecentInteractions(@TempDir Path temp) {
         // A navigation shortly after a user interaction (link click, form submit, server redirect
         // chain) is a consequence of that interaction, not a navigation the user performed;
