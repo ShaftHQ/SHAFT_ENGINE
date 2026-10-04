@@ -39,6 +39,4 @@ gate retrieve and playbook promotion.
 
 ## Related
 
-- Evolving playbook counters: [evolving-playbook](evolving-playbook.md)
-- Provenance floor: [memory-provenance](memory-provenance.md)
-- Program epic: ChaosEngine program epic Phase 2
+- Counters and Learning Session path: [evolving-playbook](evolving-playbook.md)
