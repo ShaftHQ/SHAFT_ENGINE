@@ -293,6 +293,7 @@ CHECKS = {
         "token-economy",
         (
             "tests.scripts.test_chaos_engine_token_economy_6173",
+            "tests.scripts.test_chaos_engine_ci_event_wake_6521",
             "tests.scripts.test_retrieve_gate_scope",
             "tests.scripts.test_ce_guard_reachability",
             "tests.scripts.test_skill_index_parity",
@@ -697,6 +698,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/ce_host_files.py",
         "tests/scripts/test_chaos_engine_portable_core.py",
         "tests/scripts/test_chaos_engine_token_economy_6173.py",
+        "tests/scripts/test_chaos_engine_ci_event_wake_6521.py",
         "tests/scripts/test_retrieve_gate_scope.py",
         "tests/scripts/test_ce_guard_reachability.py",
         "tests/scripts/test_skill_index_parity.py",
