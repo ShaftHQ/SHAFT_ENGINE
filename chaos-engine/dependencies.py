@@ -104,6 +104,23 @@ ACCOUNT_COMMAND_TIMEOUT_SECONDS = 900
 # A fresh repository mine can embed tens of thousands of drawers on CPU, far past
 # the synchronous budget, so install hands it to a detached incremental runner.
 MEMPALACE_MINE_MODE_ENV = "CHAOS_ENGINE_MEMPALACE_MINE"
+# Installer-owned paths the project palace must never mine (#6540). Mining the
+# installed harness copies cost ~150 s per install and crowded retrieval.
+MEMPALACE_OWNED_EXCLUDES = (
+    "mempalace.yaml",
+    ".memory/**",
+    "graphify-out/**",
+    ".chaos-engine/**",
+    ".chaos-engine-runtime/**",
+    ".chaos-engine-state/**",
+    "plugins/chaos-engine/**",
+    "plugins/caveman/**",
+    "plugins/ponytail/**",
+    "plugins/icm-architect/**",
+    "**/skills/chaos-engine/**",
+    ".claude/agents/chaos-engine-*",
+    ".codex/agents/chaos-engine-*",
+)
 MEMPALACE_INDEX_SUBCOMMAND = "mempalace-index"
 MEMPALACE_INDEX_STATUS_NAME = "mempalace-index.json"
 MEMPALACE_INDEX_LOG_NAME = "mempalace-index.log"
@@ -1200,6 +1217,35 @@ def prepare_mempalace_project_target(project: Path) -> Path:
     return palace
 
 
+def apply_owned_mempalace_excludes(project: Path) -> bool:
+    """Append owned excludes to an installer-created config; never touch a user's (#6540)."""
+    configuration = project.resolve() / "mempalace.yaml"
+    if is_link_or_reparse(configuration) or not configuration.is_file():
+        return False
+    text = configuration.read_text(encoding="utf-8")
+    if re.search(r"(?m)^exclude_patterns\s*:", text):
+        return False
+    block = "exclude_patterns:\n" + "".join(
+        f"  - '{pattern}'\n" for pattern in MEMPALACE_OWNED_EXCLUDES
+    )
+    separator = "" if not text or text.endswith("\n") else "\n"
+    configuration.write_text(text + separator + block, encoding="utf-8")
+    return True
+
+
+def missing_owned_mempalace_excludes(project: Path) -> list[str]:
+    """Owned patterns a configuration does not list (advisory for user configs)."""
+    configuration = project.resolve() / "mempalace.yaml"
+    try:
+        text = configuration.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+    return [
+        pattern for pattern in MEMPALACE_OWNED_EXCLUDES
+        if not re.search(rf"(?m)^\s*-\s*['\"]?{re.escape(pattern)}['\"]?\s*$", text)
+    ]
+
+
 def mark_mempalace_project_setup(project: Path) -> None:
     """Mark only a successful sqlite_exact project setup as mined."""
     palace = prepare_mempalace_project_target(project)
@@ -1805,6 +1851,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         or runner is subprocess.run
         or getattr(runner, "inner", None) is subprocess.run
     )
+    user_configuration = mempalace_project_configuration_exists(project)
     for command in project_setup_plan(project, commands):
         environment = mempalace_project_setup_environment(project, command)
         if command[0] == commands.get("memory") and command[1:2] == ["init"]:
@@ -1812,6 +1859,15 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         action = mempalace_project_setup_action(command)
         # MemPalace init prompts to mine unless --auto-mine; decline via EOF.
         stdin = subprocess.DEVNULL if action == "init" else None
+        if action == "mine" and user_configuration:
+            missing = missing_owned_mempalace_excludes(project)
+            if missing:
+                print(
+                    "chaos-engine: mempalace.yaml is yours, so it is left as is; add these "
+                    "exclude_patterns to skip mining installed harness copies: "
+                    + ", ".join(missing),
+                    file=sys.stderr,
+                )
         if action == "mine" and background_mine:
             start_background_mempalace_mine(
                 command, project, extra_environment=environment,
@@ -1830,6 +1886,8 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
                 extra_environment=environment,
                 stdin=stdin,
             )
+        if action == "init" and not user_configuration:
+            apply_owned_mempalace_excludes(project)
         if action in {"init", "mine"}:
             mark_mempalace_project_setup(project)
 
