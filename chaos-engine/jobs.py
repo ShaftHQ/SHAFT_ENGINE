@@ -24,6 +24,7 @@ import contextlib
 import json
 import os
 import re
+import shutil
 import signal
 import socket
 import subprocess  # nosec B404 - runs the owner's own job command, no shell.
@@ -217,7 +218,7 @@ def kill_run(lease: dict, grace: float = 5.0) -> list[int]:
     run_id = str(lease.get("run_id") or "")
     if os.name == "nt":  # pragma: no cover - Windows only
         hit = [pid for pid in (lease.get("child_pid"), lease.get("pid")) if pid_alive(pid)]
-        taskkill = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "taskkill.exe")
+        taskkill = shutil.which("taskkill") or "taskkill"
         for pid in hit:
             subprocess.run([taskkill, "/PID", str(pid), "/T", "/F"], capture_output=True, check=False)  # nosec B603
         return hit

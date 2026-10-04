@@ -1,5 +1,5 @@
 ---
-description: Use when work runs longer than a few minutes (render, ASR, QC, big build) and must survive the agent session being killed, with no duplicate workers.
+description: Use when work runs longer than a few minutes and must survive the agent session being killed, with no duplicate workers.
 ---
 
 # Durable jobs
@@ -55,7 +55,7 @@ Write every output to `<file>.part`, then rename it into place, so a kill
 loses only the step in flight:
 
 - Python: `with atomic_output(path) as part: part.write_bytes(data)`, using
-  `atomic_output` from `.chaos-engine/jobs.py`.
+  `atomic_output` from [`jobs.py`](../jobs.py).
 - Shell: `cmd > out.mp4.part && mv out.mp4.part out.mp4` (for ffmpeg, add
   `-f mp4` because the `.part` name hides the format).
 
@@ -65,14 +65,15 @@ or checkpoint exists. Resume never redoes finished work by itself.
 ## Watchdog recipe
 
 A watchdog (cron, a host routine, a scheduled agent) runs exactly one
-command per job and never launches the pipeline directly:
+command per job, from the directory that started it (`$PROJECT` below), and
+never launches the pipeline directly:
 
 ```bash
-cd /path/to/project && python3 .chaos-engine/tool.py job resume render
+cd "$PROJECT" && python3 .chaos-engine/tool.py job resume render
 ```
 
 - Cron, every 10 minutes:
-  `*/10 * * * * cd /path/to/project && python3 .chaos-engine/tool.py job resume render >> .chaos-engine-state/jobs/watchdog.log 2>&1`
+  `*/10 * * * * cd "$PROJECT" && python3 .chaos-engine/tool.py job resume render >> .chaos-engine-state/jobs/watchdog.log 2>&1`
 - Agent routine: run `tool.py job status render --json`. Report only on a
   change to `done`, `failed` or `stopped`, or on a "needs a human" line from
   `resume`. Otherwise run `tool.py job resume render` and stay silent. Never

@@ -189,6 +189,7 @@ sends you there; the rest by
 - [codacy complexity gate](../../chaos-engine/references/complexity-gate.md)
 - [delegate card](../../chaos-engine/references/delegate-card.md)
 - [delivery phase gates](../../chaos-engine/references/delivery-phase-gates.md)
+- [durable jobs](../../chaos-engine/references/durable-jobs.md)
 - [eliminate waste](../../chaos-engine/references/eliminate-waste.md)
 - [eval parity fixtures](../../chaos-engine/references/eval-parity-fixtures.md)
 - [harness eval suite](../../chaos-engine/references/harness-eval-suite.md)
