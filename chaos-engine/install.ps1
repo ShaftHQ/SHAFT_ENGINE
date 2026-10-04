@@ -124,23 +124,18 @@ function ConvertFrom-ChaosEngineRawUrl([string]$Text) {
     if ($repository -eq "owner/repository") {
         return $null
     }
+    # A ref may contain '/' (feature/x, refs/heads/feature/x). The installer lives
+    # either in the nested chaos-engine/ folder or at the repository root, so the
+    # ref is everything before that folder (#6495).
     $rest = $match.Groups[3].Value
-    $parts = @($rest -split "/")
-    if ($parts.Length -ge 3 -and $parts[0] -eq "refs" -and $parts[1] -in @("heads", "tags")) {
-        $ref = ($parts[0..2] -join "/")
-        $prefixParts = @()
-        if ($parts.Length -gt 3) {
-            $prefixParts = $parts[3..($parts.Length - 1)]
-        }
+    if ($rest.EndsWith("/chaos-engine", [System.StringComparison]::Ordinal)) {
+        $ref = $rest.Substring(0, $rest.Length - "/chaos-engine".Length)
+        $prefix = "chaos-engine"
     }
     else {
-        $ref = $parts[0]
-        $prefixParts = @()
-        if ($parts.Length -gt 1) {
-            $prefixParts = $parts[1..($parts.Length - 1)]
-        }
+        $ref = $rest
+        $prefix = ""
     }
-    $prefix = $prefixParts -join "/"
     $bootstrapPath = "bootstrap.py"
     if (-not [string]::IsNullOrWhiteSpace($prefix)) {
         $bootstrapPath = "$prefix/bootstrap.py"

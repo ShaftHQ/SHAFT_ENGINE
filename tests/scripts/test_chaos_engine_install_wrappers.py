@@ -50,14 +50,11 @@ def parse_raw_url(text: str) -> dict[str, str] | None:
     repository = f"{owner}/{repo}"
     if repository.casefold() == PLACEHOLDER:
         return None
-    parts = rest.split("/")
-    if len(parts) >= 3 and parts[0] == "refs" and parts[1] in {"heads", "tags"}:
-        ref = "/".join(parts[:3])
-        prefix_parts = parts[3:]
+    # Refs may contain '/'; the installer folder is chaos-engine/ or the root (#6495).
+    if rest.endswith("/chaos-engine"):
+        ref, prefix = rest.removesuffix("/chaos-engine"), "chaos-engine"
     else:
-        ref = parts[0]
-        prefix_parts = parts[1:]
-    prefix = "/".join(prefix_parts)
+        ref, prefix = rest, ""
     bootstrap_path = "bootstrap.py" if not prefix else f"{prefix}/bootstrap.py"
     return {
         "repository": repository,
@@ -68,6 +65,44 @@ def parse_raw_url(text: str) -> dict[str, str] | None:
             f"https://raw.githubusercontent.com/{repository}/{ref}/{bootstrap_path}"
         ),
     }
+
+
+SLASH_REF_CASES = (
+    (
+        "https://raw.githubusercontent.com/Example/project/refs/heads/feature/x/chaos-engine/install.ps1",
+        "refs/heads/feature/x",
+        "chaos-engine",
+    ),
+    (
+        "https://raw.githubusercontent.com/Example/project/feature/x/chaos-engine/install.sh",
+        "feature/x",
+        "chaos-engine",
+    ),
+    (
+        "https://raw.githubusercontent.com/Example/project/main/chaos-engine/install.sh",
+        "main",
+        "chaos-engine",
+    ),
+    (
+        "https://raw.githubusercontent.com/Example/chaos-engine/refs/heads/team/a/b/install.sh",
+        "refs/heads/team/a/b",
+        "",
+    ),
+    (
+        "https://raw.githubusercontent.com/Example/chaos-engine/refs/tags/v1.2/install.ps1",
+        "refs/tags/v1.2",
+        "",
+    ),
+)
+
+
+def _expected_resolution(url: str, ref: str, prefix: str) -> str:
+    repository = "/".join(url.split("/")[3:5])
+    bootstrap = f"{prefix}/bootstrap.py" if prefix else "bootstrap.py"
+    return (
+        f"{repository}|{ref}|{prefix}|"
+        f"https://raw.githubusercontent.com/{repository}/{ref}/{bootstrap}"
+    )
 
 
 class ChaosEngineInstallWrapperTest(unittest.TestCase):
@@ -426,6 +461,74 @@ Write-Output (Get-ChaosEngineHeader $message.Headers 'X-Missing')
             "ShaftHQ/SHAFT_ENGINE|main|chaos-engine|"
             + "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/chaos-engine/bootstrap.py",
             completed.stdout.strip().splitlines()[-1],
+        )
+
+    def test_python_grammar_keeps_refs_that_contain_slashes(self):
+        """#6495: refs/heads/feature/x must not truncate to refs/heads/feature."""
+        for url, ref, prefix in SLASH_REF_CASES:
+            parsed = parse_raw_url(f'irm "{url}" | iex')
+            self.assertEqual((ref, prefix), (parsed["ref"], parsed["prefix"]), url)
+
+    def test_shell_wrapper_resolves_refs_that_contain_slashes(self):
+        """#6495: a slash in the branch name failed later with CE-INSTALL-FAILED 422."""
+        shell = shutil.which("sh") or shutil.which("bash")
+        if shell is None or os.name == "nt":
+            self.skipTest("POSIX sh is not available")
+        environment = {
+            key: value for key, value in os.environ.items()
+            if key not in {"CHAOS_ENGINE_BRANCH", "CHAOS_ENGINE_INSTALL_URL"}
+        }
+        environment["CHAOS_ENGINE_RESOLVE_ONLY"] = "1"
+        for url, ref, prefix in SLASH_REF_CASES:
+            with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temporary:
+                completed = subprocess.run(  # nosec B603 - local sh plus the repo wrapper
+                    [shell, SHELL.as_posix(), url],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    cwd=temporary,
+                    env=environment,
+                )
+            self.assertEqual(0, completed.returncode, completed.stderr + completed.stdout)
+            self.assertEqual(
+                _expected_resolution(url, ref, prefix),
+                completed.stdout.strip().splitlines()[-1],
+                url,
+            )
+
+    def test_powershell_parser_resolves_refs_that_contain_slashes(self):
+        """#6495: the ps1 wrapper keeps the whole ref, like the sh wrapper."""
+        pwsh = shutil.which("pwsh") or shutil.which("powershell")
+        if pwsh is None:
+            self.skipTest("pwsh is not on PATH")
+        samples = ",\n".join(f"    '{url}'" for url, _ref, _prefix in SLASH_REF_CASES)
+        script = (
+            "Set-StrictMode -Version Latest\n"
+            + "$ErrorActionPreference = 'Stop'\n"
+            + ". $args[0] -ParseOnly\n"
+            + "$samples = @(\n" + samples + "\n)\n"
+            + "foreach ($sample in $samples) {\n"
+            + "    $parsed = ConvertFrom-ChaosEngineRawUrl $sample\n"
+            + "    Write-Output ($parsed.Repository + '|' + $parsed.Ref + '|' + "
+            + "$parsed.Prefix + '|' + $parsed.BootstrapUrl)\n"
+            + "}\n"
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".ps1", delete=False, encoding="utf-8") as handle:
+            handle.write(script)
+            driver = handle.name
+        try:
+            completed = subprocess.run(  # nosec B603 - local pwsh plus the repo wrapper
+                [pwsh, "-NoProfile", "-File", driver, str(POWERSHELL)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        finally:
+            Path(driver).unlink(missing_ok=True)
+        self.assertEqual(0, completed.returncode, completed.stderr + completed.stdout)
+        self.assertEqual(
+            [_expected_resolution(url, ref, prefix) for url, ref, prefix in SLASH_REF_CASES],
+            [line.strip() for line in completed.stdout.splitlines() if line.strip()],
         )
 
     def test_remaining_wrapper_strings_use_explicit_concatenation(self):

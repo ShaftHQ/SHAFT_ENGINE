@@ -1021,6 +1021,41 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     return planned
 
 
+def git_head_is_unborn(project: Path) -> bool:
+    """True inside a Git work tree whose HEAD has no commit yet (``git init`` only)."""
+    git = shutil.which("git")
+    if git is None:
+        return False
+    try:
+        inside = subprocess.run(  # nosec B603 - fixed git argv, no shell.
+            [git, "rev-parse", "--git-dir"],
+            cwd=project, capture_output=True, text=True, check=False, timeout=30,
+        )
+        if inside.returncode != 0:
+            return False
+        head = subprocess.run(  # nosec B603 - fixed git argv, no shell.
+            [git, "rev-parse", "--verify", "--quiet", "HEAD"],
+            cwd=project, capture_output=True, text=True, check=False, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return head.returncode != 0
+
+
+def memory_init_environment(project: Path) -> dict[str, str]:
+    """Let ``memory init`` succeed in a repository with no commits (#6496).
+
+    Memory reads ``git rev-parse HEAD`` during init and fails with
+    MemoryGitOperationFailed on an unborn HEAD. Hiding Git for that one call
+    makes Memory initialize exactly as in a plain folder; the files it writes
+    match a Git-mode init, and the runtime ignore rules come from the
+    ChaosEngine-owned .gitignore block.
+    """
+    if not git_head_is_unborn(project):
+        return {}
+    return {"GIT_DIR": os.devnull}
+
+
 def mempalace_project_setup_complete(project: Path) -> bool:
     """Return whether a valid configuration already has mined exact state (#6377)."""
     import runpy
@@ -1772,6 +1807,8 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     )
     for command in project_setup_plan(project, commands):
         environment = mempalace_project_setup_environment(project, command)
+        if command[0] == commands.get("memory") and command[1:2] == ["init"]:
+            environment.update(memory_init_environment(project))
         action = mempalace_project_setup_action(command)
         # MemPalace init prompts to mine unless --auto-mine; decline via EOF.
         stdin = subprocess.DEVNULL if action == "init" else None

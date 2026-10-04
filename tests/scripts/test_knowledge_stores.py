@@ -221,6 +221,9 @@ class KnowledgeStoresTest(unittest.TestCase):
         self.assertFalse(self.checkout_palace_created(self.linked))
 
     def test_refresh_from_a_linked_worktree_does_not_create_a_checkout_palace(self):
+        # A remote whose default branch was never fetched keeps refresh refusing;
+        # a remote-less repository now resolves its local main/master (#6493).
+        self.git("remote", "add", "origin", str(self.sandbox / "unfetched.git"), cwd=self.primary)
         linked = self.cli("refresh", cwd=self.linked)
         primary = self.cli("refresh", cwd=self.primary)
 

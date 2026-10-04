@@ -208,6 +208,24 @@ class SharedStoreTest(unittest.TestCase):
 
         self.assertFalse((self.home / ".mempalace").exists())
 
+    def test_local_only_repository_uses_its_local_default_branch(self):
+        """#6493: without a remote the graph could never be marked fresh after install."""
+        local = self.sandbox / "local-only"
+        local.mkdir()
+        self.git("init", "-b", "main", cwd=local)
+        self.git("config", "user.email", "stores@example.invalid", cwd=local)
+        self.git("config", "user.name", "Stores Test", cwd=local)
+        (local / "source.py").write_text("print('local')\n", encoding="utf-8")
+        self.git("add", "source.py", cwd=local)
+        self.git("commit", "-m", "local source", cwd=local)
+        head = self.git("rev-parse", "HEAD", cwd=local).stdout.strip()
+
+        self.assertEqual(head, self.stores.default_branch_commit(local))
+
+        self.git("remote", "add", "origin", "https://example.invalid/never-fetched.git", cwd=local)
+        with self.assertRaisesRegex(RuntimeError, "fix-next: git fetch"):
+            self.stores.default_branch_commit(local)
+
     def test_doctor_names_a_stale_graph_and_the_repair_command(self):
         graph_out = self.primary / "graphify-out"
         graph_out.mkdir()

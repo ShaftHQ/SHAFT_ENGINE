@@ -1255,6 +1255,47 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 runner.call_args.args[0],
             )
 
+    def test_memory_init_in_a_repository_without_commits_hides_git_6496(self):
+        """#6496: memory init failed with MemoryGitOperationFailed on an unborn HEAD."""
+        git = shutil.which("git")
+        if git is None:
+            self.skipTest("git is not on PATH")
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        commands = {"memory": "/tools/memory", "uv": "/tools/uv", "npm": "/tools/npm"}
+        local = {
+            name: {"healthy": True, "version": "1.0", "detail": "passed"}
+            for name in ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+        }
+        actions = {name: {"action": "reused"} for name in local}
+
+        def git_run(project: Path, *arguments: str) -> None:
+            module.subprocess.run(  # nosec B603 - resolved git, fixed fixture argv.
+                [git, *arguments], cwd=project, check=True, capture_output=True, text=True
+            )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            plain = Path(temporary) / "plain"
+            plain.mkdir()
+            self.assertEqual({}, module.memory_init_environment(plain))
+            project = Path(temporary) / "unborn"
+            project.mkdir()
+            git_run(project, "init")
+            init = ["/tools/memory", "init", "--no-view"]
+            runner = mock.Mock(return_value=SimpleNamespace(returncode=0, stdout="", stderr=""))
+            with mock.patch.object(
+                module, "discover_account_commands", side_effect=((local, commands), (local, commands))
+            ), mock.patch.object(
+                module, "resolve_account_actions", return_value=actions
+            ), mock.patch.object(module, "project_setup_plan", return_value=[init]):
+                module.install_account_dependencies(project, specification, runner=runner, allow_root=True)
+
+            self.assertEqual(init, runner.call_args.args[0])
+            self.assertEqual(os.devnull, runner.call_args.kwargs["env"]["GIT_DIR"])
+            git_run(project, "-c", "user.email=a@example.invalid", "-c", "user.name=A",
+                    "commit", "--allow-empty", "-m", "first")
+            self.assertEqual({}, module.memory_init_environment(project))
+
     def test_account_setup_retries_two_transient_mempalace_tls_eofs(self):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))

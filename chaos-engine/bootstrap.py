@@ -1320,21 +1320,7 @@ class InstallReporter:
         if doctor_status == "healthy" and not include_heal_handoff:
             clear_stale_install_failure_artifacts(project)
         components = doctor.get("components") if isinstance(doctor, dict) else None
-        healthy = 0
-        total = 0
-        if isinstance(components, dict):
-            for item in components.values():
-                if not isinstance(item, dict):
-                    continue
-                total += 1
-                if item.get("status") in {
-                    "healthy",
-                    "absent",
-                    "compatible-legacy",
-                    "sync-advisory",
-                    "degraded",
-                }:
-                    healthy += 1
+        healthy, total, attention = doctor_component_counts(components)
         elapsed = self._duration(max(0.0, self.clock() - self.started))
         extra: list[str] = []
         handoff = project / ".chaos-engine-state" / "merge-handoff.md"
@@ -1412,6 +1398,7 @@ class InstallReporter:
                 doctor_status=doctor_status,
                 healthy=healthy,
                 total=total,
+                attention=attention,
                 commit=commit,
                 clients=clients if isinstance(clients, dict) else {},
                 repository=repository,
@@ -1490,6 +1477,51 @@ def format_landed_untracked_lines() -> list[str]:
     ]
 
 
+def doctor_component_counts(components: object) -> tuple[int, int, tuple[str, ...]]:
+    """Count components the way `install.py doctor` does (#6493).
+
+    A component is healthy when doctor counts it healthy: status ``healthy`` or
+    ``compatible-legacy``, or ``absent`` for an optional component. Degraded and
+    advisory rows are named instead of being counted as healthy.
+    """
+    healthy = 0
+    total = 0
+    attention: list[str] = []
+    if isinstance(components, dict):
+        for name in sorted(str(item) for item in components):
+            item = components[name]
+            if not isinstance(item, dict):
+                continue
+            total += 1
+            status = str(item.get("status") or "unknown")
+            impact = str(item.get("taskImpact") or "required")
+            if status in {"healthy", "compatible-legacy"} or (
+                status == "absent" and impact == "optional"
+            ):
+                healthy += 1
+            else:
+                attention.append(f"{name} {status}")
+    return healthy, total, tuple(attention)
+
+
+def final_install_doctor(target: Path, project: Path, fallback: dict[str, object]) -> dict[str, object]:
+    """Run `install.py doctor`'s exact checks from the installed core (#6493).
+
+    The downloaded installer's folder is already deleted at this point, so its
+    sibling probes (companions, identity, overlay, shared-store freshness) would
+    be skipped silently and the summary would count fewer, healthier components.
+    """
+    core = Path(target) / "install.py"
+    if not core.is_file():
+        return fallback
+    try:
+        run = runpy.run_path(str(core)).get("doctor_with_dependencies")
+        document = run(project, probe_retrieve=True) if callable(run) else None
+    except (OSError, RuntimeError, ValueError, TypeError, ImportError):
+        return fallback
+    return document if isinstance(document, dict) else fallback
+
+
 def _doctor_glyph_kind(doctor_status: str) -> str:
     if doctor_status == "healthy":
         return "ok"
@@ -1506,6 +1538,7 @@ def format_install_report(
     total: int,
     commit: str | None,
     clients: dict[str, object],
+    attention: tuple[str, ...] = (),
     repository: str,
     source_label: str | None,
     elapsed: str,
@@ -1538,6 +1571,8 @@ def format_install_report(
     doctor_value = f"{doctor_glyph} {doctor_status}"
     if total:
         doctor_value += f"  {healthy}/{total} components"
+    if attention:
+        doctor_value += f" (needs attention: {', '.join(attention)})"
     lines.append(_align_report("Doctor", doctor_value, color=color))
     client_names = sorted(clients) if isinstance(clients, dict) else []
     lines.append(
@@ -2482,6 +2517,7 @@ def install_latest(
         else:
             clients = host_controller.activate_detected_plugins(project)
         reporter.complete("Activate clients", remaining=())
+        doctor = final_install_doctor(target, project, doctor)
         doctor["clients"] = clients.get("clients", {})
     except BaseException as error:
         reporter.close()
