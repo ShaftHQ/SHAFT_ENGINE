@@ -52,9 +52,7 @@ non-commercial licences are refused.
   synthesis.
 - `design_qc.py vowords script.json transcripts.json` passes (no dropped
   content word, no unscripted repeat).
-- `design_qc.py tts script.txt transcript.txt --duration <seconds> --fold codecs=codex`
-  passes (folded WER 5% or less, raw WER reported, 140 to 160 wpm);
-  `design_qc.py idle` passes first.
+- `design_qc.py tts script.txt transcript.txt --duration <seconds> --fold codecs=codex` passes (folded WER 5% or less, raw WER reported, 140 to 160 wpm); `design_qc.py idle` passes first.
 - Voice name, model, and licence recorded in the manifest.
 - `design_qc.py loudness vo.wav --target -18` passes.
 
