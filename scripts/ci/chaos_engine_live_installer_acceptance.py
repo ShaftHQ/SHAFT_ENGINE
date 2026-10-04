@@ -630,6 +630,26 @@ def installer_failure_detail(value: str) -> str:
     return "; ".join((headline, *fields))
 
 
+STEP_TIMINGS: list[dict[str, object]] = []
+STEP_TIMING_FLOOR_SECONDS = 1.0
+INSTALLER_STAGE_LINE = re.compile(r"PASS (?P<stage>[A-Za-z ]+) \((?P<clock>\d\d:\d\d)\)")
+
+
+def step_label(command: list[str]) -> str:
+    """#6538: short, secret-free label for a timed command (no URLs or paths)."""
+    names = [Path(part).name for part in command[:4] if not part.startswith("-") and "://" not in part]
+    return " ".join(names)[:80]
+
+
+def installer_stage_seconds(stderr: str) -> dict[str, int]:
+    """#6538: per-stage seconds from the installer's own `PASS <stage> (mm:ss)` lines."""
+    stages: dict[str, int] = {}
+    for match in INSTALLER_STAGE_LINE.finditer(stderr):
+        minutes, seconds = match.group("clock").split(":")
+        stages[match.group("stage").strip()] = int(minutes) * 60 + int(seconds)
+    return stages
+
+
 def run_checked(
     command: list[str],
     *,
@@ -638,6 +658,7 @@ def run_checked(
     timeout: int | None = None,
 ) -> subprocess.CompletedProcess[str]:
     budget = PHASE_TIMEOUT_SECONDS if timeout is None else timeout
+    started = time.monotonic()
     result = subprocess.run(  # nosec B603
         command,
         cwd=cwd,
@@ -648,6 +669,13 @@ def run_checked(
         timeout=budget,
         check=False,
     )
+    elapsed = time.monotonic() - started
+    if elapsed >= STEP_TIMING_FLOOR_SECONDS:
+        step: dict[str, object] = {"step": step_label(command), "seconds": round(elapsed, 1)}
+        stages = installer_stage_seconds(result.stderr or "")
+        if stages:
+            step["installerStages"] = stages
+        STEP_TIMINGS.append(step)
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or "no process output"
         detail = fingerprint_detail(installer_failure_detail(detail))
@@ -1517,6 +1545,7 @@ def record_phase(
     evidence: dict[str, object], name: str, operation
 ) -> dict[str, object]:
     started = time.monotonic()
+    STEP_TIMINGS.clear()
     try:
         checks = operation()
     except Exception as error:
@@ -1525,6 +1554,7 @@ def record_phase(
             "name": name,
             "status": "fail",
             "durationSeconds": round(time.monotonic() - started, 3),
+            "steps": list(STEP_TIMINGS),
             "failure": failure_evidence(phase_error),
         })
         raise phase_error from error
@@ -1532,6 +1562,7 @@ def record_phase(
         "name": name,
         "status": "pass",
         "durationSeconds": round(time.monotonic() - started, 3),
+        "steps": list(STEP_TIMINGS),
         "checks": checks,
     })
     return checks

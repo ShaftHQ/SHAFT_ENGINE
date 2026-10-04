@@ -1349,5 +1349,35 @@ class NetworkRetryTest(TestCase):
         self.assertEqual(self.acceptance.NETWORK_ATTEMPTS, run.call_count)
 
 
+class StepTimingTest(TestCase):
+    """#6538: phases record where their time goes, without URLs or secrets."""
+
+    def setUp(self):
+        self.acceptance = load_acceptance()
+        self.assertIsNotNone(self.acceptance)
+
+    def test_installer_stage_seconds_parse_pass_lines(self):
+        stderr = "[+00:05] PASS Provision dependencies (04:02)\n[+04:10] PASS Verify installation (00:07)\n"
+        self.assertEqual(
+            {"Provision dependencies": 242, "Verify installation": 7},
+            self.acceptance.installer_stage_seconds(stderr),
+        )
+
+    def test_step_label_drops_urls_and_flags(self):
+        label = self.acceptance.step_label(["/bin/bash", "-c", "https://raw.example/x", "/p/install.py"])
+        self.assertEqual("bash install.py", label)
+        self.assertNotIn("://", label)
+
+    def test_record_phase_attaches_steps(self):
+        evidence = {"phases": []}
+
+        def operation():
+            self.acceptance.STEP_TIMINGS.append({"step": "python3 install.py", "seconds": 2.0})
+            return {"status": "healthy"}
+
+        self.acceptance.record_phase(evidence, "demo", operation)
+        self.assertEqual([{"step": "python3 install.py", "seconds": 2.0}], evidence["phases"][0]["steps"])
+
+
 if __name__ == "__main__":
     main()
