@@ -99,6 +99,7 @@ class ClassifierTest(unittest.TestCase):
                 "portable-core",
                 "plugin-assembly",
                 "icm-architect",
+                "harness-eval",
             ),
             documentation.surfaces,
         )
@@ -117,6 +118,7 @@ class ClassifierTest(unittest.TestCase):
                 "portable-core-contract",
                 "plugin-assembly-contract",
                 "icm-architect-contract",
+                "harness-eval-suite-contract",
                 "protected-ownership",
                 "protected-secret-safety",
             },
@@ -161,7 +163,10 @@ class ClassifierTest(unittest.TestCase):
 
         # #6222: the portable-core scan and the plugin assembly read the whole
         # chaos-engine tree, so their cheap single-module checks join too.
-        self.assertEqual(("kernel", "identities", "portable-core", "plugin-assembly"), plan.surfaces)
+        self.assertEqual(
+            ("kernel", "identities", "portable-core", "plugin-assembly", "harness-eval"),
+            plan.surfaces,
+        )
         self.assertEqual(
             (
                 "kernel-contract",
@@ -169,6 +174,7 @@ class ClassifierTest(unittest.TestCase):
                 "identity-recovery-contract",
                 "portable-core-contract",
                 "plugin-assembly-contract",
+                "harness-eval-suite-contract",
                 "protected-ownership",
                 "protected-secret-safety",
             ),
@@ -702,7 +708,10 @@ class OutputAndWorkflowTest(unittest.TestCase):
         payload = json.loads(render_json(plan, head_sha=HEAD, budget_seconds=240))
 
         self.assertEqual(1, payload["schema"])
-        self.assertEqual(["kernel", "identities", "portable-core", "plugin-assembly"], payload["surfaces"])
+        self.assertEqual(
+            ["kernel", "identities", "portable-core", "plugin-assembly", "harness-eval"],
+            payload["surfaces"],
+        )
         self.assertEqual(240, payload["timing"]["budget_seconds"])
         self.assertEqual(600, payload["timing"]["recorded_baseline_median_seconds"])
         self.assertEqual(0.6, payload["timing"]["maximum_budget_reduction"])
