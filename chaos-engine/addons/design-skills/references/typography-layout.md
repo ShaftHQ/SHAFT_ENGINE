@@ -29,6 +29,10 @@ page, poster, slide, or video frame.
 - Keep text inside a 5% safe margin; vertical video adds the platform UI
   zones from D20.
 - One idea per frame; at most about seven words of on-screen text per beat.
+- Code and command text at least 40 px at 1080p (about 3.7% of frame
+  height) and legible in the 9:16 cut. Wrap only at valid shell
+  continuations (bash `\`, PowerShell after a pipe, operator, or backtick)
+  or split into steps; never inside a quoted string or URL.
 
 ## Script and language notes
 
@@ -50,6 +54,7 @@ page, poster, slide, or video frame.
   viewport, and `scrollWidth <= innerWidth`.
 - Computed font sizes match the scale within 2%.
 - Every font file has a recorded licence in the manifest.
+- The smallest code frame is inspected at 1080p and in the 9:16 cut.
 
 ## Sources
 

@@ -42,9 +42,13 @@ and away from the right-hand action column of the platform UI.
 2. Mux captions as sidecars (SRT, WebVTT) and chapters as metadata.
 3. Export the thumbnail (D07) and the description with chapters.
 4. Write `manifest.json` with hashes and licences.
-5. Run the full gate with a plan file:
+5. Run the full gate on an idle machine with a plan file:
    `design_qc.py all qc-plan.json`, where the plan lists delivery, colortags,
-   levels, loudness, captions, flash, blackfreeze, and manifest checks.
+   levels, loudness, captions, flash, blackfreeze, static, and manifest
+   checks.
+6. Independent review: a fresh reviewer that did not build it watches and
+   listens to every output end to end. Deliver only when QC and review pass;
+   anything earlier is named and sent as DRAFT with its open failures.
 
 ## Verify
 
@@ -55,6 +59,7 @@ and away from the right-hand action column of the platform UI.
 - `design_qc.py all qc-plan.json` ends `pass`; any `skipped` step is
   reported in the PR with the missing tool.
 - Vertical frames inspected against the safe zone overlay.
+- Review notes list no blocker for each delivered output.
 
 ## Sources
 

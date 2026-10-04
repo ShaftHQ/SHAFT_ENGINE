@@ -33,6 +33,10 @@ or a master shows wrong levels, washed-out blacks, or shifted brand colors.
 - Use scopes, not eyes: `waveform`, `vectorscope`, and `histogram` filters
   produce images for the PR.
 - A mis-tagged full-range source is fixed at ingest, never compensated later.
+- Burned-in white text makes x264 overshoot: after burn-in, add a soft luma
+  knee and tag with `setparams=range=tv:...bt709`. Verify levels after every
+  final encode and re-encode one CRF step lower (three tries at most) when a
+  stray frame is out of range; `levels` names the offending timestamps.
 
 ## Workflow
 

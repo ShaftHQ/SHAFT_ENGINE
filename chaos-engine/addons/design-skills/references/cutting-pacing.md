@@ -27,7 +27,13 @@ Give up the lower ones first.
   current audio continues over the next picture. Use them to carry narration
   across visual changes.
 - Long waits (installs, builds) become labelled speed ramps or a cut with a
-  time-skip card, never silent jumps.
+  time-skip card, never silent jumps. The badge names the speed and the REAL
+  elapsed time ("sped up 24x, 16 s real").
+- No visually static stretch over about 3 s. A slow push-in does not read
+  as motion; compress the wait, or give a necessary hold VO-keyed callouts
+  that move to the line being spoken.
+- Camera pushes run at a constant rate spread over the whole clip; encoders
+  flatten eased or capped pushes into visible freezes.
 - Pacing targets per format, written in the storyboard:
   tutorial 4 to 8 s average shot; short vertical cut 2 to 4 s with a visual
   change every 5 to 8 s; trailer 1 to 2 s.
@@ -44,6 +50,8 @@ Give up the lower ones first.
 
 - `design_qc.py silence master.mp4 --allow <holds>` passes (no unmarked
   silence over 700 ms).
+- `design_qc.py static clean-master.mp4` passes (no stretch over 3 s where
+  no 60 px cell changes; measure the caption-free picture).
 - Shot-length list from the EDL is inside the storyboard targets.
 - With music, beat offsets (from an onset detector) are within two frames
   for marked beat cuts.
