@@ -461,6 +461,11 @@ CHECKS = {
         "evolving-playbook",
         ("tests.scripts.test_chaos_engine_evolving_playbook_6532",),
     ),
+    "insight-extract-contract": Check(
+        "insight-extract-contract",
+        "insight-extract",
+        ("tests.scripts.test_chaos_engine_insight_extract_6544",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -513,6 +518,7 @@ SURFACE_CHECKS = {
     "durable-jobs": ("durable-jobs-contract",),
     "memory-provenance": ("memory-provenance-contract",),
     "evolving-playbook": ("evolving-playbook-contract",),
+    "insight-extract": ("insight-extract-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -925,6 +931,18 @@ SURFACE_PATTERNS = {
         "chaos-engine/references/zero-llm-catalog.md",
         ".agents/skills/README.md",
         "tests/scripts/test_chaos_engine_evolving_playbook_6532.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "insight-extract": (
+        "chaos-engine/insight_extract.py",
+        "chaos-engine/heuristics.py",
+        "chaos-engine/memory_provenance.py",
+        "chaos-engine/references/insight-extract.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "tests/scripts/test_chaos_engine_insight_extract_6544.py",
         "scripts/ci/harness_pr_gate.py",
     ),
 }
