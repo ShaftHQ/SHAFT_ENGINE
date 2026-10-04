@@ -312,5 +312,123 @@ class DesignQcTests(unittest.TestCase):
             self.assertEqual(0, self.run_qc("flash", str(clip))[0])
 
 
+class DesignLessonTests(unittest.TestCase):
+    """Install-video lessons (#6502): new gates and rules."""
+
+    qc = DesignQcTests.qc
+
+    def run_qc(self, *args: str) -> tuple[int, dict]:
+        return DesignQcTests.run_qc(self, *args)
+
+    def write(self, folder: str, name: str, payload: object) -> str:
+        path = Path(folder) / name
+        path.write_text(payload if isinstance(payload, str) else json.dumps(payload), encoding="utf-8")
+        return str(path)
+
+    def test_vooverlap_masks_and_edit_list_gap(self):
+        frames = self.qc.mask_overlaps([(0, [True] * 10), (8, [True] * 5)], 0.02)
+        self.assertEqual([{"start": 0.16, "end": 0.2}], frames)
+        self.assertEqual([], self.qc.mask_overlaps([(0, [True] * 5 + [False] * 5), (5, [True] * 5)], 0.02))
+        with tempfile.TemporaryDirectory() as temporary:
+            def edl(second_at: float) -> str:
+                return self.write(temporary, "edl.json", {"audio": [
+                    {"src": "a.wav", "at": 0, "dur": 2.0, "vo": True},
+                    {"src": "b.wav", "at": second_at, "dur": 1.0, "vo": True},
+                    {"src": "bed.wav", "at": 0, "dur": 9.0, "duck": True}]})
+            code, payload = self.run_qc("vooverlap", edl(2.1), "--edl-only")
+            self.assertEqual((1, "fail"), (code, payload["status"]))
+            self.assertEqual("a.wav", payload["edl_overlaps"][0]["a"])
+            self.assertEqual(0, self.run_qc("vooverlap", edl(2.3), "--edl-only")[0])
+
+    def test_vowords_finds_dropped_and_repeated_words(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            script = self.write(temporary, "script.json", {"lines": [
+                {"id": "e1", "text": "Cards for web, image, motion and video work."},
+                {"id": "e2", "text": "Open the project folder."}]})
+            heard = self.write(temporary, "heard.json", {
+                "e1": "cards for web image and video work", "e2": {"transcript": "open the project folder folder"}})
+            code, payload = self.run_qc("vowords", script, heard)
+            self.assertEqual(1, code)
+            lines = {line["id"]: line for line in payload["lines"]}
+            self.assertEqual(["motion"], lines["e1"]["dropped"])
+            self.assertEqual(["folder"], lines["e2"]["repeated"])
+            clean = self.write(temporary, "clean.json", {
+                "e1": "cards for web image motion and video work", "e2": "open the project folder"})
+            self.assertEqual(0, self.run_qc("vowords", script, clean)[0])
+
+    def test_ttslint_flags_cli_syntax_and_repeated_phonemes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            cli = self.write(temporary, "cli.txt", "Add --with-design-skills to the command.\n")
+            code, payload = self.run_qc("ttslint", cli)
+            self.assertEqual(1, code)
+            self.assertTrue(any("cli" in hit for hit in payload["hits"]))
+            script = self.write(temporary, "script.json", {"lines": [{"id": "h2", "text": "A brand new user."}]})
+            phonemes = self.write(temporary, "ipa.json", {"h2": "ɐ bɹˈænd nuː jˈuːzɚ"})
+            code, payload = self.run_qc("ttslint", script, "--phonemes", phonemes)
+            self.assertEqual(1, code)
+            self.assertTrue(any("new user" in hit for hit in payload["hits"]))
+            self.assertEqual(0, self.run_qc("ttslint", script, "--phonemes", phonemes, "--allow", "new user")[0])
+            spoken = self.write(temporary, "spoken.json", {"lines": [
+                {"id": "l2", "text": "Files live under .tool/addons.", "say": "Files live under dot tool, add-ons."}]})
+            self.assertEqual(0, self.run_qc("ttslint", spoken)[0])
+
+    def test_tts_gates_on_folded_wer_and_reports_raw(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            script = self.write(temporary, "s.txt", "Codex installs the core")
+            heard = self.write(temporary, "h.txt", "codecs installs the core")
+            self.assertEqual(1, self.run_qc("tts", script, heard)[0])
+            code, payload = self.run_qc("tts", script, heard, "--fold", "codecs=codex")
+            self.assertEqual((0, 0.0, 0.25), (code, payload["wer"], payload["raw_wer"]))
+
+    def test_static_spans_ignore_change_and_honour_allow(self):
+        still = [bytes(576)] * 50
+        spans, longest = self.qc.static_spans(still, fps=10, step=0.5, thresh=3, max_s=3, allow=[])
+        self.assertEqual(1, len(spans))
+        self.assertGreater(longest, 3)
+        moving = [bytes([(i // 10) * 20]) * 576 for i in range(50)]
+        self.assertEqual([], self.qc.static_spans(moving, fps=10, step=0.5, thresh=3, max_s=3, allow=[])[0])
+        self.assertEqual([], self.qc.static_spans(still, fps=10, step=0.5, thresh=3, max_s=3, allow=[(0, 5)])[0])
+
+    def test_levels_names_offending_frames(self):
+        log = ("frame:0 pts:0 pts_time:0\nlavfi.signalstats.YMIN=20\nlavfi.signalstats.YMAX=200\n"
+               "frame:1 pts:1 pts_time:268.97\nlavfi.signalstats.YMIN=12\nlavfi.signalstats.YMAX=226\n")
+        self.assertEqual([{"t": 268.97, "ymin": 12.0, "ymax": 226.0}], self.qc.level_violations(log))
+
+    def test_idle_gate_uses_load_per_cpu(self):
+        with mock.patch.object(self.qc.os, "getloadavg", return_value=(7.5, 0, 0)), \
+                mock.patch.object(self.qc.os, "cpu_count", return_value=8):
+            self.assertEqual(1, self.qc.main(["idle"]))
+        with mock.patch.object(self.qc.os, "getloadavg", return_value=(1.0, 0, 0)), \
+                mock.patch.object(self.qc.os, "cpu_count", return_value=8):
+            self.assertEqual(0, self.qc.main(["idle"]))
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg not installed")
+    def test_static_gate_on_a_generated_still(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            clip = Path(temporary) / "still.mp4"
+            subprocess.run([  # nosec B603 - resolved ffmpeg path, fixed argv.
+                shutil.which("ffmpeg"), "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+                "color=c=gray:s=640x360:r=10:d=5", "-pix_fmt", "yuv420p", str(clip),
+            ], check=True)
+            self.assertEqual(1, self.run_qc("static", str(clip))[0])
+            self.assertEqual(0, self.run_qc("static", str(clip), "--allow", "0-6")[0])
+
+    def test_cards_carry_the_session_rules(self):
+        def card(name: str) -> str:
+            return (DESIGN / "references" / f"{name}.md").read_text(encoding="utf-8")
+        router = (DESIGN / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("references/pipelines/runbook.md", router)
+        runbook = (DESIGN / "references/pipelines/runbook.md").read_text(encoding="utf-8")
+        for stage in ("Detached build", "Fast gates", "Idle full QC", "Review", "Deliver", "--only", "STATUS.md"):
+            self.assertIn(stage, runbook)
+        self.assertIn("vooverlap", card("edit-assembly"))
+        self.assertIn("static", card("cutting-pacing"))
+        for rule in ("ttslint", "vowords", "0.85", "--fold"):
+            self.assertIn(rule, card("voice-over-tts"))
+        self.assertIn("40 px", card("typography-layout"))
+        self.assertIn("CRF", card("color-grading"))
+        self.assertIn("review", card("delivery-qc").lower())
+
+
 if __name__ == "__main__":
     unittest.main()

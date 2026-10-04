@@ -18,8 +18,8 @@ music into a master, plus a vertical reframe from the same decisions.
             "speed": 1.0, "transition": {"type": "fade", "frames": 10}},
            {"id": "s02", "src": "gfx/title.mov", "in": 0, "out": 4.0,
             "overlay": {"x": 96, "y": 860}}],
- "audio": [{"src": "vo/s01.wav", "at": 0.5}, {"src": "music/bed.wav", "at": 0,
-            "duck": true}],
+ "audio": [{"src": "vo/s01.wav", "at": 0.5, "vo": true},
+           {"src": "music/bed.wav", "at": 0, "duck": true}],
  "chapters": [{"t": 0, "title": "Install"}],
  "intentionalHolds": ["12.0-13.5"]}
 ```
@@ -32,6 +32,9 @@ music into a master, plus a vertical reframe from the same decisions.
   `setsar=1`), BT.709 color (D14), 48 kHz audio.
 - Cuts land on frame boundaries; transitions use `xfade` with an explicit
   frame count.
+- Narration never overlaps: each VO line starts at or after the previous
+  line's end plus 0.25 s. Lines anchored to footage events slide later and
+  the scene or hold extends to fit; assembly refuses an overlapping EDL.
 - Speed ramps for long waits use `setpts` with an on-screen label (for
   example "sped up 8x").
 - Vertical 9:16 comes from the same EDL with per-clip crop or reframe hints,
@@ -48,6 +51,8 @@ music into a master, plus a vertical reframe from the same decisions.
 ## Verify
 
 - Output duration equals the EDL total within one frame (ffprobe).
+- `design_qc.py vooverlap edl.json` passes (edit-list gap and per-line
+  speech masks), right after the render.
 - `design_qc.py blackfreeze master.mp4 --allow 12.0-13.5` passes outside
   intentional holds.
 - Audio and video start offsets differ by at most one frame.

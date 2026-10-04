@@ -9,12 +9,17 @@ A skipped check is never a pass. Stdlib only; media checks call ffmpeg/ffprobe.
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import json
+import math
+import os
 import re
 import shutil
 import subprocess  # nosec B404 - list-form argv for resolved media tools, never a shell.
 import sys
+import time
+from array import array
 from pathlib import Path
 
 PASS, FAIL, USAGE, SKIPPED = 0, 1, 2, 4
@@ -53,6 +58,15 @@ def video_stream(probe: dict) -> dict:
         if stream.get("codec_type") == "video":
             return stream
     raise ValueError("no video stream")
+
+
+def decode_raw(path: str, output_args: list[str]) -> bytes:
+    """Decode a media file to raw bytes on stdout (pcm or rawvideo)."""
+    command = [need("ffmpeg"), "-v", "error", "-nostdin", "-i", path, *output_args, "-"]
+    result = subprocess.run(command, capture_output=True, check=False)  # nosec B603 - list argv, no shell.
+    if result.returncode != 0:
+        raise ValueError(f"ffmpeg decode failed: {result.stderr.decode(errors='replace').strip()[-400:]}")
+    return result.stdout
 
 
 def ffmpeg_filter_log(path: str, filters: str, audio: bool = False) -> str:
@@ -181,17 +195,135 @@ def word_error_rate(reference: list[str], hypothesis: list[str]) -> float:
     return previous[-1] / len(reference)
 
 
+def parse_folds(items: list[str]) -> list[tuple[str, str]]:
+    """`heard=meant` pairs: known ASR mishearings of the same spoken word."""
+    pairs = []
+    for item in items:
+        heard, sep, meant = item.partition("=")
+        if not sep or not heard.strip():
+            raise ValueError(f"fold must be heard=meant: {item}")
+        pairs.append((heard.strip().lower(), meant.strip().lower()))
+    return pairs
+
+
+def fold(text: str, folds: list[tuple[str, str]]) -> str:
+    folded = text.lower()
+    for heard, meant in folds:
+        folded = re.sub(r"\b" + re.escape(heard) + r"\b", meant, folded)
+    return folded
+
+
 def cmd_tts(args: argparse.Namespace) -> int:
-    reference = words(Path(args.script).read_text(encoding="utf-8"))
-    hypothesis = words(Path(args.transcript).read_text(encoding="utf-8"))
-    wer = word_error_rate(reference, hypothesis)
+    """Gate on WER after folding known mishearings; raw WER is advisory."""
+    script = Path(args.script).read_text(encoding="utf-8")
+    transcript = Path(args.transcript).read_text(encoding="utf-8")
+    folds = parse_folds(args.fold)
+    reference = words(script)
+    raw = word_error_rate(reference, words(transcript))
+    wer = word_error_rate(words(fold(script, folds)), words(fold(transcript, folds)))
     problems = [] if wer <= args.max_wer else [f"WER {wer:.2%} above {args.max_wer:.0%}"]
     wpm = None
     if args.duration:
         wpm = round(len(reference) / (args.duration / 60), 1)
         if not args.min_wpm <= wpm <= args.max_wpm:
             problems.append(f"pace {wpm} wpm outside {args.min_wpm}-{args.max_wpm}")
-    return report("tts", FAIL if problems else PASS, wer=round(wer, 4), wpm=wpm, problems=problems)
+    return report("tts", FAIL if problems else PASS, wer=round(wer, 4), raw_wer=round(raw, 4), wpm=wpm,
+                  folds=len(folds), problems=problems)
+
+
+# ---------------------------------------------------------------- narration text
+STOP = frozenset("a an the and or to of in it is for with on so its that this".split())
+
+
+def load_lines(path: str, spoken: bool = False) -> dict[str, str]:
+    """Script lines as id -> text from {"lines": [...]}, a mapping, or plain text (one line per id).
+
+    With `spoken`, a line's optional `say` (its spoken form) replaces `text`.
+    """
+    raw = Path(path).read_text(encoding="utf-8")
+    if not path.endswith(".json"):
+        return {f"L{n}": line for n, line in enumerate(raw.splitlines(), 1) if line.strip()}
+    data = json.loads(raw)
+    if isinstance(data, dict) and isinstance(data.get("lines"), list):
+        key = "say" if spoken else "text"
+        return {str(item["id"]): str(item.get(key, item["text"])) for item in data["lines"]}
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: expected an object")
+
+    def text(value: object) -> str:
+        if isinstance(value, dict):
+            return str(value.get("transcript", value.get("text", "")))
+        return str(value)
+    return {str(key): text(value) for key, value in data.items()}
+
+
+def compare_line(reference: list[str], hypothesis: list[str]) -> tuple[list[str], list[str]]:
+    """Dropped content words, and repeats the script does not contain."""
+    joined = "".join(hypothesis)
+
+    def heard(word: str) -> bool:
+        return word in hypothesis or word in joined or bool(difflib.get_close_matches(word, hypothesis, n=1, cutoff=0.8))
+    dropped = [w for w in reference if w not in STOP and len(w) > 1 and not heard(w)]
+    scripted = {a for a, b in zip(reference, reference[1:]) if a == b}
+    repeated = [b for a, b in zip(hypothesis, hypothesis[1:]) if a == b and a not in STOP and a not in scripted]
+    return dropped, repeated
+
+
+def cmd_vowords(args: argparse.Namespace) -> int:
+    """Per-line transcript versus the one source string of that line."""
+    script, heard, folds = load_lines(args.script), load_lines(args.transcripts), parse_folds(args.fold)
+    lines, failed = [], False
+    for line_id, text in script.items():
+        if line_id not in heard:
+            lines.append({"id": line_id, "dropped": [], "repeated": [], "problem": "no transcript"})
+            failed = True
+            continue
+        dropped, repeated = compare_line(words(fold(text, folds)), words(fold(heard[line_id], folds)))
+        failed |= bool(dropped or repeated)
+        lines.append({"id": line_id, "dropped": dropped, "repeated": repeated})
+    return report("vowords", FAIL if failed else PASS, lines=lines)
+
+
+CLI_SYNTAX = {
+    "flag": r"(?<![\w-])--?[A-Za-z][\w-]*",
+    "backtick": r"`",
+    "variable": r"\$\{?\w",
+    "path": r"\w/\w|~/",
+    "pipe": r"\s\|\s",
+}
+VOWELS = "aeiouyɑɐɒæɔəɘɚɛɜɝɞɨɪʊʉʌʏøœɤɯᵻː"
+
+
+def phoneme_repeats(text: str, ipa: str) -> list[str]:
+    """Word joins where an open final syllable meets the same vowel (after an optional glide)."""
+    spoken = [re.sub(r"[ˈˌ.,!?;:]", "", word) for word in ipa.split()]
+    written = words(text)
+    names = written if len(written) == len(spoken) else spoken
+    pairs = []
+    for index, (left, right) in enumerate(zip(spoken, spoken[1:])):
+        end = re.search(f"[{VOWELS}]+$", left)
+        start = re.match(f"[jwh]?([{VOWELS}]+)", right)
+        if end and start and end.group(0) == start.group(1):
+            pairs.append(f"{names[index]} {names[index + 1]}")
+    return pairs
+
+
+def lint_line(line_id: str, text: str, ipa: str | None, allow: set[str]) -> list[str]:
+    hits = [f"{line_id}: cli {kind} in spoken text" for kind, pattern in CLI_SYNTAX.items() if re.search(pattern, text)]
+    tokens = words(text)
+    hits += [f"{line_id}: repeated word '{a}'" for a, b in zip(tokens, tokens[1:]) if a == b and f"{a} {b}" not in allow]
+    if ipa:
+        hits += [f"{line_id}: phoneme repeat '{pair}'" for pair in phoneme_repeats(text, ipa) if pair not in allow]
+    return hits
+
+
+def cmd_ttslint(args: argparse.Namespace) -> int:
+    """Narration written for the ear: no literal CLI syntax, no merged repeats."""
+    lines = load_lines(args.script, spoken=True)
+    phonemes = load_lines(args.phonemes) if args.phonemes else {}
+    allow = {item.lower() for item in args.allow}
+    hits = [hit for line_id, text in lines.items() for hit in lint_line(line_id, text, phonemes.get(line_id), allow)]
+    return report("ttslint", FAIL if hits else PASS, lines=len(lines), hits=hits)
 
 
 def cmd_holds(args: argparse.Namespace) -> int:
@@ -319,6 +451,23 @@ def cmd_colortags(args: argparse.Namespace) -> int:
     return report("colortags", FAIL if problems else PASS, problems=problems)
 
 
+def level_violations(log: str, limit: int = 5) -> list[dict]:
+    """First frames outside BT.709 legal luma 16-235, with their timestamps."""
+    found = []
+    for chunk in log.split("frame:")[1:]:
+        stamp = re.search(r"pts_time:([\d.]+)", chunk)
+        low = re.search(r"YMIN=([\d.]+)", chunk)
+        high = re.search(r"YMAX=([\d.]+)", chunk)
+        if not (stamp and low and high):
+            continue
+        ymin, ymax = float(low.group(1)), float(high.group(1))
+        if ymin < 16 or ymax > 235:
+            found.append({"t": float(stamp.group(1)), "ymin": ymin, "ymax": ymax})
+            if len(found) >= limit:
+                break
+    return found
+
+
 def cmd_levels(args: argparse.Namespace) -> int:
     log = ffmpeg_filter_log(args.file, "signalstats,metadata=mode=print")
     lows = [float(x) for x in re.findall(r"YMIN=([\d.]+)", log)]
@@ -331,7 +480,8 @@ def cmd_levels(args: argparse.Namespace) -> int:
         problems.append(f"YMIN {ymin} below 16")
     if ymax > 235:
         problems.append(f"YMAX {ymax} above 235")
-    return report("levels", FAIL if problems else PASS, ymin=ymin, ymax=ymax, problems=problems)
+    return report("levels", FAIL if problems else PASS, ymin=ymin, ymax=ymax, problems=problems,
+                  violations=level_violations(log) if problems else [])
 
 
 def ratio(text: str) -> float:
@@ -382,6 +532,121 @@ def cmd_blackfreeze(args: argparse.Namespace) -> int:
     problems = [f"black at {s}s" for s, _ in blacks if free(float(s))]
     problems += [f"freeze at {s}s" for s in freezes if free(float(s))]
     return report("blackfreeze", FAIL if problems else PASS, problems=problems)
+
+
+def runs(flags: list[bool]) -> list[tuple[int, int]]:
+    """Half-open index ranges where flags are true."""
+    found, start = [], None
+    for index, flag in enumerate([*flags, False]):
+        if flag and start is None:
+            start = index
+        elif not flag and start is not None:
+            found.append((start, index))
+            start = None
+    return found
+
+
+def static_spans(frames: list[bytes], fps: float, step: float, thresh: float, max_s: float,
+                 allow: list[tuple[float, float]]) -> tuple[list[dict], float]:
+    """Stretches where no grid cell changes by `thresh` levels against `step` seconds earlier."""
+    lag = max(1, round(step * fps))
+    still = [i >= lag and max(abs(a - b) for a, b in zip(frames[i], frames[i - lag])) < thresh
+             for i in range(len(frames))]
+    spans, longest = [], 0.0
+    for first, end in runs(still):
+        start, stop = max((first - lag) / fps, 0.0), end / fps
+        longest = max(longest, stop - start)
+        if stop - start > max_s and not any(lo <= start and stop <= hi for lo, hi in allow):
+            spans.append({"start": round(start, 2), "end": round(stop, 2), "dur": round(stop - start, 2)})
+    return spans, round(longest, 2)
+
+
+def cmd_static(args: argparse.Namespace) -> int:
+    """Visually static stretches: a 32x18 cell grid ignores slow pushes, catches no-content-change holds."""
+    grid = "scale='if(gt(iw,ih),32,18)':'if(gt(iw,ih),18,32)':flags=area,format=gray"
+    raw = decode_raw(args.file, ["-an", "-vf", f"fps={args.fps},{grid}", "-f", "rawvideo"])
+    frames = [raw[i:i + 576] for i in range(0, len(raw) - 575, 576)]
+    if not frames:
+        raise ValueError("no decoded frames")
+    allow = [tuple(float(x) for x in span.split("-")) for span in args.allow]
+    spans, longest = static_spans(frames, args.fps, args.step, args.thresh, args.max, allow)  # type: ignore[arg-type]
+    return report("static", FAIL if spans else PASS, spans=spans, longest_static_s=longest, max_s=args.max)
+
+
+HOP_S, SPEECH_DBFS = 0.02, -45.0
+
+
+def mask_overlaps(placed: list[tuple[int, list[bool]]], hop: float) -> list[dict]:
+    """Time ranges where two or more placed speech masks are active."""
+    counts: dict[int, int] = {}
+    for start, mask in placed:
+        for offset, active in enumerate(mask):
+            if active:
+                counts[start + offset] = counts.get(start + offset, 0) + 1
+    if not counts:
+        return []
+    flags = [counts.get(i, 0) >= 2 for i in range(max(counts) + 1)]
+    return [{"start": round(a * hop, 2), "end": round(b * hop, 2)} for a, b in runs(flags)]
+
+
+def speech_mask(path: str) -> list[bool]:
+    """20 ms frames whose RMS is above -45 dBFS."""
+    samples = array("h")
+    samples.frombytes(decode_raw(path, ["-ac", "1", "-ar", "16000", "-f", "s16le"]))
+    hop = int(16000 * HOP_S)
+    mask = []
+    for i in range(0, len(samples) - hop + 1, hop):
+        power = sum(x * x for x in samples[i:i + hop]) / hop
+        mask.append(10 * math.log10(power / 32768 ** 2 + 1e-12) > SPEECH_DBFS)
+    return mask
+
+
+def vo_entries(edl: dict) -> list[dict]:
+    audio = edl.get("audio", [])
+    flagged = [item for item in audio if item.get("vo")]
+    return sorted(flagged or [item for item in audio if not item.get("duck")], key=lambda item: float(item["at"]))
+
+
+def entry_duration(item: dict, base: Path, edl_only: bool) -> float:
+    if "dur" in item:
+        return float(item["dur"])
+    if edl_only:
+        raise ValueError(f"{item.get('src')}: --edl-only needs dur on every VO entry")
+    return float(ffprobe(str(base / item["src"]))["format"]["duration"])
+
+
+def cmd_vooverlap(args: argparse.Namespace) -> int:
+    """Narration lines never overlap: edit-list gap plus per-line speech masks."""
+    path = Path(args.edl)
+    lines = vo_entries(json.loads(path.read_text(encoding="utf-8")))
+    durations = [entry_duration(item, path.parent, args.edl_only) for item in lines]
+    edl_overlaps = []
+    for (a, dur), b in zip(zip(lines, durations), lines[1:]):
+        end, start = float(a["at"]) + dur, float(b["at"])
+        if start < end + args.gap - 1e-6:
+            edl_overlaps.append({"a": a["src"], "a_end": round(end, 3), "b": b["src"], "b_start": round(start, 3),
+                                 "overlap_s": round(end - start, 3)})
+    audio_overlaps = []
+    if not args.edl_only:
+        placed = [(round(float(item["at"]) / HOP_S), speech_mask(str(path.parent / item["src"]))) for item in lines]
+        audio_overlaps = mask_overlaps(placed, HOP_S)
+    failed = bool(edl_overlaps or audio_overlaps)
+    return report("vooverlap", FAIL if failed else PASS, lines=len(lines), gap=args.gap, edl_overlaps=edl_overlaps,
+                  audio_overlaps=audio_overlaps, audio_checked=not args.edl_only)
+
+
+def cmd_idle(args: argparse.Namespace) -> int:
+    """Run ASR and full QC only on a quiet machine: 1-minute load per CPU at or below the limit."""
+    if not hasattr(os, "getloadavg"):
+        raise Skip("load average is unavailable on this platform")
+    deadline = time.monotonic() + args.wait
+    while True:
+        load = round(os.getloadavg()[0] / (os.cpu_count() or 1), 2)
+        if load <= args.max_load:
+            return report("idle", PASS, load_per_cpu=load, max_load=args.max_load)
+        if time.monotonic() >= deadline:
+            return report("idle", FAIL, load_per_cpu=load, max_load=args.max_load)
+        time.sleep(min(5.0, max(deadline - time.monotonic(), 0.0)))
 
 
 def cmd_silence(args: argparse.Namespace) -> int:
@@ -512,6 +777,29 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--max-wer", type=float, default=0.05)
     p.add_argument("--min-wpm", type=float, default=140)
     p.add_argument("--max-wpm", type=float, default=160)
+    p.add_argument("--fold", action="append", default=[], help="heard=meant (known ASR mishearing)")
+    p = add("vowords", cmd_vowords, "per-line transcript vs script words")
+    p.add_argument("script")
+    p.add_argument("transcripts")
+    p.add_argument("--fold", action="append", default=[], help="heard=meant")
+    p = add("ttslint", cmd_ttslint, "spoken-form CLI syntax and repeated phonemes")
+    p.add_argument("script")
+    p.add_argument("--phonemes", help="JSON of line id to IPA")
+    p.add_argument("--allow", action="append", default=[], help="'word1 word2' pair to accept")
+    p = add("vooverlap", cmd_vooverlap, "narration lines never overlap")
+    p.add_argument("edl")
+    p.add_argument("--gap", type=float, default=0.25)
+    p.add_argument("--edl-only", action="store_true", help="edit-list method only (needs dur)")
+    p = add("static", cmd_static, "visually static stretches")
+    p.add_argument("file")
+    p.add_argument("--max", type=float, default=3.0)
+    p.add_argument("--fps", type=float, default=10.0)
+    p.add_argument("--step", type=float, default=0.5)
+    p.add_argument("--thresh", type=float, default=3.0)
+    p.add_argument("--allow", action="append", default=[], help="start-end seconds")
+    p = add("idle", cmd_idle, "machine is quiet enough for ASR or full QC")
+    p.add_argument("--max-load", type=float, default=0.5)
+    p.add_argument("--wait", type=float, default=0.0)
     p = add("holds", cmd_holds, "on-screen text hold time")
     p.add_argument("storyboard")
     p = add("brief", cmd_brief, "storyboard completeness and evidence")

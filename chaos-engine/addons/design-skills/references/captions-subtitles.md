@@ -23,6 +23,9 @@ requirement, not an option.
 
 ## Rules
 
+- One source string per line: captions, on-screen text, and TTS input are
+  generated from the same script line (D17 applies spoken forms only at
+  synthesis), so they cannot drift.
 - Generate from the script plus word timings from whisper.cpp alignment, so
   spelling follows the script and timing follows the audio.
 - Break lines at linguistic boundaries: after punctuation, before

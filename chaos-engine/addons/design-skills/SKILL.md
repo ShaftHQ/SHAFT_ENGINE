@@ -23,7 +23,8 @@ only when a user passed `--with-design-skills`. Without it, use core
    facts. Mockups are labelled. No generated text inside images.
 5. Licences first: record every font, track, voice, model, and footage
    source in the asset manifest before using it.
-6. A design document (brief, storyboard, visual direction) runs the core
+6. Deliver after QC and an independent review pass; earlier files are DRAFT.
+7. A design document (brief, storyboard, visual direction) runs the core
    [design loop](../../references/design-loop.md) when the owner asks for review.
 
 ## Cards
@@ -52,6 +53,8 @@ only when a user passed `--with-design-skills`. Without it, use core
 | Ship | [D20 delivery QC](references/delivery-qc.md) | final encode, manifest, gate |
 
 End-to-end order for a product or tutorial video:
-[technical-video pipeline](references/pipelines/technical-video.md).
+[technical-video pipeline](references/pipelines/technical-video.md); run it
+with the [runbook](references/pipelines/runbook.md) (detached build, fast
+gates, idle QC, review, then deliver).
 Project packs may add brand facts; this add-on stays project-neutral.
 Upstream pins and licences: [INVENTORY.md](INVENTORY.md).
