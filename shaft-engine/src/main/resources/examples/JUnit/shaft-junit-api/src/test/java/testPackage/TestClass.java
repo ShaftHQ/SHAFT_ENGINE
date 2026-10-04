@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 public class TestClass {
     static SHAFT.TestData.JSON testData;
     SHAFT.API driver;
-    String serviceURI = "https://api.restcountries.com/countries/v5/";
+    String serviceURI = "https://geocoding-api.open-meteo.com/v1/";
 
     @BeforeAll
     static void beforeAll() {
@@ -18,10 +18,10 @@ public class TestClass {
 
     @Test
     void getCountryInfoUsingCapitalName() {
-        driver.get("capitals/{capital}".replace("{capital}", "Cairo"))
-                .addHeader("Authorization", "Bearer " + RestCountriesCredentials.apiKey())
+        driver.get("search")
+                .setUrlArguments("name=Cairo&count=1")
                 .perform()
-                .assertThatResponse().extractedJsonValue("data.objects[0].names.common").isEqualTo(testData.get("expectedCountryName")).perform();
+                .assertThatResponse().extractedJsonValue("results[0].country").isEqualTo(testData.get("expectedCountryName")).perform();
     }
 
     @BeforeEach

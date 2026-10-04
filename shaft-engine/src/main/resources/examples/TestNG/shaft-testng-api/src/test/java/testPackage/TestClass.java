@@ -9,14 +9,14 @@ import org.testng.annotations.Test;
 public class TestClass {
     SHAFT.API driver;
     SHAFT.TestData.JSON testData;
-    String serviceURI = "https://api.restcountries.com/countries/v5/";
+    String serviceURI = "https://geocoding-api.open-meteo.com/v1/";
 
     @Test
     public void getCountryInfoUsingCapitalName() {
-        driver.get("capitals/{capital}".replace("{capital}", "Cairo"))
-                .addHeader("Authorization", "Bearer " + RestCountriesCredentials.apiKey())
+        driver.get("search")
+                .setUrlArguments("name=Cairo&count=1")
                 .perform()
-                .assertThatResponse().extractedJsonValue("data.objects[0].names.common").isEqualTo(testData.get("expectedCountryName")).perform();
+                .assertThatResponse().extractedJsonValue("results[0].country").isEqualTo(testData.get("expectedCountryName")).perform();
     }
 
     @BeforeClass

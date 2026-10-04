@@ -48,6 +48,3 @@ generate_allure_report.bat
 !.idea/runConfigurations/
 !.idea/runConfigurations/*.xml
 
-
-### Secrets ###
-src/main/resources/properties/secrets.properties
