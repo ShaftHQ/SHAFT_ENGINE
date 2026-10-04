@@ -36,7 +36,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
       - name: Run Plugin Verifier with latest EAP
         working-directory: shaft-intellij
-        run: ./gradlew --no-daemon verifyPlugin -PverifyEap=true
+        run: bash ./gradlew --no-daemon verifyPlugin -PverifyEap=true
       - name: Report nightly failure
         if: failure()
         env:

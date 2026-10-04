@@ -1314,5 +1314,70 @@ class BasePythonDownloadLag6325Test(TestCase):
         self.assertEqual("fail", evidence["phases"][0]["status"])
 
 
+class NetworkRetryTest(TestCase):
+    """#6538: the exact-base fetch retries runner DNS flakes, never real failures."""
+
+    def setUp(self):
+        self.acceptance = load_acceptance()
+        self.assertIsNotNone(self.acceptance)
+
+    def failure(self, detail):
+        return self.acceptance.AcceptanceCommandFailure(["git", "fetch"], 128, detail)
+
+    def test_transient_dns_failure_is_retried_then_succeeds(self):
+        ok = CompletedProcess(["git", "fetch"], 0, "", "")
+        dns = self.failure("fatal: unable to access 'https://github.com/x.git/': Could not resolve host: github.com")
+        sleeps = []
+        with mock.patch.object(self.acceptance, "run_checked", side_effect=[dns, ok]) as run:
+            result = self.acceptance.run_network_checked(["git", "fetch"], cwd=Path("."), sleep=sleeps.append)
+        self.assertIs(ok, result)
+        self.assertEqual(2, run.call_count)
+        self.assertEqual([5], sleeps)
+
+    def test_real_failure_is_not_retried(self):
+        missing = self.failure("fatal: remote error: upload-pack: not our ref")
+        with mock.patch.object(self.acceptance, "run_checked", side_effect=[missing]) as run:
+            with self.assertRaises(self.acceptance.AcceptanceCommandFailure):
+                self.acceptance.run_network_checked(["git", "fetch"], cwd=Path("."), sleep=lambda _: None)
+        self.assertEqual(1, run.call_count)
+
+    def test_retries_are_bounded(self):
+        dns = self.failure("Could not resolve host: github.com")
+        with mock.patch.object(self.acceptance, "run_checked", side_effect=[dns, dns, dns]) as run:
+            with self.assertRaises(self.acceptance.AcceptanceCommandFailure):
+                self.acceptance.run_network_checked(["git", "fetch"], cwd=Path("."), sleep=lambda _: None)
+        self.assertEqual(self.acceptance.NETWORK_ATTEMPTS, run.call_count)
+
+
+class StepTimingTest(TestCase):
+    """#6538: phases record where their time goes, without URLs or secrets."""
+
+    def setUp(self):
+        self.acceptance = load_acceptance()
+        self.assertIsNotNone(self.acceptance)
+
+    def test_installer_stage_seconds_parse_pass_lines(self):
+        stderr = "[+00:05] PASS Provision dependencies (04:02)\n[+04:10] PASS Verify installation (00:07)\n"
+        self.assertEqual(
+            {"Provision dependencies": 242, "Verify installation": 7},
+            self.acceptance.installer_stage_seconds(stderr),
+        )
+
+    def test_step_label_drops_urls_and_flags(self):
+        label = self.acceptance.step_label(["/bin/bash", "-c", "https://raw.example/x", "/p/install.py"])
+        self.assertEqual("bash install.py", label)
+        self.assertNotIn("://", label)
+
+    def test_record_phase_attaches_steps(self):
+        evidence = {"phases": []}
+
+        def operation():
+            self.acceptance.STEP_TIMINGS.append({"step": "python3 install.py", "seconds": 2.0})
+            return {"status": "healthy"}
+
+        self.acceptance.record_phase(evidence, "demo", operation)
+        self.assertEqual([{"step": "python3 install.py", "seconds": 2.0}], evidence["phases"][0]["steps"])
+
+
 if __name__ == "__main__":
     main()

@@ -282,6 +282,24 @@ def validate_memory_storage(project: Path) -> None:
         raise ValueError("invalid Memory storage") from error
 
 
+# Mirrors dependencies.MEMPALACE_OWNED_EXCLUDES (#6540); a test keeps them equal.
+MEMPALACE_OWNED_EXCLUDES = (
+    "mempalace.yaml",
+    ".memory/**",
+    "graphify-out/**",
+    ".chaos-engine/**",
+    ".chaos-engine-runtime/**",
+    ".chaos-engine-state/**",
+    "plugins/chaos-engine/**",
+    "plugins/caveman/**",
+    "plugins/ponytail/**",
+    "plugins/icm-architect/**",
+    "**/skills/chaos-engine/**",
+    ".claude/agents/chaos-engine-*",
+    ".codex/agents/chaos-engine-*",
+)
+
+
 def validate_mempalace_config(content: bytes) -> None:
     try:
         text = content.decode("utf-8")
@@ -5514,8 +5532,8 @@ def desired_content(
             f"wing: {default_mempalace_wing(project_name)}\n"
             "rooms:\n  - name: general\n    description: Project source and documentation\n"
             "    keywords: [project, source, documentation]\n"
-            "exclude_patterns:\n  - mempalace.yaml\n  - .memory/**\n"
-            "  - graphify-out/**\n  - .chaos-engine-runtime/**\n  - .chaos-engine-state/**\n"
+            "exclude_patterns:\n"
+            + "".join(f"  - '{pattern}'\n" for pattern in MEMPALACE_OWNED_EXCLUDES)
         ).encode()
     else:
         validate_mempalace_config(mempalace_before)

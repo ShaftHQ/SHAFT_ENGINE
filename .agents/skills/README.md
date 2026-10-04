@@ -193,6 +193,7 @@ sends you there; the rest by
 - [eliminate waste](../../chaos-engine/references/eliminate-waste.md)
 - [eval parity fixtures](../../chaos-engine/references/eval-parity-fixtures.md)
 - [evolving playbook](../../chaos-engine/references/evolving-playbook.md)
+- [insight extract](../../chaos-engine/references/insight-extract.md)
 - [harness eval suite](../../chaos-engine/references/harness-eval-suite.md)
 - [heal route](../../chaos-engine/references/heal-route.md)
 - [host parity matrix](../../chaos-engine/references/host-parity-matrix.md)

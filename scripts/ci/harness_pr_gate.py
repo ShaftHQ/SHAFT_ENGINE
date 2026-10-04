@@ -171,6 +171,8 @@ CHECKS = {
             "tests.scripts.test_unittest_shard",
             # #6239: the suite must never mutate the invoking checkout.
             "tests.scripts.test_repo_state_guard",
+            # #6543: build wrappers stay executable; workflows call them via bash.
+            "tests.scripts.test_wrapper_scripts_executable_6543",
         ),
     ),
     "setup-aggregator-contract": Check(
@@ -370,6 +372,7 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_doctor_dedupe_6363",
             # Fresh-clone MemPalace mine runs in the background with doctor status.
             "tests.scripts.test_mempalace_background_index",
+            "tests.scripts.test_chaos_engine_mempalace_owned_excludes_6540",
             # #6377: retrieve companions, empty-palace detection, maintain.
             "tests.scripts.test_chaos_engine_retrieve_companions_6377",
         ),
@@ -460,6 +463,11 @@ CHECKS = {
         "evolving-playbook",
         ("tests.scripts.test_chaos_engine_evolving_playbook_6532",),
     ),
+    "insight-extract-contract": Check(
+        "insight-extract-contract",
+        "insight-extract",
+        ("tests.scripts.test_chaos_engine_insight_extract_6544",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -512,6 +520,7 @@ SURFACE_CHECKS = {
     "durable-jobs": ("durable-jobs-contract",),
     "memory-provenance": ("memory-provenance-contract",),
     "evolving-playbook": ("evolving-playbook-contract",),
+    "insight-extract": ("insight-extract-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -557,6 +566,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py",
         "tests/scripts/test_chaos_engine_doctor_dedupe_6363.py",
         "tests/scripts/test_mempalace_background_index.py",
+        "tests/scripts/test_chaos_engine_mempalace_owned_excludes_6540.py",
         "tests/scripts/test_chaos_engine_retrieve_companions_6377.py",
     ),
     "hosts": (
@@ -643,6 +653,10 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_validate_agent_ownership.py",
         "tests/scripts/test_validate_agent_setup.py",
         "tests/scripts/test_validate_workflow_timeouts.py",
+        "tests/scripts/test_wrapper_scripts_executable_6543.py",
+        ".github/workflows/intellij-eap-verify.yml",
+        "shaft-intellij/gradlew",
+        "shaft-mcp/mvnw",
         "scripts/agents/session_worktree.py",
         "tests/scripts/conftest.py",
         "tests/scripts/repo_state_guard.py",
@@ -923,6 +937,18 @@ SURFACE_PATTERNS = {
         "chaos-engine/references/zero-llm-catalog.md",
         ".agents/skills/README.md",
         "tests/scripts/test_chaos_engine_evolving_playbook_6532.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "insight-extract": (
+        "chaos-engine/insight_extract.py",
+        "chaos-engine/heuristics.py",
+        "chaos-engine/memory_provenance.py",
+        "chaos-engine/references/insight-extract.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "tests/scripts/test_chaos_engine_insight_extract_6544.py",
         "scripts/ci/harness_pr_gate.py",
     ),
 }
