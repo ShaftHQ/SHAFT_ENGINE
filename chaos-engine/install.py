@@ -899,13 +899,18 @@ def is_generated_python_cache(relative: Path) -> bool:
     return "__pycache__" in relative.parts or relative.suffix == ".pyc"
 
 
+def is_generated_runtime_file(relative: Path) -> bool:
+    """Overlay runtime stamps (entry-stamp) are not packaged ownership (#6532)."""
+    return bool(relative.parts) and relative.parts[0] == "runtime"
+
+
 def installed_payload(target: Path) -> dict[str, str]:
     reject_link_or_reparse(target)
     payload: dict[str, str] = {}
     for path in sorted(target.rglob("*")):
         reject_link_or_reparse(path)
         relative = path.relative_to(target)
-        if is_generated_python_cache(relative):
+        if is_generated_python_cache(relative) or is_generated_runtime_file(relative):
             continue
         if path.is_file() and relative.as_posix() != MANIFEST_NAME:
             payload[relative.as_posix()] = file_sha256(path)
