@@ -1447,5 +1447,74 @@ class GitHubAuthAndRateLimitTest(unittest.TestCase):
         self.assertEqual(["Bearer user", None], seen)
 
 
+class InstallSummaryMatchesDoctorTest(unittest.TestCase):
+    """#6493: the summary said 15/15 healthy while doctor reported 18/19."""
+
+    DOCTOR = {
+        "status": "healthy",
+        "commit": COMMIT_ONE,
+        "components": {
+            "core": {"status": "healthy", "taskImpact": "required"},
+            "deja": {"status": "absent", "taskImpact": "optional"},
+            "graphify": {"status": "degraded", "taskImpact": "required-when-indexed"},
+            "memory": {"status": "compatible-legacy", "taskImpact": "advisory"},
+            "mempalace": {"status": "sync-advisory", "taskImpact": "advisory"},
+        },
+    }
+
+    def test_summary_counts_components_the_way_doctor_does(self):
+        module = load()
+        installer_spec = importlib.util.spec_from_file_location(
+            "ce_install_6493", ROOT / "chaos-engine/install.py"
+        )
+        installer = importlib.util.module_from_spec(installer_spec)
+        installer_spec.loader.exec_module(installer)
+
+        healthy, total, attention = module.doctor_component_counts(self.DOCTOR["components"])
+        doctor_text = installer.format_health_report(self.DOCTOR)
+        report = module.format_install_report(
+            project=Path("project"),
+            doctor_status="healthy",
+            healthy=healthy,
+            total=total,
+            attention=attention,
+            commit=COMMIT_ONE,
+            clients={},
+            repository="Example/Project",
+            source_label=None,
+            elapsed="00:01",
+        )
+
+        self.assertIn(f"components: {healthy}/{total} healthy", doctor_text)
+        self.assertEqual((3, 5), (healthy, total))
+        self.assertEqual(("graphify degraded", "mempalace sync-advisory"), attention)
+        self.assertIn(
+            "3/5 components (needs attention: graphify degraded, mempalace sync-advisory)", report
+        )
+        self.assertIn("Doctor: healthy (3/5 components healthy)", report)
+
+    def test_final_summary_runs_doctor_from_the_installed_core(self):
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            target = Path(temporary) / ".chaos-engine"
+            target.mkdir()
+            (target / "install.py").write_text(
+                "CALLS = []\n"
+                "def doctor_with_dependencies(project, **options):\n"
+                "    CALLS.append(options)\n"
+                f"    return {{'status': 'healthy', 'components': {self.DOCTOR['components']!r}, "
+                "'options': options}\n",
+                encoding="utf-8",
+            )
+            fallback = {"status": "healthy", "components": {"core": {"status": "healthy"}}}
+
+            document = module.final_install_doctor(target, Path(temporary), fallback)
+            missing = module.final_install_doctor(Path(temporary) / "absent", Path(temporary), fallback)
+
+        self.assertEqual({"probe_retrieve": True}, document["options"])
+        self.assertEqual(5, len(document["components"]))
+        self.assertIs(fallback, missing)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -187,6 +187,14 @@ def default_branch_commit(cwd: Path) -> str:
         candidates.append(symbolic)
     # #6216: conventional names only as a fallback when origin/HEAD is unset.
     candidates.extend(f"refs/remotes/origin/{name}" for name in DEFAULT_BRANCH_FALLBACKS)
+    try:
+        remotes = _git(cwd, "remote")
+    except RuntimeError:
+        remotes = "unknown"
+    if not remotes:
+        # #6493: a local-only repository has no remote default branch to fetch;
+        # its local main/master is the default branch.
+        candidates.extend(f"refs/heads/{name}" for name in DEFAULT_BRANCH_FALLBACKS)
     seen: set[str] = set()
     for candidate in candidates:
         if candidate in seen:

@@ -36,18 +36,17 @@ parse_chaos_engine_raw_url() {
   repository=${rest%%|*}
   path=${rest#*|}
   valid_repository "$repository" || return 1
+  # A ref may contain '/' (feature/x, refs/heads/feature/x). The installer lives
+  # either in the nested chaos-engine/ folder or at the repository root, so the
+  # ref is everything before that folder (#6495).
   case "$path" in
-    refs/heads/*|refs/tags/*)
-      ref=$(printf '%s\n' "$path" | cut -d/ -f1-3)
-      prefix=$(printf '%s\n' "$path" | cut -d/ -f4-)
+    */chaos-engine)
+      ref=${path%/chaos-engine}
+      prefix=chaos-engine
       ;;
     *)
-      ref=${path%%/*}
-      if [ "$path" = "$ref" ]; then
-        prefix=
-      else
-        prefix=${path#*/}
-      fi
+      ref=$path
+      prefix=
       ;;
   esac
   if [ -n "$prefix" ]; then

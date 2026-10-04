@@ -10,7 +10,9 @@ import subprocess  # nosec B404 - fixed list-form argv in tests, never a shell.
 import sys
 import tempfile
 import unittest
+import unittest.mock as mock
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 CE = ROOT / "chaos-engine"
@@ -128,6 +130,50 @@ class PayloadTests(unittest.TestCase):
                 ("portable", ("design-skills",)),
                 install.plan_install(project, CE, environ={"CHAOS_ENGINE_ADDONS": "design-skills"}),
             )
+
+
+class AddOnOnlyReinstallTests(unittest.TestCase):
+    """#6494: adding an add-on re-provisioned every account tool (~3 min vs 1:13)."""
+
+    COMMIT = "1" * 40
+    TOOLS = ("uv", "python", "node", "java", "mempalace", "graphify", "memory", "context7")
+
+    def test_adding_an_addon_reuses_account_tools_and_a_plain_rerun_still_heals(self):
+        provisioned = []
+        load_controller = install.load_dependency_controller
+
+        def receipt_writer(project, _specification, **_kwargs):
+            provisioned.append(project)
+            receipt = {
+                "schemaVersion": 2,
+                "scope": "user",
+                "components": {name: {"status": "healthy", "action": "reused"} for name in self.TOOLS},
+                "commands": {
+                    name: str(Path(sys.executable).resolve())
+                    for name in ("python3", "node", "memory-mcp", "mempalace-mcp")
+                },
+            }
+            project.joinpath(".chaos-engine-dependencies.json").write_text(json.dumps(receipt), encoding="utf-8")
+            return receipt
+
+        def controller(root):
+            real = vars(load_controller(root))
+            return SimpleNamespace(**{**real, "install_account_dependencies": receipt_writer})
+
+        with tempfile.TemporaryDirectory() as temporary, \
+                mock.patch.object(install, "load_dependency_controller", side_effect=controller), \
+                mock.patch.object(install, "initialize_account_project_palace"):
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            install.install_with_dependencies(project, CE, self.COMMIT)
+            self.assertEqual(1, len(provisioned))
+
+            install.install_with_dependencies(project, CE, self.COMMIT, addons=("design-skills",))
+            self.assertEqual(1, len(provisioned), "an add-on change must not re-provision account tools")
+            self.assertTrue((project / ".chaos-engine/addons/design-skills/SKILL.md").is_file())
+
+            install.install_with_dependencies(project, CE, self.COMMIT, addons=("design-skills",))
+            self.assertEqual(2, len(provisioned), "a plain rerun keeps healing account tools")
 
 
 class WrapperContractTests(unittest.TestCase):

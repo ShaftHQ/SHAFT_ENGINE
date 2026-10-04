@@ -486,6 +486,32 @@ def installed_record(project: Path) -> tuple[dict[str, object], str | None]:
     return files, identifier if isinstance(identifier, str) else None
 
 
+def recorded_addons(project: Path, source: Path) -> set[str] | None:
+    """Add-ons the existing install recorded, or None without a readable install."""
+    files, current = installed_record(project)
+    if not files:
+        return None
+    try:
+        catalog = addon_catalog()
+        return set(catalog.installed(catalog.discover(source), files, current))
+    except (OSError, ValueError):
+        return None
+
+
+def reusable_account_receipt(controller, project: Path) -> dict[str, object] | None:
+    """The account receipt when every recorded tool is healthy, else None (#6494)."""
+    try:
+        receipt = controller.read_account_receipt(project)
+    except (OSError, ValueError):
+        return None
+    components = receipt.get("components")
+    if not isinstance(components, dict) or not components or not all(
+        isinstance(item, dict) and item.get("status") == "healthy" for item in components.values()
+    ):
+        return None
+    return receipt
+
+
 def plan_install(
     project: Path,
     source: Path,
@@ -3594,6 +3620,10 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
     source = source.resolve()
     with_maven_tools = with_maven_tools or java_pack_enabled(project)
     bundle = normalize_bundle_options(bundle_options)
+    bundle_unchanged = (project / BUNDLE_OPTIONS_PATH).is_file() and read_bundle_options(
+        project
+    ) == bundle
+    prior_addons = recorded_addons(project, source)
     write_bundle_options(project, bundle)
     consumer = _consumer_mode_module()
     if consumer is not None:
@@ -3794,23 +3824,36 @@ def install_with_dependencies(  # noqa: MC0001 - owned resources share one compe
                         )
                 if reporter is not None:
                     reporter.trace("provision account dependencies (uv/python/node/java/tools)")
-                account_runner = _tracing_dependency_runner(reporter, subprocess.run)
-                install_account = controller.install_account_dependencies
-                kwargs = {}
-                try:
-                    parameters = inspect.signature(install_account).parameters
-                except (TypeError, ValueError):
-                    parameters = {}
-                # Require an explicit runner parameter (not bare **kwargs mocks).
-                if "runner" in parameters:
-                    kwargs["runner"] = account_runner
-                # A detached mine would race the upgrade's MemPalace rollback image.
-                if "background_mine_allowed" in parameters:
-                    kwargs["background_mine_allowed"] = old_manifest is None
-                account_receipt = install_account(project, specification, **kwargs)
-                if bundle.get("mempalace", True):
-                    # #6236: inside the rollback capture window below.
-                    initialize_account_project_palace(project, controller, host_controller)
+                account_receipt = None
+                if (
+                    old_commit == commit
+                    and bundle_unchanged
+                    and prior_addons is not None
+                    and prior_addons != set(addons)
+                ):
+                    # #6494: an add-on change on the same core reuses the account
+                    # tools and project stores; doctor still verifies them.
+                    account_receipt = reusable_account_receipt(controller, project)
+                    if account_receipt is not None and reporter is not None:
+                        reporter.trace("add-on change only: reuse account dependencies")
+                if account_receipt is None:
+                    account_runner = _tracing_dependency_runner(reporter, subprocess.run)
+                    install_account = controller.install_account_dependencies
+                    kwargs = {}
+                    try:
+                        parameters = inspect.signature(install_account).parameters
+                    except (TypeError, ValueError):
+                        parameters = {}
+                    # Require an explicit runner parameter (not bare **kwargs mocks).
+                    if "runner" in parameters:
+                        kwargs["runner"] = account_runner
+                    # A detached mine would race the upgrade's MemPalace rollback image.
+                    if "background_mine_allowed" in parameters:
+                        kwargs["background_mine_allowed"] = old_manifest is None
+                    account_receipt = install_account(project, specification, **kwargs)
+                    if bundle.get("mempalace", True):
+                        # #6236: inside the rollback capture window below.
+                        initialize_account_project_palace(project, controller, host_controller)
                 account_receipt_after = (
                     account_receipt_path.read_bytes()
                     if account_receipt_path.is_file() else None
@@ -6885,7 +6928,11 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
             if not isinstance(item, dict):
                 continue
             rows.append((name, item, _component_severity(item)))
-    healthy = sum(1 for _n, _i, severity in rows if severity == "ok")
+    # The installer summary counts the same way (#6493): a compatible legacy store works.
+    healthy = sum(
+        1 for _n, item, severity in rows
+        if severity == "ok" or item.get("status") == "compatible-legacy"
+    )
     total = len(rows)
     failures = [(name, item, severity) for name, item, severity in rows if severity != "ok"]
     lines = [
