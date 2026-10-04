@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ERL-style evolving playbook — retrieve once per task (#5656 / #6532)."""
+"""ERL-style privacy-safe heuristic store — retrieve once per task (#5656)."""
 
 from __future__ import annotations
 
@@ -28,32 +28,6 @@ INDEX_RELATIVE = Path(".chaos-engine-state") / "heuristics" / "index.json"
 MAX_STORE = 32
 DEFAULT_TOP = 3
 MAX_TEXT = 160
-FEEDBACK_OUTCOMES = frozenset({"helpful", "harmful"})
-
-
-def _net_score(item: dict[str, Any]) -> int:
-    return _counter(item, "helpful") - _counter(item, "harmful")
-
-
-def _counter(item: dict[str, Any], key: str) -> int:
-    value = item.get(key, 0)
-    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-        return 0
-    return value
-
-
-def _find_item(document: dict[str, Any], item_id: str) -> dict[str, Any]:
-    cleaned = str(item_id or "").strip()
-    if not cleaned:
-        raise ValueError("item id required")
-    items = document.get("items") or []
-    if not isinstance(items, list):
-        raise ValueError("heuristic store corrupted")
-    for item in items:
-        if isinstance(item, dict) and item.get("id") == cleaned:
-            return item
-    raise ValueError(f"unknown heuristic id: {cleaned}")
-
 # Privacy: reject secrets, paths, URLs, transcripts (aligned with learning.py intent).
 PRIVATE = (
     re.compile(r"(?i)(?:gh[oprsu]_|github_pat_|sk-|api[_-]?key|password|secret|token)[A-Za-z0-9_:=./+\-]{8,}"),
@@ -145,8 +119,6 @@ def add_heuristic(
         "text": cleaned,
         "source": source_name,
         "at": int(time.time()),
-        "helpful": 0,
-        "harmful": 0,
         **_provenance().stamp_fields(origin=origin_name),
     }
     items.append(item)
@@ -179,47 +151,8 @@ def extract_from_lessons(
     return added
 
 
-
-def record_feedback(
-    item_id: str,
-    outcome: str,
-    *,
-    project: Path | None = None,
-) -> dict[str, Any]:
-    """Increment helpful or harmful on one playbook item (#6532)."""
-    name = str(outcome or "").strip().casefold()
-    if name not in FEEDBACK_OUTCOMES:
-        raise ValueError("outcome must be helpful or harmful")
-    document = load_index(project)
-    item = _find_item(document, item_id)
-    item[name] = _counter(item, name) + 1
-    # Normalize the sibling counter so legacy items persist both keys.
-    item["helpful"] = _counter(item, "helpful")
-    item["harmful"] = _counter(item, "harmful")
-    save_index(document, project)
-    return item
-
-
-def apply_delta(
-    item_id: str,
-    *,
-    text: str,
-    project: Path | None = None,
-) -> dict[str, Any]:
-    """Replace playbook item text in place; keep id, counters, and provenance (#6532)."""
-    cleaned = _sanitize_text(text)
-    document = load_index(project)
-    item = _find_item(document, item_id)
-    item["text"] = cleaned
-    item["at"] = int(time.time())
-    item["helpful"] = _counter(item, "helpful")
-    item["harmful"] = _counter(item, "harmful")
-    save_index(document, project)
-    return item
-
-
 def retrieve_top(top: int = DEFAULT_TOP, project: Path | None = None) -> list[dict[str, Any]]:
-    """Return ≤top retrievable playbook items by net score, then recency (#6520 / #6532)."""
+    """Return newest ≤top retrievable heuristics (quarantined skipped; #6520)."""
     if top < 1:
         raise ValueError("top must be >= 1")
     items = load_index(project).get("items") or []
@@ -230,13 +163,8 @@ def retrieve_top(top: int = DEFAULT_TOP, project: Path | None = None) -> list[di
         for item in items
         if isinstance(item, dict) and isinstance(item.get("text"), str)
     ]
-    retrievable = _provenance().filter_retrievable(eligible)
-    retrievable.sort(
-        key=lambda item: (_net_score(item), int(item.get("at") or 0)),
-        reverse=True,
-    )
-    return retrievable[:top]
-
+    # Newest first among retrievable (trusted/verified) only.
+    return _provenance().filter_retrievable(list(reversed(eligible)), limit=top)
 
 
 def session_start_locator(project: Path | None = None) -> str:
@@ -265,7 +193,6 @@ def doctor_heuristics_summary(project: Path | None = None) -> dict[str, Any]:
         "status": "absent",
         "store": "heuristics",
     }
-    item_list = items if isinstance(items, list) else []
     return {
         "schemaVersion": SCHEMA_VERSION,
         "count": count,
@@ -273,10 +200,8 @@ def doctor_heuristics_summary(project: Path | None = None) -> dict[str, Any]:
         "updatedAt": document.get("updatedAt"),
         "provenance": provenance,
         "promotable": sum(
-            1 for item in item_list if isinstance(item, dict) and _provenance().is_promotable(item)
+            1 for item in (items if isinstance(items, list) else []) if isinstance(item, dict) and _provenance().is_promotable(item)
         ),
-        "helpfulTotal": sum(_counter(item, "helpful") for item in item_list if isinstance(item, dict)),
-        "harmfulTotal": sum(_counter(item, "harmful") for item in item_list if isinstance(item, dict)),
     }
 
 
@@ -295,14 +220,6 @@ def main(argv: list[str] | None = None) -> int:
     loc.add_argument("--project", type=Path, default=None)
     summary = sub.add_parser("summary")
     summary.add_argument("--project", type=Path, default=None)
-    feedback = sub.add_parser("feedback")
-    feedback.add_argument("--id", required=True)
-    feedback.add_argument("--outcome", required=True, choices=sorted(FEEDBACK_OUTCOMES))
-    feedback.add_argument("--project", type=Path, default=None)
-    delta = sub.add_parser("delta")
-    delta.add_argument("--id", required=True)
-    delta.add_argument("--text", required=True)
-    delta.add_argument("--project", type=Path, default=None)
     args = parser.parse_args(argv)
     try:
         if args.command == "add":
@@ -321,18 +238,6 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "locator":
             print(session_start_locator(args.project))
-            return 0
-        if args.command == "feedback":
-            print(json.dumps(
-                record_feedback(args.id, args.outcome, project=args.project),
-                sort_keys=True,
-            ))
-            return 0
-        if args.command == "delta":
-            print(json.dumps(
-                apply_delta(args.id, text=args.text, project=args.project),
-                sort_keys=True,
-            ))
             return 0
         print(json.dumps(doctor_heuristics_summary(args.project), sort_keys=True))
         return 0

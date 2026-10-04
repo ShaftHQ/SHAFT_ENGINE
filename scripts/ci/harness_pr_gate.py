@@ -455,11 +455,6 @@ CHECKS = {
         "memory-provenance",
         ("tests.scripts.test_chaos_engine_memory_provenance_6520",),
     ),
-    "evolving-playbook-contract": Check(
-        "evolving-playbook-contract",
-        "evolving-playbook",
-        ("tests.scripts.test_chaos_engine_evolving_playbook_6532",),
-    ),
 }
 
 SURFACE_CHECKS = {
@@ -511,7 +506,6 @@ SURFACE_CHECKS = {
     "harness-eval": ("harness-eval-suite-contract",),
     "durable-jobs": ("durable-jobs-contract",),
     "memory-provenance": ("memory-provenance-contract",),
-    "evolving-playbook": ("evolving-playbook-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -913,17 +907,6 @@ SURFACE_PATTERNS = {
         "chaos-engine/draft_skill_pr.py",
         "chaos-engine/references/memory-provenance.md",
         "tests/scripts/test_chaos_engine_memory_provenance_6520.py",
-    ),
-    "evolving-playbook": (
-        "chaos-engine/heuristics.py",
-        "chaos-engine/install.py",
-        "chaos-engine/references/evolving-playbook.md",
-        "chaos-engine/references/permanent-rules.md",
-        "chaos-engine/references/level-1-catalog.md",
-        "chaos-engine/references/zero-llm-catalog.md",
-        ".agents/skills/README.md",
-        "tests/scripts/test_chaos_engine_evolving_playbook_6532.py",
-        "scripts/ci/harness_pr_gate.py",
     ),
 }
 

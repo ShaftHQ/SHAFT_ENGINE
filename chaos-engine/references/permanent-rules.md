@@ -18,7 +18,6 @@ Assistant memory keeps only this pointer: "Follow the ChaosEngine core card
 | One watch per PR, bounded polls, digest only, silence when unchanged | [CI status economy](ci-status-economy.md) |
 | Wait for CI by event wake, never an LLM poll: end the turn while checks run; the only exception to single thread is a zero-token waiter | [CI status economy](ci-status-economy.md#wait-by-event-wake-never-by-llm-poll) |
 | Learned memory carries origin + trust; untrusted stays quarantined until verified | [memory provenance](memory-provenance.md) |
-| Evolving playbook items keep helpful/harmful counters and take delta updates | [evolving playbook](evolving-playbook.md) |
 | Delta-only status; full report only on a RAG change or owner request | [process owner](process-owner-scrum-master.md) |
 | Cost and avoided-spend lines only when a local channel was actually used | [process owner](process-owner-scrum-master.md) |
 | Cloud implementers write code; local runtimes optional for narrow jobs | [identity](../identity.md), [local-runtimes](../skills/local-runtimes/SKILL.md) |
