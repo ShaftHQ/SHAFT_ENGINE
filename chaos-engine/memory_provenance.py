@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Memory provenance, trust levels, and quarantine (#6520 / AgentPoison).
+"""
+Memory provenance, trust levels, and quarantine (#6520 / AgentPoison).
 
 Every learned item records origin + trust. Untrusted origins stay quarantined so
 retrieval and skill promotion skip them until a verifier passes.

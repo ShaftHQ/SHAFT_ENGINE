@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 import pathlib
 import tempfile
 import unittest
@@ -13,7 +12,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 def load(path: pathlib.Path, name: str):
     spec = importlib.util.spec_from_file_location(name, path)
-    assert spec is not None and spec.loader is not None
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load module from {path}")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
