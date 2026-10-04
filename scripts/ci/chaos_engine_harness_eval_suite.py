@@ -26,6 +26,50 @@ def load_manifest(path: Path | None = None) -> dict[str, Any]:
     return document
 
 
+def _validate_thresholds(thresholds: dict[str, Any], defects: list[str]) -> None:
+    for key in ("pass_at_k", "default_k", "min_tasks", "min_capability", "min_regression"):
+        if key not in thresholds:
+            defects.append(f"thresholds.{key} is required")
+    required_pass = 1.0  # nosec B105 - pass@k gate threshold, not a credential.
+    if thresholds.get("pass_at_k") != required_pass:
+        defects.append("thresholds.pass_at_k must be exactly 1.0 for the PR gate")
+    if thresholds.get("default_k") != 1:
+        defects.append("thresholds.default_k must be 1 until nondeterministic tasks exist")
+
+
+def _validate_task(
+    task: dict[str, Any],
+    *,
+    prefix: str,
+    thresholds: dict[str, Any],
+    ids: set[str],
+    defects: list[str],
+) -> str | None:
+    task_id = task.get("id")
+    if not isinstance(task_id, str) or not task_id:
+        defects.append(f"{prefix}.id must be a non-empty string")
+    elif task_id in ids:
+        defects.append(f"duplicate task id: {task_id}")
+    else:
+        ids.add(task_id)
+    task_set = task.get("set")
+    if task_set not in ALLOWED_SETS:
+        defects.append(f"{prefix}.set must be capability|regression")
+    if task.get("area") not in ALLOWED_AREAS:
+        defects.append(f"{prefix}.area must be one of {sorted(ALLOWED_AREAS)}")
+    if task.get("runner") not in ALLOWED_RUNNERS:
+        defects.append(f"{prefix}.runner must be unittest")
+    module = task.get("module")
+    if not isinstance(module, str) or not module.startswith("tests.scripts."):
+        defects.append(f"{prefix}.module must be a tests.scripts.* unittest module")
+    k = task.get("k", thresholds.get("default_k", 1))
+    if not isinstance(k, int) or k < 1:
+        defects.append(f"{prefix}.k must be an integer >= 1")
+    if task_set == "regression" and not isinstance(task.get("source_issue"), int):
+        defects.append(f"{prefix}.source_issue must be an int for regression tasks")
+    return task_set if isinstance(task_set, str) else None
+
+
 def validate_manifest(document: dict[str, Any]) -> list[str]:
     defects: list[str] = []
     if document.get("schema_version") != 1:
@@ -36,13 +80,8 @@ def validate_manifest(document: dict[str, Any]) -> list[str]:
     if not isinstance(thresholds, dict):
         defects.append("thresholds must be an object")
         thresholds = {}
-    for key in ("pass_at_k", "default_k", "min_tasks", "min_capability", "min_regression"):
-        if key not in thresholds:
-            defects.append(f"thresholds.{key} is required")
-    if thresholds.get("pass_at_k") != 1.0:
-        defects.append("thresholds.pass_at_k must be exactly 1.0 for the PR gate")
-    if thresholds.get("default_k") != 1:
-        defects.append("thresholds.default_k must be 1 until nondeterministic tasks exist")
+    else:
+        _validate_thresholds(thresholds, defects)
     tasks = document.get("tasks")
     if not isinstance(tasks, list) or not tasks:
         defects.append("tasks must be a non-empty list")
@@ -55,32 +94,13 @@ def validate_manifest(document: dict[str, Any]) -> list[str]:
         if not isinstance(task, dict):
             defects.append(f"{prefix} must be an object")
             continue
-        task_id = task.get("id")
-        if not isinstance(task_id, str) or not task_id:
-            defects.append(f"{prefix}.id must be a non-empty string")
-        elif task_id in ids:
-            defects.append(f"duplicate task id: {task_id}")
-        else:
-            ids.add(task_id)
-        task_set = task.get("set")
-        if task_set not in ALLOWED_SETS:
-            defects.append(f"{prefix}.set must be capability|regression")
-        elif task_set == "capability":
+        task_set = _validate_task(
+            task, prefix=prefix, thresholds=thresholds, ids=ids, defects=defects
+        )
+        if task_set == "capability":
             capability += 1
-        else:
+        elif task_set == "regression":
             regression += 1
-        if task.get("area") not in ALLOWED_AREAS:
-            defects.append(f"{prefix}.area must be one of {sorted(ALLOWED_AREAS)}")
-        if task.get("runner") not in ALLOWED_RUNNERS:
-            defects.append(f"{prefix}.runner must be unittest")
-        module = task.get("module")
-        if not isinstance(module, str) or not module.startswith("tests.scripts."):
-            defects.append(f"{prefix}.module must be a tests.scripts.* unittest module")
-        k = task.get("k", thresholds.get("default_k", 1))
-        if not isinstance(k, int) or k < 1:
-            defects.append(f"{prefix}.k must be an integer >= 1")
-        if task_set == "regression" and not isinstance(task.get("source_issue"), int):
-            defects.append(f"{prefix}.source_issue must be an int for regression tasks")
     min_tasks = thresholds.get("min_tasks", 0)
     min_capability = thresholds.get("min_capability", 0)
     min_regression = thresholds.get("min_regression", 0)
@@ -107,13 +127,16 @@ def _run_unittest(module: str, *, root: Path, timeout: int) -> tuple[bool, str]:
 
 
 def pass_at_k(successes: list[bool]) -> float:
-    """Fraction of attempts that would pass if any of the first k tries succeed.
+    """
+    Fraction of attempts that would pass if any of the first k tries succeed.
 
     For deterministic tasks with k=1 this equals the single-attempt pass rate.
     """
+    empty_rate = 0.0  # nosec B105 - numeric rate, not a credential.
+    full_rate = 1.0  # nosec B105 - numeric rate, not a credential.
     if not successes:
-        return 0.0
-    return 1.0 if any(successes) else 0.0
+        return empty_rate
+    return full_rate if any(successes) else empty_rate
 
 
 def evaluate_task(
@@ -150,7 +173,7 @@ def evaluate_task(
         "module": task["module"],
         "k": k,
         "pass_at_k": score,
-        "passed": score >= 1.0,
+        "passed": score >= 1.0,  # nosec B105 - pass threshold, not a credential.
         "attempts": attempts,
     }
 
@@ -165,12 +188,13 @@ def evaluate_suite(
     document = document or load_manifest()
     defects = validate_manifest(document)
     if defects:
+        empty_rate = 0.0  # nosec B105 - numeric rate, not a credential.
         return {
             "passed": False,
             "defects": defects,
             "results": [],
-            "pass_at_k": 0.0,
-            "case_pass_rate": 0.0,
+            "pass_at_k": empty_rate,
+            "case_pass_rate": empty_rate,
         }
     thresholds = document["thresholds"]
     default_k = int(thresholds["default_k"])
@@ -180,9 +204,12 @@ def evaluate_suite(
     ]
     passed_count = sum(1 for row in results if row["passed"])
     total = len(results)
-    case_pass_rate = (passed_count / total) if total else 0.0
+    empty_rate = 0.0  # nosec B105 - numeric rate, not a credential.
+    case_pass_rate = (passed_count / total) if total else empty_rate
     # Suite pass@k: mean of per-task pass@k (each task already applied its k).
-    mean_pass_at_k = (sum(row["pass_at_k"] for row in results) / total) if total else 0.0
+    mean_pass_at_k = (
+        (sum(row["pass_at_k"] for row in results) / total) if total else empty_rate
+    )
     required = float(thresholds["pass_at_k"])
     by_set = {
         name: {

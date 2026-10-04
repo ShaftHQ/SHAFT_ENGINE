@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from scripts.ci.chaos_engine_harness_eval_suite import (
@@ -75,7 +76,7 @@ class HarnessEvalSuiteTests(unittest.TestCase):
             "schema_version": 1,
             "package": "chaos-engine",
             "thresholds": {
-                "pass_at_k": 1.0,
+                "pass_at_k": 1.0,  # nosec B105 - suite threshold, not a credential.
                 "default_k": 1,
                 "min_tasks": 20,
                 "min_capability": 6,
@@ -91,7 +92,7 @@ class HarnessEvalSuiteTests(unittest.TestCase):
         tiny = {
             **document,
             "thresholds": {
-                "pass_at_k": 1.0,
+                "pass_at_k": 1.0,  # nosec B105 - suite threshold, not a credential.
                 "default_k": 1,
                 "min_tasks": 1,
                 "min_capability": 0,
