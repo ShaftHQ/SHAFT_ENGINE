@@ -171,6 +171,8 @@ CHECKS = {
             "tests.scripts.test_unittest_shard",
             # #6239: the suite must never mutate the invoking checkout.
             "tests.scripts.test_repo_state_guard",
+            # #6543: build wrappers stay executable; workflows call them via bash.
+            "tests.scripts.test_wrapper_scripts_executable_6543",
         ),
     ),
     "setup-aggregator-contract": Check(
@@ -645,6 +647,10 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_validate_agent_ownership.py",
         "tests/scripts/test_validate_agent_setup.py",
         "tests/scripts/test_validate_workflow_timeouts.py",
+        "tests/scripts/test_wrapper_scripts_executable_6543.py",
+        ".github/workflows/intellij-eap-verify.yml",
+        "shaft-intellij/gradlew",
+        "shaft-mcp/mvnw",
         "scripts/agents/session_worktree.py",
         "tests/scripts/conftest.py",
         "tests/scripts/repo_state_guard.py",
