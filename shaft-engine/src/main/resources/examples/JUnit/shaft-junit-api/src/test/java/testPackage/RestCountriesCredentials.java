@@ -1,4 +1,4 @@
-package testPackage;
+package testPackage; // NOPMD - PackageCase: shared package name used by all SHAFT example templates
 
 final class RestCountriesCredentials {
     private RestCountriesCredentials() {
