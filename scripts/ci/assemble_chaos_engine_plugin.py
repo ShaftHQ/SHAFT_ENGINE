@@ -215,7 +215,7 @@ def assemble(repository_root: Path, package_root: Path, version: str | None = No
             {
                 "mcpServers": {
                 "chaosengine": {
-                    "command": "python",
+                    "command": "python3",
                     "args": ["./bin/chaos-engine.pyz", "mcp"],
                     "cwd": ".",
                 }

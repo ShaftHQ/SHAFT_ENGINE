@@ -177,7 +177,7 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
             {
                 "mcpServers": {
                     "chaosengine": {
-                        "command": "python",
+                        "command": "python3",
                         "args": ["./bin/chaos-engine.pyz", "mcp"],
                         "cwd": ".",
                     }
