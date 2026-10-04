@@ -454,6 +454,10 @@ def stop(root: Path, name: str) -> tuple[int, str]:
         update_lease(directory, state="stopped", ended_at=time.time())
         killed = kill_run(lease)
         clean_parts(list(lease.get("part_dirs") or []), lease.get("cwd"))
+        # A heartbeat racing the first write must not leave "running" behind,
+        # or a watchdog would restart a job its owner stopped.
+        if (read_lease(directory) or {}).get("run_id") == lease.get("run_id"):
+            update_lease(directory, state="stopped")
     return 0, f"job {name}: stopped (killed {killed})"
 
 
