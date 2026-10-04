@@ -1226,7 +1226,7 @@ def apply_owned_mempalace_excludes(project: Path) -> bool:
     if re.search(r"(?m)^exclude_patterns\s*:", text):
         return False
     block = "exclude_patterns:\n" + "".join(
-        f"  - {pattern}\n" for pattern in MEMPALACE_OWNED_EXCLUDES
+        f"  - '{pattern}'\n" for pattern in MEMPALACE_OWNED_EXCLUDES
     )
     separator = "" if not text or text.endswith("\n") else "\n"
     configuration.write_text(text + separator + block, encoding="utf-8")

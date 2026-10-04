@@ -5533,7 +5533,7 @@ def desired_content(
             "rooms:\n  - name: general\n    description: Project source and documentation\n"
             "    keywords: [project, source, documentation]\n"
             "exclude_patterns:\n"
-            + "".join(f"  - {pattern}\n" for pattern in MEMPALACE_OWNED_EXCLUDES)
+            + "".join(f"  - '{pattern}'\n" for pattern in MEMPALACE_OWNED_EXCLUDES)
         ).encode()
     else:
         validate_mempalace_config(mempalace_before)
