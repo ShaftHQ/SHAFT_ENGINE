@@ -71,50 +71,53 @@ public final class UiMatcher {
     }
 
     private static Score score(UiDocument expected, UiDocument actual, MatchMode mode) {
-        int compared = 0;
-        int hits = 0;
-        String difference = "";
-        int bestHits = -1;
-        int bestFields = 1;
-        Integer bestX = null;
-        Integer bestY = null;
-        String bestHint = null;
-        if (mode != MatchMode.LAYOUT) {
-            compared++;
-            if (Objects.equals(expected.url(), actual.url())) {
-                hits++;
-            } else if (difference.isEmpty()) {
-                difference = "Expected URL " + expected.url() + " but found " + actual.url() + ".";
-            }
+        Tally tally = new Tally();
+        compareUrl(expected, actual, mode, tally);
+        compareElements(expected, actual, fields(mode), tally);
+        if (tally.difference.isEmpty()) {
+            tally.difference = "Documents differ.";
         }
+        double confidence = tally.compared == 0 ? 0d : (double) tally.hits / tally.compared;
+        return new Score(confidence, tally.compared, tally.bestX, tally.bestY, tally.bestHint, tally.difference);
+    }
+
+    private static void compareUrl(UiDocument expected, UiDocument actual, MatchMode mode, Tally tally) {
+        if (mode == MatchMode.LAYOUT) {
+            return;
+        }
+        tally.compared++;
+        if (Objects.equals(expected.url(), actual.url())) {
+            tally.hits++;
+            return;
+        }
+        tally.note("Expected URL " + expected.url() + " but found " + actual.url() + ".");
+    }
+
+    private static void compareElements(UiDocument expected, UiDocument actual, List<String> fields, Tally tally) {
         int count = Math.max(expected.elements().size(), actual.elements().size());
-        List<String> fields = fields(mode);
         for (int index = 0; index < count; index++) {
             UiElement left = index < expected.elements().size() ? expected.elements().get(index) : null;
             UiElement right = index < actual.elements().size() ? actual.elements().get(index) : null;
-            int elementHits = 0;
-            for (String field : fields) {
-                compared++;
-                if (left != null && right != null && equal(field, left, right)) {
-                    hits++;
-                    elementHits++;
-                } else if (difference.isEmpty()) {
-                    difference = "Expected " + field + " " + value(field, left) + " but found " + value(field, right) + ".";
-                }
-            }
-            if (right != null && elementHits * bestFields >= bestHits * fields.size()) {
-                bestHits = elementHits;
-                bestFields = fields.size();
-                bestX = right.x() + (right.width() / 2);
-                bestY = right.y() + (right.height() / 2);
-                bestHint = right.locatorHint();
+            scoreElement(left, right, fields, tally);
+        }
+    }
+
+    private static void scoreElement(UiElement left, UiElement right, List<String> fields, Tally tally) {
+        int elementHits = 0;
+        for (String field : fields) {
+            tally.compared++;
+            if (fieldMatches(field, left, right)) {
+                tally.hits++;
+                elementHits++;
+            } else {
+                tally.note("Expected " + field + " " + value(field, left) + " but found " + value(field, right) + ".");
             }
         }
-        if (difference.isEmpty()) {
-            difference = "Documents differ.";
-        }
-        double confidence = compared == 0 ? 0d : (double) hits / compared;
-        return new Score(confidence, compared, bestX, bestY, bestHint, difference);
+        tally.consider(right, elementHits, fields.size());
+    }
+
+    private static boolean fieldMatches(String field, UiElement left, UiElement right) {
+        return left != null && right != null && equal(field, left, right);
     }
 
     private static List<String> fields(MatchMode mode) {
@@ -186,6 +189,34 @@ public final class UiMatcher {
             return "null";
         }
         return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    }
+
+    private static final class Tally {
+        private int compared;
+        private int hits;
+        private String difference = "";
+        private int bestHits = -1;
+        private int bestFields = 1;
+        private Integer bestX;
+        private Integer bestY;
+        private String bestHint;
+
+        private void note(String text) {
+            if (difference.isEmpty()) {
+                difference = text;
+            }
+        }
+
+        private void consider(UiElement right, int elementHits, int fieldCount) {
+            if (right == null || elementHits * bestFields < bestHits * fieldCount) {
+                return;
+            }
+            bestHits = elementHits;
+            bestFields = fieldCount;
+            bestX = right.x() + (right.width() / 2);
+            bestY = right.y() + (right.height() / 2);
+            bestHint = right.locatorHint();
+        }
     }
 
     private record Score(
