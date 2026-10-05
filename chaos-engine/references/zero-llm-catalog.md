@@ -47,6 +47,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Workflow induction | [`workflow_induce.py`](../workflow_induce.py) `trajectory\|induce\|retrieve\|materialize\|summary` (repo-only) · [workflow-induction](workflow-induction.md) | Repeated successful windows; materialize behind the eval suite (issue 6518) |
 | External reflection | [`external_reflection.py`](../external_reflection.py) `record\|retrieve\|summary` (repo-only) · [external-reflection](external-reflection.md) | Tests, CI, or doctor only; self-report refused (issue 6518) |
 | Prompt evolution | [`prompt_evolve.py`](../prompt_evolve.py) `propose\|score\|accept\|summary` (repo-only) · [prompt-evolution](prompt-evolution.md) | Accept only a suite report that passes this task (issue 6518) |
+| Self-modify | [`self_modify.py`](../self_modify.py) `propose\|score\|apply\|rollback\|summary` (repo-only) · [self-modify](self-modify.md) | Apply only behind the eval suite; archive the previous body (issue 6518) |
 | Significance capture | [`significance.py`](../significance.py) `mark|list|drain|locator` | Soft fail/deny marks → Learning Session drain; no Task Observer |
 | Skill compress audit | [`skill_compress_audit.py`](../skill_compress_audit.py) `audit` | Propose-only SKILL.md filler/bloat report; never auto-apply |
 | Javadoc `@param` arity | `scripts/ci/check_javadoc_param_arity.py` (repo-only) | Fail fast when `@param` names do not match method parameters in engine interaction packages |

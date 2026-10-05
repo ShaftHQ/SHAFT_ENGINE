@@ -51,6 +51,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Workflow induction | Repeated successful step windows; skill publish behind the eval suite | [`workflow-induction.md`](workflow-induction.md) |
 | External reflection | Notes grounded only in tests, CI, or doctor | [`external-reflection.md`](external-reflection.md) |
 | Prompt evolution | Prompt or skill text accepted only after a passing harness eval report | [`prompt-evolution.md`](prompt-evolution.md) |
+| Self-modify | Replace a state-local harness body only after the eval suite, keeping an archive | [`self-modify.md`](self-modify.md) |
 | Self-improve | Learning Session dual-track harness + product observations | [`../skills/self-improve/SKILL.md`](../skills/self-improve/SKILL.md) |
 | Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
 | OmniRoute | Optional local transport; never required for canonical workflows | [`../skills/omniroute/SKILL.md`](../skills/local-runtimes/references/omniroute.md) |

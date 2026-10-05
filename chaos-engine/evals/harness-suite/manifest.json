@@ -262,6 +262,15 @@
       "module": "tests.scripts.test_chaos_engine_prompt_evolution_6518",
       "k": 1,
       "runner": "unittest"
+    },
+    {
+      "id": "reg-self-modify-6518",
+      "set": "regression",
+      "area": "entry",
+      "source_issue": 6518,
+      "module": "tests.scripts.test_chaos_engine_self_modify_6518",
+      "k": 1,
+      "runner": "unittest"
     }
   ]
 }

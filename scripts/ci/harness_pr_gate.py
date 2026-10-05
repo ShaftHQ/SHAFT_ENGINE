@@ -483,6 +483,11 @@ CHECKS = {
         "prompt-evolution",
         ("tests.scripts.test_chaos_engine_prompt_evolution_6518",),
     ),
+    "self-modify-contract": Check(
+        "self-modify-contract",
+        "self-modify",
+        ("tests.scripts.test_chaos_engine_self_modify_6518",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -539,6 +544,7 @@ SURFACE_CHECKS = {
     "workflow-induction": ("workflow-induction-contract",),
     "external-reflection": ("external-reflection-contract",),
     "prompt-evolution": ("prompt-evolution-contract",),
+    "self-modify": ("self-modify-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -1000,6 +1006,17 @@ SURFACE_PATTERNS = {
         ".agents/skills/README.md",
         "chaos-engine/evals/harness-suite/manifest.json",
         "tests/scripts/test_chaos_engine_prompt_evolution_6518.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "self-modify": (
+        "chaos-engine/self_modify.py",
+        "chaos-engine/references/self-modify.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "chaos-engine/evals/harness-suite/manifest.json",
+        "tests/scripts/test_chaos_engine_self_modify_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
 }

@@ -197,6 +197,7 @@ sends you there; the rest by
 - [workflow induction](../../chaos-engine/references/workflow-induction.md)
 - [external reflection](../../chaos-engine/references/external-reflection.md)
 - [prompt evolution](../../chaos-engine/references/prompt-evolution.md)
+- [self-modify](../../chaos-engine/references/self-modify.md)
 - [harness eval suite](../../chaos-engine/references/harness-eval-suite.md)
 - [heal route](../../chaos-engine/references/heal-route.md)
 - [host parity matrix](../../chaos-engine/references/host-parity-matrix.md)
