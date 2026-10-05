@@ -199,6 +199,7 @@ sends you there; the rest by
 - [prompt evolution](../../chaos-engine/references/prompt-evolution.md)
 - [self-modify](../../chaos-engine/references/self-modify.md)
 - [context rot](../../chaos-engine/references/context-rot.md)
+- [genai spans](../../chaos-engine/references/genai-spans.md)
 - [harness eval suite](../../chaos-engine/references/harness-eval-suite.md)
 - [heal route](../../chaos-engine/references/heal-route.md)
 - [host parity matrix](../../chaos-engine/references/host-parity-matrix.md)
