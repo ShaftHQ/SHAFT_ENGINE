@@ -32,5 +32,5 @@ any other signal are refused. The module does not edit shipped skills.
 
 ## Related
 
-- Workflow drafts: [workflow induction](workflow-induction.md).
-- Eval scoring: [harness eval suite](harness-eval-suite.md).
+- Repeated-step drafts stay in [workflow induction](workflow-induction.md).
+- This store is scored by [harness eval suite](harness-eval-suite.md) task `reg-external-reflection-6518`.
