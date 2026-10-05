@@ -347,6 +347,39 @@ class ChaosEngineInstallerTest(unittest.TestCase):
             self.assertEqual("1" * 40, MODULE.status(project)["commit"])
             self.assertFalse(project.joinpath(".chaos-engine-runtime-current.json").exists())
 
+    def test_account_rollback_accepts_a_host_route_added_by_the_candidate(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            base_source = copy_source(Path(temporary) / "base-source")
+            base_hosts_py = base_source / "hosts.py"
+            base_hosts_py.write_text(
+                base_hosts_py.read_text(encoding="utf-8").replace(
+                    '        "antigravity": "AGENTS.md",\n', ""
+                ),
+                encoding="utf-8",
+            )
+            load_controller = MODULE.load_dependency_controller
+
+            def load_account_controller(installed_root):
+                return AccountDependencyController(load_controller(installed_root))
+
+            with mock.patch.object(
+                MODULE, "load_dependency_controller", side_effect=load_account_controller
+            ):
+                MODULE.install_with_dependencies(project, base_source, "1" * 40)
+                base_controller = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+                self.assertNotIn("antigravity", base_controller.host_routes())
+                MODULE.install_with_dependencies(project, SOURCE, "2" * 40)
+                candidate = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+                self.assertIn("antigravity", candidate.read_receipt(project)[0]["hosts"])
+                MODULE.rollback(project)
+
+            restored = MODULE.load_installed_controller(project / ".chaos-engine", "hosts")
+            receipt, _raw = restored.read_receipt(project)
+            self.assertNotIn("antigravity", receipt["hosts"])
+            self.assertEqual("1" * 40, receipt["coreCommit"])
+
     def test_account_rollback_restores_exact_host_receipt_without_cross_journal(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"
