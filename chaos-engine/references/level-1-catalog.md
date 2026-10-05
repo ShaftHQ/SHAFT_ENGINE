@@ -49,6 +49,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Evolving playbook | Helpful/harmful counters and delta updates on heuristics | [`evolving-playbook.md`](evolving-playbook.md) |
 | Insight extract | Success/failure pair insights with ExpeL vote lifecycle | [`insight-extract.md`](insight-extract.md) |
 | Workflow induction | Repeated successful step windows; skill publish behind the eval suite | [`workflow-induction.md`](workflow-induction.md) |
+| External reflection | Notes grounded only in tests, CI, or doctor | [`external-reflection.md`](external-reflection.md) |
 | Self-improve | Learning Session dual-track harness + product observations | [`../skills/self-improve/SKILL.md`](../skills/self-improve/SKILL.md) |
 | Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
 | OmniRoute | Optional local transport; never required for canonical workflows | [`../skills/omniroute/SKILL.md`](../skills/local-runtimes/references/omniroute.md) |
