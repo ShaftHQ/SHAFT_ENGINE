@@ -157,6 +157,10 @@ jobs:
 
         first_commands = " ".join(str(step.get("run", "")) for step in jobs[safari_ids[0]]["steps"])
         self.assertIn("github.event.inputs.tests != '' && '1/1' || '1/2'", first_commands)
+        # Safari local is a Selenium job. PlaywrightActionsE2ETest classes install
+        # browsers from cdn.playwright.dev and failed MacOSX_Safari_Local_1 (#6534).
+        for commands in (first_commands, " ".join(str(step.get("run", "")) for step in jobs[safari_ids[1]]["steps"])):
+            self.assertIn("!%regex[.*PlaywrightActionsE2ETest.*]", commands)
         second_commands = " ".join(str(step.get("run", "")) for step in jobs[safari_ids[1]]["steps"])
         self.assertIn("-Dshaft.shard=2/2", second_commands)
         self.assertIn("github.event.inputs.tests == ''", jobs[safari_ids[1]]["if"])
