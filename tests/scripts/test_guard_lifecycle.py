@@ -804,6 +804,25 @@ class ReflectionReceiptPrivacyTest(unittest.TestCase):
             self.assertEqual(0, result)
             self.assertIsNone(reflection.pending_checkpoint("cli-receipt"))
 
+    def test_cli_json_receipt_accepts_session_token_that_looks_like_a_flag(self):
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(
+            os.environ, {"TMPDIR": temporary, "TEMP": temporary}
+        ):
+            with patch.object(reflection.secrets, "token_urlsafe", return_value="-" + ("a" * 31)):
+                checkpoint = self._pending("cli-dash-token")
+                token = reflection.record_session_start("cli-dash-token")
+            self.assertEqual("-" + ("a" * 31), token)
+            with redirect_stdout(io.StringIO()):
+                result = reflection.main(
+                    [
+                        "receipt", "--session-id", "cli-dash-token",
+                        "--session-token", token,
+                        "--json", json.dumps(self._receipt(checkpoint)),
+                    ]
+                )
+            self.assertEqual(0, result)
+            self.assertIsNone(reflection.pending_checkpoint("cli-dash-token"))
+
     def test_sessions_are_isolated(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(
             os.environ, {"TMPDIR": temporary, "TEMP": temporary}
