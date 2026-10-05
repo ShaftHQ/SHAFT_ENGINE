@@ -145,7 +145,7 @@ class DejaStoreContractTest(unittest.TestCase):
         self.assertEqual("chaos-engine/references/retrieve-first.md", row["owner"])
         self.assertEqual(
             matrix["hosts"],
-            ["claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot"],
+            ["claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot", "antigravity"],
         )
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)

@@ -3444,6 +3444,7 @@ final class AssistantCommand {
                 case "CLAUDE_CODE" -> local("CLAUDE", "CLI");
                 case "COPILOT_CLI" -> local("COPILOT", "CLI");
                 case "GROK" -> local("GROK", "CLI");
+                case "ANTIGRAVITY" -> local("ANTIGRAVITY", "CLI");
                 case "CODEX" -> local("CODEX", "CLI");
                 default -> local("", "CLI");
             };
@@ -3454,6 +3455,7 @@ final class AssistantCommand {
                 case "CLAUDE" -> "CLAUDE_CODE";
                 case "COPILOT" -> "COPILOT_CLI";
                 case "GROK" -> "GROK";
+                case "ANTIGRAVITY" -> "ANTIGRAVITY";
                 case "CODEX" -> "CODEX";
                 default -> "";
             };
@@ -3467,6 +3469,7 @@ final class AssistantCommand {
                 case "CLAUDE" -> "Claude";
                 case "COPILOT" -> "GitHub Copilot";
                 case "GROK" -> "Grok";
+                case "ANTIGRAVITY" -> "Antigravity";
                 case "CODEX" -> "Codex";
                 default -> family;
             };

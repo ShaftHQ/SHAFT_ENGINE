@@ -682,6 +682,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "codex": project / ".agents/skills/chaos-engine/SKILL.md",
                 "claude": project / ".claude/skills/chaos-engine/SKILL.md",
                 "grok": project / "AGENTS.md",
+                "antigravity": project / "AGENTS.md",
                 "gemini": project / ".gemini/skills/chaos-engine/SKILL.md",
                 "copilot": project / ".github/skills/chaos-engine/SKILL.md",
             }
@@ -1191,6 +1192,26 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual("./plugins/chaos-engine", merged["plugins"][1]["source"]["path"])
             module.uninstall(project)
             self.assertEqual(original, json.loads(marketplace_path.read_text()))
+
+    def test_added_host_route_upgrades_without_rewriting_shared_routes(self):
+        module = load(HOSTS, "chaos_engine_added_host_route")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.joinpath(".chaos-engine/skills/chaos-engine").mkdir(parents=True)
+            project.joinpath(".chaos-engine/skills/chaos-engine/SKILL.md").write_text("# C\n")
+            module.install(project, core_commit="1" * 40)
+            receipt, _raw = module.read_receipt(project)
+            previous = dict(receipt["hosts"])
+            del previous["antigravity"]
+            receipt["hosts"] = previous
+            project.joinpath(module.RECEIPT_NAME).write_bytes(module.receipt_bytes(receipt, project))
+
+            upgraded = module.install(project, core_commit="2" * 40)
+
+            self.assertEqual(module.host_routes()["antigravity"], "AGENTS.md")
+            self.assertEqual(module.host_routes(), upgraded["hosts"])
+            self.assertEqual(module.host_routes(), module.read_receipt(project)[0]["hosts"])
+            self.assertEqual("healthy", module.verify(project, core_commit="2" * 40)["status"])
 
     def test_legacy_host_receipt_updates_to_complete_harness(self):
         module = load(HOSTS, "chaos_engine_legacy_receipt")

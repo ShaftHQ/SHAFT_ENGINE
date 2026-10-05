@@ -314,7 +314,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         progress.setIndeterminate(true);
         progress.setVisible(false);
         progress.setPreferredSize(JBUI.size(96, 14));
-        family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT", "GROK", GEMINI_FAMILY});
+        family = new JComboBox<>(new String[]{"CODEX", "CLAUDE", "COPILOT", "GROK", "ANTIGRAVITY", GEMINI_FAMILY});
         ShaftUiLabels.applyFriendlyRenderer(family);
         String familyValue = initialFamily(settings);
         if (familyValue.isBlank()) {
@@ -1663,7 +1663,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         if (!"CLI".equals(normalize(settings.assistantRuntime, "CLI"))) {
             return new Recommendation(resolved, RecommendationBasis.SAVED_SELECTION);
         }
-        for (String familyCandidate : List.of("CODEX", "CLAUDE", "COPILOT", "GROK")) {
+        for (String familyCandidate : List.of("CODEX", "CLAUDE", "COPILOT", "GROK", "ANTIGRAVITY")) {
             ShaftMcpToolResult result = readinessProbe.test(clientFromFamily(familyCandidate), "CLI");
             if (result != null && result.success()) {
                 return new Recommendation(familyCandidate, RecommendationBasis.DETECTED);
@@ -1690,7 +1690,8 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         return switch (normalized) {
             case "CLAUDE" -> "Claude Code CLI";
             case "COPILOT" -> "GitHub Copilot CLI";
-            case "GROK" -> "Grok CLI";
+            case "GROK" -> com.shaft.intellij.settings.GrokInstallIdentity.detectedLabel();
+            case "ANTIGRAVITY" -> "Antigravity";
             case "CODEX" -> "Codex CLI";
             default -> "";
         };
@@ -1705,6 +1706,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             case "CLAUDE" -> "CLAUDE_CODE";
             case "COPILOT" -> "COPILOT_CLI";
             case "GROK" -> "GROK";
+            case "ANTIGRAVITY" -> "ANTIGRAVITY";
             case "CODEX" -> "CODEX";
             default -> "";
         };
@@ -1738,6 +1740,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             case "COPILOT_INTELLIJ" -> "copilot-intellij";
             case "INTELLIJ_PLUGIN" -> "intellij-plugin";
             case "GROK" -> "grok";
+            case "ANTIGRAVITY" -> "antigravity";
             case "CODEX" -> "codex";
             default -> "codex";
         };
@@ -2065,6 +2068,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             case "CLAUDE" -> "claude";
             case "COPILOT" -> "copilot";
             case "GROK" -> "grok";
+            case "ANTIGRAVITY" -> "agy";
             case "CODEX" -> "codex";
             default -> "";
         };
@@ -2109,6 +2113,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             case "CLAUDE" -> "claude --version";
             case "COPILOT" -> "copilot --version";
             case "GROK" -> "grok --version";
+            case "ANTIGRAVITY" -> "agy --version";
             case "CODEX" -> "codex --version";
             default -> "";
         };

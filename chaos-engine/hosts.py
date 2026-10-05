@@ -3185,11 +3185,22 @@ def validate_live_persistent_images(images: dict[str, bytes | None]) -> None:
         validate_mempalace_config(config)
 
 
+def host_routes_cover(stored: object) -> bool:
+    """True when stored routes match current routes or only omit newly added hosts."""
+    current = host_routes()
+    if stored == current:
+        return True
+    if not isinstance(stored, dict) or not stored or not isinstance(current, dict):
+        return False
+    return set(stored) <= set(current) and all(stored[key] == current[key] for key in stored)
+
+
 def host_routes() -> dict[str, str]:
     return {
         "codex": ".agents/skills/chaos-engine/SKILL.md",
         "claude": ".claude/skills/chaos-engine/SKILL.md",
         "grok": "AGENTS.md",
+        "antigravity": "AGENTS.md",
         "gemini": ".gemini/skills/chaos-engine/SKILL.md",
         "copilot": ".github/skills/chaos-engine/SKILL.md",
     }
@@ -5833,7 +5844,7 @@ def rollback_previous_receipt(project: Path, expected_core_commit: str) -> bytes
         or previous.get("schemaVersion") != SCHEMA_VERSION
         or previous.get("phase") != "installed"
         or previous.get("coreCommit") != expected_core_commit
-        or previous.get("hosts") != host_routes()
+        or not host_routes_cover(previous.get("hosts"))
         or previous.get("rollbackIntent") is not None
         or receipt_bytes(previous, project) != raw
     ):
@@ -6093,8 +6104,14 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
         or re.fullmatch(r"[0-9a-f]{64}", capability_digest) is None
     ):
         raise ValueError("ChaosEngine host receipt capability policy is invalid")
-    if value.get("hosts") != host_routes():
-        raise ValueError("ChaosEngine host receipt routes are invalid")
+    stored_hosts = value.get("hosts")
+    current_hosts = host_routes()
+    if stored_hosts != current_hosts:
+        # A newer installer may add a host that points at an existing entrypoint.
+        # Shared routes must still match; removed or rewritten routes stay invalid.
+        if not host_routes_cover(stored_hosts) or not isinstance(stored_hosts, dict) or set(stored_hosts) == set(current_hosts):
+            raise ValueError("ChaosEngine host receipt routes are invalid")
+        value["hosts"] = dict(current_hosts)
     decode_images(value.get("before"), nullable=True)
     decode_images(value.get("after"), nullable=True)
     before_value = value.get("before")

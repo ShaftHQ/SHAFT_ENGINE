@@ -57,18 +57,24 @@ class SetupPrerequisitesTest {
 
     @Test
     void grokFamilyAsksForGrokCliWithoutNpmOrNode() {
+        com.shaft.intellij.settings.GrokInstallIdentity.useHelp(() -> "Grok Build TUI\n");
+        try {
         List<SetupPrerequisites.Prerequisite> detected =
                 SetupPrerequisites.detect("GROK", NOTHING_INSTALLED, true, false);
 
         SetupPrerequisites.Prerequisite agent = detected.stream()
-                .filter(item -> item.name().equals("Grok CLI"))
+                .filter(item -> item.name().equals("Grok Build"))
                 .findFirst().orElseThrow();
         assertAll(
                 () -> assertFalse(agent.present()),
-                () -> assertTrue(agent.installCommand().contains("Grok CLI"), agent.installCommand()),
+                () -> assertTrue(agent.installCommand().contains("Grok Build"), agent.installCommand()),
+                () -> assertTrue(detected.stream().noneMatch(item -> item.name().equals("Grok CLI"))),
                 () -> assertFalse(agent.installCommand().startsWith("npm "), agent.installCommand()),
                 () -> assertTrue(detected.stream().noneMatch(item -> item.name().startsWith("Node.js")),
                         "Grok is not an npm-installed CLI"));
+        } finally {
+            com.shaft.intellij.settings.GrokInstallIdentity.useHelp(null);
+        }
     }
 
     @Test

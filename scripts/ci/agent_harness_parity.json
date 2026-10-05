@@ -8,7 +8,8 @@
     "grok",
     "opencode",
     "cursor",
-    "grok-bot"
+    "grok-bot",
+    "antigravity"
   ],
   "capabilities": [
     {
@@ -39,6 +40,9 @@
       ],
       "grok-bot": [
         "chaos-engine/references/bot-entry.md"
+      ],
+      "antigravity": [
+        "AGENTS.md"
       ]
     },
     {
@@ -68,6 +72,9 @@
         "chaos-engine/references/consult-first.md"
       ],
       "grok-bot": [
+        "chaos-engine/references/consult-first.md"
+      ],
+      "antigravity": [
         "chaos-engine/references/consult-first.md"
       ]
     },
@@ -99,6 +106,9 @@
       ],
       "grok-bot": [
         "chaos-engine/skills/chaos-engine/SKILL.md"
+      ],
+      "antigravity": [
+        "chaos-engine/skills/chaos-engine/SKILL.md"
       ]
     },
     {
@@ -128,6 +138,9 @@
         "chaos-engine/skills/chaos-engine/SKILL.md"
       ],
       "grok-bot": [
+        "chaos-engine/skills/chaos-engine/SKILL.md"
+      ],
+      "antigravity": [
         "chaos-engine/skills/chaos-engine/SKILL.md"
       ]
     },
@@ -159,6 +172,9 @@
       ],
       "grok-bot": [
         "chaos-engine/skills/chaos-engine/SKILL.md"
+      ],
+      "antigravity": [
+        "chaos-engine/skills/chaos-engine/SKILL.md"
       ]
     },
     {
@@ -188,6 +204,9 @@
         "chaos-engine/references/tdd.md"
       ],
       "grok-bot": [
+        "chaos-engine/references/tdd.md"
+      ],
+      "antigravity": [
         "chaos-engine/references/tdd.md"
       ]
     },
@@ -219,6 +238,9 @@
       ],
       "grok-bot": [
         "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
+      ],
+      "antigravity": [
+        "shaft-skills/ce-pack/references/playbooks/agentic-pdca-loop.md"
       ]
     },
     {
@@ -248,6 +270,9 @@
         "chaos-engine/references/task-isolation.md"
       ],
       "grok-bot": [
+        "chaos-engine/references/task-isolation.md"
+      ],
+      "antigravity": [
         "chaos-engine/references/task-isolation.md"
       ]
     },
@@ -279,6 +304,9 @@
       ],
       "grok-bot": [
         "chaos-engine/references/execution-workflows.md"
+      ],
+      "antigravity": [
+        "chaos-engine/references/execution-workflows.md"
       ]
     },
     {
@@ -308,6 +336,9 @@
         "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ],
       "grok-bot": [
+        "chaos-engine/skills/local-runtimes/references/omniroute.md"
+      ],
+      "antigravity": [
         "chaos-engine/skills/local-runtimes/references/omniroute.md"
       ]
     },
@@ -339,6 +370,9 @@
       ],
       "grok-bot": [
         "chaos-engine/references/delegation.md"
+      ],
+      "antigravity": [
+        "chaos-engine/references/delegation.md"
       ]
     },
     {
@@ -369,6 +403,9 @@
       ],
       "grok-bot": [
         "chaos-engine/references/research-receipt.md"
+      ],
+      "antigravity": [
+        "scripts/agents/guard.py"
       ]
     },
     {
@@ -400,6 +437,9 @@
       ],
       "grok-bot": [
         "chaos-engine/references/research-receipt.md"
+      ],
+      "antigravity": [
+        "scripts/agents/guard.py"
       ]
     },
     {
@@ -429,6 +469,9 @@
         "scripts/ci/worktree_hygiene.py"
       ],
       "grok-bot": [
+        "scripts/ci/worktree_hygiene.py"
+      ],
+      "antigravity": [
         "scripts/ci/worktree_hygiene.py"
       ]
     },
@@ -460,6 +503,9 @@
       ],
       "grok-bot": [
         "chaos-engine/references/work-github-playbook.md"
+      ],
+      "antigravity": [
+        "chaos-engine/references/work-github-playbook.md"
       ]
     },
     {
@@ -490,6 +536,9 @@
       ],
       "grok-bot": [
         "chaos-engine/tool.py"
+      ],
+      "antigravity": [
+        ".mcp.json"
       ]
     },
     {
@@ -520,6 +569,9 @@
       ],
       "grok-bot": [
         "chaos-engine/tool.py"
+      ],
+      "antigravity": [
+        ".mcp.json"
       ]
     },
     {
@@ -550,6 +602,9 @@
       ],
       "grok-bot": [
         "chaos-engine/tool.py"
+      ],
+      "antigravity": [
+        ".mcp.json"
       ]
     },
     {
@@ -580,6 +635,9 @@
       ],
       "grok-bot": [
         "chaos-engine/tool.py"
+      ],
+      "antigravity": [
+        ".mcp.json"
       ]
     },
     {
@@ -609,6 +667,9 @@
         "chaos-engine/skills/chaos-engine/SKILL.md"
       ],
       "grok-bot": [
+        "chaos-engine/skills/chaos-engine/SKILL.md"
+      ],
+      "antigravity": [
         "chaos-engine/skills/chaos-engine/SKILL.md"
       ]
     },
@@ -641,6 +702,9 @@
       ],
       "grok-bot": [
         ".agents/skills/README.md"
+      ],
+      "antigravity": [
+        ".agents/skills/README.md"
       ]
     },
     {
@@ -671,6 +735,9 @@
       ],
       "grok-bot": [
         "chaos-engine/references/research-receipt.md"
+      ],
+      "antigravity": [
+        "scripts/agents/guard.py"
       ]
     },
     {
@@ -700,6 +767,9 @@
         "chaos-engine/references/host-parity-matrix.md"
       ],
       "grok-bot": [
+        "chaos-engine/references/host-parity-matrix.md"
+      ],
+      "antigravity": [
         "chaos-engine/references/host-parity-matrix.md"
       ]
     },
@@ -732,7 +802,10 @@
       "grok-bot": [
         "chaos-engine/references/research-receipt.md"
       ],
-      "note": "Hook hosts enforce through the portable guard; instruction-only hosts (OpenCode, Cursor, Grok Bot) record the research-receipt retrieve field (GAP-OPENCODE-HOOKS, GAP-CURSOR-HOOKS, GAP-GROKBOT-HOOKS)."
+      "note": "Hook hosts enforce through the portable guard; instruction-only hosts (OpenCode, Cursor, Grok Bot) record the research-receipt retrieve field (GAP-OPENCODE-HOOKS, GAP-CURSOR-HOOKS, GAP-GROKBOT-HOOKS).",
+      "antigravity": [
+        "chaos-engine/hooks/guard.py"
+      ]
     },
     {
       "id": "tool_help",
@@ -761,6 +834,9 @@
         "chaos-engine/tool.py"
       ],
       "grok-bot": [
+        "chaos-engine/tool.py"
+      ],
+      "antigravity": [
         "chaos-engine/tool.py"
       ]
     },
@@ -793,7 +869,10 @@
       "grok-bot": [
         "chaos-engine/references/research-receipt.md"
       ],
-      "note": "#6174: run is not read, harness exempt, subdir root, fail-open with no project index. Instruction-only hosts record the receipt field."
+      "note": "#6174: run is not read, harness exempt, subdir root, fail-open with no project index. Instruction-only hosts record the receipt field.",
+      "antigravity": [
+        "chaos-engine/hooks/retrieve_justification.py"
+      ]
     },
     {
       "id": "emitted_reachability",
@@ -824,7 +903,10 @@
       "grok-bot": [
         "chaos-engine/hooks/lifecycle.py"
       ],
-      "note": "#6175: SessionStart locators, router links and documented commands exist in the installed layout and pass the gate."
+      "note": "#6175: SessionStart locators, router links and documented commands exist in the installed layout and pass the gate.",
+      "antigravity": [
+        "chaos-engine/hooks/lifecycle.py"
+      ]
     },
     {
       "id": "lean_bootstrap",
@@ -855,7 +937,10 @@
       "grok-bot": [
         "scripts/ci/agent_guidance_budget.json"
       ],
-      "note": "#6176: router core card plus mandated_chain budget per host; role adapters load the delegate card."
+      "note": "#6176: router core card plus mandated_chain budget per host; role adapters load the delegate card.",
+      "antigravity": [
+        "scripts/ci/agent_guidance_budget.json"
+      ]
     },
     {
       "id": "harness_index",
@@ -886,7 +971,10 @@
       "grok-bot": [
         "chaos-engine/harness-index.json"
       ],
-      "note": "#6177: one generated index drives catalog, skills map, marketplaces, expected names, and the guard allowlist."
+      "note": "#6177: one generated index drives catalog, skills map, marketplaces, expected names, and the guard allowlist.",
+      "antigravity": [
+        "chaos-engine/harness-index.json"
+      ]
     },
     {
       "id": "ce_always_loaded",
@@ -917,7 +1005,10 @@
       "grok-bot": [
         "AGENTS.md"
       ],
-      "note": "#6178: one pointer via AGENTS.md (CLAUDE.md and GEMINI.md import it); session worktrees materialize the overlay; doctor verify reports hosts that would start without CE."
+      "note": "#6178: one pointer via AGENTS.md (CLAUDE.md and GEMINI.md import it); session worktrees materialize the overlay; doctor verify reports hosts that would start without CE.",
+      "antigravity": [
+        "AGENTS.md"
+      ]
     },
     {
       "id": "install_hygiene",
@@ -948,7 +1039,10 @@
       "grok-bot": [
         "chaos-engine/tool.py"
       ],
-      "note": "#6179: portable interpreters in host configs, CLI-first MCP catalog, quiet retrieve, doctor digest."
+      "note": "#6179: portable interpreters in host configs, CLI-first MCP catalog, quiet retrieve, doctor digest.",
+      "antigravity": [
+        "chaos-engine/mcp_policy.py"
+      ]
     },
     {
       "id": "overlay_cleanup",
@@ -979,7 +1073,10 @@
       "grok-bot": [
         "chaos-engine/identity.md"
       ],
-      "note": "#6180: identity matches #6171, one local-runtimes skill, delta-only status, permanent rules in CE."
+      "note": "#6180: identity matches #6171, one local-runtimes skill, delta-only status, permanent rules in CE.",
+      "antigravity": [
+        "chaos-engine/identity.md"
+      ]
     },
     {
       "id": "mempalace_backend_pin",
@@ -1010,7 +1107,10 @@
       "grok-bot": [
         "chaos-engine/retrieve.py"
       ],
-      "note": "#6212: retrieve pins sqlite_exact; a backend mismatch is blocking with fixNext; doctor row mempalace-backend."
+      "note": "#6212: retrieve pins sqlite_exact; a backend mismatch is blocking with fixNext; doctor row mempalace-backend.",
+      "antigravity": [
+        "chaos-engine/retrieve.py"
+      ]
     },
     {
       "id": "local_runtimes_fold",
@@ -1041,7 +1141,10 @@
       "grok-bot": [
         "chaos-engine/skills/local-runtimes/SKILL.md"
       ],
-      "note": "#6200: runtime bodies live under local-runtimes/references; old SKILL.md files are pointers."
+      "note": "#6200: runtime bodies live under local-runtimes/references; old SKILL.md files are pointers.",
+      "antigravity": [
+        "chaos-engine/skills/local-runtimes/SKILL.md"
+      ]
     },
     {
       "id": "mcp_opt_in",
@@ -1072,7 +1175,10 @@
       "grok-bot": [
         "chaos-engine/hosts.py"
       ],
-      "note": "#6199: memory, mempalace and context7 MCP are opt-in (install --with-mcp); host files stay portable."
+      "note": "#6199: memory, mempalace and context7 MCP are opt-in (install --with-mcp); host files stay portable.",
+      "antigravity": [
+        "chaos-engine/hosts.py"
+      ]
     },
     {
       "id": "vendor_plugin_adapters",
@@ -1103,7 +1209,10 @@
       "grok-bot": [
         "chaos-engine/plugin-adapters/INDEX.md"
       ],
-      "note": "#6198: short plugin adapters; Caveman activation reads the vendor body; Ponytail keeps its body."
+      "note": "#6198: short plugin adapters; Caveman activation reads the vendor body; Ponytail keeps its body.",
+      "antigravity": [
+        "chaos-engine/plugin-adapters/INDEX.md"
+      ]
     },
     {
       "id": "instruction_only_receipt",
@@ -1134,7 +1243,10 @@
       "grok-bot": [
         "chaos-engine/learning_session.py"
       ],
-      "note": "#6201: instruction-only hosts record retrieve: in .chaos-engine-state/research-receipt.md; finalize flags a missing one."
+      "note": "#6201: instruction-only hosts record retrieve: in .chaos-engine-state/research-receipt.md; finalize flags a missing one.",
+      "antigravity": [
+        "chaos-engine/learning_session.py"
+      ]
     },
     {
       "id": "linked_worktree_stash_guard",
@@ -1173,7 +1285,11 @@
         "chaos-engine/hooks/guard.py",
         "chaos-engine/references/delegate-card.md"
       ],
-      "note": "#6223: hook hosts deny mutating git stash on a shared .git before any session gate; instruction-only hosts (grok-bot, opencode/cursor without shims) carry the rule in the delegate card."
+      "note": "#6223: hook hosts deny mutating git stash on a shared .git before any session gate; instruction-only hosts (grok-bot, opencode/cursor without shims) carry the rule in the delegate card.",
+      "antigravity": [
+        "chaos-engine/hooks/guard.py",
+        "chaos-engine/references/delegate-card.md"
+      ]
     },
     {
       "id": "nested_overlay_tree_guard",
@@ -1212,7 +1328,11 @@
         "chaos-engine/install.py",
         "chaos-engine/overlay_match.py"
       ],
-      "note": "#6225: install refuses an overlay or portable tree as the project, source_files skips top-level dot residue, repair --component core removes a nested .chaos-engine tree, and status --digest carries the doctor policy-overlay row."
+      "note": "#6225: install refuses an overlay or portable tree as the project, source_files skips top-level dot residue, repair --component core removes a nested .chaos-engine tree, and status --digest carries the doctor policy-overlay row.",
+      "antigravity": [
+        "chaos-engine/install.py",
+        "chaos-engine/overlay_match.py"
+      ]
     },
     {
       "id": "research_receipt_shims",
@@ -1251,7 +1371,11 @@
         "chaos-engine/hooks/receipt_shim.py",
         "chaos-engine/references/research-receipt.md"
       ],
-      "note": "#6218: Cursor hooks and the OpenCode plugin open a pending research receipt before the first project read; Grok Bot stays instruction-only; the Copilot cloud overlay setup step needs a workflow change and owner approval."
+      "note": "#6218: Cursor hooks and the OpenCode plugin open a pending research receipt before the first project read; Grok Bot stays instruction-only; the Copilot cloud overlay setup step needs a workflow change and owner approval.",
+      "antigravity": [
+        "chaos-engine/hooks/receipt_shim.py",
+        "chaos-engine/references/research-receipt.md"
+      ]
     },
     {
       "id": "receipt_shim_auto_wiring",
@@ -1290,7 +1414,11 @@
         "chaos-engine/install.py",
         "chaos-engine/hooks/receipt_shim.py"
       ],
-      "note": "#6230: install and repair --component hooks wire the Cursor hooks and OpenCode plugin receipt shims for hosts with a project marker or CLI on PATH; uninstall removes only the shim entries; the generated files are in the origin overlay ignore block."
+      "note": "#6230: install and repair --component hooks wire the Cursor hooks and OpenCode plugin receipt shims for hosts with a project marker or CLI on PATH; uninstall removes only the shim entries; the generated files are in the origin overlay ignore block.",
+      "antigravity": [
+        "chaos-engine/install.py",
+        "chaos-engine/hooks/receipt_shim.py"
+      ]
     },
     {
       "id": "copilot_cloud_receipt_setup_step",
@@ -1329,22 +1457,45 @@
         ".github/workflows/copilot-setup-steps.yml",
         "chaos-engine/hooks/receipt_shim.py"
       ],
-      "note": "#6218 (owner-approved 2026-09-25 07:40 Cairo): the Copilot cloud copilot-setup-steps job runs receipt_shim.py ensure --host copilot-cloud before the agent starts, so a pending research receipt exists before the first project read."
+      "note": "#6218 (owner-approved 2026-09-25 07:40 Cairo): the Copilot cloud copilot-setup-steps job runs receipt_shim.py ensure --host copilot-cloud before the agent starts, so a pending research receipt exists before the first project read.",
+      "antigravity": [
+        ".github/workflows/copilot-setup-steps.yml",
+        "chaos-engine/hooks/receipt_shim.py"
+      ]
     },
     {
       "id": "retrieve_store_deja",
       "owner": "chaos-engine/references/retrieve-first.md",
       "check": "tests/scripts/test_deja_store_6183.py::test_retrieve_store_deja_skips_cleanly_when_binary_or_history_missing",
       "mode": "equivalent",
-      "claude": ["chaos-engine/references/retrieve-first.md"],
-      "codex": ["chaos-engine/references/retrieve-first.md"],
-      "copilot": ["chaos-engine/references/retrieve-first.md"],
-      "gemini": ["chaos-engine/references/retrieve-first.md"],
-      "grok": ["chaos-engine/references/retrieve-first.md"],
-      "opencode": ["chaos-engine/references/retrieve-first.md"],
-      "cursor": ["chaos-engine/references/retrieve-first.md"],
-      "grok-bot": ["chaos-engine/references/retrieve-first.md"],
-      "note": "#6183: opt-in CLI transcript store. grok-bot and cloud executors return skipped(no-history); no MCP, hooks, or upstream installer."
+      "claude": [
+        "chaos-engine/references/retrieve-first.md"
+      ],
+      "codex": [
+        "chaos-engine/references/retrieve-first.md"
+      ],
+      "copilot": [
+        "chaos-engine/references/retrieve-first.md"
+      ],
+      "gemini": [
+        "chaos-engine/references/retrieve-first.md"
+      ],
+      "grok": [
+        "chaos-engine/references/retrieve-first.md"
+      ],
+      "opencode": [
+        "chaos-engine/references/retrieve-first.md"
+      ],
+      "cursor": [
+        "chaos-engine/references/retrieve-first.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/references/retrieve-first.md"
+      ],
+      "note": "#6183: opt-in CLI transcript store. grok-bot and cloud executors return skipped(no-history); no MCP, hooks, or upstream installer.",
+      "antigravity": [
+        "chaos-engine/references/retrieve-first.md"
+      ]
     }
   ]
 }

@@ -1072,7 +1072,7 @@ class ShaftPanelSetupTest {
                 () -> assertNotNull(manualTarget),
                 () -> assertFalse(manualTarget.isVisible()),
                 () -> assertFalse(target.isVisible()),
-                () -> assertEquals(7, agent.getItemCount()),
+                () -> assertEquals(8, agent.getItemCount()),
                 () -> assertEquals("Claude Code", String.valueOf(agent.getItemAt(0))),
                 () -> assertEquals("GitHub Copilot in IntelliJ", String.valueOf(agent.getItemAt(6))),
                 () -> assertEquals("CODEX", target.getSelectedItem()),
@@ -3150,7 +3150,7 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertNotNull(agent),
                 () -> assertTrue(agent.isVisible()),
-                () -> assertEquals(7, agent.getItemCount()),
+                () -> assertEquals(8, agent.getItemCount()),
                 () -> assertFalse(family.isVisible()),
                 () -> assertFalse(runtime.isVisible()));
     }

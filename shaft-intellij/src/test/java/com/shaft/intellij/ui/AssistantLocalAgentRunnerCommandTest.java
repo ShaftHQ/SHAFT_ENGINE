@@ -85,6 +85,13 @@ class AssistantLocalAgentRunnerCommandTest {
     }
 
     @Test
+    void antigravityIsItsOwnAgentAndNotCodex() {
+        List<String> command = AssistantLocalAgentRunner.commandFor(arguments("ANTIGRAVITY", "ASK", false));
+        assertEquals(List.of("agy", "-p", "irrelevant"), command);
+        assertEquals(List.of(), AssistantLocalAgentRunner.mcpAccessCommandFor("ANTIGRAVITY"));
+    }
+
+    @Test
     void emptyClientDoesNotCoerceToCodex() {
         JsonObject arguments = arguments("", "AGENT", true);
         arguments.addProperty("client", "");

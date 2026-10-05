@@ -293,7 +293,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         assistantAgent.getAccessibleContext().setAccessibleDescription(
                 "Select the agent route used by SHAFT Assistant and MCP setup.");
         assistantAgent.addActionListener(event -> syncLegacyAgentControls());
-        assistantFamily = new JComboBox<>(model("CODEX", "CLAUDE", "COPILOT", "GROK"));
+        assistantFamily = new JComboBox<>(model("CODEX", "CLAUDE", "COPILOT", "GROK", "ANTIGRAVITY"));
         ShaftUiLabels.applyFriendlyRenderer(assistantFamily);
         assistantFamily.getAccessibleContext().setAccessibleName("Assistant family");
         assistantFamily.getAccessibleContext().setAccessibleDescription("Local assistant family used by the Assistant tab.");
@@ -752,6 +752,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             case "CLAUDE_CODE" -> "CLAUDE";
             case "COPILOT_CLI" -> "COPILOT";
             case "GROK" -> "GROK";
+            case "ANTIGRAVITY" -> "ANTIGRAVITY";
             case "CODEX" -> "CODEX";
             default -> "";
         };
@@ -766,6 +767,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
             case "CLAUDE" -> "CLAUDE_CODE";
             case "COPILOT" -> "COPILOT_CLI";
             case "GROK" -> "GROK";
+            case "ANTIGRAVITY" -> "ANTIGRAVITY";
             case "CODEX" -> "CODEX";
             default -> "";
         };

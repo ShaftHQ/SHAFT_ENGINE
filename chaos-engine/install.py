@@ -3121,6 +3121,19 @@ def rollback(  # noqa: MC0001 - cross-resource rollback is one journaled state m
                         previous_core_sha256,
                     )
             if target_commit != desired_commit:
+                # The previous core rejects a receipt whose host map gained a route.
+                # Restore that core's exact receipt before the tree swap loads it.
+                prior_raw = pending.get("priorHostReceipt") if isinstance(pending, dict) else None
+                if isinstance(prior_raw, bytes):
+                    current_hosts = load_installed_controller(target, "hosts")
+                    _current_receipt, current_raw = current_hosts.read_receipt(project)
+                    if current_raw != prior_raw:
+                        receipt_name = getattr(
+                            current_hosts, "RECEIPT_NAME", ".chaos-engine-hosts.json"
+                        )
+                        current_hosts.atomic_write(
+                            project, project / receipt_name, prior_raw, current_raw
+                        )
                 rollback(project, _locked=True)
             try:
                 previous_hosts = load_installed_controller(target, "hosts")

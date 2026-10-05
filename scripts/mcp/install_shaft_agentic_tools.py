@@ -52,6 +52,7 @@ SHAFT_SKILLS_NATIVE_DIRECTORIES = {
     "copilot": (".github/skills",),
     "copilot-intellij": (".github/skills",),
     "grok": (".agents/skills",),
+    "antigravity": (".agents/skills",),
     "intellij-plugin": (".agents/skills", ".claude/skills", ".github/skills"),
 }
 SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES = (".agents/skills", ".claude/skills", ".github/skills")
@@ -98,7 +99,7 @@ RETIRED_AGENT_VALIDATION_SCRIPT_FILES = (
     "scripts/agents/learning_loop.py",
 )
 AGENT_GUIDANCE_SCAFFOLD_MARKER = "AGENTS.md"
-TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "grok", "intellij-plugin")
+TARGETS = ("codex", "claude", "claude-desktop", "copilot", "copilot-intellij", "grok", "antigravity", "intellij-plugin")
 TARGET_CHOICES = (
     ("codex", "Codex CLI / IDE"),
     ("claude", "Claude Code"),
@@ -106,6 +107,7 @@ TARGET_CHOICES = (
     ("copilot", "GitHub Copilot CLI"),
     ("copilot-intellij", "GitHub Copilot for IntelliJ IDEA"),
     ("grok", "Grok CLI"),
+    ("antigravity", "Antigravity CLI"),
     ("intellij-plugin", "SHAFT IntelliJ IDEA plugin"),
 )
 
@@ -301,7 +303,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "target",
         nargs="?",
-        help="Optional target name: codex, claude, claude-desktop, copilot, copilot-intellij, or grok.",
+        help="Optional target name: codex, claude, claude-desktop, copilot, copilot-intellij, grok, or antigravity.",
     )
     args = parser.parse_args(argv)
 
@@ -336,7 +338,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     if args.install_mcp and args.client is None:
         args.client = choose_client()
     if args.client is not None and args.client not in TARGETS:
-        fail("Usage: install_shaft_agentic_tools.py [--client <codex|claude|claude-desktop|copilot|copilot-intellij|grok|intellij-plugin>]", 2)
+        fail("Usage: install_shaft_agentic_tools.py [--client <codex|claude|claude-desktop|copilot|copilot-intellij|grok|antigravity|intellij-plugin>]", 2)
     return args
 
 
@@ -1317,6 +1319,8 @@ def configuration_path(client: str) -> Path:
         return Path(os.environ.get("XDG_CONFIG_HOME") or user_home / ".config") / "github-copilot" / "intellij" / "mcp.json"
     if client == "grok":
         return Path(os.environ.get("GROK_HOME") or user_home / ".grok") / "config.toml"
+    if client == "antigravity":
+        return user_home / ".gemini" / "config" / "mcp_config.json"
     fail(f"Unsupported client: {client}", 2)
 
 
@@ -1434,6 +1438,8 @@ def project_candidates(directory: Path, client: str) -> list[Path]:
         return [directory / ".codex" / "config.toml"]
     if client == "grok":
         return [directory / ".grok" / "config.toml"]
+    if client == "antigravity":
+        return [directory / ".agents" / "mcp_config.json"]
     if client in {"claude", "claude-desktop"}:
         return [directory / ".mcp.json"]
     if client == "copilot":
@@ -1642,6 +1648,44 @@ def grok_write_path() -> Path:
     return user_config
 
 
+def antigravity_write_path() -> Path:
+    """Prefer a workspace mcp_config that already names shaft-mcp.
+
+    Antigravity CLI reads ~/.gemini/config/mcp_config.json and
+    <workspace>/.agents/mcp_config.json (mcpServers JSON).
+    """
+    user_config = configuration_path("antigravity").resolve()
+    directory = Path.cwd().resolve()
+    stop = git_root(directory)
+    while True:
+        for candidate in project_candidates(directory, "antigravity"):
+            resolved = candidate.resolve()
+            if resolved == user_config:
+                continue
+            if project_entry_exists(candidate, "antigravity"):
+                return resolved
+        if stop is None or directory == stop or directory.parent == directory:
+            break
+        directory = directory.parent
+    return user_config
+
+
+def configure_antigravity(java: Path, args_file: Path) -> None:
+    configuration = antigravity_write_path()
+
+    def mutate() -> None:
+        root = read_json_object(configuration)
+        servers = root.setdefault("mcpServers", {})
+        if not isinstance(servers, dict):
+            fail("Configuration property must be an object: mcpServers", 5)
+        servers[SERVER_NAME] = stdio_entry(java, args_file)
+        write_json_atomically(configuration, root)
+
+    update_json_configuration(
+        configuration, mutate, lambda: verify_json_entry(configuration, "mcpServers", java, args_file)
+    )
+
+
 def configure_grok(java: Path, args_file: Path) -> None:
     configuration = grok_write_path()
     if configuration.exists() and configuration.stat().st_size > 0:
@@ -1688,6 +1732,8 @@ def configure_client(client: str, java: Path, args_file: Path) -> None:
         configure_copilot_intellij(java, args_file)
     elif client == "grok":
         configure_grok(java, args_file)
+    elif client == "antigravity":
+        configure_antigravity(java, args_file)
     else:
         fail(f"Unsupported client: {client}", 2)
 
@@ -1699,6 +1745,8 @@ def activation_hint(client: str) -> str:
         return "Restart Claude Desktop, then open a new chat and use the shaft-mcp tools."
     if client == "copilot-intellij":
         return "Restart IntelliJ IDEA or reload Copilot Chat, then use the shaft-mcp tools."
+    if client == "antigravity":
+        return "Start a fresh Antigravity CLI session, then use the shaft-mcp tools."
     return "Start a fresh client session, then use the shaft-mcp tools."
 
 

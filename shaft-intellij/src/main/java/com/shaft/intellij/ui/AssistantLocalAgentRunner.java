@@ -411,6 +411,7 @@ final class AssistantLocalAgentRunner {
             case "CLAUDE_CODE" -> "claude";
             case "COPILOT_CLI" -> "copilot";
             case "GROK" -> "grok";
+            case "ANTIGRAVITY" -> "agy";
             default -> "codex";
         };
         String displayName = displayName(client);
@@ -445,6 +446,7 @@ final class AssistantLocalAgentRunner {
             case "CLAUDE_CODE" -> List.of("claude", "mcp", "get", "shaft-mcp");
             case "COPILOT_CLI" -> List.of();
             case "GROK" -> List.of("grok", "mcp", "list");
+            case "ANTIGRAVITY" -> List.of();
             default -> List.of("codex", "mcp", "get", "shaft-mcp");
         };
     }
@@ -552,6 +554,7 @@ final class AssistantLocalAgentRunner {
                     : claudeCommand(mode, allowSourceMutation, model, bridge);
             case "COPILOT_CLI" -> copilotCommand(mode, allowSourceMutation, model);
             case "GROK" -> grokCommand(mode, allowSourceMutation, string(arguments, "prompt", ""));
+            case "ANTIGRAVITY" -> List.of("agy", "-p", string(arguments, "prompt", ""));
             case "CODEX" -> codexCommand(
                     mode, allowSourceMutation, readOnlyCodegenRecording,
                     unrestrictedLocalAgentAccess, model, effort);
@@ -2333,7 +2336,8 @@ final class AssistantLocalAgentRunner {
         return switch (normalize(client)) {
             case "CLAUDE_CODE" -> "Claude Code";
             case "COPILOT_CLI" -> "GitHub Copilot CLI";
-            case "GROK" -> "Grok CLI";
+            case "GROK" -> com.shaft.intellij.settings.GrokInstallIdentity.detectedLabel();
+            case "ANTIGRAVITY" -> "Antigravity";
             case "CODEX" -> "Codex CLI";
             default -> "Select an option";
         };

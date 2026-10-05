@@ -1,5 +1,7 @@
 package com.shaft.intellij.settings;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
@@ -10,6 +12,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 class AssistantAgentRouteTest {
+
+    @BeforeEach
+    void pinGrokHelpToAPlainCli() {
+        GrokInstallIdentity.useHelp(() -> "grok version 0.1\n");
+    }
+
+    @AfterEach
+    void restoreGrokHelpProbe() {
+        GrokInstallIdentity.useHelp(null);
+    }
 
     @Test
     void fromInstallerTargetFindsAKnownTokenAndRejectsUnknown() {
@@ -28,11 +40,11 @@ class AssistantAgentRouteTest {
 
         assertEquals(List.of(
                         "Claude Code", "Claude Desktop", "Codex CLI", "Gemini in IntelliJ",
-                        "Grok CLI", "GitHub Copilot CLI", "GitHub Copilot in IntelliJ"),
+                        "Grok CLI", "GitHub Copilot CLI", "GitHub Copilot in IntelliJ", "Antigravity"),
                 Arrays.stream(routes).map(route -> String.valueOf(invoke(displayName, route))).toList());
         assertEquals(List.of(
                         "CLAUDE_CODE", "CLAUDE_DESKTOP", "CODEX", "INTELLIJ_PLUGIN",
-                        "GROK", "COPILOT_CLI", "COPILOT_INTELLIJ"),
+                        "GROK", "COPILOT_CLI", "COPILOT_INTELLIJ", "ANTIGRAVITY"),
                 Arrays.stream(routes).map(route -> String.valueOf(invoke(installerTarget, route))).toList());
     }
 
@@ -48,6 +60,15 @@ class AssistantAgentRouteTest {
         assertEquals("CLAUDE_CODE", routeName(fromSettings, settings("LOCAL", "CLAUDE", "CLI")));
         assertEquals("COPILOT_CLI", routeName(fromSettings, settings("LOCAL", "COPILOT", "CLI")));
         assertEquals("GROK", routeName(fromSettings, settings("LOCAL", "GROK", "CLI")));
+        assertEquals("ANTIGRAVITY", routeName(fromSettings, settings("LOCAL", "ANTIGRAVITY", "CLI")));
+    }
+
+    @Test
+    void grokBuildHelpIsLabeledGrokBuildAndNotGrokCli() {
+        GrokInstallIdentity.useHelp(() -> "Grok Build TUI\nUsage: grok [OPTIONS]\n");
+        assertEquals("Grok Build", GrokInstallIdentity.labelFromHelp("Grok Build TUI\n"));
+        assertEquals("Grok Build", AssistantAgentRoute.GROK.displayName());
+        assertEquals("Grok CLI", GrokInstallIdentity.labelFromHelp("grok 0.1\n"));
     }
 
     @Test
