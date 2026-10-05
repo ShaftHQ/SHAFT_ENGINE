@@ -20,6 +20,7 @@ Assistant memory keeps only this pointer: "Follow the ChaosEngine core card
 | Learned memory carries origin + trust; untrusted stays quarantined until verified | [memory provenance](memory-provenance.md) |
 | Evolving playbook items keep helpful/harmful counters and take delta updates | [evolving playbook](evolving-playbook.md) |
 | Insight bank extracts from success/failure pairs with ExpeL votes and failure distill | [insight extract](insight-extract.md) |
+| Repeated successful step windows induce a workflow; skill publish stays behind the eval suite | [workflow induction](workflow-induction.md) |
 | Delta-only status; full report only on a RAG change or owner request | [process owner](process-owner-scrum-master.md) |
 | Cost and avoided-spend lines only when a local channel was actually used | [process owner](process-owner-scrum-master.md) |
 | Cloud implementers write code; local runtimes optional for narrow jobs | [identity](../identity.md), [local-runtimes](../skills/local-runtimes/SKILL.md) |

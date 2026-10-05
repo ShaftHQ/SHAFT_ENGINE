@@ -235,6 +235,15 @@
       "module": "tests.scripts.test_chaos_engine_token_waste_6161",
       "k": 1,
       "runner": "unittest"
+    },
+    {
+      "id": "reg-workflow-induction-6518",
+      "set": "regression",
+      "area": "entry",
+      "source_issue": 6518,
+      "module": "tests.scripts.test_chaos_engine_workflow_induction_6518",
+      "k": 1,
+      "runner": "unittest"
     }
   ]
 }

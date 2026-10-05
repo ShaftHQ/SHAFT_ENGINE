@@ -468,6 +468,11 @@ CHECKS = {
         "insight-extract",
         ("tests.scripts.test_chaos_engine_insight_extract_6544",),
     ),
+    "workflow-induction-contract": Check(
+        "workflow-induction-contract",
+        "workflow-induction",
+        ("tests.scripts.test_chaos_engine_workflow_induction_6518",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -521,6 +526,7 @@ SURFACE_CHECKS = {
     "memory-provenance": ("memory-provenance-contract",),
     "evolving-playbook": ("evolving-playbook-contract",),
     "insight-extract": ("insight-extract-contract",),
+    "workflow-induction": ("workflow-induction-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -949,6 +955,17 @@ SURFACE_PATTERNS = {
         "chaos-engine/references/zero-llm-catalog.md",
         ".agents/skills/README.md",
         "tests/scripts/test_chaos_engine_insight_extract_6544.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "workflow-induction": (
+        "chaos-engine/workflow_induce.py",
+        "chaos-engine/references/workflow-induction.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "chaos-engine/evals/harness-suite/manifest.json",
+        "tests/scripts/test_chaos_engine_workflow_induction_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
 }
