@@ -45,6 +45,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Evolving playbook | [`heuristics.py`](../heuristics.py) `feedback\|delta\|retrieve` (repo-only) · [evolving-playbook](evolving-playbook.md) | Helpful/harmful counters + delta text; ranked retrieve (issue 6532) |
 | Insight extract | [`insight_extract.py`](../insight_extract.py) `experience\|pair\|distill-failure\|operator\|retrieve` (repo-only) · [insight-extract](insight-extract.md) | Success/failure pairs + ExpeL votes + failure distill (issue 6544) |
 | Workflow induction | [`workflow_induce.py`](../workflow_induce.py) `trajectory\|induce\|retrieve\|materialize\|summary` (repo-only) · [workflow-induction](workflow-induction.md) | Repeated successful windows; materialize behind the eval suite (issue 6518) |
+| External reflection | [`external_reflection.py`](../external_reflection.py) `record\|retrieve\|summary` (repo-only) · [external-reflection](external-reflection.md) | Tests, CI, or doctor only; self-report refused (issue 6518) |
 | Significance capture | [`significance.py`](../significance.py) `mark|list|drain|locator` | Soft fail/deny marks → Learning Session drain; no Task Observer |
 | Skill compress audit | [`skill_compress_audit.py`](../skill_compress_audit.py) `audit` | Propose-only SKILL.md filler/bloat report; never auto-apply |
 | Javadoc `@param` arity | `scripts/ci/check_javadoc_param_arity.py` (repo-only) | Fail fast when `@param` names do not match method parameters in engine interaction packages |

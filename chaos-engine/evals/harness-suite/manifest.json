@@ -244,6 +244,15 @@
       "module": "tests.scripts.test_chaos_engine_workflow_induction_6518",
       "k": 1,
       "runner": "unittest"
+    },
+    {
+      "id": "reg-external-reflection-6518",
+      "set": "regression",
+      "area": "entry",
+      "source_issue": 6518,
+      "module": "tests.scripts.test_chaos_engine_external_reflection_6518",
+      "k": 1,
+      "runner": "unittest"
     }
   ]
 }

@@ -473,6 +473,11 @@ CHECKS = {
         "workflow-induction",
         ("tests.scripts.test_chaos_engine_workflow_induction_6518",),
     ),
+    "external-reflection-contract": Check(
+        "external-reflection-contract",
+        "external-reflection",
+        ("tests.scripts.test_chaos_engine_external_reflection_6518",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -527,6 +532,7 @@ SURFACE_CHECKS = {
     "evolving-playbook": ("evolving-playbook-contract",),
     "insight-extract": ("insight-extract-contract",),
     "workflow-induction": ("workflow-induction-contract",),
+    "external-reflection": ("external-reflection-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -966,6 +972,17 @@ SURFACE_PATTERNS = {
         ".agents/skills/README.md",
         "chaos-engine/evals/harness-suite/manifest.json",
         "tests/scripts/test_chaos_engine_workflow_induction_6518.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "external-reflection": (
+        "chaos-engine/external_reflection.py",
+        "chaos-engine/references/external-reflection.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "chaos-engine/evals/harness-suite/manifest.json",
+        "tests/scripts/test_chaos_engine_external_reflection_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
 }
