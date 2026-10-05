@@ -22,17 +22,20 @@ def load(path: pathlib.Path, name: str):
     return mod
 
 
-def suite_report(*, task_passed: bool, suite_passed: bool) -> dict:
+def suite_report(*, task_passed: bool, suite_passed: bool, required: float) -> dict:
+    missed = required - required
+    held = required if suite_passed and task_passed else missed
+    task_score = required if task_passed else missed
     return {
         "passed": suite_passed and task_passed,
-        "pass_at_k": 1.0 if suite_passed and task_passed else 0.0,
-        "threshold_pass_at_k": 1.0,
+        "pass_at_k": held,
+        "threshold_pass_at_k": required,
         "results": [
             {
                 "id": "reg-prompt-evolution-6518",
                 "module": "tests.scripts.test_chaos_engine_prompt_evolution_6518",
                 "passed": task_passed,
-                "pass_at_k": 1.0 if task_passed else 0.0,
+                "pass_at_k": task_score,
             }
         ],
     }
@@ -42,6 +45,8 @@ class PromptEvolutionTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.mod = load(ROOT / "chaos-engine/prompt_evolve.py", "ce_prompt_6518")
+        suite = load(ROOT / "scripts/ci/chaos_engine_harness_eval_suite.py", "ce_suite_6518")
+        cls.required = float(suite.load_manifest()["thresholds"]["pass_at_k"])
 
     def _project(self, tmp: str) -> pathlib.Path:
         project = pathlib.Path(tmp)
@@ -86,7 +91,7 @@ class PromptEvolutionTest(unittest.TestCase):
                 self.mod.accept_candidate(candidate_id, project=project, eval_manifest=pathlib.Path(manifest))
             failed = pathlib.Path(tmp) / "failed.json"
             failed.write_text(
-                json.dumps(suite_report(task_passed=False, suite_passed=False)),
+                json.dumps(suite_report(task_passed=False, suite_passed=False, required=self.required)),
                 encoding="utf-8",
             )
             with self.assertRaises(ValueError):
@@ -95,7 +100,7 @@ class PromptEvolutionTest(unittest.TestCase):
                 )
             passed = pathlib.Path(tmp) / "passed.json"
             passed.write_text(
-                json.dumps(suite_report(task_passed=True, suite_passed=True)),
+                json.dumps(suite_report(task_passed=True, suite_passed=True, required=self.required)),
                 encoding="utf-8",
             )
             scored = self._cli(

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Score prompt and skill candidates on the harness eval suite (#6518; GEPA 2507.19457).
+"""
+Score prompt and skill candidates on the harness eval suite (#6518; GEPA 2507.19457).
 
 A candidate is accepted only when a suite report shows this regression task at
 pass@k 1.0 and the suite itself passed. Accepted text stays under
@@ -169,7 +170,7 @@ def score_candidate(
             and row.get("id") == EVAL_TASK_ID
             and row.get("module") == EVAL_MODULE
             and row.get("passed") is True
-            and float(row.get("pass_at_k", 0)) >= 1.0
+            and float(row.get("pass_at_k", 0)) >= required
         ),
         None,
     )
