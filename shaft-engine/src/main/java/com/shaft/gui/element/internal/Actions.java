@@ -556,24 +556,7 @@ public class Actions extends ElementActions {
                 // get accessible name if needed
                 if (SHAFT.Properties.reporting.captureElementName()) {
                     String fetchedName;
-                    if (!isMobileNativeExecution) {
-                        try {
-                            fetchedName = foundElements.get().getFirst().getAccessibleName();
-                        } catch (WebDriverException throwable) {
-                            //happens on some elements that show unhandled inspector error
-                            //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
-                            //ignore
-                            //saw it again with mobile web tests
-                            // the stale was thrown in an iframe
-                            //also seen as a bare WebDriverException from SafariDriver computing the
-                            //accessible name of a hidden/non-interactable element (e.g. "Get dom
-                            //attribute ... is broken" in E2ECoverageTests#elementIsHiddenShouldPass) -
-                            //this is reporting-only metadata and must never fail the actual action
-                            fetchedName = foundElements.get().getFirst().getDomProperty("text");
-                        }
-                    } else {
-                        fetchedName = foundElements.get().getFirst().getAttribute("name");
-                    }
+                    fetchedName = reportingAccessibleName(foundElements.get().getFirst(), isMobileNativeExecution);
                     if (fetchedName != null && !fetchedName.isEmpty())
                         accessibleName.set(fetchedName.trim());
                 }
@@ -1945,6 +1928,25 @@ public class Actions extends ElementActions {
                 return value;
             }
             return value.substring(0, limit - 3) + "...";
+        }
+    }
+
+    /**
+     * Reporting-only name. Firefox on Selenium Grid can throw from
+     * {@code getAccessibleName}, and {@code getDomProperty("text")} then hangs the
+     * element action until the remote command times out (#6552). Leave the name
+     * blank instead of issuing that property call.
+     */
+    static String reportingAccessibleName(WebElement element, boolean mobileNative) {
+        if (mobileNative) {
+            String name = element.getAttribute("name");
+            return name == null ? "" : name;
+        }
+        try {
+            String name = element.getAccessibleName();
+            return name == null ? "" : name;
+        } catch (WebDriverException ignored) {
+            return "";
         }
     }
 

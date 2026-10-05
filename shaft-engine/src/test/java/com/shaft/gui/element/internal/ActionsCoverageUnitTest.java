@@ -34,6 +34,7 @@ import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.UnsupportedCommandException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
@@ -832,41 +833,41 @@ public class ActionsCoverageUnitTest {
     }
 
     @Test
-    public void performActionShouldFallbackFromAccessibleNameExceptionToDomText() {
+    public void performActionShouldContinueWhenAccessibleNameIsUnsupportedWithoutReadingDomText() {
         SHAFT.Properties.reporting.set().captureElementName(true);
         WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
         WebElement element = standardElement();
         when(element.getAccessibleName()).thenThrow(new UnsupportedCommandException("unsupported accessible name"));
-        when(element.getDomProperty("text")).thenReturn("fallback name");
+        when(element.getDomProperty("text")).thenThrow(new TimeoutException("firefox getDomProperty text hung"));
         when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
         DriverFactoryHelper helper = helperFor(driver);
 
         try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
             new Actions(helper).typeAppend(LOCATOR, "append");
-            verify(element).getDomProperty("text");
+            verify(element, never()).getDomProperty("text");
         }
     }
 
     @Test
-    public void performActionShouldFallbackFromGenericWebDriverExceptionOnAccessibleNameToDomText() {
+    public void performActionShouldContinueWhenAccessibleNameThrowsWithoutReadingDomText() {
         // SafariDriver has been observed throwing a bare WebDriverException (rather than the
         // narrower UnsupportedCommandException/StaleElementReferenceException already handled
         // above) when computing the accessible name of a hidden/non-interactable element
         // (nightly e2eLocalTests.yml MacOSX_Safari_Local run, E2ECoverageTests#elementIsHiddenShouldPass:
         // "Get dom attribute ... is broken"). Reporting-only accessible-name lookup must never
-        // fail the actual requested action; it must fall back the same way the narrower exception
-        // types already do.
+        // fail the actual requested action, and it must not call getDomProperty("text"):
+        // Firefox on Selenium Grid hangs that property until the remote command times out (#6552).
         SHAFT.Properties.reporting.set().captureElementName(true);
         WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
         WebElement element = standardElement();
         when(element.getAccessibleName()).thenThrow(new WebDriverException("element is not interactable"));
-        when(element.getDomProperty("text")).thenReturn("fallback name");
+        when(element.getDomProperty("text")).thenThrow(new TimeoutException("firefox getDomProperty text hung"));
         when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
         DriverFactoryHelper helper = helperFor(driver);
 
         try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
             new Actions(helper).typeAppend(LOCATOR, "append");
-            verify(element).getDomProperty("text");
+            verify(element, never()).getDomProperty("text");
         }
     }
 
