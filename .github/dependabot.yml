@@ -65,6 +65,7 @@ updates:
       - "/shaft-browserstack"
       - "/shaft-video"
       - "/shaft-visual"
+      - "/shaft-ui-match"
       - "/shaft-ocr"
       - "/shaft-sikulix"
       - "/shaft-mcp"

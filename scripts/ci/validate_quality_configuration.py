@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 JAVA_MODULES = {
     "shaft-infrastructure", "shaft-engine", "shaft-pilot-core", "shaft-capture", "shaft-capture-proxy", "shaft-doctor",
-    "shaft-ai", "shaft-heal", "shaft-browserstack", "shaft-video", "shaft-visual", "shaft-ocr", "shaft-sikulix",
+    "shaft-ai", "shaft-heal", "shaft-browserstack", "shaft-video", "shaft-visual", "shaft-ui-match", "shaft-ocr", "shaft-sikulix",
     "shaft-mcp",
 }
 DEPENDABOT_DIRECTORIES = {
@@ -31,6 +31,7 @@ DEPENDABOT_DIRECTORIES = {
     "/shaft-browserstack",
     "/shaft-video",
     "/shaft-visual",
+    "/shaft-ui-match",
     "/shaft-ocr",
     "/shaft-sikulix",
     "/shaft-mcp",
@@ -660,7 +661,7 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     errors.extend(validate_codeql_build_mode(codeql))
     selector = (
         "-pl shaft-infrastructure,shaft-engine,shaft-pilot-core,shaft-capture,shaft-capture-proxy,shaft-doctor,"
-        "shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-ocr,shaft-sikulix,"
+        "shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-ui-match,shaft-ocr,shaft-sikulix,"
         "shaft-mcp,report-aggregate -am"
     )
     if selector not in codeql:
