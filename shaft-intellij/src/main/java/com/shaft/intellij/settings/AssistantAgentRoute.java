@@ -15,7 +15,8 @@ public enum AssistantAgentRoute {
     GEMINI_INTELLIJ("Gemini in IntelliJ", "CLOUD", "GEMINI", "IDE_PLUGIN", "CODEX", "INTELLIJ_PLUGIN"),
     GROK("Grok CLI", "LOCAL", "GROK", "CLI", "GROK", "GROK"),
     COPILOT_CLI("GitHub Copilot CLI", "LOCAL", "COPILOT", "CLI", "COPILOT_CLI", "COPILOT_CLI"),
-    COPILOT_INTELLIJ("GitHub Copilot in IntelliJ", "LOCAL", "COPILOT", "IDE_PLUGIN", "COPILOT_CLI", "COPILOT_INTELLIJ");
+    COPILOT_INTELLIJ("GitHub Copilot in IntelliJ", "LOCAL", "COPILOT", "IDE_PLUGIN", "COPILOT_CLI", "COPILOT_INTELLIJ"),
+    ANTIGRAVITY("Antigravity", "LOCAL", "ANTIGRAVITY", "CLI", "ANTIGRAVITY", "ANTIGRAVITY");
 
     private final String displayName;
     private final String providerType;
@@ -35,6 +36,9 @@ public enum AssistantAgentRoute {
     }
 
     public String displayName() {
+        if (this == GROK) {
+            return GrokInstallIdentity.detectedLabel();
+        }
         return displayName;
     }
 
@@ -104,6 +108,7 @@ public enum AssistantAgentRoute {
                 case "CLAUDE_CODE" -> "CLAUDE";
                 case "COPILOT_CLI" -> "COPILOT";
                 case "GROK" -> "GROK";
+                case "ANTIGRAVITY" -> "ANTIGRAVITY";
                 case "CODEX" -> "CODEX";
                 default -> "";
             };
@@ -116,6 +121,7 @@ public enum AssistantAgentRoute {
             case "CLAUDE" -> "DESKTOP_APP".equals(runtime) ? CLAUDE_DESKTOP : CLAUDE_CODE;
             case "COPILOT" -> "IDE_PLUGIN".equals(runtime) ? COPILOT_INTELLIJ : COPILOT_CLI;
             case "GROK" -> GROK;
+            case "ANTIGRAVITY" -> ANTIGRAVITY;
             case "CODEX" -> CODEX_CLI;
             default -> null;
         };

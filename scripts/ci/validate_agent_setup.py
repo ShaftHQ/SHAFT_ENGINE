@@ -523,7 +523,7 @@ def validate_memory_integrity(root: Path = ROOT) -> list[dict[str, str]]:
 
 
 def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
-    """Validate the executable eight-host capability map and its evidence (#6173)."""
+    """Validate the executable host capability map and its evidence (#6173, #6555)."""
     relative = Path("scripts/ci/agent_harness_parity.json")
     try:
         matrix = read_json(root / relative)
@@ -547,7 +547,7 @@ def validate_host_parity(root: Path = ROOT) -> list[dict[str, str]]:
         if isinstance(item, dict) and isinstance(item.get("id"), str)
     ]
     row_ids = [item["id"] for item in valid_rows]
-    hosts = ["claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot"]
+    hosts = ["claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot", "antigravity"]
     if matrix.get("version") != 1 or matrix.get("hosts") != hosts:
         errors.append(issue("host-parity-schema", relative.as_posix(), "invalid version or hosts"))
     if len(valid_rows) != len(capabilities):

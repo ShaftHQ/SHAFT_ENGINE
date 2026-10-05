@@ -39,8 +39,16 @@ class OmniRoutePortabilityTest(unittest.TestCase):
         matrix = json.loads(
             (ROOT / "scripts/ci/agent_harness_parity.json").read_text(encoding="utf-8")
         )
-        hosts = ["claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot"]
+        hosts = ["claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot", "antigravity"]
         self.assertEqual(hosts, matrix["hosts"])
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "chaos_hosts_parity", ROOT / "chaos-engine" / "hosts.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual("AGENTS.md", module.host_routes()["antigravity"])
+        self.assertIn("antigravity", module.host_routes())
         for capability in matrix["capabilities"]:
             for host in hosts:
                 self.assertIn(host, capability)

@@ -4,6 +4,7 @@
       "description": "Canonical provider-neutral skill router and working contract. Use at the start of every task, on every host, in every main thread and delegate, before discovery, planning, edits, or answering.",
       "family": "core",
       "hosts": {
+        "antigravity": "adapter",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "adapter",
@@ -21,6 +22,7 @@
       "description": "Use when opening or rewriting a work item on any git-based SCM. Source-control agnostic; GitHub, GitLab, and Azure Boards are adapters only.",
       "family": "delivery",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -38,6 +40,7 @@
       "description": "Use when running ChaosEngine Learning Session self-improve. Harness lessons are GitHub issues only. Product lessons may queue after delivery or on request.",
       "family": "learning",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -55,6 +58,7 @@
       "description": "Use when work has several deliverables, tickets, or delegates: board, WIP 1 writer + 2 review, pull rule, Definition of Done, findings fixed or filed.",
       "family": "delivery",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -72,6 +76,7 @@
       "description": "Use when a git worktree is dirty or another local branch or worktree exists. Ask before cleanup unless the session is unattended.",
       "family": "delivery",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -89,6 +94,7 @@
       "description": "Use when the adopter asks to delegate to local agents (OpenCode / OSS agency) against a READY local runtime instead of orchestrator-session subagents.",
       "family": "delegation",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -106,6 +112,7 @@
       "description": "Use when choosing an optional local inference runtime for a narrow mechanical or offline job. One table routes to OmniRoute, FreeToken, Colibri, a loopback server, or the hardware probe.",
       "family": "local-runtime",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -123,6 +130,7 @@
       "description": "Use when local-runtimes selected the OmniRoute process for bounded work: runner, delegate continuity, capability enforcement and proof of dispatch.",
       "family": "local-runtime",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -140,6 +148,7 @@
       "description": "Standalone FreeToken process: install, READY probe and bounded dispatch. Use when the local-runtimes table points a job at FreeToken rather than a loopback server.",
       "family": "local-runtime",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -157,6 +166,7 @@
       "description": "Frontier MoE through a disk/RAM/VRAM hierarchy via the optional Colibri process. Use when a large-model offline job needs Colibri; not OmniRoute or FreeToken.",
       "family": "local-runtime",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -174,6 +184,7 @@
       "description": "Loopback OpenAI-compatible peers (Ollama, LM Studio, llamacpp on 127.0.0.1). Use when a narrow task should go to an already READY loopback server.",
       "family": "local-runtime",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -191,6 +202,7 @@
       "description": "Hardware size-class probe for local models. Use when you must learn which model size this machine can host before any runtime is picked.",
       "family": "local-runtime",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -209,6 +221,7 @@
       "description": "Ultra-compressed communication companion. Use on every reply at ultra intensity; mandatory on the implementation path. Stop only with 'stop caveman' or 'normal mode'.",
       "family": "companion",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -227,6 +240,7 @@
       "description": "Laziest-solution-that-works companion. Use at ultra before the first edit on the implementation path to choose the smallest correct change. Stop with 'stop ponytail'.",
       "family": "companion",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -245,6 +259,7 @@
       "description": "Advisory ICM workspace architect (folder structure as agent architecture). Use only when the task is ICM, workspace structure, or 'ICM this' design work.",
       "family": "companion",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "plugin",
         "codex": "plugin",
         "copilot": "catalog",
@@ -263,6 +278,7 @@
       "description": "Plan, architecture, synthesis, and final verification.",
       "family": "role",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "adapter",
         "codex": "adapter",
         "copilot": "catalog",
@@ -281,6 +297,7 @@
       "description": "One bounded specification before consolidated validation.",
       "family": "role",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "adapter",
         "codex": "adapter",
         "copilot": "catalog",
@@ -299,6 +316,7 @@
       "description": "Independent read-only adversarial review; never edit.",
       "family": "role",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "adapter",
         "codex": "adapter",
         "copilot": "catalog",
@@ -317,6 +335,7 @@
       "description": "Reproduce behavior; regression and acceptance evidence.",
       "family": "role",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "adapter",
         "codex": "adapter",
         "copilot": "catalog",
@@ -335,6 +354,7 @@
       "description": "Deterministic reversible spec-exact work; stop on ambiguity.",
       "family": "role",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "adapter",
         "codex": "adapter",
         "copilot": "catalog",
@@ -352,6 +372,7 @@
       "description": "Use when install, doctor, or repair can run as a script before any host chat. Prefer these deterministic paths.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -369,6 +390,7 @@
       "description": "Use when a drifted install, wiped runtime, or unhealthy doctor must be repaired by file path.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -386,6 +408,7 @@
       "description": "Use when a task needs a secondary skill or tool beyond the core router. The list stays short and sorted.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -403,6 +426,7 @@
       "description": "Use when research or a multi-file explore should run in an isolated subagent so the parent stays small.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -420,6 +444,7 @@
       "description": "Use when repeated session traces show the git-tracked overlay should change; tune the harness in the repo, never under `~/.grok/skills`.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -437,6 +462,7 @@
       "description": "Use when a design document needs write-review-revise rounds until zero open review issues remain.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -454,6 +480,7 @@
       "description": "Use when a question needs bounded parallel research with verification and a cited final report.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -471,6 +498,7 @@
       "description": "Use when a change touches user-visible UI, layout, styling, or themes: red-then-green e2e, measured geometry, viewport x theme matrix.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -488,6 +516,7 @@
       "description": "Use when session traces must be mapped, reduced, and verified into lessons without a host TUI runner.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -505,6 +534,7 @@
       "description": "Use when a periodic offline review of shared logs is due. This is not a continuous session hook.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -522,6 +552,7 @@
       "description": "Use when an opt-in eval-gated draft skill pull request is requested. The default is off.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -539,6 +570,7 @@
       "description": "Use when triage or the environment selects an ultra-lean, balanced, or deep token budget.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -556,6 +588,7 @@
       "description": "Use when a hop, retry, or duplicate tool does not change the next decision and should be dropped.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -573,6 +606,7 @@
       "description": "Use when both a CLI and an MCP server can do the same job. Prefer the CLI, and gh when it is configured.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -590,6 +624,7 @@
       "description": "Use when a task would install, pin, or wrap a traffic proxy. Never install one.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -607,6 +642,7 @@
       "description": "Use when Grok or Copilot may not honor an exit-2 hard block and the compensating checklist applies.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -624,6 +660,7 @@
       "description": "Use when a task fits an optional add-on (design, video, or a project pack): list, install, remove, or load one.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -641,6 +678,7 @@
       "description": "Use when a hot-spot dispatch change must treat a static-analysis Complexity ACTION_REQUIRED as a unit failure.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -658,6 +696,7 @@
       "description": "Use when work runs longer than a few minutes and must survive the agent session being killed, with no duplicate workers.",
       "family": "reference",
       "hosts": {
+        "antigravity": "catalog",
         "claude": "catalog",
         "codex": "catalog",
         "copilot": "catalog",
@@ -715,7 +754,8 @@
     "grok",
     "opencode",
     "cursor",
-    "grok-bot"
+    "grok-bot",
+    "antigravity"
   ],
   "schemaVersion": 1
 }

@@ -20,7 +20,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 INDEX_NAME = "harness-index.json"
 CATALOG = "references/catalog.md"
-HOSTS = ("claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot")
+HOSTS = ("claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot", "antigravity")
 HOOK_HOSTS = ("claude", "codex", "copilot", "gemini", "grok")
 HARNESS_ROOTS = (
     ".chaos-engine/",
@@ -53,7 +53,7 @@ README_START = "<!-- HARNESS-INDEX:START -->"
 README_END = "<!-- HARNESS-INDEX:END -->"
 
 _NATIVE = {"claude": "plugin", "codex": "plugin"}
-_ADAPTER = {"gemini": "adapter", "grok": "adapter", "copilot": "adapter"}
+_ADAPTER = {"gemini": "adapter", "grok": "adapter", "copilot": "adapter", "antigravity": "adapter"}
 
 # name, kind, path, description, family, codex default
 SKILLS = (

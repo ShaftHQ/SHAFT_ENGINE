@@ -57,6 +57,7 @@ public final class ShaftUiLabels {
             case "CLAUDE" -> "Claude";
             case "COPILOT" -> "GitHub Copilot";
             case "GROK" -> "Grok";
+            case "ANTIGRAVITY" -> "Antigravity";
             case "CLAUDE_CODE" -> "Claude Code CLI";
             case "CLAUDE_DESKTOP" -> "Claude Desktop";
             case "COPILOT_CLI" -> "GitHub Copilot CLI";

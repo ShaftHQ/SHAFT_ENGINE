@@ -3190,6 +3190,7 @@ def host_routes() -> dict[str, str]:
         "codex": ".agents/skills/chaos-engine/SKILL.md",
         "claude": ".claude/skills/chaos-engine/SKILL.md",
         "grok": "AGENTS.md",
+        "antigravity": "AGENTS.md",
         "gemini": ".gemini/skills/chaos-engine/SKILL.md",
         "copilot": ".github/skills/chaos-engine/SKILL.md",
     }

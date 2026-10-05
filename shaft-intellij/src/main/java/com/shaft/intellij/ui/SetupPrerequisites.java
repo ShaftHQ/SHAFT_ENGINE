@@ -70,6 +70,7 @@ final class SetupPrerequisites {
             case "CLAUDE" -> "claude";
             case "COPILOT" -> "copilot";
             case "GROK" -> "grok";
+            case "ANTIGRAVITY" -> "agy";
             case "CODEX" -> "codex";
             case "GEMINI", "" -> null;
             default -> null;
@@ -80,7 +81,8 @@ final class SetupPrerequisites {
         return switch (normalize(family)) {
             case "CLAUDE" -> "Claude Code CLI";
             case "COPILOT" -> "GitHub Copilot CLI";
-            case "GROK" -> "Grok CLI";
+            case "GROK" -> com.shaft.intellij.settings.GrokInstallIdentity.detectedLabel();
+            case "ANTIGRAVITY" -> "Antigravity";
             case "CODEX" -> "Codex CLI";
             default -> "";
         };
@@ -90,7 +92,8 @@ final class SetupPrerequisites {
         return switch (normalize(family)) {
             case "CLAUDE" -> "npm install -g @anthropic-ai/claude-code";
             case "COPILOT" -> "npm install -g @github/copilot";
-            case "GROK" -> "Install the Grok CLI (grok) and ensure it is on PATH";
+            case "GROK" -> "Install Grok Build (grok) and ensure it is on PATH";
+            case "ANTIGRAVITY" -> "Install the Antigravity CLI (agy) and ensure it is on PATH";
             case "CODEX" -> "npm install -g @openai/codex";
             default -> "";
         };

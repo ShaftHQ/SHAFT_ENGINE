@@ -104,7 +104,7 @@ class RetrieveGateScopeTest(unittest.TestCase):
 
     def test_parity_matrix_lists_every_supported_host(self):
         self.assertEqual(
-            ["claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot"],
+            ["claude", "codex", "copilot", "gemini", "grok", "opencode", "cursor", "grok-bot", "antigravity"],
             parity_hosts(),
         )
 
