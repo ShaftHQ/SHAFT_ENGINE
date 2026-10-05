@@ -210,6 +210,58 @@ class InstallShaftMcpTest(unittest.TestCase):
 
         self.assertEqual("grok", args.client)
 
+    def test_parse_accepts_antigravity_client(self):
+        args = MODULE.parse_args(["--client", "antigravity"])
+
+        self.assertEqual("antigravity", args.client)
+        self.assertIn("antigravity", MODULE.TARGETS)
+
+    def test_antigravity_skills_use_agents_directory(self):
+        self.assertEqual((".agents/skills",), MODULE.SHAFT_SKILLS_NATIVE_DIRECTORIES["antigravity"])
+
+    def test_configure_antigravity_writes_user_mcp_config(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            fake_home = root / "home"
+            cwd = root / "cwd"
+            fake_home.mkdir()
+            cwd.mkdir()
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with mock.patch.object(MODULE, "home", return_value=fake_home), temporary_current_directory(cwd):
+                MODULE.configure_antigravity(java, args_file)
+                config = fake_home / ".gemini" / "config" / "mcp_config.json"
+                written = json.loads(config.read_text(encoding="utf-8"))
+                MODULE.configure_antigravity(java, args_file)
+                again = json.loads(config.read_text(encoding="utf-8"))
+            entry = written["mcpServers"]["shaft-mcp"]
+            self.assertEqual(str(java), entry["command"])
+            self.assertEqual([f"@{args_file}"], entry["args"])
+            self.assertEqual(written, again)
+
+    def test_configure_antigravity_updates_workspace_config_that_already_names_shaft(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            fake_home = root / "home"
+            cwd = root / "repo"
+            (cwd / ".git").mkdir(parents=True)
+            fake_home.mkdir()
+            project = cwd / ".agents" / "mcp_config.json"
+            project.parent.mkdir()
+            project.write_text(
+                json.dumps({"mcpServers": {"shaft-mcp": {"command": "old", "args": ["@old"]}, "other": {"command": "node"}}}),
+                encoding="utf-8",
+            )
+            java = root / "java"
+            args_file = root / "shaft-mcp.args"
+            with mock.patch.object(MODULE, "home", return_value=fake_home), temporary_current_directory(cwd):
+                MODULE.configure_antigravity(java, args_file)
+            parsed = json.loads(project.read_text(encoding="utf-8"))
+            self.assertEqual(str(java), parsed["mcpServers"]["shaft-mcp"]["command"])
+            self.assertEqual([f"@{args_file}"], parsed["mcpServers"]["shaft-mcp"]["args"])
+            self.assertEqual("node", parsed["mcpServers"]["other"]["command"])
+            self.assertFalse((fake_home / ".gemini" / "config" / "mcp_config.json").exists())
+
     def test_configuration_path_grok_uses_grok_home(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             grok_home = Path(temp_dir) / "grok-home"

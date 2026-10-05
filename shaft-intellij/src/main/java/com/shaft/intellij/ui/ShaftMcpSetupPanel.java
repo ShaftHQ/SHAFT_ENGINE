@@ -1740,7 +1740,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             case "COPILOT_INTELLIJ" -> "copilot-intellij";
             case "INTELLIJ_PLUGIN" -> "intellij-plugin";
             case "GROK" -> "grok";
-            case "ANTIGRAVITY" -> "agy";
+            case "ANTIGRAVITY" -> "antigravity";
             case "CODEX" -> "codex";
             default -> "codex";
         };
