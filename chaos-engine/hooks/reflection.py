@@ -10,6 +10,7 @@ import json
 import os
 import re
 import secrets
+import sys
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -685,6 +686,29 @@ def record_research_preflight(session_id: str, note: str = "research-receipt") -
     )
 
 
+def _bind_option_values(argv: list[str], flags: tuple[str, ...]) -> list[str]:
+    """Join ``--flag value`` when value looks like an option.
+
+    ``secrets.token_urlsafe`` can start with ``-``. Python 3.14 argparse then
+    refuses the separate argv as ``expected one argument`` (#6556).
+    """
+    bound: list[str] = []
+    index = 0
+    while index < len(argv):
+        item = argv[index]
+        if (
+            item in flags
+            and index + 1 < len(argv)
+            and not str(argv[index + 1]).startswith("--")
+        ):
+            bound.append(f"{item}={argv[index + 1]}")
+            index += 2
+            continue
+        bound.append(item)
+        index += 1
+    return bound
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="operation", required=True)
@@ -712,7 +736,8 @@ def main(argv: list[str] | None = None) -> int:
     research.add_argument("--session-id", required=True)
     research.add_argument("--agent-id")
     research.add_argument("--note", default="research-receipt")
-    arguments = parser.parse_args(argv)
+    source = sys.argv[1:] if argv is None else argv
+    arguments = parser.parse_args(_bind_option_values(list(source), ("--session-token",)))
     session_id = scope_session_id(arguments.session_id, arguments.agent_id)
     if arguments.operation == "research-preflight":
         recorded = record_research_preflight(session_id, arguments.note)
