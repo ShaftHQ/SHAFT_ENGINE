@@ -488,6 +488,11 @@ CHECKS = {
         "self-modify",
         ("tests.scripts.test_chaos_engine_self_modify_6518",),
     ),
+    "context-rot-contract": Check(
+        "context-rot-contract",
+        "context-rot",
+        ("tests.scripts.test_chaos_engine_context_rot_6518",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -545,6 +550,7 @@ SURFACE_CHECKS = {
     "external-reflection": ("external-reflection-contract",),
     "prompt-evolution": ("prompt-evolution-contract",),
     "self-modify": ("self-modify-contract",),
+    "context-rot": ("context-rot-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -1017,6 +1023,17 @@ SURFACE_PATTERNS = {
         ".agents/skills/README.md",
         "chaos-engine/evals/harness-suite/manifest.json",
         "tests/scripts/test_chaos_engine_self_modify_6518.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "context-rot": (
+        "chaos-engine/context_rot.py",
+        "chaos-engine/references/context-rot.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "chaos-engine/evals/harness-suite/manifest.json",
+        "tests/scripts/test_chaos_engine_context_rot_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
 }
