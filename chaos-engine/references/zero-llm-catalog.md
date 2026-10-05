@@ -49,6 +49,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Prompt evolution | [`prompt_evolve.py`](../prompt_evolve.py) `propose\|score\|accept\|summary` (repo-only) · [prompt-evolution](prompt-evolution.md) | Accept only a suite report that passes this task (issue 6518) |
 | Self-modify | [`self_modify.py`](../self_modify.py) `propose\|score\|apply\|rollback\|summary` (repo-only) · [self-modify](self-modify.md) | Apply only behind the eval suite; archive the previous body (issue 6518) |
 | Context rot | [`context_rot.py`](../context_rot.py) `record\|check\|compact` (repo-only) · [context-rot](context-rot.md) | Budget check; compaction keeps marked text and must shrink (issue 6518) |
+| GenAI spans | [`genai_spans.py`](../genai_spans.py) `emit\|summary` (repo-only) · [genai-spans](genai-spans.md) | Local invoke_agent and execute_tool spans behind the eval suite (issue 6518) |
 | Significance capture | [`significance.py`](../significance.py) `mark|list|drain|locator` | Soft fail/deny marks → Learning Session drain; no Task Observer |
 | Skill compress audit | [`skill_compress_audit.py`](../skill_compress_audit.py) `audit` | Propose-only SKILL.md filler/bloat report; never auto-apply |
 | Javadoc `@param` arity | `scripts/ci/check_javadoc_param_arity.py` (repo-only) | Fail fast when `@param` names do not match method parameters in engine interaction packages |

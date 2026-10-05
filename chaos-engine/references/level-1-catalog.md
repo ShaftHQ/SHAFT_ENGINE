@@ -53,6 +53,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Prompt evolution | Prompt or skill text accepted only after a passing harness eval report | [`prompt-evolution.md`](prompt-evolution.md) |
 | Self-modify | Replace a state-local harness body only after the eval suite, keeping an archive | [`self-modify.md`](self-modify.md) |
 | Context rot | Character budget check and keep-only compaction | [`context-rot.md`](context-rot.md) |
+| GenAI spans | Local OpenTelemetry GenAI invoke_agent and execute_tool spans | [`genai-spans.md`](genai-spans.md) |
 | Self-improve | Learning Session dual-track harness + product observations | [`../skills/self-improve/SKILL.md`](../skills/self-improve/SKILL.md) |
 | Self-improve master plan | Next-wave self-improve roadmap + Top 10 (post-Learning Session Stop gate); profile may extend under `profiles/<product>/references/` | [`self-improve-master-plan.md`](self-improve-master-plan.md) |
 | OmniRoute | Optional local transport; never required for canonical workflows | [`../skills/omniroute/SKILL.md`](../skills/local-runtimes/references/omniroute.md) |

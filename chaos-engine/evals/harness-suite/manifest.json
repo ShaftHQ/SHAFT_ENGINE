@@ -280,6 +280,15 @@
       "module": "tests.scripts.test_chaos_engine_context_rot_6518",
       "k": 1,
       "runner": "unittest"
+    },
+    {
+      "id": "reg-genai-spans-6518",
+      "set": "regression",
+      "area": "entry",
+      "source_issue": 6518,
+      "module": "tests.scripts.test_chaos_engine_genai_spans_6518",
+      "k": 1,
+      "runner": "unittest"
     }
   ]
 }

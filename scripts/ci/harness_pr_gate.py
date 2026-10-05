@@ -493,6 +493,11 @@ CHECKS = {
         "context-rot",
         ("tests.scripts.test_chaos_engine_context_rot_6518",),
     ),
+    "genai-spans-contract": Check(
+        "genai-spans-contract",
+        "genai-spans",
+        ("tests.scripts.test_chaos_engine_genai_spans_6518",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -551,6 +556,7 @@ SURFACE_CHECKS = {
     "prompt-evolution": ("prompt-evolution-contract",),
     "self-modify": ("self-modify-contract",),
     "context-rot": ("context-rot-contract",),
+    "genai-spans": ("genai-spans-contract",),
 }
 
 DEPENDENCY_CLOSURE_PATHS = frozenset({"chaos-engine/dependencies.json"})
@@ -1034,6 +1040,17 @@ SURFACE_PATTERNS = {
         ".agents/skills/README.md",
         "chaos-engine/evals/harness-suite/manifest.json",
         "tests/scripts/test_chaos_engine_context_rot_6518.py",
+        "scripts/ci/harness_pr_gate.py",
+    ),
+    "genai-spans": (
+        "chaos-engine/genai_spans.py",
+        "chaos-engine/references/genai-spans.md",
+        "chaos-engine/references/permanent-rules.md",
+        "chaos-engine/references/level-1-catalog.md",
+        "chaos-engine/references/zero-llm-catalog.md",
+        ".agents/skills/README.md",
+        "chaos-engine/evals/harness-suite/manifest.json",
+        "tests/scripts/test_chaos_engine_genai_spans_6518.py",
         "scripts/ci/harness_pr_gate.py",
     ),
 }
