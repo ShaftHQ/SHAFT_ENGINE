@@ -23,6 +23,7 @@ Assistant memory keeps only this pointer: "Follow the ChaosEngine core card
 | Repeated successful step windows induce a workflow; skill publish stays behind the eval suite | [workflow induction](workflow-induction.md) |
 | Reflections are kept only from tests, CI, or doctor, never from self-report | [external reflection](external-reflection.md) |
 | Prompt and skill candidates are accepted only after the harness eval suite passes them | [prompt evolution](prompt-evolution.md) |
+| A harness body is replaced only after the eval suite passes, and the previous body stays archived | [self-modify](self-modify.md) |
 | Delta-only status; full report only on a RAG change or owner request | [process owner](process-owner-scrum-master.md) |
 | Cost and avoided-spend lines only when a local channel was actually used | [process owner](process-owner-scrum-master.md) |
 | Cloud implementers write code; local runtimes optional for narrow jobs | [identity](../identity.md), [local-runtimes](../skills/local-runtimes/SKILL.md) |
