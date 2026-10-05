@@ -682,6 +682,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "codex": project / ".agents/skills/chaos-engine/SKILL.md",
                 "claude": project / ".claude/skills/chaos-engine/SKILL.md",
                 "grok": project / "AGENTS.md",
+                "antigravity": project / "AGENTS.md",
                 "gemini": project / ".gemini/skills/chaos-engine/SKILL.md",
                 "copilot": project / ".github/skills/chaos-engine/SKILL.md",
             }

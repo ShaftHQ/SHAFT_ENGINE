@@ -53,7 +53,7 @@ class BudgetTests(unittest.TestCase):
     def test_lean_chain_declared_for_every_parity_host(self):
         parity = json.loads((ROOT / "scripts/ci/agent_harness_parity.json").read_text(encoding="utf-8"))
         self.assertEqual(set(parity["hosts"]), set(_chain().get("hosts", {})))
-        self.assertEqual(8, len(parity["hosts"]))
+        self.assertEqual(9, len(parity["hosts"]))
 
     def test_implement_path_fits_16_kib_on_every_host(self):
         for host in _chain()["hosts"]:

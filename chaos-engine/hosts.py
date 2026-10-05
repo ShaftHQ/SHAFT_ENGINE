@@ -3185,6 +3185,16 @@ def validate_live_persistent_images(images: dict[str, bytes | None]) -> None:
         validate_mempalace_config(config)
 
 
+def host_routes_cover(stored: object) -> bool:
+    """True when stored routes match current routes or only omit newly added hosts."""
+    current = host_routes()
+    if stored == current:
+        return True
+    if not isinstance(stored, dict) or not stored or not isinstance(current, dict):
+        return False
+    return set(stored) <= set(current) and all(stored[key] == current[key] for key in stored)
+
+
 def host_routes() -> dict[str, str]:
     return {
         "codex": ".agents/skills/chaos-engine/SKILL.md",
@@ -5834,7 +5844,7 @@ def rollback_previous_receipt(project: Path, expected_core_commit: str) -> bytes
         or previous.get("schemaVersion") != SCHEMA_VERSION
         or previous.get("phase") != "installed"
         or previous.get("coreCommit") != expected_core_commit
-        or previous.get("hosts") != host_routes()
+        or not host_routes_cover(previous.get("hosts"))
         or previous.get("rollbackIntent") is not None
         or receipt_bytes(previous, project) != raw
     ):
@@ -6099,12 +6109,7 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
     if stored_hosts != current_hosts:
         # A newer installer may add a host that points at an existing entrypoint.
         # Shared routes must still match; removed or rewritten routes stay invalid.
-        if (
-            not isinstance(stored_hosts, dict)
-            or not isinstance(current_hosts, dict)
-            or not set(stored_hosts) < set(current_hosts)
-            or any(stored_hosts[key] != current_hosts[key] for key in stored_hosts)
-        ):
+        if not host_routes_cover(stored_hosts) or not isinstance(stored_hosts, dict) or set(stored_hosts) == set(current_hosts):
             raise ValueError("ChaosEngine host receipt routes are invalid")
         value["hosts"] = dict(current_hosts)
     decode_images(value.get("before"), nullable=True)

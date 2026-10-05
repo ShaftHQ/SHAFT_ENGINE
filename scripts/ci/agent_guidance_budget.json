@@ -334,6 +334,9 @@
       "grok": [
         "AGENTS.md"
       ],
+      "antigravity": [
+        "AGENTS.md"
+      ],
       "opencode": [
         "AGENTS.md"
       ],
@@ -383,6 +386,9 @@
         "AGENTS.md"
       ],
       "grok": [
+        "AGENTS.md"
+      ],
+      "antigravity": [
         "AGENTS.md"
       ],
       "opencode": [
