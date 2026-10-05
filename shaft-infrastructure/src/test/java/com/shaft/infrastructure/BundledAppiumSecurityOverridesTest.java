@@ -61,6 +61,28 @@ class BundledAppiumSecurityOverridesTest {
         assertEquals(List.of(), belowOverride, bundle + " lockfile escapes its npm overrides");
     }
 
+    /**
+     * Dependabot alerts 270–272: brace-expansion {@code >= 4.0.0, < 5.0.12} in the
+     * bundled Appium lock, including copies nested under a driver.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"appium", "appium-ios", "appium-windows", "lighthouse", "reporting"})
+    void braceExpansionIsOutsideTheVulnerableRange(String bundle) throws Exception {
+        JsonNode packages = JSON.readTree(read("/com/shaft/infrastructure/" + bundle + "/package-lock.json"))
+                .path("packages");
+        List<String> vulnerable = new ArrayList<>();
+        for (Map.Entry<String, JsonNode> entry : packages.properties()) {
+            if (!entry.getKey().endsWith("node_modules/brace-expansion")) {
+                continue;
+            }
+            String version = entry.getValue().path("version").asText();
+            if (compareVersions(version, "4.0.0") >= 0 && compareVersions(version, "5.0.12") < 0) {
+                vulnerable.add(entry.getKey() + "@" + version);
+            }
+        }
+        assertEquals(List.of(), vulnerable, bundle + " brace-expansion is in >=4.0.0,<5.0.12");
+    }
+
     private static int compareVersions(String left, String right) {
         Matcher a = SEMVER.matcher(left);
         Matcher b = SEMVER.matcher(right);
