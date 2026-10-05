@@ -6094,8 +6094,19 @@ def read_receipt(project: Path) -> tuple[dict[str, object], bytes]:
         or re.fullmatch(r"[0-9a-f]{64}", capability_digest) is None
     ):
         raise ValueError("ChaosEngine host receipt capability policy is invalid")
-    if value.get("hosts") != host_routes():
-        raise ValueError("ChaosEngine host receipt routes are invalid")
+    stored_hosts = value.get("hosts")
+    current_hosts = host_routes()
+    if stored_hosts != current_hosts:
+        # A newer installer may add a host that points at an existing entrypoint.
+        # Shared routes must still match; removed or rewritten routes stay invalid.
+        if (
+            not isinstance(stored_hosts, dict)
+            or not isinstance(current_hosts, dict)
+            or not set(stored_hosts) < set(current_hosts)
+            or any(stored_hosts[key] != current_hosts[key] for key in stored_hosts)
+        ):
+            raise ValueError("ChaosEngine host receipt routes are invalid")
+        value["hosts"] = dict(current_hosts)
     decode_images(value.get("before"), nullable=True)
     decode_images(value.get("after"), nullable=True)
     before_value = value.get("before")
