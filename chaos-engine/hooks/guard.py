@@ -159,7 +159,7 @@ def learning_session_reason(session_id: str, event: dict) -> str | None:
         "surprise, or owner ask). A lesson already shipped in this pull request "
         "finalizes with nothing durable and no new issue. File only a harness "
         "lesson that is not in the merged pull request. "
-        "Do not write one to a local queue or into chat. Product lessons may queue."
+        "Do not write them to a local queue or into chat. Product lessons may queue."
     )
 
 
