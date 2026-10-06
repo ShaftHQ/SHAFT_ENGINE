@@ -1,5 +1,6 @@
 package com.shaft.infrastructure;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
@@ -81,6 +82,26 @@ class BundledAppiumSecurityOverridesTest {
             }
         }
         assertEquals(List.of(), vulnerable, bundle + " brace-expansion is in >=4.0.0,<5.0.12");
+    }
+
+    /**
+     * Dependabot alert 338: proxy-addr before 2.0.8 in the bundled Appium lock,
+     * including the copy nested under appium-uiautomator2-driver.
+     */
+    @Test
+    void proxyAddrIsAtLeastThePatchedRelease() throws Exception {
+        JsonNode packages = JSON.readTree(read("/com/shaft/infrastructure/appium/package-lock.json")).path("packages");
+        List<String> vulnerable = new ArrayList<>();
+        for (Map.Entry<String, JsonNode> entry : packages.properties()) {
+            if (!entry.getKey().endsWith("node_modules/proxy-addr")) {
+                continue;
+            }
+            String version = entry.getValue().path("version").asText();
+            if (compareVersions(version, "2.0.8") < 0) {
+                vulnerable.add(entry.getKey() + "@" + version);
+            }
+        }
+        assertEquals(List.of(), vulnerable, "appium proxy-addr is below 2.0.8");
     }
 
     private static int compareVersions(String left, String right) {
