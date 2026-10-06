@@ -185,7 +185,10 @@ class LearningTriggerTests(unittest.TestCase):
             entries = [{"kind": "task-activity", "activity": "delivery-complete"}, trigger]
             guard.reflection.entries = lambda _sid, e=entries: e
             with self.subTest(trigger=trigger):
-                self.assertIn("trigger fired", guard.learning_session_reason("s", {}))
+                reason = guard.learning_session_reason("s", {})
+                self.assertIn("trigger fired", reason)
+                self.assertIn("already shipped", reason)
+                self.assertIn("nothing durable", reason)
 
 
 AGNOSTIC_SCOPES = (
