@@ -47,11 +47,13 @@ python3 .chaos-engine/tool.py stores install-schedule
 python3 .chaos-engine/install.py repair --project . --component graphify
 ```
 
-A second refresh exits while the repository lock is held. Session start and the
-daily user timer call the same `--if-stale` command. An ordinary task must not
+A second refresh exits while the repository lock is held. Session start spawns
+one detached `--if-stale` refresh when the indexed revision is not the local
+default-branch tip, then does not read its output. The same tip does not spawn
+again. The daily user timer calls the same command. An ordinary task must not
 refresh, retry-loop, clear the lock, or alter a checkout to manufacture
 freshness. When the default-branch commit is not local, refresh stops with
-`fix-next: git fetch`.
+`fix-next: git fetch`. A GitHub Action cannot refresh this machine's cache.
 
 Queries still run through `tool.py`, which binds `--graph` to the shared
 `graph.json`. `--palace` and `--backend sqlite_exact` are global MemPalace

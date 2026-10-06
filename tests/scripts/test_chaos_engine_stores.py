@@ -269,6 +269,13 @@ class SharedStoreTest(unittest.TestCase):
         self.assertIn("refresh", spawned[0][0])
         self.assertIn("--if-stale", spawned[0][0])
 
+        stamp = self.stores.resolve_common_dir(self.linked) / "chaos-engine" / self.stores.ATTEMPT_STAMP
+        stamp.write_text(("c" * 40) + "\n", encoding="utf-8")
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_STORE_REFRESH": "1"}):
+            moved = self.stores.maybe_spawn_refresh(self.linked, popen=popen)
+        self.assertEqual("spawned", moved)
+        self.assertEqual(2, len(spawned))
+
     def test_install_schedule_writes_a_daily_timer_without_a_home_palace(self):
         timer = self.stores.install_schedule(self.primary, home=self.home)
         service = timer.with_name("chaosengine-stores.service")

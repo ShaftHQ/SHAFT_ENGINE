@@ -19,7 +19,6 @@ import sys
 import tempfile
 import time
 from contextlib import contextmanager
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
@@ -699,29 +698,31 @@ def _spawn_enabled() -> bool:
 
 
 def maybe_spawn_refresh(cwd: Path, *, popen: Callable[..., object] = subprocess.Popen) -> str:
-    """Start one detached refresh when the shared store is stale.
+    """Start one detached refresh when the shared store is behind the local tip.
 
-    A same-day attempt stamp stops a failing refresh from respawning on every
-    later session. The daily timer and an explicit repair ignore the stamp.
-    Unit-test processes do not spawn unless ``CHAOS_ENGINE_STORE_REFRESH=1``.
+    The stamp is the revision already attempted, not a calendar day. A later
+    default-branch commit spawns again. The same tip does not, so a failed
+    refresh does not loop. The child output is discarded. The daily timer and
+    an explicit repair ignore the stamp. Unit-test processes do not spawn
+    unless ``CHAOS_ENGINE_STORE_REFRESH=1``.
     """
     if not _spawn_enabled():
         return "skipped"
     try:
         if _component_current(cwd, "graphify") and _component_current(cwd, "mempalace"):
             return "fresh"
+        requested = default_branch_commit(cwd)
         common = resolve_common_dir(cwd)
     except (OSError, RuntimeError):
         return "skipped"
     if common is None:
         return "skipped"
     stamp = common / "chaos-engine" / ATTEMPT_STAMP
-    today = datetime.now(timezone.utc).date().isoformat()
     try:
-        if stamp.is_file() and stamp.read_text(encoding="utf-8").strip() == today:
+        if stamp.is_file() and stamp.read_text(encoding="utf-8").strip() == requested:
             return "cooldown"
         stamp.parent.mkdir(parents=True, exist_ok=True)
-        stamp.write_text(today + "\n", encoding="utf-8")
+        stamp.write_text(requested + "\n", encoding="utf-8")
     except OSError:
         return "skipped"
     tool = Path(__file__).resolve().with_name("tool.py")
