@@ -236,6 +236,21 @@ def git_show_diff(sha: str) -> str | None:
     return completed.stdout if completed.returncode == 0 else None
 
 
+def nightly_tracker_recovered(
+    *, conclusion: str, jobs_complete: bool, close_reason: str
+) -> bool:
+    """#6609: a nightly tracker recovers only from its owning workflow.
+
+    ``conclusion`` is that workflow's conclusion. ``jobs_complete`` is true only
+    for a full job set (no skipped matrix). ``close_reason`` is ``workflow`` for
+    that proof. ``merge``, ``manual``, ``closing-keyword``, and
+    ``partial-dispatch`` are never recovery, even when a later run looks green.
+    """
+    if close_reason in {"merge", "manual", "closing-keyword", "partial-dispatch"}:
+        return False
+    return conclusion == "success" and jobs_complete is True and close_reason == "workflow"
+
+
 def find_nightly_tracker_closes(
     body: str, labels_by_issue: dict[str, list[str]] | None
 ) -> list[dict[str, str]]:

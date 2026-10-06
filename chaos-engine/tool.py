@@ -31,6 +31,35 @@ ENTRY_FILES = (
     "companions/caveman-ultra.md",
     "companions/ponytail-ultra.md",
 )
+_COMPANION_ENTRY = {
+    "caveman": "companions/caveman-ultra.md",
+    "ponytail": "companions/ponytail-ultra.md",
+}
+
+
+def stopped_companions(opt_out: str) -> frozenset[str]:
+    """Ultra cards stay in the entry bundle until an explicit stop (#autoload).
+
+    ``stop caveman``, ``stop ponytail``, and ``normal mode`` are the only offs.
+    Vendor skill bodies are never part of this bundle.
+    """
+    folded = str(opt_out or "").casefold()
+    if "normal mode" in folded:
+        return frozenset(_COMPANION_ENTRY)
+    stopped = set()
+    if "stop caveman" in folded:
+        stopped.add("caveman")
+    if "stop ponytail" in folded:
+        stopped.add("ponytail")
+    return frozenset(stopped)
+
+
+def entry_files(opt_out: str = "") -> tuple[str, ...]:
+    stopped = stopped_companions(opt_out)
+    return tuple(
+        relative for relative in ENTRY_FILES
+        if relative not in { _COMPANION_ENTRY[name] for name in stopped }
+    )
 ENTRY_RETRIEVE = (
     "Next: run `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "
     '"<q>"` before the first broad search, then record `retrieve: used` or '
@@ -38,10 +67,10 @@ ENTRY_RETRIEVE = (
 )
 
 
-def entry_bundle(installed_root: Path) -> str:
+def entry_bundle(installed_root: Path, opt_out: str = "") -> str:
     """#6377: one startup bundle for bots that auto-load nothing (Grok Bot, GPTs)."""
     parts = []
-    for relative in ENTRY_FILES:
+    for relative in entry_files(opt_out):
         path = installed_root / relative
         if path.is_file():
             parts.append(f"<!-- {relative} -->\n{path.read_text(encoding='utf-8').strip()}\n")
@@ -49,9 +78,9 @@ def entry_bundle(installed_root: Path) -> str:
     return "\n".join(parts)
 
 
-def entry_output(installed_root: Path, full: bool = False) -> str:
+def entry_output(installed_root: Path, full: bool = False, opt_out: str = "") -> str:
     """Installed re-runs print one line while the bundle is unchanged (token economy)."""
-    bundle = entry_bundle(installed_root)
+    bundle = entry_bundle(installed_root, opt_out)
     if installed_root.name != ".chaos-engine":
         return bundle
     digest = hashlib.sha256(bundle.encode("utf-8")).hexdigest()[:12]

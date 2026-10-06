@@ -62,6 +62,12 @@ with (repo-only) `py -3 scripts/agents/reflection.py trigger --session-id {id} -
 probe by exact ID with the `non-attempt` subcommand. Portable installs use the
 same subcommands through `.chaos-engine/hooks/reflection.py`.
 
+An optional value which may start with `-` (including `--session-token`) is
+accepted as `--name=value` and as a following token that does not itself start
+with `--`. The #6570 regression is
+`test_cli_json_receipt_accepts_session_token_that_looks_like_a_flag` in
+`tests/scripts/test_guard_lifecycle.py`. Do not reimplement that parser.
+
 For a terminal receipt, the final user-facing summary must include all ten
 elements: intended versus actual result, cause of the result, what to repeat,
 what to change, external proof, lesson for the next attempt, bounded retry,

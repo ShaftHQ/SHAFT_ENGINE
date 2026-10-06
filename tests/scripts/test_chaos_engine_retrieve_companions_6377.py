@@ -61,6 +61,26 @@ class GrokBotTest(unittest.TestCase):
         self.assertIn("Ponytail", bundle)
         self.assertIn("tool.py retrieve", bundle)
 
+    def test_entry_loads_ultra_cards_until_explicit_stop(self):
+        """Fresh consumer of entry_bundle, the real start path."""
+        tool = _load("tool")
+        loaded = tool.entry_files()
+        self.assertIn("companions/caveman-ultra.md", loaded)
+        self.assertIn("companions/ponytail-ultra.md", loaded)
+        bundle = tool.entry_bundle(SOURCE)
+        self.assertIn("<!-- companions/caveman-ultra.md -->", bundle)
+        self.assertIn("<!-- companions/ponytail-ultra.md -->", bundle)
+        self.assertNotIn("# Caveman\n\nPlugin adapter", bundle)
+        stopped = tool.entry_bundle(SOURCE, "please stop caveman")
+        self.assertNotIn("<!-- companions/caveman-ultra.md -->", stopped)
+        self.assertIn("<!-- companions/ponytail-ultra.md -->", stopped)
+        self.assertNotIn("<!-- companions/caveman-ultra.md -->", tool.entry_bundle(SOURCE, "normal mode"))
+        self.assertNotIn("<!-- companions/ponytail-ultra.md -->", tool.entry_bundle(SOURCE, "normal mode"))
+        self.assertNotIn(
+            "<!-- companions/ponytail-ultra.md -->",
+            tool.entry_bundle(SOURCE, "stop ponytail"),
+        )
+
     def test_entry_reprints_one_line_while_unchanged(self):
         tool = _load("tool")
         with tempfile.TemporaryDirectory() as tmp:

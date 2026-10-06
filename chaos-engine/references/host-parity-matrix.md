@@ -28,6 +28,15 @@ for every host in `hosts`. File reads and file searches follow this rule
 through `hooks/retrieve_justification.py` and `hooks/guard.py`. A cheap read does not wait for a store. A broad search is allowed and owes one retrieve for that session. Downloading a GitHub Actions job log (`gh api` `.../actions/jobs/<id>/logs`, `gh run view --log` / `--log-failed`, or curl of that logs URL), including a filter pipeline or a write into a scratch directory, is not a project read and does not require MemPalace or Graphify. Opening a checkout file in that same command still does. `tool.py
 --help` is the same CLI on every host.
 
+A new host is receipt-compatible only when previous routes are a subset
+(`host_routes_cover` in `hosts.py`). Rollback writes `priorHostReceipt` bytes
+through the still-current candidate before the old core runs. Those checks
+already live in `tests/scripts/test_chaos_engine_hosts.py`
+(`test_added_host_route_upgrades_without_rewriting_shared_routes`) and
+`tests/scripts/test_chaos_engine_generation_runtime.py`
+(`test_offline_rollback_validates_previous_before_core_swap`) from #6573.
+Do not reimplement them.
+
 Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (see below), N = not applicable.
 
 
