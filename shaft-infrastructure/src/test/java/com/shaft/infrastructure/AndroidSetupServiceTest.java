@@ -174,7 +174,7 @@ class AndroidSetupServiceTest {
                 new ReportingSetupService.ProcessResult(0,
                         "Installed packages:\nPath | Version | Description\n"
                                 + "platform-tools | 37.0.1 | fixture\n"
-                                + "emulator | 37.1.11 | fixture\n"
+                                + "emulator | " + AndroidSetupPlanner.EMULATOR_VERSION + " | fixture\n"
                                 + "platforms;android-36 | 2 | fixture\n"
                                 + "build-tools;36.0.0 | 35.0.0 | fixture\n"
                                 + "system-images;android-36;google_apis;x86_64 | 7 | fixture\n");
@@ -523,7 +523,7 @@ class AndroidSetupServiceTest {
     private static String exactInstalledPackages() {
         return "Installed packages:\nPath | Version | Description\n"
                 + "platform-tools | 37.0.1 | fixture\n"
-                + "emulator | 37.1.11 | fixture\n"
+                + "emulator | " + AndroidSetupPlanner.EMULATOR_VERSION + " | fixture\n"
                 + "platforms;android-36 | 2 | fixture\n"
                 + "build-tools;36.0.0 | 36.0.0 | fixture\n"
                 + "system-images;android-36;google_apis;x86_64 | 7 | fixture\n";

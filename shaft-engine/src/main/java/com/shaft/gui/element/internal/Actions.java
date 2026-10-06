@@ -1365,8 +1365,14 @@ public class Actions extends ElementActions {
     private String safeDomProperty(WebElement element, String propertyName) {
         try {
             return element.getDomProperty(propertyName);
-        } catch (UnsupportedCommandException unsupportedCommandException) {
-            ReportManagerHelper.logDiscrete(unsupportedCommandException, Level.DEBUG);
+        } catch (WebDriverException unsupportedProperty) {
+            // FlutterIntegration reports getDomProperty as WebDriverException "unknown method"
+            // (NotYetImplementedError), not UnsupportedCommandException.
+            if (unsupportedProperty instanceof StaleElementReferenceException
+                    || unsupportedProperty instanceof NoSuchElementException) {
+                throw unsupportedProperty;
+            }
+            ReportManagerHelper.logDiscrete(unsupportedProperty, Level.DEBUG);
             return "";
         }
     }
@@ -1576,9 +1582,12 @@ public class Actions extends ElementActions {
 
     private byte[] takeAIHighlightedScreenshot(WebElement element, boolean isPass) {
         // getElementLocation
-        Rectangle elementLocation;
+        Rectangle elementLocation = null;
         try {
             elementLocation = element.getRect();
+        } catch (ClassCastException stringRect) {
+            // Flutter getRect can return numeric fields as strings (SHAFT local E2E #6534).
+            ReportManagerHelper.logDiscrete(stringRect);
         } catch (UnhandledAlertException unhandledAlertException) {
             // The action being photographed opened a JS dialog (alert/confirm/prompt). A JS
             // dialog blocks the renderer, so *every* WebDriver command except alert-handling
