@@ -22,6 +22,15 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Dependabot alerts 327: Boot 4.1.0 managed spring-webmvc 7.0.8 through shaft-mcp.
+                 This module does not import the Boot BOM, so import the patched Framework BOM. -->
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-framework-bom</artifactId>
+                <version>7.0.9</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <!-- Dependabot attributes tomcat-embed-core alerts to this module via shaft-mcp.
                  Pin here so the report-aggregate graph resolves 11.0.25 without waiting on
                  a published shaft-mcp POM. Keep in sync with shaft-mcp/pom.xml. -->
