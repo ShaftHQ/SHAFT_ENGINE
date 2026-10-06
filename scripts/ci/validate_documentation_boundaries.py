@@ -60,6 +60,7 @@ ALLOWED_EXACT = {
     "shaft-browserstack/README.md",
     "shaft-video/README.md",
     "shaft-visual/README.md",
+    "shaft-ui-match/README.md",
     "shaft-ocr/README.md",
     "shaft-sikulix/README.md",
     "report-aggregate/README.md",
