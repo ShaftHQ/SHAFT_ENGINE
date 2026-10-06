@@ -817,6 +817,24 @@ def _ledger_path(project: Path, raw: str) -> str:
         return _norm(str(resolved))
 
 
+def _cheap_named_files(project: Path, paths: list[str]) -> bool:
+    """One named file is a cheap read. A directory, glob, or oversized heal log is not.
+
+    A store query costs more tokens than opening the file the task already named.
+    Broad search stays gated. This matches the Read tool and ``rg`` on one file.
+    """
+    exploratory = [path for path in paths if exploratory_project_path(project, path)]
+    if not exploratory:
+        return False
+    for raw in exploratory:
+        relative = _ledger_path(project, raw)
+        if _oversize_heal_artifact(project, relative):
+            return False
+        if not _looks_like_file(project, raw):
+            return False
+    return True
+
+
 def _ungated(project: Path, paths: list[str]) -> bool:
     """True when an exploratory project path is not yet on the citation ledger."""
     gated = [_ledger_path(project, path) for path in paths if exploratory_project_path(project, path)]
@@ -921,8 +939,13 @@ def _pipeline_parts(command: str) -> list[str]:
 def _read_segment_block(project: Path, segment: str) -> bool:
     head, _arguments = _command_head(_tokens(segment))
     if head in _PY or not head:
-        return _ungated(project, _shell_read_paths(segment))
-    paths = _paths_in_segment(segment)
+        paths = _shell_read_paths(segment)
+    else:
+        paths = _paths_in_segment(segment)
+    if _cheap_named_files(project, paths) and not _FIND_OPEN.search(segment):
+        return False
+    if head in _PY or not head:
+        return _ungated(project, paths)
     if _ungated(project, paths):
         return True
     if paths:
@@ -1124,8 +1147,11 @@ def _shell_block(project: Path, commands: tuple[str, ...], session_id: str | Non
                     return BLOCK_REASON
             continue
         if _PY_HEREDOC.search(command or ""):
-            # #6219: a heredoc body is one program; `;` inside it is not a shell split.
-            if _ungated(project, _shell_read_paths(command)):
+            # A heredoc body is one program; `;` inside it is not a shell split.
+            # Named files do not owe a retrieve. A directory or heal log still does.
+            heredoc_paths = _shell_read_paths(command)
+            cheap = _cheap_named_files(project, heredoc_paths) and "file://" not in command.casefold()
+            if not cheap and _ungated(project, heredoc_paths):
                 return BLOCK_REASON
             continue
         for segment in _pipeline_parts(command):
