@@ -68,6 +68,12 @@ public class UiMatcherTest {
         Assert.assertTrue(lowered.matched());
         Assert.assertEquals(lowered.locatorHint(), "#login");
         Assert.assertTrue(Files.readString(json).contains("\"locatorHint\":\"#login\""));
+
+        Properties invalid = new Properties();
+        invalid.setProperty(UiMatcher.HEAL_CONFIDENCE_PROPERTY, "not-a-number");
+        Assert.expectThrows(
+                IllegalArgumentException.class,
+                () -> UiMatcher.heal(expected, textChanged, invalid, json));
     }
 
     @Test

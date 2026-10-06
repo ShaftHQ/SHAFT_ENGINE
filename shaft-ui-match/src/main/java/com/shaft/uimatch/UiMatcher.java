@@ -50,7 +50,12 @@ public final class UiMatcher {
         if (properties != null) {
             String configured = properties.getProperty(HEAL_CONFIDENCE_PROPERTY);
             if (configured != null && !configured.isBlank()) {
-                required = Double.parseDouble(configured);
+                try {
+                    required = Double.parseDouble(configured);
+                } catch (NumberFormatException exception) {
+                    throw new IllegalArgumentException(
+                            HEAL_CONFIDENCE_PROPERTY + " must be a number", exception);
+                }
             }
         }
         return compare(expected, actual, MatchMode.STRICT, required, jsonOutput);
