@@ -64,7 +64,7 @@ same subcommands through `.chaos-engine/hooks/reflection.py`.
 
 An optional value which may start with `-` (including `--session-token`) is
 accepted as `--name=value` and as a following token that does not itself start
-with `--`. The #6570 regression is
+with `--`. The regression is
 `test_cli_json_receipt_accepts_session_token_that_looks_like_a_flag` in
 `tests/scripts/test_guard_lifecycle.py`. Do not reimplement that parser.
 
