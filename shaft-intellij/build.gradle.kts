@@ -43,7 +43,7 @@ dependencies {
         testFramework(TestFrameworkType.Plugin.Java)
         // The verifier's default is dynamic (latest), which makes the CI verdict depend on cache age.
         // Keep upgrades reviewable and prevent a remote version-list lookup during verification.
-        pluginVerifier("1.409")
+        pluginVerifier("1.410")
     }
     implementation("com.google.code.gson:gson:2.14.0")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.0")
@@ -146,6 +146,7 @@ intellijPlatform {
         // anything that would degrade or break the plugin at Marketplace review or install time.
         failureLevel = listOf(
             VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS,
+            VerifyPluginTask.FailureLevel.COMPATIBILITY_WARNINGS,
             VerifyPluginTask.FailureLevel.DEPRECATED_API_USAGES,
             VerifyPluginTask.FailureLevel.SCHEDULED_FOR_REMOVAL_API_USAGES,
             VerifyPluginTask.FailureLevel.INTERNAL_API_USAGES,
