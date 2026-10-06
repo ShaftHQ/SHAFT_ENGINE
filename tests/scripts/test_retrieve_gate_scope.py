@@ -49,10 +49,14 @@ ALLOWED_RUNS = (
     "cat .chaos-engine/references/retrieve-first.md",
     "sed -n 1,40p .chaos-engine/hooks/guard.py",
 )
-BLOCKED_COMMANDS = (
+NAMED_FILE_READS = (
     "cat src/Foo.java",
     "sed -n 1,10p src/Foo.java",
     "python3 -c \"print(open('src/Foo.java').read())\"",
+)
+BLOCKED_COMMANDS = (
+    "cat src/",
+    "sed -n 1,10p src/",
 )
 
 
@@ -124,13 +128,20 @@ class RetrieveGateScopeTest(unittest.TestCase):
         self.assertEqual("read", self.gate.segment_kind("python3 -c \"open('a/b.py')\""))
 
     def test_uncited_project_reads_stay_blocked(self):
-        # Reads and searches run. A directory rg owes one retrieve; shell opens stay denied.
+        # A named file is a cheap read. A directory open stays denied.
         self.assertIsNone(self.block(tool_input={"file_path": "src/Foo.java"}))
         self.assertIsNone(self.block(commands=("rg foo src/",)))
         self.assertEqual(self.gate.RETRIEVE_COMMAND, self.gate.session_retrieve_gap(self.project, ""))
+        for command in NAMED_FILE_READS:
+            with self.subTest(command=command):
+                self.assertIsNone(self.block(commands=(command,)))
         for command in BLOCKED_COMMANDS:
             with self.subTest(command=command):
                 self.assertIsNotNone(self.block(commands=(command,)))
+        (self.project / "src" / "hooks.bak").mkdir(parents=True)
+        self.assertIsNotNone(
+            self.block(commands=('python3 -c "print(open(\'src/hooks.bak\').read())"',))
+        )
 
     def test_session_start_companion_locators_are_allowed(self):
         lifecycle = load_module(

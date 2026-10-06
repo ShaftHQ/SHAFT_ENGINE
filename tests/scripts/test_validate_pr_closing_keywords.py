@@ -13,6 +13,7 @@ from scripts.ci.validate_pr_closing_keywords import (
     find_negated_autocloses,
     find_negated_autocloses_in_commits,
     find_nightly_tracker_closes,
+    nightly_tracker_recovered,
     parse_commits_json,
 )
 
@@ -350,6 +351,31 @@ itself a judgement call reads as softer than it is.
 
 
 class NightlyTrackerCloseTest(unittest.TestCase):
+    def test_nightly_tracker_recovers_only_on_full_workflow_success(self):
+        """#6609: drives nightly_tracker_recovered, not a copied predicate."""
+        rejected = (
+            ("success", True, "merge"),
+            ("success", True, "manual"),
+            ("success", True, "closing-keyword"),
+            ("success", False, "partial-dispatch"),
+            ("failure", True, "workflow"),
+            ("success", False, "workflow"),
+        )
+        for conclusion, jobs_complete, close_reason in rejected:
+            self.assertFalse(
+                nightly_tracker_recovered(
+                    conclusion=conclusion,
+                    jobs_complete=jobs_complete,
+                    close_reason=close_reason,
+                ),
+                (conclusion, jobs_complete, close_reason),
+            )
+        self.assertTrue(
+            nightly_tracker_recovered(
+                conclusion="success", jobs_complete=True, close_reason="workflow"
+            )
+        )
+
     def test_closing_keyword_on_nightly_tracker_is_rejected(self):
         errors = find_nightly_tracker_closes(
             "Fixes #6314\nRelated to #12\n",

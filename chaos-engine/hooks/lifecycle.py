@@ -162,15 +162,57 @@ def _locate(relatives: tuple[str, ...]) -> str | None:
     return None
 
 
-def session_start_context(token: str | None, activation: str) -> str:
+def stopped_companion_names(text: str) -> frozenset[str]:
+    """Ultra cards stay on until ``stop caveman``, ``stop ponytail``, or ``normal mode``."""
+    folded = str(text or "").casefold()
+    if "normal mode" in folded:
+        return frozenset(COMPANION_CARDS)
+    stopped = set()
+    if "stop caveman" in folded:
+        stopped.add("caveman")
+    if "stop ponytail" in folded:
+        stopped.add("ponytail")
+    return frozenset(stopped)
+
+
+def _companion_opt_out_path(session_id: str) -> Path:
+    safe = "".join(character for character in str(session_id) if character.isalnum() or character in "-_")[:80]
+    return Path.cwd() / ".chaos-engine-state" / "companion-opt-out" / (safe or "session")
+
+
+def record_companion_opt_out(session_id: str, text: str) -> frozenset[str]:
+    """Remember a stop phrase for this session. A later SessionStart reads it."""
+    stopped = stopped_companion_names(text)
+    if not stopped:
+        return read_stopped_companions(session_id)
+    path = _companion_opt_out_path(session_id)
+    current = set(read_stopped_companions(session_id))
+    current.update(stopped)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(" ".join(sorted(current)) + "\n", encoding="utf-8")
+    return frozenset(current)
+
+
+def read_stopped_companions(session_id: str) -> frozenset[str]:
+    path = _companion_opt_out_path(session_id)
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return frozenset()
+    return frozenset(part for part in text.split() if part in COMPANION_CARDS)
+
+
+def session_start_context(token: str | None, activation: str, session_id: str = "") -> str:
     """Return the compact SessionStart locator line set (<= 600 bytes)."""
     parts = [f"ChaosEngine: {activation}"]
     if token:
         parts.append(f"Reflection session token (never track it): {token}")
+    stopped = read_stopped_companions(session_id)
     cards = [
         _locate((card, f".chaos-engine/{card}", f"chaos-engine/{card}"))
         or f".chaos-engine/{card}"
-        for card in COMPANION_CARDS.values()
+        for name, card in COMPANION_CARDS.items()
+        if name not in stopped
     ]
     parts.append(
         "Companions (caveman=ultra; ponytail=ultra; off only: stop caveman, stop ponytail, "

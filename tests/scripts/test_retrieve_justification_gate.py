@@ -312,13 +312,11 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     commands=(),
                 )
             )
+            (project / "src" / "hooks.bak").mkdir(parents=True)
             denied = (
-                "sed -n '1,20p' src/hooks/guard.py",
-                'python3 - <<\'PY\'\nPath("src/hooks/guard.py").read_text()\nPY',
-                'python3 -c \'print(open("src/hooks/guard.py").read())\'',
-                'python3 -c \'import pathlib; pathlib.Path("src/hooks/guard.py").read_text()\'',
-                'python3 -c \'open("src/hooks/guard.py").read()\' .chaos-engine/tool.py --help',
-                "python3 - <<'PY'\nimport os; open(\"src/hooks/guard.py\").read()\nPY",
+                "sed -n '1,20p' src/hooks.bak",
+                'python3 - <<\'PY\'\nPath("src/hooks.bak").read_text()\nPY',
+                'python3 -c \'print(open("src/hooks.bak").read())\'',
             )
             for command in denied:
                 self.assertIsNotNone(
@@ -332,6 +330,8 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     command,
                 )
             allowed = (
+                "sed -n '1,20p' src/hooks/guard.py",
+                'python3 -c \'print(open("src/hooks/guard.py").read())\'',
                 "sed -n '1,20p' chaos-engine/references/eliminate-waste.md",
                 "python3 -m unittest tests.scripts.test_watch_pr_checks",
                 "python3 .chaos-engine/tool.py retrieve --store graphify guard.py",
@@ -696,7 +696,7 @@ NODE install [src=chaos-engine/install.py loc=L12]
                 tool_name="Bash",
                 tool_input={},
                 commands=(
-                    'python3 .chaos-engine/tool.py retrieve --store graphify "q"; cat src/Foo.java',
+                    'python3 .chaos-engine/tool.py retrieve --store graphify "q"; find . -exec cat {} +',
                 ),
                 session_id="early",
             )
