@@ -17,7 +17,7 @@ public final class AndroidSetupPlanner {
             "16b8f7f939a4b1ba418b47456a86a0eab04edadf3787bd6281bfcbdef27af276";
     public static final String COMMAND_LINE_TOOLS_VERSION = "15859902";
     public static final String PLATFORM_TOOLS_VERSION = "37.0.1";
-    public static final String EMULATOR_VERSION = "37.1.11";
+    public static final String EMULATOR_VERSION = "37.2.12";
     public static final String ANDROID_PLATFORM_REVISION = "2";
     public static final String BUILD_TOOLS_VERSION = "36.0.0";
     public static final String SYSTEM_IMAGE_REVISION = "7";

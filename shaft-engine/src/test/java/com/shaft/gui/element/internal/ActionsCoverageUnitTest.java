@@ -408,6 +408,46 @@ public class ActionsCoverageUnitTest {
     }
 
     @Test
+    public void typingShouldIgnoreFlutterUnknownMethodDomPropertyReads() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement element = standardElement();
+        when(element.getDomProperty(anyString())).thenThrow(new WebDriverException(
+                "{\"error\":\"unknown method\",\"message\":\"Method has not yet been implemented\"}"));
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+        when(((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class))).thenReturn(null);
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            new Actions(helperFor(driver)).type(LOCATOR, "native text");
+
+            verify(element).sendKeys(new CharSequence[]{"native text"});
+        }
+    }
+
+    @Test
+    public void failureScreenshotShouldSkipFlutterStringRectWithoutReplacingTheActionFailure() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        WebElement element = standardElement();
+        RuntimeException originalFailure = new WebDriverException("native click blocked by flutter");
+        doThrow(originalFailure).when(element).click();
+        when(element.getRect()).thenThrow(new ClassCastException(
+                "class java.lang.String cannot be cast to class java.lang.Number"));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        when(driver.findElements(LOCATOR)).thenReturn(List.of(element));
+
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException exception = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(helperFor(driver)).click(LOCATOR));
+            Throwable rootCause = exception;
+            while (rootCause.getCause() != null) {
+                rootCause = rootCause.getCause();
+            }
+            Assert.assertSame(rootCause, originalFailure);
+            Assert.assertFalse(java.util.Arrays.stream(rootCause.getSuppressed())
+                    .anyMatch(suppressed -> suppressed instanceof ClassCastException));
+        }
+    }
+
+    @Test
     public void typingShouldFailWhenConfiguredTypedTextDoesNotMatchElementValue() {
         SHAFT.Properties.flags.set()
                 .forceCheckTextWasTypedCorrectly(true)
