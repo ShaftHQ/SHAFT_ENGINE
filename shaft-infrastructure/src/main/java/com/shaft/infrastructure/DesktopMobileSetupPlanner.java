@@ -22,7 +22,7 @@ final class DesktopMobileSetupPlanner {
     static final String IOS_LOCK_SHA256 =
             "sha256:a59b6745f5c4f80a9c3fee20d6757511ec180a1b893e29c6a1758712664149cd";
     static final String WINDOWS_LOCK_SHA256 =
-            "sha256:af0a8327d27de3d23fd1ebaaf3e3dbc3e7336e220a394fcf3d1138079451e76c";
+            "sha256:0f339d04ec6d97f80085f9a43135fabedf1b404d93a5d093a3dd897159980232";
 
     private static final String APPIUM_SHA256 =
             "4c1e263a856b5de3fb382aced3eff2b34782637f5bdd9bc98804dc05cce6c3b6";
