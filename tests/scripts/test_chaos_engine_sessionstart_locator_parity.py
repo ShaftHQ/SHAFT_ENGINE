@@ -5,7 +5,9 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import os
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
@@ -59,6 +61,27 @@ class SessionStartLocatorParityTests(unittest.TestCase):
                 f"chaos-engine/companions/{name}-ultra.md", context
             )
         self.assertIn("caveman=ultra; ponytail=ultra", context)
+
+    def test_session_start_omits_a_stopped_companion(self):
+        previous = Path.cwd()
+        with tempfile.TemporaryDirectory() as temporary:
+            os.chdir(temporary)
+            try:
+                self.lifecycle.record_companion_opt_out("stop-session", "please stop caveman")
+                context = self.lifecycle.session_start_context(
+                    "token-fixture", "activation", session_id="stop-session"
+                )
+                self.assertNotIn("caveman-ultra.md", context)
+                self.assertIn("ponytail-ultra.md", context)
+                self.assertNotIn(self.caveman, context)
+                self.lifecycle.record_companion_opt_out("stop-session", "normal mode")
+                both = self.lifecycle.session_start_context(
+                    "token-fixture", "activation", session_id="stop-session"
+                )
+                self.assertNotIn("caveman-ultra.md", both)
+                self.assertNotIn("ponytail-ultra.md", both)
+            finally:
+                os.chdir(previous)
 
     def test_every_host_adapts_identical_locator_context(self):
         token = "parity-session-token"

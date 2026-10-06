@@ -901,16 +901,6 @@ def _schedule_store_refresh(cwd: Path) -> None:
         return
 
 
-def _event_context(event_name: str, token: object) -> str:
-    if event_name == "SessionStart":
-        return _lifecycle.session_start_context(token, ACTIVATION)
-    context = f"ChaosEngine: {ACTIVATION}"
-    if token:
-        context += f" Reflection session token (never track it): {token}"
-    return context
-
-
-
 def _phase_ledger_triage(session_id: str) -> str | None:
     """Read triage from zero-LLM phase ledger when present (#5623)."""
     if not session_id:
@@ -1132,8 +1122,12 @@ def _run_event(event: dict, _host: str) -> int:
         if event_name not in {"SubagentStop", "SessionEnd"}:
             reflection.record_session_start(session_id, estimated=True)
         token = None
-    if event_name == "UserPromptSubmit" and learning_requested(event):
-        reflection.record_activity(session_id, "learning-requested")
+    if event_name == "UserPromptSubmit":
+        prompt = event.get("prompt") or event.get("user_prompt") or ""
+        if isinstance(prompt, str):
+            _lifecycle.record_companion_opt_out(session_id, prompt)
+        if learning_requested(event):
+            reflection.record_activity(session_id, "learning-requested")
     if _record_failed_result(event, event_name, commands, tool_name, session_id):
         return 0
     receipt_command, mutation, guard_reason = _command_guard_state(
@@ -1176,7 +1170,7 @@ def _run_event(event: dict, _host: str) -> int:
             return 0
     if event_name == "SessionStart":
         _schedule_store_refresh(Path(str(event.get("cwd") or Path.cwd())))
-        context = _event_context(event_name, token)
+        context = _lifecycle.session_start_context(token, ACTIVATION, session_id=session_id)
         drift = reflection.reflection_controller_drift(Path(str(event.get("cwd") or Path.cwd())))
         if drift:
             context = f"{context}\n\n{drift}"
