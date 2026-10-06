@@ -35,6 +35,7 @@ DEPENDABOT_DIRECTORIES = {
     "/shaft-ocr",
     "/shaft-sikulix",
     "/shaft-mcp",
+    "/shaft-cli",
     "/shaft-bom",
     "/legacy-shaft-engine",
     "/report-aggregate",
@@ -646,8 +647,13 @@ def validate_quality_configuration(root: Path = ROOT) -> list[str]:
     )
     if missing_directories:
         errors.append(f"Dependabot is missing Maven directories: {missing_directories}")
-    if "group-by: dependency-name" not in dependabot:
-        errors.append("Dependabot must group aligned Maven dependencies by dependency name")
+    if dependabot.count("group-by: dependency-name") < 4:
+        errors.append(
+            "Dependabot must group the same Maven and npm dependency across directories "
+            "for version updates and security updates"
+        )
+    if dependabot.count("applies-to: security-updates") < 2:
+        errors.append("Dependabot security updates must use their own cross-directory groups")
 
     workflow_text = "\n".join(
         path.read_text(encoding="utf-8") for path in (root / ".github" / "workflows").glob("*.yml")
