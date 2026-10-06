@@ -183,7 +183,7 @@ def tool_help_text() -> str:
         f"tools: {names}\n"
         "\n"
         "entry (bots without hooks: print core card, companions, retrieve step):\n"
-        "  tool.py entry [--full]  (one line while unchanged; --full reprints)\n"
+        "  tool.py entry [--full] [stop phrase]  (one line while unchanged; --full reprints)\n"
         "\n"
         "maintain (after each delivery: fast-forward, reinstall, doctor, refresh, reload):\n"
         "  tool.py maintain\n"
@@ -495,7 +495,8 @@ def main() -> int:
         tool = sys.argv[1]
         arguments = sys.argv[2:]
         if tool == "entry":
-            print(entry_output(installed_root, full="--full" in arguments), end="")
+            phrase = " ".join(arg for arg in arguments if arg != "--full")
+            print(entry_output(installed_root, full="--full" in arguments, opt_out=phrase), end="")
             return 0
         if tool == "maintain":
             return maintain(installed_root)
