@@ -22,7 +22,8 @@ updates:
     labels:
       - "dependencies"
 
-  # Bundled setup npm trees (#6369). Weekly, one grouped PR per directory.
+  # Bundled setup npm trees (#6369). Weekly.
+  # The same dependency version is one pull request across these trees.
   # setup-lock-pins.yml refreshes the planner SHA-256 pins automatically.
   # Exact Appium/Allure versions stay pinned in package.json.
   - package-ecosystem: "npm"
@@ -46,9 +47,18 @@ updates:
       - dependency-name: "appium-uiautomator2-driver"
         versions: ["8.6.x", "8.7.0"]
     groups:
+      # Version updates. group-by is ignored on security jobs.
       setup-npm:
         patterns:
           - "*"
+        group-by: dependency-name
+      # Security jobs ship with an empty dependency-groups list unless the
+      # group sets applies-to: security-updates. One dependency, one PR.
+      setup-npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+        group-by: dependency-name
 
   # Maintain dependencies for maven
   - package-ecosystem: "maven"
@@ -69,6 +79,7 @@ updates:
       - "/shaft-ocr"
       - "/shaft-sikulix"
       - "/shaft-mcp"
+      - "/shaft-cli"
       - "/shaft-bom"
       - "/legacy-shaft-engine"
       - "/report-aggregate"
@@ -85,5 +96,13 @@ updates:
         update-types:
           - "version-update:semver-major"
     groups:
+      # Version updates. One pull request per dependency name across directories.
       aligned-maven-dependencies:
+        group-by: dependency-name
+      # Security updates do not use the version group above. Same dependency
+      # version across modules stays in one pull request.
+      aligned-maven-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
         group-by: dependency-name
