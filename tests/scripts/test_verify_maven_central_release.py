@@ -79,6 +79,20 @@ class VerifyMavenCentralReleaseTest(unittest.TestCase):
         self.assertEqual(set(verify.POM_ARTIFACTS), expected_poms)
 
 
+    def test_allure_cli_only_skips_when_every_path_is_published(self):
+        with mock.patch.object(verify.urllib.request, "urlopen", return_value=mock.MagicMock()):
+            self.assertEqual(verify.allure_cli_only_status("https://repo.example.test/maven2"), 0)
+            self.assertEqual(verify.main(["--allure-cli-only"]), 0)
+
+    def test_allure_cli_only_reports_missing_paths(self):
+        with mock.patch.object(
+            verify.urllib.request,
+            "urlopen",
+            side_effect=verify.urllib.error.HTTPError("https://repo.example.test", 404, "missing", hdrs=None, fp=None),
+        ):
+            self.assertEqual(verify.allure_cli_only_status("https://repo.example.test/maven2"), 2)
+            self.assertEqual(verify.main(["--allure-cli-only", "--repository-url", "https://repo.example.test"]), 2)
+
     def test_publication_paths_include_standalone_allure_cli_zip(self):
         paths = publication_paths("1.2.3")
         cli_paths = allure_cli_publication_paths()

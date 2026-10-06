@@ -329,7 +329,21 @@ jobs:
           MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
         run: |
           # Standalone module: version tracks Allure 3, not shaftEngineVersion (#5833).
-          # Reuses the same Central + GPG secrets as the reactor deploy (no invented secrets).
+          # The same coordinate is expected to stay published across SHAFT releases.
+          # Central rejects a second upload ("already exists"); that must not fail
+          # the reactor release or skip Marketplace, shaft-mcp, and the GitHub Release.
+          set +e
+          python3 scripts/ci/verify_maven_central_release.py --allure-cli-only
+          allure_status=$?
+          set -e
+          if [ "${allure_status}" -eq 0 ]; then
+            echo "Standalone allure-cli is already on Maven Central; skipping deploy."
+            exit 0
+          fi
+          if [ "${allure_status}" -ne 2 ]; then
+            echo "Could not check allure-cli on Maven Central (exit ${allure_status})."
+            exit "${allure_status}"
+          fi
           mvn --batch-mode -f allure-cli/pom.xml deploy "-DskipTests" \
             "-Dgpg.keyname=${{secrets.GPG_KEYNAME}}" \
             "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
