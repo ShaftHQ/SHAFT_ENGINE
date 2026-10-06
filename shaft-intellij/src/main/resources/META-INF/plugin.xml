@@ -11,6 +11,12 @@
     <depends optional="true" config-file="io.github.shafthq.shaft-withTestNG.xml">TestNG-J</depends>
     <depends optional="true" config-file="io.github.shafthq.shaft-withGradle.xml">com.intellij.gradle</depends>
     <depends optional="true" config-file="io.github.shafthq.shaft-withKotlin.xml">org.jetbrains.kotlin</depends>
+    <!-- Verifier 1.410 reads K2 mode only from the descriptor that depends on
+         org.jetbrains.kotlin. The optional config-file is loaded later and does not clear
+         UndeclaredKotlinK2CompatibilityMode. sinceBuild 243 is past 2024.2.1, when this EP exists. -->
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK2="true"/>
+    </extensions>
 
     <resource-bundle>messages.ShaftBundle</resource-bundle>
 
