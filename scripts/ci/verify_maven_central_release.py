@@ -103,9 +103,10 @@ def publication_paths(version: str, *, include_allure_cli: bool = True) -> list[
     return paths
 
 
-def missing_publication_paths(repository_url: str, version: str) -> list[str]:
+def missing_central_paths(repository_url: str, paths: list[str]) -> list[str]:
+    """Return publication paths that are absent from a Maven repository."""
     missing = []
-    for path in publication_paths(version):
+    for path in paths:
         request = urllib.request.Request(f"{repository_url.rstrip('/')}/{path}", method="HEAD")
         try:
             with urllib.request.urlopen(request, timeout=30):
@@ -113,6 +114,29 @@ def missing_publication_paths(repository_url: str, version: str) -> list[str]:
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
             missing.append(path)
     return missing
+
+
+def missing_publication_paths(repository_url: str, version: str) -> list[str]:
+    return missing_central_paths(repository_url, publication_paths(version))
+
+
+# Exit status for ``--allure-cli-only`` when the standalone zip is not on Central yet.
+ALLURE_CLI_MISSING_EXIT = 2
+
+
+def allure_cli_only_status(repository_url: str = DEFAULT_REPOSITORY) -> int:
+    """Return 0 when the current allure-cli zip is already published, else 2.
+
+    The zip tracks Allure 3, not ``shaftEngineVersion`` (#5833). Republishing the
+    same coordinate fails Central with "already exists" and must not fail a SHAFT
+    release whose reactor deploy already succeeded.
+    """
+    missing = missing_central_paths(repository_url, allure_cli_publication_paths())
+    if missing:
+        print("missing allure-cli: " + ", ".join(missing))
+        return ALLURE_CLI_MISSING_EXIT
+    print(f"allure-cli {allure_cli_version()} is already on Maven Central.")
+    return 0
 
 
 def write_settings(path: Path, repository_url: str) -> None:
@@ -164,13 +188,22 @@ def verify_release(version: str, repository_url: str = DEFAULT_REPOSITORY,
         raise RuntimeError(f"Maven Central release verification failed after {attempts} attempts: {last_error}")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("version")
+    parser.add_argument("version", nargs="?")
     parser.add_argument("--repository-url", default=DEFAULT_REPOSITORY)
     parser.add_argument("--attempts", type=int, default=10)
     parser.add_argument("--delay-seconds", type=int, default=30)
-    args = parser.parse_args()
+    parser.add_argument(
+        "--allure-cli-only",
+        action="store_true",
+        help="Exit 0 when the standalone allure-cli zip is already published, else 2.",
+    )
+    args = parser.parse_args(argv)
+    if args.allure_cli_only:
+        return allure_cli_only_status(args.repository_url)
+    if not args.version:
+        parser.error("version is required unless --allure-cli-only is set")
     verify_release(args.version, args.repository_url, args.attempts, args.delay_seconds)
     print(f"Verified SHAFT {args.version} from Maven Central.")
     return 0
