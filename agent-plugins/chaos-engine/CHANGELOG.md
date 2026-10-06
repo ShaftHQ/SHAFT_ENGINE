@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 10.4.20261006 - 2026-10-06
+
+- Align the portable plugin version with SHAFT Engine release 10.4.20261006.
 - Installer (#6499): the verify gate runs doctor from the installed core, so it
   checks the same components as `install.py doctor`; a repository with no commits
   shows Graphify as waiting for the first commit with a commit-first fix-next.
