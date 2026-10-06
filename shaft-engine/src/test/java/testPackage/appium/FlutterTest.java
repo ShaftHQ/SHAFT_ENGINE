@@ -151,7 +151,7 @@ public class FlutterTest {
         d.assertThat().element(USERNAME_FIELD).exists().perform();
         d.assertThat().element(PLEASE_LOGIN_SEMANTICS).exists().perform();
         d.assertThat().element(PLEASE_LOGIN_TEXT).exists().perform();
-        d.assertThat().element(TEXT_FIELD_TYPE).exists().perform();
+        // Login renders two TextFields. flutterType is a type finder, not a unique locator.
         d.assertThat().element(LOGIN_BUTTON_TEXT).exists().perform();
 
         // Type (demo pre-fills admin/1234; clear+retype proves TextField interaction).
