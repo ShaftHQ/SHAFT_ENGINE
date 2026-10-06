@@ -1,6 +1,7 @@
 """#6377: retrieve-first and companions are concrete; Grok Bot loads the core card."""
 
 import importlib.util
+import io
 import os
 import shutil
 import sqlite3
@@ -9,6 +10,7 @@ import sys
 import tempfile
 import unittest
 import unittest.mock
+from contextlib import redirect_stdout
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -80,6 +82,28 @@ class GrokBotTest(unittest.TestCase):
             "<!-- companions/ponytail-ultra.md -->",
             tool.entry_bundle(SOURCE, "stop ponytail"),
         )
+
+    def test_entry_command_applies_the_stop_phrase(self):
+        """Drives tool.py main, the documented bot start path."""
+        tool = _load("tool")
+        argv = ["tool.py", "entry", "please", "stop", "caveman"]
+        with unittest.mock.patch.object(sys, "argv", argv):
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                code = tool.main()
+        self.assertEqual(0, code)
+        printed = stdout.getvalue()
+        self.assertNotIn("<!-- companions/caveman-ultra.md -->", printed)
+        self.assertIn("<!-- companions/ponytail-ultra.md -->", printed)
+        self.assertNotIn("vendor/caveman/skills/caveman/SKILL.md\n", printed)
+        with unittest.mock.patch.object(sys, "argv", ["tool.py", "entry", "normal", "mode"]):
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                code = tool.main()
+        self.assertEqual(0, code)
+        printed = stdout.getvalue()
+        self.assertNotIn("<!-- companions/caveman-ultra.md -->", printed)
+        self.assertNotIn("<!-- companions/ponytail-ultra.md -->", printed)
 
     def test_entry_reprints_one_line_while_unchanged(self):
         tool = _load("tool")
