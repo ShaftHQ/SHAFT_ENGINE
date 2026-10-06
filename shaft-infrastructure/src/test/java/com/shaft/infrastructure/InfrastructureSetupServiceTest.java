@@ -84,6 +84,28 @@ class InfrastructureSetupServiceTest {
     }
 
     @Test
+    void androidStopRequiresTheStartupTimeoutBoundIntoThePlan(@TempDir Path temp) throws IOException {
+        ShaftCachePaths cache = paths(temp);
+        InfrastructureSetupService service = InfrastructureSetupService.builtIn(
+                SetupPlatform.LINUX, SetupArchitecture.X64);
+        SetupOptions planned = SetupOptions.defaults(SetupProfile.MOBILE_ANDROID, cache)
+                .withMode(SetupMode.MANAGED)
+                .withTimeouts(Duration.ofMinutes(8), Duration.ofMinutes(1));
+        SetupPlan plan = service.plan(planned);
+        SetupApproval approval = new SetupApproval(plan.digest(), Instant.now(),
+                Set.of(AndroidSetupPlanner.ANDROID_SDK_LICENSE));
+        SetupOptions defaultStartup = SetupOptions.defaults(SetupProfile.MOBILE_ANDROID, cache)
+                .withMode(SetupMode.MANAGED)
+                .withTimeouts(Duration.ofMinutes(2), Duration.ofMinutes(1));
+
+        IllegalArgumentException mismatch = assertThrows(IllegalArgumentException.class,
+                () -> service.stop(plan, approval, defaultStartup));
+
+        assertTrue(mismatch.getMessage().contains("Plan does not match the provider manifest"));
+        assertFalse(service.stop(plan, approval, planned));
+    }
+
+    @Test
     void builtInCoordinatorProvidesReadOnlyLighthouseStatusAndManagedPlan(@TempDir Path temp) {
         ShaftCachePaths paths = paths(temp);
         InfrastructureSetupService service = InfrastructureSetupService.builtIn(

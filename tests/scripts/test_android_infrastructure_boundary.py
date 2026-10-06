@@ -38,6 +38,8 @@ class AndroidInfrastructureBoundaryTest(unittest.TestCase):
         self.assertIn("setup stop --plan", workflow)
         stop = workflow.split("Stop the owned runtime from a later packaged CLI process", 1)[1].split("- name:", 1)[0]
         self.assertIn("--accept-license android-sdk-license", stop)
+        self.assertIn("--startup-timeout PT8M", stop)
+        self.assertIn("--shutdown-timeout PT1M", stop)
         self.assertGreaterEqual(workflow.count("mobile-android-runtime.json"), 3)
         self.assertIn("--accept-license android-sdk-license", workflow)
         self.assertIn("mobile-android-install.log", workflow)
