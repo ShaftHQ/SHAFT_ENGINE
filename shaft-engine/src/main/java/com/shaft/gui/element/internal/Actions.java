@@ -1365,13 +1365,11 @@ public class Actions extends ElementActions {
     private String safeDomProperty(WebElement element, String propertyName) {
         try {
             return element.getDomProperty(propertyName);
+        } catch (StaleElementReferenceException | NoSuchElementException stillMissing) {
+            throw stillMissing;
         } catch (WebDriverException unsupportedProperty) {
             // FlutterIntegration reports getDomProperty as WebDriverException "unknown method"
             // (NotYetImplementedError), not UnsupportedCommandException.
-            if (unsupportedProperty instanceof StaleElementReferenceException
-                    || unsupportedProperty instanceof NoSuchElementException) {
-                throw unsupportedProperty;
-            }
             ReportManagerHelper.logDiscrete(unsupportedProperty, Level.DEBUG);
             return "";
         }
