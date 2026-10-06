@@ -96,6 +96,14 @@ class GrokBotTest(unittest.TestCase):
         self.assertNotIn("<!-- companions/caveman-ultra.md -->", printed)
         self.assertIn("<!-- companions/ponytail-ultra.md -->", printed)
         self.assertNotIn("vendor/caveman/skills/caveman/SKILL.md\n", printed)
+        with unittest.mock.patch.object(sys, "argv", ["tool.py", "entry", "stop", "ponytail"]):
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                code = tool.main()
+        self.assertEqual(0, code)
+        printed = stdout.getvalue()
+        self.assertIn("<!-- companions/caveman-ultra.md -->", printed)
+        self.assertNotIn("<!-- companions/ponytail-ultra.md -->", printed)
         with unittest.mock.patch.object(sys, "argv", ["tool.py", "entry", "normal", "mode"]):
             stdout = io.StringIO()
             with redirect_stdout(stdout):
