@@ -90,15 +90,24 @@ final class SetupPrerequisites {
      */
     static boolean officialBinaryPresent(String executable, Path home, boolean windows,
             boolean includeProcessEnvironment) {
+        return officialExecutable(executable, home, windows, includeProcessEnvironment).isPresent();
+    }
+
+    /**
+     * Absolute path of an official installer binary, when that file is executable. Callers that
+     * launch the CLI use this when the IDE process PATH does not contain the install directory.
+     */
+    static java.util.Optional<Path> officialExecutable(String executable, Path home, boolean windows,
+            boolean includeProcessEnvironment) {
         if (executable == null || executable.isBlank()) {
-            return false;
+            return java.util.Optional.empty();
         }
         for (Path candidate : officialBinaryCandidates(executable, home, windows, includeProcessEnvironment)) {
             if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) {
-                return true;
+                return java.util.Optional.of(candidate);
             }
         }
-        return false;
+        return java.util.Optional.empty();
     }
 
     private static List<Path> officialBinaryCandidates(String executable, Path home, boolean windows,
@@ -131,7 +140,7 @@ final class SetupPrerequisites {
         return candidates;
     }
 
-    private static Path userHome() {
+    static Path userHome() {
         String home = System.getProperty("user.home", "");
         return home.isBlank() ? null : Path.of(home);
     }
