@@ -2,16 +2,22 @@ package com.shaft.intellij.ui;
 
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -101,6 +107,47 @@ class AssistantLocalAgentRunnerReadinessTest {
 
         assertTrue(result.success(), result.output());
         assertTrue(result.output().contains("could not run"), result.output());
+    }
+
+    @Test
+    void grokAndAgyOnTheOfficialInstallPathAreReadyWhenProcessPathIsEmpty(@TempDir Path home) throws Exception {
+        Path grok = home.resolve(".grok").resolve("bin").resolve("grok");
+        Path agy = home.resolve(".local").resolve("bin").resolve("agy");
+        Files.createDirectories(grok.getParent());
+        Files.createDirectories(agy.getParent());
+        Files.writeString(grok, "#!/bin/sh\n");
+        Files.writeString(agy, "#!/bin/sh\n");
+        Set<PosixFilePermission> executable = Set.of(PosixFilePermission.OWNER_READ,
+                PosixFilePermission.OWNER_EXECUTE);
+        Files.setPosixFilePermissions(grok, executable);
+        Files.setPosixFilePermissions(agy, executable);
+
+        AtomicReference<List<String>> launched = new AtomicReference<>();
+        ShaftMcpToolResult grokReady = AssistantLocalAgentRunner.readiness(
+                "GROK", "CLI", "", home, false, false);
+        ShaftMcpToolResult grokChecked = AssistantLocalAgentRunner.connectionReadiness(
+                "GROK", "CLI", "", home, false, false,
+                (command, workingDirectory, environment) -> {
+                    launched.set(command);
+                    return stubProcess("enabled: true\nshaft-mcp", 0);
+                });
+        ShaftMcpToolResult agyReady = AssistantLocalAgentRunner.readiness(
+                "ANTIGRAVITY", "CLI", "", home, false, false);
+        ShaftMcpToolResult agyChecked = AssistantLocalAgentRunner.connectionReadiness(
+                "ANTIGRAVITY", "CLI", "", home, false, false,
+                (command, workingDirectory, environment) -> {
+                    throw new IllegalStateException("agy has no MCP probe");
+                });
+        ShaftMcpToolResult missing = AssistantLocalAgentRunner.readiness(
+                "GROK", "CLI", "", home.resolve("absent"), false, false);
+
+        assertAll(
+                () -> assertTrue(grokReady.success(), grokReady.output()),
+                () -> assertTrue(grokChecked.success(), grokChecked.output()),
+                () -> assertEquals(List.of(grok.toString(), "mcp", "list"), launched.get()),
+                () -> assertTrue(agyReady.success(), agyReady.output()),
+                () -> assertTrue(agyChecked.success(), agyChecked.output()),
+                () -> assertFalse(missing.success(), missing.output()));
     }
 
     @Test

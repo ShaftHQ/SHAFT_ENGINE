@@ -1,5 +1,6 @@
 package com.shaft.intellij.ui;
 
+import java.io.File;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -90,15 +91,24 @@ final class SetupPrerequisites {
      */
     static boolean officialBinaryPresent(String executable, Path home, boolean windows,
             boolean includeProcessEnvironment) {
+        return officialExecutable(executable, home, windows, includeProcessEnvironment).isPresent();
+    }
+
+    /**
+     * Absolute path of an official installer binary, when that file is executable. Callers that
+     * launch the CLI use this when the IDE process PATH does not contain the install directory.
+     */
+    static java.util.Optional<Path> officialExecutable(String executable, Path home, boolean windows,
+            boolean includeProcessEnvironment) {
         if (executable == null || executable.isBlank()) {
-            return false;
+            return java.util.Optional.empty();
         }
         for (Path candidate : officialBinaryCandidates(executable, home, windows, includeProcessEnvironment)) {
             if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) {
-                return true;
+                return java.util.Optional.of(candidate);
             }
         }
-        return false;
+        return java.util.Optional.empty();
     }
 
     private static List<Path> officialBinaryCandidates(String executable, Path home, boolean windows,
@@ -131,7 +141,84 @@ final class SetupPrerequisites {
         return candidates;
     }
 
-    private static Path userHome() {
+    static boolean commandOnPath(String command, String path, boolean windows) {
+        if (command == null || command.isBlank() || path == null || path.isBlank()) {
+            return false;
+        }
+        for (String directory : path.split(File.pathSeparator)) {
+            if (directory.isBlank()) {
+                continue;
+            }
+            Path bare = Path.of(directory, command);
+            if (Files.isRegularFile(bare) && Files.isExecutable(bare)) {
+                return true;
+            }
+            if (windows) {
+                for (String extension : windowsExecutableExtensions()) {
+                    Path candidate = Path.of(directory, command + extension);
+                    if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Bare name when {@code executable} is on {@code path}; otherwise the absolute official
+     * installer path for {@code grok} or {@code agy}.
+     */
+    static String resolveExecutable(String executable, String path, Path home, boolean windows,
+            boolean includeProcessEnvironment) {
+        if (executable == null || executable.isBlank()
+                || commandOnPath(executable, path, windows)) {
+            return executable;
+        }
+        return officialExecutable(executable, home, windows, includeProcessEnvironment)
+                .map(Path::toString)
+                .orElse(executable);
+    }
+
+    static boolean commandResolvable(String executable, String path, Path home, boolean windows,
+            boolean includeProcessEnvironment) {
+        if (executable == null || executable.isBlank()) {
+            return false;
+        }
+        if (executable.indexOf('/') >= 0 || executable.indexOf('\\') >= 0) {
+            Path file = Path.of(executable);
+            return Files.isRegularFile(file) && Files.isExecutable(file);
+        }
+        return commandOnPath(executable, path, windows)
+                || officialBinaryPresent(executable, home, windows, includeProcessEnvironment);
+    }
+
+    static List<String> withOfficialExecutable(List<String> command, String path, Path home, boolean windows,
+            boolean includeProcessEnvironment) {
+        if (command == null || command.isEmpty()) {
+            return command == null ? List.of() : command;
+        }
+        String resolved = resolveExecutable(command.get(0), path, home, windows, includeProcessEnvironment);
+        if (resolved.equals(command.get(0))) {
+            return command;
+        }
+        List<String> rewritten = new ArrayList<>(command);
+        rewritten.set(0, resolved);
+        return rewritten;
+    }
+
+    private static List<String> windowsExecutableExtensions() {
+        String pathext = System.getenv("PATHEXT");
+        if (pathext == null || pathext.isBlank()) {
+            return List.of(".exe", ".cmd", ".bat");
+        }
+        return java.util.Arrays.stream(pathext.split(";"))
+                .filter(value -> !value.isBlank())
+                .map(value -> value.startsWith(".") ? value : "." + value)
+                .toList();
+    }
+
+    static Path userHome() {
         String home = System.getProperty("user.home", "");
         return home.isBlank() ? null : Path.of(home);
     }
