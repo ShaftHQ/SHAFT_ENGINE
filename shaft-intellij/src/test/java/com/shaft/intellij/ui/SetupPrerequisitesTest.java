@@ -1,7 +1,11 @@
 package com.shaft.intellij.ui;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -67,14 +71,78 @@ class SetupPrerequisitesTest {
                 .findFirst().orElseThrow();
         assertAll(
                 () -> assertFalse(agent.present()),
-                () -> assertTrue(agent.installCommand().contains("Grok Build"), agent.installCommand()),
+                () -> assertEquals("irm https://x.ai/cli/install.ps1 | iex", agent.installCommand()),
+                () -> assertEquals("curl -fsSL https://x.ai/cli/install.sh | bash",
+                        SetupPrerequisites.agentInstallCommandFor("GROK", false, true)),
+                () -> assertEquals("curl -fsSL https://x.ai/cli/install.sh | bash",
+                        SetupPrerequisites.agentInstallCommandFor("GROK", false, false)),
                 () -> assertTrue(detected.stream().noneMatch(item -> item.name().equals("Grok CLI"))),
-                () -> assertFalse(agent.installCommand().startsWith("npm "), agent.installCommand()),
+                () -> assertFalse(agent.installCommand().contains("npm"), agent.installCommand()),
                 () -> assertTrue(detected.stream().noneMatch(item -> item.name().startsWith("Node.js")),
                         "Grok is not an npm-installed CLI"));
         } finally {
             com.shaft.intellij.settings.GrokInstallIdentity.useHelp(null);
         }
+    }
+
+    @Test
+    void antigravityUsesTheOfficialInstallerWithoutNode() {
+        List<SetupPrerequisites.Prerequisite> windows =
+                SetupPrerequisites.detect("ANTIGRAVITY", NOTHING_INSTALLED, true, false);
+        SetupPrerequisites.Prerequisite agent = windows.stream()
+                .filter(item -> item.name().equals("Antigravity"))
+                .findFirst().orElseThrow();
+        assertAll(
+                () -> assertFalse(agent.present()),
+                () -> assertEquals("irm https://antigravity.google/cli/install.ps1 | iex", agent.installCommand()),
+                () -> assertEquals("curl -fsSL https://antigravity.google/cli/install.sh | bash",
+                        SetupPrerequisites.agentInstallCommandFor("ANTIGRAVITY", false, false)),
+                () -> assertTrue(windows.stream().noneMatch(item -> item.name().startsWith("Node.js"))));
+    }
+
+    @Test
+    void grokAlreadyAtTheOfficialInstallLocationIsPresentEvenWhenPathLookupMisses(@TempDir Path home)
+            throws Exception {
+        Path binary = home.resolve(".grok").resolve("bin").resolve("grok");
+        Files.createDirectories(binary.getParent());
+        Files.writeString(binary, "#!/bin/sh\n");
+        Files.setPosixFilePermissions(binary, Set.of(PosixFilePermission.OWNER_READ,
+                PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
+
+        com.shaft.intellij.settings.GrokInstallIdentity.useHelp(() -> "Grok Build TUI\n");
+        try {
+            List<SetupPrerequisites.Prerequisite> detected =
+                    SetupPrerequisites.detect("GROK", NOTHING_INSTALLED, false, false, home);
+            SetupPrerequisites.Prerequisite agent = detected.stream()
+                    .filter(item -> item.name().equals("Grok Build"))
+                    .findFirst().orElseThrow();
+            assertTrue(agent.present(), detected.toString());
+            assertTrue(SetupPrerequisites.officialBinaryPresent("grok", home, false, false));
+            Path windowsBinary = home.resolve(".grok").resolve("bin").resolve("grok.exe");
+            Files.writeString(windowsBinary, "");
+            Files.setPosixFilePermissions(windowsBinary, Set.of(PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_EXECUTE));
+            assertTrue(SetupPrerequisites.officialBinaryPresent("grok", home, true, false));
+        } finally {
+            com.shaft.intellij.settings.GrokInstallIdentity.useHelp(null);
+        }
+    }
+
+    @Test
+    void agyAlreadyAtTheOfficialInstallLocationIsPresentEvenWhenPathLookupMisses(@TempDir Path home)
+            throws Exception {
+        Path binary = home.resolve(".local").resolve("bin").resolve("agy");
+        Files.createDirectories(binary.getParent());
+        Files.writeString(binary, "#!/bin/sh\n");
+        Files.setPosixFilePermissions(binary, Set.of(PosixFilePermission.OWNER_READ,
+                PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE));
+
+        List<SetupPrerequisites.Prerequisite> detected =
+                SetupPrerequisites.detect("ANTIGRAVITY", NOTHING_INSTALLED, false, true, home);
+        SetupPrerequisites.Prerequisite agent = detected.stream()
+                .filter(item -> item.name().equals("Antigravity"))
+                .findFirst().orElseThrow();
+        assertTrue(agent.present(), detected.toString());
     }
 
     @Test

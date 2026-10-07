@@ -1700,7 +1700,14 @@ class ShaftPanelSetupTest {
         ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
         });
         AtomicReference<String> copied = new AtomicReference<>();
+        AtomicReference<String> terminalTab = new AtomicReference<>();
+        AtomicReference<String> terminalCommand = new AtomicReference<>();
         setField(panel, "copySink", (Consumer<String>) copied::set);
+        setField(panel, "terminalOpener", (ShaftMcpSetupPanel.TerminalOpener) (tab, command, onOutcome) -> {
+            terminalTab.set(tab);
+            terminalCommand.set(command);
+            return true;
+        });
         setField(panel, "prerequisitesDetector",
                 (java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>>) family ->
                         List.of(new SetupPrerequisites.Prerequisite(
@@ -1712,8 +1719,33 @@ class ShaftPanelSetupTest {
         JButton copyInstall = findByAccessibleName(panel, "Copy Python 3 install command", JButton.class);
         assertNotNull(copyInstall, "a missing prerequisite must offer its install command");
         copyInstall.doClick();
-        assertEquals("winget install -e --id Python.Python.3.12", copied.get());
-        assertTrue(containsText(panel, "Python 3 missing"));
+        assertAll(
+                () -> assertEquals("winget install -e --id Python.Python.3.12", copied.get()),
+                () -> assertEquals("Python 3 install", terminalTab.get()),
+                () -> assertEquals(copied.get(), terminalCommand.get()),
+                () -> assertTrue(containsText(panel, "Python 3 missing")),
+                () -> assertTrue(containsText(panel, "Terminal opened — typing the command...")));
+    }
+
+    @Test
+    void prerequisiteCopyStillCopiesWhenTheTerminalDoesNotOpen() throws Exception {
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(fakeProject(), blankMcpSettings(), () -> {
+        });
+        AtomicReference<String> copied = new AtomicReference<>();
+        setField(panel, "copySink", (Consumer<String>) copied::set);
+        setField(panel, "terminalOpener", (ShaftMcpSetupPanel.TerminalOpener) (tab, command, onOutcome) -> false);
+        setField(panel, "prerequisitesDetector",
+                (java.util.function.Function<String, List<SetupPrerequisites.Prerequisite>>) family ->
+                        List.of(new SetupPrerequisites.Prerequisite(
+                                "Grok Build", false, true, "curl -fsSL https://x.ai/cli/install.sh | bash")));
+        Method refresh = ShaftMcpSetupPanel.class.getDeclaredMethod("refreshPrerequisites");
+        refresh.setAccessible(true);
+        refresh.invoke(panel);
+
+        findByAccessibleName(panel, "Copy Grok Build install command", JButton.class).doClick();
+        assertAll(
+                () -> assertEquals("curl -fsSL https://x.ai/cli/install.sh | bash", copied.get()),
+                () -> assertTrue(containsText(panel, "Paste it into a terminal to run it.")));
     }
 
     @Test

@@ -4,6 +4,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,13 +39,30 @@ final class SetupPrerequisites {
     }
 
     static List<Prerequisite> detect(String family) {
-        return detect(family, AssistantLocalAgentRunner::isCommandAvailable, isWindows(), isMac());
+        return detect(family, AssistantLocalAgentRunner::isCommandAvailable, isWindows(), isMac(),
+                userHome(), true);
     }
 
     /**
-     * Package-private overload used by tests to stub PATH detection and the OS.
+     * Package-private overload used by tests to stub PATH detection and the OS. Does not scan the
+     * real user home or process environment, so a developer machine that already has {@code grok}
+     * installed cannot flip these tests.
      */
     static List<Prerequisite> detect(String family, Predicate<String> commandAvailable, boolean windows, boolean mac) {
+        return detect(family, commandAvailable, windows, mac, null, false);
+    }
+
+    /**
+     * Same as the test overload, plus an explicit home directory for official on-disk install
+     * locations ({@code ~/.grok/bin}, {@code ~/.local/bin}).
+     */
+    static List<Prerequisite> detect(String family, Predicate<String> commandAvailable, boolean windows, boolean mac,
+            Path home) {
+        return detect(family, commandAvailable, windows, mac, home, false);
+    }
+
+    private static List<Prerequisite> detect(String family, Predicate<String> commandAvailable, boolean windows,
+            boolean mac, Path home, boolean includeProcessEnvironment) {
         List<Prerequisite> prerequisites = new ArrayList<>();
         boolean python = commandAvailable.test(windows ? "py" : "python3") || commandAvailable.test("python");
         prerequisites.add(new Prerequisite("Python 3", python, true, pythonInstallCommand(windows, mac)));
@@ -53,16 +72,68 @@ final class SetupPrerequisites {
                 mavenInstallCommand(windows, mac)));
         String agentExecutable = agentExecutableFor(family);
         if (agentExecutable != null) {
-            boolean agentPresent = commandAvailable.test(agentExecutable);
-            if (!agentPresent && agentInstallCommandFor(family).startsWith("npm ")
-                    && !commandAvailable.test("node")) {
+            String installCommand = agentInstallCommandFor(family, windows, mac);
+            boolean agentPresent = commandAvailable.test(agentExecutable)
+                    || officialBinaryPresent(agentExecutable, home, windows, includeProcessEnvironment);
+            if (!agentPresent && installCommand.startsWith("npm ") && !commandAvailable.test("node")) {
                 prerequisites.add(new Prerequisite("Node.js (required to install " + agentDisplayNameFor(family) + ")",
                         false, true, nodeInstallCommand(windows, mac)));
             }
-            prerequisites.add(new Prerequisite(agentDisplayNameFor(family), agentPresent, true,
-                    agentInstallCommandFor(family)));
+            prerequisites.add(new Prerequisite(agentDisplayNameFor(family), agentPresent, true, installCommand));
         }
         return List.copyOf(prerequisites);
+    }
+
+    /**
+     * True when the official installer already wrote this CLI somewhere the login shell would find
+     * it, even if the IDE process PATH was captured before that directory was added.
+     */
+    static boolean officialBinaryPresent(String executable, Path home, boolean windows,
+            boolean includeProcessEnvironment) {
+        if (executable == null || executable.isBlank()) {
+            return false;
+        }
+        for (Path candidate : officialBinaryCandidates(executable, home, windows, includeProcessEnvironment)) {
+            if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<Path> officialBinaryCandidates(String executable, Path home, boolean windows,
+            boolean includeProcessEnvironment) {
+        List<Path> candidates = new ArrayList<>();
+        if ("grok".equals(executable) && home != null) {
+            Path bin = home.resolve(".grok").resolve("bin");
+            candidates.add(bin.resolve(windows ? "grok.exe" : "grok"));
+            if (windows) {
+                candidates.add(bin.resolve("grok"));
+            }
+        }
+        if ("agy".equals(executable)) {
+            if (!windows && home != null) {
+                candidates.add(home.resolve(".local").resolve("bin").resolve("agy"));
+            }
+            if (windows) {
+                if (home != null) {
+                    candidates.add(home.resolve("AppData").resolve("Local").resolve("agy").resolve("bin")
+                            .resolve("agy.exe"));
+                }
+                if (includeProcessEnvironment) {
+                    String localAppData = System.getenv("LOCALAPPDATA");
+                    if (localAppData != null && !localAppData.isBlank()) {
+                        candidates.add(Path.of(localAppData).resolve("agy").resolve("bin").resolve("agy.exe"));
+                    }
+                }
+            }
+        }
+        return candidates;
+    }
+
+    private static Path userHome() {
+        String home = System.getProperty("user.home", "");
+        return home.isBlank() ? null : Path.of(home);
     }
 
     static String agentExecutableFor(String family) {
@@ -89,11 +160,24 @@ final class SetupPrerequisites {
     }
 
     static String agentInstallCommandFor(String family) {
+        return agentInstallCommandFor(family, isWindows(), isMac());
+    }
+
+    /**
+     * Runnable install command for the selected assistant. Grok Build and Antigravity publish
+     * native installers (no Node). {@code mac} is unused today; both Unix installers are the same
+     * curl script.
+     */
+    static String agentInstallCommandFor(String family, boolean windows, boolean mac) {
         return switch (normalize(family)) {
             case "CLAUDE" -> "npm install -g @anthropic-ai/claude-code";
             case "COPILOT" -> "npm install -g @github/copilot";
-            case "GROK" -> "Install Grok Build (grok) and ensure it is on PATH";
-            case "ANTIGRAVITY" -> "Install the Antigravity CLI (agy) and ensure it is on PATH";
+            case "GROK" -> windows
+                    ? "irm https://x.ai/cli/install.ps1 | iex"
+                    : "curl -fsSL https://x.ai/cli/install.sh | bash";
+            case "ANTIGRAVITY" -> windows
+                    ? "irm https://antigravity.google/cli/install.ps1 | iex"
+                    : "curl -fsSL https://antigravity.google/cli/install.sh | bash";
             case "CODEX" -> "npm install -g @openai/codex";
             default -> "";
         };
