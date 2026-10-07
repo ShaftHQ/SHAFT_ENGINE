@@ -1017,7 +1017,8 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
                 applyLabeledAction(copyInstall, ShaftIcons.COPY);
                 String installCommand = prerequisite.installCommand();
                 String copiedMessage = "Copied " + prerequisite.name() + " install command";
-                copyInstall.addActionListener(event -> copy(installCommand, copiedMessage));
+                copyInstall.addActionListener(event -> copyCommandIntoTerminal(
+                        installCommand, prerequisite.name() + " install", copiedMessage));
                 row.add(copyInstall);
             }
             prerequisitesList.add(row);

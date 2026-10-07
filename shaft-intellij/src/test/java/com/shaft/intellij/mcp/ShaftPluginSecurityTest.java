@@ -15,12 +15,22 @@ class ShaftPluginSecurityTest {
         String source = sourceUnder(Path.of("src/main/java/com/shaft/intellij"));
         String setupPanel = Files.readString(Path.of(
                 "src/main/java/com/shaft/intellij/ui/ShaftMcpSetupPanel.java"));
+        // Official Grok and Antigravity installers are clipboard text in SetupPrerequisites.
+        // The plugin copies them into the IDE terminal; it does not download or run them.
+        String executed = source.replace(Files.readString(Path.of(
+                "src/main/java/com/shaft/intellij/ui/SetupPrerequisites.java")), "");
+        String prerequisites = Files.readString(Path.of(
+                "src/main/java/com/shaft/intellij/ui/SetupPrerequisites.java"));
 
         assertFalse(source.contains("ShaftMcpInstaller"));
         assertFalse(source.contains("installForPluginAndClient"));
         assertFalse(source.contains("Invoke-Expression"));
-        assertFalse(source.contains("| iex"));
-        assertFalse(source.contains("curl -fsSL"));
+        assertFalse(executed.contains("| iex"));
+        assertFalse(executed.contains("curl -fsSL"));
+        assertFalse(prerequisites.contains("ProcessBuilder"));
+        assertFalse(prerequisites.contains("Runtime.getRuntime"));
+        assertTrue(prerequisites.contains("curl -fsSL https://x.ai/cli/install.sh | bash"));
+        assertTrue(prerequisites.contains("irm https://x.ai/cli/install.ps1 | iex"));
         assertTrue(setupPanel.contains("INSTALLER_BRANCH = \"main\""));
         assertFalse(setupPanel.contains("SHAFT_MCP_INSTALLER_REF"));
         assertFalse(setupPanel.contains("ProcessBuilder"));
