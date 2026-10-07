@@ -12,7 +12,6 @@ import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.mcp.ShaftPluginExecutor;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -424,8 +423,8 @@ final class AssistantLocalAgentRunner {
             default -> "codex";
         };
         String displayName = displayName(client);
-        boolean present = isCommandAvailable(executable, path, windows)
-                || SetupPrerequisites.officialBinaryPresent(executable, home, windows, includeProcessEnvironment);
+        boolean present = SetupPrerequisites.commandResolvable(executable, path, home, windows,
+                includeProcessEnvironment);
         return present
                 ? ShaftMcpToolResult.success(displayName + " executable is available on PATH.")
                 : ShaftMcpToolResult.failure(displayName + " executable is not available on PATH.");
@@ -485,8 +484,8 @@ final class AssistantLocalAgentRunner {
 
     static ShaftMcpToolResult mcpAccessReadiness(String client, String path, Path home, boolean windows,
             boolean includeProcessEnvironment, ProcessLauncher processLauncher) {
-        List<String> command = resolveCommandHead(mcpAccessCommandFor(client), path, home, windows,
-                includeProcessEnvironment);
+        List<String> command = SetupPrerequisites.withOfficialExecutable(mcpAccessCommandFor(client), path, home,
+                windows, includeProcessEnvironment);
         String displayName = displayName(client);
         if (command.isEmpty()) {
             return ShaftMcpToolResult.success(displayName + " executable is available on PATH.");
@@ -711,8 +710,8 @@ final class AssistantLocalAgentRunner {
         // structured stream parser is even created.
         StructuredStreamParser streamParser = null;
         try {
-            List<String> command = resolveCommandHead(commandFor(arguments, bridge), System.getenv("PATH"),
-                    SetupPrerequisites.userHome(), isWindows(), true);
+            List<String> command = SetupPrerequisites.withOfficialExecutable(commandFor(arguments, bridge),
+                    System.getenv("PATH"), SetupPrerequisites.userHome(), isWindows(), true);
             if (command.isEmpty()) {
                 return ShaftMcpToolResult.failure("No local assistant command was configured.");
             }
@@ -722,8 +721,8 @@ final class AssistantLocalAgentRunner {
                 return ShaftMcpToolResult.failure(CUSTOM_AGENT_APPROVAL_WARNING);
             }
             if (requireCommandAvailable && defaultCommand(arguments)
-                    && !executableResolvable(command.get(0), System.getenv("PATH"), SetupPrerequisites.userHome(),
-                    isWindows(), true)) {
+                    && !SetupPrerequisites.commandResolvable(command.get(0), System.getenv("PATH"),
+                    SetupPrerequisites.userHome(), isWindows(), true)) {
                 return ShaftMcpToolResult.failure(displayName(string(arguments, "client", ""))
                         + " executable is not available on PATH.");
             }
@@ -2326,88 +2325,11 @@ final class AssistantLocalAgentRunner {
     }
 
     static boolean isCommandAvailable(String command) {
-        return isCommandAvailable(command, System.getenv("PATH"), isWindows());
-    }
-
-    static boolean isCommandAvailable(String command, String path, boolean windows) {
-        if (command == null || command.isBlank() || path == null || path.isBlank()) {
-            return false;
-        }
-        // An already-resolved absolute path is the binary itself, not a PATH entry name.
-        if (command.contains("/") || command.contains("\\")) {
-            return isExecutable(Path.of(command));
-        }
-        for (String directory : path.split(File.pathSeparator)) {
-            if (directory.isBlank()) {
-                continue;
-            }
-            if (isExecutable(Path.of(directory, command))) {
-                return true;
-            }
-            if (windows) {
-                for (String extension : windowsExecutableExtensions()) {
-                    if (isExecutable(Path.of(directory, command + extension))) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Bare command name when it is on {@code path}; otherwise the absolute official installer path
-     * for {@code grok} or {@code agy}. Other tools stay as the bare name.
-     */
-    static String resolveExecutable(String executable, String path, Path home, boolean windows,
-            boolean includeProcessEnvironment) {
-        if (executable == null || executable.isBlank()) {
-            return executable;
-        }
-        if (isCommandAvailable(executable, path, windows)) {
-            return executable;
-        }
-        return SetupPrerequisites.officialExecutable(executable, home, windows, includeProcessEnvironment)
-                .map(Path::toString)
-                .orElse(executable);
-    }
-
-    private static boolean executableResolvable(String executable, String path, Path home, boolean windows,
-            boolean includeProcessEnvironment) {
-        return isCommandAvailable(executable, path, windows);
-    }
-
-    private static List<String> resolveCommandHead(List<String> command, String path, Path home, boolean windows,
-            boolean includeProcessEnvironment) {
-        if (command.isEmpty()) {
-            return command;
-        }
-        String resolved = resolveExecutable(command.get(0), path, home, windows, includeProcessEnvironment);
-        if (resolved.equals(command.get(0))) {
-            return command;
-        }
-        List<String> rewritten = new java.util.ArrayList<>(command);
-        rewritten.set(0, resolved);
-        return rewritten;
-    }
-
-    private static boolean isExecutable(Path candidate) {
-        return Files.isRegularFile(candidate) && Files.isExecutable(candidate);
+        return SetupPrerequisites.commandOnPath(command, System.getenv("PATH"), isWindows());
     }
 
     private static boolean isWindows() {
         return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
-    }
-
-    private static List<String> windowsExecutableExtensions() {
-        String pathext = System.getenv("PATHEXT");
-        if (pathext == null || pathext.isBlank()) {
-            return List.of(".exe", ".cmd", ".bat");
-        }
-        return Arrays.stream(pathext.split(";"))
-                .filter(value -> !value.isBlank())
-                .map(value -> value.startsWith(".") ? value : "." + value)
-                .toList();
     }
 
     private static String displayName(String client) {
