@@ -59,6 +59,31 @@ try {
   throw error;
 }
 
+// Copilot registers one command per event and omits the event name from the
+// payload. argv[3] is that event (preToolUse, sessionStart, ...).
+function applyEventHint(raw) {
+  const hinted = process.argv[3] || "";
+  if (!hinted) return raw;
+  let event = {};
+  const text = raw.toString("utf8").trim();
+  if (text) {
+    try {
+      event = JSON.parse(text);
+    } catch (error) {
+      if (unavailableError(error)) deny(CWD_UNAVAILABLE);
+      return raw;
+    }
+  }
+  if (!event || typeof event !== "object" || Array.isArray(event)) return raw;
+  if (!event.hook_event_name && !event.hookEventName) {
+    event.hook_event_name = hinted;
+    return Buffer.from(JSON.stringify(event));
+  }
+  return raw;
+}
+
+input = applyEventHint(input);
+
 function matchesHook() {
   try {
     const event = JSON.parse(input.toString("utf8"));
@@ -72,7 +97,7 @@ function matchesHook() {
       : ["PostToolUse", "postToolUse", "PostToolUseFailure", "postToolUseFailure", "AfterTool"].includes(eventName)
         ? observational
         : null;
-    return matcher === null || new RegExp(`^(?:${matcher})$`).test(toolName);
+    return matcher === null || new RegExp(`^(?:${matcher})$`, "i").test(toolName);
   } catch (error) {
     if (unavailableError(error)) deny(CWD_UNAVAILABLE);
     return true;

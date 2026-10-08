@@ -4412,29 +4412,31 @@ def doctor_digest_row(name: str, item: dict) -> list[str]:
 HOOK_PYTHON_POINTER = ".chaos-engine-state/hook-python"
 
 
-def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Path | None = None) -> str:
-    """Portable hook launcher (#6179): tracked host files name `python3` / `py -3` only.
-
-    The managed interpreter, when one exists, is recorded in the untracked
-    `.chaos-engine-state/hook-python` pointer and the launcher hands off to it.
-    """
-    del managed_python
-    interpreter = "py -3" if windows else "python3"
-    script = (
+def _locator_script(host: str) -> str:
+    """Inline guard locator. No single quotes: Copilot runs it via PowerShell."""
+    if not re.fullmatch(r"[a-z0-9-]+", host):
+        raise ValueError(f"unsupported hook host: {host}")
+    pointer = HOOK_PYTHON_POINTER
+    if "'" in pointer or '"' in pointer:
+        raise ValueError("hook pointer must be quote-free")
+    for message in (LAUNCH_CWD_UNAVAILABLE, LAUNCH_GUARD_UNAVAILABLE):
+        if "'" in message or '"' in message:
+            raise ValueError("hook locator message must be quote-free")
+    return (
         "import errno,json,os,pathlib,runpy,sys\n"
-        f"os.environ['CHAOS_ENGINE_HOST']={host!r}\n"
-        f"CWD={LAUNCH_CWD_UNAVAILABLE!r}\n"
-        f"GUARD={LAUNCH_GUARD_UNAVAILABLE!r}\n"
-        "E={errno.ENOENT,getattr(errno,'ESTALE',116),getattr(errno,'ENOTCONN',107)}\n"
+        f'os.environ["CHAOS_ENGINE_HOST"]="{host}"\n'
+        f'CWD="{LAUNCH_CWD_UNAVAILABLE}"\n'
+        f'GUARD="{LAUNCH_GUARD_UNAVAILABLE}"\n'
+        'E={errno.ENOENT,getattr(errno,"ESTALE",116),getattr(errno,"ENOTCONN",107)}\n'
         "def deny(message):\n"
-        "    print(json.dumps({'decision':'block','reason':message}))\n"
+        '    print(json.dumps({"decision":"block","reason":message}))\n'
         "    raise SystemExit(2)\n"
         "try:\n"
         "    cwd=pathlib.Path.cwd()\n"
         "    roots=(cwd,*cwd.parents)\n"
         "except OSError as error:\n"
         "    deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
-        "cands=('.chaos-engine/hooks/guard.py','plugins/chaos-engine/hooks/guard.py','chaos-engine/hooks/guard.py')\n"
+        'cands=(".chaos-engine/hooks/guard.py","plugins/chaos-engine/hooks/guard.py","chaos-engine/hooks/guard.py")\n'
         "try:\n"
         "    found=next(((root,root/rel) for root in roots for rel in cands if (root/rel).is_file()),None)\n"
         "except OSError as error:\n"
@@ -4442,17 +4444,148 @@ def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Pat
         "if found is None:\n"
         "    deny(GUARD)\n"
         "base,path=found\n"
-        f"ptr=base/{HOOK_PYTHON_POINTER!r}\n"
-        "py=ptr.read_text(encoding='utf-8').strip() if os.name!='nt' and ptr.is_file() else ''\n"
+        f'ptr=base/"{pointer}"\n'
+        'py=ptr.read_text(encoding="utf-8").strip() if os.name!="nt" and ptr.is_file() else ""\n'
         "if py and os.path.isfile(py) and os.path.realpath(py)!=os.path.realpath(sys.executable):\n"
         "    os.execv(py,[py,str(path)])\n"
         "try:\n"
-        "    runpy.run_path(str(path),run_name='__main__')\n"
+        '    runpy.run_path(str(path),run_name="__main__")\n'
         "except OSError as error:\n"
         "    deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
     )
-    # json.dumps(script) alone would leave literal \n for the shell; wrap in exec().
-    return f"{interpreter} -c {json.dumps('exec(' + json.dumps(script) + ')')}"
+
+
+def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Path | None = None) -> str:
+    """Portable hook launcher (#6179): tracked host files name `python3` / `py -3` only.
+
+    The managed interpreter, when one exists, is recorded in the untracked
+    `.chaos-engine-state/hook-python` pointer and the launcher hands off to it.
+
+    Unix `command` is single-quoted. Copilot CLI on Windows executes the
+    `.claude/settings.json` command through PowerShell (#4001). A double-quoted
+    `python3 -c` with backslash escapes is a ParserError, exit 1, and preToolUse
+    fail-closes every tool as "hook errored". Single quotes are literal in both
+    bash and Windows PowerShell 5.1. `commandWindows` stays double-quoted for
+    cmd.exe, which does not treat single quotes as strings.
+    """
+    del managed_python
+    interpreter = "py -3" if windows else "python3"
+    script = _locator_script(host)
+    if "'" in script:
+        raise ValueError("hook locator script must not contain single quotes")
+    body = "exec(" + json.dumps(script) + ")"
+    if windows:
+        return f"{interpreter} -c {json.dumps(body)}"
+    if "'" in body:
+        raise ValueError("powershell-safe hook body contains a single quote")
+    return f"{interpreter} -c '{body}'"
+
+
+def powershell_hook_parse_error(command: str) -> str | None:
+    """Return why Windows PowerShell 5.1 would reject a hook command, or None.
+
+    Copilot CLI runs cross-tool `.claude/settings.json` hook commands through
+    PowerShell. Exit 1 there is the user-visible
+    `Denied by preToolUse hook from "repo settings" (hook errored)`.
+    """
+    if not isinstance(command, str) or not command.strip():
+        return "empty hook command"
+    if command.startswith("py -3 "):
+        return None
+    match = re.fullmatch(r"python3 -c '([^']*)'", command)
+    if match is None:
+        return "unix hook command is not a PowerShell single-quoted python3 -c"
+    if "\\'" in command or "$(" in command:
+        return "unix hook command expands under PowerShell"
+    return None
+
+
+HOOK_CONTROLLER_NAMES = (
+    "guard.py",
+    "lifecycle.py",
+    "kernel.py",
+    "launch.js",
+    "matchers.json",
+    "reflection.py",
+)
+
+
+def installed_hook_drift(project: Path) -> list[dict[str, str]]:
+    """Installed hook copies that differ from ``chaos-engine/hooks``.
+
+    ``launch.js`` runs ``.chaos-engine/hooks/guard.py`` before the source file.
+    A stale ``lifecycle.py`` there drops the session id and skips companion
+    opt-out. Absent install trees are not drift.
+    """
+    findings: list[dict[str, str]] = []
+    source_root = project / "chaos-engine" / "hooks"
+    for root in (".chaos-engine/hooks", "plugins/chaos-engine/hooks"):
+        for name in HOOK_CONTROLLER_NAMES:
+            installed = project / root / name
+            source = source_root / name
+            if not installed.is_file() or not source.is_file():
+                continue
+            try:
+                differed = installed.read_bytes() != source.read_bytes()
+            except OSError:
+                differed = True
+            if differed:
+                findings.append(
+                    {
+                        "kind": "hook-controller-drift",
+                        "path": f"{root}/{name}",
+                        "triage": "open",
+                        "reason": "installed copy differs from chaos-engine/hooks",
+                    }
+                )
+    return findings
+
+
+def copilot_surface_findings(project: Path) -> list[dict[str, str]]:
+    """Open Copilot parity, duplication, token-waste, and blocker findings."""
+    findings: list[dict[str, str]] = []
+    parse_error = powershell_hook_parse_error(
+        chaos_guard_locator_command(windows=False, host="claude")
+    )
+    if parse_error:
+        findings.append(
+            {"kind": "powershell-parse", "triage": "open", "reason": parse_error}
+        )
+    document = json.loads(copilot_hooks_document())
+    for event, handlers in document["hooks"].items():
+        expected = copilot_launcher_command(event)
+        handler = handlers[0]
+        if handler.get("bash") != expected or handler.get("powershell") != expected:
+            findings.append(
+                {
+                    "kind": "copilot-event-command",
+                    "triage": "open",
+                    "reason": f"{event} is not the shared launcher with that event",
+                }
+            )
+    adapter = skill_adapter_bytes("chaos-engine").decode("utf-8")
+    skill = project / "chaos-engine/skills/chaos-engine/SKILL.md"
+    if skill.is_file():
+        body = skill.read_text(encoding="utf-8")
+        if body in adapter or "Measure thrice, cut once" in adapter:
+            findings.append(
+                {
+                    "kind": "skill-body-duplicated",
+                    "triage": "open",
+                    "reason": "always-on adapter copies the router body",
+                }
+            )
+    work_item = project / "chaos-engine/skills/work-item/SKILL.md"
+    if work_item.is_file() and "One work item owns one actionable problem" in adapter:
+        findings.append(
+            {
+                "kind": "catalog-skill-in-adapter",
+                "triage": "open",
+                "reason": "catalog skill body is in the always-on adapter",
+            }
+        )
+    findings.extend(installed_hook_drift(project))
+    return findings
 
 
 def managed_python_for(
@@ -4501,20 +4634,24 @@ def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None, ma
     return (json.dumps({"hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
 
 
+def copilot_launcher_command(event: str) -> str:
+    """Node launcher plus the native event name.
+
+    Copilot's camelCase payload omits the event name; the same command is
+    registered on every hook. Without the event argument the shared kernel
+    cannot tell PreToolUse from Stop.
+    """
+    if not re.fullmatch(r"[A-Za-z]+", event):
+        raise ValueError(f"unsupported copilot hook event: {event}")
+    return f"node .chaos-engine/hooks/launch.js copilot {event}"
+
+
 def copilot_hooks_document(managed_node: Path | None = None) -> bytes:
     # #6199: the host CLI is itself a Node app, so bare `node` resolves; the
     # launcher reads the untracked hook-python pointer for the guard runtime.
     del managed_node
-    node = "node"
-    handler = {
-        "type": "command",
-        "bash": f"{node} .chaos-engine/hooks/launch.js copilot",
-        "powershell": f"{node} .chaos-engine/hooks/launch.js copilot",
-        "timeoutSec": 30,
-    }
-    hooks = {
-        event: [handler]
-        for event in (
+    hooks = {}
+    for event in (
             "sessionStart",
             "userPromptSubmitted",
             "preToolUse",
@@ -4524,8 +4661,14 @@ def copilot_hooks_document(managed_node: Path | None = None) -> bytes:
             "subagentStop",
             "preCompact",
             "sessionEnd",
-        )
-    }
+    ):
+        command = copilot_launcher_command(event)
+        hooks[event] = [{
+            "type": "command",
+            "bash": command,
+            "powershell": command,
+            "timeoutSec": 30,
+        }]
     return (json.dumps({"version": 1, "hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
 
 
