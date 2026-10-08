@@ -137,10 +137,13 @@ class PowerShell51ArgumentPassingTest(unittest.TestCase):
     def test_powershell_branch_passes_python_only_quote_free_arguments(self):
         command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
         lines = command.splitlines()
-        invocation = next(line for line in lines if line.startswith("$d|& $c[0]"))
-        stub = re.search(r"-c '([^']*)'$", invocation).group(1)
-        self.assertFalse(set(stub) - set("0123456789,()bytesxc"))
-        self.assertEqual(stub, _python_argument_under_powershell51("python3 -c '" + stub + "'"))
+        invocation = next(line for line in lines if line.startswith("if($p){& $c[0]"))
+        stubs = re.findall(r"-c '([^']*)'", invocation)
+        self.assertEqual(2, len(stubs))
+        for stub in stubs:
+            self.assertFalse(set(stub) - set("0123456789,()bytesxc"))
+            self.assertEqual(stub, _python_argument_under_powershell51("python3 -c '" + stub + "'"))
+        self.assertIn(f"$env:{HOSTS.HOOK_PAYLOAD_ENV}=$p", command)
         self.assertIn(f"$env:{HOSTS.HOOK_SOURCE_ENV}=", command)
         self.assertEqual(HOSTS._locator_script("claude"), HOSTS.hook_command_source(command))
 
@@ -209,6 +212,7 @@ class PowerShellLauncherTest(unittest.TestCase):
                 self.assertEqual(2, result.returncode, result.stdout + result.stderr)
                 self.assertIn('"decision":"block"', (result.stdout + result.stderr).replace(" ", ""))
                 self.assertNotIn("guard unavailable", result.stdout, "payload never reached the guard")
+                self.assertEqual([], list(Path(temporary).glob("tmp*.tmp")), "payload file left behind")
 
     def test_no_python_blocks_with_a_reason_instead_of_erroring(self):
         for shell in self.shells:

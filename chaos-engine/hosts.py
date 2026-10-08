@@ -4413,6 +4413,8 @@ def doctor_digest_row(name: str, item: dict) -> list[str]:
 
 
 HOOK_PYTHON_POINTER = ".chaos-engine-state/hook-python"
+HOOK_SOURCE_ENV = "CHAOS_ENGINE_HOOK_SOURCE"
+HOOK_PAYLOAD_ENV = "CHAOS_ENGINE_HOOK_PAYLOAD"
 
 
 def _locator_script(host: str, event: str | None = None) -> str:
@@ -4438,10 +4440,11 @@ def _locator_script(host: str, event: str | None = None) -> str:
     # native event: the payload omits it, and tools outside matchers.json are
     # answered `{}` here, exactly as launch.js did, without a Node runtime.
     read_first = (
-        "try:\n"
-        '    data=sys.stdin.buffer.read().decode("utf-8","replace")\n'
-        "except OSError:\n"
-        '    data=""\n'
+        "if data is None:\n"
+        "    try:\n"
+        '        data=sys.stdin.buffer.read().decode("utf-8","replace").lstrip(chr(65279))\n'
+        "    except OSError:\n"
+        '        data=""\n'
     ) if event else ""
     event_filter = (
         "try:\n"
@@ -4476,6 +4479,15 @@ def _locator_script(host: str, event: str | None = None) -> str:
         "def locate(start):\n"
         "    return next(((root,root/rel) for root in (start,*start.parents) for rel in cands if (root/rel).is_file()),None)\n"
         "data=None\n"
+        # #6632: the Windows PowerShell branch hands the payload over in an
+        # untracked temporary file; Windows PowerShell 5.1 does not deliver a
+        # string piped to a native program intact.
+        f'src=os.environ.pop("{HOOK_PAYLOAD_ENV}","")\n'
+        "if src:\n"
+        "    try:\n"
+        '        data=pathlib.Path(src).read_bytes().decode("utf-8","replace").lstrip(chr(65279))\n'
+        "    except OSError:\n"
+        "        data=None\n"
         f"{read_first}"
         "try:\n"
         "    found=locate(pathlib.Path.cwd())\n"
@@ -4485,7 +4497,7 @@ def _locator_script(host: str, event: str | None = None) -> str:
         '    hints=[os.environ.get("CLAUDE_PROJECT_DIR","")]\n'
         "    try:\n"
         "        if data is None:\n"
-        '            data=sys.stdin.buffer.read().decode("utf-8","replace")\n'
+        '            data=sys.stdin.buffer.read().decode("utf-8","replace").lstrip(chr(65279))\n'
         '        hints.append(str(json.loads(data or "{}").get("cwd") or ""))\n'
         "    except (OSError,ValueError,AttributeError):\n"
         "        pass\n"
@@ -4532,7 +4544,6 @@ def _quote_free_exec(script: str) -> str:
     return "exec(bytes((" + ",".join(str(byte) for byte in script.encode("ascii")) + ")))"
 
 
-HOOK_SOURCE_ENV = "CHAOS_ENGINE_HOOK_SOURCE"
 HOOK_PYTHON_FLOOR = (3, 11)
 
 
@@ -4564,7 +4575,9 @@ def chaos_guard_locator_command(
       the payload (raw UTF-8 stdin; Windows PowerShell 5.1 hands it to
       `$input` instead), prefers the installer's managed interpreter from the
       pointer, else probes `py -3`, `python3`, `python` for Python 3.11+,
-      and pipes the payload to it as UTF-8. The locator source travels in
+      and hands it the payload in a BOM-free UTF-8 temporary file named by
+      `CHAOS_ENGINE_HOOK_PAYLOAD` (Windows PowerShell 5.1 does not pipe a
+      string to a native program intact), piping only if no file can be made. The locator source travels in
       an environment variable and a quote-free stub execs it, so neither
       PowerShell 5.1 nor 7 can strip quotes from a native argument.
     - No usable Python: print a block decision and exit 2 (an explicit deny),
@@ -4614,9 +4627,12 @@ def chaos_guard_locator_command(
         f"& $t[0] @($t|Select-Object -Skip 1) -c '{probe}' 2>$null\n"
         "if($LASTEXITCODE -eq 0){$c=$t;break}}}}\n"
         f"if(-not $c){{Write-Output '{block}';exit 2}}\n"
+        "$p=$null;try{$p=[IO.Path]::GetTempFileName()\n"
+        "[IO.File]::WriteAllText($p,$d,[Text.UTF8Encoding]::new($false))\n"
+        f"$env:{HOOK_PAYLOAD_ENV}=$p}}catch{{if($p){{Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue}};$p=$null}}\n"
         "$LASTEXITCODE=1\n"
-        f"$d|& $c[0] @($c|Select-Object -Skip 1) -c '{stub}'\n"
-        "exit $LASTEXITCODE\n"
+        f"if($p){{& $c[0] @($c|Select-Object -Skip 1) -c '{stub}'}}else{{$d|& $c[0] @($c|Select-Object -Skip 1) -c '{stub}'}}\n"
+        "$e=$LASTEXITCODE;if($p){Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue};exit $e\n"
     )
 
 
@@ -4645,12 +4661,19 @@ def powershell_hook_parse_error(command: str) -> str | None:
     if lines[:2] != ["echo --% >/dev/null;: ' | Out-Null", "<#'"] or "#>" not in lines:
         return "unix hook command is not the sh/PowerShell launcher; Windows PowerShell would run python3 directly"
     powershell = lines[lines.index("#>") + 1:]
-    if not any(line.startswith("$d|& $c[0]") for line in powershell):
-        return "PowerShell branch does not pipe the payload to a probed interpreter"
-    invocation = next(line for line in powershell if line.startswith("$d|& $c[0]"))
-    if re.search(r"-c 'exec\(bytes\(\([0-9,]+\)\)\)'$", invocation) is None or '"' in invocation:
+    invocation = next((line for line in powershell if line.startswith(LAUNCH_INVOCATION_PREFIXES)), None)
+    if invocation is None:
+        return "PowerShell branch does not hand the payload to a probed interpreter"
+    arguments = re.findall(r"-c '([^']*)'", invocation)
+    if not arguments or '"' in invocation or any(
+            re.fullmatch(r"exec\(bytes\(\([0-9,]+\)\)\)", argument) is None for argument in arguments):
         return "PowerShell branch passes a quoted argument; PowerShell 5.1 strips its double quotes"
     return None
+
+
+# Current form hands the payload over in a temporary file; `$d|&` is the
+# earlier pipe-only generation, still parse-safe.
+LAUNCH_INVOCATION_PREFIXES = ("if($p){& $c[0]", "$d|& $c[0]")
 
 
 HOOK_CONTROLLER_NAMES = (
