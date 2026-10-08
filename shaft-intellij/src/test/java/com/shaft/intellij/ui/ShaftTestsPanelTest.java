@@ -2,6 +2,7 @@ package com.shaft.intellij.ui;
 
 import com.shaft.intellij.testindex.ShaftTestDiscovery;
 import com.shaft.intellij.testindex.ShaftTestIndex;
+import com.shaft.intellij.testindex.TestsPanelToolbarSupport;
 import org.junit.jupiter.api.Test;
 
 import javax.swing.JButton;
@@ -535,5 +536,33 @@ class ShaftTestsPanelTest {
         assertTrue(label.startsWith("MUTED"));
         assertTrue(label.contains("FAIL"));
         assertTrue(label.contains("FlakyTest"));
+    }
+
+    @Test
+    void runAllAndRerunFailedButtonsExistAndAreEnabledWithNoSelection() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        ShaftTestsPanel panel = new ShaftTestsPanel(
+                null, testIndex,
+                () -> List.of(new ShaftTestDiscovery.DiscoveredTestClass(
+                        "com.example.SignInTest", "com.example", "SignInTest", List.of("happy"))));
+
+        assertAll(
+                () -> assertTrue(((JButton) panel.runAllButtonForTest()).isEnabled()),
+                () -> assertTrue(((JButton) panel.rerunFailedButtonForTest()).isEnabled()),
+                () -> assertTrue(panel.showBrowserToggleForTest().isEnabled()),
+                () -> assertEquals(TestsPanelToolbarSupport.DEFAULT_PROFILE_LABEL,
+                        panel.propertiesProfileComboForTest().getSelectedItem()));
+    }
+
+    @Test
+    void runAllWithNullProjectIsNoOp() {
+        ShaftTestIndex testIndex = ShaftTestIndex.getInstance(null);
+        ShaftTestsPanel panel = new ShaftTestsPanel(
+                null, testIndex,
+                () -> List.of(new ShaftTestDiscovery.DiscoveredTestClass(
+                        "com.example.SignInTest", "com.example", "SignInTest", List.of("happy"))));
+
+        assertDoesNotThrow(() -> ((JButton) panel.runAllButtonForTest()).doClick());
+        assertDoesNotThrow(() -> ((JButton) panel.rerunFailedButtonForTest()).doClick());
     }
 }

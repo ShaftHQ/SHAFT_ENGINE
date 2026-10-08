@@ -62,9 +62,18 @@ public final class ShowTraceViewerAction extends AnAction implements DumbAware {
     private static final int CACHE_SLOT_COUNT = 8;
     private static final GeneratedViewerCache GENERATED_VIEWER_CACHE = createGeneratedViewerCache();
 
-    @Override
-    public void actionPerformed(@NotNull AnActionEvent event) {
-        Project project = event.getProject();
+    /**
+     * Opens the newest SHAFT trace viewer for {@code project}, or warns when none exists.
+     * Used by the manual Tools action and by auto-open-on-failure (#6637).
+     */
+    public static void openLatest(Project project) {
+        openLatest(project, false);
+    }
+
+    /**
+     * @param quietWhenMissing when true, skip the "no trace found" warning (auto-open path)
+     */
+    public static void openLatest(Project project, boolean quietWhenMissing) {
         if (project == null) {
             return;
         }
@@ -77,11 +86,19 @@ public final class ShowTraceViewerAction extends AnAction implements DumbAware {
             return;
         }
         if (viewer == null) {
-            logStatusWarn(project, "No SHAFT trace was found under target/shaft-traces.");
+            if (!quietWhenMissing) {
+                logStatusWarn(project, "No SHAFT trace was found under target/shaft-traces.");
+            }
             return;
         }
         BrowserUtil.browse(viewer.toUri());
-        logStatus(project, "Opened SHAFT trace viewer: " + viewer.getFileName());
+        logStatus(project, (quietWhenMissing ? "Auto-opened" : "Opened")
+                + " SHAFT trace viewer: " + viewer.getFileName());
+    }
+
+    @Override
+    public void actionPerformed(@NotNull AnActionEvent event) {
+        openLatest(event.getProject());
     }
 
     @Override

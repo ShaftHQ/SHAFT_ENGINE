@@ -141,6 +141,11 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
          */
         public boolean watchModeEnabled = false;
         /**
+         * Opt-in, default-off: open the newest SHAFT trace viewer after a failed test run
+         * (issue #6637).
+         */
+        public boolean autoOpenTraceOnFailure = false;
+        /**
          * Recorder browser visibility preference shared by the Guided workflow panel and the
          * assistant web/mobile recording flows.
          */

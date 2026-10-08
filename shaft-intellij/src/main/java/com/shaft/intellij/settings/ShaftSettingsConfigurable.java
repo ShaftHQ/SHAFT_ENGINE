@@ -134,6 +134,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JBCheckBox passProviderKeys;
     private JBCheckBox advancedUiEnabled;
     private JBCheckBox watchModeEnabled;
+    private JBCheckBox autoOpenTraceOnFailure;
     private JLabel testExecutionSection;
     private JBCheckBox overrideExecutionProperties;
     private JLabel targetBrowserNameLabel;
@@ -336,6 +337,10 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         watchModeEnabled.getAccessibleContext().setAccessibleDescription(
                 "Reruns the last SHAFT test run configuration when a src/test/ file changes, "
                         + "throttled to at most 6 reruns per rolling 5-minute window.");
+        autoOpenTraceOnFailure = new JBCheckBox("Open trace viewer automatically after a failed run");
+        autoOpenTraceOnFailure.getAccessibleContext().setAccessibleName("Auto-open SHAFT trace on failure");
+        autoOpenTraceOnFailure.getAccessibleContext().setAccessibleDescription(
+                "When enabled, opens the newest SHAFT trace viewer after a failed test run. Off by default.");
         pilotAiProvider = new JComboBox<>(model("none", "openai", "anthropic", "gemini", "github", "lmstudio", "ollama"));
         ShaftUiLabels.applyFriendlyRenderer(pilotAiProvider);
         pilotAiProvider.getAccessibleContext().setAccessibleName("SHAFT AI provider");
@@ -466,6 +471,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addComponent(advancedUiEnabled)
                 .addComponent(help("The Assistant tab is always available. Agent mode still requires explicit source mutation approval per request."))
                 .addComponent(watchModeEnabled)
+                .addComponent(autoOpenTraceOnFailure)
                 .addComponent(shaftAiSection)
                 .addLabeledComponent(shaftAiProviderLabel, pilotAiProvider)
                 .addLabeledComponent(shaftAiEndpointLabel, pilotAiEndpoint)
@@ -517,6 +523,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         return !Objects.equals(state.mcpCommand, mcpCommand.getText())
                 || state.advancedUiEnabled != advancedSelected
                 || state.watchModeEnabled != watchModeEnabled.isSelected()
+                || state.autoOpenTraceOnFailure != autoOpenTraceOnFailure.isSelected()
                 || AssistantAgentRoute.fromSettings(state) != selectedRoute
                 || !Objects.equals(stateProviderType, selectedProviderType)
                 || !Objects.equals(normalizeLower(state.cloudProvider, "gemini"), cloudProvider.getSelectedItem())
@@ -559,6 +566,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         state.mcpCommand = command;
         state.advancedUiEnabled = advancedUiEnabled.isSelected();
         state.watchModeEnabled = watchModeEnabled.isSelected();
+        state.autoOpenTraceOnFailure = autoOpenTraceOnFailure.isSelected();
         AssistantAgentRoute selectedRoute = selectedAgentRoute();
         if (selectedRoute != null) {
             selectedRoute.applyTo(state);
@@ -615,6 +623,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         updateMcpCommandEditableState();
         advancedUiEnabled.setSelected(state.advancedUiEnabled);
         watchModeEnabled.setSelected(state.watchModeEnabled);
+        autoOpenTraceOnFailure.setSelected(state.autoOpenTraceOnFailure);
         assistantAgent.setSelectedItem(AssistantAgentRoute.fromSettings(state));
         assistantProviderType.setSelectedItem(normalize(state.assistantProviderType, "LOCAL"));
         String family = resolveFamily(state);
@@ -689,6 +698,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         passProviderKeys = null;
         advancedUiEnabled = null;
         watchModeEnabled = null;
+        autoOpenTraceOnFailure = null;
         testExecutionSection = null;
         overrideExecutionProperties = null;
         targetBrowserNameLabel = null;
