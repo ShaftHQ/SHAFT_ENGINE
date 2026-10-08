@@ -391,46 +391,64 @@ def build_install_receipt(
     }
 
 
+def _probe_java_status(record: dict[str, Any]) -> tuple[str, str | None]:
+    path = Path(str(record.get("path") or ""))
+    if not path.is_file() or not is_java25(path):
+        return "recovery-required", "Java 25 binary missing or not Java 25"
+    return "healthy", None
+
+
+def _probe_shaft_mcp_status(record: dict[str, Any], receipt: dict[str, Any]) -> tuple[str, str | None]:
+    path = Path(str(record.get("path") or ""))
+    if not path.is_file():
+        return "recovery-required", "shaft-mcp jar missing"
+    expected = None
+    for owned in receipt.get("ownedFiles") or []:
+        if isinstance(owned, dict) and owned.get("path") == str(path):
+            expected = owned.get("sha256")
+            break
+    if expected and file_sha256(path) != expected:
+        return "recovery-required", "shaft-mcp jar hash drift"
+    return "healthy", None
+
+
+def _probe_shaft_cli_status(record: dict[str, Any]) -> tuple[str, str | None]:
+    path = Path(str(record.get("path") or ""))
+    if path and not path.is_file():
+        return "recovery-required", "shaft-cli jar missing"
+    return "healthy", None
+
+
+def _probe_shaft_skills_status(record: dict[str, Any]) -> tuple[str, str | None]:
+    paths = record.get("paths") or []
+    if not paths or not any(Path(str(p)).exists() for p in paths):
+        return "recovery-required", "skills directory missing"
+    return "healthy", None
+
+
+def _probe_host_config_status(record: dict[str, Any]) -> tuple[str, str | None]:
+    detail = host_config_drift(record)
+    if detail:
+        return "recovery-required", detail
+    return "healthy", None
+
+
+_COMPONENT_STATUS_PROBERS = {
+    "java": lambda record, _receipt: _probe_java_status(record),
+    "shaft-mcp": lambda record, receipt: _probe_shaft_mcp_status(record, receipt),
+    "shaft-cli": lambda record, _receipt: _probe_shaft_cli_status(record),
+    "shaft-skills": lambda record, _receipt: _probe_shaft_skills_status(record),
+    "host-config": lambda record, _receipt: _probe_host_config_status(record),
+}
+
+
 def probe_component(name: str, receipt: dict[str, Any] | None) -> dict[str, Any]:
     components = (receipt or {}).get("components") if isinstance(receipt, dict) else None
     if not isinstance(components, dict) or name not in components:
         return {"status": "absent", "taskImpact": "optional" if name != "shaft-mcp" else "required"}
     record = dict(components[name])
-    status = "healthy"
-    detail = None
-    if name == "java":
-        path = Path(str(record.get("path") or ""))
-        if not path.is_file() or not is_java25(path):
-            status = "recovery-required"
-            detail = "Java 25 binary missing or not Java 25"
-    elif name == "shaft-mcp":
-        path = Path(str(record.get("path") or ""))
-        if not path.is_file():
-            status = "recovery-required"
-            detail = "shaft-mcp jar missing"
-        else:
-            expected = None
-            for owned in receipt.get("ownedFiles") or []:
-                if isinstance(owned, dict) and owned.get("path") == str(path):
-                    expected = owned.get("sha256")
-                    break
-            if expected and file_sha256(path) != expected:
-                status = "recovery-required"
-                detail = "shaft-mcp jar hash drift"
-    elif name == "shaft-cli":
-        path = Path(str(record.get("path") or ""))
-        if path and not path.is_file():
-            status = "recovery-required"
-            detail = "shaft-cli jar missing"
-    elif name == "shaft-skills":
-        paths = record.get("paths") or []
-        if not paths or not any(Path(str(p)).exists() for p in paths):
-            status = "recovery-required"
-            detail = "skills directory missing"
-    elif name == "host-config":
-        detail = host_config_drift(record)
-        if detail:
-            status = "recovery-required"
+    prober = _COMPONENT_STATUS_PROBERS.get(name)
+    status, detail = prober(record, receipt or {}) if prober else ("healthy", None)
     record["status"] = status
     if detail:
         record["detail"] = detail
@@ -848,7 +866,8 @@ def parse_install_args(argv: list[str]) -> argparse.Namespace:
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    """Parse CLI args.
+    """
+    Parse CLI args.
 
     Lifecycle commands (#6644): install|status|doctor|repair|rollback|uninstall.
     Legacy one-liner / flag form (no subcommand) remains an implicit install so
