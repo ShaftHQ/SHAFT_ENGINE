@@ -2,6 +2,9 @@ package com.shaft.mcp;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
@@ -20,6 +23,12 @@ import static com.shaft.mcp.EngineService.getLocator;
 @Service
 public class ElementService {
     private static final Logger logger = LoggerFactory.getLogger(ElementService.class);
+    /** Outlines {@code arguments[0]} for two seconds, then restores each element's own outline. */
+    static final String HIGHLIGHT_SCRIPT = "arguments[0].forEach(function (e) {"
+            + "var outline = e.style.outline, offset = e.style.outlineOffset;"
+            + "e.style.outline = '3px solid #e8178a'; e.style.outlineOffset = '2px';"
+            + "setTimeout(function () { e.style.outline = outline; e.style.outlineOffset = offset; }, 2000);"
+            + "});";
     private final PlaywrightService playwrightService;
     private final MobileService mobileService;
 
@@ -481,6 +490,34 @@ public class ElementService {
                 : getDriver().element().getElementsCount(getLocator(locatorStrategy, locatorValue));
         logger.info("Element match count retrieved: {}", count);
         return new ElementCountResult(engine.name(), count);
+    }
+
+    /**
+     * Outlines the live elements a locator matches for two seconds and returns the match count, so
+     * editors can show which element a locator points at (issue #6640). Native mobile sessions have
+     * no DOM to outline and only return the count.
+     *
+     * @param locatorStrategy locator strategy
+     * @param locatorValue locator value
+     * @return the active engine, the match count, and whether the matches were outlined
+     */
+    @Tool(name = "element_highlight", description = "briefly outlines the elements a locator matches on the "
+            + "live page and returns the match count; dispatches to the active engine")
+    public ElementHighlightResult highlight(locatorStrategy locatorStrategy, String locatorValue) {
+        ActiveEngine engine = EngineService.activeEngine();
+        if (engine == ActiveEngine.PLAYWRIGHT) {
+            int count = playwrightService.highlight(locatorStrategy, locatorValue);
+            return new ElementHighlightResult(engine.name(), count, count > 0);
+        }
+        WebDriver driver = getDriver().getDriver();
+        List<WebElement> elements = driver.findElements(getLocator(locatorStrategy, locatorValue));
+        boolean highlighted = false;
+        if (!elements.isEmpty() && engine != ActiveEngine.MOBILE_NATIVE && driver instanceof JavascriptExecutor executor) {
+            executor.executeScript(HIGHLIGHT_SCRIPT, elements);
+            highlighted = true;
+        }
+        logger.info("Element highlight: {} matches, highlighted {}", elements.size(), highlighted);
+        return new ElementHighlightResult(engine.name(), elements.size(), highlighted);
     }
 
     /**

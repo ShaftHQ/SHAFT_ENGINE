@@ -9,9 +9,9 @@ class GoToLastFailureActionTest {
     @Test
     void entryTextNamesClassMethodAndFailingLine() {
         LastRunResults.Result result = new LastRunResults.Result("demo.LoginTest.signIn", "failed", 1, 2,
-                new LastRunResults.Frame("demo.LoginTest", "signIn", 42));
+                new LastRunResults.Frame("demo.LoginTest", "signIn", 42), "boom");
         assertEquals("LoginTest#signIn (line 42)", GoToLastFailureAction.entryText(result));
         assertEquals("LoginTest#signIn", GoToLastFailureAction.entryText(
-                new LastRunResults.Result("demo.LoginTest.signIn", "broken", 1, 2, null)));
+                new LastRunResults.Result("demo.LoginTest.signIn", "broken", 1, 2, null, "")));
     }
 }

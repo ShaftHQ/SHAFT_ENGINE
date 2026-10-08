@@ -58,6 +58,17 @@ public final class ShaftToolWorkflowLauncher {
         withToolWindowPanel(project, panel -> panel.runAssistantTool(toolName, arguments));
     }
 
+    /**
+     * Opens the SHAFT tool window and pre-fills the Assistant composer with {@code text} for the
+     * user to review and send (issue #6636, Fix with SHAFT Assistant).
+     *
+     * @param project current project
+     * @param text plain-language Assistant request
+     */
+    public static void prefillAssistant(Project project, String text) {
+        withToolWindowPanel(project, panel -> panel.prefillAssistantPrompt(text));
+    }
+
     private static void withToolWindowPanel(Project project, java.util.function.Consumer<ShaftToolWindowPanel> action) {
         ToolWindowManager.getInstance(project).invokeLater(() -> {
             ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow("SHAFT");

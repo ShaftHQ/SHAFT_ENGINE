@@ -413,6 +413,40 @@ class ElementServiceDispatchTest {
         assertEquals("PLAYWRIGHT", pw.activeEngine());
     }
 
+    @Test
+    void elementHighlightOutlinesLiveMatchesPerEngine() {
+        org.openqa.selenium.WebElement match = mock(org.openqa.selenium.WebElement.class);
+        org.openqa.selenium.WebDriver browser = mock(org.openqa.selenium.WebDriver.class,
+                org.mockito.Mockito.withSettings().extraInterfaces(org.openqa.selenium.JavascriptExecutor.class));
+        when(browser.findElements(any(By.class))).thenReturn(java.util.List.of(match, match));
+        SHAFT.GUI.WebDriver shaftDriver = mockShaftDriver(mock(Actions.class), mock(TouchActions.class));
+        when(shaftDriver.getDriver()).thenReturn(browser);
+        ElementService service = new ElementService(mock(PlaywrightService.class), mock(MobileService.class));
+        try (MockedStatic<EngineService> mocked = mockStatic(EngineService.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
+            mocked.when(EngineService::getDriver).thenReturn(shaftDriver);
+            EngineService.setActiveEngine(ActiveEngine.WEB);
+            ElementHighlightResult web = service.highlight(locatorStrategy.CSSSELECTOR, "li");
+            assertEquals(2, web.count());
+            assertTrue(web.highlighted());
+            verify((org.openqa.selenium.JavascriptExecutor) browser)
+                    .executeScript(ElementService.HIGHLIGHT_SCRIPT, java.util.List.of(match, match));
+
+            EngineService.setActiveEngine(ActiveEngine.MOBILE_NATIVE);
+            ElementHighlightResult nativeApp = service.highlight(locatorStrategy.ID, "login");
+            assertEquals(2, nativeApp.count());
+            org.junit.jupiter.api.Assertions.assertFalse(nativeApp.highlighted(), "native apps have no DOM to outline");
+        }
+
+        PlaywrightService playwrightService = mock(PlaywrightService.class);
+        when(playwrightService.highlight(locatorStrategy.ID, "banner")).thenReturn(1);
+        EngineService.setActiveEngine(ActiveEngine.PLAYWRIGHT);
+        ElementHighlightResult pw = new ElementService(playwrightService, mock(MobileService.class))
+                .highlight(locatorStrategy.ID, "banner");
+        assertEquals(1, pw.count());
+        assertTrue(pw.highlighted());
+        assertEquals("PLAYWRIGHT", pw.activeEngine());
+    }
+
     private static SHAFT.GUI.WebDriver mockShaftDriver(Actions element, TouchActions touch) {
         SHAFT.GUI.WebDriver shaftDriver = mock(SHAFT.GUI.WebDriver.class);
         when(shaftDriver.element()).thenReturn(element);

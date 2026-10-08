@@ -34,6 +34,39 @@ class LastRunResultsTest {
         assertEquals(new LastRunResults.Frame("demo.LoginTest", "signIn", 42), result.frame());
         assertEquals(List.of(result), LastRunResults.failures(project));
         assertEquals("✗ failed · 1.3 s", result.label());
+        assertEquals("boom", result.message());
+        assertEquals("✗ boom", result.failureHint());
+    }
+
+    @Test
+    void failuresAtKeysTheNewestFailurePerLineOfOneClass() throws Exception {
+        Path results = Files.createDirectories(project.resolve("allure-results"));
+        Files.writeString(results.resolve("a-result.json"), """
+                {"fullName":"demo.CartTest.add","status":"failed","start":1,"stop":2,
+                 "statusDetails":{"message":"old","trace":"\\tat demo.CartTest.add(CartTest.java:12)"}}
+                """);
+        Files.writeString(results.resolve("b-result.json"), """
+                {"fullName":"demo.CartTest.remove","status":"broken","start":5,"stop":6,
+                 "statusDetails":{"message":"expected 42\\nbut found 41","trace":"\\tat demo.CartTest.remove(CartTest.java:12)"}}
+                """);
+        Files.writeString(results.resolve("c-result.json"), """
+                {"fullName":"demo.OtherTest.go","status":"failed","start":7,"stop":8,
+                 "statusDetails":{"trace":"\\tat demo.OtherTest.go(OtherTest.java:3)"}}
+                """);
+
+        var byLine = LastRunResults.failuresAt(LastRunResults.read(project), "demo.CartTest");
+
+        assertEquals(java.util.Set.of(12), byLine.keySet());
+        assertEquals("demo.CartTest.remove", byLine.get(12).fullName());
+        assertEquals("✗ expected 42", byLine.get(12).failureHint(), "hint keeps the first message line");
+        assertEquals("✗ failed", LastRunResults.read(project).get("demo.OtherTest#go").failureHint());
+    }
+
+    @Test
+    void longFailureHintsAreCapped() {
+        var result = new LastRunResults.Result("demo.A.b", "failed", 0, 0, null, "x".repeat(500));
+        assertEquals(LastRunResults.HINT_LIMIT + 2, result.failureHint().length());
+        assertTrue(result.failureHint().endsWith("…"));
     }
 
     @Test
