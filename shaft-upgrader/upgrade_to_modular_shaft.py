@@ -1830,7 +1830,8 @@ def resolve_latest_shaft_version(
     opener: Callable[..., object] = urllib.request.urlopen,
     attempts: int = NETWORK_ATTEMPTS,
 ) -> str:
-    """Resolve the latest published modular SHAFT version from Maven Central.
+    """
+    Resolve the latest published modular SHAFT version from Maven Central.
 
     Network lookups use bounded retries (ChaosEngine installer standard).
     """
@@ -2664,13 +2665,12 @@ Optional AI repair:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Compatibility alias for tests and callers that expect build_parser()."""
+    """Return the upgrade ArgumentParser for legacy callers and tests."""
     return build_upgrade_parser()
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
-    """
-    Parse CLI args.
+    """Parse CLI args for upgrade, status, doctor, or rollback.
 
     Lifecycle commands (#6645): upgrade|status|doctor|rollback.
     Legacy flag form (no subcommand) remains an implicit upgrade so existing
@@ -2704,6 +2704,94 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return args
 
 
+def _print_upgrade_dry_run(
+    analysis: ProjectAnalysis,
+    version: str,
+    transformed: Mapping[Path, bytes],
+    source_migration: SourceMigration,
+) -> int:
+    """Print POM/source diffs for a dry-run upgrade and exit without writing."""
+    for pom, after in transformed.items():
+        print(format_diff(pom, pom.read_bytes(), after, analysis.project_root))
+    for source_file, after in source_migration.transformed_files.items():
+        print(
+            format_diff(
+                source_file,
+                source_file.read_bytes(),
+                after.encode("utf-8"),
+                analysis.project_root,
+            )
+        )
+    log("[dry-run] no files or receipt will be written")
+    print(f"Guide      {GUIDE_URL}")
+    return 0
+
+
+def _configure_upgrade_repair_client(
+    args: argparse.Namespace,
+) -> OpenAIRepairClient | AgentCliRepairClient | None:
+    """Resolve OpenAI or agent-CLI repair client for an upgrade run."""
+    api_key = ""
+    if not args.no_ai:
+        api_key = os.environ.get(args.openai_key_env, "")
+        if args.prompt_for_openai_key and not api_key:
+            api_key = getpass.getpass("Optional OpenAI API key (leave empty to disable AI repair): ")
+    repair_client: OpenAIRepairClient | AgentCliRepairClient | None = (
+        OpenAIRepairClient(api_key, args.openai_model) if api_key else None
+    )
+    if repair_client:
+        log(
+            f"OpenAI repair is enabled with model {args.openai_model}; "
+            f"maximum attempts: {MAX_AI_REPAIR_ATTEMPTS}."
+        )
+        return repair_client
+    if args.no_ai:
+        log("AI repair is disabled; a failed upgraded compile will roll back immediately.")
+        return None
+    detected = detect_agent_cli(args.agent_cli)
+    if detected:
+        cli_name, executable = detected
+        repair_client = AgentCliRepairClient(cli_name, executable)
+        log(
+            f"Agent CLI repair is enabled via {cli_name} ({executable}); "
+            f"maximum attempts: {MAX_AI_REPAIR_ATTEMPTS}."
+        )
+        return repair_client
+    log("AI repair is disabled; a failed upgraded compile will roll back immediately.")
+    return None
+
+
+def _report_upgrade_success(
+    args: argparse.Namespace,
+    analysis: ProjectAnalysis,
+    version: str,
+    execution: UpgradeExecution,
+) -> int:
+    """Log and print the success receipt for a completed upgrade."""
+    receipt = receipt_path(analysis.project_root)
+    log(
+        f"Upgrade completed. Compilation passed after "
+        f"{execution.compile_attempts} compile invocation(s)."
+    )
+    if getattr(args, "json", False):
+        print(
+            json.dumps(
+                {
+                    "brand": BRAND_NAME,
+                    "status": "upgraded",
+                    "version": version,
+                    "receipt": str(receipt),
+                    "guide": GUIDE_URL,
+                },
+                separators=(",", ":"),
+            )
+        )
+    else:
+        print(f"Receipt    {receipt}")
+        print(f"Guide      {GUIDE_URL}")
+    return 0
+
+
 def run_upgrade(args: argparse.Namespace) -> int:
     """Execute the upgrade command (shared by `upgrade` and legacy flag form)."""
     analysis = analyze_project(args.project)
@@ -2733,20 +2821,7 @@ def run_upgrade(args: argparse.Namespace) -> int:
     }
     source_migration = collect_source_migration(analysis, args.upgrade_type)
     if args.dry_run:
-        for pom, after in transformed.items():
-            print(format_diff(pom, pom.read_bytes(), after, analysis.project_root))
-        for source_file, after in source_migration.transformed_files.items():
-            print(
-                format_diff(
-                    source_file,
-                    source_file.read_bytes(),
-                    after.encode("utf-8"),
-                    analysis.project_root,
-                )
-            )
-        log(f"[dry-run] no files or receipt will be written")
-        print(f"Guide      {GUIDE_URL}")
-        return 0
+        return _print_upgrade_dry_run(analysis, version, transformed, source_migration)
 
     if not args.yes and not confirm_upgrade():
         log("Upgrade cancelled. No files were changed.")
@@ -2754,31 +2829,7 @@ def run_upgrade(args: argparse.Namespace) -> int:
 
     compile_command = parse_compile_command(args.compile_command, analysis.project_root)
     log(f"Compile command: {' '.join(compile_command)}")
-
-    api_key = ""
-    if not args.no_ai:
-        api_key = os.environ.get(args.openai_key_env, "")
-        if args.prompt_for_openai_key and not api_key:
-            api_key = getpass.getpass("Optional OpenAI API key (leave empty to disable AI repair): ")
-    repair_client: OpenAIRepairClient | AgentCliRepairClient | None = (
-        OpenAIRepairClient(api_key, args.openai_model) if api_key else None
-    )
-    if repair_client:
-        log(
-            f"OpenAI repair is enabled with model {args.openai_model}; "
-            f"maximum attempts: {MAX_AI_REPAIR_ATTEMPTS}."
-        )
-    elif not args.no_ai:
-        detected = detect_agent_cli(args.agent_cli)
-        if detected:
-            cli_name, executable = detected
-            repair_client = AgentCliRepairClient(cli_name, executable)
-            log(
-                f"Agent CLI repair is enabled via {cli_name} ({executable}); "
-                f"maximum attempts: {MAX_AI_REPAIR_ATTEMPTS}."
-            )
-    if repair_client is None:
-        log("AI repair is disabled; a failed upgraded compile will roll back immediately.")
+    repair_client = _configure_upgrade_repair_client(args)
 
     execution = execute_upgrade_transaction(
         analysis,
@@ -2793,28 +2844,7 @@ def run_upgrade(args: argparse.Namespace) -> int:
         write_report(args.report, analysis, version, execution)
 
     if execution.succeeded:
-        receipt = receipt_path(analysis.project_root)
-        log(
-            f"Upgrade completed. Compilation passed after "
-            f"{execution.compile_attempts} compile invocation(s)."
-        )
-        if getattr(args, "json", False):
-            print(
-                json.dumps(
-                    {
-                        "brand": BRAND_NAME,
-                        "status": "upgraded",
-                        "version": version,
-                        "receipt": str(receipt),
-                        "guide": GUIDE_URL,
-                    },
-                    separators=(",", ":"),
-                )
-            )
-        else:
-            print(f"Receipt    {receipt}")
-            print(f"Guide      {GUIDE_URL}")
-        return 0
+        return _report_upgrade_success(args, analysis, version, execution)
 
     log("Compilation did not pass. All upgrade and AI repair changes were rolled back.")
     diagnostics = redact_secrets(execution.final_result.combined_output)
