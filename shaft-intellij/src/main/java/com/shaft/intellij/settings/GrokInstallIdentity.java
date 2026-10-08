@@ -67,13 +67,16 @@ public final class GrokInstallIdentity {
         } catch (RuntimeException ignored) {
             label = GROK_CLI;
         }
-        synchronized (GrokInstallIdentity.class) {
-            if (startedGeneration == generation) {
-                cachedLabel = label;
-            }
-            probing = false;
-        }
+        finishProbe(startedGeneration, label);
         return label;
+    }
+
+    /** Caches {@code label} only if no {@link #useHelp} call happened since the probe started. */
+    private static synchronized void finishProbe(int startedGeneration, String label) {
+        if (startedGeneration == generation) {
+            cachedLabel = label;
+        }
+        probing = false;
     }
 
     /** Test seam. Pass null to restore the live {@code grok --help} probe. */

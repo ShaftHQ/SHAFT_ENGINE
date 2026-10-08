@@ -78,7 +78,9 @@ public final class LastRunResults {
                 try (DirectoryStream<Path> files = Files.newDirectoryStream(directory, "*-result.json")) {
                     modified = Files.getLastModifiedTime(directory).toMillis();
                     count = 0;
-                    for (Path ignored : files) {
+                    java.util.Iterator<Path> iterator = files.iterator();
+                    while (iterator.hasNext()) {
+                        iterator.next();
                         count++;
                     }
                 } catch (IOException | RuntimeException unreadable) {
