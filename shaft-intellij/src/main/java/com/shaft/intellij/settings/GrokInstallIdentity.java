@@ -24,6 +24,8 @@ public final class GrokInstallIdentity {
     private static volatile Supplier<String> helpText = GrokInstallIdentity::readHelp;
     private static volatile String cachedLabel;
     private static volatile boolean probing;
+    /** Bumped by {@link #useHelp}; a probe started under an older generation must not cache its label. */
+    private static int generation; // guarded by GrokInstallIdentity.class
 
     private GrokInstallIdentity() {
         throw new IllegalStateException("Utility class");
@@ -53,7 +55,12 @@ public final class GrokInstallIdentity {
     }
 
     private static String probe() {
-        Supplier<String> source = helpText;
+        Supplier<String> source;
+        int startedGeneration;
+        synchronized (GrokInstallIdentity.class) {
+            source = helpText;
+            startedGeneration = generation;
+        }
         String label;
         try {
             label = labelFromHelp(source.get());
@@ -61,7 +68,7 @@ public final class GrokInstallIdentity {
             label = GROK_CLI;
         }
         synchronized (GrokInstallIdentity.class) {
-            if (source == helpText) {
+            if (startedGeneration == generation) {
                 cachedLabel = label;
             }
             probing = false;
@@ -72,6 +79,7 @@ public final class GrokInstallIdentity {
     /** Test seam. Pass null to restore the live {@code grok --help} probe. */
     public static synchronized void useHelp(Supplier<String> supplier) {
         helpText = supplier == null ? GrokInstallIdentity::readHelp : supplier;
+        generation++;
         cachedLabel = null;
     }
 
