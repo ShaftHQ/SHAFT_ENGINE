@@ -21,7 +21,10 @@ import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiMethod;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.PsiShortNamesCache;
+import com.shaft.intellij.testrunner.ShaftRunConfigurationOverrides;
+import com.shaft.intellij.testrunner.ShaftRunOverridesAccess;
 import com.shaft.intellij.testrunner.ShaftTestMethodAnnotations;
+import com.intellij.execution.configurations.RunConfigurationBase;
 import com.theoryinpractice.testng.configuration.TestNGConfiguration;
 import com.theoryinpractice.testng.configuration.TestNGConfigurationType;
 import org.jetbrains.annotations.Nullable;
@@ -110,7 +113,16 @@ public final class ShaftRunConfigurationResolver {
      * @param methodName method to scope the run to, or {@code null}/blank for class granularity
      */
     public static void run(Project project, String testId, @Nullable String methodName) {
-        runOrDebug(project, testId, methodName, DefaultRunExecutor.getRunExecutorInstance());
+        run(project, testId, methodName, null);
+    }
+
+    /**
+     * Runs {@code testId} with optional per-run SHAFT overrides (browser / headless / extra VM args
+     * for multi-browser and properties-profile launches).
+     */
+    public static void run(Project project, String testId, @Nullable String methodName,
+                           @Nullable ShaftRunConfigurationOverrides overrides) {
+        runOrDebug(project, testId, methodName, DefaultRunExecutor.getRunExecutorInstance(), overrides);
     }
 
     /**
@@ -122,20 +134,33 @@ public final class ShaftRunConfigurationResolver {
      * @param methodName method to scope the debug run to, or {@code null}/blank for class granularity
      */
     public static void debug(Project project, String testId, @Nullable String methodName) {
-        runOrDebug(project, testId, methodName, DefaultDebugExecutor.getDebugExecutorInstance());
+        runOrDebug(project, testId, methodName, DefaultDebugExecutor.getDebugExecutorInstance(), null);
     }
 
-    private static void runOrDebug(Project project, String testId, @Nullable String methodName, Executor executor) {
+    private static void runOrDebug(Project project, String testId, @Nullable String methodName, Executor executor,
+                                   @Nullable ShaftRunConfigurationOverrides overrides) {
         boolean classGranularity = methodName == null || methodName.isBlank();
         if (classGranularity) {
             Optional<RunnerAndConfigurationSettings> existing = findByName(project, testId);
             if (existing.isPresent()) {
+                applyOverrides(existing.get(), overrides);
                 runSettings(project, existing.get(), executor);
                 return;
             }
         }
         resolvePsiClass(project, testId)
-                .ifPresent(psiClass -> createAndRun(project, testId, classGranularity ? null : methodName, psiClass, executor));
+                .ifPresent(psiClass -> createAndRun(
+                        project, testId, classGranularity ? null : methodName, psiClass, executor, overrides));
+    }
+
+    private static void applyOverrides(RunnerAndConfigurationSettings settings,
+                                       @Nullable ShaftRunConfigurationOverrides overrides) {
+        if (overrides == null || settings == null) {
+            return;
+        }
+        if (settings.getConfiguration() instanceof RunConfigurationBase<?> base) {
+            ShaftRunOverridesAccess.install(base, overrides);
+        }
     }
 
     /**
@@ -156,7 +181,8 @@ public final class ShaftRunConfigurationResolver {
     }
 
     private static void createAndRun(
-            Project project, String testId, @Nullable String methodName, PsiClass psiClass, Executor executor) {
+            Project project, String testId, @Nullable String methodName, PsiClass psiClass, Executor executor,
+            @Nullable ShaftRunConfigurationOverrides overrides) {
         Optional<FrameworkKind> kind = detectFrameworkKind(extractMethodAnnotationNames(psiClass));
         if (kind.isEmpty()) {
             // No recognized @Test method on the resolved class: nothing runnable to create, per
@@ -173,6 +199,7 @@ public final class ShaftRunConfigurationResolver {
         } else {
             beClassConfiguration(kind.get(), settings, psiClass);
         }
+        applyOverrides(settings, overrides);
         runManager.addConfiguration(settings);
         runSettings(project, settings, executor);
     }

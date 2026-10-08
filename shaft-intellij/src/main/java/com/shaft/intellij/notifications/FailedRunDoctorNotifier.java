@@ -14,6 +14,9 @@ import com.intellij.notification.NotificationType;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
+import com.shaft.intellij.actions.ShowTraceViewerAction;
+import com.shaft.intellij.settings.ShaftSettingsState;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -97,6 +100,7 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
         if (!looksLikeTestRun(environment)) {
             return;
         }
+        maybeAutoOpenTrace(project);
         String basePath = project.getBasePath();
         if (basePath == null) {
             return;
@@ -132,6 +136,18 @@ public final class FailedRunDoctorNotifier implements ExecutionListener {
      */
     static boolean isUserCancelledRun(@Nullable Boolean recordedWillBeDestroyed) {
         return Boolean.TRUE.equals(recordedWillBeDestroyed);
+    }
+
+
+    private static void maybeAutoOpenTrace(Project project) {
+        try {
+            if (!ShaftSettingsState.getInstance().getState().autoOpenTraceOnFailure) {
+                return;
+            }
+        } catch (Throwable ignored) {
+            return;
+        }
+        ShowTraceViewerAction.openLatest(project, true);
     }
 
     private static boolean looksLikeTestRun(ExecutionEnvironment environment) {

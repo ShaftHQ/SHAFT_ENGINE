@@ -52,6 +52,17 @@ final class ShaftRunConfigurationExtensionSupport {
         throw new IllegalStateException("Utility class");
     }
 
+    /**
+     * Installs (or clears when {@code overrides} is null) the per-run SHAFT overrides used by
+     * Tests-panel multi-browser / profile launches (#6638, #6642).
+     */
+    static void installOverrides(RunConfigurationBase<?> configuration, ShaftRunConfigurationOverrides overrides) {
+        if (configuration == null) {
+            return;
+        }
+        configuration.putCopyableUserData(OVERRIDES_KEY, overrides);
+    }
+
     static boolean isApplicableFor(RunConfigurationBase<?> configuration) {
         return configuration != null && ShaftProjectDetector.isShaftProject(configuration.getProject());
     }

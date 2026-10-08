@@ -8,6 +8,8 @@ import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.notifications.FailedRunDoctorNotifier;
 import com.shaft.intellij.notifications.ShaftToolWorkflowLauncher;
 import com.shaft.intellij.testindex.ShaftRunConfigurationResolver;
+import com.shaft.intellij.testindex.TestsPanelToolbarSupport;
+import com.shaft.intellij.testrunner.ShaftRunConfigurationOverrides;
 import com.shaft.intellij.testindex.ShaftTestDiscovery;
 import com.shaft.intellij.testindex.LocalFlakeMuteStore;
 import com.shaft.intellij.testindex.ShaftTestIndex;
@@ -15,6 +17,8 @@ import com.shaft.intellij.testindex.SmartTagHistoryReader;
 
 import javax.swing.Icon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
@@ -40,7 +44,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.Supplier;
@@ -117,6 +123,12 @@ final class ShaftTestsPanel extends JPanel {
     private final Tree tree = new Tree(treeModel);
     private final JButton refreshButton;
     private final JButton clearButton;
+    private final JButton runAllButton;
+    private final JButton rerunFailedButton;
+    private final JCheckBox showBrowserToggle;
+    private final JComboBox<String> propertiesProfileCombo;
+    private final JComboBox<String> browsersCombo;
+    private final Set<String> selectedBrowsers = new LinkedHashSet<>();
     private final JButton runButton;
     private final JButton debugButton;
     private final JButton diagnoseButton;
@@ -166,9 +178,34 @@ final class ShaftTestsPanel extends JPanel {
                 ShaftIcons.RERUN, this::refresh);
         clearButton = button("Clear", "Clear all recorded SHAFT test-run history",
                 ShaftIcons.CLEAR, this::clearRows);
+        runAllButton = button("Run all", "Run every discovered SHAFT test",
+                ShaftIcons.RERUN, this::runAllDiscovered);
+        rerunFailedButton = button("Rerun failed", "Rerun tests that last failed",
+                ShaftIcons.RERUN, this::rerunFailed);
+        showBrowserToggle = new JCheckBox("Show browser");
+        showBrowserToggle.getAccessibleContext().setAccessibleName("Show browser");
+        showBrowserToggle.getAccessibleContext().setAccessibleDescription(
+                "When selected, writes headlessExecution=false to custom.properties (Playwright Show Browser parity).");
+        showBrowserToggle.addActionListener(event -> onShowBrowserToggled());
+        propertiesProfileCombo = new JComboBox<>();
+        propertiesProfileCombo.getAccessibleContext().setAccessibleName("Properties profile");
+        propertiesProfileCombo.getAccessibleContext().setAccessibleDescription(
+                "Select a properties profile folder for the next run without editing files by hand.");
+        browsersCombo = new JComboBox<>(TestsPanelToolbarSupport.BROWSER_CHOICES.toArray(String[]::new));
+        browsersCombo.setEditable(false);
+        browsersCombo.getAccessibleContext().setAccessibleName("Browsers for multi-run");
+        browsersCombo.getAccessibleContext().setAccessibleDescription(
+                "Add a browser to the multi-browser run set. Empty set inherits custom.properties.");
+        browsersCombo.addActionListener(event -> onBrowserPicked());
+        syncToolbarFromProject();
         JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         toolbar.add(refreshButton);
         toolbar.add(clearButton);
+        toolbar.add(runAllButton);
+        toolbar.add(rerunFailedButton);
+        toolbar.add(showBrowserToggle);
+        toolbar.add(propertiesProfileCombo);
+        toolbar.add(browsersCombo);
 
         tree.getAccessibleContext().setAccessibleName("SHAFT tests");
         tree.setRootVisible(false);
@@ -476,12 +513,119 @@ final class ShaftTestsPanel extends JPanel {
         }
     }
 
+
+    private void syncToolbarFromProject() {
+        Path root = projectRoot();
+        boolean headless = TestsPanelToolbarSupport.isHeadless(root);
+        showBrowserToggle.setSelected(TestsPanelToolbarSupport.showBrowserSelected(headless));
+        propertiesProfileCombo.removeAllItems();
+        for (String profile : TestsPanelToolbarSupport.listPropertyProfiles(root)) {
+            propertiesProfileCombo.addItem(profile);
+        }
+        propertiesProfileCombo.setSelectedItem(TestsPanelToolbarSupport.DEFAULT_PROFILE_LABEL);
+    }
+
+    private Path projectRoot() {
+        if (project == null || project.getBasePath() == null) {
+            return null;
+        }
+        return Path.of(project.getBasePath());
+    }
+
+    private void onShowBrowserToggled() {
+        Path root = projectRoot();
+        if (root == null) {
+            statusLabel.setText("Show browser: no project root.");
+            return;
+        }
+        boolean headless = TestsPanelToolbarSupport.headlessFromShowBrowser(showBrowserToggle.isSelected());
+        TestsPanelToolbarSupport.writeHeadless(root, headless);
+        statusLabel.setText(headless
+                ? "Wrote headlessExecution=true to custom.properties."
+                : "Wrote headlessExecution=false to custom.properties.");
+    }
+
+    private void onBrowserPicked() {
+        Object item = browsersCombo.getSelectedItem();
+        if (item == null) {
+            return;
+        }
+        String browser = item.toString();
+        if (selectedBrowsers.contains(browser)) {
+            selectedBrowsers.remove(browser);
+            statusLabel.setText("Removed browser from multi-run: " + browser
+                    + " (selected: " + selectedBrowsers + ")");
+        } else {
+            selectedBrowsers.add(browser);
+            statusLabel.setText("Added browser to multi-run: " + browser
+                    + " (selected: " + selectedBrowsers + ")");
+        }
+    }
+
+    private void runAllDiscovered() {
+        List<TestsPanelToolbarSupport.RunTarget> targets =
+                TestsPanelToolbarSupport.runAllTargets(discoverySource.get());
+        if (targets.isEmpty()) {
+            statusLabel.setText("Run all: no discovered tests.");
+            return;
+        }
+        launchTargets(targets);
+        statusLabel.setText("Run all: launched " + targets.size() + " target(s).");
+    }
+
+    private void rerunFailed() {
+        List<TestsPanelToolbarSupport.RunTarget> targets =
+                TestsPanelToolbarSupport.rerunFailedTargets(testIndex.snapshot());
+        if (targets.isEmpty()) {
+            statusLabel.setText("Rerun failed: no failing tests in history.");
+            return;
+        }
+        launchTargets(targets);
+        statusLabel.setText("Rerun failed: launched " + targets.size() + " target(s).");
+    }
+
+    private void launchTargets(List<TestsPanelToolbarSupport.RunTarget> targets) {
+        if (project == null) {
+            return;
+        }
+        List<String> browsers = TestsPanelToolbarSupport.browserRunMatrix(selectedBrowsers);
+        String profile = String.valueOf(propertiesProfileCombo.getSelectedItem());
+        String propertiesFolder = TestsPanelToolbarSupport.propertiesFolderPathForProfile(
+                projectRoot(), profile);
+        for (String browser : browsers) {
+            ShaftRunConfigurationOverrides overrides = buildOverrides(browser, propertiesFolder);
+            for (TestsPanelToolbarSupport.RunTarget target : targets) {
+                ShaftRunConfigurationResolver.run(
+                        project, target.qualifiedClassName(), target.methodName(), overrides);
+            }
+        }
+    }
+
+    private static ShaftRunConfigurationOverrides buildOverrides(String browser, String propertiesFolder) {
+        boolean needOverrides = (browser != null && !browser.isBlank())
+                || (propertiesFolder != null && !propertiesFolder.isBlank());
+        if (!needOverrides) {
+            return null;
+        }
+        ShaftRunConfigurationOverrides overrides = new ShaftRunConfigurationOverrides();
+        overrides.setEnabled(true);
+        if (browser != null && !browser.isBlank()) {
+            overrides.setBrowser(browser);
+        }
+        if (propertiesFolder != null && !propertiesFolder.isBlank()) {
+            overrides.setExtraVmArgs("-D" + TestsPanelToolbarSupport.PROPERTIES_FOLDER_KEY
+                    + "=" + propertiesFolder);
+        }
+        return overrides;
+    }
+
     private void runSelected() {
         TestTreeNode selected = selectedNode();
         if (selected == null || selected.kind() == NodeKind.PACKAGE) {
             return;
         }
-        ShaftRunConfigurationResolver.run(project, selected.qualifiedName(), methodNameOf(selected));
+        launchTargets(List.of(new TestsPanelToolbarSupport.RunTarget(
+                selected.qualifiedName(), methodNameOf(selected))));
     }
 
     private void debugSelected() {
@@ -771,6 +915,26 @@ final class ShaftTestsPanel extends JPanel {
 
     JComponent clearButtonForTest() {
         return clearButton;
+    }
+
+    JComponent runAllButtonForTest() {
+        return runAllButton;
+    }
+
+    JComponent rerunFailedButtonForTest() {
+        return rerunFailedButton;
+    }
+
+    JCheckBox showBrowserToggleForTest() {
+        return showBrowserToggle;
+    }
+
+    JComboBox<String> propertiesProfileComboForTest() {
+        return propertiesProfileCombo;
+    }
+
+    Set<String> selectedBrowsersForTest() {
+        return selectedBrowsers;
     }
 
     Tree treeForTest() {

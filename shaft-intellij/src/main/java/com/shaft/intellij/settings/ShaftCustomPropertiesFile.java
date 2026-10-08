@@ -28,7 +28,7 @@ import java.util.Set;
  * Takes a {@link Path}, not a {@code Project}: no SDK/PSI dependency, so it is trivially
  * unit-testable against real temp files with zero platform mocking.
  */
-final class ShaftCustomPropertiesFile {
+public final class ShaftCustomPropertiesFile {
     private ShaftCustomPropertiesFile() {
     }
 
@@ -38,7 +38,7 @@ final class ShaftCustomPropertiesFile {
      * trimmed); when a key repeats, the last occurrence wins, matching real {@code .properties}
      * semantics. Returns an empty map when {@code file} does not exist.
      */
-    static Map<String, String> read(Path file) {
+    public static Map<String, String> read(Path file) {
         Map<String, String> result = new LinkedHashMap<>();
         if (file == null || !Files.isRegularFile(file)) {
             return result;
@@ -59,7 +59,7 @@ final class ShaftCustomPropertiesFile {
      * comment followed by the {@code setKeys} entries; if {@code setKeys} is empty, nothing is
      * created.
      */
-    static void write(Path file, Map<String, String> setKeys, Set<String> removeKeys) {
+    public static void write(Path file, Map<String, String> setKeys, Set<String> removeKeys) {
         if (file == null) {
             return;
         }
