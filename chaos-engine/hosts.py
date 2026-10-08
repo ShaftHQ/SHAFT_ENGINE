@@ -4519,7 +4519,8 @@ def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Pat
       `python`) and exits before the PowerShell text.
     - PowerShell: `--%` passes the first line verbatim to a discarded echo
       and `<# ... #>` comments out the sh branch. The PowerShell branch reads
-      the payload, prefers the installer's managed interpreter from the
+      the payload (raw UTF-8 stdin; Windows PowerShell 5.1 hands it to
+      `$input` instead), prefers the installer's managed interpreter from the
       pointer, else probes `py -3`, `python3`, `python` for Python 3.11+,
       and pipes the payload to it as UTF-8. The locator source travels in
       an environment variable and a quote-free stub execs it, so neither
@@ -4555,6 +4556,7 @@ def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Pat
         "$OutputEncoding=[Text.UTF8Encoding]::new($false)\n"
         "$m=New-Object IO.MemoryStream;[Console]::OpenStandardInput().CopyTo($m)\n"
         "$d=[Text.Encoding]::UTF8.GetString($m.ToArray())\n"
+        "if(-not $d.Trim()){$d=@($input) -join [char]10}\n"
         f"$env:{HOOK_SOURCE_ENV}='{script}'\n"
         "$env:PYTHONUTF8='1'\n"
         "$r=@($env:CLAUDE_PROJECT_DIR,(Get-Location).ProviderPath);try{$r+=($d|ConvertFrom-Json).cwd}catch{}\n"

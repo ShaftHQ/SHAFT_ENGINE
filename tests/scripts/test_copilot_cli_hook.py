@@ -191,7 +191,7 @@ class PowerShellLauncherTest(unittest.TestCase):
 
     def test_read_is_allowed_from_outside_the_repository(self):
         for shell in self.shells:
-            with self.subTest(shell=shell), tempfile.TemporaryDirectory() as temporary:
+            with self.subTest(powershell=shell), tempfile.TemporaryDirectory() as temporary:
                 result = self._run(shell, {
                     "hook_event_name": "PreToolUse", "cwd": str(ROOT), "tool_name": "Read",
                     "tool_input": {"file_path": str(ROOT / "AGENTS.md")},
@@ -201,17 +201,18 @@ class PowerShellLauncherTest(unittest.TestCase):
 
     def test_guard_block_keeps_exit_two(self):
         for shell in self.shells:
-            with self.subTest(shell=shell), tempfile.TemporaryDirectory() as temporary:
+            with self.subTest(powershell=shell), tempfile.TemporaryDirectory() as temporary:
                 result = self._run(shell, {
                     "hook_event_name": "PreToolUse", "cwd": str(ROOT), "tool_name": "Bash",
                     "tool_input": {"command": "git reset --hard HEAD~1"},
                 }, Path(temporary), temporary)
                 self.assertEqual(2, result.returncode, result.stdout + result.stderr)
                 self.assertIn('"decision":"block"', (result.stdout + result.stderr).replace(" ", ""))
+                self.assertNotIn("guard unavailable", result.stdout, "payload never reached the guard")
 
     def test_no_python_blocks_with_a_reason_instead_of_erroring(self):
         for shell in self.shells:
-            with self.subTest(shell=shell), tempfile.TemporaryDirectory() as temporary:
+            with self.subTest(powershell=shell), tempfile.TemporaryDirectory() as temporary:
                 result = self._run(shell, {"hook_event_name": "PreToolUse", "cwd": temporary},
                                    Path(temporary), temporary, path=str(Path(shell).parent))
                 self.assertEqual(2, result.returncode, result.stdout + result.stderr)
@@ -221,7 +222,7 @@ class PowerShellLauncherTest(unittest.TestCase):
 
     def test_installer_pointer_python_runs_without_python_on_path(self):
         for shell in self.shells:
-            with self.subTest(shell=shell), tempfile.TemporaryDirectory() as temporary:
+            with self.subTest(powershell=shell), tempfile.TemporaryDirectory() as temporary:
                 project = Path(temporary) / "project"
                 (project / ".chaos-engine-state").mkdir(parents=True)
                 (project / HOSTS.HOOK_PYTHON_POINTER).write_text(
