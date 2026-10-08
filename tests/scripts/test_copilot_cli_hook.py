@@ -16,6 +16,7 @@ import os
 import re
 import shutil
 import subprocess  # nosec B404 - fixed repository hook entry.
+import sys
 import tempfile
 import unittest
 import uuid
@@ -133,12 +134,130 @@ class PowerShell51ArgumentPassingTest(unittest.TestCase):
             compile(received, "<hook>", "exec")
         self.assertIsNotNone(HOSTS.powershell_hook_parse_error(legacy))
 
-    def test_quote_free_body_reaches_python_byte_for_byte(self):
+    def test_powershell_branch_passes_python_only_quote_free_arguments(self):
         command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
-        body = re.fullmatch(r"python3 -c '([^']*)'", command).group(1)
-        self.assertEqual(body, _python_argument_under_powershell51(command))
-        self.assertFalse(set(body) - set("0123456789,()bytesxc"))
-        self.assertEqual(HOSTS._locator_script("claude"), HOSTS.decoded_quote_free_exec(command))
+        lines = command.splitlines()
+        invocation = next(line for line in lines if line.startswith("$d|& $c[0]"))
+        stub = re.search(r"-c '([^']*)'$", invocation).group(1)
+        self.assertFalse(set(stub) - set("0123456789,()bytesxc"))
+        self.assertEqual(stub, _python_argument_under_powershell51("python3 -c '" + stub + "'"))
+        self.assertIn(f"$env:{HOSTS.HOOK_SOURCE_ENV}=", command)
+        self.assertEqual(HOSTS._locator_script("claude"), HOSTS.hook_command_source(command))
+
+    def test_legacy_python3_only_command_is_flagged(self):
+        script = HOSTS._locator_script("claude")
+        legacy = "python3 -c '" + HOSTS._quote_free_exec(script) + "'"
+        self.assertIsNotNone(HOSTS.powershell_hook_parse_error(legacy))
+        self.assertTrue(HOSTS.chaos_hook_command(legacy))
+        self.assertEqual(script, HOSTS.hook_command_source(legacy))
+
+
+def _powershells() -> list[str]:
+    return [found for name in ("pwsh", "powershell") if (found := shutil.which(name))]
+
+
+class PowerShellLauncherTest(unittest.TestCase):
+    """#6632: Copilot CLI on Windows runs the settings command with PowerShell.
+
+    `python3` is often missing or the Microsoft Store stub there. The
+    PowerShell branch must find a real Python (installer pointer, then
+    `py -3`, `python3`, `python`) and never exit with anything but the
+    guard's own 0/2. Runs on every host with pwsh; the Windows CI leg runs it
+    under both PowerShell 7 and Windows PowerShell 5.1.
+    """
+
+    def setUp(self):
+        self.shells = _powershells()
+        if not self.shells:
+            self.skipTest("PowerShell is required to drive the Windows hook path")
+        self.command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
+
+    def _run(self, shell: str, payload: dict[str, object], cwd: Path, temporary: str,
+             path: str | None = None) -> subprocess.CompletedProcess[str]:
+        environment = _env(temporary)
+        environment.pop("CLAUDE_PROJECT_DIR", None)
+        if path is not None:
+            environment["PATH"] = path
+        return subprocess.run(  # nosec B603 - fixed PowerShell with the generated hook script.
+            [shell, "-NoProfile", "-NonInteractive", "-Command", self.command],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+            cwd=cwd,
+            env=environment,
+        )
+
+    def test_read_is_allowed_from_outside_the_repository(self):
+        for shell in self.shells:
+            with self.subTest(shell=shell), tempfile.TemporaryDirectory() as temporary:
+                result = self._run(shell, {
+                    "hook_event_name": "PreToolUse", "cwd": str(ROOT), "tool_name": "Read",
+                    "tool_input": {"file_path": str(ROOT / "AGENTS.md")},
+                }, Path(temporary), temporary)
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertNotEqual("block", json.loads(result.stdout or "{}").get("decision"))
+
+    def test_guard_block_keeps_exit_two(self):
+        for shell in self.shells:
+            with self.subTest(shell=shell), tempfile.TemporaryDirectory() as temporary:
+                result = self._run(shell, {
+                    "hook_event_name": "PreToolUse", "cwd": str(ROOT), "tool_name": "Bash",
+                    "tool_input": {"command": "git reset --hard HEAD~1"},
+                }, Path(temporary), temporary)
+                self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+                self.assertIn('"decision":"block"', (result.stdout + result.stderr).replace(" ", ""))
+
+    def test_no_python_blocks_with_a_reason_instead_of_erroring(self):
+        for shell in self.shells:
+            with self.subTest(shell=shell), tempfile.TemporaryDirectory() as temporary:
+                result = self._run(shell, {"hook_event_name": "PreToolUse", "cwd": temporary},
+                                   Path(temporary), temporary, path=str(Path(shell).parent))
+                self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+                decision = json.loads(result.stdout)
+                self.assertEqual("block", decision["decision"])
+                self.assertIn("no Python 3.11", decision["reason"])
+
+    def test_installer_pointer_python_runs_without_python_on_path(self):
+        for shell in self.shells:
+            with self.subTest(shell=shell), tempfile.TemporaryDirectory() as temporary:
+                project = Path(temporary) / "project"
+                (project / ".chaos-engine-state").mkdir(parents=True)
+                (project / HOSTS.HOOK_PYTHON_POINTER).write_text(
+                    os.path.realpath(sys.executable) + "\n", encoding="utf-8")
+                result = self._run(shell, {"hook_event_name": "PreToolUse", "cwd": str(project)},
+                                   Path(temporary), temporary, path=str(Path(shell).parent))
+                self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+                reason = json.loads(result.stdout)["reason"]
+                self.assertNotIn("no Python 3.11", reason)
+                self.assertIn("guard unavailable", reason)
+
+
+class GitBashLauncherTest(unittest.TestCase):
+    """#6632: Claude Code on Windows runs the command with Git Bash (OS=Windows_NT)."""
+
+    def test_windows_branch_probes_and_runs_python(self):
+        sh = shutil.which("sh")
+        if not sh:
+            self.skipTest("sh is required")
+        command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**_env(temporary), "OS": "Windows_NT"}
+            environment.pop("CLAUDE_PROJECT_DIR", None)
+            result = subprocess.run(  # nosec B603 - fixed sh with the generated hook script.
+                [sh, "-c", command],
+                input=json.dumps({
+                    "hook_event_name": "PreToolUse", "cwd": str(ROOT), "tool_name": "Read",
+                    "tool_input": {"file_path": str(ROOT / "AGENTS.md")},
+                }),
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=temporary,
+                env=environment,
+            )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
 
 class CopilotRootCwdTest(unittest.TestCase):
@@ -226,10 +345,10 @@ class CopilotCliHookTest(unittest.TestCase):
     def test_settings_command_is_powershell_safe_and_allows_a_read(self):
         command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
         self.assertIsNone(HOSTS.powershell_hook_parse_error(command))
-        source = HOSTS.decoded_quote_free_exec(command)
+        source = HOSTS.hook_command_source(command)
         self.assertIn(".chaos-engine/hooks/guard.py", source)
         self.assertIn("repository working directory unavailable", source)
-        self.assertTrue(command.startswith("python3 -c '"))
+        self.assertIn("exec python3 -c", command)
         self.assertTrue(HOSTS.chaos_hook_command(command))
         with tempfile.TemporaryDirectory() as temporary:
             result = subprocess.run(  # nosec B602 - generated hook command.

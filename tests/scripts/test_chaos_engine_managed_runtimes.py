@@ -340,9 +340,9 @@ class ManagedRuntimeCliTest(TestCase):
         node = Path("/owned/node")
         lifecycle = json.loads(HOSTS.lifecycle_hooks_document("codex", managed_python=python))
         command = lifecycle["hooks"]["SessionStart"][0]["hooks"][0]["command"]
-        self.assertTrue(command.startswith("python3 -c "), command)
+        self.assertIn("exec python3 -c", command)
         self.assertNotIn(str(python), command)
-        self.assertIn(HOSTS.HOOK_PYTHON_POINTER, HOSTS.decoded_quote_free_exec(command))
+        self.assertIn(HOSTS.HOOK_PYTHON_POINTER, HOSTS.hook_command_source(command))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             HOSTS.write_hook_python_pointer(project, python)

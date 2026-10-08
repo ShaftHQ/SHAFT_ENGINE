@@ -926,7 +926,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     self.assertEqual(1, len(document[event][0]["hooks"]), event)
                     command = document[event][0]["hooks"][0]["command"]
                     self.assertIn(" ", command, event)
-                    source = module.decoded_quote_free_exec(command) or command
+                    source = module.hook_command_source(command) or command
                     self.assertTrue(
                         ".chaos-engine/hooks/guard.py" in source
                         or "plugins/chaos-engine/hooks/guard.py" in source,
@@ -1124,7 +1124,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             getattr(errno, "ENOTCONN", 107),
         ):
             self.assertTrue(module.is_cwd_unavailable_errno(code), code)
-        command = module.decoded_quote_free_exec(
+        command = module.hook_command_source(
             module.chaos_guard_locator_command(windows=False, host="claude")
         )
         for token in ("ESTALE", "ENOTCONN", "ENOENT", module.LAUNCH_CWD_UNAVAILABLE):

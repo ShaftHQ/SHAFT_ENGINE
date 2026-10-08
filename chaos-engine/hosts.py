@@ -4352,6 +4352,9 @@ LAUNCH_CWD_UNAVAILABLE = (
 LAUNCH_GUARD_UNAVAILABLE = (
     "ChaosEngine guard unavailable; repair the original installation, then retry"
 )
+LAUNCH_PYTHON_UNAVAILABLE = (
+    "ChaosEngine hook found no Python 3.11 or newer; install Python 3.11+ or rerun the ChaosEngine installer, then start a new session"
+)
 _CWD_UNAVAILABLE_ERRNOS = {
     errno.ENOENT,
     getattr(errno, "ESTALE", 116),
@@ -4489,17 +4492,42 @@ def _quote_free_exec(script: str) -> str:
     return "exec(bytes((" + ",".join(str(byte) for byte in script.encode("ascii")) + ")))"
 
 
+HOOK_SOURCE_ENV = "CHAOS_ENGINE_HOOK_SOURCE"
+HOOK_PYTHON_FLOOR = (3, 11)
+
+
+def _polyglot_unsafe(text: str) -> bool:
+    """Text that would end the PowerShell block comment or a single-quoted string."""
+    return "'" in text or "#>" in text or "<#" in text
+
+
 def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Path | None = None) -> str:
-    """Portable hook launcher (#6179): tracked host files name `python3` / `py -3` only.
+    """Portable hook launcher (#6179): tracked host files name interpreters, never paths.
 
     The managed interpreter, when one exists, is recorded in the untracked
-    `.chaos-engine-state/hook-python` pointer and the launcher hands off to it.
+    `.chaos-engine-state/hook-python` pointer.
 
-    Copilot CLI on Windows executes the `.claude/settings.json` `command`
-    through PowerShell (github/copilot-cli#4001). The Unix command is a
-    single-quoted `python3 -c` whose body is quote-free (see
-    `_quote_free_exec`), so bash and both PowerShell generations pass the
-    same bytes to Python. `commandWindows` stays double-quoted for cmd.exe.
+    The `command` form is one script that is valid POSIX sh and valid
+    PowerShell (#6632). Claude Code and Copilot on Linux and macOS run it with
+    sh/bash. Copilot CLI on Windows runs it with PowerShell 7
+    (github/copilot-cli#4001), where `python3` is often missing or the
+    Microsoft Store stub; that exit 9009/1 is the user-visible
+    `Denied by preToolUse hook from "repo settings" (hook errored)`.
+
+    - sh: the first line is a no-op and the second a quoted string; the sh
+      branch execs `python3` (Windows Git Bash probes `py -3`, `python3`,
+      `python`) and exits before the PowerShell text.
+    - PowerShell: `--%` passes the first line verbatim to a discarded echo
+      and `<# ... #>` comments out the sh branch. The PowerShell branch reads
+      the payload, prefers the installer's managed interpreter from the
+      pointer, else probes `py -3`, `python3`, `python` for Python 3.11+,
+      and pipes the payload to it as UTF-8. The locator source travels in
+      an environment variable and a quote-free stub execs it, so neither
+      PowerShell 5.1 nor 7 can strip quotes from a native argument.
+    - No usable Python: print a block decision and exit 2 (an explicit deny),
+      never a crash.
+
+    `commandWindows` stays double-quoted for cmd.exe.
     """
     del managed_python
     script = _locator_script(host)
@@ -4507,27 +4535,77 @@ def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Pat
         raise ValueError("hook locator script must not contain single quotes")
     if windows:
         return f"py -3 -c {json.dumps('exec(' + json.dumps(script) + ')')}"
-    return f"python3 -c '{_quote_free_exec(script)}'"
+    if _polyglot_unsafe(script) or _polyglot_unsafe(LAUNCH_PYTHON_UNAVAILABLE):
+        raise ValueError("hook locator text must not contain quotes or PowerShell comment markers")
+    floor = ",".join(str(part) for part in HOOK_PYTHON_FLOOR)
+    probe = f"import sys;sys.exit(sys.version_info<({floor}))"
+    block = json.dumps({"decision": "block", "reason": LAUNCH_PYTHON_UNAVAILABLE})
+    stub = _quote_free_exec(f'import os;exec(os.environ["{HOOK_SOURCE_ENV}"])')
+    pointer = HOOK_PYTHON_POINTER
+    return (
+        "echo --% >/dev/null;: ' | Out-Null\n"
+        "<#'\n"
+        f"s='{script}'\n"
+        '[ "$OS" = Windows_NT ] || exec python3 -c "$s"\n'
+        "for p in py python3 python; do a=; [ $p = py ] && a=-3; "
+        f'command -v $p >/dev/null 2>&1 && $p $a -c "{probe}" 2>/dev/null && exec $p $a -c "$s"; done\n'
+        f"echo '{block}'\n"
+        "exit 2\n"
+        "#>\n"
+        "$OutputEncoding=[Text.UTF8Encoding]::new($false)\n"
+        "$m=New-Object IO.MemoryStream;[Console]::OpenStandardInput().CopyTo($m)\n"
+        "$d=[Text.Encoding]::UTF8.GetString($m.ToArray())\n"
+        f"$env:{HOOK_SOURCE_ENV}='{script}'\n"
+        "$env:PYTHONUTF8='1'\n"
+        "$r=@($env:CLAUDE_PROJECT_DIR,(Get-Location).ProviderPath);try{$r+=($d|ConvertFrom-Json).cwd}catch{}\n"
+        "$c=$null\n"
+        "foreach($b in $r){if(-not $b){continue};$x=Get-Item -LiteralPath $b -ErrorAction SilentlyContinue\n"
+        f"while($x -and -not $c){{$f=Join-Path $x.FullName '{pointer}'\n"
+        "if(Test-Path -LiteralPath $f -PathType Leaf){$q=(Get-Content -LiteralPath $f -Raw).Trim()\n"
+        "if($q -and (Test-Path -LiteralPath $q -PathType Leaf)){$c=@($q)}}\n"
+        "$x=$x.Parent}\n"
+        "if($c){break}}\n"
+        "if(-not $c){foreach($t in @(@('py','-3'),@('python3'),@('python'))){\n"
+        "if(Get-Command $t[0] -CommandType Application -ErrorAction SilentlyContinue){\n"
+        f"& $t[0] @($t|Select-Object -Skip 1) -c '{probe}' 2>$null\n"
+        "if($LASTEXITCODE -eq 0){$c=$t;break}}}}\n"
+        f"if(-not $c){{Write-Output '{block}';exit 2}}\n"
+        "$LASTEXITCODE=1\n"
+        f"$d|& $c[0] @($c|Select-Object -Skip 1) -c '{stub}'\n"
+        "exit $LASTEXITCODE\n"
+    )
+
+
+def hook_command_source(command: str) -> str:
+    """Locator source carried by a hook command, any generation (#6632)."""
+    match = re.search(r"^s='([^']*)'$", command, re.MULTILINE)
+    if match is not None:
+        return match.group(1)
+    return decoded_quote_free_exec(command)
 
 
 def powershell_hook_parse_error(command: str) -> str | None:
-    """Return why Windows PowerShell 5.1 would break a hook command, or None.
+    """Return why a hook command would fail under Copilot CLI's PowerShell, or None.
 
     Copilot CLI runs cross-tool `.claude/settings.json` hook commands through
-    PowerShell. A parse error, or an argument PowerShell 5.1 re-quotes on its
-    way to Python, exits 1: the user-visible
+    PowerShell. A parse error, a quoted native argument PowerShell 5.1
+    re-quotes, or a hard-coded `python3` (missing or the Store stub on many
+    Windows machines) exits non-zero: the user-visible
     `Denied by preToolUse hook from "repo settings" (hook errored)`.
     """
     if not isinstance(command, str) or not command.strip():
         return "empty hook command"
     if command.startswith("py -3 "):
         return None
-    match = re.fullmatch(r"python3 -c '([^']*)'", command)
-    if match is None:
-        return "unix hook command is not a PowerShell single-quoted python3 -c"
-    body = match.group(1)
-    if QUOTE_FREE_EXEC.fullmatch(body) is None:
-        return "unix hook command body is not quote-free; PowerShell 5.1 strips its double quotes"
+    lines = command.splitlines()
+    if lines[:2] != ["echo --% >/dev/null;: ' | Out-Null", "<#'"] or "#>" not in lines:
+        return "unix hook command is not the sh/PowerShell launcher; Windows PowerShell would run python3 directly"
+    powershell = lines[lines.index("#>") + 1:]
+    if not any(line.startswith("$d|& $c[0]") for line in powershell):
+        return "PowerShell branch does not pipe the payload to a probed interpreter"
+    invocation = next(line for line in powershell if line.startswith("$d|& $c[0]"))
+    if re.search(r"-c 'exec\(bytes\(\([0-9,]+\)\)\)'$", invocation) is None or '"' in invocation:
+        return "PowerShell branch passes a quoted argument; PowerShell 5.1 strips its double quotes"
     return None
 
 
