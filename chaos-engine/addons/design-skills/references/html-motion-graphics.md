@@ -48,8 +48,9 @@ Canvas (MIT) are documented alternatives, not defaults.
 - One still on screen at a time; never stack or fan out several captures.
 - Never pull back below reading size. To show "the whole file", scroll at
   reading size and state the size as a number (a line-count chip).
-- 9:16: captures run full-bleed (frame width) with a tighter region than
-  16:9.
+- 9:16: captures run near full-bleed (a 24 px side margin keeps light
+  captures off the frame edge, which `edgeclip` flags) with a tighter region
+  than 16:9, and end above the D20 caption band.
 - Before any full rebuild, render stills of the edited scene at the moments
   under review from the same seek-based page; rebuild only once they read.
 - Generated scenes are linted for unrendered template placeholders (`{`
