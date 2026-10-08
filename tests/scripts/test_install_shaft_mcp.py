@@ -1525,5 +1525,125 @@ class AgenticToolsInstallerSurfaceTest(unittest.TestCase):
         self.assertNotIn("install-shaft-mcp.sh", one_liner_sh)
 
 
+
+class AgenticToolsLifecycleTest(unittest.TestCase):
+    """Lifecycle surface for #6644 (ChaosEngine installer parity, SHAFT branding)."""
+
+    def test_lifecycle_commands_are_advertised(self):
+        self.assertEqual(
+            MODULE.LIFECYCLE_COMMANDS,
+            ("install", "status", "doctor", "repair", "rollback", "uninstall"),
+        )
+
+    def test_parse_status_and_doctor_flags(self):
+        status = MODULE.parse_args(["status", "--json"])
+        self.assertEqual(status.command, "status")
+        self.assertTrue(status.json)
+        doctor = MODULE.parse_args(["doctor", "--agent-summary"])
+        self.assertEqual(doctor.command, "doctor")
+        self.assertTrue(doctor.agent_summary)
+
+    def test_parse_repair_requires_component(self):
+        with self.assertRaises(SystemExit):
+            MODULE.parse_args(["repair"])
+        args = MODULE.parse_args(["repair", "--component", "shaft-mcp", "--dry-run"])
+        self.assertEqual(args.command, "repair")
+        self.assertEqual(args.component, "shaft-mcp")
+        self.assertTrue(args.dry_run)
+
+    def test_legacy_flags_remain_implicit_install(self):
+        args = MODULE.parse_args(["--intellij-plugin", "--json"])
+        self.assertEqual(args.command, "install")
+        self.assertEqual(args.client, "intellij-plugin")
+
+    def test_explicit_install_subcommand_accepts_dry_run(self):
+        args = MODULE.parse_args(["install", "--intellij-plugin", "--dry-run"])
+        self.assertEqual(args.command, "install")
+        self.assertTrue(args.dry_run)
+
+    def test_doctor_without_receipt_fails_agent_summary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(MODULE, "application_data_root", return_value=root):
+                stderr = io.StringIO()
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    code = MODULE.main(["doctor", "--agent-summary"])
+                self.assertEqual(code, 1)
+                self.assertIn("doctor: fail", stdout.getvalue())
+
+    def test_status_json_without_receipt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(MODULE, "application_data_root", return_value=root):
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout):
+                    code = MODULE.main(["status", "--json"])
+                self.assertEqual(code, 1)
+                payload = json.loads(stdout.getvalue())
+                self.assertEqual(payload["brand"], "SHAFT Engine")
+                self.assertEqual(payload["status"], "recovery-required")
+
+    def test_write_and_rollback_receipt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(MODULE, "application_data_root", return_value=root):
+                first = {
+                    "schemaVersion": MODULE.RECEIPT_SCHEMA_VERSION,
+                    "version": "1.0.0",
+                    "components": {"shaft-mcp": {"status": "healthy", "path": str(root / "a.jar")}},
+                    "ownedFiles": [],
+                }
+                MODULE.write_receipt(first)
+                second = {
+                    "schemaVersion": MODULE.RECEIPT_SCHEMA_VERSION,
+                    "version": "2.0.0",
+                    "components": {"shaft-mcp": {"status": "healthy", "path": str(root / "b.jar")}},
+                    "ownedFiles": [],
+                }
+                MODULE.write_receipt(second)
+                self.assertEqual(MODULE.read_receipt()["version"], "2.0.0")
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout):
+                    code = MODULE.main(["rollback", "--json"])
+                self.assertEqual(code, 0)
+                self.assertEqual(MODULE.read_receipt()["version"], "1.0.0")
+
+    def test_uninstall_removes_owned_files_and_receipt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            owned = root / "owned.jar"
+            owned.write_bytes(b"payload")
+            with mock.patch.object(MODULE, "application_data_root", return_value=root):
+                MODULE.write_receipt(
+                    {
+                        "schemaVersion": MODULE.RECEIPT_SCHEMA_VERSION,
+                        "version": "9.9.9",
+                        "components": {},
+                        "ownedFiles": [{"path": str(owned), "sha256": MODULE.file_sha256(owned)}],
+                    }
+                )
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout):
+                    code = MODULE.main(["uninstall", "--json"])
+                self.assertEqual(code, 0)
+                self.assertFalse(owned.exists())
+                self.assertIsNone(MODULE.read_receipt())
+
+    def test_dry_run_install_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(MODULE, "application_data_root", return_value=root), mock.patch.object(
+                MODULE, "bootstrap_root", return_value=root / "bootstrap"
+            ):
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(io.StringIO()):
+                    code = MODULE.main(["install", "--intellij-plugin", "--skip-shaft-skills", "--dry-run", "--json"])
+                self.assertEqual(code, 0)
+                payload = json.loads(stdout.getvalue())
+                self.assertTrue(payload["dryRun"])
+                self.assertFalse((root / MODULE.RECEIPT_NAME).exists())
+
+
 if __name__ == "__main__":
     unittest.main()
