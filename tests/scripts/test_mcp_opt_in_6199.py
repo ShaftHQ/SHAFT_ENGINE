@@ -99,7 +99,9 @@ class PortableHostFilesTest(unittest.TestCase):
         gemini = HOSTS.gemini_hooks_document(node).decode()
         self.assertNotIn(str(node), copilot)
         self.assertNotIn(str(node), gemini)
-        self.assertIn("node .chaos-engine/hooks/launch.js copilot", copilot)
+        self.assertNotIn("node ", copilot)
+        self.assertIn(HOSTS.HOOK_PYTHON_POINTER, HOSTS.hook_command_source(
+            json.loads(copilot)["hooks"]["preToolUse"][0]["bash"]))
 
     def test_node_launcher_prefers_the_hook_python_pointer(self):
         launcher = (ROOT / "chaos-engine/hooks/launch.js").read_text(encoding="utf-8")

@@ -235,6 +235,76 @@ class PowerShellLauncherTest(unittest.TestCase):
                 self.assertIn("guard unavailable", reason)
 
 
+class CopilotRepositoryHookTest(unittest.TestCase):
+    """#6632: `.github/hooks` uses the Python launcher, no Node, from any cwd."""
+
+    def setUp(self):
+        self.shells = [found for found in (shutil.which("sh"), *_powershells()) if found]
+        if not self.shells:
+            self.skipTest("a shell is required")
+
+    def _run(self, shell: str, payload: dict[str, object], temporary: str) -> subprocess.CompletedProcess[str]:
+        command = HOSTS.copilot_launcher_command("preToolUse")
+        environment = _env(temporary)
+        environment.pop("CLAUDE_PROJECT_DIR", None)
+        argv = [shell, "-c", command] if Path(shell).stem == "sh" else [
+            shell, "-NoProfile", "-NonInteractive", "-Command", command]
+        return subprocess.run(  # nosec B603 - fixed shell with the generated hook script.
+            argv, input=json.dumps(payload), capture_output=True, text=True,
+            encoding="utf-8", check=False, cwd=temporary, env=environment,
+        )
+
+    def test_tools_outside_matchers_are_answered_without_the_guard(self):
+        for shell in self.shells:
+            with self.subTest(powershell=shell), tempfile.TemporaryDirectory() as temporary:
+                result = self._run(shell, {
+                    "cwd": str(ROOT), "toolName": "browser_get_page_dom", "toolArgs": "{}",
+                }, temporary)
+                self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+                self.assertEqual({}, json.loads(result.stdout))
+
+    def test_event_hint_reaches_the_guard(self):
+        for shell in self.shells:
+            with self.subTest(powershell=shell), tempfile.TemporaryDirectory() as temporary:
+                result = self._run(shell, {
+                    "cwd": str(ROOT), "sessionId": "copilot-repo-hook", "toolName": "bash",
+                    "toolArgs": json.dumps({"command": "git reset --hard HEAD~1"}),
+                }, temporary)
+                self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+                self.assertNotIn("guard unavailable", result.stdout)
+                self.assertIn("deny", result.stdout)
+
+    def test_document_pins_the_repository_root(self):
+        document = json.loads(HOSTS.copilot_hooks_document())
+        for event, handlers in document["hooks"].items():
+            self.assertEqual(".", handlers[0]["cwd"])
+            self.assertEqual(HOSTS.copilot_launcher_command(event), handlers[0]["powershell"])
+            self.assertIsNone(HOSTS.powershell_hook_parse_error(handlers[0]["powershell"]))
+
+
+class NodeLauncherTest(unittest.TestCase):
+    """#6632: Gemini's Node launcher finds the guard from the payload cwd."""
+
+    def test_guard_is_found_from_the_payload_cwd(self):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required")
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = _env(temporary)
+            for name in ("CLAUDE_PROJECT_DIR", "GEMINI_PROJECT_DIR"):
+                environment.pop(name, None)
+            result = subprocess.run(  # nosec B603 - fixed node with the tracked launcher.
+                [node, str(LAUNCH), "gemini"],
+                input=json.dumps({
+                    "hook_event_name": "BeforeTool", "cwd": str(ROOT), "tool_name": "read_file",
+                    "tool_input": {"file_path": str(ROOT / "AGENTS.md")},
+                }),
+                capture_output=True, text=True, check=False, cwd=temporary, env=environment,
+            )
+        self.assertNotIn("guard unavailable", result.stdout + result.stderr)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+
 class GitBashLauncherTest(unittest.TestCase):
     """#6632: Claude Code on Windows runs the command with Git Bash (OS=Windows_NT)."""
 
