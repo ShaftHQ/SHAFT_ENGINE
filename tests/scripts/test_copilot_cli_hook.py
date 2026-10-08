@@ -13,6 +13,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess  # nosec B404 - fixed repository hook entry.
 import tempfile
@@ -60,6 +61,140 @@ def _env(temporary: str) -> dict[str, str]:
     }
 
 
+def _powershell51_native_argument(argument: str) -> str:
+    """Windows PowerShell 5.1 legacy native argument passing.
+
+    An argument with whitespace is wrapped in double quotes; embedded double
+    quotes are passed through unescaped.
+    """
+    if any(character.isspace() for character in argument) and not (
+            argument.startswith('"') and argument.endswith('"')):
+        return f'"{argument}"'
+    return argument
+
+
+def _windows_argv(command_line: str) -> list[str]:
+    """MSVCRT / CommandLineToArgvW splitting of a Windows command line."""
+    arguments: list[str] = []
+    current: list[str] = []
+    quoted = False
+    started = False
+    index = 0
+    while index < len(command_line):
+        character = command_line[index]
+        if character == "\\":
+            run = 0
+            while index < len(command_line) and command_line[index] == "\\":
+                run += 1
+                index += 1
+            if index < len(command_line) and command_line[index] == '"':
+                current.append("\\" * (run // 2))
+                if run % 2:
+                    current.append('"')
+                    index += 1
+            else:
+                current.append("\\" * run)
+            started = True
+            continue
+        if character == '"':
+            quoted = not quoted
+            started = True
+        elif character.isspace() and not quoted:
+            if started:
+                arguments.append("".join(current))
+                current, started = [], False
+        else:
+            current.append(character)
+            started = True
+        index += 1
+    if started:
+        arguments.append("".join(current))
+    return arguments
+
+
+def _python_argument_under_powershell51(command: str) -> str:
+    """The `-c` source Python receives when PowerShell 5.1 runs a `python3 -c '...'` hook."""
+    match = re.fullmatch(r"python3 -c '([^']*)'", command)
+    if match is None:
+        raise AssertionError(f"not a single-quoted python3 -c command: {command[:40]}")
+    line = "python3 -c " + _powershell51_native_argument(match.group(1))
+    return _windows_argv(line)[2]
+
+
+class PowerShell51ArgumentPassingTest(unittest.TestCase):
+    """#6632: the #6630 command parsed, but PowerShell 5.1 stripped its quotes."""
+
+    def test_legacy_double_quoted_body_reaches_python_mangled(self):
+        script = HOSTS._locator_script("claude")
+        legacy = "python3 -c '" + "exec(" + json.dumps(script) + ")" + "'"
+        received = _python_argument_under_powershell51(legacy)
+        self.assertNotEqual("exec(" + json.dumps(script) + ")", received)
+        with self.assertRaises(SyntaxError):
+            compile(received, "<hook>", "exec")
+        self.assertIsNotNone(HOSTS.powershell_hook_parse_error(legacy))
+
+    def test_quote_free_body_reaches_python_byte_for_byte(self):
+        command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
+        body = re.fullmatch(r"python3 -c '([^']*)'", command).group(1)
+        self.assertEqual(body, _python_argument_under_powershell51(command))
+        self.assertFalse(set(body) - set("0123456789,()bytesxc"))
+        self.assertEqual(HOSTS._locator_script("claude"), HOSTS.decoded_quote_free_exec(command))
+
+
+class CopilotRootCwdTest(unittest.TestCase):
+    """#6632: Copilot runs repo-settings hooks from `/` without CLAUDE_PROJECT_DIR."""
+
+    def test_guard_is_found_from_the_payload_cwd(self):
+        command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
+        with tempfile.TemporaryDirectory() as temporary:
+            outside = Path(temporary) / "outside"
+            outside.mkdir()
+            environment = _env(temporary)
+            environment.pop("CLAUDE_PROJECT_DIR", None)
+            result = subprocess.run(  # nosec B602 - generated hook command.
+                command,
+                shell=True,
+                input=json.dumps(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "sessionId": "copilot-root-cwd",
+                        "cwd": str(ROOT),
+                        "toolName": "view",
+                        "toolArgs": json.dumps(
+                            {"path": ".chaos-engine/skills/chaos-engine/SKILL.md"}
+                        ),
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=outside,
+                env=environment,
+            )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertNotIn("guard unavailable", result.stdout)
+        payload = json.loads(result.stdout or "{}")
+        self.assertNotEqual("deny", payload.get("permissionDecision"))
+
+    def test_no_guard_anywhere_still_denies_with_a_reason(self):
+        command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = _env(temporary)
+            environment.pop("CLAUDE_PROJECT_DIR", None)
+            result = subprocess.run(  # nosec B602 - generated hook command.
+                command,
+                shell=True,
+                input=json.dumps({"hook_event_name": "PreToolUse", "cwd": temporary}),
+                capture_output=True,
+                text=True,
+                check=False,
+                cwd=temporary,
+                env=environment,
+            )
+        self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+        self.assertEqual("block", json.loads(result.stdout)["decision"])
+
+
 class CopilotCliHookTest(unittest.TestCase):
     def setUp(self):
         node = shutil.which("node")
@@ -91,10 +226,11 @@ class CopilotCliHookTest(unittest.TestCase):
     def test_settings_command_is_powershell_safe_and_allows_a_read(self):
         command = HOSTS.chaos_guard_locator_command(windows=False, host="claude")
         self.assertIsNone(HOSTS.powershell_hook_parse_error(command))
-        self.assertIn(".chaos-engine/hooks/guard.py", command)
-        self.assertIn("repository working directory unavailable", command)
+        source = HOSTS.decoded_quote_free_exec(command)
+        self.assertIn(".chaos-engine/hooks/guard.py", source)
+        self.assertIn("repository working directory unavailable", source)
         self.assertTrue(command.startswith("python3 -c '"))
-        self.assertNotIn('\\"', command.split("'", 1)[0])
+        self.assertTrue(HOSTS.chaos_hook_command(command))
         with tempfile.TemporaryDirectory() as temporary:
             result = subprocess.run(  # nosec B602 - generated hook command.
                 command,
