@@ -9,6 +9,7 @@ import os
 import platform
 import queue
 import re
+import shlex
 import shutil
 import ssl
 import stat
@@ -110,6 +111,15 @@ TARGET_CHOICES = (
     ("antigravity", "Antigravity CLI"),
     ("intellij-plugin", "SHAFT IntelliJ IDEA plugin"),
 )
+
+# Lifecycle surface (#6644): match ChaosEngine installer commands with SHAFT Engine branding.
+LIFECYCLE_COMMANDS = ("install", "status", "doctor", "repair", "rollback", "uninstall")
+REPAIRABLE_COMPONENTS = ("java", "shaft-mcp", "shaft-cli", "shaft-skills", "host-config")
+RECEIPT_NAME = "install-receipt.json"
+HEAL_HANDOFF_NAME = "heal-handoff.md"
+RECEIPT_SCHEMA_VERSION = 1
+BRAND_NAME = "SHAFT Engine"
+GUIDE_URL = USER_GUIDE_URL
 
 
 class InstallError(RuntimeError):
@@ -270,7 +280,506 @@ THREE_STAGE_UX_EPILOG = (
 )
 
 
-def parse_args(argv: list[str]) -> argparse.Namespace:
+
+def receipt_path() -> Path:
+    return application_data_root() / RECEIPT_NAME
+
+
+def previous_receipt_path() -> Path:
+    return application_data_root() / "install-receipt.previous.json"
+
+
+def read_receipt() -> dict[str, Any] | None:
+    path = receipt_path()
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict) or data.get("schemaVersion") != RECEIPT_SCHEMA_VERSION:
+        return None
+    return data
+
+
+def write_receipt(receipt: dict[str, Any], *, dry_run: bool = False) -> Path:
+    path = receipt_path()
+    if dry_run:
+        log(f"[dry-run] would write receipt {path}")
+        return path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    current = read_receipt()
+    if current is not None:
+        previous = previous_receipt_path()
+        previous.write_text(json.dumps(current, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    payload = dict(receipt)
+    payload["schemaVersion"] = RECEIPT_SCHEMA_VERSION
+    payload["brand"] = BRAND_NAME
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
+def owned_file_record(path: Path) -> dict[str, Any]:
+    record: dict[str, Any] = {"path": str(path)}
+    if path.is_file():
+        record["sha256"] = file_sha256(path)
+        record["bytes"] = path.stat().st_size
+    elif path.exists():
+        record["kind"] = "directory"
+    else:
+        record["missing"] = True
+    return record
+
+
+def build_install_receipt(
+    *,
+    version: str | None,
+    client: str | None,
+    java: Path | None,
+    mcp_jar: Path | None,
+    cli_jar: Path | None,
+    cli_launcher: Path | None,
+    skills_paths: list[Path],
+    args_file: Path | None,
+    host_config: Path | None = None,
+) -> dict[str, Any]:
+    owned: list[dict[str, Any]] = []
+    components: dict[str, Any] = {}
+    if java is not None and java.exists():
+        components["java"] = {"status": "healthy", "path": str(java), "feature": java_feature(java)}
+        owned.append(owned_file_record(java))
+    if mcp_jar is not None and mcp_jar.exists():
+        components["shaft-mcp"] = {
+            "status": "healthy",
+            "version": version,
+            "path": str(mcp_jar),
+            "client": client,
+        }
+        owned.append(owned_file_record(mcp_jar))
+        if args_file is not None and args_file.exists():
+            owned.append(owned_file_record(args_file))
+            components["shaft-mcp"]["argsFile"] = str(args_file)
+    if cli_jar is not None and cli_jar.exists():
+        components["shaft-cli"] = {"status": "healthy", "version": version, "path": str(cli_jar)}
+        owned.append(owned_file_record(cli_jar))
+        if cli_launcher is not None and cli_launcher.exists():
+            owned.append(owned_file_record(cli_launcher))
+            components["shaft-cli"]["launcher"] = str(cli_launcher)
+    if skills_paths:
+        components["shaft-skills"] = {
+            "status": "healthy",
+            "paths": [str(p) for p in skills_paths],
+        }
+        for skills_path in skills_paths:
+            if skills_path.exists():
+                owned.append(owned_file_record(skills_path))
+    if client and client != "intellij-plugin" and host_config is not None:
+        components["host-config"] = {"status": "healthy", "client": client, "path": str(host_config)}
+        if java is not None:
+            components["host-config"]["command"] = str(java)
+        if args_file is not None:
+            components["host-config"]["argsFile"] = str(args_file)
+    return {
+        "schemaVersion": RECEIPT_SCHEMA_VERSION,
+        "brand": BRAND_NAME,
+        "installedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "version": version,
+        "client": client,
+        "components": components,
+        "ownedFiles": owned,
+        "userGuide": GUIDE_URL,
+    }
+
+
+def _probe_java_status(record: dict[str, Any]) -> tuple[str, str | None]:
+    path = Path(str(record.get("path") or ""))
+    if not path.is_file() or not is_java25(path):
+        return "recovery-required", "Java 25 binary missing or not Java 25"
+    return "healthy", None
+
+
+def _probe_shaft_mcp_status(record: dict[str, Any], receipt: dict[str, Any]) -> tuple[str, str | None]:
+    path = Path(str(record.get("path") or ""))
+    if not path.is_file():
+        return "recovery-required", "shaft-mcp jar missing"
+    expected = None
+    for owned in receipt.get("ownedFiles") or []:
+        if isinstance(owned, dict) and owned.get("path") == str(path):
+            expected = owned.get("sha256")
+            break
+    if expected and file_sha256(path) != expected:
+        return "recovery-required", "shaft-mcp jar hash drift"
+    return "healthy", None
+
+
+def _probe_shaft_cli_status(record: dict[str, Any]) -> tuple[str, str | None]:
+    path = Path(str(record.get("path") or ""))
+    if path and not path.is_file():
+        return "recovery-required", "shaft-cli jar missing"
+    return "healthy", None
+
+
+def _probe_shaft_skills_status(record: dict[str, Any]) -> tuple[str, str | None]:
+    paths = record.get("paths") or []
+    if not paths or not any(Path(str(p)).exists() for p in paths):
+        return "recovery-required", "skills directory missing"
+    return "healthy", None
+
+
+def _probe_host_config_status(record: dict[str, Any]) -> tuple[str, str | None]:
+    detail = host_config_drift(record)
+    if detail:
+        return "recovery-required", detail
+    return "healthy", None
+
+
+_COMPONENT_STATUS_PROBERS = {
+    "java": lambda record, _receipt: _probe_java_status(record),
+    "shaft-mcp": _probe_shaft_mcp_status,
+    "shaft-cli": lambda record, _receipt: _probe_shaft_cli_status(record),
+    "shaft-skills": lambda record, _receipt: _probe_shaft_skills_status(record),
+    "host-config": lambda record, _receipt: _probe_host_config_status(record),
+}
+
+
+def probe_component(name: str, receipt: dict[str, Any] | None) -> dict[str, Any]:
+    components = (receipt or {}).get("components") if isinstance(receipt, dict) else None
+    if not isinstance(components, dict) or name not in components:
+        return {"status": "absent", "taskImpact": "optional" if name != "shaft-mcp" else "required"}
+    record = dict(components[name])
+    prober = _COMPONENT_STATUS_PROBERS.get(name)
+    status, detail = prober(record, receipt or {}) if prober else ("healthy", None)
+    record["status"] = status
+    if detail:
+        record["detail"] = detail
+    record.setdefault("taskImpact", "required" if name in {"java", "shaft-mcp"} else "optional")
+    return record
+
+
+def host_config_drift(record: dict[str, Any]) -> str | None:
+    """Re-read the client configuration and confirm it still launches the receipt's shaft-mcp."""
+    client = str(record.get("client") or "")
+    path = Path(str(record.get("path") or ""))
+    java = Path(str(record.get("command") or ""))
+    args_file = Path(str(record.get("argsFile") or ""))
+    if not record.get("path") or not record.get("command") or not record.get("argsFile"):
+        return "receipt does not record the host configuration; repair host-config"
+    if not path.is_file():
+        return f"host configuration missing: {path}"
+    try:
+        if client in {"codex", "grok"}:
+            verify_grok_entry(path, java, args_file)
+        else:
+            verify_json_entry(path, "servers" if client == "copilot-intellij" else "mcpServers", java, args_file)
+    except (InstallError, OSError, ValueError) as exc:
+        return f"host configuration drift in {path}: {exc}"
+    if not java.is_file():
+        return f"configured Java command is missing: {java}"
+    if not args_file.is_file():
+        return f"configured launcher arguments file is missing: {args_file}"
+    return None
+
+
+def heal_handoff_path() -> Path:
+    return application_data_root() / HEAL_HANDOFF_NAME
+
+
+def write_heal_handoff(command: str, argv: list[str], error: "InstallError") -> Path | None:
+    """CE-standard failure handoff: exact error, exact retry command, and an agent prompt."""
+    retry = "python3 scripts/mcp/install_shaft_agentic_tools.py " + " ".join(shlex.quote(item) for item in argv)
+    text = (
+        f"# {BRAND_NAME} agentic tools heal handoff\n\n"
+        f"- command: `{command}`\n"
+        f"- exit code: {error.code}\n"
+        f"- error: {error}\n"
+        f"- retry after fixing the cause: `{retry.strip()}`\n"
+        "- verify: `python3 scripts/mcp/install_shaft_agentic_tools.py doctor`\n\n"
+        "## Agent prompt\n\n"
+        f"The {BRAND_NAME} agentic tools {command} failed with the error above. Fix the cause it names "
+        "(for example a malformed or conflicting MCP client configuration file: back it up, repair the JSON "
+        "or TOML, and keep the user's other servers), then run the retry command and doctor. "
+        "Do not hand-edit the shaft-mcp entry or invent an alternate installer.\n"
+        f"\nGuide: {GUIDE_URL}\n"
+    )
+    path = heal_handoff_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        write_text_atomically(path, text)
+    except OSError:
+        return None
+    return path
+
+
+def clear_heal_handoff() -> None:
+    try:
+        heal_handoff_path().unlink(missing_ok=True)
+    except OSError:
+        debug("heal handoff could not be removed")
+
+
+def doctor_report(*, agent_summary: bool = False) -> dict[str, Any]:
+    receipt = read_receipt()
+    components = {name: probe_component(name, receipt) for name in REPAIRABLE_COMPONENTS}
+    healthy = all(
+        item.get("status") == "healthy"
+        or (item.get("status") == "absent" and item.get("taskImpact") == "optional")
+        for item in components.values()
+    )
+    # Required components that are absent without a receipt fail doctor.
+    if receipt is None:
+        healthy = False
+        components = {
+            name: {"status": "absent", "taskImpact": "required" if name in {"java", "shaft-mcp"} else "optional",
+                   "detail": "no install receipt"}
+            for name in REPAIRABLE_COMPONENTS
+        }
+    handoff = heal_handoff_path()
+    if handoff.is_file() and not handoff.is_symlink():
+        healthy = False
+        message = f"Complete the agent heal using {handoff}, then rerun doctor."
+        for item in components.values():
+            if item.get("status") != "healthy" and not (
+                    item.get("status") == "absent" and item.get("taskImpact") == "optional"):
+                item["fixNext"] = message
+    result = {
+        "brand": BRAND_NAME,
+        "status": "healthy" if healthy else "recovery-required",
+        "components": components,
+        "fixNext": (f"Complete the agent heal using {handoff}, then rerun doctor."
+                    if handoff.is_file() and not handoff.is_symlink() else None),
+        "receipt": str(receipt_path()) if receipt else None,
+        "version": (receipt or {}).get("version"),
+        "userGuide": GUIDE_URL,
+    }
+    if agent_summary:
+        # Four-line CE-style summary.
+        core = components.get("shaft-mcp") or {}
+        drift = "none" if healthy else "present"
+        print(f"doctor: {'pass' if healthy else 'fail'}")
+        print(f"component: shaft-mcp {core.get('status', 'absent')}")
+        print(f"hash: {(receipt or {}).get('version') or 'none'}")
+        print(f"drift: {drift}")
+    return result
+
+
+def print_component_table(components: dict[str, Any]) -> None:
+    print(f"{BRAND_NAME} Agentic Tools")
+    print(f"{'Component':<16} {'Status':<20} Detail")
+    print(f"{'-'*16} {'-'*20} {'-'*24}")
+    for name, item in components.items():
+        detail = str(item.get("detail") or item.get("path") or item.get("version") or "")
+        print(f"{name:<16} {str(item.get('status')):<20} {detail}")
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    report = doctor_report(agent_summary=False)
+    if args.json:
+        print(json.dumps(report, separators=(",", ":")))
+        return 0 if report["status"] == "healthy" else 1
+    print_component_table(report["components"])
+    print(f"Guide      {GUIDE_URL}")
+    if report.get("receipt"):
+        print(f"Receipt    {report['receipt']}")
+        print(f"Version    {report.get('version') or 'unknown'}")
+    else:
+        print("Receipt    (none — run install first)")
+    return 0 if report["status"] == "healthy" else 1
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    report = doctor_report(agent_summary=bool(args.agent_summary))
+    if args.agent_summary:
+        return 0 if report["status"] == "healthy" else 1
+    if args.json:
+        print(json.dumps(report, separators=(",", ":")))
+        return 0 if report["status"] == "healthy" else 1
+    print_component_table(report["components"])
+    print(f"Doctor: {'healthy' if report['status'] == 'healthy' else 'recovery-required'}")
+    print(f"Guide      {GUIDE_URL}")
+    if report.get("fixNext"):
+        print(f"fix-next: {report['fixNext']}")
+    elif report["status"] != "healthy":
+        print("fix-next: python3 scripts/mcp/install_shaft_agentic_tools.py repair --component <name>")
+        print("           or re-run: python3 scripts/mcp/install_shaft_agentic_tools.py install ...")
+    return 0 if report["status"] == "healthy" else 1
+
+
+def cmd_repair(args: argparse.Namespace) -> int:
+    component = args.component
+    if component not in REPAIRABLE_COMPONENTS:
+        fail(f"Unknown component: {component}", 2)
+    receipt = read_receipt()
+    if receipt is None and component != "shaft-skills":
+        fail("No install receipt; run install before repair.", 4)
+    if args.dry_run:
+        log(f"[dry-run] would repair component {component}")
+        return 0
+    # Re-run the overlapping install path for the requested component.
+    install_argv: list[str] = []
+    client = (receipt or {}).get("client")
+    version = (receipt or {}).get("version")
+    if component in {"java", "shaft-mcp", "host-config"}:
+        if not client:
+            fail("Receipt has no client; cannot repair MCP/host-config.", 4)
+        install_argv.extend(["--client", str(client)])
+        if version:
+            install_argv.extend(["--version", str(version)])
+        if component == "host-config":
+            install_argv.append("--skip-shaft-skills")
+    elif component == "shaft-cli":
+        install_argv.append("--install-shaft-cli")
+        if version:
+            install_argv.extend(["--version", str(version)])
+    elif component == "shaft-skills":
+        install_argv.append("--install-shaft-skills")
+    if args.json:
+        install_argv.append("--json")
+    repair_args = parse_install_args(install_argv)
+    install(repair_args)
+    return 0
+
+
+def cmd_rollback(args: argparse.Namespace) -> int:
+    previous = previous_receipt_path()
+    if not previous.is_file():
+        fail("No previous receipt to roll back to.", 4)
+    try:
+        prior = json.loads(previous.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        fail("Previous receipt is unreadable; cannot roll back.", 4)
+    if not isinstance(prior, dict):
+        fail("Previous receipt is malformed; cannot roll back.", 4)
+    prior_components = prior.get("components") if isinstance(prior.get("components"), dict) else {}
+    if args.dry_run:
+        log(f"[dry-run] would reinstall {BRAND_NAME} {prior.get('version') or 'unknown'} from {previous}")
+        return 0
+    current = receipt_path()
+    if current.is_file():
+        backup = application_data_root() / "install-receipt.rolled-forward.json"
+        backup.write_text(current.read_text(encoding="utf-8"), encoding="utf-8")
+    # Reinstall the previous version so files and host configuration match the restored receipt.
+    install_argv: list[str] = []
+    if prior.get("client") and "shaft-mcp" in prior_components:
+        install_argv.extend(["--client", str(prior["client"])])
+    if prior.get("version"):
+        install_argv.extend(["--version", str(prior["version"])])
+    if "shaft-cli" in prior_components:
+        install_argv.append("--install-shaft-cli")
+    install_argv.append("--install-shaft-skills" if "shaft-skills" in prior_components else "--skip-shaft-skills")
+    if "--client" not in install_argv and "--install-shaft-cli" not in install_argv:
+        current.parent.mkdir(parents=True, exist_ok=True)
+        current.write_text(json.dumps(prior, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    else:
+        # The restored receipt describes only the previous install, not a merge with the newer one.
+        current.unlink(missing_ok=True)
+        install(parse_install_args(install_argv + ["--json"]) if args.json else parse_install_args(install_argv))
+    previous.unlink(missing_ok=True)
+    data = read_receipt() or {}
+    result = {"status": "rolled-back", "version": data.get("version"), "receipt": str(current)}
+    if args.json:
+        print(json.dumps(result, separators=(",", ":")))
+    else:
+        print(f"{BRAND_NAME}: rolled back to receipt version {data.get('version') or 'unknown'}.")
+        print(f"Receipt    {current}")
+    return 0
+
+
+def cmd_uninstall(args: argparse.Namespace) -> int:
+    receipt = read_receipt()
+    if receipt is None:
+        fail("No install receipt; nothing to uninstall.", 4)
+    owned = receipt.get("ownedFiles") or []
+    removed: list[str] = []
+    for item in owned:
+        if not isinstance(item, dict):
+            continue
+        target = Path(str(item.get("path") or ""))
+        if not target.exists():
+            continue
+        if args.dry_run:
+            log(f"[dry-run] would remove {target}")
+            removed.append(str(target))
+            continue
+        if target.is_file() or target.is_symlink():
+            target.unlink(missing_ok=True)
+            removed.append(str(target))
+        # Directories (skills): only remove if empty of foreign content — leave in place.
+    host = (receipt.get("components") or {}).get("host-config")
+    if isinstance(host, dict) and host.get("path"):
+        host_path = Path(str(host["path"]))
+        if args.dry_run:
+            log(f"[dry-run] would remove {SERVER_NAME} from {host_path}")
+        elif remove_host_entry(str(host.get("client") or ""), host_path):
+            removed.append(f"{host_path}#{SERVER_NAME}")
+    if not args.dry_run:
+        receipt_path().unlink(missing_ok=True)
+        clear_heal_handoff()
+    result = {"status": "uninstalled", "removed": removed, "brand": BRAND_NAME}
+    if args.json:
+        print(json.dumps(result, separators=(",", ":")))
+    else:
+        print(f"{BRAND_NAME}: uninstalled {len(removed)} owned file(s).")
+        print(f"Guide      {GUIDE_URL}")
+    return 0
+
+
+def remove_host_entry(client: str, path: Path) -> bool:
+    """Remove only the shaft-mcp entry, keeping every other server and setting in the file."""
+    if not path.is_file():
+        return False
+    if client in {"codex", "grok"}:
+        text = path.read_text(encoding="utf-8")
+        header = _GROK_SERVER_HEADER.search(text)
+        if not header:
+            return False
+        next_header = re.search(r"(?m)^\s*\[", text[header.end():])
+        end = header.end() + next_header.start() if next_header else len(text)
+        updated = text[:header.start()] + text[end:].lstrip("\n")
+        write_text_atomically(path, updated)
+        return True
+    try:
+        root = read_json_object(path)
+    except (json.JSONDecodeError, InstallError):
+        log(f"Left {path} unchanged: it is not valid JSON.")
+        return False
+    servers = root.get("servers" if client == "copilot-intellij" else "mcpServers")
+    if not isinstance(servers, dict) or SERVER_NAME not in servers:
+        return False
+    del servers[SERVER_NAME]
+    write_json_atomically(path, root)
+    return True
+
+
+def host_config_path(client: str | None) -> Path | None:
+    """The file configure_client writes for this client (project override aware)."""
+    if not client or client == "intellij-plugin":
+        return None
+    if client == "grok":
+        return grok_write_path()
+    if client == "antigravity":
+        return antigravity_write_path()
+    return configuration_path(client).resolve()
+
+
+def merge_with_previous_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
+    """Component-scoped installs (repair) keep the components they did not touch."""
+    current = read_receipt()
+    if current is None:
+        return receipt
+    components = dict(current.get("components") or {})
+    components.update(receipt.get("components") or {})
+    paths = {item.get("path") for item in receipt.get("ownedFiles") or [] if isinstance(item, dict)}
+    owned = [item for item in current.get("ownedFiles") or []
+             if isinstance(item, dict) and item.get("path") not in paths]
+    merged = dict(receipt)
+    merged["components"] = components
+    merged["ownedFiles"] = owned + list(receipt.get("ownedFiles") or [])
+    merged["client"] = receipt.get("client") or current.get("client")
+    merged["version"] = receipt.get("version") or current.get("version")
+    return merged
+
+
+def build_install_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Install and configure shaft-mcp for a supported MCP client.\n"
@@ -283,6 +792,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     env_version = (os.environ.get("SHAFT_MCP_VERSION") or "").strip()
     parser.add_argument("--version", nargs="?", const="LATEST", default=env_version or "LATEST")
     parser.add_argument("--json", action="store_true", help="Print machine-readable install details to stdout.")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what install would do without writing files or a receipt.",
+    )
     parser.add_argument(
         "--install-shaft-skills",
         action="store_true",
@@ -305,8 +819,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         nargs="?",
         help="Optional target name: codex, claude, claude-desktop, copilot, copilot-intellij, grok, or antigravity.",
     )
-    args = parser.parse_args(argv)
+    return parser
 
+
+def normalize_install_namespace(args: argparse.Namespace) -> argparse.Namespace:
     # Normalize empty or whitespace-only version to LATEST
     if isinstance(args.version, str):
         args.version = (args.version.strip() or "LATEST")
@@ -317,7 +833,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     if args.target:
         selected.append(normalize_client(args.target) or "")
     for target, _ in TARGET_CHOICES:
-        if getattr(args, target.replace("-", "_")):
+        if getattr(args, target.replace("-", "_"), False):
             selected.append(target)
 
     selected = [target for target in selected if target]
@@ -339,6 +855,51 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         args.client = choose_client()
     if args.client is not None and args.client not in TARGETS:
         fail("Usage: install_shaft_agentic_tools.py [--client <codex|claude|claude-desktop|copilot|copilot-intellij|grok|antigravity|intellij-plugin>]", 2)
+    if not hasattr(args, "dry_run"):
+        args.dry_run = False
+    args.command = getattr(args, "command", "install")
+    return args
+
+
+def parse_install_args(argv: list[str]) -> argparse.Namespace:
+    return normalize_install_namespace(build_install_parser().parse_args(argv))
+
+
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    """
+    Parse CLI args.
+
+    Lifecycle commands (#6644): install|status|doctor|repair|rollback|uninstall.
+    Legacy one-liner / flag form (no subcommand) remains an implicit install so
+    existing URLs and IntelliJ invocations keep working.
+    """
+    if argv and argv[0] in LIFECYCLE_COMMANDS:
+        command = argv[0]
+        rest = argv[1:]
+        if command == "install":
+            args = parse_install_args(rest)
+            args.command = "install"
+            return args
+        parser = argparse.ArgumentParser(prog=f"install_shaft_agentic_tools.py {command}")
+        if command in {"status", "doctor"}:
+            parser.add_argument("--json", action="store_true")
+            parser.add_argument(
+                "--agent-summary",
+                action="store_true",
+                help="Print at most four lines: pass/fail, component, hash, drift.",
+            )
+        elif command == "repair":
+            parser.add_argument("--component", required=True, choices=REPAIRABLE_COMPONENTS)
+            parser.add_argument("--json", action="store_true")
+            parser.add_argument("--dry-run", action="store_true")
+        elif command in {"rollback", "uninstall"}:
+            parser.add_argument("--json", action="store_true")
+            parser.add_argument("--dry-run", action="store_true")
+        args = parser.parse_args(rest)
+        args.command = command
+        return args
+    args = parse_install_args(argv)
+    args.command = "install"
     return args
 
 
@@ -1752,6 +2313,9 @@ def activation_hint(client: str) -> str:
 
 def install(args: argparse.Namespace) -> None:
     banner()
+    dry_run = bool(getattr(args, "dry_run", False))
+    if dry_run:
+        log("[dry-run] no files or receipt will be written")
     overall_phases = sum(
         (
             1 if args.install_mcp else 0,
@@ -1762,11 +2326,32 @@ def install(args: argparse.Namespace) -> None:
     ) or 1
     overall_done = 0
     root = bootstrap_root()
-    root.mkdir(parents=True, exist_ok=True)
+    if not dry_run:
+        root.mkdir(parents=True, exist_ok=True)
     repository = os.environ.get("SHAFT_MCP_REPOSITORY_URL", DEFAULT_REPOSITORY).rstrip("/")
     java = None
     version = None
     args_file = None
+    jar = None
+    shaft_cli_jar = None
+    if dry_run:
+        plan = {
+            "brand": BRAND_NAME,
+            "dryRun": True,
+            "installMcp": bool(args.install_mcp),
+            "client": args.client,
+            "installShaftCli": bool(args.install_shaft_cli),
+            "installShaftSkills": bool(getattr(args, "install_shaft_skills", False)),
+            "version": args.version,
+            "userGuide": GUIDE_URL,
+        }
+        if args.json:
+            print(json.dumps(plan, separators=(",", ":")))
+        else:
+            print(f"{BRAND_NAME} dry-run plan:")
+            for key, value in plan.items():
+                print(f"  {key}: {value}")
+        return
     if args.install_mcp or args.install_shaft_cli:
         java = get_java25(root)
         java_home = java_home_for(java)
@@ -1796,8 +2381,10 @@ def install(args: argparse.Namespace) -> None:
         overall_done += 1
         shaft_cli_launcher = write_shaft_cli_launcher(java, shaft_cli_jar)
 
+    host_config = None
     if args.install_mcp and args.client != "intellij-plugin":
         log(f"Configuring shaft-mcp for {args.client}...")
+        host_config = host_config_path(args.client)
         configure_client(args.client, java, args_file)
     current_directory = Path.cwd().resolve()
     skills_paths = shaft_skills_targets(current_directory, args.client)
@@ -1859,6 +2446,21 @@ def install(args: argparse.Namespace) -> None:
         if shaft_cli_launcher:
             components["shaftCli"] = {"installed": True, "launcher": str(shaft_cli_launcher)}
         result = {"components": components}
+    receipt = build_install_receipt(
+        version=version,
+        client=args.client,
+        java=java,
+        mcp_jar=jar,
+        cli_jar=shaft_cli_jar,
+        cli_launcher=shaft_cli_launcher,
+        skills_paths=list(skills_paths) if skills_installed else [],
+        args_file=args_file,
+        host_config=host_config,
+    )
+    receipt_file = write_receipt(merge_with_previous_receipt(receipt), dry_run=False)
+    clear_heal_handoff()
+    result["brand"] = BRAND_NAME
+    result["receipt"] = str(receipt_file)
     if args.json:
         print(json.dumps(result, separators=(",", ":")))
     else:
@@ -1876,15 +2478,37 @@ def install(args: argparse.Namespace) -> None:
         if args.install_mcp:
             print(activation_hint(args.client))
             print(f"User guide: {USER_GUIDE_URL}")
+        print_component_table(receipt.get("components") or {})
+        print(f"Receipt    {receipt_file}")
+        print(f"Guide      {GUIDE_URL}")
 
 
 def main(argv: list[str]) -> int:
     try:
         args = parse_args(argv)
-        install(args)
-        return 0
+        command = getattr(args, "command", "install")
+        if command == "install":
+            install(args)
+            return 0
+        if command == "status":
+            return cmd_status(args)
+        if command == "doctor":
+            return cmd_doctor(args)
+        if command == "repair":
+            return cmd_repair(args)
+        if command == "rollback":
+            return cmd_rollback(args)
+        if command == "uninstall":
+            return cmd_uninstall(args)
+        fail(f"Unknown command: {command}", 2)
+        return 2
     except InstallError as exc:
         print(f"install-shaft-agentic-tools: {exc}", file=sys.stderr)
+        command = argv[0] if argv and argv[0] in {"install", "repair", "rollback", "uninstall"} else "install"
+        if exc.code not in {2} and "--dry-run" not in argv and command != "uninstall":
+            handoff = write_heal_handoff(command, argv, exc)
+            if handoff is not None:
+                print(f"install-shaft-agentic-tools: heal handoff written to {handoff}", file=sys.stderr)
         return exc.code
     except KeyboardInterrupt:
         print("install-shaft-agentic-tools: interrupted", file=sys.stderr)
