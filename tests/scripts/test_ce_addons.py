@@ -517,7 +517,8 @@ class DesignRound3Tests(unittest.TestCase):
             self.assertEqual(0, self.run_qc("edgeclip", str(centered))[0])
 
     def test_staletext_finds_shorter_rewrites_without_erase(self):  # #6653
-        self.assertEqual("alling tools", self.qc.stale_rewrites([(0.5, "Installing tools\rDone\n")], 80)[0]["stale_tail"])
+        hits = self.qc.stale_rewrites([(0.5, "Installing tools\rDone\n")], 80)
+        self.assertEqual("alling tools", hits[0]["stale_tail"])
         self.assertEqual([], self.qc.stale_rewrites([(0.5, "Installing tools\r\x1b[KDone\n")], 80))
         self.assertEqual([], self.qc.stale_rewrites([(0.1, "50%"), (0.2, "\r100%\n")], 80))
         with tempfile.TemporaryDirectory() as temporary:
@@ -539,8 +540,10 @@ class DesignRound3Tests(unittest.TestCase):
     @unittest.skipUnless(shutil.which("pwsh"), "pwsh not installed")
     def test_psparse_parses_with_pwsh(self):  # #6654
         with tempfile.TemporaryDirectory() as temporary:
-            self.assertEqual(0, self.run_qc("psparse", self.write(temporary, "ok.ps1", "PS> Get-ChildItem | Select -First 1\n"))[0])
-            self.assertEqual(1, self.run_qc("psparse", self.write(temporary, "no.ps1", "PS> Get-ChildItem | | Select\n"))[0])
+            valid = self.write(temporary, "ok.ps1", "PS> Get-ChildItem | Select -First 1\n")
+            broken = self.write(temporary, "no.ps1", "PS> Get-ChildItem | | Select\n")
+            self.assertEqual(0, self.run_qc("psparse", valid)[0])
+            self.assertEqual(1, self.run_qc("psparse", broken)[0])
 
     def board(self, folder: str, **change: object) -> str:
         scenes = [

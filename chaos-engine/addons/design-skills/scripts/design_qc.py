@@ -768,6 +768,18 @@ def cmd_flatframes(args: argparse.Namespace) -> int:
     return report("flatframes", FAIL if found else PASS, runs=found, frames=len(stds), edge_s=args.edge)
 
 
+def segment_seconds(segment: dict) -> float:
+    if "hold" in segment:
+        return float(segment["hold"])
+    if "src" in segment:
+        return (float(segment["src"][1]) - float(segment["src"][0])) / float(segment.get("speed", 1.0))
+    return 0.0
+
+
+def hold_limit(segment: dict, plain: float, stepped: float) -> float:
+    return stepped if len(segment.get("marks", [])) >= 2 or segment.get("scroll") else plain
+
+
 def cmd_contenthold(args: argparse.Namespace) -> int:
     """EDL holds: plain holds up to --plain s, holds with 2+ stepping marks or a scroll up to --stepped s."""
     edl = json.loads(Path(args.edl).read_text(encoding="utf-8"))
@@ -775,16 +787,12 @@ def cmd_contenthold(args: argparse.Namespace) -> int:
     for clip in edl.get("clips", []):
         now = 0.0
         for segment in clip.get("segments", []):
-            if "hold" in segment:
-                count += 1
-                stepped = len(segment.get("marks", [])) >= 2 or bool(segment.get("scroll"))
-                limit = args.stepped if stepped else args.plain
-                if float(segment["hold"]) > limit + 1e-6:
-                    over.append({"clip": clip.get("id", "?"), "at": round(clip_start + now, 2),
-                                 "hold": float(segment["hold"]), "limit": limit})
-                now += float(segment["hold"])
-            elif "src" in segment:
-                now += (float(segment["src"][1]) - float(segment["src"][0])) / float(segment.get("speed", 1.0))
+            limit = hold_limit(segment, args.plain, args.stepped)
+            count += "hold" in segment
+            if "hold" in segment and float(segment["hold"]) > limit + 1e-6:
+                over.append({"clip": clip.get("id", "?"), "at": round(clip_start + now, 2),
+                             "hold": float(segment["hold"]), "limit": limit})
+            now += segment_seconds(segment)
         clip_start += float(clip.get("dur", now))
     return report("contenthold", FAIL if over else PASS, holds=count, over_limit=over)
 
@@ -911,23 +919,15 @@ class StaleScreen:
 
     def move(self, final: str, values: list[int]) -> None:
         self.end()
-        n = values[0] if values and values[0] else 1
+        first = values[0] if values and values[0] else 1
+        second = values[1] if len(values) > 1 and values[1] else 1
         top = max(0, max(self.rows, default=0) - self.height + 1)
-        if final == "A":
-            self.y = max(0, self.y - n)
-        elif final in "BE":
-            self.y += n
-        elif final == "C":
-            self.x += n
-        elif final == "D":
-            self.x = max(0, self.x - n)
-        elif final == "G":
-            self.x = n - 1
-        elif final in "Hf":
-            self.y = top + (values[0] if values and values[0] else 1) - 1
-            self.x = (values[1] if len(values) > 1 and values[1] else 1) - 1
-        if final in "EF":
-            self.x = 0
+        x, y = {
+            "A": (self.x, max(0, self.y - first)), "B": (self.x, self.y + first), "C": (self.x + first, self.y),
+            "D": (max(0, self.x - first), self.y), "E": (0, self.y + first), "F": (0, max(0, self.y - first)),
+            "G": (first - 1, self.y), "H": (second - 1, top + first - 1), "f": (second - 1, top + first - 1),
+        }[final]
+        self.x, self.y = x, y
 
     def control(self, char: str) -> None:
         if char in "\r\n":
@@ -943,19 +943,20 @@ class StaleScreen:
         elif char >= " ":
             self.draw(char)
 
+    def csi(self, final: str, values: list[int]) -> None:
+        if final in "KJ":
+            self.erase(final, values[0] if values else 0)
+        elif final in "ABCDEFGHf":
+            self.move(final, values)
+
     def feed(self, data: str) -> None:
         position = 0
         for match in CSI.finditer(data):
             for char in data[position:match.start()]:
                 self.control(char)
             position = match.end()
-            final = match.group(2)
-            if final:
-                values = [int(v) for v in match.group(1).replace("?", "").split(";") if v.isdigit()]
-                if final in "KJ":
-                    self.erase(final, values[0] if values else 0)
-                elif final in "ABCDEFGHf":
-                    self.move(final, values)
+            if match.group(2):
+                self.csi(match.group(2), [int(v) for v in match.group(1).replace("?", "").split(";") if v.isdigit()])
         for char in data[position:]:
             self.control(char)
         self.end()
@@ -978,7 +979,8 @@ def cmd_staletext(args: argparse.Namespace) -> int:
     return report("staletext", FAIL if hits else PASS, events=len(events), hits=hits[:50], count=len(hits))
 
 
-PS_PARSE = ("$e=$null;$t=$null;[void][System.Management.Automation.Language.Parser]::ParseInput($env:CMD,[ref]$t,[ref]$e);"
+PS_PARSE = ("$e=$null;$t=$null;"
+            "[void][System.Management.Automation.Language.Parser]::ParseInput($env:CMD,[ref]$t,[ref]$e);"
             "$e | ForEach-Object { $_.Message }")
 
 
@@ -987,19 +989,20 @@ def ps_commands(text: str) -> list[str]:
     return [re.sub(r"(?m)^PS> ?", "", block).rstrip() for block in blocks if block.strip()]
 
 
+def ps_row(command: str, pwsh: str | None) -> dict:
+    errors = []
+    if pwsh:
+        result = subprocess.run([pwsh, "-NoProfile", "-NonInteractive", "-Command", PS_PARSE],  # nosec B603
+                                capture_output=True, text=True, check=False, env={**os.environ, "CMD": command})
+        errors = [line for line in result.stdout.splitlines() if line.strip()]
+    return {"command": command.replace("\n", " / ")[:200], "parse_errors": errors,
+            "backslash_continuation": bool(re.search(r"\\\s*$", command, re.MULTILINE))}
+
+
 def cmd_psparse(args: argparse.Namespace) -> int:
     """PowerShell on screen parses with pwsh and never ends a line with a bash backslash."""
-    commands = ps_commands(Path(args.file).read_text(encoding="utf-8"))
     pwsh = None if args.static else need("pwsh")
-    rows = []
-    for command in commands:
-        errors = []
-        if pwsh:
-            result = subprocess.run([pwsh, "-NoProfile", "-NonInteractive", "-Command", PS_PARSE],  # nosec B603
-                                    capture_output=True, text=True, check=False, env={**os.environ, "CMD": command})
-            errors = [line for line in result.stdout.splitlines() if line.strip()]
-        rows.append({"command": command.replace("\n", " / ")[:200], "parse_errors": errors,
-                     "backslash_continuation": bool(re.search(r"\\\s*$", command, re.M))})
+    rows = [ps_row(command, pwsh) for command in ps_commands(Path(args.file).read_text(encoding="utf-8"))]
     failed = not rows or any(r["parse_errors"] or r["backslash_continuation"] for r in rows)
     return report("psparse", FAIL if failed else PASS, commands=rows, parsed=bool(pwsh))
 
@@ -1018,29 +1021,42 @@ def placed_scenes(scenes: list[dict]) -> list[tuple[dict, float, float]]:
     return placed
 
 
-def arc_problems(scenes: list[dict], band: tuple[float, float], audience: str, hook_s: float) -> list[str]:
-    placed = placed_scenes(scenes)
-    total = placed[-1][2] if placed else 0.0
-    beats = [scene.get("beat") for scene in scenes]
+def beat_order_problems(beats: list) -> list[str]:
     problems = [f"missing beat: {beat}" for beat in BEATS if beat not in beats]
     core = [b for b in beats[:-1] if b != "cta"] + beats[-1:]
     ranks = [BEATS.index(b) for b in core if b in BEATS]
     if any(a > b for a, b in zip(ranks, ranks[1:])):
         problems.append("order: beats must run hook, problem, solution, proof, cta")
-    if not placed or beats[0] != "hook" or placed[0][1] > 0:
-        problems.append("hook: the first scene must be the hook, starting at 0 s")
-    else:
-        hook_end = max(end for scene, _, end in placed if scene.get("beat") == "hook")
-        if hook_end > hook_s + 1e-6:
-            problems.append(f"hook ends at {hook_end:.1f}s > {hook_s:.1f}s")
-    if beats and beats[-1] != "cta":
-        problems.append("cta: the last beat must be the call to action")
-    elif placed and placed[-1][1] < 0.8 * total:
-        problems.append(f"cta starts at {placed[-1][1]:.1f}s, before 80% of {total:.1f}s")
-    for scene, _, _ in placed:
+    return problems
+
+
+def hook_problems(placed: list[tuple[dict, float, float]], hook_s: float) -> list[str]:
+    if not placed or placed[0][0].get("beat") != "hook" or placed[0][1] > 0:
+        return ["hook: the first scene must be the hook, starting at 0 s"]
+    hook_end = max(end for scene, _, end in placed if scene.get("beat") == "hook")
+    return [f"hook ends at {hook_end:.1f}s > {hook_s:.1f}s"] if hook_end > hook_s + 1e-6 else []
+
+
+def cta_problems(placed: list[tuple[dict, float, float]], total: float) -> list[str]:
+    if not placed or placed[-1][0].get("beat") != "cta":
+        return ["cta: the last beat must be the call to action"]
+    start = placed[-1][1]
+    return [f"cta starts at {start:.1f}s, before 80% of {total:.1f}s"] if start < 0.8 * total else []
+
+
+def proof_problems(scenes: list[dict]) -> list[str]:
+    def evidenced(scene: dict) -> bool:
         claims = scene.get("claims", [])
-        if scene.get("beat") == "proof" and (not claims or any(not c.get("evidence") for c in claims)):
-            problems.append(f"proof {scene.get('id', '?')}: needs claims with evidence")
+        return bool(claims) and all(c.get("evidence") for c in claims)
+    return [f"proof {s.get('id', '?')}: needs claims with evidence" for s in scenes
+            if s.get("beat") == "proof" and not evidenced(s)]
+
+
+def arc_problems(scenes: list[dict], band: tuple[float, float], audience: str, hook_s: float) -> list[str]:
+    placed = placed_scenes(scenes)
+    total = placed[-1][2] if placed else 0.0
+    problems = beat_order_problems([scene.get("beat") for scene in scenes])
+    problems += hook_problems(placed, hook_s) + cta_problems(placed, total) + proof_problems(scenes)
     if not band[0] <= total <= band[1]:
         problems.append(f"duration {total:.1f}s outside {audience} band {band[0]:.0f}-{band[1]:.0f}s")
     return problems
@@ -1056,19 +1072,20 @@ def cmd_arc(args: argparse.Namespace) -> int:
     return report("arc", FAIL if problems else PASS, audience=audience, band=list(band), problems=problems)
 
 
+def description_gap(scene: dict, minimum: float) -> dict | None:
+    shown = [w for w in words(scene.get("onScreenText", "")) if w not in STOP and len(w) > 1]
+    if not shown or scene.get("description"):
+        return None
+    spoken = set(words(scene.get("vo", "")))
+    missing = [w for w in shown if w not in spoken]
+    coverage = round(1 - len(missing) / len(shown), 2)
+    return {"id": scene.get("id", "?"), "coverage": coverage, "missing": missing} if coverage < minimum else None
+
+
 def cmd_describe(args: argparse.Namespace) -> int:
     """WCAG 2.2 1.2.5: on-screen text is spoken in the scene's narration or described."""
     data = json.loads(Path(args.storyboard).read_text(encoding="utf-8"))
-    failed = []
-    for scene in data.get("scenes", []):
-        shown = [w for w in words(scene.get("onScreenText", "")) if w not in STOP and len(w) > 1]
-        if not shown or scene.get("description"):
-            continue
-        spoken = set(words(scene.get("vo", "")))
-        missing = [w for w in shown if w not in spoken]
-        coverage = round(1 - len(missing) / len(shown), 2)
-        if coverage < args.min:
-            failed.append({"id": scene.get("id", "?"), "coverage": coverage, "missing": missing})
+    failed = [gap for scene in data.get("scenes", []) if (gap := description_gap(scene, args.min))]
     return report("describe", FAIL if failed else PASS, scenes=failed, min=args.min)
 
 
