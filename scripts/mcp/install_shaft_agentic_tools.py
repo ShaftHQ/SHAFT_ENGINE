@@ -435,7 +435,7 @@ def _probe_host_config_status(record: dict[str, Any]) -> tuple[str, str | None]:
 
 _COMPONENT_STATUS_PROBERS = {
     "java": lambda record, _receipt: _probe_java_status(record),
-    "shaft-mcp": lambda record, receipt: _probe_shaft_mcp_status(record, receipt),
+    "shaft-mcp": _probe_shaft_mcp_status,
     "shaft-cli": lambda record, _receipt: _probe_shaft_cli_status(record),
     "shaft-skills": lambda record, _receipt: _probe_shaft_skills_status(record),
     "host-config": lambda record, _receipt: _probe_host_config_status(record),
