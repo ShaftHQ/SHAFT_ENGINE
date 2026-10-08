@@ -2,6 +2,7 @@
 
 import importlib.util
 import io
+import json
 import os
 import shutil
 import sqlite3
@@ -368,6 +369,43 @@ class MaintainTest(unittest.TestCase):
         self.assertIn("portable", commands[0])
         self.assertIn("doctor", commands[1])
         self.assertEqual(["stores", "refresh", "--if-stale"], commands[2][-3:])
+
+    def _digest_manifest(self, repository: str, branch: str) -> Path:
+        import hashlib
+        root = self.tmp / "digest-core"
+        root.mkdir(exist_ok=True)
+        source = {"commit": "0" * 40, "kind": "git-digest",
+                  "repositorySha256": hashlib.sha256(repository.casefold().encode()).hexdigest(),
+                  "branchSha256": hashlib.sha256(branch.encode()).hexdigest()}
+        (root / "manifest.json").write_text(
+            json.dumps({"source": source, "distribution": {"id": "portable"}}), encoding="utf-8")
+        _git(self.work, "remote", "set-url", "origin", "https://github.com/Acme/Widget.git")
+        return root
+
+    def test_digest_install_recovers_repository_and_branch_6664(self):
+        root = self._digest_manifest("Acme/Widget", "main")
+        reinstall = self.tool.maintain_commands(root, self.work)[0]
+        self.assertEqual(["--repository", "Acme/Widget"], reinstall[4:6])
+        self.assertEqual("main", reinstall[reinstall.index("--branch") + 1])
+        self.assertNotIn("", reinstall)
+
+    def test_digest_install_unknown_branch_is_omitted_6664(self):
+        root = self._digest_manifest("Acme/Widget", "release-x")
+        reinstall = self.tool.maintain_commands(root, self.work)[0]
+        self.assertNotIn("--branch", reinstall)
+        self.assertIn("Acme/Widget", reinstall)
+
+    def test_digest_install_unknown_repository_fails_before_bootstrap_6664(self):
+        root = self._digest_manifest("Other/Repo", "main")
+        with self.assertRaisesRegex(ValueError, "install one-liner"):
+            self.tool.maintain_commands(root, self.work)
+        (root / "bootstrap.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
+        calls = []
+        with unittest.mock.patch.object(self.tool, "shared_project_root", return_value=self.work), \
+                unittest.mock.patch.object(self.tool, "maintain_sync", return_value=(True, "sync: current")):
+            code = self.tool.maintain(root, runner=lambda *a, **k: calls.append(a))
+        self.assertEqual(1, code)
+        self.assertEqual([], calls)
 
     def test_kanban_dod_runs_maintain(self):
         kanban = (SOURCE / "skills/kanban/SKILL.md").read_text(encoding="utf-8")

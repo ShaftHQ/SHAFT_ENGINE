@@ -603,6 +603,13 @@ class DesignRound3Tests(unittest.TestCase):
         for rule in ("hook", "proof", "cta", "design_qc.py arc", "engagement"):
             self.assertIn(rule, arc)
 
+    def test_voice_card_separates_synthesis_and_asr(self):  # #6663
+        voice = (DESIGN / "references/voice-over-tts.md").read_text(encoding="utf-8")
+        for rule in ("separate processes", "temperature 0", "harness fault", "G2P"):
+            self.assertIn(rule, voice)
+        runbook = (DESIGN / "references/pipelines/runbook.md").read_text(encoding="utf-8")
+        self.assertIn("two processes", runbook)
+
 
 if __name__ == "__main__":
     unittest.main()

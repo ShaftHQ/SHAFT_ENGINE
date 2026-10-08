@@ -23,7 +23,8 @@ non-commercial licences are refused.
   expand acronyms on first use.
 - Keep a pronunciation lexicon (`lexicon.json`, term to phonetic spelling or
   IPA) for product names and commands. Fix pronunciation in the lexicon,
-  never by misspelling captions.
+  never by misspelling captions. Check names a G2P model can misread
+  (Appium, GUI, CLI) with phonemes and ASR before render.
 - Spoken forms for CLI syntax: "the with design skills flag", never a
   literal `--flag`, path, or variable. A script line keeps `text` (shown)
   and an optional `say` (spoken).
@@ -40,10 +41,13 @@ non-commercial licences are refused.
 
 1. Extract narration lines per scene from `storyboard.json`.
 2. Apply the lexicon; render each scene to 24 kHz or 48 kHz WAV.
-3. Transcribe each line WAV and compare with its script line. Pin ASR
-   threads (4; 8 was nondeterministic) and run only on an idle machine:
-   ASR under load invents repeats. Confirm any finding on the line WAV;
-   one whole-file pass is never ground truth.
+3. Transcribe each line WAV and compare with its script line. Synthesis
+   and ASR run as separate processes (`synth`, then `asr`), never in one
+   interpreter: onnxruntime beside ctranslate2 garbled transcripts. ASR is
+   deterministic: temperature 0, no conditioning on previous text, threads
+   pinned (4). A transcript that changes between two runs of one WAV is a
+   harness fault, not a voice fault. Run only on an idle machine and
+   confirm any finding on the line WAV.
 4. Normalize the stem per D15; update scene durations from real lengths.
 
 ## Verify
