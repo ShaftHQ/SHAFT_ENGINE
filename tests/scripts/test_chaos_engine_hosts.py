@@ -1291,10 +1291,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         self.assertEqual(1, document["version"])
         self.assertEqual(expected, set(document["hooks"]))
-        for handlers in document["hooks"].values():
+        for event, handlers in document["hooks"].items():
             self.assertEqual(1, len(handlers))
             self.assertEqual(
-                "node .chaos-engine/hooks/launch.js copilot", handlers[0]["bash"]
+                f"node .chaos-engine/hooks/launch.js copilot {event}",
+                handlers[0]["bash"],
             )
             self.assertEqual(handlers[0]["bash"], handlers[0]["powershell"])
 
