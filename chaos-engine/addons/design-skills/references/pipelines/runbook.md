@@ -49,7 +49,8 @@ failure: `vooverlap`, `levels` (verify, then CRF retry per D14), `static`,
 
 ## 3. Idle full QC
 
-When no render runs, `design_qc.py idle --wait 600` passes, then ASR
+Voice pre-check is two commands in two processes: synthesize every line,
+then transcribe every line WAV (D17). When no render runs, `design_qc.py idle --wait 600` passes, then ASR
 (`vowords`, `tts`) and the full `all qc-plan.json`. ASR or QC on a loaded
 machine produces false alarms; a finding is confirmed on the line WAV or a
 second run before anyone investigates it.

@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import os
+import re
 import runpy
 import shutil
 import subprocess  # nosec B404 - executes only fixed owned tool names.
@@ -140,18 +141,64 @@ def maintain_sync(project: Path, *, runner=subprocess.run) -> tuple[bool, str]:
     return True, f"sync: fast-forwarded {behind} commit(s)" + (", edits kept" if dirty else "")
 
 
+MAINTAIN_UNKNOWN_SOURCE = (
+    "maintain: cannot recover the install source from its digest; rerun the install one-liner "
+    "(or set CHAOS_ENGINE_REPOSITORY=owner/repository) (#6664)"
+)
+
+
+def _digest(value: str) -> str:
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _origin_repository(project: Path) -> str:
+    """`owner/name` of the project's origin remote, or "" when it is not a GitHub remote."""
+    try:
+        url = _maintain_git(project, "remote", "get-url", DEFAULT_REMOTE).stdout.strip()
+    except (OSError, ValueError):
+        return ""
+    match = re.search(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$", url)
+    return match.group(1) if match else ""
+
+
+def _match_digest(digest: object, candidates: tuple[str, ...], *, fold: bool = False) -> str:
+    """First candidate whose sha256 equals the recorded digest, else ""."""
+    for candidate in candidates:
+        if candidate and _digest(candidate.casefold() if fold else candidate) == digest:
+            return candidate
+    return ""
+
+
+def recorded_source(source: dict, project: Path) -> tuple[str, str]:
+    """Plain `repository`/`branch` win; git-digest installs match candidates by sha256 (#6664)."""
+    repository = str(source.get("repository") or "") or _match_digest(
+        source.get("repositorySha256"),
+        (os.environ.get("CHAOS_ENGINE_REPOSITORY", ""), _origin_repository(project)), fold=True)
+    branch = str(source.get("branch") or "") or _match_digest(
+        source.get("branchSha256"), (default_branch_name(project), *DEFAULT_BRANCH_FALLBACKS))
+    return repository, branch
+
+
 def maintain_commands(installed_root: Path, project: Path) -> list[list[str]]:
-    """Reinstall from the recorded source, then doctor and a stale-store refresh."""
+    """Reinstall from the recorded source, then doctor and a stale-store refresh.
+
+    Raises ValueError when the source cannot be recovered; empty values are never passed on.
+    """
     import json
 
     manifest = json.loads((installed_root / "manifest.json").read_text(encoding="utf-8"))
-    source = manifest.get("source", {})
+    repository, branch = recorded_source(manifest.get("source", {}), project)
+    if not repository:
+        raise ValueError(MAINTAIN_UNKNOWN_SOURCE)
     python = sys.executable
+    reinstall = [python, str(installed_root / "bootstrap.py"), "--project", str(project), "--repository", repository]
+    if branch:
+        reinstall += ["--branch", branch]
+    distribution = str(manifest.get("distribution", {}).get("id", ""))
+    if distribution:
+        reinstall += ["--distribution", distribution]
     return [
-        [python, str(installed_root / "bootstrap.py"), "--project", str(project),
-         "--repository", str(source.get("repository", "")),
-         "--branch", str(source.get("branch", "")),
-         "--distribution", str(manifest.get("distribution", {}).get("id", ""))],
+        reinstall,
         [python, str(installed_root / "install.py"), "doctor", "--project", str(project)],
         [python, str(installed_root / "tool.py"), "stores", "refresh", "--if-stale"],
     ]
@@ -164,7 +211,12 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
     print(summary)
     if not ok:
         return 1
-    for command in maintain_commands(installed_root, project):
+    try:
+        commands = maintain_commands(installed_root, project)
+    except ValueError as error:
+        print(error, file=sys.stderr)
+        return 1
+    for command in commands:
         completed = runner(command, cwd=project, check=False)  # nosec B603 - fixed owned argv.
         if completed.returncode != 0:
             print(f"maintain: failed at `{' '.join(command[1:3])}`", file=sys.stderr)
