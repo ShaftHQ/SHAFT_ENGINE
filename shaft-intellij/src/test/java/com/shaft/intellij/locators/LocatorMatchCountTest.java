@@ -37,6 +37,15 @@ class LocatorMatchCountTest {
     }
 
     @Test
+    void highlightedMatchesSayTheyAreOutlinedInTheLiveBrowser() {
+        assertEquals("element_highlight", LocatorMatchCount.TOOL_NAME);
+        assertEquals("2 matches, highlighted in the live browser", LocatorMatchCount.message(new ShaftMcpToolResult(
+                true, "{\"activeEngine\":\"WEB\",\"count\":2,\"highlighted\":true}", null, null)));
+        assertEquals("1 match", LocatorMatchCount.message(new ShaftMcpToolResult(
+                true, "{\"activeEngine\":\"MOBILE_NATIVE\",\"count\":1,\"highlighted\":false}", null, null)));
+    }
+
+    @Test
     void noSessionGuidesTheUserToStartOne() {
         assertTrue(LocatorMatchCount.message(new ShaftMcpToolResult(false, "no active driver", null, null))
                 .startsWith(LocatorMatchCount.START_SESSION));

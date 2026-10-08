@@ -1,0 +1,1 @@
+driver.assertThat().element(<spot>By.id("total")</spot>).text().isEqualTo("42").perform();

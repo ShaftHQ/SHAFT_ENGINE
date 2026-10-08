@@ -21,10 +21,12 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * Gutter action on {@code By.id/cssSelector/xpath/name/tagName/className("...")} that reports how
- * many elements the locator matches in the live SHAFT session (issue #6421), and the same for
- * {@code Locator.hasTagName(..)...build()} chains with literal arguments (issue #6445).
+ * many elements the locator matches in the live SHAFT session (issue #6421) and outlines them in the
+ * live browser (issue #6640), and the same for {@code Locator.hasTagName(..)...build()} chains with
+ * literal arguments (issue #6445).
  */
 public final class LocatorMatchCountLineMarkerProvider implements LineMarkerProvider {
+    static final String TOOLTIP = "Highlight and count live matches for this locator";
     private static final String BUILDER = "com.shaft.gui.internal.locator.LocatorBuilder";
     private static final java.util.Set<String> STARTS = java.util.Set.of("hasTagName", "hasAnyTagName");
 
@@ -55,9 +57,9 @@ public final class LocatorMatchCountLineMarkerProvider implements LineMarkerProv
             return null;
         }
         return new LineMarkerInfo<>(element, element.getTextRange(), AllIcons.Actions.Find,
-                com.intellij.util.FunctionUtil.constant("Count live matches for this locator"),
+                com.intellij.util.FunctionUtil.constant(TOOLTIP),
                 (mouseEvent, identifier) -> check(identifier, label, arguments),
-                GutterIconRenderer.Alignment.LEFT, () -> "Count live matches for this locator");
+                GutterIconRenderer.Alignment.LEFT, () -> TOOLTIP);
     }
 
     /**

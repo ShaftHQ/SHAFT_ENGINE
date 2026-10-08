@@ -8,11 +8,12 @@ import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import java.util.Map;
 
 /**
- * Pure contract for validating a {@code By.*} locator against the live SHAFT session through the
- * {@code element_count} MCP tool (issue #6421).
+ * Pure contract for validating a {@code By.*} locator against the live SHAFT session (issue #6421)
+ * through the {@code element_highlight} MCP tool, which also outlines the matches in the live
+ * browser (issue #6640).
  */
 public final class LocatorMatchCount {
-    public static final String TOOL_NAME = "element_count";
+    public static final String TOOL_NAME = "element_highlight";
     public static final String START_SESSION = "No live SHAFT session. Start a session from the SHAFT "
             + "tool window (Capture or Locator Playground), open the page, then check the locator again.";
     private static final Map<String, String> STRATEGIES = Map.of(
@@ -47,28 +48,34 @@ public final class LocatorMatchCount {
         return arguments;
     }
 
-    /** {@code N matches}, or the guided start-a-session message when there is no live session. */
+    /**
+     * {@code N matches}, with {@code , highlighted in the live browser} when the matches were outlined,
+     * or the guided start-a-session message when there is no live session.
+     */
     public static String message(ShaftMcpToolResult result) {
-        Integer count = result == null || !result.success() ? null : count(result.output());
-        if (count == null) {
+        JsonObject payload = result == null || !result.success() ? null : payload(result.output());
+        if (payload == null) {
             String detail = result == null || result.output() == null ? "" : result.output().strip();
             return detail.isEmpty() ? START_SESSION : START_SESSION + " (" + detail + ")";
         }
-        return count + (count == 1 ? " match" : " matches");
+        int count = payload.get("count").getAsInt();
+        boolean highlighted = payload.has("highlighted") && payload.get("highlighted").isJsonPrimitive()
+                && payload.get("highlighted").getAsBoolean();
+        return count + (count == 1 ? " match" : " matches") + (highlighted ? ", highlighted in the live browser" : "");
     }
 
-    private static Integer count(String output) {
+    private static JsonObject payload(String output) {
         JsonObject payload = parse(output);
         if (payload == null) {
             return null;
         }
         if (payload.has("count") && payload.get("count").isJsonPrimitive()) {
-            return payload.get("count").getAsInt();
+            return payload;
         }
         if (payload.has("content") && payload.get("content").isJsonArray()) {
             for (JsonElement entry : payload.getAsJsonArray("content")) {
                 if (entry.isJsonObject() && entry.getAsJsonObject().has("text")) {
-                    Integer nested = count(entry.getAsJsonObject().get("text").getAsString());
+                    JsonObject nested = payload(entry.getAsJsonObject().get("text").getAsString());
                     if (nested != null) {
                         return nested;
                     }

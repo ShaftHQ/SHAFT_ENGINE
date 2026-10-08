@@ -24,6 +24,12 @@
                 implementationClass="com.shaft.intellij.testindex.LastRunInlayHintsProvider"
                 isEnabledByDefault="true" group="OTHER_GROUP" bundle="messages.ShaftBundle"
                 nameKey="inlay.shaft.lastRun.name" descriptionKey="inlay.shaft.lastRun.description"/>
+        <!-- Fix with SHAFT Assistant on a line where the last run failed (issue #6636). -->
+        <intentionAction>
+            <language>JAVA</language>
+            <className>com.shaft.intellij.actions.FixWithShaftAssistantIntention</className>
+            <category>SHAFT</category>
+        </intentionAction>
     </extensions>
     <actions>
         <action id="Shaft.RecordJavaTarget"

@@ -553,6 +553,18 @@ public class PlaywrightService {
     }
 
     /**
+     * Highlights the Playwright elements a locator matches and returns how many there are (#6640).
+     */
+    public int highlight(locatorStrategy locatorStrategy, String locatorValue) {
+        com.microsoft.playwright.Locator locator = locator(locatorStrategy, locatorValue);
+        int count = locator.count();
+        if (count > 0) {
+            locator.highlight();
+        }
+        return count;
+    }
+
+    /**
      * Checks Playwright element enabled state.
      */
     public boolean isEnabled(locatorStrategy locatorStrategy, String locatorValue) {

@@ -1042,6 +1042,11 @@
       "mutation": false,
       "sensitive": false,
       "deprecated": false
+    },
+    "element_highlight": {
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
     }
   }
 }

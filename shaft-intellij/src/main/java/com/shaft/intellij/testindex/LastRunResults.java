@@ -21,14 +21,18 @@ import java.util.regex.Pattern;
  * (issues #6423, #6424). Malformed files are skipped; a missing directory is an empty map.
  */
 public final class LastRunResults {
+    static final int HINT_LIMIT = 160;
     private static final Pattern FRAME = Pattern.compile("^\\s*at\\s+([\\w.$]+)\\.([\\w$<>]+)\\([^:()]*:(\\d+)\\)");
 
     /** A source location of a failure. */
     public record Frame(String className, String method, int line) {
     }
 
-    /** The newest outcome of one test. {@code frame} is null for passed tests or unknown traces. */
-    public record Result(String fullName, String status, long start, long durationMillis, Frame frame) {
+    /**
+     * The newest outcome of one test. {@code frame} is null for passed tests or unknown traces;
+     * {@code message} is the Allure {@code statusDetails.message}, blank when absent.
+     */
+    public record Result(String fullName, String status, long start, long durationMillis, Frame frame, String message) {
         public boolean failed() {
             return "failed".equals(status) || "broken".equals(status);
         }
@@ -36,6 +40,12 @@ public final class LastRunResults {
         /** Compact inline hint, for example {@code ✗ failed · 1.3 s}. */
         public String label() {
             return (failed() ? "✗ " : "✓ ") + status + String.format(Locale.ROOT, " · %.1f s", durationMillis / 1000.0);
+        }
+
+        /** One-line failure message for an end-of-line hint, capped at {@value #HINT_LIMIT} characters (#6636). */
+        public String failureHint() {
+            String line = message == null || message.isBlank() ? status : message.strip().split("\\R", 2)[0].strip();
+            return "✗ " + (line.length() > HINT_LIMIT ? line.substring(0, HINT_LIMIT - 1) + "…" : line);
         }
     }
 
@@ -134,10 +144,25 @@ public final class LastRunResults {
                     ? json.getAsJsonObject("statusDetails") : new JsonObject();
             String status = SmartTagHistoryReader.text(json, "status").toLowerCase(Locale.ROOT);
             return new Result(fullName, status, start, Math.max(0, stop - start),
-                    frame(SmartTagHistoryReader.text(details, "trace"), fullName));
+                    frame(SmartTagHistoryReader.text(details, "trace"), fullName),
+                    SmartTagHistoryReader.text(details, "message"));
         } catch (IOException | RuntimeException malformed) {
             return null;
         }
+    }
+
+    /**
+     * Failures of the last run whose frame is in {@code qualifiedClass}, keyed by 1-based line; the
+     * newest failure wins when several tests fail at the same line (#6636).
+     */
+    public static Map<Integer, Result> failuresAt(Map<String, Result> results, String qualifiedClass) {
+        Map<Integer, Result> byLine = new java.util.TreeMap<>();
+        results.values().stream().distinct()
+                .filter(result -> result.failed() && result.frame() != null
+                        && result.frame().className().replace('$', '.').equals(qualifiedClass))
+                .forEach(result -> byLine.merge(result.frame().line(), result,
+                        (a, b) -> a.start() >= b.start() ? a : b));
+        return byLine;
     }
 
     /** Prefers the frame inside the test class, else the first frame outside test frameworks. */

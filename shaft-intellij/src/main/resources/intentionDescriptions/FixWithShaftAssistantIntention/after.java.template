@@ -1,0 +1,2 @@
+// SHAFT Assistant: "Fix this code: the SHAFT test demo.CartTest.total failed at line 12 with: expected 42 but found 41"
+driver.assertThat().element(By.id("total")).text().isEqualTo("42").perform();

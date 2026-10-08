@@ -1486,6 +1486,21 @@
       "description" : null
     } ]
   }, {
+    "name" : "element_highlight",
+    "service" : "ElementService",
+    "description" : "briefly outlines the elements a locator matches on the live page and returns the match count; dispatches to the active engine",
+    "params" : [ {
+      "name" : "locatorStrategy",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    }, {
+      "name" : "locatorValue",
+      "type" : "string",
+      "required" : true,
+      "description" : null
+    } ]
+  }, {
     "name" : "element_hover",
     "service" : "ElementService",
     "description" : "hovers over an element; dispatches to the active engine and records the step when a Playwright recording is active",

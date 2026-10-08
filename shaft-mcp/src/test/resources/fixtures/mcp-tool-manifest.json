@@ -439,6 +439,12 @@
       "deprecated": false
     },
     {
+      "name": "element_highlight",
+      "mutation": false,
+      "sensitive": false,
+      "deprecated": false
+    },
+    {
       "name": "element_is_enabled",
       "mutation": false,
       "sensitive": false,
