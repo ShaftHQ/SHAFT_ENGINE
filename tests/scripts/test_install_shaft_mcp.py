@@ -1645,5 +1645,111 @@ class AgenticToolsLifecycleTest(unittest.TestCase):
                 self.assertFalse((root / MODULE.RECEIPT_NAME).exists())
 
 
+class AgenticToolsCeParityTest(unittest.TestCase):
+    """CE installer standard parity for #6644: live host probe, heal handoff, scoped repair, clean uninstall."""
+
+    def _receipt(self, root, client="claude-desktop", host=None, java=None, args_file=None, **extra):
+        components = {"shaft-mcp": {"status": "healthy", "path": str(root / "mcp.jar")}}
+        if host is not None:
+            components["host-config"] = {"status": "healthy", "client": client, "path": str(host),
+                                         "command": str(java), "argsFile": str(args_file)}
+        receipt = {"schemaVersion": MODULE.RECEIPT_SCHEMA_VERSION, "version": "1.0.0", "client": client,
+                   "components": components, "ownedFiles": []}
+        receipt.update(extra)
+        return receipt
+
+    def _host_files(self, root):
+        java = root / "java"
+        java.write_text("#!/bin/sh\n")
+        args_file = root / "shaft-mcp.args"
+        args_file.write_text("-jar mcp.jar\n")
+        host = root / "claude_desktop_config.json"
+        host.write_text(json.dumps({"mcpServers": {
+            "other": {"command": "node", "args": ["x.js"]},
+            MODULE.SERVER_NAME: {"command": str(java), "args": [f"@{args_file}"]}}}))
+        return java, args_file, host
+
+    def test_host_config_probe_rereads_client_configuration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            java, args_file, host = self._host_files(root)
+            receipt = self._receipt(root, host=host, java=java, args_file=args_file)
+            self.assertEqual(MODULE.probe_component("host-config", receipt)["status"], "healthy")
+            data = json.loads(host.read_text())
+            data["mcpServers"][MODULE.SERVER_NAME]["command"] = "/usr/bin/java"
+            host.write_text(json.dumps(data))
+            probe = MODULE.probe_component("host-config", receipt)
+            self.assertEqual(probe["status"], "recovery-required")
+            self.assertIn("drift", probe["detail"])
+            host.unlink()
+            self.assertIn("missing", MODULE.probe_component("host-config", receipt)["detail"])
+
+    def test_failed_repair_writes_heal_handoff_and_doctor_points_to_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(MODULE, "application_data_root", return_value=root):
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    code = MODULE.main(["repair", "--component", "shaft-mcp"])
+                self.assertEqual(code, 4)
+                handoff = root / MODULE.HEAL_HANDOFF_NAME
+                text = handoff.read_text()
+                self.assertIn("SHAFT Engine", text)
+                self.assertIn("repair --component shaft-mcp", text)
+                self.assertIn("## Agent prompt", text)
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout):
+                    MODULE.main(["doctor", "--json"])
+                self.assertIn(MODULE.HEAL_HANDOFF_NAME, json.loads(stdout.getvalue())["fixNext"])
+
+    def test_scoped_install_keeps_untouched_receipt_components(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(MODULE, "application_data_root", return_value=root):
+                MODULE.write_receipt(self._receipt(root, ownedFiles=[{"path": str(root / "mcp.jar")}]))
+                merged = MODULE.merge_with_previous_receipt({
+                    "components": {"shaft-cli": {"status": "healthy", "path": str(root / "cli.jar")}},
+                    "ownedFiles": [{"path": str(root / "cli.jar")}], "client": None, "version": None})
+                self.assertEqual(set(merged["components"]), {"shaft-mcp", "shaft-cli"})
+                self.assertEqual(merged["client"], "claude-desktop")
+                self.assertEqual(merged["version"], "1.0.0")
+                self.assertEqual({item["path"] for item in merged["ownedFiles"]},
+                                 {str(root / "mcp.jar"), str(root / "cli.jar")})
+
+    def test_uninstall_removes_only_shaft_mcp_from_host_configuration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            java, args_file, host = self._host_files(root)
+            with mock.patch.object(MODULE, "application_data_root", return_value=root):
+                MODULE.write_receipt(self._receipt(root, host=host, java=java, args_file=args_file))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(MODULE.main(["uninstall", "--json"]), 0)
+            servers = json.loads(host.read_text())["mcpServers"]
+            self.assertNotIn(MODULE.SERVER_NAME, servers)
+            self.assertIn("other", servers)
+
+    def test_uninstall_removes_only_shaft_mcp_table_from_toml(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / "config.toml"
+            config.write_text('model = "x"\n\n[mcp_servers.shaft-mcp]\ncommand = "java"\n\n[mcp_servers.other]\ncommand = "y"\n')
+            self.assertTrue(MODULE.remove_host_entry("grok", config))
+            parsed = MODULE.tomllib.loads(config.read_text())
+            self.assertEqual(set(parsed["mcp_servers"]), {"other"})
+            self.assertEqual(parsed["model"], "x")
+
+    def test_rollback_reinstalls_previous_version_for_previous_client(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(MODULE, "application_data_root", return_value=root), \
+                    mock.patch.object(MODULE, "install") as install:
+                MODULE.write_receipt(self._receipt(root, client="claude"))
+                MODULE.write_receipt(self._receipt(root, client="claude", version="2.0.0"))
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(MODULE.main(["rollback"]), 0)
+                installed = install.call_args.args[0]
+                self.assertEqual(installed.client, "claude")
+                self.assertEqual(installed.version, "1.0.0")
+                self.assertTrue((root / "install-receipt.rolled-forward.json").is_file())
+
+
 if __name__ == "__main__":
     unittest.main()
