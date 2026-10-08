@@ -29,8 +29,8 @@ function currentRoot() {
   }
 }
 
-function guardPath() {
-  let root = currentRoot();
+function guardFrom(start) {
+  let root = start;
   while (true) {
     for (const relative of [
       ".chaos-engine/hooks/guard.py",
@@ -49,6 +49,30 @@ function guardPath() {
     if (parent === root) return null;
     root = parent;
   }
+}
+
+// #6632: a host may run the hook outside the repository (Copilot runs repo
+// hooks from `/`); fall back to the project directory and the payload `cwd`.
+function guardPath() {
+  const found = guardFrom(currentRoot());
+  if (found) return found;
+  let payloadCwd = "";
+  try {
+    const event = JSON.parse(input.toString("utf8") || "{}");
+    payloadCwd = typeof event.cwd === "string" ? event.cwd : "";
+  } catch (error) {
+    payloadCwd = "";
+  }
+  for (const hint of [process.env.GEMINI_PROJECT_DIR, process.env.CLAUDE_PROJECT_DIR, payloadCwd]) {
+    if (!hint) continue;
+    try {
+      const candidate = guardFrom(path.resolve(hint));
+      if (candidate) return candidate;
+    } catch (error) {
+      if (!unavailableError(error)) throw error;
+    }
+  }
+  return null;
 }
 
 let input;
@@ -132,7 +156,18 @@ const candidates = [
     ? [["py", ["-3"]], ["python3", []], ["python", []]]
     : [["python3", []], ["python", []]]),
 ];
+// #6632: skip interpreters that are missing, older than 3.11, or the Windows
+// Store `python3`/`python` alias stub (it exits 9009 instead of running).
+function usable(command, prefix) {
+  const probe = spawnSync(command, [...prefix, "-c", "import sys;sys.exit(sys.version_info<(3,11))"], {
+    stdio: "ignore",
+    timeout: 10000,
+  });
+  return !probe.error && probe.status === 0;
+}
+
 for (const [command, prefix] of candidates) {
+  if (!usable(command, prefix)) continue;
   const result = spawnSync(command, [...prefix, guard], {
     input,
     env: { ...process.env, CHAOS_ENGINE_HOST: process.argv[2] || "unknown" },

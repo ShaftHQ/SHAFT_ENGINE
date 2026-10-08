@@ -724,8 +724,9 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                         r"\s",
                         "Grok resolves a single-token command relative to .claude/",
                     )
-                    self.assertTrue(command.startswith("python3 "))
-                    source = _load_hosts().decoded_quote_free_exec(command)
+                    self.assertIn("exec python3 -c", command)
+                    self.assertIsNone(_load_hosts().powershell_hook_parse_error(command))
+                    source = _load_hosts().hook_command_source(command)
                     self.assertIn(".chaos-engine/hooks/guard.py", source)
                     self.assertIn("repository working directory unavailable", source)
                     self.assertNotIn("print('{}')", command)
@@ -743,7 +744,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                     self.assertNotIn(str(ROOT), handler["commandWindows"])
                     self.assertIn(
                         "repository working directory unavailable",
-                        _load_hosts().decoded_quote_free_exec(handler["command"]),
+                        _load_hosts().hook_command_source(handler["command"]),
                     )
         self.assertFalse((OVERLAY / ".claude/hooks/guard.py").exists())
         self.assertTrue(GUARD.is_file())

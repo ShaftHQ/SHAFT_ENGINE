@@ -926,7 +926,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
                     self.assertEqual(1, len(document[event][0]["hooks"]), event)
                     command = document[event][0]["hooks"][0]["command"]
                     self.assertIn(" ", command, event)
-                    source = module.decoded_quote_free_exec(command) or command
+                    source = module.hook_command_source(command) or command
                     self.assertTrue(
                         ".chaos-engine/hooks/guard.py" in source
                         or "plugins/chaos-engine/hooks/guard.py" in source,
@@ -1124,7 +1124,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
             getattr(errno, "ENOTCONN", 107),
         ):
             self.assertTrue(module.is_cwd_unavailable_errno(code), code)
-        command = module.decoded_quote_free_exec(
+        command = module.hook_command_source(
             module.chaos_guard_locator_command(windows=False, host="claude")
         )
         for token in ("ESTALE", "ENOTCONN", "ENOENT", module.LAUNCH_CWD_UNAVAILABLE):
@@ -1277,6 +1277,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
             self.assertEqual(original, json.loads(hook_path.read_text()))
 
     def test_source_repository_registers_copilot_hooks_through_kernel_launcher(self):
+        def module_hosts():
+            return load(HOSTS, "chaos_engine_copilot_hook_doc")
+
         document = json.loads(
             (OVERLAY / ".github/hooks/chaos-engine.json").read_text(encoding="utf-8")
         )
@@ -1296,11 +1299,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertEqual(expected, set(document["hooks"]))
         for event, handlers in document["hooks"].items():
             self.assertEqual(1, len(handlers))
-            self.assertEqual(
-                f"node .chaos-engine/hooks/launch.js copilot {event}",
-                handlers[0]["bash"],
-            )
+            # #6632: shared Python launcher with the event, run from the repo root.
+            self.assertEqual(module_hosts().copilot_launcher_command(event), handlers[0]["bash"])
             self.assertEqual(handlers[0]["bash"], handlers[0]["powershell"])
+            self.assertEqual(".", handlers[0]["cwd"])
+            self.assertNotIn("node ", handlers[0]["bash"])
 
     def test_grok_hooks_preserve_unrelated_events(self):
         module = load(HOSTS, "chaos_engine_grok_hook_merge")

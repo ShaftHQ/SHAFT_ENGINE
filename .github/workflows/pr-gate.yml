@@ -1239,6 +1239,17 @@ jobs:
           tests.scripts.test_chaos_engine_same_commit_payload_heal_5839
           tests.scripts.test_chaos_engine_bootstrap
           tests.scripts.test_chaos_engine_install_wrappers -v
+      # Issue #6632: Copilot CLI runs `.claude/settings.json` hook commands
+      # with PowerShell on Windows. Drive the generated launcher through real
+      # PowerShell 7 and Windows PowerShell 5.1 (read allowed, guard block,
+      # no Python, installer-pointer Python) plus the `.github/hooks` Copilot
+      # launcher (MCP passthrough, destructive deny, repo-root cwd).
+      - name: Run Windows PowerShell hook launcher
+        if: runner.os == 'Windows'
+        run: >-
+          python -m unittest
+          tests.scripts.test_copilot_cli_hook.PowerShellLauncherTest
+          tests.scripts.test_copilot_cli_hook.CopilotRepositoryHookTest -v
 
   summary:
     name: PR Gate Summary

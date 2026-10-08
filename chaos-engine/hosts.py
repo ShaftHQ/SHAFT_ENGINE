@@ -4352,6 +4352,9 @@ LAUNCH_CWD_UNAVAILABLE = (
 LAUNCH_GUARD_UNAVAILABLE = (
     "ChaosEngine guard unavailable; repair the original installation, then retry"
 )
+LAUNCH_PYTHON_UNAVAILABLE = (
+    "ChaosEngine hook found no Python 3.11 or newer; install Python 3.11+ or rerun the ChaosEngine installer, then start a new session"
+)
 _CWD_UNAVAILABLE_ERRNOS = {
     errno.ENOENT,
     getattr(errno, "ESTALE", 116),
@@ -4410,9 +4413,11 @@ def doctor_digest_row(name: str, item: dict) -> list[str]:
 
 
 HOOK_PYTHON_POINTER = ".chaos-engine-state/hook-python"
+HOOK_SOURCE_ENV = "CHAOS_ENGINE_HOOK_SOURCE"
+HOOK_PAYLOAD_ENV = "CHAOS_ENGINE_HOOK_PAYLOAD"
 
 
-def _locator_script(host: str) -> str:
+def _locator_script(host: str, event: str | None = None) -> str:
     """Inline guard locator. No single quotes: the Windows form is cmd.exe-quoted.
 
     Copilot CLI runs `.claude/settings.json` hooks from cwd `/` and does not set
@@ -4423,14 +4428,46 @@ def _locator_script(host: str) -> str:
     """
     if not re.fullmatch(r"[a-z0-9-]+", host):
         raise ValueError(f"unsupported hook host: {host}")
+    if event is not None and not re.fullmatch(r"[A-Za-z]+", event):
+        raise ValueError(f"unsupported hook event: {event}")
     pointer = HOOK_PYTHON_POINTER
     if "'" in pointer or '"' in pointer:
         raise ValueError("hook pointer must be quote-free")
     for message in (LAUNCH_CWD_UNAVAILABLE, LAUNCH_GUARD_UNAVAILABLE):
         if "'" in message or '"' in message:
             raise ValueError("hook locator message must be quote-free")
+    # Hosts without per-tool matchers (Copilot `.github/hooks`) pass the
+    # native event: the payload omits it, and tools outside matchers.json are
+    # answered `{}` here, exactly as launch.js did, without a Node runtime.
+    read_first = (
+        "if data is None:\n"
+        "    try:\n"
+        '        data=sys.stdin.buffer.read().decode("utf-8","replace").lstrip(chr(65279))\n'
+        "    except OSError:\n"
+        '        data=""\n'
+    ) if event else ""
+    event_filter = (
+        "try:\n"
+        '    ev=json.loads(data or "{}")\n'
+        "except ValueError:\n"
+        "    ev=None\n"
+        "if isinstance(ev,dict):\n"
+        '    if not ev.get("hook_event_name") and not ev.get("hookEventName"):\n'
+        f'        ev["hook_event_name"]="{event}"\n'
+        "        data=json.dumps(ev)\n"
+        '    name=str(ev.get("hook_event_name") or ev.get("hookEventName") or "")\n'
+        '    tool=str(ev.get("tool_name") or ev.get("toolName") or "")\n'
+        '    key="preventive" if name in ("PreToolUse","preToolUse","BeforeTool") else "observational" if name in ("PostToolUse","postToolUse","PostToolUseFailure","postToolUseFailure","AfterTool") else ""\n'
+        "    try:\n"
+        '        pol=json.loads((path.parent/"matchers.json").read_text(encoding="utf-8")) if key else None\n'
+        "    except (OSError,ValueError):\n"
+        "        pol=None\n"
+        '    if pol and not re.fullmatch("(?:"+"|".join(pol[key])+")",tool,re.I):\n'
+        '        print("{}")\n'
+        "        raise SystemExit(0)\n"
+    ) if event else ""
     return (
-        "import errno,io,json,os,pathlib,runpy,sys\n"
+        "import errno,io,json,os,pathlib,re,runpy,sys,tempfile\n"
         f'os.environ["CHAOS_ENGINE_HOST"]="{host}"\n'
         f'CWD="{LAUNCH_CWD_UNAVAILABLE}"\n'
         f'GUARD="{LAUNCH_GUARD_UNAVAILABLE}"\n'
@@ -4441,15 +4478,26 @@ def _locator_script(host: str) -> str:
         'cands=(".chaos-engine/hooks/guard.py","plugins/chaos-engine/hooks/guard.py","chaos-engine/hooks/guard.py")\n'
         "def locate(start):\n"
         "    return next(((root,root/rel) for root in (start,*start.parents) for rel in cands if (root/rel).is_file()),None)\n"
+        "data=None\n"
+        # #6632: the Windows PowerShell branch hands the payload over in an
+        # untracked temporary file; Windows PowerShell 5.1 does not deliver a
+        # string piped to a native program intact.
+        f'src=os.environ.pop("{HOOK_PAYLOAD_ENV}","")\n'
+        "if src:\n"
+        "    try:\n"
+        '        data=pathlib.Path(src).read_bytes().decode("utf-8","replace").lstrip(chr(65279))\n'
+        "    except OSError:\n"
+        "        data=None\n"
+        f"{read_first}"
         "try:\n"
         "    found=locate(pathlib.Path.cwd())\n"
         "except OSError as error:\n"
         "    deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
-        "data=None\n"
         "if found is None:\n"
         '    hints=[os.environ.get("CLAUDE_PROJECT_DIR","")]\n'
         "    try:\n"
-        '        data=sys.stdin.buffer.read().decode("utf-8","replace")\n'
+        "        if data is None:\n"
+        '            data=sys.stdin.buffer.read().decode("utf-8","replace").lstrip(chr(65279))\n'
         '        hints.append(str(json.loads(data or "{}").get("cwd") or ""))\n'
         "    except (OSError,ValueError,AttributeError):\n"
         "        pass\n"
@@ -4463,12 +4511,19 @@ def _locator_script(host: str) -> str:
         "if found is None:\n"
         "    deny(GUARD)\n"
         "base,path=found\n"
+        f"{event_filter}"
+        f'ptr=base/"{pointer}"\n'
+        'py=ptr.read_text(encoding="utf-8").strip() if os.name!="nt" and ptr.is_file() else ""\n'
+        "if py and os.path.isfile(py) and os.path.realpath(py)!=os.path.realpath(sys.executable):\n"
+        "    if data is not None:\n"
+        "        tmp=tempfile.TemporaryFile()\n"
+        '        tmp.write(data.encode("utf-8"))\n'
+        "        tmp.flush()\n"
+        "        tmp.seek(0)\n"
+        "        os.dup2(tmp.fileno(),0)\n"
+        "    os.execv(py,[py,str(path)])\n"
         "if data is not None:\n"
         "    sys.stdin=io.StringIO(data)\n"
-        f'ptr=base/"{pointer}"\n'
-        'py=ptr.read_text(encoding="utf-8").strip() if data is None and os.name!="nt" and ptr.is_file() else ""\n'
-        "if py and os.path.isfile(py) and os.path.realpath(py)!=os.path.realpath(sys.executable):\n"
-        "    os.execv(py,[py,str(path)])\n"
         "try:\n"
         '    runpy.run_path(str(path),run_name="__main__")\n'
         "except OSError as error:\n"
@@ -4489,46 +4544,136 @@ def _quote_free_exec(script: str) -> str:
     return "exec(bytes((" + ",".join(str(byte) for byte in script.encode("ascii")) + ")))"
 
 
-def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Path | None = None) -> str:
-    """Portable hook launcher (#6179): tracked host files name `python3` / `py -3` only.
+HOOK_PYTHON_FLOOR = (3, 11)
+
+
+def _polyglot_unsafe(text: str) -> bool:
+    """Text that would end the PowerShell block comment or a single-quoted string."""
+    return "'" in text or "#>" in text or "<#" in text
+
+
+def chaos_guard_locator_command(
+    *, windows: bool, host: str, managed_python: Path | None = None, event: str | None = None,
+) -> str:
+    """Portable hook launcher (#6179): tracked host files name interpreters, never paths.
 
     The managed interpreter, when one exists, is recorded in the untracked
-    `.chaos-engine-state/hook-python` pointer and the launcher hands off to it.
+    `.chaos-engine-state/hook-python` pointer.
 
-    Copilot CLI on Windows executes the `.claude/settings.json` `command`
-    through PowerShell (github/copilot-cli#4001). The Unix command is a
-    single-quoted `python3 -c` whose body is quote-free (see
-    `_quote_free_exec`), so bash and both PowerShell generations pass the
-    same bytes to Python. `commandWindows` stays double-quoted for cmd.exe.
+    The `command` form is one script that is valid POSIX sh and valid
+    PowerShell (#6632). Claude Code and Copilot on Linux and macOS run it with
+    sh/bash. Copilot CLI on Windows runs it with PowerShell 7
+    (github/copilot-cli#4001), where `python3` is often missing or the
+    Microsoft Store stub; that exit 9009/1 is the user-visible
+    `Denied by preToolUse hook from "repo settings" (hook errored)`.
+
+    - sh: the first line is a no-op and the second a quoted string; the sh
+      branch execs `python3` (Windows Git Bash probes `py -3`, `python3`,
+      `python`) and exits before the PowerShell text.
+    - PowerShell: `--%` passes the first line verbatim to a discarded echo
+      and `<# ... #>` comments out the sh branch. The PowerShell branch reads
+      the payload (raw UTF-8 stdin; Windows PowerShell 5.1 hands it to
+      `$input` instead), prefers the installer's managed interpreter from the
+      pointer, else probes `py -3`, `python3`, `python` for Python 3.11+,
+      and hands it the payload in a BOM-free UTF-8 temporary file named by
+      `CHAOS_ENGINE_HOOK_PAYLOAD` (Windows PowerShell 5.1 does not pipe a
+      string to a native program intact), piping only if no file can be made. The locator source travels in
+      an environment variable and a quote-free stub execs it, so neither
+      PowerShell 5.1 nor 7 can strip quotes from a native argument.
+    - No usable Python: print a block decision and exit 2 (an explicit deny),
+      never a crash.
+
+    `commandWindows` stays double-quoted for cmd.exe.
     """
     del managed_python
-    script = _locator_script(host)
+    script = _locator_script(host, event)
     if "'" in script:
         raise ValueError("hook locator script must not contain single quotes")
     if windows:
         return f"py -3 -c {json.dumps('exec(' + json.dumps(script) + ')')}"
-    return f"python3 -c '{_quote_free_exec(script)}'"
+    if _polyglot_unsafe(script) or _polyglot_unsafe(LAUNCH_PYTHON_UNAVAILABLE):
+        raise ValueError("hook locator text must not contain quotes or PowerShell comment markers")
+    floor = ",".join(str(part) for part in HOOK_PYTHON_FLOOR)
+    probe = f"import sys;sys.exit(sys.version_info<({floor}))"
+    block = json.dumps({"decision": "block", "reason": LAUNCH_PYTHON_UNAVAILABLE})
+    stub = _quote_free_exec(f'import os;exec(os.environ["{HOOK_SOURCE_ENV}"])')
+    pointer = HOOK_PYTHON_POINTER
+    return (
+        "echo --% >/dev/null;: ' | Out-Null\n"
+        "<#'\n"
+        f"s='{script}'\n"
+        '[ "$OS" = Windows_NT ] || exec python3 -c "$s"\n'
+        "for p in py python3 python; do a=; [ $p = py ] && a=-3; "
+        f'command -v $p >/dev/null 2>&1 && $p $a -c "{probe}" 2>/dev/null && exec $p $a -c "$s"; done\n'
+        f"echo '{block}'\n"
+        "exit 2\n"
+        "#>\n"
+        "$OutputEncoding=[Text.UTF8Encoding]::new($false)\n"
+        "$m=New-Object IO.MemoryStream;[Console]::OpenStandardInput().CopyTo($m)\n"
+        "$d=[Text.Encoding]::UTF8.GetString($m.ToArray())\n"
+        "if(-not $d.Trim()){$d=@($input) -join [char]10}\n"
+        f"$env:{HOOK_SOURCE_ENV}='{script}'\n"
+        "$env:PYTHONUTF8='1'\n"
+        "$r=@($env:CLAUDE_PROJECT_DIR,(Get-Location).ProviderPath);try{$r+=($d|ConvertFrom-Json).cwd}catch{}\n"
+        "$c=$null\n"
+        "foreach($b in $r){if(-not $b){continue};$x=Get-Item -LiteralPath $b -ErrorAction SilentlyContinue\n"
+        f"while($x -and -not $c){{$f=Join-Path $x.FullName '{pointer}'\n"
+        "if(Test-Path -LiteralPath $f -PathType Leaf){$q=(Get-Content -LiteralPath $f -Raw).Trim()\n"
+        "if($q -and (Test-Path -LiteralPath $q -PathType Leaf)){$c=@($q)}}\n"
+        "$x=$x.Parent}\n"
+        "if($c){break}}\n"
+        "if(-not $c){foreach($t in @(@('py','-3'),@('python3'),@('python'))){\n"
+        "if(Get-Command $t[0] -CommandType Application -ErrorAction SilentlyContinue){\n"
+        f"& $t[0] @($t|Select-Object -Skip 1) -c '{probe}' 2>$null\n"
+        "if($LASTEXITCODE -eq 0){$c=$t;break}}}}\n"
+        f"if(-not $c){{Write-Output '{block}';exit 2}}\n"
+        "$p=$null;try{$p=[IO.Path]::GetTempFileName()\n"
+        "[IO.File]::WriteAllText($p,$d,[Text.UTF8Encoding]::new($false))\n"
+        f"$env:{HOOK_PAYLOAD_ENV}=$p}}catch{{if($p){{Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue}};$p=$null}}\n"
+        "$LASTEXITCODE=1\n"
+        f"if($p){{& $c[0] @($c|Select-Object -Skip 1) -c '{stub}'}}else{{$d|& $c[0] @($c|Select-Object -Skip 1) -c '{stub}'}}\n"
+        "$e=$LASTEXITCODE;if($p){Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue};exit $e\n"
+    )
+
+
+def hook_command_source(command: str) -> str:
+    """Locator source carried by a hook command, any generation (#6632)."""
+    match = re.search(r"^s='([^']*)'$", command, re.MULTILINE)
+    if match is not None:
+        return match.group(1)
+    return decoded_quote_free_exec(command)
 
 
 def powershell_hook_parse_error(command: str) -> str | None:
-    """Return why Windows PowerShell 5.1 would break a hook command, or None.
+    """Return why a hook command would fail under Copilot CLI's PowerShell, or None.
 
     Copilot CLI runs cross-tool `.claude/settings.json` hook commands through
-    PowerShell. A parse error, or an argument PowerShell 5.1 re-quotes on its
-    way to Python, exits 1: the user-visible
+    PowerShell. A parse error, a quoted native argument PowerShell 5.1
+    re-quotes, or a hard-coded `python3` (missing or the Store stub on many
+    Windows machines) exits non-zero: the user-visible
     `Denied by preToolUse hook from "repo settings" (hook errored)`.
     """
     if not isinstance(command, str) or not command.strip():
         return "empty hook command"
     if command.startswith("py -3 "):
         return None
-    match = re.fullmatch(r"python3 -c '([^']*)'", command)
-    if match is None:
-        return "unix hook command is not a PowerShell single-quoted python3 -c"
-    body = match.group(1)
-    if QUOTE_FREE_EXEC.fullmatch(body) is None:
-        return "unix hook command body is not quote-free; PowerShell 5.1 strips its double quotes"
+    lines = command.splitlines()
+    if lines[:2] != ["echo --% >/dev/null;: ' | Out-Null", "<#'"] or "#>" not in lines:
+        return "unix hook command is not the sh/PowerShell launcher; Windows PowerShell would run python3 directly"
+    powershell = lines[lines.index("#>") + 1:]
+    invocation = next((line for line in powershell if line.startswith(LAUNCH_INVOCATION_PREFIXES)), None)
+    if invocation is None:
+        return "PowerShell branch does not hand the payload to a probed interpreter"
+    arguments = re.findall(r"-c '([^']*)'", invocation)
+    if not arguments or '"' in invocation or any(
+            re.fullmatch(r"exec\(bytes\(\([0-9,]+\)\)\)", argument) is None for argument in arguments):
+        return "PowerShell branch passes a quoted argument; PowerShell 5.1 strips its double quotes"
     return None
+
+
+# Current form hands the payload over in a temporary file; `$d|&` is the
+# earlier pipe-only generation, still parse-safe.
+LAUNCH_INVOCATION_PREFIXES = ("if($p){& $c[0]", "$d|& $c[0]")
 
 
 HOOK_CONTROLLER_NAMES = (
@@ -4586,7 +4731,11 @@ def copilot_surface_findings(project: Path) -> list[dict[str, str]]:
     for event, handlers in document["hooks"].items():
         expected = copilot_launcher_command(event)
         handler = handlers[0]
-        if handler.get("bash") != expected or handler.get("powershell") != expected:
+        if (
+            handler.get("bash") != expected
+            or handler.get("powershell") != expected
+            or handler.get("cwd") != "."
+        ):
             findings.append(
                 {
                     "kind": "copilot-event-command",
@@ -4666,20 +4815,21 @@ def lifecycle_hooks_document(host: str, events: dict[str, str] | None = None, ma
 
 
 def copilot_launcher_command(event: str) -> str:
-    """Node launcher plus the native event name.
+    """Copilot `.github/hooks` command: the shared Python launcher plus the event.
 
-    Copilot's camelCase payload omits the event name; the same command is
-    registered on every hook. Without the event argument the shared kernel
-    cannot tell PreToolUse from Stop.
+    Copilot's camelCase payload omits the event name, so the launcher carries
+    it. No Node runtime (#6632): the native Windows Copilot CLI ships without
+    `node` on PATH, and a missing launcher is a fail-closed "hook errored".
     """
     if not re.fullmatch(r"[A-Za-z]+", event):
         raise ValueError(f"unsupported copilot hook event: {event}")
-    return f"node .chaos-engine/hooks/launch.js copilot {event}"
+    return chaos_guard_locator_command(windows=False, host="copilot", event=event)
 
 
 def copilot_hooks_document(managed_node: Path | None = None) -> bytes:
-    # #6199: the host CLI is itself a Node app, so bare `node` resolves; the
-    # launcher reads the untracked hook-python pointer for the guard runtime.
+    # #6632: the shared Python launcher (no Node), run from the repository
+    # root (`cwd` is relative to it) and reading the untracked hook-python
+    # pointer for the guard runtime.
     del managed_node
     hooks = {}
     for event in (
@@ -4698,6 +4848,7 @@ def copilot_hooks_document(managed_node: Path | None = None) -> bytes:
             "type": "command",
             "bash": command,
             "powershell": command,
+            "cwd": ".",
             "timeoutSec": 30,
         }]
     return (json.dumps({"version": 1, "hooks": hooks}, indent=2, sort_keys=True) + "\n").encode()
