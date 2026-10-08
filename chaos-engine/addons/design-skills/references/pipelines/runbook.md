@@ -39,7 +39,7 @@ work. Five stages, in order; one CPU-heavy job at a time.
 
 Right after each target encodes, gate it in seconds and stop that target on
 failure: `vooverlap`, `levels` (verify, then CRF retry per D14), `static`,
-`blackfreeze`. Example plan for `design_qc.py all fast-plan.json`:
+`blackfreeze`, `flatframes`. Example plan for `design_qc.py all fast-plan.json`:
 
 ```json
 {"checks": [{"check": "vooverlap", "args": ["edl.json"]},

@@ -30,15 +30,18 @@ music into a master, plus a vertical reframe from the same decisions.
   and never hand-edited.
 - Normalize every input first: constant frame rate (`fps`), size (`scale`,
   `setsar=1`), BT.709 color (D14), 48 kHz audio.
-- Cuts land on frame boundaries; transitions use `xfade` with an explicit
-  frame count.
+- Cuts are hard by default and land on frame boundaries; a transition is a
+  deliberate EDL entry (`xfade` with an explicit frame count), never a dip
+  through black at every cut.
+- Every scene shows content on frame 0: its first element enters before
+  the cut, never on an empty card.
 - Narration never overlaps: each VO line starts at or after the previous
   line's end plus 0.25 s. Lines anchored to footage events slide later and
   the scene or hold extends to fit; assembly refuses an overlapping EDL.
 - Speed ramps for long waits use `setpts` with an on-screen label (for
   example "sped up 8x").
 - Vertical 9:16 comes from the same EDL with per-clip crop or reframe hints,
-  not a separate edit.
+  not a separate edit; terminal and code clips reflow (D11), never crop.
 - Chapters export as ffmetadata and as a text list for the description.
 
 ## Workflow
@@ -54,7 +57,10 @@ music into a master, plus a vertical reframe from the same decisions.
 - `design_qc.py vooverlap edl.json` passes (edit-list gap and per-line
   speech masks), right after the render.
 - `design_qc.py blackfreeze master.mp4 --allow 12.0-13.5` passes outside
-  intentional holds.
+  intentional holds, and `design_qc.py flatframes master.mp4` finds no
+  solid frame outside the first and last second.
+- `design_qc.py claims claims.json` passes: the screen matches each
+  narration claim at its word.
 - Audio and video start offsets differ by at most one frame.
 - Re-running the render gives the same frame hashes with the same ffmpeg
   build.

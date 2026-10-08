@@ -25,6 +25,10 @@ the product claims will cite (doc URLs, command output, files).
   path). No evidence, no claim. Mockups say "mockup" on screen.
 - Storyboard rows are data, not prose. Keep `storyboard.json` beside
   `brief.md` and commit both.
+- Narration that asserts something visible gets a `claims` entry (line,
+  word time, `must` and `mustNot` screen patterns) in `claims.json`.
+- Persuasive explainers and audience versions follow
+  [D21](explainer-arc.md): `beat` on every scene.
 - Durations add up to the target within 5%. Hand-offs name the next card and
   the asset path it consumes.
 
@@ -53,6 +57,8 @@ the product claims will cite (doc URLs, command output, files).
 - `design_qc.py brief storyboard.json` passes: every scene has id, duration,
   visual, vo, asset, and source; claims have evidence; total within 5%.
 - `design_qc.py holds storyboard.json` passes for on-screen text.
+- `design_qc.py arc storyboard.json` passes when scenes carry beats.
+- `design_qc.py claims claims.json` passes on the final cut.
 
 ## Sources
 

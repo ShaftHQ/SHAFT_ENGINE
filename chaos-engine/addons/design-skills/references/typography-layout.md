@@ -33,6 +33,8 @@ page, poster, slide, or video frame.
   height) and legible in the 9:16 cut. Wrap only at valid shell
   continuations (bash `\`, PowerShell after a pipe, operator, or backtick)
   or split into steps; never inside a quoted string or URL.
+- PowerShell on screen avoids continuations (assign to a variable, then
+  call) and must parse.
 
 ## Script and language notes
 
@@ -55,6 +57,8 @@ page, poster, slide, or video frame.
 - Computed font sizes match the scale within 2%.
 - Every font file has a recorded licence in the manifest.
 - The smallest code frame is inspected at 1080p and in the 9:16 cut.
+- `design_qc.py psparse commands.ps1` passes for every PowerShell command
+  shown (`--static` only where pwsh is missing, reported).
 
 ## Sources
 

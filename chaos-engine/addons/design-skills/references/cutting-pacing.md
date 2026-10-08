@@ -32,6 +32,9 @@ Give up the lower ones first.
 - No visually static stretch over about 3 s. A slow push-in does not read
   as motion; compress the wait, or give a necessary hold VO-keyed callouts
   that move to the line being spoken.
+- A hold reads alive only when real content moves. EDL holds last at most
+  3 s, or 5.5 s with two or more stepping callouts or a real scroll;
+  callouts alone read static past about 5 s.
 - Camera pushes run at a constant rate spread over the whole clip; encoders
   flatten eased or capped pushes into visible freezes.
 - Pacing targets per format, written in the storyboard:
@@ -51,7 +54,9 @@ Give up the lower ones first.
 - `design_qc.py silence master.mp4 --allow <holds>` passes (no unmarked
   silence over 700 ms).
 - `design_qc.py static clean-master.mp4` passes (no stretch over 3 s where
-  no 60 px cell changes; measure the caption-free picture).
+  no 60 px cell changes; measure the caption-free picture, with
+  `--crop` to the capture region when callouts move over it).
+- `design_qc.py contenthold edl.json` passes.
 - Shot-length list from the EDL is inside the storyboard targets.
 - With music, beat offsets (from an onset detector) are within two frames
   for marked beat cuts.

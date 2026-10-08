@@ -70,7 +70,7 @@ by default and never auto-selected; opt in with a flag:
 
 | Add-on | For | sh / bootstrap.py / install.py | PowerShell |
 | --- | --- | --- | --- |
-| `design-skills` | Anyone designing web pages, images, motion graphics, or videos: 20 verified design cards and the zero-LLM `design_qc.py` | `--with-design-skills` | `-WithDesignSkills` |
+| `design-skills` | Anyone designing web pages, images, motion graphics, or videos: 21 verified design cards and the zero-LLM `design_qc.py` | `--with-design-skills` | `-WithDesignSkills` |
 | `shaft-engine-users` | Projects that use SHAFT: the `shaft-developer` router and its specialist skills | `--with-shaft-engine-users` | `-WithShaftEngineUsers` |
 | `shaft-core-developers` | Contributors to `ShaftHQ/SHAFT_ENGINE`: repository profile, playbooks, mastery chapters (adds `shaft-engine-users`) | `--with-shaft-core-developers` | `-WithShaftCoreDevelopers` |
 

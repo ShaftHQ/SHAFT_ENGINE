@@ -27,6 +27,10 @@ Common: constant frame rate, closed GOP of half the frame rate (`-g 15` at
 Keep text and faces out of the top 14% and bottom 20% of a 1080 x 1920 frame,
 and away from the right-hand action column of the platform UI.
 
+Social feeds autoplay muted: burn in captions and make every beat readable
+without sound. Platforms normalise playback loudness down, not up (YouTube
+toward about -14 LUFS), so the D15 -16 LUFS speech master stays.
+
 ## Manifest (`manifest.json`)
 
 ```json
@@ -44,8 +48,8 @@ and away from the right-hand action column of the platform UI.
 4. Write `manifest.json` with hashes and licences.
 5. Run the full gate on an idle machine with a plan file:
    `design_qc.py all qc-plan.json`, where the plan lists delivery, colortags,
-   levels, loudness, captions, flash, blackfreeze, static, and manifest
-   checks.
+   levels, loudness, captions, flash, blackfreeze, flatframes, static,
+   and manifest checks (plus edgeclip for vertical outputs).
 6. Independent review: a fresh reviewer that did not build it watches and
    listens to every output end to end. Deliver only when QC and review pass;
    anything earlier is named and sent as DRAFT with its open failures.
@@ -58,7 +62,9 @@ and away from the right-hand action column of the platform UI.
   licence.
 - `design_qc.py all qc-plan.json` ends `pass`; any `skipped` step is
   reported in the PR with the missing tool.
-- Vertical frames inspected against the safe zone overlay.
+- Vertical frames inspected against the safe zone overlay, and
+  `design_qc.py edgeclip vertical.mp4 --region y0:y1` passes for each text
+  region.
 - Review notes list no blocker for each delivered output.
 
 ## Sources
