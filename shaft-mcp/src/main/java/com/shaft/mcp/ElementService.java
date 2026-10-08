@@ -503,6 +503,9 @@ public class ElementService {
      */
     @Tool(name = "element_highlight", description = "briefly outlines the elements a locator matches on the "
             + "live page and returns the match count; dispatches to the active engine")
+    /**
+     * Highlights the located elements.
+     */
     public ElementHighlightResult highlight(locatorStrategy locatorStrategy, String locatorValue) {
         ActiveEngine engine = EngineService.activeEngine();
         if (engine == ActiveEngine.PLAYWRIGHT) {
