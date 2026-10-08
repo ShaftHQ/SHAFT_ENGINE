@@ -35,6 +35,8 @@ already live in `tests/scripts/test_chaos_engine_hosts.py`
 (`test_added_host_route_upgrades_without_rewriting_shared_routes`) and
 `tests/scripts/test_chaos_engine_generation_runtime.py`
 (`test_offline_rollback_validates_previous_before_core_swap`).
+Copilot CLI repo-settings hook decisions are covered by
+`tests/scripts/test_copilot_cli_hook.py`.
 Do not reimplement them.
 
 Legend: P = parity (outcome available), A = adapter-shaped equivalent, G = gap (see below), N = not applicable.
