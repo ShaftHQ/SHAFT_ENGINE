@@ -564,7 +564,8 @@ def static_spans(frames: list[bytes], fps: float, step: float, thresh: float, ma
 def cmd_static(args: argparse.Namespace) -> int:
     """Visually static stretches: a 32x18 cell grid ignores slow pushes, catches no-content-change holds."""
     grid = "scale='if(gt(iw,ih),32,18)':'if(gt(iw,ih),18,32)':flags=area,format=gray"
-    raw = decode_raw(args.file, ["-an", "-vf", f"fps={args.fps},{grid}", "-f", "rawvideo"])
+    crop = f"crop={args.crop}," if args.crop else ""
+    raw = decode_raw(args.file, ["-an", "-vf", f"fps={args.fps},{crop}{grid}", "-f", "rawvideo"])
     frames = [raw[i:i + 576] for i in range(0, len(raw) - 575, 576)]
     if not frames:
         raise ValueError("no decoded frames")
@@ -728,13 +729,364 @@ def cmd_image(args: argparse.Namespace) -> int:
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
-    tools = ["ffmpeg", "ffprobe", "node", "npx", "vhs", "ttyd", "manim", "whisper-cli", "tesseract",
+    tools = ["ffmpeg", "ffprobe", "node", "npx", "vhs", "ttyd", "manim", "whisper-cli", "tesseract", "pwsh",
              "realesrgan-ncnn-vulkan", "vmaf", "deep-filter"]
     found = {tool: bool(shutil.which(tool)) for tool in tools}
     found["libvmaf"] = has_libvmaf()
     core = found["ffmpeg"] and found["ffprobe"]
     return report("doctor", PASS if core else SKIPPED, tools=found,
                   note="media checks skip without ffmpeg/ffprobe; optional tools unlock their cards")
+
+
+# ---------------------------------------------------------------- round-3 picture and capture gates
+def video_rate(path: str) -> float:
+    num, _, den = video_stream(ffprobe(path)).get("r_frame_rate", "30/1").partition("/")
+    return float(num) / float(den or 1)
+
+
+def frame_std(frame: bytes) -> float:
+    count = len(frame)
+    mean = sum(frame) / count
+    return math.sqrt(max(sum(value * value for value in frame) / count - mean * mean, 0.0))
+
+
+def flat_runs(stds: list[float], fps: float, edge: float, limit: float) -> list[dict]:
+    """Runs of solid frames (luma std below `limit`) outside the first and last `edge` seconds."""
+    head, tail = round(edge * fps), len(stds) - round(edge * fps)
+    flags = [head <= i < tail and std < limit for i, std in enumerate(stds)]
+    return [{"start": round(a / fps, 2), "frames": b - a} for a, b in runs(flags)]
+
+
+def cmd_flatframes(args: argparse.Namespace) -> int:
+    """Solid frames at cuts: a fade-to-void dip or an empty card before its first element."""
+    fps = video_rate(args.file)
+    raw = decode_raw(args.file, ["-an", "-vf", "scale=64:36:flags=area,format=gray", "-f", "rawvideo"])
+    stds = [frame_std(raw[i:i + 2304]) for i in range(0, len(raw) - 2303, 2304)]
+    if not stds:
+        raise ValueError("no decoded frames")
+    found = flat_runs(stds, fps, args.edge, args.std)
+    return report("flatframes", FAIL if found else PASS, runs=found, frames=len(stds), edge_s=args.edge)
+
+
+def segment_seconds(segment: dict) -> float:
+    if "hold" in segment:
+        return float(segment["hold"])
+    if "src" in segment:
+        return (float(segment["src"][1]) - float(segment["src"][0])) / float(segment.get("speed", 1.0))
+    return 0.0
+
+
+def hold_limit(segment: dict, plain: float, stepped: float) -> float:
+    return stepped if len(segment.get("marks", [])) >= 2 or segment.get("scroll") else plain
+
+
+def cmd_contenthold(args: argparse.Namespace) -> int:
+    """EDL holds: plain holds up to --plain s, holds with 2+ stepping marks or a scroll up to --stepped s."""
+    edl = json.loads(Path(args.edl).read_text(encoding="utf-8"))
+    over, count, clip_start = [], 0, 0.0
+    for clip in edl.get("clips", []):
+        now = 0.0
+        for segment in clip.get("segments", []):
+            limit = hold_limit(segment, args.plain, args.stepped)
+            count += "hold" in segment
+            if "hold" in segment and float(segment["hold"]) > limit + 1e-6:
+                over.append({"clip": clip.get("id", "?"), "at": round(clip_start + now, 2),
+                             "hold": float(segment["hold"]), "limit": limit})
+            now += segment_seconds(segment)
+        clip_start += float(clip.get("dur", now))
+    return report("contenthold", FAIL if over else PASS, holds=count, over_limit=over)
+
+
+def screen_text(claim: dict, base: Path, video: str | None) -> str:
+    if "screen" in claim:
+        return str(claim["screen"])
+    if "screenFile" in claim:
+        return (base / claim["screenFile"]).read_text(encoding="utf-8")
+    if not video:
+        raise ValueError(f"{claim.get('id', '?')}: needs screen, screenFile or --video")
+    tesseract = need("tesseract")
+    frame = Path(video).with_name(f".claim-{claim.get('id', 'x')}.png")
+    try:
+        run([need("ffmpeg"), "-v", "error", "-y", "-ss", str(claim["t"]), "-i", video, "-frames:v", "1", str(frame)])
+        return run([tesseract, str(frame), "stdout"]).stdout
+    finally:
+        frame.unlink(missing_ok=True)
+
+
+def check_claim(claim: dict, screen: str) -> dict:
+    lines = [line.strip() for line in screen.splitlines()]
+
+    def seen(pattern: str) -> bool:
+        return any(re.search(pattern, line) for line in lines)
+    missing = [p for p in claim.get("must", []) if not seen(p)]
+    unexpected = [p for p in claim.get("mustNot", []) if seen(p)]
+    return {"id": claim.get("id", "?"), "t": claim.get("t"), "ok": not missing and not unexpected,
+            "missing": missing, "unexpected": unexpected}
+
+
+def cmd_claims(args: argparse.Namespace) -> int:
+    """Screen state at each narration claim word: required and forbidden patterns."""
+    path = Path(args.claims)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    rows = [check_claim(c, screen_text(c, path.parent, args.video)) for c in data.get("claims", [])]
+    return report("claims", FAIL if any(not r["ok"] for r in rows) else PASS, claims=rows)
+
+
+def edge_hits(rows: list, strip: int, delta: int, min_pixels: int) -> list[str]:
+    """Sides whose outer `strip` columns hold more than `min_pixels` text-bright pixels."""
+    width = len(rows[0])
+    center = sorted(v for row in rows[::4] for v in row[width // 10: width - width // 10: 5])
+    bright = center[len(center) // 2] + delta
+    sides = []
+    for side, cut in (("left", slice(0, strip)), ("right", slice(width - strip, width))):
+        if sum(1 for row in rows for v in row[cut] if v > bright) > min_pixels:
+            sides.append(side)
+    return sides
+
+
+def cmd_edgeclip(args: argparse.Namespace) -> int:
+    """Vertical cuts: text touching the frame edge means a cropped, not reflowed, line."""
+    stream = video_stream(ffprobe(args.file))
+    width, height = int(stream["width"]), int(stream["height"])
+    top, _, bottom = (args.region or f"0:{height}").partition(":")
+    rows_high = int(bottom) - int(top)
+    raw = decode_raw(args.file, ["-an", "-vf", f"fps={args.fps},crop={width}:{rows_high}:0:{top},format=gray",
+                                 "-f", "rawvideo"])
+    size, clipped = width * rows_high, []
+    for index in range(len(raw) // size):
+        frame = raw[index * size:(index + 1) * size]
+        rows = [frame[y * width:(y + 1) * width] for y in range(0, rows_high, 2)]
+        clipped += [{"t": round(index / args.fps, 2), "side": side}
+                    for side in edge_hits(rows, args.strip, args.delta, args.min_pixels)]
+    return report("edgeclip", FAIL if clipped else PASS, clipped=clipped[:20], clipped_frames=len(clipped))
+
+
+CSI = re.compile(r"\x1b\[([0-9;?]*)([A-Za-z@`])|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][0-9A-Za-z]|\x1b.")
+
+
+class StaleScreen:
+    """Minimal terminal model: finds rows rewritten from their start with shorter text and no erase."""
+
+    def __init__(self, width: int, height: int = 24):
+        self.width, self.height = width, height
+        self.rows: dict[int, list[str]] = {}
+        self.x = self.y = 0
+        self.visit: dict | None = None
+        self.hits: list[dict] = []
+        self.t = 0.0
+
+    def line(self, y: int) -> str:
+        return "".join(self.rows.get(y, [])).rstrip()
+
+    def end(self) -> None:
+        visit, self.visit = self.visit, None
+        if not visit or visit["erased"]:
+            return
+        before = visit["before"]
+        first = len(before) - len(before.lstrip())
+        if not before.strip() or visit["start"] > first or visit["max"] >= len(before) - 1:
+            return
+        now, cut = self.line(visit["y"]), visit["max"] + 1
+        if now[cut:].strip() and now[cut:] == before[cut:]:
+            self.hits.append({"t": round(self.t, 3), "line": now.strip()[:90], "stale_tail": before[cut:].strip()[:40]})
+
+    def draw(self, char: str) -> None:
+        if self.x >= self.width:
+            self.end()
+            self.x, self.y = 0, self.y + 1
+        if self.visit is None:
+            self.visit = {"y": self.y, "before": self.line(self.y), "start": self.x, "max": -1, "erased": False}
+        row = self.rows.setdefault(self.y, [])
+        row.extend(" " * (self.x + 1 - len(row)))
+        row[self.x] = char
+        self.visit["max"] = max(self.visit["max"], self.x)
+        self.x += 1
+
+    def erase(self, kind: str, mode: int) -> None:
+        if self.visit:
+            self.visit["erased"] = True
+        row = self.rows.setdefault(self.y, [])
+        if kind == "K":
+            spans = {0: range(self.x, len(row)), 1: range(min(self.x + 1, len(row))), 2: range(len(row))}
+            for i in spans.get(mode, range(0)):
+                row[i] = " "
+        elif mode in (2, 3):
+            self.rows.clear()
+        else:
+            del row[self.x:]
+            for y in [y for y in self.rows if y > self.y]:
+                del self.rows[y]
+
+    def move(self, final: str, values: list[int]) -> None:
+        self.end()
+        first = values[0] if values and values[0] else 1
+        second = values[1] if len(values) > 1 and values[1] else 1
+        top = max(0, max(self.rows, default=0) - self.height + 1)
+        x, y = {
+            "A": (self.x, max(0, self.y - first)), "B": (self.x, self.y + first), "C": (self.x + first, self.y),
+            "D": (max(0, self.x - first), self.y), "E": (0, self.y + first), "F": (0, max(0, self.y - first)),
+            "G": (first - 1, self.y), "H": (second - 1, top + first - 1), "f": (second - 1, top + first - 1),
+        }[final]
+        self.x, self.y = x, y
+
+    def control(self, char: str) -> None:
+        if char in "\r\n":
+            self.end()
+            if char == "\r":
+                self.x = 0
+            else:
+                self.y += 1
+        elif char == "\b":
+            self.x = max(0, self.x - 1)
+        elif char == "\t":
+            self.x = min(self.width - 1, (self.x // 8 + 1) * 8)
+        elif char >= " ":
+            self.draw(char)
+
+    def csi(self, final: str, values: list[int]) -> None:
+        if final in "KJ":
+            self.erase(final, values[0] if values else 0)
+        elif final in "ABCDEFGHf":
+            self.move(final, values)
+
+    def feed(self, data: str) -> None:
+        position = 0
+        for match in CSI.finditer(data):
+            for char in data[position:match.start()]:
+                self.control(char)
+            position = match.end()
+            if match.group(2):
+                self.csi(match.group(2), [int(v) for v in match.group(1).replace("?", "").split(";") if v.isdigit()])
+        for char in data[position:]:
+            self.control(char)
+        self.end()
+
+
+def stale_rewrites(events: list[tuple[float, str]], width: int, height: int = 24) -> list[dict]:
+    screen = StaleScreen(width, height)
+    for t, data in events:
+        screen.t = t
+        screen.feed(data)
+    return screen.hits
+
+
+def cmd_staletext(args: argparse.Namespace) -> int:
+    """Replay an asciicast v2 capture and report stale tails left by shorter rewrites without erase."""
+    lines = Path(args.cast).read_text(encoding="utf-8").splitlines()
+    header = json.loads(lines[0])
+    events = [(float(t), d) for t, kind, d in (json.loads(line) for line in lines[1:] if line.strip()) if kind == "o"]
+    hits = stale_rewrites(events, int(header.get("width", 80)), int(header.get("height", 24)))
+    return report("staletext", FAIL if hits else PASS, events=len(events), hits=hits[:50], count=len(hits))
+
+
+PS_PARSE = ("$e=$null;$t=$null;"
+            "[void][System.Management.Automation.Language.Parser]::ParseInput($env:CMD,[ref]$t,[ref]$e);"
+            "$e | ForEach-Object { $_.Message }")
+
+
+def ps_commands(text: str) -> list[str]:
+    blocks = re.split(r"\n\s*\n", text.replace("\r\n", "\n"))
+    return [re.sub(r"(?m)^PS> ?", "", block).rstrip() for block in blocks if block.strip()]
+
+
+def ps_row(command: str, pwsh: str | None) -> dict:
+    errors = []
+    if pwsh:
+        result = subprocess.run([pwsh, "-NoProfile", "-NonInteractive", "-Command", PS_PARSE],  # nosec B603
+                                capture_output=True, text=True, check=False, env={**os.environ, "CMD": command})
+        errors = [line for line in result.stdout.splitlines() if line.strip()]
+    return {"command": command.replace("\n", " / ")[:200], "parse_errors": errors,
+            "backslash_continuation": bool(re.search(r"\\\s*$", command, re.MULTILINE))}
+
+
+def cmd_psparse(args: argparse.Namespace) -> int:
+    """PowerShell on screen parses with pwsh and never ends a line with a bash backslash."""
+    pwsh = None if args.static else need("pwsh")
+    rows = [ps_row(command, pwsh) for command in ps_commands(Path(args.file).read_text(encoding="utf-8"))]
+    failed = not rows or any(r["parse_errors"] or r["backslash_continuation"] for r in rows)
+    return report("psparse", FAIL if failed else PASS, commands=rows, parsed=bool(pwsh))
+
+
+# ---------------------------------------------------------------- explainer arc and description
+BEATS = ("hook", "problem", "solution", "proof", "cta")
+BANDS = {"exec": (60.0, 120.0), "technical": (180.0, 300.0), "social": (15.0, 60.0)}
+
+
+def placed_scenes(scenes: list[dict]) -> list[tuple[dict, float, float]]:
+    placed, now = [], 0.0
+    for scene in scenes:
+        start = float(scene.get("start", now))
+        now = start + float(scene.get("duration", 0))
+        placed.append((scene, start, now))
+    return placed
+
+
+def beat_order_problems(beats: list) -> list[str]:
+    problems = [f"missing beat: {beat}" for beat in BEATS if beat not in beats]
+    core = [b for b in beats[:-1] if b != "cta"] + beats[-1:]
+    ranks = [BEATS.index(b) for b in core if b in BEATS]
+    if any(a > b for a, b in zip(ranks, ranks[1:])):
+        problems.append("order: beats must run hook, problem, solution, proof, cta")
+    return problems
+
+
+def hook_problems(placed: list[tuple[dict, float, float]], hook_s: float) -> list[str]:
+    if not placed or placed[0][0].get("beat") != "hook" or placed[0][1] > 0:
+        return ["hook: the first scene must be the hook, starting at 0 s"]
+    hook_end = max(end for scene, _, end in placed if scene.get("beat") == "hook")
+    return [f"hook ends at {hook_end:.1f}s > {hook_s:.1f}s"] if hook_end > hook_s + 1e-6 else []
+
+
+def cta_problems(placed: list[tuple[dict, float, float]], total: float) -> list[str]:
+    if not placed or placed[-1][0].get("beat") != "cta":
+        return ["cta: the last beat must be the call to action"]
+    start = placed[-1][1]
+    return [f"cta starts at {start:.1f}s, before 80% of {total:.1f}s"] if start < 0.8 * total else []
+
+
+def proof_problems(scenes: list[dict]) -> list[str]:
+    def evidenced(scene: dict) -> bool:
+        claims = scene.get("claims", [])
+        return bool(claims) and all(c.get("evidence") for c in claims)
+    return [f"proof {s.get('id', '?')}: needs claims with evidence" for s in scenes
+            if s.get("beat") == "proof" and not evidenced(s)]
+
+
+def arc_problems(scenes: list[dict], band: tuple[float, float], audience: str, hook_s: float) -> list[str]:
+    placed = placed_scenes(scenes)
+    total = placed[-1][2] if placed else 0.0
+    problems = beat_order_problems([scene.get("beat") for scene in scenes])
+    problems += hook_problems(placed, hook_s) + cta_problems(placed, total) + proof_problems(scenes)
+    if not band[0] <= total <= band[1]:
+        problems.append(f"duration {total:.1f}s outside {audience} band {band[0]:.0f}-{band[1]:.0f}s")
+    return problems
+
+
+def cmd_arc(args: argparse.Namespace) -> int:
+    """Explainer arc: hook in the first seconds, problem, solution, evidenced proof, closing CTA, length band."""
+    data = json.loads(Path(args.storyboard).read_text(encoding="utf-8"))
+    audience = args.audience or data.get("audience", "exec")
+    low, high = BANDS.get(audience, BANDS["exec"])
+    band = (args.min if args.min is not None else low, args.max if args.max is not None else high)
+    problems = arc_problems(data.get("scenes", []), band, audience, args.hook)
+    return report("arc", FAIL if problems else PASS, audience=audience, band=list(band), problems=problems)
+
+
+def description_gap(scene: dict, minimum: float) -> dict | None:
+    shown = [w for w in words(scene.get("onScreenText", "")) if w not in STOP and len(w) > 1]
+    if not shown or scene.get("description"):
+        return None
+    spoken = set(words(scene.get("vo", "")))
+    missing = [w for w in shown if w not in spoken]
+    coverage = round(1 - len(missing) / len(shown), 2)
+    return {"id": scene.get("id", "?"), "coverage": coverage, "missing": missing} if coverage < minimum else None
+
+
+def cmd_describe(args: argparse.Namespace) -> int:
+    """WCAG 2.2 1.2.5: on-screen text is spoken in the scene's narration or described."""
+    data = json.loads(Path(args.storyboard).read_text(encoding="utf-8"))
+    failed = [gap for scene in data.get("scenes", []) if (gap := description_gap(scene, args.min))]
+    return report("describe", FAIL if failed else PASS, scenes=failed, min=args.min)
 
 
 def cmd_all(args: argparse.Namespace) -> int:
@@ -797,6 +1149,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--step", type=float, default=0.5)
     p.add_argument("--thresh", type=float, default=3.0)
     p.add_argument("--allow", action="append", default=[], help="start-end seconds")
+    p.add_argument("--crop", help="w:h:x:y region to measure (overlay-free picture)")
     p = add("idle", cmd_idle, "machine is quiet enough for ASR or full QC")
     p.add_argument("--max-load", type=float, default=0.5)
     p.add_argument("--wait", type=float, default=0.0)
@@ -848,6 +1201,38 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("file")
     p.add_argument("--size")
     p.add_argument("--max-bytes", type=int)
+    p = add("flatframes", cmd_flatframes, "solid frames at cuts")
+    p.add_argument("file")
+    p.add_argument("--edge", type=float, default=1.0, help="seconds exempt at head and tail")
+    p.add_argument("--std", type=float, default=1.0, help="luma standard deviation below which a frame is solid")
+    p = add("contenthold", cmd_contenthold, "EDL hold limits")
+    p.add_argument("edl")
+    p.add_argument("--plain", type=float, default=3.0)
+    p.add_argument("--stepped", type=float, default=5.5)
+    p = add("claims", cmd_claims, "screen state at narration claims")
+    p.add_argument("claims")
+    p.add_argument("--video", help="OCR the frame at t when a claim has no screen text")
+    p = add("edgeclip", cmd_edgeclip, "text touching the frame edge")
+    p.add_argument("file")
+    p.add_argument("--fps", type=float, default=2.0)
+    p.add_argument("--strip", type=int, default=14)
+    p.add_argument("--delta", type=int, default=70)
+    p.add_argument("--min-pixels", type=int, default=12)
+    p.add_argument("--region", help="y0:y1 rows holding text (default whole frame)")
+    p = add("staletext", cmd_staletext, "stale terminal text in a capture")
+    p.add_argument("cast")
+    p = add("psparse", cmd_psparse, "PowerShell commands parse")
+    p.add_argument("file")
+    p.add_argument("--static", action="store_true", help="backslash check only, no pwsh")
+    p = add("arc", cmd_arc, "explainer beats, hook, CTA and length band")
+    p.add_argument("storyboard")
+    p.add_argument("--audience", choices=sorted(BANDS))
+    p.add_argument("--hook", type=float, default=5.0)
+    p.add_argument("--min", type=float)
+    p.add_argument("--max", type=float)
+    p = add("describe", cmd_describe, "on-screen text spoken or described")
+    p.add_argument("storyboard")
+    p.add_argument("--min", type=float, default=0.8)
     add("doctor", cmd_doctor, "which tools are present")
     p = add("all", cmd_all, "run a JSON plan of checks")
     p.add_argument("plan")

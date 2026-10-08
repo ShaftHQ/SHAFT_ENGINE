@@ -25,6 +25,9 @@ on screen (use `Text`, not `Tex`).
 - Arrows and labels never cross text; keep a consistent stroke width and a
   grid for node placement.
 - Reveal in reading order; one new element per beat; hold each beat per D08.
+- Charts: bars start from a zero baseline, labels sit on the data, and each
+  transition changes one thing (axis, then values, then order) in about
+  1 s with slow-in and slow-out. Every number carries its source.
 - Code on screen is real code from the repository at a pinned commit, with
   the file path shown.
 - Glyph cap height at least 24 px at 1080p.
@@ -46,4 +49,5 @@ on screen (use `Text`, not `Tex`).
 
 ## Sources
 
-ManimCommunity/manim (MIT); motion-canvas (MIT).
+ManimCommunity/manim (MIT); motion-canvas (MIT); Heer and Robertson,
+"Animated Transitions in Statistical Data Graphics" (InfoVis 2007).

@@ -30,6 +30,10 @@ Canvas (MIT) are documented alternatives, not defaults.
   out of scope.
 - GSAP only when the owner accepts its licence in writing; WAAPI and CSS
   first.
+- Kinetic type: 3 to 7 words per beat; a phrase lands within 3 frames of
+  its spoken word and holds per D08. Move the frame rather than the
+  letters; per-letter motion only for two or three key words. Watch it
+  muted once.
 - Every composition has a contact-sheet review before a full render.
 - Transparent overlays render with alpha (ProRes 4444 or VP9 with alpha) and
   are composited in D12.

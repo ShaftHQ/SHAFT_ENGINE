@@ -24,7 +24,7 @@ CARDS = (
     "typography-layout", "color-contrast", "image-graphics", "motion-principles",
     "html-motion-graphics", "technical-animation", "screen-capture", "edit-assembly",
     "cutting-pacing", "color-grading", "audio-mix-loudness", "noise-removal", "voice-over-tts",
-    "captions-subtitles", "video-restoration-upscaling", "delivery-qc",
+    "captions-subtitles", "video-restoration-upscaling", "delivery-qc", "explainer-arc",
 )
 
 
@@ -211,10 +211,10 @@ class WrapperContractTests(unittest.TestCase):
 
 
 class DesignContentTests(unittest.TestCase):
-    def test_router_links_twenty_cards_within_budget(self):
+    def test_router_links_every_card_within_budget(self):
         router = (DESIGN / "SKILL.md").read_text(encoding="utf-8")
         self.assertLessEqual(len(router.encode("utf-8")), 4096)
-        self.assertEqual(20, len(CARDS))
+        self.assertEqual(21, len(CARDS))
         for name in CARDS:
             card = DESIGN / "references" / f"{name}.md"
             self.assertIn(f"references/{name}.md", router)
@@ -428,6 +428,180 @@ class DesignLessonTests(unittest.TestCase):
         self.assertIn("40 px", card("typography-layout"))
         self.assertIn("CRF", card("color-grading"))
         self.assertIn("review", card("delivery-qc").lower())
+
+
+class DesignRound3Tests(unittest.TestCase):
+    """Install-video round-3 lessons and explainer research (#6648)."""
+
+    qc = DesignQcTests.qc
+
+    def run_qc(self, *args: str) -> tuple[int, dict]:
+        return DesignQcTests.run_qc(self, *args)
+
+    def write(self, folder: str, name: str, payload: object) -> str:
+        return DesignLessonTests.write(self, folder, name, payload)
+
+    @staticmethod
+    def ffmpeg(*args: str) -> None:
+        subprocess.run([shutil.which("ffmpeg"), "-hide_banner", "-loglevel", "error", "-y", *args],  # nosec B603
+                       check=True)
+
+    def test_flat_runs_skip_head_and_tail(self):  # #6649
+        stds = [0.0] * 30 + [20.0] * 30 + [0.2] * 3 + [20.0] * 30 + [0.0] * 30
+        self.assertEqual([{"start": 2.0, "frames": 3}], self.qc.flat_runs(stds, fps=30, edge=1.0, limit=1.0))
+        self.assertEqual([], self.qc.flat_runs([0.0] * 30 + [20.0] * 30 + [0.0] * 30, fps=30, edge=1.0, limit=1.0))
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg not installed")
+    def test_flatframes_gate_on_a_black_dip(self):  # #6649
+        with tempfile.TemporaryDirectory() as temporary:
+            clean, dipped = Path(temporary) / "clean.mp4", Path(temporary) / "dip.mp4"
+            self.ffmpeg("-f", "lavfi", "-i", "testsrc2=s=320x180:r=30:d=4", "-pix_fmt", "yuv420p", str(clean))
+            self.ffmpeg("-f", "lavfi", "-i", "testsrc2=s=320x180:r=30:d=4", "-vf",
+                        "drawbox=c=black:t=fill:enable='between(n,60,62)'", "-pix_fmt", "yuv420p", str(dipped))
+            self.assertEqual(0, self.run_qc("flatframes", str(clean))[0])
+            code, payload = self.run_qc("flatframes", str(dipped))
+            self.assertEqual((1, 2.0), (code, payload["runs"][0]["start"]))
+
+    def test_contenthold_limits_plain_and_stepped_holds(self):  # #6650
+        with tempfile.TemporaryDirectory() as temporary:
+            def edl(*holds: dict) -> str:
+                segments = [{"src": [0, 2], "speed": 1.0}, *holds]
+                return self.write(temporary, "edl.json", {"clips": [{"id": "k1", "segments": segments}]})
+            code, payload = self.run_qc("contenthold", edl({"hold": 4.0, "at": 2}))
+            self.assertEqual((1, "k1", 2.0), (code, payload["over_limit"][0]["clip"], payload["over_limit"][0]["at"]))
+            self.assertEqual(0, self.run_qc("contenthold", edl({"hold": 4.0, "at": 2, "marks": [1, 2]}))[0])
+            self.assertEqual(0, self.run_qc("contenthold", edl({"hold": 5.0, "at": 2, "scroll": "Host"}))[0])
+            self.assertEqual(1, self.run_qc("contenthold", edl({"hold": 6.0, "at": 2, "marks": [1, 2]}))[0])
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg not installed")
+    def test_static_crop_ignores_moving_overlays(self):  # #6650
+        with tempfile.TemporaryDirectory() as temporary:
+            clip = Path(temporary) / "overlay.mp4"
+            self.ffmpeg("-f", "lavfi", "-i", "color=c=gray:s=640x360:r=10:d=5", "-f", "lavfi", "-i",
+                        "color=c=white:s=40x40:r=10:d=5", "-filter_complex", "[0][1]overlay=x='mod(t*80,600)':y=300",
+                        "-pix_fmt", "yuv420p", str(clip))
+            self.assertEqual(0, self.run_qc("static", str(clip))[0])
+            self.assertEqual(1, self.run_qc("static", str(clip), "--crop", "640:280:0:0")[0])
+
+    def test_claims_need_must_and_reject_must_not(self):  # #6651
+        with tempfile.TemporaryDirectory() as temporary:
+            listing = "design-skills  installed\nshaft-engine-users  installed"
+            claims = self.write(temporary, "claims.json", {"claims": [
+                {"id": "l1", "t": 3.2, "must": ["^design-skills\\s+installed"], "screen": listing},
+                {"id": "r2", "t": 9.1, "must": ["^design-skills"], "mustNot": ["^shaft-engine-users\\s+installed"],
+                 "screen": listing},
+                {"id": "c5", "t": 12.0, "must": ["healthy\\s+15/15"], "screen": "healthy 14/15"}]})
+            code, payload = self.run_qc("claims", claims)
+            self.assertEqual(1, code)
+            results = {row["id"]: row for row in payload["claims"]}
+            self.assertTrue(results["l1"]["ok"])
+            self.assertEqual(["^shaft-engine-users\\s+installed"], results["r2"]["unexpected"])
+            self.assertEqual(["healthy\\s+15/15"], results["c5"]["missing"])
+
+    def test_edge_hits_find_text_in_the_outer_strip(self):  # #6652
+        row = [20] * 100
+        right = row[:96] + [230, 230, 230, 230]
+        self.assertEqual(["right"], self.qc.edge_hits([right] * 20, strip=4, delta=70, min_pixels=12))
+        self.assertEqual([], self.qc.edge_hits([row[:40] + [230] * 20 + row[60:]] * 20, strip=4, delta=70,
+                                               min_pixels=12))
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg not installed")
+    def test_edgeclip_gate_on_a_vertical_clip(self):  # #6652
+        with tempfile.TemporaryDirectory() as temporary:
+            clipped, centered = Path(temporary) / "clipped.mp4", Path(temporary) / "centered.mp4"
+            for path, x in ((clipped, 1060), (centered, 500)):
+                self.ffmpeg("-f", "lavfi", "-i", "color=c=0x101418:s=1080x1920:r=10:d=1", "-vf",
+                            f"drawbox=x={x}:y=800:w=40:h=200:c=white:t=fill", "-pix_fmt", "yuv420p", str(path))
+            code, payload = self.run_qc("edgeclip", str(clipped))
+            self.assertEqual((1, "right"), (code, payload["clipped"][0]["side"]))
+            self.assertEqual(0, self.run_qc("edgeclip", str(centered))[0])
+
+    def test_staletext_finds_shorter_rewrites_without_erase(self):  # #6653
+        hits = self.qc.stale_rewrites([(0.5, "Installing tools\rDone\n")], 80)
+        self.assertEqual("alling tools", hits[0]["stale_tail"])
+        self.assertEqual([], self.qc.stale_rewrites([(0.5, "Installing tools\r\x1b[KDone\n")], 80))
+        self.assertEqual([], self.qc.stale_rewrites([(0.1, "50%"), (0.2, "\r100%\n")], 80))
+        with tempfile.TemporaryDirectory() as temporary:
+            cast = Path(temporary) / "take.cast"
+            cast.write_text(json.dumps({"version": 2, "width": 80, "height": 24}) + "\n"
+                            + json.dumps([0.5, "o", "Installing tools\r\x1b[1BDone"]) + "\n"
+                            + json.dumps([0.9, "o", "\x1b[1A\rOK\n"]) + "\n", encoding="utf-8")
+            code, payload = self.run_qc("staletext", str(cast))
+            self.assertEqual((1, "stalling tools"), (code, payload["hits"][0]["stale_tail"]))
+
+    def test_psparse_static_flags_backslash_continuations(self):  # #6654
+        with tempfile.TemporaryDirectory() as temporary:
+            bad = self.write(temporary, "bad.ps1", "PS> irm https://example.test/install.ps1 | iex \\\n  -Verbose\n")
+            good = self.write(temporary, "good.ps1", "PS> $s = irm https://example.test/install.ps1\n\nPS> iex $s\n")
+            code, payload = self.run_qc("psparse", bad, "--static")
+            self.assertEqual((1, True), (code, payload["commands"][0]["backslash_continuation"]))
+            self.assertEqual(0, self.run_qc("psparse", good, "--static")[0])
+
+    @unittest.skipUnless(shutil.which("pwsh"), "pwsh not installed")
+    def test_psparse_parses_with_pwsh(self):  # #6654
+        with tempfile.TemporaryDirectory() as temporary:
+            valid = self.write(temporary, "ok.ps1", "PS> Get-ChildItem | Select -First 1\n")
+            broken = self.write(temporary, "no.ps1", "PS> Get-ChildItem | | Select\n")
+            self.assertEqual(0, self.run_qc("psparse", valid)[0])
+            self.assertEqual(1, self.run_qc("psparse", broken)[0])
+
+    def board(self, folder: str, **change: object) -> str:
+        scenes = [
+            {"id": "s1", "beat": "hook", "start": 0, "duration": 5, "vo": "Your build is red.",
+             "onScreenText": "Build red"},
+            {"id": "s2", "beat": "problem", "duration": 20, "vo": "Flaky tests hide real bugs."},
+            {"id": "s3", "beat": "solution", "duration": 40, "vo": "One engine with built-in waits."},
+            {"id": "s4", "beat": "proof", "duration": 25, "vo": "Open source since 2018.",
+             "claims": [{"text": "since 2018", "evidence": "repo created_at"}]},
+            {"id": "s5", "beat": "cta", "duration": 15, "vo": "Generate a project today.",
+             "onScreenText": "Generate a project"}]
+        data = {"audience": "exec", "scenes": scenes}
+        for key, value in change.items():
+            scene_id, field = key.split("__")
+            next(s for s in scenes if s["id"] == scene_id)[field] = value
+        return self.write(folder, "board.json", data)
+
+    def test_arc_checks_beats_hook_cta_proof_and_band(self):  # #6655
+        with tempfile.TemporaryDirectory() as temporary:
+            self.assertEqual(0, self.run_qc("arc", self.board(temporary))[0])
+            for change, needle in (({"s1__duration": 8}, "hook"), ({"s5__beat": "solution"}, "cta"),
+                                   ({"s4__claims": [{"text": "x"}]}, "evidence"),
+                                   ({"s3__duration": 140}, "duration"), ({"s2__beat": "proof"}, "order")):
+                code, payload = self.run_qc("arc", self.board(temporary, **change))
+                self.assertEqual(1, code, change)
+                self.assertTrue(any(needle in problem for problem in payload["problems"]), (change, payload))
+            self.assertEqual(0, self.run_qc("arc", self.board(temporary, s3__duration=130), "--audience",
+                                            "technical", "--min", "100")[0])
+
+    def test_describe_requires_on_screen_text_spoken_or_described(self):  # #6656
+        with tempfile.TemporaryDirectory() as temporary:
+            self.assertEqual(0, self.run_qc("describe", self.board(temporary))[0])
+            unspoken = self.board(temporary, s3__onScreenText="Allure evidence included")
+            code, payload = self.run_qc("describe", unspoken)
+            self.assertEqual((1, "s3"), (code, payload["scenes"][0]["id"]))
+            described = self.board(temporary, s3__onScreenText="Allure evidence included",
+                                   s3__description="A report panel shows Allure evidence.")
+            self.assertEqual(0, self.run_qc("describe", described)[0])
+
+    def test_cards_carry_the_round3_and_explainer_rules(self):  # #6648
+        def card(name: str) -> str:
+            return (DESIGN / "references" / f"{name}.md").read_text(encoding="utf-8")
+        self.assertIn("flatframes", card("edit-assembly"))
+        self.assertIn("frame 0", card("edit-assembly"))
+        self.assertIn("contenthold", card("cutting-pacing"))
+        self.assertIn("claims", card("design-brief-storyboard"))
+        self.assertIn("reflow", card("screen-capture"))
+        self.assertIn("staletext", card("screen-capture"))
+        self.assertIn("psparse", card("typography-layout"))
+        self.assertIn("edgeclip", card("delivery-qc"))
+        self.assertIn("muted", card("delivery-qc"))
+        self.assertIn("describe", card("captions-subtitles"))
+        self.assertIn("1.2.5", card("captions-subtitles"))
+        self.assertIn("3 frames", card("html-motion-graphics"))
+        self.assertIn("zero", card("technical-animation"))
+        arc = card("explainer-arc")
+        for rule in ("hook", "proof", "cta", "design_qc.py arc", "engagement"):
+            self.assertIn(rule, arc)
 
 
 if __name__ == "__main__":

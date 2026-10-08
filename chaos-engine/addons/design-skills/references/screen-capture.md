@@ -46,6 +46,13 @@ Sleep 2s
   personal paths, emails, and hostnames on screen.
 - Keep the full log of each take next to the video.
 - A network failure means a retake, not an edited fake.
+- Stale text on screen: replay the capture through an independent emulator
+  before blaming the renderer. A row rewritten shorter without
+  erase-to-end-of-line is a program bug: fix the display minimally (add
+  the erase only), note it in the manifest, and report it upstream.
+- Vertical cuts never crop a wide terminal: re-render in reflow mode at the
+  target width, wrap logical lines at spaces, and refuse a frame whose row
+  overflows the view.
 - Windows footage comes from a real Windows machine (PowerShell), recorded
   with the same tape discipline or the OS recorder at a fixed size.
 
@@ -59,6 +66,7 @@ Sleep 2s
 ## Verify
 
 - `vhs` exits 0 and every `Wait` matched; the command's own exit code is 0.
+- `design_qc.py staletext take.cast` passes on the display stream.
 - A health command (for example a doctor or status command) in the take
   reports success.
 - Log scan finds no tokens, emails, usernames, or private paths

@@ -3,7 +3,7 @@
   "kind": "addon",
   "name": "design-skills",
   "title": "Design skills",
-  "description": "Twenty verified design cards for web, image, motion graphics, video editing, cutting, color, audio, noise removal, restoration, captions, and delivery, plus a zero-LLM QC script.",
+  "description": "Twenty-one verified design cards for web, image, motion graphics, video editing, cutting, color, audio, noise removal, restoration, captions, and delivery, plus a zero-LLM QC script.",
   "useWhen": "designing a web surface, image, motion graphic, or video, or checking one against objective quality gates",
   "requires": [],
   "router": "SKILL.md"

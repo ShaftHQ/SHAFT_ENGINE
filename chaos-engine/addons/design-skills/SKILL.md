@@ -32,6 +32,7 @@ only when a user passed `--with-design-skills`. Without it, use core
 | Step | Card | Use when |
 | --- | --- | --- |
 | Plan | [D01 brief and storyboard](references/design-brief-storyboard.md) | any video, ad, or visual campaign starts |
+| Story | [D21 explainer arc](references/explainer-arc.md) | an explainer needs a hook, arc, and audience versions |
 | Brand | [D02 brand system](references/brand-system.md) | tokens, logo, voice are needed |
 | Web | [D03 visual direction](references/web-visual-direction.md) | a surface needs an aesthetic idea |
 | Web | [D04 interface audit](references/web-interface-audit.md) | a UI needs a rule-by-rule audit |
