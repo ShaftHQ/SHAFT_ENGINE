@@ -4500,6 +4500,94 @@ def powershell_hook_parse_error(command: str) -> str | None:
     return None
 
 
+HOOK_CONTROLLER_NAMES = (
+    "guard.py",
+    "lifecycle.py",
+    "kernel.py",
+    "launch.js",
+    "matchers.json",
+    "reflection.py",
+)
+
+
+def installed_hook_drift(project: Path) -> list[dict[str, str]]:
+    """Installed hook copies that differ from ``chaos-engine/hooks``.
+
+    ``launch.js`` runs ``.chaos-engine/hooks/guard.py`` before the source file.
+    A stale ``lifecycle.py`` there drops the session id and skips companion
+    opt-out. Absent install trees are not drift.
+    """
+    findings: list[dict[str, str]] = []
+    source_root = project / "chaos-engine" / "hooks"
+    for root in (".chaos-engine/hooks", "plugins/chaos-engine/hooks"):
+        for name in HOOK_CONTROLLER_NAMES:
+            installed = project / root / name
+            source = source_root / name
+            if not installed.is_file() or not source.is_file():
+                continue
+            try:
+                differed = installed.read_bytes() != source.read_bytes()
+            except OSError:
+                differed = True
+            if differed:
+                findings.append(
+                    {
+                        "kind": "hook-controller-drift",
+                        "path": f"{root}/{name}",
+                        "triage": "open",
+                        "reason": "installed copy differs from chaos-engine/hooks",
+                    }
+                )
+    return findings
+
+
+def copilot_surface_findings(project: Path) -> list[dict[str, str]]:
+    """Open Copilot parity, duplication, token-waste, and blocker findings."""
+    findings: list[dict[str, str]] = []
+    parse_error = powershell_hook_parse_error(
+        chaos_guard_locator_command(windows=False, host="claude")
+    )
+    if parse_error:
+        findings.append(
+            {"kind": "powershell-parse", "triage": "open", "reason": parse_error}
+        )
+    document = json.loads(copilot_hooks_document())
+    for event, handlers in document["hooks"].items():
+        expected = copilot_launcher_command(event)
+        handler = handlers[0]
+        if handler.get("bash") != expected or handler.get("powershell") != expected:
+            findings.append(
+                {
+                    "kind": "copilot-event-command",
+                    "triage": "open",
+                    "reason": f"{event} is not the shared launcher with that event",
+                }
+            )
+    adapter = skill_adapter_bytes("chaos-engine").decode("utf-8")
+    skill = project / "chaos-engine/skills/chaos-engine/SKILL.md"
+    if skill.is_file():
+        body = skill.read_text(encoding="utf-8")
+        if body in adapter or "Measure thrice, cut once" in adapter:
+            findings.append(
+                {
+                    "kind": "skill-body-duplicated",
+                    "triage": "open",
+                    "reason": "always-on adapter copies the router body",
+                }
+            )
+    work_item = project / "chaos-engine/skills/work-item/SKILL.md"
+    if work_item.is_file() and "One work item owns one actionable problem" in adapter:
+        findings.append(
+            {
+                "kind": "catalog-skill-in-adapter",
+                "triage": "open",
+                "reason": "catalog skill body is in the always-on adapter",
+            }
+        )
+    findings.extend(installed_hook_drift(project))
+    return findings
+
+
 def managed_python_for(
     dependency_runtime: Path | None, account_commands: dict[str, str] | None
 ) -> Path | None:

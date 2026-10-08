@@ -221,16 +221,6 @@ class CopilotCliHookTest(unittest.TestCase):
         self.assertIn("canonical ChaosEngine", adapter)
         self.assertNotIn("Measure thrice, cut once", adapter)
         self.assertNotIn(body, adapter)
-        findings = []
-        if HOSTS.powershell_hook_parse_error(
-            HOSTS.chaos_guard_locator_command(windows=False, host="claude")
-        ):
-            findings.append({"kind": "powershell-parse", "triage": "open"})
-        document = json.loads(HOSTS.copilot_hooks_document())
-        for event, handlers in document["hooks"].items():
-            command = handlers[0]["bash"]
-            if command != f"node .chaos-engine/hooks/launch.js copilot {event}":
-                findings.append({"kind": "missing-event", "event": event, "triage": "open"})
-            if handlers[0]["powershell"] != command:
-                findings.append({"kind": "powershell-drift", "event": event, "triage": "open"})
-        self.assertEqual([], [item for item in findings if item["triage"] != "fixed"])
+        findings = HOSTS.copilot_surface_findings(ROOT)
+        open_findings = [item for item in findings if item.get("triage") != "fixed"]
+        self.assertEqual([], open_findings)
