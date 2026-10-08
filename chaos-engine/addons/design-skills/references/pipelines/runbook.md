@@ -61,6 +61,19 @@ A fresh reviewer that did not build the video watches and listens to every
 output end to end and lists blockers with timestamps. Fixes go back to stage
 1 with `--only`.
 
+- Each round uses a fresh reviewer and the same rubric: per output a score
+  out of 10 (8 = publishable), the top three problems with mm:ss and what is
+  on screen at that moment, the single highest-impact change, and a final
+  `SCORES` line.
+- Reviewers misplace timestamps and sometimes describe what is not there.
+  Verify every finding on extracted frames (or a measurement, such as
+  `volumedetect` for audio) before fixing it, and log each one in STATUS as
+  verified or rejected with the evidence. Rejected findings still get a
+  cheap hardening when one exists.
+- Passing automated QC is not passing review: QC catches defects, review
+  catches legibility, pacing and story. Budget three to four review rounds
+  and iterate on scene stills between them (D09), not on full rebuilds.
+
 ## 5. Deliver
 
 Upload only when full QC and review pass, with the QC report beside the

@@ -26,6 +26,10 @@ page, poster, slide, or video frame.
 
 - Minimum glyph cap height 24 px at 1080p (48 px at 2160p) for any text the
   viewer must read.
+- Real captures (screenshots, reports, traces, terminals) meet the same
+  minimum after camera scale: measure the rendered glyph, not the source
+  pixel. In 9:16 measure against the 1080 px width; a capture scaled to fit
+  the frame width almost never passes, so zoom to a region.
 - Keep text inside a 5% safe margin; vertical video adds the platform UI
   zones from D20.
 - One idea per frame; at most about seven words of on-screen text per beat.
@@ -57,6 +61,8 @@ page, poster, slide, or video frame.
 - Computed font sizes match the scale within 2%.
 - Every font file has a recorded licence in the manifest.
 - The smallest code frame is inspected at 1080p and in the 9:16 cut.
+- The smallest capture frame (screenshot, trace, terminal) is inspected at
+  its final camera scale in each cut.
 - `design_qc.py psparse commands.ps1` passes for every PowerShell command
   shown (`--static` only where pwsh is missing, reported).
 

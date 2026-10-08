@@ -38,6 +38,23 @@ Canvas (MIT) are documented alternatives, not defaults.
 - Transparent overlays render with alpha (ProRes 4444 or VP9 with alpha) and
   are composited in D12.
 
+## Screenshot and code camera
+
+- Real screenshots, code and terminal captures get a region camera: keys
+  `[beat, x, y, w]` make the w px wide region at (x, y) fill the frame,
+  easing about 900 ms into each key. Key each move to the narration word that
+  names the region (beat = line start plus the word's character proportion
+  of the line duration).
+- One still on screen at a time; never stack or fan out several captures.
+- Never pull back below reading size. To show "the whole file", scroll at
+  reading size and state the size as a number (a line-count chip).
+- 9:16: captures run full-bleed (frame width) with a tighter region than
+  16:9.
+- Before any full rebuild, render stills of the edited scene at the moments
+  under review from the same seek-based page; rebuild only once they read.
+- Generated scenes are linted for unrendered template placeholders (`{`
+  followed by a helper call) before render.
+
 ## Workflow
 
 1. Scaffold a composition per storyboard scene id; wire tokens.
@@ -53,6 +70,9 @@ Canvas (MIT) are documented alternatives, not defaults.
 - Two renders give identical frame hashes
   (`ffmpeg -i out.mp4 -f framemd5 -`).
 - `design_qc.py easing compositions/` passes.
+- Stills at each camera key show the named region with text at reading
+  size (D05), in 16:9 and 9:16.
+- `rg -n '\{w\(|\{[a-z_]+\(' scenes/` finds no unrendered placeholders.
 - Output passes `design_qc.py delivery` or is an alpha intermediate listed in
   the manifest.
 

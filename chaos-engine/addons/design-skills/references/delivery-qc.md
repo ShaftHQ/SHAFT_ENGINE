@@ -26,6 +26,9 @@ Common: constant frame rate, closed GOP of half the frame rate (`-g 15` at
 
 Keep text and faces out of the top 14% and bottom 20% of a 1080 x 1920 frame,
 and away from the right-hand action column of the platform UI.
+Source lines, footnotes and burned-in captions are text too: all stay above
+the bottom 20% (y 1536 at 1920), with the source line above the caption
+band so neither covers the other. Content layouts end above both.
 
 Social feeds autoplay muted: burn in captions and make every beat readable
 without sound. Platforms normalise playback loudness down, not up (YouTube
@@ -65,6 +68,8 @@ toward about -14 LUFS), so the D15 -16 LUFS speech master stays.
 - Vertical frames inspected against the safe zone overlay, and
   `design_qc.py edgeclip vertical.mp4 --region y0:y1` passes for each text
   region.
+- 9:16: the lowest source line and caption pixel sit above y 1536 on
+  sampled frames.
 - Review notes list no blocker for each delivered output.
 
 ## Sources
