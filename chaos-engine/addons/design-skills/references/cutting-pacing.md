@@ -35,6 +35,10 @@ Give up the lower ones first.
 - A hold reads alive only when real content moves. EDL holds last at most
   3 s, or 5.5 s with two or more stepping callouts or a real scroll;
   callouts alone read static past about 5 s.
+- A card, stat or list slide that holds more than about 3 s after its last
+  reveal gets a camera that visits each element as the narration names it,
+  then pulls back for the summary line. The constant push-in can pass
+  `static` and still read as a static slide to a viewer.
 - Camera pushes run at a constant rate spread over the whole clip; encoders
   flatten eased or capped pushes into visible freezes.
 - Pacing targets per format, written in the storyboard:
@@ -57,6 +61,8 @@ Give up the lower ones first.
   no 60 px cell changes; measure the caption-free picture, with
   `--crop` to the capture region when callouts move over it).
 - `design_qc.py contenthold edl.json` passes.
+- For every slide, the gap between its last reveal or camera key and its
+  end is 3 s or less.
 - Shot-length list from the EDL is inside the storyboard targets.
 - With music, beat offsets (from an onset detector) are within two frames
   for marked beat cuts.
