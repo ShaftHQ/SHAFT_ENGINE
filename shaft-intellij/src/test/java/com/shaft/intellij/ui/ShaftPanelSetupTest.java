@@ -6316,6 +6316,8 @@ class ShaftPanelSetupTest {
                 // Names the exact non-destructive action it runs, distinguishing it at a glance from
                 // the destructive "Reset everything" button beside it (issue #3601 S4).
                 .filter(button -> !"Re-check connection and agents".equals(accessibleName(button)))
+                // Post-setup maintenance action beside it; names the file it writes (issue #6641).
+                .filter(button -> !"Generate GitHub Actions workflow".equals(accessibleName(button)))
                 .filter(button -> !"Copy SHAFT upgrade command".equals(accessibleName(button)))
                 .filter(button -> !"Check SHAFT project version".equals(accessibleName(button)))
                 // The shaft-mcp version step's check button is labeled like its upgrade-step peer
@@ -8402,6 +8404,33 @@ class ShaftPanelSetupTest {
         setField(panel, "confirmReset", (java.util.function.BooleanSupplier) () -> true);
         clickAccessible(panel, "Reset everything");
         assertEquals(1, resetCalls.get(), "confirming should invoke the reset service exactly once");
+    }
+
+    @Test
+    void generateCiWorkflowButtonIsPostSetupOnlyAndNeverOverwrites(@TempDir Path root) throws Exception {
+        Files.writeString(root.resolve("pom.xml"), "<project/>");
+        ShaftMcpSetupPanel firstRun = new ShaftMcpSetupPanel(
+                fakeProject(new ShaftAssistantChatState(), root.toString()), blankMcpSettings(), () -> {
+        });
+        ShaftMcpSetupPanel panel = new ShaftMcpSetupPanel(
+                fakeProject(new ShaftAssistantChatState(), root.toString()), connectedMcpSettings(), () -> {
+        });
+        Path workflow = root.resolve(".github/workflows/shaft-tests.yml");
+        JLabel toast = (JLabel) getField(panel, "toast");
+
+        assertFalse(findByAccessibleName(firstRun, "Generate GitHub Actions workflow", JButton.class).isVisible());
+        assertTrue(findByAccessibleName(panel, "Generate GitHub Actions workflow", JButton.class).isVisible());
+
+        clickAccessible(panel, "Generate GitHub Actions workflow");
+        assertTrue(Files.readString(workflow).contains("-DheadlessExecution=true"));
+        assertEquals("Created .github/workflows/shaft-tests.yml", toast.getText());
+
+        Files.writeString(workflow, "name: mine\n");
+        clickAccessible(panel, "Generate GitHub Actions workflow");
+        assertAll(
+                () -> assertEquals("name: mine\n", Files.readString(workflow)),
+                () -> assertEquals(".github/workflows/shaft-tests.yml already exists; left unchanged",
+                        toast.getText()));
     }
 
     @Test

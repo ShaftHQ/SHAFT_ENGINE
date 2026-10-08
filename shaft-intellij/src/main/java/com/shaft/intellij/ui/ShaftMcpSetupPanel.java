@@ -3,9 +3,12 @@ package com.shaft.intellij.ui;
 import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.Disposable;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.vfs.LocalFileSystem;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.components.ActionLink;
@@ -16,6 +19,7 @@ import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.mcp.ShaftMcpConnectionProbe;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.mcp.ShaftPluginExecutor;
+import com.shaft.intellij.project.ShaftGithubWorkflowFile;
 import com.shaft.intellij.settings.AssistantAgentRoute;
 import com.shaft.intellij.settings.ShaftPluginResetService;
 import com.shaft.intellij.settings.ShaftSettingsState;
@@ -167,6 +171,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private final JCheckBox expertMode;
     private final JButton connectionAgentsRecheck;
     private final JButton resetEverything;
+    private final JButton generateCiWorkflow;
     private final JProgressBar progress;
     private final JLabel runtimeStatus;
     private final JLabel assistStatus;
@@ -497,6 +502,14 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         resetEverything.setForeground(ShaftStatusPresentation.error());
         resetEverything.setVisible(postSetupReentry);
         resetEverything.addActionListener(event -> confirmAndReset());
+        generateCiWorkflow = new JButton("CI workflow");
+        generateCiWorkflow.getAccessibleContext().setAccessibleName("Generate GitHub Actions workflow");
+        generateCiWorkflow.setToolTipText("Write " + ShaftGithubWorkflowFile.RELATIVE_PATH
+                + " to run this project's SHAFT tests headless on GitHub Actions and upload Allure results."
+                + " An existing file is never overwritten.");
+        applyLabeledAction(generateCiWorkflow, ShaftIcons.CHECK);
+        generateCiWorkflow.setVisible(postSetupReentry);
+        generateCiWorkflow.addActionListener(event -> generateCiWorkflow());
         runtimeStatus = setupStatusLabel("Assistant runtime setup status");
         assistStatus = setupStatusLabel("Assistant connection setup status");
         recommendedAgent = setupStatusLabel("Recommended assistant agent");
@@ -750,6 +763,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         postSetupControls.getAccessibleContext().setAccessibleName("SHAFT plugin post-setup controls");
         postSetupControls.add(expertMode);
         postSetupControls.add(connectionAgentsRecheck);
+        postSetupControls.add(generateCiWorkflow);
         postSetupControls.add(resetEverything);
         agentRoute.addActionListener(event -> {
             syncLegacySelectionFromRoute();
@@ -1870,6 +1884,39 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
             return;
         }
         resetAction.run();
+    }
+
+    /**
+     * Writes the GitHub Actions workflow for this project (issue #6641) and reports the outcome in
+     * the toast; opens the new file in the editor when running inside a real IDE.
+     */
+    private void generateCiWorkflow() {
+        ShaftGithubWorkflowFile.Result result;
+        try {
+            result = ShaftGithubWorkflowFile.generate(projectRoot());
+        } catch (IOException e) {
+            showToast("Could not write " + ShaftGithubWorkflowFile.RELATIVE_PATH + ": " + e.getMessage());
+            return;
+        }
+        switch (result.outcome()) {
+            case CREATED -> {
+                showToast("Created " + ShaftGithubWorkflowFile.RELATIVE_PATH);
+                openInEditor(result.file());
+            }
+            case ALREADY_EXISTS -> showToast(ShaftGithubWorkflowFile.RELATIVE_PATH
+                    + " already exists; left unchanged");
+            case UNSUPPORTED_BUILD -> showToast("No pom.xml or gradlew in the project root; workflow not created");
+        }
+    }
+
+    private void openInEditor(Path file) {
+        if (project == null || Proxy.isProxyClass(project.getClass()) || ApplicationManager.getApplication() == null) {
+            return;
+        }
+        VirtualFile virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(file);
+        if (virtualFile != null) {
+            FileEditorManager.getInstance(project).openFile(virtualFile, true);
+        }
     }
 
     private boolean confirmResetDialog() {
