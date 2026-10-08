@@ -29,6 +29,7 @@ import copy
 import dataclasses
 import difflib
 import getpass
+import hashlib
 import json
 import os
 import re
@@ -38,11 +39,12 @@ import stat
 import subprocess  # nosec B404 - runs Maven builds and agent CLIs with controlled arguments.
 import sys
 import tempfile
+import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path, PurePosixPath
-from typing import Callable, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 
 SHAFT_GROUP = "io.github.shafthq"
@@ -85,6 +87,16 @@ MAX_AI_CHANGE_CHARS = 500_000
 MAVEN_NAMESPACE = "http://maven.apache.org/POM/4.0.0"
 XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
 UPGRADE_TYPES = ("basic", "session", "full")
+# Lifecycle surface (#6645): match ChaosEngine installer commands with SHAFT Engine branding.
+LIFECYCLE_COMMANDS = ("upgrade", "status", "doctor", "rollback")
+RECEIPT_DIR_NAME = ".shaft-upgrader"
+RECEIPT_NAME = "upgrade-receipt.json"
+PREVIOUS_RECEIPT_NAME = "upgrade-receipt.previous.json"
+SNAPSHOT_DIR_NAME = "snapshot"
+RECEIPT_SCHEMA_VERSION = 1
+BRAND_NAME = "SHAFT Engine"
+GUIDE_URL = "https://shafthq.github.io/"
+NETWORK_ATTEMPTS = 5
 SOURCE_UPGRADE_TYPES = {"session", "full"}
 SOURCE_UPGRADE_STACKS = {"selenium", "appium"}
 SHAFT_PROVIDED_DEPENDENCIES = {
@@ -378,6 +390,10 @@ class FileTransaction:
     def write_text(self, path: Path, content: str) -> None:
         """Atomically write UTF-8 text after recording the original state."""
         self.write_bytes(path, content.encode("utf-8"))
+
+    def tracked_originals(self) -> dict[Path, OriginalFile]:
+        """Return a shallow copy of remembered originals (used before commit)."""
+        return dict(self._originals)
 
     def rollback(self) -> None:
         """Restore all tracked paths byte-for-byte."""
@@ -1409,28 +1425,442 @@ def metadata_release(xml_text: str) -> str:
     raise UpgradeError("No stable modular SHAFT release was found in Maven metadata.")
 
 
+
+def receipt_dir(project_root: Path) -> Path:
+    """Project-local receipt directory for the SHAFT upgrader."""
+    return project_root.resolve() / RECEIPT_DIR_NAME
+
+
+def receipt_path(project_root: Path) -> Path:
+    return receipt_dir(project_root) / RECEIPT_NAME
+
+
+def previous_receipt_path(project_root: Path) -> Path:
+    return receipt_dir(project_root) / PREVIOUS_RECEIPT_NAME
+
+
+def snapshot_dir(project_root: Path) -> Path:
+    return receipt_dir(project_root) / SNAPSHOT_DIR_NAME
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def read_receipt(project_root: Path) -> dict[str, Any] | None:
+    path = receipt_path(project_root)
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def write_receipt(project_root: Path, receipt: dict[str, Any], *, dry_run: bool = False) -> Path:
+    path = receipt_path(project_root)
+    if dry_run:
+        log(f"[dry-run] would write receipt {path}")
+        return path
+    root = receipt_dir(project_root)
+    root.mkdir(parents=True, exist_ok=True)
+    current = read_receipt(project_root)
+    if current is not None:
+        previous = previous_receipt_path(project_root)
+        atomic_write(previous, (json.dumps(current, indent=2) + "\n").encode("utf-8"))
+    payload = dict(receipt)
+    payload.setdefault("schemaVersion", RECEIPT_SCHEMA_VERSION)
+    atomic_write(path, (json.dumps(payload, indent=2) + "\n").encode("utf-8"))
+    return path
+
+
+def clear_snapshot(project_root: Path) -> None:
+    target = snapshot_dir(project_root)
+    if target.exists():
+        shutil.rmtree(target)
+
+
+def write_pre_upgrade_snapshot(
+    project_root: Path,
+    originals: Mapping[Path, OriginalFile],
+) -> list[dict[str, Any]]:
+    """Persist pre-upgrade bytes so `rollback` can restore them."""
+    clear_snapshot(project_root)
+    snap = snapshot_dir(project_root)
+    snap.mkdir(parents=True, exist_ok=True)
+    owned: list[dict[str, Any]] = []
+    root = project_root.resolve()
+    for path, original in originals.items():
+        relative = path.resolve().relative_to(root).as_posix()
+        marker = snap / (relative + ".meta.json")
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        if original.content is None:
+            meta = {"path": relative, "existed": False}
+            marker.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+            continue
+        blob = snap / (relative + ".bytes")
+        blob.parent.mkdir(parents=True, exist_ok=True)
+        blob.write_bytes(original.content)
+        meta = {
+            "path": relative,
+            "existed": True,
+            "mode": original.mode,
+            "sha256": hashlib.sha256(original.content).hexdigest(),
+        }
+        marker.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+        owned.append({"path": relative, "role": "upgraded"})
+    return owned
+
+
+def build_upgrade_receipt(
+    analysis: ProjectAnalysis,
+    version: str,
+    execution: UpgradeExecution,
+    originals: Mapping[Path, OriginalFile],
+) -> dict[str, Any]:
+    """Build a receipt that drives status/doctor/rollback after a successful upgrade."""
+    root = analysis.project_root.resolve()
+    owned_meta = write_pre_upgrade_snapshot(root, originals)
+    owned_files: list[dict[str, Any]] = []
+    for path in list(analysis.candidate_poms) + list(execution.source_migration.changed_files):
+        resolved = path.resolve()
+        if not resolved.is_file():
+            continue
+        relative = resolved.relative_to(root).as_posix()
+        owned_files.append(
+            {
+                "path": relative,
+                "sha256": file_sha256(resolved),
+                "role": "pom" if resolved.name == "pom.xml" or resolved.suffix == ".xml" else "source",
+            }
+        )
+    # Ensure snapshot-tracked paths appear even if empty list from above.
+    seen = {item["path"] for item in owned_files}
+    for item in owned_meta:
+        if item["path"] not in seen:
+            target = root / item["path"]
+            if target.is_file():
+                owned_files.append(
+                    {
+                        "path": item["path"],
+                        "sha256": file_sha256(target),
+                        "role": "upgraded",
+                    }
+                )
+    components = {
+        "poms": {
+            "status": "healthy",
+            "count": len(analysis.candidate_poms),
+            "paths": [p.relative_to(root).as_posix() for p in analysis.candidate_poms],
+        },
+        "sources": {
+            "status": "healthy",
+            "count": len(execution.source_migration.changed_files),
+        },
+        "shaft-version": {
+            "status": "healthy",
+            "version": version,
+        },
+        "snapshot": {
+            "status": "healthy",
+            "path": str(snapshot_dir(root)),
+        },
+    }
+    return {
+        "schemaVersion": RECEIPT_SCHEMA_VERSION,
+        "brand": BRAND_NAME,
+        "version": version,
+        "upgradeType": execution.upgrade_type,
+        "project": str(root),
+        "guide": GUIDE_URL,
+        "ownedFiles": owned_files,
+        "components": components,
+        "compileAttempts": execution.compile_attempts,
+        "aiAttempts": execution.ai_attempts,
+    }
+
+
+def print_component_table(components: Mapping[str, Any]) -> None:
+    print("Components")
+    for name, record in components.items():
+        if not isinstance(record, dict):
+            print(f"  {name:16} unknown")
+            continue
+        status = record.get("status", "unknown")
+        detail = record.get("version") or record.get("path") or record.get("count")
+        suffix = f" ({detail})" if detail is not None else ""
+        print(f"  {name:16} {status}{suffix}")
+
+
+def probe_owned_files(project_root: Path, receipt: dict[str, Any]) -> tuple[str, str | None]:
+    root = project_root.resolve()
+    owned = receipt.get("ownedFiles") or []
+    if not isinstance(owned, list) or not owned:
+        return "recovery-required", "receipt has no owned files"
+    for item in owned:
+        if not isinstance(item, dict):
+            continue
+        relative = item.get("path")
+        expected = item.get("sha256")
+        if not isinstance(relative, str) or not isinstance(expected, str):
+            continue
+        target = root / relative
+        if not target.is_file():
+            return "recovery-required", f"missing owned file {relative}"
+        actual = file_sha256(target)
+        if actual != expected:
+            return "recovery-required", f"hash drift in {relative}"
+    return "healthy", None
+
+
+HEAL_HANDOFF_NAME = "heal-handoff.md"
+
+
+def heal_handoff_path(project_root: Path) -> Path:
+    return receipt_dir(project_root) / HEAL_HANDOFF_NAME
+
+
+def write_heal_handoff(project_root: Path, command: str, argv: Sequence[str], error: BaseException) -> Path | None:
+    """CE-standard failure handoff: exact error, exact retry command, and an agent prompt."""
+    retry = "python3 shaft-upgrader/upgrade_to_modular_shaft.py " + " ".join(shlex.quote(item) for item in argv)
+    text = (
+        f"# {BRAND_NAME} project upgrade heal handoff\n\n"
+        f"- project: `{project_root}`\n"
+        f"- command: `{command}`\n"
+        f"- error: {redact_secrets(str(error))}\n"
+        f"- retry after fixing the cause: `{retry.strip()}`\n"
+        f"- verify: `python3 shaft-upgrader/upgrade_to_modular_shaft.py doctor --project {shlex.quote(str(project_root))}`\n\n"
+        "## Agent prompt\n\n"
+        f"The {BRAND_NAME} project {command} failed with the error above. The upgrader restores the project's "
+        "POMs when a transaction fails, so start from the current files. Fix the cause the error names "
+        "(for example a malformed pom.xml, an unreachable Maven repository, or a compile error in test code), "
+        "then run the retry command and doctor. Keep the modular SHAFT dependency contract; do not hand-edit "
+        "SHAFT dependency versions around the upgrader.\n"
+        f"\nGuide: {GUIDE_URL}\n"
+    )
+    path = heal_handoff_path(project_root)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        atomic_write(path, text.encode("utf-8"))
+    except OSError:
+        return None
+    return path
+
+
+def clear_heal_handoff(project_root: Path) -> None:
+    try:
+        heal_handoff_path(project_root).unlink(missing_ok=True)
+    except OSError:
+        # Best-effort cleanup; a stuck handoff file must not fail upgrade success.
+        pass
+
+
+def doctor_report(project_root: Path, *, agent_summary: bool = False) -> dict[str, Any]:
+    report = _doctor_report(project_root, agent_summary=agent_summary)
+    handoff = heal_handoff_path(project_root)
+    if handoff.is_file() and not handoff.is_symlink():
+        report["status"] = "fail"
+        report["healHandoff"] = str(handoff)
+        report["fixNext"] = f"Complete the agent heal using {handoff}, then rerun doctor."
+    return report
+
+
+def _doctor_report(project_root: Path, *, agent_summary: bool = False) -> dict[str, Any]:
+    receipt = read_receipt(project_root)
+    if receipt is None:
+        report = {
+            "brand": BRAND_NAME,
+            "status": "fail",
+            "receipt": None,
+            "version": None,
+            "drift": "no upgrade receipt",
+            "components": {
+                "receipt": {"status": "absent", "detail": "no upgrade receipt; run upgrade"},
+            },
+            "fixNext": f"python3 shaft-upgrader/upgrade_to_modular_shaft.py upgrade --project {project_root} --yes",
+        }
+        if agent_summary:
+            print("doctor: fail")
+            print("component: receipt absent")
+            print("hash: none")
+            print("drift: no upgrade receipt")
+        return report
+    pom_status, pom_detail = probe_owned_files(project_root, receipt)
+    snap = snapshot_dir(project_root)
+    snap_status = "healthy" if snap.is_dir() else "recovery-required"
+    components = {
+        "poms": {"status": pom_status, "detail": pom_detail},
+        "shaft-version": {
+            "status": "healthy" if receipt.get("version") else "recovery-required",
+            "version": receipt.get("version"),
+        },
+        "snapshot": {
+            "status": snap_status,
+            "detail": None if snap_status == "healthy" else "pre-upgrade snapshot missing",
+            "path": str(snap),
+        },
+    }
+    unhealthy = [name for name, record in components.items() if record.get("status") != "healthy"]
+    status = "pass" if not unhealthy else "fail"
+    drift = "none" if status == "pass" else ",".join(unhealthy)
+    report = {
+        "brand": BRAND_NAME,
+        "status": status,
+        "receipt": str(receipt_path(project_root)),
+        "version": receipt.get("version"),
+        "drift": drift,
+        "components": components,
+        "fixNext": (
+            None
+            if status == "pass"
+            else f"python3 shaft-upgrader/upgrade_to_modular_shaft.py rollback --project {project_root}"
+        ),
+        "guide": GUIDE_URL,
+    }
+    if agent_summary:
+        print(f"doctor: {status}")
+        print(f"component: {'all healthy' if status == 'pass' else unhealthy[0]}")
+        print(f"hash: {receipt.get('version') or 'none'}")
+        print(f"drift: {drift}")
+    return report
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    project = Path(args.project).resolve()
+    receipt = read_receipt(project)
+    report = {
+        "brand": BRAND_NAME,
+        "status": "installed" if receipt else "absent",
+        "version": (receipt or {}).get("version"),
+        "receipt": str(receipt_path(project)) if receipt else None,
+        "guide": GUIDE_URL,
+        "components": (receipt or {}).get("components") or {},
+    }
+    if getattr(args, "json", False):
+        print(json.dumps(report, separators=(",", ":")))
+        return 0
+    print(f"{BRAND_NAME} upgrader status")
+    print(f"Status     {report['status']}")
+    print(f"Version    {report['version'] or 'none'}")
+    if report["receipt"]:
+        print(f"Receipt    {report['receipt']}")
+    print_component_table(report["components"])
+    print(f"Guide      {GUIDE_URL}")
+    return 0
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    project = Path(args.project).resolve()
+    report = doctor_report(project, agent_summary=bool(getattr(args, "agent_summary", False)))
+    if getattr(args, "json", False):
+        print(json.dumps(report, separators=(",", ":")))
+    elif not getattr(args, "agent_summary", False):
+        print(f"{BRAND_NAME} upgrader doctor: {report['status']}")
+        print_component_table(report.get("components") or {})
+        if report.get("receipt"):
+            print(f"Receipt    {report['receipt']}")
+        if report.get("fixNext"):
+            print(f"Fix-next   {report['fixNext']}")
+        print(f"Guide      {GUIDE_URL}")
+    return 0 if report.get("status") == "pass" else 1
+
+
+def cmd_rollback(args: argparse.Namespace) -> int:
+    project = Path(args.project).resolve()
+    receipt = read_receipt(project)
+    if receipt is None:
+        raise UpgradeError("No upgrade receipt; nothing to roll back.")
+    snap = snapshot_dir(project)
+    if not snap.is_dir():
+        raise UpgradeError("Pre-upgrade snapshot is missing; cannot roll back.")
+    dry_run = bool(getattr(args, "dry_run", False))
+    restored: list[str] = []
+    for meta_path in sorted(snap.rglob("*.meta.json")):
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        relative = meta["path"]
+        target = project / relative
+        if dry_run:
+            restored.append(relative)
+            continue
+        if not meta.get("existed"):
+            if target.exists():
+                target.unlink()
+            restored.append(relative)
+            continue
+        blob = Path(str(meta_path)[: -len(".meta.json")] + ".bytes")
+        if not blob.is_file():
+            raise UpgradeError(f"Snapshot bytes missing for {relative}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        atomic_write(target, blob.read_bytes())
+        mode = meta.get("mode")
+        if isinstance(mode, int):
+            target.chmod(mode)
+        restored.append(relative)
+    if dry_run:
+        result = {"status": "dry-run", "wouldRestore": restored, "brand": BRAND_NAME}
+    else:
+        current = receipt_path(project)
+        previous = previous_receipt_path(project)
+        if current.is_file():
+            current.unlink()
+        if previous.is_file():
+            # Keep previous as the active history tip if present.
+            previous.rename(current)
+        clear_snapshot(project)
+        result = {
+            "status": "rolled-back",
+            "restored": restored,
+            "brand": BRAND_NAME,
+            "receipt": str(receipt_path(project)) if receipt_path(project).is_file() else None,
+        }
+    if getattr(args, "json", False):
+        print(json.dumps(result, separators=(",", ":")))
+    else:
+        print(f"{BRAND_NAME}: rolled back {len(restored)} path(s).")
+        print(f"Guide      {GUIDE_URL}")
+    return 0
+
+
 def resolve_latest_shaft_version(
     opener: Callable[..., object] = urllib.request.urlopen,
+    attempts: int = NETWORK_ATTEMPTS,
 ) -> str:
-    """Resolve the latest published modular SHAFT version from Maven Central."""
+    """
+    Resolve the latest published modular SHAFT version from Maven Central.
+
+    Network lookups use bounded retries (ChaosEngine installer standard).
+    """
     path = f"{SHAFT_GROUP.replace('.', '/')}/{ENGINE_ARTIFACT}/maven-metadata.xml"
     request = urllib.request.Request(
         f"{MAVEN_CENTRAL}/{path}",
         headers={"User-Agent": "shaft-modular-upgrader/1"},
     )
-    try:
-        with opener(request, timeout=30) as response:
-            metadata = response.read().decode("utf-8")
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            raise UpgradeError(
-                "No modular shaft-engine release is published on Maven Central yet. "
-                "Retry after publication or pass --shaft-version for a controlled local repository."
-            ) from exc
-        raise UpgradeError(f"Maven Central returned HTTP {exc.code}.") from exc
-    except OSError as exc:
-        raise UpgradeError(f"Cannot reach Maven Central: {exc}") from exc
-    return metadata_release(metadata)
+    last_error: BaseException | None = None
+    for attempt in range(1, max(1, attempts) + 1):
+        try:
+            with opener(request, timeout=30) as response:
+                metadata = response.read().decode("utf-8")
+            return metadata_release(metadata)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                raise UpgradeError(
+                    "No modular shaft-engine release is published on Maven Central yet. "
+                    "Retry after publication or pass --shaft-version for a controlled local repository."
+                ) from exc
+            last_error = exc
+            if attempt == attempts or exc.code < 500:
+                raise UpgradeError(f"Maven Central returned HTTP {exc.code}.") from exc
+        except OSError as exc:
+            last_error = exc
+            if attempt == attempts:
+                raise UpgradeError(f"Cannot reach Maven Central: {exc}") from exc
+        time.sleep(min(attempt * 2, 10))
+    raise UpgradeError(f"Cannot reach Maven Central: {last_error}")
 
 
 def default_compile_command(project_root: Path) -> list[str]:
@@ -1935,8 +2365,7 @@ def execute_upgrade_transaction(
         result = compile_runner(compile_command, analysis.project_root, timeout_seconds)
         compile_attempts += 1
         if result.returncode == 0:
-            transaction.commit()
-            return UpgradeExecution(
+            execution = UpgradeExecution(
                 True,
                 False,
                 compile_attempts,
@@ -1945,6 +2374,14 @@ def execute_upgrade_transaction(
                 upgrade_type,
                 source_migration,
             )
+            write_receipt(
+                analysis.project_root,
+                build_upgrade_receipt(
+                    analysis, version, execution, transaction.tracked_originals()
+                ),
+            )
+            transaction.commit()
+            return execution
 
         if repair_client is None:
             transaction.rollback()
@@ -2006,8 +2443,7 @@ def execute_upgrade_transaction(
                     version,
                     analysis.optional_modules,
                 )
-                transaction.commit()
-                return UpgradeExecution(
+                execution = UpgradeExecution(
                     True,
                     False,
                     compile_attempts,
@@ -2016,6 +2452,14 @@ def execute_upgrade_transaction(
                     upgrade_type,
                     source_migration,
                 )
+                write_receipt(
+                    analysis.project_root,
+                    build_upgrade_receipt(
+                        analysis, version, execution, transaction.tracked_originals()
+                    ),
+                )
+                transaction.commit()
+                return execution
 
         transaction.rollback()
         return UpgradeExecution(
@@ -2114,22 +2558,20 @@ def confirm_upgrade() -> bool:
     return answer in {"y", "yes"}
 
 
-def build_parser() -> argparse.ArgumentParser:
-    """Build the command-line parser."""
+def build_upgrade_parser() -> argparse.ArgumentParser:
+    """Build the upgrade (and legacy flag-form) parser."""
     parser = argparse.ArgumentParser(
         description=(
-            "Upgrade a Maven Selenium/Appium/REST Assured or legacy SHAFT project "
-            "to modular SHAFT with compile validation and automatic rollback."
+            f"{BRAND_NAME}: upgrade a Maven Selenium/Appium/REST Assured or legacy SHAFT "
+            "project to modular SHAFT with compile validation and automatic rollback."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
-  python shaft-upgrader/upgrade_to_modular_shaft.py --project .
-  python shaft-upgrader/upgrade_to_modular_shaft.py --project . --yes
+  python shaft-upgrader/upgrade_to_modular_shaft.py upgrade --project . --yes
   python shaft-upgrader/upgrade_to_modular_shaft.py --project . --dry-run
-  python shaft-upgrader/upgrade_to_modular_shaft.py --project . --agent-plan
-  python shaft-upgrader/upgrade_to_modular_shaft.py --project . --upgrade-type session --yes
-  python shaft-upgrader/upgrade_to_modular_shaft.py --project . --upgrade-type full --yes
-  python shaft-upgrader/upgrade_to_modular_shaft.py --project . --shaft-version 10.2.20260609 --yes
+  python shaft-upgrader/upgrade_to_modular_shaft.py status --project .
+  python shaft-upgrader/upgrade_to_modular_shaft.py doctor --project . --agent-summary
+  python shaft-upgrader/upgrade_to_modular_shaft.py rollback --project .
 
 Optional AI repair:
   Set OPENAI_API_KEY in the environment, then run the normal command.
@@ -2183,6 +2625,7 @@ Optional AI repair:
     )
     parser.add_argument("--dry-run", action="store_true", help="Print diffs without writing or compiling.")
     parser.add_argument("--yes", action="store_true", help="Apply without interactive confirmation.")
+    parser.add_argument("--json", action="store_true", help="Print machine-readable upgrade details to stdout.")
     parser.add_argument(
         "--report",
         type=Path,
@@ -2221,113 +2664,225 @@ Optional AI repair:
     return parser
 
 
+def build_parser() -> argparse.ArgumentParser:
+    """Return the upgrade ArgumentParser for legacy callers and tests."""
+    return build_upgrade_parser()
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse CLI args for upgrade, status, doctor, or rollback.
+
+    Lifecycle commands (#6645): upgrade|status|doctor|rollback.
+    Legacy flag form (no subcommand) remains an implicit upgrade so existing
+    docs and IntelliJ invocations keep working.
+    """
+    args_list = list(sys.argv[1:] if argv is None else argv)
+    if args_list and args_list[0] in LIFECYCLE_COMMANDS:
+        command = args_list[0]
+        rest = args_list[1:]
+        if command == "upgrade":
+            args = build_upgrade_parser().parse_args(rest)
+            args.command = "upgrade"
+            return args
+        parser = argparse.ArgumentParser(prog=f"upgrade_to_modular_shaft.py {command}")
+        parser.add_argument("--project", type=Path, default=Path.cwd())
+        if command in {"status", "doctor"}:
+            parser.add_argument("--json", action="store_true")
+            parser.add_argument(
+                "--agent-summary",
+                action="store_true",
+                help="Print at most four lines: pass/fail, component, hash, drift.",
+            )
+        elif command == "rollback":
+            parser.add_argument("--json", action="store_true")
+            parser.add_argument("--dry-run", action="store_true")
+        args = parser.parse_args(rest)
+        args.command = command
+        return args
+    args = build_upgrade_parser().parse_args(args_list)
+    args.command = "upgrade"
+    return args
+
+
+def _print_upgrade_dry_run(
+    analysis: ProjectAnalysis,
+    version: str,
+    transformed: Mapping[Path, bytes],
+    source_migration: SourceMigration,
+) -> int:
+    """Print POM/source diffs for a dry-run upgrade and exit without writing."""
+    for pom, after in transformed.items():
+        print(format_diff(pom, pom.read_bytes(), after, analysis.project_root))
+    for source_file, after in source_migration.transformed_files.items():
+        print(
+            format_diff(
+                source_file,
+                source_file.read_bytes(),
+                after.encode("utf-8"),
+                analysis.project_root,
+            )
+        )
+    log("[dry-run] no files or receipt will be written")
+    print(f"Guide      {GUIDE_URL}")
+    return 0
+
+
+def _configure_upgrade_repair_client(
+    args: argparse.Namespace,
+) -> OpenAIRepairClient | AgentCliRepairClient | None:
+    """Resolve OpenAI or agent-CLI repair client for an upgrade run."""
+    api_key = ""
+    if not args.no_ai:
+        api_key = os.environ.get(args.openai_key_env, "")
+        if args.prompt_for_openai_key and not api_key:
+            api_key = getpass.getpass("Optional OpenAI API key (leave empty to disable AI repair): ")
+    repair_client: OpenAIRepairClient | AgentCliRepairClient | None = (
+        OpenAIRepairClient(api_key, args.openai_model) if api_key else None
+    )
+    if repair_client:
+        log(
+            f"OpenAI repair is enabled with model {args.openai_model}; "
+            f"maximum attempts: {MAX_AI_REPAIR_ATTEMPTS}."
+        )
+        return repair_client
+    if args.no_ai:
+        log("AI repair is disabled; a failed upgraded compile will roll back immediately.")
+        return None
+    detected = detect_agent_cli(args.agent_cli)
+    if detected:
+        cli_name, executable = detected
+        repair_client = AgentCliRepairClient(cli_name, executable)
+        log(
+            f"Agent CLI repair is enabled via {cli_name} ({executable}); "
+            f"maximum attempts: {MAX_AI_REPAIR_ATTEMPTS}."
+        )
+        return repair_client
+    log("AI repair is disabled; a failed upgraded compile will roll back immediately.")
+    return None
+
+
+def _report_upgrade_success(
+    args: argparse.Namespace,
+    analysis: ProjectAnalysis,
+    version: str,
+    execution: UpgradeExecution,
+) -> int:
+    """Log and print the success receipt for a completed upgrade."""
+    receipt = receipt_path(analysis.project_root)
+    log(
+        f"Upgrade completed. Compilation passed after "
+        f"{execution.compile_attempts} compile invocation(s)."
+    )
+    if getattr(args, "json", False):
+        print(
+            json.dumps(
+                {
+                    "brand": BRAND_NAME,
+                    "status": "upgraded",
+                    "version": version,
+                    "receipt": str(receipt),
+                    "guide": GUIDE_URL,
+                },
+                separators=(",", ":"),
+            )
+        )
+    else:
+        print(f"Receipt    {receipt}")
+        print(f"Guide      {GUIDE_URL}")
+    return 0
+
+
+def run_upgrade(args: argparse.Namespace) -> int:
+    """Execute the upgrade command (shared by `upgrade` and legacy flag form)."""
+    analysis = analyze_project(args.project)
+    version = args.shaft_version or resolve_latest_shaft_version()
+    if args.agent_plan:
+        print(
+            json.dumps(
+                agent_upgrade_plan(
+                    analysis,
+                    version,
+                    "shaft-upgrader/upgrade_to_modular_shaft.py",
+                ),
+                indent=2,
+            )
+        )
+        return 0
+
+    validate_upgrade_type(analysis, args.upgrade_type)
+    print(f"{BRAND_NAME} project upgrade")
+    print_analysis(analysis, version)
+    log(f"Upgrade type: {args.upgrade_type}")
+    runner = preferred_runner(analysis.runners)
+
+    transformed = {
+        pom: transform_pom_bytes(pom.read_bytes(), version, analysis.optional_modules, runner)
+        for pom in analysis.candidate_poms
+    }
+    source_migration = collect_source_migration(analysis, args.upgrade_type)
+    if args.dry_run:
+        return _print_upgrade_dry_run(analysis, version, transformed, source_migration)
+
+    if not args.yes and not confirm_upgrade():
+        log("Upgrade cancelled. No files were changed.")
+        return 0
+
+    compile_command = parse_compile_command(args.compile_command, analysis.project_root)
+    log(f"Compile command: {' '.join(compile_command)}")
+    repair_client = _configure_upgrade_repair_client(args)
+
+    execution = execute_upgrade_transaction(
+        analysis,
+        version,
+        compile_command,
+        args.compile_timeout,
+        repair_client=repair_client,
+        skip_baseline_compile=args.skip_baseline_compile,
+        upgrade_type=args.upgrade_type,
+    )
+    if args.report:
+        write_report(args.report, analysis, version, execution)
+
+    if execution.succeeded:
+        return _report_upgrade_success(args, analysis, version, execution)
+
+    log("Compilation did not pass. All upgrade and AI repair changes were rolled back.")
+    diagnostics = redact_secrets(execution.final_result.combined_output)
+    if diagnostics:
+        log(diagnostics[-4_000:])
+    return 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point."""
-    args = build_parser().parse_args(argv)
+    raw = list(sys.argv[1:] if argv is None else argv)
+    args = None
     try:
-        analysis = analyze_project(args.project)
-        version = args.shaft_version or resolve_latest_shaft_version()
-        if args.agent_plan:
-            print(
-                json.dumps(
-                    agent_upgrade_plan(
-                        analysis,
-                        version,
-                        "shaft-upgrader/upgrade_to_modular_shaft.py",
-                    ),
-                    indent=2,
-                )
-            )
-            return 0
-
-        validate_upgrade_type(analysis, args.upgrade_type)
-        print_analysis(analysis, version)
-        log(f"Upgrade type: {args.upgrade_type}")
-        runner = preferred_runner(analysis.runners)
-
-        transformed = {
-            pom: transform_pom_bytes(pom.read_bytes(), version, analysis.optional_modules, runner)
-            for pom in analysis.candidate_poms
-        }
-        source_migration = collect_source_migration(analysis, args.upgrade_type)
-        if args.dry_run:
-            for pom, after in transformed.items():
-                print(format_diff(pom, pom.read_bytes(), after, analysis.project_root))
-            for source_file, after in source_migration.transformed_files.items():
-                print(
-                    format_diff(
-                        source_file,
-                        source_file.read_bytes(),
-                        after.encode("utf-8"),
-                        analysis.project_root,
-                    )
-                )
-            return 0
-
-        if not args.yes and not confirm_upgrade():
-            log("Upgrade cancelled. No files were changed.")
-            return 0
-
-        compile_command = parse_compile_command(args.compile_command, analysis.project_root)
-        log(f"Compile command: {' '.join(compile_command)}")
-
-        api_key = ""
-        if not args.no_ai:
-            api_key = os.environ.get(args.openai_key_env, "")
-            if args.prompt_for_openai_key and not api_key:
-                api_key = getpass.getpass("Optional OpenAI API key (leave empty to disable AI repair): ")
-        repair_client: OpenAIRepairClient | AgentCliRepairClient | None = (
-            OpenAIRepairClient(api_key, args.openai_model) if api_key else None
-        )
-        if repair_client:
-            log(
-                f"OpenAI repair is enabled with model {args.openai_model}; "
-                f"maximum attempts: {MAX_AI_REPAIR_ATTEMPTS}."
-            )
-        elif not args.no_ai:
-            detected = detect_agent_cli(args.agent_cli)
-            if detected:
-                cli_name, executable = detected
-                repair_client = AgentCliRepairClient(cli_name, executable)
-                log(
-                    f"Agent CLI repair is enabled via {cli_name} ({executable}); "
-                    f"maximum attempts: {MAX_AI_REPAIR_ATTEMPTS}."
-                )
-        if repair_client is None:
-            log("AI repair is disabled; a failed upgraded compile will roll back immediately.")
-
-        execution = execute_upgrade_transaction(
-            analysis,
-            version,
-            compile_command,
-            args.compile_timeout,
-            repair_client=repair_client,
-            skip_baseline_compile=args.skip_baseline_compile,
-            upgrade_type=args.upgrade_type,
-        )
-        if args.report:
-            write_report(args.report, analysis, version, execution)
-
-        if execution.succeeded:
-            log(
-                f"Upgrade completed. Compilation passed after "
-                f"{execution.compile_attempts} compile invocation(s)."
-            )
-            return 0
-
-        log("Compilation did not pass. All upgrade and AI repair changes were rolled back.")
-        diagnostics = redact_secrets(execution.final_result.combined_output)
-        if diagnostics:
-            log(diagnostics[-4_000:])
-        return 1
+        args = parse_args(raw)
+        command = getattr(args, "command", "upgrade")
+        if command == "upgrade":
+            code = run_upgrade(args)
+            if code == 0 and not getattr(args, "dry_run", False):
+                clear_heal_handoff(args.project)
+            return code
+        if command == "status":
+            return cmd_status(args)
+        if command == "doctor":
+            return cmd_doctor(args)
+        if command == "rollback":
+            return cmd_rollback(args)
+        raise UpgradeError(f"Unknown command: {command}")
     except KeyboardInterrupt:
         log("Upgrade interrupted.")
         return 130
-    except UpgradeError as exc:
+    except Exception as exc:  # UpgradeError and unexpected failures share the CE heal handoff path
         log(f"Error: {exc}")
-        return 1
-    except Exception as exc:
-        log(f"Error: {exc}")
+        command = getattr(args, "command", "upgrade") if args is not None else "upgrade"
+        project = getattr(args, "project", None) if args is not None else None
+        if command in {"upgrade", "rollback"} and project is not None and not getattr(args, "dry_run", False):
+            handoff = write_heal_handoff(Path(project), command, raw, exc)
+            if handoff is not None:
+                log(f"Heal handoff written to {handoff}")
         return 1
 
 

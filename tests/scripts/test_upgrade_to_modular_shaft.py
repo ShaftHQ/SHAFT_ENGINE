@@ -1434,5 +1434,139 @@ class AgentCliRepairTests(unittest.TestCase):
             upgrade.AgentCliRepairClient("copilot", "/bin/copilot")
 
 
+
+class LifecycleCommandsTests(unittest.TestCase):
+    def test_resolve_latest_retries_transient_errors(self):
+        calls = {"n": 0}
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return (
+                    b"<metadata><versioning><release>9.9.9</release>"
+                    b"<versions><version>9.9.9</version></versions>"
+                    b"</versioning></metadata>"
+                )
+
+        def opener(request, timeout=30):
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise TimeoutError("flaky")
+            return FakeResponse()
+
+        with mock.patch.object(upgrade.time, "sleep", lambda *_: None):
+            self.assertEqual(upgrade.resolve_latest_shaft_version(opener=opener), "9.9.9")
+        self.assertEqual(calls["n"], 3)
+
+    def test_parse_args_legacy_flag_form_is_implicit_upgrade(self):
+        args = upgrade.parse_args(["--project", ".", "--dry-run"])
+        self.assertEqual(args.command, "upgrade")
+        self.assertTrue(args.dry_run)
+
+    def test_parse_args_lifecycle_subcommands(self):
+        status = upgrade.parse_args(["status", "--project", ".", "--json"])
+        self.assertEqual(status.command, "status")
+        self.assertTrue(status.json)
+        doctor = upgrade.parse_args(["doctor", "--project", ".", "--agent-summary"])
+        self.assertEqual(doctor.command, "doctor")
+        self.assertTrue(doctor.agent_summary)
+        rollback = upgrade.parse_args(["rollback", "--project", ".", "--dry-run"])
+        self.assertEqual(rollback.command, "rollback")
+        self.assertTrue(rollback.dry_run)
+
+    def test_receipt_doctor_status_and_rollback_round_trip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            pom = root / "pom.xml"
+            pom.write_text(SIMPLE_POM, encoding="utf-8")
+            analysis = upgrade.analyze_project(root)
+            before = pom.read_bytes()
+            version = "10.4.20261008"
+            runner = upgrade.preferred_runner(analysis.runners)
+            after = upgrade.transform_pom_bytes(
+                before, version, analysis.optional_modules, runner
+            )
+            originals = {
+                pom.resolve(): upgrade.OriginalFile(
+                    content=before, mode=upgrade.stat.S_IMODE(pom.stat().st_mode)
+                )
+            }
+            pom.write_bytes(after)
+            execution = upgrade.UpgradeExecution(
+                True,
+                False,
+                1,
+                0,
+                command_result(0),
+                "basic",
+            )
+            receipt = upgrade.build_upgrade_receipt(analysis, version, execution, originals)
+            upgrade.write_receipt(root, receipt)
+            self.assertTrue(upgrade.receipt_path(root).is_file())
+            self.assertEqual(upgrade.cmd_status(upgrade.parse_args(["status", "--project", str(root), "--json"])), 0)
+            self.assertEqual(
+                upgrade.cmd_doctor(
+                    upgrade.parse_args(["doctor", "--project", str(root), "--agent-summary"])
+                ),
+                0,
+            )
+            # Drift the pom and expect doctor fail.
+            pom.write_text(pom.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+            self.assertEqual(
+                upgrade.cmd_doctor(upgrade.parse_args(["doctor", "--project", str(root), "--json"])),
+                1,
+            )
+            # Rollback restores original bytes.
+            self.assertEqual(
+                upgrade.cmd_rollback(upgrade.parse_args(["rollback", "--project", str(root)])),
+                0,
+            )
+            self.assertEqual(pom.read_bytes(), before)
+            self.assertFalse(upgrade.receipt_path(root).is_file())
+
+
+
+class UpgraderCeParityTest(unittest.TestCase):
+    """CE installer standard parity for #6645: heal handoff and version-checked wrappers."""
+
+    def test_failed_upgrade_writes_heal_handoff_and_doctor_points_to_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            with mock.patch.object(upgrade, "run_upgrade", side_effect=upgrade.UpgradeError("pom.xml is malformed")), \
+                    mock.patch("sys.stderr", new_callable=io.StringIO), mock.patch("sys.stdout", new_callable=io.StringIO):
+                self.assertEqual(upgrade.main(["upgrade", "--project", str(project), "--yes"]), 1)
+            handoff = upgrade.heal_handoff_path(project)
+            text = handoff.read_text(encoding="utf-8")
+            self.assertIn("SHAFT Engine", text)
+            self.assertIn("pom.xml is malformed", text)
+            self.assertIn("## Agent prompt", text)
+            report = upgrade.doctor_report(project)
+            self.assertEqual(report["status"], "fail")
+            self.assertIn(upgrade.HEAL_HANDOFF_NAME, report["fixNext"])
+
+    def test_successful_upgrade_clears_heal_handoff(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            handoff = upgrade.heal_handoff_path(project)
+            handoff.parent.mkdir(parents=True)
+            handoff.write_text("stale", encoding="utf-8")
+            with mock.patch.object(upgrade, "run_upgrade", return_value=0):
+                self.assertEqual(upgrade.main(["upgrade", "--project", str(project), "--yes"]), 0)
+            self.assertFalse(handoff.exists())
+
+    def test_wrappers_require_python_39_and_skip_store_stub(self):
+        sh = (ROOT / "shaft-upgrader/upgrade.sh").read_text(encoding="utf-8")
+        ps1 = (ROOT / "shaft-upgrader/upgrade.ps1").read_text(encoding="utf-8")
+        for text in (sh, ps1):
+            self.assertIn("sys.version_info >= (3, 9)", text)
+            self.assertIn("SHAFT Engine", text)
+        self.assertIn('@("-3")', ps1)
+
+
 if __name__ == "__main__":
     unittest.main()
