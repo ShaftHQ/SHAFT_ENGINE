@@ -195,6 +195,7 @@
       "tests/scripts/test_chaos_engine_installer.py",
       "tests/scripts/test_chaos_engine_dependencies.py",
       "tests/scripts/test_chaos_engine_hosts.py",
+      "tests/scripts/test_copilot_cli_hook.py",
       "tests/scripts/test_chaos_engine_learning.py",
       "tests/scripts/test_chaos_engine_research.py",
       "chaos-engine/bootstrap.py",

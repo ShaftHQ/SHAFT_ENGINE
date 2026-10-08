@@ -120,7 +120,13 @@ CHECKS = {
         ("tests.scripts.test_chaos_engine_eval_parity_fixtures",),
     ),
     "host-contract": Check(
-        "host-contract", "hosts", ("tests.scripts.test_chaos_engine_hosts",), True
+        "host-contract",
+        "hosts",
+        (
+            "tests.scripts.test_chaos_engine_hosts",
+            "tests.scripts.test_copilot_cli_hook",
+        ),
+        True,
     ),
     "guidance-contract": Check(
         "guidance-contract",
@@ -611,6 +617,7 @@ SURFACE_PATTERNS = {
         ".codex/hooks.json",
         ".github/hooks/*.json",
         "tests/scripts/test_chaos_engine_hosts.py",
+        "tests/scripts/test_copilot_cli_hook.py",
     ),
     "lifecycle": (
         "chaos-engine/hooks/*",
