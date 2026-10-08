@@ -1531,5 +1531,42 @@ class LifecycleCommandsTests(unittest.TestCase):
 
 
 
+class UpgraderCeParityTest(unittest.TestCase):
+    """CE installer standard parity for #6645: heal handoff and version-checked wrappers."""
+
+    def test_failed_upgrade_writes_heal_handoff_and_doctor_points_to_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            with mock.patch.object(upgrade, "run_upgrade", side_effect=upgrade.UpgradeError("pom.xml is malformed")), \
+                    mock.patch("sys.stderr", new_callable=io.StringIO), mock.patch("sys.stdout", new_callable=io.StringIO):
+                self.assertEqual(upgrade.main(["upgrade", "--project", str(project), "--yes"]), 1)
+            handoff = upgrade.heal_handoff_path(project)
+            text = handoff.read_text(encoding="utf-8")
+            self.assertIn("SHAFT Engine", text)
+            self.assertIn("pom.xml is malformed", text)
+            self.assertIn("## Agent prompt", text)
+            report = upgrade.doctor_report(project)
+            self.assertEqual(report["status"], "fail")
+            self.assertIn(upgrade.HEAL_HANDOFF_NAME, report["fixNext"])
+
+    def test_successful_upgrade_clears_heal_handoff(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            handoff = upgrade.heal_handoff_path(project)
+            handoff.parent.mkdir(parents=True)
+            handoff.write_text("stale", encoding="utf-8")
+            with mock.patch.object(upgrade, "run_upgrade", return_value=0):
+                self.assertEqual(upgrade.main(["upgrade", "--project", str(project), "--yes"]), 0)
+            self.assertFalse(handoff.exists())
+
+    def test_wrappers_require_python_39_and_skip_store_stub(self):
+        sh = (ROOT / "shaft-upgrader/upgrade.sh").read_text(encoding="utf-8")
+        ps1 = (ROOT / "shaft-upgrader/upgrade.ps1").read_text(encoding="utf-8")
+        for text in (sh, ps1):
+            self.assertIn("sys.version_info >= (3, 9)", text)
+            self.assertIn("SHAFT Engine", text)
+        self.assertIn('@("-3")', ps1)
+
+
 if __name__ == "__main__":
     unittest.main()

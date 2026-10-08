@@ -1618,7 +1618,58 @@ def probe_owned_files(project_root: Path, receipt: dict[str, Any]) -> tuple[str,
     return "healthy", None
 
 
+HEAL_HANDOFF_NAME = "heal-handoff.md"
+
+
+def heal_handoff_path(project_root: Path) -> Path:
+    return receipt_dir(project_root) / HEAL_HANDOFF_NAME
+
+
+def write_heal_handoff(project_root: Path, command: str, argv: Sequence[str], error: BaseException) -> Path | None:
+    """CE-standard failure handoff: exact error, exact retry command, and an agent prompt."""
+    retry = "python3 shaft-upgrader/upgrade_to_modular_shaft.py " + " ".join(shlex.quote(item) for item in argv)
+    text = (
+        f"# {BRAND_NAME} project upgrade heal handoff\n\n"
+        f"- project: `{project_root}`\n"
+        f"- command: `{command}`\n"
+        f"- error: {redact_secrets(str(error))}\n"
+        f"- retry after fixing the cause: `{retry.strip()}`\n"
+        f"- verify: `python3 shaft-upgrader/upgrade_to_modular_shaft.py doctor --project {shlex.quote(str(project_root))}`\n\n"
+        "## Agent prompt\n\n"
+        f"The {BRAND_NAME} project {command} failed with the error above. The upgrader restores the project's "
+        "POMs when a transaction fails, so start from the current files. Fix the cause the error names "
+        "(for example a malformed pom.xml, an unreachable Maven repository, or a compile error in test code), "
+        "then run the retry command and doctor. Keep the modular SHAFT dependency contract; do not hand-edit "
+        "SHAFT dependency versions around the upgrader.\n"
+        f"\nGuide: {GUIDE_URL}\n"
+    )
+    path = heal_handoff_path(project_root)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        atomic_write(path, text.encode("utf-8"))
+    except OSError:
+        return None
+    return path
+
+
+def clear_heal_handoff(project_root: Path) -> None:
+    try:
+        heal_handoff_path(project_root).unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 def doctor_report(project_root: Path, *, agent_summary: bool = False) -> dict[str, Any]:
+    report = _doctor_report(project_root, agent_summary=agent_summary)
+    handoff = heal_handoff_path(project_root)
+    if handoff.is_file() and not handoff.is_symlink():
+        report["status"] = "fail"
+        report["healHandoff"] = str(handoff)
+        report["fixNext"] = f"Complete the agent heal using {handoff}, then rerun doctor."
+    return report
+
+
+def _doctor_report(project_root: Path, *, agent_summary: bool = False) -> dict[str, Any]:
     receipt = read_receipt(project_root)
     if receipt is None:
         report = {
@@ -2773,11 +2824,16 @@ def run_upgrade(args: argparse.Namespace) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point."""
+    raw = list(sys.argv[1:] if argv is None else argv)
+    args = None
     try:
-        args = parse_args(argv)
+        args = parse_args(raw)
         command = getattr(args, "command", "upgrade")
         if command == "upgrade":
-            return run_upgrade(args)
+            code = run_upgrade(args)
+            if code == 0 and not getattr(args, "dry_run", False):
+                clear_heal_handoff(args.project)
+            return code
         if command == "status":
             return cmd_status(args)
         if command == "doctor":
@@ -2788,11 +2844,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     except KeyboardInterrupt:
         log("Upgrade interrupted.")
         return 130
-    except UpgradeError as exc:
+    except Exception as exc:  # UpgradeError and unexpected failures share the CE heal handoff path
         log(f"Error: {exc}")
-        return 1
-    except Exception as exc:
-        log(f"Error: {exc}")
+        command = getattr(args, "command", "upgrade") if args is not None else "upgrade"
+        project = getattr(args, "project", None) if args is not None else None
+        if command in {"upgrade", "rollback"} and project is not None and not getattr(args, "dry_run", False):
+            handoff = write_heal_handoff(Path(project), command, raw, exc)
+            if handoff is not None:
+                log(f"Heal handoff written to {handoff}")
         return 1
 
 
