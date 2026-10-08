@@ -17,7 +17,7 @@ EXPECTED_PINS = {
     "jsonschema-specifications": "2025.9.1",
     "pyyaml": "6.0.3",
     "referencing": "0.37.0",
-    "rpds-py": "2026.6.3",
+    "rpds-py": "2026.9.1",
 }
 EXPECTED_INSTALLS = {
     ".github/workflows/agent-plugin-acceptance.yml": (
