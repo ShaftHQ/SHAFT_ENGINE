@@ -4413,7 +4413,14 @@ HOOK_PYTHON_POINTER = ".chaos-engine-state/hook-python"
 
 
 def _locator_script(host: str) -> str:
-    """Inline guard locator. No single quotes: Copilot runs it via PowerShell."""
+    """Inline guard locator. No single quotes: the Windows form is cmd.exe-quoted.
+
+    Copilot CLI runs `.claude/settings.json` hooks from cwd `/` and does not set
+    `CLAUDE_PROJECT_DIR` (github/copilot-cli#4001). When walking up from the
+    working directory finds no guard, try `CLAUDE_PROJECT_DIR`, then the `cwd`
+    field of the hook payload, and hand the already-read payload to the guard,
+    which resolves the project from that same `cwd` field (#6632).
+    """
     if not re.fullmatch(r"[a-z0-9-]+", host):
         raise ValueError(f"unsupported hook host: {host}")
     pointer = HOOK_PYTHON_POINTER
@@ -4423,7 +4430,7 @@ def _locator_script(host: str) -> str:
         if "'" in message or '"' in message:
             raise ValueError("hook locator message must be quote-free")
     return (
-        "import errno,json,os,pathlib,runpy,sys\n"
+        "import errno,io,json,os,pathlib,runpy,sys\n"
         f'os.environ["CHAOS_ENGINE_HOST"]="{host}"\n'
         f'CWD="{LAUNCH_CWD_UNAVAILABLE}"\n'
         f'GUARD="{LAUNCH_GUARD_UNAVAILABLE}"\n'
@@ -4431,21 +4438,35 @@ def _locator_script(host: str) -> str:
         "def deny(message):\n"
         '    print(json.dumps({"decision":"block","reason":message}))\n'
         "    raise SystemExit(2)\n"
-        "try:\n"
-        "    cwd=pathlib.Path.cwd()\n"
-        "    roots=(cwd,*cwd.parents)\n"
-        "except OSError as error:\n"
-        "    deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
         'cands=(".chaos-engine/hooks/guard.py","plugins/chaos-engine/hooks/guard.py","chaos-engine/hooks/guard.py")\n'
+        "def locate(start):\n"
+        "    return next(((root,root/rel) for root in (start,*start.parents) for rel in cands if (root/rel).is_file()),None)\n"
         "try:\n"
-        "    found=next(((root,root/rel) for root in roots for rel in cands if (root/rel).is_file()),None)\n"
+        "    found=locate(pathlib.Path.cwd())\n"
         "except OSError as error:\n"
         "    deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
+        "data=None\n"
+        "if found is None:\n"
+        '    hints=[os.environ.get("CLAUDE_PROJECT_DIR","")]\n'
+        "    try:\n"
+        '        data=sys.stdin.buffer.read().decode("utf-8","replace")\n'
+        '        hints.append(str(json.loads(data or "{}").get("cwd") or ""))\n'
+        "    except (OSError,ValueError,AttributeError):\n"
+        "        pass\n"
+        "    for hint in filter(None,hints):\n"
+        "        try:\n"
+        "            found=locate(pathlib.Path(hint))\n"
+        "        except OSError:\n"
+        "            found=None\n"
+        "        if found is not None:\n"
+        "            break\n"
         "if found is None:\n"
         "    deny(GUARD)\n"
         "base,path=found\n"
+        "if data is not None:\n"
+        "    sys.stdin=io.StringIO(data)\n"
         f'ptr=base/"{pointer}"\n'
-        'py=ptr.read_text(encoding="utf-8").strip() if os.name!="nt" and ptr.is_file() else ""\n'
+        'py=ptr.read_text(encoding="utf-8").strip() if data is None and os.name!="nt" and ptr.is_file() else ""\n'
         "if py and os.path.isfile(py) and os.path.realpath(py)!=os.path.realpath(sys.executable):\n"
         "    os.execv(py,[py,str(path)])\n"
         "try:\n"
@@ -4455,37 +4476,46 @@ def _locator_script(host: str) -> str:
     )
 
 
+def _quote_free_exec(script: str) -> str:
+    """`exec(bytes((...)))`: digits, commas, and parentheses only.
+
+    Windows PowerShell 5.1 does not escape embedded double quotes when it
+    passes an argument to a native program, so `python3 -c 'exec("...")'`
+    parses but reaches Python with its quotes stripped: SyntaxError, exit 1,
+    and Copilot's preToolUse fail-closes every tool as "hook errored" (#6632).
+    An argument with no quotes, backslashes, or spaces reaches Python
+    byte-for-byte from bash, PowerShell 5.1, and PowerShell 7.
+    """
+    return "exec(bytes((" + ",".join(str(byte) for byte in script.encode("ascii")) + ")))"
+
+
 def chaos_guard_locator_command(*, windows: bool, host: str, managed_python: Path | None = None) -> str:
     """Portable hook launcher (#6179): tracked host files name `python3` / `py -3` only.
 
     The managed interpreter, when one exists, is recorded in the untracked
     `.chaos-engine-state/hook-python` pointer and the launcher hands off to it.
 
-    Unix `command` is single-quoted. Copilot CLI on Windows executes the
-    `.claude/settings.json` command through PowerShell (#4001). A double-quoted
-    `python3 -c` with backslash escapes is a ParserError, exit 1, and preToolUse
-    fail-closes every tool as "hook errored". Single quotes are literal in both
-    bash and Windows PowerShell 5.1. `commandWindows` stays double-quoted for
-    cmd.exe, which does not treat single quotes as strings.
+    Copilot CLI on Windows executes the `.claude/settings.json` `command`
+    through PowerShell (github/copilot-cli#4001). The Unix command is a
+    single-quoted `python3 -c` whose body is quote-free (see
+    `_quote_free_exec`), so bash and both PowerShell generations pass the
+    same bytes to Python. `commandWindows` stays double-quoted for cmd.exe.
     """
     del managed_python
-    interpreter = "py -3" if windows else "python3"
     script = _locator_script(host)
     if "'" in script:
         raise ValueError("hook locator script must not contain single quotes")
-    body = "exec(" + json.dumps(script) + ")"
     if windows:
-        return f"{interpreter} -c {json.dumps(body)}"
-    if "'" in body:
-        raise ValueError("powershell-safe hook body contains a single quote")
-    return f"{interpreter} -c '{body}'"
+        return f"py -3 -c {json.dumps('exec(' + json.dumps(script) + ')')}"
+    return f"python3 -c '{_quote_free_exec(script)}'"
 
 
 def powershell_hook_parse_error(command: str) -> str | None:
-    """Return why Windows PowerShell 5.1 would reject a hook command, or None.
+    """Return why Windows PowerShell 5.1 would break a hook command, or None.
 
     Copilot CLI runs cross-tool `.claude/settings.json` hook commands through
-    PowerShell. Exit 1 there is the user-visible
+    PowerShell. A parse error, or an argument PowerShell 5.1 re-quotes on its
+    way to Python, exits 1: the user-visible
     `Denied by preToolUse hook from "repo settings" (hook errored)`.
     """
     if not isinstance(command, str) or not command.strip():
@@ -4495,8 +4525,9 @@ def powershell_hook_parse_error(command: str) -> str | None:
     match = re.fullmatch(r"python3 -c '([^']*)'", command)
     if match is None:
         return "unix hook command is not a PowerShell single-quoted python3 -c"
-    if "\\'" in command or "$(" in command:
-        return "unix hook command expands under PowerShell"
+    body = match.group(1)
+    if QUOTE_FREE_EXEC.fullmatch(body) is None:
+        return "unix hook command body is not quote-free; PowerShell 5.1 strips its double quotes"
     return None
 
 
@@ -4732,9 +4763,25 @@ def copilot_hook_content(before: bytes | None, managed_node: Path | None = None)
     return (json.dumps(existing, indent=2, sort_keys=True) + "\n").encode()
 
 
+QUOTE_FREE_EXEC = re.compile(r"exec\(bytes\(\(([0-9]+(?:,[0-9]+)*)\)\)\)")
+
+
+def decoded_quote_free_exec(command: str) -> str:
+    """Expand every `exec(bytes((...)))` body in a hook command to its source (#6632)."""
+    decoded = []
+    for match in QUOTE_FREE_EXEC.finditer(command):
+        values = [int(value) for value in match.group(1).split(",")]
+        if all(value < 128 for value in values):
+            decoded.append(bytes(values).decode("ascii"))
+    return "\n".join(decoded)
+
+
 def chaos_hook_command(command: object) -> bool:
     if not isinstance(command, str):
         return False
+    expanded = decoded_quote_free_exec(command)
+    if expanded and chaos_hook_command(expanded.replace("\n", " ")):
+        return True
     tokens = re.findall(r'"([^"]*)"|\'([^\']*)\'|(\S+)', command)
     owned_suffixes = (
         "scripts/agents/guard.py",

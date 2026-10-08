@@ -342,7 +342,7 @@ class ManagedRuntimeCliTest(TestCase):
         command = lifecycle["hooks"]["SessionStart"][0]["hooks"][0]["command"]
         self.assertTrue(command.startswith("python3 -c "), command)
         self.assertNotIn(str(python), command)
-        self.assertIn(HOSTS.HOOK_PYTHON_POINTER, command)
+        self.assertIn(HOSTS.HOOK_PYTHON_POINTER, HOSTS.decoded_quote_free_exec(command))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             HOSTS.write_hook_python_pointer(project, python)
