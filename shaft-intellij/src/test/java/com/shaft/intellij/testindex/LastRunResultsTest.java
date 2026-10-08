@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LastRunResultsTest {
@@ -39,5 +40,23 @@ class LastRunResultsTest {
     void missingResultsAreEmpty() {
         assertTrue(LastRunResults.read(project).isEmpty());
         assertTrue(LastRunResults.failures(project).isEmpty());
+    }
+
+    @Test
+    void reusesParsedResultsUntilTheResultFolderChanges() throws Exception {
+        Path results = Files.createDirectories(project.resolve("allure-results"));
+        Files.writeString(results.resolve("a-result.json"), """
+                {"fullName":"demo.CartTest.add","status":"passed","start":1,"stop":5}
+                """);
+
+        var first = LastRunResults.read(project);
+        assertSame(first, LastRunResults.read(project), "unchanged folder must not be re-parsed (#6635)");
+
+        Files.writeString(results.resolve("b-result.json"), """
+                {"fullName":"demo.CartTest.remove","status":"failed","start":2,"stop":9}
+                """);
+        var second = LastRunResults.read(project);
+        assertEquals("failed", second.get("demo.CartTest#remove").status());
+        assertEquals("passed", second.get("demo.CartTest#add").status());
     }
 }

@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,13 +39,61 @@ public final class LastRunResults {
         }
     }
 
+    private static final Map<Path, Cached> CACHE = new ConcurrentHashMap<>();
+
+    private record Cached(List<Long> stamp, Map<String, Result> results) {
+    }
+
     private LastRunResults() {
     }
 
-    /** Newest result keyed by {@code fullName} and {@code qualifiedClass#method}. */
+    /**
+     * Newest result keyed by {@code fullName} and {@code qualifiedClass#method}. Cached per project
+     * until a result directory's modification time or file count changes (issue #6635): inlay hints
+     * call this on every highlighting pass, and re-parsing every result file each time was slow.
+     */
     public static Map<String, Result> read(Path project) {
+        List<Path> directories = directories(project);
+        List<Long> stamp = stamp(directories);
+        Cached cached = CACHE.get(project);
+        if (cached != null && cached.stamp().equals(stamp)) {
+            return cached.results();
+        }
+        Map<String, Result> results = parseAll(directories);
+        CACHE.put(project, new Cached(stamp, results));
+        return results;
+    }
+
+    private static List<Path> directories(Path project) {
+        return List.of(project.resolve("allure-results"), project.resolve("target/allure-results"));
+    }
+
+    /** Modification time and result-file count per directory; -1 for a missing directory. */
+    private static List<Long> stamp(List<Path> directories) {
+        List<Long> stamp = new java.util.ArrayList<>();
+        for (Path directory : directories) {
+            long modified = -1;
+            long count = -1;
+            if (Files.isDirectory(directory)) {
+                try (DirectoryStream<Path> files = Files.newDirectoryStream(directory, "*-result.json")) {
+                    modified = Files.getLastModifiedTime(directory).toMillis();
+                    count = 0;
+                    for (Path ignored : files) {
+                        count++;
+                    }
+                } catch (IOException | RuntimeException unreadable) {
+                    modified = -2;
+                }
+            }
+            stamp.add(modified);
+            stamp.add(count);
+        }
+        return stamp;
+    }
+
+    private static Map<String, Result> parseAll(List<Path> directories) {
         Map<String, Result> newest = new HashMap<>();
-        for (Path directory : List.of(project.resolve("allure-results"), project.resolve("target/allure-results"))) {
+        for (Path directory : directories) {
             if (!Files.isDirectory(directory)) {
                 continue;
             }
