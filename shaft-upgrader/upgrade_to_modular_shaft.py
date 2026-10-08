@@ -1656,6 +1656,7 @@ def clear_heal_handoff(project_root: Path) -> None:
     try:
         heal_handoff_path(project_root).unlink(missing_ok=True)
     except OSError:
+        # Best-effort cleanup; a stuck handoff file must not fail upgrade success.
         pass
 
 
