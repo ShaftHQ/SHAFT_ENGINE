@@ -5301,8 +5301,10 @@ def owned_claude_plugin_version_bytes(
     leaves the tracked catalog unchanged. Any other same-name record is handed
     off with its original bytes.
     """
-    if existing is None or existing == entry:
-        if existing is not None and engine_source_checkout(project):
+    if existing is None:
+        return None
+    if existing == entry:
+        if engine_source_checkout(project):
             return b"" if before is None else before
         return None
     if existing.get("skills") in (None, []):
@@ -5311,9 +5313,10 @@ def owned_claude_plugin_version_bytes(
     versionless.pop("version", None)
     expected = dict(entry)
     expected.pop("version")
-    if versionless == expected and isinstance(existing.get("version"), str):
+    owned_version = versionless == expected and isinstance(existing.get("version"), str)
+    if owned_version:
         existing["version"] = plugin_version
-    if existing != entry:
+    else:
         _note_merge_handoff(
             ".claude-plugin/marketplace.json",
             "plugin marketplace entry exists with unknown ownership",
