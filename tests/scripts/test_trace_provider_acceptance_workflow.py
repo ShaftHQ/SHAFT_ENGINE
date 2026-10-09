@@ -35,6 +35,7 @@ class TraceProviderAcceptanceWorkflowTest(unittest.TestCase):
         self.assertIn("allure/allure-cli/${ALLURE3_CLI_VERSION}", provision)
         self.assertIn("allure/allure2-cli/${ALLURE2_CLI_VERSION}", provision)
         self.assertIn("TraceViewerAllureAcceptanceTest", acceptance)
+        self.assertIn("BidiRequestBodyAcceptanceTest", acceptance)  # #6740
         self.assertIn("-Dshaft.allure.cli.version=${ALLURE3_CLI_VERSION}", acceptance.split())
         self.assertIn("-Dshaft.allure2.cli.version=${ALLURE2_CLI_VERSION}", acceptance.split())
         self.assertEqual(

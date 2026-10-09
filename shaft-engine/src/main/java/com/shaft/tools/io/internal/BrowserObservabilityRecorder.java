@@ -791,6 +791,17 @@ public final class BrowserObservabilityRecorder {
                 || normalized.contains("accesskey");
     }
 
+    /**
+     * Previews a captured request body for a provider that holds raw bytes: empty, a binary marker, the
+     * decoded text, or the fail-closed omission marker. The recorder redacts the result when it is recorded.
+     *
+     * @param bytes captured request body bytes, or {@code null}
+     * @return bounded text safe to pass as {@link NetworkObservation#requestBodyPreview()}
+     */
+    public static String requestBodyPreview(byte[] bytes) {
+        return preview(bytes);
+    }
+
     private static String preview(byte[] bytes) {
         if (bytes == null || bytes.length == 0) {
             return "";
