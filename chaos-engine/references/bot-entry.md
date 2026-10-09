@@ -23,13 +23,6 @@ context summary or compaction: CLI hosts re-inject the cards on SessionStart
 and PreCompact, so a bot must do it itself. Keep one delivery per thread and write a handoff note (state, open PRs,
 next step) at each delivery boundary instead of carrying a long transcript.
 
-## Before each push
-
-CLI hosts' PreToolUse hook runs the overlay pre-push contract on `git push`. A bot
-runs it itself when the checkout has it: `python3 scripts/ci/overlay_pre_push.py`.
-It includes the code-quality preflight, so Codacy-class findings are fixed before a
-CI cycle is spent on them.
-
 ## After each delivery
 
 CLI hosts' Stop hook requires the Learning Session after a confirmed delivery

@@ -294,6 +294,8 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_token_waste_6161",
             "tests.scripts.test_watch_pr_checks",
             "tests.scripts.test_overlay_pre_push",
+            "tests.scripts.test_code_quality_preflight",
+            "tests.scripts.test_branded_installer_ce_standard",
         ),
     ),
     "token-economy-contract": Check(
@@ -743,8 +745,14 @@ SURFACE_PATTERNS = {
         "scripts/agents/status_lease.py",
         "scripts/agents/watch_pr_checks.py",
         "scripts/ci/overlay_pre_push.py",
+        "scripts/ci/code_quality_preflight.py",
+        "scripts/mcp/install_shaft_agentic_tools.py",
+        "shaft-upgrader/upgrade_to_modular_shaft.py",
+        "chaos-engine/references/installer-program.md",
         "tests/scripts/test_chaos_engine_token_waste_6161.py",
         "tests/scripts/test_overlay_pre_push.py",
+        "tests/scripts/test_code_quality_preflight.py",
+        "tests/scripts/test_branded_installer_ce_standard.py",
     ),
     "token-economy": (
         "chaos-engine/harness_index.py",
