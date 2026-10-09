@@ -1,0 +1,67 @@
+{
+ "voice": {
+  "engine": "kokoro-onnx",
+  "model": "Kokoro-82M v1.0",
+  "voice": "af_heart",
+  "speed": 0.85,
+  "licence": "Apache-2.0",
+  "synthetic": true
+ },
+ "lines": [
+  {
+   "id": "e01",
+   "text": "Red build. Real bug, or flaky test?"
+  },
+  {
+   "id": "e02",
+   "text": "At Google, almost 16% of tests show some flakiness.",
+   "say": "At Google, almost sixteen percent of tests show some flakiness."
+  },
+  {
+   "id": "e03",
+   "text": "And every team rebuilds the same plumbing: waits, drivers, screenshots and reports, once for web, again for mobile, and again for API."
+  },
+  {
+   "id": "e04",
+   "text": "SHAFT is one open-source Java engine for web, mobile, API, database and command-line tests."
+  },
+  {
+   "id": "e05",
+   "text": "It is built on the standards your team already trusts: Selenium, Appium and REST Assured."
+  },
+  {
+   "id": "e06",
+   "text": "Waiting is built in, so your tests stop guessing when a page is ready."
+  },
+  {
+   "id": "e07",
+   "text": "Every run produces an Allure report with steps and screenshots that anyone on the team can read."
+  },
+  {
+   "id": "e08",
+   "text": "And the same tests move from a laptop to a Selenium Grid or BrowserStack by changing one setting."
+  },
+  {
+   "id": "e09",
+   "text": "Adopting it is low risk. The upgrade tool compiles your project first, keeps your existing tests, and restores every file if anything fails."
+  },
+  {
+   "id": "e10",
+   "text": "AI help is optional. Capture, Doctor and Heal work without any AI provider."
+  },
+  {
+   "id": "e11",
+   "text": "SHAFT is MIT licensed and built in public since 2018, with 216 releases from 62 contributors.",
+   "say": "Shaft is M I T licensed and built in public since twenty eighteen, with two hundred and sixteen releases from sixty two contributors."
+  },
+  {
+   "id": "e12",
+   "text": "Generate a ready-to-run project in about 90 seconds at shafthq.github.io.",
+   "say": "Generate a ready to run project in about ninety seconds at shaft H Q dot github dot I O."
+  },
+  {
+   "id": "e13",
+   "text": "Then pilot the upgrade on one repository this sprint."
+  }
+ ]
+}
