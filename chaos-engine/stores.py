@@ -2,7 +2,7 @@
 """Shared MemPalace and Graphify locations for every ChaosEngine checkout.
 
 One Git repository has one palace and one graphify-out. Linked worktrees and
-other branches resolve those same paths. Refresh builds a detached snapshot of
+other branches resolve those same paths. Refresh reuses one detached snapshot of
 the default-branch tip and does not reset a checkout. ``~/.mempalace`` is never
 read or migrated.
 """
@@ -28,6 +28,7 @@ GENERIC_MARKER = ".chaos-engine-source-revision.json"
 LEGACY_MARKER = ".sha" + "ft-source-revision.json"
 LOCK_NAME = "stores.lock"
 ATTEMPT_STAMP = "stores-refresh-attempted"
+STORE_SNAPSHOT = "store-snapshot"
 GRAPHIFY_GRAPH_COMMANDS = frozenset({
     "query",
     "path",
@@ -435,13 +436,59 @@ def palace_drawer_count(palace: Path) -> int | None:
     return int(row[0]) if row else 0
 
 
+def palace_indexed_revision(palace: Path) -> str | None:
+    """Revision recorded after a palace mine, or None when the stamp is absent."""
+    path = palace / GENERIC_MARKER
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    revision = payload.get("indexed_revision")
+    if not isinstance(revision, str) or len(revision) != 40:
+        return None
+    if any(character not in "0123456789abcdef" for character in revision):
+        return None
+    return revision
+
+
+def write_palace_marker(palace: Path, revision: str) -> Path:
+    """Bind the shared palace to the revision that was mined."""
+    palace.mkdir(parents=True, exist_ok=True)
+    marker = palace / GENERIC_MARKER
+    temporary = marker.with_suffix(marker.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(
+            {"schema_version": 1, "indexed_revision": revision},
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(marker)
+    return marker
+
+
 def _component_current(cwd: Path, component: str) -> bool:
     if component == "graphify":
         fresh, _message = graph_freshness(cwd)
         return fresh
     if component == "mempalace":
         # #6377: an initialized but never-mined palace is not current.
-        return bool(palace_drawer_count(resolve_palace(cwd)))
+        # A palace with rows is current only when those rows match this tip.
+        palace = resolve_palace(cwd)
+        if not palace_drawer_count(palace):
+            return False
+        recorded = palace_indexed_revision(palace)
+        if recorded is None:
+            return False
+        try:
+            return recorded == default_branch_commit(cwd)
+        except RuntimeError:
+            return False
     raise RuntimeError(f"unsupported store component: {component}")
 
 
@@ -599,14 +646,52 @@ def _refresh_graphify(
         shutil.rmtree(backup, ignore_errors=True)
 
 
+def store_snapshot_path(common: Path) -> Path:
+    """Stable detached checkout. MemPalace keys drawers by absolute path."""
+    return common / "chaos-engine" / STORE_SNAPSHOT
+
+
+def _snapshot_dirty(snapshot: Path) -> bool:
+    return bool(_git(snapshot, "status", "--porcelain"))
+
+
+def ensure_store_snapshot(cwd: Path, common: Path, revision: str) -> Path:
+    """Check out ``revision`` in the one reused snapshot.
+
+    A fresh temporary directory on every refresh gives every file a new
+    absolute path. MemPalace's unchanged-file skip then never matches, and
+    each refresh re-embeds the whole tree. Reusing this path keeps mtimes
+    for files git did not change.
+    """
+    snapshot = store_snapshot_path(common)
+    if (snapshot / ".git").exists():
+        current = _git(snapshot, "rev-parse", "HEAD")
+        if current != revision or _snapshot_dirty(snapshot):
+            _git(snapshot, "checkout", "--force", "--detach", revision)
+            _git(snapshot, "clean", "-fdq")
+        return snapshot
+    if snapshot.exists():
+        shutil.rmtree(snapshot)
+    snapshot.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        _git(cwd, "worktree", "add", "--detach", str(snapshot), revision)
+    except RuntimeError:
+        _git(cwd, "worktree", "prune")
+        if snapshot.exists():
+            shutil.rmtree(snapshot)
+        _git(cwd, "worktree", "add", "--detach", str(snapshot), revision)
+    return snapshot
+
+
 def _refresh_mempalace(
     cwd: Path,
     *,
     snapshot: Path,
     primary: Path,
+    revision: str,
     invoke: Runner,
 ) -> None:
-    """Mine MemPalace into the shared palace for one detached snapshot."""
+    """Mine the stable snapshot, drop deleted files, and stamp the revision."""
     mempalace = shutil.which("mempalace")
     if mempalace is None:
         raise RuntimeError("mempalace is not on PATH")
@@ -626,7 +711,21 @@ def _refresh_mempalace(
     if wing:
         mine.extend(["--wing", wing])
     _run(invoke, mine, snapshot)
+    sync = [
+        mempalace,
+        "--palace",
+        str(palace),
+        "--backend",
+        PALACE_BACKEND,
+        "sync",
+        "--apply",
+    ]
+    if wing:
+        sync.extend(["--wing", wing])
+    sync.append(str(snapshot))
+    _run(invoke, sync, snapshot)
     _apply_documentation_index(snapshot, palace)
+    write_palace_marker(palace, revision)
 
 
 def refresh(
@@ -639,7 +738,11 @@ def refresh(
     """Index the default-branch tip into the shared stores.
 
     Allowed from any worktree. Does not fetch, reset, or clean a checkout.
+    A store already indexed at that tip is left alone. ``if_stale`` remains
+    accepted for the daily timer and does not force a second rebuild.
     """
+    if not isinstance(if_stale, bool):
+        raise RuntimeError("if_stale must be a bool")
     selected = frozenset(components or {"graphify", "mempalace"})
     unknown = selected - {"graphify", "mempalace"}
     if unknown:
@@ -647,21 +750,22 @@ def refresh(
     common = resolve_common_dir(cwd)
     if common is None:
         raise RuntimeError("store refresh requires a git repository")
-    if if_stale and all(_component_current(cwd, name) for name in selected):
+
+    def current() -> bool:
+        return all(_component_current(cwd, name) for name in selected)
+
+    if current():
         return 0
     revision = default_branch_commit(cwd)
     invoke = runner or subprocess.run
     with refresh_lock(common):
-        if if_stale and all(_component_current(cwd, name) for name in selected):
+        if current():
             return 0
         primary = resolve_primary_root(cwd)
-        scratch = Path(tempfile.mkdtemp(prefix="chaos-engine-stores-"))
-        snapshot = scratch / "source"
-        try:
-            _git(cwd, "worktree", "add", "--detach", str(snapshot), revision)
-            if "graphify" in selected and not (
-                if_stale and _component_current(cwd, "graphify")
-            ):
+        snapshot = ensure_store_snapshot(cwd, common, revision)
+        if "graphify" in selected and not _component_current(cwd, "graphify"):
+            scratch = Path(tempfile.mkdtemp(prefix="chaos-engine-graphify-"))
+            try:
                 _refresh_graphify(
                     cwd,
                     snapshot=snapshot,
@@ -669,19 +773,16 @@ def refresh(
                     revision=revision,
                     invoke=invoke,
                 )
-            if "mempalace" in selected and not (
-                if_stale and _component_current(cwd, "mempalace")
-            ):
-                _refresh_mempalace(
-                    cwd, snapshot=snapshot, primary=primary, invoke=invoke
-                )
-        finally:
-            try:
-                _git(cwd, "worktree", "remove", "--force", str(snapshot))
-            except RuntimeError:
-                # The snapshot worktree may already be gone. Cleanup must not fail the refresh.
-                pass
-            shutil.rmtree(scratch, ignore_errors=True)
+            finally:
+                shutil.rmtree(scratch, ignore_errors=True)
+        if "mempalace" in selected and not _component_current(cwd, "mempalace"):
+            _refresh_mempalace(
+                cwd,
+                snapshot=snapshot,
+                primary=primary,
+                revision=revision,
+                invoke=invoke,
+            )
     return 0
 
 
