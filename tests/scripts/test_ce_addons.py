@@ -739,6 +739,40 @@ class DesignRound4Tests(unittest.TestCase):
             (html / "s1.html").write_text('<div data-at="e9+1">a</div>', encoding="utf-8")
             self.assertEqual(1, self.run_qc("revealhold", timeline, "--html", str(html))[0])
 
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg not installed")
+    def test_gapfloor_flags_a_bed_between_lines_and_allows_deliberate_sound(self):  # #6706
+        with tempfile.TemporaryDirectory() as folder:
+            timeline = self.write(folder, "edl.json", {"lines": [{"start": 1.0, "end": 2.0}, {"start": 4.0, "end": 5.0}]})
+
+            def mix(name: str, source: str) -> str:
+                path = str(Path(folder) / name)
+                subprocess.run([shutil.which("ffmpeg"), "-v", "error", "-f", "lavfi", "-i", source,  # nosec B603
+                                "-ac", "1", "-c:a", "pcm_f32le", path], check=True)
+                return path
+            bed = mix("bed.wav", "aevalsrc=0.0112*sin(2*PI*110*t):s=48000:d=6")      # about -42 dBFS RMS
+            quiet = mix("quiet.wav", "aevalsrc=0.0002*sin(2*PI*110*t):s=48000:d=6")  # about -77 dBFS RMS
+            code, out = self.run_qc("gapfloor", bed, "--timeline", timeline, "--fade", "0")
+            self.assertEqual((1, "fail"), (code, out["status"]))
+            self.assertAlmostEqual(-42.0, out["floor_dbfs"], delta=1.0)
+            self.assertEqual(0, self.run_qc("gapfloor", quiet, "--timeline", timeline, "--fade", "0")[0])
+            allowed = self.run_qc("gapfloor", bed, "--timeline", timeline, "--fade", "0",
+                                  "--allow", "0-1", "--allow", "2-4", "--allow", "5-6")[1]
+            self.assertEqual(("pass", 0.0), (allowed["status"], allowed["gap_seconds"]))
+
+    def test_delivery_knows_the_vertical_2160_preset(self):  # #6706
+        self.assertEqual((2160, 3840), self.qc.PRESETS["vertical-2160"])
+
+    def test_cards_carry_the_2160p_and_clean_audio_rules(self):  # #6706
+        def card(name: str) -> str:
+            return (DESIGN / "references" / f"{name}.md").read_text(encoding="utf-8")
+        for rule in ("gapfloor", "drone", "-14 LUFS", "limiter"):
+            self.assertIn(rule, card("audio-mix-loudness"))
+        self.assertIn("Locate the noise before removing it", card("noise-removal"))
+        self.assertIn("device scale\n  factor 2", card("html-motion-graphics"))
+        for rule in ("vertical-2160", "gapfloor", "lanczos"):
+            self.assertIn(rule, card("delivery-qc"))
+        self.assertIn("re-shot, not upscaled", card("screen-capture"))
+
     def test_cards_carry_the_retrospective_rules(self):  # #6684
         def card(name: str) -> str:
             return (DESIGN / "references" / f"{name}.md").read_text(encoding="utf-8")

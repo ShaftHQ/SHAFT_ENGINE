@@ -53,6 +53,10 @@ Sleep 2s
 - Vertical cuts never crop a wide terminal: re-render in reflow mode at the
   target width, wrap logical lines at spaces, and refuse a frame whose row
   overflows the view.
+- Stills of HTML reports or web pages are re-shot, not upscaled: keep the
+  capture script and its arguments next to the still, so the same crop can
+  be re-shot at a higher device scale factor when the delivery size grows.
+  Verify the re-shoot by downscaling it and diffing against the old still.
 - Windows footage comes from a real Windows machine (PowerShell), recorded
   with the same tape discipline or the OS recorder at a fixed size.
 
