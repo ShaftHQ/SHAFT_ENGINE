@@ -5,20 +5,29 @@ import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.bidi.Command;
+import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.bidi.module.Network;
 import org.openqa.selenium.bidi.network.BeforeRequestSent;
 import org.openqa.selenium.bidi.network.FetchError;
 import org.openqa.selenium.bidi.network.Header;
 import org.openqa.selenium.bidi.network.ResponseDetails;
+import org.openqa.selenium.json.Json;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.function.BooleanSupplier;
 
@@ -87,6 +96,8 @@ public class BidiNetworkActivitySource implements AutoCloseable {
     private static final int TRACE_FIELD_CHARACTER_LIMIT = 2048;
     private static final int TRACE_HEADER_LIMIT = 64;
     private static final int TRACE_HEADER_CHARACTER_LIMIT = 8192;
+    /** Largest request body the BiDi data collector retains per request (#6740). */
+    private static final long REQUEST_BODY_COLLECTOR_BYTES = 262_144L;
 
     private static final ConcurrentHashMap<WebDriver, BidiNetworkActivitySource> CACHE = new ConcurrentHashMap<>();
 
@@ -101,6 +112,8 @@ public class BidiNetworkActivitySource implements AutoCloseable {
     private BrowserObservabilityRecorder.ObservationSession traceRequestLimitWarningOwner;
     private BrowserObservabilityRecorder.ObservationSession traceMetadataLimitWarningOwner;
     private volatile Network network;
+    private volatile Function<String, byte[]> requestBodyReader;
+    private volatile ExecutorService bodyWorker;
 
     /**
      * Package-private test seam: builds a source with pure in-flight/marker state wired to an
@@ -114,6 +127,15 @@ public class BidiNetworkActivitySource implements AutoCloseable {
         this.nanoTimeSource = nanoTimeSource;
         this.detailedObservationActive = () -> false;
         this.observationBinding = BrowserObservabilityRecorder.captureBinding();
+    }
+
+    /**
+     * Package-private test seam: like {@link #BidiNetworkActivitySource(LongSupplier)} with an injected
+     * reader standing in for the BiDi request data collector.
+     */
+    BidiNetworkActivitySource(LongSupplier nanoTimeSource, Function<String, byte[]> requestBodyReader) {
+        this(nanoTimeSource);
+        this.requestBodyReader = requestBodyReader;
     }
 
     BidiNetworkActivitySource(WebDriver driver, LongSupplier nanoTimeSource) {
@@ -169,6 +191,7 @@ public class BidiNetworkActivitySource implements AutoCloseable {
             candidate.onFetchError(this::handleFetchError);
             this.network = candidate;
             healthy.set(true);
+            this.requestBodyReader = requestBodyReader(driver);
         } catch (RuntimeException e) {
             // new Network(driver) throws for any session that doesn't support/enable BiDi:
             // IllegalArgumentException when the driver doesn't implement HasBiDi at all, or a
@@ -222,7 +245,7 @@ public class BidiNetworkActivitySource implements AutoCloseable {
             boolean stale = now >= entry.getValue() && now - entry.getValue() >= thresholdNanos;
             if (stale) {
                 publish(traceRequests.remove(entry.getKey()), null,
-                        "BiDi request completion was unavailable after the bounded age-out window.");
+                        "BiDi request completion was unavailable after the bounded age-out window.", "");
             }
             return stale;
         });
@@ -278,7 +301,7 @@ public class BidiNetworkActivitySource implements AutoCloseable {
                 method.context(), url.context(), requestHeaders.contexts(),
                 Math.max(0L, request.getBodySize() == null ? 0L : request.getBodySize()), nanoTimeSource.getAsLong());
         if (longLived) {
-            publish(traceRequest, null, "BiDi long-lived request observed; completion metadata is unavailable.");
+            publish(traceRequest, null, "BiDi long-lived request observed; completion metadata is unavailable.", "");
             return;
         }
         if (traceRequests.size() >= TRACE_REQUEST_LIMIT) {
@@ -299,11 +322,93 @@ public class BidiNetworkActivitySource implements AutoCloseable {
                                                    org.openqa.selenium.bidi.network.ResponseData response,
                                                    String failureReason) {
         TraceRequest pending = requestId == null ? null : traceRequests.remove(requestId);
-        publish(pending, response, failureReason);
+        Function<String, byte[]> reader = requestBodyReader;
+        if (pending == null || reader == null || pending.requestSize() <= 0
+                || pending.requestSize() > REQUEST_BODY_COLLECTOR_BYTES) {
+            publish(pending, response, failureReason, "");
+            return;
+        }
+        // The BiDi reply to network.getData arrives on the thread that delivers this event, so the
+        // body is read on a worker; reading here would wait on itself.
+        try {
+            worker().execute(() -> {
+                String preview = fetchRequestBodyPreview(reader, requestId);
+                synchronized (this) {
+                    if (!closed.get()) {
+                        publish(pending, response, failureReason, preview);
+                    }
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            publish(pending, response, failureReason, "");
+        }
+    }
+
+    private ExecutorService worker() {
+        ExecutorService current = bodyWorker;
+        if (current == null) {
+            current = Executors.newSingleThreadExecutor(task -> {
+                Thread thread = new Thread(task, "shaft-bidi-request-body");
+                thread.setDaemon(true);
+                return thread;
+            });
+            bodyWorker = current;
+        }
+        return current;
+    }
+
+    private static String fetchRequestBodyPreview(Function<String, byte[]> reader, String requestId) {
+        try {
+            return BrowserObservabilityRecorder.requestBodyPreview(reader.apply(requestId));
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    /**
+     * Registers a BiDi data collector for request bodies and returns a reader over it, or {@code null}
+     * when the browser or driver does not support {@code network.addDataCollector}. Selenium 4.50 ships no
+     * binding for the collector commands, so they are sent as raw BiDi commands (#6740).
+     */
+    private static Function<String, byte[]> requestBodyReader(WebDriver driver) {
+        try {
+            if (!(driver instanceof HasBiDi hasBiDi)) {
+                return null;
+            }
+            org.openqa.selenium.bidi.BiDi bidi = hasBiDi.getBiDi();
+            Map<String, Object> added = bidi.send(new Command<>("network.addDataCollector", Map.of(
+                    "dataTypes", List.of("request"), "maxEncodedDataSize", REQUEST_BODY_COLLECTOR_BYTES),
+                    Json.MAP_TYPE));
+            Object collector = added.get("collector");
+            if (collector == null) {
+                return null;
+            }
+            return requestId -> readRequestBody(bidi, String.valueOf(collector), requestId);
+        } catch (RuntimeException e) {
+            ReportManagerHelper.logDiscrete("BiDi request bodies are unavailable for this driver session: "
+                    + e.getMessage(), Level.DEBUG);
+            return null;
+        }
+    }
+
+    private static byte[] readRequestBody(org.openqa.selenium.bidi.BiDi bidi, String collector, String requestId) {
+        Map<String, Object> data = bidi.send(new Command<>("network.getData", Map.of(
+                "dataType", "request", "collector", collector, "request", requestId), Json.MAP_TYPE));
+        bidi.send(new Command<>("network.disownData", Map.of(
+                "dataType", "request", "collector", collector, "request", requestId), Json.MAP_TYPE));
+        return decodeBytesValue(data.get("bytes"));
+    }
+
+    static byte[] decodeBytesValue(Object bytes) {
+        if (!(bytes instanceof Map<?, ?> value) || !(value.get("value") instanceof String text)) {
+            return new byte[0];
+        }
+        return "base64".equals(value.get("type")) ? Base64.getDecoder().decode(text)
+                : text.getBytes(StandardCharsets.UTF_8);
     }
 
     private void publish(TraceRequest request, org.openqa.selenium.bidi.network.ResponseData response,
-                         String failureReason) {
+                         String failureReason, String requestBodyPreview) {
         if (request == null) {
             return;
         }
@@ -323,7 +428,7 @@ public class BidiNetworkActivitySource implements AutoCloseable {
                         completeHeaders(request.requestHeaders(), request.requestHeaderContexts()),
                         completeHeaders(responseHeaders.values(), responseHeaders.contexts()),
                         java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(elapsed), request.requestSize(),
-                        responseSize, failureReason, ""), "bidi");
+                        responseSize, failureReason, "", requestBodyPreview), "bidi");
     }
 
     static BoundedHeaders headers(List<Header> source) {
@@ -505,6 +610,10 @@ public class BidiNetworkActivitySource implements AutoCloseable {
             healthy.set(false);
             traceRequests.clear();
             inFlightStartNanos.clear();
+        }
+        ExecutorService toStop = bodyWorker;
+        if (toStop != null) {
+            toStop.shutdownNow();
         }
         if (toClose != null) {
             try {

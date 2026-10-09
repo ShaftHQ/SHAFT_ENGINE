@@ -6,6 +6,7 @@ on:
       - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
       - "shaft-engine/src/main/java/com/shaft/gui/browser/internal/**"
       - "shaft-engine/src/test/java/com/shaft/gui/browser/internal/BrowserNetworkUploadAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/gui/browser/internal/BidiRequestBodyAcceptanceTest.java"
       - "shaft-engine/src/main/resources/META-INF/shaft/trace-viewer/**"
       - "shaft-engine/src/test/js/**"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
@@ -19,6 +20,7 @@ on:
       - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
       - "shaft-engine/src/main/java/com/shaft/gui/browser/internal/**"
       - "shaft-engine/src/test/java/com/shaft/gui/browser/internal/BrowserNetworkUploadAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/gui/browser/internal/BidiRequestBodyAcceptanceTest.java"
       - "shaft-engine/src/main/resources/META-INF/shaft/trace-viewer/**"
       - "shaft-engine/src/test/js/**"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
@@ -102,7 +104,7 @@ jobs:
       - name: Run offline trace viewer acceptance
         run: >-
           mvn -pl shaft-engine
-          -Dtest=com.shaft.tools.io.internal.TraceViewerBrowserAcceptanceTest,com.shaft.tools.io.internal.TraceViewerAllureAcceptanceTest,com.shaft.gui.browser.internal.BrowserNetworkUploadAcceptanceTest
+          -Dtest=com.shaft.tools.io.internal.TraceViewerBrowserAcceptanceTest,com.shaft.tools.io.internal.TraceViewerAllureAcceptanceTest,com.shaft.gui.browser.internal.BrowserNetworkUploadAcceptanceTest,com.shaft.gui.browser.internal.BidiRequestBodyAcceptanceTest
           -Dsurefire.excludedGroups=
           -Dshaft.allure.cli.version=${ALLURE3_CLI_VERSION}
           -Dshaft.allure2.cli.version=${ALLURE2_CLI_VERSION}

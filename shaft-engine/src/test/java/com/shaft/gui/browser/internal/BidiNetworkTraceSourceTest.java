@@ -425,6 +425,77 @@ public class BidiNetworkTraceSourceTest {
                 .filter(value -> value.contains("in-flight trace limit")).count(), 1L);
     }
 
+    @Test
+    public void bidiPostBodyShouldBePreviewedWithSensitiveFieldsMaskedWhenTheCollectorHasIt() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        byte[] body = "{\"user\":\"alice\",\"password\":\"hunter2\"}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        BidiNetworkActivitySource source = new BidiNetworkActivitySource(System::nanoTime,
+                id -> "post-1".equals(id) ? body : new byte[0]);
+        RequestData request = request("post-1", "POST", "https://example.test/login", body.length, List.of());
+        source.handleBeforeRequestSent(before(request));
+
+        source.handleResponseCompleted(completed(request));
+
+        var event = awaitEvent(owner);
+        Assert.assertTrue(event.requestBodyPreview().contains("alice"), event.requestBodyPreview());
+        Assert.assertFalse(event.requestBodyPreview().contains("hunter2"), event.requestBodyPreview());
+        source.close();
+    }
+
+    @Test
+    public void bidiBodylessAndUnreadableBodiesShouldKeepAnEmptyPreview() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        BidiNetworkActivitySource source = new BidiNetworkActivitySource(System::nanoTime, id -> {
+            throw new IllegalStateException("collector has no data");
+        });
+        RequestData get = request("get-1", "GET", "https://example.test/", 0L, List.of());
+        source.handleBeforeRequestSent(before(get));
+        source.handleResponseCompleted(completed(get));
+        RequestData post = request("post-2", "POST", "https://example.test/", 8L, List.of());
+        source.handleBeforeRequestSent(before(post));
+        source.handleResponseCompleted(completed(post));
+
+        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(5).toNanos();
+        while (BrowserObservabilityRecorder.snapshot(owner).size() < 2 && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        var events = BrowserObservabilityRecorder.snapshot(owner);
+        Assert.assertEquals(events.size(), 2);
+        events.forEach(event -> Assert.assertEquals(event.requestBodyPreview(), ""));
+        source.close();
+    }
+
+    @Test
+    public void bytesValuesShouldDecodeStringAndBase64Bodies() {
+        Assert.assertEquals(BidiNetworkActivitySource.decodeBytesValue(
+                java.util.Map.of("type", "string", "value", "a=1")), "a=1".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        Assert.assertEquals(BidiNetworkActivitySource.decodeBytesValue(
+                java.util.Map.of("type", "base64", "value", "AQID")), new byte[]{1, 2, 3});
+        Assert.assertEquals(BidiNetworkActivitySource.decodeBytesValue(null), new byte[0]);
+    }
+
+    private static ResponseDetails completed(RequestData request) {
+        ResponseData response = Mockito.mock(ResponseData.class);
+        Mockito.when(response.getStatus()).thenReturn(200);
+        Mockito.when(response.getHeaders()).thenReturn(List.of());
+        ResponseDetails completed = Mockito.mock(ResponseDetails.class);
+        Mockito.when(completed.getRequest()).thenReturn(request);
+        Mockito.when(completed.getResponseData()).thenReturn(response);
+        return completed;
+    }
+
+    private static BrowserObservabilityRecorder.NetworkSnapshotEntry awaitEvent(
+            BrowserObservabilityRecorder.ObservationSession owner) throws InterruptedException {
+        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(5).toNanos();
+        while (BrowserObservabilityRecorder.snapshot(owner).isEmpty() && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        Assert.assertFalse(BrowserObservabilityRecorder.snapshot(owner).isEmpty(), "The request body fetch must publish.");
+        return BrowserObservabilityRecorder.snapshot(owner).getFirst();
+    }
+
     private static void publishOversizedMetadata(BidiNetworkActivitySource source, String id) {
         RequestData request = request(id, "GET", "https://example.test/" + "u".repeat(3_000), 0L, List.of());
         source.handleBeforeRequestSent(before(request));
