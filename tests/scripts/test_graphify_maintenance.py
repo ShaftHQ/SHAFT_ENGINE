@@ -598,6 +598,31 @@ class GraphifyMaintenanceTest(TestCase):
             marker["manifest_sha256"],
         )
 
+    def test_head_ahead_of_origin_main_fails_before_any_stage_or_marker_removal(self):  # #6762
+        self._git_tracked_fixture({"tracked.txt": "tracked\n"})
+        git = shutil.which("git")
+
+        def run_git(*args):
+            return subprocess.run(  # nosec B603 - resolved Git and controlled fixture paths.
+                [git, *args], cwd=self.repository, check=True, capture_output=True, text=True
+            )
+
+        run_git("update-ref", "refs/remotes/origin/main", "HEAD")
+        (self.repository / "ahead.txt").write_text("ahead\n", encoding="utf-8")
+        run_git("add", "ahead.txt")
+        run_git("commit", "-m", "ahead of origin/main")
+        marker = self.write_default_marker()
+        module = self.load_module()
+        stages = []
+
+        with mock.patch.object(module.shutil, "which", side_effect=lambda name: git if name == "git" else "uv"), \
+                mock.patch.object(module, "run_stage", side_effect=lambda name, command, root: stages.append(name)):
+            with self.assertRaisesRegex(ValueError, "HEAD must equal origin/main"):
+                module.refresh(self.repository, Path("graphify-out"))
+
+        self.assertEqual([], stages)
+        self.assertTrue(marker.exists())
+
     def test_missing_bundled_resolver_fails_before_cache_mutation(self):
         module = self.load_module()
         marker = self.write_default_marker()
