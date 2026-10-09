@@ -57,7 +57,7 @@ Check the holder PID it names and `python3 .chaos-engine/install.py status --pro
 before rerunning; a healthy core at the new commit means it already finished.
 The local pre-push hook does not run the Agent Guidance Gate. Before pushing a
 reference or skill edit, run
-`python3 scripts/ci/harness_pr_gate.py --base origin/main --head HEAD` (issue
+`python3 scripts/ci/harness_pr_gate.py --base "$(git rev-parse origin/main)" --head "$(git rev-parse HEAD)"` (issue
 tags and bare angle-bracket placeholders in references fail it).
 An older overlay can record a git-digest source without a repository; its
 `maintain` then stops at "repository must be an explicit GitHub
