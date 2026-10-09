@@ -5286,6 +5286,48 @@ def gitattributes_content(before: bytes | None) -> bytes:
     )
 
 
+def owned_claude_plugin_version_bytes(
+    project: Path | None,
+    marketplace: dict,
+    existing: dict | None,
+    entry: dict,
+    before: bytes | None,
+    plugin_version: str,
+) -> bytes | None:
+    """Return catalog bytes when merging must stop, otherwise None to continue.
+
+    A version-only chaos-engine record takes ``plugin_version``. On a source
+    checkout that bump is the whole write, and a version that already matches
+    leaves the tracked catalog unchanged. Any other same-name record is handed
+    off with its original bytes.
+    """
+    if existing is None:
+        return None
+    if existing == entry:
+        if engine_source_checkout(project):
+            return b"" if before is None else before
+        return None
+    if existing.get("skills") in (None, []):
+        existing["skills"] = entry["skills"]
+    versionless = dict(existing)
+    versionless.pop("version", None)
+    expected = dict(entry)
+    expected.pop("version")
+    owned_version = versionless == expected and isinstance(existing.get("version"), str)
+    if owned_version:
+        existing["version"] = plugin_version
+    else:
+        _note_merge_handoff(
+            ".claude-plugin/marketplace.json",
+            "plugin marketplace entry exists with unknown ownership",
+            json.dumps(entry, indent=2, sort_keys=True) + "\n",
+        )
+        return b"" if before is None else before
+    if engine_source_checkout(project):
+        return (json.dumps(marketplace, indent=2, sort_keys=True) + "\n").encode()
+    return None
+
+
 def desired_content(
     before: dict[str, bytes | None],
     maven_runtime: tuple[Path, Path] | None | bool = False,
@@ -5486,29 +5528,17 @@ def desired_content(
         ),
         None,
     )
-    if existing_claude_plugin is not None and existing_claude_plugin != claude_plugin_entry:
-        if existing_claude_plugin.get("skills") in (None, []):
-            existing_claude_plugin["skills"] = claude_plugin_entry["skills"]
-        versionless = dict(existing_claude_plugin)
-        versionless.pop("version", None)
-        expected_versionless = dict(claude_plugin_entry)
-        expected_versionless.pop("version")
-        if (
-            versionless == expected_versionless
-            and isinstance(existing_claude_plugin.get("version"), str)
-            and not engine_source_checkout(project)
-        ):
-            existing_claude_plugin["version"] = plugin_version
-        if existing_claude_plugin != claude_plugin_entry:
-            _note_merge_handoff(
-                ".claude-plugin/marketplace.json",
-                "plugin marketplace entry exists with unknown ownership",
-                json.dumps(claude_plugin_entry, indent=2, sort_keys=True) + "\n",
-            )
-            after[".claude-plugin/marketplace.json"] = (
-                b"" if claude_marketplace_before is None else claude_marketplace_before
-            )
-            claude_marketplace = None
+    stopped = owned_claude_plugin_version_bytes(
+        project,
+        claude_marketplace,
+        existing_claude_plugin,
+        claude_plugin_entry,
+        claude_marketplace_before,
+        plugin_version,
+    )
+    if stopped is not None:
+        after[".claude-plugin/marketplace.json"] = stopped
+        claude_marketplace = None
     if claude_marketplace is not None and existing_claude_plugin is None:
         claude_marketplace["plugins"].append(claude_plugin_entry)
     if claude_marketplace is not None:
