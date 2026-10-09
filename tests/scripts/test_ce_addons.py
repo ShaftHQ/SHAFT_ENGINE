@@ -383,12 +383,19 @@ class DesignLessonTests(unittest.TestCase):
 
     def test_static_spans_ignore_change_and_honour_allow(self):
         still = [bytes(576)] * 50
-        spans, longest = self.qc.static_spans(still, fps=10, step=0.5, thresh=3, max_s=3, allow=[])
+        spans, longest = self.qc.static_spans(still, fps=10, thresh=3, max_s=3, allow=[])
         self.assertEqual(1, len(spans))
         self.assertGreater(longest, 3)
         moving = [bytes([(i // 10) * 20]) * 576 for i in range(50)]
-        self.assertEqual([], self.qc.static_spans(moving, fps=10, step=0.5, thresh=3, max_s=3, allow=[])[0])
-        self.assertEqual([], self.qc.static_spans(still, fps=10, step=0.5, thresh=3, max_s=3, allow=[(0, 5)])[0])
+        self.assertEqual([], self.qc.static_spans(moving, fps=10, thresh=3, max_s=3, allow=[])[0])
+        self.assertEqual([], self.qc.static_spans(still, fps=10, thresh=3, max_s=3, allow=[(0, 5)])[0])
+
+    def test_static_spans_measure_drift_from_the_window_start(self):  # #6724
+        drift = [bytes([i // 4]) * 576 for i in range(50)]  # 0.25 level per frame, 1.25 over any 0.5 s lag
+        self.assertEqual([], self.qc.static_spans(drift, fps=10, thresh=3, max_s=3, allow=[])[0])
+        flat = [*drift[:12], *[drift[12]] * 38]
+        spans, _ = self.qc.static_spans(flat, fps=10, thresh=3, max_s=3, allow=[])
+        self.assertEqual([{"start": 1.2, "end": 5.0, "dur": 3.8}], spans)
 
     def test_levels_names_offending_frames(self):
         log = ("frame:0 pts:0 pts_time:0\nlavfi.signalstats.YMIN=20\nlavfi.signalstats.YMAX=200\n"
@@ -483,6 +490,21 @@ class DesignRound3Tests(unittest.TestCase):
                         "-pix_fmt", "yuv420p", str(clip))
             self.assertEqual(0, self.run_qc("static", str(clip))[0])
             self.assertEqual(1, self.run_qc("static", str(clip), "--crop", "640:280:0:0")[0])
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg not installed")
+    def test_static_compares_against_the_window_start(self):  # #6724
+        with tempfile.TemporaryDirectory() as temporary:
+            frame = Path(temporary) / "frame.png"
+            self.ffmpeg("-f", "lavfi", "-i", "color=c=0x202830:s=1280x720:r=25:d=1,"
+                        "drawbox=x=380:y=300:w=520:h=40:color=0x607080:t=fill,"
+                        "drawbox=x=420:y=370:w=440:h=40:color=0x607080:t=fill", "-frames:v", "1", str(frame))
+            push, still = Path(temporary) / "push.mp4", Path(temporary) / "still.mp4"
+            self.ffmpeg("-i", str(frame), "-vf", "scale=5120:2880,zoompan=z='1+0.0045*on/25':"
+                        "x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=100:s=1280x720:fps=25",
+                        "-t", "4", "-pix_fmt", "yuv420p", str(push))
+            self.ffmpeg("-loop", "1", "-framerate", "25", "-i", str(frame), "-t", "4", "-pix_fmt", "yuv420p", str(still))
+            self.assertEqual(0, self.run_qc("static", str(push), "--max", "3")[0])
+            self.assertEqual(1, self.run_qc("static", str(still), "--max", "3")[0])
 
     def test_claims_need_must_and_reject_must_not(self):  # #6651
         with tempfile.TemporaryDirectory() as temporary:

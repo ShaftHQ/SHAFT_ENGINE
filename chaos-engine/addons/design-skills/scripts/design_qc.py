@@ -550,23 +550,23 @@ def runs(flags: list[bool]) -> list[tuple[int, int]]:
     return found
 
 
-def static_spans(frames: list[bytes], fps: float, step: float, thresh: float, max_s: float,
+def static_spans(frames: list[bytes], fps: float, thresh: float, max_s: float,
                  allow: list[tuple[float, float]]) -> tuple[list[dict], float]:
-    """Stretches where no grid cell changes by `thresh` levels against `step` seconds earlier."""
-    lag = max(1, round(step * fps))
-    still = [i >= lag and max(abs(a - b) for a, b in zip(frames[i], frames[i - lag])) < thresh
-             for i in range(len(frames))]
-    spans, longest = [], 0.0
-    for first, end in runs(still):
-        start, stop = max((first - lag) / fps, 0.0), end / fps
+    """Windows where no grid cell differs by `thresh` levels from the window's first frame (cumulative)."""
+    spans, longest, anchor = [], 0.0, 0
+    for end in range(1, len(frames) + 1):
+        if end < len(frames) and max(abs(a - b) for a, b in zip(frames[end], frames[anchor])) < thresh:
+            continue
+        start, stop = anchor / fps, end / fps
         longest = max(longest, stop - start)
         if stop - start > max_s and not any(lo <= start and stop <= hi for lo, hi in allow):
             spans.append({"start": round(start, 2), "end": round(stop, 2), "dur": round(stop - start, 2)})
+        anchor = end
     return spans, round(longest, 2)
 
 
 def cmd_static(args: argparse.Namespace) -> int:
-    """Visually static stretches: a 32x18 cell grid ignores slow pushes, catches no-content-change holds."""
+    """Visually static stretches: no 32x18 grid cell changes against the window start (a sub-pixel push-in is not static)."""
     grid = "scale='if(gt(iw,ih),32,18)':'if(gt(iw,ih),18,32)':flags=area,format=gray"
     crop = f"crop={args.crop}," if args.crop else ""
     raw = decode_raw(args.file, ["-an", "-vf", f"fps={args.fps},{crop}{grid}", "-f", "rawvideo"])
@@ -574,7 +574,7 @@ def cmd_static(args: argparse.Namespace) -> int:
     if not frames:
         raise ValueError("no decoded frames")
     allow = [tuple(float(x) for x in span.split("-")) for span in args.allow]
-    spans, longest = static_spans(frames, args.fps, args.step, args.thresh, args.max, allow)  # type: ignore[arg-type]
+    spans, longest = static_spans(frames, args.fps, args.thresh, args.max, allow)  # type: ignore[arg-type]
     return report("static", FAIL if spans else PASS, spans=spans, longest_static_s=longest, max_s=args.max)
 
 
@@ -1401,7 +1401,6 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("file")
     p.add_argument("--max", type=float, default=3.0)
     p.add_argument("--fps", type=float, default=10.0)
-    p.add_argument("--step", type=float, default=0.5)
     p.add_argument("--thresh", type=float, default=3.0)
     p.add_argument("--allow", action="append", default=[], help="start-end seconds")
     p.add_argument("--crop", help="w:h:x:y region to measure (overlay-free picture)")
