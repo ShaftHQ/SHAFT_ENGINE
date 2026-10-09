@@ -785,22 +785,10 @@ final class AssistantLocalAgentRunner {
                     stderrNow(stderr);
                     throw new CancellationException("Operation cancelled");
                 }
-                boolean streaming = streamParser != null;
-                boolean finished = streaming
-                        ? awaitProcessWithIdleDeadline(process, timeout,
-                        Duration.ofSeconds(MAX_STREAMING_RUN_SECONDS), lastActivityNanos::get,
-                        bridge == null ? () -> 0L : bridge::accumulatedPendingMillis,
-                        TimeUnit.SECONDS.toMillis(MAX_APPROVAL_EXTENSION_SECONDS))
-                        : awaitProcessWithApprovalExtension(process, timeout, bridge);
-                if (!finished) {
+                if (!awaitRun(process, timeout, streamParser, lastActivityNanos, bridge)) {
                     process.destroyForcibly();
                     return ShaftMcpToolResult.failure(agentOutput(false, stdoutNow(stdout), stderrNow(stderr),
-                            streaming
-                                    ? displayName(string(arguments, "client", "")) + " produced no output for "
-                                    + timeout.toSeconds() + " seconds (or ran past the "
-                                    + MAX_STREAMING_RUN_SECONDS / 3600 + " hour limit), so SHAFT stopped it."
-                                    + resumeHint(streamParser)
-                                    : "Timed out after " + timeout.toSeconds() + " seconds.", verbose));
+                            timeoutMessage(arguments, timeout, streamParser), verbose));
                 }
                 if (cancellationRequested.get()) {
                     closeQuietly(stdoutStream);
@@ -906,6 +894,27 @@ final class AssistantLocalAgentRunner {
                 timeout,
                 TimeUnit.SECONDS.toMillis(MAX_APPROVAL_EXTENSION_SECONDS),
                 bridge::accumulatedPendingMillis);
+    }
+
+    /** Waits for the run: an inactivity deadline for streaming CLIs, the fixed deadline for the rest. */
+    private static boolean awaitRun(
+            Process process, Duration timeout, StructuredStreamParser streamParser, AtomicLong lastActivityNanos,
+            LocalAgentApprovalBridge bridge) throws InterruptedException {
+        if (streamParser == null) {
+            return awaitProcessWithApprovalExtension(process, timeout, bridge);
+        }
+        return awaitProcessWithIdleDeadline(process, timeout, Duration.ofSeconds(MAX_STREAMING_RUN_SECONDS),
+                lastActivityNanos::get, bridge == null ? () -> 0L : bridge::accumulatedPendingMillis,
+                TimeUnit.SECONDS.toMillis(MAX_APPROVAL_EXTENSION_SECONDS));
+    }
+
+    private static String timeoutMessage(JsonObject arguments, Duration timeout, StructuredStreamParser parser) {
+        if (parser == null) {
+            return "Timed out after " + timeout.toSeconds() + " seconds.";
+        }
+        return displayName(string(arguments, "client", "")) + " produced no output for " + timeout.toSeconds()
+                + " seconds (or ran past the " + MAX_STREAMING_RUN_SECONDS / 3600 + " hour limit), so SHAFT stopped it."
+                + resumeHint(parser);
     }
 
     /** Hint appended to an early-ended run so the user can pick the same Grok session back up. */

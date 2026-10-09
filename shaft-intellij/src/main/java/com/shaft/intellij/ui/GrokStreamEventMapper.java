@@ -42,7 +42,10 @@ final class GrokStreamEventMapper implements StreamEventMapper {
             return bufferThought(StreamJson.stringField(event, "data"));
         }
         List<String> lines = new ArrayList<>(flushBuffers(!"tool_call_update".equals(type) && !"usage".equals(type)));
-        MapResult result = mapOther(type, event);
+        MapResult result = mapToolEvent(type, event);
+        if (result instanceof MapResult.Unknown) {
+            result = mapOther(type, event);
+        }
         if (result instanceof MapResult.Rendered rendered) {
             lines.add(rendered.text());
         }
@@ -52,7 +55,7 @@ final class GrokStreamEventMapper implements StreamEventMapper {
         return result;
     }
 
-    private MapResult mapOther(String type, JsonObject event) {
+    private MapResult mapToolEvent(String type, JsonObject event) {
         if ("tool_call".equals(type)) {
             return describeToolCall(event);
         }
@@ -63,6 +66,10 @@ final class GrokStreamEventMapper implements StreamEventMapper {
             recordUsage(StreamJson.objectField(event, "usage"));
             return MapResult.CONSUMED;
         }
+        return MapResult.UNKNOWN;
+    }
+
+    private MapResult mapOther(String type, JsonObject event) {
         if ("plan".equals(type)) {
             String plan = describePlan(event);
             return plan == null ? MapResult.CONSUMED : MapResult.rendered(plan);
