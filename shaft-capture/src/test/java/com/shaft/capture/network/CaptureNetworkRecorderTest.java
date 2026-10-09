@@ -10,6 +10,7 @@ import com.shaft.capture.model.network.ResourceKind;
 import com.shaft.capture.storage.CaptureSessionStore;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
+import com.shaft.gui.browser.internal.CdpFetchRuleInterceptor;
 import com.shaft.gui.browser.internal.CdpPassiveNetworkObserver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -415,7 +416,9 @@ class CaptureNetworkRecorderTest {
         DriverFactoryHelper helper = new DriverFactoryHelper();
 
         AtomicInteger interceptorConstructions = new AtomicInteger();
-        try (MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
+        try (MockedConstruction<CdpFetchRuleInterceptor> rules = Mockito.mockConstruction(CdpFetchRuleInterceptor.class,
+                (mock, context) -> interceptorConstructions.incrementAndGet());
+             MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
                 (mock, context) -> interceptorConstructions.incrementAndGet())) {
             try {
                 helper.setDriver(driver);

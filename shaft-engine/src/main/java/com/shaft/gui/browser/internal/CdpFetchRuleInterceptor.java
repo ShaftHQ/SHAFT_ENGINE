@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
  * continues each paused request and response by id only, so the browser sends exactly the bytes the
  * page built. A mocked response is fulfilled without sending the request.
  */
-final class CdpFetchRuleInterceptor implements AutoCloseable {
+public final class CdpFetchRuleInterceptor implements AutoCloseable {
     private static final Duration COMMAND_TIMEOUT = Duration.ofSeconds(5);
     private static final long RESPONSE_TIMEOUT_SECONDS = 120;
     private static final String ID_ATTRIBUTE = "shaft.fetch.requestId";
