@@ -4552,6 +4552,72 @@ def _polyglot_unsafe(text: str) -> bool:
     return "'" in text or "#>" in text or "<#" in text
 
 
+_GROK_SINGLE_QUOTED = re.compile(r"'[^']*'", re.DOTALL)
+_GROK_ASSIGNMENT = re.compile(r"(?<![A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)=")
+_GROK_BRACED_ENV = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+_GROK_PLAIN_ENV = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)")
+_GROK_ENCODED_POWERSHELL = re.compile(
+    r"^Invoke-Expression \(\[Text\.Encoding\]::Unicode\.GetString\(\[Convert\]::FromBase64String\('([A-Za-z0-9+/=]+)'\)\)\)$"
+)
+
+
+def grok_unresolved_env_refs(command: str) -> list[str]:
+    """`$NAME` refs Grok refuses to execute because they are not assigned in the command.
+
+    Confirmed against Grok's hook runner: a real `NAME=` statement (anywhere,
+    including after the use) satisfies `$NAME`. A `#` comment or a single-quoted
+    `NAME=` does not. `${NAME:-...}` and `$(...)` are not plain refs. `$env:NAME`
+    is the ref `env`.
+    """
+    stripped = _GROK_SINGLE_QUOTED.sub("''", command)
+    visible: list[str] = []
+    quoted = False
+    index = 0
+    while index < len(stripped):
+        character = stripped[index]
+        if character == '"':
+            quoted = not quoted
+            visible.append(character)
+            index += 1
+            continue
+        if character == "#" and not quoted:
+            newline = stripped.find("\n", index)
+            if newline < 0:
+                break
+            index = newline
+            continue
+        visible.append(character)
+        index += 1
+    text = "".join(visible)
+    assigned = set(_GROK_ASSIGNMENT.findall(text))
+    referenced = set(_GROK_BRACED_ENV.findall(text)) | set(_GROK_PLAIN_ENV.findall(text))
+    return sorted(referenced - assigned)
+
+
+def _grok_powershell_tail(body: str) -> str:
+    """Run the PowerShell branch in-process without putting `$` names in the command.
+
+    Grok rewrites bare `$NAME` in a Windows PowerShell hook command. Encoding the
+    branch keeps those names out of the scanned text. `Invoke-Expression` applies
+    the script's own `exit` to the hook process.
+    """
+    encoded = base64.b64encode(body.encode("utf-16le")).decode("ascii")
+    return (
+        "Invoke-Expression ([Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('"
+        + encoded
+        + "')))\n"
+    )
+
+
+def _decoded_powershell_branch(lines: list[str]) -> list[str] | None:
+    if len(lines) != 1:
+        return None
+    match = _GROK_ENCODED_POWERSHELL.fullmatch(lines[0])
+    if match is None:
+        return None
+    return base64.b64decode(match.group(1)).decode("utf-16le").splitlines()
+
+
 def chaos_guard_locator_command(
     *, windows: bool, host: str, managed_python: Path | None = None, event: str | None = None,
 ) -> str:
@@ -4584,6 +4650,10 @@ def chaos_guard_locator_command(
       never a crash.
 
     `commandWindows` stays double-quoted for cmd.exe.
+
+    Grok's runner refuses the command when a plain `$NAME` is unset and the
+    command never assigns `NAME=`. For that host the PowerShell branch is the
+    same script, base64-encoded, and the Windows check is `${OS:-}`.
     """
     del managed_python
     script = _locator_script(host, event)
@@ -4598,16 +4668,11 @@ def chaos_guard_locator_command(
     block = json.dumps({"decision": "block", "reason": LAUNCH_PYTHON_UNAVAILABLE})
     stub = _quote_free_exec(f'import os;exec(os.environ["{HOOK_SOURCE_ENV}"])')
     pointer = HOOK_PYTHON_POINTER
-    return (
-        "echo --% >/dev/null;: ' | Out-Null\n"
-        "<#'\n"
-        f"s='{script}'\n"
-        '[ "$OS" = Windows_NT ] || exec python3 -c "$s"\n'
-        "for p in py python3 python; do a=; [ $p = py ] && a=-3; "
-        f'command -v $p >/dev/null 2>&1 && $p $a -c "{probe}" 2>/dev/null && exec $p $a -c "$s"; done\n'
-        f"echo '{block}'\n"
-        "exit 2\n"
-        "#>\n"
+    os_test = '"${OS:-}"' if host == "grok" else '"$OS"'
+    # `for p in` is not an assignment Grok's scanner accepts. `p=` is, and the
+    # loop rebinds `p` before any use.
+    assign_p = "p=\n" if host == "grok" else ""
+    powershell = (
         "$OutputEncoding=[Text.UTF8Encoding]::new($false)\n"
         "$m=New-Object IO.MemoryStream;[Console]::OpenStandardInput().CopyTo($m)\n"
         "$d=[Text.Encoding]::UTF8.GetString($m.ToArray())\n"
@@ -4634,6 +4699,26 @@ def chaos_guard_locator_command(
         f"if($p){{& $c[0] @($c|Select-Object -Skip 1) -c '{stub}'}}else{{$d|& $c[0] @($c|Select-Object -Skip 1) -c '{stub}'}}\n"
         "$e=$LASTEXITCODE;if($p){Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue};exit $e\n"
     )
+    if host == "grok":
+        powershell = _grok_powershell_tail(powershell)
+    command = (
+        "echo --% >/dev/null;: ' | Out-Null\n"
+        "<#'\n"
+        f"s='{script}'\n"
+        f"{assign_p}"
+        f"[ {os_test} = Windows_NT ] || exec python3 -c \"$s\"\n"
+        "for p in py python3 python; do a=; [ $p = py ] && a=-3; "
+        f'command -v $p >/dev/null 2>&1 && $p $a -c "{probe}" 2>/dev/null && exec $p $a -c "$s"; done\n'
+        f"echo '{block}'\n"
+        "exit 2\n"
+        "#>\n"
+        + powershell
+    )
+    if host == "grok":
+        unresolved = grok_unresolved_env_refs(command)
+        if unresolved:
+            raise ValueError("grok hook command still requires env vars: " + ", ".join(unresolved))
+    return command
 
 
 def hook_command_source(command: str) -> str:
@@ -4661,6 +4746,9 @@ def powershell_hook_parse_error(command: str) -> str | None:
     if lines[:2] != ["echo --% >/dev/null;: ' | Out-Null", "<#'"] or "#>" not in lines:
         return "unix hook command is not the sh/PowerShell launcher; Windows PowerShell would run python3 directly"
     powershell = lines[lines.index("#>") + 1:]
+    decoded = _decoded_powershell_branch(powershell)
+    if decoded is not None:
+        powershell = decoded
     invocation = next((line for line in powershell if line.startswith(LAUNCH_INVOCATION_PREFIXES)), None)
     if invocation is None:
         return "PowerShell branch does not hand the payload to a probed interpreter"
