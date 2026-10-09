@@ -643,7 +643,7 @@ class DesignRound4Tests(unittest.TestCase):
             code, out = self.run_qc("findings", self.write(folder, "l.json", self.ledger(rounds=3)), "--cap", "3")
             self.assertEqual((1, "owner"), (code, out["next"]))
             code, out = self.run_qc("findings", self.write(folder, "l.json", self.ledger("fixed", rounds=4)))
-            self.assertEqual(1, code)
+            self.assertEqual((1, "owner"), (code, out["next"]))
             self.assertTrue(any("cap" in problem for problem in out["problems"]))
             log = Path(folder) / "log.md"
             ledger = self.ledger("fixed")

@@ -8,7 +8,7 @@ Projects, and any other independent bot. `AGENTS.md` is not read for you.
 
 - Fresh clone: install from a copy of its own `chaos-engine/` kept outside
   the project (source and project must be disjoint), pinned to HEAD:
-  `cp -r chaos-engine /tmp/ce-src && python3 chaos-engine/install.py install --project . --source /tmp/ce-src --commit "$(git rev-parse HEAD)"`
+  `cp -r chaos-engine ../ce-src && python3 chaos-engine/install.py install --project . --source ../ce-src --commit "$(git rev-parse HEAD)"`
   (add `--with-<add-on>` flags as needed; `install.py addons --project .`
   lists them). Expect a few minutes for the first store index.
 - Linked worktree: install in the primary checkout, then

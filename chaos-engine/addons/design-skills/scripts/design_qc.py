@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import glob
 import hashlib
 import json
 import math
@@ -1153,7 +1154,6 @@ def cmd_revealhold(args: argparse.Namespace) -> int:
 
 
 def expand(patterns: list[str]) -> list[Path]:
-    import glob
     return sorted({Path(found) for pattern in patterns for found in glob.glob(pattern, recursive=True)})
 
 
@@ -1184,7 +1184,7 @@ def open_finding(finding: dict) -> bool:
     return gating and not (finding.get("status") == "fixed" and finding.get("fix_evidence"))
 
 
-def ledger_markdown(ledger: dict, findings: list[dict]) -> str:
+def ledger_markdown(findings: list[dict]) -> str:
     lines = ["# Review log", "", "Every finding was checked with a tool before any change; only verified ones were fixed.",
              "", "| Round | Output | Time | Severity | Finding | Verdict | Evidence |", "|---|---|---|---|---|---|---|"]
     for item in findings:
@@ -1219,11 +1219,17 @@ def cmd_findings(args: argparse.Namespace) -> int:
                  for output, count in counts.items() if count > args.cap]
     still_open = [f"r{item['round']} {item['output']} {item.get('id', '?')}" for item in findings if open_finding(item)]
     at_cap = any(counts.get(item["output"], 0) >= args.cap for item in findings if open_finding(item))
-    step = "verify" if unverified else ("owner" if at_cap else "fix") if still_open else "deliver"
+    over_cap = any(count > args.cap for count in counts.values())
+    if unverified:
+        step = "verify"
+    elif over_cap or (still_open and at_cap):
+        step = "owner"
+    else:
+        step = "fix" if still_open else "deliver"
     judged = [item for item in findings if item.get("verdict") in VERDICTS]
     false_rate = round(sum(item["verdict"] == "false" for item in judged) / len(judged), 3) if judged else 0.0
     if args.markdown:
-        Path(args.markdown).write_text(ledger_markdown(ledger, findings), encoding="utf-8")
+        Path(args.markdown).write_text(ledger_markdown(findings), encoding="utf-8")
     failed = bool(problems or still_open)
     return report("findings", FAIL if failed else PASS, next=step, rounds=counts, findings=len(findings),
                   open=still_open, false_rate=false_rate, problems=problems)
