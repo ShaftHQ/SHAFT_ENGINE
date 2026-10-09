@@ -103,3 +103,36 @@ test('filmstripActions keeps captured frames unless all actions are requested', 
   assert.deepEqual(core.filmstripActions(list, false).map(action => action.id), ['a', 'c']);
   assert.equal(core.filmstripActions(list, true).length, 3);
 });
+
+test('themeFromBackground reads a host-forced background and ignores a transparent root', () => {
+  assert.equal(core.themeFromBackground('rgb(28, 28, 30)'), 'dark');
+  assert.equal(core.themeFromBackground('rgb(247, 249, 251)'), 'light');
+  assert.equal(core.themeFromBackground('rgba(0, 0, 0, 0)'), null);
+  assert.equal(core.themeFromBackground(''), null);
+});
+
+test('resolveTheme prefers a manual choice, then the query, then the host, then light when framed', () => {
+  assert.equal(core.resolveTheme('dark', 'light', 'light', true), 'dark');
+  assert.equal(core.resolveTheme(null, 'dark', 'light', true), 'dark');
+  assert.equal(core.resolveTheme(null, 'bogus', 'dark', true), 'dark');
+  assert.equal(core.resolveTheme(null, null, null, true), 'light');
+  assert.equal(core.resolveTheme(null, null, null, false), null);
+});
+
+test('clampPaneWidth keeps the actions pane between its bounds and leaves room for details', () => {
+  assert.equal(core.clampPaneWidth(50, 1440), core.PANE_MIN);
+  assert.equal(core.clampPaneWidth(5000, 1440), core.PANE_MAX);
+  assert.equal(core.clampPaneWidth(500, 760), 400);
+  assert.equal(core.clampPaneWidth('x', 1440), 320);
+});
+
+test('navigationIndex moves within bounds and ignores other keys', () => {
+  assert.equal(core.navigationIndex('ArrowRight', 0, 3), 1);
+  assert.equal(core.navigationIndex('j', 2, 3), 2);
+  assert.equal(core.navigationIndex('k', 0, 3), 0);
+  assert.equal(core.navigationIndex('End', 0, 3), 2);
+  assert.equal(core.navigationIndex('Home', 2, 3), 0);
+  assert.equal(core.navigationIndex('ArrowDown', -1, 3), 0);
+  assert.equal(core.navigationIndex('x', 0, 3), -1);
+  assert.equal(core.navigationIndex('j', 0, 0), -1);
+});

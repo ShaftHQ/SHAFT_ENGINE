@@ -107,10 +107,8 @@
     {
       "id": "keyboard-and-themes",
       "playwright": "Keyboard navigation and themes",
-      "status": "partial",
-      "evidence": "keydown",
-      "gap": "Arrow-key action navigation, shortcuts and a dark theme are incomplete",
-      "issue": 6720
+      "status": "present",
+      "evidence": "id=\"theme-toggle\""
     },
     {
       "id": "large-traces",
@@ -133,10 +131,8 @@
     {
       "id": "layout-and-tab-overflow",
       "playwright": "Full-width resizable panes and compact tab bar",
-      "status": "partial",
-      "evidence": "trace-layout",
-      "gap": "Narrow centered column and tab bar wrapping into four rows",
-      "issue": 6727
+      "status": "present",
+      "evidence": "id=\"pane-splitter\""
     },
     {
       "id": "network-request-body",
@@ -161,18 +157,14 @@
     {
       "id": "empty-categories",
       "playwright": "Tabs and chips appear only when they have data",
-      "status": "partial",
-      "evidence": "data-tab=\"webSockets\"",
-      "gap": "Every tab is always shown, even with no data; no counts on tab labels",
-      "issue": 6730
+      "status": "present",
+      "evidence": "tab-count"
     },
     {
       "id": "allure-integration",
       "playwright": "Trace opens inside the Allure report",
-      "status": "partial",
-      "evidence": "SHAFT Trace Report",
-      "gap": "Not verified inside a generated Allure 3 report; no theme follow, no open-in-new-tab link",
-      "issue": 6731
+      "status": "present",
+      "evidence": "id=\"open-new-tab\""
     }
   ]
 }

@@ -6,7 +6,6 @@ import io.restassured.builder.ResponseBuilder;
 import io.restassured.response.Response;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.devtools.NetworkInterceptor;
 import org.openqa.selenium.remote.http.Contents;
 import org.openqa.selenium.remote.http.Filter;
 import org.openqa.selenium.remote.http.HttpResponse;
@@ -39,14 +38,15 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     /**
      * Creates a browser network interceptor backed by Selenium DevTools.
      *
-     * <p>Passive trace observation uses the CDP {@code Network} domain and never pauses requests;
-     * Selenium's request-pausing {@link NetworkInterceptor} is installed only while a mock, assert or
-     * verify rule is registered (issue #6735).
+     * <p>Passive trace observation uses the CDP {@code Network} domain and never pauses requests
+     * (issue #6735). While a mock, assert or verify rule is registered, {@link CdpFetchRuleInterceptor}
+     * pauses requests through the CDP {@code Fetch} domain and continues them by id only, so uploads
+     * stay byte-exact even then (issue #6741).
      *
      * @param driver the active WebDriver session
      */
     public BrowserNetworkInterceptor(WebDriver driver) {
-        this(driver, NetworkInterceptor::new, CdpPassiveNetworkObserver::new);
+        this(driver, CdpFetchRuleInterceptor::new, CdpPassiveNetworkObserver::new);
     }
 
     BrowserNetworkInterceptor(WebDriver driver, InterceptorFactory interceptorFactory) {
@@ -318,9 +318,8 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     }
 
     /**
-     * Selenium's {@code NetworkInterceptor.close()} only resets its filter and leaves the CDP
-     * {@code Fetch} domain pausing every request, which keeps rebuilding binary upload bodies from a
-     * lossy string (issue #6735). Disable request pausing once no rule needs it.
+     * Make sure the CDP {@code Fetch} domain stops pausing requests once no rule needs it, even when
+     * the interceptor that enabled it failed to close cleanly (issue #6735).
      */
     private void stopPausingRequests() {
         try {

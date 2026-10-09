@@ -17,9 +17,24 @@
 <header class="report-header">
   <div class="report-header-inner">
     <span class="brand-mark">S</span>
-    <div>
+    <div class="header-title">
       <h1>SHAFT Trace Report</h1>
       <p class="subtitle" id="trace-subtitle">Failure trace viewer</p>
+    </div>
+    <div class="header-actions">
+      <a id="open-new-tab" class="header-button" href="#" target="_blank" rel="noopener" hidden>Open in new tab</a>
+      <details class="shortcut-help" id="shortcut-help">
+        <summary class="header-button">Shortcuts</summary>
+        <dl class="shortcut-list">
+          <dt><kbd>j</kbd> <kbd>k</kbd></dt><dd>Next or previous action</dd>
+          <dt><kbd>1</kbd>&ndash;<kbd>9</kbd></dt><dd>Open the first nine tabs</dd>
+          <dt><kbd>&larr;</kbd> <kbd>&rarr;</kbd></dt><dd>Move between tabs or filmstrip frames</dd>
+          <dt><kbd>/</kbd></dt><dd>Search actions</dd>
+          <dt><kbd>t</kbd></dt><dd>Switch light or dark theme</dd>
+          <dt><kbd>?</kbd></dt><dd>Show or hide this list</dd>
+        </dl>
+      </details>
+      <button type="button" class="header-button" id="theme-toggle" aria-pressed="false">Dark theme</button>
     </div>
   </div>
 </header>
@@ -51,45 +66,48 @@
   <p id="filmstrip-hint" class="muted" hidden></p>
   <div id="trace-filmstrip" class="filmstrip" role="listbox" aria-label="Action screenshot filmstrip"></div>
 </section>
-<div class="trace-layout">
-  <aside class="panel">
+<div class="trace-layout" id="trace-layout">
+  <aside class="panel actions-pane" aria-label="Actions">
     <h2>Actions</h2>
     <div class="toolbar"><input id="action-search" type="search" aria-label="Search actions" placeholder="Search actions"></div>
     <div id="action-list"></div>
   </aside>
-  <section class="panel">
+  <div class="pane-splitter" id="pane-splitter" role="separator" tabindex="0" aria-orientation="vertical"
+       aria-label="Resize the actions pane" aria-controls="trace-layout" aria-valuemin="200" aria-valuemax="640" aria-valuenow="320"></div>
+  <section class="panel details-pane" aria-labelledby="details-title">
     <div class="toolbar">
       <h2 id="details-title">Trace Details</h2>
       <button type="button" class="secondary" onclick="copyJson()">Copy JSON</button>
     </div>
     <dl id="details"></dl>
-    <div class="tab-groups" id="action-tabs">
-      <div class="tabs tab-primary" role="tablist" aria-label="Primary investigation">
-      <button data-tab="timeline" class="selected">Timeline</button>
-      <button data-tab="comparison">Snapshots</button>
-      <button data-tab="network">Network</button>
-      <button data-tab="console">Console</button>
-      <button data-tab="source">Source</button>
-      <button data-tab="call">Call</button>
-      <button data-tab="log">Log</button>
-      <button data-tab="errors">Errors</button>
-      <button data-tab="artifacts">Artifacts</button>
+    <div class="tab-bar">
+      <div class="tabs tab-row" id="action-tabs" role="tablist" aria-label="Trace evidence">
+      <button type="button" role="tab" data-tab="timeline" class="selected">Timeline</button>
+      <button type="button" role="tab" data-tab="comparison">Snapshots</button>
+      <button type="button" role="tab" data-tab="network">Network</button>
+      <button type="button" role="tab" data-tab="console">Console</button>
+      <button type="button" role="tab" data-tab="source">Source</button>
+      <button type="button" role="tab" data-tab="call">Call</button>
+      <button type="button" role="tab" data-tab="log">Log</button>
+      <button type="button" role="tab" data-tab="errors">Errors</button>
+      <button type="button" role="tab" data-tab="artifacts">Artifacts</button>
+      <button type="button" role="tab" data-tab="exception" class="tab-secondary">Exception</button>
+      <button type="button" role="tab" data-tab="snapshot" class="tab-secondary">Snapshot</button>
+      <button type="button" role="tab" data-tab="nativeEvidence" class="tab-secondary">Native evidence</button>
+      <button type="button" role="tab" data-tab="domSnapshot" class="tab-secondary">DOM Snapshot</button>
+      <button type="button" role="tab" data-tab="screenshot" class="tab-secondary">Screenshot</button>
+      <button type="button" role="tab" data-tab="locatorHealth" class="tab-secondary">Locator Health</button>
+      <button type="button" role="tab" data-tab="webSockets" class="tab-secondary">WebSockets</button>
+      <button type="button" role="tab" data-tab="mobile" class="tab-secondary">Mobile</button>
+      <button type="button" role="tab" data-tab="browserObservability" class="tab-secondary">Observability</button>
+      <button type="button" role="tab" data-tab="environment" class="tab-secondary">Metadata</button>
+      <button type="button" role="tab" data-tab="attachments" class="tab-secondary">Attachments</button>
+      <button type="button" role="tab" data-tab="json" class="tab-secondary">JSON</button>
       </div>
-      <div class="tabs tab-secondary" role="tablist" aria-label="More evidence">
-      <button data-tab="exception">Exception</button>
-      <button data-tab="snapshot">Snapshot</button>
-      <button data-tab="nativeEvidence">Native evidence</button>
-      <button data-tab="domSnapshot">DOM Snapshot</button>
-      <button data-tab="screenshot">Screenshot</button>
-      <button data-tab="locatorHealth">Locator Health</button>
-       <button data-tab="webSockets">WebSockets</button>
-       <button data-tab="mobile">Mobile</button>
-       <button data-tab="browserObservability">Observability</button>
-      <button data-tab="environment">Environment</button>
-      <button data-tab="attachments">Attachments</button>
-      <button data-tab="json">JSON</button>
-      </div>
+      <label class="tab-overflow"><span class="visually-hidden">All tabs</span><select id="tab-overflow" aria-label="All tabs"></select></label>
     </div>
+    <p id="range-empty" class="muted range-empty" role="status" hidden>Nothing in this tab falls in the selected range. <button type="button" class="secondary" id="range-empty-show-all">Show all</button></p>
+    <dl id="metadata-panel" class="metadata-list" hidden></dl>
     <pre id="tab-content"></pre>
     <div id="timeline-panel" hidden>
       <p class="muted">Every recorded action, network exchange, and console message in chronological order. Click an action to inspect it.</p>

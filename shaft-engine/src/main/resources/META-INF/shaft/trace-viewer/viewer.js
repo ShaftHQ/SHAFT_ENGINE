@@ -140,8 +140,12 @@ function updateHash(mode = 'replace'){
   const start = baseTime == null || rangeStartMs == null ? 0 : Math.round(rangeStartMs - baseTime);
   const end = baseTime == null || rangeEndMs == null ? traceDuration : Math.round(rangeEndMs - baseTime);
   const hash = '#action-' + encodeURIComponent(selected.id) + '?start=' + start + '&end=' + end;
-  if (mode === 'push') history.pushState(null, '', hash);
-  else history.replaceState(null, '', hash);
+  try {
+    if (mode === 'push') history.pushState(null, '', hash);
+    else history.replaceState(null, '', hash);
+  } catch (ignored) {
+    // Allure 3 renders attachments in a sandboxed srcdoc frame where the History API throws.
+  }
 }
 function renderChunked(container, items, renderItem, options = {}){
   const chunk = Math.max(RENDER_CHUNK, (options.ensureIndex ?? -1) + 1);
@@ -404,14 +408,18 @@ function bindHoverPreview(element, action, magnify){
   element.addEventListener('mouseleave', hideHoverPreview);
   element.addEventListener('blur', hideHoverPreview);
 }
-function renderActions(){
-  actionList.innerHTML = '';
-  if(!actions.length){ actionList.textContent = 'No structured actions recorded.'; return; }
+function visibleActions(){
   const query = actionSearch.value.toLowerCase();
   const range = selectedWindow();
   const byRange = rangeFiltersActions && !isFullRange();
-  const visible = actions.filter(action => (!query || searchableAction(action).includes(query))
+  return actions.filter(action => (!query || searchableAction(action).includes(query))
     && (!byRange || actionStartMs(action) == null || actionInWindow(action, range)));
+}
+function renderActions(){
+  actionList.innerHTML = '';
+  if(!actions.length){ actionList.textContent = 'No structured actions recorded.'; return; }
+  const byRange = rangeFiltersActions && !isFullRange();
+  const visible = visibleActions();
   if (!visible.length) {
     actionList.textContent = byRange ? 'No actions fall in the selected range. Use Show all to reset it.' : 'No actions match the search.';
     return;
@@ -443,7 +451,8 @@ function renderDetails(){
   details.innerHTML += row('Native fidelity', native ? 'Playwright correlated' : 'SHAFT capture')
     + row('Native source', native && (native.source || native.sourceReason))
     + row('Native error', native && native.error);
-  renderTab(document.querySelector('.tabs button.selected').dataset.tab);
+  updateTabAvailability();
+  renderTab(currentTab);
 }
 const timelinePanel = document.getElementById('timeline-panel');
 const timelineList = document.getElementById('timeline-list');
@@ -1338,9 +1347,14 @@ function renderNativeEvidence(){
     nativeEvidenceRows.appendChild(tr);
   });
 }
+let currentTab = 'timeline';
 function renderTab(tab){
+  const tabButton = document.querySelector(`#action-tabs button[data-tab="${tab}"]`);
+  if (!tabButton || tabButton.hidden) tab = 'timeline';
+  currentTab = tab;
   const action = selected || {};
   const panels = {timeline: timelinePanel, nativeEvidence: nativeEvidencePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, webSockets: websocketPanel, mobile: document.getElementById('mobile-panel'), artifacts: document.getElementById('artifact-panel'), source: sourcePanel, call: document.getElementById('call-panel'), log: document.getElementById('log-panel'), errors: document.getElementById('errors-panel'), attachments: attachmentsPanel};
+  panels.environment = metadataPanel;
   tabContent.hidden = tab in panels;
   Object.entries(panels).forEach(([name, panel]) => panel.hidden = name !== tab);
   if (tab === 'timeline') {
@@ -1373,6 +1387,8 @@ function renderTab(tab){
     renderErrors();
   } else if (tab === 'attachments') {
     renderAttachments();
+  } else if (tab === 'environment') {
+    renderMetadata();
   } else {
     const data = tab === 'json' ? trace
         : tab === 'exception' && action.exception && (action.exception.type || action.exception.message) ? action.exception
@@ -1380,10 +1396,15 @@ function renderTab(tab){
         : trace[tab];
     tabContent.textContent = typeof data === 'string' ? data : JSON.stringify(data || {}, null, 2);
   }
-  document.querySelectorAll('#action-tabs button').forEach(button => button.classList.toggle('selected', button.dataset.tab === tab));
+  document.querySelectorAll('#action-tabs button').forEach(button => {
+    button.classList.toggle('selected', button.dataset.tab === tab);
+    button.setAttribute('aria-selected', String(button.dataset.tab === tab));
+  });
+  tabOverflow.value = tab;
+  renderRangeEmpty(tab, panels[tab]);
 }
 async function copyJson(){
-  await navigator.clipboard.writeText(JSON.stringify(trace, null, 2));
+  return copyText(JSON.stringify(trace, null, 2));
 }
 actionSearch.addEventListener('input', renderActions);
 rangeStart.addEventListener('input', () => applyRangeInputs('none'));
@@ -1468,6 +1489,220 @@ document.querySelectorAll('#mobile-category-filter button').forEach(button => bu
   renderMobile();
 }));
 document.querySelectorAll('#action-tabs button').forEach(button => button.addEventListener('click', () => renderTab(button.dataset.tab)));
+// #6720 #6727 #6730 #6731: tab availability, one-row tab bar, resizable panes, keyboard shortcuts, themes.
+const metadataPanel = document.getElementById('metadata-panel');
+const tabOverflow = document.getElementById('tab-overflow');
+const tabButtons = [...document.querySelectorAll('#action-tabs button')];
+const tabLabels = new Map(tabButtons.map(button => [button.dataset.tab, button.textContent]));
+const CORE_TABS = new Set(['timeline', 'network', 'console', 'source', 'call', 'log', 'errors', 'environment', 'json']);
+function hasContent(value){
+  if (value == null || value === '') return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.values(value).some(hasContent);
+  return true;
+}
+function snapshotActionCount(){
+  return actions.filter(action => action.screenshot || action.domSnapshotBefore || action.domSnapshotAfter
+    || (action.metadata && action.metadata.playwrightCallId)).length;
+}
+// Tabs whose data is one record: shown (without a count) only when the record has content.
+const PRESENCE_TABS = {
+  exception: () => hasContent(trace.exception) || actions.some(action => hasContent(action.exception)),
+  snapshot: () => hasContent(trace.snapshot && trace.snapshot.content),
+  locatorHealth: () => hasContent(trace.locatorHealth),
+  browserObservability: () => hasContent(evidence.browserObservability),
+  nativeEvidence: () => playwright.status === 'available' || nativeActions.length > 0,
+};
+const COUNTED_TABS = {
+  timeline: () => allEntries.length,
+  comparison: () => snapshotActionCount() || (Object.keys(nativeSnapshots).length ? nativeActions.length : 0),
+  network: () => network.length,
+  console: () => consoleEvents.length,
+  errors: () => errorEntries(actions, trace.exception).length,
+  artifacts: () => artifacts.length,
+  domSnapshot: () => actions.filter(action => action.domSnapshotBefore || action.domSnapshotAfter).length,
+  screenshot: () => actions.filter(action => action.screenshot).length,
+  webSockets: () => webSockets.length,
+  mobile: () => mobileActions().length,
+  attachments: () => (Array.isArray(trace.attachments) ? trace.attachments.length : 0) + visualComparisons().length,
+};
+// Count for a tab label, 0 for a tab shown without a count, or null to hide the tab (#6730).
+// Core tabs always show, because an empty Network or Console is evidence in a failed test.
+function tabCount(tab){
+  if (PRESENCE_TABS[tab]) return PRESENCE_TABS[tab]() ? 0 : null;
+  const count = COUNTED_TABS[tab] ? COUNTED_TABS[tab]() : 0;
+  return count > 0 || CORE_TABS.has(tab) ? count : null;
+}
+function updateTabAvailability(){
+  tabOverflow.innerHTML = '';
+  tabButtons.forEach(button => {
+    const tab = button.dataset.tab;
+    const count = tabCount(tab);
+    button.hidden = count === null;
+    button.dataset.count = count === null ? '' : String(count);
+    const showCount = count && !['call', 'log', 'source', 'environment', 'json'].includes(tab);
+    button.innerHTML = esc(tabLabels.get(tab)) + (showCount ? ` <span class="tab-count">${esc(count)}</span>` : '');
+    button.setAttribute('aria-label', showCount ? `${tabLabels.get(tab)}, ${count}` : tabLabels.get(tab));
+    if (!button.hidden) {
+      const option = document.createElement('option');
+      option.value = tab;
+      option.textContent = showCount ? `${tabLabels.get(tab)} (${count})` : tabLabels.get(tab);
+      tabOverflow.appendChild(option);
+    }
+  });
+  updateFilterChips();
+}
+function updateFilterChips(){
+  document.querySelectorAll('#timeline-filters button').forEach(button => {
+    const filter = button.dataset.filter;
+    const previous = timelineFilter;
+    timelineFilter = filter;
+    button.hidden = filter !== 'all' && !allEntries.some(matchesTimelineFilter);
+    timelineFilter = previous;
+  });
+  const mobile = mobileActions();
+  document.querySelectorAll('#mobile-category-filter button').forEach(button => {
+    const category = button.dataset.mobileCategory;
+    button.hidden = category !== 'all' && !mobile.some(action => action.category === category);
+  });
+}
+function visibleTabs(){ return tabButtons.filter(button => !button.hidden); }
+function renderRangeEmpty(tab, panel){
+  const note = document.getElementById('range-empty');
+  const rangeTabs = ['network', 'console', 'webSockets', 'mobile', 'timeline'];
+  const rows = panel && panel.querySelectorAll('tbody tr, .timeline-entry').length;
+  note.hidden = isFullRange() || !rangeTabs.includes(tab) || Number(tabCount(tab)) === 0 || rows > 0;
+}
+function renderMetadata(){
+  const environment = trace.environment || {};
+  const test = trace.test || {};
+  const rows = [['Test', [test.className, test.methodName].filter(Boolean).join('.')],
+    ['Status', test.status], ['Duration', baseTime == null ? '' : `${(traceDuration / 1000).toFixed(3)}s`],
+    ['Actions', String(actions.length)], ['Browser', environment.browser], ['Platform', environment.targetPlatform],
+    ['Headless', environment.headless], ['Execution address', environment.executionAddress],
+    ['Operating system', [environment.os, environment.osVersion].filter(Boolean).join(' ')],
+    ['Java', environment.javaVersion], ['SHAFT version', environment.shaftVersion], ['Thread', environment.thread],
+    ['Generated', trace.generatedAt]];
+  metadataPanel.innerHTML = rows.map(([name, value]) => row(name, value)).join('')
+    || '<dt>Metadata</dt><dd>No run metadata was recorded.</dd>';
+}
+tabOverflow.addEventListener('change', () => renderTab(tabOverflow.value));
+document.getElementById('range-empty-show-all').addEventListener('click', () => document.getElementById('show-all-range').click());
+document.getElementById('action-tabs').addEventListener('keydown', event => {
+  const tabs = visibleTabs();
+  const next = navigationIndex(event.key, tabs.indexOf(document.activeElement), tabs.length);
+  if (next < 0 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  tabs[next].focus();
+  renderTab(tabs[next].dataset.tab);
+});
+function stepAction(key){
+  const list = visibleActions();
+  const next = navigationIndex(key, list.indexOf(selected), list.length);
+  if (next < 0) return false;
+  selectAction(list[next], true, 'replace');
+  const button = actionList.querySelector('.action.selected');
+  if (button && actionList.contains(document.activeElement)) button.focus();
+  return true;
+}
+actionList.addEventListener('keydown', event => {
+  if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) && stepAction(event.key)) {
+    event.preventDefault();
+    const button = actionList.querySelector('.action.selected');
+    if (button) button.focus();
+  }
+});
+document.addEventListener('keydown', event => {
+  const target = event.target;
+  if (event.ctrlKey || event.metaKey || event.altKey || target.isContentEditable
+      || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+  if (event.key === 'j' || event.key === 'k') {
+    if (stepAction(event.key)) event.preventDefault();
+  } else if (/^[1-9]$/.test(event.key)) {
+    const tab = visibleTabs()[Number(event.key) - 1];
+    if (tab) { event.preventDefault(); renderTab(tab.dataset.tab); }
+  } else if (event.key === '/') {
+    event.preventDefault();
+    actionSearch.focus();
+  } else if (event.key === 't') {
+    toggleTheme();
+  } else if (event.key === '?') {
+    const help = document.getElementById('shortcut-help');
+    help.open = !help.open;
+  }
+});
+// Resizable actions pane: drag, or arrow keys on the separator.
+const traceLayout = document.getElementById('trace-layout');
+const paneSplitter = document.getElementById('pane-splitter');
+function setPaneWidth(width){
+  const clamped = clampPaneWidth(width, traceLayout.clientWidth);
+  traceLayout.style.setProperty('--actions-pane', `${clamped}px`);
+  paneSplitter.setAttribute('aria-valuenow', String(clamped));
+  storageSet('shaft-trace-pane', String(clamped));
+}
+paneSplitter.addEventListener('pointerdown', event => {
+  event.preventDefault();
+  paneSplitter.setPointerCapture(event.pointerId);
+  const left = traceLayout.getBoundingClientRect().left;
+  const move = moveEvent => setPaneWidth(moveEvent.clientX - left);
+  const up = () => {
+    paneSplitter.removeEventListener('pointermove', move);
+    paneSplitter.removeEventListener('pointerup', up);
+  };
+  paneSplitter.addEventListener('pointermove', move);
+  paneSplitter.addEventListener('pointerup', up);
+});
+paneSplitter.addEventListener('keydown', event => {
+  const current = Number(paneSplitter.getAttribute('aria-valuenow'));
+  const width = {ArrowLeft:current - 24, ArrowRight:current + 24, Home:PANE_MIN, End:PANE_MAX}[event.key];
+  if (width === undefined) return;
+  event.preventDefault();
+  setPaneWidth(width);
+});
+// Themes: follow the hosting report (Allure 3 forces its dark background onto attachments), allow a
+// manual toggle, and persist it only where storage is allowed (Allure's sandboxed frame blocks it).
+function storageGet(key){
+  try { return window.localStorage.getItem(key); } catch (ignored) { return null; }
+}
+function storageSet(key, value){
+  try { window.localStorage.setItem(key, value); } catch (ignored) { /* Sandboxed frames block storage. */ }
+}
+const framed = (() => { try { return window.self !== window.top; } catch (ignored) { return true; } })();
+const themeToggle = document.getElementById('theme-toggle');
+function effectiveTheme(){
+  return document.documentElement.dataset.theme
+    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+}
+function applyTheme(theme){
+  if (theme === 'dark' || theme === 'light') document.documentElement.dataset.theme = theme;
+  else delete document.documentElement.dataset.theme;
+  const dark = effectiveTheme() === 'dark';
+  themeToggle.textContent = dark ? 'Light theme' : 'Dark theme';
+  themeToggle.setAttribute('aria-pressed', String(dark));
+  themeToggle.setAttribute('aria-label', dark ? 'Switch to the light theme' : 'Switch to the dark theme');
+}
+function toggleTheme(){
+  const theme = effectiveTheme() === 'dark' ? 'light' : 'dark';
+  storageSet('shaft-trace-theme', theme);
+  applyTheme(theme);
+}
+themeToggle.addEventListener('click', toggleTheme);
+window.addEventListener('message', event => {
+  const theme = event.data && typeof event.data === 'object' ? event.data.shaftTraceTheme : null;
+  if (event.source === window.parent && (theme === 'dark' || theme === 'light')) applyTheme(theme);
+});
+applyTheme(resolveTheme(storageGet('shaft-trace-theme'), new URLSearchParams(location.search).get('theme'),
+  framed ? themeFromBackground(getComputedStyle(document.documentElement).backgroundColor) : null, framed));
+const savedPane = storageGet('shaft-trace-pane');
+if (savedPane) setPaneWidth(Number(savedPane));
+// Open in new tab when embedded; the original document is kept by the bootstrap.
+const openNewTab = document.getElementById('open-new-tab');
+openNewTab.hidden = !framed || !window.shaftTraceSource;
+openNewTab.addEventListener('click', () => {
+  if (openNewTab.dataset.url) URL.revokeObjectURL(openNewTab.dataset.url);
+  openNewTab.dataset.url = URL.createObjectURL(new Blob([window.shaftTraceSource], {type:'text/html'}));
+  openNewTab.href = openNewTab.dataset.url;
+});
 document.querySelectorAll('#dom-snapshot-tabs button').forEach(button => button.addEventListener('click', () => { selectedDomSide = button.dataset.dom; renderDomSnapshot(); }));
 populateNetworkFilters();
 populateConsoleFilters();

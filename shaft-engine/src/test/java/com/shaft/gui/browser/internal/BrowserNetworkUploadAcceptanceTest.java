@@ -48,6 +48,18 @@ public class BrowserNetworkUploadAcceptanceTest {
             upload().catch(error => { document.getElementById('result').textContent = 'error ' + error; });
             </script>""";
 
+    /** The same 1,024 bytes the page uploads. */
+    private static final byte[] UPLOAD_BYTES = uploadBytes();
+
+    private static byte[] uploadBytes() {
+        int[] png = {0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52};
+        byte[] bytes = new byte[1024];
+        for (int i = 0; i < bytes.length; i++) {
+            bytes[i] = (byte) (i < png.length ? png[i] : (i * 37 + 11) % 256);
+        }
+        return bytes;
+    }
+
     @AfterMethod(alwaysRun = true)
     public void clear() {
         BrowserObservabilityRecorder.clear();
@@ -86,19 +98,37 @@ public class BrowserNetworkUploadAcceptanceTest {
                     "Binary request bodies must be marked, not decoded: " + upload.requestBodyPreview());
             Assert.assertEquals(upload.bodyPreview().length(), 64, "Textual response bodies keep a preview.");
 
+            // #6741: a registered rule pauses requests, but they must still be continued byte-exact.
             interceptor.addRule(BrowserNetworkInterceptionRule.mock(
                     request -> request.getUri().contains("/unrelated"), request -> new HttpResponse().setStatus(204)));
+            Assert.assertEquals(reloadAndAwaitResult(driver), "match",
+                    "An upload sent while an unrelated mock rule is registered must reach the server unchanged.");
+            Object mockedStatus = driver.executeAsyncScript(
+                    "const done = arguments[arguments.length - 1]; fetch('/unrelated').then(r => done(r.status), e => done(String(e)));");
+            Assert.assertEquals(String.valueOf(mockedStatus), "204", "The mock rule must still fulfil matching requests.");
+            java.util.concurrent.atomic.AtomicReference<String> validated = new java.util.concurrent.atomic.AtomicReference<>();
+            interceptor.addRule(BrowserNetworkInterceptionRule.validate(
+                    request -> request.getUri().endsWith("/upload"),
+                    response -> validated.set(response.getStatusCode() + " " + response.getBody().asString())));
+            Assert.assertEquals(reloadAndAwaitResult(driver), "match",
+                    "An upload matched by a verify rule must reach the server unchanged.");
+            Assert.assertEquals(validated.get(), "200 " + sha256(UPLOAD_BYTES),
+                    "The verify rule must see the real server response.");
             interceptor.clear();
-            driver.navigate().refresh();
-            new WebDriverWait(driver, Duration.ofSeconds(20)).until(d ->
-                    !"pending".equals(d.findElement(org.openqa.selenium.By.id("result")).getText()));
-            Assert.assertEquals(driver.findElement(org.openqa.selenium.By.id("result")).getText(), "match",
+            Assert.assertEquals(reloadAndAwaitResult(driver), "match",
                     "Clearing rules must return to passive capture without pausing uploads.");
         } finally {
             interceptor.close();
             driver.quit();
             server.stop(0);
         }
+    }
+
+    private static String reloadAndAwaitResult(ChromeDriver driver) {
+        driver.navigate().refresh();
+        new WebDriverWait(driver, Duration.ofSeconds(20)).until(d ->
+                !"pending".equals(d.findElement(org.openqa.selenium.By.id("result")).getText()));
+        return driver.findElement(org.openqa.selenium.By.id("result")).getText();
     }
 
     private static BrowserObservabilityRecorder.NetworkSnapshotEntry awaitUpload() throws InterruptedException {

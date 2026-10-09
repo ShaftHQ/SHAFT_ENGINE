@@ -3,6 +3,7 @@ package testPackage.unitTests;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.internal.CdpFetchRuleInterceptor;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
@@ -15,7 +16,6 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.Command;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.devtools.NetworkInterceptor;
 import org.openqa.selenium.remote.http.Contents;
 import org.openqa.selenium.remote.http.Filter;
 import org.openqa.selenium.remote.http.HttpHandler;
@@ -497,7 +497,7 @@ public class BrowserActionsCoverageUnitTest {
     public void shouldMockMatchingRequestsWithInterceptionBuilder() {
         AtomicReference<Filter> filterReference = new AtomicReference<>();
 
-        try (MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
+        try (MockedConstruction<CdpFetchRuleInterceptor> ignored = Mockito.mockConstruction(CdpFetchRuleInterceptor.class,
                 (mock, context) -> filterReference.set((Filter) context.arguments().get(1)))) {
             BrowserActions interceptingBrowserActions = new BrowserActions(createInterceptableDriver(), true);
             interceptingBrowserActions.interceptRequest()
@@ -533,7 +533,7 @@ public class BrowserActionsCoverageUnitTest {
         AtomicReference<Filter> filterReference = new AtomicReference<>();
         AtomicBoolean validationCalled = new AtomicBoolean(false);
 
-        try (MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
+        try (MockedConstruction<CdpFetchRuleInterceptor> ignored = Mockito.mockConstruction(CdpFetchRuleInterceptor.class,
                 (mock, context) -> filterReference.set((Filter) context.arguments().get(1)))) {
             BrowserActions interceptingBrowserActions = new BrowserActions(createInterceptableDriver(), true);
             interceptingBrowserActions.interceptRequest()
@@ -563,7 +563,7 @@ public class BrowserActionsCoverageUnitTest {
     public void shouldPreferLatestMatchingRuleAndClearInterceptors() throws Exception {
         List<Filter> filters = new ArrayList<>();
 
-        try (MockedConstruction<NetworkInterceptor> construction = Mockito.mockConstruction(NetworkInterceptor.class,
+        try (MockedConstruction<CdpFetchRuleInterceptor> construction = Mockito.mockConstruction(CdpFetchRuleInterceptor.class,
                 (mock, context) -> filters.add((Filter) context.arguments().get(1)))) {
             BrowserActions interceptingBrowserActions = new BrowserActions(createInterceptableDriver(), true);
             HttpResponse legacyResponse = new HttpResponse().setStatus(200);
