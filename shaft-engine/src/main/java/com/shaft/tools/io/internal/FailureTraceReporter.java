@@ -187,6 +187,10 @@ public final class FailureTraceReporter {
             actions = actions.stream().map(FailureTraceReporter::withoutBrowserEvidence).toList();
             actionSnapshots = Map.of();
         }
+        Map<String, Long> downscaledScreenshots = new LinkedHashMap<>(TraceEventRecorder.drainDownscaledScreenshots());
+        List<TraceEventRecorder.VisualComparison> visualComparisons = suppressBrowserArtifacts
+                ? List.of() : TraceEventRecorder.drainVisualComparisons();
+        actions = downscaleOversizedScreenshots(actions, configuredMaxArtifactBytes(), downscaledScreenshots);
         CURRENT_SCREENSHOTS.set(decodeScreenshots(actions));
         if (suppressBrowserArtifacts) {
             BrowserObservabilityRecorder.clear();
@@ -203,7 +207,8 @@ public final class FailureTraceReporter {
         String omissionMarker = "Omitted because artifact exceeded shaft.trace.maxArtifactMb="
                 + SHAFT.Properties.reporting.traceMaxArtifactMb();
         TraceArtifactManifest manifest = TraceArtifactManifest.create(networkJson, CURRENT_SCREENSHOTS.get(),
-                snapshotResources(actions, actionSnapshots), nativeTrace, maxBytes, omissionMarker);
+                snapshotResources(actions, actionSnapshots), nativeTrace, maxBytes, omissionMarker,
+                downscaledScreenshots);
         CURRENT_ARTIFACT_MANIFEST.set(manifest);
         PlaywrightEvidence playwrightEvidence = importPlaywrightEvidence(actions, manifest.stagedNativeTrace(),
                 nativeTrace != null, suppressBrowserArtifacts);
@@ -260,6 +265,7 @@ public final class FailureTraceReporter {
         rawArray(json, 2, "network", networkJson, true);
         rawArray(json, 2, "console", consoleJson, true);
         rawObject(json, 2, "playwright", playwrightEvidence.json(), true);
+        rawArray(json, 2, "visualComparisons", JSON.writeValueAsString(visualComparisons), true);
         rawArray(json, 2, "actions", TraceEventRecorder.toJson(actions), false);
         objectEnd(json, 1, true);
         array(json, 1, "timeline", timeline(throwable, logText), true);
@@ -696,6 +702,11 @@ public final class FailureTraceReporter {
         Map<String, byte[]> currentScreenshots = screenshots;
         int optionalEntries = manifest == null ? 0 : manifest.references().size();
         for (int pass = 0; pass <= optionalEntries; pass++) {
+            if (hasVisualComparisons(currentJson)
+                    && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
+                currentJson = omitVisualComparisonsForBudget(currentJson);
+                html = renderTraceHtml(currentJson, omitted);
+            }
             if (hasSnapshotContent(currentJson)
                     && (utf8Size(currentJson) > maxEntryBytes || utf8Size(html) > maxEntryBytes)) {
                 currentJson = omitSnapshotForBudget(currentJson);
@@ -747,6 +758,23 @@ public final class FailureTraceReporter {
         } catch (RuntimeException exception) {
             return false;
         }
+    }
+
+    private static boolean hasVisualComparisons(String json) {
+        try {
+            return !JSON.readTree(json).path("evidence").path("visualComparisons").isEmpty();
+        } catch (RuntimeException exception) {
+            return false;
+        }
+    }
+
+    private static String omitVisualComparisonsForBudget(String json) {
+        JsonNode parsed = JSON.readTree(json);
+        if (!(parsed instanceof ObjectNode root) || !(root.path("evidence") instanceof ObjectNode evidence)) {
+            return json;
+        }
+        evidence.putArray("visualComparisons");
+        return JSON.writeValueAsString(root);
     }
 
     private static boolean hasSnapshotContent(String json) {
@@ -1024,11 +1052,43 @@ public final class FailureTraceReporter {
         });
     }
 
+    /**
+     * Replaces each screenshot larger than the per-artifact budget with a downscaled copy that fits, recording
+     * the original size by action id. Screenshots that cannot be decoded or shrunk enough are left for the
+     * manifest to omit.
+     */
+    private static List<TraceEventRecorder.ActionEvent> downscaleOversizedScreenshots(
+            List<TraceEventRecorder.ActionEvent> actions, long maxBytes, Map<String, Long> downscaled) {
+        return actions.stream().map(action -> {
+            if (action.screenshot().isEmpty() || action.screenshot().length() * 3L / 4L <= maxBytes) {
+                return action;
+            }
+            byte[] original;
+            try {
+                original = Base64.getDecoder().decode(action.screenshot());
+            } catch (IllegalArgumentException ignored) {
+                return action;
+            }
+            byte[] fitted = original.length > maxBytes ? TraceScreenshotDownscaler.fit(original, maxBytes) : null;
+            if (fitted == null) {
+                return action;
+            }
+            downscaled.put(action.id(), (long) original.length);
+            return withScreenshot(action, Base64.getEncoder().encodeToString(fitted));
+        }).toList();
+    }
+
     private static TraceEventRecorder.ActionEvent withoutScreenshot(TraceEventRecorder.ActionEvent action) {
+        return withScreenshot(action, "");
+    }
+
+    private static TraceEventRecorder.ActionEvent withScreenshot(TraceEventRecorder.ActionEvent action,
+                                                                 String screenshot) {
         return new TraceEventRecorder.ActionEvent(action.id(), action.backend(), action.category(), action.name(),
                 action.status(), action.startTime(), action.durationMs(), action.locator(), action.url(), action.caller(),
                 action.message(), action.exceptionType(), action.exceptionMessage(), action.attachments(),
-                action.metadata(), action.actionability(), action.domSnapshotBefore(), action.domSnapshotAfter(), "");
+                action.metadata(), action.actionability(), action.domSnapshotBefore(), action.domSnapshotAfter(),
+                screenshot);
     }
 
     private static List<String> mergeOmitted(List<String> planned, List<String> actual) {

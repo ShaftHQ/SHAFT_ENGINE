@@ -81,6 +81,8 @@ final class CaptureEventPipeline implements AutoCloseable {
     private final Map<String, BrowserSignal> pendingNavigations = new LinkedHashMap<>();
     private long pendingNavigationSequence;
     private final Map<String, String> logicalWindows = new LinkedHashMap<>();
+    /** Last page URL observed for a real browsing context, so a loopback signal can rejoin that context. */
+    private final Map<String, String> contextUrls = new LinkedHashMap<>();
     private final Map<String, LocatorPreference> locatorPreferences = new LinkedHashMap<>();
     private final Map<String, Instant> recentSignals = new LinkedHashMap<>();
     // Every recorder payload is delivered through up to three racing channels (in-page queue
@@ -740,7 +742,7 @@ final class CaptureEventPipeline implements AutoCloseable {
         PageContext page = new PageContext(
                 safeUrl.value(),
                 safeTitle.value(),
-                logicalWindow(resolveBrowsingContextId(signal)),
+                logicalWindow(resolveBrowsingContextId(signal), frames),
                 frames,
                 integer(signal.page().get("width"), 0),
                 integer(signal.page().get("height"), 0));
@@ -1067,7 +1069,25 @@ final class CaptureEventPipeline implements AutoCloseable {
     }
 
     private String logicalWindow(String contextId) {
-        String key = contextId == null || contextId.isBlank() ? "default" : contextId;
+        return logicalWindow(contextId, List.of());
+    }
+
+    /**
+     * Resolves the logical window for one signal.
+     *
+     * <p>A same-origin iframe is its own logical window. Passive network observation does not pause
+     * requests, so the loopback sink can deliver that iframe's signal before the BiDi script channel
+     * and tag it with the parent context. The frame path is still the iframe's identity. A top-level
+     * signal has an empty frame path and stays on the context's own window, which is what keeps a
+     * loopback delivery from minting a phantom tab.
+     *
+     * @param contextId browsing context, already correlated for the loopback sentinel
+     * @param frames    sanitized frame path; empty at the top-level document
+     * @return stable logical window id for this session
+     */
+    private String logicalWindow(String contextId, List<String> frames) {
+        String base = contextId == null || contextId.isBlank() ? "default" : contextId;
+        String key = frames == null || frames.isEmpty() ? base : base + "\n" + String.join("\n", frames);
         return logicalWindows.computeIfAbsent(key, ignored -> "window-" + (logicalWindows.size() + 1));
     }
 
@@ -1084,13 +1104,45 @@ final class CaptureEventPipeline implements AutoCloseable {
      */
     private String resolveBrowsingContextId(BrowserSignal signal) {
         String contextId = signal.browsingContextId();
+        String url = string(signal.page().get("url"));
         if (BrowserEventSink.LOOPBACK_BROWSING_CONTEXT_ID.equals(contextId)) {
+            String matched = contextForUrl(url);
+            if (matched != null) {
+                return matched;
+            }
             return currentRealBrowsingContextId.isBlank() ? contextId : currentRealBrowsingContextId;
         }
         if (!contextId.isBlank()) {
             currentRealBrowsingContextId = contextId;
+            if (!url.isBlank()) {
+                contextUrls.remove(contextId);
+                contextUrls.put(contextId, url);
+            }
         }
         return contextId;
+    }
+
+    /**
+     * Finds the browsing context that most recently showed this exact URL.
+     *
+     * <p>A loopback delivery has no BiDi context. Correlating it to whichever context spoke last
+     * attributes the still-open page to a popup that just closed and emits a phantom switch.
+     * Matching the signal's own URL keeps that delivery on the page the user is actually looking at.
+     *
+     * @param url page URL from the signal; blank when the payload has none
+     * @return the matching context id, or {@code null} when no context has shown that URL
+     */
+    private String contextForUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        String found = null;
+        for (Map.Entry<String, String> entry : contextUrls.entrySet()) {
+            if (url.equals(entry.getValue())) {
+                found = entry.getKey();
+            }
+        }
+        return found;
     }
 
     private static String targetKey(BrowserSignal signal) {

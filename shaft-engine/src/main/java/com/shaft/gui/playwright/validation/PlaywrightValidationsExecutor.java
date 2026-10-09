@@ -15,6 +15,7 @@ import com.shaft.gui.internal.image.ImageProcessingActions;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.gui.internal.image.VisualProcessingProvider;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.tools.io.internal.TraceEventRecorder;
 import com.shaft.tools.io.internal.BrowserPerformanceExecutionReport;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
@@ -426,6 +427,8 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     }
 
     private static boolean attachVisualComparison(byte[] expectedImage, byte[] actualImage, byte[] differenceImage) {
+        TraceEventRecorder.recordVisualComparison(VISUAL_COMPARISON_ATTACHMENT_NAME, expectedImage, actualImage,
+                differenceImage);
         try {
             var content = new JSONObject()
                     .put("expected", "data:image/png;base64," + Base64.getEncoder().encodeToString(expectedImage))

@@ -77,7 +77,7 @@ public final class BrowserObservabilityRecorder {
             NetworkExchange exchange = new NetworkExchange(true, "network-" + index,
                     retainedNetworkText(request.getMethod().name()), retainedNetworkText(request.getUri()),
                     new LinkedHashMap<>(retainedHeaders(headers(request))),
-                    requestBody.length, System.nanoTime());
+                    requestBody.length, System.nanoTime(), preview(requestBody));
             if (retainReservedExchange(exchange, owner)) {
                 return exchange;
             }
@@ -118,7 +118,8 @@ public final class BrowserObservabilityRecorder {
                 exchange.requestSizeBytes(),
                 responseBody.length,
                 value(failureReason),
-                preview(responseBody)));
+                preview(responseBody),
+                exchange.requestBodyPreview()));
     }
 
     /**
@@ -158,6 +159,7 @@ public final class BrowserObservabilityRecorder {
                 Math.max(0, observation.responseSize()),
                 retainedNetworkText(observation.failureReason()),
                 retainedNetworkText(observation.bodyPreview()),
+                retainedNetworkText(observation.requestBodyPreview()),
                 System.currentTimeMillis()));
     }
 
@@ -332,7 +334,8 @@ public final class BrowserObservabilityRecorder {
                     event.timestamp(),
                     boundedNetworkText(event.bodyPreview()),
                     boundedHeaders(event.requestHeaders()),
-                    boundedHeaders(event.responseHeaders())));
+                    boundedHeaders(event.responseHeaders()),
+                    boundedNetworkText(event.requestBodyPreview())));
         }
         return List.copyOf(snapshot);
     }
@@ -527,7 +530,8 @@ public final class BrowserObservabilityRecorder {
             map(json, 3, "requestHeaders", boundedHeaders(event.requestHeaders()), true);
             map(json, 3, "responseHeaders", boundedHeaders(event.responseHeaders()), true);
             field(json, 3, "failureReason", boundedNetworkText(event.failureReason()), true);
-            field(json, 3, "bodyPreview", boundedNetworkText(event.bodyPreview()), false);
+            field(json, 3, "bodyPreview", boundedNetworkText(event.bodyPreview()), true);
+            field(json, 3, "requestBody", boundedNetworkText(event.requestBodyPreview()), false);
             indent(json, 2).append("}");
         }
         if (!events.isEmpty()) {
@@ -792,10 +796,39 @@ public final class BrowserObservabilityRecorder {
             return "";
         }
         if (bytes.length > NETWORK_FIELD_UTF8_BYTE_LIMIT) {
-            return NETWORK_FIELD_OMITTED;
+            return containsNul(bytes, 8192) ? binaryMarker(bytes) : NETWORK_FIELD_OMITTED;
         }
-        String decoded = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        String decoded = decodeText(bytes);
+        if (decoded == null) {
+            return binaryMarker(bytes);
+        }
         return decoded.length() > NETWORK_FIELD_LIMIT ? NETWORK_FIELD_OMITTED : retainedNetworkText(decoded);
+    }
+
+    private static String binaryMarker(byte[] bytes) {
+        return "[binary body: " + bytes.length + " bytes]";
+    }
+
+    private static boolean containsNul(byte[] bytes, int limit) {
+        for (int i = 0; i < Math.min(bytes.length, limit); i++) {
+            if (bytes[i] == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Returns the UTF-8 text, or {@code null} for binary content such as multipart file parts. */
+    private static String decodeText(byte[] bytes) {
+        try {
+            String decoded = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                    .decode(java.nio.ByteBuffer.wrap(bytes)).toString();
+            return decoded.indexOf('\u0000') >= 0 ? null : decoded;
+        } catch (java.nio.charset.CharacterCodingException e) {
+            return null;
+        }
     }
 
     private static StringBuilder indent(StringBuilder builder, int level) {
@@ -814,9 +847,10 @@ public final class BrowserObservabilityRecorder {
      * Active network exchange handle.
      */
     public record NetworkExchange(boolean enabled, String id, String method, String url,
-                                  Map<String, String> requestHeaders, long requestSizeBytes, long startNanos) {
+                                  Map<String, String> requestHeaders, long requestSizeBytes, long startNanos,
+                                  String requestBodyPreview) {
         static NetworkExchange disabled() {
-            return new NetworkExchange(false, "", "", "", Map.of(), 0L, 0L);
+            return new NetworkExchange(false, "", "", "", Map.of(), 0L, 0L, "");
         }
     }
 
@@ -1011,7 +1045,16 @@ public final class BrowserObservabilityRecorder {
      */
     public record NetworkObservation(String method, String url, int status, Map<String, String> requestHeaders,
                                      Map<String, String> responseHeaders, long durationMs, long requestSize,
-                                     long responseSize, String failureReason, String bodyPreview) {
+                                     long responseSize, String failureReason, String bodyPreview,
+                                     String requestBodyPreview) {
+        /** Creates an observation whose request body was not retained by the provider. */
+        @SuppressWarnings("PMD.ExcessiveParameterList") // Defaults the record's request-body preview for existing callers.
+        public NetworkObservation(String method, String url, int status, Map<String, String> requestHeaders,
+                                  Map<String, String> responseHeaders, long durationMs, long requestSize,
+                                  long responseSize, String failureReason, String bodyPreview) {
+            this(method, url, status, requestHeaders, responseHeaders, durationMs, requestSize, responseSize,
+                    failureReason, bodyPreview, "");
+        }
     }
 
     /** Bounded WebSocket lifecycle/frame metadata. */
@@ -1024,7 +1067,8 @@ public final class BrowserObservabilityRecorder {
 
     private record NetworkEvent(String provider, String method, String url, int status, Map<String, String> requestHeaders,
                                 Map<String, String> responseHeaders, long durationMs, long requestSizeBytes,
-                                long responseSizeBytes, String failureReason, String bodyPreview, long timestamp) {
+                                long responseSizeBytes, String failureReason, String bodyPreview,
+                                String requestBodyPreview, long timestamp) {
     }
 
     private record WebSocketEvent(String requestId, String url, String direction, String type, int opcode,
@@ -1052,7 +1096,8 @@ public final class BrowserObservabilityRecorder {
     public record NetworkSnapshotEntry(int id, String method, String url, int status, String mimeType,
                                        long durationMs, long requestSizeBytes, long responseSizeBytes,
                                        String failureReason, long timestamp, String bodyPreview,
-                                       Map<String, String> requestHeaders, Map<String, String> responseHeaders) {
+                                       Map<String, String> requestHeaders, Map<String, String> responseHeaders,
+                                       String requestBodyPreview) {
     }
 
     private record MetadataBatch(List<WarningEvent> warnings, List<WebSocketEvent> webSockets) { }

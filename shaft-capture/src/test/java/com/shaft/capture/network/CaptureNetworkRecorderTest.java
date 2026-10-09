@@ -10,6 +10,7 @@ import com.shaft.capture.model.network.ResourceKind;
 import com.shaft.capture.storage.CaptureSessionStore;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
+import com.shaft.gui.browser.internal.CdpPassiveNetworkObserver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -356,16 +357,17 @@ class CaptureNetworkRecorderTest {
     @Test
     void becomesSoleInterceptorOwnerByReleasingPassiveTraceObservationOnTheSameDriver() throws Exception {
         // Simulates DriverFactoryHelper.startBrowserObservability() already having registered a
-        // BrowserNetworkInterceptor-owned NetworkInterceptor for passive trace/HAR observation on
-        // this driver (shaft.trace.enabled + shaft.trace.includeNetwork), independent of apiCapture,
-        // before ManagedCaptureRecorder.start() constructs CaptureNetworkRecorder on the same driver.
+        // passive CDP observer for trace/HAR on this driver (shaft.trace.enabled +
+        // shaft.trace.includeNetwork), independent of apiCapture, before ManagedCaptureRecorder
+        // constructs CaptureNetworkRecorder on the same driver.
         List<CaptureNetworkRecorder.RecordedTransaction> events = new ArrayList<>();
         WebDriver driver = devToolsDriver("https://example.test/app");
         DriverFactoryHelper helper = new DriverFactoryHelper();
 
         AtomicInteger interceptorConstructions = new AtomicInteger();
         AtomicReference<Filter> lastFilter = new AtomicReference<>();
-        try (MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
+        try (MockedConstruction<CdpPassiveNetworkObserver> passive = Mockito.mockConstruction(CdpPassiveNetworkObserver.class);
+             MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
                 (mock, context) -> {
                     interceptorConstructions.incrementAndGet();
                     lastFilter.set((Filter) context.arguments().get(1));
@@ -374,8 +376,10 @@ class CaptureNetworkRecorderTest {
                 helper.setDriver(driver);
                 assertTrue(helper.startBrowserNetworkObservation(),
                         "Passive trace/HAR observation must start for the DevTools-capable driver.");
-                assertEquals(1, interceptorConstructions.get(),
-                        "The trace/HAR observer must have installed one DevTools network filter.");
+                assertEquals(1, passive.constructed().size(),
+                        "The trace/HAR observer must have installed one passive CDP observer.");
+                assertEquals(0, interceptorConstructions.get(),
+                        "Passive observation must not install Selenium's request-pausing NetworkInterceptor.");
 
                 CaptureNetworkRecorder recorder = new CaptureNetworkRecorder(
                         driver, temp.resolve("bodies"), NetworkCaptureOptions.defaults(), "session-1",

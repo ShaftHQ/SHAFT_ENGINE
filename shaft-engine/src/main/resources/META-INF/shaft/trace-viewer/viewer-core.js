@@ -111,8 +111,65 @@ function errorEntries(actionsList, exception){
   }
   return entries;
 }
+function parseSeleniumLocator(locator){
+  const match = /^By\.(id|cssSelector|xpath|name|className|tagName|linkText|partialLinkText):\s*([\s\S]+)$/
+    .exec(String(locator || '').trim());
+  return match ? {strategy:match[1], value:match[2].trim()} : null;
+}
+function javaString(value){
+  return '"' + String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n') + '"';
+}
+function xpathLiteral(value){
+  const text = String(value);
+  if (!text.includes("'")) return `'${text}'`;
+  if (!text.includes('"')) return `"${text}"`;
+  return 'concat(' + text.split("'").map(part => `'${part}'`).join(`, "'", `) + ')';
+}
+function attributeSelector(name, value){
+  return `[${name}="${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
+}
+function looksGenerated(value){
+  return /\d{4,}|[0-9a-f]{8,}|^(?:ember|react|mui|ng|radix|headlessui)[-_:]?\w*\d/i.test(String(value || ''));
+}
+// Ordered like SHAFT locator health advice: data-testid, stable id or name, tag plus text, then a CSS path.
+function locatorCandidates(element){
+  const info = element || {};
+  const tag = String(info.tag || '*').toLowerCase();
+  const candidates = [];
+  if (info.testId) {
+    const css = attributeSelector('data-testid', info.testId);
+    candidates.push({kind:'data-testid', css, java:`By.cssSelector(${javaString(css)})`});
+  }
+  if (info.id && !looksGenerated(info.id)) {
+    candidates.push({kind:'id', css:attributeSelector('id', info.id), java:`By.id(${javaString(info.id)})`});
+  }
+  if (info.name) {
+    candidates.push({kind:'name', css:attributeSelector('name', info.name), java:`By.name(${javaString(info.name)})`});
+  }
+  const text = String(info.text || '').replace(/\s+/g, ' ').trim();
+  if (text && text.length <= 80) {
+    candidates.push({kind:'text', xpath:`//${tag}[normalize-space(.)=${xpathLiteral(text)}]`,
+      java:`SHAFT.GUI.Locator.hasTagName(${javaString(tag)}).hasText(${javaString(text)}).build()`});
+  }
+  if (info.cssPath) {
+    candidates.push({kind:'css-path', css:info.cssPath, java:`By.cssSelector(${javaString(info.cssPath)})`});
+  }
+  return candidates;
+}
+const ISO_TIME = /\b(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d{1,9})?(?:Z|[+-]\d{2}:?\d{2})?)\b/;
+function logLineTime(line){
+  const match = ISO_TIME.exec(String(line || ''));
+  if (!match) return null;
+  const parsed = Date.parse(match[1].replace(' ', 'T').replace(',', '.'));
+  return Number.isNaN(parsed) ? null : parsed;
+}
+function filmstripActions(actionsList, includeAll){
+  const list = actionsList || [];
+  return includeAll ? list : list.filter(action => Boolean(action && action.screenshot));
+}
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {RENDER_CHUNK, BODY_PREVIEW_LIMIT, esc, statusClass, headerValue, contentTypeOf, formatBody,
     parseStackFrames, callerLocation, sameSourceFile, highlightJava, artifactActionId, groupArtifacts,
-    readableArtifactName, errorEntries};
+    readableArtifactName, errorEntries, parseSeleniumLocator, javaString, xpathLiteral, attributeSelector,
+    looksGenerated, locatorCandidates, logLineTime, filmstripActions};
 }

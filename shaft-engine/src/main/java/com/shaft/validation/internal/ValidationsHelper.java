@@ -1006,6 +1006,8 @@ public class ValidationsHelper {
     }
 
     private static boolean attachVisualComparison(byte[] expectedImage, byte[] actualImage, byte[] differenceImage) {
+        TraceEventRecorder.recordVisualComparison(VISUAL_COMPARISON_ATTACHMENT_NAME, expectedImage, actualImage,
+                differenceImage);
         try {
             var content = new JSONObject()
                     .put("expected", "data:image/png;base64," + Base64.getEncoder().encodeToString(expectedImage))

@@ -40,10 +40,13 @@ let selected = actionFromHash()
     || [...actions].reverse().find(action => action.status !== 'passed')
     || actions[0] || null;
 let selectedNativeAction = null;
+// True when the user chose the range itself (drag, range inputs, double-click), so the action list filters to it.
+let rangeFiltersActions = false;
 function selectAction(action, selectItsRange = true, historyMode = 'push'){
   selectedNativeAction = null;
   sourceLineOverride = null;
   selected = action;
+  if (selectItsRange) rangeFiltersActions = false;
   if (selectItsRange && action) {
     const start = actionStartMs(action);
     if (start != null) {
@@ -55,6 +58,14 @@ function selectAction(action, selectItsRange = true, historyMode = 'push'){
   renderNavigator();
   renderActions();
   renderDetails();
+}
+function selectActionRange(action){
+  selectAction(action, true, 'replace');
+  rangeFiltersActions = true;
+  renderActions();
+}
+function isFullRange(){
+  return rangeStartMs === baseTime && rangeEndMs === traceEnd;
 }
 function actionStartMs(action){
   const t = Date.parse(action && action.startTime);
@@ -209,6 +220,7 @@ function renderSummary(){
   }
 }
 const filmstrip = document.getElementById('trace-filmstrip');
+const filmstripShowAll = document.getElementById('filmstrip-show-all');
 const rangeStart = document.getElementById('range-start');
 const rangeEnd = document.getElementById('range-end');
 const rangeLabel = document.getElementById('range-label');
@@ -219,6 +231,7 @@ function applyRangeInputs(historyMode = 'none'){
   const endOffset = Math.max(0, Math.min(traceDuration, Number(rangeEnd.value)));
   rangeStartMs = baseTime + Math.min(startOffset, endOffset);
   rangeEndMs = baseTime + Math.max(startOffset, endOffset);
+  rangeFiltersActions = true;
   updateHash(historyMode);
   renderNavigator();
   renderActions();
@@ -236,18 +249,29 @@ function renderNavigator(){
   rangeLabel.value = baseTime == null ? 'No timed evidence'
       : `${offsetLabel(rangeStartMs)} to ${offsetLabel(rangeEndMs)}`;
   renderErrorMarkers();
+  renderTimelineTrack();
   filmstrip.innerHTML = '';
+  const filmstripHint = document.getElementById('filmstrip-hint');
+  filmstripHint.hidden = true;
   if (!actions.length) {
     filmstrip.textContent = 'No actions were recorded for the filmstrip.';
     return;
   }
   const range = selectedWindow();
-  actions.forEach(action => {
+  const frames = filmstripActions(actions, filmstripShowAll.checked);
+  if (!frames.length) {
+    filmstripHint.hidden = false;
+    filmstripHint.textContent = 'No screenshots were captured. Include actions without screenshots to browse every action here.';
+    return;
+  }
+  const focusable = frames.some(action => selected && selected.id === action.id) ? selected.id : frames[0].id;
+  frames.forEach(action => {
     const button = document.createElement('button');
     button.type = 'button';
     button.setAttribute('role', 'option');
     button.setAttribute('aria-selected', String(Boolean(selected && selected.id === action.id)));
-    button.tabIndex = selected && selected.id === action.id ? 0 : -1;
+    button.setAttribute('aria-label', `${action.name || 'Action'} at ${offsetLabel(actionStartMs(action)) || 'unknown time'}${action.screenshot ? '' : ', no screenshot'}`);
+    button.tabIndex = action.id === focusable ? 0 : -1;
     button.dataset.actionId = action.id || '';
     button.className = `${selected && selected.id === action.id ? 'selected ' : ''}${actionInWindow(action, range) ? 'inwindow' : ''}`.trim();
     if (action.screenshot) {
@@ -265,19 +289,140 @@ function renderNavigator(){
     label.textContent = `${offsetLabel(actionStartMs(action))} ${action.name || 'Action'}`.trim();
     button.appendChild(label);
     button.addEventListener('click', () => selectAction(action));
+    button.addEventListener('dblclick', () => selectActionRange(action));
+    bindHoverPreview(button, action, true);
     filmstrip.appendChild(button);
   });
+  const current = filmstrip.querySelector('button.selected');
+  if (current && typeof current.scrollIntoView === 'function') current.scrollIntoView({block:'nearest', inline:'nearest'});
+}
+const timelineTrack = document.getElementById('timeline-track');
+const rangeSelection = document.getElementById('range-selection');
+function offsetPercent(offset){
+  return Math.max(0, Math.min(100, offset / traceDuration * 100));
+}
+function renderRangeSelection(startOffset, endOffset){
+  const full = startOffset <= 0 && endOffset >= traceDuration;
+  rangeSelection.hidden = baseTime == null || full;
+  rangeSelection.style.left = `${offsetPercent(Math.min(startOffset, endOffset))}%`;
+  rangeSelection.style.width = `${Math.max(0.4, offsetPercent(Math.abs(endOffset - startOffset)))}%`;
+}
+function renderTimelineTrack(){
+  timelineTrack.hidden = baseTime == null;
+  if (baseTime == null) return;
+  const ticks = document.getElementById('timeline-ticks');
+  ticks.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+  actions.slice(0, 2000).forEach(action => {
+    const start = actionStartMs(action);
+    if (start == null) return;
+    const tick = document.createElement('span');
+    tick.className = `timeline-tick ${statusClass(action.status)}`;
+    tick.style.left = `${offsetPercent(start - baseTime)}%`;
+    fragment.appendChild(tick);
+  });
+  ticks.appendChild(fragment);
+  renderRangeSelection(rangeStartMs - baseTime, rangeEndMs - baseTime);
+}
+let dragStartOffset = null;
+function trackOffset(event){
+  const rect = timelineTrack.getBoundingClientRect();
+  return Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width))) * traceDuration;
+}
+function commitRange(startOffset, endOffset, historyMode){
+  selectedNativeAction = null;
+  rangeStartMs = baseTime + Math.round(Math.min(startOffset, endOffset));
+  rangeEndMs = baseTime + Math.round(Math.max(startOffset, endOffset));
+  rangeFiltersActions = true;
+  updateHash(historyMode);
+  renderNavigator();
+  renderActions();
+  renderDetails();
+}
+timelineTrack.addEventListener('pointerdown', event => {
+  if (baseTime == null || event.button !== 0 || event.target.closest('button')) return;
+  dragStartOffset = trackOffset(event);
+  if (timelineTrack.setPointerCapture) timelineTrack.setPointerCapture(event.pointerId);
+  renderRangeSelection(dragStartOffset, dragStartOffset);
+  event.preventDefault();
+});
+timelineTrack.addEventListener('pointermove', event => {
+  if (dragStartOffset == null) return;
+  const offset = trackOffset(event);
+  renderRangeSelection(dragStartOffset, offset);
+  rangeLabel.value = `${offsetLabel(baseTime + Math.min(dragStartOffset, offset))} to ${offsetLabel(baseTime + Math.max(dragStartOffset, offset))}`;
+});
+function endDrag(event){
+  if (dragStartOffset == null) return;
+  const start = dragStartOffset;
+  const end = trackOffset(event);
+  dragStartOffset = null;
+  if (Math.abs(end - start) < traceDuration / 500) {
+    renderNavigator();
+    return;
+  }
+  commitRange(start, end, 'push');
+}
+timelineTrack.addEventListener('pointerup', endDrag);
+timelineTrack.addEventListener('pointercancel', () => { dragStartOffset = null; renderNavigator(); });
+const hoverPreview = document.getElementById('hover-preview');
+function hideHoverPreview(){
+  hoverPreview.hidden = true;
+  hoverPreview.innerHTML = '';
+}
+function showHoverPreview(action, anchor, magnify){
+  const snapshot = action.screenshot ? '' : (preferredSnapshot(action, 'after') || preferredSnapshot(action, 'before'));
+  if (!action.screenshot && !snapshot) return;
+  hoverPreview.innerHTML = '';
+  hoverPreview.className = `hover-preview${magnify ? ' magnified' : ''}`;
+  if (action.screenshot) {
+    const image = document.createElement('img');
+    image.alt = `Screenshot of ${action.name || 'action'}`;
+    image.src = 'data:image/png;base64,' + action.screenshot;
+    hoverPreview.appendChild(image);
+  } else {
+    const frame = document.createElement('iframe');
+    frame.setAttribute('sandbox', '');
+    frame.title = `Snapshot preview of ${action.name || 'action'}`;
+    frame.srcdoc = snapshot;
+    hoverPreview.appendChild(frame);
+  }
+  const caption = document.createElement('span');
+  caption.textContent = `${offsetLabel(actionStartMs(action))} ${action.name || 'Action'}`.trim();
+  hoverPreview.appendChild(caption);
+  hoverPreview.hidden = false;
+  const rect = anchor.getBoundingClientRect();
+  const width = hoverPreview.offsetWidth;
+  const height = hoverPreview.offsetHeight;
+  const left = magnify ? rect.left + rect.width / 2 - width / 2 : rect.right + 8;
+  const top = magnify ? rect.bottom + 8 : rect.top;
+  hoverPreview.style.left = `${Math.max(4, Math.min(window.innerWidth - width - 4, left))}px`;
+  hoverPreview.style.top = `${Math.max(4, Math.min(window.innerHeight - height - 4, top))}px`;
+}
+function bindHoverPreview(element, action, magnify){
+  element.addEventListener('mouseenter', () => showHoverPreview(action, element, magnify));
+  element.addEventListener('mouseleave', hideHoverPreview);
+  element.addEventListener('blur', hideHoverPreview);
 }
 function renderActions(){
   actionList.innerHTML = '';
   if(!actions.length){ actionList.textContent = 'No structured actions recorded.'; return; }
   const query = actionSearch.value.toLowerCase();
-  const visible = actions.filter(action => !query || searchableAction(action).includes(query));
+  const range = selectedWindow();
+  const byRange = rangeFiltersActions && !isFullRange();
+  const visible = actions.filter(action => (!query || searchableAction(action).includes(query))
+    && (!byRange || actionStartMs(action) == null || actionInWindow(action, range)));
+  if (!visible.length) {
+    actionList.textContent = byRange ? 'No actions fall in the selected range. Use Show all to reset it.' : 'No actions match the search.';
+    return;
+  }
   renderChunked(actionList, visible, action => {
     const button = document.createElement('button');
     button.className = `action ${action.status}${selected && selected.id === action.id ? ' selected' : ''}${actionInWindow(action, selectedWindow()) ? ' inwindow' : ''}`;
     button.innerHTML = `<strong>${esc(action.name || 'Action')}</strong><div class="muted">${esc(action.category)} - ${esc(action.status)} - ${esc(action.durationMs || 0)}ms${action.screenshot ? ' 📷' : ''}</div>`;
     button.addEventListener('click', () => selectAction(action));
+    button.addEventListener('dblclick', () => selectActionRange(action));
+    bindHoverPreview(button, action, false);
     return button;
   }, {ensureIndex: selected ? visible.indexOf(selected) : -1});
 }
@@ -326,6 +471,7 @@ function renderTimeline(){
     div.innerHTML = `<span class="time-cell">${esc(offsetLabel(entry.t))}</span><span class="badge kind-${entry.kind}">${entry.kind.toUpperCase()}</span><span class="timeline-label">${esc(entry.label)}${esc(duration)}</span>`;
     if (entry.action) {
       div.addEventListener('click', () => selectAction(entry.action));
+      div.addEventListener('dblclick', () => selectActionRange(entry.action));
     }
     return div;
   });
@@ -447,10 +593,14 @@ function showNetworkDetail(entry){
   headerRows(document.getElementById('network-request-headers'), entry.requestHeaders);
   headerRows(document.getElementById('network-response-headers'), entry.responseHeaders);
   const requestBytes = finiteNumber(entry.requestSizeBytes);
-  document.getElementById('network-request-body').textContent = entry.requestBody
-    ? entry.requestBody
+  const requestBody = formatBody(entry.requestBody, headerValue(entry.requestHeaders, 'content-type').split(';')[0].trim());
+  const requestBodyText = document.getElementById('network-request-body');
+  requestBodyText.textContent = requestBody.kind !== 'empty' && requestBody.kind !== 'image'
+    ? requestBody.text
     : requestBytes ? `Request body (${requestBytes} B) is not retained in the trace; only its size is recorded.`
     : 'No request body was sent.';
+  requestBodyText.dataset.kind = requestBody.kind;
+  document.getElementById('network-request-truncated').hidden = !requestBody.truncated;
   const body = formatBody(entry.bodyPreview, contentType);
   const bodyText = document.getElementById('network-response-body');
   const bodyImage = document.getElementById('network-response-image');
@@ -682,10 +832,12 @@ function renderArtifacts(){
   groups.forEach(group => {
     const artifact = group.primary;
     const tr = document.createElement('tr');
-    const status = artifact.omitted ? 'Omitted' : 'Available';
     const metadata = artifact.metadata || {};
+    const downscaled = !artifact.omitted && metadata.downscaled === 'true';
+    const status = artifact.omitted ? 'Omitted' : downscaled ? 'Downscaled' : 'Available';
     const reason = artifact.omitted
-      ? metadata.omissionReason || 'No omission reason was recorded.' : '';
+      ? metadata.omissionReason || 'No omission reason was recorded.'
+      : downscaled ? `Downscaled from ${metadata.originalSizeBytes || 'an unknown size'} B to fit shaft.trace.maxArtifactMb.` : '';
     const size = metadata.sizeBytes ? metadata.sizeBytes + ' B' : '';
     const digest = metadata.sha256 ? metadata.sha256.slice(0, 12) : '';
     const usedBy = group.actionIds.map(actionLabel).join(', ');
@@ -795,8 +947,16 @@ function renderLog(){
   const steps = actionabilitySteps(selected || {});
   document.getElementById('actionability-steps').innerHTML = steps.map(step => `<li>${esc(step)}</li>`).join('');
   document.getElementById('actionability-empty').hidden = steps.length > 0;
-  document.getElementById('test-log').textContent = Array.isArray(trace.timeline) && trace.timeline.length
-    ? trace.timeline.join('\n') : 'No test log lines were recorded.';
+  const lines = Array.isArray(trace.timeline) ? trace.timeline : [];
+  const range = selectedWindow();
+  const visibleLines = isFullRange() ? lines : lines.filter(line => {
+    const time = logLineTime(line);
+    return time == null || inWindow(time, range);
+  });
+  document.getElementById('test-log').textContent = visibleLines.length ? visibleLines.join('\n')
+    : lines.length ? 'No timestamped test log lines fall in the selected range.' : 'No test log lines were recorded.';
+  document.getElementById('test-log-count').textContent = visibleLines.length === lines.length ? ''
+    : `(${visibleLines.length} of ${lines.length} lines in the selected range)`;
 }
 function showSourceFor(action, line){
   if (action && action !== selected) selectAction(action, false);
@@ -902,27 +1062,256 @@ const comparisonBefore = document.getElementById('comparison-before');
 const comparisonInput = document.getElementById('comparison-input');
 const comparisonAction = document.getElementById('comparison-action');
 const comparisonAfter = document.getElementById('comparison-after');
+const snapshotFrames = {before:comparisonBefore, action:comparisonInput, after:comparisonAfter};
+const highlightStyle = '<style id="shaft-highlight-style">[data-shaft-target]{outline:2px solid #e5484d!important;outline-offset:1px!important;background-color:rgba(229,72,77,.14)!important}'
+  + '[data-shaft-click]{background-image:radial-gradient(circle at center,#e5484d 0 4px,rgba(229,72,77,.45) 5px 9px,transparent 10px)!important;background-repeat:no-repeat!important;background-position:center!important}'
+  + '.shaft-pick-hover{outline:2px dashed #2563eb!important;outline-offset:1px!important;cursor:crosshair!important}</style>';
+let selectedSnapshotSide = 'action';
+let pickMode = false;
+const renderedSnapshots = {before:'', action:'', after:''};
+function findSnapshotTarget(doc, action){
+  const native = doc.querySelector('[__playwright_target__]');
+  if (native) return native;
+  const parsed = parseSeleniumLocator(action && action.locator);
+  if (!parsed) {
+    try {
+      return action && action.locator ? doc.querySelector(String(action.locator)) : null;
+    } catch (ignored) {
+      return null;
+    }
+  }
+  try {
+    switch (parsed.strategy) {
+      case 'id': return doc.getElementById(parsed.value);
+      case 'cssSelector': return doc.querySelector(parsed.value);
+      case 'name': return doc.querySelector(attributeSelector('name', parsed.value));
+      case 'className': return doc.getElementsByClassName(parsed.value)[0] || null;
+      case 'tagName': return doc.getElementsByTagName(parsed.value)[0] || null;
+      case 'linkText': return [...doc.querySelectorAll('a')].find(link => link.textContent.trim() === parsed.value) || null;
+      case 'partialLinkText': return [...doc.querySelectorAll('a')].find(link => link.textContent.includes(parsed.value)) || null;
+      default: {
+        const node = doc.evaluate(parsed.value, doc, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        return node && node.nodeType === 1 ? node : null;
+      }
+    }
+  } catch (ignored) {
+    return null;
+  }
+}
+// Marks the action's target node (and, for the Action moment, its click point) inside a snapshot document.
+function decorateSnapshot(html, action, side){
+  if (!html) return {html:'', target:false};
+  const parsed = new DOMParser().parseFromString(html, 'text/html');
+  const target = side === 'after' ? null : findSnapshotTarget(parsed, action);
+  if (target) {
+    target.setAttribute('data-shaft-target', '');
+    if (side === 'action') target.setAttribute('data-shaft-click', '');
+  }
+  parsed.head.insertAdjacentHTML('beforeend', highlightStyle);
+  return {html:snapshotCsp + parsed.documentElement.outerHTML, target:Boolean(target)};
+}
+function setSnapshotFrame(frame, html){
+  frame.hidden = !html;
+  if (frame.srcdoc !== html) frame.srcdoc = html;
+}
 function renderComparison(){
   const action = selected || {};
   const native = nativeActionFor(action);
-  const before = preferredSnapshot(action, 'before');
-  const input = nativeSnapshot(native && native.inputSnapshot);
-  const after = preferredSnapshot(action, 'after');
-  const hasBefore = Boolean(before);
-  const hasInput = Boolean(input);
-  const hasAction = hasInput || Boolean(action.screenshot);
-  const hasAfter = Boolean(after);
-  comparisonBefore.hidden = !hasBefore;
-  document.getElementById('comparison-before-empty').hidden = hasBefore;
-  comparisonBefore.srcdoc = before;
-  comparisonInput.hidden = !hasInput;
-  comparisonInput.srcdoc = hasInput ? snapshotCsp + input : '';
-  comparisonAction.hidden = hasInput || !action.screenshot;
-  document.getElementById('comparison-action-empty').hidden = hasAction;
-  comparisonAction.src = !hasInput && action.screenshot ? 'data:image/png;base64,' + action.screenshot : '';
-  comparisonAfter.hidden = !hasAfter;
-  document.getElementById('comparison-after-empty').hidden = hasAfter;
-  comparisonAfter.srcdoc = after;
+  const nativeInput = nativeSnapshot(native && native.inputSnapshot);
+  const before = decorateSnapshot(preferredSnapshot(action, 'before'), action, 'before');
+  const input = decorateSnapshot(nativeInput ? snapshotCsp + nativeInput : preferredSnapshot(action, 'before'), action, 'action');
+  const after = decorateSnapshot(preferredSnapshot(action, 'after'), action, 'after');
+  renderedSnapshots.before = before.html;
+  renderedSnapshots.action = input.html;
+  renderedSnapshots.after = after.html;
+  setSnapshotFrame(comparisonBefore, before.html);
+  document.getElementById('comparison-before-empty').hidden = Boolean(before.html);
+  setSnapshotFrame(comparisonInput, input.html);
+  comparisonAction.hidden = Boolean(nativeInput) || !action.screenshot;
+  comparisonAction.src = !nativeInput && action.screenshot ? 'data:image/png;base64,' + action.screenshot : '';
+  document.getElementById('comparison-action-empty').hidden = Boolean(input.html) || Boolean(action.screenshot);
+  setSnapshotFrame(comparisonAfter, after.html);
+  document.getElementById('comparison-after-empty').hidden = Boolean(after.html);
+  const targeted = before.target || input.target;
+  document.getElementById('snapshot-target').textContent = !action.locator && !native ? 'This action has no target element.'
+    : targeted ? `Target ${action.locator || 'element'} is outlined; the Action snapshot marks the click point at its center.`
+    : `The target ${action.locator || 'element'} was not found in the captured snapshots.`;
+  if (!nativeInput && input.html) {
+    document.getElementById('snapshot-target').textContent += ' No separate input-moment snapshot was captured, so Action shows the before-action DOM.';
+  }
+  selectSnapshotSide(selectedSnapshotSide);
+}
+function selectSnapshotSide(side){
+  selectedSnapshotSide = side;
+  document.querySelectorAll('#snapshot-tabs button').forEach(button => {
+    const isSelected = button.dataset.snapshot === side;
+    button.classList.toggle('selected', isSelected);
+    button.setAttribute('aria-selected', String(isSelected));
+    button.tabIndex = isSelected ? 0 : -1;
+  });
+  ['before', 'action', 'after'].forEach(name => { document.getElementById(`snapshot-${name}`).hidden = name !== side; });
+  document.getElementById('snapshot-popout').disabled = !renderedSnapshots[side];
+  bindPicker(snapshotFrames[side]);
+}
+function pickTargetInfo(element){
+  const doc = element.ownerDocument;
+  const segments = [];
+  let node = element;
+  while (node && node.nodeType === 1 && node !== doc.body && node !== doc.documentElement) {
+    if (node.id && !looksGenerated(node.id) && node !== element) { segments.unshift(attributeSelector('id', node.id)); break; }
+    const tag = node.tagName.toLowerCase();
+    const siblings = node.parentElement ? [...node.parentElement.children].filter(sibling => sibling.tagName === node.tagName) : [];
+    segments.unshift(siblings.length > 1 ? `${tag}:nth-of-type(${siblings.indexOf(node) + 1})` : tag);
+    node = node.parentElement;
+  }
+  const text = element.children.length <= 2 ? element.textContent : '';
+  return {tag:element.tagName, id:element.id, name:element.getAttribute('name'), testId:element.getAttribute('data-testid'),
+    text, cssPath:segments.join(' > ')};
+}
+function candidateMatches(doc, candidate){
+  try {
+    if (candidate.css) return [...doc.querySelectorAll(candidate.css)];
+    const result = doc.evaluate(candidate.xpath, doc, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+    return Array.from({length:result.snapshotLength}, (ignored, index) => result.snapshotItem(index));
+  } catch (ignored) {
+    return [];
+  }
+}
+function pickElement(element){
+  const doc = element.ownerDocument;
+  element.classList.remove('shaft-pick-hover');
+  const candidates = locatorCandidates(pickTargetInfo(element));
+  const chosen = candidates.find(candidate => {
+    const matches = candidateMatches(doc, candidate);
+    return matches.length === 1 && matches[0] === element;
+  });
+  const picked = document.getElementById('picked-locator');
+  picked.hidden = false;
+  document.getElementById('picked-locator-code').textContent = chosen ? chosen.java : 'No unique locator found for this element.';
+  document.getElementById('picked-locator-copy').disabled = !chosen;
+  document.getElementById('picked-locator-copy').textContent = 'Copy';
+  document.getElementById('picked-locator-detail').textContent = chosen
+    ? `Matches exactly this element in the ${selectedSnapshotSide} snapshot (${chosen.kind}).` : '';
+  window.shaftPickedLocator = chosen || null;
+}
+function bindPicker(frame){
+  const doc = frame && frame.contentDocument;
+  if (!doc || !doc.documentElement || doc.documentElement.dataset.shaftPicker) return;
+  doc.documentElement.dataset.shaftPicker = 'bound';
+  doc.addEventListener('mouseover', event => {
+    if (!pickMode || !event.target || event.target.nodeType !== 1) return;
+    doc.querySelectorAll('.shaft-pick-hover').forEach(node => node.classList.remove('shaft-pick-hover'));
+    event.target.classList.add('shaft-pick-hover');
+  }, true);
+  doc.addEventListener('click', event => {
+    if (!pickMode) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.target && event.target.nodeType === 1) pickElement(event.target);
+  }, true);
+}
+function setPickMode(enabled){
+  pickMode = enabled;
+  const button = document.getElementById('snapshot-pick');
+  button.setAttribute('aria-pressed', String(enabled));
+  button.classList.toggle('selected', enabled);
+  button.textContent = enabled ? 'Picking: click an element' : 'Pick locator';
+  bindPicker(snapshotFrames[selectedSnapshotSide]);
+}
+Object.values(snapshotFrames).forEach(frame => frame.addEventListener('load', () => bindPicker(frame)));
+document.querySelectorAll('#snapshot-tabs button').forEach(button =>
+  button.addEventListener('click', () => selectSnapshotSide(button.dataset.snapshot)));
+document.getElementById('snapshot-tabs').addEventListener('keydown', event => {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  const sides = ['before', 'action', 'after'];
+  const next = sides[(sides.indexOf(selectedSnapshotSide) + (event.key === 'ArrowRight' ? 1 : 2)) % 3];
+  selectSnapshotSide(next);
+  document.querySelector(`#snapshot-tabs button[data-snapshot="${next}"]`).focus();
+  event.preventDefault();
+});
+document.getElementById('snapshot-pick').addEventListener('click', () => setPickMode(!pickMode));
+document.getElementById('picked-locator-copy').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  const copied = window.shaftPickedLocator && await copyText(window.shaftPickedLocator.java);
+  button.textContent = copied ? 'Copied' : 'Copy failed';
+});
+document.getElementById('snapshot-popout').addEventListener('click', () => {
+  const html = renderedSnapshots[selectedSnapshotSide];
+  if (!html) return;
+  const url = URL.createObjectURL(new Blob([html], {type:'text/html'}));
+  window.open(url, '_blank', 'noopener');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+});
+const attachmentsPanel = document.getElementById('attachments-panel');
+function visualComparisons(){
+  return Array.isArray(evidence.visualComparisons) ? evidence.visualComparisons : [];
+}
+function pngSource(base64){
+  return base64 ? 'data:image/png;base64,' + base64 : '';
+}
+function renderVisualComparison(comparison, index){
+  const section = document.createElement('section');
+  section.className = 'visual-comparison';
+  section.innerHTML = `<h3>${esc(comparison.name || 'Visual comparison')}</h3>`
+    + `<div class="tabs" role="tablist" aria-label="Visual comparison view"></div><div class="visual-view"></div>`;
+  const tabs = section.querySelector('.tabs');
+  const view = section.querySelector('.visual-view');
+  const modes = [['slider', 'Slider'], ['expected', 'Expected'], ['actual', 'Actual']];
+  if (comparison.diff) modes.push(['diff', 'Diff']);
+  const show = mode => {
+    tabs.querySelectorAll('button').forEach(button => {
+      button.classList.toggle('selected', button.dataset.mode === mode);
+      button.setAttribute('aria-selected', String(button.dataset.mode === mode));
+    });
+    view.innerHTML = '';
+    if (mode !== 'slider') {
+      const image = document.createElement('img');
+      image.alt = `${mode} image`;
+      image.src = pngSource(comparison[mode]);
+      view.appendChild(image);
+      return;
+    }
+    const stage = document.createElement('div');
+    stage.className = 'diff-slider';
+    stage.style.setProperty('--split', '50%');
+    stage.innerHTML = '<img class="diff-expected" alt="Expected image"><img class="diff-actual" alt="Actual image"><span class="diff-handle" aria-hidden="true"></span>';
+    stage.querySelector('.diff-expected').src = pngSource(comparison.expected);
+    stage.querySelector('.diff-actual').src = pngSource(comparison.actual);
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '0';
+    slider.max = '100';
+    slider.value = '50';
+    slider.id = `visual-slider-${index}`;
+    slider.setAttribute('aria-label', 'Reveal actual over expected');
+    slider.addEventListener('input', () => stage.style.setProperty('--split', `${slider.value}%`));
+    const legend = document.createElement('p');
+    legend.className = 'muted';
+    legend.textContent = 'Left of the handle shows the actual image, right shows the expected baseline.';
+    view.append(stage, slider, legend);
+  };
+  modes.forEach(([mode, label]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.setAttribute('role', 'tab');
+    button.dataset.mode = mode;
+    button.textContent = label;
+    button.addEventListener('click', () => show(mode));
+    tabs.appendChild(button);
+  });
+  show('slider');
+  return section;
+}
+function renderAttachments(){
+  const list = Array.isArray(trace.attachments) ? trace.attachments : [];
+  const comparisons = visualComparisons();
+  document.getElementById('attachments-hint').textContent = !list.length && !comparisons.length
+    ? 'No attachments were recorded.'
+    : `${list.length} ${list.length === 1 ? 'attachment' : 'attachments'}, ${comparisons.length} visual ${comparisons.length === 1 ? 'comparison' : 'comparisons'}.`;
+  document.getElementById('attachment-list').innerHTML = list.map(item => `<li>${esc(item)}</li>`).join('');
+  const host = document.getElementById('visual-comparisons');
+  host.innerHTML = '';
+  comparisons.forEach((comparison, index) => host.appendChild(renderVisualComparison(comparison, index)));
 }
 const nativeEvidencePanel = document.getElementById('native-evidence-panel');
 const nativeEvidenceRows = document.getElementById('native-evidence-rows');
@@ -951,7 +1340,7 @@ function renderNativeEvidence(){
 }
 function renderTab(tab){
   const action = selected || {};
-  const panels = {timeline: timelinePanel, nativeEvidence: nativeEvidencePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, webSockets: websocketPanel, mobile: document.getElementById('mobile-panel'), artifacts: document.getElementById('artifact-panel'), source: sourcePanel, call: document.getElementById('call-panel'), log: document.getElementById('log-panel'), errors: document.getElementById('errors-panel')};
+  const panels = {timeline: timelinePanel, nativeEvidence: nativeEvidencePanel, comparison: comparisonPanel, domSnapshot: domSnapshotPanel, screenshot: screenshotPanel, network: networkPanel, console: consolePanel, webSockets: websocketPanel, mobile: document.getElementById('mobile-panel'), artifacts: document.getElementById('artifact-panel'), source: sourcePanel, call: document.getElementById('call-panel'), log: document.getElementById('log-panel'), errors: document.getElementById('errors-panel'), attachments: attachmentsPanel};
   tabContent.hidden = tab in panels;
   Object.entries(panels).forEach(([name, panel]) => panel.hidden = name !== tab);
   if (tab === 'timeline') {
@@ -982,6 +1371,8 @@ function renderTab(tab){
     renderLog();
   } else if (tab === 'errors') {
     renderErrors();
+  } else if (tab === 'attachments') {
+    renderAttachments();
   } else {
     const data = tab === 'json' ? trace
         : tab === 'exception' && action.exception && (action.exception.type || action.exception.message) ? action.exception
@@ -1002,17 +1393,19 @@ rangeEnd.addEventListener('change', () => applyRangeInputs('push'));
 document.getElementById('show-all-range').addEventListener('click', () => {
   rangeStartMs = baseTime;
   rangeEndMs = traceEnd;
+  rangeFiltersActions = false;
   updateHash('push');
   renderNavigator();
   renderActions();
   renderDetails();
 });
+filmstripShowAll.addEventListener('change', renderNavigator);
 filmstrip.addEventListener('keydown', event => {
-  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
   const options = [...filmstrip.querySelectorAll('button[role="option"]')];
   const current = Math.max(0, options.indexOf(document.activeElement));
-  const next = event.key === 'ArrowRight'
-      ? Math.min(options.length - 1, current + 1)
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1
+      : event.key === 'ArrowRight' ? Math.min(options.length - 1, current + 1)
       : Math.max(0, current - 1);
   if (options[next]) {
     event.preventDefault();
@@ -1040,6 +1433,7 @@ function restoreLocationState(){
       rangeEndMs = Math.max(start, start + Math.max(0, action.durationMs || 0));
     }
   }
+  rangeFiltersActions = false;
   selectAction(action, false, 'none');
 }
 window.addEventListener('popstate', restoreLocationState);

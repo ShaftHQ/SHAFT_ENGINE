@@ -55,18 +55,28 @@ final class TraceArtifactManifest implements AutoCloseable {
 
     static TraceArtifactManifest create(String networkJson, Map<String, byte[]> screenshots, Path nativeTrace,
                                         long maxBytes, String omissionMarker, NativeTraceSource nativeSource) {
-        return create(networkJson, screenshots, List.of(), nativeTrace, maxBytes, omissionMarker, nativeSource);
+        return create(networkJson, screenshots, List.of(), nativeTrace, maxBytes, omissionMarker, nativeSource,
+                Map.of());
     }
 
     static TraceArtifactManifest create(String networkJson, Map<String, byte[]> screenshots,
                                         List<SnapshotResource> snapshots, Path nativeTrace,
                                         long maxBytes, String omissionMarker) {
-        return create(networkJson, screenshots, snapshots, nativeTrace, maxBytes, omissionMarker, FILE_SOURCE);
+        return create(networkJson, screenshots, snapshots, nativeTrace, maxBytes, omissionMarker, Map.of());
     }
 
+    static TraceArtifactManifest create(String networkJson, Map<String, byte[]> screenshots,
+                                        List<SnapshotResource> snapshots, Path nativeTrace,
+                                        long maxBytes, String omissionMarker, Map<String, Long> downscaledFromBytes) {
+        return create(networkJson, screenshots, snapshots, nativeTrace, maxBytes, omissionMarker, FILE_SOURCE,
+                downscaledFromBytes);
+    }
+
+    @SuppressWarnings("PMD.ExcessiveParameterList")
     private static TraceArtifactManifest create(String networkJson, Map<String, byte[]> screenshots,
                                                 List<SnapshotResource> snapshots, Path nativeTrace,
-                                                long maxBytes, String omissionMarker, NativeTraceSource nativeSource) {
+                                                long maxBytes, String omissionMarker, NativeTraceSource nativeSource,
+                                                Map<String, Long> downscaledFromBytes) {
         List<TraceArtifactReference> references = new ArrayList<>();
         Map<String, byte[]> resources = new java.util.LinkedHashMap<>();
         byte[] networkHar = BrowserObservabilityRecorder.networkHarJson(networkJson)
@@ -87,6 +97,11 @@ final class TraceArtifactManifest implements AutoCloseable {
                     omissionMetadata(omitted, omissionMarker));
             metadata.put("sha256", digest);
             metadata.put("sizeBytes", String.valueOf(bytes.length));
+            Long originalBytes = downscaledFromBytes.get(id);
+            if (originalBytes != null) {
+                metadata.put("downscaled", "true");
+                metadata.put("originalSizeBytes", String.valueOf(originalBytes));
+            }
             references.add(new TraceArtifactReference("screenshot-" + id, "screenshot",
                     "resources/" + digest + ".png", "image/png", omitted, metadata));
         });

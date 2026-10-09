@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
+      - "shaft-engine/src/main/java/com/shaft/gui/browser/internal/**"
+      - "shaft-engine/src/test/java/com/shaft/gui/browser/internal/BrowserNetworkUploadAcceptanceTest.java"
       - "shaft-engine/src/main/resources/META-INF/shaft/trace-viewer/**"
       - "shaft-engine/src/test/js/**"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
@@ -14,6 +16,8 @@ on:
     branches: [ main ]
     paths:
       - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
+      - "shaft-engine/src/main/java/com/shaft/gui/browser/internal/**"
+      - "shaft-engine/src/test/java/com/shaft/gui/browser/internal/BrowserNetworkUploadAcceptanceTest.java"
       - "shaft-engine/src/main/resources/META-INF/shaft/trace-viewer/**"
       - "shaft-engine/src/test/js/**"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
@@ -76,7 +80,7 @@ jobs:
       - name: Run offline trace viewer acceptance
         run: >-
           mvn -pl shaft-engine
-          -Dtest=com.shaft.tools.io.internal.TraceViewerBrowserAcceptanceTest
+          -Dtest=com.shaft.tools.io.internal.TraceViewerBrowserAcceptanceTest,com.shaft.gui.browser.internal.BrowserNetworkUploadAcceptanceTest
           -Dsurefire.excludedGroups=
           -Dshaft.trace.viewer.chrome=/usr/bin/google-chrome
           -Dshaft.trace.viewer.screenshot=target/trace-viewer-browser-acceptance.png

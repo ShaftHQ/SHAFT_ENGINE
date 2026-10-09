@@ -4,13 +4,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
+import com.shaft.gui.browser.internal.CdpPassiveNetworkObserver;
 import com.shaft.properties.internal.Properties;
 import com.shaft.listeners.internal.TestExecutionInfo;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.devtools.NetworkInterceptor;
 import org.openqa.selenium.remote.http.Filter;
 import org.openqa.selenium.remote.http.HttpMethod;
 import org.openqa.selenium.remote.http.HttpRequest;
@@ -37,7 +37,7 @@ public class BrowserObservabilityRecorderSessionTest {
     public void seleniumCallbackOnAnotherThreadShouldRemainVisibleToItsOwningTraceSession() throws Exception {
         AtomicReference<Filter> filterReference = new AtomicReference<>();
         WebDriver driver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(HasDevTools.class));
-        try (MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
+        try (MockedConstruction<CdpPassiveNetworkObserver> ignored = Mockito.mockConstruction(CdpPassiveNetworkObserver.class,
                 (mock, context) -> filterReference.set((Filter) context.arguments().get(1)));
              var callbackExecutor = Executors.newSingleThreadExecutor()) {
             SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
@@ -61,7 +61,7 @@ public class BrowserObservabilityRecorderSessionTest {
     public void cachedInterceptorShouldFollowTestSessionAndOwnerCapturePolicy() throws Exception {
         AtomicReference<Filter> filterReference = new AtomicReference<>();
         WebDriver driver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(HasDevTools.class));
-        try (MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
+        try (MockedConstruction<CdpPassiveNetworkObserver> ignored = Mockito.mockConstruction(CdpPassiveNetworkObserver.class,
                 (mock, context) -> filterReference.set((Filter) context.arguments().get(1)));
              var callbackExecutor = Executors.newSingleThreadExecutor()) {
             SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
@@ -86,6 +86,36 @@ public class BrowserObservabilityRecorderSessionTest {
             Assert.assertEquals(BrowserObservabilityRecorder.snapshot().getFirst().url(),
                     "https://example.com/test-session");
         }
+    }
+
+    @Test
+    public void requestBodyPreviewShouldBeRetainedBoundedAndRedacted() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        HttpRequest small = new HttpRequest(HttpMethod.POST, "https://example.com/login");
+        small.setContent(Contents.utf8String("{\"user\":\"ada\",\"password\":\"hunter2\"}"));
+        HttpRequest large = new HttpRequest(HttpMethod.PUT, "https://example.com/upload");
+        large.setContent(Contents.utf8String("x".repeat(5_000)));
+        BrowserObservabilityRecorder.finishNetwork(BrowserObservabilityRecorder.startNetwork(owner, small),
+                new HttpResponse().setStatus(200), "");
+        BrowserObservabilityRecorder.finishNetwork(BrowserObservabilityRecorder.startNetwork(owner, large),
+                new HttpResponse().setStatus(200), "");
+        HttpRequest binary = new HttpRequest(HttpMethod.POST, "https://example.com/files");
+        binary.setContent(Contents.bytes(new byte[]{(byte) 0x89, 'P', 'N', 'G', 0, (byte) 0xff}));
+        BrowserObservabilityRecorder.finishNetwork(BrowserObservabilityRecorder.startNetwork(owner, binary),
+                new HttpResponse().setStatus(200), "");
+
+        JsonNode events = new ObjectMapper().readTree(BrowserObservabilityRecorder.drainNetworkJson());
+        String retained = events.get(0).path("requestBody").asText();
+        Assert.assertTrue(retained.contains("\"user\":\"ada\""), retained);
+        Assert.assertFalse(retained.contains("hunter2"), "Sensitive request fields must be masked: " + retained);
+        Assert.assertEquals(events.get(0).path("requestSizeBytes").asLong(), 35);
+        Assert.assertTrue(events.get(1).path("requestBody").asText().startsWith("[omitted because"),
+                "A request body over the preview limit must be replaced with the bounded omission marker.");
+        Assert.assertEquals(events.get(2).path("requestBody").asText(), "[binary body: 6 bytes]",
+                "Binary request bodies (for example multipart file parts) must be marked, not decoded.");
+        Assert.assertEquals(Contents.string(small), "{\"user\":\"ada\",\"password\":\"hunter2\"}",
+                "Capturing the preview must leave the request body readable downstream.");
     }
 
     @Test
