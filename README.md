@@ -31,10 +31,9 @@ run is the published user guide at [https://shafthq.github.io/](https://shafthq.
 generate a project, then run `mvn test`.
 
 New to SHAFT? Watch the
-[100-second overview](https://shafthq.github.io/docs/start/overview#watch-shaft-in-100-seconds)
-or the [3.5-minute technical walkthrough](https://shafthq.github.io/docs/start/quick-start#watch-the-technical-walkthrough).
-Masters and captions are on the
-[SHAFT feature video release](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/tag/shaft-feature-video-20261009).
+[100-second overview video](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-feature-video-20261009/SHAFT-business-16x9.mp4).
+The [SHAFT feature video release](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/tag/shaft-feature-video-20261009)
+also has the technical walkthrough and captions, and the user guide plays both.
 
 **Humans:** use this page to orient, then [CONTRIBUTING.md](CONTRIBUTING.md)
 when you change the engine. Report vulnerabilities through

@@ -2,7 +2,7 @@
 
 **Humans:** production sources for the SHAFT feature video (business 16:9 and 9:16 cuts, technical 16:9 cut). Renders are not stored in the repository.
 
-**Agents:** load [AGENTS.md](../../AGENTS.md) and follow ChaosEngine. This README describes video sources only. Do not treat it as policy. Skip it unless the task changes this video.
+**Agents:** load [AGENTS.md](../../AGENTS.md) and follow ChaosEngine. This file describes video sources only. Do not treat it as policy. Skip it unless the task changes this video.
 
 | File | Purpose |
 | --- | --- |
