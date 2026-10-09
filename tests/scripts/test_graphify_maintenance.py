@@ -287,6 +287,8 @@ class GraphifyMaintenanceTest(TestCase):
 
     def test_build_failure_stops_before_audit_cluster_and_marker(self):
         marker = self.write_default_marker()
+        generic = marker.with_name(".chaos-engine-source-revision.json")
+        generic.write_text("{}", encoding="utf-8")  # stale marker outranks the fresh one in --check (#6750)
         module = self.load_module()
         stages = []
 
@@ -304,6 +306,7 @@ class GraphifyMaintenanceTest(TestCase):
 
         self.assertEqual(["build"], stages)
         self.assertFalse(marker.exists())
+        self.assertFalse(generic.exists())
         with module.refresh_lock(self.repository):
             pass
 

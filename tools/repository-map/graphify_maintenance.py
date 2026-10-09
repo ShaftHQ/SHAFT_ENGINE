@@ -298,7 +298,8 @@ def refresh(root: Path, graph_out: Path) -> None:
         "graphify",
     ]
     with refresh_lock(common_dir):
-        (requested_output / ".shaft-source-revision.json").unlink(missing_ok=True)
+        for marker in (".shaft-source-revision.json", ".chaos-engine-source-revision.json"):
+            (requested_output / marker).unlink(missing_ok=True)
         run_stage(
             "build",
             [uv, *graphify[1:], "extract", ".", "--code-only", "--no-cluster"],
