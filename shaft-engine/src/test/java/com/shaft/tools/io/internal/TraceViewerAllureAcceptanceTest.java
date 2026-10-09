@@ -38,6 +38,21 @@ public class TraceViewerAllureAcceptanceTest {
             throw new SkipException("The Allure CLI is not cached at " + cli);
         }
         Path chrome = TraceViewerBrowserAcceptanceTest.chromeExecutable();
+        Path report = generateReport(cli);
+        HttpServer server = serve(report);
+        try (Playwright playwright = Playwright.create();
+             Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
+                     .setExecutablePath(chrome).setHeadless(true))) {
+            String origin = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+            for (ColorScheme scheme : List.of(ColorScheme.LIGHT, ColorScheme.DARK)) {
+                verifyViewerInReport(browser, origin, scheme);
+            }
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    private static Path generateReport(Path cli) throws Exception {
         TraceViewerBrowserAcceptanceTest.ViewerFixture fixture = TraceViewerBrowserAcceptanceTest.generateViewerFixture();
         Path work = Files.createTempDirectory("trace-viewer-allure");
         Path results = Files.createDirectories(work.resolve("results"));
@@ -48,7 +63,10 @@ public class TraceViewerAllureAcceptanceTest {
                 report.toString()).redirectErrorStream(true).start();
         String output = new String(process.getInputStream().readAllBytes());
         Assert.assertTrue(process.waitFor(120, TimeUnit.SECONDS) && process.exitValue() == 0, output);
+        return report;
+    }
 
+    private static HttpServer serve(Path report) throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
             String path = exchange.getRequestURI().getPath();
@@ -57,64 +75,73 @@ public class TraceViewerAllureAcceptanceTest {
                 exchange.sendResponseHeaders(404, -1);
             } else {
                 byte[] body = Files.readAllBytes(file);
-                String name = file.getFileName().toString();
-                exchange.getResponseHeaders().add("Content-Type", name.endsWith(".html") ? "text/html"
-                        : name.endsWith(".js") ? "text/javascript" : name.endsWith(".json") ? "application/json"
-                        : "application/octet-stream");
+                exchange.getResponseHeaders().add("Content-Type", contentType(file.getFileName().toString()));
                 exchange.sendResponseHeaders(200, body.length);
                 exchange.getResponseBody().write(body);
             }
             exchange.close();
         });
         server.start();
-        try (Playwright playwright = Playwright.create();
-             Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                     .setExecutablePath(chrome).setHeadless(true))) {
-            String origin = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
-            for (ColorScheme scheme : List.of(ColorScheme.LIGHT, ColorScheme.DARK)) {
-                Page page = browser.newContext(new Browser.NewContextOptions().setViewportSize(1440, 900)
-                        .setColorScheme(scheme)).newPage();
-                List<String> problems = new ArrayList<>();
-                page.onPageError(problems::add);
-                page.onRequest(request -> {
-                    String url = request.url();
-                    if (request.frame().parentFrame() != null && !url.startsWith(origin) && !url.startsWith("data:") && !url.startsWith("blob:")
-                            && !url.startsWith("about:")) {
-                        problems.add("viewer external request " + url);
-                    }
-                });
-                page.navigate(origin);
-                page.getByText("traceViewer").first().click();
-                page.getByText("SHAFT trace viewer").first().click();
-                page.locator("[data-testid*=attachment], [class*=ttachment]").first().click();
-                FrameLocator frame = page.frameLocator("iframe").first();
-                frame.locator("#theme-toggle").waitFor();
-                frame.locator("#action-search").waitFor();
-                Assert.assertTrue(frame.locator("#action-search").isVisible(), "The viewer must render in Allure.");
-                Assert.assertTrue(frame.locator("button[data-tab=console]").isVisible());
-                Assert.assertTrue(frame.locator("button[data-tab=comparison]").isVisible(),
-                        "Snapshot tabs carry captured evidence, so they stay visible.");
-                Assert.assertTrue(frame.locator("button[data-tab=mobile]").isHidden(),
-                        "#6730: a web trace has no mobile evidence, so that tab stays hidden in Allure too.");
-                double luminance = ((Number) frame.locator("body").evaluate("""
-                        body => { const m = getComputedStyle(body).backgroundColor.match(/\\d+/g).map(Number);
-                          return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255; }""")).doubleValue();
-                if (scheme == ColorScheme.DARK) {
-                    Assert.assertTrue(luminance < 0.25, "The viewer must follow Allure's dark theme: " + luminance);
-                } else {
-                    Assert.assertTrue(luminance > 0.75, "The viewer must follow Allure's light theme: " + luminance);
-                }
-                String pressed = frame.locator("#theme-toggle").getAttribute("aria-pressed");
-                frame.locator("#theme-toggle").click();
-                Assert.assertNotEquals(frame.locator("#theme-toggle").getAttribute("aria-pressed"), pressed,
-                        "The manual theme toggle must work inside Allure's sandboxed frame.");
-                frame.locator("#theme-toggle").click();
-                keepScreenshot(page, scheme == ColorScheme.DARK ? "-allure-dark" : "-allure-light");
-                Assert.assertTrue(problems.isEmpty(), "The viewer must not error or reach the network: " + problems);
-                page.context().close();
+        return server;
+    }
+
+    private static String contentType(String name) {
+        if (name.endsWith(".html")) {
+            return "text/html";
+        }
+        if (name.endsWith(".js")) {
+            return "text/javascript";
+        }
+        return name.endsWith(".json") ? "application/json" : "application/octet-stream";
+    }
+
+    private static boolean isExternal(String url, String origin) {
+        return !url.startsWith(origin) && !url.startsWith("data:") && !url.startsWith("blob:")
+                && !url.startsWith("about:");
+    }
+
+    private static void verifyViewerInReport(Browser browser, String origin, ColorScheme scheme) {
+        Page page = browser.newContext(new Browser.NewContextOptions().setViewportSize(1440, 900)
+                .setColorScheme(scheme)).newPage();
+        List<String> problems = new ArrayList<>();
+        page.onPageError(problems::add);
+        page.onRequest(request -> {
+            if (request.frame().parentFrame() != null && isExternal(request.url(), origin)) {
+                problems.add("viewer external request " + request.url());
             }
-        } finally {
-            server.stop(0);
+        });
+        page.navigate(origin);
+        page.getByText("traceViewer").first().click();
+        page.getByText("SHAFT trace viewer").first().click();
+        page.locator("[data-testid*=attachment], [class*=ttachment]").first().click();
+        FrameLocator frame = page.frameLocator("iframe").first();
+        frame.locator("#theme-toggle").waitFor();
+        frame.locator("#action-search").waitFor();
+        Assert.assertTrue(frame.locator("#action-search").isVisible(), "The viewer must render in Allure.");
+        Assert.assertTrue(frame.locator("button[data-tab=console]").isVisible());
+        Assert.assertTrue(frame.locator("button[data-tab=comparison]").isVisible(),
+                "Snapshot tabs carry captured evidence, so they stay visible.");
+        Assert.assertTrue(frame.locator("button[data-tab=mobile]").isHidden(),
+                "#6730: a web trace has no mobile evidence, so that tab stays hidden in Allure too.");
+        assertThemeFollowsAllure(frame, scheme);
+        String pressed = frame.locator("#theme-toggle").getAttribute("aria-pressed");
+        frame.locator("#theme-toggle").click();
+        Assert.assertNotEquals(frame.locator("#theme-toggle").getAttribute("aria-pressed"), pressed,
+                "The manual theme toggle must work inside Allure's sandboxed frame.");
+        frame.locator("#theme-toggle").click();
+        keepScreenshot(page, scheme == ColorScheme.DARK ? "-allure-dark" : "-allure-light");
+        Assert.assertTrue(problems.isEmpty(), "The viewer must not error or reach the network: " + problems);
+        page.context().close();
+    }
+
+    private static void assertThemeFollowsAllure(FrameLocator frame, ColorScheme scheme) {
+        double luminance = ((Number) frame.locator("body").evaluate("""
+                body => { const m = getComputedStyle(body).backgroundColor.match(/\\d+/g).map(Number);
+                  return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255; }""")).doubleValue();
+        if (scheme == ColorScheme.DARK) {
+            Assert.assertTrue(luminance < 0.25, "The viewer must follow Allure's dark theme: " + luminance);
+        } else {
+            Assert.assertTrue(luminance > 0.75, "The viewer must follow Allure's light theme: " + luminance);
         }
     }
 
