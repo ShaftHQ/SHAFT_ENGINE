@@ -12,6 +12,7 @@ from scripts.ci.overlay_pre_push import (
     PLAYBOOK,
     overlay_pre_push_failures,
     playbook_contract_failures,
+    release_note_label_failures,
     touches_overlay_contract,
 )
 
@@ -142,6 +143,62 @@ class OverlayPrePushTest(unittest.TestCase):
             ROOT, ["chaos-engine/skills/chaos-engine/SKILL.md"]
         )
         self.assertEqual([], failures)
+
+    def test_release_note_label_fails_when_open_pr_has_none(self):
+        def fake(_root):
+            return {
+                "number": 6702,
+                "author": {"login": "MohabMohie"},
+                "labels": [{"name": "ci"}],
+            }
+
+        failures = release_note_label_failures(ROOT, pr_fetcher=fake)
+        self.assertTrue(any("release-note label" in f and "#6702" in f for f in failures))
+        self.assertTrue(any("none" in f for f in failures))
+
+    def test_release_note_label_passes_with_exactly_one_classification(self):
+        def fake(_root):
+            return {
+                "number": 6702,
+                "author": {"login": "MohabMohie"},
+                "labels": [{"name": "skip-release-notes"}, {"name": "ci"}],
+            }
+
+        self.assertEqual([], release_note_label_failures(ROOT, pr_fetcher=fake))
+
+    def test_release_note_label_skips_bots_and_missing_pr(self):
+        self.assertEqual(
+            [],
+            release_note_label_failures(
+                ROOT,
+                pr_fetcher=lambda _r: {
+                    "number": 1,
+                    "author": {"login": "dependabot[bot]"},
+                    "labels": [],
+                },
+            ),
+        )
+        self.assertEqual([], release_note_label_failures(ROOT, pr_fetcher=lambda _r: None))
+
+    def test_overlay_pre_push_includes_release_note_when_live(self):
+        """Live mode (paths=None) consults the open-PR fetcher; fixture mode does not."""
+        from unittest import mock
+        from scripts.ci import overlay_pre_push as opp
+
+        with mock.patch.object(
+            opp,
+            "release_note_label_failures",
+            return_value=["release-note label: open PR #1 needs exactly one"],
+        ) as mocked:
+            with mock.patch.object(opp, "code_quality_failures", return_value=[]):
+                with mock.patch.object(opp, "changed_overlay_paths", return_value=[]):
+                    with mock.patch.object(opp, "tip_preflight_failures", return_value=[]):
+                        live = opp.overlay_pre_push_failures(ROOT)
+        fixture = opp.overlay_pre_push_failures(ROOT, ["shaft-engine/src/Main.java"])
+        self.assertTrue(any("release-note label" in f for f in live))
+        self.assertEqual([], fixture)
+        mocked.assert_called_once()
+
 
 
 if __name__ == "__main__":
