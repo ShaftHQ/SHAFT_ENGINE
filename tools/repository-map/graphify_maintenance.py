@@ -241,13 +241,16 @@ def require_head_at_origin_main(root: Path) -> None:
         return
     revisions = []
     for ref in ("HEAD", "refs/remotes/origin/main"):
-        completed = subprocess.run(  # nosec B603 - resolved git, list-form, no shell.
-            [git, "rev-parse", "--verify", "--quiet", ref],
-            cwd=root,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            completed = subprocess.run(  # nosec B603 - resolved git, list-form, no shell.
+                [git, "rev-parse", "--verify", "--quiet", ref],
+                cwd=root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            return
         if completed.returncode != 0:
             return
         revisions.append(completed.stdout.strip())
