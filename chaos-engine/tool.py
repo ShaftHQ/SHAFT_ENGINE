@@ -147,6 +147,12 @@ MAINTAIN_UNKNOWN_SOURCE = (
 )
 
 
+MAINTAIN_NO_LOCAL_SOURCE = (
+    "maintain: this harness was installed from a local source and the project has no "
+    "chaos-engine/install.py to reinstall from; rerun the install one-liner (#6757)"
+)
+
+
 def _digest(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
@@ -187,13 +193,17 @@ def maintain_commands(installed_root: Path, project: Path) -> list[list[str]]:
     import json
 
     manifest = json.loads((installed_root / "manifest.json").read_text(encoding="utf-8"))
-    repository, branch = recorded_source(manifest.get("source", {}), project)
-    if not repository:
-        raise ValueError(MAINTAIN_UNKNOWN_SOURCE)
+    source = manifest.get("source", {})
     python = sys.executable
-    reinstall = [python, str(installed_root / "bootstrap.py"), "--project", str(project), "--repository", repository]
-    if branch:
-        reinstall += ["--branch", branch]
+    if source.get("kind") == "local":
+        reinstall = local_reinstall_command(project)
+    else:
+        repository, branch = recorded_source(source, project)
+        if not repository:
+            raise ValueError(MAINTAIN_UNKNOWN_SOURCE)
+        reinstall = [python, str(installed_root / "bootstrap.py"), "--project", str(project), "--repository", repository]
+        if branch:
+            reinstall += ["--branch", branch]
     distribution = str(manifest.get("distribution", {}).get("id", ""))
     if distribution:
         reinstall += ["--distribution", distribution]
@@ -202,6 +212,23 @@ def maintain_commands(installed_root: Path, project: Path) -> list[list[str]]:
         [python, str(installed_root / "install.py"), "doctor", "--project", str(project)],
         [python, str(installed_root / "tool.py"), "stores", "refresh", "--if-stale"],
     ]
+
+
+def local_reinstall_command(project: Path) -> list[str]:
+    """Reinstall a `kind: local` harness from a snapshot of the project's own source (#6757).
+
+    The snapshot lives outside the tree, matching the repo-only command in bot-entry.md.
+    """
+    import tempfile
+
+    source = project / "chaos-engine"
+    if not (source / "install.py").is_file():
+        raise ValueError(MAINTAIN_NO_LOCAL_SOURCE)
+    commit = _maintain_git(project, "rev-parse", "HEAD").stdout.strip()
+    snapshot = Path(tempfile.mkdtemp(prefix="chaos-engine-maintain-")) / "chaos-engine"
+    shutil.copytree(source, snapshot, ignore=shutil.ignore_patterns("__pycache__"))
+    return [sys.executable, str(snapshot / "install.py"), "install", "--project", str(project),
+            "--source", str(snapshot), "--commit", commit]
 
 
 def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
