@@ -13,9 +13,9 @@ Lean CE-native skill informed by Task Observer methodology
 
 ## When
 
-- **Primary:** root-owned Learning Session after confirmed delivery when a trigger fired (failure, surprise, owner ask).
+- **Primary:** root-owned Learning Session after every final delivery (owner approval, publish done, final PR merged), automatic: lessons diff against the skills, one spec issue, ONE PR (`skip-release-notes`, auto-merge MERGE) babysat to merged.
 - **Secondary:** explicit operator request mid-session.
-- **Not:** every casual turn — keep always-on cost low.
+- **Not:** every casual turn, and never the Learning Session PR's own merge.
 - A lesson already shipped in the delivery pull request is not a new issue. Finalize with nothing durable.
 
 If `assess` refuses `novel_success` under the one-incident rule, still
@@ -79,6 +79,8 @@ fail/deny hooks already write tiny state notes) — never Task Observer.
 Skill bodies: `skill_compress_audit.py` proposes compress diffs only; never auto-apply.
 Periodic: `meta_optimize.py review` (offline cadence — not continuous).
 Draft skill PRs: `draft_skill_pr.py` opt-in only (default OFF; never auto-merge).
+That covers the automated drafter only; the Learning Session's own lessons PR
+runs the normal PR gates and auto-merges.
 See [meta-optimize](../../references/meta-optimize.md) and
 [draft-skill-pr](../../references/draft-skill-pr.md).
 

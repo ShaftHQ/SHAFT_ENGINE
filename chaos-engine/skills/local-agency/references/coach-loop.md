@@ -116,7 +116,7 @@ Executor / Task prompts: `brief_path:` pointer plus the delta slice only; check 
 ## After every delivery
 
 1. Dual CE reinstall when harness files changed (work machine + agent canonical).
-2. Learning Session when a trigger fired — durable lessons
+2. Learning Session after every final delivery — durable lessons
    belong in git-tracked `.memory/` / harness PRs, not only host chat memory.
 3. Fold new durable coach moves back into **this** reference (keep it short).
 

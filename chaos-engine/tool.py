@@ -451,6 +451,7 @@ def stores_command(installed_root: Path, arguments: list[str]) -> int:
     if action in HELP_FLAGS or action == "":
         print(
             "usage: tool.py stores refresh [--if-stale]\n"
+            "       Skips a store already indexed at the default-branch tip.\n"
             "       tool.py stores status\n"
             "       tool.py stores install-schedule\n",
             end="",

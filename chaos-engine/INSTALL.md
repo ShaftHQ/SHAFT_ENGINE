@@ -809,7 +809,7 @@ Post-delivery Learning Session loads
 attribution for Task Observer methodology). It wraps `learning.py` privacy gates
 for harness + product dual-track observations. Portable Stop / delivery-complete
 hooks enforce the Learning Session after a confirmed delivery (including
-`gh pr merge` and `delivery-status`) only when a trigger fired.
+`gh pr merge` and `delivery-status`): Learning Session after every final delivery.
 The Learning Session reason comes before any retrieve citation, and
 `stop_hook_active` does not clear unpaid delivery-complete debt.
 Doctor surfaces the gate under `components.hooks.learningSession`. SessionStart

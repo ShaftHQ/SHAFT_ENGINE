@@ -37,7 +37,10 @@ work. Five stages, in order; one CPU-heavy job at a time.
   `design_qc.py fresh --source 'make_*.py' --source 'boards/*.json' --target 'scenes/*.html'`
   and stops on failure. A rebuild script never calls a later stage alone.
 - Wait with one blocking call: `python3 .chaos-engine/tool.py job wait build --timeout 540 --tail 5`
-  (exit 7 = still live; call it again). No log polling loops.
+  (exit 7 = still live; call it again). No log polling loops. Keep
+  `--timeout` under the host's per-call tool limit, or start the wait in the
+  background and await it: a host that aborts a long blocking call loses
+  the wait, not the job.
 - Cap encoder threads below the core count (`-threads`, x264 `threads`) and
   keep tests and other heavy jobs off the machine while it renders.
 
@@ -82,7 +85,9 @@ moderate or worse.
 - Verify every finding with a tool before any edit:
   `design_qc.py frames out.mp4 --at 1:36 --at 2:18 --out sheet.png --spectrum spec.png`
   (frames at t-1, t, t+1; spectrum of the same window), plus ASR word timings
-  for speech. Record it in `ledger.json`:
+  for speech. Write each re-check to a new file name (`sheet-r2-0136.png`):
+  image readers can cache by path and show the old frame. Record it in
+  `ledger.json`:
   `{"rounds": [{"round": 1, "output": "short", "findings": [{"id": "f1", "t": "0:15", "severity": "moderate", "claim": "caption covers chips", "verdict": "true", "evidence": "sheet r1: overlap at y 1290", "status": "fixed", "fix_evidence": "sheet r2: 140 px gap"}]}]}`.
 - A true finding is fixed red, then green: first add a failing check (a
   `claims` `must`/`must_not` entry, a frame assertion), then fix until it
@@ -100,3 +105,13 @@ Upload when full QC passes and `findings` says `deliver` (or `owner` at the
 cap), with the QC report and review log beside the files. A file sent
 earlier is named and labelled DRAFT with its open failures; superseded
 drafts move to an archive folder.
+
+## 6. Learning Session
+
+Learning Session after every final delivery: when the owner approves the cut,
+the publish completes, or the final PR merges, run it at once without being
+asked ([router contract](../../../../references/router-contract.md#learning-session)).
+Diff the STATUS log, review log and failures against these cards. File one spec
+issue for what is new, then open ONE PR (`skip-release-notes`, auto-merge
+MERGE) and babysit it to merged. When nothing is new, write one report line
+naming the card that already holds each lesson.

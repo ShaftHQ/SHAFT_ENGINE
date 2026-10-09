@@ -232,7 +232,7 @@ def render_catalog(index: dict) -> str:
 ROUTER_USE = {
     "kanban": "several deliverables, tickets, or delegates",
     "work-item": "open or rewrite an issue or work item",
-    "self-improve": "Learning Session trigger fired",
+    "self-improve": "Final delivery confirmed (Learning Session)",
     "git-cleanup": "dirty worktree or stray branches",
     "local-agency": "delegate to local OSS agents",
     "local-runtimes": "pick a local inference runtime",

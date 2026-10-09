@@ -160,10 +160,9 @@ prose, as those files already require.
 
 ## Learning Session
 
-Stop becomes the Learning Session gate only after delivery is complete and a
-trigger fired (task failure, reflection trigger, or `learning-requested` /
-`surprise` / `defect-escaped` activity)
-(`delivery-status` or confirmed `gh pr merge`). That reason is returned before
+Stop becomes the Learning Session gate after every confirmed delivery
+(`delivery-status` or confirmed `gh pr merge`), with or without a failure,
+surprise, or owner ask: Learning Session after every final delivery. That reason is returned before
 any retrieve citation. `stop_hook_active` does not clear an unpaid
 delivery-complete debt; a later Stop still blocks until a completion artifact
 exists. Commits, guard refusals,

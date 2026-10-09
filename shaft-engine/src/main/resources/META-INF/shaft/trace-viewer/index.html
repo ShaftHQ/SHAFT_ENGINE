@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; frame-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>SHAFT Trace Report</title>
+<style>
+/*@SHAFT_THEME_STYLE@*/
+/*@VIEWER_CSS@*/
+</style>
+</head>
+<body>
+<p id="trace-loading" class="muted" role="status">Loading trace&hellip;</p>
+<template id="trace-viewer-shell">
+<div class="report-shell">
+<header class="report-header">
+  <div class="report-header-inner">
+    <span class="brand-mark">S</span>
+    <div>
+      <h1>SHAFT Trace Report</h1>
+      <p class="subtitle" id="trace-subtitle">Failure trace viewer</p>
+    </div>
+  </div>
+</header>
+<main class="report-main">
+<section class="panel" id="truncation-banner" hidden
+         style="border-left:4px solid var(--shaft-fail)">
+  <h2>Trace partially truncated</h2>
+  <p class="muted" id="truncation-detail"></p>
+</section>
+<section class="panel trace-summary" id="trace-summary"></section>
+<section class="panel trace-navigator" aria-labelledby="trace-navigator-title">
+  <div class="toolbar">
+    <h2 id="trace-navigator-title">Trace navigator</h2>
+    <button type="button" class="secondary" id="show-all-range">Show all</button>
+  </div>
+  <div class="range-controls">
+    <label for="range-start">Range start</label>
+    <input id="range-start" type="range" min="0" max="1" value="0" step="1">
+    <output id="range-label" aria-live="polite">Full trace</output>
+    <input id="range-end" type="range" min="0" max="1" value="1" step="1">
+    <label for="range-end">Range end</label>
+  </div>
+  <div id="trace-error-markers" class="error-markers" role="group" aria-label="Failures on the timeline"></div>
+  <div id="trace-filmstrip" class="filmstrip" role="listbox" aria-label="Action screenshot filmstrip"></div>
+</section>
+<div class="trace-layout">
+  <aside class="panel">
+    <h2>Actions</h2>
+    <div class="toolbar"><input id="action-search" type="search" aria-label="Search actions" placeholder="Search actions"></div>
+    <div id="action-list"></div>
+  </aside>
+  <section class="panel">
+    <div class="toolbar">
+      <h2 id="details-title">Trace Details</h2>
+      <button type="button" class="secondary" onclick="copyJson()">Copy JSON</button>
+    </div>
+    <dl id="details"></dl>
+    <div class="tab-groups" id="action-tabs">
+      <div class="tabs tab-primary" role="tablist" aria-label="Primary investigation">
+      <button data-tab="timeline" class="selected">Timeline</button>
+      <button data-tab="comparison">Snapshots</button>
+      <button data-tab="network">Network</button>
+      <button data-tab="console">Console</button>
+      <button data-tab="source">Source</button>
+      <button data-tab="call">Call</button>
+      <button data-tab="log">Log</button>
+      <button data-tab="errors">Errors</button>
+      <button data-tab="artifacts">Artifacts</button>
+      </div>
+      <div class="tabs tab-secondary" role="tablist" aria-label="More evidence">
+      <button data-tab="exception">Exception</button>
+      <button data-tab="snapshot">Snapshot</button>
+      <button data-tab="nativeEvidence">Native evidence</button>
+      <button data-tab="domSnapshot">DOM Snapshot</button>
+      <button data-tab="screenshot">Screenshot</button>
+      <button data-tab="locatorHealth">Locator Health</button>
+       <button data-tab="webSockets">WebSockets</button>
+       <button data-tab="mobile">Mobile</button>
+       <button data-tab="browserObservability">Observability</button>
+      <button data-tab="environment">Environment</button>
+      <button data-tab="attachments">Attachments</button>
+      <button data-tab="json">JSON</button>
+      </div>
+    </div>
+    <pre id="tab-content"></pre>
+    <div id="timeline-panel" hidden>
+      <p class="muted">Every recorded action, network exchange, and console message in chronological order. Click an action to inspect it.</p>
+      <div class="tabs" id="timeline-filters">
+        <button data-filter="all" class="selected">All</button>
+        <button data-filter="action">Actions</button>
+        <button data-filter="validation">Validations</button>
+        <button data-filter="network">Network</button>
+        <button data-filter="console">Console</button>
+        <button data-filter="failed">Failures</button>
+      </div>
+      <div id="timeline-list"></div>
+    </div>
+    <div id="dom-snapshot-panel" hidden>
+      <div class="tabs" id="dom-snapshot-tabs">
+        <button data-dom="before" class="selected">Before</button>
+        <button data-dom="after">After</button>
+      </div>
+      <iframe id="dom-snapshot-frame" title="DOM snapshot" sandbox=""
+              style="width:100%;height:420px;border:1px solid var(--shaft-border,#ccc);background:var(--shaft-bg)"></iframe>
+    </div>
+    <div id="screenshot-panel" hidden>
+      <img id="screenshot-image" alt="Action screenshot"
+           style="max-width:100%;border:1px solid var(--shaft-border,#ccc)">
+      <p id="screenshot-empty" class="muted" hidden>No screenshot captured for this action.</p>
+    </div>
+    <div id="comparison-panel" hidden>
+      <div class="comparison-grid">
+        <section><h3>Before action</h3><iframe id="comparison-before" title="Before action DOM snapshot" sandbox=""></iframe><p id="comparison-before-empty" class="muted" hidden>No before-action snapshot was captured.</p></section>
+        <section><h3>Action state</h3><iframe id="comparison-input" title="Native action-state DOM snapshot" sandbox=""></iframe><img id="comparison-action" alt="Screenshot captured during the selected action"><p id="comparison-action-empty" class="muted" hidden>No action-state snapshot or screenshot was captured.</p></section>
+        <section><h3>After action</h3><iframe id="comparison-after" title="After action DOM snapshot" sandbox=""></iframe><p id="comparison-after-empty" class="muted" hidden>No after-action snapshot was captured.</p></section>
+      </div>
+    </div>
+    <div id="native-evidence-panel" hidden>
+      <p class="muted" id="native-evidence-hint"></p>
+      <table class="trace-table"><thead><tr>
+        <th>Correlation</th><th>Operation</th><th>Source</th><th>Logs</th><th>Error</th>
+      </tr></thead><tbody id="native-evidence-rows"></tbody></table>
+    </div>
+    <div id="network-panel" hidden>
+      <p class="muted" id="network-hint"></p>
+      <div class="panel-controls">
+        <label>Method<select id="network-method-filter"><option value="">All methods</option></select></label>
+        <label>Status<select id="network-status-filter"><option value="">All statuses</option></select></label>
+        <label>Search<input id="network-text-filter" type="search" placeholder="URL, headers, or body"></label>
+        <output id="network-result-count" class="result-count" aria-live="polite"></output>
+      </div>
+      <div class="table-scroll"><table class="trace-table network-table"><thead><tr>
+        <th id="network-sort-time"><button type="button" class="sort-button" data-network-sort="time">Time</button></th>
+        <th id="network-sort-type"><button type="button" class="sort-button" data-network-sort="type">Type</button></th>
+        <th id="network-sort-method" aria-sort="ascending"><button type="button" class="sort-button" data-network-sort="method">Method</button></th>
+        <th id="network-sort-status"><button type="button" class="sort-button" data-network-sort="status">Status</button></th>
+        <th id="network-sort-duration"><button type="button" class="sort-button" data-network-sort="duration">Duration</button></th>
+        <th id="network-sort-size"><button type="button" class="sort-button" data-network-sort="size">Size</button></th>
+        <th id="network-sort-contentType"><button type="button" class="sort-button" data-network-sort="contentType">Content type</button></th>
+        <th>URL</th><th>Details</th>
+      </tr></thead><tbody id="network-rows"></tbody></table></div>
+      <section id="network-detail" class="network-detail" hidden aria-labelledby="network-detail-title">
+        <div class="toolbar"><h3 id="network-detail-title">Request details</h3><button type="button" class="secondary" id="network-detail-close">Close details</button></div>
+        <dl id="network-detail-general"></dl>
+        <h4>Request headers</h4>
+        <table class="trace-table header-table"><tbody id="network-request-headers"></tbody></table>
+        <h4>Response headers</h4>
+        <table class="trace-table header-table"><tbody id="network-response-headers"></tbody></table>
+        <h4>Request body</h4>
+        <pre id="network-request-body"></pre>
+        <h4>Response body <span id="network-body-truncated" class="status-chip warn" hidden>Preview truncated</span></h4>
+        <pre id="network-response-body"></pre>
+        <img id="network-response-image" alt="Response body image preview" hidden>
+        <details><summary>Raw exchange JSON</summary><pre id="network-detail-raw"></pre></details>
+      </section>
+    </div>
+    <div id="console-panel" hidden>
+      <p class="muted" id="console-hint"></p>
+      <div class="panel-controls">
+        <label>Source<select id="console-source-filter"><option value="">All sources</option></select></label>
+        <label>Level<select id="console-level-filter"><option value="">All levels</option></select></label>
+        <label>Search<input id="console-text-filter" type="search" placeholder="Search console messages"></label>
+        <output id="console-result-count" class="result-count" aria-live="polite"></output>
+      </div>
+      <table class="trace-table"><thead><tr>
+        <th id="console-sort-time" aria-sort="ascending"><button type="button" class="sort-button" data-console-sort="time">Time</button></th>
+        <th id="console-sort-source"><button type="button" class="sort-button" data-console-sort="source">Source</button></th>
+        <th id="console-sort-level"><button type="button" class="sort-button" data-console-sort="level">Level</button></th>
+        <th id="console-sort-message"><button type="button" class="sort-button" data-console-sort="message">Message</button></th><th>Details</th>
+      </tr></thead><tbody id="console-rows"></tbody></table>
+     <pre id="console-detail" hidden></pre>
+   </div>
+   <div id="mobile-panel" hidden>
+     <p class="muted" id="mobile-hint"></p>
+     <div class="toolbar" id="mobile-category-filter" role="group" aria-label="Mobile action category">
+       <button type="button" class="selected" data-mobile-category="all" aria-pressed="true">All</button>
+       <button type="button" data-mobile-category="mobile/app" aria-pressed="false">App</button>
+       <button type="button" data-mobile-category="mobile/context" aria-pressed="false">Context</button>
+       <button type="button" data-mobile-category="mobile/device" aria-pressed="false">Device</button>
+       <button type="button" data-mobile-category="mobile/logs" aria-pressed="false">Logs</button>
+       <button type="button" data-mobile-category="mobile/performance" aria-pressed="false">Performance</button>
+       <button type="button" data-mobile-category="mobile/recording" aria-pressed="false">Recording</button>
+       <button type="button" data-mobile-category="mobile/evidence" aria-pressed="false">Evidence</button>
+       <output id="mobile-result-count" class="result-count" aria-live="polite"></output>
+     </div>
+     <table class="trace-table"><thead><tr>
+       <th>Time</th><th>Area</th><th>Operation</th><th>Status</th><th>Summary</th><th>Details</th>
+     </tr></thead><tbody id="mobile-rows"></tbody></table>
+     <pre id="mobile-detail" hidden></pre>
+   </div>
+   <div id="websocket-panel" hidden>
+     <p class="muted" id="websocket-hint"></p>
+     <div class="panel-controls">
+       <label>Direction<select id="websocket-direction-filter"><option value="">All directions</option></select></label>
+       <label>Type<select id="websocket-type-filter"><option value="">All event types</option></select></label>
+       <label>Search<input id="websocket-text-filter" type="search" placeholder="URL, payload, digest, or reason"></label>
+       <output id="websocket-result-count" class="result-count" aria-live="polite"></output>
+     </div>
+     <table class="trace-table"><thead><tr>
+       <th>Type</th><th>Direction</th><th>URL</th><th>Opcode</th><th>Payload</th><th>Details</th>
+     </tr></thead><tbody id="websocket-rows"></tbody></table>
+     <pre id="websocket-detail" hidden></pre>
+   </div>
+   <div id="artifact-panel" hidden>
+     <p class="muted" id="artifact-hint"></p>
+     <p class="muted" id="native-trace-handoff" hidden></p>
+     <div class="panel-controls">
+       <label>Kind<select id="artifact-kind-filter"><option value="">All kinds</option></select></label>
+       <output id="artifact-result-count" class="result-count" aria-live="polite"></output>
+     </div>
+     <div class="table-scroll"><table class="trace-table artifact-table"><thead><tr>
+       <th id="artifact-sort-name"><button type="button" class="sort-button" data-artifact-sort="name">Name</button></th>
+       <th id="artifact-sort-kind"><button type="button" class="sort-button" data-artifact-sort="kind">Kind</button></th>
+       <th>Media type</th><th>Status</th>
+       <th id="artifact-sort-size"><button type="button" class="sort-button" data-artifact-sort="size">Size</button></th>
+       <th>Digest</th><th>Used by</th><th>Details</th>
+     </tr></thead><tbody id="artifact-rows"></tbody></table></div>
+   </div>
+   <div id="source-panel" hidden>
+     <p class="muted" id="source-hint"></p>
+     <div id="source-frames" class="source-frames" role="group" aria-label="Stack frames"></div>
+     <ol id="source-lines" class="source-lines" aria-label="Test source"></ol>
+   </div>
+   <div id="call-panel" hidden>
+     <dl id="call-details"></dl>
+     <p class="muted" id="call-empty" hidden>No call details were recorded for this action.</p>
+   </div>
+   <div id="log-panel" hidden>
+     <h3>Actionability</h3>
+     <ol id="actionability-steps" class="actionability-steps"></ol>
+     <p class="muted" id="actionability-empty" hidden>No actionability steps were recorded for this action.</p>
+     <h3>Test log</h3>
+     <pre id="test-log"></pre>
+   </div>
+   <div id="errors-panel" hidden>
+     <p class="muted" id="errors-hint"></p>
+     <ol id="error-list" class="error-list"></ol>
+   </div>
+ </section>
+</div>
+</main>
+</div>
+</template>
+<pre hidden id="trace-data" data-encoding="gzip+base64">@TRACE_DATA@</pre>
+<pre hidden id="trace-truncation">@TRACE_TRUNCATION@</pre>
+<script type="text/plain" id="trace-viewer-main">
+/*@VIEWER_CORE_JS@*/
+/*@VIEWER_JS@*/
+</script>
+<script>
+/*@VIEWER_BOOTSTRAP_JS@*/
+</script>
+</body>
+</html>

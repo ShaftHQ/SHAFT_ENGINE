@@ -1,0 +1,182 @@
+{
+  "reference": "Playwright Trace Viewer v1.63.0 (https://playwright.dev/docs/trace-viewer)",
+  "epic": 6723,
+  "rows": [
+    {
+      "id": "actions-list",
+      "playwright": "Actions list with locator and duration",
+      "status": "present",
+      "evidence": "id=\"action-search\""
+    },
+    {
+      "id": "snapshots-before-action-after",
+      "playwright": "Before, Action and After DOM snapshots",
+      "status": "partial",
+      "evidence": "id=\"comparison-before\"",
+      "gap": "No target or click-point highlight, no hover preview, no pop-out",
+      "issue": 6716
+    },
+    {
+      "id": "filmstrip",
+      "playwright": "Screencast filmstrip with hover magnification",
+      "status": "partial",
+      "evidence": "filmstrip",
+      "gap": "No hover magnification; actions without screenshots render empty tiles",
+      "issue": 6717
+    },
+    {
+      "id": "timeline-range",
+      "playwright": "Drag or double-click range selection filtering every panel",
+      "status": "partial",
+      "evidence": "id=\"range-start\"",
+      "gap": "Range is two sliders only; no drag on the filmstrip and no double-click on an action",
+      "issue": 6717
+    },
+    {
+      "id": "source",
+      "playwright": "Source panel highlighting the action line",
+      "status": "present",
+      "evidence": "id=\"source-lines\""
+    },
+    {
+      "id": "call",
+      "playwright": "Call details (duration, locator, strict mode, key)",
+      "status": "present",
+      "evidence": "id=\"call-details\""
+    },
+    {
+      "id": "log",
+      "playwright": "Actionability log",
+      "status": "present",
+      "evidence": "id=\"actionability-steps\""
+    },
+    {
+      "id": "errors",
+      "playwright": "Errors tab with timeline markers and source jump",
+      "status": "present",
+      "evidence": "id=\"trace-error-markers\""
+    },
+    {
+      "id": "console",
+      "playwright": "Console with browser and test origins",
+      "status": "present",
+      "evidence": "id=\"console-panel\""
+    },
+    {
+      "id": "network-list",
+      "playwright": "Sortable network list with filters",
+      "status": "present",
+      "evidence": "data-network-sort=\"contentType\""
+    },
+    {
+      "id": "network-detail",
+      "playwright": "Request and response headers and bodies pane",
+      "status": "present",
+      "evidence": "id=\"network-detail-raw\""
+    },
+    {
+      "id": "metadata",
+      "playwright": "Metadata tab",
+      "status": "present",
+      "evidence": "data-tab=\"environment\""
+    },
+    {
+      "id": "attachments-list",
+      "playwright": "Attachments tab",
+      "status": "present",
+      "evidence": "data-tab=\"attachments\""
+    },
+    {
+      "id": "attachments-diff-slider",
+      "playwright": "Expected, actual and diff with slider overlay",
+      "status": "missing",
+      "gap": "No slider overlay",
+      "issue": 6722
+    },
+    {
+      "id": "pick-locator",
+      "playwright": "Pick locator from a snapshot",
+      "status": "missing",
+      "gap": "Locator health exists, picking from a snapshot does not",
+      "issue": 6722
+    },
+    {
+      "id": "deep-links",
+      "playwright": "Deep link to an action and range",
+      "status": "present",
+      "evidence": "hashchange"
+    },
+    {
+      "id": "single-file-offline",
+      "playwright": "Self-contained trace file",
+      "status": "present",
+      "evidence": "data-encoding=\"gzip+base64\""
+    },
+    {
+      "id": "keyboard-and-themes",
+      "playwright": "Keyboard navigation and themes",
+      "status": "partial",
+      "evidence": "keydown",
+      "gap": "Arrow-key action navigation, shortcuts and a dark theme are incomplete",
+      "issue": 6720
+    },
+    {
+      "id": "large-traces",
+      "playwright": "Responsive on large traces",
+      "status": "present",
+      "evidence": "function renderChunked"
+    },
+    {
+      "id": "artifacts-readability",
+      "playwright": "Readable attachment and artifact listing",
+      "status": "present",
+      "evidence": "function groupArtifacts"
+    },
+    {
+      "id": "filmstrip-empty-tiles",
+      "playwright": "Filmstrip shows captured frames only",
+      "status": "partial",
+      "evidence": "filmstrip",
+      "gap": "Empty 'No screenshot' tiles and no keyboard navigation",
+      "issue": 6726
+    },
+    {
+      "id": "layout-and-tab-overflow",
+      "playwright": "Full-width resizable panes and compact tab bar",
+      "status": "partial",
+      "evidence": "trace-layout",
+      "gap": "Narrow centered column and tab bar wrapping into four rows",
+      "issue": 6727
+    },
+    {
+      "id": "network-request-body",
+      "playwright": "Request body in the network detail pane",
+      "status": "missing",
+      "gap": "Only the request size is recorded; the body is not retained",
+      "issue": 6732
+    },
+    {
+      "id": "oversized-screenshots",
+      "playwright": "Large screenshots kept at reduced resolution",
+      "status": "missing",
+      "gap": "A screenshot over shaft.trace.maxArtifactMb is omitted instead of downscaled",
+      "issue": 6733
+    },
+    {
+      "id": "empty-categories",
+      "playwright": "Tabs and chips appear only when they have data",
+      "status": "partial",
+      "evidence": "data-tab=\"webSockets\"",
+      "gap": "Every tab is always shown, even with no data; no counts on tab labels",
+      "issue": 6730
+    },
+    {
+      "id": "allure-integration",
+      "playwright": "Trace opens inside the Allure report",
+      "status": "partial",
+      "evidence": "SHAFT Trace Report",
+      "gap": "Not verified inside a generated Allure 3 report; no theme follow, no open-in-new-tab link",
+      "issue": 6731
+    }
+  ]
+}

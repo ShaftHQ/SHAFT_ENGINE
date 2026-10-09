@@ -42,11 +42,23 @@ scheduled runs cannot create listeners hands that to the parent.
 
 ## After each delivery
 
-CLI hosts' Stop hook requires the Learning Session after a confirmed delivery
-(PR merged, issue closed). A bot runs it itself: follow
-[self-improve](../skills/self-improve/SKILL.md) once per delivery, then run
+Learning Session after every final delivery: when the owner approves a
+deliverable, a publish completes, or the final PR merges, the bot runs it
+itself, at once, without being asked. CLI hosts' Stop hook enforces the same
+rule. Follow the [router contract](router-contract.md#learning-session): diff
+the session lessons against the skills, file one spec issue, open ONE PR
+(`skip-release-notes`, auto-merge MERGE), and babysit it to merged; nothing new
+is one report line. Then run
 `python3 .chaos-engine/tool.py maintain` to fast-forward, reinstall, and
 re-check doctor before the next task.
+An interrupted `maintain` keeps running and holds `.chaos-engine.lock`; a
+second one fails with "another ChaosEngine operation is already running".
+Check the holder PID it names and `python3 .chaos-engine/install.py status --project . --json`
+before rerunning; a healthy core at the new commit means it already finished.
+The local pre-push hook does not run the Agent Guidance Gate. Before pushing a
+reference or skill edit in the ChaosEngine source repository, run (repo-only)
+`python3 scripts/ci/harness_pr_gate.py --base "$(git merge-base HEAD origin/HEAD)" --head "$(git rev-parse HEAD)"` (repo-only;
+issue tags and bare angle-bracket placeholders in references fail it).
 An older overlay can record a git-digest source without a repository; its
 `maintain` then stops at "repository must be an explicit GitHub
 owner/repository" after the fast-forward. Reinstall once with

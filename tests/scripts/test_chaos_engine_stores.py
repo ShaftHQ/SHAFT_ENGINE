@@ -158,12 +158,14 @@ class SharedStoreTest(unittest.TestCase):
         )
         palace = self.stores.resolve_palace(self.primary)
         palace.mkdir(parents=True)
-        # #6377: a palace counts as current only with at least one document row.
+        # #6377: a palace counts as current only with at least one document row,
+        # and that mine must be stamped at the default-branch tip.
         connection = sqlite3.connect(palace / "sqlite_exact.sqlite3")
         connection.execute("create table documents (id integer primary key, body text)")
         connection.execute("insert into documents (body) values ('x')")
         connection.commit()
         connection.close()
+        self.stores.write_palace_marker(palace, revision)
         calls = []
 
         fresh, _message = self.stores.graph_freshness(self.primary)
@@ -176,6 +178,87 @@ class SharedStoreTest(unittest.TestCase):
 
         self.assertEqual(0, result)
         self.assertEqual([], calls)
+
+    def _fresh_graph(self, revision: str) -> None:
+        graph_out = self.primary / "graphify-out"
+        graph_out.mkdir(exist_ok=True)
+        (graph_out / "graph.json").write_text("{}\n", encoding="utf-8")
+        manifest = graph_out / "manifest.json"
+        manifest.write_text('{"nodes": 1}\n', encoding="utf-8")
+        digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+        (graph_out / ".chaos-engine-source-revision.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "indexed_revision": revision,
+                    "manifest_sha256": digest,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def _palace_with_one_row(self) -> Path:
+        palace = self.stores.resolve_palace(self.primary)
+        palace.mkdir(parents=True, exist_ok=True)
+        connection = sqlite3.connect(palace / "sqlite_exact.sqlite3")
+        connection.execute("create table documents (id integer primary key, body text)")
+        connection.execute("insert into documents (body) values ('x')")
+        connection.commit()
+        connection.close()
+        return palace
+
+    def test_refresh_reuses_one_snapshot_and_skips_unchanged_mtimes(self):
+        revision = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
+        self._fresh_graph(revision)
+        palace = self._palace_with_one_row()
+        calls: list[list[str]] = []
+
+        def runner(command, cwd):
+            calls.append(command)
+            return 0
+
+        original_which = self.stores.shutil.which
+
+        def which(name, *args, **kwargs):
+            if name == "mempalace":
+                return "/tools/mempalace"
+            return original_which(name, *args, **kwargs)
+
+        with unittest.mock.patch.object(self.stores.shutil, "which", side_effect=which):
+            self.assertEqual(0, self.stores.refresh(self.primary, runner=runner))
+        common = self.stores.resolve_common_dir(self.primary)
+        snapshot = self.stores.store_snapshot_path(common)
+        source = snapshot / "source.py"
+        self.assertTrue(source.is_file())
+        untouched = source.stat().st_mtime_ns
+        self.assertEqual(revision, self.stores.palace_indexed_revision(palace))
+        mines = [command for command in calls if "mine" in command]
+        syncs = [command for command in calls if "sync" in command]
+        self.assertEqual(1, len(mines))
+        self.assertEqual(1, len(syncs))
+        self.assertIn(str(snapshot), mines[0])
+        self.assertLess(mines[0].index("--palace"), mines[0].index("mine"))
+        self.assertIn("--apply", syncs[0])
+        self.assertIn(str(snapshot), syncs[0])
+
+        (self.primary / "other.py").write_text("print('other')\n", encoding="utf-8")
+        self.git("add", "other.py", cwd=self.primary)
+        self.git("commit", "-m", "other file", cwd=self.primary)
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD", cwd=self.primary)
+        moved = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
+        self._fresh_graph(moved)
+        with unittest.mock.patch.object(self.stores.shutil, "which", side_effect=which):
+            self.assertEqual(0, self.stores.refresh(self.primary, runner=runner))
+        self.assertEqual(untouched, source.stat().st_mtime_ns)
+        self.assertEqual(moved, self.stores.palace_indexed_revision(palace))
+        self.assertEqual(snapshot, self.stores.store_snapshot_path(common))
+        self.assertEqual(2, len([command for command in calls if "mine" in command]))
+
+        held = len(calls)
+        with unittest.mock.patch.object(self.stores.shutil, "which", side_effect=which):
+            self.assertEqual(0, self.stores.refresh(self.primary, if_stale=False, runner=runner))
+        self.assertEqual(held, len(calls))
+        self.assertTrue(source.is_file())
 
     def test_retrieve_reports_graph_freshness_after_a_new_commit(self):
         # #6409: retrieve never answers from an outdated graph silently.
@@ -394,6 +477,7 @@ class SharedStoreTest(unittest.TestCase):
                 self.primary,
                 snapshot=corpus,
                 primary=self.primary,
+                revision="c" * 40,
                 invoke=mine_runner,
             )
         palace_filing = json.loads(

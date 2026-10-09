@@ -60,6 +60,11 @@ Give up the lower ones first.
 - `design_qc.py static clean-master.mp4` passes (no stretch over 3 s where
   no 60 px cell changes; measure the caption-free picture, with
   `--crop` to the capture region when callouts move over it).
+  A constant push-in can be flagged although it moves (the check misses
+  sub-pixel motion): diff the span's first and last frames, and
+  allow it (`--allow start-end`) only when a few percent of pixels change
+  (3.5 to 9 % measured). Allowed spans are timestamps: re-measure them
+  after every re-encode or rebuild, since they drift (1.2 s seen).
 - `design_qc.py contenthold edl.json` passes.
 - For every slide, the gap between its last reveal or camera key and its
   end is 3 s or less.

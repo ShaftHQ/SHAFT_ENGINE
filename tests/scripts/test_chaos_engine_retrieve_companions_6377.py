@@ -240,7 +240,28 @@ class EmptyPalaceTest(unittest.TestCase):
             self.assertFalse(self.stores._component_current(self.tmp, "mempalace"))
         full = self._make(2, "b")
         with unittest.mock.patch.dict(self.stores._component_current.__globals__, {"resolve_palace": lambda _cwd: full}):
+            self.assertFalse(self.stores._component_current(self.tmp, "mempalace"))
+        revision = "ab" * 20
+        (full / self.stores.GENERIC_MARKER).write_text(
+            json.dumps({"schema_version": 1, "indexed_revision": revision}) + "\n",
+            encoding="utf-8",
+        )
+        with unittest.mock.patch.dict(
+            self.stores._component_current.__globals__,
+            {
+                "resolve_palace": lambda _cwd: full,
+                "default_branch_commit": lambda _cwd: revision,
+            },
+        ):
             self.assertTrue(self.stores._component_current(self.tmp, "mempalace"))
+        with unittest.mock.patch.dict(
+            self.stores._component_current.__globals__,
+            {
+                "resolve_palace": lambda _cwd: full,
+                "default_branch_commit": lambda _cwd: "cd" * 20,
+            },
+        ):
+            self.assertFalse(self.stores._component_current(self.tmp, "mempalace"))
 
     def test_setup_incomplete_when_empty(self):
         dependencies = _load("dependencies")
