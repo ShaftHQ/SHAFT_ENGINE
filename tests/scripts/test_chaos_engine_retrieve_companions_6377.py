@@ -416,6 +416,32 @@ class MaintainTest(unittest.TestCase):
         self.assertNotIn("--branch", reinstall)
         self.assertIn("Acme/Widget", reinstall)
 
+    def _local_manifest(self) -> Path:
+        root = self.tmp / "local-core"
+        root.mkdir(exist_ok=True)
+        (root / "manifest.json").write_text(
+            json.dumps({"source": {"commit": "0" * 40, "kind": "local"}, "distribution": {"id": "portable"}}),
+            encoding="utf-8")
+        return root
+
+    def test_local_install_reinstalls_from_source_snapshot_6757(self):
+        source = self.work / "chaos-engine"
+        source.mkdir()
+        (source / "install.py").write_text("# stub\n", encoding="utf-8")
+        reinstall = self.tool.maintain_commands(self._local_manifest(), self.work)[0]
+        snapshot = Path(reinstall[reinstall.index("--source") + 1])
+        self.assertEqual("install", reinstall[2])
+        self.assertTrue((snapshot / "install.py").is_file())
+        self.assertNotEqual(source.resolve(), snapshot.resolve())
+        self.assertFalse(snapshot.resolve().is_relative_to(self.work.resolve()))
+        self.assertEqual(_git(self.work, "rev-parse", "HEAD"), reinstall[reinstall.index("--commit") + 1])
+        self.assertEqual("portable", reinstall[reinstall.index("--distribution") + 1])
+        self.assertNotIn("--repository", reinstall)
+
+    def test_local_install_without_source_fails_before_running_6757(self):
+        with self.assertRaisesRegex(ValueError, "local source"):
+            self.tool.maintain_commands(self._local_manifest(), self.work)
+
     def test_digest_install_unknown_repository_fails_before_bootstrap_6664(self):
         root = self._digest_manifest("Other/Repo", "main")
         with self.assertRaisesRegex(ValueError, "install one-liner"):

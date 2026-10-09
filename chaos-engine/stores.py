@@ -366,6 +366,10 @@ def read_wing(root: Path) -> str | None:
     return None
 
 
+class RefreshBusy(RuntimeError):
+    """Another process holds the shared store refresh lock."""
+
+
 @contextmanager
 def refresh_lock(common_dir: Path) -> Iterator[None]:
     """Hold the repository store lock. A second refresh exits without building."""
@@ -388,7 +392,7 @@ def refresh_lock(common_dir: Path) -> Iterator[None]:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError as error:
         lock_file.close()
-        raise RuntimeError("store refresh is already running") from error
+        raise RefreshBusy("store refresh is already running") from error
     try:
         yield
     finally:
@@ -738,8 +742,9 @@ def refresh(
     """Index the default-branch tip into the shared stores.
 
     Allowed from any worktree. Does not fetch, reset, or clean a checkout.
-    A store already indexed at that tip is left alone. ``if_stale`` remains
-    accepted for the daily timer and does not force a second rebuild.
+    A store already indexed at that tip is left alone. ``if_stale`` (daily
+    timer, ``tool.py maintain``) never forces a second rebuild and treats a
+    refresh already running in another process as done (#6757).
     """
     if not isinstance(if_stale, bool):
         raise RuntimeError("if_stale must be a bool")
@@ -758,31 +763,36 @@ def refresh(
         return 0
     revision = default_branch_commit(cwd)
     invoke = runner or subprocess.run
-    with refresh_lock(common):
-        if current():
-            return 0
-        primary = resolve_primary_root(cwd)
-        snapshot = ensure_store_snapshot(cwd, common, revision)
-        if "graphify" in selected and not _component_current(cwd, "graphify"):
-            scratch = Path(tempfile.mkdtemp(prefix="chaos-engine-graphify-"))
-            try:
-                _refresh_graphify(
+    try:
+        with refresh_lock(common):
+            if current():
+                return 0
+            primary = resolve_primary_root(cwd)
+            snapshot = ensure_store_snapshot(cwd, common, revision)
+            if "graphify" in selected and not _component_current(cwd, "graphify"):
+                scratch = Path(tempfile.mkdtemp(prefix="chaos-engine-graphify-"))
+                try:
+                    _refresh_graphify(
+                        cwd,
+                        snapshot=snapshot,
+                        scratch=scratch,
+                        revision=revision,
+                        invoke=invoke,
+                    )
+                finally:
+                    shutil.rmtree(scratch, ignore_errors=True)
+            if "mempalace" in selected and not _component_current(cwd, "mempalace"):
+                _refresh_mempalace(
                     cwd,
                     snapshot=snapshot,
-                    scratch=scratch,
+                    primary=primary,
                     revision=revision,
                     invoke=invoke,
                 )
-            finally:
-                shutil.rmtree(scratch, ignore_errors=True)
-        if "mempalace" in selected and not _component_current(cwd, "mempalace"):
-            _refresh_mempalace(
-                cwd,
-                snapshot=snapshot,
-                primary=primary,
-                revision=revision,
-                invoke=invoke,
-            )
+    except RefreshBusy:
+        if not if_stale:
+            raise
+        print("stores: refresh already running in another process; skipped", file=sys.stderr)
     return 0
 
 

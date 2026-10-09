@@ -138,6 +138,18 @@ class SharedStoreTest(unittest.TestCase):
 
         self.assertEqual([], calls)
 
+    def test_if_stale_refresh_skips_while_another_refresh_runs_6757(self):
+        calls = []
+
+        def runner(command, cwd):
+            calls.append(command)
+            return 0
+
+        with self.stores.refresh_lock(self.primary / ".git"):
+            self.assertEqual(0, self.stores.refresh(self.linked, if_stale=True, runner=runner))
+
+        self.assertEqual([], calls)
+
     def test_if_stale_does_not_build_when_the_marker_matches(self):
         revision = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
         graph_out = self.primary / "graphify-out"
