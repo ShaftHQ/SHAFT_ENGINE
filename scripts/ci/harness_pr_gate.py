@@ -125,6 +125,7 @@ CHECKS = {
         (
             "tests.scripts.test_chaos_engine_hosts",
             "tests.scripts.test_copilot_cli_hook",
+            "tests.scripts.test_chaos_engine_grok_hook_env",
         ),
         True,
     ),
@@ -621,6 +622,7 @@ SURFACE_PATTERNS = {
         ".github/hooks/*.json",
         "tests/scripts/test_chaos_engine_hosts.py",
         "tests/scripts/test_copilot_cli_hook.py",
+        "tests/scripts/test_chaos_engine_grok_hook_env.py",
     ),
     "lifecycle": (
         "chaos-engine/hooks/*",
