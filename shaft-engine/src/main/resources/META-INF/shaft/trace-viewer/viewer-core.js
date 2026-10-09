@@ -175,12 +175,13 @@ function themeFromBackground(color){
   const luminance = 0.299 * Number(match[1]) + 0.587 * Number(match[2]) + 0.114 * Number(match[3]);
   return luminance < 128 ? 'dark' : 'light';
 }
-// Theme precedence: a manual choice, then ?theme=, then the hosting report, then a framed default of light.
-function resolveTheme(stored, query, host, framed){
+// Theme precedence: a manual choice, then ?theme=, then the hosting report; null follows the browser's
+// colour scheme, which is what a host that paints nothing (Allure 2, Allure 3 light) follows by default.
+function resolveTheme(stored, query, host){
   for (const candidate of [stored, query, host]) {
     if (candidate === 'dark' || candidate === 'light') return candidate;
   }
-  return framed ? 'light' : null;
+  return null;
 }
 const PANE_MIN = 200;
 const PANE_MAX = 640;

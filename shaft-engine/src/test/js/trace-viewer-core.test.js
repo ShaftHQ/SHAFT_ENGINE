@@ -111,12 +111,11 @@ test('themeFromBackground reads a host-forced background and ignores a transpare
   assert.equal(core.themeFromBackground(''), null);
 });
 
-test('resolveTheme prefers a manual choice, then the query, then the host, then light when framed', () => {
-  assert.equal(core.resolveTheme('dark', 'light', 'light', true), 'dark');
-  assert.equal(core.resolveTheme(null, 'dark', 'light', true), 'dark');
-  assert.equal(core.resolveTheme(null, 'bogus', 'dark', true), 'dark');
-  assert.equal(core.resolveTheme(null, null, null, true), 'light');
-  assert.equal(core.resolveTheme(null, null, null, false), null);
+test('resolveTheme prefers a manual choice, then the query, then the host, then the browser scheme', () => {
+  assert.equal(core.resolveTheme('dark', 'light', 'light'), 'dark');
+  assert.equal(core.resolveTheme(null, 'dark', 'light'), 'dark');
+  assert.equal(core.resolveTheme(null, 'bogus', 'dark'), 'dark');
+  assert.equal(core.resolveTheme(null, null, null), null); // #6752: Allure 2 paints nothing and follows the OS scheme.
 });
 
 test('clampPaneWidth keeps the actions pane between its bounds and leaves room for details', () => {

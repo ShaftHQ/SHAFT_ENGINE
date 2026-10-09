@@ -16,11 +16,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 /**
- * Opens the generated trace viewer from inside a real Allure 3 report (issue #6731): the report is
- * generated with the cached Allure CLI, served over HTTP and driven in headless Chromium.
+ * Opens the generated trace viewer from inside a real Allure 3 and a real Allure 2 report (issues #6731, #6752): each
+ * report is generated with its cached Allure CLI, served over HTTP and driven in headless Chromium.
  */
 public class TraceViewerAllureAcceptanceTest {
     private static final String RESULT = """
@@ -31,36 +33,52 @@ public class TraceViewerAllureAcceptanceTest {
             """;
 
     @Test(groups = "trace-viewer-browser-acceptance")
-    public void viewerShouldBeUsableInsideARealAllureReport() throws Exception {
+    public void viewerShouldBeUsableInsideARealAllure3Report() throws Exception {
         Path cli = Path.of(System.getProperty("user.home"), ".m2", "repository", "allure", "allure-cli",
                 System.getProperty("shaft.allure.cli.version", "3.20.1"), "node_modules", "allure", "cli.js");
+        verifyViewerInReportGeneratedBy(cli, List.of("node", cli.toString()), TraceViewerAllureAcceptanceTest::openAttachmentInAllure3);
+    }
+
+    @Test(groups = "trace-viewer-browser-acceptance")
+    public void viewerShouldBeUsableInsideARealAllure2Report() throws Exception {
+        String version = System.getProperty("shaft.allure2.cli.version", "2.46.1");
+        String executable = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win")
+                ? "allure.bat" : "allure";
+        Path cli = Path.of(System.getProperty("user.home"), ".m2", "repository", "allure", "allure2-cli", version,
+                "allure-" + version, "bin", executable);
+        verifyViewerInReportGeneratedBy(cli, List.of(cli.toString()), TraceViewerAllureAcceptanceTest::openAttachmentInAllure2);
+    }
+
+    private static void verifyViewerInReportGeneratedBy(Path cli, List<String> command,
+                                                         BiConsumer<Page, String> openAttachment) throws Exception {
         if (!Files.isRegularFile(cli)) {
             throw new SkipException("The Allure CLI is not cached at " + cli);
         }
         Path chrome = TraceViewerBrowserAcceptanceTest.chromeExecutable();
-        Path report = generateReport(cli);
+        Path report = generateReport(command);
         HttpServer server = serve(report);
         try (Playwright playwright = Playwright.create();
              Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
                      .setExecutablePath(chrome).setHeadless(true))) {
             String origin = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
             for (ColorScheme scheme : List.of(ColorScheme.LIGHT, ColorScheme.DARK)) {
-                verifyViewerInReport(browser, origin, scheme);
+                verifyViewerInReport(browser, origin, scheme, openAttachment);
             }
         } finally {
             server.stop(0);
         }
     }
 
-    private static Path generateReport(Path cli) throws Exception {
+    private static Path generateReport(List<String> cliCommand) throws Exception {
         TraceViewerBrowserAcceptanceTest.ViewerFixture fixture = TraceViewerBrowserAcceptanceTest.generateViewerFixture();
         Path work = Files.createTempDirectory("trace-viewer-allure");
         Path results = Files.createDirectories(work.resolve("results"));
         Path report = work.resolve("report");
         Files.copy(fixture.html(), results.resolve("aaaa-attachment.html"));
         Files.writeString(results.resolve("aaaa-result.json"), RESULT);
-        Process process = new ProcessBuilder("node", cli.toString(), "generate", results.toString(), "-o",
-                report.toString()).redirectErrorStream(true).start();
+        List<String> command = new ArrayList<>(cliCommand);
+        command.addAll(List.of("generate", results.toString(), "-o", report.toString()));
+        Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
         String output = new String(process.getInputStream().readAllBytes());
         Assert.assertTrue(process.waitFor(120, TimeUnit.SECONDS) && process.exitValue() == 0, output);
         return report;
@@ -95,12 +113,27 @@ public class TraceViewerAllureAcceptanceTest {
         return name.endsWith(".json") ? "application/json" : "application/octet-stream";
     }
 
+    private static void openAttachmentInAllure3(Page page, String origin) {
+        page.navigate(origin);
+        page.getByText("traceViewer").first().click();
+        page.getByText("SHAFT trace viewer").first().click();
+        page.locator("[data-testid*=attachment], [class*=ttachment]").first().click();
+    }
+
+    private static void openAttachmentInAllure2(Page page, String origin) {
+        page.navigate(origin + "#suites");
+        page.getByText("CheckoutTest").first().click();
+        page.getByText("traceViewer").first().click();
+        page.getByText("SHAFT trace viewer").first().click();
+    }
+
     private static boolean isExternal(String url, String origin) {
         return !url.startsWith(origin) && !url.startsWith("data:") && !url.startsWith("blob:")
                 && !url.startsWith("about:");
     }
 
-    private static void verifyViewerInReport(Browser browser, String origin, ColorScheme scheme) {
+    private static void verifyViewerInReport(Browser browser, String origin, ColorScheme scheme,
+                                             BiConsumer<Page, String> openAttachment) {
         Page page = browser.newContext(new Browser.NewContextOptions().setViewportSize(1440, 900)
                 .setColorScheme(scheme)).newPage();
         List<String> problems = new ArrayList<>();
@@ -110,10 +143,7 @@ public class TraceViewerAllureAcceptanceTest {
                 problems.add("viewer external request " + request.url());
             }
         });
-        page.navigate(origin);
-        page.getByText("traceViewer").first().click();
-        page.getByText("SHAFT trace viewer").first().click();
-        page.locator("[data-testid*=attachment], [class*=ttachment]").first().click();
+        openAttachment.accept(page, origin);
         FrameLocator frame = page.frameLocator("iframe").first();
         frame.locator("#theme-toggle").waitFor();
         frame.locator("#action-search").waitFor();

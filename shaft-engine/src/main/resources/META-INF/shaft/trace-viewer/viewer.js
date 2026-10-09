@@ -1692,7 +1692,7 @@ window.addEventListener('message', event => {
   if (event.source === window.parent && (theme === 'dark' || theme === 'light')) applyTheme(theme);
 });
 applyTheme(resolveTheme(storageGet('shaft-trace-theme'), new URLSearchParams(location.search).get('theme'),
-  framed ? themeFromBackground(getComputedStyle(document.documentElement).backgroundColor) : null, framed));
+  framed ? themeFromBackground(getComputedStyle(document.documentElement).backgroundColor) : null));
 const savedPane = storageGet('shaft-trace-pane');
 if (savedPane) setPaneWidth(Number(savedPane));
 // Open in new tab when embedded; the original document is kept by the bootstrap.

@@ -9,6 +9,7 @@ on:
       - "shaft-engine/src/main/resources/META-INF/shaft/trace-viewer/**"
       - "shaft-engine/src/test/js/**"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerAllureAcceptanceTest.java"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/PlaywrightTraceParityAcceptanceTest.java"
       - "tests/scripts/test_trace_provider_acceptance_workflow.py"
       - ".github/workflows/trace-viewer-acceptance.yml"
@@ -21,12 +22,17 @@ on:
       - "shaft-engine/src/main/resources/META-INF/shaft/trace-viewer/**"
       - "shaft-engine/src/test/js/**"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
+      - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerAllureAcceptanceTest.java"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/PlaywrightTraceParityAcceptanceTest.java"
       - "tests/scripts/test_trace_provider_acceptance_workflow.py"
       - ".github/workflows/trace-viewer-acceptance.yml"
 
 permissions:
   contents: read
+
+env:
+  ALLURE3_CLI_VERSION: "3.20.1"
+  ALLURE2_CLI_VERSION: "2.46.1"
 
 concurrency:
   group: trace-viewer-acceptance-${{ github.event.pull_request.number || github.ref }}
@@ -77,11 +83,29 @@ jobs:
       - uses: ./.github/actions/setup-test-env
         with:
           node-version: "20"
+      # Both CLIs live under ~/.m2/repository, which setup-test-env restores and saves, so they are
+      # downloaded once per cache and the Allure acceptance tests run instead of skipping (#6752).
+      - name: Provision the Allure 2 and Allure 3 CLIs
+        run: |
+          allure3="$HOME/.m2/repository/allure/allure-cli/${ALLURE3_CLI_VERSION}"
+          if [ ! -f "$allure3/node_modules/allure/cli.js" ]; then
+            mkdir -p "$allure3"
+            printf '%s\n' '{"name":"shaft-allure-cli-runtime","private":true}' > "$allure3/package.json"
+            npm --prefix "$allure3" install --no-package-lock --no-save --ignore-scripts "allure@${ALLURE3_CLI_VERSION}"
+          fi
+          allure2="$HOME/.m2/repository/allure/allure2-cli/${ALLURE2_CLI_VERSION}"
+          if [ ! -x "$allure2/allure-${ALLURE2_CLI_VERSION}/bin/allure" ]; then
+            mkdir -p "$allure2"
+            curl -fsSL -o "$RUNNER_TEMP/allure2.zip" "https://repo1.maven.org/maven2/io/qameta/allure/allure-commandline/${ALLURE2_CLI_VERSION}/allure-commandline-${ALLURE2_CLI_VERSION}.zip"
+            unzip -q -o "$RUNNER_TEMP/allure2.zip" -d "$allure2"
+          fi
       - name: Run offline trace viewer acceptance
         run: >-
           mvn -pl shaft-engine
-          -Dtest=com.shaft.tools.io.internal.TraceViewerBrowserAcceptanceTest,com.shaft.gui.browser.internal.BrowserNetworkUploadAcceptanceTest
+          -Dtest=com.shaft.tools.io.internal.TraceViewerBrowserAcceptanceTest,com.shaft.tools.io.internal.TraceViewerAllureAcceptanceTest,com.shaft.gui.browser.internal.BrowserNetworkUploadAcceptanceTest
           -Dsurefire.excludedGroups=
+          -Dshaft.allure.cli.version=${ALLURE3_CLI_VERSION}
+          -Dshaft.allure2.cli.version=${ALLURE2_CLI_VERSION}
           -Dshaft.trace.viewer.chrome=/usr/bin/google-chrome
           -Dshaft.trace.viewer.screenshot=target/trace-viewer-browser-acceptance.png
           -Dallure.automaticallyOpen=false
