@@ -840,12 +840,13 @@ class ManagedCaptureRecorderBrowserTest {
      * Back/forward traversals are navigations the user performed, and they typically happen
      * within seconds of a recorded interaction — the interaction-consequence window must not
      * swallow them (they were silently dropped when the consequence suppression first landed).
-     * The journey clicks a link, presses Back, then Forward, and expects:
+     * The journey clicks a link, presses Back, Forward, then Back again, and expects:
      * <ul>
      *   <li>the click-consequence navigation to B stays suppressed,</li>
-     *   <li>both traversals are recorded as navigation events carrying the overlay row's
-     *       identity (so the rows survive step syncs),</li>
-     *   <li>generated code replays open + back-target + forward-target navigations.</li>
+     *   <li>each traversal is recorded as a navigation event carrying the overlay row's
+     *       identity (so the rows survive step syncs), including a second Back to a URL
+     *       that already has a "Navigate to" row,</li>
+     *   <li>generated code replays open plus each traversal target.</li>
      * </ul>
      */
     @ParameterizedTest
@@ -877,9 +878,13 @@ class ManagedCaptureRecorderBrowserTest {
             driver.navigate().forward();
             waitFor(() -> elementPresent(driver, By.id("nav-b-page")));
             waitFor(() -> navigateRowCount(js) == 2);
+            driver.navigate().back();
+            waitFor(() -> elementPresent(driver, By.id("to-b")));
+            waitFor(() -> navigateRowCount(js) == 3);
 
-            assertEquals(2, navigateRowCount(js),
-                    "Back and Forward must each append exactly one \"Navigate to\" row. Rows: "
+            assertEquals(3, navigateRowCount(js),
+                    "Each Back and Forward must append its own \"Navigate to\" row, including a "
+                            + "second Back to a URL that already has one. Rows: "
                             + actionRowTexts(js));
 
             recorder.stop(false);
@@ -896,14 +901,16 @@ class ManagedCaptureRecorderBrowserTest {
                 .map(CaptureEvent.NavigationEvent.class::cast)
                 .map(CaptureEvent.NavigationEvent::targetUrl)
                 .toList();
-        assertEquals(3, navigationUrls.size(),
-                "Initial open plus the two traversals must be recorded (and the click "
+        assertEquals(4, navigationUrls.size(),
+                "Initial open plus the three traversals must be recorded (and the click "
                         + "consequence suppressed); got: " + navigationUrls);
         assertTrue(navigationUrls.get(0).contains("/nav-a"));
         assertTrue(navigationUrls.get(1).contains("/nav-a"),
                 "The Back traversal to /nav-a must be recorded.");
         assertTrue(navigationUrls.get(2).contains("/nav-b"),
                 "The Forward traversal to /nav-b must be recorded.");
+        assertTrue(navigationUrls.get(3).contains("/nav-a"),
+                "The second Back traversal to /nav-a must be recorded.");
     }
 
     /**

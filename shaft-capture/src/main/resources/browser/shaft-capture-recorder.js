@@ -220,15 +220,17 @@
         };
       });
     if (merged.length === 0) return;
-    // A back/forward row is announced locally, then the server stores it under its own action id.
-    // Keep the local row until that description arrives, and drop it once the server copy is
-    // present so the same traversal is not shown twice.
-    const serverIds = new Set(merged.map(clientActionId));
-    const serverTexts = new Set(merged.map(item => item.text));
+    // The server stores ctx:<scope>:<local id>. An older "Navigate to" row for the same URL has
+    // the same text and a different id, so text equality would delete a second traversal.
+    const serverIds = merged.map(clientActionId);
+    const sameAction = (serverId, localId) => {
+      if (serverId === localId) return true;
+      const split = String(serverId).lastIndexOf(":");
+      return split >= 0 && serverId.slice(split + 1) === localId;
+    };
     const pendingTraversal = uiState.actions.filter(item =>
       item && item.pendingTraversal
-        && !serverIds.has(clientActionId(item))
-        && !serverTexts.has(item.text));
+        && !serverIds.some(serverId => sameAction(serverId, clientActionId(item))));
     uiState.actions = merged.concat(pendingTraversal).slice(-80);
     const changed = uiState.actions.map(clientActionId).join("|") !== previousKeys;
     uiState.currentInputActionKey = "";
