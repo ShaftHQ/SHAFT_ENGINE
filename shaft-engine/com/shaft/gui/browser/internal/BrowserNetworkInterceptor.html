@@ -191,9 +191,10 @@ filter) can become the sole registrant for this driver.</div>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">BrowserNetworkInterceptor</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver)</span></div>
 <div class="block">Creates a browser network interceptor backed by Selenium DevTools.
 
-<p>Passive trace observation uses the CDP <code>Network</code> domain and never pauses requests;
-Selenium's request-pausing <code>NetworkInterceptor</code> is installed only while a mock, assert or
-verify rule is registered (issue #6735).</div>
+<p>Passive trace observation uses the CDP <code>Network</code> domain and never pauses requests
+(issue #6735). While a mock, assert or verify rule is registered, <a href="CdpFetchRuleInterceptor.html" title="class in com.shaft.gui.browser.internal"><code>CdpFetchRuleInterceptor</code></a>
+pauses requests through the CDP <code>Fetch</code> domain and continues them by id only, so uploads
+stay byte-exact even then (issue #6741).</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>driver</code> - the active WebDriver session</dd>
