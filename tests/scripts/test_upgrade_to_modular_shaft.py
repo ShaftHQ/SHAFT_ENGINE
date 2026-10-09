@@ -1334,7 +1334,7 @@ class DemoTest {
                 command = upgrade.default_compile_command(root)
 
         self.assertEqual(command[0], str(wrapper.resolve()))
-        self.assertEqual(command[1:3], ["dependency:go-offline", "test-compile"])
+        self.assertEqual(command[1:4], ["clean", "dependency:go-offline", "test-compile"])
 
     def test_windows_default_compile_command_prefers_cmd_wrapper(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1346,7 +1346,72 @@ class DemoTest {
                 command = upgrade.default_compile_command(root)
 
         self.assertEqual(command[0], str(wrapper.resolve()))
-        self.assertEqual(command[1:3], ["dependency:go-offline", "test-compile"])
+        self.assertEqual(command[1:4], ["clean", "dependency:go-offline", "test-compile"])
+
+    def test_default_compile_command_puts_clean_before_test_compile(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            with mock.patch.object(upgrade.os, "name", "posix"):
+                with mock.patch.object(upgrade.shutil, "which", return_value="/usr/bin/mvn"):
+                    command = upgrade.default_compile_command(root)
+        self.assertIn("clean", command)
+        self.assertIn("test-compile", command)
+        self.assertLess(command.index("clean"), command.index("test-compile"))
+
+    def test_stale_target_classes_do_not_mask_broken_upgrade_when_clean_runs(self):
+        """Stale target/ classes make incremental compile pass; clean must force rollback."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            pom = root / "pom.xml"
+            pom.write_text(SIMPLE_POM, encoding="utf-8")
+            stale = root / "target/test-classes/demo/DemoTest.class"
+            stale.parent.mkdir(parents=True)
+            stale.write_bytes(b"stale-baseline-bytecode")
+            analysis = upgrade.analyze_project(root)
+            seen = []
+
+            def compile_runner(command, cwd, timeout_seconds):
+                seen.append(list(command))
+                # Baseline always ok. Upgraded: incremental (no clean) falsely passes
+                # because stale classes exist; clean exposes the break and fails.
+                if len(seen) == 1:
+                    return command_result(0)
+                if "clean" in command:
+                    return command_result(1, "cannot find symbol after clean")
+                return command_result(0, "incremental: reused stale classes")
+
+            # Prove the bug class: without clean, upgrade would falsely succeed.
+            incremental = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260609",
+                ("mvn", "dependency:go-offline", "test-compile", "-DskipTests", "-Dgpg.skip"),
+                30,
+                compile_runner=compile_runner,
+            )
+            self.assertTrue(incremental.succeeded)
+            self.assertFalse(incremental.rolled_back)
+            self.assertIn("<artifactId>shaft-bom</artifactId>", pom.read_text(encoding="utf-8"))
+
+            # Restore baseline POM for the clean-path run.
+            pom.write_text(SIMPLE_POM, encoding="utf-8")
+            analysis = upgrade.analyze_project(root)
+            seen.clear()
+            with mock.patch.object(upgrade.os, "name", "posix"):
+                with mock.patch.object(upgrade.shutil, "which", return_value="mvn"):
+                    default_cmd = upgrade.default_compile_command(root)
+
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260609",
+                tuple(default_cmd),
+                30,
+                compile_runner=compile_runner,
+            )
+            self.assertFalse(execution.succeeded)
+            self.assertTrue(execution.rolled_back)
+            self.assertEqual(pom.read_bytes(), SIMPLE_POM.encode("utf-8"))
+            self.assertTrue(any("clean" in cmd for cmd in seen))
+            self.assertTrue(stale.exists(), "rollback must not delete unrelated stale target/")
 
 
 class AgentCliRepairTests(unittest.TestCase):
