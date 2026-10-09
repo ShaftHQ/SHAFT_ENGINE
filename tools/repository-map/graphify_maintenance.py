@@ -33,11 +33,18 @@ UNCLASSIFIED_ALLOWLIST_SUFFIXES = {
     ".bat",
     ".license",
     ".config",
+    ".conf",
+    ".ini",
+    ".in",
+    ".lock",
+    ".manifest",
+    ".template",
 }
 UNCLASSIFIED_ALLOWLIST_NAMES = {
     "gradlew",
     "mvnw",
     "start_emu_headless",
+    ".keep",
 }
 GRAPHIFYIGNORE_NAME = ".graphifyignore"
 

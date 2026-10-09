@@ -243,6 +243,28 @@ class GraphifyMaintenanceTest(TestCase):
         self.assertNotIn("noise/.sdkmanrc", report["unclassified_unexpected"])
         self.assertNotIn("noise/.sdkmanrc", report["unclassified_allowlisted"])
 
+    def test_tracked_data_files_from_issue_6750_are_allowlisted(self):
+        data = [
+            "scripts/ci/chaos_gauge/dataset/case/environment/default.ini",
+            "scripts/ci/chaos_gauge/dataset/case/environment/build.manifest",
+            "scripts/ci/chaos_gauge/dataset/case/environment/current.conf",
+            "scripts/ci/chaos_gauge/requirements.in",
+            "scripts/ci/chaos_gauge/requirements.lock",
+            "module/src/test/resources/fixtures/empty/.keep",
+            "module/src/main/resources/intentionDescriptions/Fix/before.java.template",
+        ]
+        self._git_tracked_fixture({"src/ok.py": "print(1)\n", **{path: "x\n" for path in data}})
+        self.write_cache(["src/ok.py"], covered=("src/ok.py",))
+
+        completed = self.command(
+            "audit", "--root", str(self.repository), "--graph-out", "cache/map"
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertEqual([], report["unclassified_unexpected"])
+        self.assertEqual(sorted(data), sorted(report["unclassified_allowlisted"]))
+
     def test_normalization_preserves_leading_dot_directories(self):
         self.write_cache(["./.github/config.json"], covered=(".github\\config.json",))
 
