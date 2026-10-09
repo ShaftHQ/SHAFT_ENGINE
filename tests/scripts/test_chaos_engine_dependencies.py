@@ -2433,6 +2433,29 @@ class PythonDownloadLag6325Test(unittest.TestCase):
                 "/tools/uv", "3.14.8", "3.14.7.1", Path(temporary), runner=self._runner([], payload="[]")
             ))
 
+    def test_a_new_minor_that_uv_only_has_as_a_release_candidate_falls_back_to_the_installed_minor(self):
+        module = load_controller()
+        candidate = {"key": "cpython-3.15.0rc3-linux-x86_64-gnu", "version": "3.15.0rc3",
+                     "implementation": "cpython", "variant": "default"}
+        stable = {"key": "cpython-3.14.8-linux-x86_64-gnu", "version": "3.14.8",
+                  "implementation": "cpython", "variant": "default"}
+        calls = []
+
+        def runner(command, **_kwargs):
+            calls.append(list(command))
+            narrowed = command[-1] == "3.15"
+            return SimpleNamespace(returncode=0, stdout=json.dumps([candidate] if narrowed else [candidate, stable]),
+                                   stderr="")
+
+        record = {"action": "upgraded", "healthy": True, "installedVersion": "3.14.8", "resolvedVersion": "3.15.0"}
+        with tempfile.TemporaryDirectory() as temporary:
+            action = module.clamp_python_to_uv_downloads(
+                record, "/tools/uv", Path(temporary), minimum="3.14.0", runner=runner)
+        self.assertEqual("reused", action)
+        self.assertEqual("3.14.8", record["resolvedVersion"])
+        self.assertEqual("3.15.0", record["upstreamResolvedVersion"])
+        self.assertEqual(2, len(calls))
+
     def test_lagging_uv_reuses_the_installed_python_instead_of_failing(self):
         module = load_controller()
         record = {
