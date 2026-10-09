@@ -141,6 +141,97 @@ def code_quality_failures(root: Path) -> list[str]:
     return [f"code-quality preflight: {findings[0]}{more}"]
 
 
+
+RELEASE_NOTE_LABELS = frozenset(
+    {"breaking-change", "enhancement", "bug", "skip-release-notes"}
+)
+
+
+def _gh_open_pr_for_head(root: Path) -> dict | None:
+    """Return gh JSON for the open PR on HEAD, or None when unavailable."""
+    git = shutil.which("git")
+    gh = shutil.which("gh")
+    if git is None or gh is None:
+        return None
+    try:
+        branch = subprocess.run(  # nosec B603 - absolute git, fixed argv.
+            [git, "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if branch.returncode != 0:
+        return None
+    name = (branch.stdout or "").strip()
+    if not name or name == "HEAD" or name in {"main", "master"}:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603 - absolute gh, fixed argv.
+            [
+                gh,
+                "pr",
+                "view",
+                "--json",
+                "number,labels,author,isDraft",
+                "--head",
+                name,
+            ],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if completed.returncode != 0 or not (completed.stdout or "").strip():
+        return None
+    try:
+        import json
+
+        payload = json.loads(completed.stdout)
+    except (ValueError, TypeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def release_note_label_failures(root: Path, *, pr_fetcher=_gh_open_pr_for_head) -> list[str]:
+    """Fail when the open human PR for HEAD lacks exactly one release-note label.
+
+    Catches the #6702 failure mode (governance red until a label is added)
+    before the next push. No open PR, bots, and missing gh are soft skips —
+    first create still applies the label via ``gh pr create --label``.
+    """
+    pr = pr_fetcher(root)
+    if not pr:
+        return []
+    author = pr.get("author") if isinstance(pr.get("author"), dict) else {}
+    login = str(author.get("login") or "").casefold()
+    if login.endswith("[bot]") or str(author.get("is_bot") or "").lower() in {"true", "1"}:
+        return []
+    labels = {
+        str(item.get("name"))
+        for item in (pr.get("labels") or [])
+        if isinstance(item, dict) and item.get("name")
+    }
+    selected = sorted(labels & RELEASE_NOTE_LABELS)
+    if len(selected) == 1:
+        return []
+    number = pr.get("number") or "?"
+    return [
+        "release-note label: open PR #"
+        + str(number)
+        + " needs exactly one of "
+        + ", ".join(sorted(RELEASE_NOTE_LABELS))
+        + f"; found {selected or 'none'}. "
+        + "Apply with: gh pr edit "
+        + str(number)
+        + " --add-label <label> (or REST labels API)."
+    ]
+
+
 def portable_core_path_failures(root: Path) -> list[str]:
     """Reject a chaos-engine tree that contains a machine-specific path (#6284).
 
@@ -171,6 +262,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     failures: list[str] = tip_preflight_failures(root, changed)
     if paths is None:
         failures.extend(code_quality_failures(root))
+        failures.extend(release_note_label_failures(root))
     if any(path.replace("\\", "/").lstrip("./").startswith("chaos-engine/") for path in changed):
         failures.extend(portable_core_path_failures(root))
     if not any(touches_overlay_contract(path) for path in changed):
