@@ -42,6 +42,10 @@ Canvas (MIT) are documented alternatives, not defaults.
   (`natural width / CSS width >= zoom x scale factor`): re-shoot
   HTML-sourced screenshots at a higher scale factor and pin the CSS width so
   camera keys keep working. Never upscale text or UI (D19).
+- Render 2x scenes one browser at a time: three parallel 4K Chrome renders
+  hit the default 30 s `Page.screenshot` timeout. Raise the screenshot
+  timeout (300 s) and run builds sequentially instead of retrying in
+  parallel.
 - The last element revealed in a scene holds at least 1.5 s before the cut;
   key late reveals to an earlier word rather than the last one.
 - Headlines and end-card lines never end on an orphan word:

@@ -37,6 +37,11 @@ or a master shows wrong levels, washed-out blacks, or shifted brand colors.
   knee and tag with `setparams=range=tv:...bt709`. Verify levels after every
   final encode and re-encode one CRF step lower (three tries at most) when a
   stray frame is out of range; `levels` names the offending timestamps.
+- Size the de-ring luma blur to the render scale (`gblur` sigma 0.9 x the D09
+  device scale factor): a 1x sigma on a 2x render leaves 4K text ringing past
+  Y 235. Each downscaled derivative (1080p from a 2160p master) is its own
+  encode: give it its own soft knee and the same verify-and-retry loop, since
+  lanczos plus x264 re-creates the overshoot (Y 245 seen).
 
 ## Workflow
 

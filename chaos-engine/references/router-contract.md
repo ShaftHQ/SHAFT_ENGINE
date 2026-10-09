@@ -208,11 +208,22 @@ leftover risks become `gh` issues, never chat-only.
 
 ## Learning Session
 
-Trigger-based. After confirmed delivery, run exactly one root-owned Learning
-Session immediately before the final report, and only when a trigger fired: a
-failure or escaped defect, a surprise that contradicted the harness, or the
-owner asked. The Stop hook enforces exactly
-that. Otherwise write one line in the final report. When triggered, load
+Learning Session after every final delivery. A final delivery is confirmed
+when the owner approves a deliverable, a publish (release, deploy, upload)
+completes, or the final pull request of a task merges. Then, without the owner
+asking, the root session runs exactly one root-owned Learning Session immediately before
+the final report:
+
+1. Diff the session lessons (STATUS log, review log, failures, workarounds)
+   against the existing skills and references; drop every duplicate.
+2. File one spec issue (problem, evidence, rule, acceptance criteria, test).
+3. Open ONE pull request with the `skip-release-notes` label, auto-merge with
+   the MERGE method, and babysit it to merged.
+4. When nothing new survives the diff, write one line in the final report
+   naming the file that already holds each lesson. No issue, no PR.
+
+The Learning Session pull request's own merge never starts another Learning
+Session. The Stop hook enforces the same rule on CLI hosts. Load
 [self-improve](../skills/self-improve/SKILL.md). A ChaosEngine harness lesson is
 a GitHub issue only, never a local queue or chat. Product lessons may report
 `product queued N` or `nothing durable`. Route a product learning once: native

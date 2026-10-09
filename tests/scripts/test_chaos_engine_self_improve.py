@@ -101,20 +101,21 @@ class SelfImproveSkillTests(unittest.TestCase):
 
     def test_activation_forbids_ce_untouched_skip(self):
         activation = ACTIVATION.read_text(encoding="utf-8")
-        self.assertIn("trigger fired", activation.casefold())
+        self.assertIn("learning session after every final delivery", activation.casefold())
         self.assertIn("harness parity", activation.casefold())
         self.assertIn("hooks own", activation.casefold())
         self.assertIn("learning session", activation.casefold())
         router = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(
             encoding="utf-8"
         )
-        self.assertIn("learning session only on trigger", router.casefold())
+        self.assertIn("learning session after every final delivery", router.casefold())
+        self.assertNotIn("only on trigger", router.casefold())
         self.assertIn("never local queues", router.casefold())
         life = (ROOT / "chaos-engine/references/lifecycle-hooks.md").read_text(
             encoding="utf-8"
         )
         self.assertIn("gh pr merge", life)
-        self.assertIn("trigger fired", life.casefold())
+        self.assertIn("learning session after every final delivery", life.casefold())
 
     def test_portable_guard_marks_pr_merge_as_confirmed_delivery(self):
         guard = load(ROOT / "chaos-engine/hooks/guard.py", "ce_guard_si_delivery")
@@ -130,11 +131,34 @@ class SelfImproveSkillTests(unittest.TestCase):
             guard.confirmed_delivery_command("gh pr create --title x --body y")
         )
         source = (ROOT / "chaos-engine/hooks/guard.py").read_text(encoding="utf-8")
-        self.assertIn("learning_triggered", source)
+        self.assertIn("Learning Session after every final delivery", source)
+        self.assertNotIn("learning_triggered", source)
         self.assertIn("confirmed_delivery_command", source)
         self.assertIn("Do not write them to a local queue or into chat.", source)
         self.assertNotIn("harness queued N", source)
 
+
+    def test_learning_session_runs_after_every_final_delivery(self):  # #6739
+        ce = ROOT / "chaos-engine"
+        homes = ("references/router-contract.md", "references/permanent-rules.md",
+                 "references/bot-entry.md", "references/work-github-playbook.md",
+                 "references/lifecycle-hooks.md", "references/hook-trigger-map.md",
+                 "references/orchestrator-bootstrap.md", "skills/chaos-engine/SKILL.md",
+                 "skills/self-improve/SKILL.md", "skills/self-improve/references/activation.md",
+                 "addons/design-skills/references/pipelines/runbook.md")
+        for home in homes:
+            text = " ".join((ce / home).read_text(encoding="utf-8").split())
+            with self.subTest(home=home):
+                self.assertIn("Learning Session after every final delivery", text)
+                self.assertNotIn("only when a trigger fired", text)
+                self.assertNotIn("only on trigger", text)
+        router = " ".join((ce / "references/router-contract.md").read_text(encoding="utf-8").split())
+        for rule in ("the owner approves a deliverable", "a publish (release, deploy, upload) completes",
+                     "the final pull request of a task merges", "without the owner asking",
+                     "File one spec issue", "Open ONE pull request", "`skip-release-notes`",
+                     "MERGE method", "babysit it to merged", "never starts another Learning Session"):
+            with self.subTest(rule=rule):
+                self.assertIn(rule, router)
 
 
 if __name__ == "__main__":

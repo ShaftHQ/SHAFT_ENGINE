@@ -123,8 +123,8 @@ class DoctorAgentSummaryTest(unittest.TestCase):
         self.assertIn("](../../references/router-contract.md)", skill)
         session = contract.split("## Learning Session", 1)[1].split("\n## ", 1)[0]
         flat = " ".join(session.split())
-        # Epic #6342: trigger-based session.
-        self.assertIn("only when a trigger fired", flat)
+        # #6739: every final delivery owes the session (was trigger-based, epic #6342).
+        self.assertIn("Learning Session after every final delivery", flat)
         laws = skill.split("## Iron laws", 1)[1].split("## Triage", 1)[0]
         for number in range(1, 8):
             self.assertIn(f"{number}. ", laws)

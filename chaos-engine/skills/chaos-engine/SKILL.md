@@ -80,10 +80,9 @@ on explicit invocation.
   most once, then stop and report. Never re-run checks that already passed.
 - Status reports are always a Markdown table (one row per item), then Risks;
   token use per task: `python3 .chaos-engine/tool.py usage`.
-- Learning Session only on trigger: a defect escaped, a surprise contradicted
-  the harness, or the owner asks. Then load
-  [self-improve](../self-improve/SKILL.md). Otherwise one line in the final
-  report. Harness lessons become issues, never local queues.
+- Learning Session after every final delivery (approval, publish, final
+  merge), unasked: lessons diff, spec issue, ONE PR to merged, per
+  [self-improve](../self-improve/SKILL.md). Never local queues.
 
 ## Route
 
@@ -92,7 +91,7 @@ on explicit invocation.
 | --- | --- | --- |
 | Local LLM | optional local runtime or local agents | [local-runtimes](../local-runtimes/SKILL.md), [local-agency](../local-agency/SKILL.md), [omniroute](../omniroute/SKILL.md), [freetoken](../freetoken/SKILL.md), [colibri](../colibri/SKILL.md), [local-openai-compat](../local-openai-compat/SKILL.md), [local-coding-delegate](../local-coding-delegate/SKILL.md) |
 | work-item | open or rewrite an issue or work item | [SKILL.md](../work-item/SKILL.md) |
-| self-improve | Learning Session trigger fired | [SKILL.md](../self-improve/SKILL.md) |
+| self-improve | Final delivery confirmed (Learning Session) | [SKILL.md](../self-improve/SKILL.md) |
 | kanban | several deliverables, tickets, or delegates | [SKILL.md](../kanban/SKILL.md) |
 | Git cleanup | dirty worktree or stray branches | [SKILL.md](../git-cleanup/SKILL.md) |
 | Zero-LLM first | install, doctor, repair by script | [zero-llm-catalog.md](../../references/zero-llm-catalog.md) |
