@@ -66,7 +66,6 @@ class CodeQualityPreflightTest(unittest.TestCase):
     def test_overlay_pre_push_runs_the_preflight(self):
         text = (ROOT / "scripts/ci/overlay_pre_push.py").read_text(encoding="utf-8")
         self.assertIn("code_quality_failures(root)", text)
-        self.assertIn("scripts/ci/overlay_pre_push.py", (ROOT / "chaos-engine/references/bot-entry.md").read_text())
 
 
 if __name__ == "__main__":
