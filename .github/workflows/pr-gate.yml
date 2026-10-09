@@ -533,6 +533,9 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           REVIEWS_PATH: ${{ runner.temp }}/chaos-engine-reviews.json
+          # #6755: gated suites resolve stable releases from api.github.com;
+          # unauthenticated runners share a 60/hour quota and hit 403.
+          GITHUB_TOKEN: ${{ github.token }}
           # #6411: `decision-quality-override` lets an intended score drop pass.
           PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: >-

@@ -390,33 +390,23 @@ def prerequisite_command_plan(
 UV_PYTHON_VERSION = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 
 
-def uv_downloadable_python(
-    uv_command: str, requested: str, minimum: str, project: Path, *, runner=subprocess.run
-) -> str | None:
-    """#6325: newest CPython uv can download, never newer than the stable channel.
-
-    python.org can publish a patch (for example 3.14.8) days before uv's
-    download metadata knows it, and ``uv python install 3.14.8`` then fails.
-    Returns ``None`` when uv cannot be asked, so callers keep the request.
-    """
-    match = UV_PYTHON_VERSION.fullmatch(requested or "")
-    if match is None:
-        return None
+def _uv_python_listing(
+    uv_command: str, project: Path, series: str | None, *, runner=subprocess.run
+) -> list[object] | None:
+    """Ask uv which CPython builds it can download; ``None`` when uv cannot be asked."""
+    command = [uv_command, "python", "list", "--only-downloads", "--all-versions", "--output-format", "json"]
     try:
         result = _run_account_command(
-            [
-                uv_command, "python", "list", "--only-downloads", "--all-versions",
-                "--output-format", "json", f"{match.group(1)}.{match.group(2)}",
-            ],
-            project,
-            runner=runner,
-            timeout=120,
+            command + ([series] if series else []), project, runner=runner, timeout=120,
         )
         entries = json.loads(result.stdout or "[]")
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
         return None
-    if not isinstance(entries, list):
-        return None
+    return entries if isinstance(entries, list) else None
+
+
+def _eligible_uv_python(entries: list[object], requested: str, minimum: str) -> str | None:
+    """Newest stable default CPython in ``entries`` within the minimum and the request."""
     candidates = {
         str(entry.get("version"))
         for entry in entries
@@ -430,6 +420,32 @@ def uv_downloadable_python(
         if version_key(version) <= version_key(requested) and version_at_least(version, minimum)
     ]
     return max(eligible, key=version_key) if eligible else None
+
+
+def uv_downloadable_python(
+    uv_command: str, requested: str, minimum: str, project: Path, *, runner=subprocess.run
+) -> str | None:
+    """#6325: newest CPython uv can download, never newer than the stable channel.
+
+    python.org can publish a patch (for example 3.14.8) days before uv's
+    download metadata knows it, and ``uv python install 3.14.8`` then fails.
+    A whole new minor can lag the same way: uv may list only a release
+    candidate for it, so the search widens to the older minors that still
+    satisfy the minimum. Returns ``None`` when uv cannot be asked, so callers
+    keep the request.
+    """
+    match = UV_PYTHON_VERSION.fullmatch(requested or "")
+    if match is None:
+        return None
+    series = f"{match.group(1)}.{match.group(2)}"
+    entries = _uv_python_listing(uv_command, project, series, runner=runner)
+    if entries is None:
+        return None
+    found = _eligible_uv_python(entries, requested, minimum)
+    if found is not None:
+        return found
+    wider = _uv_python_listing(uv_command, project, None, runner=runner)
+    return _eligible_uv_python(wider, requested, minimum) if wider else None
 
 
 def clamp_python_to_uv_downloads(
