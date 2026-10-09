@@ -35,6 +35,11 @@ Canvas (MIT) are documented alternatives, not defaults.
   letters; per-letter motion only for two or three key words. Watch it
   muted once.
 - Every composition has a contact-sheet review before a full render.
+- The last element revealed in a scene holds at least 1.5 s before the cut;
+  key late reveals to an earlier word rather than the last one.
+- Headlines and end-card lines never end on an orphan word:
+  `text-wrap: balance` where the renderer supports it, and a no-break space
+  between the last two words as the fallback.
 - Transparent overlays render with alpha (ProRes 4444 or VP9 with alpha) and
   are composited in D12.
 
@@ -71,6 +76,8 @@ Canvas (MIT) are documented alternatives, not defaults.
 - Two renders give identical frame hashes
   (`ffmpeg -i out.mp4 -f framemd5 -`).
 - `design_qc.py easing compositions/` passes.
+- `design_qc.py revealhold timeline.json --html scenes/` passes (resolves
+  `data-at="beat+offset"` reveals against each scene's beats).
 - Stills at each camera key show the named region with text at reading
   size (D05), in 16:9 and 9:16.
 - `rg -n '\{w\(|\{[a-z_]+\(' scenes/` finds no unrendered placeholders.

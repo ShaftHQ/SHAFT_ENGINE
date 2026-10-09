@@ -30,14 +30,17 @@ session or watchdog reads the lease instead of guessing.
 | --- | --- |
 | `tool.py job start NAME [--heartbeat 30] [--stale S] [--part-dir D]... [--max-runs 3] -- CMD...` | Detach a supervisor (`setsid`; Windows detached process group) that runs CMD in its own process group and heartbeats the lease. Refused (exit 3) while the lease is live. |
 | `tool.py job status NAME [--json]` | `live`, `stale`, `done`, `failed`, `stopped` or `absent`, plus heartbeat age and last step. Exit 0 live/done, 3 stale, 4 failed, 5 stopped, 6 absent. |
+| `tool.py job wait NAME [--timeout 540] [--tail 5]` | Block until the job is not live, then print the status line and the last log lines. Exit as `status`, or 7 when still live at the timeout. Use it instead of polling loops; keep the timeout under the host's tool-call limit. |
 | `tool.py job resume NAME` | Watchdog entry. No-op while live or done, and after an owner's `stop`. A stale or failed run restarts with the recorded command, at most `--max-runs` times in total. |
 | `tool.py job stop NAME` | Terminate the whole run and record `stopped`. |
 | `tool.py job checkpoint NAME STEP [--note T]` / `--check` | Record a finished step, or exit 0 only if STEP is recorded (skip it on resume). |
 
-State lives in `./.chaos-engine-state/jobs/<name>/` (`lease.json`,
-`checkpoint.jsonl`, `output.log`), or under `$CHAOS_ENGINE_JOBS_DIR`. Run
-`status`, `resume` and `stop` from the same directory as `start`, or set the
-variable.
+State lives in `.chaos-engine-state/jobs/<name>/` (`lease.json`,
+`checkpoint.jsonl`, `output.log`) of the project, or under
+`$CHAOS_ENGINE_JOBS_DIR`. Without `--root` or the variable, the CLI walks up
+from the current directory to the nearest `.chaos-engine-state/jobs` (else
+the nearest directory holding `.chaos-engine/`), so a sub-directory never
+sees a live job as `absent`.
 
 ## Live versus stale
 

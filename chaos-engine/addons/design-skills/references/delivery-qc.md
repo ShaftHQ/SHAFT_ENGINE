@@ -53,9 +53,11 @@ toward about -14 LUFS), so the D15 -16 LUFS speech master stays.
    `design_qc.py all qc-plan.json`, where the plan lists delivery, colortags,
    levels, loudness, captions, flash, blackfreeze, flatframes, static,
    and manifest checks (plus edgeclip for vertical outputs).
-6. Independent review: a fresh reviewer that did not build it watches and
-   listens to every output end to end. Deliver only when QC and review pass;
-   anything earlier is named and sent as DRAFT with its open failures.
+6. Independent review: a fresh reviewer per output that did not build it
+   watches and listens end to end; every finding is verified with a tool and
+   gated by `design_qc.py findings` (runbook stage 4, at most 3 rounds).
+   Deliver only when QC passes and no verified moderate or worse finding is
+   open; anything earlier is named and sent as DRAFT with its open failures.
 
 ## Verify
 

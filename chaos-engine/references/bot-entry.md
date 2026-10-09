@@ -4,6 +4,16 @@ Entry point for agents that auto-load nothing from the checkout and run no
 ChaosEngine hooks: Grok Bot, custom GPTs (OpenAI GPTs, Assistants), Claude
 Projects, and any other independent bot. `AGENTS.md` is not read for you.
 
+## No `.chaos-engine/` yet
+
+- Fresh clone: install from a copy of its own `chaos-engine/` kept outside
+  the project (source and project must be disjoint), pinned to HEAD:
+  `cp -r chaos-engine /tmp/ce-src && python3 chaos-engine/install.py install --project . --source /tmp/ce-src --commit "$(git rev-parse HEAD)"`
+  (add `--with-<add-on>` flags as needed; `install.py addons --project .`
+  lists them). Expect a few minutes for the first store index.
+- Linked worktree: install in the primary checkout, then
+  `python3 <primary>/.chaos-engine/worktree_overlay.py materialize --primary <primary> --session <worktree>`.
+
 ## Every task, before discovery
 
 1. With a shell: run `python3 .chaos-engine/tool.py entry` and follow what it

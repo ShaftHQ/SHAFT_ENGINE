@@ -45,6 +45,7 @@ NAME_ENV = "CHAOS_ENGINE_JOB"
 ROOT_ENV = "CHAOS_ENGINE_JOBS_DIR"
 PART_SUFFIX = ".part"
 EXIT = {"live": 0, "done": 0, "stale": 3, "failed": 4, "stopped": 5, "absent": 6}
+STILL_LIVE = 7  # `wait` timed out while the job is live
 REFUSED = 3
 
 
@@ -55,7 +56,15 @@ def jobs_root(root: str | os.PathLike | None = None) -> Path:
         return Path(root)
     if os.environ.get(ROOT_ENV):
         return Path(os.environ[ROOT_ENV])
-    return Path.cwd() / ".chaos-engine-state" / "jobs"
+    # Walk up so a job is never "absent" because the caller stands in a sub-directory.
+    here = Path.cwd()
+    for folder in (here, *here.parents):
+        if (folder / ".chaos-engine-state" / "jobs").is_dir():
+            return folder / ".chaos-engine-state" / "jobs"
+    for folder in (here, *here.parents):
+        if (folder / ".chaos-engine").is_dir():
+            return folder / ".chaos-engine-state" / "jobs"
+    return here / ".chaos-engine-state" / "jobs"
 
 
 def job_dir(root: Path, name: str) -> Path:
@@ -469,6 +478,31 @@ def stop(root: Path, name: str) -> tuple[int, str]:
     return 0, f"job {name}: stopped (killed {killed})"
 
 
+def log_tail(report: dict, lines: int) -> list[str]:
+    log = report.get("log")
+    if not lines or not log or not Path(log).is_file():
+        return []
+    with open(log, "rb") as handle:
+        handle.seek(0, os.SEEK_END)
+        handle.seek(max(handle.tell() - 64 * 1024, 0))
+        text = handle.read().decode("utf-8", "replace")
+    return text.splitlines()[-lines:]
+
+
+def wait(root: Path, name: str, timeout: float, tail: int, poll: float = 2.0) -> tuple[int, str]:
+    """Block until the job is not live (or the timeout passes); one compact report instead of polling."""
+    directory = job_dir(root, name)
+    deadline = time.monotonic() + timeout
+    while True:
+        report = describe(name, directory)
+        remaining = deadline - time.monotonic()
+        if report["state"] != "live" or remaining <= 0:
+            break
+        time.sleep(min(poll, remaining))
+    code = STILL_LIVE if report["state"] == "live" else EXIT[report["state"]]
+    return code, "\n".join([status_line(report), *log_tail(report, tail)])
+
+
 def checkpoint(root: Path, name: str, step: str, note: str = "", check: bool = False) -> tuple[int, str]:
     """Append a finished step, or with ``check`` exit 0 only if it is recorded."""
     directory = job_dir(root, name)
@@ -563,6 +597,10 @@ def build_parser() -> argparse.ArgumentParser:
             sub.add_argument("--json", action="store_true")
         if action == "resume":
             sub.add_argument("--force", action="store_true")
+    waiting = commands.add_parser("wait", help="block until not live; exit as status, 7 if still live at timeout")
+    waiting.add_argument("name")
+    waiting.add_argument("--timeout", type=float, default=540.0, help="seconds to block (default 540)")
+    waiting.add_argument("--tail", type=int, default=5, help="log lines to print (default 5)")
     mark = commands.add_parser("checkpoint", help="record a finished step (or --check one)")
     mark.add_argument("name")
     mark.add_argument("step")
@@ -588,6 +626,10 @@ def main(argv: list[str] | None = None) -> int:
             report = describe(arguments.name, job_dir(root, arguments.name))
             print(json.dumps(report, sort_keys=True) if arguments.json else status_line(report))
             return EXIT[report["state"]]
+        if arguments.action == "wait":
+            code, text = wait(root, arguments.name, arguments.timeout, arguments.tail)
+            print(text)
+            return code
         if arguments.action == "start":
             code, text = start(root, arguments.name, command, cwd=arguments.cwd, heartbeat=arguments.heartbeat,
                                stale=arguments.stale, part_dirs=arguments.part_dir, max_runs=arguments.max_runs)

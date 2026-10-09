@@ -230,6 +230,58 @@ class DurableJobTests(unittest.TestCase):
         self.assertEqual(5, resumed.returncode)
         self.assertEqual(5, self.cli("status", "halt").returncode)
 
+    def test_wait_returns_the_final_state_and_log_tail(self):  # #6691
+        started = self.cli("start", "quick", "--heartbeat", "0.5", "--",
+                           sys.executable, "-c", "import time; print('line one'); print('built'); time.sleep(1)")
+        self.assertEqual(0, started.returncode, started.stderr)
+        waited = self.cli("wait", "quick", "--timeout", "30", "--tail", "1")
+        self.assertEqual(0, waited.returncode, waited.stderr)
+        self.assertIn("job quick: done", waited.stdout)
+        self.assertIn("built", waited.stdout)
+        self.assertNotIn("line one", waited.stdout)
+
+    def test_wait_times_out_with_exit_7_while_live(self):  # #6691
+        self.stop_after("slow")
+        started = self.cli("start", "slow", "--heartbeat", "0.5", "--", sys.executable, "-c", "import time; time.sleep(60)")
+        self.assertEqual(0, started.returncode, started.stderr)
+        waited = self.cli("wait", "slow", "--timeout", "0.5")
+        self.assertEqual(7, waited.returncode)
+        self.assertIn("live", waited.stdout)
+
+
+class JobRootDiscoveryTests(unittest.TestCase):  # #6691
+    def test_root_is_found_from_a_sub_directory(self):
+        jobs = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary).resolve()
+            (project / ".chaos-engine-state" / "jobs").mkdir(parents=True)
+            nested = project / "a" / "b"
+            nested.mkdir(parents=True)
+            previous, saved = Path.cwd(), os.environ.pop("CHAOS_ENGINE_JOBS_DIR", None)
+            try:
+                os.chdir(nested)
+                self.assertEqual(project / ".chaos-engine-state" / "jobs", jobs.jobs_root())
+                self.assertEqual(Path("/explicit"), jobs.jobs_root("/explicit"))
+            finally:
+                os.chdir(previous)
+                if saved is not None:
+                    os.environ["CHAOS_ENGINE_JOBS_DIR"] = saved
+
+    def test_an_installed_harness_marks_the_project_root(self):
+        jobs = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary).resolve()
+            (project / ".chaos-engine").mkdir()
+            (project / "scripts").mkdir()
+            previous, saved = Path.cwd(), os.environ.pop("CHAOS_ENGINE_JOBS_DIR", None)
+            try:
+                os.chdir(project / "scripts")
+                self.assertEqual(project / ".chaos-engine-state" / "jobs", jobs.jobs_root())
+            finally:
+                os.chdir(previous)
+                if saved is not None:
+                    os.environ["CHAOS_ENGINE_JOBS_DIR"] = saved
+
 
 class DurableJobContractTests(unittest.TestCase):
     def test_tool_dispatches_job_and_lists_it_in_help(self):
@@ -246,6 +298,7 @@ class DurableJobContractTests(unittest.TestCase):
         self.assertEqual(6, status.returncode, status.stderr)
         self.assertIn("job nothing: absent", status.stdout)
         self.assertIn("tool.py job start NAME", help_text)
+        self.assertIn("tool.py job wait NAME", help_text)
 
     def test_session_budget_rules_are_routed_from_the_core_card(self):
         card = (CE / "skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
