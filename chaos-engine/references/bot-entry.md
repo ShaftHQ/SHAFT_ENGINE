@@ -33,6 +33,13 @@ context summary or compaction: CLI hosts re-inject the cards on SessionStart
 and PreCompact, so a bot must do it itself. Keep one delivery per thread and write a handoff note (state, open PRs,
 next step) at each delivery boundary instead of carrying a long transcript.
 
+## Keep going
+
+Work the queue to the end without waiting for "proceed": after each step or
+delivery, start the next queued item. A turn that ends while CI runs must leave
+a wake (a PR-scoped CI listener) whose prompt resumes the queue; a host whose
+scheduled runs cannot create listeners hands that to the parent.
+
 ## After each delivery
 
 CLI hosts' Stop hook requires the Learning Session after a confirmed delivery
