@@ -211,6 +211,83 @@ class CaptureEventPipelineTest {
     }
 
     @Test
+    void iframeSignalKeepsADistinctLogicalWindowWhenLoopbackReportsTheParentContext(@TempDir Path temp) {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+        String parent = "context-tab";
+        pipeline.accept(signalFromContext(
+                "window_open", START, parent, Map.of(), Map.of(), Map.of()));
+        pipeline.accept(signalFromContext(
+                "click", START.plusMillis(10), parent, buttonTarget(),
+                Map.of("button", 0, "clickCount", 1, "clientActionId", "top-click"), Map.of()));
+        pipeline.accept(signalFromContext(
+                "click", START.plusMillis(20), BrowserEventSink.LOOPBACK_BROWSING_CONTEXT_ID,
+                target("frame-button", "button", "button", Map.of("id", "frame-button")),
+                Map.of("button", 0, "clickCount", 1, "clientActionId", "frame-click"),
+                Map.of("framePath", List.of("child"))));
+        pipeline.accept(signalFromContext(
+                "click", START.plusMillis(30), parent,
+                target("again", "button", "button", Map.of("id", "again")),
+                Map.of("button", 0, "clickCount", 1, "clientActionId", "top-again"), Map.of()));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        List<CaptureEvent.WindowEvent> switches = events.stream()
+                .filter(CaptureEvent.WindowEvent.class::isInstance)
+                .map(CaptureEvent.WindowEvent.class::cast)
+                .filter(event -> event.action() == CaptureEvent.WindowAction.SWITCH)
+                .toList();
+        assertEquals(2, switches.size(),
+                "Entering and leaving the iframe must each switch logical window: " + switches);
+        List<String> clickWindows = events.stream()
+                .filter(CaptureEvent.ClickEvent.class::isInstance)
+                .map(CaptureEvent.ClickEvent.class::cast)
+                .map(click -> click.context().page().logicalWindowId())
+                .toList();
+        assertEquals(List.of("window-1", "window-2", "window-1"), clickWindows,
+                "The iframe click stays on its own logical window and the return click comes back.");
+    }
+
+    @Test
+    void loopbackSignalAfterAPopupStaysOnThePageThatOwnsItsUrl(@TempDir Path temp) {
+        Path output = temp.resolve("session.json");
+        CaptureSessionStore store = startedStore(output);
+        CaptureEventPipeline pipeline = new CaptureEventPipeline(
+                store, output, CapturePrivacyPolicy.defaults(), ignored -> {
+                }, ignored -> {
+                });
+        pipeline.accept(signalFromContext(
+                "window_open", START, "context-tab", Map.of(), Map.of(),
+                Map.of("url", "http://127.0.0.1/")));
+        pipeline.accept(signalFromContext(
+                "window_open", START.plusMillis(10), "context-popup", Map.of(), Map.of(),
+                Map.of("url", "http://127.0.0.1/popup")));
+        pipeline.accept(signalFromContext(
+                "click", START.plusMillis(20), BrowserEventSink.LOOPBACK_BROWSING_CONTEXT_ID, buttonTarget(),
+                Map.of("button", 0, "clickCount", 1, "clientActionId", "still-on-page"),
+                Map.of("url", "http://127.0.0.1/")));
+        pipeline.close();
+
+        List<CaptureEvent> events = store.read().events();
+        // Opening the popup is the first event that records a current window, so the click may
+        // switch back onto window-1. It must not switch onto the popup.
+        assertFalse(events.stream().anyMatch(event -> event instanceof CaptureEvent.WindowEvent window
+                        && window.action() == CaptureEvent.WindowAction.SWITCH
+                        && "window-2".equals(window.logicalWindowId())),
+                "A loopback signal from the original page must not switch onto the popup: " + events);
+        CaptureEvent.ClickEvent click = events.stream()
+                .filter(CaptureEvent.ClickEvent.class::isInstance)
+                .map(CaptureEvent.ClickEvent.class::cast)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("window-1", click.context().page().logicalWindowId());
+    }
+
+    @Test
     void pendingSignalCountReportsUncommittedInputAndDebouncedClicks(@TempDir Path temp) {
         Path output = temp.resolve("session.json");
         CaptureSessionStore store = startedStore(output);

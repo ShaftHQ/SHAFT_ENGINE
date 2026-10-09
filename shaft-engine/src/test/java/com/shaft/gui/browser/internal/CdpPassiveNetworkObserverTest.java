@@ -25,7 +25,8 @@ public class CdpPassiveNetworkObserverTest {
         try (CdpPassiveNetworkObserver ignored = new CdpPassiveNetworkObserver(driver(devTools), next -> next)) {
             var commands = org.mockito.ArgumentCaptor.forClass(Command.class);
             Mockito.verify(devTools, Mockito.atLeastOnce()).send(commands.capture());
-            Assert.assertEquals(commands.getAllValues().stream().map(Command::getMethod).toList(), List.of("Network.enable"));
+            Assert.assertEquals(commands.getAllValues().stream().map(Command::getMethod).toList(),
+                    List.of("Network.setCacheDisabled", "Network.enable"));
         }
     }
 

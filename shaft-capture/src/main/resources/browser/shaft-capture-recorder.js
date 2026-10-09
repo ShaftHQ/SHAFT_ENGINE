@@ -169,6 +169,9 @@
   // navigation, so every fresh page instance re-synchronizes its visible step list from the
   // server instead of trusting only what this page happens to remember.
   let stepsSyncInFlight = false;
+  // The top-level pageshow handler installs the real function. Step sync often finishes after
+  // pageshow, which is the first moment a back/forward document has rows to attach to.
+  let reportPendingTraversal = () => false;
   const syncStepsFromServer = () => {
     if (!stepsEndpoint.url || !stepsEndpoint.token || typeof fetch !== "function" || stepsSyncInFlight) {
       return;
@@ -217,11 +220,21 @@
         };
       });
     if (merged.length === 0) return;
-    uiState.actions = merged.slice(-80);
+    // A back/forward row is announced locally, then the server stores it under its own action id.
+    // Keep the local row until that description arrives, and drop it once the server copy is
+    // present so the same traversal is not shown twice.
+    const serverIds = new Set(merged.map(clientActionId));
+    const serverTexts = new Set(merged.map(item => item.text));
+    const pendingTraversal = uiState.actions.filter(item =>
+      item && item.pendingTraversal
+        && !serverIds.has(clientActionId(item))
+        && !serverTexts.has(item.text));
+    uiState.actions = merged.concat(pendingTraversal).slice(-80);
     const changed = uiState.actions.map(clientActionId).join("|") !== previousKeys;
     uiState.currentInputActionKey = "";
     persist();
     renderActions();
+    reportPendingTraversal();
     if (changed && previousKeys) {
       noteRefreshed("Steps refreshed from session (" + uiState.actions.length + " step"
         + (uiState.actions.length === 1 ? "" : "s") + ").");
@@ -2767,6 +2780,9 @@
   // recorded step (and therefore NOT recorded as its own step), say so briefly instead of
   // silently dropping it, so users trust that "missing" rows are deliberate.
   let ignoredNoteTimer = null;
+  // Set once a back/forward row is announced for this document, so a late pageshow retry cannot
+  // send the traversal twice.
+  let reportedDocumentTraversal = false;
   // C1 (#3536): renders the toggle button (always, so its "(N)" count stays live even while the
   // log itself is collapsed) and the log body (only while uiState.suppressedLogVisible).
   function renderSuppressedLog() {
@@ -2823,6 +2839,7 @@
   }
   const reportNavigation = (source, breadcrumb) => {
     if (uiState.stopped || uiState.paused) return;
+    if (source === "user_traversal") reportedDocumentTraversal = true;
     uiState.lastUrl = String(location.href || "");
     const description = (breadcrumb ? "Open " : "Navigate to ") + visibleLocation();
     const lastAction = uiState.actions[uiState.actions.length - 1];
@@ -2834,6 +2851,7 @@
       }
       const item = announce(description);
       if (item) {
+        if (source === "user_traversal") item.pendingTraversal = true;
         data.clientActionId = clientActionId(item);
         data.stepDescription = item.text;
       }
@@ -2865,18 +2883,35 @@
     // cache restore (persisted=true) and a fresh document, and late enough that the navigation
     // timing entry (absent at preload time) reliably reports "back_forward".
     addEventListener("popstate", () => reportNavigation("user_traversal", false), true);
-    addEventListener("pageshow", event => {
-      const freshTraversal = (() => {
-        try {
-          const entry = performance.getEntriesByType
-            && performance.getEntriesByType("navigation")[0];
-          return Boolean(entry && entry.type === "back_forward");
-        } catch (ignored) {
-          return false;
-        }
-      })();
-      if (!event.persisted && !freshTraversal) return;
-      if (event.persisted) {
+    // Passive observation does not pause the document, so pageshow can run before the navigation
+    // timing entry exists and before the server step list has rehydrated. Both have to be true
+    // before a back/forward row can be announced; giving up at a fixed 1.5s misses the row.
+    let pendingTraversalEvent = null;
+    let restoredPersistedTraversal = false;
+    const navigationEntry = () => {
+      try {
+        const entries = performance.getEntriesByType && performance.getEntriesByType("navigation");
+        return entries && entries[0];
+      } catch (ignored) {
+        return null;
+      }
+    };
+    reportPendingTraversal = () => {
+      if (reportedDocumentTraversal) {
+        pendingTraversalEvent = null;
+        return true;
+      }
+      const event = pendingTraversalEvent;
+      if (!event) return false;
+      const entry = navigationEntry();
+      const backForward = Boolean(entry && entry.type === "back_forward");
+      if (!event.persisted && entry && entry.type && entry.type !== "back_forward") {
+        pendingTraversalEvent = null;
+        return true;
+      }
+      if (!event.persisted && !backForward) return false;
+      if (event.persisted && !restoredPersistedTraversal) {
+        restoredPersistedTraversal = true;
         // A bfcache restore resumes this page with its pre-navigation in-memory state; newer
         // rows recorded on the page the user came back from live in shared storage.
         const stored = persisted();
@@ -2886,10 +2921,22 @@
           renderActions();
         }
       }
-      if (uiState.actions.length > 0) {
-        // A first-ever page skips this — its "Open" breadcrumb already covers the arrival.
-        reportNavigation("user_traversal", false);
-      }
+      // Steps rehydrate from session storage or the server after pageshow. Announcing before
+      // that sees an empty list and skips the traversal.
+      if (uiState.actions.length === 0) return false;
+      pendingTraversalEvent = null;
+      reportNavigation("user_traversal", false);
+      return true;
+    };
+    addEventListener("pageshow", event => {
+      pendingTraversalEvent = event;
+      if (reportPendingTraversal()) return;
+      const started = Date.now();
+      const retry = () => {
+        if (reportPendingTraversal()) return;
+        if (Date.now() - started < 4500) setTimeout(retry, 100);
+      };
+      setTimeout(retry, 0);
     }, true);
   }
 

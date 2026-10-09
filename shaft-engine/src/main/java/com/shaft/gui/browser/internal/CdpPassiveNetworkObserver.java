@@ -49,11 +49,17 @@ public final class CdpPassiveNetworkObserver implements AutoCloseable {
             workers.shutdownNow();
             throw new IllegalStateException("CDP DevTools is unavailable for passive network observation.");
         }
-        devTools.createSessionIfThereIsNotOne();
+        // Bind the same window Selenium's pausing interceptor used. The no-arg form reattaches when
+        // the stored handle differs, which drops the BiDi script channel capture is already using.
+        devTools.createSessionIfThereIsNotOne(driver.getWindowHandle());
         devTools.addListener(event("Network.requestWillBeSent"), this::requestWillBeSent);
         devTools.addListener(event("Network.responseReceived"), this::responseReceived);
         devTools.addListener(event("Network.loadingFinished"), this::loadingFinished);
         devTools.addListener(event("Network.loadingFailed"), this::loadingFailed);
+        // Selenium's pausing interceptor disables the HTTP cache before Fetch.enable.
+        // Match that without enabling Fetch. setCacheDisabled also keeps a back-forward
+        // restore from resuming a capture script whose channel has already died.
+        devTools.send(new Command<>("Network.setCacheDisabled", Map.of("cacheDisabled", true)));
         devTools.send(new Command<>("Network.enable", Map.of()));
     }
 
