@@ -35,6 +35,13 @@ Canvas (MIT) are documented alternatives, not defaults.
   letters; per-letter motion only for two or three key words. Watch it
   muted once.
 - Every composition has a contact-sheet review before a full render.
+- A 2160p master keeps the 1080p layout and renders it at device scale
+  factor 2 (Playwright or Puppeteer `deviceScaleFactor`), so text and vector
+  art are native at 3840 x 2160. Raster images inside a scene need at
+  least one image pixel per output pixel at their deepest camera zoom
+  (`natural width / CSS width >= zoom x scale factor`): re-shoot
+  HTML-sourced screenshots at a higher scale factor and pin the CSS width so
+  camera keys keep working. Never upscale text or UI (D19).
 - The last element revealed in a scene holds at least 1.5 s before the cut;
   key late reveals to an earlier word rather than the last one.
 - Headlines and end-card lines never end on an orphan word:

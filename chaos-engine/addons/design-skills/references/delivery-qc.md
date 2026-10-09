@@ -17,10 +17,17 @@ masters, a vertical cut, a thumbnail, captions, chapters, and a manifest.
 | 16:9 HD | 1920 x 1080 | H.264 High, yuv420p, CRF 18 or 8 to 12 Mbps at 30 fps | AAC-LC 48 kHz, 320 kbps |
 | 16:9 UHD | 3840 x 2160 | H.264 High, yuv420p, 35 to 45 Mbps at 30 fps | AAC-LC 48 kHz, 320 kbps |
 | 9:16 short | 1080 x 1920 | H.264 High, yuv420p | AAC-LC 48 kHz |
+| 9:16 UHD master | 2160 x 3840 | H.264 High, yuv420p, CRF 16 or less, 45 Mbps cap | AAC-LC 48 kHz |
 | Web embed | 1920 x 1080 | H.264, 25 MB or less, `+faststart` | AAC |
 
 Common: constant frame rate, closed GOP of half the frame rate (`-g 15` at
 30 fps), BT.709 tags (D14), `-movflags +faststart`.
+
+UHD masters: render natively at 2x (D09 device scale factor) and encode the
+HD and 9:16 short files as lanczos downscales of the UHD master, never as
+separate renders. Flat motion graphics reach visually lossless quality at
+CRF 16 well below the 35 to 45 Mbps upload guidance; cap the rate
+(`-maxrate 45M`) instead of padding it.
 
 ## Vertical safe zone
 
@@ -62,7 +69,9 @@ toward about -14 LUFS), so the D15 -16 LUFS speech master stays.
 ## Verify
 
 - `design_qc.py delivery out.mp4 --preset 1080p --fps 30` passes (and
-  `2160p`, `vertical` for those outputs).
+  `2160p`, `vertical`, `vertical-2160` for those outputs).
+- `design_qc.py gapfloor master.mp4 --timeline edl.json --allow <deliberate sounds>`
+  passes: the mix between narration lines is -60 dBFS or quieter.
 - `design_qc.py manifest manifest.json` passes: every asset has a hash and a
   licence.
 - `design_qc.py all qc-plan.json` ends `pass`; any `skipped` step is

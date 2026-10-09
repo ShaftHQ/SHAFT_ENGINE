@@ -20,6 +20,11 @@ Synthetic voice from D17 is already clean; skip this card for it.
 
 ## Rules
 
+- Locate the noise before removing it: measure each stem (narration,
+  music or bed, effects) in the narration gaps and under speech
+  (`design_qc.py gapfloor` per stem, a spectrogram per stem). Noise that
+  lives in a generated bed is removed at its source, not with a denoiser on
+  the mix. A denoiser on clean synthetic speech only adds artifacts.
 - Profile first: record or find two seconds of room tone and measure it.
 - Remove hum with notches at the mains frequency and harmonics (50 or 60 Hz,
   then 100/120, 150/180); if the peak sits elsewhere, find it with a

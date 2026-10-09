@@ -9,7 +9,8 @@
 | [brief.md](brief.md) | Production brief: cuts, arcs, chapters, rules and gates |
 | [storyboards/](storyboards) | Storyboard per cut (`exec`, `exec-vertical`, `tech`) |
 | [scripts/](scripts) | Narration script per cut (`text` for captions, `say` for the voice) |
+| [V2.md](V2.md) | v2 changes: native 2160p, background-noise removal, remaining review fixes |
 
 Masters, captions, chapters, thumbnails, the manifest, publishing descriptions and the full source bundle (scene HTML, build and QC scripts) are on the [SHAFT feature video release](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/tag/shaft-feature-video-20261009). The user guide embeds the business cut on [Overview](https://shafthq.github.io/docs/start/overview) and the technical cut on [Quick start](https://shafthq.github.io/docs/start/quick-start).
 
-Tracking: #6647 (epic), #6657 (business cut), #6658 (technical cut), #6659 (publishing).
+Tracking: #6647 (epic), #6657 (business cut), #6658 (technical cut), #6659 (publishing); v2: #6707.

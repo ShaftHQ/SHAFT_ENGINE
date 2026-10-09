@@ -494,7 +494,7 @@ def ratio(text: str) -> float:
 
 
 PRESETS = {
-    "1080p": (1920, 1080), "2160p": (3840, 2160), "vertical": (1080, 1920),
+    "1080p": (1920, 1080), "2160p": (3840, 2160), "vertical": (1080, 1920), "vertical-2160": (2160, 3840),
 }
 
 
@@ -716,6 +716,43 @@ def cmd_noisefloor(args: argparse.Namespace) -> int:
     before, after = floor(args.before), floor(args.after)
     gain = round(before - after, 2)
     return report("noisefloor", PASS if gain >= args.min_gain else FAIL, before=before, after=after, gain_db=gain)
+
+
+def gap_mask(lines: list[dict], total: float, margin: float, allow: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Spans of the timeline that are neither narration (+margin) nor allowed (fades, deliberate sounds)."""
+    busy = sorted([(float(x["start"]) - margin, float(x["end"]) + margin) for x in lines] + list(allow))
+    spans, cursor = [], 0.0
+    for start, stop in busy:
+        if start > cursor:
+            spans.append((cursor, min(start, total)))
+        cursor = max(cursor, stop)
+    if cursor < total:
+        spans.append((cursor, total))
+    return [(a, b) for a, b in spans if b - a > 0]
+
+
+def cmd_gapfloor(args: argparse.Namespace) -> int:
+    """Noise floor (RMS dBFS) of a mix in the gaps between narration lines (#6706): a bed or hum shows here."""
+    timeline = json.loads(Path(args.timeline).read_text(encoding="utf-8"))
+    lines = timeline.get("lines", timeline if isinstance(timeline, list) else [])
+    rate = 16000
+    raw = decode_raw(args.file, ["-vn", "-ac", "1", "-ar", str(rate), "-f", "f32le"])
+    samples = array("f")
+    samples.frombytes(raw[: len(raw) // 4 * 4])
+    total = len(samples) / rate
+    allow = [tuple(float(x) for x in span.split("-")) for span in args.allow]
+    allow += [(0.0, args.fade), (total - args.fade, total + 1.0)]
+    spans = gap_mask(lines, total, args.margin, allow)  # type: ignore[arg-type]
+    energy, count = 0.0, 0
+    for start, stop in spans:
+        for value in samples[int(start * rate): int(stop * rate)]:
+            energy += value * value
+            count += 1
+    seconds = round(count / rate, 2)
+    floor = round(10 * math.log10(energy / count), 1) if count and energy > 0 else -120.0
+    status = PASS if floor <= args.max else FAIL
+    return report("gapfloor", status, gap_seconds=seconds, floor_dbfs=floor, max_dbfs=args.max,
+                  spans=len(spans))
 
 
 def cmd_image(args: argparse.Namespace) -> int:
@@ -1401,6 +1438,13 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("file")
     p.add_argument("--min", type=float, default=0.5)
     p.add_argument("--allow", action="append", default=[], help="start-end seconds")
+    p = add("gapfloor", cmd_gapfloor, "noise floor between narration lines")
+    p.add_argument("file")
+    p.add_argument("--timeline", required=True, help="EDL JSON with lines [{start, end}]")
+    p.add_argument("--max", type=float, default=-60.0, help="loudest allowed gap RMS in dBFS")
+    p.add_argument("--margin", type=float, default=0.05)
+    p.add_argument("--fade", type=float, default=2.5, help="head and tail seconds excluded")
+    p.add_argument("--allow", action="append", default=[], help="start-end seconds of deliberate sound")
     p = add("silence", cmd_silence, "dead air")
     p.add_argument("file")
     p.add_argument("--max", type=float, default=0.7)
