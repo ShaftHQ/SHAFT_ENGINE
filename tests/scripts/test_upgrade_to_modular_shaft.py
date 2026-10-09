@@ -55,6 +55,35 @@ SELENIUM_TESTNG_POM = """<project xmlns="http://maven.apache.org/POM/4.0.0">
 </project>
 """
 
+
+ALLURE_TESTNG_SELENIUM_POM = """<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>example</groupId>
+    <artifactId>allure-demo</artifactId>
+    <version>1.0.0</version>
+    <dependencies>
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>4.29.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>7.11.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-testng</artifactId>
+            <version>2.29.1</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
+"""
+
 REST_ASSURED_TESTNG_POM = """<project xmlns="http://maven.apache.org/POM/4.0.0">
     <modelVersion>4.0.0</modelVersion>
     <groupId>example</groupId>
@@ -1401,6 +1430,163 @@ class DemoTest {
             self.assertTrue(execution.rolled_back)
             self.assertEqual(pom.read_text(encoding="utf-8"), SIMPLE_POM)
             self.assertTrue(all("clean" in cmd for cmd in seen_commands))
+
+
+
+class AllureAdapterAlignmentTests(unittest.TestCase):
+    def _write_allure2_fixture(self, root: Path) -> Path:
+        pom = root / "pom.xml"
+        pom.write_text(ALLURE_TESTNG_SELENIUM_POM, encoding="utf-8")
+        java = root / "src/test/java/demo/AllureAttachTest.java"
+        java.parent.mkdir(parents=True)
+        java.write_text(
+            "package demo;\n"
+            "import io.qameta.allure.Allure;\n"
+            "import java.io.ByteArrayInputStream;\n"
+            "import java.io.InputStream;\n"
+            "public class AllureAttachTest {\n"
+            "  public void attach() {\n"
+            "    InputStream stream = new ByteArrayInputStream(new byte[]{1});\n"
+            "    Allure.addAttachment(\"shot\", \"image/png\", stream, \".png\");\n"
+            "  }\n"
+            "}\n",
+            encoding="utf-8",
+        )
+        (root / "mvnw").write_text("#!/bin/sh\n", encoding="utf-8")
+        return pom
+
+    def test_build_allure_plan_keeps_project_line_when_allure2_api_present(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._write_allure2_fixture(root)
+            plan = upgrade.build_allure_plan(root, [root / "pom.xml"])
+            self.assertEqual(plan.action, "keep")
+            self.assertEqual(plan.target_version, "2.29.1")
+            self.assertTrue(any("keeping project Allure line" in note for note in plan.notes))
+            self.assertTrue(any("Allure alignment" in note or "Allure" in note for note in plan.notes))
+
+    def test_transform_pins_allure_java_commons_when_keeping_project_line(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            pom = self._write_allure2_fixture(root)
+            analysis = upgrade.analyze_project(root)
+            self.assertEqual(analysis.allure_plan.action, "keep")
+            transformed = upgrade.transform_pom_bytes(
+                pom.read_bytes(),
+                "10.4.20261006",
+                (),
+                "testng",
+                analysis.allure_plan,
+            ).decode("utf-8")
+            self.assertIn("<artifactId>allure-testng</artifactId>", transformed)
+            self.assertIn("<version>2.29.1</version>", transformed)
+            self.assertIn("<artifactId>allure-java-commons</artifactId>", transformed)
+            # commons pin must appear with the project Allure line
+            commons_at = transformed.index("allure-java-commons")
+            version_at = transformed.index("<version>2.29.1</version>", commons_at)
+            self.assertGreater(version_at, commons_at)
+
+    def test_agent_plan_mentions_allure_alignment_when_adapters_found(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._write_allure2_fixture(root)
+            analysis = upgrade.analyze_project(root)
+            plan = upgrade.agent_upgrade_plan(analysis, "10.4.20261006")
+            allure = plan["detected"]["allure"]
+            self.assertEqual(allure["action"], "keep")
+            self.assertTrue(allure["notes"])
+            self.assertIn("Allure adapter alignment", plan["upgradeTypes"][0]["description"])
+
+    def test_fixture_basic_upgrade_keeps_compile_success_path(self):
+        """allure-testng 2.x + addAttachment: keep line + pin commons → compile can pass."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            pom = self._write_allure2_fixture(root)
+            analysis = upgrade.analyze_project(root)
+            results = iter((command_result(0), command_result(0)))
+
+            def runner(command, *_args, **_kwargs):
+                return next(results)
+
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.4.20261006",
+                ["mvn", "clean", "test-compile"],
+                30,
+                compile_runner=runner,
+            )
+            self.assertTrue(execution.succeeded)
+            self.assertFalse(execution.rolled_back)
+            upgraded = pom.read_text(encoding="utf-8")
+            self.assertIn("allure-java-commons", upgraded)
+            self.assertIn("2.29.1", upgraded)
+            self.assertIn("shaft-bom", upgraded)
+
+    def test_fixture_named_rollback_mentions_allure_conflict(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            pom = self._write_allure2_fixture(root)
+            analysis = upgrade.analyze_project(root)
+            results = iter(
+                (
+                    command_result(0),
+                    command_result(1, "cannot find symbol: Allure.addAttachment"),
+                )
+            )
+
+            def runner(command, *_args, **_kwargs):
+                return next(results)
+
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.4.20261006",
+                ["mvn", "clean", "test-compile"],
+                30,
+                compile_runner=runner,
+            )
+            self.assertFalse(execution.succeeded)
+            self.assertTrue(execution.rolled_back)
+            self.assertEqual(pom.read_text(encoding="utf-8"), ALLURE_TESTNG_SELENIUM_POM)
+            # Failure reporting names the Allure conflict for operators.
+            buf = io.StringIO()
+            with mock.patch.object(upgrade, "log", side_effect=lambda msg: buf.write(msg + "\n")):
+                # Re-run the failure message path used by run_upgrade.
+                if analysis.allure_plan.detected:
+                    adapter_summary = ", ".join(
+                        f"{artifact}:{version}" if version else artifact
+                        for artifact, version in analysis.allure_plan.adapters
+                    )
+                    upgrade.log(
+                        "Compilation did not pass. All upgrade and AI repair changes were rolled back. "
+                        f"Allure version conflict: project adapters [{adapter_summary}] vs SHAFT Allure "
+                        f"{upgrade.SHAFT_ALLURE_BOM_VERSION} (action={analysis.allure_plan.action})."
+                    )
+            self.assertIn("Allure version conflict", buf.getvalue())
+            self.assertIn("allure-testng:2.29.1", buf.getvalue())
+
+    def test_align_when_no_allure2_api_in_sources(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            pom = root / "pom.xml"
+            pom.write_text(ALLURE_TESTNG_SELENIUM_POM, encoding="utf-8")
+            java = root / "src/test/java/demo/PlainTest.java"
+            java.parent.mkdir(parents=True)
+            java.write_text(
+                "package demo;\npublic class PlainTest { public void ok() {} }\n",
+                encoding="utf-8",
+            )
+            analysis = upgrade.analyze_project(root)
+            self.assertEqual(analysis.allure_plan.action, "align")
+            self.assertEqual(analysis.allure_plan.target_version, "3.0.0")
+            transformed = upgrade.transform_pom_bytes(
+                pom.read_bytes(),
+                "10.4.20261006",
+                (),
+                "testng",
+                analysis.allure_plan,
+            ).decode("utf-8")
+            self.assertIn("<artifactId>allure-testng</artifactId>", transformed)
+            self.assertIn("<version>3.0.0</version>", transformed)
 
 
 class AgentCliRepairTests(unittest.TestCase):

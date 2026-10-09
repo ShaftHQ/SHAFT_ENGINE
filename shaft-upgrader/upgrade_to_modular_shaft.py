@@ -11,6 +11,13 @@ It preserves native test source, imports ``shaft-bom``, adds ``shaft-engine``,
 infers optional SHAFT modules for legacy projects, compiles before and after
 the migration, and restores every touched file if validation fails.
 
+Project detection also covers Allure adapters (``io.qameta.allure``). Basic mode
+keeps existing tests compiling: when adapters are on a different major than
+SHAFT's Allure line, the upgrader either aligns them to that line (and says so
+in the plan) or keeps the project's Allure line for its adapters—pinning
+``allure-java-commons``—and warns about API differences. A failed compile after
+Allure handling rolls back with an Allure version-conflict message.
+
 When ``OPENAI_API_KEY`` is available, an upgrade-induced compilation failure
 can trigger up to three constrained repair attempts through the OpenAI
 Responses API. Only redacted diagnostics and relevant, secret-free POM/Java
@@ -63,6 +70,37 @@ JSONASSERT_GROUP = "org.skyscreamer"
 JSONASSERT_ARTIFACT = "jsonassert"
 ANDROID_JSON_GROUP = "com.vaadin.external.google"
 ANDROID_JSON_ARTIFACT = "android-json"
+ALLURE_GROUP = "io.qameta.allure"
+ALLURE_COMMONS_ARTIFACT = "allure-java-commons"
+# Keep in sync with root pom.xml property allure.bom.version.
+SHAFT_ALLURE_BOM_VERSION = "3.0.0"
+ALLURE_ADAPTER_ARTIFACTS = frozenset(
+    {
+        "allure-testng",
+        "allure-junit4",
+        "allure-junit5",
+        "allure-jupiter",
+        "allure-cucumber7-jvm",
+        "allure-cucumber6-jvm",
+        "allure-cucumber5-jvm",
+        "allure-rest-assured",
+        "allure-okhttp3",
+        "allure-okhttp",
+        "allure-spock2",
+        "allure-attachments",
+        "allure-java-commons",
+    }
+)
+ALLURE2_RUNTIME_API_MARKERS = (
+    "Allure.addAttachment(",
+    "Allure.addDescription(",
+    "Allure.addDescriptionHtml(",
+    "Allure.addLabels(",
+    "Allure.addLinks(",
+    "Allure.addByteAttachmentAsync(",
+    "Allure.addStreamAttachmentAsync(",
+    "getLifecycle().updateTestCase(",
+)
 GENERATOR_ASPECTJ_VERSION = "1.9.25.1"
 GENERATOR_SUREFIRE_PLUGIN_VERSION = "3.5.5"
 GENERATOR_SUREFIRE_TESTNG_VERSION = "3.5.5"
@@ -306,6 +344,21 @@ class CommandResult:
 
 
 @dataclasses.dataclass(frozen=True)
+class AllurePlan:
+    """Allure adapter detection and basic-mode alignment/keep decision."""
+
+    adapters: tuple[tuple[str, str], ...] = ()
+    action: str = "none"
+    target_version: str = ""
+    notes: tuple[str, ...] = ()
+
+    @property
+    def detected(self) -> bool:
+        """Return whether any direct Allure adapters were declared."""
+        return bool(self.adapters)
+
+
+@dataclasses.dataclass(frozen=True)
 class ProjectAnalysis:
     """Detected Maven project shape and requested SHAFT migration."""
 
@@ -317,6 +370,7 @@ class ProjectAnalysis:
     stacks: tuple[str, ...]
     runners: tuple[str, ...]
     optional_evidence: Mapping[str, tuple[str, ...]]
+    allure_plan: AllurePlan = dataclasses.field(default_factory=AllurePlan)
 
     @property
     def optional_modules(self) -> tuple[str, ...]:
@@ -796,6 +850,176 @@ def scan_optional_modules(project_root: Path) -> dict[str, tuple[str, ...]]:
     return {module: tuple(items) for module, items in evidence.items()}
 
 
+def allure_major(version: str) -> str:
+    """Return the leading numeric major segment of a Maven version."""
+    match = re.match(r"(\d+)", (version or "").strip())
+    return match.group(1) if match else ""
+
+
+def collect_allure_adapters_from_root(root: ET.Element) -> tuple[tuple[str, str], ...]:
+    """Return direct io.qameta.allure adapter declarations as (artifact, version)."""
+    dependencies = direct_child(root, "dependencies")
+    if dependencies is None:
+        return ()
+    found: list[tuple[str, str]] = []
+    for dependency in dependencies:
+        if local_name(dependency.tag) != "dependency":
+            continue
+        group, artifact = dependency_coordinate(dependency)
+        if group != ALLURE_GROUP or artifact not in ALLURE_ADAPTER_ARTIFACTS:
+            continue
+        found.append((artifact, child_text(dependency, "version")))
+    return tuple(found)
+
+
+def collect_allure_adapters(poms: Sequence[Path]) -> tuple[tuple[str, str], ...]:
+    """Scan candidate POMs for direct Allure adapter dependencies."""
+    adapters: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for pom in poms:
+        try:
+            root = parse_xml(pom.read_bytes())
+        except ET.ParseError:
+            continue
+        for item in collect_allure_adapters_from_root(root):
+            if item not in seen:
+                seen.add(item)
+                adapters.append(item)
+    return tuple(adapters)
+
+
+def project_uses_allure2_runtime_api(project_root: Path) -> bool:
+    """Return whether Java sources call Allure 2 runtime APIs removed in 3.x."""
+    for path in iter_scan_files(project_root):
+        if path.suffix.lower() != ".java":
+            continue
+        text = read_text(path, max_chars=250_000)
+        if any(marker in text for marker in ALLURE2_RUNTIME_API_MARKERS):
+            return True
+    return False
+
+
+def build_allure_plan(
+    project_root: Path,
+    poms: Sequence[Path],
+) -> AllurePlan:
+    """Decide Allure align-vs-keep for basic mode and produce plan notes."""
+    adapters = collect_allure_adapters(poms)
+    if not adapters:
+        return AllurePlan((), "none", "", ())
+
+    versions = [version for _, version in adapters if version]
+    labels = ", ".join(
+        f"{artifact}:{version}" if version else artifact for artifact, version in adapters
+    )
+    if not versions:
+        note = (
+            f"Allure adapters found ({labels}) without pinned versions; "
+            f"SHAFT Engine manages Allure {SHAFT_ALLURE_BOM_VERSION}."
+        )
+        return AllurePlan(adapters, "none", SHAFT_ALLURE_BOM_VERSION, (note,))
+
+    project_version = versions[0]
+    project_major = allure_major(project_version)
+    shaft_major = allure_major(SHAFT_ALLURE_BOM_VERSION)
+    if project_major == shaft_major:
+        note = (
+            f"Allure adapters found ({labels}); already on SHAFT Allure "
+            f"{SHAFT_ALLURE_BOM_VERSION} line — no adapter rewrite."
+        )
+        return AllurePlan(adapters, "none", SHAFT_ALLURE_BOM_VERSION, (note,))
+
+    uses_v2_api = project_uses_allure2_runtime_api(project_root)
+    if uses_v2_api:
+        note = (
+            f"Allure adapters found ({labels}); keeping project Allure line "
+            f"{project_version} and pinning {ALLURE_COMMONS_ARTIFACT} so SHAFT's "
+            f"Allure {SHAFT_ALLURE_BOM_VERSION} transitive does not mix majors. "
+            f"Allure 2/3 API differences may still apply at runtime."
+        )
+        return AllurePlan(adapters, "keep", project_version, (note,))
+
+    note = (
+        f"Allure adapters found ({labels}); aligning adapters to SHAFT Allure "
+        f"{SHAFT_ALLURE_BOM_VERSION} line."
+    )
+    return AllurePlan(adapters, "align", SHAFT_ALLURE_BOM_VERSION, (note,))
+
+
+def set_dependency_version(dependency: ET.Element, namespace: str, version: str) -> None:
+    """Set or replace the <version> child on a dependency element."""
+    existing = direct_child(dependency, "version")
+    if existing is None:
+        add_text_child(dependency, namespace, "version", version)
+    else:
+        existing.text = version
+
+
+def ensure_direct_dependency(
+    container: ET.Element,
+    namespace: str,
+    group_id: str,
+    artifact_id: str,
+    version: str,
+    scope: str | None = None,
+) -> None:
+    """Ensure a direct dependency exists with the requested version."""
+    for dependency in container:
+        if local_name(dependency.tag) != "dependency":
+            continue
+        group, artifact = dependency_coordinate(dependency)
+        if group == group_id and artifact == artifact_id:
+            set_dependency_version(dependency, namespace, version)
+            return
+    dependency = ET.SubElement(container, qualified(namespace, "dependency"))
+    add_text_child(dependency, namespace, "groupId", group_id)
+    add_text_child(dependency, namespace, "artifactId", artifact_id)
+    add_text_child(dependency, namespace, "version", version)
+    if scope:
+        add_text_child(dependency, namespace, "scope", scope)
+
+
+def apply_allure_plan_to_pom(
+    root: ET.Element,
+    namespace: str,
+    allure_plan: AllurePlan,
+) -> None:
+    """Rewrite Allure adapter/commons declarations per the Allure plan."""
+    if allure_plan.action not in {"align", "keep"}:
+        return
+    dependencies = ensure_project_child(root, namespace, "dependencies")
+    if allure_plan.action == "align":
+        for dependency in dependencies:
+            if local_name(dependency.tag) != "dependency":
+                continue
+            group, artifact = dependency_coordinate(dependency)
+            if group == ALLURE_GROUP and artifact in ALLURE_ADAPTER_ARTIFACTS:
+                set_dependency_version(dependency, namespace, allure_plan.target_version)
+        return
+
+    # keep: retain adapter versions and pin commons to the project Allure line
+    template_scope = None
+    for dependency in dependencies:
+        if local_name(dependency.tag) != "dependency":
+            continue
+        group, artifact = dependency_coordinate(dependency)
+        if group == ALLURE_GROUP and artifact in ALLURE_ADAPTER_ARTIFACTS:
+            scope = child_text(dependency, "scope")
+            if scope:
+                template_scope = scope
+            version = child_text(dependency, "version")
+            if not version:
+                set_dependency_version(dependency, namespace, allure_plan.target_version)
+    ensure_direct_dependency(
+        dependencies,
+        namespace,
+        ALLURE_GROUP,
+        ALLURE_COMMONS_ARTIFACT,
+        allure_plan.target_version,
+        scope=template_scope or "test",
+    )
+
+
 def analyze_project(project_root: Path) -> ProjectAnalysis:
     """Analyze a Maven project and choose POMs that should receive SHAFT."""
     project_root = project_root.resolve()
@@ -856,15 +1080,18 @@ def analyze_project(project_root: Path) -> ProjectAnalysis:
                         existing.append(evidence)
                     optional_evidence[module] = tuple(existing)
 
+    candidate = tuple(dict.fromkeys(candidate_poms))
+    allure_plan = build_allure_plan(project_root, candidate or all_poms)
     return ProjectAnalysis(
         project_root=project_root,
         all_poms=all_poms,
-        candidate_poms=tuple(dict.fromkeys(candidate_poms)),
+        candidate_poms=candidate,
         legacy_project=legacy_project,
         existing_modular_project=existing_modular_project,
         stacks=tuple(sorted(stacks)),
         runners=tuple(sorted(runners)),
         optional_evidence=optional_evidence,
+        allure_plan=allure_plan,
     )
 
 
@@ -1254,6 +1481,7 @@ def transform_pom_bytes(
     version: str,
     optional_modules: Sequence[str],
     runner: str | None = None,
+    allure_plan: AllurePlan | None = None,
 ) -> bytes:
     """Return a POM with the modular SHAFT BOM and selected dependencies."""
     try:
@@ -1298,6 +1526,8 @@ def transform_pom_bytes(
             dependencies.append(create_dependency(namespace, module, template=template))
     ensure_generator_dependency_set(dependencies, namespace, runner)
     ensure_generator_profile(root, namespace, runner)
+    if allure_plan is not None:
+        apply_allure_plan_to_pom(root, namespace, allure_plan)
 
     ET.indent(root, space="    ")
     xml_declaration = original.lstrip().startswith(b"<?xml")
@@ -2108,16 +2338,34 @@ def agent_upgrade_plan(
                 str(path.relative_to(analysis.project_root)) for path in analysis.candidate_poms
             ],
             "optionalModules": list(analysis.optional_modules),
+            "allure": {
+                "adapters": [
+                    {"artifactId": artifact, "version": version}
+                    for artifact, version in analysis.allure_plan.adapters
+                ],
+                "action": analysis.allure_plan.action,
+                "targetVersion": analysis.allure_plan.target_version,
+                "notes": list(analysis.allure_plan.notes),
+            },
         },
         "upgradeTypes": [
             {
                 "id": "basic",
                 "risk": "low",
                 "eligible": True,
-                "reason": "Supported Maven automation project detected.",
+                "reason": (
+                    analysis.allure_plan.notes[0]
+                    if analysis.allure_plan.notes
+                    else "Supported Maven automation project detected."
+                ),
                 "description": (
                     "Upgrade the POM to modular SHAFT, enable SHAFT for new tests, "
                     "and preserve existing test source."
+                    + (
+                        " Includes Allure adapter alignment when adapters are declared."
+                        if analysis.allure_plan.detected
+                        else ""
+                    )
                 ),
                 "recommendedCommand": command("basic"),
             },
@@ -2350,6 +2598,7 @@ def execute_upgrade_transaction(
             version,
             analysis.optional_modules,
             runner,
+            analysis.allure_plan,
         )
         for pom in analysis.candidate_poms
     }
@@ -2502,6 +2751,10 @@ def print_analysis(analysis: ProjectAnalysis, version: str) -> None:
                 log(f"      {item}")
         else:
             log(f"  - {module}: not detected")
+    if analysis.allure_plan.notes:
+        log("Allure alignment:")
+        for note in analysis.allure_plan.notes:
+            log(f"  - {note}")
 
 
 def write_report(
@@ -2816,7 +3069,13 @@ def run_upgrade(args: argparse.Namespace) -> int:
     runner = preferred_runner(analysis.runners)
 
     transformed = {
-        pom: transform_pom_bytes(pom.read_bytes(), version, analysis.optional_modules, runner)
+        pom: transform_pom_bytes(
+            pom.read_bytes(),
+            version,
+            analysis.optional_modules,
+            runner,
+            analysis.allure_plan,
+        )
         for pom in analysis.candidate_poms
     }
     source_migration = collect_source_migration(analysis, args.upgrade_type)
@@ -2846,7 +3105,18 @@ def run_upgrade(args: argparse.Namespace) -> int:
     if execution.succeeded:
         return _report_upgrade_success(args, analysis, version, execution)
 
-    log("Compilation did not pass. All upgrade and AI repair changes were rolled back.")
+    if analysis.allure_plan.detected:
+        adapter_summary = ", ".join(
+            f"{artifact}:{version}" if version else artifact
+            for artifact, version in analysis.allure_plan.adapters
+        )
+        log(
+            "Compilation did not pass. All upgrade and AI repair changes were rolled back. "
+            f"Allure version conflict: project adapters [{adapter_summary}] vs SHAFT Allure "
+            f"{SHAFT_ALLURE_BOM_VERSION} (action={analysis.allure_plan.action})."
+        )
+    else:
+        log("Compilation did not pass. All upgrade and AI repair changes were rolled back.")
     diagnostics = redact_secrets(execution.final_result.combined_output)
     if diagnostics:
         log(diagnostics[-4_000:])
