@@ -2584,6 +2584,66 @@ public class FailureTraceReporterTest {
         }
     }
 
+    @Test(description = "An oversized decodable screenshot is downscaled to the artifact budget instead of omitted")
+    public void oversizedScreenshotShouldBeDownscaledInsteadOfOmitted() throws Exception {
+        TestExecutionInfo failingInfo = info("downscaleScenario", failure());
+        try {
+            byte[] oversizedPng = TraceScreenshotDownscalerTest.noisyPng(1000, 500);
+            Assert.assertTrue(oversizedPng.length > 1024 * 1024);
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure")
+                    .traceIncludeScreenshots(true).traceMaxArtifactMb(1);
+            TraceEventRecorder.Event recordTime = TraceEventRecorder.start("element", "CLICK", By.id("pay"), null);
+            TraceEventRecorder.recordScreenshot(recordTime, oversizedPng);
+            TraceEventRecorder.finish(recordTime, "passed", "", null, Map.of(), List.of());
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(50);
+            TraceEventRecorder.Event persistTime = TraceEventRecorder.start("element", "TYPE", By.id("email"), null);
+            TraceEventRecorder.recordScreenshot(persistTime, oversizedPng);
+            TraceEventRecorder.finish(persistTime, "failed", "Type failed", new RuntimeException("boom"),
+                    Map.of(), List.of());
+            SHAFT.Properties.reporting.set().traceMaxArtifactMb(1);
+
+            JsonNode root = JSON.readTree(FailureTraceReporter.renderTraceJson(failingInfo, "failed", List.of()));
+            for (String id : List.of("action-1", "action-2")) {
+                JsonNode artifact = findArtifact(root.path("session"), "screenshot-" + id);
+                Assert.assertFalse(artifact.path("omitted").asBoolean(), id + ": " + artifact);
+                Assert.assertEquals(artifact.path("metadata").path("downscaled").asText(), "true", id);
+                Assert.assertEquals(artifact.path("metadata").path("originalSizeBytes").asLong(),
+                        oversizedPng.length, id);
+                Assert.assertTrue(artifact.path("metadata").path("sizeBytes").asLong() <= 1024 * 1024, id);
+            }
+            for (JsonNode action : root.path("evidence").path("actions")) {
+                Assert.assertFalse(action.path("screenshot").asText().isEmpty(),
+                        "A downscaled screenshot stays embedded for the viewer: " + action.path("id"));
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
+    @Test(description = "Visual comparisons are embedded for the viewer slider and dropped when screenshots are disabled")
+    public void visualComparisonsShouldBeEmbeddedForTheAttachmentsSlider() throws Exception {
+        TestExecutionInfo failingInfo = info("visualScenario", failure());
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceIncludeScreenshots(true);
+            byte[] png = TraceScreenshotDownscalerTest.noisyPng(4, 4);
+            TraceEventRecorder.recordVisualComparison("Checkout token=abc123", png, png, png);
+            JsonNode comparisons = JSON.readTree(FailureTraceReporter.renderTraceJson(failingInfo, "failed", List.of()))
+                    .path("evidence").path("visualComparisons");
+            Assert.assertEquals(comparisons.size(), 1, comparisons.toString());
+            Assert.assertFalse(comparisons.get(0).path("name").asText().contains("abc123"), comparisons.toString());
+            Assert.assertEquals(java.util.Base64.getDecoder().decode(comparisons.get(0).path("diff").asText()), png);
+
+            SHAFT.Properties.reporting.set().traceIncludeScreenshots(false);
+            TraceEventRecorder.recordVisualComparison("hidden", png, png, null);
+            Assert.assertEquals(JSON.readTree(FailureTraceReporter.renderTraceJson(failingInfo, "failed", List.of()))
+                    .path("evidence").path("visualComparisons").size(), 0);
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
     private static TestExecutionInfo info(String methodName, Throwable throwable) throws Exception {
         return info(methodName, throwable, false);
     }

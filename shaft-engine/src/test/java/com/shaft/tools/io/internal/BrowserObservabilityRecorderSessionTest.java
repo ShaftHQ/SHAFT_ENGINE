@@ -89,6 +89,30 @@ public class BrowserObservabilityRecorderSessionTest {
     }
 
     @Test
+    public void requestBodyPreviewShouldBeRetainedBoundedAndRedacted() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        HttpRequest small = new HttpRequest(HttpMethod.POST, "https://example.com/login");
+        small.setContent(Contents.utf8String("{\"user\":\"ada\",\"password\":\"hunter2\"}"));
+        HttpRequest large = new HttpRequest(HttpMethod.PUT, "https://example.com/upload");
+        large.setContent(Contents.utf8String("x".repeat(5_000)));
+        BrowserObservabilityRecorder.finishNetwork(BrowserObservabilityRecorder.startNetwork(owner, small),
+                new HttpResponse().setStatus(200), "");
+        BrowserObservabilityRecorder.finishNetwork(BrowserObservabilityRecorder.startNetwork(owner, large),
+                new HttpResponse().setStatus(200), "");
+
+        JsonNode events = new ObjectMapper().readTree(BrowserObservabilityRecorder.drainNetworkJson());
+        String retained = events.get(0).path("requestBody").asText();
+        Assert.assertTrue(retained.contains("\"user\":\"ada\""), retained);
+        Assert.assertFalse(retained.contains("hunter2"), "Sensitive request fields must be masked: " + retained);
+        Assert.assertEquals(events.get(0).path("requestSizeBytes").asLong(), 35);
+        Assert.assertTrue(events.get(1).path("requestBody").asText().startsWith("[omitted because"),
+                "A request body over the preview limit must be replaced with the bounded omission marker.");
+        Assert.assertEquals(Contents.string(small), "{\"user\":\"ada\",\"password\":\"hunter2\"}",
+                "Capturing the preview must leave the request body readable downstream.");
+    }
+
+    @Test
     public void exchangeOwnerShouldUseIdentityWhenPublicRecordContentsMutate() throws Exception {
         try (var callbackExecutor = Executors.newSingleThreadExecutor()) {
             SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);

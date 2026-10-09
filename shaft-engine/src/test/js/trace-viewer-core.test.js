@@ -74,3 +74,32 @@ test('errorEntries lists failed actions and an unmatched test exception', () => 
   assert.equal(entries[0].message, 'mismatch: expected receipt');
   assert.equal(entries[1].action, null);
 });
+
+test('parseSeleniumLocator reads By strategies and ignores other formats', () => {
+  assert.deepEqual(core.parseSeleniumLocator('By.id: pay'), {strategy: 'id', value: 'pay'});
+  assert.deepEqual(core.parseSeleniumLocator('By.cssSelector: main > button.pay'), {strategy: 'cssSelector', value: 'main > button.pay'});
+  assert.deepEqual(core.parseSeleniumLocator('By.xpath: //a[text()="x"]'), {strategy: 'xpath', value: '//a[text()="x"]'});
+  assert.equal(core.parseSeleniumLocator('<legacy>'), null);
+});
+
+test('locatorCandidates follow locator-health order and escape Java and XPath text', () => {
+  const kinds = core.locatorCandidates({tag: 'BUTTON', testId: 'pay', id: 'pay-button', name: 'pay', text: 'Pay now', cssPath: 'main > button'})
+    .map(candidate => candidate.kind);
+  assert.deepEqual(kinds, ['data-testid', 'id', 'name', 'text', 'css-path']);
+  const generated = core.locatorCandidates({tag: 'div', id: 'react-select-12345', text: 'He said "hi" it\'s'});
+  assert.deepEqual(generated.map(candidate => candidate.kind), ['text']);
+  assert.equal(generated[0].java, 'SHAFT.GUI.Locator.hasTagName("div").hasText("He said \\"hi\\" it\'s").build()');
+  assert.equal(generated[0].xpath, '//div[normalize-space(.)=concat(\'He said "hi" it\', "\'", \'s\')]');
+  assert.equal(core.locatorCandidates({tag: 'input', testId: 'a"b'})[0].java, 'By.cssSelector("[data-testid=\\"a\\\\\\"b\\"]")');
+});
+
+test('logLineTime reads ISO timestamps only', () => {
+  assert.equal(core.logLineTime('2026-10-09T08:00:00.250Z [main] click'), Date.parse('2026-10-09T08:00:00.250Z'));
+  assert.equal(core.logLineTime('10:15:00 no date'), null);
+});
+
+test('filmstripActions keeps captured frames unless all actions are requested', () => {
+  const list = [{id: 'a', screenshot: 'x'}, {id: 'b'}, {id: 'c', screenshot: 'y'}];
+  assert.deepEqual(core.filmstripActions(list, false).map(action => action.id), ['a', 'c']);
+  assert.equal(core.filmstripActions(list, true).length, 3);
+});

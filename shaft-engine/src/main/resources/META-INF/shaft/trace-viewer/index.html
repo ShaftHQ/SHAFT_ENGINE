@@ -33,6 +33,7 @@
 <section class="panel trace-navigator" aria-labelledby="trace-navigator-title">
   <div class="toolbar">
     <h2 id="trace-navigator-title">Trace navigator</h2>
+    <label class="toggle"><input type="checkbox" id="filmstrip-show-all"> Include actions without screenshots</label>
     <button type="button" class="secondary" id="show-all-range">Show all</button>
   </div>
   <div class="range-controls">
@@ -42,7 +43,12 @@
     <input id="range-end" type="range" min="0" max="1" value="1" step="1">
     <label for="range-end">Range end</label>
   </div>
-  <div id="trace-error-markers" class="error-markers" role="group" aria-label="Failures on the timeline"></div>
+  <div id="timeline-track" class="timeline-track" title="Drag to select a time range; double-click an action to select its range">
+    <div id="timeline-ticks" class="timeline-ticks" aria-hidden="true"></div>
+    <div id="range-selection" class="range-selection" aria-hidden="true"></div>
+    <div id="trace-error-markers" class="error-markers" role="group" aria-label="Failures on the timeline"></div>
+  </div>
+  <p id="filmstrip-hint" class="muted" hidden></p>
   <div id="trace-filmstrip" class="filmstrip" role="listbox" aria-label="Action screenshot filmstrip"></div>
 </section>
 <div class="trace-layout">
@@ -111,11 +117,31 @@
       <p id="screenshot-empty" class="muted" hidden>No screenshot captured for this action.</p>
     </div>
     <div id="comparison-panel" hidden>
-      <div class="comparison-grid">
-        <section><h3>Before action</h3><iframe id="comparison-before" title="Before action DOM snapshot" sandbox=""></iframe><p id="comparison-before-empty" class="muted" hidden>No before-action snapshot was captured.</p></section>
-        <section><h3>Action state</h3><iframe id="comparison-input" title="Native action-state DOM snapshot" sandbox=""></iframe><img id="comparison-action" alt="Screenshot captured during the selected action"><p id="comparison-action-empty" class="muted" hidden>No action-state snapshot or screenshot was captured.</p></section>
-        <section><h3>After action</h3><iframe id="comparison-after" title="After action DOM snapshot" sandbox=""></iframe><p id="comparison-after-empty" class="muted" hidden>No after-action snapshot was captured.</p></section>
+      <div class="toolbar snapshot-toolbar">
+        <div class="tabs" id="snapshot-tabs" role="tablist" aria-label="Snapshot moment">
+          <button type="button" role="tab" data-snapshot="before" aria-controls="snapshot-before">Before</button>
+          <button type="button" role="tab" data-snapshot="action" aria-controls="snapshot-action" class="selected">Action</button>
+          <button type="button" role="tab" data-snapshot="after" aria-controls="snapshot-after">After</button>
+        </div>
+        <button type="button" class="secondary" id="snapshot-pick" aria-pressed="false">Pick locator</button>
+        <button type="button" class="secondary" id="snapshot-popout">Open in new tab</button>
       </div>
+      <p id="snapshot-target" class="muted"></p>
+      <div id="picked-locator" class="picked-locator" hidden>
+        <code id="picked-locator-code"></code>
+        <button type="button" class="secondary copy-button" id="picked-locator-copy">Copy</button>
+        <span id="picked-locator-detail" class="muted"></span>
+      </div>
+      <div class="comparison-grid">
+        <section id="snapshot-before" role="tabpanel" aria-label="Before action" hidden><h3>Before action</h3><iframe id="comparison-before" title="Before action DOM snapshot" sandbox="allow-same-origin"></iframe><p id="comparison-before-empty" class="muted" hidden>No before-action snapshot was captured.</p></section>
+        <section id="snapshot-action" role="tabpanel" aria-label="Action"><h3>Action state</h3><iframe id="comparison-input" title="Action-state DOM snapshot" sandbox="allow-same-origin"></iframe><img id="comparison-action" alt="Screenshot captured during the selected action"><p id="comparison-action-empty" class="muted" hidden>No action-state snapshot or screenshot was captured.</p></section>
+        <section id="snapshot-after" role="tabpanel" aria-label="After action" hidden><h3>After action</h3><iframe id="comparison-after" title="After action DOM snapshot" sandbox="allow-same-origin"></iframe><p id="comparison-after-empty" class="muted" hidden>No after-action snapshot was captured.</p></section>
+      </div>
+    </div>
+    <div id="attachments-panel" hidden>
+      <p class="muted" id="attachments-hint"></p>
+      <ul id="attachment-list" class="attachment-list"></ul>
+      <section id="visual-comparisons"></section>
     </div>
     <div id="native-evidence-panel" hidden>
       <p class="muted" id="native-evidence-hint"></p>
@@ -148,7 +174,7 @@
         <table class="trace-table header-table"><tbody id="network-request-headers"></tbody></table>
         <h4>Response headers</h4>
         <table class="trace-table header-table"><tbody id="network-response-headers"></tbody></table>
-        <h4>Request body</h4>
+        <h4>Request body <span id="network-request-truncated" class="status-chip warn" hidden>Preview truncated</span></h4>
         <pre id="network-request-body"></pre>
         <h4>Response body <span id="network-body-truncated" class="status-chip warn" hidden>Preview truncated</span></h4>
         <pre id="network-response-body"></pre>
@@ -231,7 +257,7 @@
      <h3>Actionability</h3>
      <ol id="actionability-steps" class="actionability-steps"></ol>
      <p class="muted" id="actionability-empty" hidden>No actionability steps were recorded for this action.</p>
-     <h3>Test log</h3>
+     <h3>Test log <span id="test-log-count" class="muted"></span></h3>
      <pre id="test-log"></pre>
    </div>
    <div id="errors-panel" hidden>
@@ -241,6 +267,7 @@
  </section>
 </div>
 </main>
+<div id="hover-preview" class="hover-preview" hidden aria-hidden="true"></div>
 </div>
 </template>
 <pre hidden id="trace-data" data-encoding="gzip+base64">@TRACE_DATA@</pre>

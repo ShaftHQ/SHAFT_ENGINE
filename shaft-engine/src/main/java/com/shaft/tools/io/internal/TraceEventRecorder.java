@@ -40,6 +40,11 @@ public final class TraceEventRecorder {
     private static final ThreadLocal<Boolean> ACTION_LIMIT_OMITTED = ThreadLocal.withInitial(() -> false);
     private static final ThreadLocal<Integer> ACTIONS_OMITTED = ThreadLocal.withInitial(() -> 0);
     private static final ThreadLocal<Long> SCREENSHOT_BYTES = ThreadLocal.withInitial(() -> 0L);
+    private static final ThreadLocal<Map<String, Long>> DOWNSCALED_SCREENSHOTS =
+            ThreadLocal.withInitial(LinkedHashMap::new);
+    private static final ThreadLocal<List<VisualComparison>> VISUAL_COMPARISONS =
+            ThreadLocal.withInitial(ArrayList::new);
+    private static final int VISUAL_COMPARISON_LIMIT = 5;
     private static final ThreadLocal<Integer> SUPPRESSION_DEPTH = ThreadLocal.withInitial(() -> 0);
 
     private TraceEventRecorder() {
@@ -174,11 +179,58 @@ public final class TraceEventRecorder {
             return;
         }
         long used = SCREENSHOT_BYTES.get();
+        byte[] retained = png;
         if (used + png.length > screenshotBudgetBytes()) {
+            retained = TraceScreenshotDownscaler.fit(png, screenshotBudgetBytes() - used);
+            if (retained == null) {
+                return;
+            }
+            DOWNSCALED_SCREENSHOTS.get().put(event.id(), (long) png.length);
+        }
+        SCREENSHOTS.get().put(event.id(), retained);
+        SCREENSHOT_BYTES.set(used + retained.length);
+    }
+
+    /**
+     * Buffers one visual comparison (expected, actual and optional diff PNG) for the trace viewer's
+     * Attachments slider. Gated like screenshots, capped at {@value #VISUAL_COMPARISON_LIMIT} per test and
+     * charged against the same screenshot budget. Never throws.
+     *
+     * @param name     comparison label
+     * @param expected baseline image bytes
+     * @param actual   captured image bytes
+     * @param diff     diff image bytes, or {@code null}
+     */
+    public static void recordVisualComparison(String name, byte[] expected, byte[] actual, byte[] diff) {
+        if (!isEnabled() || SUPPRESSION_DEPTH.get() > 0 || !isScreenshotEnabled()
+                || expected == null || actual == null || expected.length == 0 || actual.length == 0
+                || VISUAL_COMPARISONS.get().size() >= VISUAL_COMPARISON_LIMIT) {
             return;
         }
-        SCREENSHOTS.get().put(event.id(), png);
-        SCREENSHOT_BYTES.set(used + png.length);
+        byte[] safeDiff = diff == null ? new byte[0] : diff;
+        long size = (long) expected.length + actual.length + safeDiff.length;
+        long used = SCREENSHOT_BYTES.get();
+        if (used + size > screenshotBudgetBytes()) {
+            return;
+        }
+        SCREENSHOT_BYTES.set(used + size);
+        VISUAL_COMPARISONS.get().add(new VisualComparison(FailureTraceReporter.redact(value(name)), Instant.now().toString(),
+                Base64.getEncoder().encodeToString(expected), Base64.getEncoder().encodeToString(actual),
+                Base64.getEncoder().encodeToString(safeDiff)));
+    }
+
+    /** @return and clears this thread's original sizes of screenshots downscaled to fit the budget, by action id */
+    static Map<String, Long> drainDownscaledScreenshots() {
+        Map<String, Long> drained = Map.copyOf(DOWNSCALED_SCREENSHOTS.get());
+        DOWNSCALED_SCREENSHOTS.remove();
+        return drained;
+    }
+
+    /** @return and clears this thread's buffered visual comparisons */
+    static List<VisualComparison> drainVisualComparisons() {
+        List<VisualComparison> drained = List.copyOf(VISUAL_COMPARISONS.get());
+        VISUAL_COMPARISONS.remove();
+        return drained;
     }
 
     /**
@@ -364,6 +416,8 @@ public final class TraceEventRecorder {
         ACTION_LIMIT_OMITTED.remove();
         ACTIONS_OMITTED.remove();
         SCREENSHOT_BYTES.remove();
+        DOWNSCALED_SCREENSHOTS.remove();
+        VISUAL_COMPARISONS.remove();
         SUPPRESSION_DEPTH.remove();
     }
 
@@ -746,6 +800,10 @@ public final class TraceEventRecorder {
                        String exceptionMessage, List<String> attachments, Map<String, String> metadata,
                        Map<String, Object> actionability, String domSnapshotBefore, String domSnapshotAfter,
                        String screenshot) {
+    }
+
+    /** One visual comparison retained for the trace viewer; images are base64 PNG. */
+    record VisualComparison(String name, String time, String expected, String actual, String diff) {
     }
 
     record ActionSnapshots(SeleniumTraceCapture.Result before, SeleniumTraceCapture.Result after) {

@@ -11,26 +11,20 @@
     {
       "id": "snapshots-before-action-after",
       "playwright": "Before, Action and After DOM snapshots",
-      "status": "partial",
-      "evidence": "id=\"comparison-before\"",
-      "gap": "No target or click-point highlight, no hover preview, no pop-out",
-      "issue": 6716
+      "status": "present",
+      "evidence": "data-shaft-click"
     },
     {
       "id": "filmstrip",
       "playwright": "Screencast filmstrip with hover magnification",
-      "status": "partial",
-      "evidence": "filmstrip",
-      "gap": "No hover magnification; actions without screenshots render empty tiles",
-      "issue": 6717
+      "status": "present",
+      "evidence": "hover-preview.magnified"
     },
     {
       "id": "timeline-range",
       "playwright": "Drag or double-click range selection filtering every panel",
-      "status": "partial",
-      "evidence": "id=\"range-start\"",
-      "gap": "Range is two sliders only; no drag on the filmstrip and no double-click on an action",
-      "issue": 6717
+      "status": "present",
+      "evidence": "id=\"timeline-track\""
     },
     {
       "id": "source",
@@ -89,16 +83,14 @@
     {
       "id": "attachments-diff-slider",
       "playwright": "Expected, actual and diff with slider overlay",
-      "status": "missing",
-      "gap": "No slider overlay",
-      "issue": 6722
+      "status": "present",
+      "evidence": "diff-slider"
     },
     {
       "id": "pick-locator",
       "playwright": "Pick locator from a snapshot",
-      "status": "missing",
-      "gap": "Locator health exists, picking from a snapshot does not",
-      "issue": 6722
+      "status": "present",
+      "evidence": "id=\"snapshot-pick\""
     },
     {
       "id": "deep-links",
@@ -135,10 +127,8 @@
     {
       "id": "filmstrip-empty-tiles",
       "playwright": "Filmstrip shows captured frames only",
-      "status": "partial",
-      "evidence": "filmstrip",
-      "gap": "Empty 'No screenshot' tiles and no keyboard navigation",
-      "issue": 6726
+      "status": "present",
+      "evidence": "id=\"filmstrip-show-all\""
     },
     {
       "id": "layout-and-tab-overflow",
@@ -151,16 +141,22 @@
     {
       "id": "network-request-body",
       "playwright": "Request body in the network detail pane",
-      "status": "missing",
-      "gap": "Only the request size is recorded; the body is not retained",
-      "issue": 6732
+      "status": "present",
+      "evidence": "id=\"network-request-truncated\""
+    },
+    {
+      "id": "network-request-body-bidi",
+      "playwright": "Request body for every browser protocol",
+      "status": "partial",
+      "evidence": "id=\"network-request-truncated\"",
+      "gap": "BiDi exchanges have no request body until Selenium binds network data collectors",
+      "issue": 6740
     },
     {
       "id": "oversized-screenshots",
       "playwright": "Large screenshots kept at reduced resolution",
-      "status": "missing",
-      "gap": "A screenshot over shaft.trace.maxArtifactMb is omitted instead of downscaled",
-      "issue": 6733
+      "status": "present",
+      "evidence": "'Downscaled'"
     },
     {
       "id": "empty-categories",

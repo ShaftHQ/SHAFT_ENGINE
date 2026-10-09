@@ -77,7 +77,7 @@ public final class BrowserObservabilityRecorder {
             NetworkExchange exchange = new NetworkExchange(true, "network-" + index,
                     retainedNetworkText(request.getMethod().name()), retainedNetworkText(request.getUri()),
                     new LinkedHashMap<>(retainedHeaders(headers(request))),
-                    requestBody.length, System.nanoTime());
+                    requestBody.length, System.nanoTime(), preview(requestBody));
             if (retainReservedExchange(exchange, owner)) {
                 return exchange;
             }
@@ -118,7 +118,8 @@ public final class BrowserObservabilityRecorder {
                 exchange.requestSizeBytes(),
                 responseBody.length,
                 value(failureReason),
-                preview(responseBody)));
+                preview(responseBody),
+                exchange.requestBodyPreview()));
     }
 
     /**
@@ -158,6 +159,7 @@ public final class BrowserObservabilityRecorder {
                 Math.max(0, observation.responseSize()),
                 retainedNetworkText(observation.failureReason()),
                 retainedNetworkText(observation.bodyPreview()),
+                retainedNetworkText(observation.requestBodyPreview()),
                 System.currentTimeMillis()));
     }
 
@@ -527,7 +529,8 @@ public final class BrowserObservabilityRecorder {
             map(json, 3, "requestHeaders", boundedHeaders(event.requestHeaders()), true);
             map(json, 3, "responseHeaders", boundedHeaders(event.responseHeaders()), true);
             field(json, 3, "failureReason", boundedNetworkText(event.failureReason()), true);
-            field(json, 3, "bodyPreview", boundedNetworkText(event.bodyPreview()), false);
+            field(json, 3, "bodyPreview", boundedNetworkText(event.bodyPreview()), true);
+            field(json, 3, "requestBody", boundedNetworkText(event.requestBodyPreview()), false);
             indent(json, 2).append("}");
         }
         if (!events.isEmpty()) {
@@ -814,9 +817,10 @@ public final class BrowserObservabilityRecorder {
      * Active network exchange handle.
      */
     public record NetworkExchange(boolean enabled, String id, String method, String url,
-                                  Map<String, String> requestHeaders, long requestSizeBytes, long startNanos) {
+                                  Map<String, String> requestHeaders, long requestSizeBytes, long startNanos,
+                                  String requestBodyPreview) {
         static NetworkExchange disabled() {
-            return new NetworkExchange(false, "", "", "", Map.of(), 0L, 0L);
+            return new NetworkExchange(false, "", "", "", Map.of(), 0L, 0L, "");
         }
     }
 
@@ -1011,7 +1015,15 @@ public final class BrowserObservabilityRecorder {
      */
     public record NetworkObservation(String method, String url, int status, Map<String, String> requestHeaders,
                                      Map<String, String> responseHeaders, long durationMs, long requestSize,
-                                     long responseSize, String failureReason, String bodyPreview) {
+                                     long responseSize, String failureReason, String bodyPreview,
+                                     String requestBodyPreview) {
+        /** Creates an observation whose request body was not retained by the provider. */
+        public NetworkObservation(String method, String url, int status, Map<String, String> requestHeaders,
+                                  Map<String, String> responseHeaders, long durationMs, long requestSize,
+                                  long responseSize, String failureReason, String bodyPreview) {
+            this(method, url, status, requestHeaders, responseHeaders, durationMs, requestSize, responseSize,
+                    failureReason, bodyPreview, "");
+        }
     }
 
     /** Bounded WebSocket lifecycle/frame metadata. */
@@ -1024,7 +1036,8 @@ public final class BrowserObservabilityRecorder {
 
     private record NetworkEvent(String provider, String method, String url, int status, Map<String, String> requestHeaders,
                                 Map<String, String> responseHeaders, long durationMs, long requestSizeBytes,
-                                long responseSizeBytes, String failureReason, String bodyPreview, long timestamp) {
+                                long responseSizeBytes, String failureReason, String bodyPreview,
+                                String requestBodyPreview, long timestamp) {
     }
 
     private record WebSocketEvent(String requestId, String url, String direction, String type, int opcode,

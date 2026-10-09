@@ -1,7 +1,9 @@
 package com.shaft.tools.io.internal;
 
 import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.Mouse;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.ColorScheme;
@@ -462,6 +464,9 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
             Assert.assertNotEquals(page.locator("#range-start").inputValue(),
                     page.locator("#range-end").inputValue(), "A legacy action link must select its action interval.");
+            Assert.assertEquals(page.locator("#trace-filmstrip button[role=option]").count(), 2,
+                    "By default the filmstrip shows only actions with captured screenshots.");
+            page.locator("#filmstrip-show-all").check();
             Assert.assertEquals(page.locator("#trace-filmstrip button[role=option]").count(), 3);
 
             page.locator("#trace-filmstrip button").nth(1).click();
@@ -501,9 +506,11 @@ public class TraceViewerBrowserAcceptanceTest {
 
             page.locator("#trace-filmstrip button").nth(2).click();
             page.locator("button[data-tab=comparison]").click();
-            Assert.assertTrue(page.locator("#comparison-before-empty").isVisible());
-            Assert.assertTrue(page.locator("#comparison-action-empty").isVisible());
-            Assert.assertTrue(page.locator("#comparison-after-empty").isVisible());
+            for (String side : List.of("before", "action", "after")) {
+                page.locator("#snapshot-tabs button[data-snapshot=" + side + "]").click();
+                Assert.assertTrue(page.locator("#comparison-" + side + "-empty").isVisible(), side);
+            }
+            page.locator("#snapshot-tabs button[data-snapshot=action]").click();
 
             page.locator("#trace-filmstrip button").first().click();
             page.locator("button[data-tab=comparison]").click();
@@ -1010,11 +1017,13 @@ public class TraceViewerBrowserAcceptanceTest {
                         + nativeSnapshotRecord("before@native-only", "native-only before", 5001)
                         + nativeSnapshotRecord("after@native-only", "native-only after", 5009));
             }
+            TraceEventRecorder.recordVisualComparison("Visual comparison", visualPng(java.awt.Color.WHITE),
+                    visualPng(java.awt.Color.ORANGE), visualPng(java.awt.Color.RED));
             TraceEventRecorder.record("evidence", "NO EVIDENCE", "passed", "", null,
                     "optional evidence omitted", null, Map.of(), List.of());
             BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
-                    "POST", "https://example.test/payment", 200, Map.of(), Map.of(),
-                    200, 10, 20, "", "ok"));
+                    "POST", "https://example.test/payment", 200, Map.of("Content-Type", "application/json"), Map.of(),
+                    200, 10, 20, "", "ok", "{\"card\":\"4111\",\"password\":\"hunter2\"}"));
             BrowserObservabilityRecorder.recordNetwork(new BrowserObservabilityRecorder.NetworkObservation(
                     "GET", "https://example.test/orders", 503,
                     Map.of("x-request", "request-value <img id=network-injection>"),
@@ -1062,6 +1071,18 @@ public class TraceViewerBrowserAcceptanceTest {
             Files.deleteIfExists(nativeTrace);
             Properties.clearForCurrentThread();
         }
+    }
+
+    private static byte[] visualPng(java.awt.Color color) throws IOException {
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(120, 60,
+                java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var graphics = image.createGraphics();
+        graphics.setColor(color);
+        graphics.fillRect(0, 0, 120, 60);
+        graphics.dispose();
+        java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(image, "png", output);
+        return output.toByteArray();
     }
 
     private static String snapshot(String label) {
@@ -1155,6 +1176,237 @@ public class TraceViewerBrowserAcceptanceTest {
                     }
                 }
             }
+        }
+    }
+
+    @Test(groups = "trace-viewer-browser-acceptance")
+    public void snapshotsFilmstripRangeAndAttachmentsShouldMatchPlaywrightInteractions() throws Exception {
+        Path chrome = chromeExecutable();
+        ViewerFixture fixture = generateViewerFixture();
+        Path screenshot = Path.of(System.getProperty("shaft.trace.viewer.screenshot",
+                "target/trace-viewer-browser-acceptance.png")).toAbsolutePath().normalize();
+        Files.createDirectories(screenshot.getParent());
+        List<String> pageErrors = new ArrayList<>();
+        List<String> externalRequests = new ArrayList<>();
+        try (Playwright playwright = Playwright.create();
+             Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
+                     .setExecutablePath(chrome).setHeadless(true))) {
+            BrowserContext context = browser.newContext(new Browser.NewContextOptions().setViewportSize(1440, 1000));
+            context.setOffline(true);
+            context.onRequest(request -> {
+                String url = request.url();
+                if (!url.startsWith("file:") && !url.startsWith("data:") && !url.startsWith("blob:")) {
+                    externalRequests.add(url);
+                }
+            });
+            Page page = context.newPage();
+            page.onPageError(pageErrors::add);
+            openViewer(page, fixture.html().toUri().toString());
+
+            // #6726: captured frames only by default, accessible labels, keyboard navigation, opt-in for every action.
+            Assert.assertEquals(page.locator("#trace-filmstrip button[role=option]").count(), 2);
+            Assert.assertEquals(page.locator("#trace-filmstrip .filmstrip-missing").count(), 0);
+            Assert.assertTrue(page.locator("#trace-filmstrip button").first().getAttribute("aria-label")
+                    .matches("CLICK at \\+\\d+\\.\\d{3}s"), page.locator("#trace-filmstrip button").first().getAttribute("aria-label"));
+            Assert.assertEquals(page.locator("#trace-filmstrip").evaluate("e => getComputedStyle(e).scrollSnapType"),
+                    "x");
+            page.locator("#trace-filmstrip button").first().focus();
+            page.keyboard().press("End");
+            Assert.assertEquals(page.locator("#trace-filmstrip button:focus").getAttribute("data-action-id"), "action-2");
+            page.keyboard().press("Home");
+            Assert.assertEquals(page.locator("#trace-filmstrip button:focus").getAttribute("data-action-id"), "action-1");
+            page.locator("#filmstrip-show-all").check();
+            Assert.assertEquals(page.locator("#trace-filmstrip button[role=option]").count(), 3);
+            Assert.assertTrue(page.locator("#trace-filmstrip button").nth(2).getAttribute("aria-label")
+                    .endsWith("no screenshot"));
+            page.locator("#filmstrip-show-all").uncheck();
+
+            // #6717: hover magnification and snapshot preview.
+            page.locator("#trace-filmstrip button").first().hover();
+            Assert.assertTrue(page.locator("#hover-preview.magnified img").isVisible(),
+                    "Hovering a filmstrip frame magnifies its screenshot.");
+            page.mouse().move(5, 5);
+            Assert.assertTrue(page.locator("#hover-preview").isHidden());
+
+            // #6716: Before / Action / After for click, fill and navigation with target and click-point highlights.
+            page.evaluate("""
+                    () => {
+                      const page = (body) => `<html><body>${body}</body></html>`;
+                      const form = '<main><input name="email" data-testid="email-field"><button id="pay">Pay now</button>'
+                        + '<button class="secondary">Pay now later</button><a href="#">Help</a></main>';
+                      const add = (id, name, locator, offset, before, after) => actions.push({id, backend:'SELENIUM',
+                        category:'element', name, status:'passed', locator, url:'https://example.test/checkout',
+                        startTime:new Date(baseTime + offset).toISOString(), durationMs:4, metadata:{},
+                        domSnapshotBefore:page(before), domSnapshotAfter:page(after)});
+                      add('pr-b-click', 'CLICK pay', 'By.id: pay', 1, form, '<main><p id="done">Paid</p></main>');
+                      add('pr-b-fill', 'TYPE email', 'By.name: email', 2, form, form.replace('<input', '<input value="a@b.c"'));
+                      add('pr-b-nav', 'NAVIGATE', '', 3, '<main>old page</main>', '<main>new page</main>');
+                      renderActions();
+                    }
+                    """);
+            for (String id : List.of("pr-b-click", "pr-b-fill")) {
+                page.evaluate("id => selectAction(actions.find(action => action.id === id))", id);
+                page.locator("button[data-tab=comparison]").click();
+                Assert.assertEquals(page.locator("#snapshot-tabs button[role=tab]").allTextContents(),
+                        List.of("Before", "Action", "After"));
+                page.locator("#snapshot-tabs button[data-snapshot=before]").click();
+                Assert.assertTrue(page.locator("#comparison-before").isVisible());
+                Assert.assertEquals(page.frameLocator("#comparison-before").locator("[data-shaft-target]").count(), 1, id);
+                page.locator("#snapshot-tabs button[data-snapshot=action]").click();
+                Assert.assertEquals(page.frameLocator("#comparison-input").locator("[data-shaft-target][data-shaft-click]")
+                        .count(), 1, id);
+                Assert.assertTrue(String.valueOf(page.frameLocator("#comparison-input").locator("[data-shaft-click]")
+                        .evaluate("e => getComputedStyle(e).backgroundImage")).startsWith("radial-gradient"),
+                        "The Action snapshot draws the click point at the target's center.");
+                Assert.assertTrue(String.valueOf(page.frameLocator("#comparison-input").locator("[data-shaft-target]")
+                        .evaluate("e => getComputedStyle(e).outlineStyle")).equals("solid"));
+                page.locator("#snapshot-tabs button[data-snapshot=after]").click();
+                Assert.assertEquals(page.frameLocator("#comparison-after").locator("[data-shaft-target]").count(), 0);
+                Assert.assertTrue(page.locator("#snapshot-target").textContent().contains("is outlined"));
+            }
+            page.evaluate("() => selectAction(actions.find(action => action.id === 'pr-b-nav'))");
+            Assert.assertEquals(page.locator("#snapshot-tabs button[role=tab]").count(), 3);
+            Assert.assertTrue(page.frameLocator("#comparison-after").locator("body").textContent().contains("new page"));
+            Assert.assertEquals(page.locator("#snapshot-target").textContent().startsWith("This action has no target"), true);
+            page.locator("#snapshot-tabs button[data-snapshot=after]").focus();
+            page.keyboard().press("ArrowLeft");
+            Assert.assertEquals(page.locator("#snapshot-tabs button[aria-selected=true]").textContent(), "Action");
+
+            // #6716: pop the visible snapshot out into its own tab.
+            page.evaluate("() => selectAction(actions.find(action => action.id === 'pr-b-click'))");
+            page.locator("#snapshot-tabs button[data-snapshot=before]").click();
+            Page popout = context.waitForPage(() -> page.locator("#snapshot-popout").click());
+            popout.waitForLoadState();
+            Assert.assertTrue(popout.url().startsWith("blob:"), popout.url());
+            Assert.assertEquals(popout.locator("#pay[data-shaft-target]").count(), 1);
+            popout.close();
+
+            // #6722: pick a locator from the snapshot; it must resolve to exactly that element.
+            page.locator("#snapshot-tabs button[data-snapshot=action]").click();
+            page.locator("#snapshot-pick").click();
+            Assert.assertEquals(page.locator("#snapshot-pick").getAttribute("aria-pressed"), "true");
+            page.frameLocator("#comparison-input").locator("a").click();
+            Assert.assertTrue(page.frameLocator("#comparison-input").locator("#pay").isVisible(),
+                    "Picking must not follow snapshot links.");
+            Assert.assertEquals(page.locator("#picked-locator-code").textContent(),
+                    "SHAFT.GUI.Locator.hasTagName(\"a\").hasText(\"Help\").build()");
+
+            page.frameLocator("#comparison-input").locator("[name=email]").click();
+            Assert.assertEquals(page.locator("#picked-locator-code").textContent(),
+                    "By.cssSelector(\"[data-testid=\\\"email-field\\\"]\")");
+            Assert.assertEquals(page.frameLocator("#comparison-input").locator("[data-testid=\"email-field\"]").count(), 1);
+            page.frameLocator("#comparison-input").locator("button.secondary").click();
+            Assert.assertEquals(page.locator("#picked-locator-code").textContent(),
+                    "SHAFT.GUI.Locator.hasTagName(\"button\").hasText(\"Pay now later\").build()");
+            Assert.assertEquals(((Number) page.frameLocator("#comparison-input").locator("body").evaluate(
+                    "(body, xpath) => body.ownerDocument.evaluate(xpath, body.ownerDocument, null, 7, null).snapshotLength",
+                    page.evaluate("window.shaftPickedLocator.xpath"))).intValue(), 1);
+            Assert.assertTrue(page.locator("#picked-locator-detail").textContent().contains("Matches exactly this element"));
+            page.frameLocator("#comparison-input").locator("#pay").click();
+            Assert.assertEquals(page.locator("#picked-locator-code").textContent(), "By.id(\"pay\")");
+            page.locator("#snapshot-pick").click();
+            Assert.assertEquals(page.locator("#snapshot-pick").getAttribute("aria-pressed"), "false");
+            page.locator("#comparison-panel").screenshot(new com.microsoft.playwright.Locator.ScreenshotOptions()
+                    .setPath(sibling(screenshot, "-snapshots")));
+
+            // #6717: drag on the timeline track to select a range that filters actions, network, console and log.
+            page.locator("#show-all-range").click();
+            page.evaluate("""
+                    () => {
+                      trace.timeline.push(new Date(baseTime + 1).toISOString() + ' [main] early step',
+                        new Date(traceEnd).toISOString() + ' [main] late step');
+                    }
+                    """);
+            int allActions = page.locator("#action-list .action").count();
+            var track = page.locator("#timeline-track").boundingBox();
+            page.mouse().move(track.x + 1, track.y + track.height / 2);
+            page.mouse().down();
+            page.mouse().move(track.x + track.width * 0.03, track.y + track.height / 2, new Mouse.MoveOptions().setSteps(4));
+            page.mouse().up();
+            Assert.assertTrue(page.locator("#range-selection").isVisible());
+            Assert.assertTrue(page.locator("#action-list .action").count() < allActions,
+                    "A dragged range filters the action list.");
+            page.locator("button[data-tab=network]").click();
+            int overlapping = ((Number) page.evaluate("() => network.filter(entry => "
+                    + "intervalOverlaps(networkStartMs(entry), entry.durationMs, selectedWindow())).length")).intValue();
+            Assert.assertTrue(overlapping < 2, "The dragged range must exclude at least one exchange.");
+            Assert.assertEquals(page.locator("#network-rows tr").count(), overlapping,
+                    "Network shows only exchanges overlapping the dragged range.");
+            page.locator("button[data-tab=console]").click();
+            Assert.assertEquals(page.locator("#console-result-count").textContent(), "0 console messages",
+                    "Console messages logged after the dragged range are filtered out.");
+            page.locator("button[data-tab=log]").click();
+            Assert.assertTrue(page.locator("#test-log").textContent().contains("early step"));
+            Assert.assertFalse(page.locator("#test-log").textContent().contains("late step"));
+            Assert.assertTrue(page.locator("#test-log-count").textContent().contains("lines in the selected range"));
+            page.locator("#show-all-range").click();
+            Assert.assertEquals(page.locator("#action-list .action").count(), allActions);
+            Assert.assertTrue(page.locator("#range-selection").isHidden());
+            Assert.assertTrue(page.locator("#test-log").textContent().contains("late step"));
+            page.locator("#action-list .action").first().dblclick();
+            Assert.assertTrue(page.locator("#action-list .action").count() < allActions,
+                    "Double-clicking an action selects its range and filters the list.");
+            page.locator("#action-list .action").first().click();
+            Assert.assertEquals(page.locator("#action-list .action").count(), allActions,
+                    "A single click selects an action without hiding the rest.");
+            page.locator("#trace-error-markers button").first().click();
+            Assert.assertTrue(page.locator("#details-title").textContent().contains("TEXT"));
+
+            // #6732: request body preview, redacted and pretty-printed.
+            page.locator("#show-all-range").click();
+            page.locator("button[data-tab=network]").click();
+            page.locator("#network-method-filter").selectOption("POST");
+            page.locator("#network-rows tr button").click();
+            String requestBody = page.locator("#network-request-body").textContent();
+            Assert.assertTrue(requestBody.contains("\"card\": \"4111\""), requestBody);
+            Assert.assertFalse(requestBody.contains("hunter2"), requestBody);
+            Assert.assertTrue(requestBody.contains("********"), requestBody);
+            Assert.assertTrue(page.locator("#network-request-truncated").isHidden());
+            page.evaluate("() => showNetworkDetail({method:'PUT', url:'https://example.test/big', status:200, requestBody:'[omitted because browser metadata exceeded the safe redaction boundary]'})");
+            Assert.assertTrue(page.locator("#network-request-truncated").isVisible());
+
+            // #6722: visual comparison slider in Attachments.
+            page.locator("button[data-tab=attachments]").click();
+            Assert.assertTrue(page.locator("#attachments-hint").textContent().contains("1 visual comparison"));
+            Assert.assertEquals(page.locator(".visual-comparison .tabs button").allTextContents(),
+                    List.of("Slider", "Expected", "Actual", "Diff"));
+            Assert.assertTrue(page.locator(".diff-slider .diff-expected").evaluate("e => e.complete && e.naturalWidth === 120")
+                    .equals(true));
+            page.locator("#visual-slider-0").fill("20");
+            Assert.assertEquals(page.locator(".diff-slider").evaluate("e => e.style.getPropertyValue('--split')"), "20%");
+            Assert.assertTrue(String.valueOf(page.locator(".diff-slider .diff-actual")
+                    .evaluate("e => getComputedStyle(e).clipPath")).contains("80%"));
+            page.locator(".visual-comparison .tabs button", new Page.LocatorOptions().setHasText("Diff")).click();
+            Assert.assertEquals(page.locator(".visual-view img").getAttribute("alt"), "diff image");
+            page.locator(".visual-comparison .tabs button", new Page.LocatorOptions().setHasText("Slider")).click();
+            page.locator("#attachments-panel").screenshot(new com.microsoft.playwright.Locator.ScreenshotOptions()
+                    .setPath(sibling(screenshot, "-attachments")));
+
+            // #6733: downscaled screenshots are labelled in Artifacts.
+            page.evaluate("""
+                    () => {
+                      const shot = artifacts.find(artifact => artifact.kind === 'screenshot');
+                      shot.metadata = {...shot.metadata, downscaled:'true', originalSizeBytes:'3145728'};
+                      renderArtifacts();
+                    }
+                    """);
+            page.locator("button[data-tab=artifacts]").click();
+            Assert.assertTrue(page.locator("#artifact-rows").textContent().contains("Downscaled from 3145728 B"));
+            Assert.assertTrue(page.locator("#artifact-rows td:nth-child(4)").allTextContents().contains("Downscaled"));
+
+            page.evaluate("() => selectAction(actions.find(action => action.id === 'pr-b-click'))");
+            page.locator("button[data-tab=comparison]").click();
+            page.screenshot(new Page.ScreenshotOptions().setPath(sibling(screenshot, "-pr-b")).setFullPage(true));
+            page.emulateMedia(new Page.EmulateMediaOptions().setColorScheme(ColorScheme.DARK));
+            page.screenshot(new Page.ScreenshotOptions().setPath(sibling(screenshot, "-pr-b-dark")).setFullPage(true));
+            page.setViewportSize(390, 844);
+            page.screenshot(new Page.ScreenshotOptions().setPath(sibling(screenshot, "-pr-b-narrow")).setFullPage(true));
+            Assert.assertTrue((Boolean) page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"),
+                    "The phone layout must not overflow horizontally.");
+            Assert.assertTrue(pageErrors.isEmpty(), "Page errors: " + pageErrors);
+            Assert.assertTrue(externalRequests.isEmpty(), "External requests: " + externalRequests);
+        } finally {
+            deleteTraceFixture();
         }
     }
 
