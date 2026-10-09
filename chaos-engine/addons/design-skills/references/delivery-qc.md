@@ -62,6 +62,13 @@ toward about -14 LUFS), so the D15 -16 LUFS speech master stays.
   CRF 28, `+faststart`, AAC 96 kbps). A new version gets new file names (`-v2`)
   for the video, poster and captions, so a cached old video never pairs with
   new captions.
+- A media GitHub release is created with `--latest=false`. Read
+  `gh api repos/OWNER/REPO/releases/latest` before and after: a newer engine
+  release may hold the badge by then. Never move it back to an older one.
+- A green GitHub Pages deploy is not yet live: the legacy build serves the
+  old site for about 3 minutes. Poll `gh api repos/OWNER/REPO/pages/builds/latest`
+  until `built`, then fetch pages and assets with a cache-busting query and
+  compare the media hashes with the committed files.
 - Stage deliverables by copying them after the final build. A build that
   renames a new master into place leaves earlier hardlinks on the old encode,
   so check the staged hashes against the build output and the manifest.

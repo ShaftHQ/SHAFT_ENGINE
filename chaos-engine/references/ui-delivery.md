@@ -82,10 +82,5 @@ and the matrix screenshots.
 - `Post-merge deploy`: when deploy is manual (`workflow_dispatch`, for
   example GitHub Pages), name the workflow and the command to run after merge
   (`gh workflow run <file> --ref <default>`).
-- Live check after a GitHub Pages deploy: a green deploy workflow is not a
-  live site. A legacy Pages build serves the old site for about 3 minutes
-  afterwards. Poll `gh api repos/OWNER/REPO/pages/builds/latest` until it
-  reports `built`, then fetch each page and asset with a cache-busting query
-  and compare the media hashes with the committed files.
 - In a consumer repository, deliver from a separate worktree
   ([task isolation](task-isolation.md)) so overlay files never reach the diff.

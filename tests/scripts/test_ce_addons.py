@@ -797,7 +797,8 @@ class DesignRound4Tests(unittest.TestCase):
         self.assertIn("misses sub-pixel motion", card("cutting-pacing"))
         self.assertIn("re-measure them after every re-encode", card("cutting-pacing"))
         delivery = card("delivery-qc")
-        for rule in ("100 MB", "2 GB", "previous embed pull request", "(`-v2`)", "staged hashes"):
+        for rule in ("100 MB", "2 GB", "previous embed pull request", "(`-v2`)", "staged hashes",
+                     "--latest=false", "pages/builds/latest"):
             with self.subTest(rule=rule):
                 self.assertIn(rule, delivery)
         runbook = " ".join((DESIGN / "references/pipelines/runbook.md").read_text(encoding="utf-8").split())
