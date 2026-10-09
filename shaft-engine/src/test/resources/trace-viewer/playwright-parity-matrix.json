@@ -35,32 +35,26 @@
     {
       "id": "source",
       "playwright": "Source panel highlighting the action line",
-      "status": "partial",
-      "evidence": "data-tab=\"source\"",
-      "gap": "Needs per-frame navigation and failing-line highlight",
-      "issue": 6719
+      "status": "present",
+      "evidence": "id=\"source-lines\""
     },
     {
       "id": "call",
       "playwright": "Call details (duration, locator, strict mode, key)",
-      "status": "partial",
-      "evidence": "id=\"details-title\"",
-      "gap": "Details are a flat list, not a Call tab",
-      "issue": 6719
+      "status": "present",
+      "evidence": "id=\"call-details\""
     },
     {
       "id": "log",
       "playwright": "Actionability log",
       "status": "present",
-      "evidence": "data-tab=\"log\""
+      "evidence": "id=\"actionability-steps\""
     },
     {
       "id": "errors",
       "playwright": "Errors tab with timeline markers and source jump",
-      "status": "partial",
-      "evidence": "data-tab=\"exception\"",
-      "gap": "No timeline marker or jump to the failing source line",
-      "issue": 6719
+      "status": "present",
+      "evidence": "id=\"trace-error-markers\""
     },
     {
       "id": "console",
@@ -72,15 +66,13 @@
       "id": "network-list",
       "playwright": "Sortable network list with filters",
       "status": "present",
-      "evidence": "network-sort-size"
+      "evidence": "data-network-sort=\"contentType\""
     },
     {
       "id": "network-detail",
       "playwright": "Request and response headers and bodies pane",
-      "status": "partial",
-      "evidence": "requestHeaders",
-      "gap": "Headers are searchable but there is no detail pane with bodies",
-      "issue": 6718
+      "status": "present",
+      "evidence": "id=\"network-detail-raw\""
     },
     {
       "id": "metadata",
@@ -117,10 +109,8 @@
     {
       "id": "single-file-offline",
       "playwright": "Self-contained trace file",
-      "status": "partial",
-      "evidence": "Content-Security-Policy",
-      "gap": "Budgeted artifacts can be omitted and payload is not compressed",
-      "issue": 6715
+      "status": "present",
+      "evidence": "data-encoding=\"gzip+base64\""
     },
     {
       "id": "keyboard-and-themes",
@@ -133,17 +123,14 @@
     {
       "id": "large-traces",
       "playwright": "Responsive on large traces",
-      "status": "missing",
-      "gap": "No list virtualization; no size benchmark",
-      "issue": 6721
+      "status": "present",
+      "evidence": "function renderChunked"
     },
     {
       "id": "artifacts-readability",
       "playwright": "Readable attachment and artifact listing",
-      "status": "partial",
-      "evidence": "data-tab=\"artifacts\"",
-      "gap": "Duplicate digests and unreadable hashed paths",
-      "issue": 6725
+      "status": "present",
+      "evidence": "function groupArtifacts"
     },
     {
       "id": "filmstrip-empty-tiles",
@@ -160,6 +147,36 @@
       "evidence": "trace-layout",
       "gap": "Narrow centered column and tab bar wrapping into four rows",
       "issue": 6727
+    },
+    {
+      "id": "network-request-body",
+      "playwright": "Request body in the network detail pane",
+      "status": "missing",
+      "gap": "Only the request size is recorded; the body is not retained",
+      "issue": 6732
+    },
+    {
+      "id": "oversized-screenshots",
+      "playwright": "Large screenshots kept at reduced resolution",
+      "status": "missing",
+      "gap": "A screenshot over shaft.trace.maxArtifactMb is omitted instead of downscaled",
+      "issue": 6733
+    },
+    {
+      "id": "empty-categories",
+      "playwright": "Tabs and chips appear only when they have data",
+      "status": "partial",
+      "evidence": "data-tab=\"webSockets\"",
+      "gap": "Every tab is always shown, even with no data; no counts on tab labels",
+      "issue": 6730
+    },
+    {
+      "id": "allure-integration",
+      "playwright": "Trace opens inside the Allure report",
+      "status": "partial",
+      "evidence": "SHAFT Trace Report",
+      "gap": "Not verified inside a generated Allure 3 report; no theme follow, no open-in-new-tab link",
+      "issue": 6731
     }
   ]
 }

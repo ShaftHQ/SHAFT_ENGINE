@@ -167,6 +167,7 @@ public class TraceViewerBrowserAcceptanceTest {
              Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
                      .setExecutablePath(chrome).setHeadless(true))) {
             Page page = browser.newPage(new Browser.NewPageOptions().setViewportSize(1440, 1000));
+            page.context().setOffline(true);
             page.onPageError(pageErrors::add);
             page.onRequest(request -> {
                 String url = request.url();
@@ -175,7 +176,9 @@ public class TraceViewerBrowserAcceptanceTest {
                 }
             });
 
-            page.navigate(html.toUri() + "#action-action-1?start=50&end=200");
+            openViewer(page, html.toUri() + "#action-action-1?start=50&end=200");
+            Assert.assertTrue(html.toFile().length() > 0 && Files.readString(html).contains("data-encoding=\"gzip+base64\""),
+                    "The trace payload must be embedded compressed.");
             Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK"));
             Assert.assertEquals(page.locator("#range-start").inputValue(), "50");
             Assert.assertEquals(page.locator("#range-end").inputValue(), "200");
@@ -197,7 +200,7 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("button[data-tab=nativeEvidence]").click();
             Assert.assertEquals(page.locator("#native-evidence-rows tr td:first-child").allTextContents(),
                     List.of("Selected SHAFT action", "Native only"));
-            page.navigate(html.toUri() + "#action-action-1?start=50&end=200");
+            openViewer(page, html.toUri() + "#action-action-1?start=50&end=200");
             page.locator("button[data-tab=comparison]").click();
             Assert.assertTrue(page.frameLocator("#comparison-before").locator("body").textContent()
                     .contains("native before"));
@@ -283,9 +286,18 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("#network-rows tr button").press("Enter");
             Assert.assertTrue(page.locator("#network-detail").textContent().contains("request-value"));
             Assert.assertTrue(page.locator("#network-detail").textContent().contains("retry later"));
+            Assert.assertTrue(page.locator("#network-request-headers").textContent().contains("x-request"));
+            Assert.assertTrue(page.locator("#network-response-headers").textContent().contains("response-value"));
+            Assert.assertEquals(page.locator("#network-response-body").textContent(), "retry later");
+            Assert.assertTrue(page.locator("#network-request-body").textContent().contains("5 B"),
+                    "An uncaptured request body must say what was recorded instead.");
+            Assert.assertTrue(page.locator("#network-body-truncated").isHidden());
+            Assert.assertTrue(page.locator("#network-detail-general").textContent().contains("upstream unavailable"));
+            page.locator("#network-panel").screenshot(new com.microsoft.playwright.Locator.ScreenshotOptions()
+                    .setPath(sibling(screenshot, "-network")));
             @SuppressWarnings("unchecked")
             Map<String, Object> networkDetail = (Map<String, Object>) page.evaluate(
-                    "JSON.parse(document.getElementById('network-detail').textContent)");
+                    "JSON.parse(document.getElementById('network-detail-raw').textContent)");
             Assert.assertEquals(networkDetail.get("failureReason"), "upstream unavailable");
             Assert.assertEquals(((Number) networkDetail.get("requestSizeBytes")).intValue(), 5);
             Assert.assertEquals(((Number) networkDetail.get("responseSizeBytes")).intValue(), 12);
@@ -293,6 +305,28 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(String.valueOf(networkDetail.get("responseHeaders")).contains("response-value"));
             Assert.assertEquals(page.locator("#network-injection").count(), 0,
                     "Network detail must render hostile text without creating markup.");
+            page.evaluate("""
+                    () => showNetworkDetail({method:'GET', url:'https://example.test/api', status:200,
+                      responseHeaders:{'Content-Type':'application/json; charset=utf-8'}, bodyPreview:'{"order":{"id":7}}'})
+                    """);
+            Assert.assertEquals(page.locator("#network-response-body").getAttribute("data-kind"), "json");
+            Assert.assertTrue(page.locator("#network-response-body").textContent().contains("\n  \"order\": {"),
+                    "JSON bodies must be pretty-printed.");
+            Assert.assertTrue(page.locator("#network-detail-general").textContent().contains("application/json"));
+            page.evaluate("""
+                    () => showNetworkDetail({method:'GET', url:'https://example.test/pixel.png', status:200,
+                      responseHeaders:{'content-type':'image/png'},
+                      bodyPreview:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='})
+                    """);
+            Assert.assertTrue(page.locator("#network-response-image").isVisible(), "Image bodies must preview inline.");
+            Assert.assertTrue(String.valueOf(page.locator("#network-response-image").getAttribute("src"))
+                    .startsWith("data:image/png;base64,"));
+            page.evaluate("() => showNetworkDetail({method:'GET', url:'https://example.test/big', status:200, bodyPreview:'x'.repeat(2048)})");
+            Assert.assertTrue(page.locator("#network-body-truncated").isVisible(), "Truncated previews must be marked.");
+            page.locator("#network-detail-close").click();
+            Assert.assertTrue(page.locator("#network-detail").isHidden());
+            page.locator("#network-sort-contentType button").click();
+            Assert.assertEquals(page.locator("#network-sort-contentType").getAttribute("aria-sort"), "ascending");
             page.locator("#network-method-filter").selectOption("");
             page.locator("#network-status-filter").selectOption("");
             page.locator("#network-text-filter").fill("503");
@@ -321,7 +355,7 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertFalse(String.valueOf(legacyRow.getAttribute("class")).contains("inwindow"));
             page.locator("#network-sort-time button").click();
             page.locator("#network-sort-time button").click();
-            Assert.assertEquals(page.locator("#network-rows tr").last().locator("td").nth(6).textContent(),
+            Assert.assertEquals(page.locator("#network-rows tr").last().locator("td").nth(7).textContent(),
                     "legacy://untimed", "Missing sort values stay last in descending order.");
 
             page.locator("button[data-tab=console]").click();
@@ -410,8 +444,9 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertEquals(page.locator("#console-rows tr").last().locator("td").allTextContents(),
                     List.of("Unknown", "Unknown", "Unknown", "Unknown", "View message details"));
 
-            page.navigate(html.toUri() + "#action-action-1");
+            openViewer(page, html.toUri() + "#action-action-1");
             page.reload();
+            page.waitForFunction("() => window.shaftTraceReady === true");
             Assert.assertEquals(((Number) page.evaluate("network.length")).intValue(), 2,
                     "Same-document navigation must not leak earlier mutation fixtures into range acceptance.");
             page.evaluate("""
@@ -475,10 +510,58 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(page.locator("#comparison-action").isHidden(),
                     "The native action-state snapshot should take precedence over the SHAFT screenshot.");
 
+            page.locator("button[data-tab=log]").click();
+            Assert.assertTrue(page.locator("#actionability-steps").textContent().contains("attempting native click"),
+                    "The Log tab lists the selected action's actionability steps.");
+            Assert.assertTrue(page.locator("#test-log").textContent().contains("trace viewer acceptance"));
+            page.locator("#trace-filmstrip button").nth(1).click();
+            page.locator("button[data-tab=call]").click();
+            Assert.assertTrue(page.locator("#call-details").textContent().contains("#confirmation"));
+            Assert.assertTrue(page.locator("#call-details").textContent().contains("paid"));
+            Assert.assertTrue(page.locator("#call-empty").isHidden());
+            page.locator("button[data-tab=errors]").click();
+            Assert.assertTrue(page.locator("#error-list").textContent().contains("expected receipt"),
+                    page.locator("#error-list").textContent());
+            Assert.assertEquals(page.locator("#trace-error-markers button").count(), 1,
+                    "Each failed timed action is marked on the timeline.");
+            page.locator("#trace-filmstrip button").first().click();
+            page.locator("#trace-error-markers button").click();
+            Assert.assertTrue(page.locator("#details-title").textContent().contains("TEXT"));
+            page.locator("button[data-tab=source]").click();
+            Assert.assertTrue(page.locator("#source-hint").textContent().startsWith("The source file was not embedded"),
+                    "A frame-only source context must say the file is missing instead of rendering it as code.");
+            Assert.assertEquals(page.locator("#source-lines li").count(), 0);
+            page.evaluate("""
+                    () => {
+                      trace.source = {file:'CheckoutTest.java', frame:'customer.CheckoutTest.pay(CheckoutTest.java:3)',
+                        line:'3', fileContent:'package customer;\\npublic class CheckoutTest {\\n  void pay() { int total = 1; }\\n}'};
+                      trace.exception.stacktrace = 'java.lang.AssertionError: checkout failed\\n\\tat customer.CheckoutTest.pay(CheckoutTest.java:2)\\n\\tat org.testng.Runner.run(Runner.java:9)';
+                    }
+                    """);
+            page.locator("button[data-tab=errors]").click();
+            page.locator("#error-list .error-source").first().click();
+            Assert.assertEquals(page.locator("button[data-tab=source]").getAttribute("class"), "selected");
+            Assert.assertEquals(page.locator("#source-lines [aria-current=true]").getAttribute("id"), "source-line-3",
+                    "Jumping from an error highlights its source line.");
+            Assert.assertTrue(page.locator("#source-line-3").getAttribute("class").contains("failed"));
+            Assert.assertTrue(page.locator("#source-lines .tok-kw").count() > 0, "Source must be syntax-highlighted.");
+            Assert.assertEquals(page.locator("#source-frames button").count(), 2);
+            Assert.assertTrue(page.locator("#source-frames button").nth(1).isDisabled(),
+                    "Frames whose source is not embedded cannot be navigated.");
+            page.locator("#source-frames button").first().click();
+            Assert.assertEquals(page.locator("#source-lines [aria-current=true]").getAttribute("id"), "source-line-2",
+                    "Each embedded stack frame is navigable.");
+            page.locator("#source-panel").screenshot(new com.microsoft.playwright.Locator.ScreenshotOptions()
+                    .setPath(sibling(screenshot, "-source")));
+            page.locator("button[data-tab=errors]").click();
+            page.locator("#errors-panel").screenshot(new com.microsoft.playwright.Locator.ScreenshotOptions()
+                    .setPath(sibling(screenshot, "-errors")));
+            page.locator("#trace-filmstrip button").first().click();
+
             page.locator("button[data-tab=timeline]").click();
             page.evaluate("""
                     () => {
-                      const trace = JSON.parse(document.getElementById('trace-data').textContent);
+                      const trace = JSON.parse(window.shaftTraceText);
                       const evidence = trace.evidence || trace;
                       const action = evidence.actions[0];
                       const actionTimes = evidence.actions.map(item => Date.parse(item.startTime));
@@ -519,7 +602,7 @@ public class TraceViewerBrowserAcceptanceTest {
             int historyBeforeRangeInput = ((Number) page.evaluate("history.length")).intValue();
             page.evaluate("""
                     () => {
-                      const trace = JSON.parse(document.getElementById('trace-data').textContent);
+                      const trace = JSON.parse(window.shaftTraceText);
                       const evidence = trace.evidence || trace;
                       const event = evidence.network[0];
                       const actionTimes = evidence.actions.map(action => Date.parse(action.startTime));
@@ -689,24 +772,41 @@ public class TraceViewerBrowserAcceptanceTest {
             page.locator("button[data-tab=artifacts]").press("Enter");
             Assert.assertEquals(page.locator("button[data-tab=artifacts]")
                     .evaluate("button => button === document.activeElement"), true);
-            Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "6 trace artifacts");
-            Assert.assertEquals(page.locator("#artifact-rows tr").count(), 6);
-            List<String> artifactPaths = page.locator("#artifact-rows tr td:nth-child(1)").allTextContents();
-            Assert.assertEquals(artifactPaths.getFirst(), "shaft-network.har");
-            Assert.assertTrue(artifactPaths.subList(1, 5).stream().allMatch(path -> path.startsWith("resources/")));
-            Assert.assertEquals(artifactPaths.getLast(), "trace-viewer-native.zip");
+            Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "5 trace artifacts (6 references)",
+                    "Artifacts with the same digest must collapse into one row.");
+            Assert.assertEquals(page.locator("#artifact-rows tr").count(), 5);
+            List<String> artifactNames = page.locator("#artifact-rows .artifact-name").allTextContents();
+            Assert.assertEquals(artifactNames.getFirst(), "shaft-network.har");
+            Assert.assertTrue(artifactNames.subList(1, 4).stream()
+                    .allMatch(name -> name.matches("(screenshot|dom-snapshot) [0-9a-f]{8}\\.(png|html)")), artifactNames.toString());
+            Assert.assertEquals(artifactNames.getLast(), "trace-viewer-native.zip");
+            Assert.assertTrue(page.locator("#artifact-rows .artifact-name").nth(1).getAttribute("title")
+                    .matches("resources/[0-9a-f]{64}\\.png"), "The full path stays available on hover.");
+            Assert.assertEquals(page.locator("#artifact-rows .artifact-name").nth(1)
+                    .evaluate("element => getComputedStyle(element).whiteSpace"), "nowrap",
+                    "Artifact names must not wrap mid-token.");
             Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(2)").allTextContents(),
-                    List.of("network", "screenshot", "screenshot", "dom-snapshot", "dom-snapshot",
-                            "native-trace"));
+                    List.of("network", "screenshot", "dom-snapshot", "dom-snapshot", "native-trace"));
             Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(3)").allTextContents(),
-                    List.of("application/json", "image/png", "image/png", "text/html", "text/html",
-                            "application/zip"));
+                    List.of("application/json", "image/png", "text/html", "text/html", "application/zip"));
             Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(4)").allTextContents(),
-                    List.of("Available", "Available", "Available", "Available", "Available", "Available"));
+                    List.of("Available", "Available", "Available", "Available", "Available"));
             Assert.assertTrue(page.locator("#artifact-rows tr td:nth-child(5)").allTextContents().stream()
                     .allMatch(size -> size.endsWith(" B")));
             Assert.assertTrue(page.locator("#artifact-rows tr td:nth-child(6)").allTextContents().stream()
                     .allMatch(digest -> digest.matches("[0-9a-f]{12}")));
+            String screenshotUsers = page.locator("#artifact-rows tr").nth(1).locator("td").nth(6).textContent();
+            Assert.assertTrue(screenshotUsers.contains("action-1") && screenshotUsers.contains("action-2"),
+                    "A shared screenshot row lists every action using it: " + screenshotUsers);
+            page.locator("#artifact-kind-filter").selectOption("dom-snapshot");
+            Assert.assertEquals(page.locator("#artifact-rows tr").count(), 2);
+            page.locator("#artifact-kind-filter").selectOption("");
+            page.locator("#artifact-sort-kind button").click();
+            Assert.assertEquals(page.locator("#artifact-sort-kind").getAttribute("aria-sort"), "ascending");
+            Assert.assertEquals(page.locator("#artifact-rows tr td:nth-child(2)").allTextContents(),
+                    List.of("dom-snapshot", "dom-snapshot", "native-trace", "network", "screenshot"));
+            page.locator("#artifact-sort-kind button").click();
+            page.evaluate("() => { artifactSort = {key:'', direction:'ascending'}; renderArtifacts(); }");
             Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("show-trace"));
             Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("trace-viewer-native.zip"));
             page.evaluate("""
@@ -763,6 +863,7 @@ public class TraceViewerBrowserAcceptanceTest {
             Assert.assertTrue(page.locator("#native-trace-handoff").textContent().contains("is available"));
             Assert.assertTrue(page.locator("#truncation-banner").isHidden());
             page.screenshot(new Page.ScreenshotOptions().setPath(screenshot).setFullPage(true));
+            keepGeneratedHtml(html);
 
             Assert.assertEquals(page.locator("main").count(), 1, "The viewer needs one primary landmark.");
             Assert.assertEquals(page.locator("h1").count(), 1, "The viewer needs one page heading.");
@@ -791,10 +892,14 @@ public class TraceViewerBrowserAcceptanceTest {
                       return performance.now() - start;
                     }
                     """);
-            Assert.assertTrue(largeRenderMillis.doubleValue() < 5_000,
-                    "A 5,000-action trace must become interactive within five seconds: " + largeRenderMillis);
-            Assert.assertEquals(page.locator("#action-list button").count(),
-                    ((Number) page.evaluate("window.__largeTraceStart + 5000")).intValue());
+            Assert.assertTrue(largeRenderMillis.doubleValue() < 2_000,
+                    "A 5,000-action trace must become interactive within two seconds: " + largeRenderMillis);
+            Assert.assertEquals(page.locator("#action-list .action").count(),
+                    ((Number) page.evaluate("RENDER_CHUNK")).intValue(), "Large action lists render in windows.");
+            Assert.assertTrue(page.locator("#action-list .list-more button").textContent().contains("not shown"));
+            page.locator("#action-list .list-more button").click();
+            Assert.assertEquals(page.locator("#action-list .action").count(),
+                    2 * ((Number) page.evaluate("RENDER_CHUNK")).intValue());
             Number largeSearchMillis = (Number) page.evaluate("""
                     () => {
                       actionSearch.value = 'Large action 4999';
@@ -805,8 +910,8 @@ public class TraceViewerBrowserAcceptanceTest {
                     """);
             Assert.assertTrue(largeSearchMillis.doubleValue() < 1_000,
                     "Filtering a large trace must remain responsive: " + largeSearchMillis);
-            Assert.assertEquals(page.locator("#action-list button").count(), 1);
-            Assert.assertTrue(page.locator("#action-list button").first().textContent()
+            Assert.assertEquals(page.locator("#action-list .action").count(), 1);
+            Assert.assertTrue(page.locator("#action-list .action").first().textContent()
                     .contains("Large action 4999"));
             page.evaluate("() => { actions.splice(window.__largeTraceStart); actionSearch.value=''; renderActions(); }");
             String lightBackground = String.valueOf(page.locator("body")
@@ -819,7 +924,9 @@ public class TraceViewerBrowserAcceptanceTest {
                     lightBackground, "Dark mode must switch the report surface tokens.");
             Assert.assertEquals(page.locator(".action").first()
                     .evaluate("element => getComputedStyle(element).transitionDuration"), "0s");
+            page.screenshot(new Page.ScreenshotOptions().setPath(sibling(screenshot, "-dark")).setFullPage(true));
             page.setViewportSize(390, 844);
+            page.screenshot(new Page.ScreenshotOptions().setPath(sibling(screenshot, "-narrow")).setFullPage(true));
             Assert.assertTrue((Boolean) page.evaluate(
                     "document.documentElement.scrollWidth <= window.innerWidth"),
                     "The phone layout must not introduce page-level horizontal overflow.");
@@ -829,7 +936,7 @@ public class TraceViewerBrowserAcceptanceTest {
             page.setViewportSize(1440, 1000);
             page.emulateMedia(new Page.EmulateMediaOptions().setColorScheme(ColorScheme.LIGHT)
                     .setReducedMotion(ReducedMotion.NO_PREFERENCE));
-            page.navigate(fixture.legacyHtml().toUri().toString());
+            openViewer(page, fixture.legacyHtml().toUri().toString());
             page.locator("button[data-tab=artifacts]").click();
             Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "0 trace artifacts");
             Assert.assertEquals(page.locator("#artifact-hint").textContent(),
@@ -984,11 +1091,7 @@ public class TraceViewerBrowserAcceptanceTest {
 
     private static Path legacyViewer(Path currentHtml) throws Exception {
         String html = Files.readString(currentHtml);
-        String marker = "<pre hidden id=\"trace-data\">";
-        int payloadStart = html.indexOf(marker) + marker.length();
-        int payloadEnd = html.indexOf("</pre>", payloadStart);
-        String encoded = html.substring(payloadStart, payloadEnd);
-        String decoded = encoded.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+        String decoded = TraceViewerHtml.embeddedJson(html);
         JsonNode legacy = JSON.readTree(decoded);
         var legacyObject = (tools.jackson.databind.node.ObjectNode) legacy;
         JsonNode evidence = legacy.path("evidence");
@@ -999,11 +1102,77 @@ public class TraceViewerBrowserAcceptanceTest {
         legacyObject.set("browserObservability", evidence.path("browserObservability"));
         legacyObject.remove("evidence");
         legacyObject.remove("session");
-        String legacyJson = JSON.writeValueAsString(legacy)
-                .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
         Path target = currentHtml.resolveSibling("trace-viewer-browser-acceptance-v1.html");
-        Files.writeString(target, html.substring(0, payloadStart) + legacyJson + html.substring(payloadEnd));
+        Files.writeString(target, TraceViewerHtml.withEmbeddedJson(html, JSON.writeValueAsString(legacy)));
         return target;
+    }
+
+    @Test(groups = "trace-viewer-browser-acceptance")
+    public void thousandActionTraceShouldOpenOfflineAndBecomeInteractiveWithinTwoSeconds() throws Exception {
+        Method marker = TraceViewerBrowserAcceptanceTest.class.getDeclaredMethod("marker");
+        TestExecutionInfo info = new TestExecutionInfo("trace-viewer-large-acceptance", "customer.LargeTraceTest",
+                "largeTrace", "largeTrace", "large trace acceptance", marker,
+                new AssertionError("large trace failed"), false);
+        Path directory = FailureTraceReporter.traceDirectory(info);
+        Path html = Path.of("target", "trace-viewer-large-acceptance.html").toAbsolutePath().normalize();
+        try {
+            SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure");
+            for (int index = 0; index < 1_000; index++) {
+                TraceEventRecorder.record("element", "CLICK " + index, index == 999 ? "failed" : "passed",
+                        "#item-" + index, null, "action " + index, null, Map.of(), List.of());
+            }
+            FailureTraceReporter.attachOnFailure(info, "large trace acceptance", List.of());
+            extract(directory.resolve("shaft-trace.zip"), "SHAFT Trace Report.html", html);
+            try (Playwright playwright = Playwright.create();
+                 Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
+                         .setExecutablePath(chromeExecutable()).setHeadless(true))) {
+                Page page = browser.newPage(new Browser.NewPageOptions().setViewportSize(1440, 1000));
+                page.context().setOffline(true);
+                List<String> pageErrors = new ArrayList<>();
+                page.onPageError(pageErrors::add);
+                openViewer(page, html.toUri().toString());
+                double readyMillis = ((Number) page.evaluate("window.shaftTraceReadyMs")).doubleValue();
+                Assert.assertTrue(readyMillis < 2_000, "A 1,000-action trace must be interactive in under 2 s: " + readyMillis);
+                Assert.assertEquals(((Number) page.evaluate("actions.length")).intValue(), 1_000);
+                Assert.assertEquals(page.locator("#action-list .action").count(), 1_000,
+                        "The selected (last, failed) action's window must be rendered.");
+                Assert.assertTrue(page.locator("#details-title").textContent().contains("CLICK 999"));
+                page.locator("#action-search").fill("CLICK 12");
+                Assert.assertTrue(page.locator("#action-list .action").count() >= 1);
+                Assert.assertTrue(pageErrors.isEmpty(), "Page errors: " + pageErrors);
+            }
+        } finally {
+            TraceEventRecorder.clear();
+            Properties.clearForCurrentThread();
+            Files.deleteIfExists(html);
+            if (Files.exists(directory)) {
+                try (var paths = Files.walk(directory)) {
+                    for (Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                        Files.deleteIfExists(path);
+                    }
+                }
+            }
+        }
+    }
+
+    private static Path sibling(Path screenshot, String suffix) {
+        String name = screenshot.getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        return screenshot.resolveSibling(dot < 0 ? name + suffix : name.substring(0, dot) + suffix + name.substring(dot));
+    }
+
+    private static void keepGeneratedHtml(Path html) throws IOException {
+        String target = System.getProperty("shaft.trace.viewer.keepHtml", "");
+        if (!target.isBlank()) {
+            Path copy = Path.of(target).toAbsolutePath().normalize();
+            Files.createDirectories(copy.getParent());
+            Files.copy(html, copy, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static void openViewer(Page page, String url) {
+        page.navigate(url);
+        page.waitForFunction("() => window.shaftTraceReady === true");
     }
 
     private static String readZipEntry(ZipFile zip, String entryName) throws IOException {
