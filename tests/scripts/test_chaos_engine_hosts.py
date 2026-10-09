@@ -1430,8 +1430,9 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertEqual({"name": "user-plugin", "source": "./user", "permissions": ["keep"]}, rendered["plugins"][0])
         self.assertEqual("2.0.0", rendered["plugins"][1]["version"])
 
-    def test_source_checkout_keeps_marketplace_version_and_omits_maven(self):
+    def test_source_checkout_bumps_marketplace_version_and_omits_maven(self):
         module = load(HOSTS, "chaos_engine_source_checkout_marketplace")
+        module.consume_merge_handoffs()
         before = {relative: None for relative in module.managed_paths()}
         marketplace = (ROOT / ".claude-plugin/marketplace.json").read_bytes()
         mcp = (ROOT / ".mcp.json").read_bytes()
@@ -1444,10 +1445,59 @@ class ChaosEngineHostsTest(unittest.TestCase):
             plugin_version="9.9.9",
             project=ROOT,
         )
-        self.assertEqual(marketplace, rendered[".claude-plugin/marketplace.json"])
+        original = json.loads(marketplace)
+        migrated_source = json.loads(rendered[".claude-plugin/marketplace.json"])
+        chaos = next(item for item in migrated_source["plugins"] if item["name"] == "chaos-engine")
+        self.assertEqual("9.9.9", chaos["version"])
+        self.assertEqual(
+            [item["name"] for item in original["plugins"]],
+            [item["name"] for item in migrated_source["plugins"]],
+        )
+        for plugin in original["plugins"]:
+            if plugin["name"] == "chaos-engine":
+                continue
+            match = next(
+                item for item in migrated_source["plugins"] if item["name"] == plugin["name"]
+            )
+            self.assertEqual(plugin, match)
+        self.assertNotIn(
+            ".claude-plugin/marketplace.json",
+            [note["path"] for note in module.consume_merge_handoffs()],
+        )
+        current_version = next(
+            item["version"] for item in original["plugins"] if item["name"] == "chaos-engine"
+        )
+        before[".claude-plugin/marketplace.json"] = marketplace
+        unchanged = module.desired_content(
+            before,
+            maven_runtime=None,
+            maven_docker=("docker", "maven:3.9"),
+            plugin_version=current_version,
+            project=ROOT,
+        )
+        self.assertEqual(marketplace, unchanged[".claude-plugin/marketplace.json"])
+        foreign = json.loads(marketplace)
+        for item in foreign["plugins"]:
+            if item.get("name") == "chaos-engine":
+                item["source"] = "./foreign"
+        foreign_bytes = (json.dumps(foreign, indent=2, sort_keys=True) + "\n").encode()
+        before[".claude-plugin/marketplace.json"] = foreign_bytes
+        kept = module.desired_content(
+            before,
+            maven_runtime=None,
+            maven_docker=("docker", "maven:3.9"),
+            plugin_version="9.9.9",
+            project=ROOT,
+        )[".claude-plugin/marketplace.json"]
+        self.assertEqual(foreign_bytes, kept)
+        self.assertIn(
+            ".claude-plugin/marketplace.json",
+            [note["path"] for note in module.consume_merge_handoffs()],
+        )
         servers = json.loads(rendered[".mcp.json"])["mcpServers"]
         self.assertNotIn("maven-tools-mcp", servers)
         self.assertNotIn("maven-tools-mcp", rendered[".codex/config.toml"].decode())
+        before[".claude-plugin/marketplace.json"] = marketplace
         consumer = module.desired_content(
             before,
             maven_docker=("docker", "maven:3.9"),
