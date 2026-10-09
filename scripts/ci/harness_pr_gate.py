@@ -750,6 +750,7 @@ SURFACE_PATTERNS = {
         "scripts/agents/watch_pr_checks.py",
         "scripts/ci/overlay_pre_push.py",
         "scripts/ci/code_quality_preflight.py",
+        "scripts/ci/java_npath.py",
         "scripts/mcp/install_shaft_agentic_tools.py",
         "shaft-upgrader/upgrade_to_modular_shaft.py",
         "chaos-engine/references/installer-program.md",

@@ -120,7 +120,9 @@ for behavior that lacked proof.
 
 Validation scope (balanced default): tests created or edited by the task plus
 directly impacted tests; the owner may pick only tests created or edited, or
-the full suite. Review is one
+the full suite. Directly impacted tests include every test that references a
+type the change edits, replaces, or stops calling (mocks included): find them
+with `git grep -l TypeName -- '*/src/test/*'`. Review is one
 fresh-context review, with a second round only for blocker findings. Details:
 [work-github-planning](work-github-planning.md).
 
