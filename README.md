@@ -30,6 +30,12 @@ SHAFT is a Java test-automation framework. The shortest path from zero to a
 run is the published user guide at [https://shafthq.github.io/](https://shafthq.github.io/):
 generate a project, then run `mvn test`.
 
+New to SHAFT? Watch the
+[100-second overview](https://shafthq.github.io/docs/start/overview#watch-shaft-in-100-seconds)
+or the [3.5-minute technical walkthrough](https://shafthq.github.io/docs/start/quick-start#watch-the-technical-walkthrough).
+Masters and captions are on the
+[SHAFT feature video release](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/tag/shaft-feature-video-20261009).
+
 **Humans:** use this page to orient, then [CONTRIBUTING.md](CONTRIBUTING.md)
 when you change the engine. Report vulnerabilities through
 [SECURITY.md](SECURITY.md).

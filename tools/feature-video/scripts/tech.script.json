@@ -1,0 +1,131 @@
+{
+ "voice": {
+  "engine": "kokoro-onnx",
+  "model": "Kokoro-82M v1.0",
+  "voice": "af_heart",
+  "speed": 0.85,
+  "licence": "Apache-2.0",
+  "synthetic": true
+ },
+ "lines": [
+  {
+   "id": "k01",
+   "text": "Three lines of Java. Waits, screenshots and a report included."
+  },
+  {
+   "id": "k02",
+   "text": "In plain Selenium, the same test needs an explicit wait, a screenshot helper, report wiring, and a separate client for API calls."
+  },
+  {
+   "id": "k03",
+   "text": "Every team writes that plumbing, and every copy drifts."
+  },
+  {
+   "id": "k03b",
+   "text": "Measured on the same test, that is 44 lines in plain Selenium, and 17 with SHAFT.",
+   "say": "Measured on the same test, that is forty four lines in plain Selenium, and seventeen with Shaft."
+  },
+  {
+   "id": "k04",
+   "text": "SHAFT puts every surface behind one entry point."
+  },
+  {
+   "id": "k05",
+   "text": "SHAFT.GUI.WebDriver drives browsers and Appium apps. SHAFT.API wraps REST Assured. SHAFT.DB and SHAFT.CLI cover databases and terminals.",
+   "say": "Shaft dot G U I dot web driver drives browsers and Appy-um apps. Shaft dot API wraps rest assured. Shaft dot D B and Shaft dot C-L-I cover databases and terminals."
+  },
+  {
+   "id": "k06",
+   "text": "Test data comes from JSON, Excel, CSV or YAML files, and every check uses the same assertThat style.",
+   "say": "Test data comes from JSON, Excel, CSV or YAML files, and every check uses the same assert that style."
+  },
+  {
+   "id": "k07",
+   "text": "SHAFT handles timing for you."
+  },
+  {
+   "id": "k08",
+   "text": "Every element action retries until the element is ready, up to a timeout you configure."
+  },
+  {
+   "id": "k09",
+   "text": "After navigation, it waits for the page to go quiet: 300 milliseconds without changes, by default.",
+   "say": "After navigation, it waits for the page to go quiet: three hundred milliseconds without changes, by default."
+  },
+  {
+   "id": "k10",
+   "text": "For business states, like an order status turning complete, you wait on that condition explicitly."
+  },
+  {
+   "id": "k11",
+   "text": "Retries are opt-in and bounded, and locators can target accessible roles and visible text."
+  },
+  {
+   "id": "k12",
+   "text": "Every action becomes an Allure step. Failures get screenshots by default, and validation points can get them too."
+  },
+  {
+   "id": "k13",
+   "text": "When a test fails, SHAFT attaches a diagnostics bundle and a trace with the DOM, network and console evidence it collected."
+  },
+  {
+   "id": "k14",
+   "text": "So the report explains the failure, not just the stack trace."
+  },
+  {
+   "id": "k15",
+   "text": "Where tests run is configuration, not code."
+  },
+  {
+   "id": "k16",
+   "text": "Change the execution address, and the same class runs locally, in Docker, on a Selenium Grid, or on BrowserStack and LambdaTest."
+  },
+  {
+   "id": "k17",
+   "text": "Cross browser mode can run one class on Chrome, Firefox and Safari in parallel with Docker."
+  },
+  {
+   "id": "k18",
+   "text": "Use TestNG, JUnit or Cucumber, and switch the browser backend to Playwright without rewriting your SHAFT steps."
+  },
+  {
+   "id": "k19",
+   "text": "Already have a Selenium suite? Run the upgrader."
+  },
+  {
+   "id": "k20",
+   "text": "It compiles your project first, adds the SHAFT bill of materials and engine, and keeps your existing tests as they are."
+  },
+  {
+   "id": "k21",
+   "text": "If the build fails afterwards, every touched file is restored, byte for byte."
+  },
+  {
+   "id": "k22",
+   "text": "When you are ready, session and full modes rewrite Selenium code inside the same safe transaction."
+  },
+  {
+   "id": "k23",
+   "text": "The agentic tools are optional, and they work without an AI provider."
+  },
+  {
+   "id": "k24",
+   "text": "Capture records a flow and generates compiling test code. Doctor diagnoses failed runs offline. Heal recovers changed locators and explains every choice."
+  },
+  {
+   "id": "k25",
+   "text": "The same tools reach IntelliJ through a plugin, and any agent through MCP.",
+   "say": "The same tools reach Intelli J through a plugin, and any agent through M C P."
+  },
+  {
+   "id": "k26",
+   "text": "SHAFT is MIT licensed and built in public since 2018, with 216 releases.",
+   "say": "Shaft is M I T licensed and built in public since twenty eighteen, with two hundred and sixteen releases."
+  },
+  {
+   "id": "k27",
+   "text": "Generate a project at shafthq.github.io, run mvn test, and read your first report.",
+   "say": "Generate a project at shaft H Q dot github dot I O, run maven test, and read your first report."
+  }
+ ]
+}

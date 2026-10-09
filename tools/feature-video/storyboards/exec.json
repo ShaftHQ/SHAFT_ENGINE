@@ -1,0 +1,257 @@
+{
+ "title": "exec",
+ "audience": "exec",
+ "targetDuration": 96.1,
+ "aspect": [
+  "16:9"
+ ],
+ "scenes": [
+  {
+   "id": "x01",
+   "beat": "hook",
+   "pad": 0.6,
+   "duration": 3.6,
+   "visual": "red CI badge pulses once, then splits into two labels: 'real bug?' / 'flaky test?'",
+   "vo": "Red build. Real bug, or flaky test?",
+   "lines": [
+    "e01"
+   ],
+   "onScreenText": "Red build. Real bug, or flaky test?",
+   "textHold": 3.6,
+   "asset": "scenes/x01.html",
+   "source": "motion graphic",
+   "claims": []
+  },
+  {
+   "id": "x02",
+   "beat": "problem",
+   "pad": 1.2,
+   "duration": 5.5,
+   "visual": "data-viz: 100-dot grid, 16 dots light up from zero; source line under it",
+   "vo": "At Google, almost 16% of tests show some flakiness.",
+   "lines": [
+    "e02"
+   ],
+   "onScreenText": "16% of Google's tests show flakiness",
+   "textHold": 5.5,
+   "asset": "scenes/x02.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "almost 16% of tests show some flakiness",
+     "evidence": "https://testing.googleblog.com/2016/05/flaky-tests-at-google-and-how-we.html"
+    }
+   ]
+  },
+  {
+   "id": "x03",
+   "beat": "problem",
+   "pad": 0.8,
+   "duration": 9.9,
+   "visual": "three lanes (Web, Mobile, API) each stack the same four blocks: waits, drivers, screenshots, reports",
+   "vo": "And every team rebuilds the same plumbing: waits, drivers, screenshots and reports, once for web, again for mobile, and again for API.",
+   "lines": [
+    "e03"
+   ],
+   "onScreenText": "Same plumbing, every team",
+   "textHold": 9.9,
+   "asset": "scenes/x03.html",
+   "source": "motion graphic",
+   "claims": []
+  },
+  {
+   "id": "x04",
+   "beat": "solution",
+   "pad": 0.8,
+   "duration": 7.5,
+   "visual": "the three lanes collapse into one SHAFT engine block; five surface chips orbit it",
+   "vo": "SHAFT is one open-source Java engine for web, mobile, API, database and command-line tests.",
+   "lines": [
+    "e04"
+   ],
+   "onScreenText": "One engine: web, mobile, API, database, command-line",
+   "textHold": 7.5,
+   "asset": "scenes/x04.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "one engine for web, mobile, API, database and CLI",
+     "evidence": "shaft-engine/src/main/java/com/shaft/driver/SHAFT.java (GUI, API, CLI, DB, TestData) + https://shafthq.github.io/docs/features/modules"
+    }
+   ]
+  },
+  {
+   "id": "x05",
+   "beat": "solution",
+   "pad": 0.6,
+   "duration": 6.8,
+   "visual": "engine block sits on a foundation row of three text wordmarks",
+   "vo": "It is built on the standards your team already trusts: Selenium, Appium and REST Assured.",
+   "lines": [
+    "e05"
+   ],
+   "onScreenText": "Built on Selenium, Appium, REST Assured",
+   "textHold": 6.8,
+   "asset": "scenes/x05.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "built on Selenium, Appium, REST Assured",
+     "evidence": "https://shafthq.github.io/docs/features/modules#underlying-technology"
+    }
+   ]
+  },
+  {
+   "id": "x06",
+   "beat": "solution",
+   "pad": 0.6,
+   "duration": 6.4,
+   "visual": "a page loads in stages; a SHAFT cursor waits, then clicks the moment the button is ready",
+   "vo": "Waiting is built in, so your tests stop guessing when a page is ready.",
+   "lines": [
+    "e06"
+   ],
+   "onScreenText": "Waiting is built in",
+   "textHold": 6.4,
+   "asset": "scenes/x06.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "built-in element retry and lazy-load waits",
+     "evidence": "https://shafthq.github.io/docs/reference/actions/GUI/Waits_And_Synchronization"
+    }
+   ]
+  },
+  {
+   "id": "x07",
+   "beat": "solution",
+   "pad": 0.8,
+   "duration": 7.8,
+   "visual": "real Allure report capture: timeline of steps, one screenshot expands",
+   "vo": "Every run produces an Allure report with steps and screenshots that anyone on the team can read.",
+   "lines": [
+    "e07"
+   ],
+   "onScreenText": "Allure report, steps and screenshots",
+   "textHold": 7.8,
+   "asset": "scenes/x07.html",
+   "source": "capture",
+   "claims": [
+    {
+     "text": "Allure steps and screenshots",
+     "evidence": "https://shafthq.github.io/docs/features/reporting"
+    }
+   ]
+  },
+  {
+   "id": "x08",
+   "beat": "solution",
+   "pad": 0.6,
+   "duration": 8.1,
+   "visual": "one test card slides between three targets: laptop, Selenium Grid, BrowserStack; a single property line changes",
+   "vo": "And the same tests move from a laptop to a Selenium Grid or BrowserStack by changing one setting.",
+   "lines": [
+    "e08"
+   ],
+   "onScreenText": "Laptop to Grid: one setting",
+   "textHold": 8.1,
+   "asset": "scenes/x08.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "local, Grid, BrowserStack by configuration",
+     "evidence": "https://shafthq.github.io/docs/features/test-automation-pillars#scalability"
+    }
+   ]
+  },
+  {
+   "id": "x09",
+   "beat": "proof",
+   "pad": 1.0,
+   "duration": 10.4,
+   "visual": "upgrade pipeline: compile check, add engine, compile again; a red branch rewinds every file icon back to its original",
+   "vo": "Adopting it is low risk. The upgrade tool compiles your project first, keeps your existing tests, and restores every file if anything fails.",
+   "lines": [
+    "e09"
+   ],
+   "onScreenText": "Compiles first, restores every file",
+   "textHold": 10.4,
+   "asset": "scenes/x09.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "compiles first, keeps existing tests, byte-for-byte rollback",
+     "evidence": "https://shafthq.github.io/docs/start/upgrade/how-it-works"
+    }
+   ]
+  },
+  {
+   "id": "x10",
+   "beat": "proof",
+   "pad": 0.6,
+   "duration": 6.0,
+   "visual": "three tool chips (Capture, Doctor, Heal) light up while an 'AI provider' socket stays empty",
+   "vo": "AI help is optional. Capture, Doctor and Heal work without any AI provider.",
+   "lines": [
+    "e10"
+   ],
+   "onScreenText": "AI optional, without any provider",
+   "textHold": 6.0,
+   "asset": "scenes/x10.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "Capture, Doctor, Heal work without a model provider",
+     "evidence": "https://shafthq.github.io/docs/agentic/overview"
+    }
+   ]
+  },
+  {
+   "id": "x11",
+   "beat": "proof",
+   "pad": 1.0,
+   "duration": 10.4,
+   "visual": "counter row animates up from zero: MIT, since 2018, 216 releases, 62 contributors; 'Selenium ecosystem' tag",
+   "vo": "SHAFT is MIT licensed and built in public since 2018, with 216 releases from 62 contributors.",
+   "lines": [
+    "e11"
+   ],
+   "onScreenText": "MIT, since 2018, 216 releases",
+   "textHold": 10.4,
+   "asset": "scenes/x11.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "MIT, since 2018, 216 releases, 62 contributors",
+     "evidence": "GitHub API 2026-10-08: licence MIT, created 2018-07-15, 216 product releases, 62 contributors (refresh at render)"
+    },
+    {
+     "text": "listed in the Selenium ecosystem",
+     "evidence": "https://shafthq.github.io/blog/selenium-ecosystem"
+    }
+   ]
+  },
+  {
+   "id": "x12",
+   "beat": "cta",
+   "pad": 2.0,
+   "duration": 13.7,
+   "visual": "end card: SHAFT logo, URL, 'Pilot the upgrader on one repo'; footer 'Narration: synthetic voice'",
+   "vo": "Generate a ready-to-run project in about 90 seconds at shafthq.github.io. Then pilot the upgrade on one repository this sprint.",
+   "lines": [
+    "e12",
+    "e13"
+   ],
+   "onScreenText": "Start at shafthq.github.io",
+   "textHold": 13.7,
+   "asset": "scenes/x12.html",
+   "source": "motion graphic",
+   "claims": [
+    {
+     "text": "ready-to-run project in about 90 seconds",
+     "evidence": "https://shafthq.github.io/docs/start/overview"
+    }
+   ]
+  }
+ ]
+}
