@@ -81,3 +81,7 @@ dt{font-weight:700;color:var(--shaft-text-muted)}dd{margin:0;overflow-wrap:anywh
 .table-scroll{overflow-x:auto;max-width:100%}
 .network-table{table-layout:auto}
 .network-table td:last-child button{white-space:nowrap}
+.network-table th,.network-table td{overflow-wrap:normal;word-break:normal;white-space:nowrap}
+.network-table td:nth-child(8){white-space:normal;overflow-wrap:anywhere;min-width:16em}
+.artifact-table th,.artifact-table td:nth-child(5){white-space:nowrap}
+.artifact-table td:nth-child(7){min-width:12em}

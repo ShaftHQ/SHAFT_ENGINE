@@ -293,6 +293,9 @@ public class TraceViewerBrowserAcceptanceTest {
                     "An uncaptured request body must say what was recorded instead.");
             Assert.assertTrue(page.locator("#network-body-truncated").isHidden());
             Assert.assertTrue(page.locator("#network-detail-general").textContent().contains("upstream unavailable"));
+            Assert.assertEquals(page.locator("#network-rows tr td").nth(1)
+                    .evaluate("cell => getComputedStyle(cell).whiteSpace + '/' + getComputedStyle(cell.closest('table')).tableLayout"),
+                    "nowrap/auto", "Short network columns must not wrap mid-token.");
             page.locator("#network-panel").screenshot(new com.microsoft.playwright.Locator.ScreenshotOptions()
                     .setPath(sibling(screenshot, "-network")));
             @SuppressWarnings("unchecked")

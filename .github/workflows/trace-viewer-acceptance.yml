@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
+      - "shaft-engine/src/main/resources/META-INF/shaft/trace-viewer/**"
+      - "shaft-engine/src/test/js/**"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/PlaywrightTraceParityAcceptanceTest.java"
       - "tests/scripts/test_trace_provider_acceptance_workflow.py"
@@ -12,6 +14,8 @@ on:
     branches: [ main ]
     paths:
       - "shaft-engine/src/main/java/com/shaft/tools/io/internal/**"
+      - "shaft-engine/src/main/resources/META-INF/shaft/trace-viewer/**"
+      - "shaft-engine/src/test/js/**"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/TraceViewerBrowserAcceptanceTest.java"
       - "shaft-engine/src/test/java/com/shaft/tools/io/internal/PlaywrightTraceParityAcceptanceTest.java"
       - "tests/scripts/test_trace_provider_acceptance_workflow.py"
