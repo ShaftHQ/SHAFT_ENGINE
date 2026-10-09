@@ -667,7 +667,7 @@ class DesignRound4Tests(unittest.TestCase):
             self.assertEqual([[0.0, 1.0, 2.0], [2.0, 3.0, 3.95]], [row["times"] for row in out["frames"]])
             probe = self.qc.video_stream(self.qc.ffprobe(sheet))
             self.assertEqual((480, 240), (probe["width"], probe["height"]))
-            self.assertTrue(Path(spectrum).stat().st_size > 0)
+            self.assertGreater(Path(spectrum).stat().st_size, 0)
 
     def test_fresh_flags_targets_older_than_sources(self):  # #6687
         with tempfile.TemporaryDirectory() as folder:
