@@ -5,7 +5,7 @@
   "dependencies": {
     "appium": "3.8.0",
     "appium-inspector-plugin": "2026.9.2",
-    "appium-xcuitest-driver": "12.13.3"
+    "appium-xcuitest-driver": "12.15.0"
   },
   "overrides": {
     "fast-uri": "3.1.8",
