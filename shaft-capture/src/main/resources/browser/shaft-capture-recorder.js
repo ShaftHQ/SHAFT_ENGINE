@@ -242,6 +242,8 @@
         + (uiState.actions.length === 1 ? "" : "s") + ").");
     }
   };
+  // The browser journey applies a server list that already has an older row for this URL.
+  globalThis.__shaftCaptureApplyServerSteps = applyServerSteps;
   const framePath = () => {
     const path = [];
     let current = globalThis;
