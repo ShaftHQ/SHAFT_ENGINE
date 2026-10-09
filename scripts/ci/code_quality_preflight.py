@@ -12,6 +12,11 @@ a branch changes, before the push:
 - weak-assert: ``assertTrue``/``assertFalse`` wrapping a comparison or ``in``
   (prefer ``assertGreater``/``assertIn``/etc. for informative failures)
 
+and, on the Java methods a branch changes:
+
+- npath: a method whose PMD NPath exceeds the gate (Codacy NPathComplexity),
+  estimated by ``scripts/ci/java_npath.py``
+
 Usage: ``python3 scripts/ci/code_quality_preflight.py [--base REF] [paths...]``
 """
 
@@ -19,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import importlib.util
 import re
 import shutil
 import subprocess  # nosec B404 - fixed git argv only.
@@ -26,6 +32,8 @@ import sys
 from pathlib import Path
 
 MAX_COMPLEXITY = 15
+MAX_NPATH = 200
+_SOURCES = (".py", ".java")
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 _BRANCHES = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.ExceptHandler, ast.match_case)
 
@@ -44,7 +52,7 @@ def _git(root: Path, *args: str) -> str | None:
 
 
 def changed_python_lines(root: Path, base: str = "origin/main") -> dict[str, set[int]]:
-    """Added or modified Python lines versus the merge base, worktree included."""
+    """Added or modified Python and Java lines versus the merge base, worktree included."""
     merge_base = (_git(root, "merge-base", base, "HEAD") or "").strip()
     diff = _git(root, "diff", "-U0", "--no-color", merge_base) if merge_base else None
     changed: dict[str, set[int]] = {}
@@ -52,14 +60,14 @@ def changed_python_lines(root: Path, base: str = "origin/main") -> dict[str, set
     for line in (diff or "").splitlines():
         if line.startswith("+++ "):
             name = line[4:].strip()
-            current = name[2:] if name.startswith("b/") and name.endswith(".py") else None
+            current = name[2:] if name.startswith("b/") and name.endswith(_SOURCES) else None
             continue
         match = _HUNK.match(line)
         if current and match:
             start, count = int(match.group(1)), int(match.group(2) or "1")
             changed.setdefault(current, set()).update(range(start, start + count))
     for name in (_git(root, "ls-files", "--others", "--exclude-standard") or "").splitlines():
-        if name.endswith(".py"):
+        if name.endswith(_SOURCES):
             changed[name] = {0}  # untracked: whole file is new
     return changed
 
@@ -155,7 +163,43 @@ def _weak_assert_suggestion(node: ast.Call) -> str | None:
 
 
 
+def _java_npath():
+    spec = importlib.util.spec_from_file_location("java_npath", Path(__file__).with_name("java_npath.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _npaths(source: str) -> list[tuple[str, int, int, int]]:
+    try:
+        return list(_java_npath().methods(source))
+    except (ValueError, IndexError, RecursionError):
+        return []  # unparseable Java: leave it to CI rather than block the push
+
+
+def java_findings(path: Path, lines: set[int], display: str, baseline: str | None = None) -> list[str]:
+    """Changed Java methods whose estimated NPath newly exceeds Codacy's PMD gate.
+
+    With ``baseline`` (the file at the merge base), a method that was already over
+    the gate is flagged only when its NPath grew, matching Codacy's new-issue rule.
+    """
+    try:
+        source = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+    before = {name: npath for name, _first, _last, npath in _npaths(baseline or "")}
+    return [
+        f"{display}:{first} npath: `{name}` is {npath} (gate {MAX_NPATH}); "
+        "extract helpers so sequential branches stop multiplying before pushing"
+        for name, first, last, npath in _npaths(source)
+        if npath > max(MAX_NPATH, before.get(name, 0))
+        and (0 in lines or any(first <= line <= last for line in lines))
+    ]
+
+
 def file_findings(path: Path, lines: set[int], display: str) -> list[str]:
+    if display.endswith(".java"):
+        return java_findings(path, lines, display)
     try:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=display)
@@ -195,12 +239,20 @@ def file_findings(path: Path, lines: set[int], display: str) -> list[str]:
     return findings
 
 
-def preflight_findings(root: Path, changed: dict[str, set[int]] | None = None) -> list[str]:
-    changed = changed_python_lines(root) if changed is None else changed
+def preflight_findings(root: Path, changed: dict[str, set[int]] | None = None,
+                       base: str = "origin/main") -> list[str]:
+    diffed = changed is None
+    changed = changed_python_lines(root, base) if diffed else changed
+    merge_base = (_git(root, "merge-base", base, "HEAD") or "").strip() if diffed else ""
     findings: list[str] = []
     for name in sorted(changed):
         path = root / name
-        if path.is_file():
+        if not path.is_file():
+            continue
+        if name.endswith(".java") and merge_base:
+            baseline = _git(root, "show", f"{merge_base}:{name}")
+            findings.extend(java_findings(path, changed[name], name, baseline))
+        else:
             findings.extend(file_findings(path, changed[name], name))
     return findings
 
@@ -212,8 +264,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("paths", nargs="*", help="check these whole files instead of the branch diff")
     args = parser.parse_args(argv)
     root = args.root.resolve()
-    changed = {path: {0} for path in args.paths} if args.paths else changed_python_lines(root, args.base)
-    findings = preflight_findings(root, changed)
+    changed = {path: {0} for path in args.paths} if args.paths else None
+    findings = preflight_findings(root, changed, args.base)
     for finding in findings:
         print(f"code-quality preflight: {finding}", file=sys.stderr)
     if findings:

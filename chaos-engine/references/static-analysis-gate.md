@@ -15,6 +15,7 @@ Permanent rule: any static-analysis check in `ACTION_REQUIRED` for a ≥medium f
 - Complexity / NPath: keep the [Complexity checklist](complexity-gate.md) (kind-family helpers, rule tables).
 - Security / Bandit B607 and friends: local preflight in [tip-churn preflight](tip-churn-preflight.md).
 - Python complexity, empty `except`, needless lambda, placeholder-free f-string: caught before push by `scripts/ci/code_quality_preflight.py` (wired into the overlay pre-push hook; bots run it themselves).
+- NPath over 200 (PMD `NPathComplexity`): the same preflight flags changed JVM-source methods with `scripts/ci/java_npath.py`, a stdlib estimate that matches PMD 7. A method already over the gate is flagged only when its NPath grows.
 - Everything else ≥medium: same urgency; fix in the tip already in flight.
 
 ## Boundaries
