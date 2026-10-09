@@ -40,12 +40,11 @@ CLI hosts' Stop hook requires the Learning Session after a confirmed delivery
 [self-improve](../skills/self-improve/SKILL.md) once per delivery, then run
 `python3 .chaos-engine/tool.py maintain` to fast-forward, reinstall, and
 re-check doctor before the next task.
-An overlay installed before #6665 records a git-digest source without a
-repository, so its `maintain` stops at "repository must be an explicit
-GitHub owner/repository" after the fast-forward. Reinstall once with
-`python3 .chaos-engine/bootstrap.py --project . --repository <owner>/<repo>
---branch <default branch> --distribution portable`; newer overlays recover
-on their own.
+An older overlay can record a git-digest source without a repository; its
+`maintain` then stops at "repository must be an explicit GitHub
+owner/repository" after the fast-forward. Reinstall once with
+`python3 .chaos-engine/bootstrap.py --project . --repository OWNER/REPO --branch BRANCH --distribution portable`;
+newer overlays recover on their own.
 
 ## Make it automatic
 
