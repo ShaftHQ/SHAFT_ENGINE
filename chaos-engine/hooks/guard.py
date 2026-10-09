@@ -119,8 +119,6 @@ TERMINAL_LABELS = (
 )
 
 
-LEARNING_TRIGGER_KINDS = frozenset({"task-failure", "reflection-trigger"})
-LEARNING_TRIGGER_ACTIVITIES = frozenset({"learning-requested", "surprise", "defect-escaped"})
 
 
 LEARNING_REQUEST = re.compile(r"(?i)\b(?:learning session|self-improve|run a retro(?:spective)?)\b")
@@ -132,33 +130,26 @@ def learning_requested(event: dict) -> bool:
     return isinstance(prompt, str) and bool(LEARNING_REQUEST.search(prompt))
 
 
-def learning_triggered(recorded: list[dict]) -> bool:
-    """A Learning Session is owed only on a trigger: failure, surprise, or owner ask."""
-    return any(
-        item.get("kind") in LEARNING_TRIGGER_KINDS
-        or (item.get("kind") == "task-activity" and item.get("activity") in LEARNING_TRIGGER_ACTIVITIES)
-        for item in recorded
-    )
-
-
 def learning_session_reason(session_id: str, event: dict) -> str | None:
-    # Trigger-based (epic #6342): delivery-complete alone owes nothing; a
-    # failure, surprise, or owner request during the session does.
+    # #6739: Learning Session after every final delivery. delivery-complete
+    # alone owes it; the completion artifact pays it (the Learning Session
+    # pull request's own merge lands after that artifact and owes nothing).
     recorded = reflection.entries(session_id)
     activities = {
         item.get("activity")
         for item in recorded
         if item.get("kind") == "task-activity"
     }
-    if "delivery-complete" not in activities or not learning_triggered(recorded):
+    if "delivery-complete" not in activities:
         return None
     if learning_completion_artifact(session_id) is not None:
         return None
     return (
-        "Learning Session: delivery is complete and a trigger fired (failure, "
-        "surprise, or owner ask). A lesson already shipped in this pull request "
-        "finalizes with nothing durable and no new issue. File only a harness "
-        "lesson that is not in the merged pull request. "
+        "Learning Session after every final delivery: delivery is complete. "
+        "Diff the session lessons against the skills and references; a lesson "
+        "already shipped in this pull request or already in a skill is not new. "
+        "File one spec issue and open ONE pull request (skip-release-notes, "
+        "auto-merge MERGE) for the new lessons, or finalize with nothing durable. "
         "Do not write them to a local queue or into chat. Product lessons may queue."
     )
 

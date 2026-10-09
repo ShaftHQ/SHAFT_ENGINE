@@ -76,7 +76,7 @@ changes in the companion documentation repository require their own PR.
 ## 6. Terminal Learning Session
 
 Collect durable findings during work, but route them through exactly one root-owned
-Learning Session only after confirmed delivery, only when a trigger fired, immediately before the final report.
+Learning Session after every final delivery (owner approval, publish done, or final PR merged), automatically, immediately before the final report: lessons diff, one spec issue, ONE PR (`skip-release-notes`, auto-merge MERGE) babysat to merged ([router contract](router-contract.md#learning-session)).
 Delegates and intermediate pushes never start another session.
 When reflection is required, put the changed approach and focused proof on the
 tracker before resuming. The hook never writes issues; the agent files leftover
@@ -119,6 +119,13 @@ Promotion, orchestrated-runtime membership, and `repair-or-revert` stay in
 [work-github-playbook-promotion.md](details/work-github-playbook-promotion.md) so this
 playbook can take another lesson without deleting that guidance.
 
+
+### Media releases
+
+A media release (video, assets) is created with `gh release create ... --latest=false`.
+Read `gh api repos/OWNER/REPO/releases/latest` before and after: a newer
+engine release may hold the badge by then. Restore Latest only when the media
+release took it, and never move it back to an older engine release.
 
 ## 7. Push, PR, green, merge, compact
 

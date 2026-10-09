@@ -123,7 +123,7 @@ class FlowTests(unittest.TestCase):
     def test_core_card_encodes_locked_decisions(self):
         text = " ".join(_router_text().split())
         for phrase in ("One fresh-context review", "second round only for",
-                       "Learning Session only on trigger", "One blocking CI wait per push",
+                       "Learning Session after every final delivery", "One blocking CI wait per push",
                        "retry at most once", "Every finding ends fixed",
                        "not critical, blocker, or high", "Measure thrice",
                        "Status reports are always a Markdown table"):
@@ -171,24 +171,26 @@ class LearningTriggerTests(unittest.TestCase):
         finally:
             sys.path.remove(str(CE / "hooks"))
 
-    def test_delivery_without_trigger_owes_no_learning_session(self):
-        guard = self._guard()
-        entries = [{"kind": "task-activity", "activity": "delivery-complete"}]
-        guard.reflection.entries = lambda _sid: entries
-        self.assertIsNone(guard.learning_session_reason("s", {}))
-
-    def test_failure_or_owner_ask_triggers_learning_session(self):
+    def test_every_delivery_owes_the_learning_session(self):  # #6739
         guard = self._guard()
         guard.learning_completion_artifact = lambda _sid: None
-        for trigger in ({"kind": "task-failure"},
-                        {"kind": "task-activity", "activity": "learning-requested"}):
-            entries = [{"kind": "task-activity", "activity": "delivery-complete"}, trigger]
-            guard.reflection.entries = lambda _sid, e=entries: e
-            with self.subTest(trigger=trigger):
-                reason = guard.learning_session_reason("s", {})
-                self.assertIn("trigger fired", reason)
-                self.assertIn("already shipped", reason)
-                self.assertIn("nothing durable", reason)
+        entries = [{"kind": "task-activity", "activity": "delivery-complete"}]
+        guard.reflection.entries = lambda _sid: entries
+        reason = guard.learning_session_reason("s", {})
+        self.assertIn("Learning Session after every final delivery", reason)
+        for step in ("Diff the session lessons", "one spec issue", "ONE pull request",
+                     "skip-release-notes", "auto-merge MERGE", "nothing durable"):
+            with self.subTest(step=step):
+                self.assertIn(step, reason)
+
+    def test_no_delivery_or_paid_session_owes_nothing(self):  # #6739
+        guard = self._guard()
+        guard.reflection.entries = lambda _sid: [{"kind": "task-failure"}]
+        guard.learning_completion_artifact = lambda _sid: None
+        self.assertIsNone(guard.learning_session_reason("s", {}))
+        guard.reflection.entries = lambda _sid: [{"kind": "task-activity", "activity": "delivery-complete"}]
+        guard.learning_completion_artifact = lambda _sid: {"done": True}
+        self.assertIsNone(guard.learning_session_reason("s", {}))
 
 
 AGNOSTIC_SCOPES = (

@@ -788,6 +788,24 @@ class DesignRound4Tests(unittest.TestCase):
         for rule in ("revealhold", "1.5 s", "orphan"):
             self.assertIn(rule, motion)
 
+    def test_cards_carry_the_v2_video_lessons(self):  # #6739
+        def card(name: str) -> str:
+            return " ".join((DESIGN / "references" / f"{name}.md").read_text(encoding="utf-8").split())
+        self.assertIn("0.9 x the D09 device scale factor", card("color-grading"))
+        self.assertIn("own soft knee", card("color-grading"))
+        self.assertIn("one browser at a time", card("html-motion-graphics"))
+        self.assertIn("misses sub-pixel motion", card("cutting-pacing"))
+        self.assertIn("re-measure them after every re-encode", card("cutting-pacing"))
+        delivery = card("delivery-qc")
+        for rule in ("100 MB", "2 GB", "previous embed pull request", "(`-v2`)", "staged hashes"):
+            with self.subTest(rule=rule):
+                self.assertIn(rule, delivery)
+        runbook = " ".join((DESIGN / "references/pipelines/runbook.md").read_text(encoding="utf-8").split())
+        for rule in ("per-call tool limit", "new file name", "## 6. Learning Session",
+                     "Learning Session after every final delivery", "ONE PR", "skip-release-notes"):
+            with self.subTest(rule=rule):
+                self.assertIn(rule, runbook)
+
 
 if __name__ == "__main__":
     unittest.main()
