@@ -29,8 +29,9 @@ Give up the lower ones first.
 - Long waits (installs, builds) become labelled speed ramps or a cut with a
   time-skip card, never silent jumps. The badge names the speed and the REAL
   elapsed time ("sped up 24x, 16 s real").
-- No visually static stretch over about 3 s. A slow push-in does not read
-  as motion; compress the wait, or give a necessary hold VO-keyed callouts
+- No visually static stretch over about 3 s, measured against the frame at
+  the window start (`design_qc.py static`). A slow push-in does not read
+  as motion unless it visibly changes the picture; compress the wait, or give a necessary hold VO-keyed callouts
   that move to the line being spoken.
 - A hold reads alive only when real content moves. EDL holds last at most
   3 s, or 5.5 s with two or more stepping callouts or a real scroll;
