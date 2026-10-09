@@ -1864,21 +1864,20 @@ def resolve_latest_shaft_version(
 
 
 def default_compile_command(project_root: Path) -> list[str]:
-    """Choose a Maven wrapper when present, then fall back to Maven on PATH."""
+    """Choose a Maven wrapper when present, then fall back to Maven on PATH.
+
+    Always starts with ``clean`` so validation is non-incremental: stale
+    ``target/`` classes from a baseline compile cannot mask a broken upgrade.
+    """
+    goals = ("clean", "dependency:go-offline", "test-compile", "-DskipTests", "-Dgpg.skip")
     candidates = (project_root / "mvnw.cmd",) if os.name == "nt" else (project_root / "mvnw",)
     for candidate in candidates:
         if candidate.is_file():
-            return [
-                str(candidate.resolve()),
-                "dependency:go-offline",
-                "test-compile",
-                "-DskipTests",
-                "-Dgpg.skip",
-            ]
+            return [str(candidate.resolve()), *goals]
     executable = shutil.which("mvn.cmd" if os.name == "nt" else "mvn") or shutil.which("mvn")
     if not executable:
         raise UpgradeError("Maven or a Maven wrapper was not found.")
-    return [executable, "dependency:go-offline", "test-compile", "-DskipTests", "-Dgpg.skip"]
+    return [executable, *goals]
 
 
 def parse_compile_command(value: str | None, project_root: Path) -> list[str]:
@@ -2594,8 +2593,9 @@ Optional AI repair:
     parser.add_argument(
         "--compile-command",
         help=(
-            "Custom compile command. Defaults to './mvnw test-compile -DskipTests "
-            "-Dgpg.skip' or Maven on PATH."
+            "Custom compile command. Defaults to './mvnw clean dependency:go-offline "
+            "test-compile -DskipTests -Dgpg.skip' (or Maven on PATH) so validation "
+            "rebuilds from a clean target/."
         ),
     )
     parser.add_argument(

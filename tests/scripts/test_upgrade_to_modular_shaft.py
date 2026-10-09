@@ -1334,7 +1334,10 @@ class DemoTest {
                 command = upgrade.default_compile_command(root)
 
         self.assertEqual(command[0], str(wrapper.resolve()))
-        self.assertEqual(command[1:3], ["dependency:go-offline", "test-compile"])
+        self.assertEqual(
+            command[1:4],
+            ["clean", "dependency:go-offline", "test-compile"],
+        )
 
     def test_windows_default_compile_command_prefers_cmd_wrapper(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1346,7 +1349,58 @@ class DemoTest {
                 command = upgrade.default_compile_command(root)
 
         self.assertEqual(command[0], str(wrapper.resolve()))
-        self.assertEqual(command[1:3], ["dependency:go-offline", "test-compile"])
+        self.assertEqual(
+            command[1:4],
+            ["clean", "dependency:go-offline", "test-compile"],
+        )
+
+    def test_default_compile_command_puts_clean_before_test_compile(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "mvnw").write_text("#!/bin/sh\n", encoding="utf-8")
+            with mock.patch.object(upgrade.os, "name", "posix"):
+                command = upgrade.default_compile_command(root)
+        clean_at = command.index("clean")
+        compile_at = command.index("test-compile")
+        self.assertLess(clean_at, compile_at)
+
+    def test_stale_target_classes_still_roll_back_when_clean_compile_fails(self):
+        """Stale target/ must not keep a broken upgrade; clean compile fails → rollback."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            pom = root / "pom.xml"
+            pom.write_text(SIMPLE_POM, encoding="utf-8")
+            stale = root / "target/classes/demo/Stale.class"
+            stale.parent.mkdir(parents=True)
+            stale.write_bytes(b"stale-bytecode")
+            (root / "mvnw").write_text("#!/bin/sh\n", encoding="utf-8")
+            analysis = upgrade.analyze_project(root)
+            with mock.patch.object(upgrade.os, "name", "posix"):
+                compile_command = upgrade.default_compile_command(root)
+            self.assertIn("clean", compile_command)
+            self.assertLess(
+                compile_command.index("clean"),
+                compile_command.index("test-compile"),
+            )
+            results = iter((command_result(0), command_result(1, "cannot find symbol")))
+            seen_commands: list[list[str]] = []
+
+            def runner(command, *_args, **_kwargs):
+                seen_commands.append(list(command))
+                return next(results)
+
+            execution = upgrade.execute_upgrade_transaction(
+                analysis,
+                "10.2.20260609",
+                compile_command,
+                30,
+                compile_runner=runner,
+            )
+
+            self.assertFalse(execution.succeeded)
+            self.assertTrue(execution.rolled_back)
+            self.assertEqual(pom.read_text(encoding="utf-8"), SIMPLE_POM)
+            self.assertTrue(all("clean" in cmd for cmd in seen_commands))
 
 
 class AgentCliRepairTests(unittest.TestCase):
