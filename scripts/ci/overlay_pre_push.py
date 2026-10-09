@@ -124,6 +124,23 @@ def tip_preflight_failures(root: Path, paths: list[str]) -> list[str]:
     return [f"tip preflight: {failure}" for failure in module.preflight_failures(root, paths)]
 
 
+def code_quality_failures(root: Path) -> list[str]:
+    """Codacy / code-quality classes on changed Python lines, before CI finds them."""
+    script = root / "scripts/ci/code_quality_preflight.py"
+    if not script.is_file():
+        return []
+    spec = importlib.util.spec_from_file_location("chaos_engine_code_quality_preflight", script)
+    if spec is None or spec.loader is None:
+        return ["code-quality preflight: checker unavailable"]
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    findings = module.preflight_findings(root)
+    if not findings:
+        return []
+    more = f" (+{len(findings) - 1} more; run python3 scripts/ci/code_quality_preflight.py)" if len(findings) > 1 else ""
+    return [f"code-quality preflight: {findings[0]}{more}"]
+
+
 def portable_core_path_failures(root: Path) -> list[str]:
     """Reject a chaos-engine tree that contains a machine-specific path (#6284).
 
@@ -152,6 +169,8 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     """Return contract failures for one overlay diff. Empty means the push may proceed."""
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
     failures: list[str] = tip_preflight_failures(root, changed)
+    if paths is None:
+        failures.extend(code_quality_failures(root))
     if any(path.replace("\\", "/").lstrip("./").startswith("chaos-engine/") for path in changed):
         failures.extend(portable_core_path_failures(root))
     if not any(touches_overlay_contract(path) for path in changed):

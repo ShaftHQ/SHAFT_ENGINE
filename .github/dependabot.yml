@@ -96,6 +96,17 @@ updates:
         update-types:
           - "version-update:semver-major"
     groups:
+      # Google API / gRPC / protobuf artifacts pin each other's upper bounds, so a
+      # lone bump fails RequireUpperBoundDeps (e.g. kms-v1 needing common-protos).
+      # Listed first: Dependabot assigns each update to the first matching group.
+      google-grpc-protobuf:
+        patterns:
+          - "com.google.api.grpc:*"
+          - "com.google.api:*"
+          - "com.google.api-client:*"
+          - "com.google.cloud:*"
+          - "com.google.protobuf:*"
+          - "io.grpc:*"
       # Version updates. One pull request per dependency name across directories.
       aligned-maven-dependencies:
         group-by: dependency-name

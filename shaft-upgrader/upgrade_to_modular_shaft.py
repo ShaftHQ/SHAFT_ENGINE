@@ -2299,7 +2299,7 @@ def collect_source_migration(analysis: ProjectAnalysis, upgrade_type: str) -> So
     transformed_files: dict[Path, str] = {}
     changes_by_file: dict[Path, tuple[str, ...]] = {}
     unsupported_by_file: dict[Path, tuple[str, ...]] = {}
-    for path in sorted(iter_scan_files(analysis.project_root), key=lambda item: str(item)):
+    for path in sorted(iter_scan_files(analysis.project_root), key=str):
         if path.suffix.lower() != ".java":
             continue
         original = path.read_text(encoding="utf-8", errors="replace")
