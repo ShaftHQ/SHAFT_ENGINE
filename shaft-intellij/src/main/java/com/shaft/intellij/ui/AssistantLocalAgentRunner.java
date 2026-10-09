@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
@@ -45,6 +47,12 @@ import java.util.regex.Pattern;
 final class AssistantLocalAgentRunner {
     static final String LOCAL_AGENT_TOOL = "autobot_local_agent_run";
     private static final int DEFAULT_TIMEOUT_SECONDS = 300;
+    /**
+     * Hard ceiling for a streaming run (issue #6748). For Claude, Codex and Grok the configured timeout
+     * is an inactivity limit that every output line resets, so a session that keeps working is never
+     * killed at the five-minute mark; this cap only stops a run that streams forever.
+     */
+    static final int MAX_STREAMING_RUN_SECONDS = 4 * 60 * 60;
     /**
      * Cap on how much a run's deadline can be extended by accumulated approval-deliberation time
      * (see {@link #awaitProcessWithApprovalExtension}) -- deliberation up to this cap never kills a
@@ -707,9 +715,11 @@ final class AssistantLocalAgentRunner {
         // method, including the early-return guard clauses at the top of the try that run before a
         // structured stream parser is even created.
         StructuredStreamParser streamParser = null;
+        List<String> launchedCommand = List.of();
         try {
             List<String> command = SetupPrerequisites.withOfficialExecutable(commandFor(arguments, bridge),
                     System.getenv("PATH"), SetupPrerequisites.userHome(), isWindows(), true);
+            launchedCommand = command;
             if (command.isEmpty()) {
                 return ShaftMcpToolResult.failure("No local assistant command was configured.");
             }
@@ -751,8 +761,10 @@ final class AssistantLocalAgentRunner {
                 InputStream stdoutStream = process.getInputStream();
                 InputStream stderrStream = process.getErrorStream();
                 stdinStream = process.getOutputStream();
-                StreamRead stdout = readAsync(stdoutStream, effectiveConsumer);
-                StreamRead stderr = readAsync(stderrStream, effectiveConsumer);
+                AtomicLong lastActivityNanos = new AtomicLong(System.nanoTime());
+                Consumer<String> activityConsumer = activityStamped(effectiveConsumer, lastActivityNanos);
+                StreamRead stdout = readAsync(stdoutStream, activityConsumer);
+                StreamRead stderr = readAsync(stderrStream, activityConsumer);
                 stdinStream.write(stdin.getBytes(StandardCharsets.UTF_8));
                 // Every local CLI is launched with plain text input (no CLI here supports a stream-json
                 // *input* protocol yet), so each one reads its prompt from stdin until EOF before doing
@@ -773,10 +785,22 @@ final class AssistantLocalAgentRunner {
                     stderrNow(stderr);
                     throw new CancellationException("Operation cancelled");
                 }
-                if (!awaitProcessWithApprovalExtension(process, timeout, bridge)) {
+                boolean streaming = streamParser != null;
+                boolean finished = streaming
+                        ? awaitProcessWithIdleDeadline(process, timeout,
+                        Duration.ofSeconds(MAX_STREAMING_RUN_SECONDS), lastActivityNanos::get,
+                        bridge == null ? () -> 0L : bridge::accumulatedPendingMillis,
+                        TimeUnit.SECONDS.toMillis(MAX_APPROVAL_EXTENSION_SECONDS))
+                        : awaitProcessWithApprovalExtension(process, timeout, bridge);
+                if (!finished) {
                     process.destroyForcibly();
                     return ShaftMcpToolResult.failure(agentOutput(false, stdoutNow(stdout), stderrNow(stderr),
-                            "Timed out after " + timeout.toSeconds() + " seconds.", verbose));
+                            streaming
+                                    ? displayName(string(arguments, "client", "")) + " produced no output for "
+                                    + timeout.toSeconds() + " seconds (or ran past the "
+                                    + MAX_STREAMING_RUN_SECONDS / 3600 + " hour limit), so SHAFT stopped it."
+                                    + resumeHint(streamParser)
+                                    : "Timed out after " + timeout.toSeconds() + " seconds.", verbose));
                 }
                 if (cancellationRequested.get()) {
                     closeQuietly(stdoutStream);
@@ -810,7 +834,8 @@ final class AssistantLocalAgentRunner {
                     // CLI died before emitting a terminal event -- gated on live Verbose state (issue
                     // #3965) exactly like agentOutput below, since that stderr is already surfaced live
                     // through outputConsumer while the run is in progress.
-                    output = streamParser.failureOutput(process.exitValue(), rawStderr, verbose);
+                    output = streamParser.failureOutput(process.exitValue(), rawStderr, verbose)
+                            + resumeHint(streamParser);
                 } else {
                     output = agentOutput(false, rawStdout, rawStderr, "", verbose);
                 }
@@ -837,6 +862,7 @@ final class AssistantLocalAgentRunner {
                 processReference.set(null);
             }
         } finally {
+            deleteGrokPromptFile(launchedCommand);
             try {
                 // Issue #3962: notified exactly once, from every exit path of this method (normal
                 // return, timeout, a thrown exception, or a cancellation the checks above turned into a
@@ -880,6 +906,51 @@ final class AssistantLocalAgentRunner {
                 timeout,
                 TimeUnit.SECONDS.toMillis(MAX_APPROVAL_EXTENSION_SECONDS),
                 bridge::accumulatedPendingMillis);
+    }
+
+    /** Hint appended to an early-ended run so the user can pick the same Grok session back up. */
+    private static String resumeHint(StructuredStreamParser parser) {
+        String sessionId = parser == null ? null : parser.currentSessionId();
+        return sessionId == null || sessionId.isBlank() ? ""
+                : " Continue it with `grok --resume " + sessionId + "`.";
+    }
+
+    /** Wraps {@code consumer} so every output line (even with no consumer) counts as run activity. */
+    private static Consumer<String> activityStamped(Consumer<String> consumer, AtomicLong lastActivityNanos) {
+        return line -> {
+            lastActivityNanos.set(System.nanoTime());
+            if (consumer != null) {
+                consumer.accept(line);
+            }
+        };
+    }
+
+    /**
+     * Waits for {@code process} with an inactivity deadline instead of a fixed wall clock (issue #6748):
+     * the run is given up on only after {@code idleTimeout} (plus accumulated approval-deliberation time,
+     * capped at {@code maxExtensionMillis}) passes with no output, or when {@code maxTotal} elapses.
+     * Package-private so tests drive it with a fake process and tiny durations.
+     */
+    static boolean awaitProcessWithIdleDeadline(
+            Process process, Duration idleTimeout, Duration maxTotal, LongSupplier lastActivityNanos,
+            LongSupplier accumulatedPendingMillis, long maxExtensionMillis) throws InterruptedException {
+        long startNanos = System.nanoTime();
+        long totalDeadlineNanos = startNanos + maxTotal.toNanos();
+        while (true) {
+            long now = System.nanoTime();
+            long extensionNanos = TimeUnit.MILLISECONDS.toNanos(
+                    Math.min(accumulatedPendingMillis.getAsLong(), maxExtensionMillis));
+            long idleDeadlineNanos = lastActivityNanos.getAsLong() + idleTimeout.toNanos() + extensionNanos;
+            long remainingNanos = Math.min(idleDeadlineNanos, totalDeadlineNanos) - now;
+            if (remainingNanos <= 0) {
+                return process.waitFor(0, TimeUnit.MILLISECONDS);
+            }
+            long sliceMillis = Math.max(1, Math.min(TimeUnit.NANOSECONDS.toMillis(remainingNanos),
+                    DEADLINE_POLL_INTERVAL_MILLIS));
+            if (process.waitFor(sliceMillis, TimeUnit.MILLISECONDS)) {
+                return true;
+            }
+        }
     }
 
     /**
@@ -926,6 +997,9 @@ final class AssistantLocalAgentRunner {
         }
         if ("codex".equals(executable) && command.contains("--json")) {
             return new StructuredStreamParser(StructuredStreamParser.Format.CODEX);
+        }
+        if ("grok".equals(executable) && command.contains("streaming-json")) {
+            return new StructuredStreamParser(StructuredStreamParser.Format.GROK);
         }
         return null;
     }
@@ -977,7 +1051,7 @@ final class AssistantLocalAgentRunner {
      * terminal-event fields is synchronized.
      */
     static final class StructuredStreamParser {
-        enum Format { CLAUDE, CODEX }
+        enum Format { CLAUDE, CODEX, GROK }
 
         private final Format format;
         private final StreamEventMapper mapper;
@@ -990,6 +1064,8 @@ final class AssistantLocalAgentRunner {
         // A short, human-readable reason captured from a non-success terminal event (Claude's error
         // subtype, Codex's turn.failed detail), used to explain a failure whose answer text is empty.
         private String terminalDetail;
+        // Grok reports its resumable session id on the final `end` event (issue #6748).
+        private String sessionId;
         // The plan text from a Claude Code ExitPlanMode tool_use call (see ClaudeStreamEventMapper's
         // tool_use handling), if any. Carried through composeOutput's trailing metadata line so
         // ShaftAssistantPanel can recover it via parsePlanProposal and render the terminal "Plan
@@ -1010,7 +1086,11 @@ final class AssistantLocalAgentRunner {
 
         StructuredStreamParser(Format format) {
             this.format = format;
-            this.mapper = format == Format.CLAUDE ? new ClaudeStreamEventMapper(this) : new CodexStreamEventMapper(this);
+            this.mapper = switch (format) {
+                case CLAUDE -> new ClaudeStreamEventMapper(this);
+                case CODEX -> new CodexStreamEventMapper(this);
+                case GROK -> new GrokStreamEventMapper(this);
+            };
         }
 
         synchronized void accept(String line, Consumer<String> outputConsumer) {
@@ -1424,6 +1504,16 @@ final class AssistantLocalAgentRunner {
             this.outputTokens = outputTokens;
         }
 
+        /** Remembers the CLI session id so a run that ended early can say how to resume it. */
+        void setSessionId(String sessionId) {
+            this.sessionId = sessionId;
+        }
+
+        /** The CLI session id reported by the stream, or {@code null} if none was seen. */
+        synchronized String currentSessionId() {
+            return sessionId;
+        }
+
         /** Stashes a short human-readable reason for a non-success terminal event. */
         void setTerminalDetail(String detail) {
             this.terminalDetail = detail;
@@ -1538,16 +1628,56 @@ final class AssistantLocalAgentRunner {
      * display, and the CLI's own built-in safety classifier still auto-allows obviously-safe tool
      * calls without ever reaching the bridge, matching what an interactive user would see.
      */
+    /** Prompts longer than this travel in a temp file: Windows rejects command lines past ~32k characters. */
+    static final int GROK_MAX_ARGV_PROMPT_CHARS = 8_000;
+    private static final String GROK_PROMPT_FILE_FLAG = "--prompt-file";
+
     private static List<String> grokCommand(String mode, boolean allowSourceMutation, String prompt) {
-        return switch (mode) {
-            case "PLAN" -> List.of("grok", "-p", prompt, "--permission-mode", "plan");
-            case "AGENT" -> allowSourceMutation
-                    ? List.of("grok", "-p", prompt, "--permission-mode", "acceptEdits")
-                    : List.of("grok", "-p", prompt, "--permission-mode", "default",
-                    "--tools", "read_file,grep,list_dir");
-            default -> List.of("grok", "-p", prompt, "--permission-mode", "default",
-                    "--tools", "read_file,grep,list_dir");
-        };
+        List<String> command = new ArrayList<>(grokPromptArguments(prompt));
+        // streaming-json is Grok's live NDJSON stream (issue #6748): without it the plain output stays
+        // empty until the run exits, so a working session looks dead and cannot be told from a hang.
+        command.addAll(List.of("--output-format", "streaming-json", "--no-auto-update"));
+        switch (mode) {
+            case "PLAN" -> command.addAll(List.of("--permission-mode", "plan"));
+            case "AGENT" -> {
+                if (allowSourceMutation) {
+                    command.addAll(List.of("--permission-mode", "acceptEdits"));
+                } else {
+                    command.addAll(List.of("--permission-mode", "default", "--tools", "read_file,grep,list_dir"));
+                }
+            }
+            default -> command.addAll(List.of("--permission-mode", "default", "--tools", "read_file,grep,list_dir"));
+        }
+        return command;
+    }
+
+    private static List<String> grokPromptArguments(String prompt) {
+        List<String> command = new ArrayList<>(List.of("grok"));
+        if (prompt.length() <= GROK_MAX_ARGV_PROMPT_CHARS) {
+            command.addAll(List.of("-p", prompt));
+            return command;
+        }
+        try {
+            Path file = Files.createTempFile("shaft-grok-prompt-", ".txt");
+            file.toFile().deleteOnExit();
+            Files.writeString(file, prompt, StandardCharsets.UTF_8);
+            command.addAll(List.of(GROK_PROMPT_FILE_FLAG, file.toString()));
+        } catch (IOException exception) {
+            command.addAll(List.of("-p", prompt));
+        }
+        return command;
+    }
+
+    /** Removes the temp prompt file {@link #grokPromptArguments} created for a long prompt, once the run is over. */
+    private static void deleteGrokPromptFile(List<String> command) {
+        int flag = command.indexOf(GROK_PROMPT_FILE_FLAG);
+        if (flag >= 0 && flag + 1 < command.size()) {
+            try {
+                Files.deleteIfExists(Path.of(command.get(flag + 1)));
+            } catch (IOException | RuntimeException ignored) {
+                // deleteOnExit is the backstop for a file that cannot be removed now.
+            }
+        }
     }
 
     private static List<String> claudeCommand(
