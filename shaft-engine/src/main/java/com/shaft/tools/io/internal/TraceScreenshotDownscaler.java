@@ -32,23 +32,41 @@ final class TraceScreenshotDownscaler {
             return png;
         }
         BufferedImage source = decode(png);
-        if (source == null) {
-            return null;
-        }
-        double scale = Math.sqrt((double) maxBytes / png.length) * SAFETY;
+        return source == null ? null : shrink(source, png.length, maxBytes);
+    }
+
+    private static byte[] shrink(BufferedImage source, int originalBytes, long maxBytes) {
+        double scale = Math.sqrt((double) maxBytes / originalBytes) * SAFETY;
         for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-            int width = (int) Math.round(source.getWidth() * scale);
-            int height = (int) Math.round(source.getHeight() * scale);
-            if (width < MIN_EDGE || height < MIN_EDGE) {
+            Fitted fitted = encodeAt(source, scale);
+            if (fitted.tooSmall()) {
                 return null;
             }
-            byte[] encoded = encode(resize(source, width, height));
-            if (encoded != null && encoded.length <= maxBytes) {
-                return encoded;
+            if (fitted.encoded() != null && fitted.encoded().length <= maxBytes) {
+                return fitted.encoded();
             }
-            scale *= encoded == null ? 0.75 : Math.min(0.9, Math.sqrt((double) maxBytes / encoded.length) * SAFETY);
+            scale = nextScale(scale, maxBytes, fitted.encoded());
         }
         return null;
+    }
+
+    private static Fitted encodeAt(BufferedImage source, double scale) {
+        int width = (int) Math.round(source.getWidth() * scale);
+        int height = (int) Math.round(source.getHeight() * scale);
+        if (width < MIN_EDGE || height < MIN_EDGE) {
+            return new Fitted(null, true);
+        }
+        return new Fitted(encode(resize(source, width, height)), false);
+    }
+
+    private static double nextScale(double scale, long maxBytes, byte[] encoded) {
+        if (encoded == null) {
+            return scale * 0.75;
+        }
+        return scale * Math.min(0.9, Math.sqrt((double) maxBytes / encoded.length) * SAFETY);
+    }
+
+    private record Fitted(byte[] encoded, boolean tooSmall) {
     }
 
     private static BufferedImage decode(byte[] png) {

@@ -125,16 +125,21 @@ public class BrowserNetworkUploadAcceptanceTest {
     }
 
     private static int indexOf(byte[] data, byte[] needle, int from) {
-        outer:
         for (int i = Math.max(0, from); i <= data.length - needle.length; i++) {
-            for (int j = 0; j < needle.length; j++) {
-                if (data[i + j] != needle[j]) {
-                    continue outer;
-                }
+            if (matches(data, needle, i)) {
+                return i;
             }
-            return i;
         }
         return -1;
+    }
+
+    private static boolean matches(byte[] data, byte[] needle, int offset) {
+        for (int j = 0; j < needle.length; j++) {
+            if (data[offset + j] != needle[j]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static String sha256(byte[] bytes) {

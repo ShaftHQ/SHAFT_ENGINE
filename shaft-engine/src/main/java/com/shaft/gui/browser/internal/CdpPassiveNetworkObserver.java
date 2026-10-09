@@ -164,7 +164,7 @@ public final class CdpPassiveNetworkObserver implements AutoCloseable {
 
     private HttpResponse awaitResponse(HttpRequest request) {
         Pending exchange = Pending.CURRENT.get();
-        if (exchange == null) {
+        if (request == null || exchange == null) {
             return new HttpResponse();
         }
         try {

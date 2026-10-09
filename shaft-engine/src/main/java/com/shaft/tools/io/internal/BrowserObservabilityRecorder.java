@@ -1048,6 +1048,7 @@ public final class BrowserObservabilityRecorder {
                                      long responseSize, String failureReason, String bodyPreview,
                                      String requestBodyPreview) {
         /** Creates an observation whose request body was not retained by the provider. */
+        @SuppressWarnings("PMD.ExcessiveParameterList") // Defaults the record's request-body preview for existing callers.
         public NetworkObservation(String method, String url, int status, Map<String, String> requestHeaders,
                                   Map<String, String> responseHeaders, long durationMs, long requestSize,
                                   long responseSize, String failureReason, String bodyPreview) {
