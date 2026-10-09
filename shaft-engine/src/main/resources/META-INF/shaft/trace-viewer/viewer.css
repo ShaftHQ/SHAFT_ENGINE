@@ -120,7 +120,7 @@ dt{font-weight:700;color:var(--shaft-text-muted)}dd{margin:0;overflow-wrap:anywh
 .header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .header-button{display:inline-flex;align-items:center;min-height:32px;padding:4px 12px;border:1px solid rgba(255,255,255,.4);border-radius:6px;background:transparent;color:var(--shaft-on-dark);font:inherit;font-weight:600;cursor:pointer;list-style:none}
 .header-button::-webkit-details-marker{display:none}
-.shortcut-help{position:relative}
+.shortcut-help{position:relative;border:0;background:transparent}.shortcut-help>summary{padding:4px 12px}
 .shortcut-list{position:absolute;right:0;top:calc(100% + 6px);z-index:30;width:300px;margin:0;padding:10px 12px;grid-template-columns:auto 1fr;border:1px solid var(--shaft-border);border-radius:8px;background:var(--shaft-surface);color:var(--shaft-text);box-shadow:var(--shaft-shadow)}
 kbd{display:inline-block;min-width:1.6em;padding:0 4px;border:1px solid var(--shaft-border);border-radius:4px;font:12px/1.6 ui-monospace,monospace;text-align:center}
 .trace-summary{position:sticky;top:0;z-index:10;display:flex;gap:12px 18px;align-items:center;flex-wrap:wrap}

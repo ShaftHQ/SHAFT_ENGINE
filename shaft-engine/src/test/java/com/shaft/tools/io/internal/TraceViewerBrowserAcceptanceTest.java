@@ -966,7 +966,7 @@ public class TraceViewerBrowserAcceptanceTest {
         Assert.assertTrue(Files.size(screenshot) > 10_000, "Rendered screenshot should contain the populated viewer.");
     }
 
-    private static ViewerFixture generateViewerFixture() throws Exception {
+    static ViewerFixture generateViewerFixture() throws Exception {
         WebDriver driver = Mockito.mock(WebDriver.class,
                 Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
         Mockito.when(driver.getCurrentUrl()).thenReturn("https://example.test/checkout");
@@ -1108,7 +1108,7 @@ public class TraceViewerBrowserAcceptanceTest {
                 + timestamp + ",\"isMainFrame\":true}}\n";
     }
 
-    private record ViewerFixture(Path html, long consoleBaseTime, Path archive, Path index, Path nativeTrace,
+    record ViewerFixture(Path html, long consoleBaseTime, Path archive, Path index, Path nativeTrace,
                                  Path legacyHtml) {
     }
 
@@ -1451,7 +1451,7 @@ public class TraceViewerBrowserAcceptanceTest {
         }
     }
 
-    private static Path chromeExecutable() {
+    static Path chromeExecutable() {
         String configured = System.getProperty("shaft.trace.viewer.chrome", "");
         if (configured.isBlank()) {
             throw new IllegalStateException("Set -Dshaft.trace.viewer.chrome to a Chromium executable.");
