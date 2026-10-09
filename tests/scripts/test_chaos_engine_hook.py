@@ -543,8 +543,8 @@ process.stderr.write(result.stderr || '');
         payload = json.loads(completed.stdout or "{}")
         self.assertIsInstance(payload, dict)
 
-    def test_delivery_without_trigger_does_not_block_stop(self):
-        """Epic #6342: the Learning Session is trigger-based on every host."""
+    def test_delivery_without_trigger_blocks_stop(self):
+        """#6739: every final delivery owes the Learning Session on every host."""
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             session = "learn-untriggered"
@@ -561,7 +561,8 @@ process.stderr.write(result.stderr || '');
                 {"hook_event_name": "Stop", "session_id": session, "stop_hook_active": False},
                 environment,
             )
-            self.assertEqual(0, stopped.returncode)
+            self.assertEqual(2, stopped.returncode)
+            self.assertTrue(json.loads(stopped.stdout)["reason"].startswith("Learning Session:"))
 
     def test_gh_pr_merge_marks_delivery_complete_for_learning_session(self):
         """Confirmed gh pr merge arms Learning Session even without delivery-status."""
@@ -593,7 +594,7 @@ process.stderr.write(result.stderr || '');
             self.assertTrue(
                 payload["reason"].casefold().startswith("learning session:")
             )
-            self.assertIn("trigger fired", payload["reason"].casefold())
+            self.assertIn("after every final delivery", " ".join(payload["reason"].casefold().split()))
 
     def test_stop_learning_session_rule_fires_only_after_terminal_delivery(self):
 

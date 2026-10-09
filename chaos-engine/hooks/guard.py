@@ -145,7 +145,8 @@ def learning_session_reason(session_id: str, event: dict) -> str | None:
     if learning_completion_artifact(session_id) is not None:
         return None
     return (
-        "Learning Session after every final delivery: delivery is complete. "
+        "Learning Session: delivery is complete, and a Learning Session after "
+        "every final delivery is owed. "
         "Diff the session lessons against the skills and references; a lesson "
         "already shipped in this pull request or already in a skill is not new. "
         "File one spec issue and open ONE pull request (skip-release-notes, "

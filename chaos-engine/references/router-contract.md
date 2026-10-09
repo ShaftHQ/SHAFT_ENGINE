@@ -211,7 +211,7 @@ leftover risks become `gh` issues, never chat-only.
 Learning Session after every final delivery. A final delivery is confirmed
 when the owner approves a deliverable, a publish (release, deploy, upload)
 completes, or the final pull request of a task merges. Then, without the owner
-asking, the root session runs exactly one Learning Session immediately before
+asking, the root session runs exactly one root-owned Learning Session immediately before
 the final report:
 
 1. Diff the session lessons (STATUS log, review log, failures, workarounds)

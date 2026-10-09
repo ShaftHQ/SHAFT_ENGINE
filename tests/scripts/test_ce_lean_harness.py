@@ -177,7 +177,8 @@ class LearningTriggerTests(unittest.TestCase):
         entries = [{"kind": "task-activity", "activity": "delivery-complete"}]
         guard.reflection.entries = lambda _sid: entries
         reason = guard.learning_session_reason("s", {})
-        self.assertIn("Learning Session after every final delivery", reason)
+        self.assertTrue(reason.startswith("Learning Session:"))
+        self.assertIn("Learning Session after every final delivery", " ".join(reason.split()))
         for step in ("Diff the session lessons", "one spec issue", "ONE pull request",
                      "skip-release-notes", "auto-merge MERGE", "nothing durable"):
             with self.subTest(step=step):
