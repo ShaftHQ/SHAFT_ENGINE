@@ -334,7 +334,8 @@ public final class BrowserObservabilityRecorder {
                     event.timestamp(),
                     boundedNetworkText(event.bodyPreview()),
                     boundedHeaders(event.requestHeaders()),
-                    boundedHeaders(event.responseHeaders())));
+                    boundedHeaders(event.responseHeaders()),
+                    boundedNetworkText(event.requestBodyPreview())));
         }
         return List.copyOf(snapshot);
     }
@@ -795,10 +796,39 @@ public final class BrowserObservabilityRecorder {
             return "";
         }
         if (bytes.length > NETWORK_FIELD_UTF8_BYTE_LIMIT) {
-            return NETWORK_FIELD_OMITTED;
+            return containsNul(bytes, 8192) ? binaryMarker(bytes) : NETWORK_FIELD_OMITTED;
         }
-        String decoded = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+        String decoded = decodeText(bytes);
+        if (decoded == null) {
+            return binaryMarker(bytes);
+        }
         return decoded.length() > NETWORK_FIELD_LIMIT ? NETWORK_FIELD_OMITTED : retainedNetworkText(decoded);
+    }
+
+    private static String binaryMarker(byte[] bytes) {
+        return "[binary body: " + bytes.length + " bytes]";
+    }
+
+    private static boolean containsNul(byte[] bytes, int limit) {
+        for (int i = 0; i < Math.min(bytes.length, limit); i++) {
+            if (bytes[i] == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Returns the UTF-8 text, or {@code null} for binary content such as multipart file parts. */
+    private static String decodeText(byte[] bytes) {
+        try {
+            String decoded = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                    .decode(java.nio.ByteBuffer.wrap(bytes)).toString();
+            return decoded.indexOf('\u0000') >= 0 ? null : decoded;
+        } catch (java.nio.charset.CharacterCodingException e) {
+            return null;
+        }
     }
 
     private static StringBuilder indent(StringBuilder builder, int level) {
@@ -1065,7 +1095,8 @@ public final class BrowserObservabilityRecorder {
     public record NetworkSnapshotEntry(int id, String method, String url, int status, String mimeType,
                                        long durationMs, long requestSizeBytes, long responseSizeBytes,
                                        String failureReason, long timestamp, String bodyPreview,
-                                       Map<String, String> requestHeaders, Map<String, String> responseHeaders) {
+                                       Map<String, String> requestHeaders, Map<String, String> responseHeaders,
+                                       String requestBodyPreview) {
     }
 
     private record MetadataBatch(List<WarningEvent> warnings, List<WebSocketEvent> webSockets) { }

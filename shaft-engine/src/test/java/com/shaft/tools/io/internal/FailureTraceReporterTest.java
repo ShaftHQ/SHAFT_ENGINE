@@ -5,6 +5,7 @@ import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
+import com.shaft.gui.browser.internal.CdpPassiveNetworkObserver;
 import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.internal.locator.LocatorHealthReporter;
 import com.shaft.gui.playwright.internal.PlaywrightTraceManager;
@@ -28,7 +29,6 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chromium.HasCdp;
 import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.devtools.NetworkInterceptor;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.http.Contents;
 import org.openqa.selenium.remote.http.Filter;
@@ -744,7 +744,7 @@ public class FailureTraceReporterTest {
     public void networkInterceptorShouldFeedTraceNetworkEvents() throws Exception {
         AtomicReference<Filter> filterReference = new AtomicReference<>();
         WebDriver driver = Mockito.mock(WebDriver.class, Mockito.withSettings().extraInterfaces(HasDevTools.class));
-        try (MockedConstruction<NetworkInterceptor> ignored = Mockito.mockConstruction(NetworkInterceptor.class,
+        try (MockedConstruction<CdpPassiveNetworkObserver> ignored = Mockito.mockConstruction(CdpPassiveNetworkObserver.class,
                 (mock, context) -> filterReference.set((Filter) context.arguments().get(1)))) {
             SHAFT.Properties.reporting.set()
                     .traceEnabled(true)

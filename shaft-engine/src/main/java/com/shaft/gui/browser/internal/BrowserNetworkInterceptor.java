@@ -27,8 +27,10 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     private static final Map<IdentityWeakReference, Entry> COUNTERS = new HashMap<>();
     private final WebDriver driver;
     private final InterceptorFactory interceptorFactory;
+    private final InterceptorFactory passiveFactory;
     private final List<BrowserNetworkInterceptionRule> rules = new CopyOnWriteArrayList<>();
     private AutoCloseable activeInterceptor;
+    private boolean activeInterceptorPausesRequests;
     private boolean observing;
     private boolean closed;
     private final Counter counter = new Counter();
@@ -37,15 +39,25 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     /**
      * Creates a browser network interceptor backed by Selenium DevTools.
      *
+     * <p>Passive trace observation uses the CDP {@code Network} domain and never pauses requests;
+     * Selenium's request-pausing {@link NetworkInterceptor} is installed only while a mock, assert or
+     * verify rule is registered (issue #6735).
+     *
      * @param driver the active WebDriver session
      */
     public BrowserNetworkInterceptor(WebDriver driver) {
-        this(driver, NetworkInterceptor::new);
+        this(driver, NetworkInterceptor::new, CdpPassiveNetworkObserver::new);
     }
 
     BrowserNetworkInterceptor(WebDriver driver, InterceptorFactory interceptorFactory) {
+        this(driver, interceptorFactory, interceptorFactory);
+    }
+
+    BrowserNetworkInterceptor(WebDriver driver, InterceptorFactory interceptorFactory,
+                              InterceptorFactory passiveFactory) {
         this.driver = driver;
         this.interceptorFactory = interceptorFactory;
+        this.passiveFactory = passiveFactory;
         this.observationBinding = BrowserObservabilityRecorder.captureBinding();
         counter.owner(this);
         synchronized (COUNTERS) {
@@ -226,7 +238,9 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
     private void rebuildInterceptor() {
         requireOpen();
         closeActiveInterceptor();
-        activeInterceptor = interceptorFactory.create(driver, createFilter());
+        InterceptorFactory factory = rules.isEmpty() ? passiveFactory : interceptorFactory;
+        activeInterceptor = factory.create(driver, createFilter());
+        activeInterceptorPausesRequests = factory != passiveFactory;
         counter.activate();
     }
 
@@ -296,6 +310,25 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
             } finally {
                 activeInterceptor = null;
             }
+            if (activeInterceptorPausesRequests) {
+                activeInterceptorPausesRequests = false;
+                stopPausingRequests();
+            }
+        }
+    }
+
+    /**
+     * Selenium's {@code NetworkInterceptor.close()} only resets its filter and leaves the CDP
+     * {@code Fetch} domain pausing every request, which keeps rebuilding binary upload bodies from a
+     * lossy string (issue #6735). Disable request pausing once no rule needs it.
+     */
+    private void stopPausingRequests() {
+        try {
+            if (driver instanceof HasDevTools hasDevTools) {
+                hasDevTools.maybeGetDevTools().ifPresent(devTools -> devTools.getDomains().network().disable());
+            }
+        } catch (RuntimeException ignored) {
+            // A closed or non-CDP session has no request pausing left to disable.
         }
     }
 

@@ -221,25 +221,36 @@ public class CdpWebSocketTraceSourceTest {
         Assert.assertTrue(CdpWebSocketTraceSource.isAttached(driver));
         Mockito.verify(devTools, Mockito.atLeastOnce()).createSessionIfThereIsNotOne("window-1");
         @SuppressWarnings("rawtypes")
-        var listeners = org.mockito.ArgumentCaptor.forClass(java.util.function.Consumer.class);
-        Mockito.verify(devTools, Mockito.times(5)).addListener(Mockito.any(), listeners.capture());
+        var events = org.mockito.ArgumentCaptor.forClass(org.openqa.selenium.devtools.Event.class);
+        @SuppressWarnings("rawtypes")
+        var allListeners = org.mockito.ArgumentCaptor.forClass(java.util.function.Consumer.class);
+        Mockito.verify(devTools, Mockito.atLeast(5)).addListener(events.capture(), allListeners.capture());
+        // Passive network capture (issue #6735) registers its own Network.* listeners on the same session.
+        @SuppressWarnings("rawtypes")
+        java.util.List<java.util.function.Consumer> webSocketListeners = new java.util.ArrayList<>();
+        for (int i = 0; i < events.getAllValues().size(); i++) {
+            if (((org.openqa.selenium.devtools.Event<?>) events.getAllValues().get(i)).getMethod().contains("webSocket")) {
+                webSocketListeners.add(allListeners.getAllValues().get(i));
+            }
+        }
+        Assert.assertEquals(webSocketListeners.size(), 5, "The WebSocket source must attach exactly once.");
         @SuppressWarnings("unchecked")
-        java.util.function.Consumer<WebSocketCreated> createdListener = listeners.getAllValues().getFirst();
+        java.util.function.Consumer<WebSocketCreated> createdListener = webSocketListeners.getFirst();
         createdListener.accept(new WebSocketCreated(new RequestId("wired"), "wss://example.test/wired",
                 java.util.Optional.empty()));
         @SuppressWarnings("unchecked")
-        java.util.function.Consumer<WebSocketFrameSent> sentListener = listeners.getAllValues().get(1);
+        java.util.function.Consumer<WebSocketFrameSent> sentListener = webSocketListeners.get(1);
         sentListener.accept(new WebSocketFrameSent(new RequestId("wired"), new MonotonicTime(1),
                 new WebSocketFrame(1, false, "sent-frame")));
         @SuppressWarnings("unchecked")
-        java.util.function.Consumer<WebSocketFrameReceived> receivedListener = listeners.getAllValues().get(2);
+        java.util.function.Consumer<WebSocketFrameReceived> receivedListener = webSocketListeners.get(2);
         receivedListener.accept(new WebSocketFrameReceived(new RequestId("wired"), new MonotonicTime(2),
                 new WebSocketFrame(1, false, "received-frame")));
         @SuppressWarnings("unchecked")
-        java.util.function.Consumer<WebSocketFrameError> errorListener = listeners.getAllValues().get(3);
+        java.util.function.Consumer<WebSocketFrameError> errorListener = webSocketListeners.get(3);
         errorListener.accept(new WebSocketFrameError(new RequestId("wired"), new MonotonicTime(3), "provider detail"));
         @SuppressWarnings("unchecked")
-        java.util.function.Consumer<WebSocketClosed> closedListener = listeners.getAllValues().get(4);
+        java.util.function.Consumer<WebSocketClosed> closedListener = webSocketListeners.get(4);
         closedListener.accept(new WebSocketClosed(new RequestId("wired"), new MonotonicTime(4)));
 
         var observations = BrowserObservabilityRecorder.snapshotWebSockets(owner);
@@ -257,7 +268,8 @@ public class CdpWebSocketTraceSourceTest {
         helper.closeDriver(driver);
         Assert.assertFalse(CdpWebSocketTraceSource.isAttached(driver));
         Assert.assertFalse(CdpWebSocketTraceSource.attach(driver));
-        Mockito.verify(devTools, Mockito.times(5)).addListener(Mockito.any(), Mockito.any(java.util.function.Consumer.class));
+        Mockito.verify(devTools, Mockito.times(events.getAllValues().size()))
+                .addListener(Mockito.any(), Mockito.any(java.util.function.Consumer.class));
     }
 
     @Test
