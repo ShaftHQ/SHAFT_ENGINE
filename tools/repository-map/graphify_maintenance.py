@@ -230,6 +230,34 @@ def require_primary_checkout(root: Path) -> Path:
     return common_dir.resolve()
 
 
+def require_head_at_origin_main(root: Path) -> None:
+    """Fail before mutation when HEAD and origin/main are both known and differ (#6762).
+
+    The record stage refuses such a checkout only after a full rebuild and after the
+    existing markers are gone; an unresolvable ref is left to that stage to report.
+    """
+    git = shutil.which("git")
+    if git is None:
+        return
+    revisions = []
+    for ref in ("HEAD", "refs/remotes/origin/main"):
+        try:
+            completed = subprocess.run(  # nosec B603 - resolved git, list-form, no shell.
+                [git, "rev-parse", "--verify", "--quiet", ref],
+                cwd=root,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            return
+        if completed.returncode != 0:
+            return
+        revisions.append(completed.stdout.strip())
+    if revisions[0] != revisions[1]:
+        raise ValueError("primary checkout HEAD must equal origin/main before recording")
+
+
 @contextmanager
 def refresh_lock(common_dir: Path):
     """Hold a nonblocking, crash-released OS lock for the complete refresh."""
@@ -284,6 +312,7 @@ def refresh(root: Path, graph_out: Path) -> None:
     if not resolver.is_file():
         raise ValueError(f"bundled Graphify resolver is absent: {resolver}")
     common_dir = require_primary_checkout(root)
+    require_head_at_origin_main(root)
     uv = shutil.which("uv")
     if uv is None:
         raise ValueError("uv is not on PATH")
