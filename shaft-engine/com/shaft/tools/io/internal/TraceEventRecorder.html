@@ -54,6 +54,7 @@
 <li><a href="#startForBackend(java.lang.String,java.lang.String,java.lang.String,com.shaft.gui.capabilities.AutomationBackend)" tabindex="0">startForBackend(String, String, String, AutomationBackend)</a></li>
 <li><a href="#withoutNestedEvents(java.util.function.Supplier)" tabindex="0">withoutNestedEvents(Supplier)</a></li>
 <li><a href="#recordScreenshot(com.shaft.tools.io.internal.TraceEventRecorder.Event,byte%5B%5D)" tabindex="0">recordScreenshot(TraceEventRecorder.Event, byte[])</a></li>
+<li><a href="#recordVisualComparison(java.lang.String,byte%5B%5D,byte%5B%5D,byte%5B%5D)" tabindex="0">recordVisualComparison(String, byte[], byte[], byte[])</a></li>
 <li><a href="#record(java.lang.String,java.lang.String,java.lang.String,java.lang.String,org.openqa.selenium.WebDriver,java.lang.String,java.lang.Throwable,java.util.Map,java.util.List)" tabindex="0">record(String, String, String, String, WebDriver, String, Throwable, Map, List)</a></li>
 <li><a href="#record(java.lang.String,java.lang.String,java.lang.String,java.lang.String,org.openqa.selenium.WebDriver,java.lang.String,java.lang.Throwable,java.util.Map,java.util.List,java.util.Map)" tabindex="0">record(String, String, String, String, WebDriver, String, Throwable, Map, List, Map)</a></li>
 <li><a href="#finish(com.shaft.tools.io.internal.TraceEventRecorder.Event,java.lang.String,java.lang.String,java.lang.Throwable,java.util.Map,java.util.List)" tabindex="0">finish(TraceEventRecorder.Event, String, String, Throwable, Map, List)</a></li>
@@ -175,33 +176,42 @@
 <div class="block">Buffers a screenshot for the given action, keyed by <a href="TraceEventRecorder.Event.html#id()"><code>TraceEventRecorder.Event.id()</code></a>, so <a href="#finish(com.shaft.tools.io.internal.TraceEventRecorder.Event,java.lang.String,java.lang.String,java.lang.Throwable,java.util.Map,java.util.List)"><code>finish(TraceEventRecorder.Event, String, String, Throwable, Map, List)</code></a>
 can embed it in the action's trace JSON.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TraceEventRecorder.Event.html" title="class in com.shaft.tools.io.internal">TraceEventRecorder.Event</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,java.lang.String,org.openqa.selenium.WebDriver)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;category,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#recordVisualComparison(java.lang.String,byte%5B%5D,byte%5B%5D,byte%5B%5D)" class="member-name-link">recordVisualComparison</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
+ byte[]&nbsp;expected,
+ byte[]&nbsp;actual,
+ byte[]&nbsp;diff)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Buffers one visual comparison (expected, actual and optional diff PNG) for the trace viewer's
+Attachments slider.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TraceEventRecorder.Event.html" title="class in com.shaft.tools.io.internal">TraceEventRecorder.Event</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,java.lang.String,org.openqa.selenium.WebDriver)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;category,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locator,
+ org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Starts timing a trace action for the current thread.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TraceEventRecorder.Event.html" title="class in com.shaft.tools.io.internal">TraceEventRecorder.Event</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,org.openqa.selenium.By,org.openqa.selenium.WebDriver)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;category,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
+ org.openqa.selenium.By&nbsp;locator,
  org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts timing a trace action for the current thread.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TraceEventRecorder.Event.html" title="class in com.shaft.tools.io.internal">TraceEventRecorder.Event</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#start(java.lang.String,java.lang.String,org.openqa.selenium.By,org.openqa.selenium.WebDriver)" class="member-name-link">start</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;category,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
- org.openqa.selenium.By&nbsp;locator,
- org.openqa.selenium.WebDriver&nbsp;driver)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
-<div class="block">Starts timing a trace action for the current thread.</div>
-</div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="TraceEventRecorder.Event.html" title="class in com.shaft.tools.io.internal">TraceEventRecorder.Event</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startForBackend(java.lang.String,java.lang.String,java.lang.String,com.shaft.gui.capabilities.AutomationBackend)" class="member-name-link">startForBackend</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;category,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#startForBackend(java.lang.String,java.lang.String,java.lang.String,com.shaft.gui.capabilities.AutomationBackend)" class="member-name-link">startForBackend</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;category,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;locator,
  <a href="../../../gui/capabilities/AutomationBackend.html" title="enum class in com.shaft.gui.capabilities">AutomationBackend</a>&nbsp;backend)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Starts a backend-owned action that has no Selenium <code>WebDriver</code>, such as Playwright.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static &lt;T&gt;&nbsp;T</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#withoutNestedEvents(java.util.function.Supplier)" class="member-name-link">withoutNestedEvents</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Supplier.html" title="class or interface in java.util.function" class="external-link">Supplier</a>&lt;T&gt;&nbsp;action)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static &lt;T&gt;&nbsp;T</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#withoutNestedEvents(java.util.function.Supplier)" class="member-name-link">withoutNestedEvents</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/function/Supplier.html" title="class or interface in java.util.function" class="external-link">Supplier</a>&lt;T&gt;&nbsp;action)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Executes a nested legacy delegate without recording a duplicate event around its owner action.</div>
 </div>
 </div>
@@ -299,6 +309,27 @@ a single thread's trace. Never throws.</div>
 <dt>Parameters:</dt>
 <dd><code>event</code> - started event handle from <a href="#start(java.lang.String,java.lang.String,org.openqa.selenium.By,org.openqa.selenium.WebDriver)"><code>start(String, String, By, WebDriver)</code></a></dd>
 <dd><code>png</code> - screenshot bytes, or <code>null</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="recordVisualComparison(java.lang.String,byte[],byte[],byte[])">
+<h3>recordVisualComparison</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">recordVisualComparison</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;name,
+ byte[]&nbsp;expected,
+ byte[]&nbsp;actual,
+ byte[]&nbsp;diff)</span></div>
+<div class="block">Buffers one visual comparison (expected, actual and optional diff PNG) for the trace viewer's
+Attachments slider. Gated like screenshots, capped at 5 per test and
+charged against the same screenshot budget. Never throws.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>name</code> - comparison label</dd>
+<dd><code>expected</code> - baseline image bytes</dd>
+<dd><code>actual</code> - captured image bytes</dd>
+<dd><code>diff</code> - diff image bytes, or <code>null</code></dd>
 </dl>
 </div>
 </section>
