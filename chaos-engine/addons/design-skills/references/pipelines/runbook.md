@@ -32,6 +32,12 @@ work. Five stages, in order; one CPU-heavy job at a time.
 - Incremental: cache each scene render under a hash of its inputs (source
   files, shared CSS and tokens, timing, parameters). `--only <target,...>`
   rebuilds just the affected outputs; a one-target fix never rebuilds all.
+- Never ship stale inputs: the build entry point regenerates every derived
+  file (scene pages, boards, line WAVs) or first runs
+  `design_qc.py fresh --source 'make_*.py' --source 'boards/*.json' --target 'scenes/*.html'`
+  and stops on failure. A rebuild script never calls a later stage alone.
+- Wait with one blocking call: `python3 .chaos-engine/tool.py job wait build --timeout 540 --tail 5`
+  (exit 7 = still live; call it again). No log polling loops.
 - Cap encoder threads below the core count (`-threads`, x264 `threads`) and
   keep tests and other heavy jobs off the machine while it renders.
 
@@ -51,31 +57,46 @@ failure: `vooverlap`, `levels` (verify, then CRF retry per D14), `static`,
 
 Voice pre-check is two commands in two processes: synthesize every line,
 then transcribe every line WAV (D17). When no render runs, `design_qc.py idle --wait 600` passes, then ASR
-(`vowords`, `tts`) and the full `all qc-plan.json`. ASR or QC on a loaded
-machine produces false alarms; a finding is confirmed on the line WAV or a
-second run before anyone investigates it.
+(`vowords`, `vopauses`, `tts`) and the full `all qc-plan.json --cache qc-cache.json`:
+a step whose check, arguments and input files match a cached pass is
+skipped, so only changed outputs are re-checked (list indirect inputs in a
+step's `inputs`). ASR or QC on a loaded machine produces false alarms; a
+finding is confirmed on the line WAV or a second run before anyone
+investigates it.
 
 ## 4. Review
 
-A fresh reviewer that did not build the video watches and listens to every
-output end to end and lists blockers with timestamps. Fixes go back to stage
-1 with `--only`.
+A numeric reviewer score is not a gate: LLM judges are weak absolute
+scorers and video models describe frames that are not there. The gate is
+full QC plus a findings ledger with no open verified finding of severity
+moderate or worse.
 
-- Each round uses a fresh reviewer and the same rubric: per output a score
-  out of 10 (8 = publishable), the top three problems with mm:ss and what is
-  on screen at that moment, the single highest-impact change, and a final
-  `SCORES` line.
-- Reviewers misplace timestamps and sometimes describe what is not there.
-  Verify every finding on extracted frames (or a measurement, such as
-  `volumedetect` for audio) before fixing it, and log each one in STATUS as
-  verified or rejected with the evidence. Rejected findings still get a
-  cheap hardening when one exists.
-- Passing automated QC is not passing review: QC catches defects, review
-  catches legibility, pacing and story. Budget three to four review rounds
-  and iterate on scene stills between them (D09), not on full rebuilds.
+- Use one reviewer per output file (several files in one prompt get mixed up),
+  fresh each round, never the builder. The prompt carries a **measured facts**
+  block (duration, scene holds, text sizes, gaps, loudness) and an **owner
+  decisions** block (intentional choices not to report), and the severity
+  scale: blocker (wrong or broken, cannot ship), major (a viewer misses the
+  point), moderate (visible flaw a viewer notices), minor (polish). Each
+  finding: mm:ss, what is on screen or heard, severity. A score is optional
+  and advisory.
+- Verify every finding with a tool before any edit:
+  `design_qc.py frames out.mp4 --at 1:36 --at 2:18 --out sheet.png --spectrum spec.png`
+  (frames at t-1, t, t+1; spectrum of the same window), plus ASR word timings
+  for speech. Record it in `ledger.json`:
+  `{"rounds": [{"round": 1, "output": "short", "findings": [{"id": "f1", "t": "0:15", "severity": "moderate", "claim": "caption covers chips", "verdict": "true", "evidence": "sheet r1: overlap at y 1290", "status": "fixed", "fix_evidence": "sheet r2: 140 px gap"}]}]}`.
+- A true finding is fixed red, then green: first add a failing check (a
+  `claims` `must`/`must_not` entry, a frame assertion), then fix until it
+  passes. Iterate on scene stills (D09), not full rebuilds; then
+  `--only` the affected outputs.
+- `design_qc.py findings ledger.json --cap 3 --markdown review-log.md` is
+  the gate. `next`: `verify` (a finding lacks a verdict or evidence), `fix`,
+  `deliver`, or `owner`. Run another round only after a verified moderate or
+  worse fix, at most 3 rounds per output; at the cap, deliver to the owner
+  with the review log instead of looping.
 
 ## 5. Deliver
 
-Upload only when full QC and review pass, with the QC report beside the
-files. A file sent earlier is named and labelled DRAFT with its open
-failures; superseded drafts move to an archive folder.
+Upload when full QC passes and `findings` says `deliver` (or `owner` at the
+cap), with the QC report and review log beside the files. A file sent
+earlier is named and labelled DRAFT with its open failures; superseded
+drafts move to an archive folder.

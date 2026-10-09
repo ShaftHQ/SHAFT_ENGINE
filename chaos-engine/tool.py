@@ -251,6 +251,7 @@ def tool_help_text() -> str:
         "job (long work that outlives the session; one worker per job; references/durable-jobs.md):\n"
         "  tool.py job start NAME [--heartbeat S] [--stale S] [--part-dir D]... -- CMD...\n"
         "  tool.py job status NAME [--json]  (exit 0 live/done, 3 stale, 4 failed, 5 stopped, 6 absent)\n"
+        "  tool.py job wait NAME [--timeout S] [--tail N]  (block until not live; 7 = still live)\n"
         "  tool.py job resume NAME  (watchdog: no-op while live or done)\n"
         "  tool.py job stop NAME\n"
         "  tool.py job checkpoint NAME STEP [--check]\n"

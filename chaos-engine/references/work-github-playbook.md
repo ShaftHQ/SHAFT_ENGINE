@@ -42,6 +42,10 @@ playbooks. Before the first push of **any** human PR:
 1. Apply exactly one classification label in the same `gh pr create` step
    (`breaking-change`, `enhancement`, `bug`, or `skip-release-notes`).
    Governance reads live PR labels when the event payload has none.
+   Docs, skills and harness-only PRs take `skip-release-notes`. If
+   `gh pr edit --add-label` fails (a Projects (classic) GraphQL error), add it
+   with REST: `gh api -X POST repos/<owner>/<repo>/issues/<n>/labels -f 'labels[]=<label>'`,
+   then confirm with `gh pr view <n> --json labels`.
    A `chaos-engine/` push runs the portable-core path check first.
 2. Confirm the active profile's language rules (for example exhaustive
    `switch` defaults) before the first push.

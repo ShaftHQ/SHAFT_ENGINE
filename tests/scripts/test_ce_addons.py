@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess  # nosec B404 - fixed list-form argv in tests, never a shell.
@@ -609,6 +610,149 @@ class DesignRound3Tests(unittest.TestCase):
             self.assertIn(rule, voice)
         runbook = (DESIGN / "references/pipelines/runbook.md").read_text(encoding="utf-8")
         self.assertIn("two processes", runbook)
+
+
+class DesignRound4Tests(unittest.TestCase):
+    """Feature-video retrospective lessons (#6684)."""
+
+    qc = DesignQcTests.qc
+
+    def run_qc(self, *args: str) -> tuple[int, dict]:
+        return DesignQcTests.run_qc(self, *args)
+
+    def write(self, folder: str, name: str, payload: object) -> str:
+        return DesignLessonTests.write(self, folder, name, payload)
+
+    @staticmethod
+    def ledger(status: str = "open", rounds: int = 1, evidence: str = "frames r1.png: overlap at y 1290") -> dict:
+        finding = {"id": "f1", "t": "0:15", "severity": "moderate", "claim": "caption covers chips",
+                   "verdict": "true", "evidence": evidence, "status": status}
+        if status == "fixed":
+            finding["fix_evidence"] = "frames r2.png: 140 px gap"
+        others = [{"round": n, "output": "a", "findings": []} for n in range(2, rounds + 1)]
+        return {"rounds": [{"round": 1, "output": "a", "findings": [finding]}, *others]}
+
+    def test_findings_gate_on_open_verified_findings(self):  # #6685
+        with tempfile.TemporaryDirectory() as folder:
+            code, out = self.run_qc("findings", self.write(folder, "l.json", self.ledger()))
+            self.assertEqual((1, "fix"), (code, out["next"]))
+            code, out = self.run_qc("findings", self.write(folder, "l.json", self.ledger("fixed")))
+            self.assertEqual((0, "deliver"), (code, out["next"]))
+            code, out = self.run_qc("findings", self.write(folder, "l.json", self.ledger(evidence="")))
+            self.assertEqual((1, "verify"), (code, out["next"]))
+            code, out = self.run_qc("findings", self.write(folder, "l.json", self.ledger(rounds=3)), "--cap", "3")
+            self.assertEqual((1, "owner"), (code, out["next"]))
+            code, out = self.run_qc("findings", self.write(folder, "l.json", self.ledger("fixed", rounds=4)))
+            self.assertEqual((1, "owner"), (code, out["next"]))
+            self.assertTrue(any("cap" in problem for problem in out["problems"]))
+            log = Path(folder) / "log.md"
+            ledger = self.ledger("fixed")
+            ledger["rounds"][0]["findings"].append({"id": "f2", "t": "2:18", "severity": "major", "claim": "typo",
+                                                    "verdict": "false", "evidence": "frame 138 reads Backend"})
+            code, out = self.run_qc("findings", self.write(folder, "l.json", ledger), "--markdown", str(log))
+            self.assertEqual((0, 0.5), (code, out["false_rate"]))
+            self.assertIn("frame 138 reads Backend", log.read_text(encoding="utf-8"))
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not installed")
+    def test_frames_sheet_and_spectrum(self):  # #6686
+        self.assertEqual(96.0, self.qc.parse_time("1:36"))
+        self.assertEqual(96.5, self.qc.parse_time("96.5"))
+        with tempfile.TemporaryDirectory() as folder:
+            clip, sheet, spectrum = (str(Path(folder) / n) for n in ("c.mp4", "s.png", "a.png"))
+            DesignRound3Tests.ffmpeg("-f", "lavfi", "-i", "testsrc=s=320x240:d=4:r=10", "-f", "lavfi",
+                                     "-i", "sine=f=440:d=4", "-shortest", "-pix_fmt", "yuv420p", clip)
+            code, out = self.run_qc("frames", clip, "--at", "1", "--at", "0:03", "--width", "160",
+                                    "--out", sheet, "--spectrum", spectrum)
+            self.assertEqual(0, code, out)
+            self.assertEqual([[0.0, 1.0, 2.0], [2.0, 3.0, 3.95]], [row["times"] for row in out["frames"]])
+            probe = self.qc.video_stream(self.qc.ffprobe(sheet))
+            self.assertEqual((480, 240), (probe["width"], probe["height"]))
+            self.assertGreater(Path(spectrum).stat().st_size, 0)
+
+    def test_fresh_flags_targets_older_than_sources(self):  # #6687
+        with tempfile.TemporaryDirectory() as folder:
+            source, target = Path(folder) / "make.py", Path(folder) / "out" / "scene.html"
+            target.parent.mkdir()
+            source.write_text("x", encoding="utf-8")
+            target.write_text("y", encoding="utf-8")
+            os.utime(source, (1000, 1000))
+            os.utime(target, (2000, 2000))
+            args = ("fresh", "--source", str(source), "--target", str(Path(folder) / "out" / "*.html"))
+            self.assertEqual(0, self.run_qc(*args)[0])
+            os.utime(source, (3000, 3000))
+            code, out = self.run_qc(*args)
+            self.assertEqual(1, code)
+            self.assertEqual([str(target)], out["stale"])
+            code, _ = self.run_qc("fresh", "--source", str(source), "--target", str(Path(folder) / "none*.html"))
+            self.assertEqual(1, code)
+
+    def test_all_caches_passing_steps_by_input_hash(self):  # #6688
+        with tempfile.TemporaryDirectory() as folder:
+            board = self.write(folder, "b.json", {"scenes": [{"id": "s1", "onScreenText": "one two", "duration": 4}]})
+            bad = self.write(folder, "bad.json", {"scenes": [{"id": "s2", "onScreenText": "a b c d e f", "duration": 1}]})
+            plan = self.write(folder, "p.json", {"checks": [{"check": "holds", "args": [board]},
+                                                           {"check": "holds", "args": [bad]}]})
+            cache = str(Path(folder) / "cache.json")
+            first, second = (self.run_qc("all", plan, "--cache", cache) for _ in range(2))
+            self.assertEqual((1, 0), (first[0], first[1]["cached"]))
+            self.assertEqual((1, 1), (second[0], second[1]["cached"]), "only the passing step is cached")
+            Path(board).write_text(json.dumps({"scenes": [{"id": "s1", "onScreenText": "one", "duration": 4}]}),
+                                   encoding="utf-8")
+            self.assertEqual(0, self.run_qc("all", plan, "--cache", cache)[1]["cached"])
+
+    def test_ttslint_flags_spaced_letters(self):  # #6689
+        with tempfile.TemporaryDirectory() as folder:
+            spaced = self.write(folder, "s.json", {"lines": [{"id": "k1", "text": "x", "say": "the C L I cover it"}]})
+            hyphen = self.write(folder, "h.json", {"lines": [{"id": "k1", "text": "x", "say": "the C-L-I covers it"}]})
+            code, out = self.run_qc("ttslint", spaced)
+            self.assertEqual(1, code)
+            self.assertIn("spaced letters 'C L I'", out["hits"][0])
+            self.assertEqual(0, self.run_qc("ttslint", hyphen)[0])
+
+    def test_vopauses_flags_long_gaps_inside_a_clause(self):  # #6689
+        def word(text, start, end):
+            return {"word": text, "start": start, "end": end}
+        with tempfile.TemporaryDirectory() as folder:
+            bad = self.write(folder, "b.json", {"k5": [word("cl,", 0.0, 0.5), word("I", 1.8, 1.9), word("cover", 2.0, 2.4)]})
+            ok = self.write(folder, "o.json", {"k6": {"words": [word("done.", 0.0, 0.5), word("Next", 1.7, 2.0)]}})
+            code, out = self.run_qc("vopauses", bad)
+            self.assertEqual(1, code)
+            self.assertEqual([{"id": "k5", "after": "cl,", "before": "I", "at": 0.5, "gap": 1.3}], out["pauses"])
+            self.assertEqual(0, self.run_qc("vopauses", ok)[0])
+
+    def test_revealhold_resolves_beats_and_flags_late_reveals(self):  # #6690
+        self.assertAlmostEqual(3.95, self.qc.resolve_at("e1+3.1+0.4", {"e1": 0.45}))
+        self.assertAlmostEqual(1.8, self.qc.resolve_at("2-0.2", {}))
+        with tempfile.TemporaryDirectory() as folder:
+            late = self.write(folder, "t.json", {"scenes": [{"id": "s1", "start": 0, "duration": 10, "beats": {},
+                                                             "reveals": [2, 9.2]}]})
+            code, out = self.run_qc("revealhold", late)
+            self.assertEqual(1, code)
+            self.assertEqual("s1", out["problems"][0]["id"])
+            html = Path(folder) / "html"
+            html.mkdir()
+            (html / "s1.html").write_text('<div data-at="e1+3.1+0.4">a</div><b data-at="0">t</b>', encoding="utf-8")
+            timeline = self.write(folder, "h.json", {"scenes": [{"id": "s1", "start": 0, "duration": 6,
+                                                                 "beats": {"e1": 0.45}}]})
+            code, out = self.run_qc("revealhold", timeline, "--html", str(html))
+            self.assertEqual(0, code, out)
+            (html / "s1.html").write_text('<div data-at="e9+1">a</div>', encoding="utf-8")
+            self.assertEqual(1, self.run_qc("revealhold", timeline, "--html", str(html))[0])
+
+    def test_cards_carry_the_retrospective_rules(self):  # #6684
+        def card(name: str) -> str:
+            return (DESIGN / "references" / f"{name}.md").read_text(encoding="utf-8")
+        runbook = (DESIGN / "references/pipelines/runbook.md").read_text(encoding="utf-8")
+        for rule in ("design_qc.py findings", "design_qc.py frames", "design_qc.py fresh", "--cache",
+                     "one reviewer per output", "measured facts", "3 rounds", "must_not", "tool.py job wait"):
+            self.assertIn(rule, runbook)
+        self.assertIn("findings", card("delivery-qc"))
+        voice = card("voice-over-tts")
+        for rule in ("vopauses", "C-L-I"):
+            self.assertIn(rule, voice)
+        motion = card("html-motion-graphics")
+        for rule in ("revealhold", "1.5 s", "orphan"):
+            self.assertIn(rule, motion)
 
 
 if __name__ == "__main__":

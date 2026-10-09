@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import glob
 import hashlib
 import json
 import math
@@ -291,6 +292,7 @@ CLI_SYNTAX = {
     "path": r"\w/\w|~/",
     "pipe": r"\s\|\s",
 }
+SPACED_LETTERS = re.compile(r"\b[A-Z]\b(?:[ \t]+[A-Z]\b)+")
 VOWELS = "aeiouyɑɐɒæɔəɘɚɛɜɝɞɨɪʊʉʌʏøœɤɯᵻː"
 
 
@@ -310,6 +312,8 @@ def phoneme_repeats(text: str, ipa: str) -> list[str]:
 
 def lint_line(line_id: str, text: str, ipa: str | None, allow: set[str]) -> list[str]:
     hits = [f"{line_id}: cli {kind} in spoken text" for kind, pattern in CLI_SYNTAX.items() if re.search(pattern, text)]
+    hits += [f"{line_id}: spaced letters '{m.group(0)}' (write {m.group(0).replace(' ', '-')})"
+             for m in SPACED_LETTERS.finditer(text) if m.group(0).lower() not in allow]
     tokens = words(text)
     hits += [f"{line_id}: repeated word '{a}'" for a, b in zip(tokens, tokens[1:]) if a == b and f"{a} {b}" not in allow]
     if ipa:
@@ -1089,16 +1093,230 @@ def cmd_describe(args: argparse.Namespace) -> int:
     return report("describe", FAIL if failed else PASS, scenes=failed, min=args.min)
 
 
+# ---------------------------------------------------------------- pauses, reveals, freshness
+def line_words(value: object) -> list[dict]:
+    words_ = value.get("words", []) if isinstance(value, dict) else value
+    if not isinstance(words_, list):
+        raise ValueError("each line needs a list of {word, start, end}")
+    return words_
+
+
+def cmd_vopauses(args: argparse.Namespace) -> int:
+    """Intra-line pauses from per-line ASR word timings (a misread acronym leaves a gap)."""
+    data = json.loads(Path(args.words).read_text(encoding="utf-8"))
+    pauses = []
+    for line_id, value in data.items():
+        timed = line_words(value)
+        for left, right in zip(timed, timed[1:]):
+            gap = round(float(right["start"]) - float(left["end"]), 3)
+            sentence = str(left["word"]).strip().endswith((".", "?", "!", ";", ":"))
+            if gap > (args.sentence_max if sentence else args.max):
+                pauses.append({"id": line_id, "after": str(left["word"]).strip(), "before": str(right["word"]).strip(),
+                               "at": round(float(left["end"]), 3), "gap": gap})
+    return report("vopauses", FAIL if pauses else PASS, lines=len(data), pauses=pauses)
+
+
+AT_RE = re.compile(r"^\s*([A-Za-z_]\w*|-?\d+(?:\.\d+)?)((?:\s*[+-]\s*\d+(?:\.\d+)?)*)\s*$")
+
+
+def resolve_at(expression: str, beats: dict) -> float:
+    """`beat+offset+offset` (or a number) to scene seconds; unknown beat raises KeyError."""
+    match = AT_RE.match(expression)
+    if not match:
+        raise ValueError(f"cannot parse data-at {expression!r}")
+    base, offsets = match.groups()
+    value = float(beats[base]) if re.match(r"[A-Za-z_]", base) else float(base)
+    return value + sum(float(term.replace(" ", "")) for term in re.findall(r"[+-]\s*\d+(?:\.\d+)?", offsets))
+
+
+def cmd_revealhold(args: argparse.Namespace) -> int:
+    """The last element revealed in a scene holds long enough before the cut."""
+    data = json.loads(Path(args.timeline).read_text(encoding="utf-8"))
+    problems, scenes = [], []
+    for scene in data.get("scenes", []):
+        reveals = [float(t) for t in scene.get("reveals", [])]
+        page = Path(args.html) / f"{scene['id']}.html" if args.html else None
+        if page and page.is_file():
+            for expression in re.findall(r'data-at="([^"]+)"', page.read_text(encoding="utf-8")):
+                try:
+                    reveals.append(resolve_at(expression, scene.get("beats", {})))
+                except KeyError:
+                    problems.append({"id": scene["id"], "problem": f"unknown beat in data-at {expression!r}"})
+        if not reveals:
+            continue
+        last = max(reveals)
+        hold = round(float(scene["duration"]) - last, 3)
+        scenes.append({"id": scene["id"], "last": round(last, 3), "hold": hold})
+        if hold < args.min:
+            problems.append({"id": scene["id"], "last": round(last, 3), "hold": hold,
+                             "problem": f"last reveal holds {hold:.2f}s < {args.min:.2f}s"})
+    return report("revealhold", FAIL if problems else PASS, scenes=scenes, problems=problems)
+
+
+def expand(patterns: list[str]) -> list[Path]:
+    return sorted({Path(found) for pattern in patterns for found in glob.glob(pattern, recursive=True)})
+
+
+def cmd_fresh(args: argparse.Namespace) -> int:
+    """Generated targets are newer than every generator and source (a build never ships stale inputs)."""
+    sources, targets = expand(args.source), expand(args.target)
+    problems = [f"no file matches {pattern}" for pattern in args.source + args.target if not expand([pattern])]
+    newest = max((path.stat().st_mtime for path in sources), default=0.0)
+    stale = [str(path) for path in targets if path.stat().st_mtime < newest]
+    if stale:
+        problems.append(f"{len(stale)} target(s) older than the newest source; regenerate them")
+    return report("fresh", FAIL if problems else PASS, sources=len(sources), targets=len(targets), stale=stale,
+                  problems=problems)
+
+
+# ---------------------------------------------------------------- review verification
+SEVERITIES = ("blocker", "major", "moderate", "minor")
+VERDICTS = ("true", "false", "unverified")
+
+
+def ledger_findings(ledger: dict) -> list[dict]:
+    return [{"round": item.get("round"), "output": item.get("output", "?"), **finding}
+            for item in ledger.get("rounds", []) for finding in item.get("findings", [])]
+
+
+def open_finding(finding: dict) -> bool:
+    gating = finding.get("severity") in SEVERITIES[:3] and finding.get("verdict") == "true"
+    return gating and not (finding.get("status") == "fixed" and finding.get("fix_evidence"))
+
+
+def ledger_markdown(findings: list[dict]) -> str:
+    lines = ["# Review log", "", "Every finding was checked with a tool before any change; only verified ones were fixed.",
+             "", "| Round | Output | Time | Severity | Finding | Verdict | Evidence |", "|---|---|---|---|---|---|---|"]
+    for item in findings:
+        evidence = item.get("evidence", "")
+        if item.get("fix_evidence"):
+            evidence += f"; fixed: {item['fix_evidence']}"
+        cells = (item.get("round"), item.get("output"), item.get("t", ""), item.get("severity", ""),
+                 item.get("claim", ""), item.get("verdict", ""), evidence)
+        lines.append("| " + " | ".join(str(cell).replace("|", "/") for cell in cells) + " |")
+    return "\n".join(lines) + "\n"
+
+
+def cmd_findings(args: argparse.Namespace) -> int:
+    """Review gate: every finding verified with evidence; none open at moderate or worse; rounds capped."""
+    ledger = json.loads(Path(args.ledger).read_text(encoding="utf-8"))
+    findings = ledger_findings(ledger)
+    problems = []
+    for item in findings:
+        name = f"r{item['round']} {item['output']} {item.get('id', '?')}"
+        if item.get("verdict") not in VERDICTS:
+            problems.append(f"{name}: verdict must be one of {', '.join(VERDICTS)}")
+        if item.get("severity") not in SEVERITIES:
+            problems.append(f"{name}: severity must be one of {', '.join(SEVERITIES)}")
+        if not str(item.get("evidence", "")).strip():
+            problems.append(f"{name}: no evidence (frame sheet, ASR timing or measurement)")
+    unverified = bool(problems)
+    rounds: dict[str, set] = {}
+    for item in ledger.get("rounds", []):
+        rounds.setdefault(item.get("output", "?"), set()).add(item.get("round"))
+    counts = {output: len(numbers) for output, numbers in rounds.items()}
+    problems += [f"{output}: {count} review rounds exceed the cap of {args.cap}"
+                 for output, count in counts.items() if count > args.cap]
+    still_open = [f"r{item['round']} {item['output']} {item.get('id', '?')}" for item in findings if open_finding(item)]
+    at_cap = any(counts.get(item["output"], 0) >= args.cap for item in findings if open_finding(item))
+    over_cap = any(count > args.cap for count in counts.values())
+    if unverified:
+        step = "verify"
+    elif over_cap or (still_open and at_cap):
+        step = "owner"
+    else:
+        step = "fix" if still_open else "deliver"
+    judged = [item for item in findings if item.get("verdict") in VERDICTS]
+    false_rate = round(sum(item["verdict"] == "false" for item in judged) / len(judged), 3) if judged else 0.0
+    if args.markdown:
+        Path(args.markdown).write_text(ledger_markdown(findings), encoding="utf-8")
+    failed = bool(problems or still_open)
+    return report("findings", FAIL if failed else PASS, next=step, rounds=counts, findings=len(findings),
+                  open=still_open, false_rate=false_rate, problems=problems)
+
+
+def parse_time(stamp: str) -> float:
+    total = 0.0
+    for part in str(stamp).split(":"):
+        total = total * 60 + float(part)
+    return total
+
+
+def cmd_frames(args: argparse.Namespace) -> int:
+    """Frames at t-span, t, t+span for each finding timestamp in one sheet (plus an optional spectrum)."""
+    ffmpeg = need("ffmpeg")
+    duration = float(ffprobe(args.video)["format"]["duration"])
+    rows = []
+    for stamp in args.at:
+        at = parse_time(stamp)
+        rows.append({"at": at, "times": [round(min(max(at + d, 0.0), max(duration - 0.05, 0.0)), 3)
+                                         for d in (-args.span, 0.0, args.span)]})
+    inputs, chains = [], []
+    for index, time_s in enumerate(t for row in rows for t in row["times"]):
+        inputs += ["-ss", f"{time_s:.3f}", "-i", args.video]
+        chains.append(f"[{index}:v]trim=end_frame=1,setpts=PTS-STARTPTS,scale={args.width}:-2,setsar=1[v{index}]")
+    count = len(rows) * 3
+    graph = ";".join(chains) + ";" + "".join(f"[v{i}]" for i in range(count)) + \
+        f"concat=n={count}:v=1:a=0,tile=3x{len(rows)}[sheet]"
+    result = run([ffmpeg, "-v", "error", "-y", *inputs, "-filter_complex", graph, "-map", "[sheet]",
+                  "-frames:v", "1", args.out])
+    if result.returncode != 0:
+        raise ValueError(f"ffmpeg failed: {result.stderr.strip()[-400:]}")
+    details: dict = {"out": args.out, "frames": rows}
+    if args.spectrum:
+        inputs, chains = [], []
+        for index, row in enumerate(rows):
+            start = max(row["at"] - args.span, 0.0)
+            inputs += ["-ss", f"{start:.3f}", "-t", f"{2 * args.span:.3f}", "-i", args.video]
+            chains.append(f"[{index}:a]showspectrumpic=s={args.width * 3}x200:legend=0[a{index}]")
+        stack = "".join(f"[a{i}]" for i in range(len(rows))) + f"vstack=inputs={len(rows)}[spec]" \
+            if len(rows) > 1 else "[a0]null[spec]"
+        result = run([ffmpeg, "-v", "error", "-y", *inputs, "-filter_complex", ";".join(chains) + ";" + stack,
+                      "-map", "[spec]", "-frames:v", "1", args.spectrum])
+        if result.returncode != 0:
+            raise ValueError(f"ffmpeg spectrum failed: {result.stderr.strip()[-400:]}")
+        details["spectrum"] = args.spectrum
+    return report("frames", PASS, **details)
+
+
+def file_digest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def step_key(step: dict) -> str:
+    args = [str(a) for a in step.get("args", [])]
+    digest = hashlib.sha256(json.dumps([step["check"], args], sort_keys=True).encode())
+    for name in [*args, *[str(i) for i in step.get("inputs", [])]]:
+        path = Path(name)
+        if path.is_file():
+            digest.update(f"{name}\0{file_digest(path)}".encode())
+    return digest.hexdigest()
+
+
 def cmd_all(args: argparse.Namespace) -> int:
     plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
-    worst = PASS
+    cache_path = Path(args.cache) if args.cache else None
+    cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path and cache_path.is_file() else {}
+    worst, cached = PASS, 0
     for step in plan.get("checks", []):
+        key = step_key(step) if cache_path else ""
+        if key and cache.get(key) == "pass":
+            cached += 1
+            report(step["check"], PASS, cached=True)
+            continue
         code = main([step["check"], *[str(a) for a in step.get("args", [])]])
+        if code == PASS and key:
+            cache[key] = "pass"
+            cache_path.write_text(json.dumps(cache, sort_keys=True), encoding="utf-8")
         if code == FAIL or code == USAGE:
             worst = FAIL
         elif code == SKIPPED and worst == PASS:
             worst = SKIPPED
-    return report("all", worst, steps=len(plan.get("checks", [])))
+    return report("all", worst, steps=len(plan.get("checks", [])), cached=cached)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -1233,9 +1451,32 @@ def parser() -> argparse.ArgumentParser:
     p = add("describe", cmd_describe, "on-screen text spoken or described")
     p.add_argument("storyboard")
     p.add_argument("--min", type=float, default=0.8)
+    p = add("vopauses", cmd_vopauses, "pauses inside a narration line (ASR word timings)")
+    p.add_argument("words", help="JSON of line id to [{word, start, end}] or {words: [...]}")
+    p.add_argument("--max", type=float, default=0.8, help="longest gap inside a clause")
+    p.add_argument("--sentence-max", type=float, default=1.6, help="longest gap after . ? ! ; :")
+    p = add("revealhold", cmd_revealhold, "last reveal holds before the scene cut")
+    p.add_argument("timeline", help="JSON with scenes [{id, start, duration, beats, reveals}]")
+    p.add_argument("--html", help="dir of <scene id>.html whose data-at attributes are reveals")
+    p.add_argument("--min", type=float, default=1.5)
+    p = add("fresh", cmd_fresh, "generated targets newer than their sources")
+    p.add_argument("--source", action="append", required=True, help="glob of generators and inputs")
+    p.add_argument("--target", action="append", required=True, help="glob of generated files")
+    p = add("findings", cmd_findings, "review findings ledger gate")
+    p.add_argument("ledger")
+    p.add_argument("--cap", type=int, default=3, help="review rounds per output")
+    p.add_argument("--markdown", help="write the review log here")
+    p = add("frames", cmd_frames, "frame sheet (and spectrum) around timestamps")
+    p.add_argument("video")
+    p.add_argument("--at", action="append", required=True, help="seconds or mm:ss")
+    p.add_argument("--span", type=float, default=1.0)
+    p.add_argument("--width", type=int, default=640)
+    p.add_argument("--out", required=True)
+    p.add_argument("--spectrum", help="also write a spectrum picture of each window")
     add("doctor", cmd_doctor, "which tools are present")
     p = add("all", cmd_all, "run a JSON plan of checks")
     p.add_argument("plan")
+    p.add_argument("--cache", help="JSON cache: skip steps whose inputs match a cached pass")
     return root
 
 

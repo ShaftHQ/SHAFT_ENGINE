@@ -25,6 +25,8 @@ non-commercial licences are refused.
   IPA) for product names and commands. Fix pronunciation in the lexicon,
   never by misspelling captions. Check names a G2P model can misread
   (Appium, GUI, CLI) with phonemes and ASR before render.
+- Letters spoken as letters are hyphenated in `say` ("C-L-I"); spaced
+  letters ("C L I") are misread as a word plus a pause. `ttslint` flags them.
 - Spoken forms for CLI syntax: "the with design skills flag", never a
   literal `--flag`, path, or variable. A script line keeps `text` (shown)
   and an optional `say` (spoken).
@@ -56,6 +58,9 @@ non-commercial licences are refused.
   synthesis.
 - `design_qc.py vowords script.json transcripts.json` passes (no dropped
   content word, no unscripted repeat).
+- `design_qc.py vopauses words.json` passes: per-line ASR word timings show
+  no gap above 0.8 s inside a clause (1.6 s after sentence punctuation);
+  confirm a flagged gap on the line WAV.
 - `design_qc.py tts script.txt transcript.txt --duration <seconds> --fold codecs=codex` passes (folded WER 5% or less, raw WER reported, 140 to 160 wpm); `design_qc.py idle` passes first.
 - Voice name, model, and licence recorded in the manifest.
 - `design_qc.py loudness vo.wav --target -18` passes.
