@@ -58,6 +58,15 @@ class CodeQualityPreflightTest(unittest.TestCase):
         self.assertIn("f-string-without-placeholders", findings("x = f'plain'\n")[0])
         self.assertEqual(findings("w = 3\nx = f'{w:>10}'\n"), [])
 
+
+    def test_weak_assert_true_false_wrapping_compare(self):
+        self.assertIn("assertGreater", findings("self.assertTrue(a > b)\n")[0])
+        self.assertIn("assertIn", findings("self.assertTrue(x in items)\n")[0])
+        self.assertIn("assertNotIn", findings("self.assertFalse(x in items)\n")[0])
+        self.assertIn("assertEqual", findings("assertTrue(a == b)\n")[0])
+        self.assertEqual(findings("self.assertTrue(ready)\n"), [])
+        self.assertEqual(findings("self.assertGreater(a, b)\n"), [])
+
     def test_only_changed_lines_are_checked(self):
         source = "try:\n    x = 1\nexcept OSError:\n    pass\ny = f'plain'\n"
         self.assertEqual(len(findings(source, {5})), 1)
