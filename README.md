@@ -21,7 +21,7 @@ drives the run. The verdict comes back with logs, screenshots, and a report.
 
 **[Generate your first project](https://shafthq.github.io/)** ·
 **[Read the user guide](https://shafthq.github.io/)** ·
-**[Watch the 100-second overview](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-feature-video-20261009/SHAFT-business-16x9.mp4)** ·
+**[Watch the 100-second overview](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-feature-video-v2-20261009/SHAFT-business-16x9-v2-1080p.mp4)** ·
 **[Star SHAFT on GitHub](https://github.com/ShaftHQ/SHAFT_ENGINE)**
 
 </div>
@@ -31,8 +31,8 @@ drives the run. The verdict comes back with logs, screenshots, and a report.
 SHAFT is for Java teams who are about to rebuild drivers, waits, assertions,
 configuration, test data, and Allure plumbing again. Generate a project from
 the [user guide](https://shafthq.github.io/), then run `mvn test`. The
-[100-second overview](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-feature-video-20261009/SHAFT-business-16x9.mp4)
-and the [feature video release](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/tag/shaft-feature-video-20261009)
+[100-second overview](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-feature-video-v2-20261009/SHAFT-business-16x9-v2-1080p.mp4)
+and the [feature video release](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/tag/shaft-feature-video-v2-20261009)
 are the short tour; the badge above is the current version, and
 [releases](https://github.com/ShaftHQ/SHAFT_ENGINE/releases) hold history.
 
