@@ -39,6 +39,7 @@ routes are reached through `local-runtimes`; roles through their adapters.
 | design-loop | Use when a design document needs write-review-revise rounds until zero open review issues remain. | `references/design-loop.md` | [route](../references/design-loop.md) |
 | deep-research | Use when a question needs bounded parallel research with verification and a cited final report. | `references/deep-research.md` | [route](../references/deep-research.md) |
 | ui-delivery | Use when a change touches user-visible UI, layout, styling, or themes: red-then-green e2e, measured geometry, viewport x theme matrix. | `references/ui-delivery.md` | [route](../references/ui-delivery.md) |
+| public-landing | Use when a public calling card or product landing page must convince a human, rank in search, and orient an agent without becoming a second policy. | `references/public-landing.md` | [route](../references/public-landing.md) |
 | learn-traces | Use when session traces must be mapped, reduced, and verified into lessons without a host TUI runner. | `references/learn-traces.md` | [route](../references/learn-traces.md) |
 | Meta-optimize | Use when a periodic offline review of shared logs is due. This is not a continuous session hook. | `references/meta-optimize.md` | [route](../references/meta-optimize.md) |
 | Draft skill PR | Use when an opt-in eval-gated draft skill pull request is requested. The default is off. | `references/draft-skill-pr.md` | [route](../references/draft-skill-pr.md) |

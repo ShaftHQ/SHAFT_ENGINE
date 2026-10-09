@@ -35,6 +35,7 @@ only when a user passed `--with-design-skills`. Without it, use core
 | Story | [D21 explainer arc](references/explainer-arc.md) | an explainer needs a hook, arc, and audience versions |
 | Brand | [D02 brand system](references/brand-system.md) | tokens, logo, voice are needed |
 | Web | [D03 visual direction](references/web-visual-direction.md) | a surface needs an aesthetic idea |
+| Landing | [Public landing](../../references/public-landing.md) | a calling card or product landing page for humans, search, and agents |
 | Web | [D04 interface audit](references/web-interface-audit.md) | a UI needs a rule-by-rule audit |
 | Type | [D05 typography and layout](references/typography-layout.md) | scale, measure, grid |
 | Color | [D06 color and contrast](references/color-contrast.md) | palettes, contrast, overlays |
