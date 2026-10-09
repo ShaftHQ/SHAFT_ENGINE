@@ -32,6 +32,10 @@ Forbidden:
 
 A zero-token waiter (option 1 or 2) is the only exception to [single thread](delegation.md). Real work stays on the one thread. When the wake fires, merge on green or fix on red, then continue the queue without asking the owner whether to proceed.
 
+## A green check can hide failing tests
+
+Some jobs run Maven with `testFailureIgnore=true`, so the job concludes success while tests fail. When a delivery adds or changes an acceptance test, read that job's Surefire line (`Tests run: N, Failures: F`) and the named test's `Finished test method` line before declaring it proven. File any failure outside the delivery's scope; do not rely on the check conclusion alone.
+
 ## Digest only
 
 - Agent-facing CI status comes from `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest` (one blocking watch). (repo-only)
