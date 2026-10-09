@@ -167,9 +167,40 @@ function filmstripActions(actionsList, includeAll){
   const list = actionsList || [];
   return includeAll ? list : list.filter(action => Boolean(action && action.screenshot));
 }
+// Theme a host forced onto the page background, or null. Allure 3 paints its dark background
+// onto HTML attachments with !important; a transparent root means the host set nothing.
+function themeFromBackground(color){
+  const match = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?/.exec(String(color || ''));
+  if (!match || (match[4] !== undefined && Number(match[4]) === 0)) return null;
+  const luminance = 0.299 * Number(match[1]) + 0.587 * Number(match[2]) + 0.114 * Number(match[3]);
+  return luminance < 128 ? 'dark' : 'light';
+}
+// Theme precedence: a manual choice, then ?theme=, then the hosting report, then a framed default of light.
+function resolveTheme(stored, query, host, framed){
+  for (const candidate of [stored, query, host]) {
+    if (candidate === 'dark' || candidate === 'light') return candidate;
+  }
+  return framed ? 'light' : null;
+}
+const PANE_MIN = 200;
+const PANE_MAX = 640;
+function clampPaneWidth(width, available){
+  const max = Math.max(PANE_MIN, Math.min(PANE_MAX, (Number(available) || PANE_MAX * 2) - 360));
+  return Math.round(Math.max(PANE_MIN, Math.min(max, Number(width) || 320)));
+}
+// Next index in a list for a navigation key, or -1 when the key does not navigate.
+function navigationIndex(key, current, length){
+  if (!length) return -1;
+  if (key === 'Home') return 0;
+  if (key === 'End') return length - 1;
+  const step = {ArrowRight:1, ArrowDown:1, j:1, ArrowLeft:-1, ArrowUp:-1, k:-1}[key];
+  if (!step) return -1;
+  return current < 0 ? 0 : Math.max(0, Math.min(length - 1, current + step));
+}
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {RENDER_CHUNK, BODY_PREVIEW_LIMIT, esc, statusClass, headerValue, contentTypeOf, formatBody,
     parseStackFrames, callerLocation, sameSourceFile, highlightJava, artifactActionId, groupArtifacts,
     readableArtifactName, errorEntries, parseSeleniumLocator, javaString, xpathLiteral, attributeSelector,
-    looksGenerated, locatorCandidates, logLineTime, filmstripActions};
+    looksGenerated, locatorCandidates, logLineTime, filmstripActions, themeFromBackground, resolveTheme,
+    clampPaneWidth, navigationIndex, PANE_MIN, PANE_MAX};
 }

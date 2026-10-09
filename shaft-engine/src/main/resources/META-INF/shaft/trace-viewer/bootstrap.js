@@ -25,6 +25,8 @@
     return;
   }
   window.shaftTraceText = text;
+  // Pristine document for 'Open in new tab' when the viewer is embedded in a report frame.
+  window.shaftTraceSource = '<!doctype html>\n' + document.documentElement.outerHTML;
   document.body.insertBefore(document.getElementById('trace-viewer-shell').content.cloneNode(true), loading);
   loading.remove();
   const main = document.createElement('script');

@@ -709,6 +709,7 @@ public class TraceViewerBrowserAcceptanceTest {
                       failedEvidence.exception = {type:'java.lang.IllegalStateException', message:'capture failed'};
                       actions.push({id:'mobile-legacy', backend:'APPIUM', category:'mobile/custom',
                         name:'legacy-action', status:'passed', locator:'<legacy>', metadata:{}});
+                      updateTabAvailability();
                     }
                     """);
             page.locator("button[data-tab=mobile]").click();
@@ -947,10 +948,8 @@ public class TraceViewerBrowserAcceptanceTest {
             page.emulateMedia(new Page.EmulateMediaOptions().setColorScheme(ColorScheme.LIGHT)
                     .setReducedMotion(ReducedMotion.NO_PREFERENCE));
             openViewer(page, fixture.legacyHtml().toUri().toString());
-            page.locator("button[data-tab=artifacts]").click();
-            Assert.assertEquals(page.locator("#artifact-result-count").textContent(), "0 trace artifacts");
-            Assert.assertEquals(page.locator("#artifact-hint").textContent(),
-                    "No artifact graph was recorded for this trace.");
+            Assert.assertTrue(page.locator("button[data-tab=artifacts]").isHidden(),
+                    "#6730: a session-less trace has no artifact graph, so its Artifacts tab is hidden.");
             Assert.assertEquals(page.locator("button[data-tab=timeline]").count(), 1,
                     "A session-less v1 trace must retain the legacy viewer panels.");
             page.locator("button[data-tab=timeline]").click();
