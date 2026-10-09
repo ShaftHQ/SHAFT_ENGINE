@@ -31,6 +31,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | Design loop | Write-review-revise a design doc until reviewer reports 0 open issues | [`design-loop.md`](design-loop.md) |
 | Deep research | Plan, parallel research, independent verify, cited report | [`deep-research.md`](deep-research.md) |
 | UI delivery | User-visible UI change: red-then-green e2e, measured geometry, viewport x theme matrix, CI coverage gap | [`ui-delivery.md`](ui-delivery.md) |
+| Public landing | Calling card or product landing page for humans, search, and agents; not a second policy | [`public-landing.md`](public-landing.md) |
 | Add-ons | Optional design/video/project-pack bundles; opt-in flags, never default | [`addons.md`](addons.md) |
 | Learn traces | Portable /learn map-reduce-verify; host TUI optional | [`learn-traces.md`](learn-traces.md) |
 | Prefer CLI over MCP | CLI when both exist; `gh` when configured; no default GitHub MCP | [`prefer-cli-over-mcp.md`](prefer-cli-over-mcp.md) |

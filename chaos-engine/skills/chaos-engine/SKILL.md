@@ -102,17 +102,18 @@ on explicit invocation.
 | Design loop | design doc needs review rounds | [design-loop.md](../../references/design-loop.md) |
 | Deep research | cited multi-source research | [deep-research.md](../../references/deep-research.md) |
 | UI delivery | user-visible UI | [ui-delivery.md](../../references/ui-delivery.md) |
+| Public landing | calling card or product page | [public-landing.md](../../references/public-landing.md) |
 | Learn traces | turn traces into lessons | [learn-traces.md](../../references/learn-traces.md) |
 | Meta-optimize | periodic offline log review | [meta-optimize.md](../../references/meta-optimize.md) |
 | Draft skill PR | opt-in eval-gated skill PR | [draft-skill-pr.md](../../references/draft-skill-pr.md) |
-| Token budget | pick lean, balanced, or deep budget | [token-budget-modes.md](../../references/token-budget-modes.md) |
+| Token budget | lean, balanced, or deep | [token-budget-modes.md](../../references/token-budget-modes.md) |
 | Eliminate waste | a hop or retry adds no decision | [eliminate-waste.md](../../references/eliminate-waste.md) |
 | Prefer CLI over MCP | CLI and MCP both fit | [prefer-cli-over-mcp.md](../../references/prefer-cli-over-mcp.md) |
 | No proxy | a task would add a traffic proxy | [no-proxy.md](../../references/no-proxy.md) |
 | GAP-EXIT2 UX | host ignores exit-2 hard blocks | [host-parity-matrix.md](../../references/host-parity-matrix.md) |
-| Add-ons | optional add-on: design, video, project pack | [addons.md](../../references/addons.md) |
-| Complexity gate | static-analysis complexity gate | [complexity-gate.md](../../references/complexity-gate.md) |
-| Durable jobs | long work must outlive the session | [durable-jobs.md](../../references/durable-jobs.md) |
+| Add-ons | design, video, or project pack | [addons.md](../../references/addons.md) |
+| Complexity gate | complexity gate | [complexity-gate.md](../../references/complexity-gate.md) |
+| Durable jobs | outlives the session | [durable-jobs.md](../../references/durable-jobs.md) |
 <!-- HARNESS-ROUTES:END -->
 
 ## Catalog

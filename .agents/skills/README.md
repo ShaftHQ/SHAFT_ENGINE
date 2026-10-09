@@ -162,6 +162,7 @@ sends you there; the rest by
 - [design loop](../../chaos-engine/references/design-loop.md)
 - [deep research](../../chaos-engine/references/deep-research.md)
 - [UI delivery](../../chaos-engine/references/ui-delivery.md)
+- [public landing](../../chaos-engine/references/public-landing.md)
 - [add-ons](../../chaos-engine/references/addons.md)
 - [lifecycle hooks](../../chaos-engine/references/lifecycle-hooks.md)
 - [hook trigger map](../../chaos-engine/references/hook-trigger-map.md)
