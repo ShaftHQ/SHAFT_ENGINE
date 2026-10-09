@@ -3672,9 +3672,31 @@ final class ShaftAssistantPanel extends JPanel implements Disposable {
         ShaftMcpInvocation invocation = currentInvocation;
         currentInvocation = null;
         if (invocation != null) {
+            StringBuilder streamed = localAgentOutput;
             invocation.kill();
+            // Issue #6748: a run killed because its panel closed used to vanish without a word, so the
+            // user came back to a session that looked like it had silently died. The chat state outlives
+            // the panel, so record why it stopped and the last output it produced for the next panel.
+            chatState.append("assistant", interruptedRunNotice(streamed == null ? "" : streamed.toString()), "",
+                    ShaftAssistantChatState.KIND_ERROR);
         }
         codegenCoordinator.disposeSession(activeCodegenSessionId);
+    }
+
+    private static final int INTERRUPTED_RUN_TAIL_CHARS = 1_500;
+
+    /**
+     * The transcript message shown when a run is stopped because its panel was closed (issue #6748):
+     * names the reason, quotes the tail of what it had already produced, and says how to continue.
+     */
+    static String interruptedRunNotice(String streamedOutput) {
+        String tail = streamedOutput == null ? "" : streamedOutput.strip();
+        if (tail.length() > INTERRUPTED_RUN_TAIL_CHARS) {
+            tail = "..." + tail.substring(tail.length() - INTERRUPTED_RUN_TAIL_CHARS);
+        }
+        String notice = "The assistant run was stopped because the SHAFT panel was closed or reloaded while it "
+                + "was still working. Send your last prompt again to continue.";
+        return tail.isEmpty() ? notice : notice + "\n\nLast output before it stopped:\n\n```\n" + tail + "\n```";
     }
 
     /**
