@@ -886,6 +886,23 @@ class ManagedCaptureRecorderBrowserTest {
                     "Each Back and Forward must append its own \"Navigate to\" row, including a "
                             + "second Back to a URL that already has one. Rows: "
                             + actionRowTexts(js));
+            assertEquals(Boolean.TRUE, js.executeScript("""
+                    const ui = globalThis.__shaftCaptureUiState;
+                    const apply = globalThis.__shaftCaptureApplyServerSteps;
+                    const last = ui.actions[ui.actions.length - 1];
+                    const text = last.text;
+                    last.pendingTraversal = true;
+                    const remote = String(last.remoteId || "").trim();
+                    const localId = remote || (ui.instanceId + "-" + last.id);
+                    const copies = () => ui.actions.filter(item => item.text === text).length;
+                    apply([{clientActionId: "ctx:b2xk:older-row", description: text, sequence: 1}]);
+                    const kept = copies() === 2 && ui.actions.some(item =>
+                      item.pendingTraversal && item.id === last.id);
+                    apply([{clientActionId: localId, description: text, sequence: 2}]);
+                    return kept && copies() === 1;
+                    """),
+                    "A second traversal must survive a sync that only has an older row for that URL, "
+                            + "and must be replaced once its own id arrives. Rows: " + actionRowTexts(js));
 
             recorder.stop(false);
         } finally {
