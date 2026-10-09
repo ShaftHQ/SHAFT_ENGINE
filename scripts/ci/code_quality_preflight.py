@@ -9,6 +9,8 @@ a branch changes, before the push:
 - empty-except: an ``except`` that only passes, with no comment saying why
 - unnecessary-lambda: ``lambda x: f(x)`` that should be ``f``
 - f-string-without-placeholders: an f-string with nothing to format (F541)
+- weak-assert: ``assertTrue``/``assertFalse`` wrapping a comparison or ``in``
+  (prefer ``assertGreater``/``assertIn``/etc. for informative failures)
 
 Usage: ``python3 scripts/ci/code_quality_preflight.py [--base REF] [paths...]``
 """
@@ -109,6 +111,50 @@ def _has_comment(source_lines: list[str], node: ast.ExceptHandler) -> bool:
     return any("#" in source_lines[index - 1] for index in range(node.lineno, min(end, len(source_lines)) + 1))
 
 
+_ASSERT_OPS = {
+    (True, ast.Eq): "assertEqual",
+    (True, ast.NotEq): "assertNotEqual",
+    (True, ast.Lt): "assertLess",
+    (True, ast.LtE): "assertLessEqual",
+    (True, ast.Gt): "assertGreater",
+    (True, ast.GtE): "assertGreaterEqual",
+    (True, ast.In): "assertIn",
+    (True, ast.NotIn): "assertNotIn",
+    (True, ast.Is): "assertIs",
+    (True, ast.IsNot): "assertIsNot",
+    (False, ast.Eq): "assertNotEqual",
+    (False, ast.NotEq): "assertEqual",
+    (False, ast.Lt): "assertGreaterEqual",
+    (False, ast.LtE): "assertGreater",
+    (False, ast.Gt): "assertLessEqual",
+    (False, ast.GtE): "assertLess",
+    (False, ast.In): "assertNotIn",
+    (False, ast.NotIn): "assertIn",
+    (False, ast.Is): "assertIsNot",
+    (False, ast.IsNot): "assertIs",
+}
+
+
+def _assert_method_name(func: ast.AST) -> str | None:
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    if isinstance(func, ast.Name):
+        return func.id
+    return None
+
+
+def _weak_assert_suggestion(node: ast.Call) -> str | None:
+    """Return the preferred assert* name when assertTrue/False wraps a Compare."""
+    name = _assert_method_name(node.func)
+    if name not in ("assertTrue", "assertFalse") or not node.args:
+        return None
+    first = node.args[0]
+    if not isinstance(first, ast.Compare) or len(first.ops) != 1:
+        return None
+    return _ASSERT_OPS.get((name == "assertTrue", type(first.ops[0])))
+
+
+
 def file_findings(path: Path, lines: set[int], display: str) -> list[str]:
     try:
         source = path.read_text(encoding="utf-8")
@@ -138,6 +184,14 @@ def file_findings(path: Path, lines: set[int], display: str) -> list[str]:
         elif (isinstance(node, ast.JoinedStr) and id(node) not in format_specs
               and not any(isinstance(item, ast.FormattedValue) for item in node.values)):
             findings.append(f"{where} f-string-without-placeholders: drop the f prefix")
+        elif isinstance(node, ast.Call):
+            preferred = _weak_assert_suggestion(node)
+            if preferred is not None:
+                used = _assert_method_name(node.func)
+                findings.append(
+                    f"{where} weak-assert: `{used}` wrapping a comparison or `in` "
+                    f"cannot give an informative message; use `{preferred}` instead"
+                )
     return findings
 
 
