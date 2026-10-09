@@ -13,13 +13,19 @@ import java.util.Set;
 /** Keeps the Playwright parity matrix honest: every claim has evidence or a tracked issue. */
 public class TraceViewerParityMatrixTest {
     private static final Path MATRIX = Path.of("src/test/resources/trace-viewer/playwright-parity-matrix.json");
-    private static final Path VIEWER = Path.of("src/main/java/com/shaft/tools/io/internal/FailureTraceReporter.java");
+    private static final Path VIEWER_RESOURCES = Path.of("src/main/resources/META-INF/shaft/trace-viewer");
     private static final Set<String> STATUSES = Set.of("present", "partial", "missing");
 
     @Test
     public void everyParityRowShouldHaveEvidenceOrATrackedIssue() throws Exception {
         JsonNode matrix = new ObjectMapper().readTree(Files.readString(MATRIX));
-        String viewer = Files.readString(VIEWER);
+        StringBuilder viewerSource = new StringBuilder();
+        try (var files = Files.list(VIEWER_RESOURCES)) {
+            for (Path file : files.sorted().toList()) {
+                viewerSource.append(Files.readString(file)).append('\n');
+            }
+        }
+        String viewer = viewerSource.toString();
         Set<String> ids = new HashSet<>();
         Assert.assertTrue(matrix.path("rows").size() >= 15, "The matrix must cover the Playwright feature set.");
         for (JsonNode row : matrix.path("rows")) {

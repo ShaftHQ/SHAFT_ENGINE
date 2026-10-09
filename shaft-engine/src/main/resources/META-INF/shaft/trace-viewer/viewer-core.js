@@ -1,0 +1,118 @@
+// Pure helpers for the SHAFT trace viewer. The browser loads this before viewer.js;
+// node unit tests (shaft-engine/src/test/js/trace-viewer-core.test.js) require it directly.
+const RENDER_CHUNK = 200;
+const BODY_PREVIEW_LIMIT = 2048;
+const JAVA_KEYWORDS = new Set(('abstract assert boolean break byte case catch char class const continue default do double '
+  + 'else enum extends final finally float for goto if implements import instanceof int interface long native new '
+  + 'package private protected public record return short static strictfp super switch synchronized this throw '
+  + 'throws transient try var void volatile while yield true false null').split(' '));
+function esc(value){
+  return String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
+function statusClass(value){
+  value = String(value || '').toLowerCase();
+  if(value.includes('pass')) return 'passed';
+  if(value.includes('fail') || value.includes('error')) return 'failed';
+  if(value.includes('warn') || value.includes('skip')) return 'warn';
+  return 'neutral';
+}
+function headerValue(headers, name){
+  const wanted = String(name).toLowerCase();
+  const match = Object.entries(headers || {}).find(([key]) => key.toLowerCase() === wanted);
+  return match ? String(match[1]) : '';
+}
+function contentTypeOf(entry){
+  const raw = headerValue(entry && entry.responseHeaders, 'content-type') || (entry && entry.mimeType) || '';
+  return String(raw).split(';')[0].trim().toLowerCase();
+}
+function formatBody(text, contentType){
+  const body = text == null ? '' : String(text);
+  const truncated = body.length >= BODY_PREVIEW_LIMIT || /^\[omitted because .*\]$/.test(body);
+  if (!body) return {kind:'empty', text:'', truncated:false};
+  const type = String(contentType || '').toLowerCase();
+  if (type.startsWith('image/') && /^[A-Za-z0-9+/=\s]+$/.test(body) && !truncated) {
+    return {kind:'image', text:`data:${type};base64,${body.replace(/\s/g, '')}`, truncated};
+  }
+  const trimmed = body.trim();
+  if (type.includes('json') || /^[\[{]/.test(trimmed)) {
+    try { return {kind:'json', text:JSON.stringify(JSON.parse(trimmed), null, 2), truncated}; } catch (ignored) { /* not complete JSON */ }
+  }
+  return {kind:'text', text:body, truncated};
+}
+function parseStackFrames(stack){
+  const frames = [];
+  String(stack || '').split(/\r?\n/).forEach(line => {
+    const match = /^\s*at\s+([^\s(]+)\(([^():]+)(?::(\d+))?\)/.exec(line);
+    if (match) frames.push({text:line.trim(), method:match[1], file:match[2], line:match[3] ? Number(match[3]) : null});
+  });
+  return frames;
+}
+function callerLocation(caller){
+  const match = /([A-Za-z0-9_$.-]+\.[A-Za-z]+):(\d+)/.exec(String(caller || ''));
+  return match ? {file:match[1], line:Number(match[2])} : null;
+}
+function sameSourceFile(left, right){
+  const base = value => String(value || '').split(/[\\/]/).pop();
+  return Boolean(left && right) && base(left) === base(right);
+}
+function highlightJava(line){
+  const pattern = /(\/\/.*$|\/\*.*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b\d+(?:\.\d+)?[lLfFdD]?\b|@[A-Za-z_]\w*|\b[A-Za-z_$][\w$]*\b)/g;
+  let html = '';
+  let last = 0;
+  String(line).replace(pattern, (token, ignored, offset) => {
+    html += esc(String(line).slice(last, offset));
+    last = offset + token.length;
+    let kind = '';
+    if (token.startsWith('//') || token.startsWith('/*')) kind = 'com';
+    else if (token[0] === '"' || token[0] === "'") kind = 'str';
+    else if (/^\d/.test(token)) kind = 'num';
+    else if (token[0] === '@') kind = 'ann';
+    else if (JAVA_KEYWORDS.has(token)) kind = 'kw';
+    html += kind ? `<span class="tok-${kind}">${esc(token)}</span>` : esc(token);
+    return token;
+  });
+  return html + esc(String(line).slice(last));
+}
+function artifactActionId(artifact){
+  const metadata = (artifact && artifact.metadata) || {};
+  if (metadata.actionId) return String(metadata.actionId);
+  const id = String((artifact && artifact.id) || '');
+  return id.startsWith('screenshot-') ? id.slice('screenshot-'.length) : '';
+}
+function groupArtifacts(artifacts){
+  const groups = new Map();
+  (artifacts || []).forEach(artifact => {
+    const metadata = artifact.metadata || {};
+    const key = metadata.sha256 && !artifact.omitted ? `sha256:${metadata.sha256}` : `path:${artifact.path}:${artifact.id}`;
+    if (!groups.has(key)) groups.set(key, {key, primary:artifact, artifacts:[], actionIds:[]});
+    const group = groups.get(key);
+    group.artifacts.push(artifact);
+    const actionId = artifactActionId(artifact);
+    if (actionId && !group.actionIds.includes(actionId)) group.actionIds.push(actionId);
+  });
+  return [...groups.values()];
+}
+function readableArtifactName(artifact){
+  const path = String((artifact && artifact.path) || 'Unknown');
+  const base = path.split('/').pop();
+  const hashed = /^([0-9a-f]{64})(\.[A-Za-z0-9]+)?$/i.exec(base);
+  if (!hashed) return base;
+  const kind = String((artifact && artifact.kind) || 'artifact');
+  return `${kind} ${hashed[1].slice(0, 8)}${hashed[2] || ''}`;
+}
+function errorEntries(actionsList, exception){
+  const entries = (actionsList || []).filter(action => statusClass(action.status) === 'failed').map(action => ({
+    action, type:action.exception && action.exception.type || action.category || 'Action failed',
+    message:[action.message, action.exception && action.exception.message].filter(Boolean).join(': ')
+      || action.name || 'Failed action'}));
+  if (exception && (exception.type || exception.message)
+      && !entries.some(entry => entry.message && exception.message && entry.message.includes(exception.message))) {
+    entries.push({action:null, type:exception.type || 'Exception', message:exception.message || ''});
+  }
+  return entries;
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {RENDER_CHUNK, BODY_PREVIEW_LIMIT, esc, statusClass, headerValue, contentTypeOf, formatBody,
+    parseStackFrames, callerLocation, sameSourceFile, highlightJava, artifactActionId, groupArtifacts,
+    readableArtifactName, errorEntries};
+}

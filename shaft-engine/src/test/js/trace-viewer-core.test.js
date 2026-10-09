@@ -1,0 +1,76 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const core = require(path.join(__dirname, '..', '..', 'main', 'resources', 'META-INF', 'shaft', 'trace-viewer', 'viewer-core.js'));
+
+test('esc neutralizes markup', () => {
+  assert.equal(core.esc('<img src=x onerror="a">'), '&lt;img src=x onerror=&quot;a&quot;&gt;');
+  assert.equal(core.esc(null), '');
+});
+
+test('contentTypeOf reads the response header case-insensitively and drops parameters', () => {
+  assert.equal(core.contentTypeOf({responseHeaders: {'Content-Type': 'application/json; charset=utf-8'}}), 'application/json');
+  assert.equal(core.contentTypeOf({}), '');
+});
+
+test('formatBody pretty-prints JSON, previews images and marks truncation', () => {
+  const json = core.formatBody('{"a":[1,2]}', 'application/json');
+  assert.equal(json.kind, 'json');
+  assert.equal(json.text, '{\n  "a": [\n    1,\n    2\n  ]\n}');
+  assert.equal(core.formatBody('iVBORw0KGgo=', 'image/png').kind, 'image');
+  assert.equal(core.formatBody('', 'text/plain').kind, 'empty');
+  const long = core.formatBody('x'.repeat(core.BODY_PREVIEW_LIMIT), 'text/plain');
+  assert.equal(long.kind, 'text');
+  assert.equal(long.truncated, true);
+  assert.equal(core.formatBody('{"unterminated":', 'application/json').kind, 'text');
+});
+
+test('parseStackFrames extracts method, file and line', () => {
+  const frames = core.parseStackFrames('java.lang.AssertionError: boom\n\tat com.acme.CheckoutTest.pay(CheckoutTest.java:42)\n\tat jdk.internal.Native.invoke(Native Method)');
+  assert.deepEqual(frames.map(frame => [frame.method, frame.file, frame.line]),
+    [['com.acme.CheckoutTest.pay', 'CheckoutTest.java', 42], ['jdk.internal.Native.invoke', 'Native Method', null]]);
+});
+
+test('callerLocation and sameSourceFile match by file name', () => {
+  assert.deepEqual(core.callerLocation('com.acme.CheckoutTest.pay(CheckoutTest.java:42)'), {file: 'CheckoutTest.java', line: 42});
+  assert.equal(core.callerLocation('unknown'), null);
+  assert.equal(core.sameSourceFile('src/test/java/com/acme/CheckoutTest.java', 'CheckoutTest.java'), true);
+  assert.equal(core.sameSourceFile('A.java', 'B.java'), false);
+});
+
+test('highlightJava wraps tokens and escapes markup', () => {
+  const html = core.highlightJava('public String s = "<b>"; // note');
+  assert.match(html, /<span class="tok-kw">public<\/span>/);
+  assert.match(html, /<span class="tok-str">&quot;&lt;b&gt;&quot;<\/span>/);
+  assert.match(html, /<span class="tok-com">\/\/ note<\/span>/);
+  assert.doesNotMatch(html, /<b>/);
+});
+
+test('groupArtifacts collapses identical digests and records every action', () => {
+  const digest = 'a'.repeat(64);
+  const groups = core.groupArtifacts([
+    {id: 'screenshot-action-1', kind: 'screenshot', path: `resources/${digest}.png`, metadata: {sha256: digest}},
+    {id: 'screenshot-action-2', kind: 'screenshot', path: `resources/${digest}.png`, metadata: {sha256: digest}},
+    {id: 'dom-1', kind: 'dom-snapshot', path: 'resources/b.html', metadata: {sha256: 'b', actionId: 'action-1'}},
+    {id: 'gone', kind: 'screenshot', path: 'resources/c.png', omitted: true, metadata: {sha256: digest}},
+  ]);
+  assert.equal(groups.length, 3);
+  assert.deepEqual(groups[0].actionIds, ['action-1', 'action-2']);
+  assert.equal(groups[0].artifacts.length, 2);
+});
+
+test('readableArtifactName shortens content-addressed paths only', () => {
+  assert.equal(core.readableArtifactName({kind: 'screenshot', path: `resources/${'0123abcd'.repeat(8)}.png`}), 'screenshot 0123abcd.png');
+  assert.equal(core.readableArtifactName({kind: 'network', path: 'shaft-network.har'}), 'shaft-network.har');
+});
+
+test('errorEntries lists failed actions and an unmatched test exception', () => {
+  const entries = core.errorEntries([
+    {id: 'a', status: 'passed'},
+    {id: 'b', status: 'failed', message: 'mismatch', exception: {message: 'expected receipt'}},
+  ], {type: 'java.lang.AssertionError', message: 'checkout failed'});
+  assert.equal(entries.length, 2);
+  assert.equal(entries[0].message, 'mismatch: expected receipt');
+  assert.equal(entries[1].action, null);
+});

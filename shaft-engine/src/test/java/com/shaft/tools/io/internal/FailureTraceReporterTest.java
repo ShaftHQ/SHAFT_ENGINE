@@ -211,13 +211,8 @@ public class FailureTraceReporterTest {
                 Assert.assertTrue(json.contains("\\u001b") || json.contains("\\u001B"), json);
 
                 String html = readZipEntry(zip, "SHAFT Trace Report.html");
-                String marker = "<pre hidden id=\"trace-data\">";
-                int payloadStart = html.indexOf(marker);
-                Assert.assertTrue(payloadStart >= 0, html);
-                payloadStart += marker.length();
-                int payloadEnd = html.indexOf("</pre>", payloadStart);
-                String encoded = html.substring(payloadStart, payloadEnd);
-                String decoded = encoded.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+                Assert.assertTrue(html.contains("data-encoding=\"gzip+base64\""), html);
+                String decoded = TraceViewerHtml.embeddedJson(html);
                 assertRfc8259ControlCharsEscaped(decoded);
                 Assert.assertEquals(JSON.readTree(decoded).path("timeline").path(0).asText(), ansiBanner);
                 parseWithEcmaJsonParse(decoded);
@@ -248,13 +243,8 @@ public class FailureTraceReporterTest {
                 Assert.assertTrue(json.contains("\\u0000"), json);
 
                 String html = readZipEntry(zip, "SHAFT Trace Report.html");
-                String marker = "<pre hidden id=\"trace-data\">";
-                int payloadStart = html.indexOf(marker);
-                Assert.assertTrue(payloadStart >= 0, html);
-                payloadStart += marker.length();
-                int payloadEnd = html.indexOf("</pre>", payloadStart);
-                String encoded = html.substring(payloadStart, payloadEnd);
-                String decoded = encoded.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+                Assert.assertTrue(html.contains("data-encoding=\"gzip+base64\""), html);
+                String decoded = TraceViewerHtml.embeddedJson(html);
                 assertRfc8259ControlCharsEscaped(decoded);
                 Assert.assertEquals(JSON.readTree(decoded).path("timeline").path(0).asText(), banner);
                 parseWithEcmaJsonParse(decoded);
@@ -1503,8 +1493,8 @@ public class FailureTraceReporterTest {
                 "snapshot":{"content":""},"evidence":{"actions":[{"id":"action-1",
                 "domSnapshotBefore":"%s","domSnapshotAfter":"<html>after</html>"}],
                 "network":[],"console":[],"browserObservability":{},"playwright":{}}}
-                """.formatted("&".repeat(220_000));
-        String html = "&".repeat(220_000);
+                """.formatted(incompressible(970_000));
+        String html = incompressible(970_000);
         byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
         SeleniumTraceCapture.Result result = new SeleniumTraceCapture.Result(
                 "webdriver", "structural", "available", "", "action-dom-snapshot", html, false);
@@ -1880,9 +1870,9 @@ public class FailureTraceReporterTest {
         String json = """
                 {"schemaVersion":"3.0","session":{"schemaVersion":"2.0","events":[],"artifacts":[]},
                 "snapshot":{"provider":"webdriver","fidelity":"structural","status":"available","reason":"",
-                "type":"webdriver-page-source","content":"%s","byteCount":"199000","truncated":"false"},
+                "type":"webdriver-page-source","content":"%s","byteCount":"970000","truncated":"false"},
                 "evidence":{"actions":[],"network":[],"console":[],"browserObservability":{},"playwright":{}}}
-                """.formatted("&".repeat(199_000));
+                """.formatted(incompressible(970_000));
         try {
             FailureTraceReporter.TraceArchiveBundle bundle = FailureTraceReporter.convergeTraceArchive(
                     archive, json, "[]", Map.of(), null,
@@ -2203,8 +2193,8 @@ public class FailureTraceReporterTest {
 
     @Test(description = "Near-cap core JSON and an individually fitting Playwright import should still publish")
     public void cumulativeRequiredBudgetShouldOmitPlaywrightEvidenceBeforePublication() throws Exception {
-        String padding = "p".repeat(700_000);
-        String nativeEvidence = "n".repeat(300_000);
+        String padding = incompressible(700_000);
+        String nativeEvidence = incompressible(300_000);
         String baseJson = """
                 {"schemaVersion":"3.0","session":{"schemaVersion":"2.0","events":[{"metadata":{
                 "playwrightCallId":"call@1","playwrightStepId":"step@1","playwrightCorrelation":"exact-operation-time"}}]},
@@ -2346,8 +2336,9 @@ public class FailureTraceReporterTest {
             JsonNode artifact = findArtifact(archiveJson.path("session"), "network");
             Assert.assertTrue(artifact.path("omitted").asBoolean(), archiveJson.toPrettyString());
             Assert.assertEquals(artifact.path("metadata").path("omissionReason").asText(), reason);
-            Assert.assertTrue(archiveHtml.contains("shaft-network.har"), archiveHtml);
-            Assert.assertTrue(archiveHtml.contains("aggregate budget"), archiveHtml);
+            String viewerData = TraceViewerHtml.embeddedJson(archiveHtml) + TraceViewerHtml.embeddedTruncation(archiveHtml);
+            Assert.assertTrue(viewerData.contains("shaft-network.har"), viewerData);
+            Assert.assertTrue(viewerData.contains("aggregate budget"), viewerData);
 
             String index = FailureTraceReporter.renderTraceIndexJson(info("aggregateReconciliation", failure()),
                     target, false, 1, bundle.omitted(), bundle.artifacts());
@@ -2384,7 +2375,7 @@ public class FailureTraceReporterTest {
             }
             JsonNode artifact = findArtifact(JSON.readTree(bundle.json()).path("session"), "network");
             Assert.assertEquals(artifact.path("metadata").path("omissionReason").asText(), reason);
-            Assert.assertTrue(bundle.html().contains(reason), bundle.html());
+            Assert.assertTrue(TraceViewerHtml.embeddedJson(bundle.html()).contains(reason), bundle.html());
         } finally {
             manifest.close();
             deleteDirectory(directory);
@@ -2673,6 +2664,20 @@ public class FailureTraceReporterTest {
         }
     }
 
+    /**
+     * Deterministic text that gzip cannot shrink much, so budget tests still exceed the bounded viewer
+     * entry now that the viewer embeds its payload compressed.
+     */
+    private static String incompressible(int length) {
+        String alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%()*+,-./:;=?@[]^_{|}~ ";
+        java.util.Random random = new java.util.Random(6715);
+        StringBuilder text = new StringBuilder(length);
+        for (int i = 0; i < length; i++) {
+            text.append(alphabet.charAt(random.nextInt(alphabet.length())));
+        }
+        return text.toString();
+    }
+
     private static void assertRfc8259ControlCharsEscaped(String json) {
         for (int i = 0; i < json.length(); i++) {
             char c = json.charAt(i);
@@ -2730,10 +2735,7 @@ public class FailureTraceReporterTest {
                 Assert.assertTrue(root.path("evidence").path("playwright").path("actions").isEmpty(), json);
                 Assert.assertTrue(readZipEntry(zip, "missing-native-trace.zip").contains("unavailable"));
                 String html = readZipEntry(zip, "SHAFT Trace Report.html");
-                String truncationPayload = html.substring(
-                        html.indexOf("<pre hidden id=\"trace-truncation\">")
-                                + "<pre hidden id=\"trace-truncation\">".length(),
-                        html.indexOf("</pre>", html.indexOf("<pre hidden id=\"trace-truncation\">")));
+                String truncationPayload = TraceViewerHtml.embeddedTruncation(html);
                 Assert.assertTrue(truncationPayload.contains("missing-native-trace.zip"), truncationPayload);
             }
             String index = Files.readString(traceDirectory.resolve("index.json"), StandardCharsets.UTF_8);
