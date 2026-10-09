@@ -1,4 +1,5 @@
-"""Grok refuses a hook command that references an unset plain ``$NAME``.
+"""
+Grok refuses a hook command that references an unset plain ``$NAME``.
 
 The project lifecycle command is valid sh and valid PowerShell. Its PowerShell
 branch uses ``$LASTEXITCODE``, ``$env``, ``$false``, and other names that are
@@ -66,20 +67,20 @@ class GrokHookEnvRefTest(unittest.TestCase):
         self.assertTrue(HOSTS.chaos_hook_command(grok))
 
     def test_shell_branch_still_reaches_the_guard(self):
-        self._assert_guard(HOSTS.chaos_guard_locator_command(windows=False, host="grok"), shell=True)
+        self._assert_guard(HOSTS.chaos_guard_locator_command(windows=False, host="grok"))
 
     def test_windows_shell_branch_still_reaches_the_guard(self):
         command = HOSTS.chaos_guard_locator_command(windows=False, host="grok")
-        self._assert_guard(command, shell=True, windows=True)
+        self._assert_guard(command, windows=True)
 
     def test_powershell_branch_still_reaches_the_guard(self):
-        shell = shutil.which("pwsh") or shutil.which("powershell")
-        if not shell:
+        executable = shutil.which("pwsh") or shutil.which("powershell")
+        if not executable:
             self.skipTest("PowerShell is required to drive the Grok Windows branch")
         command = HOSTS.chaos_guard_locator_command(windows=False, host="grok")
-        self._assert_guard(command, shell=False, executable=shell)
+        self._assert_guard(command, posix=False, executable=executable)
 
-    def _assert_guard(self, command: str, *, shell: bool, windows: bool = False, executable: str | None = None):
+    def _assert_guard(self, command: str, *, posix: bool = True, windows: bool = False, executable: str | None = None):
         payload = {
             "hook_event_name": "PreToolUse",
             "cwd": str(ROOT),
@@ -91,13 +92,12 @@ class GrokHookEnvRefTest(unittest.TestCase):
             environment.pop("CLAUDE_PROJECT_DIR", None)
             if windows:
                 environment["OS"] = "Windows_NT"
-            if shell:
-                argv: list[str] | str = command
+            if posix:
+                argv = ["bash", "-c", command]
             else:
                 argv = [executable or "pwsh", "-NoProfile", "-NonInteractive", "-Command", command]
-            result = subprocess.run(  # nosec B602 - generated hook command under test.
+            result = subprocess.run(  # nosec B603 - fixed bash or PowerShell argv, no shell.
                 argv,
-                shell=shell,
                 input=json.dumps(payload),
                 capture_output=True,
                 text=True,
