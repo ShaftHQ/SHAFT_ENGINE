@@ -170,6 +170,17 @@ write `.chaos-engine-state/overlay-handoff.md` and print one backtick-wrapped
 agentic prompt (same UX as merge-handoff; no bare "Reinstall…" fixNext).
 Adopter projects (no SOURCE) are unchanged.
 
+## Branded installers
+
+Any installer built on this standard under another brand (a product's agentic
+tools installer, its project upgrader) ships the full lifecycle in its first
+PR, not a first cut: `install|upgrade`, `status`, `doctor`, `repair` or
+`rollback`, `uninstall` where it owns files; a receipt of owned files; doctor
+that re-reads live state instead of trusting the receipt; a failure heal
+handoff that doctor's fix-next points at; a rollback that restores files, not
+just the receipt; wrappers that reject Python older than 3.9. The owning repo
+pins this with a contract test.
+
 ## Install guide
 
 Human path. Python is not required before the wrapper.
