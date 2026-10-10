@@ -72,26 +72,27 @@ public final class CdpPassiveNetworkObserver implements AutoCloseable {
             return;
         }
         String id = text(event.get("requestId"));
-        Map<String, Object> redirect = map(event.get("redirectResponse"));
-        if (!redirect.isEmpty()) {
-            Pending previous = pending.get(id);
-            if (previous != null && previous.started() && pending.remove(id, previous)) {
-                previous.complete(response(redirect, null));
-            }
-        }
+        completeRedirected(id, map(event.get("redirectResponse")));
         Map<String, Object> request = map(event.get("request"));
-        if (request.isEmpty()) {
-            return;
-        }
-        Pending exchange = exchange(id);
+        Pending exchange = request.isEmpty() ? null : exchange(id);
         if (exchange == null) {
             return;
         }
         HttpRequest observed = request(request);
         boolean bodyPending = Boolean.TRUE.equals(request.get("hasPostData")) && requestBody(request).length == 0;
-        if (!exchange.start(observed)) {
-            return;
+        if (exchange.start(observed) && dispatch(id, exchange, observed, bodyPending)) {
+            settle(id, exchange);
         }
+    }
+
+    private void completeRedirected(String id, Map<String, Object> redirect) {
+        Pending previous = redirect.isEmpty() ? null : pending.get(id);
+        if (previous != null && previous.started() && pending.remove(id, previous)) {
+            previous.complete(response(redirect, null));
+        }
+    }
+
+    private boolean dispatch(String id, Pending exchange, HttpRequest observed, boolean bodyPending) {
         try {
             workers.execute(() -> {
                 if (bodyPending) {
@@ -102,11 +103,11 @@ public final class CdpPassiveNetworkObserver implements AutoCloseable {
                 }
                 exchange.run(handler);
             });
+            return true;
         } catch (RejectedExecutionException e) {
             pending.remove(id, exchange);
-            return;
+            return false;
         }
-        settle(id, exchange);
     }
 
     /**
