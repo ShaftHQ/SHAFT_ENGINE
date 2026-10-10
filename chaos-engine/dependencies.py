@@ -153,8 +153,19 @@ def version_at_least(actual: str | int, minimum: str | int) -> bool:
     return version_key(str(actual)) >= version_key(str(minimum))
 
 
+def _within_maximum_series(key: tuple[int, ...], maximum_series: str | None) -> bool:
+    """True when ``key`` is not newer than a major.minor series such as ``3.14``."""
+    if not maximum_series:
+        return True
+    series = version_key(maximum_series)
+    prefix = key[:len(series)]
+    if len(prefix) < len(series):
+        prefix = prefix + (0,) * (len(series) - len(prefix))
+    return prefix <= series
+
+
 def latest_compatible_stable(
-    candidates: list[dict[str, object]], *, minimum: str
+    candidates: list[dict[str, object]], *, minimum: str, maximum_series: str | None = None
 ) -> str:
     """Select newest non-yanked stable candidate satisfying the minimum version."""
     minimum_key = version_key(minimum)
@@ -167,7 +178,7 @@ def latest_compatible_stable(
             key = version_key(value)
         except ValueError:
             continue
-        if key >= minimum_key:
+        if key >= minimum_key and _within_maximum_series(key, maximum_series):
             accepted.append((key, value.lstrip("v")))
     if not accepted:
         raise ValueError("no compatible stable dependency version is available")
@@ -279,8 +290,16 @@ def account_tool_plan(
         options = [item for dependency in extra for item in ("--with", dependency)]
         if action in {"installed", "upgraded", "repaired"}:
             force = ["--force"] if action in {"upgraded", "repaired"} else []
+            python_pin: list[str] = []
+            if name in {"mempalace", "graphify"}:
+                python_version = (resolved_versions or {}).get("python")
+                if not isinstance(python_version, str) or not python_version.strip():
+                    raise ValueError("account tool install requires the resolved Python version")
+                # Pin the interpreter. An unpinned install follows the newest CPython ABI,
+                # and chromadb/onnxruntime have no wheel for that ABI (#6780).
+                python_pin = ["--python", python_version]
             return [[
-                uv, "tool", "install", *force, *options,
+                uv, "tool", "install", *force, *python_pin, *options,
                 resolved_package(name, package, "=="),
             ]]
         return []
@@ -621,7 +640,11 @@ def resolve_stable_version(
         prerelease = payload.get("prerelease") if isinstance(payload, dict) else True
         draft = payload.get("draft") if isinstance(payload, dict) else True
         candidates = [{"version": tag, "yanked": bool(prerelease or draft)}]
-    return latest_compatible_stable(candidates, minimum=minimum)
+    maximum = contract.get("maximumSeries")
+    maximum_series = maximum if isinstance(maximum, str) and maximum else None
+    return latest_compatible_stable(
+        candidates, minimum=minimum, maximum_series=maximum_series
+    )
 
 
 def _version_from_output(output: str) -> str | None:
@@ -1843,7 +1866,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         resolved_versions={
             name: actions[name].get("resolvedVersion")
             if isinstance(actions[name].get("resolvedVersion"), str) else None
-            for name in tool_actions
+            for name in (*tool_actions, "python")
         },
     ).items():
         for command in planned:

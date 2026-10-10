@@ -217,7 +217,7 @@ needed. ChaosEngine supports Python 3.11 or newer (3.10 reaches end of life in
 October 2026); the wrappers ignore an older interpreter and the Python entry
 points exit with a clear message. The installer then discovers the invoking account's tools, resolves
 official stable channels, and chooses `reused`, `installed`, `upgraded`,
-`repaired`, or `blocked` per dependency. It installs latest stable Python
+`repaired`, or `blocked` per dependency. The python contract caps the series at maximumSeries 3.14 because pinned native wheels (chromadb/onnxruntime) have no build for the next CPython ABI. It installs that capped stable Python
 through uv, uv itself through Astral, active
 LTS Node 22 or newer through the platform provider, and Temurin 25 through
 Adoptium-supported packages. uv tools and npm globals remain user scoped;
@@ -674,7 +674,7 @@ URL, and PowerShell callers pass `-Verbose` or set `CHAOS_ENGINE_VERBOSE=1`.
 
 ### Python patch lag (#6325)
 
-ChaosEngine resolves the newest CPython from python.org and installs it with uv.
+The python contract caps the series at maximumSeries 3.14 because pinned native wheels (chromadb/onnxruntime) have no build for the next CPython ABI. Within that cap, ChaosEngine resolves the newest CPython from python.org and installs it with uv.
 python.org can publish a patch (for example 3.14.8) before uv can download it.
 The installer then asks `uv python list --only-downloads` for the newest
 downloadable patch that is no newer than python.org's and no older than the

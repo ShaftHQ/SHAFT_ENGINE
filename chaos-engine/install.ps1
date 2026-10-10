@@ -334,7 +334,7 @@ try {
     if ($null -eq $python) {
         $uv = Install-ChaosEngineUv $work
         $env:UV_PYTHON_INSTALL_DIR = Join-Path $env:LOCALAPPDATA "chaos-engine\python"
-        & $uv python install --no-progress
+        & $uv python install 3.14 --no-progress
         if ($LASTEXITCODE -ne 0) { throw "uv-managed Python installation failed" }
         $invoke = @($uv, "run", "--no-project", "--managed-python") + $arguments
     }

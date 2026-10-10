@@ -206,7 +206,7 @@ if [ -z "$python" ]; then
   uv="$work/uv-${uv_target}/uv"
   [ -x "$uv" ] || fail "uv archive is missing its executable"
   export UV_PYTHON_INSTALL_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/chaos-engine/python"
-  "$uv" python install --no-progress
+  "$uv" python install 3.14 --no-progress
   set -- "$uv" run --no-project --managed-python "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"
 else
   set -- "$python" "$bootstrap" --project "$project" --repository "$repository" --branch "$branch"

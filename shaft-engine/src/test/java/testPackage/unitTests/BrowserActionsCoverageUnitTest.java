@@ -3,6 +3,7 @@ package testPackage.unitTests;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.browser.internal.CdpFetchRuleInterceptor;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.properties.internal.Properties;
@@ -635,6 +636,35 @@ public class BrowserActionsCoverageUnitTest {
         Assert.assertThrows(RuntimeException.class, browserActions::getContext);
         Assert.assertThrows(RuntimeException.class, () -> browserActions.setContext("WEBVIEW_1"));
         Assert.assertThrows(RuntimeException.class, browserActions::getContextHandles);
+    }
+
+    @Test(description = "Issue #6775: same-URL navigation must not refresh while CDP Fetch pauses requests")
+    public void sameUrlNavigationShouldNotRefreshWhileFetchPausesRequests() {
+        WebDriver interceptable = createInterceptableDriver();
+        WebDriver.Navigation interceptNavigation = mock(WebDriver.Navigation.class);
+        when(interceptable.navigate()).thenReturn(interceptNavigation);
+        when(interceptable.getWindowHandle()).thenReturn("window-1");
+        when(interceptable.getCurrentUrl()).thenReturn("https://example.com/fixture");
+        doNothing().when(interceptNavigation).to(anyString());
+        doNothing().when(interceptNavigation).refresh();
+        try (MockedConstruction<CdpFetchRuleInterceptor> ignored = Mockito.mockConstruction(CdpFetchRuleInterceptor.class)) {
+            BrowserActions intercepting = new BrowserActions(interceptable, true);
+            intercepting.intercept(request -> true, new HttpResponse().setStatus(200));
+            intercepting.navigateToURL("https://example.com/fixture");
+            Mockito.verify(interceptNavigation, Mockito.never()).refresh();
+            Mockito.verify(interceptNavigation).to("about:blank");
+            Mockito.verify(interceptNavigation).to("https://example.com/fixture");
+        } finally {
+            BrowserNetworkInterceptor.closeAndRemove(interceptable);
+        }
+    }
+
+    @Test(description = "Issue #6775: same-URL navigation still refreshes when nothing pauses requests")
+    public void sameUrlNavigationShouldRefreshWhenNothingPausesRequests() {
+        when(driver.getCurrentUrl()).thenReturn("https://example.com/fixture");
+        browserActions.navigateToURL("https://example.com/fixture");
+        verify(navigation).refresh();
+        verify(navigation, Mockito.never()).to(anyString());
     }
 
     private WebDriver createInterceptableDriver() {

@@ -294,6 +294,7 @@ class ManagedRuntimeCliTest(TestCase):
             (ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8")
         )
         minimum = specification["dependencies"]["uv"]["minimumVersion"]
+        series = specification["dependencies"]["python"]["maximumSeries"]
         for document in (shell, powershell):
             match = re.search(
                 r"astral-sh/uv/releases/download/(?P<version>\d+\.\d+\.\d+)/",
@@ -304,6 +305,7 @@ class ManagedRuntimeCliTest(TestCase):
                 DEPENDENCIES.version_at_least(match.group("version"), minimum)
             )
             self.assertIn("python install", document)
+            self.assertIn(f"python install {series}", document)
             self.assertIn("managed-python", document)
         self.assertIn("--with-maven-tools", shell)
         self.assertIn("WithMavenTools", powershell)

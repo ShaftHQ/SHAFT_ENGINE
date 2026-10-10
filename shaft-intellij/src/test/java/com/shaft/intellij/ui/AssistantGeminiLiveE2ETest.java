@@ -3,6 +3,7 @@ package com.shaft.intellij.ui;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.shaft.ai.provider.GeminiProvider;
 import com.shaft.intellij.mcp.ShaftCommandLine;
 import com.shaft.intellij.settings.ShaftSettingsState;
 import org.junit.jupiter.api.Assumptions;
@@ -71,11 +72,12 @@ class AssistantGeminiLiveE2ETest {
         }
 
         String answer = response.get("answer").getAsString();
+        String servedModel = response.get("model").getAsString();
         assertEquals("SUCCESS", response.get("status").getAsString(),
                 "primaryModel=" + model + " usedModel=" + usedModel + " response=" + response);
         assertEquals("gemini", response.get("provider").getAsString());
-        assertTrue(response.get("model").getAsString().startsWith(usedModel),
-                "expected model prefix " + usedModel + " but was " + response.get("model").getAsString());
+        assertTrue(GeminiProvider.acceptsServedModel(usedModel, servedModel),
+                "requested " + usedModel + " served " + servedModel);
         assertEquals("ASK", response.get("mode").getAsString());
         assertEquals(LIVE_CANARY_TOKEN, answer.trim(), answer);
     }

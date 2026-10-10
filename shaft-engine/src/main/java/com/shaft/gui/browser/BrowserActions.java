@@ -10,6 +10,7 @@ import com.shaft.enums.internal.NavigationAction;
 import com.shaft.enums.internal.Screenshots;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
 import com.shaft.gui.browser.internal.BrowserNetworkProfileManager;
+import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptionRule;
 import com.shaft.gui.browser.internal.BrowserStorageStateManager;
 import com.shaft.gui.browser.internal.BidiConsoleLogSource;
@@ -1321,12 +1322,19 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
                 if (initialURL.endsWith("/"))
                     initialURL = initialURL.substring(0, initialURL.length() - 1);
                 ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
-                if (!initialURL.equals(modifiedTargetUrl))
+                if (!initialURL.equals(modifiedTargetUrl)) {
                     // navigate to new url
                     browserActionsHelper.navigateToNewUrl(driverFactoryHelper.getDriver(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
-                else
+                } else if (BrowserNetworkInterceptor.pausesRequests(driverFactoryHelper.getDriver())) {
+                    // CDP Fetch pauses requests; classic refresh then times out (#6775).
+                    // navigateToNewUrl does not load a document when the URL is unchanged.
+                    WebDriver webDriver = driverFactoryHelper.getDriver();
+                    browserActionsHelper.navigateToNewUrl(webDriver, initialURL, "about:blank", "about:blank");
+                    browserActionsHelper.navigateToNewUrl(webDriver, "about:blank", modifiedTargetUrl, targetUrlAfterRedirection);
+                } else {
                     // already on the same page
                     driverFactoryHelper.getDriver().navigate().refresh();
+                }
             } else
                 // navigate to new url
                 browserActionsHelper.navigateToNewUrl(driverFactoryHelper.getDriver(), null, modifiedTargetUrl, targetUrlAfterRedirection);

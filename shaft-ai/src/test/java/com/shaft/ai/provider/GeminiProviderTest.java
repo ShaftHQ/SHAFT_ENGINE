@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -123,6 +125,64 @@ class GeminiProviderTest {
         ObjectNode payload = provider.buildPayload(request(8_000), configuration("gemini-3.5-flash"));
 
         assertEquals("low", payload.path("generationConfig").path("thinkingConfig").path("thinkingLevel").asText());
+    }
+
+    @Test
+    void acceptsServedModelMatchesTheExactRequestedId() {
+        assertTrue(GeminiProvider.acceptsServedModel("gemini-3.5-flash", "gemini-3.5-flash"));
+    }
+
+    @Test
+    void acceptsServedModelAllowsAVersionSuffix() {
+        assertTrue(GeminiProvider.acceptsServedModel("gemini-3.5-flash", "gemini-3.5-flash-001"));
+    }
+
+    @Test
+    void acceptsServedModelStripsOneModelsPrefix() {
+        assertTrue(GeminiProvider.acceptsServedModel("gemini-3.5-flash", "models/gemini-3.5-flash"));
+    }
+
+    @Test
+    void acceptsServedModelAllowsAnotherGeminiFlashId() {
+        assertTrue(GeminiProvider.acceptsServedModel("gemini-3.5-flash", "gemini-3.6-flash"));
+    }
+
+    @Test
+    void acceptsServedModelRejectsANonGeminiId() {
+        assertFalse(GeminiProvider.acceptsServedModel("gemini-3.5-flash", "gpt-4.1"));
+    }
+
+    @Test
+    void acceptsServedModelRejectsGeminiPro() {
+        assertFalse(GeminiProvider.acceptsServedModel("gemini-3.5-flash", "gemini-2.5-pro"));
+    }
+
+    @Test
+    void acceptsServedModelRejectsABlankServedId() {
+        assertFalse(GeminiProvider.acceptsServedModel("gemini-3.5-flash", ""));
+        assertFalse(GeminiProvider.acceptsServedModel("gemini-3.5-flash", "   "));
+        assertFalse(GeminiProvider.acceptsServedModel("gemini-3.5-flash", null));
+    }
+
+    @Test
+    void acceptsServedModelRejectsABlankRequestedId() {
+        assertFalse(GeminiProvider.acceptsServedModel("", "gemini-3.5-flash"));
+        assertFalse(GeminiProvider.acceptsServedModel("   ", "gemini-3.6-flash"));
+        assertFalse(GeminiProvider.acceptsServedModel(null, "gemini-3.5-flash"));
+    }
+
+    @Test
+    void liveAssertionUsesTheSameServedModelPredicate() throws Exception {
+        // The IntelliJ live test cannot load this Java 25 module, so it compiles a stand-in.
+        String production = Files.readString(Path.of(
+                "src/main/java/com/shaft/ai/provider/GeminiProvider.java"));
+        String liveStandIn = Files.readString(Path.of(
+                "../shaft-intellij/src/test/java/com/shaft/ai/provider/GeminiProvider.java"));
+        int start = liveStandIn.indexOf("public static boolean acceptsServedModel");
+        int helper = liveStandIn.indexOf("private static boolean geminiFlashId", start);
+        int end = liveStandIn.indexOf('}', helper) + 1;
+        String predicate = liveStandIn.substring(start, end);
+        assertTrue(production.contains(predicate), predicate);
     }
 
     @Test
