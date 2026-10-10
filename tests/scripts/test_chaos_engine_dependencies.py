@@ -991,6 +991,53 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             self.assertIn("--python", plan[name][0])
             self.assertEqual("3.14.2", plan[name][0][plan[name][0].index("--python") + 1])
 
+    def test_project_runtime_install_plan_pins_python_inside_maximum_series(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        series = specification["dependencies"]["python"]["maximumSeries"]
+        runtime_pin = specification["runtimes"]["python"]["version"]
+        self.assertEqual("3.14", series)
+        self.assertEqual("3.11", runtime_pin)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            generated = module.generation_install_plan(root, specification)
+            for name in ("mempalace", "graphify"):
+                command = generated[name][0]
+                self.assertEqual(runtime_pin, command[command.index("--python") + 1])
+            for platform in ("posix", "nt"):
+                with self.subTest(platform=platform), mock.patch.object(module.os, "name", platform):
+                    plan = module.install_plan(root, specification)
+                    for name in ("mempalace", "graphify"):
+                        command = plan[name][0]
+                        self.assertIn("--python", command)
+                        pin = command[command.index("--python") + 1]
+                        self.assertEqual(series, pin)
+                        self.assertTrue(
+                            module._within_maximum_series(module.version_key(pin), series)
+                        )
+                        self.assertNotIn(runtime_pin, command)
+                        rendered = command[0].replace("\\", "/")
+                        if platform == "nt":
+                            self.assertTrue(rendered.endswith("/Scripts/uv.exe"), rendered)
+                        else:
+                            self.assertTrue(rendered.endswith("/bin/uv"), rendered)
+
+    def test_project_runtime_install_plan_rejects_a_blank_python_series(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        mutations = {
+            "missing": lambda value: value["dependencies"]["python"].pop("maximumSeries"),
+            "blank": lambda value: value["dependencies"]["python"].__setitem__("maximumSeries", "  "),
+            "unparsed": lambda value: value["dependencies"]["python"].__setitem__("maximumSeries", "latest"),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(label=label):
+                mutated = copy.deepcopy(specification)
+                mutate(mutated)
+                with tempfile.TemporaryDirectory() as temporary:
+                    with self.assertRaisesRegex(ValueError, "Python maximum series"):
+                        module.install_plan(Path(temporary), mutated)
+
     def test_account_receipt_dispatches_absolute_commands_and_redacts_home(self):
         module = load_controller()
         with tempfile.TemporaryDirectory() as temporary:

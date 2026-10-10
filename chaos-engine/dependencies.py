@@ -4536,6 +4536,16 @@ def finalize_generation_remove(project: Path) -> None:
     removing_path.unlink()
 
 
+def _project_runtime_python_pin(specification: dict[str, object]) -> str:
+    """Series passed to project-runtime ``uv tool install --python`` (#6782)."""
+    dependencies = specification.get("dependencies")
+    contract = dependencies.get("python") if isinstance(dependencies, dict) else None
+    series = contract.get("maximumSeries") if isinstance(contract, dict) else None
+    if not isinstance(series, str) or re.fullmatch(r"3\.\d+", series.strip()) is None:
+        raise ValueError("project runtime install requires the Python maximum series")
+    return series.strip()
+
+
 def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, list[list[str]]]:
     if specification.get("schemaVersion") == 3:
         validate_runtime_specification(specification)
@@ -4551,16 +4561,19 @@ def install_plan(runtime: Path, specification: dict[str, object]) -> dict[str, l
     mempalace = tools["mempalace"]
     if not isinstance(graphify, dict) or not isinstance(mempalace, dict):
         raise ValueError("tool dependency specification is invalid")
+    # Pin the interpreter series. An unpinned install follows the newest CPython
+    # ABI, and chromadb/onnxruntime have no wheel for that ABI (#6782).
+    python_pin = _project_runtime_python_pin(specification)
     return {
         "uv": [
             [sys.executable, "-m", "venv", "--copies", str(environment)],
             [executable(scripts, "python"), "-m", "pip", "install", "--upgrade", str(tools["uv"]["package"])],  # type: ignore[index]
         ],
         "mempalace": [
-            [uv, "tool", "install", "--managed-python", "--link-mode", "copy", "--with", str(mempalace["with"][0]), str(mempalace["package"])],
+            [uv, "tool", "install", "--managed-python", "--python", python_pin, "--link-mode", "copy", "--with", str(mempalace["with"][0]), str(mempalace["package"])],
         ],
         "graphify": [
-            [uv, "tool", "install", "--managed-python", "--link-mode", "copy", "--with", str(graphify["with"][0]), str(graphify["package"])],  # type: ignore[index]
+            [uv, "tool", "install", "--managed-python", "--python", python_pin, "--link-mode", "copy", "--with", str(graphify["with"][0]), str(graphify["package"])],  # type: ignore[index]
         ],
         "memory": [
             [npm, "install", "--prefix", str(npm_prefix), str(tools["memory"]["package"])],  # type: ignore[index]
