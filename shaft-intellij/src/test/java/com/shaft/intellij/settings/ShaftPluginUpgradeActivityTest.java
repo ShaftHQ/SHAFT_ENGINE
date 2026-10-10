@@ -87,6 +87,27 @@ class ShaftPluginUpgradeActivityTest {
     }
 
     @Test
+    void checkForUpgradePromotesALegacyVerifiedInstallAndClearsTheStaleCommand() {
+        ShaftSettingsState settingsState = new ShaftSettingsState();
+        settingsState.getState().lastSeenPluginVersion = "1.2.2";
+        settingsState.getState().mcpCommand = "old-shaft-mcp";
+        settingsState.getState().mcpSetupComplete = true;
+        settingsState.getState().firstRunWizardCompleted = false;
+        ShaftPluginResetService resetService = new ShaftPluginResetService(
+                () -> { },
+                () -> CompletableFuture.completedFuture(null), () -> { }, List::of, () -> { },
+                () -> ShaftPluginResetService.resetSettingsPreservingWizardComplete(settingsState));
+
+        ShaftPluginUpgradeActivity.checkForUpgrade("1.2.3", settingsState, resetService);
+
+        assertAll(
+                () -> assertEquals("", settingsState.getState().mcpCommand),
+                () -> assertFalse(settingsState.getState().mcpSetupComplete),
+                () -> assertTrue(settingsState.getState().firstRunWizardCompleted),
+                () -> assertEquals("1.2.3", settingsState.getState().lastSeenPluginVersion));
+    }
+
+    @Test
     void checkForUpgradeWhenVersionsMatchDoesNothing() {
         ShaftSettingsState settingsState = new ShaftSettingsState();
         settingsState.getState().lastSeenPluginVersion = "1.2.3";

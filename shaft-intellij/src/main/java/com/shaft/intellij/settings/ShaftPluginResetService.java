@@ -115,11 +115,12 @@ public final class ShaftPluginResetService {
     }
 
     /**
-     * Upgrade reset: drop a stale MCP command, keep {@code firstRunWizardCompleted} when it was set.
+     * Upgrade reset: drop a stale MCP command. A user who already finished the wizard, or whose
+     * MCP install was verified before that flag existed, stays off the wizard.
      */
     static void resetSettingsPreservingWizardComplete(ShaftSettingsState settingsState) {
         ShaftSettingsState.Settings live = settingsState.getState();
-        boolean completed = live.firstRunWizardCompleted;
+        boolean completed = live.firstRunWizardCompleted || live.mcpReady();
         String notice = live.lastUpgradeNoticeVersion == null ? "" : live.lastUpgradeNoticeVersion;
         resetSettings(settingsState);
         ShaftSettingsState.Settings restored = settingsState.getState();
