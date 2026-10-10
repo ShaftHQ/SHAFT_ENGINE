@@ -8,6 +8,8 @@ import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.settings.AssistantAgentRoute;
 import com.shaft.intellij.settings.ShaftSettingsConfigurable;
 import com.shaft.intellij.settings.ShaftSettingsState;
+import com.shaft.intellij.ui.firstrun.FirstRunWizardPanel;
+import com.shaft.intellij.ui.firstrun.PrerequisitePlan;
 import com.shaft.intellij.testindex.ShaftTestDiscovery;
 import com.shaft.intellij.testindex.ShaftTestIndex;
 import org.junit.jupiter.api.Assumptions;
@@ -253,6 +255,10 @@ class ShaftPluginScreenshotRendererTest {
         Files.copy(advancedToolsLightScreenshot, toolsLightScreenshot, StandardCopyOption.REPLACE_EXISTING);
         Files.copy(advancedToolsDarkScreenshot, toolsDarkScreenshot, StandardCopyOption.REPLACE_EXISTING);
         write(mcpSetupScreenshot, renderSetup(LIGHT_THEME, false));
+        Path wizardScreenshot = outputPath.resolve("intellij-plugin-first-run-wizard.png");
+        Path wizardNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-first-run-wizard-narrow-dark.png");
+        write(wizardScreenshot, renderWizard(LIGHT_THEME, false, WIDTH, HEIGHT));
+        write(wizardNarrowDarkScreenshot, renderWizard(DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(mcpSetupGeminiScreenshot, renderSetupGemini(LIGHT_THEME, false));
         write(mcpSetupNarrowDarkScreenshot, renderSetup(DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(mcpSetupSuccessScreenshot, renderSetupSuccess(LIGHT_THEME, false));
@@ -310,6 +316,8 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(toolsLightScreenshot) > 0, toolsLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(toolsDarkScreenshot) > 0, toolsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupScreenshot) > 0, mcpSetupScreenshot + " should be non-empty"),
+                () -> assertTrue(Files.size(outputPath.resolve("intellij-plugin-first-run-wizard.png")) > 0),
+                () -> assertTrue(Files.size(outputPath.resolve("intellij-plugin-first-run-wizard-narrow-dark.png")) > 0),
                 () -> assertTrue(Files.size(mcpSetupGeminiScreenshot) > 0, mcpSetupGeminiScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupNarrowDarkScreenshot) > 0, mcpSetupNarrowDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupSuccessScreenshot) > 0, mcpSetupSuccessScreenshot + " should be non-empty"),
@@ -1470,7 +1478,9 @@ class ShaftPluginScreenshotRendererTest {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
         SwingUtilities.invokeAndWait(() -> {
             configureLookAndFeel(lookAndFeelClassName, dark);
-            ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(screenshotProject(), new ShaftSettingsState.Settings());
+            ShaftMcpSetupPanel toolWindow = new ShaftMcpSetupPanel(screenshotProject(),
+                    new ShaftSettingsState.Settings(), () -> { },
+                    (client, runtime) -> ShaftMcpToolResult.success("Codex CLI executable is available on PATH."));
             toolWindow.setSize(new Dimension(width, height));
             toolWindow.setPreferredSize(new Dimension(width, height));
             SwingUtilities.updateComponentTreeUI(toolWindow);
@@ -1481,6 +1491,30 @@ class ShaftPluginScreenshotRendererTest {
             verifySetupPanelRendering(toolWindow);
 
             image.set(render(toolWindow, width, height));
+        });
+        return image.get();
+    }
+
+    private static BufferedImage renderWizard(String lookAndFeelClassName, boolean dark, int width, int height)
+            throws InterruptedException, InvocationTargetException {
+        AtomicReference<BufferedImage> image = new AtomicReference<>();
+        SwingUtilities.invokeAndWait(() -> {
+            configureLookAndFeel(lookAndFeelClassName, dark);
+            FirstRunWizardPanel wizard = new FirstRunWizardPanel(screenshotProject(), new ShaftSettingsState.Settings(),
+                    () -> { }, (client, runtime) -> ShaftMcpToolResult.failure("not yet"),
+                    () -> new PrerequisitePlan.Snapshot(true, "3.9.9", true));
+            wizard.setSize(new Dimension(width, height));
+            wizard.setPreferredSize(new Dimension(width, height));
+            SwingUtilities.updateComponentTreeUI(wizard);
+            wizard.doLayout();
+            layout(wizard, !dark);
+            JComponent heading = findByAccessibleName(wizard, "SHAFT setup step heading", JComponent.class);
+            JButton primary = wizard.primary();
+            assertNotNull(heading);
+            assertTrue(heading.getWidth() > 0 && primary.getWidth() > 0);
+            assertTrue(heading.getX() + heading.getWidth() <= wizard.getWidth());
+            assertTrue(primary.getX() + primary.getWidth() <= wizard.getWidth());
+            image.set(render(wizard, width, height));
         });
         return image.get();
     }

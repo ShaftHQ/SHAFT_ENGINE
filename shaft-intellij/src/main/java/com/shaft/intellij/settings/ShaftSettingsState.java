@@ -51,6 +51,13 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
         Settings defaults = new Settings();
         defaults.mcpCommand = "";
         defaults.mcpSetupComplete = false;
+        defaults.firstRunWizardStep = 0;
+        defaults.firstRunWizardCompleted = false;
+        defaults.reportSetupFailures = false;
+        defaults.uxLiteEase = 0;
+        defaults.uxLiteUsefulness = 0;
+        defaults.uxLiteResponses = 0;
+        defaults.lastUpgradeNoticeVersion = "";
         return defaults;
     }
 
@@ -158,6 +165,18 @@ public final class ShaftSettingsState implements PersistentStateComponent<ShaftS
          * so it survives that same reset instead of being wiped by it.
          */
         public String lastSeenPluginVersion = "";
+        /** 0 = not started, 1–5 = the wizard step to resume. */
+        public int firstRunWizardStep = 0;
+        public boolean firstRunWizardCompleted = false;
+        /** Opt-in for filing a redacted setup failure as a public GitHub issue. */
+        public boolean reportSetupFailures = false;
+        /** UX-Lite ease rating, 0 = none, otherwise 1–5. */
+        public int uxLiteEase = 0;
+        /** UX-Lite usefulness rating, 0 = none, otherwise 1–5. */
+        public int uxLiteUsefulness = 0;
+        public int uxLiteResponses = 0;
+        /** Last plugin version for which the one-line upgrade notice was shown. */
+        public String lastUpgradeNoticeVersion = "";
 
         /**
          * Returns whether the configured MCP command has passed setup verification.

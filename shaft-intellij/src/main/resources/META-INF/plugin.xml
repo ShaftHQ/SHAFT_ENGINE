@@ -40,6 +40,7 @@
                                  displayName="SHAFT"/>
         <notificationGroup id="SHAFT Notifications" displayType="BALLOON"/>
         <postStartupActivity implementation="com.shaft.intellij.settings.ShaftPluginUpgradeActivity"/>
+        <postStartupActivity implementation="com.shaft.intellij.settings.ShaftFirstRunNoticeActivity"/>
     </extensions>
 
     <projectListeners>

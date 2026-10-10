@@ -189,6 +189,26 @@ class ShaftPluginResetServiceTest {
     }
 
     @Test
+    void upgradeResetKeepsWizardCompleteAndDropsAStaleMcpCommand() {
+        ShaftSettingsState settingsState = new ShaftSettingsState();
+        settingsState.getState().firstRunWizardCompleted = true;
+        settingsState.getState().mcpCommand = "old-shaft-mcp";
+        settingsState.getState().mcpSetupComplete = true;
+        settingsState.getState().uxLiteResponses = 3;
+
+        ShaftPluginResetService.resetSettingsPreservingWizardComplete(settingsState);
+
+        assertAll(
+                () -> assertTrue(settingsState.getState().firstRunWizardCompleted),
+                () -> assertEquals("", settingsState.getState().mcpCommand,
+                        "a stale mcp command must not survive the upgrade"),
+                () -> assertFalse(settingsState.getState().mcpSetupComplete),
+                () -> assertEquals(0, settingsState.getState().uxLiteResponses),
+                () -> assertFalse(ShaftPluginResetService.showSetupAfterUpgrade(settingsState.getState())),
+                () -> assertTrue(ShaftPluginResetService.showSetupAfterUpgrade(new ShaftSettingsState.Settings())));
+    }
+
+    @Test
     void resetForUpgradeRunsEveryResetStepButPreservesEveryOpenProjectChatState() {
         // Mirrors resetEverythingRunsEveryResetStepAndClearsEveryOpenProjectChatState above, but
         // asserts the opposite outcome for chat: an upgrade must reset the same stale UI/setup state

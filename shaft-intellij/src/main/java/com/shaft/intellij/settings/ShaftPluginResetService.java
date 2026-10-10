@@ -18,12 +18,13 @@ import java.util.function.Supplier;
 /**
  * Factory-resets every plugin-local data store: settings, stored provider credentials, tool
  * approvals, and the per-project Assistant chat history. Every open SHAFT tool window is then
- * re-rendered back to the setup view on the EDT.
+ * re-rendered. A completed first-run wizard stays on the main view; every other reset returns to setup.
  */
 public final class ShaftPluginResetService {
     private static final String TOOL_WINDOW_ID = "SHAFT";
 
     private final Runnable settingsReset;
+    private final Runnable upgradeSettingsReset;
     private final Supplier<CompletableFuture<Void>> credentialsReset;
     private final Runnable approvalsReset;
     private final Supplier<List<ShaftAssistantChatState>> chatStatesSupplier;
@@ -44,7 +45,8 @@ public final class ShaftPluginResetService {
                 () -> ShaftCredentialService.getInstance().clearAllAsync(),
                 ShaftPluginResetService::resetOpenProjectApprovals,
                 ShaftPluginResetService::openProjectChatStates,
-                ShaftPluginResetService::rerenderOpenToolWindows);
+                ShaftPluginResetService::rerenderOpenToolWindows,
+                () -> resetSettingsPreservingWizardComplete(ShaftSettingsState.getInstance()));
     }
 
     ShaftPluginResetService(Runnable settingsReset,
@@ -52,7 +54,17 @@ public final class ShaftPluginResetService {
                              Runnable approvalsReset,
                              Supplier<List<ShaftAssistantChatState>> chatStatesSupplier,
                              Runnable toolWindowRerenderer) {
+        this(settingsReset, credentialsReset, approvalsReset, chatStatesSupplier, toolWindowRerenderer, settingsReset);
+    }
+
+    ShaftPluginResetService(Runnable settingsReset,
+                             Supplier<CompletableFuture<Void>> credentialsReset,
+                             Runnable approvalsReset,
+                             Supplier<List<ShaftAssistantChatState>> chatStatesSupplier,
+                             Runnable toolWindowRerenderer,
+                             Runnable upgradeSettingsReset) {
         this.settingsReset = settingsReset;
+        this.upgradeSettingsReset = upgradeSettingsReset;
         this.credentialsReset = credentialsReset;
         this.approvalsReset = approvalsReset;
         this.chatStatesSupplier = chatStatesSupplier;
@@ -68,19 +80,20 @@ public final class ShaftPluginResetService {
     }
 
     /**
-     * Factory-resets settings, stored provider credentials, and tool approvals exactly like
-     * {@link #resetEverything()} does, but preserves every open project's Assistant chat history.
-     * Used when an upgrade is detected ({@code ShaftPluginUpgradeActivity}): the stale UI/setup
-     * state (including a cached {@code mcpCommand} that would otherwise keep launching an old
-     * shaft-mcp) must not survive the upgrade, but a user's conversation history is not "stale" and
-     * must not be silently deleted just because the plugin updated.
+     * Drops a stale {@code mcpCommand} and the rest of the factory setup state on upgrade, keeps
+     * {@code firstRunWizardCompleted} when it was already true, and preserves Assistant chat.
+     * A completed wizard is not sent back to the setup view.
      */
     public void resetForUpgrade() {
         resetState(false);
     }
 
     private void resetState(boolean clearChat) {
-        settingsReset.run();
+        if (clearChat) {
+            settingsReset.run();
+        } else {
+            upgradeSettingsReset.run();
+        }
         approvalsReset.run();
         if (clearChat) {
             for (ShaftAssistantChatState chatState : chatStatesSupplier.get()) {
@@ -99,6 +112,25 @@ public final class ShaftPluginResetService {
      */
     static void resetSettings(ShaftSettingsState settingsState) {
         settingsState.loadState(ShaftSettingsState.factoryDefaults());
+    }
+
+    /**
+     * Upgrade reset: drop a stale MCP command, keep {@code firstRunWizardCompleted} when it was set.
+     */
+    static void resetSettingsPreservingWizardComplete(ShaftSettingsState settingsState) {
+        ShaftSettingsState.Settings live = settingsState.getState();
+        boolean completed = live.firstRunWizardCompleted;
+        String notice = live.lastUpgradeNoticeVersion == null ? "" : live.lastUpgradeNoticeVersion;
+        resetSettings(settingsState);
+        ShaftSettingsState.Settings restored = settingsState.getState();
+        restored.firstRunWizardCompleted = completed;
+        restored.lastUpgradeNoticeVersion = notice;
+        restored.mcpCommand = "";
+        restored.mcpSetupComplete = false;
+    }
+
+    static boolean showSetupAfterUpgrade(ShaftSettingsState.Settings settings) {
+        return settings == null || !settings.firstRunWizardCompleted;
     }
 
     private static void resetOpenProjectApprovals() {
@@ -126,7 +158,8 @@ public final class ShaftPluginResetService {
                     continue;
                 }
                 for (Content content : toolWindow.getContentManager().getContents()) {
-                    if (content.getComponent() instanceof ShaftToolWindowPanel panel) {
+                    if (content.getComponent() instanceof ShaftToolWindowPanel panel
+                            && panel.returnToSetupAfterUpgrade()) {
                         panel.resetToSetupView();
                     }
                 }

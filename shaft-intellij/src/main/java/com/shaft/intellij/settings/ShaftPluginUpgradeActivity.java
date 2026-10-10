@@ -4,6 +4,8 @@ import com.intellij.ide.plugins.cl.PluginAwareClassLoader;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.ProjectActivity;
+import com.shaft.intellij.notifications.ShaftNotifier;
+import com.shaft.intellij.ui.firstrun.WizardMessages;
 import kotlin.Unit;
 import kotlin.coroutines.Continuation;
 import org.jetbrains.annotations.NotNull;
@@ -12,13 +14,10 @@ import org.jetbrains.annotations.Nullable;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Detects a plugin version upgrade (the running version differs from the last-seen version
- * persisted in settings) once per IDE session and, on upgrade, factory-resets the stale local
- * UI/setup state -- settings, stored provider credentials, and tool approvals -- while
- * preserving every open project's Assistant chat history, then re-renders any open SHAFT tool
- * window. This fixes two upgrade-time bugs: the setup page failing to re-render after an update,
- * and the recorder launching an old shaft-mcp because a stale {@code mcpCommand} survived the
- * update.
+ * Detects a plugin version upgrade once per IDE session. On upgrade, drops a stale
+ * {@code mcpCommand} so an old shaft-mcp is not launched, clears stored credentials and tool
+ * approvals, and preserves Assistant chat. A completed first-run wizard stays complete, the tool
+ * window stays on the main view, and one update notice is shown.
  *
  * <p>{@link com.intellij.openapi.startup.ProjectActivity} fires once per opened project, but the
  * version compare-and-reset must run exactly once per IDE session; {@link #CHECKED} guards that,
@@ -48,8 +47,15 @@ public final class ShaftPluginUpgradeActivity implements ProjectActivity {
     @Override
     public Object execute(@NotNull Project project, @NotNull Continuation<? super Unit> continuation) {
         if (CHECKED.compareAndSet(false, true)) {
-            schedule(() -> checkForUpgrade(runningPluginVersion(), ShaftSettingsState.getInstance(),
-                    ShaftPluginResetService.getInstance()));
+            schedule(() -> {
+                String version = runningPluginVersion();
+                ShaftSettingsState settingsState = ShaftSettingsState.getInstance();
+                UpgradeDecision decision = checkForUpgrade(version, settingsState, ShaftPluginResetService.getInstance());
+                if (decision == UpgradeDecision.UPGRADED && settingsState.getState().firstRunWizardCompleted) {
+                    ShaftNotifier.info(project, WizardMessages.get("wizard.upgrade.title"),
+                            WizardMessages.format("wizard.upgrade.notice", version));
+                }
+            });
         }
         return Unit.INSTANCE;
     }
@@ -74,16 +80,17 @@ public final class ShaftPluginUpgradeActivity implements ProjectActivity {
      * @param settingsState  the application settings state holding {@code lastSeenPluginVersion}
      * @param resetService   the service used to reset stale state on an upgrade
      */
-    static void checkForUpgrade(@Nullable String runningVersion,
-                                 @NotNull ShaftSettingsState settingsState,
-                                 @NotNull ShaftPluginResetService resetService) {
+    static UpgradeDecision checkForUpgrade(@Nullable String runningVersion,
+                                           @NotNull ShaftSettingsState settingsState,
+                                           @NotNull ShaftPluginResetService resetService) {
         if (runningVersion == null || runningVersion.isBlank()) {
-            return;
+            return null;
         }
         ShaftSettingsState.Settings settings = settingsState.getState();
         UpgradeDecision decision = shouldResetForUpgrade(settings.lastSeenPluginVersion, runningVersion);
         if (decision == UpgradeDecision.UPGRADED) {
             resetService.resetForUpgrade();
+            settings.lastUpgradeNoticeVersion = runningVersion;
         }
         if (decision != UpgradeDecision.UNCHANGED) {
             // getState() always returns the same live Settings instance (loadState() copies field
@@ -93,6 +100,7 @@ public final class ShaftPluginUpgradeActivity implements ProjectActivity {
             // method returns, whether or not a reset happened.
             settings.lastSeenPluginVersion = runningVersion;
         }
+        return decision;
     }
 
     /**
