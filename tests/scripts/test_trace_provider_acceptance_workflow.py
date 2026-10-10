@@ -47,6 +47,20 @@ class TraceProviderAcceptanceWorkflowTest(unittest.TestCase):
                 workflow[True][trigger]["paths"],
             )
 
+    def test_every_acceptance_job_fails_when_its_tests_fail(self):  # #6769
+        """Surefire's testFailureIgnore=true keeps `mvn test` green, so each job must assert on the reports."""
+        workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+        for name in ("playwright-native-trace", "chromium"):
+            names = [step.get("name") for step in workflow["jobs"][name]["steps"]]
+            runs = [step for step in workflow["jobs"][name]["steps"] if step.get("name") == "Fail on acceptance test failures"]
+            self.assertEqual(1, len(runs), name)
+            self.assertIn("scripts/ci/assert_surefire_green.py shaft-engine/target/surefire-reports", runs[0]["run"])
+            self.assertNotIn("if", runs[0], "the assertion must not be skippable")
+            mvn = next(i for i, n in enumerate(names) if n and n.startswith("Run "))
+            self.assertEqual(mvn + 1, names.index("Fail on acceptance test failures"), name)
+        for trigger in ("pull_request", "push"):
+            self.assertIn("scripts/ci/assert_surefire_green.py", workflow[True][trigger]["paths"])
+
 
 
 if __name__ == "__main__":

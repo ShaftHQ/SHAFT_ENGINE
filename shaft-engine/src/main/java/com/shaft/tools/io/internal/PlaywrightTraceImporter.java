@@ -19,7 +19,9 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 
 final class PlaywrightTraceImporter {
-    private static final int SUPPORTED_TRACE_VERSION = 8;
+    /** Version 8 names snapshots on actions; version 9 (Playwright 1.63) links them from frame-snapshot records. */
+    private static final int FIRST_SUPPORTED_TRACE_VERSION = 8;
+    private static final int LAST_SUPPORTED_TRACE_VERSION = 9;
     private static final int MAX_ACTIONS = 10_000;
     private static final int MAX_LOGS_PER_ACTION = 100;
     private static final int MAX_TEXT_CHARACTERS = 4_096;
@@ -145,7 +147,13 @@ final class PlaywrightTraceImporter {
                         action.readAfter(node);
                     }
                 }
-                case "input" -> existing(actions, node, name).inputSnapshot = text(node, "inputSnapshot");
+                case "input" -> {
+                    MutableAction input = existing(actions, node, name);
+                    if (node.has("inputSnapshot")) {
+                        input.inputSnapshot = text(node, "inputSnapshot");
+                    }
+                }
+                case "frame-snapshot" -> linkVersion9Snapshot(actions, node.path("snapshot"));
                 case "log" -> {
                     MutableAction action = actions.get(text(node, "callId"));
                     if (action != null) {
@@ -171,9 +179,9 @@ final class PlaywrightTraceImporter {
             throw new IOException("Playwright trace has no valid integral version in " + context.name + ".");
         }
         int version = versionNode.asInt();
-        if (version != SUPPORTED_TRACE_VERSION) {
+        if (version < FIRST_SUPPORTED_TRACE_VERSION || version > LAST_SUPPORTED_TRACE_VERSION) {
             throw new UnsupportedTraceVersionException("Unsupported Playwright trace version " + version + " in " + context.name
-                    + "; only version 8 is importable.");
+                    + "; only versions 8 and 9 are importable.");
         }
         context.origin = text(node, "origin");
         context.wallTime = finite(node.path("wallTime").asDouble(Double.NaN), "wallTime", context.name);
@@ -192,6 +200,35 @@ final class PlaywrightTraceImporter {
             throw new IOException("Playwright trace has no finite " + field + " in " + name + ".");
         }
         return value;
+    }
+
+    /**
+     * Version 9 drops the snapshot names from actions and tags each frame-snapshot with the owning
+     * {@code callId} and a {@code phase}. Name them {@code <before|input|after>@<callId>}, the same
+     * names version 8 used, so the offline adapter resolves both versions identically.
+     */
+    static String version9SnapshotName(JsonNode snapshot) {
+        String callId = snapshot.path("callId").asText("");
+        String phase = switch (snapshot.path("phase").asText("")) {
+            case "before" -> "before";
+            case "action" -> "input";
+            case "after" -> "after";
+            default -> "";
+        };
+        return callId.isBlank() || phase.isEmpty() || snapshot.hasNonNull("snapshotName") ? "" : phase + "@" + callId;
+    }
+
+    private static void linkVersion9Snapshot(Map<String, MutableAction> actions, JsonNode snapshot) {
+        String name = version9SnapshotName(snapshot);
+        MutableAction action = name.isEmpty() ? null : actions.get(snapshot.path("callId").asText());
+        if (action == null) {
+            return;
+        }
+        switch (snapshot.path("phase").asText()) {
+            case "before" -> action.beforeSnapshot = name;
+            case "action" -> action.inputSnapshot = name;
+            default -> action.afterSnapshot = name;
+        }
     }
 
     private static MutableAction existing(Map<String, MutableAction> actions, JsonNode node, String name)
@@ -462,7 +499,9 @@ final class PlaywrightTraceImporter {
 
         private void readAfter(JsonNode node) throws IOException {
             endTime = node.has("endTime") ? actionTime(node, "endTime", context.name, true) : endTime;
-            afterSnapshot = text(node, "afterSnapshot");
+            if (node.has("afterSnapshot")) {
+                afterSnapshot = text(node, "afterSnapshot");
+            }
             if (node.has("inputSnapshot")) {
                 inputSnapshot = text(node, "inputSnapshot");
             }
