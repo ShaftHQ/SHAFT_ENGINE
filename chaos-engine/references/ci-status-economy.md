@@ -36,6 +36,10 @@ A zero-token waiter (option 1 or 2) is the only exception to [single thread](del
 
 Some jobs run the build with a flag that ignores test failures (for example `testFailureIgnore=true`), so the job concludes success while tests fail. When a delivery adds or changes an acceptance test, read that job's test-runner summary line (for example `Tests run: N, Failures: F`) and the named test's `Finished test method` line before declaring it proven. File any failure outside the delivery's scope; do not rely on the check conclusion alone.
 
+## A late label can leave a cancelled required check
+
+A classification label added after the PR opened starts a second governance run and cancels the first. If the PR stays `BLOCKED` with every check green, the newest run's `CANCELLED` required check is the cause. Rerun that newest run (`gh run rerun <run-id>`), not the oldest. Prefer the label in the same `gh pr create` step.
+
 ## Digest only
 
 - Agent-facing CI status comes from `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest` (one blocking watch). (repo-only)
