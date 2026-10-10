@@ -60,17 +60,17 @@ class ShaftPluginUpgradeActivityTest {
         settingsState.getState().lastSeenPluginVersion = "1.2.2";
         settingsState.getState().mcpCommand = "old-shaft-mcp-command";
         settingsState.getState().mcpSetupComplete = true;
+        settingsState.getState().firstRunWizardCompleted = true;
         boolean[] resetRan = {false};
-        // Mirror the production wiring (ShaftPluginResetService's no-arg constructor uses
-        // resetSettings(ShaftSettingsState.getInstance()) as its settingsReset step) so this proves the
-        // real interaction: resetSettings() wipes lastSeenPluginVersion back to "" via
-        // factoryDefaults(), and checkForUpgrade must still land on the running version afterward.
+        // Mirror the production upgrade path: keep wizard-complete, still drop a stale mcp command,
+        // and let checkForUpgrade record the running version after the reset.
         ShaftPluginResetService resetService = new ShaftPluginResetService(
+                () -> resetRan[0] = true,
+                () -> CompletableFuture.completedFuture(null), () -> { }, List::of, () -> { },
                 () -> {
                     resetRan[0] = true;
-                    ShaftPluginResetService.resetSettings(settingsState);
-                },
-                () -> CompletableFuture.completedFuture(null), () -> { }, List::of, () -> { });
+                    ShaftPluginResetService.resetSettingsPreservingWizardComplete(settingsState);
+                });
 
         ShaftPluginUpgradeActivity.checkForUpgrade("1.2.3", settingsState, resetService);
 
@@ -79,8 +79,32 @@ class ShaftPluginUpgradeActivityTest {
                 () -> assertEquals("", settingsState.getState().mcpCommand,
                         "The stale mcpCommand must not survive an upgrade reset"),
                 () -> assertFalse(settingsState.getState().mcpSetupComplete),
+                () -> assertTrue(settingsState.getState().firstRunWizardCompleted,
+                        "A completed wizard must survive the upgrade reset"),
+                () -> assertEquals("1.2.3", settingsState.getState().lastUpgradeNoticeVersion),
                 () -> assertEquals("1.2.3", settingsState.getState().lastSeenPluginVersion,
                         "The running version must be persisted after the reset, not wiped by it"));
+    }
+
+    @Test
+    void checkForUpgradePromotesALegacyVerifiedInstallAndClearsTheStaleCommand() {
+        ShaftSettingsState settingsState = new ShaftSettingsState();
+        settingsState.getState().lastSeenPluginVersion = "1.2.2";
+        settingsState.getState().mcpCommand = "old-shaft-mcp";
+        settingsState.getState().mcpSetupComplete = true;
+        settingsState.getState().firstRunWizardCompleted = false;
+        ShaftPluginResetService resetService = new ShaftPluginResetService(
+                () -> { },
+                () -> CompletableFuture.completedFuture(null), () -> { }, List::of, () -> { },
+                () -> ShaftPluginResetService.resetSettingsPreservingWizardComplete(settingsState));
+
+        ShaftPluginUpgradeActivity.checkForUpgrade("1.2.3", settingsState, resetService);
+
+        assertAll(
+                () -> assertEquals("", settingsState.getState().mcpCommand),
+                () -> assertFalse(settingsState.getState().mcpSetupComplete),
+                () -> assertTrue(settingsState.getState().firstRunWizardCompleted),
+                () -> assertEquals("1.2.3", settingsState.getState().lastSeenPluginVersion));
     }
 
     @Test

@@ -68,7 +68,7 @@ import java.util.stream.Stream;
 /**
  * First-run SHAFT MCP setup panel.
  */
-final class ShaftMcpSetupPanel extends JPanel implements Disposable {
+public final class ShaftMcpSetupPanel extends JPanel implements Disposable {
     private static final String INSTALLER_BRANCH = "main";
     private static final String MCP_DOCS_URL = "https://shafthq.github.io/docs/agentic/mcp";
     private static final String USER_GUIDE_URL = "https://shafthq.github.io";
@@ -1746,7 +1746,11 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         return route == null ? "" : route.installerTarget();
     }
 
-    private static String installerArgumentFor(String target) {
+    public static java.util.List<String> installerTargetNames() {
+        return java.util.List.of(INSTALLER_TARGETS);
+    }
+
+    public static String installerArgumentFor(String target) {
         return switch (normalize(target, "")) {
             case "" -> "";
             case "CLAUDE_CODE" -> "claude";
@@ -1761,7 +1765,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         };
     }
 
-    private static String installerCommandFor(String target) {
+    public static String installerCommandFor(String target) {
         String body = installerScriptBody(target, false);
         return isWindows() ? "powershell -NoProfile -ExecutionPolicy Bypass -Command '" + body + "'" : body;
     }
@@ -1774,7 +1778,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
      * terminal for the user to run, never executed by the plugin itself (issue #3743 rework: see
      * {@code ShaftPluginSecurityTest}, which forbids this plugin from spawning OS processes).
      */
-    private static String installerScriptBody(String target, boolean installCli) {
+    public static String installerScriptBody(String target, boolean installCli) {
         String url = "https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/" + INSTALLER_BRANCH
                 + "/scripts/mcp/install-shaft-agentic-tools";
         String flags = installCli ? "--install-shaft-skills --install-shaft-cli" : "--install-shaft-skills";
@@ -1959,7 +1963,7 @@ final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         });
     }
 
-    private static String inferInstalledStdioCommand() {
+    public static String inferInstalledStdioCommand() {
         return inferInstalledStdioCommand(applicationDataRoot(), bootstrapRoot());
     }
 

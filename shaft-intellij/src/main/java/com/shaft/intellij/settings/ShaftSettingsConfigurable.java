@@ -20,6 +20,7 @@ import com.shaft.intellij.ui.ShaftIconButtons;
 import com.shaft.intellij.ui.ShaftIcons;
 import com.shaft.intellij.ui.ShaftStatusPresentation;
 import com.shaft.intellij.ui.ShaftUiLabels;
+import com.shaft.intellij.ui.firstrun.WizardMessages;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -135,6 +136,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
     private JBCheckBox advancedUiEnabled;
     private JBCheckBox watchModeEnabled;
     private JBCheckBox autoOpenTraceOnFailure;
+    private JBCheckBox reportSetupFailures;
     private JLabel testExecutionSection;
     private JBCheckBox overrideExecutionProperties;
     private JLabel targetBrowserNameLabel;
@@ -341,6 +343,9 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         autoOpenTraceOnFailure.getAccessibleContext().setAccessibleName("Auto-open SHAFT trace on failure");
         autoOpenTraceOnFailure.getAccessibleContext().setAccessibleDescription(
                 "When enabled, opens the newest SHAFT trace viewer after a failed test run. Off by default.");
+        reportSetupFailures = new JBCheckBox(WizardMessages.get("wizard.settings.reports"));
+        reportSetupFailures.getAccessibleContext().setAccessibleName(WizardMessages.get("wizard.settings.reports"));
+        reportSetupFailures.getAccessibleContext().setAccessibleDescription(WizardMessages.get("wizard.report.explain"));
         pilotAiProvider = new JComboBox<>(model("none", "openai", "anthropic", "gemini", "github", "lmstudio", "ollama"));
         ShaftUiLabels.applyFriendlyRenderer(pilotAiProvider);
         pilotAiProvider.getAccessibleContext().setAccessibleName("SHAFT AI provider");
@@ -472,6 +477,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 .addComponent(help("The Assistant tab is always available. Agent mode still requires explicit source mutation approval per request."))
                 .addComponent(watchModeEnabled)
                 .addComponent(autoOpenTraceOnFailure)
+                .addComponent(reportSetupFailures)
                 .addComponent(shaftAiSection)
                 .addLabeledComponent(shaftAiProviderLabel, pilotAiProvider)
                 .addLabeledComponent(shaftAiEndpointLabel, pilotAiEndpoint)
@@ -524,6 +530,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
                 || state.advancedUiEnabled != advancedSelected
                 || state.watchModeEnabled != watchModeEnabled.isSelected()
                 || state.autoOpenTraceOnFailure != autoOpenTraceOnFailure.isSelected()
+                || state.reportSetupFailures != reportSetupFailures.isSelected()
                 || AssistantAgentRoute.fromSettings(state) != selectedRoute
                 || !Objects.equals(stateProviderType, selectedProviderType)
                 || !Objects.equals(normalizeLower(state.cloudProvider, "gemini"), cloudProvider.getSelectedItem())
@@ -567,6 +574,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         state.advancedUiEnabled = advancedUiEnabled.isSelected();
         state.watchModeEnabled = watchModeEnabled.isSelected();
         state.autoOpenTraceOnFailure = autoOpenTraceOnFailure.isSelected();
+        state.reportSetupFailures = reportSetupFailures.isSelected();
         AssistantAgentRoute selectedRoute = selectedAgentRoute();
         if (selectedRoute != null) {
             selectedRoute.applyTo(state);
@@ -624,6 +632,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         advancedUiEnabled.setSelected(state.advancedUiEnabled);
         watchModeEnabled.setSelected(state.watchModeEnabled);
         autoOpenTraceOnFailure.setSelected(state.autoOpenTraceOnFailure);
+        reportSetupFailures.setSelected(state.reportSetupFailures);
         assistantAgent.setSelectedItem(AssistantAgentRoute.fromSettings(state));
         assistantProviderType.setSelectedItem(normalize(state.assistantProviderType, "LOCAL"));
         String family = resolveFamily(state);
@@ -699,6 +708,7 @@ public final class ShaftSettingsConfigurable implements SearchableConfigurable {
         advancedUiEnabled = null;
         watchModeEnabled = null;
         autoOpenTraceOnFailure = null;
+        reportSetupFailures = null;
         testExecutionSection = null;
         overrideExecutionProperties = null;
         targetBrowserNameLabel = null;

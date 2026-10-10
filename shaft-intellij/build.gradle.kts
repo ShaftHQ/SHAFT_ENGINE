@@ -98,8 +98,9 @@ intellijPlatform {
               validate them before committing.</li>
               <li><b>Visual baselines &amp; evidence</b> — triage visual-regression diffs and browse execution
               evidence without leaving the IDE.</li>
-              <li><b>Guided setup</b> — a wizard installs and verifies the SHAFT MCP server and the assistant
-              runtime (Codex or Gemini) in a couple of clicks.</li>
+              <li><b>Guided setup</b> — a five-step wizard detects this project, checks JDK, Maven, and Git,
+              then shows a copy-and-run installer command. The plugin does not execute the installer.
+              A setup report is sent only after Allow and becomes a public GitHub issue.</li>
               <li><b>Advanced tools</b> — the full SHAFT MCP tool catalog, refreshed live, with curated safe
               defaults and explicit approval prompts before anything runs.</li>
             </ul>
@@ -108,6 +109,9 @@ intellijPlatform {
         """.trimIndent()
         changeNotes = """
             <ul>
+              <li>Replaces first-run setup with a five-step wizard. The plugin shows a copy-and-run installer
+              command and does not execute it. A completed wizard stays complete across updates while a stale
+              MCP command is dropped. A setup report is sent only after Allow and becomes a public GitHub issue.</li>
               <li>Fixes plugin installation failing with "Failed to load the plugin descriptor" caused by a
               malformed optional JUnit integration descriptor.</li>
               <li>Migrates run-configuration producers off deprecated IntelliJ Platform APIs flagged by the

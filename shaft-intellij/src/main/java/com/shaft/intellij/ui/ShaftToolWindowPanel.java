@@ -10,7 +10,9 @@ import com.intellij.util.ui.JBUI;
 import com.shaft.intellij.java.JavaTargetContext;
 import com.shaft.intellij.mcp.ShaftMcpInvocationService;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
+import com.shaft.intellij.settings.ShaftCredentialService;
 import com.shaft.intellij.settings.ShaftSettingsState;
+import com.shaft.intellij.ui.firstrun.FirstRunWizardPanel;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.DefaultComboBoxModel;
@@ -55,6 +57,8 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
     private final ShaftMcpSetupPanel.AgentReadinessProbe deepReadinessProbe;
     private ShaftFeaturePanel advancedTools;
     private ShaftMcpSetupPanel setupPanel;
+    private FirstRunWizardPanel wizardPanel;
+    private boolean rerunWizard;
     private ShaftAssistantPanel assistantPanel;
     private RecorderToolPanel recorderPanel;
     private List<ShaftFeaturePanel> featurePanels = List.of();
@@ -103,22 +107,55 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         this.settings = settings;
         this.readinessProbe = readinessProbe;
         this.deepReadinessProbe = deepReadinessProbe;
+        if (this.deepReadinessProbe == null) {
+            throw new IllegalArgumentException("deep readiness probe");
+        }
         this.assistantChatState = assistantChatState;
         LIVE_PANELS.add(this);
-        if (mcpReady(settings)) {
-            showMainView();
+        if (opensWizard(settings, false)) {
+            int saved = settings.firstRunWizardStep;
+            showWizard(saved < 1 || saved > 5 ? 1 : saved);
         } else {
-            showSetupView();
+            showMainView();
         }
     }
 
+    /**
+     * Incomplete setup shows the wizard. A verified MCP install is migrated to wizard-complete.
+     * Re-run ({@code rerun}) shows the wizard again without clearing a completed flag.
+     */
+    public static boolean opensWizard(ShaftSettingsState.Settings settings, boolean rerun) {
+        if (settings == null || rerun) {
+            return true;
+        }
+        if (settings.firstRunWizardCompleted) {
+            return false;
+        }
+        if (settings.mcpReady()) {
+            settings.firstRunWizardCompleted = true;
+            return false;
+        }
+        return true;
+    }
+
     private void showSetupView() {
+        rerunWizard = true;
+        if (opensWizard(settings, rerunWizard)) {
+            showWizard(1);
+        }
+    }
+
+    private void showWizard(int step) {
         disposeActiveChildren();
         removeAll();
-        ShaftMcpSetupPanel setup = new ShaftMcpSetupPanel(project, settings, this::onSetupComplete,
-                readinessProbe, deepReadinessProbe);
-        setupPanel = setup;
-        preferredFocusComponent = setup.preferredFocusComponent();
+        settings.firstRunWizardStep = step;
+        FirstRunWizardPanel wizard = new FirstRunWizardPanel(project, settings, this::onSetupComplete,
+                (client, runtime) -> readinessProbe.test(client, runtime), HostToolVersion::snapshot);
+        wizard.setSecretStore(this::storeProviderKey);
+        wizard.setTerminalOpener((tab, command) ->
+                ShaftTerminalCommands.openWithPreparedCommand(project, null, tab, command));
+        wizardPanel = wizard;
+        preferredFocusComponent = wizard.preferredFocusComponent();
         workflowSelector = null;
         workflowSelectorLabel = null;
         workflowCards = null;
@@ -134,12 +171,21 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         moreToolsPanel = null;
         featurePanels = List.of();
         workflowViews = List.of();
-        add(setup, BorderLayout.CENTER);
+        add(wizard, BorderLayout.CENTER);
         revalidate();
         repaint();
     }
 
+    private void storeProviderKey(String name, char[] value) {
+        try {
+            ShaftCredentialService.getInstance().setApiKeyAsync(name, value);
+        } catch (Throwable ignored) {
+            // Password Safe is unavailable outside a running IDE.
+        }
+    }
+
     private void onSetupComplete() {
+        rerunWizard = false;
         assistantChatState.newSession();
         showMainView();
     }
@@ -559,6 +605,15 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
             Disposer.dispose(setupPanel);
             setupPanel = null;
         }
+        if (wizardPanel != null) {
+            Disposer.dispose(wizardPanel);
+            wizardPanel = null;
+        }
+    }
+
+    /** Upgrade leaves a completed wizard on the main view. */
+    public boolean returnToSetupAfterUpgrade() {
+        return settings == null || !settings.firstRunWizardCompleted;
     }
 
     /**

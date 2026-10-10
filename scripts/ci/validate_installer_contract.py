@@ -43,9 +43,9 @@ def parse_installer_targets_from_java(java_file: Path) -> dict[str, str]:
     installer_targets = re.findall(r'"([^"]+)"', targets_str)
 
     # Parse installerArgumentFor switch statement
-    # Match: private static String installerArgumentFor(String target) { return switch (normalize(target, "CODEX")) { ... }; }
+    # Match: public or private static String installerArgumentFor(String target) { return switch (normalize(...)) { ... }; }
     arg_for_match = re.search(
-        r'private\s+static\s+String\s+installerArgumentFor\s*\(\s*String\s+target\s*\)\s*\{.*?return\s+switch\s*\(\s*normalize\s*\([^)]*\)\s*\)\s*\{(.*?)\s*\}\s*;',
+        r'(?:public|private)\s+static\s+String\s+installerArgumentFor\s*\(\s*String\s+target\s*\)\s*\{.*?return\s+switch\s*\(\s*normalize\s*\([^)]*\)\s*\)\s*\{(.*?)\s*\}\s*;',
         content,
         re.DOTALL
     )

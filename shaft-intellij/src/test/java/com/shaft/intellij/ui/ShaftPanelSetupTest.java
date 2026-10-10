@@ -793,63 +793,45 @@ class ShaftPanelSetupTest {
     }
 
     @Test
-    void toolWindowShowsFirstRunSetupUntilMcpConnectionIsComplete() throws Exception {
-        Path appData = tempDirectory("shaft-mcp-empty-app-data");
-        Path bootstrap = tempDirectory("shaft-mcp-empty-bootstrap");
-        String oldAppData = System.getProperty("shaft.intellij.mcp.applicationDataRoot");
-        String oldBootstrap = System.getProperty("shaft.intellij.mcp.bootstrapRoot");
-        System.setProperty("shaft.intellij.mcp.applicationDataRoot", appData.toString());
-        System.setProperty("shaft.intellij.mcp.bootstrapRoot", bootstrap.toString());
-        try {
-            ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), blankMcpSettings());
-            JComponent setupOutput = findByAccessibleName(toolWindow, "SHAFT MCP setup output", JComponent.class);
-            JLabel nextStep = findByAccessibleName(toolWindow, "SHAFT MCP setup next step", JLabel.class);
-            ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
-            JTextComponent mcpCommand = (JTextComponent) getField(setupPanel, "mcpCommand");
-            JComponent detailsPanel = (JComponent) getField(setupPanel, "detailsPanel");
-            JComponent installerDetailsPanel = (JComponent) getField(setupPanel, "installerDetailsPanel");
+    void skipWizardLeavesChatSettingsAndCredentialsUntouched() {
+        ShaftSettingsState.Settings settings = unverifiedMcpSettings();
+        settings.mcpCommand = "keep-me";
+        ShaftAssistantChatState chat = new ShaftAssistantChatState();
+        chat.append("user", "keep this chat", "{}");
+        int sessions = chat.sessions().size();
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(chat), settings, readyProbe(), chat);
 
-            assertNull(toolWindowWorkflowSelector(toolWindow));
-            assertTrue(containsText(toolWindow, "Runtime"));
-            assertTrue(containsText(toolWindow, "1 Upgrade project"));
-            assertTrue(containsText(toolWindow, "2 Choose agent"));
-            assertTrue(containsText(toolWindow, "3 Setup SHAFT Tools & Skills"));
-            assertTrue(containsText(toolWindow, "5 Check SHAFT agentic tools installation"));
-            assertTrue(containsText(toolWindow, "Connect SHAFT Assistant"));
-            // Issue #4314 fix 1: the redundant "Target: X. Runtime: Y." setupSummary caption is
-            // removed -- the family/runtime combo boxes above it already show the live selection.
-            assertNull(findByAccessibleName(toolWindow, "SHAFT MCP setup summary", JLabel.class));
-            assertNotNull(findByAccessibleName(toolWindow, "Setup SHAFT Tools & Skills state", JLabel.class));
-            assertNull(findByAccessibleName(toolWindow, "SHAFT MCP command status", JLabel.class));
-            assertFalse(findByAccessibleName(toolWindow, "Assistant runtime setup status", JLabel.class).isVisible());
-            assertFalse(findByAccessibleName(toolWindow, "Assistant connection setup status", JLabel.class).isVisible());
-            assertNotNull(findByAccessibleName(toolWindow, "Assistant runtime setup status", JLabel.class));
-            assertNotNull(findByAccessibleName(toolWindow, "Assistant connection setup status", JLabel.class));
-            assertNotNull(nextStep);
-            assertNotNull(mcpCommand);
-            assertNotNull(setupOutput);
-            assertNull(findByAccessibleName(toolWindow, "MCP stdio command", JTextComponent.class));
-            assertNotNull(findByAccessibleName(toolWindow, "Show manual MCP install target", JCheckBox.class));
-            assertNull(findByAccessibleName(toolWindow, "Install or update SHAFT MCP", JButton.class));
-            assertTrue(mcpCommand instanceof JBTextArea);
-            assertTrue(((JBTextArea) mcpCommand).getRows() >= 4);
-            assertFalse(nextStep.isVisible());
-            assertFalse(installerDetailsPanel.isVisible());
-            assertFalse(detailsPanel.isVisible());
-            assertTrue(findByAccessibleName(toolWindow, "Copy SHAFT Tools & Skills setup command", JButton.class).isVisible());
-            // No shaft-mcp is installed in this isolated data root, so the real check is offered
-            // immediately: verification, not clicking, is what completes setup (issue #3426 A5).
-            assertTrue(findByAccessibleName(toolWindow, "Test SHAFT MCP connection", JButton.class).isVisible());
-            assertTrue(findByAccessibleName(toolWindow, "Copy SHAFT upgrade command", JButton.class).isVisible());
-            assertNotNull(findByAccessibleName(toolWindow, "Check SHAFT project version", JButton.class));
-            // The dedicated "open terminal" buttons are gone: copying a command now opens the
-            // terminal with the command pre-typed in one click (issue #3426 A3).
-            assertNull(findByAccessibleName(toolWindow, "Open terminal for MCP installer", JButton.class));
-            assertNull(findByAccessibleName(toolWindow, "Open terminal for SHAFT upgrade", JButton.class));
-        } finally {
-            restoreProperty("shaft.intellij.mcp.applicationDataRoot", oldAppData);
-            restoreProperty("shaft.intellij.mcp.bootstrapRoot", oldBootstrap);
-        }
+        clickAccessible(toolWindow, "Skip");
+
+        assertAll(
+                () -> assertFalse(settings.firstRunWizardCompleted),
+                () -> assertEquals("keep-me", settings.mcpCommand),
+                () -> assertEquals("CODEX", settings.assistantFamily),
+                () -> assertEquals(sessions, chat.sessions().size()),
+                () -> assertFalse(chat.activeMessages().isEmpty()));
+    }
+
+    @Test
+    void toolWindowShowsFirstRunSetupUntilMcpConnectionIsComplete() {
+        ShaftSettingsState.Settings settings = blankMcpSettings();
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), settings);
+        JLabel stepper = findByAccessibleName(toolWindow, "SHAFT setup stepper", JLabel.class);
+        JTextComponent command = findByAccessibleName(toolWindow, "Installer command", JTextComponent.class);
+
+        assertAll(
+                () -> assertNull(setupPanel(toolWindow)),
+                () -> assertNull(toolWindowWorkflowSelector(toolWindow)),
+                () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT first-run wizard", JPanel.class)),
+                () -> assertNotNull(stepper),
+                () -> assertTrue(stepper.getText().contains("Step 1 of 5"), stepper.getText()),
+                () -> assertNotNull(findByAccessibleName(toolWindow, "Project facts", JLabel.class)),
+                () -> assertNotNull(findByAccessibleName(toolWindow, "SHAFT setup primary action", JButton.class)),
+                () -> assertNotNull(command),
+                () -> assertTrue(command.getText().contains("install-shaft-agentic-tools"), command.getText()),
+                () -> assertTrue(command.getText().contains("intellij-plugin"), command.getText()),
+                () -> assertFalse(settings.firstRunWizardCompleted),
+                () -> assertNull(findByAccessibleName(toolWindow, "Connect SHAFT Assistant", JButton.class)),
+                () -> assertNull(findByAccessibleName(toolWindow, "Test SHAFT MCP connection", JButton.class)));
     }
 
     @Test
@@ -873,9 +855,12 @@ class ShaftPanelSetupTest {
 
         clickAccessible(tools, "Run SHAFT tool");
 
+        JLabel stepper = findByAccessibleName(toolWindow, "SHAFT setup stepper", JLabel.class);
         assertAll(
+                () -> assertNull(setupPanel(toolWindow)),
                 () -> assertNull(toolWindowWorkflowSelector(toolWindow)),
-                () -> assertTrue(containsText(toolWindow, "Connect SHAFT Assistant")),
+                () -> assertNotNull(stepper),
+                () -> assertTrue(stepper.getText().contains("Step 1 of 5"), stepper.getText()),
                 () -> assertTrue(containsText(tools, "Configure SHAFT MCP")),
                 () -> assertTrue(outputText(tools).contains("Configure SHAFT MCP in Settings before running Tools requests.")));
     }
@@ -4339,13 +4324,8 @@ class ShaftPanelSetupTest {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(
                 fakeProject(chatState), unverifiedMcpSettings(), readyProbe(), chatState);
 
-        // Simulate successful setup and trigger callback by clicking "Start chatting"
-        ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
-        assertNotNull(setupPanel);
-        showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK\nMCP workspace: C:/work/shaft"));
-        JButton startChatting = findByAccessibleName(setupPanel, "Start chatting with SHAFT Assistant", JButton.class);
-        assertNotNull(startChatting);
-        startChatting.doClick();
+        assertNull(setupPanel(toolWindow));
+        completeFirstRunWizard(toolWindow);
 
         assertAll(
                 () -> assertEquals(initialSessionCount + 1, chatState.sessions().size(),
@@ -7003,17 +6983,23 @@ class ShaftPanelSetupTest {
 
     @Test
     void completedSetupShowsCopyFreshCommandWhenReopened() {
-        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), connectedMcpSettings());
+        ShaftSettingsState.Settings settings = connectedMcpSettings();
+        String command = settings.mcpCommand;
+        ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), settings);
+        assertTrue(settings.firstRunWizardCompleted, "a verified MCP install migrates to a completed wizard");
 
         clickAccessible(toolWindow, "Open SHAFT MCP setup");
 
-        JButton resetAndReinstall = findByAccessibleName(toolWindow, "Copy fresh SHAFT MCP setup command", JButton.class);
+        JLabel stepper = findByAccessibleName(toolWindow, "SHAFT setup stepper", JLabel.class);
+        JTextComponent installer = findByAccessibleName(toolWindow, "Installer command", JTextComponent.class);
         assertAll(
-                () -> assertEquals("Copy", resetAndReinstall.getText()),
-                () -> assertEquals("Clear the saved MCP command and copy a fresh installer command",
-                        resetAndReinstall.getToolTipText()),
-                () -> assertTrue(resetAndReinstall.isVisible()),
-                () -> assertTrue(resetAndReinstall.isEnabled()));
+                () -> assertNull(setupPanel(toolWindow)),
+                () -> assertNotNull(stepper),
+                () -> assertTrue(stepper.getText().contains("Step 1 of 5"), stepper.getText()),
+                () -> assertTrue(settings.firstRunWizardCompleted),
+                () -> assertEquals(command, settings.mcpCommand),
+                () -> assertNotNull(installer),
+                () -> assertTrue(installer.getText().contains("install-shaft-agentic-tools"), installer.getText()));
     }
 
     @Test
@@ -7708,10 +7694,8 @@ class ShaftPanelSetupTest {
 
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(project, settings, readyProbe(), chatState);
 
-        ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
-        assertNotNull(setupPanel);
-        showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK"));
-        clickAccessible(setupPanel, "Start chatting with SHAFT Assistant");
+        assertNull(setupPanel(toolWindow));
+        completeFirstRunWizard(toolWindow);
 
         assertAll(
                 () -> assertTrue(chatState.activeMessages().isEmpty(),
@@ -9213,6 +9197,25 @@ class ShaftPanelSetupTest {
         button.doClick();
     }
 
+    private static void completeFirstRunWizard(Component toolWindow) {
+        for (int attempt = 0; attempt < 8; attempt++) {
+            if (findByAccessibleName(toolWindow, "Assistant prompt", JTextComponent.class) != null) {
+                return;
+            }
+            JButton primary = findByAccessibleName(toolWindow, "SHAFT setup primary action", JButton.class);
+            assertNotNull(primary, "wizard primary");
+            if (!primary.isEnabled()) {
+                JButton anyway = findByAccessibleName(toolWindow, "Continue anyway", JButton.class);
+                assertNotNull(anyway, "Continue anyway");
+                anyway.doClick();
+            }
+            assertTrue(primary.isEnabled(), "primary enabled at attempt " + attempt);
+            primary.doClick();
+        }
+        assertNotNull(findByAccessibleName(toolWindow, "Assistant prompt", JTextComponent.class),
+                "the wizard should open the Assistant");
+    }
+
     private static Action shortcutAction(JTextComponent component, int keyCode, int modifiers) {
         Object key = component.getInputMap().get(KeyStroke.getKeyStroke(keyCode, modifiers));
         assertNotNull(key);
@@ -9734,28 +9737,21 @@ class ShaftPanelSetupTest {
         // deterministic regardless of what's installed on the machine running it.
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(
                 fakeProject(chatState), unverifiedMcpSettings(), readyProbe(), chatState);
-        ShaftMcpSetupPanel setupPanel = setupPanel(toolWindow);
-        assertNotNull(setupPanel, "Unverified MCP settings must show the setup panel first");
+        assertNull(setupPanel(toolWindow), "the tool window shows the first-run wizard, not the old setup panel");
 
-        // Step 2: install command contract -- must never auto-suggest intellij-plugin
-        // by default (Round 4 fix) and must reference a real installer script.
+        // The wizard defaults to the IntelliJ plugin installer and still names the real script.
         JTextComponent installerCommandField =
-                findByAccessibleName(setupPanel, "MCP installer command", JTextComponent.class);
+                findByAccessibleName(toolWindow, "Installer command", JTextComponent.class);
         assertNotNull(installerCommandField);
         String installerCommandText = installerCommandField.getText();
         assertAll(
-                () -> assertFalse(installerCommandText.contains("-Client intellij-plugin"),
-                        "Round 4 fix: the setup panel must never auto-suggest the intellij-plugin target: "
-                                + installerCommandText),
+                () -> assertTrue(installerCommandText.contains("intellij-plugin"),
+                        "the wizard defaults the installer target to the IntelliJ plugin: " + installerCommandText),
                 () -> assertTrue(installerCommandText.contains("install-shaft-agentic-tools"),
                         "Installer command must reference a real installer script: " + installerCommandText));
 
-        // Step 3: Check -> Start chatting must open a fresh session (Round 2 fix).
-        showTestResult(setupPanel, ShaftMcpToolResult.success("Probe OK\nMCP workspace: C:/work/shaft"));
-        JButton startChatting =
-                findByAccessibleName(setupPanel, "Start chatting with SHAFT Assistant", JButton.class);
-        assertNotNull(startChatting);
-        startChatting.doClick();
+        // Check, then Open the Assistant, opens a fresh session.
+        completeFirstRunWizard(toolWindow);
 
         assertAll(
                 () -> assertEquals(sessionsBeforeStartChatting + 1, chatState.sessions().size(),

@@ -139,17 +139,34 @@ class ShaftAssistantPanelDisposalTest {
         settings.mcpCommand = "shaft-mcp";
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(fakeProject(), settings,
                 (client, runtime) -> null, new ShaftAssistantChatState());
-        Object setupPanel = getField(toolWindow, "setupPanel");
-        assertNotNull(setupPanel, "Precondition: incomplete setup must retain the setup panel it displays");
+        assertNull(getField(toolWindow, "setupPanel"),
+                "the tool window shows the first-run wizard instead of the old setup panel");
+        Object wizard = getField(toolWindow, "wizardPanel");
+        assertNotNull(wizard, "incomplete setup must retain the wizard it displays");
+        ShaftMcpSetupPanel setupPanel = new ShaftMcpSetupPanel(fakeProject(), settings, () -> { },
+                (client, runtime) -> null, (client, runtime) -> null, new ShaftMcpSetupPanel.CloudKeyStore() {
+                    @Override
+                    public boolean hasKey(String keyName) {
+                        return false;
+                    }
+
+                    @Override
+                    public void saveKey(String keyName, char[] secret) {
+                        // This disposal fixture never stores a provider key.
+                    }
+                });
         Timer toastTimer = new Timer(5_000, event -> { });
         toastTimer.setRepeats(false);
         toastTimer.start();
         setField(setupPanel, "toastTimer", toastTimer);
 
         Disposer.dispose(toolWindow);
+        Disposer.dispose(setupPanel);
 
+        assertNull(getField(toolWindow, "wizardPanel"), "Closing the tool window must drop the wizard");
+        assertTrue((Boolean) getField(wizard, "disposed"), "Closing the tool window must dispose the wizard");
         assertFalse(toastTimer.isRunning(),
-                "Closing the tool window must stop a pending setup toast instead of leaving it in Swing's TimerQueue");
+                "Disposing the setup panel must stop a pending setup toast instead of leaving it in Swing's TimerQueue");
     }
 
     @Test
