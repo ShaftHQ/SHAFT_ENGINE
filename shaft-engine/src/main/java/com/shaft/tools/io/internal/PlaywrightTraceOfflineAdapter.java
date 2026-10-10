@@ -1,6 +1,7 @@
 package com.shaft.tools.io.internal;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
@@ -129,6 +130,10 @@ final class PlaywrightTraceOfflineAdapter {
             for (JsonNode record : records(bytes)) {
                 if ("frame-snapshot".equals(record.path("type").asText())) {
                     JsonNode snapshot = record.path("snapshot");
+                    String version9Name = PlaywrightTraceImporter.version9SnapshotName(snapshot);
+                    if (!version9Name.isEmpty() && snapshot instanceof ObjectNode object) {
+                        object.put("snapshotName", version9Name);
+                    }
                     String frameId = snapshot.path("frameId").asText();
                     List<SnapshotContext> history = histories.computeIfAbsent(frameId, ignored -> new ArrayList<>());
                     SnapshotContext context = new SnapshotContext(snapshot, history, history.size(), nodeTableBudget);
