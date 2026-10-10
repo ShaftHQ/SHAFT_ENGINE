@@ -236,6 +236,37 @@ def git_show_diff(sha: str) -> str | None:
     return completed.stdout if completed.returncode == 0 else None
 
 
+def fetch_issue_labels(numbers: list[str]) -> dict[str, list[str]]:
+    """Return {number: label names} for the issues ``gh`` can read; fail open on any lookup problem (#6777)."""
+    repository = os.environ.get("GITHUB_REPOSITORY", "")
+    labels: dict[str, list[str]] = {}
+    for number in numbers:
+        command = ["gh", "issue", "view", number, "--json", "labels", "--jq", "[.labels[].name]"]
+        if repository:
+            command += ["--repo", repository]
+        try:
+            completed = subprocess.run(  # nosec B603 B607
+                command, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False, timeout=30
+            )
+            if completed.returncode == 0:
+                labels[number] = list(json.loads(completed.stdout or "[]"))
+        except (OSError, subprocess.SubprocessError, ValueError):
+            continue
+    return labels
+
+
+def closing_issue_numbers(body: str) -> list[str]:
+    """Issue numbers named by non-negated closing keywords in ``body``, in first-seen order."""
+    numbers: list[str] = []
+    for match in CLOSING_REFERENCE_RE.finditer(body or ""):
+        if _is_negated(body, match.start(1)):
+            continue
+        number = _reference_label(match.group(2)).lstrip("#")
+        if number not in numbers:
+            numbers.append(number)
+    return numbers
+
+
 def nightly_tracker_recovered(
     *, conclusion: str, jobs_complete: bool, close_reason: str
 ) -> bool:
@@ -318,6 +349,7 @@ def main() -> int:
     commits = parse_commits_json(commits_json)
     errors = find_negated_autocloses(body)
     errors.extend(find_negated_autocloses_in_commits(commits))
+    errors.extend(find_nightly_tracker_closes(body, fetch_issue_labels(closing_issue_numbers(body))))
     # Advisory, never a gate. Three independent reasons, all measured (#4567):
     # a commit message is immutable once pushed and this repository blocks the
     # force-push that would amend it, so failing here is a gate the author
