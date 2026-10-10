@@ -46,6 +46,11 @@ playbooks. Before the first push of **any** human PR:
    `gh pr edit --add-label` fails (a Projects (classic) GraphQL error), add it
    with REST: `gh api -X POST repos/<owner>/<repo>/issues/<n>/labels -f 'labels[]=<label>'`,
    then confirm with `gh pr view <n> --json labels`.
+   A label added after the PR opened starts a second governance run and cancels
+   the first. If the PR is `BLOCKED` with every check green, the newest run's
+   `CANCELLED` required check is the cause: `gh run list --workflow
+   "Release-note governance" -b <branch>` and `gh run rerun` the newest run,
+   not the oldest.
    A `chaos-engine/` push runs the portable-core path check first.
 2. Confirm the active profile's language rules (for example exhaustive
    `switch` defaults) before the first push.
