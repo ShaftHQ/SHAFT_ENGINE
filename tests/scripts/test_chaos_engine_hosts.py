@@ -1430,7 +1430,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertEqual({"name": "user-plugin", "source": "./user", "permissions": ["keep"]}, rendered["plugins"][0])
         self.assertEqual("2.0.0", rendered["plugins"][1]["version"])
 
-    def test_source_checkout_bumps_marketplace_version_and_omits_maven(self):
+    def test_source_checkout_keeps_tracked_marketplace_and_omits_maven(self):
         module = load(HOSTS, "chaos_engine_source_checkout_marketplace")
         module.consume_merge_handoffs()
         before = {relative: None for relative in module.managed_paths()}
@@ -1445,27 +1445,20 @@ class ChaosEngineHostsTest(unittest.TestCase):
             plugin_version="9.9.9",
             project=ROOT,
         )
-        original = json.loads(marketplace)
-        migrated_source = json.loads(rendered[".claude-plugin/marketplace.json"])
-        chaos = next(item for item in migrated_source["plugins"] if item["name"] == "chaos-engine")
-        self.assertEqual("9.9.9", chaos["version"])
-        self.assertEqual(
-            [item["name"] for item in original["plugins"]],
-            [item["name"] for item in migrated_source["plugins"]],
-        )
-        for plugin in original["plugins"]:
-            if plugin["name"] == "chaos-engine":
-                continue
-            match = next(
-                item for item in migrated_source["plugins"] if item["name"] == plugin["name"]
-            )
-            self.assertEqual(plugin, match)
+        self.assertEqual(marketplace, rendered[".claude-plugin/marketplace.json"])
+        for manifest in (
+            "plugins/chaos-engine/.codex-plugin/plugin.json",
+            "plugins/chaos-engine/.claude-plugin/plugin.json",
+        ):
+            self.assertEqual("9.9.9", json.loads(rendered[manifest])["version"])
         self.assertNotIn(
             ".claude-plugin/marketplace.json",
             [note["path"] for note in module.consume_merge_handoffs()],
         )
         current_version = next(
-            item["version"] for item in original["plugins"] if item["name"] == "chaos-engine"
+            item["version"]
+            for item in json.loads(marketplace)["plugins"]
+            if item["name"] == "chaos-engine"
         )
         before[".claude-plugin/marketplace.json"] = marketplace
         unchanged = module.desired_content(
