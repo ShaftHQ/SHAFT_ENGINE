@@ -1963,7 +1963,7 @@ public final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         });
     }
 
-    private static String inferInstalledStdioCommand() {
+    public static String inferInstalledStdioCommand() {
         return inferInstalledStdioCommand(applicationDataRoot(), bootstrapRoot());
     }
 

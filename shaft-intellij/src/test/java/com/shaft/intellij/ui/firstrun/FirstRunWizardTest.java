@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FirstRunWizardTest {
+    private static final String STDIO_COMMAND = "java -jar shaft-mcp.jar stdio";
     @Test
     void stepOneShowsDetectedFactsAndDefaultsTheInstallerTarget() throws Exception {
         Path root = Files.createTempDirectory("shaft-wizard-facts");
@@ -83,7 +84,8 @@ class FirstRunWizardTest {
         AtomicReference<String> copied = new AtomicReference<>("");
         AtomicReference<String> typed = new AtomicReference<>("");
         AtomicInteger probes = new AtomicInteger();
-        FirstRunWizardPanel wizard = wizard(null, new ShaftSettingsState.Settings(), () -> { },
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        FirstRunWizardPanel wizard = wizard(null, settings, () -> { },
                 (client, runtime) -> {
                     probes.incrementAndGet();
                     return ShaftMcpToolResult.success("ok");
@@ -94,6 +96,7 @@ class FirstRunWizardTest {
             typed.set(command);
             return true;
         });
+        wizard.setStdioCommandSource(() -> STDIO_COMMAND);
         advanceToInstall(wizard);
 
         assertEquals("Waiting", text(wizard, "Install check state"));
@@ -110,13 +113,18 @@ class FirstRunWizardTest {
         assertTrue(wizard.userChecked());
         assertEquals("Verified", text(wizard, "Install check state"));
         assertEquals(1, probes.get());
+        assertFalse(settings.mcpSetupComplete);
+        assertFalse(settings.firstRunWizardCompleted);
     }
 
     @Test
     void failedCheckNamesACauseAndOneRecoveryWithoutARawExitCode() {
-        FirstRunWizardPanel wizard = wizard(null, new ShaftSettingsState.Settings(), () -> { },
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "keep-me";
+        FirstRunWizardPanel wizard = wizard(null, settings, () -> { },
                 (client, runtime) -> ShaftMcpToolResult.failure("exit code 17"),
                 new PrerequisitePlan.Snapshot(true, "3.9.8", true));
+        wizard.setStdioCommandSource(() -> STDIO_COMMAND);
         advanceToInstall(wizard);
         wizard.primary().doClick();
 
@@ -126,6 +134,55 @@ class FirstRunWizardTest {
         assertFalse(wizard.verified());
         assertEquals("Retry", wizard.primary().getText());
         assertEquals(1, visibleDefaultButtons(wizard));
+        assertEquals("keep-me", settings.mcpCommand);
+        assertFalse(settings.mcpSetupComplete);
+    }
+
+    @Test
+    void blankStdioCommandDoesNotVerifyEvenWhenTheProbeSucceeds() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "";
+        FirstRunWizardPanel wizard = wizard(null, settings, () -> { },
+                (client, runtime) -> ShaftMcpToolResult.success("ok"),
+                new PrerequisitePlan.Snapshot(true, "3.9.8", true));
+        wizard.setStdioCommandSource(() -> "");
+        advanceToInstall(wizard);
+        wizard.primary().doClick();
+
+        String cause = text(wizard, "Failure cause");
+        assertFalse(wizard.verified());
+        assertFalse(settings.mcpSetupComplete);
+        assertFalse(settings.firstRunWizardCompleted);
+        assertEquals("", settings.mcpCommand);
+        assertEquals("Needs attention", text(wizard, "Install check state"));
+        assertFalse(cause.toLowerCase().contains("exit"));
+    }
+
+    @Test
+    void passingCheckStaysOnTheWizardUntilStepFivePersistsReadiness() {
+        AtomicInteger finished = new AtomicInteger();
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "stale";
+        FirstRunWizardPanel wizard = readyWizard(settings, finished::incrementAndGet);
+        wizard.setStdioCommandSource(() -> STDIO_COMMAND);
+        advanceToInstall(wizard);
+        wizard.primary().doClick();
+
+        assertTrue(wizard.verified());
+        assertEquals(4, wizard.step());
+        assertFalse(settings.mcpSetupComplete);
+        assertFalse(settings.firstRunWizardCompleted);
+        assertEquals("stale", settings.mcpCommand);
+        wizard.primary().doClick();
+        assertEquals(5, wizard.step());
+        assertFalse(settings.mcpSetupComplete);
+        assertFalse(settings.firstRunWizardCompleted);
+        wizard.primary().doClick();
+        assertTrue(settings.mcpSetupComplete);
+        assertTrue(settings.agentLaneReady);
+        assertTrue(settings.firstRunWizardCompleted);
+        assertEquals(STDIO_COMMAND, settings.mcpCommand);
+        assertEquals(1, finished.get());
     }
 
     @Test
@@ -167,19 +224,29 @@ class FirstRunWizardTest {
     void openAssistantOrRecordMarksTheWizardComplete() {
         AtomicInteger finished = new AtomicInteger();
         ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.mcpCommand = "stale";
         FirstRunWizardPanel wizard = readyWizard(settings, finished::incrementAndGet);
+        wizard.setStdioCommandSource(() -> STDIO_COMMAND);
         advanceToSuccess(wizard);
         assertEquals(0, settings.uxLiteResponses);
         wizard.primary().doClick();
         assertTrue(settings.firstRunWizardCompleted);
+        assertTrue(settings.mcpSetupComplete);
+        assertTrue(settings.agentLaneReady);
+        assertEquals(STDIO_COMMAND, settings.mcpCommand);
         assertEquals(1, finished.get());
 
         ShaftSettingsState.Settings again = new ShaftSettingsState.Settings();
+        again.mcpCommand = "stale";
         AtomicInteger recorded = new AtomicInteger();
         FirstRunWizardPanel record = readyWizard(again, recorded::incrementAndGet);
+        record.setStdioCommandSource(() -> STDIO_COMMAND);
         advanceToSuccess(record);
         button(record, "Record a sample flow").doClick();
         assertTrue(again.firstRunWizardCompleted);
+        assertTrue(again.mcpSetupComplete);
+        assertTrue(again.agentLaneReady);
+        assertEquals(STDIO_COMMAND, again.mcpCommand);
         assertEquals(1, recorded.get());
     }
 
@@ -237,6 +304,7 @@ class FirstRunWizardTest {
 
     private static void advanceToSuccess(FirstRunWizardPanel wizard) {
         advanceToInstall(wizard);
+        wizard.setStdioCommandSource(() -> STDIO_COMMAND);
         wizard.primary().doClick();
         assertTrue(wizard.verified());
         wizard.primary().doClick();

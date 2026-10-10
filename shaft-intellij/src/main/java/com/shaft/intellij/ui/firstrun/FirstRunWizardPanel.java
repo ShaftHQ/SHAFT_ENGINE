@@ -28,6 +28,7 @@ import java.awt.FlowLayout;
 import java.awt.LayoutManager;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Five-step first-run wizard. The plugin shows the installer command and does not run it.
@@ -68,6 +69,7 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
     private TerminalOpener terminalOpener = (tab, command) -> false;
     private SecretStore secretStore = (name, value) -> { };
     private BooleanSupplier confirmReset = this::platformConfirm;
+    private Supplier<String> stdioCommand = ShaftMcpSetupPanel::inferInstalledStdioCommand;
     private int step = 1;
     private boolean verified;
     private boolean userChecked;
@@ -186,6 +188,10 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
 
     public void setSecretStore(SecretStore secretStore) {
         this.secretStore = secretStore == null ? (name, value) -> { } : secretStore;
+    }
+
+    public void setStdioCommandSource(Supplier<String> source) {
+        this.stdioCommand = source == null ? ShaftMcpSetupPanel::inferInstalledStdioCommand : source;
     }
 
     void setConfirmReset(BooleanSupplier confirmReset) {
@@ -452,6 +458,10 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
         userChecked = true;
         needsAttention = false;
         verified = false;
+        if (resolvedStdioCommand().isBlank()) {
+            showAttention();
+            return;
+        }
         checkState.setText(WizardMessages.get("wizard.state.checking"));
         AssistantAgentRoute route = selectedAgent();
         ShaftMcpToolResult result;
@@ -462,15 +472,40 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
         }
         boolean passed = result != null && result.success();
         verified = passed;
-        needsAttention = !passed;
-        userChecked = true;
-        checkState.setText(WizardMessages.get(passed ? "wizard.state.verified" : "wizard.state.attention"));
-        cause.setVisible(!passed);
-        report.setVisible(!passed);
-        if (passed) {
-            hideReportPrompt();
+        if (!passed) {
+            showAttention();
+            return;
         }
+        needsAttention = false;
+        checkState.setText(WizardMessages.get("wizard.state.verified"));
+        cause.setVisible(false);
+        report.setVisible(false);
+        hideReportPrompt();
         refreshChrome();
+    }
+
+    private void showAttention() {
+        verified = false;
+        needsAttention = true;
+        checkState.setText(WizardMessages.get("wizard.state.attention"));
+        cause.setVisible(true);
+        report.setVisible(true);
+        refreshChrome();
+    }
+
+    private String resolvedStdioCommand() {
+        String inferred = "";
+        try {
+            String supplied = stdioCommand == null ? "" : stdioCommand.get();
+            inferred = supplied == null ? "" : supplied.trim();
+        } catch (RuntimeException ignored) {
+            inferred = "";
+        }
+        if (!inferred.isBlank()) {
+            return inferred;
+        }
+        String stored = settings.mcpCommand == null ? "" : settings.mcpCommand.trim();
+        return stored;
     }
 
     private void commitAgent() {
@@ -486,7 +521,14 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
     }
 
     private void finish() {
+        String command = resolvedStdioCommand();
+        if (!verified || command.isBlank()) {
+            return;
+        }
         storeFeedback();
+        settings.mcpCommand = command;
+        settings.mcpSetupComplete = true;
+        settings.agentLaneReady = true;
         settings.firstRunWizardCompleted = true;
         onComplete.run();
     }
