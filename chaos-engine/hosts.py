@@ -5286,6 +5286,18 @@ def gitattributes_content(before: bytes | None) -> bytes:
     )
 
 
+def _owned_claude_version_record(existing: dict, entry: dict) -> bool:
+    """True when the catalog row matches except for its cache version."""
+    if existing.get("skills") in (None, []):
+        existing = dict(existing)
+        existing["skills"] = entry.get("skills")
+    versionless = dict(existing)
+    versionless.pop("version", None)
+    expected = dict(entry)
+    expected.pop("version")
+    return versionless == expected and isinstance(existing.get("version"), str)
+
+
 def owned_claude_plugin_version_bytes(
     project: Path | None,
     marketplace: dict,
@@ -5296,25 +5308,24 @@ def owned_claude_plugin_version_bytes(
 ) -> bytes | None:
     """Return catalog bytes when merging must stop, otherwise None to continue.
 
-    A version-only chaos-engine record takes ``plugin_version``. On a source
-    checkout that bump is the whole write, and a version that already matches
-    leaves the tracked catalog unchanged. Any other same-name record is handed
-    off with its original bytes.
+    A consumer install writes ``plugin_version`` into a version-only chaos-engine
+    record. A source checkout keeps the tracked catalog: that version is a
+    function of the core SHA, so committing it goes stale, and rewriting it
+    dirties the tree. The gitignored plugin manifest still receives the cache
+    version. Any other same-name record is handed off with its original bytes.
     """
+    del marketplace
     if existing is None:
         return None
+    if engine_source_checkout(project) and (
+        existing == entry or _owned_claude_version_record(existing, entry)
+    ):
+        return b"" if before is None else before
     if existing == entry:
-        if engine_source_checkout(project):
-            return b"" if before is None else before
         return None
     if existing.get("skills") in (None, []):
         existing["skills"] = entry["skills"]
-    versionless = dict(existing)
-    versionless.pop("version", None)
-    expected = dict(entry)
-    expected.pop("version")
-    owned_version = versionless == expected and isinstance(existing.get("version"), str)
-    if owned_version:
+    if _owned_claude_version_record(existing, entry):
         existing["version"] = plugin_version
     else:
         _note_merge_handoff(
@@ -5323,8 +5334,6 @@ def owned_claude_plugin_version_bytes(
             json.dumps(entry, indent=2, sort_keys=True) + "\n",
         )
         return b"" if before is None else before
-    if engine_source_checkout(project):
-        return (json.dumps(marketplace, indent=2, sort_keys=True) + "\n").encode()
     return None
 
 
