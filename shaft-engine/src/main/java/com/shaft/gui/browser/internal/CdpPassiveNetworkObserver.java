@@ -74,19 +74,22 @@ public final class CdpPassiveNetworkObserver implements AutoCloseable {
         String id = text(event.get("requestId"));
         Map<String, Object> redirect = map(event.get("redirectResponse"));
         if (!redirect.isEmpty()) {
-            Pending previous = pending.remove(id);
-            if (previous != null) {
+            Pending previous = pending.get(id);
+            if (previous != null && previous.started() && pending.remove(id, previous)) {
                 previous.complete(response(redirect, null));
             }
         }
         Map<String, Object> request = map(event.get("request"));
-        if (request.isEmpty() || pending.size() >= MAX_IN_FLIGHT) {
+        if (request.isEmpty()) {
+            return;
+        }
+        Pending exchange = exchange(id);
+        if (exchange == null) {
             return;
         }
         HttpRequest observed = request(request);
         boolean bodyPending = Boolean.TRUE.equals(request.get("hasPostData")) && requestBody(request).length == 0;
-        Pending exchange = new Pending(observed);
-        if (pending.putIfAbsent(id, exchange) != null) {
+        if (!exchange.start(observed)) {
             return;
         }
         try {
@@ -101,25 +104,73 @@ public final class CdpPassiveNetworkObserver implements AutoCloseable {
             });
         } catch (RejectedExecutionException e) {
             pending.remove(id, exchange);
+            return;
         }
+        settle(id, exchange);
+    }
+
+    /**
+     * Selenium hands every CDP event to a thread pool, so {@code responseReceived} and
+     * {@code loadingFinished} can be handled before {@code requestWillBeSent} (or each other).
+     * The exchange for a request id is therefore created by whichever event arrives first and
+     * settled only once its request, response and completion have all been seen (issue #6765).
+     */
+    private Pending exchange(String id) {
+        Pending exchange = pending.get(id);
+        if (exchange == null && !closed && pending.size() < MAX_IN_FLIGHT) {
+            exchange = pending.computeIfAbsent(id, key -> new Pending());
+        }
+        return exchange;
     }
 
     void responseReceived(Map<String, Object> event) {
-        Pending exchange = pending.get(text(event.get("requestId")));
+        String id = text(event.get("requestId"));
+        Pending exchange = exchange(id);
         if (exchange != null) {
             exchange.response = map(event.get("response"));
+            settle(id, exchange);
         }
     }
 
     void loadingFinished(Map<String, Object> event) {
         String id = text(event.get("requestId"));
-        Pending exchange = pending.remove(id);
-        if (exchange == null) {
+        Pending exchange = exchange(id);
+        if (exchange != null) {
+            exchange.encodedLength = number(event.get("encodedDataLength"));
+            exchange.finished = true;
+            settle(id, exchange);
+        }
+    }
+
+    void loadingFailed(Map<String, Object> event) {
+        String id = text(event.get("requestId"));
+        Pending exchange = exchange(id);
+        if (exchange != null) {
+            String reason = text(event.get("errorText"));
+            exchange.failure = reason.isBlank() ? "Network request failed" : reason;
+            settle(id, exchange);
+        }
+    }
+
+    /** Completes the exchange once its request has started and its outcome is known, in any event order. */
+    private void settle(String id, Pending exchange) {
+        Map<String, Object> received;
+        synchronized (exchange) {
+            if (!exchange.started() || exchange.settled) {
+                return;
+            }
+            received = exchange.response;
+            if (exchange.failure == null && !(exchange.finished && received != null)) {
+                return;
+            }
+            exchange.settled = true;
+        }
+        pending.remove(id, exchange);
+        if (exchange.failure != null) {
+            exchange.fail(new IllegalStateException(exchange.failure));
             return;
         }
-        Map<String, Object> received = exchange.response;
-        double encoded = number(event.get("encodedDataLength"));
-        if (closed || !textual(received) || encoded > MAX_RESPONSE_BODY_BYTES) {
+        if (closed || !textual(received) || exchange.encodedLength > MAX_RESPONSE_BODY_BYTES) {
             exchange.complete(response(received, null));
             return;
         }
@@ -127,14 +178,6 @@ public final class CdpPassiveNetworkObserver implements AutoCloseable {
             workers.execute(() -> exchange.complete(response(received, responseBody(id))));
         } catch (RejectedExecutionException e) {
             exchange.complete(response(received, null));
-        }
-    }
-
-    void loadingFailed(Map<String, Object> event) {
-        Pending exchange = pending.remove(text(event.get("requestId")));
-        if (exchange != null) {
-            String reason = text(event.get("errorText"));
-            exchange.fail(new IllegalStateException(reason.isBlank() ? "Network request failed" : reason));
         }
     }
 
@@ -251,12 +294,24 @@ public final class CdpPassiveNetworkObserver implements AutoCloseable {
 
     private static final class Pending {
         private static final ThreadLocal<Pending> CURRENT = new ThreadLocal<>();
-        private final HttpRequest request;
         private final CompletableFuture<HttpResponse> result = new CompletableFuture<>();
-        private volatile Map<String, Object> response = Map.of();
+        private volatile HttpRequest request;
+        private volatile Map<String, Object> response;
+        private volatile double encodedLength;
+        private volatile boolean finished;
+        private volatile String failure;
+        private boolean settled;
 
-        private Pending(HttpRequest request) {
-            this.request = request;
+        private boolean started() {
+            return request != null;
+        }
+
+        private synchronized boolean start(HttpRequest observed) {
+            if (request != null) {
+                return false;
+            }
+            request = observed;
+            return true;
         }
 
         private void run(HttpHandler handler) {

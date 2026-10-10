@@ -85,6 +85,59 @@ public class CdpPassiveNetworkObserverTest {
         }
     }
 
+    @Test(description = "Issue #6765: Selenium dispatches CDP events on a thread pool, so any event order must work")
+    public void completionShouldNotDependOnTheOrderEventsAreHandled() throws Exception {
+        List<List<String>> orders = List.of(
+                List.of("request", "response", "finished"), List.of("request", "finished", "response"),
+                List.of("response", "request", "finished"), List.of("response", "finished", "request"),
+                List.of("finished", "request", "response"), List.of("finished", "response", "request"));
+        for (List<String> order : orders) {
+            CompletableFuture<HttpResponse> finished = new CompletableFuture<>();
+            Filter recording = next -> request -> {
+                HttpResponse response = next.execute(request);
+                finished.complete(response);
+                return response;
+            };
+            try (CdpPassiveNetworkObserver observer = new CdpPassiveNetworkObserver(
+                    driver(Mockito.mock(DevTools.class)), recording)) {
+                for (String step : order) {
+                    switch (step) {
+                        case "request" -> observer.requestWillBeSent(Map.of("requestId", "1", "request",
+                                Map.of("method", "GET", "url", "https://example.test/ok", "headers", Map.of())));
+                        case "response" -> observer.responseReceived(Map.of("requestId", "1", "response",
+                                Map.of("status", 201, "mimeType", "image/png", "headers", Map.of())));
+                        default -> observer.loadingFinished(Map.of("requestId", "1", "encodedDataLength", 10));
+                    }
+                }
+                Assert.assertEquals(finished.get(5, TimeUnit.SECONDS).getStatus(), 201, "order " + order);
+            }
+        }
+    }
+
+    @Test(description = "Issue #6765: a failure handled before its request must still fail that request")
+    public void failureShouldBeReportedWhateverTheEventOrder() throws Exception {
+        for (boolean failureFirst : new boolean[]{true, false}) {
+            CompletableFuture<Throwable> failed = new CompletableFuture<>();
+            Filter recording = next -> request -> {
+                try {
+                    return next.execute(request);
+                } catch (RuntimeException e) {
+                    failed.complete(e);
+                    throw e;
+                }
+            };
+            try (CdpPassiveNetworkObserver observer = new CdpPassiveNetworkObserver(
+                    driver(Mockito.mock(DevTools.class)), recording)) {
+                Runnable request = () -> observer.requestWillBeSent(Map.of("requestId", "2", "request",
+                        Map.of("method", "GET", "url", "https://example.test/down", "headers", Map.of())));
+                Runnable failure = () -> observer.loadingFailed(Map.of("requestId", "2", "errorText", "net::ERR_FAILED"));
+                (failureFirst ? failure : request).run();
+                (failureFirst ? request : failure).run();
+                Assert.assertEquals(failed.get(5, TimeUnit.SECONDS).getMessage(), "net::ERR_FAILED");
+            }
+        }
+    }
+
     @Test
     public void onlyTextualResponsesShouldFetchBodies() {
         Assert.assertTrue(CdpPassiveNetworkObserver.textual(Map.of("mimeType", "application/json")));
