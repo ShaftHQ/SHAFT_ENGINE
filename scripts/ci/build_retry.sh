@@ -21,14 +21,21 @@ shift
 pause=${1:?usage: build_retry.sh <attempts> <pause-seconds> <command> [args...]}
 shift
 
-# "The network refused us", not "the build is broken". A compilation error, a
-# failing test, or a genuinely missing artifact must fail on the first attempt:
-# retrying those burns the job's timeout to arrive at the same answer, and
-# buries the real error under two more rounds of output.
+# "The network refused us", not "the build is broken". A compilation error or a
+# failing test must fail on the first attempt: retrying those burns the job's
+# timeout to arrive at the same answer, and buries the real error under two more
+# rounds of output.
+# Central answering "Could not find artifact ... in central" for a release that
+# exists is the same kind of refusal: two nightly/PR runs on 2026-10-10 lost to
+# a burst of 404s for artifacts published months earlier (surefire-junit-platform
+# 3.5.6, junit-bom 6.1.3, netty-bom 4.2.18.Final; issues #6775 and #6809), each
+# fine on the next request. A fresh process after the pause is the lever. A
+# truly absent artifact now costs one extra attempt (callers pass 2) before it
+# fails with the same message; only misses against Central are retried.
 # 'Connect(ion)? timed out' is one event under two spellings: the OS reporting
 # ETIMEDOUT on connect (ConnectException, what PR #4491 hit) and the JDK's own
 # connect deadline expiring (SocketTimeoutException).
-RETRYABLE='status code: 429|Too Many Requests|Could not transfer artifact|Connection reset|Connect(ion)? timed out|Read timed out|Premature end of Content-Length'
+RETRYABLE='Could not find artifact [^ ]+ in central|status code: 429|Too Many Requests|Could not transfer artifact|Connection reset|Connect(ion)? timed out|Read timed out|Premature end of Content-Length'
 
 output=$(mktemp)
 trap 'rm -f "$output"' EXIT

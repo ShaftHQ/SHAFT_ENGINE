@@ -25,7 +25,7 @@ public interface Internal extends EngineProperties<Internal> {
      * @return the configured value of {@code shaftEngineVersion}
      */
     @Key("shaftEngineVersion")
-    @DefaultValue("10.4.20261009")
+    @DefaultValue("10.4.20261010")
     String shaftEngineVersion();
 
     /**
@@ -97,7 +97,7 @@ public interface Internal extends EngineProperties<Internal> {
      * and recording flows on macOS.
      */
     @Key("appiumXcuitestDriverVersion")
-    @DefaultValue("12.16.0")
+    @DefaultValue("12.17.0")
     String appiumXcuitestDriverVersion();
 
     /**

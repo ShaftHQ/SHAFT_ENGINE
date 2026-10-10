@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@v7.0.1
       - name: Filter changed paths
         id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             chaos_installer:
@@ -849,6 +849,7 @@ jobs:
         uses: ./.github/actions/cache-maven-repo
       - name: Install ${{ matrix.module }} prerequisites without tests
         run: >-
+          bash scripts/ci/build_retry.sh 2 60
           mvn --batch-mode
           -pl ${{ matrix.module }}
           -am install -DskipTests '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
@@ -882,12 +883,14 @@ jobs:
       - name: Run ${{ matrix.module }} tests
         if: matrix.module != 'shaft-engine' && matrix.module != 'shaft-ocr'
         run: >-
+          bash scripts/ci/build_retry.sh 2 60
           mvn --batch-mode
           -pl ${{ matrix.module }} test
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Run deterministic shaft-ocr unit tests
         if: matrix.module == 'shaft-ocr'
         run: >-
+          bash scripts/ci/build_retry.sh 2 60
           mvn --batch-mode
           -pl shaft-ocr test
           '-Dtest=TessdataModelManagerTest,TesseractOcrProviderTest,OcrLanguageRegistryTest'

@@ -37,5 +37,5 @@ runs:
       shell: bash
       run: |
         if [ -d "$HOME/.m2/repository" ]; then
-          find "$HOME/.m2/repository" -name '*.lastUpdated' -type f -delete
+          find "$HOME/.m2/repository" \( -name '*.lastUpdated' -o -name 'resolver-status.properties' \) -type f -delete
         fi

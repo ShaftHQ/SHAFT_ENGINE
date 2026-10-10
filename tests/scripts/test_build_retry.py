@@ -26,6 +26,16 @@ CENTRAL_429 = (
     "(https://repo.maven.apache.org/maven2): status code: 429, reason phrase: "
     "Too Many Requests (429)"
 )
+# Central 404 burst for artifacts that exist (run 38076665231, PR #6809).
+CENTRAL_404 = (
+    "[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.5.6:test "
+    "(default-test) on project shaft-infrastructure: The following artifacts could not be resolved: "
+    "org.apache.maven.surefire:surefire-junit-platform:jar:3.5.6 (absent): Could not find artifact "
+    "org.apache.maven.surefire:surefire-junit-platform:jar:3.5.6 in central (https://repo.maven.apache.org/maven2)"
+)
+NON_CENTRAL_MISS = (
+    "[ERROR] Could not find artifact io.github.shafthq:shaft-visual:jar:1.0 in shaft-local-repo (file:///tmp/repo)"
+)
 GENUINE_FAILURE = (
     "[ERROR] Failed to execute goal on project shaft-visual: Compilation failure"
 )
@@ -113,6 +123,18 @@ class BuildRetryScriptTest(unittest.TestCase):
         completed, attempts = self._run(command, attempts=3)
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
         self.assertEqual(3, attempts)
+
+    def test_a_central_404_for_a_published_artifact_is_retried_in_a_fresh_process(self):  # #6809
+        command = self._fake_command(output=CENTRAL_404, fail_times=1)
+        completed, attempts = self._run(command, attempts=2)
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertEqual(2, attempts)
+
+    def test_a_miss_against_a_repository_other_than_central_is_not_retried(self):  # #6809
+        command = self._fake_command(output=NON_CENTRAL_MISS, fail_times=99)
+        completed, attempts = self._run(command, attempts=3)
+        self.assertNotEqual(0, completed.returncode)
+        self.assertEqual(1, attempts)
 
     def test_a_gradle_connect_refusal_is_retried_until_it_succeeds(self):
         command = self._fake_command(output=GRADLE_CONNECT_REFUSED, fail_times=1)
