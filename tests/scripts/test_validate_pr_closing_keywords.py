@@ -7,11 +7,14 @@ import subprocess  # nosec B404
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from scripts.ci.validate_pr_closing_keywords import (
     find_credited_symbols_not_in_diff,
     find_negated_autocloses,
     find_negated_autocloses_in_commits,
+    closing_issue_numbers,
+    fetch_issue_labels,
     find_nightly_tracker_closes,
     nightly_tracker_recovered,
     parse_commits_json,
@@ -393,6 +396,27 @@ class NightlyTrackerCloseTest(unittest.TestCase):
             ),
             [],
         )
+
+    def test_closing_issue_numbers_skips_negated_and_related_references(self):  # #6777
+        self.assertEqual(
+            closing_issue_numbers("Closes #6775\nRelated to #12\nDoes not fix #99\nFixes #6775 and resolves #7"),
+            ["6775", "7"],
+        )
+
+    def test_main_rejects_a_closing_keyword_on_a_nightly_tracker(self):  # #6777
+        from scripts.ci import validate_pr_closing_keywords as module
+
+        with mock.patch.object(module, "fetch_issue_labels", return_value={"6775": ["nightly-failure:local-e2e-tests"]}) as lookup, \
+                mock.patch.dict(os.environ, {"PR_BODY": "Closes #6775", "PR_COMMITS_JSON": "[]"}), \
+                mock.patch.object(sys, "argv", ["validate_pr_closing_keywords.py"]), \
+                mock.patch.object(sys, "stderr", new_callable=__import__("io").StringIO) as stderr:
+            self.assertEqual(module.main(), 1)
+        lookup.assert_called_once_with(["6775"])
+        self.assertIn("nightly-tracker-autoclose", stderr.getvalue())
+
+    def test_label_lookup_fails_open_when_gh_is_unavailable(self):  # #6777
+        with mock.patch("subprocess.run", side_effect=FileNotFoundError("gh")):
+            self.assertEqual(fetch_issue_labels(["6775"]), {})
 
 
 class MainCLIIntegrationTest(unittest.TestCase):

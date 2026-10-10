@@ -1115,6 +1115,7 @@ jobs:
         run: python3 -m unittest tests.scripts.test_validate_pr_closing_keywords -v
       - name: Validate PR body and commit messages have no negated closing-keyword references
         env:
+          GH_TOKEN: ${{ github.token }}
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_COMMITS_JSON: ${{ steps.pr-commits.outputs.commits_json }}
         run: python3 scripts/ci/validate_pr_closing_keywords.py
