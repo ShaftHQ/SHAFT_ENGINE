@@ -42,6 +42,32 @@ public final class GeminiProvider extends AbstractHttpAiProvider {
         return "gemini";
     }
 
+    /**
+     * Whether a served Gemini model id satisfies the id that was requested.
+     *
+     * <p>Google can answer a {@code gemini-3.5-flash} request with {@code gemini-3.6-flash}
+     * while status stays successful (#6779). A blank requested id, a blank served id, a
+     * non-Gemini id, and a non-flash Gemini id such as {@code gemini-2.5-pro} do not match.
+     *
+     * @param requested the model id sent to Gemini
+     * @param served the model id Gemini reported, possibly prefixed with {@code models/}
+     * @return {@code true} when the served id is acceptable for the request
+     */
+    public static boolean acceptsServedModel(String requested, String served) {
+        if (requested == null || requested.isBlank() || served == null || served.isBlank()) {
+            return false;
+        }
+        String normalizedServed = served.startsWith("models/") ? served.substring("models/".length()) : served;
+        if (normalizedServed.startsWith(requested)) {
+            return true;
+        }
+        return geminiFlashId(requested) && geminiFlashId(normalizedServed);
+    }
+
+    private static boolean geminiFlashId(String modelId) {
+        return modelId != null && modelId.startsWith("gemini-") && modelId.contains("-flash");
+    }
+
     @Override
     public AiCapabilities capabilities() {
         return new AiCapabilities(true, true, false, 0,

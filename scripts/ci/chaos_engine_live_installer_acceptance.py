@@ -398,7 +398,15 @@ UPSTREAM_PYTHON_LAG = re.compile(
     r"dependency command failed: uv(?:\.exe)?: error: No download found for request: "
     r"cpython-(\d+\.\d+\.\d+)-[a-z0-9_-]+; failed phase: Provision dependencies(?:;|$)"
 )
+# Sanitizer keeps the head and the phase tail, so the ABI tag may sit across the cut (#6780).
+UPSTREAM_PYTHON_ABI_WHEELS = re.compile(
+    r"dependency command failed: uv(?:\.exe)?: error: No solution found when resolving dependencies"
+    r".*?no wheels with a matching Python ABI tag \(e\.g\., `(cp\d+)`\)"
+    r".*?failed phase: Provision dependencies(?:;|$)",
+    re.DOTALL,
+)
 BASE_CHAIN_SKIP_REASON = "upstream-python-download-lag"
+BASE_ABI_SKIP_REASON = "upstream-python-abi-wheels"
 
 
 def upstream_python_lag(error: Exception) -> str | None:
@@ -411,6 +419,20 @@ def upstream_python_lag(error: Exception) -> str | None:
     if not isinstance(error, AcceptanceCommandFailure):
         return None
     match = UPSTREAM_PYTHON_LAG.search(str(error))
+    return match.group(1) if match else None
+
+
+def upstream_python_abi_wheels(error: Exception) -> str | None:
+    """#6780: name the CPython ABI tag when the frozen base cannot resolve native wheels.
+
+    The immutable base still resolves the newest python.org release. chromadb and
+    onnxruntime publish no wheel for the next ABI (for example ``cp315``), so uv
+    reports no solution during Provision dependencies. That is an upstream wheel
+    gap, not a candidate regression.
+    """
+    if not isinstance(error, AcceptanceCommandFailure):
+        return None
+    match = UPSTREAM_PYTHON_ABI_WHEELS.search(str(error))
     return match.group(1) if match else None
 
 
@@ -1572,17 +1594,18 @@ def record_phase(
 def record_skipped_base_chain(
     evidence: dict[str, object], base_result: dict[str, object]
 ) -> None:
-    """#6325: mark the base upgrade chain skipped with its upstream-lag reason."""
+    """Mark the base upgrade chain skipped with the reason establish_base already chose."""
     phases = evidence["phases"]
+    reason = str(base_result.get("reason") or BASE_CHAIN_SKIP_REASON)
     phases[-1]["status"] = "skipped"  # type: ignore[index]
     evidence["baseUpgradeChain"] = {
         "status": "skipped",
-        "reason": BASE_CHAIN_SKIP_REASON,
+        "reason": reason,
         "requestedPython": base_result.get("requestedPython"),
     }
     for skipped in BASE_UPGRADE_CHAIN_AFTER_BASE:
         phases.append(  # type: ignore[union-attr]
-            {"name": skipped, "status": "skipped", "reason": BASE_CHAIN_SKIP_REASON}
+            {"name": skipped, "status": "skipped", "reason": reason}
         )
 
 
@@ -1706,6 +1729,13 @@ def run_acceptance(
                         "status": "skipped",
                         "reason": BASE_CHAIN_SKIP_REASON,
                         "requestedPython": lag,
+                    }
+                abi = upstream_python_abi_wheels(error)
+                if abi is not None:
+                    return {
+                        "status": "skipped",
+                        "reason": BASE_ABI_SKIP_REASON,
+                        "requestedPython": abi,
                     }
                 transition = exact_base_compatibility_transition(
                     error, base_sha, windows=os.name == "nt"

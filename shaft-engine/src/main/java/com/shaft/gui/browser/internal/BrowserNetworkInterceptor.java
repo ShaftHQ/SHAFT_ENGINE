@@ -81,6 +81,31 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
         }
     }
 
+    /**
+     * Reports whether this exact driver currently pauses requests.
+     *
+     * <p>False when no interceptor is installed, the session is closed, or only the passive
+     * network observer is active. A mock, assert, or verify rule uses CDP Fetch and pauses.
+     *
+     * @param driver the WebDriver session to query
+     * @return {@code true} when the active interceptor pauses requests
+     */
+    public static boolean pausesRequests(WebDriver driver) {
+        if (driver == null) {
+            return false;
+        }
+        Counter counter;
+        synchronized (COUNTERS) {
+            expungeStaleDrivers();
+            Entry match = COUNTERS.get(new IdentityWeakReference(driver));
+            if (match == null || match.closed || match.counter == null) {
+                return false;
+            }
+            counter = match.counter;
+        }
+        return counter.pausesRequests();
+    }
+
     /** Removes retained observations for this exact driver during terminal teardown. */
     public static void closeAndRemove(WebDriver driver) {
         if (driver == null) {
@@ -370,6 +395,19 @@ public class BrowserNetworkInterceptor implements AutoCloseable {
 
         private synchronized int value() {
             return value;
+        }
+
+        private boolean pausesRequests() {
+            BrowserNetworkInterceptor interceptor;
+            synchronized (this) {
+                interceptor = owner == null ? null : owner.get();
+            }
+            if (interceptor == null) {
+                return false;
+            }
+            synchronized (interceptor) {
+                return !interceptor.closed && interceptor.activeInterceptorPausesRequests;
+            }
         }
 
         private void closeOwner() {

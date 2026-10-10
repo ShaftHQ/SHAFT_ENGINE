@@ -1314,6 +1314,125 @@ class BasePythonDownloadLag6325Test(TestCase):
         self.assertEqual("fail", evidence["phases"][0]["status"])
 
 
+ABI_FILLER = "wheel " * 400
+ABI_DETAIL = (
+    "CE-INSTALL-FAILED: dependency command failed: uv: error: No solution found when "
+    "resolving dependencies: " + ABI_FILLER +
+    "no wheels with a matching Python ABI tag (e.g., `cp315`); "
+    "failed phase: Provision dependencies"
+)
+
+
+class BasePythonAbiWheels6780Test(TestCase):
+    """#6780: an immutable base that resolves a CPython ABI without native wheels is skipped."""
+
+    def test_abi_detection_is_exact(self):
+        module = load_acceptance()
+        command = module.public_wrapper_command(module.KNOWN_BASE_SHA, windows=False)
+        failure = module.AcceptanceCommandFailure(command, 1, ABI_DETAIL)
+        self.assertIn("...<truncated>...", str(failure))
+        self.assertEqual("cp315", module.upstream_python_abi_wheels(failure))
+        windows = module.AcceptanceCommandFailure(
+            command, 1,
+            ABI_DETAIL.replace(
+                "dependency command failed: uv:", "dependency command failed: uv.exe:", 1
+            ),
+        )
+        self.assertEqual("cp315", module.upstream_python_abi_wheels(windows))
+        for detail in (
+            ABI_DETAIL.replace("Provision dependencies", "Verify installation"),
+            ABI_DETAIL.replace(
+                "dependency command failed: uv:", "dependency command failed: npm:", 1
+            ),
+            ABI_DETAIL.replace(
+                "no wheels with a matching Python ABI tag (e.g., `cp315`)", "no matching wheel"
+            ),
+        ):
+            with self.subTest(detail=detail[:80]):
+                self.assertIsNone(module.upstream_python_abi_wheels(
+                    module.AcceptanceCommandFailure(command, 1, detail)
+                ))
+        self.assertIsNone(module.upstream_python_abi_wheels(RuntimeError(ABI_DETAIL)))
+
+    def test_base_abi_failure_skips_only_the_base_chain_and_still_runs_fresh_phases(self):
+        module = load_acceptance()
+        base = module.KNOWN_BASE_SHA
+        candidate = "c" * 40
+        installs = []
+
+        def wrapper(commit, project, **_kwargs):
+            installs.append((commit, project.name))
+            if commit == base:
+                raise module.AcceptanceCommandFailure(
+                    module.public_wrapper_command(base, windows=False), 1, ABI_DETAIL
+                )
+            state = project / ".chaos-engine-state/mempalace"
+            state.mkdir(parents=True, exist_ok=True)
+            state.joinpath(".mined").write_bytes(b"current\n")
+            project.joinpath(".chaos-engine-dependencies.json").write_text(
+                json.dumps({"commands": {"uv": "uv"}}), encoding="utf-8"
+            )
+
+        verify_results = iter(({"actions": {"uv": "installed"}}, {"actions": {"uv": "reused"}}))
+        evidence = {"phases": []}
+        with tempfile.TemporaryDirectory() as temporary, \
+                mock.patch.object(module, "run_public_wrapper_with_diagnostics", side_effect=wrapper), \
+                mock.patch.object(module, "verify_account_phase", side_effect=lambda *a, **k: dict(next(verify_results))), \
+                mock.patch.object(module, "account_receipt_commands", return_value={"uv": "uv"}), \
+                mock.patch.object(module, "assert_account_search_paths"), \
+                mock.patch.object(module, "assert_local_mempalace"), \
+                mock.patch.object(module, "assert_single_generated_mempalace"):
+            module.run_acceptance(Path(temporary), evidence, candidate_sha=candidate, base_sha=base)
+        statuses = {phase["name"]: phase["status"] for phase in evidence["phases"]}
+        self.assertEqual("skipped", statuses["base-public-wrapper"])
+        for name in (
+            "base-offline-no-mutation", "upgrade-candidate-wrapper",
+            "rollback-base-account-and-hosts", "reupgrade-candidate-wrapper",
+        ):
+            self.assertEqual("skipped", statuses[name])
+            self.assertEqual(
+                "upstream-python-abi-wheels",
+                next(phase["reason"] for phase in evidence["phases"] if phase["name"] == name),
+            )
+        self.assertEqual("pass", statuses["fresh-account-candidate-wrapper"])
+        self.assertEqual("pass", statuses["fresh-account-rerun"])
+        self.assertEqual("upstream-python-abi-wheels", evidence["baseUpgradeChain"]["reason"])
+        self.assertEqual("cp315", evidence["baseUpgradeChain"]["requestedPython"])
+        self.assertEqual([candidate, candidate], [commit for commit, _ in installs[1:]])
+
+    def test_fresh_candidate_abi_failure_fails_the_job(self):
+        """The same wheel text on the candidate is a regression, not a base skip."""
+        module = load_acceptance()
+        base = module.KNOWN_BASE_SHA
+        candidate = "c" * 40
+
+        def wrapper(commit, project, **_kwargs):
+            del project
+            raise module.AcceptanceCommandFailure(
+                module.public_wrapper_command(commit, windows=False), 1, ABI_DETAIL
+            )
+
+        evidence = {"phases": []}
+        with tempfile.TemporaryDirectory() as temporary, \
+                mock.patch.object(module, "run_public_wrapper_with_diagnostics", side_effect=wrapper):
+            with self.assertRaises(module.AcceptancePhaseFailure) as raised:
+                module.run_acceptance(
+                    Path(temporary), evidence, candidate_sha=candidate, base_sha=base
+                )
+        self.assertEqual("fresh-account-candidate-wrapper", raised.exception.phase)
+        self.assertIsInstance(raised.exception.cause, module.AcceptanceCommandFailure)
+        self.assertEqual("cp315", module.upstream_python_abi_wheels(raised.exception.cause))
+        statuses = {phase["name"]: phase["status"] for phase in evidence["phases"]}
+        self.assertEqual("skipped", statuses["base-public-wrapper"])
+        self.assertEqual("fail", statuses["fresh-account-candidate-wrapper"])
+        fresh = next(
+            phase for phase in evidence["phases"]
+            if phase["name"] == "fresh-account-candidate-wrapper"
+        )
+        self.assertNotIn("reason", fresh)
+        self.assertEqual("upstream-python-abi-wheels", evidence["baseUpgradeChain"]["reason"])
+
+
 class NetworkRetryTest(TestCase):
     """#6538: the exact-base fetch retries runner DNS flakes, never real failures."""
 

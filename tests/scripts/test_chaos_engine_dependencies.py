@@ -325,16 +325,20 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                     "context7": "reused",
                 },
                 executables={"uv": "/user/bin/uv", "npm": "/user/bin/npm"},
+                resolved_versions={"python": "3.14.2"},
             )
 
         self.assertTrue(module.version_at_least(specification["schemaVersion"], 3))
         self.assertEqual(
-            [["/user/bin/uv", "tool", "install", "--with", "chromadb==1.5.9", "mempalace==3.8.0"]],
+            [[
+                "/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with",
+                "chromadb==1.5.9", "mempalace==3.8.0",
+            ]],
             plan["mempalace"],
         )
         self.assertEqual(
             [[
-                "/user/bin/uv", "tool", "install", "--force", "--with",
+                "/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with",
                 "tree-sitter-sql==0.3.11", "graphifyy==0.9.43",
             ]],
             plan["graphify"],
@@ -349,9 +353,9 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
         expected = {
-            "installed": ["/user/bin/uv", "tool", "install", "--with", "chromadb==1.5.9", "mempalace==3.8.0"],
-            "upgraded": ["/user/bin/uv", "tool", "install", "--force", "--with", "chromadb==1.5.9", "mempalace==3.8.0"],
-            "repaired": ["/user/bin/uv", "tool", "install", "--force", "--with", "chromadb==1.5.9", "mempalace==3.8.0"],
+            "installed": ["/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.8.0"],
+            "upgraded": ["/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.8.0"],
+            "repaired": ["/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.8.0"],
         }
         for action, command in expected.items():
             with self.subTest(action=action):
@@ -359,6 +363,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                     Path("."), specification,
                     actions={"mempalace": action},
                     executables={"uv": "/user/bin/uv", "npm": "/user/bin/npm"},
+                    resolved_versions={"python": "3.14.2"},
                 )
                 self.assertEqual([command], plan["mempalace"])
                 self.assertNotIn("upgrade", command)
@@ -492,16 +497,17 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             "graphify": "0.9.53",
             "memory": "0.2.2",
             "context7": "0.4.0",
+            "python": "3.14.2",
         }
         first_plan = module.account_tool_plan(
             Path("."), specification,
-            actions={name: "installed" for name in versions},
+            actions={name: "installed" for name in versions if name != "python"},
             executables={"uv": "/user/bin/uv", "npm": "/user/bin/npm"},
             resolved_versions=versions,
         )
         self.assertEqual(
             [[
-                "/user/bin/uv", "tool", "install", "--with",
+                "/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with",
                 "tree-sitter-sql==0.3.11", "graphifyy==0.9.53",
             ]],
             first_plan["graphify"],
@@ -590,6 +596,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                 "graphify": "0.9.53",
                 "memory": "0.2.2",
                 "context7": "0.4.0",
+                "python": "1.0",
             },
             plan.call_args.kwargs["resolved_versions"],
         )
@@ -929,6 +936,60 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                         name, contract, opener=lambda *_args, **_kwargs: Response(payloads[name])
                     ),
                 )
+
+    def test_python_maximum_series_rejects_the_next_cpython_abi(self):
+        module = load_controller()
+        payload = [
+            {"name": "Python 3.15.0", "is_published": True, "pre_release": False},
+            {"name": "Python 3.14.2", "is_published": True, "pre_release": False},
+        ]
+
+        class Response:
+            def __init__(self, body):
+                self.payload = json.dumps(body).encode()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def read(self, _size):
+                return self.payload
+
+        contract = {
+            "minimumVersion": "3.14.0",
+            "maximumSeries": "3.14",
+            "stableChannel": "https://example.invalid/python",
+        }
+        self.assertEqual(
+            "3.14.2",
+            module.resolve_stable_version(
+                "python", contract, opener=lambda *_args, **_kwargs: Response(payload)
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "no compatible stable"):
+            module.resolve_stable_version(
+                "python", contract,
+                opener=lambda *_args, **_kwargs: Response([payload[0]]),
+            )
+        uncapped = {key: value for key, value in contract.items() if key != "maximumSeries"}
+        self.assertEqual(
+            "3.15.0",
+            module.resolve_stable_version(
+                "python", uncapped, opener=lambda *_args, **_kwargs: Response(payload)
+            ),
+        )
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        plan = module.account_tool_plan(
+            Path("."), specification,
+            actions={"mempalace": "installed", "graphify": "installed"},
+            executables={"uv": "/user/bin/uv", "npm": "/user/bin/npm"},
+            resolved_versions={"python": "3.14.2"},
+        )
+        for name in ("mempalace", "graphify"):
+            self.assertIn("--python", plan[name][0])
+            self.assertEqual("3.14.2", plan[name][0][plan[name][0].index("--python") + 1])
 
     def test_account_receipt_dispatches_absolute_commands_and_redacts_home(self):
         module = load_controller()
