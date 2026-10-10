@@ -1495,6 +1495,21 @@ class ShaftPluginScreenshotRendererTest {
         return image.get();
     }
 
+    @Test
+    void rendersFirstRunWizardScreenshotsWhenOutputDirectoryIsProvided() throws Exception {
+        String outputDirectory = System.getProperty("shaft.intellij.screenshotDir", "").trim();
+        Assumptions.assumeFalse(outputDirectory.isBlank(),
+                "Set -Dshaft.intellij.screenshotDir=... to render screenshot evidence.");
+        Path outputPath = Path.of(outputDirectory);
+        Files.createDirectories(outputPath);
+        Path wizardScreenshot = outputPath.resolve("intellij-plugin-first-run-wizard.png");
+        Path wizardNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-first-run-wizard-narrow-dark.png");
+        write(wizardScreenshot, renderWizard(LIGHT_THEME, false, WIDTH, HEIGHT));
+        write(wizardNarrowDarkScreenshot, renderWizard(DARK_THEME, true, NARROW_WIDTH, HEIGHT));
+        assertTrue(Files.size(wizardScreenshot) > 0);
+        assertTrue(Files.size(wizardNarrowDarkScreenshot) > 0);
+    }
+
     private static BufferedImage renderWizard(String lookAndFeelClassName, boolean dark, int width, int height)
             throws InterruptedException, InvocationTargetException {
         AtomicReference<BufferedImage> image = new AtomicReference<>();
