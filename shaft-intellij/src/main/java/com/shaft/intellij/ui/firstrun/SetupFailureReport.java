@@ -102,8 +102,10 @@ public final class SetupFailureReport {
             if (listed != null && listed.contains(fingerprint)) {
                 return;
             }
-            runner.run(ghCreateArgs(REPO, title, body));
-            return;
+            String created = runner.run(ghCreateArgs(REPO, title, body));
+            if (created != null && !created.isBlank()) {
+                return;
+            }
         }
         if (browser != null && BROWSED.add(fingerprint)) {
             browser.open(browserUrl(title, body));

@@ -109,6 +109,24 @@ class SetupFailureReportTest {
     }
 
     @Test
+    void blankGhCreateOpensTheBrowserOnce() {
+        List<String> urls = new ArrayList<>();
+        AtomicInteger creates = new AtomicInteger();
+        SetupFailureReport.ProcessRunner runner = command -> {
+            if ("list".equals(command.get(2))) {
+                return "[]";
+            }
+            creates.incrementAndGet();
+            return null;
+        };
+        SetupFailureReport.file(true, "fp-blank", "Title", "Body", () -> true, runner, urls::add);
+        SetupFailureReport.file(true, "fp-blank", "Title", "Body", () -> true, runner, urls::add);
+        assertEquals(1, creates.get());
+        assertEquals(1, urls.size());
+        assertTrue(urls.get(0).startsWith("https://github.com/ShaftHQ/SHAFT_ENGINE/issues/new?"));
+    }
+
+    @Test
     void unauthenticatedReportOpensTheBrowserOnce() {
         List<String> urls = new ArrayList<>();
         SetupFailureReport.file(true, "fp-browser", "Title", "Body", () -> false, command -> {
