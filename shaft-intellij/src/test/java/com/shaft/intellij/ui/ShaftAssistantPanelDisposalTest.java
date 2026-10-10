@@ -152,6 +152,7 @@ class ShaftAssistantPanelDisposalTest {
 
                     @Override
                     public void saveKey(String keyName, char[] secret) {
+                        // This disposal fixture never stores a provider key.
                     }
                 });
         Timer toastTimer = new Timer(5_000, event -> { });

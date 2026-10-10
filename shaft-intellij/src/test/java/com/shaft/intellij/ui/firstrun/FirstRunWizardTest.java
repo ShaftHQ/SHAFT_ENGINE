@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -378,7 +379,7 @@ class FirstRunWizardTest {
             if (!current.isVisible()) {
                 return false;
             }
-            if (current == root) {
+            if (Objects.equals(current, root)) {
                 return true;
             }
         }
@@ -392,26 +393,6 @@ class FirstRunWizardTest {
                 layout(child);
             }
         }
-    }
-
-    private static boolean contains(Component component, String expected) {
-        if (component instanceof JLabel label && label.getText() != null && label.getText().contains(expected)) {
-            return true;
-        }
-        if (component instanceof AbstractButton button && button.getText() != null && button.getText().contains(expected)) {
-            return true;
-        }
-        if (component.getAccessibleContext() != null && expected.equals(component.getAccessibleContext().getAccessibleName())) {
-            return true;
-        }
-        if (component instanceof Container container) {
-            for (Component child : container.getComponents()) {
-                if (contains(child, expected)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     private static String text(Component root, String name) {

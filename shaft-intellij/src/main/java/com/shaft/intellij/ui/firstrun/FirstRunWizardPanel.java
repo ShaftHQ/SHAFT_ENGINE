@@ -76,6 +76,7 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
     private boolean needsAttention;
     private boolean acknowledged;
     private boolean reportDismissed;
+    private boolean disposed;
 
     public FirstRunWizardPanel(Project project, ShaftSettingsState.Settings settings, Runnable onComplete,
                                InstallProbe probe, PrerequisiteProbe prerequisites) {
@@ -197,8 +198,6 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
     void setConfirmReset(BooleanSupplier confirmReset) {
         this.confirmReset = confirmReset == null ? () -> false : confirmReset;
     }
-
-    private boolean disposed;
 
     @Override
     public void dispose() {
@@ -417,14 +416,11 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
     }
 
     private boolean primaryEnabled() {
-        if (step == 2 && !prerequisites.allPresent() && !acknowledged) {
-            return false;
-        }
-        return true;
+        return step != 2 || prerequisites.allPresent() || acknowledged;
     }
 
     private void onPrimary() {
-        if (!primary.isEnabled()) {
+        if (disposed || !primary.isEnabled()) {
             return;
         }
         if (step == 3) {
@@ -536,7 +532,7 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
     }
 
     private void storeFeedback() {
-        if (!(cards[4].getComponentCount() > 0)) {
+        if (cards[4].getComponentCount() <= 0) {
             return;
         }
         if (feedbackSkipped() || ease.getValue() < 1 || usefulness.getValue() < 1) {
@@ -733,10 +729,12 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
     private static final class StepDeckLayout implements LayoutManager {
         @Override
         public void addLayoutComponent(String name, Component component) {
+            // The deck keeps every step card for the life of the wizard.
         }
 
         @Override
         public void removeLayoutComponent(Component component) {
+            // Step cards are removed only when the wizard itself is discarded.
         }
 
         @Override

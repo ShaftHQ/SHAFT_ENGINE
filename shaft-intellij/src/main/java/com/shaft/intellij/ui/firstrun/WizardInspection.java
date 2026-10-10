@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /** Ten yes/no probes. {@link FirstRunUxScore} counts them. */
 public final class WizardInspection {
@@ -196,7 +197,7 @@ public final class WizardInspection {
             if (!current.isVisible()) {
                 return false;
             }
-            if (current == root) {
+            if (Objects.equals(current, root)) {
                 return true;
             }
         }
