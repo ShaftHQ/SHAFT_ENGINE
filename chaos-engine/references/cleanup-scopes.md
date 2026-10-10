@@ -19,6 +19,10 @@ SessionEnd may remove that owned worktree after merge is recorded. Neither
 event is repository-scope scavenger cleanup, and neither deletes unique
 commits or leftover dirty task branches.
 
+A task worktree made by hand with `git worktree add` has no `.chaos-engine/`.
+Run `python3 <primary>/.chaos-engine/worktree_overlay.py materialize --primary <primary> --session <worktree>`
+before `tool.py entry`; do not copy harness files by hand.
+
 ### Task scope (default)
 
 Freeze the pre-task baseline. Maintain an append-only ownership manifest during
