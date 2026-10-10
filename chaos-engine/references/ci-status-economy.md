@@ -42,6 +42,15 @@ Reading is the manual check. The durable remedy is a step in the job itself, dir
 
 A classification label added after the PR opened starts a second governance run and cancels the first. If the PR stays `BLOCKED` with every check green, the newest run's `CANCELLED` required check is the cause. Rerun that newest run (`gh run rerun <run-id>`), not the oldest. Prefer the label in the same `gh pr create` step.
 
+## A registry 404 for a published artifact is infrastructure first
+
+When a job fails with "could not find artifact" for a release that should exist:
+
+1. `curl -sI <artifact-url>` and read `last-modified`. An old date with HTTP 200 now is a transient registry fault, not a code or version problem.
+2. Reproduce with an empty local cache (`-Dmaven.repo.local`-style override). A pass confirms it.
+3. Fix by retrying in a fresh process (the repo's retry helper under `scripts/ci/`), never by editing versions.
+4. If `gh run view --log-failed` omits a failed job, read it with `gh api repos/<owner>/<repo>/actions/jobs/<job-id>/logs`.
+
 ## Digest only
 
 - Agent-facing CI status comes from `python3 scripts/agents/watch_pr_checks.py --pr <n> --until-merged --digest` (one blocking watch). (repo-only)
