@@ -56,7 +56,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -66,6 +65,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -86,6 +86,12 @@ class ShaftPluginScreenshotRendererTest {
     private static final int WIDTH = 860;
     private static final int NARROW_WIDTH = 360;
     private static final int HEIGHT = 780;
+    /**
+     * Selector indexes the feature-catalog job may render. The tool window
+     * exposes Agent, Workflow, and Execution log (indexes 0 through 2).
+     * Retired surfaces are not selector entries (issue #6808).
+     */
+    private static final int[] FEATURE_CATALOG_TOOL_WINDOW_VIEWS = {0, 1, 2};
     private static final String LIGHT_THEME = "com.intellij.ide.ui.laf.IntelliJLaf";
     private static final String DARK_THEME = "com.intellij.ide.ui.laf.darcula.DarculaLaf";
     private static final Color LIGHT_PANEL = new Color(0xF2F2F2);
@@ -155,6 +161,21 @@ class ShaftPluginScreenshotRendererTest {
             char.class, '\0');
 
     @Test
+    void featureCatalogSelectsOnlyExposedToolWindowViews() {
+        ShaftSettingsState.Settings settings = defaultSettings();
+        settings.advancedUiEnabled = true;
+        ShaftToolWindowPanel panel = new ShaftToolWindowPanel(
+                null, settings, (client, runtime) -> null, new ShaftAssistantChatState());
+        int viewCount = panel.workflowSelector().getItemCount();
+        assertEquals(3, viewCount);
+        assertEquals(viewCount, FEATURE_CATALOG_TOOL_WINDOW_VIEWS.length);
+        for (int index : FEATURE_CATALOG_TOOL_WINDOW_VIEWS) {
+            assertTrue(index >= 0 && index < viewCount,
+                    "catalog view index " + index + " is outside indexes 0 through " + (viewCount - 1));
+        }
+    }
+
+    @Test
     void rendersFeatureCatalogScreenshotsWhenOutputDirectoryIsProvided() throws Exception {
         String outputDirectory = System.getProperty("shaft.intellij.screenshotDir", "").trim();
         Assumptions.assumeFalse(outputDirectory.isBlank(),
@@ -193,17 +214,9 @@ class ShaftPluginScreenshotRendererTest {
         Path mcpSetupPostSetupScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-post-setup.png");
         Path guidedScreenshot = outputPath.resolve("intellij-plugin-guided.png");
         Path recorderScreenshot = outputPath.resolve("intellij-plugin-recorder.png");
-        Path inspectorScreenshot = outputPath.resolve("intellij-plugin-inspector.png");
-        Path triageScreenshot = outputPath.resolve("intellij-plugin-triage.png");
         Path shaftTestsScreenshot = outputPath.resolve("intellij-plugin-shaft-tests.png");
         Path shaftTestsDarkScreenshot = outputPath.resolve("intellij-plugin-shaft-tests-dark.png");
         Path visualBaselinesScreenshot = outputPath.resolve("intellij-plugin-visual-baselines.png");
-        Path evidenceScreenshot = outputPath.resolve("intellij-plugin-evidence.png");
-        Path projectsScreenshot = outputPath.resolve("intellij-plugin-projects.png");
-        Path advancedToolsLightScreenshot = outputPath.resolve("intellij-plugin-advanced-tools.png");
-        Path advancedToolsDarkScreenshot = outputPath.resolve("intellij-plugin-advanced-tools-dark.png");
-        Path toolsLightScreenshot = outputPath.resolve("intellij-plugin-tools.png");
-        Path toolsDarkScreenshot = outputPath.resolve("intellij-plugin-tools-dark.png");
         Path mcpSetupScreenshot = outputPath.resolve("intellij-plugin-mcp-setup.png");
         Path mcpSetupGeminiScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-gemini.png");
         Path mcpSetupNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-mcp-setup-narrow-dark.png");
@@ -216,15 +229,17 @@ class ShaftPluginScreenshotRendererTest {
                 outputPath.resolve("intellij-plugin-mcp-setup-prerequisites-recheck-after.png");
         Path settingsScreenshot = outputPath.resolve("intellij-plugin-settings.png");
         Path settingsDarkScreenshot = outputPath.resolve("intellij-plugin-settings-dark.png");
-        Path mcpGuideScreenshot = outputPath.resolve("intellij-plugin-mcp-guide.png");
 
-        write(assistantLightScreenshot, renderToolWindow(0, "", LIGHT_THEME, false));
+        write(assistantLightScreenshot, renderToolWindow(
+                FEATURE_CATALOG_TOOL_WINDOW_VIEWS[0], "", LIGHT_THEME, false));
         write(assistantEmptyScreenshot, renderAssistantEmpty(LIGHT_THEME, false));
         write(assistantAttachmentsScreenshot, renderAssistantWithAttachments(LIGHT_THEME, false));
         write(assistantEmptyNarrowScreenshot, renderAssistantEmpty(DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(assistantExpandedSettingsNarrowScreenshot, renderAssistantExpandedSettingsNarrow(DARK_THEME, true));
-        write(assistantDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true));
-        write(assistantNarrowDarkScreenshot, renderToolWindow(0, "", DARK_THEME, true, NARROW_WIDTH, HEIGHT));
+        write(assistantDarkScreenshot, renderToolWindow(
+                FEATURE_CATALOG_TOOL_WINDOW_VIEWS[0], "", DARK_THEME, true));
+        write(assistantNarrowDarkScreenshot, renderToolWindow(
+                FEATURE_CATALOG_TOOL_WINDOW_VIEWS[0], "", DARK_THEME, true, NARROW_WIDTH, HEIGHT));
         write(assistantLiveDarkScreenshot, renderAssistantLiveOutput(DARK_THEME, true));
         write(assistantActiveStatusNarrowScreenshot, renderAssistantActiveStatusNarrow(DARK_THEME, true));
         write(assistantProgressMilestonesScreenshot, renderAssistantProgressMilestones(LIGHT_THEME, false));
@@ -241,19 +256,13 @@ class ShaftPluginScreenshotRendererTest {
         write(toolsHumanizedDoctorCardScreenshot, renderToolsHumanizedDoctorCard(LIGHT_THEME, false));
         write(assistantDefaultModePrefillScreenshot, renderAssistantDefaultModePrefill(LIGHT_THEME, false));
         write(mcpSetupPostSetupScreenshot, renderPostSetupSettings(LIGHT_THEME, false));
-        write(guidedScreenshot, renderToolWindow(1, "", LIGHT_THEME, false));
-        write(recorderScreenshot, renderToolWindow(2, "", LIGHT_THEME, false));
-        write(inspectorScreenshot, renderToolWindow(3, "", LIGHT_THEME, false));
-        write(triageScreenshot, renderToolWindow(4, "", LIGHT_THEME, false));
+        write(guidedScreenshot, renderToolWindow(
+                FEATURE_CATALOG_TOOL_WINDOW_VIEWS[1], "", LIGHT_THEME, false));
+        write(recorderScreenshot, renderToolWindow(
+                FEATURE_CATALOG_TOOL_WINDOW_VIEWS[2], "", LIGHT_THEME, false));
         write(shaftTestsScreenshot, renderShaftTests(LIGHT_THEME, false));
         write(shaftTestsDarkScreenshot, renderShaftTests(DARK_THEME, true));
         write(visualBaselinesScreenshot, renderVisualBaselines(LIGHT_THEME, false));
-        write(evidenceScreenshot, renderToolWindow(7, "", LIGHT_THEME, false));
-        write(projectsScreenshot, renderToolWindow(8, "", LIGHT_THEME, false));
-        write(advancedToolsLightScreenshot, renderToolWindow(9, "", LIGHT_THEME, false));
-        write(advancedToolsDarkScreenshot, renderToolWindow(9, "", DARK_THEME, true));
-        Files.copy(advancedToolsLightScreenshot, toolsLightScreenshot, StandardCopyOption.REPLACE_EXISTING);
-        Files.copy(advancedToolsDarkScreenshot, toolsDarkScreenshot, StandardCopyOption.REPLACE_EXISTING);
         write(mcpSetupScreenshot, renderSetup(LIGHT_THEME, false));
         Path wizardScreenshot = outputPath.resolve("intellij-plugin-first-run-wizard.png");
         Path wizardNarrowDarkScreenshot = outputPath.resolve("intellij-plugin-first-run-wizard-narrow-dark.png");
@@ -270,7 +279,6 @@ class ShaftPluginScreenshotRendererTest {
                 renderSetupPrerequisitesRecheckAfter(LIGHT_THEME, false));
         write(settingsScreenshot, renderSettings(LIGHT_THEME, false));
         write(settingsDarkScreenshot, renderSettings(DARK_THEME, true));
-        write(mcpGuideScreenshot, renderToolWindow(9, "Guide", LIGHT_THEME, false));
         assertAll(
                 () -> assertTrue(Files.size(assistantLightScreenshot) > 0, assistantLightScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(assistantEmptyScreenshot) > 0, assistantEmptyScreenshot + " should be non-empty"),
@@ -304,17 +312,9 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertTrue(Files.size(mcpSetupPostSetupScreenshot) > 0, mcpSetupPostSetupScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(guidedScreenshot) > 0, guidedScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(recorderScreenshot) > 0, recorderScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(inspectorScreenshot) > 0, inspectorScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(triageScreenshot) > 0, triageScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(shaftTestsScreenshot) > 0, shaftTestsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(shaftTestsDarkScreenshot) > 0, shaftTestsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(visualBaselinesScreenshot) > 0, visualBaselinesScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(evidenceScreenshot) > 0, evidenceScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(projectsScreenshot) > 0, projectsScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(advancedToolsLightScreenshot) > 0, advancedToolsLightScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(advancedToolsDarkScreenshot) > 0, advancedToolsDarkScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(toolsLightScreenshot) > 0, toolsLightScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(toolsDarkScreenshot) > 0, toolsDarkScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(mcpSetupScreenshot) > 0, mcpSetupScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(outputPath.resolve("intellij-plugin-first-run-wizard.png")) > 0),
                 () -> assertTrue(Files.size(outputPath.resolve("intellij-plugin-first-run-wizard-narrow-dark.png")) > 0),
@@ -329,7 +329,6 @@ class ShaftPluginScreenshotRendererTest {
                         mcpSetupPrerequisitesRecheckAfterScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsScreenshot) > 0, settingsScreenshot + " should be non-empty"),
                 () -> assertTrue(Files.size(settingsDarkScreenshot) > 0, settingsDarkScreenshot + " should be non-empty"),
-                () -> assertTrue(Files.size(mcpGuideScreenshot) > 0, mcpGuideScreenshot + " should be non-empty"),
                 () -> assertDimensions(assistantLightScreenshot),
                 () -> assertDimensions(assistantEmptyScreenshot),
                 () -> assertDimensions(assistantAttachmentsScreenshot),
@@ -352,17 +351,9 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(mcpSetupPostSetupScreenshot),
                 () -> assertDimensions(guidedScreenshot),
                 () -> assertDimensions(recorderScreenshot),
-                () -> assertDimensions(inspectorScreenshot),
-                () -> assertDimensions(triageScreenshot),
                 () -> assertDimensions(shaftTestsScreenshot),
                 () -> assertDimensions(shaftTestsDarkScreenshot),
                 () -> assertDimensions(visualBaselinesScreenshot),
-                () -> assertDimensions(evidenceScreenshot),
-                () -> assertDimensions(projectsScreenshot),
-                () -> assertDimensions(advancedToolsLightScreenshot),
-                () -> assertDimensions(advancedToolsDarkScreenshot),
-                () -> assertDimensions(toolsLightScreenshot),
-                () -> assertDimensions(toolsDarkScreenshot),
                 () -> assertDimensions(mcpSetupScreenshot),
                 () -> assertDimensions(mcpSetupGeminiScreenshot),
                 () -> assertDimensions(mcpSetupNarrowDarkScreenshot, NARROW_WIDTH, HEIGHT),
@@ -373,15 +364,12 @@ class ShaftPluginScreenshotRendererTest {
                 () -> assertDimensions(mcpSetupPrerequisitesRecheckAfterScreenshot),
                 () -> assertDimensions(settingsScreenshot),
                 () -> assertDimensions(settingsDarkScreenshot),
-                () -> assertDimensions(mcpGuideScreenshot),
                 () -> assertTrue(Files.mismatch(assistantLightScreenshot, assistantDarkScreenshot) >= 0,
                         "Assistant light and dark screenshots should differ"),
                 () -> assertTrue(Files.mismatch(shaftTestsScreenshot, shaftTestsDarkScreenshot) >= 0,
                         "SHAFT Tests light and dark screenshots should differ"),
                 () -> assertTrue(Files.mismatch(settingsScreenshot, settingsDarkScreenshot) >= 0,
                         "Settings light and dark screenshots should differ"),
-                () -> assertTrue(Files.mismatch(advancedToolsLightScreenshot, advancedToolsDarkScreenshot) >= 0,
-                        "Advanced Tools light and dark screenshots should differ"),
                 () -> assertTrue(Files.mismatch(mcpSetupPrerequisitesRecheckBeforeScreenshot,
                                 mcpSetupPrerequisitesRecheckAfterScreenshot) >= 0,
                         "Recheck collapsing the satisfied prerequisites row must visibly change the screenshot"),
@@ -1855,8 +1843,14 @@ class ShaftPluginScreenshotRendererTest {
         ShaftToolWindowPanel toolWindow = new ShaftToolWindowPanel(
                 project, settings, AssistantLocalAgentRunner::readiness, chatState);
         JComboBox<ShaftToolWindowPanel.WorkflowView> selector = toolWindow.workflowSelector();
-        int safeTab = Math.min(selectedTab, Math.max(0, selector.getItemCount() - 1));
-        ShaftToolWindowPanel.WorkflowView selectedView = selector.getItemAt(safeTab);
+        int viewCount = selector.getItemCount();
+        if (selectedTab < 0 || selectedTab >= viewCount) {
+            throw new IllegalArgumentException(
+                    "Catalog screenshot asked for view index " + selectedTab
+                            + " but the tool window exposes " + viewCount
+                            + " views (indexes 0 through " + (viewCount - 1) + ")");
+        }
+        ShaftToolWindowPanel.WorkflowView selectedView = selector.getItemAt(selectedTab);
         Component selected = selectedView.component();
         if (selected instanceof ShaftFeaturePanel featurePanel && !toolsCategory.isBlank()) {
             featurePanel.selectCategory(toolsCategory);
