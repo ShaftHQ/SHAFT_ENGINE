@@ -9,21 +9,26 @@ import org.openqa.selenium.remote.http.HttpMethod;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
 import org.testng.annotations.Test;
+import testPackage.TestPageServer;
 import testPackage.Tests;
 
 import java.util.Locale;
 import java.util.function.Predicate;
 
 public class NetworkInterceptionTest extends Tests {
-    private static final String SHAFT_DOCS_URL = "https://shafthq.github.io/";
     private static final By SHAFT_LOGO = By.xpath("(//img[@alt='SHAFT_Engine'])[1]");
 
+    /**
+     * Local fixture instead of the live docs site: a 30s renderer timeout on the external host broke the
+     * nightly Local E2E run (issue #6775) although nothing under test touches that site.
+     */
     @Test
     public void interceptShaftLogoAndReplaceItWithYoutubeLogo() {
         if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.CHROME.browserName())
                 || SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.EDGE.browserName())) {
+            String fixtureUrl = TestPageServer.url("shaft-network-interception.html");
             // prepare the expected result => should always pass
-            driver.get().browser().navigateToURL(SHAFT_DOCS_URL)
+            driver.get().browser().navigateToURL(fixtureUrl)
                     .element().assertThat(SHAFT_LOGO).matchesReferenceImage().perform();
 
             //more samples here: https://www.selenium.dev/selenium/docs/api/java/org/openqa/selenium/devtools/NetworkInterceptor.html
@@ -41,7 +46,7 @@ public class NetworkInterceptionTest extends Tests {
 
             // mock and compare actual to expected => should always fail
             driver.get().browser().mock(requestPredicate, mockedResponse)
-                    .navigateToURL(SHAFT_DOCS_URL)
+                    .navigateToURL(fixtureUrl)
                     .element().assertThat(SHAFT_LOGO).doesNotMatchReferenceImage().perform();
         }
     }
