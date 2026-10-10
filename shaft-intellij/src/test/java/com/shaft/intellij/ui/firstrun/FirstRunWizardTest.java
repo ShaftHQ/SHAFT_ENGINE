@@ -262,6 +262,14 @@ class FirstRunWizardTest {
         assertTrue(heading.getWidth() > 0 && primary.getWidth() > 0);
         assertTrue(heading.getX() + heading.getWidth() <= wizard.getWidth());
         assertTrue(primary.getX() + primary.getWidth() <= wizard.getWidth());
+        int primaryTop = primary.getY();
+        Component parent = primary.getParent();
+        while (parent != null && parent != wizard) {
+            primaryTop += parent.getY();
+            parent = parent.getParent();
+        }
+        assertTrue(primaryTop + primary.getHeight() < wizard.getHeight() / 2,
+                "primaryTop=" + primaryTop);
     }
 
     @Test

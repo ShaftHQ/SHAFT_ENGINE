@@ -219,12 +219,14 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
         notices.add(advancedToggle, BorderLayout.WEST);
         notices.add(advancedBody, BorderLayout.CENTER);
         notices.add(secondary, BorderLayout.SOUTH);
-        JPanel south = new JPanel(new BorderLayout(0, 6));
-        south.add(notices, BorderLayout.NORTH);
-        south.add(primary, BorderLayout.SOUTH);
-        add(header, BorderLayout.NORTH);
-        add(deck, BorderLayout.CENTER);
-        add(south, BorderLayout.SOUTH);
+        JPanel body = new JPanel(new BorderLayout(0, 6));
+        body.add(deck, BorderLayout.NORTH);
+        body.add(notices, BorderLayout.CENTER);
+        JPanel stack = new JPanel(new BorderLayout(0, 6));
+        stack.add(header, BorderLayout.NORTH);
+        stack.add(body, BorderLayout.CENTER);
+        stack.add(primary, BorderLayout.SOUTH);
+        add(stack, BorderLayout.NORTH);
     }
 
     private void buildCards() {
@@ -739,7 +741,17 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
 
         @Override
         public Dimension preferredLayoutSize(Container parent) {
-            return new Dimension(320, 240);
+            int width = 320;
+            int height = 0;
+            for (Component child : parent.getComponents()) {
+                if (!child.isVisible()) {
+                    continue;
+                }
+                Dimension preferred = child.getPreferredSize();
+                width = Math.max(width, preferred.width);
+                height = Math.max(height, preferred.height);
+            }
+            return new Dimension(width, height);
         }
 
         @Override
