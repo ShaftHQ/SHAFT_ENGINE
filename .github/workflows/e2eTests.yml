@@ -681,7 +681,7 @@ jobs:
           flutter build apk --debug
           cd android && bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
       - name: Upload wired Flutter demo-app APK
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: flutter-demo-apk
           path: appium-flutter-server/demo-app/build/app/outputs/apk/debug/app-debug.apk
