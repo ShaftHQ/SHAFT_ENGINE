@@ -5,7 +5,7 @@
   "dependencies": {
     "appium": "3.8.0",
     "appium-inspector-plugin": "2026.9.2",
-    "appium-windows-driver": "6.3.0"
+    "appium-windows-driver": "6.3.1"
   },
   "overrides": {
     "fast-uri": "3.1.8",
