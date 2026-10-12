@@ -41,14 +41,19 @@ public class BrowserStackSdkTests {
     }
 
     @Test
-    public void generateBrowserStackYmlContainsAuthenticationCredentials() {
+    public void generateBrowserStackYmlNeverWritesCredentials() {
+        SHAFT.Properties.browserStack.set().userName("secretUser").accessKey("secretKey");
         generatedYamlPath = BrowserStackSdkHelper.generateBrowserStackYml();
         var config = loadYaml(generatedYamlPath);
 
-        SHAFT.Validations.assertThat().object(config.get("userName"))
-                .isEqualTo(SHAFT.Properties.browserStack.userName()).perform();
-        SHAFT.Validations.assertThat().object(config.get("accessKey"))
-                .isEqualTo(SHAFT.Properties.browserStack.accessKey()).perform();
+        SHAFT.Validations.assertThat().object(config.containsKey("userName")).isEqualTo(false).perform();
+        SHAFT.Validations.assertThat().object(config.containsKey("accessKey")).isEqualTo(false).perform();
+        try {
+            SHAFT.Validations.assertThat().object(java.nio.file.Files.readString(java.nio.file.Path.of(generatedYamlPath))
+                    .contains("secretKey")).isEqualTo(false).perform();
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Test
@@ -155,10 +160,6 @@ public class BrowserStackSdkTests {
         var config = loadYaml(generatedYamlPath);
 
         SHAFT.Validations.assertThat().object(config).isNotNull().perform();
-        SHAFT.Validations.assertThat().object(config.containsKey("userName"))
-                .isEqualTo(true).perform();
-        SHAFT.Validations.assertThat().object(config.containsKey("accessKey"))
-                .isEqualTo(true).perform();
         SHAFT.Validations.assertThat().object(config.containsKey("buildName"))
                 .isEqualTo(true).perform();
         SHAFT.Validations.assertThat().object(config.containsKey("browserstackAutomation"))

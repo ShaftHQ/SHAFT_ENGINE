@@ -14,9 +14,7 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.MutableCapabilities;
 
 import java.io.File;
-import java.time.LocalDateTime;
 import java.util.*;
-import java.util.regex.Pattern;
 
 /**
  * BrowserStack integration helper for preparing capabilities and creating remote sessions.
@@ -183,10 +181,8 @@ public class BrowserStackHelper {
         browserstackOptions.put("seleniumVersion", SHAFT.Properties.browserStack.seleniumVersion());
         browserstackOptions.put("deviceName", SHAFT.Properties.browserStack.deviceName());
 
-        var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
-        var time = LocalDateTime.now();
-        browserstackOptions.put("projectName", ReportManagerHelper.getTestClassName());
-        browserstackOptions.put("buildName", pathItems[pathItems.length - 1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
+        browserstackOptions.put("projectName", BrowserStackSdkHelper.resolveProjectName());
+        browserstackOptions.put("buildName", BrowserStackSdkHelper.resolveBuildName());
 
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
 
@@ -228,10 +224,8 @@ public class BrowserStackHelper {
             browserstackOptions.put("geoLocation", SHAFT.Properties.browserStack.geoLocation());
         }
 
-        var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
-        var time = LocalDateTime.now();
-        browserstackOptions.put("projectName", ReportManagerHelper.getTestClassName());
-        browserstackOptions.put("buildName", pathItems[pathItems.length - 1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
+        browserstackOptions.put("projectName", BrowserStackSdkHelper.resolveProjectName());
+        browserstackOptions.put("buildName", BrowserStackSdkHelper.resolveBuildName());
 
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
 
@@ -253,10 +247,8 @@ public class BrowserStackHelper {
         browserstackOptions.put("interactiveDebugging", SHAFT.Properties.browserStack.debug());
         browserstackOptions.put("networkLogs", SHAFT.Properties.browserStack.networkLogs());
 
-        var pathItems = System.getProperty("user.dir").split(Pattern.quote(File.separator));
-        var time = LocalDateTime.now();
-        browserstackOptions.put("projectName", ReportManagerHelper.getTestClassName());
-        browserstackOptions.put("buildName", pathItems[pathItems.length - 1] + "_" + time.getYear() + time.getMonthValue() + time.getDayOfMonth());
+        browserstackOptions.put("projectName", BrowserStackSdkHelper.resolveProjectName());
+        browserstackOptions.put("buildName", BrowserStackSdkHelper.resolveBuildName());
 
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
         return browserStackCapabilities;

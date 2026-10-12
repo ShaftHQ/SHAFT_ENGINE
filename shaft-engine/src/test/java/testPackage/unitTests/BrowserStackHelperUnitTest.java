@@ -39,6 +39,18 @@ public class BrowserStackHelperUnitTest {
                 .isEqualTo("https://user123:key456@hub-cloud.browserstack.com/wd/hub").perform();
     }
 
+    @Test(description = "#6832: configured buildName/projectName reach bstack:options on every legacy path")
+    public void configuredBuildAndProjectNamesAreHonoured() throws Exception {
+        SHAFT.Properties.browserStack.set().userName("user").accessKey("key").osVersion("Sonoma")
+                .buildName("HRSD Android").projectName("HRSD Mobile App Automation");
+        SHAFT.Properties.platform.set().targetPlatform("mac");
+        MutableCapabilities capabilities = (MutableCapabilities) invokePrivate("setupDesktopWebExecution", new Class[]{});
+        @SuppressWarnings("unchecked")
+        Map<String, Object> options = (Map<String, Object>) capabilities.getCapability("bstack:options");
+        Assert.assertEquals(options.get("buildName"), "HRSD Android");
+        Assert.assertEquals(options.get("projectName"), "HRSD Mobile App Automation");
+    }
+
     @Test
     public void constructorShouldInstantiate() {
         Assert.assertNotNull(new BrowserStackHelper());
@@ -63,6 +75,8 @@ public class BrowserStackHelperUnitTest {
         Assert.assertEquals(options.get("geoLocation"), "EG");
         Assert.assertTrue(options.containsKey("buildName"));
         Assert.assertTrue(options.containsKey("projectName"));
+        Assert.assertTrue(String.valueOf(options.get("buildName")).matches(".+_\\d{8}"),
+                "fallback build name carries a zero-padded yyyyMMdd date (#6832)");
 
         SHAFT.Properties.browserStack.set().browserVersion("").geoLocation("");
         SHAFT.Properties.platform.set().targetPlatform("windows");

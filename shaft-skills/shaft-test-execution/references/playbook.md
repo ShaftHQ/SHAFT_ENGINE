@@ -25,6 +25,12 @@
 
 ## Output
 
+BrowserStack: `browserStack.buildName`/`projectName` group sessions; use one
+build name per app build or CI run. The generated `browserstack.yml` never holds
+credentials (SDK reads `BROWSERSTACK_USERNAME`/`BROWSERSTACK_ACCESS_KEY`); still
+check `git status` after a cloud run. Cloud runs use the provider video, not
+Appium `videoParams_recordVideo`.
+
 Return the exact command or tool operation, scope, identities, reconciled
 status counts, artifacts, retries, blockers, and exit-criterion result.
 
