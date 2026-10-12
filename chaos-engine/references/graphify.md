@@ -40,6 +40,8 @@ branch or linked worktree. The owner is
 [`chaos-engine/stores.py`](../stores.py). Refresh indexes a detached snapshot of the local
 default-branch tip. It does not fetch, reset, or clean a checkout, and it does
 not read `~/.mempalace`.
+The MemPalace mine runs through [`mempalace_fast_mine.py`](../mempalace_fast_mine.py),
+which speeds up sqlite_exact writes about 4.8x on large palaces.
 
 ```text
 python3 .chaos-engine/tool.py stores refresh --if-stale
