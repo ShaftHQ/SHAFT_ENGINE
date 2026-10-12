@@ -44,10 +44,10 @@ playbooks. Before the first push of **any** human PR:
    Governance reads live PR labels when the event payload has none.
    Docs, skills and harness-only PRs take `skip-release-notes`. A supplemental
    label (`dependencies`) is not a classification. If
-   `gh pr edit --add-label`/`--remove-label` fails (Projects (classic) GraphQL
-   error), use REST `gh api -X POST|DELETE repos/<owner>/<repo>/issues/<n>/labels...`
-   and check `gh pr view <n> --json labels`. Then push a commit:
-   `gh run rerun` replays the old labels.
+   `gh pr edit --add-label` or `--remove-label` fails (a Projects (classic)
+   GraphQL error), use REST `gh api -X POST` (or `-X DELETE .../labels/<label>`)
+   on `repos/<owner>/<repo>/issues/<n>/labels`, then push a commit (a rerun
+   keeps the old labels).
    A `chaos-engine/` push runs the portable-core path check first.
 2. Confirm the active profile's language rules (for example exhaustive
    `switch` defaults) before the first push.
