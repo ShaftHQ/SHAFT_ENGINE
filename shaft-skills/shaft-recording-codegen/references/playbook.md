@@ -18,6 +18,8 @@
 - Generate WebDriver Java with `shaft-cli codegen --session recordings/checkout.json --backend webdriver`, then integrate only the missing page method.
 - Call `capture_generate_replay` for a persisted mobile recording with backend `mobile` and review compilation/replay evidence.
 - Call `capture_record_at_target_code_blocks` against an existing `LoginPage` anchor after the coding-partner plan identifies it.
+- Do not generate `tapByCoordinates` or `mobile_tap_coordinates` from a recording.
+- Replay-proven code is required before a mobile tap snippet is treated as done.
 - Generate SHAFT.API blocks with `capture_api_generate` after reviewing sensitive and volatile response leaves.
 
 ## Boundary

@@ -23,5 +23,6 @@
 ## Boundary
 
 - This skill identifies and verifies elements; route page ownership to `shaft-page-objects`, action composition to `shaft-web-actions` or `shaft-mobile-actions`, and code insertion to `shaft-change-verification`.
+- Mobile identity still follows the three locator tiers; coordinates are not a tier.
 
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

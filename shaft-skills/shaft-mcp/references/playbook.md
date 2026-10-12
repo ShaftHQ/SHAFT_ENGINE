@@ -29,4 +29,14 @@ transcript. Exact names live in the [generated MCP catalog](../../references/sha
 
 - For CI scripts, repeatable one-shot commands, offline tool discovery, or persisted-recording code generation, route to `shaft-cli`; MCP is not required merely because CLI delegates to the same tools.
 
+## MCP usage (#6909)
+
+- Use locator tap or `element_click` for mobile controls; do not call `mobile_tap_coordinates` to finish a flow.
+- Initialize `mobile_native` before mobile tools on a native session.
+- Read `isError` and warnings before the next MCP call.
+- Keep one MCP client for the whole stateful sequence.
+- Redact tokens from tool output before repeating it.
+- Close with `driver_quit` when the task owns the driver.
+- `mobile_tap_coordinates` is not a success path.
+
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

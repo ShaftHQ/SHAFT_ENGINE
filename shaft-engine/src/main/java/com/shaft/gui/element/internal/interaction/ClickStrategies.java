@@ -65,36 +65,34 @@ public final class ClickStrategies {
         } catch (InvalidElementStateException firstFailure) {
             if (mobileNativeTouchFallback) {
                 retryMobileNativeClick(driver, element);
-                return;
-            }
-            if (windowsDesktop) {
+            } else if (windowsDesktop) {
                 retryWindowsDesktopClick(driver, element);
-                return;
-            }
-            stabilize(driver, element);
-            try {
-                element.click();
-            } catch (InvalidElementStateException retryFailure) {
-                if (javascriptFallbackEnabled && driver instanceof JavascriptExecutor executor) {
-                    executor.executeScript(JS_CLICK, element);
-                    ReportManager.logDiscrete(
-                            "Performed Click using JavaScript; If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
-                } else {
-                    throw retryFailure;
+            } else {
+                stabilize(driver, element);
+                try {
+                    element.click();
+                } catch (InvalidElementStateException retryFailure) {
+                    if (javascriptFallbackEnabled && driver instanceof JavascriptExecutor executor) {
+                        executor.executeScript(JS_CLICK, element);
+                        ReportManager.logDiscrete(
+                                "Performed Click using JavaScript; If the report is showing that the click passed but you observe that no action was taken, we recommend trying a different element locator.");
+                    } else {
+                        throw retryFailure;
+                    }
                 }
             }
         } catch (RuntimeException firstFailure) {
             // Broader than web: Appium often wraps click flakes outside InvalidElementStateException.
             if (mobileNativeTouchFallback) {
                 retryMobileNativeClick(driver, element);
-                return;
-            }
-            if (windowsDesktop) {
+            } else if (windowsDesktop) {
                 retryWindowsDesktopClick(driver, element);
-                return;
+            } else {
+                throw firstFailure;
             }
-            throw firstFailure;
         }
+        // iOS XCUITest can return from element.click() while hittable=false and the control never runs.
+        IosNonHittableTap.afterReportedClick(driver, element);
     }
 
     private static void retryMobileNativeClick(WebDriver driver, WebElement element) {

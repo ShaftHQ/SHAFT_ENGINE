@@ -5,7 +5,7 @@
 1. Declare platform, OS version, device/emulator, app/build, orientation, locale, permissions, and native/mobile-web scope before implementation. [`APPIUM`, `ANDROID-TESTING`]
 2. Follow the project's SHAFT mobile driver setup; for MCP, initialize `mobile_native` or `mobile_web` with `driver_initialize` before mobile actions or recording. [`SHAFT-GUIDE`, `SHAFT-MCP`]
 3. Inspect available contexts with `mobile_get_contexts` and switch explicitly with `mobile_switch_context`; do not apply native locators to a webview or vice versa. [`APPIUM`]
-4. Prefer accessibility IDs, roles, labels, and verified element locators; use `mobile_tap_coordinates` only after locator-based `element_click` cannot work. [`APPIUM`, `W3C-WCAG22`]
+4. Tap with `driver.touch().tap(locator)`. Coordinate taps are forbidden. File silent no-ops upstream. Prefer accessibility IDs and the SHAFT locator builder. [`APPIUM`, `W3C-WCAG22`]
 5. Use the smallest gesture matching intent through `driver.touch()` or exact MCP tools; bound swipes by element, container, direction, or text where possible. [`SHAFT-GUIDE`, `APPIUM`]
 6. Treat rotation, keyboard actions, backgrounding, activation, permissions, and app state as explicit test steps with observable outcomes. [`ANDROID-TESTING`, `ISTQB-CTFL`]
 7. Avoid sleeps; wait on visible, enabled, selected, context, or application-state evidence through SHAFT actions and assertions. [`SHAFT-GUIDE`, `APPIUM`]
@@ -25,5 +25,15 @@
 ## Boundary
 
 - Do not open emulators, Inspector, devices, or visible sessions without approval; route recording to `shaft-test-recording` and locator ranking to `shaft-locator-design`.
+
+## Hittable taps (#6909)
+
+- Tap with `driver.touch().tap(locator)`.
+- Coordinate taps are forbidden.
+- File silent no-ops upstream.
+- Record XCUITest or UiAutomator2 before choosing a gesture.
+- A non-hittable iOS element is not a passed tap.
+- `driver.element().click(locator)` and `driver.touch().tap(locator)` share one hittable outcome.
+- Do not report pass when the page source is unchanged after a non-hittable tap.
 
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).
