@@ -185,4 +185,49 @@ public class ElementClassifierTest {
         when(element.getDomAttribute("aria-disabled")).thenReturn("true");
         return element;
     }
+
+    @Test(description = "Issue #6833: native Android classification reads only native signals, once each, and never web-only attributes")
+    public void nativeSessionsReadOnlyNativeSignalsOnce() {
+        String originalPlatform = com.shaft.driver.SHAFT.Properties.platform.targetPlatform();
+        com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform("Android");
+        try {
+            WebElement button = mock(WebElement.class);
+            when(button.getTagName()).thenReturn("android.widget.Button");
+            when(button.getDomAttribute("class")).thenReturn("android.widget.Button");
+            when(button.getDomAttribute("enabled")).thenReturn("true");
+            Assert.assertEquals(ElementClassifier.classify(button), ElementKind.BUTTON);
+
+            WebElement disabled = mock(WebElement.class);
+            when(disabled.getTagName()).thenReturn("android.widget.Button");
+            when(disabled.getDomAttribute("class")).thenReturn("android.widget.Button");
+            when(disabled.getDomAttribute("enabled")).thenReturn("false");
+            Assert.assertEquals(ElementClassifier.classify(disabled), ElementKind.DISABLED);
+
+            org.mockito.Mockito.verify(button, org.mockito.Mockito.times(1)).getDomAttribute("class");
+            org.mockito.Mockito.verify(button, org.mockito.Mockito.times(1)).getDomAttribute("enabled");
+            org.mockito.Mockito.verify(button, org.mockito.Mockito.never()).getAttribute(anyString());
+            org.mockito.Mockito.verify(button, org.mockito.Mockito.never()).getDomProperty(anyString());
+            for (String webOnly : new String[]{"type", "role", "contenteditable", "disabled", "readonly",
+                    "aria-disabled", "autocomplete", "mask", "data-mask", "data-inputmask", "data-input-mask"}) {
+                org.mockito.Mockito.verify(button, org.mockito.Mockito.never()).getDomAttribute(webOnly);
+            }
+        } finally {
+            com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform(originalPlatform);
+        }
+    }
+
+    @Test(description = "Issue #6833: a failed native attribute read is not retried through getAttribute")
+    public void nativeAttributeFailureIsNotRetried() {
+        String originalPlatform = com.shaft.driver.SHAFT.Properties.platform.targetPlatform();
+        com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform("Android");
+        try {
+            WebElement element = mock(WebElement.class);
+            when(element.getTagName()).thenReturn("android.widget.EditText");
+            when(element.getDomAttribute(anyString())).thenThrow(new org.openqa.selenium.WebDriverException("unknown attribute"));
+            ElementClassifier.classify(element);
+            org.mockito.Mockito.verify(element, org.mockito.Mockito.never()).getAttribute(anyString());
+        } finally {
+            com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform(originalPlatform);
+        }
+    }
 }

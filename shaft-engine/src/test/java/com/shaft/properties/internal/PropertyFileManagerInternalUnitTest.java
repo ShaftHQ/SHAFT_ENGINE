@@ -17,6 +17,18 @@ public class PropertyFileManagerInternalUnitTest {
         ThreadLocalPropertiesManager.clear();
     }
 
+    @Test(description = "Issue #6824: typed language and locale setters feed the Appium capability map")
+    public void typedLanguageAndLocaleSettersReachTheAppiumCapabilities() {
+        com.shaft.driver.SHAFT.Properties.mobile.set().language("ar").locale("EG");
+
+        var capabilities = PropertyFileManager.getAppiumDesiredCapabilities();
+
+        Assert.assertEquals(capabilities.get("mobile_language"), "ar");
+        Assert.assertEquals(capabilities.get("mobile_locale"), "EG");
+        Assert.assertEquals(com.shaft.driver.SHAFT.Properties.mobile.language(), "ar");
+        Assert.assertEquals(com.shaft.driver.SHAFT.Properties.mobile.locale(), "EG");
+    }
+
     @Test(description = "A Windows-style absolute mobile_app path must be left unchanged regardless of the host OS running the JVM")
     public void getAppiumDesiredCapabilitiesLeavesWindowsAbsolutePathUnchanged() {
         ThreadLocalPropertiesManager.setProperty("mobile_app", "C:\\Windows\\System32\\notepad.exe");

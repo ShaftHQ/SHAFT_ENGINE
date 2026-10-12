@@ -24,6 +24,7 @@ names live in the [generated MCP catalog](../../references/shaft-mcp-tools.md).
 - Run `shaft-cli call test_code_guardrails_check --args '{"language":"java","code":"..."}' --json` for a stateless machine-readable gate.
 - Start a persistent session before `shaft-cli call driver_initialize engine=web`, `shaft-cli call browser_navigate targetUrl=https://example.test`, and `shaft-cli call driver_quit`.
 - Generate code with `shaft-cli codegen --session recordings/checkout.json --backend webdriver` without starting MCP state.
+- `shaft-cli setup start` on Linux runs the managed Android emulator under a `systemd-run --user` cgroup capped at 8 GiB (`-Dshaft.android.emulator.memoryMaxGb=<n>`, `0` disables); the host `qemu` process can otherwise grow far beyond the AVD RAM. Restart the emulator between long suites.
 
 ## Boundary
 

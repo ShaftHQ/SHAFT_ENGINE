@@ -953,10 +953,13 @@ public class DriverFactoryHelper {
                     webDriverManager.get().quit(driver);
                     RecordManager.attachVideoRecording(pathToRecording);
                 } else {
-                    try {
-                        driver.close();
-                    } catch (Exception e) {
-                        ReportManagerHelper.logDiscrete(e, Level.DEBUG);
+                    if (!isMobileNativeExecution()) {
+                        // A native app session ends with quit only; DELETE /window answers 404 (#6830).
+                        try {
+                            driver.close();
+                        } catch (Exception e) {
+                            ReportManagerHelper.logDiscrete(e, Level.DEBUG);
+                        }
                     }
                     driver.quit();
                 }

@@ -23,6 +23,7 @@ transcript. Exact names live in the [generated MCP catalog](../../references/sha
 - Initialize `mobile_native`, inspect `mobile_get_accessibility_tree`, use `mobile_swipe`, then end with `driver_quit`.
 - Record an approved flow through `capture_start`, `capture_checkpoint`, `capture_status`, and `capture_stop` without losing recorder state.
 - Call stateless `shaft_guide_search` directly when the client already exposes its schema and the answer will guide an interactive task.
+- Check `mobile_toolchain_status` between long mobile suites: it warns when an emulator host process exceeds `-Dshaft.android.emulator.memoryWarnGb` (default 6) so the agent can plan a cold restart; managed emulators already start under an 8 GiB memory cap on Linux.
 
 ## Boundary
 

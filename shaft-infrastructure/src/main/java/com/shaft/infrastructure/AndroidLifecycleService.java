@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -119,6 +120,53 @@ final class AndroidLifecycleService {
         }
     }
 
+    /** System property that sets the emulator host-memory cap in GiB; {@code 0} disables the cap (#6825). */
+    static final String MEMORY_CAP_PROPERTY = "shaft.android.emulator.memoryMaxGb";
+    static final int DEFAULT_MEMORY_CAP_GB = 8;
+    private static final java.util.function.Supplier<Optional<String>> SYSTEMD_RUN_PROBE =
+            AndroidLifecycleService::probeSystemdRun;
+
+    /**
+     * Command prefix that starts the emulator in its own cgroup scope with a hard memory limit. A long
+     * Appium session can grow the host {@code qemu} process far beyond the AVD RAM; without a cap the
+     * kernel OOM killer takes the owning desktop session with it. The prefix is empty off Linux, when the
+     * cap is {@code 0}, or when {@code systemd-run --user} is unavailable, so startup never depends on it.
+     */
+    static List<String> memoryCapPrefix(String osName, String configuredGb, Optional<String> systemdRun) {
+        if (osName == null || !osName.toLowerCase(java.util.Locale.ROOT).contains("linux") || systemdRun.isEmpty()) {
+            return List.of();
+        }
+        int capGb = DEFAULT_MEMORY_CAP_GB;
+        if (configuredGb != null && !configuredGb.isBlank()) {
+            try {
+                capGb = Integer.parseInt(configuredGb.trim());
+            } catch (NumberFormatException ignored) {
+                capGb = DEFAULT_MEMORY_CAP_GB;
+            }
+        }
+        if (capGb <= 0) {
+            return List.of();
+        }
+        return List.of(systemdRun.orElseThrow(), "--user", "--scope", "--quiet",
+                "-p", "MemoryMax=" + capGb + "G", "-p", "MemorySwapMax=0");
+    }
+
+    private static Optional<String> probeSystemdRun() {
+        try {
+            Process probe = new ProcessBuilder("systemd-run", "--user", "--scope", "--quiet", "true")
+                    .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+            if (probe.waitFor(5, java.util.concurrent.TimeUnit.SECONDS) && probe.exitValue() == 0) {
+                return Optional.of("systemd-run");
+            }
+            probe.destroyForcibly();
+        } catch (IOException | RuntimeException ignored) {
+            // no systemd user manager: run the emulator uncapped
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+        return Optional.empty();
+    }
+
     private ManagedEnvironment startNew(SetupPlan plan, SetupReceipt receipt, SetupOptions options) throws IOException {
         requireAvailablePort(EMULATOR_CONSOLE_PORT, "Android emulator console");
         requireAvailablePort(EMULATOR_ADB_PORT, "Android emulator adb");
@@ -129,10 +177,13 @@ final class AndroidLifecycleService {
         AndroidOwnedProcess emulator = null;
         AndroidOwnedProcess appium = null;
         try {
-            emulator = runtime.start("emulator", List.of(layout.emulator().toString(), "-avd", request.avdName(),
+            List<String> emulatorCommand = new ArrayList<>(memoryCapPrefix(System.getProperty("os.name", ""),
+                    System.getProperty(MEMORY_CAP_PROPERTY), SYSTEMD_RUN_PROBE.get()));
+            emulatorCommand.addAll(List.of(layout.emulator().toString(), "-avd", request.avdName(),
                     "-port", Integer.toString(EMULATOR_CONSOLE_PORT), "-no-snapshot-save", "-no-boot-anim",
                     "-no-audio", "-no-window", "-memory", Integer.toString(request.ramMb()), "-cores",
-                    Integer.toString(request.cores())), layout.sdkRoot(), androidEnvironment, removed,
+                    Integer.toString(request.cores())));
+            emulator = runtime.start("emulator", emulatorCommand, layout.sdkRoot(), androidEnvironment, removed,
                     layout.emulatorLog());
             health.awaitEmulator(layout.serial(), layout, androidEnvironment, options.startupTimeout());
             URI endpoint = URI.create("http://127.0.0.1:" + request.appiumPort() + '/');

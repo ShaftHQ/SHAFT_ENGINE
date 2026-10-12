@@ -250,6 +250,14 @@ public class ValidationsExecutor {
                         var rectangle = driver.get().findElement(locator).getRect();
                         return new ElementRectangle(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
                     }, expectedValue, validationComparisonType, validationType);
+            case "elementEnabledEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "enabled",
+                            () -> driver.get().findElement(locator).isEnabled(), expectedValue,
+                            validationComparisonType, validationType);
+            case "elementDisplayedEquals" ->
+                    validationsHelper.validateElementValue(driver.get(), locator, "displayed",
+                            () -> driver.get().findElement(locator).isDisplayed(), expectedValue,
+                            validationComparisonType, validationType);
             case "elementAccessibleNameEquals" ->
                     validationsHelper.validateElementValue(driver.get(), locator, "accessible name",
                             () -> driver.get().findElement(locator).getAccessibleName(), expectedValue,
