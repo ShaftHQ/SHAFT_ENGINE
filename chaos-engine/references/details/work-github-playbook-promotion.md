@@ -36,3 +36,14 @@ closed registry rather than accepting a caller-supplied participant list. It
 writes one immutable root-owned schema-v2 completion. Stop hooks validate that
 artifact and never credit finalize command prose alone. Completions omit
 transcripts, private routes, model identities, credentials, and local paths.
+
+## History correction and gate waivers
+
+An owner-authorized history correction binds the expected remote tip and uses
+`git push --force-with-lease origin HEAD:<branch>`; unguarded `--force` is never
+safe. A rewrite-only gate waiver is machine-readable, names exact non-protected
+check IDs, the exact head SHA, replacement proof, owner review, and an expiry.
+It records `waived`, never `passed`. Security, ownership, corruption, rollback,
+secret-safety, installer acceptance, and confirmed correctness checks cannot be
+waived. An authorized merge bypass likewise records the obsolete checks waived
+and focused proofs observed; it must not represent remote checks as green.

@@ -156,6 +156,7 @@ sends you there; the rest by
 - [task isolation](../../chaos-engine/references/task-isolation.md)
 - [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
 - [reflection checkpoints](../../chaos-engine/references/reflection-checkpoints.md)
+- [rule retirement](../../chaos-engine/references/rule-retirement.md)
 - [cleanup scopes](../../chaos-engine/references/cleanup-scopes.md)
 - [harness learn](../../chaos-engine/references/harness-learn.md)
 - [learn traces](../../chaos-engine/references/learn-traces.md)

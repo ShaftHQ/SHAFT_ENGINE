@@ -724,6 +724,17 @@ def is_nested_install_artifact(relative: Path) -> bool:
     return bool(relative.parts) and relative.parts[0].startswith(".")
 
 
+def require_disjoint_trees(source: Path, project: Path) -> None:
+    """Reject a source that contains the project or sits inside it (#6868)."""
+    path = Path(__file__).resolve().with_name("harness_mindset.py")
+    spec = importlib.util.spec_from_file_location("chaos_engine_harness_mindset_install", path)
+    if spec is None or spec.loader is None:
+        raise ValueError("ChaosEngine source and project trees must be disjoint")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.require_disjoint_trees(source, project)
+
+
 def reject_nested_project(project: Path) -> None:
     """Refuse a project that is an overlay or a portable tree (#6225)."""
     if INSTALL_DIRECTORY in project.parts:
@@ -2681,8 +2692,7 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
             "git-digest",
         }:
             raise ValueError("ChaosEngine source record is invalid")
-    if source == project or source.is_relative_to(project) or project.is_relative_to(source):
-        raise ValueError("ChaosEngine source and project trees must be disjoint")
+    require_disjoint_trees(source, project)
     reject_nested_project(project)
 
     if (source / MANIFEST_NAME).exists():
@@ -3391,8 +3401,7 @@ def staged_candidate_host_controller(
 ):
     """Load preflight hosts only from an ownership-verified candidate stage."""
     source = source.resolve()
-    if source == project or source.is_relative_to(project) or project.is_relative_to(source):
-        raise ValueError("ChaosEngine source and project trees must be disjoint")
+    require_disjoint_trees(source, project)
     desired_source = normalize_source_record({"commit": commit, "kind": "local"})
     if source_record is not None:
         desired_source = normalize_source_record(source_record)
@@ -7031,6 +7040,14 @@ def format_health_report(document: dict[str, object], *, kind: str | None = None
         )
     if total:
         lines.append(f"components: {healthy}/{total} healthy")
+    usage = document.get("retrieveUsage")
+    if isinstance(usage, dict):
+        lines.append(f"retrieve hit use: {usage.get('cited', 0)}/{usage.get('records', 0)}")
+    prune = document.get("hostPrune")
+    if isinstance(prune, dict):
+        removed = prune.get("removed")
+        count = len(removed) if isinstance(removed, list) else 0
+        lines.append(f"host prune dry-run: {count} orphaned host entries")
     advisories = format_host_environment_findings(document)
     advisory_count = sum(1 for line in advisories if line.startswith("[info]"))
     if not failures:
@@ -7275,6 +7292,14 @@ def main() -> int:
             result = status_json(args.project)
         elif args.command == "doctor":
             result = status_json(args.project, active_probes=True)
+            followups = Path(__file__).resolve().with_name("harness_mindset.py")
+            followup_spec = importlib.util.spec_from_file_location(
+                "chaos_engine_harness_mindset_doctor", followups
+            )
+            if followup_spec is not None and followup_spec.loader is not None:
+                followup_module = importlib.util.module_from_spec(followup_spec)
+                followup_spec.loader.exec_module(followup_module)
+                result.update(followup_module.doctor_followups(args.project))
             legacy_packs = legacy_profile_layout(args.project / INSTALL_DIRECTORY)
             if legacy_packs:
                 result["migration"] = {"hardCut": hard_cut_message(legacy_packs)}

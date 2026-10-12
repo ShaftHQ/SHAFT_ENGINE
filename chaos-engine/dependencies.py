@@ -57,7 +57,7 @@ REQUIRED_DISPATCHES = {
     "memory",
     "memory-mcp",
 }
-PINNED_MEMPALACE_PACKAGE = "mempalace==3.8.0"
+PINNED_MEMPALACE_PACKAGE = "mempalace==3.10.0"
 PINNED_MEMPALACE_WITH = ("chromadb==1.5.9",)
 # Opt-in CLIs are never provisioned. A missing binary must not block account setup.
 OPTIONAL_ACCOUNT_DEPENDENCIES = frozenset({"deja"})

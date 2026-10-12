@@ -30,7 +30,7 @@ OFFICIAL_INSTALL_COMMANDS: dict[str, str] = {
         "CE vendor rematerialize: hosts.rematerialize_companions "
         "(chaos-engine/vendor/ponytail → plugins/ponytail/)"
     ),
-    "mempalace": "uv tool install --with chromadb==1.5.9 mempalace==3.8.0",
+    "mempalace": "uv tool install --with chromadb==1.5.9 mempalace==3.10.0",
     "graphify": "uv tool install --with tree-sitter-sql==0.3.11 graphifyy==0.9.43",
     "memory": "npm install -g @aictx/memory@0.2.1",
     "context7": "npm install -g ctx7@latest",
