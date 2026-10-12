@@ -43,7 +43,6 @@ public class IosNonHittableTapTest {
     private String browserName;
     private double identificationTimeout;
     private IOSDriver driver;
-    private RemoteWebElement element;
     private DriverFactoryHelper helper;
 
     @BeforeMethod
@@ -74,7 +73,7 @@ public class IosNonHittableTapTest {
     @Test
     public void elementClickAndTouchTapDoNotSucceedWhenIosElementIsNotHittable() {
         driver = mock(IOSDriver.class);
-        element = mock(RemoteWebElement.class);
+        RemoteWebElement element = mock(RemoteWebElement.class);
         when(element.getId()).thenReturn("login_iam_loginButton");
         when(element.getTagName()).thenReturn("XCUIElementTypeButton");
         when(element.isDisplayed()).thenReturn(true);
