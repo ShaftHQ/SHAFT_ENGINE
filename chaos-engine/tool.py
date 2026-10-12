@@ -236,6 +236,22 @@ def local_reinstall_command(project: Path) -> list[str]:
             "--source", str(snapshot), "--commit", commit]
 
 
+def refresh_runs_superseded_code(installed_root: Path, project: Path) -> bool:
+    """A live stores refresh started before the reinstall replaced stores.py keeps running old code."""
+    import json
+
+    lease_path = project / ".chaos-engine-state/jobs" / STORES_REFRESH_JOB / "lease.json"
+    stores = installed_root / "stores.py"
+    try:
+        lease = json.loads(lease_path.read_text(encoding="utf-8"))
+        installed_at = stores.stat().st_mtime
+    except (OSError, ValueError):
+        return False
+    if not isinstance(lease, dict) or lease.get("state") != "running":
+        return False
+    return float(lease.get("started_at") or 0) < installed_at
+
+
 def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
     """`tool.py maintain`: sync, reinstall, doctor, refresh, reload (#6377)."""
     project = shared_project_root(installed_root.resolve().parent)
@@ -249,6 +265,10 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
         print(error, file=sys.stderr)
         return 1
     for command in commands:
+        if STORES_REFRESH_JOB in command and refresh_runs_superseded_code(installed_root, project):
+            print("maintain: restarting stores refresh on the reinstalled code")
+            runner([sys.executable, str(installed_root / "tool.py"), "job", "stop", STORES_REFRESH_JOB],
+                   cwd=project, check=False)  # nosec B603 - fixed owned argv.
         completed = runner(command, cwd=project, check=False)  # nosec B603 - fixed owned argv.
         if STORES_REFRESH_JOB in command:
             if getattr(completed, "returncode", 0) != 0:
