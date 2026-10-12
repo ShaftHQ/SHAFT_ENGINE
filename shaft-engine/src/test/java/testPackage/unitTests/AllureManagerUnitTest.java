@@ -153,8 +153,10 @@ public class AllureManagerUnitTest {
         SHAFT.Validations.assertThat().object(configPath).isEqualTo(executionRoot.resolve("allurerc.yaml")).perform();
         SHAFT.Validations.assertThat().object(scriptContent).contains(configPath.toString()).perform();
         SHAFT.Validations.assertThat().object(scriptContent).contains(resultsDirectory.toString()).perform();
-        SHAFT.Validations.assertThat().object(configContent).contains(reportOutputDirectory.toString().replace("\\", "/")).perform();
-        SHAFT.Validations.assertThat().object(configContent).contains(executionRoot.resolve("target").resolve("history.jsonl").toString().replace("\\", "/")).perform();
+        // #6822: the config lives in the execution root and the CLI runs there, so paths are relative.
+        SHAFT.Validations.assertThat().object(configContent).contains("output: \"target/allure-report\"").perform();
+        SHAFT.Validations.assertThat().object(configContent).contains("historyPath: \"target/history.jsonl\"").perform();
+        SHAFT.Validations.assertThat().object(configContent).doesNotContain(executionRoot.toString().replace("\\", "/")).perform();
         SHAFT.Validations.assertThat().object(command).contains(configPath.toString()).perform();
         SHAFT.Validations.assertThat().object(command).contains(resultsDirectory.toString()).perform();
         SHAFT.Validations.assertThat().object(command).contains(reportOutputDirectory.toString()).perform();

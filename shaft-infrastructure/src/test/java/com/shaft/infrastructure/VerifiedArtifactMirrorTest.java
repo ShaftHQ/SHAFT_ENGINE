@@ -94,13 +94,19 @@ class VerifiedArtifactMirrorTest {
         return new Response(status, body);
     }
 
+    /**
+     * Rebinds the closed mirror's port and proves requests now reach the replacement listener.
+     * Nightly Windows runs timed out here (#6775): with SO_REUSEADDR Windows lets a second socket bind
+     * a port the closing mirror still holds, so the request could land on the dying listener. Bind
+     * exclusively with a short retry instead, and read the request before answering so the client never
+     * sees a reset from unread bytes.
+     */
     private static Response requestAfterPortReuse(URI uri, byte[] replacementBody) throws Exception {
-        try (ServerSocket replacement = new ServerSocket()) {
-            replacement.setReuseAddress(true);
-            replacement.bind(new InetSocketAddress(uri.getHost(), uri.getPort()));
+        try (ServerSocket replacement = bindWhenFree(new InetSocketAddress(uri.getHost(), uri.getPort()))) {
             ExecutorService responder = Executors.newSingleThreadExecutor();
             Future<?> response = responder.submit(() -> {
                 try (Socket connection = replacement.accept()) {
+                    readRequestHead(connection);
                     byte[] headers = ("HTTP/1.1 200 OK\r\nContent-Length: " + replacementBody.length
                             + "\r\nConnection: close\r\n\r\n").getBytes(StandardCharsets.US_ASCII);
                     connection.getOutputStream().write(headers);
@@ -114,11 +120,41 @@ class VerifiedArtifactMirrorTest {
                 return request(uri, "GET");
             } finally {
                 try {
-                    response.get(2, TimeUnit.SECONDS);
+                    response.get(5, TimeUnit.SECONDS);
                 } finally {
                     responder.shutdownNow();
                 }
             }
+        }
+    }
+
+    private static ServerSocket bindWhenFree(InetSocketAddress address) throws Exception {
+        boolean windows = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        while (true) {
+            ServerSocket socket = new ServerSocket();
+            try {
+                // Linux needs reuse to rebind past TIME_WAIT; on Windows it would allow a shared bind.
+                socket.setReuseAddress(!windows);
+                socket.bind(address);
+                return socket;
+            } catch (java.net.BindException stillHeld) {
+                socket.close();
+                if (System.nanoTime() > deadline) {
+                    throw stillHeld;
+                }
+                Thread.sleep(100);
+            }
+        }
+    }
+
+    private static void readRequestHead(Socket connection) throws java.io.IOException {
+        java.io.InputStream input = connection.getInputStream();
+        int matched = 0;
+        byte[] terminator = {'\r', '\n', '\r', '\n'};
+        int next;
+        while (matched < terminator.length && (next = input.read()) != -1) {
+            matched = next == terminator[matched] ? matched + 1 : (next == '\r' ? 1 : 0);
         }
     }
 

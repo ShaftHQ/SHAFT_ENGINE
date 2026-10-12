@@ -46,6 +46,15 @@ public interface ElementAssertions {
     ValidationsExecutor matchesReferenceImage();
 
     /**
+     * Waits until the element is visually stable (two consecutive identical screenshots, bounded by the
+     * element timeout) and then validates that it matches its stored reference image (#6823). Backends
+     * whose screenshots already wait for stable rendering behave like {@link #matchesReferenceImage()}.
+     */
+    default ValidationsExecutor matchesReferenceImageWhenStable() {
+        return matchesReferenceImage();
+    }
+
+    /**
      * Validates that the element matches its stored reference image using the given visual engine.
      */
     ValidationsExecutor matchesReferenceImage(ValidationEnums.VisualValidationEngine visualValidationEngine);
