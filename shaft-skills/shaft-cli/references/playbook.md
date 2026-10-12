@@ -36,4 +36,12 @@ definition for MCP hosts it did not configure.
 - If the task is exploratory, already owns an MCP connection, needs direct schema-guided calls, or must keep live state without managing a CLI daemon, route to `shaft-mcp`.
 - Three-stage CLI families (#5943): `shaft design` (Design), `shaft capture` + offline `shaft codegen` (Automation), `shaft report` + `shaft doctor` (Reporting). Healing belongs to Reporting (Stage 3), not record/codegen.
 
+## CLI usage (#6909)
+
+- Prefer `shaft-cli call` for a stateless tool so the MCP schema is not loaded.
+- Ask `shaft-cli tools --cached` before a live tool listing, and do not paste the live listing into the chat.
+- Generated mobile Java taps with `driver.touch().tap(locator)` and never `tapByCoordinates`.
+- Prefer the checked-in catalog over dumping `shaft-cli tools` live output into the chat.
+- Inside a `shaft-cli session`, mobile taps still use a locator, not viewport coordinates.
+
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

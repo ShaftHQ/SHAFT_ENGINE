@@ -18,6 +18,8 @@
 - Diagnose a `NoSuchElementException` by checking frame, state, locator uniqueness, timing trace, and recent UI changes.
 - Distinguish an API assertion failure caused by changed product behavior from stale expected data or a broken dependency.
 - Show that an empty `allure-results` directory means execution is unproven despite a stale generated report saying passed.
+- A later assertion timeout can hide a no-op tap; inspect the tap step before widening the wait.
+- Do not replace a silent no-op with a coordinate workaround.
 
 ## Boundary case
 

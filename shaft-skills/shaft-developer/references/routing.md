@@ -107,3 +107,19 @@ Use MCP `doctor_cause_label` / CLI `shaft doctor cause-label` to confirm or sugg
 - `report_smart_tags` / `shaft report tags` — New / Always-failing / Flaky / Regressed / Fixed (#5975).
 - `report_mute` / `shaft report mute|unmute|mutes` — local flake mute with recover lifecycle (#5974).
 - Exact tool names for CI shard merge stay on `shaft call report_merge_shards` (no curated alias).
+
+## Token use and completeness (#6909)
+
+The captured list is [efficiency-contract.md](../../references/efficiency-contract.md).
+
+- Load one specialist SKILL.md and its playbook; do not open a second skill in the same turn.
+- Do not paste MCP JSON schemas into the prompt; call the tool by its exact name.
+- Return a bounded result summary, not raw page source, accessibility XML, or screenshot bytes.
+- Do not load ce-pack mastery chapters unless the selected playbook names that chapter.
+- Keep the skill description inside the context budget; do not duplicate a playbook inside SKILL.md.
+- Stop reading a playbook once the matching practice is found.
+- A completed mobile or web action names the SHAFT API, the evidence that proves it, and the failure to report.
+- Assertion text names the element and the expected state.
+- Do not load every shaft-skills playbook for completeness.
+- Never copy session auth tokens from a bug report into logs, commits, or skills.
+- When the first unique locator tier matches, stop; do not add a coordinate fallback.

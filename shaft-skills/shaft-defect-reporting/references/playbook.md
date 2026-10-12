@@ -18,6 +18,8 @@
 - Report checkout accepting an expired card with build, browser, seeded user, minimal steps, response evidence, and payment risk.
 - Report an API returning 500 instead of the contracted 400 for one malformed boundary payload.
 - Report a keyboard trap in a modal with the violated WCAG criterion, focus sequence, video or trace, and user impact.
+- Strip `auth_token` and other query credentials from defect evidence before filing.
+- A coordinate tap that works on a device is diagnosis only, not the fix.
 
 ## Boundary case
 

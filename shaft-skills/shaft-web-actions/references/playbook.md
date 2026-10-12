@@ -13,6 +13,9 @@
 9. Capture screenshots, DOM, network, or trace evidence only when it improves diagnosis, and redact sensitive values. [`SHAFT-REPORTING`, `ALLURE-RESULTS`]
 10. Guardrail-check generated Java and run the smallest headless focused test across the intended browser/backend before completion. [`SHAFT-MCP`, `ISTQB-CTFL`]
 
+Native iOS and Android taps belong to shaft-mobile-actions, not this web playbook.
+An action that returns without an exception is not proof the control fired.
+
 ## Valid examples
 
 - Navigate with `driver.browser().navigateToURL(baseUrl)` and assert the expected URL or page marker.
