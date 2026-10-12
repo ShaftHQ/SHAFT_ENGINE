@@ -55,6 +55,7 @@
 <li><a href="#exists()" tabindex="0">exists()</a></li>
 <li><a href="#doesNotExist()" tabindex="0">doesNotExist()</a></li>
 <li><a href="#matchesReferenceImage()" tabindex="0">matchesReferenceImage()</a></li>
+<li><a href="#matchesReferenceImageWhenStable()" tabindex="0">matchesReferenceImageWhenStable()</a></li>
 <li><a href="#matchesReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)" tabindex="0">matchesReferenceImage(ValidationEnums.VisualValidationEngine)</a></li>
 <li><a href="#doesNotMatchReferenceImage()" tabindex="0">doesNotMatchReferenceImage()</a></li>
 <li><a href="#doesNotMatchReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)" tabindex="0">doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine)</a></li>
@@ -228,39 +229,45 @@ engine.</div>
 <div class="block">Validates that the element matches its stored reference image using the given visual engine.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#matchesScreenshot()" class="member-name-link">matchesScreenshot</a>()</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#matchesReferenceImageWhenStable()" class="member-name-link">matchesReferenceImageWhenStable</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
-<div class="block">Asserts that the element matches its baseline screenshot.</div>
+<div class="block">Waits until the element is visually stable (two consecutive identical screenshots, bounded by the
+element timeout) and then validates that it matches its stored reference image (#6823).</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#matchesScreenshot(com.shaft.validation.VisualComparisonOptions)" class="member-name-link">matchesScreenshot</a><wbr>(<a href="../../validation/VisualComparisonOptions.html" title="class in com.shaft.validation">VisualComparisonOptions</a>&nbsp;options)</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#matchesScreenshot()" class="member-name-link">matchesScreenshot</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="block">Asserts that the element matches its baseline screenshot.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#matchesScreenshot(com.shaft.validation.VisualComparisonOptions)" class="member-name-link">matchesScreenshot</a><wbr>(<a href="../../validation/VisualComparisonOptions.html" title="class in com.shaft.validation">VisualComparisonOptions</a>&nbsp;options)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Asserts that the element matches its baseline screenshot, using the given diff-budget/mask
 options (see <a href="../../validation/VisualComparisonOptions.html" title="class in com.shaft.validation"><code>VisualComparisonOptions</code></a>).</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ocrText()" class="member-name-link">ocrText</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ocrText()" class="member-name-link">ocrText</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Recognizes the target element screenshot and starts a native string assertion.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ocrText(com.shaft.gui.ocr.OcrOptions)" class="member-name-link">ocrText</a><wbr>(<a href="../ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;options)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#ocrText(com.shaft.gui.ocr.OcrOptions)" class="member-name-link">ocrText</a><wbr>(<a href="../ocr/OcrOptions.html" title="class in com.shaft.gui.ocr">OcrOptions</a>&nbsp;options)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
 <div class="block">Recognizes the target element screenshot with explicit OCR options.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#property(java.lang.String)" class="member-name-link">property</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#property(java.lang.String)" class="member-name-link">property</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;domProperty)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Validates the given element property.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#text()" class="member-name-link">text</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#text()" class="member-name-link">text</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Validates the element text.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#textTrimmed()" class="member-name-link">textTrimmed</a>()</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="../../validation/internal/NativeValidationsBuilder.html" title="class in com.shaft.validation.internal">NativeValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#textTrimmed()" class="member-name-link">textTrimmed</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Validates the element text with surrounding whitespace removed.</div>
 </div>
 </div>
@@ -337,6 +344,17 @@ options (see <a href="../../validation/VisualComparisonOptions.html" title="clas
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="return-type"><a href="../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">matchesReferenceImage</span>()</div>
 <div class="block">Validates that the element matches its stored reference image.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="matchesReferenceImageWhenStable()">
+<h3>matchesReferenceImageWhenStable</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">default</span>&nbsp;<span class="return-type"><a href="../../validation/internal/ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">matchesReferenceImageWhenStable</span>()</div>
+<div class="block">Waits until the element is visually stable (two consecutive identical screenshots, bounded by the
+element timeout) and then validates that it matches its stored reference image (#6823). Backends
+whose screenshots already wait for stable rendering behave like <a href="#matchesReferenceImage()"><code>matchesReferenceImage()</code></a>.</div>
 </div>
 </section>
 </li>

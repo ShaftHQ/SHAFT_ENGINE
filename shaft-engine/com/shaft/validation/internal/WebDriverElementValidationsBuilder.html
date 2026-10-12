@@ -62,6 +62,8 @@
 <li><a href="#exists()" tabindex="0">exists()</a></li>
 <li><a href="#doesNotExist()" tabindex="0">doesNotExist()</a></li>
 <li><a href="#matchesReferenceImage()" tabindex="0">matchesReferenceImage()</a></li>
+<li><a href="#matchesReferenceImageWhenStable(java.time.Duration)" tabindex="0">matchesReferenceImageWhenStable(Duration)</a></li>
+<li><a href="#matchesReferenceImageWhenStable()" tabindex="0">matchesReferenceImageWhenStable()</a></li>
 <li><a href="#matchesReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)" tabindex="0">matchesReferenceImage(ValidationEnums.VisualValidationEngine)</a></li>
 <li><a href="#doesNotMatchReferenceImage()" tabindex="0">doesNotMatchReferenceImage()</a></li>
 <li><a href="#doesNotMatchReferenceImage(com.shaft.validation.ValidationEnums.VisualValidationEngine)" tabindex="0">doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine)</a></li>
@@ -253,6 +255,18 @@ using partial-subset semantics (see <a href="../../gui/internal/aria/AriaSnapsho
 <div class="block">Use this to check that the target element matches a reference image.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesReferenceImageWhenStable()" class="member-name-link">matchesReferenceImageWhenStable</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block"><a href="#matchesReferenceImageWhenStable(java.time.Duration)"><code>matchesReferenceImageWhenStable(java.time.Duration)</code></a> bounded by the configured element
+identification timeout.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesReferenceImageWhenStable(java.time.Duration)" class="member-name-link">matchesReferenceImageWhenStable</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Waits until the element looks the same in two consecutive screenshots, then validates that it
+matches its stored reference image (#6823).</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#matchesScreenshot()" class="member-name-link">matchesScreenshot</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Use this to check that the target element matches its visual-regression baseline screenshot
@@ -436,6 +450,40 @@ The reference images are stored under src/test/resources/DynamicObjectRepository
 <dd><code><a href="../../gui/driver/ElementAssertions.html#matchesReferenceImage()">matchesReferenceImage</a></code>&nbsp;in interface&nbsp;<code><a href="../../gui/driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
 <dt>Returns:</dt>
 <dd>a ValidationsExecutor object retained for source compatibility</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="matchesReferenceImageWhenStable(java.time.Duration)">
+<h3>matchesReferenceImageWhenStable</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">matchesReferenceImageWhenStable</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</span></div>
+<div class="block">Waits until the element looks the same in two consecutive screenshots, then validates that it
+matches its stored reference image (#6823). Use it for animated elements (splash, launch,
+onboarding backgrounds) whose first frame differs from the settled one. When the element does
+not settle within <code>timeout</code>, the comparison still runs on the latest frame.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>timeout</code> - maximum time to wait for visual stability</dd>
+<dt>Returns:</dt>
+<dd>a <a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal"><code>ValidationsExecutor</code></a> for the performed comparison</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="matchesReferenceImageWhenStable()">
+<h3>matchesReferenceImageWhenStable</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">matchesReferenceImageWhenStable</span>()</div>
+<div class="block"><a href="#matchesReferenceImageWhenStable(java.time.Duration)"><code>matchesReferenceImageWhenStable(java.time.Duration)</code></a> bounded by the configured element
+identification timeout.</div>
+<dl class="notes">
+<dt>Specified by:</dt>
+<dd><code><a href="../../gui/driver/ElementAssertions.html#matchesReferenceImageWhenStable()">matchesReferenceImageWhenStable</a></code>&nbsp;in interface&nbsp;<code><a href="../../gui/driver/ElementAssertions.html" title="interface in com.shaft.gui.driver">ElementAssertions</a></code></dd>
+<dt>Returns:</dt>
+<dd>a <a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal"><code>ValidationsExecutor</code></a> for the performed comparison</dd>
 </dl>
 </div>
 </section>
