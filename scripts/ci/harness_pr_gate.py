@@ -964,11 +964,13 @@ SURFACE_PATTERNS = {
     # #6524-#6529: durable jobs outlive agent-session kills; one worker per job.
     "durable-jobs": (
         "chaos-engine/jobs.py",
+        "chaos-engine/task_ledger.py",
         "chaos-engine/tool.py",
         "chaos-engine/references/durable-jobs.md",
         "chaos-engine/skills/chaos-engine/SKILL.md",
         "chaos-engine/addons/design-skills/references/pipelines/runbook.md",
         "tests/scripts/test_ce_jobs.py",
+        "tests/scripts/test_ce_task_ledger.py",
     ),
     "visual-ocr-workflow": (
         ".github/workflows/e2eTests.yml",
