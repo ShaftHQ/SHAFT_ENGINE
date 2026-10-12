@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import subprocess  # nosec B404 - temp git repo only.
 import tempfile
 import unittest
 import uuid
@@ -195,6 +196,19 @@ NODE install [src=chaos-engine/install.py loc=L12]
         excerpt = retrieve._bounded_excerpt(body)
         self.assertNotIn("--budget", excerpt)
         self.assertIn("TRUNCATED", excerpt)
+
+    def test_mempalace_source_basenames_resolve_to_unique_repo_paths(self):
+        retrieve = load("chaos-engine/retrieve.py", "retrieve_source_hits")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            subprocess.run(["git", "init", "-q"], cwd=project, check=True)  # nosec B603 B607
+            for relative in ("a/Unique.java", "a/Dup.java", "b/Dup.java"):
+                (project / relative).parent.mkdir(parents=True, exist_ok=True)
+                (project / relative).write_text("x", encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=project, check=True)  # nosec B603 B607
+            body = "  [1] w / r\n      Source: Unique.java\n  [2] w / r\n      Source: Dup.java\n"
+            self.assertEqual([{"path": "a/Unique.java"}], retrieve._source_name_hits(project, body))
+            self.assertEqual([], retrieve._source_name_hits(project, "no sources here"))
 
     def test_graphify_citation_authorizes_a_second_read_and_denies_uncited(self):
         """Uncited reads run. A glob-only search owes a retrieve per session."""
