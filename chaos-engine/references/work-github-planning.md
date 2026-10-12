@@ -78,6 +78,9 @@ compaction. Do not treat a compacted context as a session end.
   scan the same run for in-JVM unit tests of that subsystem failing with `TimeoutException`.
   That signals shared-executor starvation (e.g. CDP handlers on virtual threads), not order.
   Pick `tests=` globs with `pkg/**/*Test*`; `pkg.*` skips subpackages.
+- Before closing out a nightly fix, list open `nightly-failure:` trackers (`gh issue list -l` per
+  workflow) and match their failing test lines; one root cause often breaks local and cloud jobs.
+  Link each with `Related to`, then confirm each owning workflow with its own run.
 
 ### Mid-session realignment: named HALT conditions
 
