@@ -424,7 +424,7 @@ jobs:
           }
       - name: Upload Appium server log
         if: always()
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: Windows_Appium_Desktop_Local_server_log
           path: ${{ runner.temp }}\appium-server.log
@@ -717,7 +717,7 @@ jobs:
           script: bash "$GITHUB_WORKSPACE/scripts/ci/run_ubuntu_flutter_emulator_e2e.sh"
       - name: Upload Appium server log
         if: always()
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: Ubuntu_Flutter_Emulator_Local_appium_log
           path: ${{ runner.temp }}/appium-server.log

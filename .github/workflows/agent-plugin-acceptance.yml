@@ -251,7 +251,7 @@ jobs:
           --output chaos-engine-live-installer-evidence.json
       - name: Upload live installer evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: chaos-engine-live-installer-${{ matrix.os }}
           path: chaos-engine-live-installer-evidence.json
@@ -332,7 +332,7 @@ jobs:
             --output agnix-conformance-evidence.json
       - name: Upload agnix conformance evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: agnix-conformance-evidence
           path: agnix-conformance-evidence.json
@@ -358,7 +358,7 @@ jobs:
           --output external-guardrail-corpus-evidence.json
       - name: Upload external guardrail evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: external-guardrail-corpus-evidence
           path: external-guardrail-corpus-evidence.json
@@ -398,7 +398,7 @@ jobs:
           --output agent-plugin-client-evidence.json
       - name: Upload structured compatibility evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: agent-plugin-live-acceptance-evidence
           path: agent-plugin-client-evidence.json
@@ -511,7 +511,7 @@ jobs:
           --output chaos-engine-promotion-evidence.json
       - name: Upload secret-free promotion evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: chaos-engine-promotion-evidence
           path: |
