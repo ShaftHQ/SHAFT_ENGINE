@@ -73,6 +73,9 @@ The local pre-push hook does not run the Agent Guidance Gate. Before pushing a
 reference or skill edit in the ChaosEngine source repository, run (repo-only)
 `python3 scripts/ci/harness_pr_gate.py --base "$(git merge-base HEAD origin/HEAD)" --head "$(git rev-parse HEAD)"` (repo-only;
 issue tags and bare angle-bracket placeholders in references fail it).
+Read every `status=failed` line of its output, not only the tail. Delete
+`.pytest_cache/` first; it and materialized overlay files fail two contracts
+only locally.
 An older overlay can record a git-digest source without a repository; its
 `maintain` then stops at "repository must be an explicit GitHub
 owner/repository" after the fast-forward. Reinstall once with
