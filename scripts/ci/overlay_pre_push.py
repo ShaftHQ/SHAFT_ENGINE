@@ -15,6 +15,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts.ci.workflow_template_sync import stale_template_actions, touches_workflows  # noqa: E402
+
 PLAYBOOK = "chaos-engine/references/work-github-playbook.md"
 TIP_PREFLIGHT = "chaos-engine/skills/local-agency/scripts/tip_preflight.py"
 BYTE_BUDGET = 16384
@@ -265,6 +267,11 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
         failures.extend(release_note_label_failures(root))
     if any(path.replace("\\", "/").lstrip("./").startswith("chaos-engine/") for path in changed):
         failures.extend(portable_core_path_failures(root))
+    if any(touches_workflows(path) for path in changed):
+        failures.extend(
+            f"workflow template drift (#3798): {item}; sync shaft-engine/src/main/resources/examples/.github/workflows"
+            for item in stale_template_actions(root)
+        )
     if not any(touches_overlay_contract(path) for path in changed):
         return failures
     playbook = root / PLAYBOOK

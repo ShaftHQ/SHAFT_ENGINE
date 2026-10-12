@@ -42,7 +42,8 @@ playbooks. Before the first push of **any** human PR:
 1. Apply exactly one classification label in the same `gh pr create` step
    (`breaking-change`, `enhancement`, `bug`, or `skip-release-notes`).
    Governance reads live PR labels when the event payload has none.
-   Docs, skills and harness-only PRs take `skip-release-notes`. If
+   Docs, skills and harness-only PRs take `skip-release-notes`. A supplemental
+   label (`dependencies`) is not a classification. If
    `gh pr edit --add-label` fails (a Projects (classic) GraphQL error), add it
    with REST: `gh api -X POST repos/<owner>/<repo>/issues/<n>/labels -f 'labels[]=<label>'`,
    then confirm with `gh pr view <n> --json labels`.
@@ -61,11 +62,8 @@ playbooks. Before the first push of **any** human PR:
 5. Before stacking host-parity / harness follow-ons on an unmerged scaffold
    PR: merge the scaffold first **or** absorb it into the follow-on PR and
    close both together.
-
-
-N-run / flake-proof scripts must not treat process exit alone as green: after
-each proof invocation, require a zero failed count from the test reports. The
-profile playbooks name the report format and the helper.
+6. Prepare the next PR in its own `git worktree`. `git switch` with a dirty
+   tree silently carries edits onto the wrong branch.
 
 ## 5. Docs, catalog, and screenshots — only where real
 
