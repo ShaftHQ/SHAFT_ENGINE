@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
@@ -37,7 +36,7 @@ public final class CdpPassiveNetworkObserver implements AutoCloseable {
     static final long MAX_RESPONSE_BODY_BYTES = 1_048_576;
     private static final Duration BODY_TIMEOUT = Duration.ofSeconds(5);
     private final Map<String, Pending> pending = new ConcurrentHashMap<>();
-    private final ExecutorService workers = Executors.newVirtualThreadPerTaskExecutor();
+    private final ExecutorService workers = CdpWorkers.newPool("shaft-cdp-observer");
     private final HttpHandler handler;
     private final DevTools devTools;
     private volatile boolean closed;
