@@ -1,7 +1,8 @@
 name: Local E2E Tests
 
 concurrency:
-  group: e2e-local-tests-${{ github.ref }}
+  # #6775 bisects: parallel dispatches with different jobs/tests inputs, and dispatches vs the nightly, must not cancel each other.
+  group: e2e-local-tests-${{ github.ref }}-${{ github.event_name }}-${{ inputs.jobs }}-${{ inputs.tests }}
   cancel-in-progress: true
 
 on:
@@ -20,7 +21,8 @@ on:
         description: >-
           Maven -Dtest= selector, threaded into every selected job's Run
           tests step. Leave empty to keep each selected job's own default
-          selector unchanged.
+          selector unchanged. "pkg.*" matches only classes directly in pkg;
+          use "pkg/**/*Test*" for subpackages.
         required: false
         default: ''
 
