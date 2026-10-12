@@ -15,6 +15,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from scripts.ci.workflow_template_sync import stale_template_actions, touches_workflows  # noqa: E402
+
 PLAYBOOK = "chaos-engine/references/work-github-playbook.md"
 TIP_PREFLIGHT = "chaos-engine/skills/local-agency/scripts/tip_preflight.py"
 BYTE_BUDGET = 16384
@@ -256,6 +258,26 @@ def portable_core_path_failures(root: Path) -> list[str]:
     return [f"portable core path check failed: {detail}"]
 
 
+def ungated_script_module_failures(root: Path) -> list[str]:
+    """Refuse a new tests/scripts module that no harness PR-gate check selects (#6839).
+
+    Same check as ``UngatedScriptModuleGuardTest``; CI's Agent Guidance Gate fails on it otherwise.
+    """
+    gate = root / "tests/scripts/test_harness_pr_gate.py"
+    if not gate.is_file():
+        return []
+    import unittest
+
+    from tests.scripts.test_harness_pr_gate import UngatedScriptModuleGuardTest
+
+    result = unittest.TestResult()
+    unittest.defaultTestLoader.loadTestsFromTestCase(UngatedScriptModuleGuardTest).run(result)
+    if result.wasSuccessful():
+        return []
+    detail = (result.failures + result.errors)[0][1].strip().splitlines()[-1]
+    return [f"script test module not selected by harness_pr_gate (add it to scripts/ci/harness_pr_gate.py): {detail}"]
+
+
 def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
     """Return contract failures for one overlay diff. Empty means the push may proceed."""
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
@@ -265,6 +287,13 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
         failures.extend(release_note_label_failures(root))
     if any(path.replace("\\", "/").lstrip("./").startswith("chaos-engine/") for path in changed):
         failures.extend(portable_core_path_failures(root))
+    if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):
+        failures.extend(ungated_script_module_failures(root))
+    if any(touches_workflows(path) for path in changed):
+        failures.extend(
+            f"workflow template drift (#3798): {item}; sync shaft-engine/src/main/resources/examples/.github/workflows"
+            for item in stale_template_actions(root)
+        )
     if not any(touches_overlay_contract(path) for path in changed):
         return failures
     playbook = root / PLAYBOOK
