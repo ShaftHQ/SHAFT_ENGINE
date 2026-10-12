@@ -76,7 +76,7 @@ compaction. Do not treat a compacted context as a session end.
   Targeted `jobs` values must not close full-matrix trackers.
 - Full-suite-only failures (pass alone or in a small `tests=` selection): before bisecting,
   scan the same run for in-JVM unit tests of that subsystem failing with `TimeoutException`.
-  That signals shared-executor starvation (#6775: CDP handlers on virtual threads), not order.
+  That signals shared-executor starvation (e.g. CDP handlers on virtual threads), not order.
   Pick `tests=` globs with `pkg/**/*Test*`; `pkg.*` skips subpackages.
 
 ### Mid-session realignment: named HALT conditions
