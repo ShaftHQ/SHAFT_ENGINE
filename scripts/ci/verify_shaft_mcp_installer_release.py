@@ -345,7 +345,6 @@ def main() -> int:
         expected_skills_paths = {
             (root / ".agents" / "skills").resolve(),
             (root / ".claude" / "skills").resolve(),
-            (root / ".github" / "skills").resolve(),
         }
         if set(skills_paths) != expected_skills_paths:
             raise RuntimeError(f"Expected native SHAFT skill paths, got: {skills_paths}")

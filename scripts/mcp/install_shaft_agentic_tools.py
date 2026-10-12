@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import filecmp
 import json
 import os
 import platform
@@ -50,13 +51,18 @@ SHAFT_SKILLS_NATIVE_DIRECTORIES = {
     "codex": (".agents/skills",),
     "claude": (".claude/skills",),
     "claude-desktop": (".claude/skills",),
-    "copilot": (".github/skills",),
-    "copilot-intellij": (".github/skills",),
+    "copilot": (".agents/skills",),
+    "copilot-intellij": (".agents/skills",),
     "grok": (".agents/skills",),
     "antigravity": (".agents/skills",),
-    "intellij-plugin": (".agents/skills", ".claude/skills", ".github/skills"),
+    "intellij-plugin": (".agents/skills", ".claude/skills"),
 }
-SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES = (".agents/skills", ".claude/skills", ".github/skills")
+# One canonical copy (#6817): `.agents/skills` is read by Codex, Gemini, Grok, Antigravity and
+# Copilot (CLI/cloud/IDE). Claude Code reads only `.claude/skills`, so it is the one extra root.
+# `.github/skills` is retired: Copilot reads `.agents/skills` and first-found-wins duplicates drift.
+SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES = (".agents/skills", ".claude/skills")
+DEFAULT_KEPT_VERSIONS = 2
+RETIRED_SHAFT_SKILLS_NATIVE_DIRECTORIES = (".github/skills",)
 RETIRED_SHAFT_SKILL_DIRECTORIES = frozenset((
     "act-as-shaft-dev",
     "analyzing-shaft-failures",
@@ -428,11 +434,25 @@ def _probe_shaft_skills_status(record: dict[str, Any]) -> tuple[str, str | None]
     return "healthy", None
 
 
-def _probe_host_config_status(record: dict[str, Any]) -> tuple[str, str | None]:
+def _probe_host_config_status(record: dict[str, Any], receipt: dict[str, Any]) -> tuple[str, str | None]:
     detail = host_config_drift(record)
     if detail:
         return "recovery-required", detail
+    stale = host_config_staleness(record, receipt)
+    if stale:
+        return "stale", stale
     return "healthy", None
+
+
+def host_config_staleness(record: dict[str, Any], receipt: dict[str, Any]) -> str | None:
+    """A host entry that still launches an older versions/<v>/shaft-mcp.args is stale (#6819)."""
+    installed = str((receipt or {}).get("version") or "")
+    args_dir = Path(str(record.get("argsFile") or "")).parent
+    configured = args_dir.name if args_dir.parent.name == "versions" else ""
+    if installed and configured and configured != installed:
+        return (f"host configuration launches shaft-mcp {configured} but {installed} is installed; "
+                "repair host-config")
+    return None
 
 
 _COMPONENT_STATUS_PROBERS = {
@@ -440,7 +460,7 @@ _COMPONENT_STATUS_PROBERS = {
     "shaft-mcp": _probe_shaft_mcp_status,
     "shaft-cli": lambda record, _receipt: _probe_shaft_cli_status(record),
     "shaft-skills": lambda record, _receipt: _probe_shaft_skills_status(record),
-    "host-config": lambda record, _receipt: _probe_host_config_status(record),
+    "host-config": _probe_host_config_status,
 }
 
 
@@ -813,6 +833,17 @@ def build_install_parser() -> argparse.ArgumentParser:
         "--install-shaft-cli",
         action="store_true",
         help="Also install shaft-cli, a command-line client over the shaft-mcp tool set.",
+    )
+    parser.add_argument(
+        "--install-validation-scripts",
+        action="store_true",
+        help="Opt in to SHAFT's own agent-guidance validators (chaos-engine/, scripts/). Off by default.",
+    )
+    parser.add_argument(
+        "--keep-versions",
+        type=int,
+        default=DEFAULT_KEPT_VERSIONS,
+        help="Installed shaft-mcp/shaft-cli versions to keep after a successful install (default 2; 0 keeps all).",
     )
     for target, _ in TARGET_CHOICES:
         parser.add_argument(f"--{target}", action="store_true", dest=target.replace("-", "_"))
@@ -1671,9 +1702,44 @@ def install_shaft_skills(current_directory: Path, root: Path, client: str | None
         remove_retired_shaft_skills(target)
     source = local_shaft_skills_source()
     if source is not None:
-        return [copy_shaft_skills(source, target) for target in targets]
-    downloaded = download_shaft_skills_files(targets[0])
-    return [downloaded, *(copy_shaft_skills(downloaded, target) for target in targets[1:])]
+        installed = [copy_shaft_skills(source, target) for target in targets]
+    else:
+        downloaded = download_shaft_skills_files(targets[0])
+        installed = [downloaded, *(copy_shaft_skills(downloaded, target) for target in targets[1:])]
+    prune_retired_skill_copies(current_directory, installed[0])
+    return installed
+
+
+def _same_tree(left: Path, right: Path) -> bool:
+    """Whether two skill directories hold byte-identical files (no links followed)."""
+    if left.is_symlink() or right.is_symlink() or not left.is_dir() or not right.is_dir():
+        return False
+    left_files = sorted(p.relative_to(left).as_posix() for p in left.rglob("*") if p.is_file())
+    right_files = sorted(p.relative_to(right).as_posix() for p in right.rglob("*") if p.is_file())
+    if left_files != right_files or any(p.is_symlink() for p in left.rglob("*")):
+        return False
+    return all(filecmp.cmp(left / name, right / name, shallow=False) for name in left_files)
+
+
+def prune_retired_skill_copies(current_directory: Path, canonical: Path) -> list[Path]:
+    """Remove pack copies left in retired native roots (#6817).
+
+    Only a skill directory whose files are byte-identical to the canonical copy just installed
+    is removed, so user-owned or locally edited skills in those roots stay untouched."""
+    removed: list[Path] = []
+    for directory in RETIRED_SHAFT_SKILLS_NATIVE_DIRECTORIES:
+        retired_root = Path(os.path.abspath(current_directory)) / directory
+        if is_link_or_junction(retired_root) or not retired_root.is_dir():
+            continue
+        for skill in sorted(retired_root.iterdir()):
+            if _same_tree(skill, canonical / skill.name):
+                shutil.rmtree(skill)
+                removed.append(skill)
+        if not any(retired_root.iterdir()):
+            retired_root.rmdir()
+    for path in removed:
+        log(f"Removed duplicate SHAFT skill copy {path} (canonical copy: {canonical}).")
+    return removed
 
 
 def should_install_shaft_skills(args: argparse.Namespace, current_directory: Path) -> bool:
@@ -1710,6 +1776,198 @@ def write_text_with_replace(path: Path, content: str) -> None:
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     temporary.write_text(content, encoding="utf-8", newline="\n")
     os.replace(temporary, path)
+
+
+def _version_key(name: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in re.findall(r"\d+", name))
+
+
+def host_config_texts() -> str:
+    """Concatenated text of every known MCP host configuration, to spot versions still in use."""
+    texts = []
+    for client in TARGETS:
+        try:
+            path = host_config_path(client)
+            if path is not None and path.is_file():
+                texts.append(path.read_text(encoding="utf-8", errors="replace"))
+        except (InstallError, OSError, ValueError):
+            continue
+    return "\n".join(texts)
+
+
+def prune_old_versions(versions_dir: Path, protected: set[str], keep: int, referenced_text: str,
+                       *, dry_run: bool = False) -> list[Path]:
+    """Remove installed versions beyond the newest ``keep`` (#6820).
+
+    Never removes a protected version (current and the rollback one), a version a host config
+    still points at, or a linked directory; ``keep <= 0`` keeps everything."""
+    if keep <= 0 or not versions_dir.is_dir() or is_link_or_junction(versions_dir):
+        return []
+    candidates = sorted((p for p in versions_dir.iterdir() if p.is_dir() and not is_link_or_junction(p)),
+                        key=lambda p: _version_key(p.name), reverse=True)
+    kept = 0
+    removed: list[Path] = []
+    for version_dir in candidates:
+        if version_dir.name in protected or kept < keep:
+            kept += 1
+            continue
+        if str(version_dir) in referenced_text or f"/{version_dir.name}/" in referenced_text.replace("\\", "/"):
+            log(f"Kept {version_dir}: a host configuration still points at it (repair host-config to repoint).")
+            continue
+        if not dry_run:
+            shutil.rmtree(version_dir)
+        removed.append(version_dir)
+    return removed
+
+
+def prune_installed_versions(version: str | None, keep: int) -> list[Path]:
+    previous = {}
+    try:
+        previous = json.loads(previous_receipt_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        previous = {}
+    protected = {name for name in (version, str(previous.get("version") or ""),
+                                   str((read_receipt() or {}).get("version") or "")) if name}
+    referenced = host_config_texts()
+    removed = []
+    for root_dir in (application_data_root(), shaft_cli_application_data_root()):
+        removed += prune_old_versions(root_dir / "versions", protected, keep, referenced)
+    for path in removed:
+        log(f"Pruned old installed version {path}.")
+    return removed
+
+
+def install_shaft_cli_shim(wrapper: Path) -> Path | None:
+    """Put a stable ``shaft-cli`` on PATH (``~/.local/bin``) that follows upgrades (#6819)."""
+    if system_name() == "Windows":
+        return None
+    shim = home() / ".local" / "bin" / "shaft-cli"
+    if is_link_or_junction(shim):
+        log(f"Left existing linked {shim} untouched.")
+        return None
+    shim.parent.mkdir(parents=True, exist_ok=True)
+    write_text_with_replace(shim, f'#!/usr/bin/env sh\nexec "{wrapper}" "$@"\n')
+    shim.chmod(shim.stat().st_mode | 0o111)
+    if str(shim.parent) not in os.environ.get("PATH", "").split(os.pathsep):
+        log(f"Add {shim.parent} to PATH to run shaft-cli from any shell.")
+    return shim
+
+
+def maybe_install_validation_scripts(args: argparse.Namespace, current_directory: Path) -> Path | None:
+    """SHAFT's own guidance validators are opt-in and never land beside a ChaosEngine overlay (#6818)."""
+    if not getattr(args, "install_validation_scripts", False):
+        log("Skipped agent validation scripts (opt in with --install-validation-scripts).")
+        return None
+    if (current_directory / ".chaos-engine").is_dir():
+        log("Skipped agent validation scripts: this project uses the ChaosEngine overlay; a partial "
+            "chaos-engine/ copy would break its doctor (#6818).")
+        return None
+    if not has_agent_guidance_scaffold(current_directory):
+        log(f"Skipped agent validation scripts: no {AGENT_GUIDANCE_SCAFFOLD_MARKER} guidance "
+            f"scaffold found in {current_directory}.")
+        return None
+    log("Fetching agent validation script files...")
+    return download_agent_validation_script_files(current_directory)
+
+
+def configured_hosts_note(client: str | None, java: Path | None, args_file: Path | None) -> str:
+    """Say which host got shaft-mcp and give everyone else a paste-ready stdio definition (#6819)."""
+    definition = {SERVER_NAME: {"command": str(java), "args": [f"@{args_file}"]}}
+    return (f"Configured MCP hosts: {client}. Other assistants are not configured; their stdio "
+            f"definition is: {json.dumps(definition)}")
+
+
+def print_dry_run_plan(args: argparse.Namespace) -> None:
+    plan = {
+        "brand": BRAND_NAME,
+        "dryRun": True,
+        "installMcp": bool(args.install_mcp),
+        "client": args.client,
+        "installShaftCli": bool(args.install_shaft_cli),
+        "installShaftSkills": bool(getattr(args, "install_shaft_skills", False)),
+        "version": args.version,
+        "userGuide": GUIDE_URL,
+    }
+    if args.json:
+        print(json.dumps(plan, separators=(",", ":")))
+    else:
+        print(f"{BRAND_NAME} dry-run plan:")
+        for key, value in plan.items():
+            print(f"  {key}: {value}")
+
+
+def install_result(args: argparse.Namespace, version: str | None, java: Path | None, args_file: Path | None,
+                   skills_installed: bool, skills_path: Path, skills_paths: list[Path],
+                   validation_script_dir: Path | None, shaft_cli_launcher: Path | None) -> dict[str, Any]:
+    if args.install_mcp:
+        result = {
+            "client": args.client,
+            "server": SERVER_NAME,
+            "version": version,
+            "command": str(java),
+            "args": [f"@{args_file}"],
+            "mavenLocalRepository": str(maven_local_repository()),
+            "userGuide": USER_GUIDE_URL,
+            "shaftSkills": {
+                "installed": skills_installed,
+                "path": str(skills_path),
+                "paths": [str(path) for path in skills_paths],
+            },
+        }
+        if validation_script_dir:
+            result["agentValidationScript"] = {
+                "installed": True,
+                "path": str(validation_script_dir),
+            }
+        if shaft_cli_launcher:
+            result["shaftCli"] = {
+                "installed": True,
+                "launcher": str(shaft_cli_launcher),
+            }
+    else:
+        components = {}
+        if args.install_shaft_skills:
+            components["shaftSkills"] = {
+                "installed": skills_installed,
+                "path": str(skills_path),
+                "paths": [str(path) for path in skills_paths],
+            }
+        if validation_script_dir:
+            components["agentValidationScript"] = {
+                "installed": True,
+                "path": str(validation_script_dir),
+            }
+        if shaft_cli_launcher:
+            components["shaftCli"] = {"installed": True, "launcher": str(shaft_cli_launcher)}
+        result = {"components": components}
+    return result
+
+
+def print_install_summary(args: argparse.Namespace, result: dict[str, Any], version: str | None,
+                          java: Path | None, args_file: Path | None, skills_installed: bool, skills_path: Path,
+                          validation_script_dir: Path | None, shaft_cli_launcher: Path | None,
+                          receipt: dict[str, Any], receipt_file: Path) -> None:
+    if args.json:
+        print(json.dumps(result, separators=(",", ":")))
+    else:
+        if args.install_mcp:
+            action = "installed and ready for" if args.client == "intellij-plugin" else "installed and configured for"
+            print(f"shaft-mcp {version} is {action} {args.client}.")
+        if skills_installed:
+            print(f"SHAFT skills installed at {skills_path}.")
+            if validation_script_dir:
+                print(f"Agent validation script files installed at {validation_script_dir}.")
+        else:
+            print(f"SHAFT skills installation skipped for {skills_path}.")
+        if shaft_cli_launcher:
+            print(f"shaft-cli {version} installed; run it at {shaft_cli_launcher}")
+        if args.install_mcp:
+            print(activation_hint(args.client))
+            print(configured_hosts_note(args.client, java, args_file))
+            print(f"User guide: {USER_GUIDE_URL}")
+        print_component_table(receipt.get("components") or {})
+        print(f"Receipt    {receipt_file}")
+        print(f"Guide      {GUIDE_URL}")
 
 
 def write_shaft_cli_launcher(java: Path, jar: Path) -> Path:
@@ -2337,22 +2595,7 @@ def install(args: argparse.Namespace) -> None:
     jar = None
     shaft_cli_jar = None
     if dry_run:
-        plan = {
-            "brand": BRAND_NAME,
-            "dryRun": True,
-            "installMcp": bool(args.install_mcp),
-            "client": args.client,
-            "installShaftCli": bool(args.install_shaft_cli),
-            "installShaftSkills": bool(getattr(args, "install_shaft_skills", False)),
-            "version": args.version,
-            "userGuide": GUIDE_URL,
-        }
-        if args.json:
-            print(json.dumps(plan, separators=(",", ":")))
-        else:
-            print(f"{BRAND_NAME} dry-run plan:")
-            for key, value in plan.items():
-                print(f"  {key}: {value}")
+        print_dry_run_plan(args)
         return
     if args.install_mcp or args.install_shaft_cli:
         java = get_java25(root)
@@ -2382,6 +2625,7 @@ def install(args: argparse.Namespace) -> None:
         shaft_cli_jar = install_shaft_cli_jar(version, repository, root)
         overall_done += 1
         shaft_cli_launcher = write_shaft_cli_launcher(java, shaft_cli_jar)
+        install_shaft_cli_shim(shaft_cli_launcher)
 
     host_config = None
     if args.install_mcp and args.client != "intellij-plugin":
@@ -2399,55 +2643,11 @@ def install(args: argparse.Namespace) -> None:
         skills_paths = install_shaft_skills(current_directory, root, args.client)
         skills_path = skills_paths[0]
         skills_installed = True
-        if has_agent_guidance_scaffold(current_directory):
-            log("Fetching agent validation script files...")
-            validation_script_dir = download_agent_validation_script_files(current_directory)
-        else:
-            log(f"Skipped agent validation scripts: no {AGENT_GUIDANCE_SCAFFOLD_MARKER} guidance "
-                f"scaffold found in {current_directory}.")
+        validation_script_dir = maybe_install_validation_scripts(args, current_directory)
     else:
         log(f"Skipped SHAFT skills installation for {skills_path}.")
-    if args.install_mcp:
-        result = {
-            "client": args.client,
-            "server": SERVER_NAME,
-            "version": version,
-            "command": str(java),
-            "args": [f"@{args_file}"],
-            "mavenLocalRepository": str(maven_local_repository()),
-            "userGuide": USER_GUIDE_URL,
-            "shaftSkills": {
-                "installed": skills_installed,
-                "path": str(skills_path),
-                "paths": [str(path) for path in skills_paths],
-            },
-        }
-        if validation_script_dir:
-            result["agentValidationScript"] = {
-                "installed": True,
-                "path": str(validation_script_dir),
-            }
-        if shaft_cli_launcher:
-            result["shaftCli"] = {
-                "installed": True,
-                "launcher": str(shaft_cli_launcher),
-            }
-    else:
-        components = {}
-        if args.install_shaft_skills:
-            components["shaftSkills"] = {
-                "installed": skills_installed,
-                "path": str(skills_path),
-                "paths": [str(path) for path in skills_paths],
-            }
-        if validation_script_dir:
-            components["agentValidationScript"] = {
-                "installed": True,
-                "path": str(validation_script_dir),
-            }
-        if shaft_cli_launcher:
-            components["shaftCli"] = {"installed": True, "launcher": str(shaft_cli_launcher)}
-        result = {"components": components}
+    result = install_result(args, version, java, args_file, skills_installed, skills_path, skills_paths,
+                            validation_script_dir, shaft_cli_launcher)
     receipt = build_install_receipt(
         version=version,
         client=args.client,
@@ -2461,29 +2661,12 @@ def install(args: argparse.Namespace) -> None:
     )
     receipt_file = write_receipt(merge_with_previous_receipt(receipt), dry_run=False)
     clear_heal_handoff()
+    if version:
+        prune_installed_versions(version, getattr(args, "keep_versions", DEFAULT_KEPT_VERSIONS))
     result["brand"] = BRAND_NAME
     result["receipt"] = str(receipt_file)
-    if args.json:
-        print(json.dumps(result, separators=(",", ":")))
-    else:
-        if args.install_mcp:
-            action = "installed and ready for" if args.client == "intellij-plugin" else "installed and configured for"
-            print(f"shaft-mcp {version} is {action} {args.client}.")
-        if skills_installed:
-            print(f"SHAFT skills installed at {skills_path}.")
-            if validation_script_dir:
-                print(f"Agent validation script files installed at {validation_script_dir}.")
-        else:
-            print(f"SHAFT skills installation skipped for {skills_path}.")
-        if shaft_cli_launcher:
-            print(f"shaft-cli {version} installed; run it at {shaft_cli_launcher}")
-        if args.install_mcp:
-            print(activation_hint(args.client))
-            print(f"User guide: {USER_GUIDE_URL}")
-        print_component_table(receipt.get("components") or {})
-        print(f"Receipt    {receipt_file}")
-        print(f"Guide      {GUIDE_URL}")
-
+    print_install_summary(args, result, version, java, args_file, skills_installed, skills_path,
+                          validation_script_dir, shaft_cli_launcher, receipt, receipt_file)
 
 def main(argv: list[str]) -> int:
     try:

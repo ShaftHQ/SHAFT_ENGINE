@@ -3,6 +3,7 @@ import importlib.util
 import contextlib
 import hashlib
 import io
+import shutil
 import json
 import os
 import queue
@@ -790,11 +791,60 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertEqual([
                 (root / ".agents" / "skills").resolve(),
                 (root / ".claude" / "skills").resolve(),
-                (root / ".github" / "skills").resolve(),
             ], installed)
             for target in installed:
                 self.assertTrue((target / "shaft-developer" / "SKILL.md").is_file())
                 self.assertEqual(30, len(list(target.glob("*/SKILL.md"))))
+
+    def test_install_shaft_skills_prunes_identical_github_copies_but_keeps_user_skills(self):
+        # #6817: one canonical copy; stale `.github/skills` pack copies go, edited/user skills stay.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            first = MODULE.install_shaft_skills(root, root / "bootstrap", None)
+            legacy = root / ".github" / "skills"
+            shutil.copytree(first[0] / "shaft-developer", legacy / "shaft-developer")
+            shutil.copytree(first[0] / "shaft-mcp", legacy / "shaft-mcp")
+            (legacy / "shaft-mcp" / "SKILL.md").write_text("locally edited\n", encoding="utf-8")
+            (legacy / "my-skill").mkdir()
+            (legacy / "my-skill" / "SKILL.md").write_text("mine\n", encoding="utf-8")
+
+            MODULE.install_shaft_skills(root, root / "bootstrap", None)
+
+            self.assertFalse((legacy / "shaft-developer").exists())
+            self.assertTrue((legacy / "shaft-mcp" / "SKILL.md").is_file())
+            self.assertTrue((legacy / "my-skill" / "SKILL.md").is_file())
+
+    def test_copilot_uses_the_canonical_agents_skills_root(self):
+        self.assertEqual((".agents/skills",), MODULE.SHAFT_SKILLS_NATIVE_DIRECTORIES["copilot"])
+        self.assertNotIn(".github/skills", MODULE.SHAFT_SKILLS_ALL_NATIVE_DIRECTORIES)
+
+    def test_prune_old_versions_keeps_newest_protected_and_referenced(self):
+        # #6820
+        with tempfile.TemporaryDirectory() as temp_dir:
+            versions = Path(temp_dir) / "versions"
+            for name in ("10.3.20260824", "10.3.20260826", "10.4.20261003", "10.4.20261009", "10.4.20261010"):
+                (versions / name).mkdir(parents=True)
+            referenced = f"args = [\"@{versions / '10.3.20260826' / 'shaft-mcp.args'}\"]"
+            with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+                dry = MODULE.prune_old_versions(versions, {"10.4.20261010"}, 2, referenced, dry_run=True)
+                self.assertEqual(5, len(list(versions.iterdir())))
+                removed = MODULE.prune_old_versions(versions, {"10.4.20261010"}, 2, referenced)
+            self.assertEqual(dry, removed)
+            self.assertEqual(sorted(p.name for p in versions.iterdir()),
+                             ["10.3.20260826", "10.4.20261009", "10.4.20261010"])
+            self.assertEqual([], MODULE.prune_old_versions(versions, set(), 0, ""))
+
+    def test_host_config_pointing_at_older_version_is_stale(self):
+        # #6819
+        record = {"argsFile": "/x/shaft-mcp/versions/10.4.20261009/shaft-mcp.args"}
+        self.assertIn("10.4.20261009", MODULE.host_config_staleness(record, {"version": "10.4.20261010"}))
+        self.assertIsNone(MODULE.host_config_staleness(record, {"version": "10.4.20261009"}))
+
+    def test_validation_scripts_are_opt_in(self):
+        # #6818: AGENTS.md alone no longer pulls chaos-engine/ and scripts/ into a consumer project.
+        args = MODULE.build_install_parser().parse_args(["--install-shaft-skills"])
+        self.assertFalse(args.install_validation_scripts)
+        self.assertEqual(MODULE.DEFAULT_KEPT_VERSIONS, args.keep_versions)
 
     def test_install_shaft_skills_removes_only_owned_retired_skill_directories_idempotently(self):
         retired = (
@@ -831,7 +881,6 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertEqual([
                 target.resolve(),
                 (root / ".claude" / "skills").resolve(),
-                (root / ".github" / "skills").resolve(),
             ], first)
             self.assertEqual(first, second)
             self.assertEqual(frozenset(retired), MODULE.RETIRED_SHAFT_SKILL_DIRECTORIES)
