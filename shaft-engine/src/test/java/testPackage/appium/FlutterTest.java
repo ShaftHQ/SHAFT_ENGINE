@@ -151,8 +151,12 @@ public class FlutterTest {
         d.assertThat().element(USERNAME_FIELD).exists().perform();
         d.assertThat().element(PLEASE_LOGIN_SEMANTICS).exists().perform();
         d.assertThat().element(PLEASE_LOGIN_TEXT).exists().perform();
-        // Login renders two TextFields. flutterType is a type finder, not a unique locator.
-        d.assertThat().element(LOGIN_BUTTON_TEXT).exists().perform();
+        // #6872: "Login" is a text finder, not a unique locator; on BrowserStack retries it matched more
+        // than one widget and the uniqueness-checking exists() assertion failed. Assert presence instead
+        // and keep the unique ValueKey for the tap below.
+        org.testng.Assert.assertTrue(d.element().isPresent(LOGIN_BUTTON_TEXT, java.time.Duration.ofSeconds(10)),
+                "Login text should be shown on the login screen");
+        d.assertThat().element(LOGIN_BUTTON).exists().perform();
 
         // Type (demo pre-fills admin/1234; clear+retype proves TextField interaction).
         d.element().type(USERNAME_FIELD, "admin");

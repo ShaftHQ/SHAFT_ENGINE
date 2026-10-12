@@ -173,14 +173,15 @@ public class PropertiesHelper {
             default -> throw new IllegalStateException("Unsupported run type: " + runType);
         }
         configureJVMProxy();
-        Thread.ofVirtual().start(() -> {
+        // #6871: crypto setup and native OpenCV loading hold a carrier; keep them off virtual threads.
+        com.shaft.tools.internal.support.PlatformThreads.startDaemon("shaft-tink-init", () -> {
             GoogleTink.initialize();
             GoogleTink.decrypt();
         });
         SHAFT.Properties.reporting.set().disableLogging(false);
         ReportManagerHelper.logEngineVersion();
         Thread.ofVirtual().start(UpdateChecker::check);
-        Thread.ofVirtual().start(ImageProcessingActions::loadOpenCVIfAvailable);
+        com.shaft.tools.internal.support.PlatformThreads.startDaemon("shaft-opencv-load", ImageProcessingActions::loadOpenCVIfAvailable);
         AllureManager.initializeAllureReportingEnvironment();
         Thread.ofVirtual().start(ReportManagerHelper::cleanExecutionSummaryReportDirectory);
         ReportManagerHelper.setDiscreteLogging(SHAFT.Properties.reporting.alwaysLogDiscreetly());
