@@ -186,7 +186,13 @@ public class AllureManagerCoverageUnitTest {
 
         String config = Files.readString(Path.of("allurerc.yaml"), StandardCharsets.UTF_8);
         Assert.assertTrue(config.contains("name: \"Report \\\"Name\\\"\""), config);
-        Assert.assertTrue(config.contains("output: \"" + outputDirectory.toString().replace("\\", "/").replace("\"", "\\\"") + "\""), config);
+        Assert.assertTrue(config.contains("output: \"" + AllureManager.portableConfigPath(outputDirectory)
+                .replace("\"", "\\\"") + "\""), config);
+        Path executionRoot = (Path) invoke("getExecutionRootPath", new Class[]{});
+        if (outputDirectory.toAbsolutePath().normalize().startsWith(executionRoot)) {
+            Assert.assertFalse(config.contains(executionRoot.toString().replace("\\", "/")),
+                    "allurerc.yaml must not carry this machine's absolute path (#6822): " + config);
+        }
         Assert.assertTrue(config.contains("logo: \"logo\\\\path\\\"name\""), config);
         Assert.assertTrue(config.contains("theme: \"auto\""), config);
         Assert.assertTrue(config.contains("reportLanguage: \"en\\\"GB\""), config);
@@ -654,5 +660,14 @@ public class AllureManagerCoverageUnitTest {
                 Files.deleteIfExists(currentPath);
             }
         }
+    }
+
+    @Test(description = "#6822: allurerc.yaml paths under the execution root are written relative to it")
+    public void portableConfigPathRelativizesInsideTheExecutionRootOnly() throws Exception {
+        Path root = (Path) invoke("getExecutionRootPath", new Class[]{});
+        Assert.assertEquals(AllureManager.portableConfigPath(root.resolve("target").resolve("allure-report")),
+                "target/allure-report");
+        Path outside = root.getRoot().resolve("elsewhere").resolve("report");
+        Assert.assertEquals(AllureManager.portableConfigPath(outside), outside.toString().replace("\\", "/"));
     }
 }

@@ -108,6 +108,64 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
     }
 
     /**
+     * Waits until the element looks the same in two consecutive screenshots, then validates that it
+     * matches its stored reference image (#6823). Use it for animated elements (splash, launch,
+     * onboarding backgrounds) whose first frame differs from the settled one. When the element does
+     * not settle within {@code timeout}, the comparison still runs on the latest frame.
+     *
+     * @param timeout maximum time to wait for visual stability
+     * @return a {@link ValidationsExecutor} for the performed comparison
+     */
+    public ValidationsExecutor matchesReferenceImageWhenStable(java.time.Duration timeout) {
+        waitForVisualStability(timeout, STABILITY_POLL_INTERVAL);
+        return matchesReferenceImage();
+    }
+
+    /**
+     * {@link #matchesReferenceImageWhenStable(java.time.Duration)} bounded by the configured element
+     * identification timeout.
+     *
+     * @return a {@link ValidationsExecutor} for the performed comparison
+     */
+    @Override
+    public ValidationsExecutor matchesReferenceImageWhenStable() {
+        return matchesReferenceImageWhenStable(java.time.Duration.ofMillis(
+                (long) (com.shaft.driver.SHAFT.Properties.timeouts.defaultElementIdentificationTimeout() * 1000)));
+    }
+
+    static final java.time.Duration STABILITY_POLL_INTERVAL = java.time.Duration.ofMillis(500);
+
+    /** Polls element screenshots until two consecutive ones are byte-identical; returns whether it settled. */
+    boolean waitForVisualStability(java.time.Duration timeout, java.time.Duration interval) {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        byte[] previous = elementScreenshot();
+        while (System.nanoTime() < deadline) {
+            try {
+                Thread.sleep(interval.toMillis());
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            byte[] current = elementScreenshot();
+            if (previous != null && java.util.Arrays.equals(previous, current)) {
+                return true;
+            }
+            previous = current;
+        }
+        com.shaft.tools.io.ReportManager.logDiscrete("Element did not become visually stable within "
+                + timeout.toMillis() + " ms; comparing the latest frame.");
+        return false;
+    }
+
+    private byte[] elementScreenshot() {
+        try {
+            return driver.findElement(locator).getScreenshotAs(OutputType.BYTES);
+        } catch (RuntimeException notYetCapturable) {
+            return null;
+        }
+    }
+
+    /**
      * Use this to check that the target element matches a reference image.
      *
      * @param visualValidationEngine the selected visualValidationEngine that will be used to perform the image comparison

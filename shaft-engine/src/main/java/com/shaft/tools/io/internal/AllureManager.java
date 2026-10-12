@@ -996,14 +996,14 @@ public class AllureManager {
      */
     private static void writeAllureConfig(String reportName, String outputDirectory) {
         String safeReportName = escapeYamlString(reportName);
-        String safeOutputDir = escapeYamlString(outputDirectory.replace("\\", "/"));
+        String safeOutputDir = escapeYamlString(portableConfigPath(Path.of(outputDirectory)));
         String safeCustomLogo = escapeYamlString(SHAFT.Properties.allure.customLogo());
         var configBuilder = new StringBuilder();
         configBuilder.append("name: \"").append(safeReportName).append("\"\n");
         configBuilder.append("output: \"").append(safeOutputDir).append("\"\n");
 
         if (SHAFT.Properties.allure.accumulateHistory()) {
-            String historyPath = escapeYamlString(resolveExecutionPath("target", "history.jsonl").toString().replace("\\", "/"));
+            String historyPath = escapeYamlString(portableConfigPath(resolveExecutionPath("target", "history.jsonl")));
             configBuilder.append("historyPath: \"").append(historyPath).append("\"\n");
             configBuilder.append("appendHistory: true\n");
         }
@@ -1029,6 +1029,18 @@ public class AllureManager {
         internalFileSession.writeToFile(
                 allureConfigPath().toString(),
                 configBuilder.toString());
+    }
+
+    /**
+     * Paths inside the execution root are written relative to it (#6822): the config file lives there
+     * and the Allure CLI runs from there, so a committed {@code allurerc.yaml} stays portable and a run
+     * no longer rewrites it with one machine's absolute directory.
+     */
+    static String portableConfigPath(Path path) {
+        Path root = getExecutionRootPath();
+        Path normalized = path.toAbsolutePath().normalize();
+        Path written = normalized.startsWith(root) ? root.relativize(normalized) : normalized;
+        return written.toString().replace("\\", "/");
     }
 
     private static List<String> getAllureGroupByOptions() {
