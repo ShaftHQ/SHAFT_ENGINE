@@ -35,7 +35,7 @@ public final class IosNonHittableTap {
         String before = readPageSource(driver);
         boolean anchored = elementAnchoredTap(driver, element);
         String after = readPageSource(driver);
-        if (!anchored || before == null || before.equals(after)) {
+        if (!anchored || before == null || after == null || before.equals(after)) {
             throw new IosTapHadNoEffectException(NO_EFFECT_MESSAGE);
         }
     }

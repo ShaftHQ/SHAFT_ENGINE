@@ -97,6 +97,20 @@ public class IosNonHittableTapTest {
         assertAnchoredTapWithoutCoordinates();
     }
 
+    @Test
+    public void unreadablePageSourceAfterAnchoredTapDoesNotReportSuccess() {
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getId()).thenReturn("login_iam_loginButton");
+        when(localElement.getDomAttribute(anyString())).thenReturn("false");
+        when(localElement.getAttribute(anyString())).thenReturn("false");
+        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE, (String) null);
+        doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+
+        Throwable failure = failureFrom(() -> IosNonHittableTap.afterReportedClick(localDriver, localElement));
+        assertNoEffect(failure);
+    }
+
     private static Throwable failureFrom(Runnable action) {
         try {
             action.run();
