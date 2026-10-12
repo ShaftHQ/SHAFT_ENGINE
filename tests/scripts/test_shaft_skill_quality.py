@@ -242,5 +242,77 @@ class ShaftSkillQualityTest(unittest.TestCase):
         self.assertTrue(any(code in defect for defect in defects), defects)
 
 
+MAP = (
+    Path(__file__).resolve().parents[2]
+    / "shaft-skills"
+    / "shaft-test-case-design"
+    / "references"
+    / "journey-coverage-map.md"
+)
+MAP_POINTERS = (
+    Path(__file__).resolve().parents[2] / "shaft-skills" / "shaft-test-case-design" / "SKILL.md",
+    Path(__file__).resolve().parents[2]
+    / "shaft-skills"
+    / "shaft-requirements-analysis"
+    / "references"
+    / "playbook.md",
+    Path(__file__).resolve().parents[2]
+    / "shaft-skills"
+    / "shaft-automated-test-authoring"
+    / "references"
+    / "playbook.md",
+    Path(__file__).resolve().parents[2] / "shaft-skills" / "shaft-test-planning" / "references" / "playbook.md",
+    Path(__file__).resolve().parents[2]
+    / "shaft-skills"
+    / "shaft-stakeholder-reporting"
+    / "references"
+    / "playbook.md",
+)
+
+
+class JourneyCoverageMapTest(unittest.TestCase):
+    def test_shipped_map_traces_steps_and_tracks_status(self):
+        text = MAP.read_text(encoding="utf-8")
+        hierarchy = text.lower()
+        self.assertLess(
+            hierarchy.index("a journey, then a scenario, then a numbered step"),
+            hierarchy.index("## coverage matrix"),
+        )
+        for field in (
+            "Preconditions",
+            "Test data",
+            "Platforms",
+            "API endpoints",
+            "Source refs",
+            "Dependencies",
+        ):
+            self.assertIn(field, text)
+        self.assertIn("Every item traces to a source", text)
+        self.assertIn("A gap stays unsourced", text)
+        self.assertIn("## Coverage matrix", text)
+        self.assertIn("in code, not in plan", text)
+        self.assertIn("in plan, not in design", text)
+        self.assertIn("## Reconciliation", text)
+        self.assertIn("by screen state, not by control id or keyword", text)
+        for side_effect in ("SAFE", "STOP-BEFORE", "DESIGN-ONLY"):
+            self.assertIn(side_effect, text)
+        self.assertIn("Exactly one status per row", text)
+        for status in ("Done", "In progress", "Blocked", "Not started"):
+            self.assertIn(status, text)
+        self.assertIn("### Roll-up", text)
+        self.assertIn("Totals per status", text)
+        self.assertIn("by-design rows excluded", text)
+        self.assertIn("### Who updates it and when", text)
+        self.assertIn("same pull request", text)
+        self.assertIn("one flowchart per journey", text)
+        self.assertLess(text.index("mmdc"), text.index("--no-sandbox"))
+        self.assertIn("@mermaid-js/mermaid-cli", text)
+
+    def test_design_authoring_and_reporting_skills_point_at_the_map(self):
+        for path in MAP_POINTERS:
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("journey-coverage-map.md", content, path.name)
+
+
 if __name__ == "__main__":
     unittest.main()

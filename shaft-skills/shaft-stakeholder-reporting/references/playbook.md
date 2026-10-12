@@ -28,4 +28,6 @@
 Return decision summary, scope, verified outcomes, business risks, trend,
 critical exceptions, recommendation, conditions, owners, and technical links.
 
+Report journey progress from the [journey and coverage map](../../shaft-test-case-design/references/journey-coverage-map.md).
+
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).
