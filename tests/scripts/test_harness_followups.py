@@ -10,6 +10,7 @@ import tempfile
 import threading
 import time
 import unittest
+import unittest.mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -161,16 +162,16 @@ class HostPruneAndUsageTest(unittest.TestCase):
         mindset = load("harness_mindset")
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
-            secret = "notes/do-not-persist-this-body.md"
+            marker = "notes/kept-out-of-the-record.md"
             mindset.record_retrieve_usage(
                 project,
                 store="graphify",
                 hit_count=2,
                 byte_size=40,
-                paths=["chaos-engine/retrieve.py", secret],
+                paths=["chaos-engine/retrieve.py", marker],
             )
             raw = (project / ".chaos-engine-state" / "retrieve-usage.json").read_text(encoding="utf-8")
-            self.assertNotIn(secret, raw)
+            self.assertNotIn(marker, raw)
             self.assertNotIn("retrieve.py", raw)
             payload = json.loads(raw)
             record = payload["records"][0]

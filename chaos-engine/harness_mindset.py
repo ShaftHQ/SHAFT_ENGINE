@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Shipped checks for the harness follow-ups (#6868, #6882, #6891–#6894, #6900–#6903).
+"""
+Shipped checks for the harness follow-ups (#6868, #6882, #6891–#6894, #6900–#6903).
 
 Install and bootstrap keep their own copies of the path check because the
 curl|bash entrypoint runs bootstrap.py before this file exists on disk.
@@ -65,7 +66,7 @@ _RG_VALUE_FLAGS = frozenset({
 
 
 def tree_parts(path: Path) -> tuple[str, ...]:
-    """Normalized path parts. Windows compares case-folded and without ``\\\\?\\``."""
+    """Normalized path parts. Windows compares case-folded, without the extended prefix."""
     try:
         resolved = path.resolve()
     except OSError:
@@ -95,7 +96,8 @@ def require_disjoint_trees(source: Path, project: Path) -> None:
 
 
 def disjoint_download_parent(project: Path) -> Path:
-    """A directory whose children cannot sit inside ``project``.
+    """
+    A directory whose children cannot sit inside ``project``.
 
     The portable installer downloads into the system temp directory. On Windows
     that directory is under the user profile, so an install whose project is
@@ -328,7 +330,8 @@ def prune_orphaned_host_entries(
     now: float | None = None,
     lease_seconds: int = HOST_LEASE_SECONDS,
 ) -> dict[str, Any]:
-    """Remove aged host entries in ``.chaos-engine-state`` that have no live owner.
+    """
+    Remove aged host entries in ``.chaos-engine-state`` that have no live owner.
 
     Quarantined ``orphaned-.chaos-engine-hosts*`` entries have no owner and are
     removed once they are older than ``lease_seconds``. Live receipt and active

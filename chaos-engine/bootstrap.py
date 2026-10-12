@@ -53,7 +53,8 @@ def _path_is_inside(child: Path, parent: Path) -> bool:
 
 
 def disjoint_download_parent(project: Path) -> Path:
-    """Directory for the portable source download, never inside ``project``.
+    """
+    Directory for the portable source download, never inside ``project``.
 
     Windows TEMP lives under the user profile. Installing into that profile, or
     any project that contains TEMP, used to fail with
