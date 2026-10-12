@@ -307,6 +307,10 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):
         failures.extend(ungated_script_module_failures(root))
     failures.extend(shipped_validator_import_failures(root, changed))
+    if "scripts/mcp/install_shaft_agentic_tools.py" in {p.replace("\\", "/") for p in changed}:
+        # #6849: Installer verification is CI-only and path-filtered; it runs this ~30 s end-to-end check.
+        print("overlay pre-push: warning: installer changed; run "
+              "`python3 scripts/ci/verify_shaft_mcp_installer_release.py` before pushing", file=sys.stderr)
     if any(touches_workflows(path) for path in changed):
         failures.extend(
             f"workflow template drift (#3798): {item}; sync shaft-engine/src/main/resources/examples/.github/workflows"

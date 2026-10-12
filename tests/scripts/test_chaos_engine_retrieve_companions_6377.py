@@ -1,5 +1,6 @@
 """#6377: retrieve-first and companions are concrete; Grok Bot loads the core card."""
 
+import contextlib
 import importlib.util
 import io
 import json
@@ -390,6 +391,8 @@ class MaintainTest(unittest.TestCase):
         self.assertIn("portable", commands[0])
         self.assertIn("doctor", commands[1])
         self.assertEqual(["stores", "refresh", "--if-stale"], commands[2][-3:])
+        # #6849: the re-mine runs as a durable background job, never in maintain's foreground.
+        self.assertEqual(["job", "start", "stores-refresh", "--"], commands[2][2:6])
 
     def _digest_manifest(self, repository: str, branch: str) -> Path:
         import hashlib
@@ -453,6 +456,23 @@ class MaintainTest(unittest.TestCase):
             code = self.tool.maintain(root, runner=lambda *a, **k: calls.append(a))
         self.assertEqual(1, code)
         self.assertEqual([], calls)
+
+    def test_background_refresh_failure_only_warns_6849(self):
+        root = self.tmp / "core-6849"
+        root.mkdir()
+        (root / "manifest.json").write_text(
+            '{"source": {"repository": "o/r", "branch": "main"}}', encoding="utf-8")
+
+        def runner(command, **_):
+            failed = "stores-refresh" in command
+            return unittest.mock.Mock(returncode=7 if failed else 0)
+
+        with unittest.mock.patch.object(self.tool, "shared_project_root", return_value=self.work), \
+                unittest.mock.patch.object(self.tool, "maintain_sync", return_value=(True, "sync: current")), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+            code = self.tool.maintain(root, runner=runner)
+        self.assertEqual(0, code)
+        self.assertIn("job status stores-refresh", err.getvalue())
 
     def test_kanban_dod_runs_maintain(self):
         kanban = (SOURCE / "skills/kanban/SKILL.md").read_text(encoding="utf-8")
