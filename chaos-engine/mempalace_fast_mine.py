@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import sys
 
-SUPPORTED_VERSIONS = frozenset({"3.8.0"})
+SUPPORTED_VERSIONS = frozenset({"3.8.0", "3.10.0"})
 SOURCE_FILE_INDEX = (
     "CREATE INDEX IF NOT EXISTS chaos_engine_idx_source_file "
     "ON documents(collection_id, json_extract(metadata_json, '$.source_file'))"

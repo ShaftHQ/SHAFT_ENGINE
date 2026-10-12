@@ -45,7 +45,15 @@ Research/explore isolation (harness): [../../references/context-firewall.md](../
    through `learning.py --track product`.
 4. Never auto-install skill patches; stage proposals for human/CI review.
 5. "Nothing durable" is a valid outcome.
-6. Refine this protocol when traces show skipped Learning Sessions, local
+6. A lessons pull request lands only when it states the concrete outcome the
+   lesson would have changed: time, a defect, or a failure avoided. The body
+   has a `## Outcome changed` section with that statement. A title starting
+   with `Lesson` or `Lessons` is a lessons PR. The PR body gate rejects one
+   that lacks the section. A candidate that fails the bar is one append-only
+   line in `.chaos-engine-state/lesson-notes.log` (`record_lesson_note`), not
+   a pull request. Zero-trigger rule retirement is
+   [rule-retirement](../../references/rule-retirement.md).
+7. Refine this protocol when traces show skipped Learning Sessions, local
    writers reviewing their own diffs, or queue-only lessons that never became
    issues. Self-development has no cap.
 

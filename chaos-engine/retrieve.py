@@ -39,6 +39,20 @@ _MEMPALACE_HINT = re.compile(r"\b(history|palace|session|timeline|before)\b", re
 _REAL_RUN = subprocess.run
 
 
+def _mindset():
+    path = Path(__file__).resolve().with_name("harness_mindset.py")
+    if not path.is_file():
+        return None
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("chaos_engine_harness_mindset_retrieve", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def run_until_stalled(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
     """Run without a wall-clock cap; stores.py stops it only when it stalls (#6377)."""
     import importlib.util as _ilu
@@ -605,7 +619,24 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
     hits = _structured_hits(body, query=query)
     if not hits and store == "mempalace":
         hits = _source_name_hits(project, body)
-    excerpt = _bounded_excerpt(body, _EXCERPT_WITH_HITS if hits else 4096)
+    mindset = _mindset()
+    if store == "graphify" and mindset is not None:
+        hits = mindset.relevance_floor(hits, query)
+        if not hits:
+            return {
+                "store": store,
+                "status": STATUS_SKIPPED,
+                "reason": "no-relevant-hits",
+                "query": query,
+                "hits": [],
+                "bytes": 0,
+            }
+    if store == "memory" and not hits and mindset is not None:
+        return mindset.memory_no_hit_receipt()
+    excerpt_limit = _EXCERPT_WITH_HITS if hits else 4096
+    if mindset is not None:
+        excerpt_limit = min(excerpt_limit, mindset.store_budget_bytes(store))
+    excerpt = _bounded_excerpt(body, excerpt_limit)
     receipt = {
         "store": store,
         "status": STATUS_USED,
@@ -696,6 +727,20 @@ def retrieve(
     else:
         outcome = _run_store(root, chosen, cleaned)
     receipt.update(outcome)
+    mindset = _mindset()
+    if mindset is not None and receipt.get("status") in {STATUS_USED, STATUS_SKIPPED}:
+        hits = receipt.get("hits") if isinstance(receipt.get("hits"), list) else []
+        paths = [str(hit.get("path")) for hit in hits if isinstance(hit, dict) and hit.get("path")]
+        try:
+            mindset.record_retrieve_usage(
+                root,
+                store=chosen,
+                hit_count=len(hits),
+                byte_size=int(receipt.get("bytes") or 0),
+                paths=paths,
+            )
+        except (OSError, TypeError, ValueError):
+            pass
     if chosen == "graphify":
         receipt["freshness"] = graph_freshness_field(root)
     if receipt.get("status") in {STATUS_DEGRADED, STATUS_SKIPPED}:

@@ -259,6 +259,13 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
     print(summary)
     if not ok:
         return 1
+    mindset_path = installed_root / "harness_mindset.py"
+    if mindset_path.is_file():
+        mindset = runpy.run_path(str(mindset_path))
+        project_for_prune = project
+        pruned = mindset["prune_orphaned_host_entries"](project_for_prune)
+        print(f"maintain: pruned {len(pruned['removed'])} orphaned host entries")
+        print("maintain: " + mindset["usage_line"](project_for_prune))
     try:
         commands = maintain_commands(installed_root, project)
     except ValueError as error:
@@ -298,6 +305,9 @@ def tool_help_text() -> str:
         "\n"
         "maintain (after each delivery: fast-forward, reinstall, doctor, refresh, reload):\n"
         "  tool.py maintain\n"
+        "\n"
+        "siblings (nightly trackers that share a signature, before triage):\n"
+        "  tool.py siblings nightly-failure:<workflow>\n"
         "\n"
         "retrieve (MemPalace or Graphify checks justify later file reads):\n"
         "  tool.py retrieve [--store {memory,mempalace,graphify,deja}] [--project PATH] [--dry-run] QUERY\n"
@@ -637,6 +647,19 @@ def main() -> int:
             return 0
         if tool == "maintain":
             return maintain(installed_root)
+        if tool == "siblings":
+            if not arguments:
+                print("usage: tool.py siblings nightly-failure:<workflow>", file=sys.stderr)
+                return 2
+            mindset = runpy.run_path(str(installed_root / "harness_mindset.py"))
+            signature = arguments[0]
+            print(mindset["sibling_tracker_query"](signature))
+            rows = mindset["sibling_trackers"](signature)
+            if rows:
+                import json
+
+                print(json.dumps(rows, sort_keys=True))
+            return 0
         if tool in SCRIPT_TOOLS:
             return script_tool(installed_root, tool, arguments)
         if tool == "stores":

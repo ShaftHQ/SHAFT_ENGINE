@@ -2,6 +2,22 @@
 
 Read this half before work starts. Return to the [delivery playbook](work-github-playbook.md) for review, learning, CI, and merge.
 
+## Pattern step (before triage)
+
+Start by asking what the failing signal shares with work already filed. Search
+open and recently closed sibling trackers that carry the same signature or
+workflow, and record them on the tracker. The Related failures field is either
+those issues or the exact words `none found`.
+
+```bash
+python3 chaos-engine/tool.py siblings nightly-failure:e2e-tests
+```
+
+`tool.py siblings` prints the `gh issue list --label nightly-failure:<workflow>`
+query and any rows `gh` returns. Do this before classifying a new root cause.
+#6859 and #6775 shared a root cause and were not linked; the pattern step is
+what would have connected them.
+
 ## 0. Ground the scope before asking anything
 
 Never ask a question the repository can answer. Before the first question:

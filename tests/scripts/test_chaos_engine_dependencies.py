@@ -332,7 +332,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertEqual(
             [[
                 "/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with",
-                "chromadb==1.5.9", "mempalace==3.8.0",
+                "chromadb==1.5.9", "mempalace==3.10.0",
             ]],
             plan["mempalace"],
         )
@@ -353,9 +353,9 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
         expected = {
-            "installed": ["/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.8.0"],
-            "upgraded": ["/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.8.0"],
-            "repaired": ["/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.8.0"],
+            "installed": ["/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.10.0"],
+            "upgraded": ["/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.10.0"],
+            "repaired": ["/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.10.0"],
         }
         for action, command in expected.items():
             with self.subTest(action=action):
@@ -371,7 +371,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
     def test_mempalace_install_plans_pin_chromadb_model_loader(self):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
-        self.assertEqual("mempalace==3.8.0", specification["tools"]["mempalace"]["package"])
+        self.assertEqual("mempalace==3.10.0", specification["tools"]["mempalace"]["package"])
         self.assertEqual(["chromadb==1.5.9"], specification["tools"]["mempalace"]["with"])
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -380,7 +380,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         for command in (generated, legacy):
             self.assertIn("--with", command)
             self.assertEqual("chromadb==1.5.9", command[command.index("--with") + 1])
-            self.assertEqual("mempalace==3.8.0", command[-1])
+            self.assertEqual("mempalace==3.10.0", command[-1])
 
     def test_runtime_specification_rejects_any_schema3_tool_contract_drift(self):
         module = load_controller()
@@ -432,7 +432,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         local["mempalace"] = {"healthy": True, "version": "3.7.9"}
         with mock.patch.object(module, "resolve_stable_version", return_value="99.0.0"):
             actions = module.resolve_account_actions(specification, local)
-        self.assertEqual("3.8.0", actions["mempalace"]["resolvedVersion"])
+        self.assertEqual("3.10.0", actions["mempalace"]["resolvedVersion"])
         self.assertEqual("upgraded", actions["mempalace"]["action"])
 
     def test_transient_network_failure_is_retried_then_succeeds(self):
@@ -468,7 +468,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
         local = {name: {"healthy": True, "version": "1.0.0"} for name in specification["dependencies"]}
-        local["mempalace"] = {"healthy": True, "version": "3.8.0"}
+        local["mempalace"] = {"healthy": True, "version": "3.10.0"}
         with mock.patch.object(module, "resolve_stable_version", side_effect=OSError("down")):
             actions = module.resolve_account_actions(specification, local)
         self.assertEqual("reused", actions["graphify"]["action"])
@@ -480,7 +480,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
         local = {name: {"healthy": True, "version": "1.0.0"} for name in specification["dependencies"]}
-        local["mempalace"] = {"healthy": True, "version": "3.8.0"}
+        local["mempalace"] = {"healthy": True, "version": "3.10.0"}
         local["graphify"] = {"healthy": False, "version": None, "status": "absent"}
         with mock.patch.object(module, "resolve_stable_version", side_effect=OSError("down")):
             actions = module.resolve_account_actions(specification, local)
@@ -529,7 +529,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             name: {"healthy": True, "version": version}
             for name, version in versions.items()
         })
-        local["mempalace"] = {"healthy": True, "version": "3.8.0"}
+        local["mempalace"] = {"healthy": True, "version": "3.10.0"}
         with mock.patch.object(
             module,
             "resolve_stable_version",
@@ -567,7 +567,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             for name in local
         }
         actions.update({
-            "mempalace": {"action": "reused", "resolvedVersion": "3.8.0"},
+            "mempalace": {"action": "reused", "resolvedVersion": "3.10.0"},
             "graphify": {"action": "upgraded", "resolvedVersion": "0.9.53"},
             "memory": {"action": "upgraded", "resolvedVersion": "0.2.2"},
             "context7": {"action": "installed", "resolvedVersion": "0.4.0"},
@@ -592,7 +592,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
 
         self.assertEqual(
             {
-                "mempalace": "3.8.0",
+                "mempalace": "3.10.0",
                 "graphify": "0.9.53",
                 "memory": "0.2.2",
                 "context7": "0.4.0",
@@ -640,7 +640,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
 
             def tracking_runner(command, **_kwargs):
                 received_commands.append(list(command))
-                return SimpleNamespace(returncode=0, stdout="mempalace 3.8.0", stderr="")
+                return SimpleNamespace(returncode=0, stdout="mempalace 3.10.0", stderr="")
 
             with mock.patch.object(module.os, "name", "nt"), \
                  mock.patch.object(module, "_account_search_path", return_value=""):
@@ -655,7 +655,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertEqual("/c", invoked[1])
         self.assertEqual(stub, invoked[2])
         self.assertTrue(result["healthy"])
-        self.assertEqual("3.8.0", result["version"])
+        self.assertEqual("3.10.0", result["version"])
 
     def test_stable_versions_reject_prerelease_and_yanked_candidates(self):
         module = load_controller()

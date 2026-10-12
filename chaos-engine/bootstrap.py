@@ -31,6 +31,54 @@ import urllib.request
 from pathlib import Path, PurePosixPath
 
 
+def _tree_parts(path: Path) -> tuple[str, ...]:
+    """Same comparison install.py uses. Inlined: curl|bash runs this file alone."""
+    try:
+        resolved = path.resolve()
+    except OSError:
+        resolved = path.absolute()
+    text = os.fspath(resolved)
+    if text.startswith("\\\\?\\") or text.startswith("//?/"):
+        text = text[4:]
+    parts = tuple(part for part in re.split(r"[\\/]", text) if part not in {"", "."})
+    if os.name == "nt":
+        parts = tuple(part.casefold() for part in parts)
+    return parts
+
+
+def _path_is_inside(child: Path, parent: Path) -> bool:
+    left = _tree_parts(child)
+    right = _tree_parts(parent)
+    return left == right or (len(left) > len(right) and left[: len(right)] == right)
+
+
+def disjoint_download_parent(project: Path) -> Path:
+    """Directory for the portable source download, never inside ``project``.
+
+    Windows TEMP lives under the user profile. Installing into that profile, or
+    any project that contains TEMP, used to fail with
+    "ChaosEngine source and project trees must be disjoint" (#6868).
+    """
+    project = project.resolve()
+    candidates = [Path(tempfile.gettempdir())]
+    if project.parent != project:
+        candidates.append(project.parent)
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        candidates.append(Path(local))
+    candidates.append(Path.home() / ".cache")
+    for candidate in candidates:
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+            resolved = candidate.resolve()
+        except OSError:
+            continue
+        if _path_is_inside(resolved, project):
+            continue
+        return resolved
+    raise ValueError("ChaosEngine source and project trees must be disjoint")
+
+
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 GITHUB_URL = re.compile(r"https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?)(?:\.git)?/?")
 COMMIT = re.compile(r"[0-9a-f]{40}")
@@ -2362,7 +2410,9 @@ def install_latest(
         reporter.start("Resolve source", remaining=remaining("Resolve source"))
         commit, resolved_branch = resolve_latest(repository, branch, opener=opener)
         reporter.complete("Resolve source", remaining=remaining("Resolve source"))
-        temporary = tempfile.TemporaryDirectory(prefix="chaos-engine-bootstrap-")
+        temporary = tempfile.TemporaryDirectory(
+            prefix="chaos-engine-bootstrap-", dir=disjoint_download_parent(project)
+        )
         source_url = f"https://github.com/{repository}/tree/{commit}/chaos-engine"
         confirm("Download source")
         reporter.start("Download source", remaining=remaining("Download source"), detail=source_url)

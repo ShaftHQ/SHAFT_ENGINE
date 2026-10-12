@@ -26,11 +26,13 @@ prose that merely discusses an issue number are untouched.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import re
 import subprocess  # nosec B404 -- fixed list-args `git show`, never shell=True
 import sys
+from pathlib import Path
 from typing import Callable
 
 CLOSING_KEYWORD_PATTERN = r"(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)"
@@ -321,6 +323,27 @@ def parse_commits_json(raw: str) -> list[tuple[str, str]]:
     return [(entry["sha"], entry["message"]) for entry in json.loads(raw)]
 
 
+def mindset_body_errors(body: str) -> list[dict[str, str]]:
+    """Reject a missing riskiest-assumption section, and a lessons PR with no outcome (#6900, #6902)."""
+    module_path = Path(__file__).resolve().parents[2] / "chaos-engine" / "harness_mindset.py"
+    spec = importlib.util.spec_from_file_location("chaos_engine_harness_mindset_pr_gate", module_path)
+    if spec is None or spec.loader is None:
+        return [issue("riskiest-assumption", "pull_request.body", "harness mindset checks are unavailable")]
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    findings: list[dict[str, str]] = []
+    author = os.environ.get("PR_AUTHOR", "")
+    title = os.environ.get("PR_TITLE", "")
+    for message in module.assumption_section_errors(body, author=author):
+        findings.append(issue("riskiest-assumption", "pull_request.body", message))
+    for message in module.lesson_outcome_errors(body, title=title):
+        findings.append(issue("lesson-outcome", "pull_request.body", message))
+        note_root = os.environ.get("CHAOS_ENGINE_PROJECT", "")
+        if note_root:
+            module.record_lesson_note(Path(note_root), message)
+    return findings
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the command-line parser."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -350,6 +373,7 @@ def main() -> int:
     errors = find_negated_autocloses(body)
     errors.extend(find_negated_autocloses_in_commits(commits))
     errors.extend(find_nightly_tracker_closes(body, fetch_issue_labels(closing_issue_numbers(body))))
+    errors.extend(mindset_body_errors(body))
     # Advisory, never a gate. Three independent reasons, all measured (#4567):
     # a commit message is immutable once pushed and this repository blocks the
     # force-push that would amend it, so failing here is a gate the author

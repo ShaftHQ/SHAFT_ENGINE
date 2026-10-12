@@ -434,14 +434,18 @@ class MainCLIIntegrationTest(unittest.TestCase):
 
     def test_cli_fails_and_identifies_commit_for_commit_only_hazard(self):
         commits = json.dumps([{"sha": "1234567890ab", "message": "This doesn't close #77 yet."}])
-        result = self._run_cli(body="Closes #4127", commits_json=commits)
+        result = self._run_cli(
+            body="Closes #4127\n\n## Riskiest assumption\n\nN/A\n", commits_json=commits
+        )
         self.assertEqual(result.returncode, 1)
         self.assertIn("#77", result.stderr)
         self.assertIn("1234567890ab", result.stderr)
 
     def test_cli_passes_when_body_and_commits_are_clean(self):
         commits = json.dumps([{"sha": "1234567890ab", "message": "Add a helper.\n"}])
-        result = self._run_cli(body="Closes #4127", commits_json=commits)
+        result = self._run_cli(
+            body="Closes #4127\n\n## Riskiest assumption\n\nN/A\n", commits_json=commits
+        )
         self.assertEqual(result.returncode, 0)
 
     def test_cli_reports_a_false_credit_without_failing_the_gate(self):
@@ -468,7 +472,11 @@ class MainCLIIntegrationTest(unittest.TestCase):
             subprocess.run(["git", "commit", "-m", "fixture"], cwd=temporary, check=True)  # nosec B603 B607
             sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=temporary, text=True).strip()  # nosec B603 B607
             commits = json.dumps([{"sha": sha, "message": message}])
-            result = self._run_cli(body="Closes #4127", commits_json=commits, cwd=temporary)
+            result = self._run_cli(
+                body="Closes #4127\n\n## Riskiest assumption\n\nN/A\n",
+                commits_json=commits,
+                cwd=temporary,
+            )
         self.assertEqual(result.returncode, 0)
         self.assertIn("raw_decode", result.stdout + result.stderr)
 

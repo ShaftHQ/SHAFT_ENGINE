@@ -36,6 +36,10 @@ report it. Do not invent a script for a single obvious line.
 
 ## Boundaries
 
+- `rg` with no path reads stdin. In a non-TTY agent shell that blocks until the
+  tool times out (#6882). Pass a path (`rg PATTERN .`) or run
+  `chaos-engine/harness_mindset.py`'s `run_rg`, which adds `.` and does not
+  read stdin. A command that already names a path searches that path.
 - Prefer the standard library and tools already in the project.
 - Do not add a dependency to avoid a few lines.
 - Do not replace an owned test with an untracked scratch file when the test

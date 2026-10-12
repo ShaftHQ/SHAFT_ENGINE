@@ -1125,6 +1125,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_COMMITS_JSON: ${{ steps.pr-commits.outputs.commits_json }}
         run: python3 scripts/ci/validate_pr_closing_keywords.py
 

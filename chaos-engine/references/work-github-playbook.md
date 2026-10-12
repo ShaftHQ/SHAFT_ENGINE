@@ -33,6 +33,24 @@ the PR with an explicit base. Persist its `baseRefName`, PR identity, and
 `closingIssuesReferences`. Keep nonempty `## Summary`, `## Checks`, and
 `## Continuation` sections current for the delivered head.
 
+### Riskiest assumption (before merge)
+
+The PR body has a `## Riskiest assumption` section. Name the assumption in the
+change that is most likely to be wrong, and link one targeted test or command
+that exercises it. A trivial PR writes `N/A` in that section. The PR body gate
+(`scripts/ci/validate_pr_closing_keywords.py`) rejects a body that omits the
+section. Dependabot and `github-actions[bot]` are exempt.
+
+Worked example (#6841): the change assumed `enabled=false` was a safe way to
+skip Flutter setup. It was not. Only the nightly runs (#6859, #6865) caught
+the break. The section that would have forced the check:
+
+```markdown
+## Riskiest assumption
+
+`enabled=false` still launches Flutter. Targeted test: `FlutterEnabledFalseTest`.
+```
+
 ### Human PR open checklist (before first push)
 
 Human-authored PRs fail Release-note governance without a classification label.
