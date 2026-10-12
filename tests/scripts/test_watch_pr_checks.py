@@ -407,6 +407,49 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         self.assertEqual("PENDING", bucket)
         self.assertEqual([], failing)
 
+    def test_codacy_action_required_stays_pending_while_another_check_runs(self):
+        bucket, failing = watch_pr_checks.classify_checks(
+            [
+                {
+                    "name": "Codacy Static Code Analysis",
+                    "state": "ACTION_REQUIRED",
+                    "link": "https://app.codacy.com/early",
+                },
+                {"name": "PR Gate Summary", "state": "IN_PROGRESS", "link": "https://checks/gate"},
+            ]
+        )
+        self.assertEqual("PENDING", bucket)
+        self.assertEqual([], failing)
+
+    def test_codacy_action_required_is_red_after_other_checks_complete(self):
+        bucket, failing = watch_pr_checks.classify_checks(
+            [
+                {
+                    "name": "Codacy Static Code Analysis",
+                    "state": "ACTION_REQUIRED",
+                    "link": "https://app.codacy.com/done",
+                },
+                {"name": "PR Gate Summary", "state": "SUCCESS", "link": "https://checks/gate"},
+                {"name": "Release-note governance", "state": "SUCCESS", "link": "https://checks/notes"},
+            ]
+        )
+        self.assertEqual("RED", bucket)
+        self.assertEqual("Codacy Static Code Analysis", failing[0]["name"])
+
+    def test_completed_codacy_failure_stays_red_while_another_check_runs(self):
+        bucket, failing = watch_pr_checks.classify_checks(
+            [
+                {
+                    "name": "Codacy Static Code Analysis",
+                    "state": "FAILURE",
+                    "link": "https://app.codacy.com/fail",
+                },
+                {"name": "PR Gate Summary", "state": "IN_PROGRESS", "link": "https://checks/gate"},
+            ]
+        )
+        self.assertEqual("RED", bucket)
+        self.assertEqual("Codacy Static Code Analysis", failing[0]["name"])
+
     def test_a_real_failure_stays_red_while_another_check_runs(self):
         bucket, failing = watch_pr_checks.classify_checks(
             [

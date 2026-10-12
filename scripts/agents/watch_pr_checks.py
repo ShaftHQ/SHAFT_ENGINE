@@ -23,7 +23,9 @@
 #     RED     -- any effective check reports a failed/cancelled/timed-out-
 #                shaped state (see ``RED_STATES``; includes
 #                ``ACTION_REQUIRED``, which GitHub Apps such as Codacy use
-#                for a completed-but-failing run).
+#                for a completed-but-failing run). Codacy ``ACTION_REQUIRED``
+#                does not end the watch while another check is still
+#                pending. It is RED once the other checks have completed.
 #     GREEN   -- all effective checks are completed and none are RED.
 #     PENDING -- otherwise (some check is still queued/running); sleep
 #                ``--interval`` seconds and poll again, unless the poll
@@ -437,6 +439,20 @@ def _without_unexpanded_matrix_jobs(checks: list[dict]) -> list[dict]:
     return expanded if expanded else checks
 
 
+def _deferred_while_other_checks_pending(check: dict) -> bool:
+    """True when this red must not end the watch while another check is still running.
+
+    A PR Gate Summary failure during a live run is the cancelled workflow's
+    summary. Codacy posts ``ACTION_REQUIRED`` before analysis finishes. That
+    state stays pending until the other checks complete, then it is RED.
+    """
+    name = str(check.get("name", ""))
+    state = str(check.get("state", "")).upper()
+    if name == "PR Gate Summary":
+        return True
+    return CODACY_NAME_MARKER in name.lower() and state == "ACTION_REQUIRED"
+
+
 def classify_checks(checks: list[dict], *, registration_grace: bool = False) -> tuple[str, list[dict]]:
     """Classify one poll's checks into RED, GREEN, or PENDING.
 
@@ -456,7 +472,7 @@ def classify_checks(checks: list[dict], *, registration_grace: bool = False) -> 
     ]
     pending = any(str(check.get("state", "")).upper() in PENDING_STATES for check in effective)
     if failing and pending:
-        failing = [check for check in failing if str(check.get("name", "")) != "PR Gate Summary"]
+        failing = [check for check in failing if not _deferred_while_other_checks_pending(check)]
     if failing and registration_grace and all(
         str(check.get("state", "")).upper() == "CANCELLED" for check in failing
     ):
