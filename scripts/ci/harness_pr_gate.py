@@ -453,7 +453,7 @@ CHECKS = {
     "durable-jobs-contract": Check(
         "durable-jobs-contract",
         "durable-jobs",
-        ("tests.scripts.test_ce_jobs",),
+        ("tests.scripts.test_ce_jobs", "tests.scripts.test_ce_task_ledger"),
     ),
     "visual-ocr-workflow-contract": Check(
         "visual-ocr-workflow-contract",

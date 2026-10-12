@@ -580,6 +580,17 @@ def resolve_maven_tools_command(installed_root: Path) -> list[str]:
     return [str(java), "-jar", str(jar)]
 
 
+# #6525 durable jobs and #6854 task ledger: work that outlives the agent session.
+SESSION_TOOLS = {"job": "jobs.py", "checkpoint": "task_ledger.py", "resume": "task_ledger.py"}
+
+
+def session_tool(installed_root: Path, tool: str, arguments: list[str]) -> int:
+    module = runpy.run_path(str(installed_root / SESSION_TOOLS[tool]), run_name=f"_chaos_engine_{tool}")
+    if tool == "job":
+        return int(module["main"](arguments))
+    return int(module["main"](arguments, tool))
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("usage: tool.py <tool|retrieve> [args...]", file=sys.stderr)
@@ -604,13 +615,8 @@ def main() -> int:
             return int(module["main"](arguments if tool == "dod" else ["usage", *arguments]))
         if tool == "stores":
             return stores_command(installed_root, arguments)
-        if tool == "job":
-            # #6525: durable jobs outlive the agent session (lease, heartbeat, checkpoints).
-            module = runpy.run_path(str(installed_root / "jobs.py"), run_name="_chaos_engine_job")
-            return int(module["main"](arguments))
-        if tool in {"checkpoint", "resume"}:
-            module = runpy.run_path(str(installed_root / "task_ledger.py"), run_name="_chaos_engine_task")
-            return int(module["main"](arguments, tool))
+        if tool in SESSION_TOOLS:
+            return session_tool(installed_root, tool, arguments)
         if tool == "retrieve":
             path = installed_root / "retrieve.py"
             if not path.is_file():

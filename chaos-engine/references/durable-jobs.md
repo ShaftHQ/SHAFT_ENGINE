@@ -27,7 +27,8 @@ session or watchdog reads the lease instead of guessing.
 - Agent work itself (not a command) checkpoints to the task ledger:
   `tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next T] [--start]`,
   `tool.py checkpoint TASK --budget` (exit 3 past 40 min), and
-  `tool.py resume [TASK]` for a two-line brief. Keepalive pings do not extend
+  `tool.py resume [TASK]` for a two-line brief
+  ([`task_ledger.py`](../task_ledger.py)). Keepalive pings do not extend
   a wall-clock cap. See [bot entry](bot-entry.md#session-cap-grok-bot-default).
 
 ## Commands
