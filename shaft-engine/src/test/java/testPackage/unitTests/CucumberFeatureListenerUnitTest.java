@@ -19,7 +19,7 @@ public class CucumberFeatureListenerUnitTest {
     @Test
     public void constructorsAndEventPublisherRegistrationShouldWork() {
         String adapterSource = AllureCucumber8Jvm.class.getProtectionDomain().getCodeSource().getLocation().toString();
-        Assert.assertTrue(adapterSource.contains("shaft-engine"), adapterSource);
+        Assert.assertTrue(adapterSource.contains("allure-cucumber8-jvm-a1df39ff"), adapterSource);
         new CucumberFeatureListener();
         CucumberFeatureListener listener = new CucumberFeatureListener(Mockito.mock(AllureLifecycle.class));
         EventPublisher publisher = Mockito.mock(EventPublisher.class);
