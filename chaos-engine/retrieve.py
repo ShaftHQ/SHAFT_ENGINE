@@ -122,10 +122,7 @@ def _is_backend_mismatch(*parts: str) -> bool:
 
 
 def _note_cited_usage(project: Path, mindset: Any, paths: list[str] | None = None) -> None:
-    """Attach citations already stored for this retrieve onto the new usage row.
-
-    A basename citation matches the resolved hit the same way ``cites`` does.
-    """
+    """Attach stored citations, including a basename match, onto the new usage row."""
     module = _justification(project)
     if module is None:
         return

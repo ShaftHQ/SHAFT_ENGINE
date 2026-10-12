@@ -376,6 +376,7 @@ def _note_cited_paths(project: Path, paths: list[str]) -> None:
 
 
 def _retrieve_module():
+    """Load retrieve.py for the shared Source-basename resolver."""
     cached = getattr(_retrieve_module, "module", None)
     if cached is not None:
         return cached

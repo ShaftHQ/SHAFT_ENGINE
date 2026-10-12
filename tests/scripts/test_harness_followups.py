@@ -6,7 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - fixed git argv in one test, no shell.
 import tempfile
 import threading
 import time
@@ -280,7 +280,7 @@ class HostPruneAndUsageTest(unittest.TestCase):
         gate = load("hooks/retrieve_justification")
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
-            subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+            subprocess.run(["git", "init", "-q"], cwd=project, check=True)  # nosec B603 B607
             for relative in ("a/Unique.java", "a/Dup.java", "b/Dup.java"):
                 path = project / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -288,7 +288,7 @@ class HostPruneAndUsageTest(unittest.TestCase):
             tool = project / "chaos-engine" / "tool.py"
             tool.parent.mkdir(parents=True)
             tool.write_text('print("Source: Unique.java")\n', encoding="utf-8")
-            subprocess.run(["git", "add", "-A"], cwd=project, check=True)
+            subprocess.run(["git", "add", "-A"], cwd=project, check=True)  # nosec B603 B607
             receipt = retrieve.retrieve("Unique history", store="mempalace", project=project)
             self.assertEqual("used", receipt["status"])
             self.assertEqual(["a/Unique.java"], [hit["path"] for hit in receipt["hits"]])
