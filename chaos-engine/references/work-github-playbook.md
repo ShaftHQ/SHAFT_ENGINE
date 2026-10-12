@@ -225,8 +225,7 @@ re-arm — never a second `Fixes` PR. Non-overlapping paths may arm in parallel.
    is unit red ([gate](static-analysis-gate.md),
    [Complexity](complexity-gate.md)); never keep auto-merge armed on it.
 
-Unresolved `reviewThreads` (bot ones too) block auto-merge; `BLOCKED` with all
-checks green means look there. Fix or answer, reply, and
+Unresolved `reviewThreads` block auto-merge. Fix or answer, reply, and
 `resolveReviewThread` before returning to the watch.
 8. **Confirm** remotely that `mergedAt` is non-null; armed is not merged.
    Learning Session runs only after that `mergedAt`.
