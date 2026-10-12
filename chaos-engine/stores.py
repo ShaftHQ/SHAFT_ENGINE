@@ -687,6 +687,45 @@ def ensure_store_snapshot(cwd: Path, common: Path, revision: str) -> Path:
     return snapshot
 
 
+# A project mine checks every file against the palace one query at a time; on a large palace
+# that full pass takes hours. Mine only what changed since the stamped revision.
+INCREMENTAL_MINE_LIMIT = 400
+
+
+def incremental_mine_paths(snapshot: Path, previous: str | None, revision: str) -> list[str] | None:
+    """Files added or modified since ``previous``, or None when a full mine is required."""
+    if previous is None or previous == revision:
+        return None if previous is None else []
+    try:
+        _git(snapshot, "merge-base", "--is-ancestor", previous, revision)
+        changed = _git(snapshot, "diff", "--name-only", "--diff-filter=AMR", previous, revision)
+    except RuntimeError:
+        return None
+    paths = [line for line in changed.splitlines() if line.strip()]
+    return None if len(paths) > INCREMENTAL_MINE_LIMIT else paths
+
+
+def _mine_only(snapshot: Path, paths: list[str], invoke: Runner, mine: list[str]) -> None:
+    """Mine just ``paths``: a temporary root ``.gitignore`` hides every other file from the miner.
+
+    Files stay on disk with their mtimes, so a later full mine still skips them. The original
+    ``.gitignore`` (bytes and mtime) is restored even when the mine fails.
+    """
+    ignore = snapshot / ".gitignore"
+    original = ignore.read_bytes() if ignore.is_file() else None
+    stat = ignore.stat() if original is not None else None
+    rules = ["*", "!*/", *(f"!/{path}" for path in paths)]
+    ignore.write_text("\n".join(rules) + "\n", encoding="utf-8")
+    try:
+        _run(invoke, mine, snapshot)
+    finally:
+        if original is None:
+            ignore.unlink(missing_ok=True)
+        else:
+            ignore.write_bytes(original)
+            os.utime(ignore, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+
+
 def _refresh_mempalace(
     cwd: Path,
     *,
@@ -714,7 +753,11 @@ def _refresh_mempalace(
     wing = read_wing(snapshot) or read_wing(primary)
     if wing:
         mine.extend(["--wing", wing])
-    _run(invoke, mine, snapshot)
+    paths = incremental_mine_paths(snapshot, palace_indexed_revision(palace), revision)
+    if paths is None:
+        _run(invoke, mine, snapshot)
+    elif paths:
+        _mine_only(snapshot, paths, invoke, mine)
     sync = [
         mempalace,
         "--palace",

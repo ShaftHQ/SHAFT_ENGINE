@@ -401,6 +401,8 @@ jobs:
               # makes the omission an oversight rather than a decision.
               - 'scripts/ci/validate_workflow_timeouts.py'
               - 'tests/scripts/test_validate_workflow_timeouts.py'
+              - 'scripts/ci/validate_workflow_test_gating.py'
+              - 'tests/scripts/test_validate_workflow_test_gating.py'
               - 'scripts/ci/epic_autoclose.py'
               - 'tests/scripts/test_epic_autoclose.py'
               # Issue #6187/#6184: installer OS tier and time-to-merge pins.
@@ -966,6 +968,7 @@ jobs:
         run: >-
           python3 -m unittest
           tests.scripts.test_validate_workflow_timeouts
+          tests.scripts.test_validate_workflow_test_gating
           tests.scripts.test_epic_autoclose
           tests.scripts.test_intellij_verify_retry
           tests.scripts.test_assert_intellij_marketplace_receipt
@@ -979,6 +982,8 @@ jobs:
           -v
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
+      - name: Validate test steps cannot stay green on failures (#6870)
+        run: python3 scripts/ci/validate_workflow_test_gating.py
       - name: Validate coverage, CodeQL and quality configuration
         run: python3 scripts/ci/validate_quality_configuration.py
       - name: Validate the plugin CHANGELOG covers the engine version

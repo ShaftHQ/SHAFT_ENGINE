@@ -224,9 +224,13 @@ class SharedStoreTest(unittest.TestCase):
         self._fresh_graph(revision)
         palace = self._palace_with_one_row()
         calls: list[list[str]] = []
+        self.ignores: list[list[str]] = []
 
         def runner(command, cwd):
             calls.append(command)
+            ignore = Path(cwd) / ".gitignore"
+            if "mine" in command and ignore.is_file():
+                self.ignores.append(ignore.read_text(encoding="utf-8").split())
             return 0
 
         original_which = self.stores.shutil.which
@@ -265,6 +269,12 @@ class SharedStoreTest(unittest.TestCase):
         self.assertEqual(moved, self.stores.palace_indexed_revision(palace))
         self.assertEqual(snapshot, self.stores.store_snapshot_path(common))
         self.assertEqual(2, len([command for command in calls if "mine" in command]))
+        self.assertEqual(["*", "!*/", "!/other.py"], self.ignores[-1])
+        self.assertFalse((snapshot / ".gitignore").exists())
+        self.assertEqual(["other.py"], self.stores.incremental_mine_paths(snapshot, revision, moved))
+        self.assertEqual([], self.stores.incremental_mine_paths(snapshot, moved, moved))
+        self.assertIsNone(self.stores.incremental_mine_paths(snapshot, None, moved))
+        self.assertIsNone(self.stores.incremental_mine_paths(snapshot, "f" * 40, moved))
 
         held = len(calls)
         with unittest.mock.patch.object(self.stores.shutil, "which", side_effect=which):
