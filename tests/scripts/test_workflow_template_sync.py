@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 from scripts.ci.overlay_pre_push import overlay_pre_push_failures
 from scripts.ci.workflow_template_sync import (
@@ -66,7 +66,7 @@ class WorkflowTemplateSyncTest(unittest.TestCase):
 
         ungated = "tests.scripts.test_brand_new_module"
         failures = ["AssertionError: Lists differ: [] != ['" + ungated + "']"]
-        with mock.patch.object(overlay_pre_push, "ungated_script_module_failures", return_value=failures):
+        with unittest.mock.patch.object(overlay_pre_push, "ungated_script_module_failures", return_value=failures):
             result = overlay_pre_push.overlay_pre_push_failures(self.root, ["tests/scripts/test_brand_new_module.py"])
         self.assertEqual(failures, result)
 
