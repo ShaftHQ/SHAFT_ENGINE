@@ -321,10 +321,12 @@ public final class ElementClassifier {
     /**
      * Native Android/iOS signals only (#6833). Appium rejects the web-only attributes with a 404 that
      * cannot change, so each signal is read once, never retried and never followed by a DOM property read.
-     * The element's class name is the native widget type; {@code enabled="false"} maps to the disabled flag.
+     * The element's class name is the native widget type; {@code enabled="false"} maps to the disabled flag,
+     * except under the Flutter integration driver, which reports {@code enabled="false"} for editable fields
+     * (#6775 nightly), so its enabled state is not read.
      */
     static ElementSignals fromNativeElement(WebElement element) {
-        String enabled = safeNativeAttribute(element, "enabled");
+        String enabled = isFlutterIntegration() ? null : safeNativeAttribute(element, "enabled");
         return new ElementSignals(
                 safeTagName(element),
                 null,
@@ -339,6 +341,10 @@ public final class ElementClassifier {
                 null,
                 safeNativeAttribute(element, "class"),
                 null);
+    }
+
+    private static boolean isFlutterIntegration() {
+        return "FlutterIntegration".equalsIgnoreCase(com.shaft.driver.SHAFT.Properties.mobile.automationName());
     }
 
     private static String safeNativeAttribute(WebElement element, String name) {
