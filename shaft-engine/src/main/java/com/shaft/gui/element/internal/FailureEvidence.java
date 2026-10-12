@@ -78,16 +78,24 @@ final class FailureEvidence {
                 ? ElementActionabilityDiagnostics.collect(locator, driver, matched, failure)
                 : actionability);
         evidence.putIfAbsent("matchCount", matched == null ? 0 : matched.size());
-        boolean nativeApp = DriverFactoryHelper.isMobileNativeExecution();
-        if (!nativeApp) {
-            // Get Title, iframe probes and the DOM candidate script do not exist in native sessions (#6828, #6829).
-            evidence.put("title", safe(() -> driver.getTitle()));
-        }
         evidence.put("screenshotAttached", screenshotAttached);
-        if (!nativeApp && (matched == null || matched.isEmpty())) {
+        if (!DriverFactoryHelper.isMobileNativeExecution()) {
+            putBrowserEvidence(evidence, locator, driver, matched);
+        }
+        return boundedJson(evidence, locator);
+    }
+
+    /** Get Title, iframe probes and the DOM candidate script do not exist in native sessions (#6828, #6829). */
+    private static void putBrowserEvidence(Map<String, Object> evidence, By locator, WebDriver driver,
+                                           List<WebElement> matched) {
+        evidence.put("title", safe(() -> driver.getTitle()));
+        if (matched == null || matched.isEmpty()) {
             evidence.put("frameMatchCounts", frameMatchCounts(locator, driver));
             evidence.put("nearestCandidates", nearestCandidates(locator, driver));
         }
+    }
+
+    private static String boundedJson(Map<String, Object> evidence, By locator) {
         String json = json(redact(evidence));
         if (json.getBytes(StandardCharsets.UTF_8).length > MAX_BYTES) {
             evidence.remove("nearestCandidates");

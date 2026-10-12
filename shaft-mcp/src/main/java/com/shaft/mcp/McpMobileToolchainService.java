@@ -106,6 +106,37 @@ final class McpMobileToolchainService {
                 .build();
     }
 
+    private static List<String> initialWarnings(boolean sharedAndroid) {
+        List<String> warnings = new ArrayList<>();
+        if (sharedAndroid) {
+            warnings.addAll(McpEmulatorMemoryProbe.currentWarnings());
+        }
+        return warnings;
+    }
+
+    private static void addIfMissing(List<String> missing, boolean present, String tool) {
+        if (!present) {
+            missing.add(tool);
+        }
+    }
+
+    private List<String> missingTools(String platform, Optional<Path> node, Optional<Path> npm, Optional<Path> appium,
+                                      boolean inspector, Optional<Path> adb, Optional<Path> emulator,
+                                      Optional<Path> sdkManager, Optional<Path> avdManager) {
+        List<String> missing = new ArrayList<>();
+        addIfMissing(missing, node.isPresent(), "node");
+        addIfMissing(missing, npm.isPresent(), "npm");
+        addIfMissing(missing, appium.isPresent(), "appium@" + appiumServerVersion());
+        addIfMissing(missing, inspector, "appium-inspector-plugin@" + appiumInspectorPluginVersion());
+        if ("Android".equals(platform)) {
+            addIfMissing(missing, adb.isPresent(), "android platform-tools");
+            addIfMissing(missing, emulator.isPresent(), "android emulator");
+            addIfMissing(missing, sdkManager.isPresent(), "android sdkmanager");
+            addIfMissing(missing, avdManager.isPresent(), "android avdmanager");
+        }
+        return missing;
+    }
+
     McpMobileToolchainStatus status(String platformName) {
         String platform = normalizePlatform(platformName);
         boolean sharedAndroid = "Android".equals(platform);
@@ -115,10 +146,7 @@ final class McpMobileToolchainService {
         Path legacyAppiumRoot = appiumRoot();
         Path appiumRoot = sharedAndroid ? managedAppiumRoot : legacyAppiumRoot;
         List<Path> nodeBins = sharedAndroid ? List.of(managedNodeBin(), nodeBin()) : List.of(nodeBin());
-        List<String> warnings = new ArrayList<>();
-        if (sharedAndroid) {
-            warnings.addAll(McpEmulatorMemoryProbe.currentWarnings());
-        }
+        List<String> warnings = initialWarnings(sharedAndroid);
 
         Optional<Path> node = resolveExecutable("node", nodeBins);
         Optional<Path> npm = resolveExecutable("npm", nodeBins);
@@ -154,33 +182,8 @@ final class McpMobileToolchainService {
                 node, npm,
                 appium, inspector, inspectorPluginPath, adb, emulator, sdkManager, avdManager, detectedAppiumVersion);
 
-        List<String> missing = new ArrayList<>();
-        if (node.isEmpty()) {
-            missing.add("node");
-        }
-        if (npm.isEmpty()) {
-            missing.add("npm");
-        }
-        if (appium.isEmpty()) {
-            missing.add("appium@" + appiumServerVersion());
-        }
-        if (!inspector) {
-            missing.add("appium-inspector-plugin@" + appiumInspectorPluginVersion());
-        }
-        if ("Android".equals(platform)) {
-            if (adb.isEmpty()) {
-                missing.add("android platform-tools");
-            }
-            if (emulator.isEmpty()) {
-                missing.add("android emulator");
-            }
-            if (sdkManager.isEmpty()) {
-                missing.add("android sdkmanager");
-            }
-            if (avdManager.isEmpty()) {
-                missing.add("android avdmanager");
-            }
-        }
+        List<String> missing = missingTools(platform, node, npm, appium, inspector, adb, emulator, sdkManager,
+                avdManager);
 
         return new McpMobileToolchainStatus(
                 platform,

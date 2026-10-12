@@ -63,13 +63,8 @@ final class ElementActionabilityDiagnostics {
     static Map<String, Object> collect(By locator, WebDriver driver, List<WebElement> matchedElements, Throwable failure) {
         Map<String, Object> diagnostics = new LinkedHashMap<>();
         List<String> warnings = new ArrayList<>();
-        diagnostics.put("locator", locator == null ? "" : JavaHelper.formatLocatorToString(locator));
         boolean nativeApp = DriverFactoryHelper.isMobileNativeExecution();
-        putIfPresent(diagnostics, "currentUrl",
-                driver == null || nativeApp ? null : safe("current URL", warnings, driver::getCurrentUrl));
-        putIfPresent(diagnostics, "failureType", failure == null ? null : failure.getClass().getName());
-        putIfPresent(diagnostics, "failureMessage", failure == null ? null : failure.getMessage());
-        putIfPresent(diagnostics, "context", context());
+        putHeader(diagnostics, warnings, locator, driver, failure, nativeApp);
 
         if (matchedElements == null) {
             warn(warnings, "Matched elements were unavailable while collecting actionability diagnostics.");
@@ -88,6 +83,30 @@ final class ElementActionabilityDiagnostics {
         }
 
         WebElement element = matchedElements.getFirst();
+        putElementState(diagnostics, warnings, element);
+        if (nativeApp) {
+            // aria/title/placeholder reads, CSS values and the DOM targetability script are web-only (#6831).
+            diagnostics.put("recommendation", recommendation(diagnostics, new LinkedHashMap<>()));
+            return finish(diagnostics, warnings);
+        }
+        putWebTargetability(diagnostics, warnings, driver, element);
+        return finish(diagnostics, warnings);
+    }
+
+    private static void putHeader(Map<String, Object> diagnostics, List<String> warnings, By locator, WebDriver driver,
+                                  Throwable failure, boolean nativeApp) {
+        diagnostics.put("locator", locator == null ? "" : JavaHelper.formatLocatorToString(locator));
+        if (driver != null && !nativeApp) {
+            putIfPresent(diagnostics, "currentUrl", safe("current URL", warnings, driver::getCurrentUrl));
+        }
+        if (failure != null) {
+            putIfPresent(diagnostics, "failureType", failure.getClass().getName());
+            putIfPresent(diagnostics, "failureMessage", failure.getMessage());
+        }
+        putIfPresent(diagnostics, "context", context());
+    }
+
+    private static void putElementState(Map<String, Object> diagnostics, List<String> warnings, WebElement element) {
         putIfPresent(diagnostics, "displayed", safeElement("displayed state", diagnostics, warnings, element::isDisplayed));
         putIfPresent(diagnostics, "enabled", safeElement("enabled state", diagnostics, warnings, element::isEnabled));
         putIfPresent(diagnostics, "selected", safeElement("selected state", diagnostics, warnings, element::isSelected));
@@ -95,13 +114,11 @@ final class ElementActionabilityDiagnostics {
         putIfPresent(diagnostics, "accessibleName", safeElement("accessible name", diagnostics, warnings, element::getAccessibleName));
         putIfPresent(diagnostics, "textPreview", preview(safeElement("text preview", diagnostics, warnings, element::getText)));
         putIfPresent(diagnostics, "rect", rect(safeElement("element rectangle", diagnostics, warnings, element::getRect)));
-        if (nativeApp) {
-            // aria/title/placeholder reads, CSS values and the DOM targetability script are web-only (#6831).
-            diagnostics.put("recommendation", recommendation(diagnostics, new LinkedHashMap<>()));
-            return finish(diagnostics, warnings);
-        }
-        putIfPresent(diagnostics, "accessibleNameHints", accessibleNameHints(element, diagnostics, warnings));
+    }
 
+    private static void putWebTargetability(Map<String, Object> diagnostics, List<String> warnings, WebDriver driver,
+                                            WebElement element) {
+        putIfPresent(diagnostics, "accessibleNameHints", accessibleNameHints(element, diagnostics, warnings));
         Map<String, Object> css = css(element, diagnostics, warnings);
         Map<String, Object> probe = targetabilityProbe(driver, element, warnings);
         mergeCss(css, mapValue(probe.get("css")));
@@ -111,7 +128,6 @@ final class ElementActionabilityDiagnostics {
         putIfPresent(diagnostics, "centerTargetMatchesElement", probe.get("centerTargetMatchesElement"));
         putIfPresent(diagnostics, "obscuringElement", mapValue(probe.get("obscuringElement")));
         diagnostics.put("recommendation", recommendation(diagnostics, css));
-        return finish(diagnostics, warnings);
     }
 
     private static Map<String, Object> targetabilityProbe(WebDriver driver, WebElement element, List<String> warnings) {
