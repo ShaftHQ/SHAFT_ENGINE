@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""Task ledger: resume agent work after a host session cap (#6854).
+
+Some hosts (Grok Bot: about 50 minutes) hard-stop a background session on
+wall-clock time. Keepalive pings do not reset such a cap, so the work must be
+resumable instead: bounded work units, a short durable ledger line per step,
+and a resume brief the next session (or the parent) reads instead of the
+transcript.
+
+    tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next TEXT] [--start]
+    tool.py checkpoint TASK --budget [--minutes 40]   exit 3 = wrap up now
+    tool.py resume [TASK]                             brief; exit 6 = absent
+
+State: ``$CHAOS_ENGINE_TASKS_DIR`` or ``~/.local/state/chaos-engine/tasks``,
+one ``TASK.jsonl`` per task, outside any worktree so it survives cleanup.
+Stdlib only.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+import time
+from pathlib import Path
+
+NAME_RE = re.compile(r"^[A-Za-z0-9_.-]{1,96}$")
+DEFAULT_BUDGET_MINUTES = 40
+DONE = "done"
+
+
+def tasks_root() -> Path:
+    override = os.environ.get("CHAOS_ENGINE_TASKS_DIR")
+    if override:
+        return Path(override)
+    base = os.environ.get("XDG_STATE_HOME") or str(Path.home() / ".local" / "state")
+    return Path(base) / "chaos-engine" / "tasks"
+
+
+def ledger(name: str) -> Path:
+    if not NAME_RE.match(name):
+        raise ValueError(f"invalid task name: {name!r}")
+    return tasks_root() / f"{name}.jsonl"
+
+
+def entries(name: str) -> list[dict]:
+    path = ledger(name)
+    if not path.is_file():
+        return []
+    rows = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return rows
+
+
+def record(name: str, step: str, *, branch: str = "", pr: str = "", next_action: str = "",
+           start: bool = False, now: float | None = None) -> dict:
+    row = {"t": round(now if now is not None else time.time()), "step": step}
+    for key, value in (("branch", branch), ("pr", pr), ("next", next_action)):
+        if value:
+            row[key] = value
+    if start:
+        row["start"] = True
+    path = ledger(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, separators=(",", ":")) + "\n")
+    return row
+
+
+def session_start(rows: list[dict]) -> float | None:
+    for row in reversed(rows):
+        if row.get("start"):
+            return float(row["t"])
+    return float(rows[0]["t"]) if rows else None
+
+
+def over_budget(name: str, minutes: float, now: float | None = None) -> tuple[bool, float]:
+    started = session_start(entries(name))
+    if started is None:
+        return False, 0.0
+    elapsed = max(0.0, ((now if now is not None else time.time()) - started) / 60)
+    return elapsed >= minutes, elapsed
+
+
+def brief(name: str) -> str | None:
+    rows = entries(name)
+    if not rows:
+        return None
+    merged: dict = {}
+    for row in rows:
+        merged.update({k: v for k, v in row.items() if k not in {"start"}})
+    sessions = sum(1 for row in rows if row.get("start")) or 1
+    when = time.strftime("%Y-%m-%d %H:%M", time.localtime(merged["t"]))
+    parts = [f"{name}: last step {merged['step']!r} at {when}", f"session {sessions}"]
+    parts += [f"{key} {merged[key]}" for key in ("branch", "pr") if key in merged]
+    text = "; ".join(parts)
+    if merged["step"] == DONE:
+        return text + "\nstatus: done; nothing to resume"
+    return text + f"\nnext: {merged.get('next', 'reread the PR/branch state, then continue')}"
+
+
+def open_tasks() -> list[str]:
+    root = tasks_root()
+    if not root.is_dir():
+        return []
+    names = []
+    for path in sorted(root.glob("*.jsonl")):
+        rows = entries(path.stem)
+        if rows and rows[-1].get("step") != DONE:
+            names.append(path.stem)
+    return names
+
+
+def main(argv: list[str] | None = None, command: str = "checkpoint") -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    try:
+        if command == "resume":
+            if not args:
+                names = open_tasks()
+                print("\n".join(brief(n) or n for n in names) if names else "no open tasks")
+                return 0
+            text = brief(args[0])
+            if text is None:
+                print(f"{args[0]}: no ledger", file=sys.stderr)
+                return 6
+            print(text)
+            return 0
+        parser = argparse.ArgumentParser(prog="tool.py checkpoint")
+        parser.add_argument("task")
+        parser.add_argument("step", nargs="?")
+        parser.add_argument("--branch", default="")
+        parser.add_argument("--pr", default="")
+        parser.add_argument("--next", dest="next_action", default="")
+        parser.add_argument("--start", action="store_true", help="mark a new session start")
+        parser.add_argument("--budget", action="store_true", help="exit 3 once the session budget is spent")
+        parser.add_argument("--minutes", type=float, default=DEFAULT_BUDGET_MINUTES)
+        ns = parser.parse_args(args)
+        if ns.budget:
+            spent, elapsed = over_budget(ns.task, ns.minutes)
+            verdict = "wrap up: push WIP, checkpoint --next, end turn" if spent else "ok"
+            print(f"{ns.task}: {elapsed:.0f}/{ns.minutes:.0f} min; {verdict}")
+            return 3 if spent else 0
+        if not ns.step:
+            parser.error("STEP is required unless --budget is given")
+        record(ns.task, ns.step, branch=ns.branch, pr=ns.pr, next_action=ns.next_action, start=ns.start)
+        return 0
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

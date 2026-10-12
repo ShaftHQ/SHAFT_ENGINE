@@ -266,7 +266,7 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
 
 def tool_help_text() -> str:
     """One usage text for every host. There is no per-host help."""
-    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job"}))
+    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume"}))
     return (
         "usage: tool.py <tool|retrieve> [args...]\n"
         "       tool.py --help\n"
@@ -294,6 +294,11 @@ def tool_help_text() -> str:
         "  tool.py job resume NAME  (watchdog: no-op while live or done)\n"
         "  tool.py job stop NAME\n"
         "  tool.py job checkpoint NAME STEP [--check]\n"
+        "\n"
+        "checkpoint/resume (agent work across session caps; references/durable-jobs.md):\n"
+        "  tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next TEXT] [--start]\n"
+        "  tool.py checkpoint TASK --budget [--minutes 40]  (exit 3 = wrap up now)\n"
+        "  tool.py resume [TASK]  (short brief; exit 6 = no ledger)\n"
     )
 
 
@@ -575,6 +580,25 @@ def resolve_maven_tools_command(installed_root: Path) -> list[str]:
     return [str(java), "-jar", str(jar)]
 
 
+# In-process stdlib scripts: dod, usage, #6525 durable jobs, #6854 task ledger.
+SCRIPT_TOOLS = {
+    "dod": "dod.py",
+    "usage": "session_token_usage.py",
+    "job": "jobs.py",
+    "checkpoint": "task_ledger.py",
+    "resume": "task_ledger.py",
+}
+
+
+def script_tool(installed_root: Path, tool: str, arguments: list[str]) -> int:
+    module = runpy.run_path(str(installed_root / SCRIPT_TOOLS[tool]), run_name=f"_chaos_engine_{tool}")
+    if tool == "usage":
+        return int(module["main"](["usage", *arguments]))
+    if tool in {"checkpoint", "resume"}:
+        return int(module["main"](arguments, tool))
+    return int(module["main"](arguments))
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print("usage: tool.py <tool|retrieve> [args...]", file=sys.stderr)
@@ -593,16 +617,10 @@ def main() -> int:
             return 0
         if tool == "maintain":
             return maintain(installed_root)
-        if tool in {"dod", "usage"}:
-            script = "dod.py" if tool == "dod" else "session_token_usage.py"
-            module = runpy.run_path(str(installed_root / script), run_name=f"_chaos_engine_{tool}")
-            return int(module["main"](arguments if tool == "dod" else ["usage", *arguments]))
+        if tool in SCRIPT_TOOLS:
+            return script_tool(installed_root, tool, arguments)
         if tool == "stores":
             return stores_command(installed_root, arguments)
-        if tool == "job":
-            # #6525: durable jobs outlive the agent session (lease, heartbeat, checkpoints).
-            module = runpy.run_path(str(installed_root / "jobs.py"), run_name="_chaos_engine_job")
-            return int(module["main"](arguments))
         if tool == "retrieve":
             path = installed_root / "retrieve.py"
             if not path.is_file():
