@@ -1,6 +1,8 @@
 """Shared MemPalace and Graphify resolution for every ChaosEngine checkout."""
 
+import contextlib
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -263,8 +265,10 @@ class SharedStoreTest(unittest.TestCase):
         self.git("update-ref", "refs/remotes/origin/main", "HEAD", cwd=self.primary)
         moved = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
         self._fresh_graph(moved)
-        with unittest.mock.patch.object(self.stores.shutil, "which", side_effect=which):
+        with unittest.mock.patch.object(self.stores.shutil, "which", side_effect=which), \
+                contextlib.redirect_stderr(io.StringIO()) as log:
             self.assertEqual(0, self.stores.refresh(self.primary, runner=runner))
+        self.assertIn("mempalace mine (incremental, 1 changed file(s))", log.getvalue())
         self.assertEqual(untouched, source.stat().st_mtime_ns)
         self.assertEqual(moved, self.stores.palace_indexed_revision(palace))
         self.assertEqual(snapshot, self.stores.store_snapshot_path(common))

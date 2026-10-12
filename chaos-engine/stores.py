@@ -754,6 +754,9 @@ def _refresh_mempalace(
     if wing:
         mine.extend(["--wing", wing])
     paths = incremental_mine_paths(snapshot, palace_indexed_revision(palace), revision)
+    # The job log is the only progress signal for a mine that can run for many minutes.
+    scope = "full tree" if paths is None else f"incremental, {len(paths)} changed file(s)"
+    print(f"stores: mempalace mine ({scope}) at {revision[:12]}", file=sys.stderr, flush=True)
     if paths is None:
         _run(invoke, mine, snapshot)
     elif paths:
