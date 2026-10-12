@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
+import subprocess  # nosec B404 - fixed git argv in one test, no shell.
 import tempfile
 import threading
 import time
@@ -273,6 +274,38 @@ class HostPruneAndUsageTest(unittest.TestCase):
             self.assertEqual(1, rate["records"])
             self.assertEqual(1, rate["cited"])
 
+    def test_mempalace_source_basename_cites_the_resolved_repo_path(self):
+        retrieve = load("retrieve")
+        mindset = load("harness_mindset")
+        gate = load("hooks/retrieve_justification")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            subprocess.run(["git", "init", "-q"], cwd=project, check=True)  # nosec B603 B607
+            for relative in ("a/Unique.java", "a/Dup.java", "b/Dup.java"):
+                path = project / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("class X {}\n", encoding="utf-8")
+            tool = project / "chaos-engine" / "tool.py"
+            tool.parent.mkdir(parents=True)
+            tool.write_text('print("Source: Unique.java")\n', encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=project, check=True)  # nosec B603 B607
+            receipt = retrieve.retrieve("Unique history", store="mempalace", project=project)
+            self.assertEqual("used", receipt["status"])
+            self.assertEqual(["a/Unique.java"], [hit["path"] for hit in receipt["hits"]])
+            rate = mindset.usage_rate(project)
+            self.assertEqual(1, rate["records"])
+            self.assertEqual(1, rate["cited"])
+            self.assertEqual("retrieve hit use: 1/1", mindset.usage_line(project))
+            self.assertEqual(1, mindset.doctor_followups(project)["retrieveUsage"]["cited"])
+            self.assertEqual(
+                ["a/Unique.java"],
+                gate.record_citations(project, "mempalace", "Source: Unique.java\n"),
+            )
+            self.assertEqual(
+                [],
+                gate.record_citations(project, "mempalace", "Source: Dup.java\n"),
+            )
+
 
 class PrSectionTest(unittest.TestCase):
     def test_missing_assumption_is_rejected_and_explicit_na_is_accepted(self):
@@ -362,6 +395,34 @@ class PrSectionTest(unittest.TestCase):
             "host-prune",
         ):
             self.assertNotIn(rule_id, report["zeroTriggers"], rule_id)
+
+    def test_non_lesson_title_leaves_the_lesson_counter_at_zero(self):
+        mindset = load("harness_mindset")
+        gate = load("validate_pr_closing_keywords")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            mindset.lesson_outcome_errors(
+                "## Outcome changed\n\nWould have avoided the Flutter nightly failure.\n",
+                title="Fix the button",
+                project=project,
+            )
+            report = mindset.zero_trigger_report(project)
+            self.assertIn("lesson-outcome", report["zeroTriggers"])
+            stored = project / ".chaos-engine-state" / "rule-triggers.json"
+            if stored.is_file():
+                rules = json.loads(stored.read_text(encoding="utf-8")).get("rules", {})
+                entry = rules.get("lesson-outcome")
+                count = int(entry.get("count") or 0) if isinstance(entry, dict) else 0
+                self.assertEqual(0, count)
+            env = {
+                "CHAOS_ENGINE_PROJECT": str(project),
+                "PR_AUTHOR": "mohab",
+                "PR_TITLE": "Fix the button",
+            }
+            with unittest.mock.patch.dict(os.environ, env, clear=False):
+                gate.mindset_body_errors("## Riskiest assumption\n\nN/A\n")
+            report = mindset.zero_trigger_report(project)
+            self.assertIn("lesson-outcome", report["zeroTriggers"])
 
 
 class MemPalacePinTest(unittest.TestCase):
