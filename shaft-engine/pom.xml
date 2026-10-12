@@ -263,11 +263,6 @@
             </exclusions>
         </dependency>
         <dependency>
-            <groupId>com.github.MohabMohie</groupId>
-            <artifactId>allure-java</artifactId>
-            <version>${allure.cucumber8.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
         </dependency>
