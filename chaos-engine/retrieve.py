@@ -121,13 +121,23 @@ def _is_backend_mismatch(*parts: str) -> bool:
     return "chroma" in folded and "mismatch" in folded
 
 
-def _note_cited_usage(project: Path, mindset: Any) -> None:
-    """Attach citations already stored for this retrieve onto the new usage row."""
+def _note_cited_usage(project: Path, mindset: Any, paths: list[str] | None = None) -> None:
+    """Attach citations already stored for this retrieve onto the new usage row.
+
+    A basename citation matches the resolved hit the same way ``cites`` does.
+    """
     module = _justification(project)
-    if module is None or not hasattr(module, "load_citations"):
+    if module is None:
         return
-    for path in module.load_citations(project):
-        mindset.note_path_read(project, str(path))
+    noted: list[str] = []
+    if hasattr(module, "load_citations"):
+        noted.extend(str(path) for path in module.load_citations(project))
+    if hasattr(module, "cites"):
+        for path in paths or []:
+            if path and module.cites(project, path) and path not in noted:
+                noted.append(path)
+    for path in noted:
+        mindset.note_path_read(project, path)
 
 
 def _record_store_outcome(
@@ -748,7 +758,7 @@ def retrieve(
                 byte_size=int(receipt.get("bytes") or 0),
                 paths=paths,
             )
-            _note_cited_usage(root, mindset)
+            _note_cited_usage(root, mindset, paths)
         except (OSError, TypeError, ValueError):
             # Hit accounting is best-effort and must not fail the retrieve.
             pass

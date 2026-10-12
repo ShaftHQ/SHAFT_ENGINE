@@ -410,9 +410,9 @@ def assumption_section_errors(
 def lesson_outcome_errors(
     body: str, *, title: str = "", project: Path | None = None
 ) -> list[str]:
-    _record_check(project, "lesson-outcome")
     if LESSON_TITLE.search(title or "") is None:
         return []
+    _record_check(project, "lesson-outcome")
     text = _section(body or "", OUTCOME_HEADING)
     if text is None:
         return [

@@ -375,6 +375,54 @@ def _note_cited_paths(project: Path, paths: list[str]) -> None:
         return
 
 
+def _retrieve_module():
+    cached = getattr(_retrieve_module, "module", None)
+    if cached is not None:
+        return cached
+    import importlib.util
+
+    retrieve_path = Path(__file__).resolve().parents[1] / "retrieve.py"
+    spec = importlib.util.spec_from_file_location("chaos_engine_retrieve_source_paths", retrieve_path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _retrieve_module.module = module
+    return module
+
+
+def _tracked_source_paths(project: Path, text: str) -> list[str]:
+    """Repo paths for MemPalace ``Source:`` basenames that name one tracked file."""
+    if "Source:" not in (text or ""):
+        return []
+    try:
+        module = _retrieve_module()
+        if module is None:
+            return []
+        hits = module._source_name_hits(Path(project), text)
+    except (OSError, TypeError, ValueError, ImportError):
+        return []
+    paths: list[str] = []
+    for hit in hits:
+        if not isinstance(hit, dict) or not hit.get("path"):
+            continue
+        path = str(hit["path"])
+        if path not in paths:
+            paths.append(path)
+    return paths
+
+
+def _citable_citations(project: Path, text: str) -> list[str]:
+    """Existing files named by the store text, with Source basenames resolved."""
+    found = extract_citations(text)
+    found.extend(_tracked_source_paths(project, text))
+    fresh: list[str] = []
+    for path in found:
+        if path and path not in fresh and _citable(project, path):
+            fresh.append(path)
+    return fresh
+
+
 def record_citations(project: Path, store: str, text: str) -> list[str]:
     """Append paths from a MemPalace or Graphify result. Other stores no-op."""
     return record_store_outcome(project, store, "used", "", text)
@@ -499,10 +547,7 @@ def record_store_outcome(
     payload_in = _load_payload(project)
     citations = payload_in.get("citations")
     current = [item for item in citations if isinstance(item, str)] if isinstance(citations, list) else []
-    fresh = [
-        path for path in (extract_citations(text) if status == "used" else [])
-        if _citable(project, path)
-    ]
+    fresh = _citable_citations(project, text) if status == "used" else []
     for path in fresh:
         if path not in current:
             current.append(path)
