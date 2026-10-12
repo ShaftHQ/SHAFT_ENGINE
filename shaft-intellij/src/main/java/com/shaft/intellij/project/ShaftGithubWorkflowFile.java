@@ -135,7 +135,7 @@ public final class ShaftGithubWorkflowFile {
                         run: %s
                       - name: Upload Allure results
                         if: always()
-                        uses: actions/upload-artifact@v7.0.1
+                        uses: actions/upload-artifact@v7.0.2
                         with:
                           name: allure-results
                           path: allure-results
