@@ -51,6 +51,14 @@ class OverlayPrePushTest(unittest.TestCase):
         self.assertIn("privacy-safe queued learning payload", promotion)
         self.assertIn("caller-supplied participant list", promotion)
 
+    def test_playbook_without_lesson_headroom_fails_before_ci(self):
+        # #6846: pre-push used to pass anything up to the cap while CI demanded 1024 B of headroom.
+        pinned = "\n".join(PINNED)
+        near_cap = ("z" * (16384 - 1000 - len(pinned.encode("utf-8")))) + "\n" + pinned
+        self.assertTrue(any("headroom" in failure for failure in playbook_contract_failures(near_cap)))
+        roomy = ("z" * 100) + "\n" + pinned
+        self.assertEqual([], playbook_contract_failures(roomy))
+
     def test_pre_push_runs_the_fixture_only_when_the_diff_touches_overlay(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
