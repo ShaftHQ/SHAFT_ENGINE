@@ -116,6 +116,31 @@ public class ElementActions extends FluentWebDriverAction implements com.shaft.g
     }
 
     /**
+     * Checks whether an optional element (an update prompt, a permission dialog) appears within the given time.
+     * This is a query, not an assertion: an absent element returns {@code false} without a failed step, and the
+     * wait is the explicit {@code timeout}, not the element-identification timeout. Works for web and native sessions.
+     *
+     * @param elementLocator the locator of the optional element
+     * @param timeout        how long to poll; {@link Duration#ZERO} checks once
+     * @return {@code true} when at least one matching element appeared in time
+     */
+    public boolean isPresent(By elementLocator, Duration timeout) {
+        return waitUntilAnyPresent(timeout, elementLocator).isPresent();
+    }
+
+    /**
+     * Waits in one poll for whichever of several elements appears first, e.g. "the interruption or the screen
+     * under test". Report-free like {@link #isPresent(By, Duration)}.
+     *
+     * @param timeout  how long to poll; {@link Duration#ZERO} checks once
+     * @param locators the candidate locators, checked in order on every poll
+     * @return the first locator that matched, or empty when none appeared in time
+     */
+    public Optional<By> waitUntilAnyPresent(Duration timeout, By... locators) {
+        return com.shaft.gui.element.internal.PresenceProbe.firstPresent(driverFactoryHelper.getDriver(), timeout, locators);
+    }
+
+    /**
      * This is a generic method to enable the execution of the native mobile
      * commands found herein: <a href="http://appium.io/docs/en/commands/mobile-command/">appium.io</a>
      * <p>
