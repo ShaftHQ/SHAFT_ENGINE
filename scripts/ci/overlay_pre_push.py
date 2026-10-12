@@ -20,6 +20,7 @@ from scripts.ci.workflow_template_sync import stale_template_actions, touches_wo
 PLAYBOOK = "chaos-engine/references/work-github-playbook.md"
 TIP_PREFLIGHT = "chaos-engine/skills/local-agency/scripts/tip_preflight.py"
 BYTE_BUDGET = 16384
+PLAYBOOK_HEADROOM = 1024  # room for the next lesson; CI asserts the same (#6846)
 PINNED_CLAUSES = (
     "Before committing any subagent's work",
     "Before reviewing or shipping any nontrivial diff",
@@ -43,6 +44,9 @@ def playbook_contract_failures(text: str, *, budget: int = BYTE_BUDGET) -> list[
     size = len(text.encode("utf-8"))
     if size > budget:
         failures.append(f"playbook is {size} bytes; budget is {budget}")
+    elif budget == BYTE_BUDGET and size + PLAYBOOK_HEADROOM > budget:
+        failures.append(f"playbook is {size} bytes; keep {PLAYBOOK_HEADROOM} bytes headroom under {budget} "
+                        "(move detail into references/details/)")
     for clause in PINNED_CLAUSES:
         if clause not in text:
             failures.append(f"dropped pinned clause: {clause}")
