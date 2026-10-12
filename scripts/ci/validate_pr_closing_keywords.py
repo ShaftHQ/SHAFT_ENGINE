@@ -334,9 +334,11 @@ def mindset_body_errors(body: str) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
     author = os.environ.get("PR_AUTHOR", "")
     title = os.environ.get("PR_TITLE", "")
-    for message in module.assumption_section_errors(body, author=author):
+    project_text = os.environ.get("CHAOS_ENGINE_PROJECT", "").strip()
+    project = Path(project_text) if project_text else Path(__file__).resolve().parents[2]
+    for message in module.assumption_section_errors(body, author=author, project=project):
         findings.append(issue("riskiest-assumption", "pull_request.body", message))
-    for message in module.lesson_outcome_errors(body, title=title):
+    for message in module.lesson_outcome_errors(body, title=title, project=project):
         findings.append(issue("lesson-outcome", "pull_request.body", message))
         note_root = os.environ.get("CHAOS_ENGINE_PROJECT", "")
         if note_root:

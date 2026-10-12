@@ -121,6 +121,15 @@ def _is_backend_mismatch(*parts: str) -> bool:
     return "chroma" in folded and "mismatch" in folded
 
 
+def _note_cited_usage(project: Path, mindset: Any) -> None:
+    """Attach citations already stored for this retrieve onto the new usage row."""
+    module = _justification(project)
+    if module is None or not hasattr(module, "load_citations"):
+        return
+    for path in module.load_citations(project):
+        mindset.note_path_read(project, str(path))
+
+
 def _record_store_outcome(
     project: Path, store: str, status: str, query: str, text: str = "", reason: str = ""
 ) -> None:
@@ -621,7 +630,7 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
         hits = _source_name_hits(project, body)
     mindset = _mindset()
     if store == "graphify" and mindset is not None:
-        hits = mindset.relevance_floor(hits, query)
+        hits = mindset.relevance_floor(hits, query, project=project)
         if not hits:
             return {
                 "store": store,
@@ -739,6 +748,7 @@ def retrieve(
                 byte_size=int(receipt.get("bytes") or 0),
                 paths=paths,
             )
+            _note_cited_usage(root, mindset)
         except (OSError, TypeError, ValueError):
             # Hit accounting is best-effort and must not fail the retrieve.
             pass
