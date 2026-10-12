@@ -31,6 +31,16 @@ public class RecordManagerCoverageUnitTest {
         SHAFT.Properties.web.set().headlessExecution(headlessExecution);
     }
 
+    @Test(description = "#6834: cloud providers record themselves, so Appium screen recording is never requested there")
+    public void cloudProvidersRecordOnProviderSide() {
+        Assert.assertTrue(RecordManager.recordsOnProviderSide("https://u:k@hub-cloud.browserstack.com/wd/hub"));
+        Assert.assertTrue(RecordManager.recordsOnProviderSide("https://u:k@mobile-hub.lambdatest.com/wd/hub"));
+        Assert.assertTrue(RecordManager.recordsOnProviderSide("https://ondemand.eu-central-1.saucelabs.com/wd/hub"));
+        Assert.assertFalse(RecordManager.recordsOnProviderSide("http://127.0.0.1:4723"));
+        Assert.assertFalse(RecordManager.recordsOnProviderSide("local"));
+        Assert.assertFalse(RecordManager.recordsOnProviderSide(null));
+    }
+
     @Test
     public void startVideoRecordingWithRemoteWebDriverShouldNotFallbackToDesktopRecorder() {
         SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);

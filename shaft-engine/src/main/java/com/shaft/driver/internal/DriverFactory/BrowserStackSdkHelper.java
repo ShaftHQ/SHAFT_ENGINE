@@ -47,7 +47,8 @@ public class BrowserStackSdkHelper {
      * SHAFT's property-to-YAML mapping is skipped entirely. This allows users to provide their
      * own SDK configuration file and override SHAFT's properties.
      *
-     * <p>The generated file includes authentication credentials, platform configuration,
+     * <p>The generated file never contains credentials (#6826); the SDK reads them from
+     * {@code BROWSERSTACK_USERNAME} / {@code BROWSERSTACK_ACCESS_KEY}. It includes platform configuration,
      * build/project naming, and optional settings like local testing, debugging, and
      * geo-location.
      *
@@ -115,9 +116,8 @@ public class BrowserStackSdkHelper {
     static Map<String, Object> buildConfiguration() {
         var config = new LinkedHashMap<String, Object>();
 
-        // Authentication
-        config.put("userName", SHAFT.Properties.browserStack.userName());
-        config.put("accessKey", SHAFT.Properties.browserStack.accessKey());
+        // Credentials are deliberately never written: this file lands in the project root where a plain
+        // `git add -A` would stage them (#6826). The SDK reads BROWSERSTACK_USERNAME / BROWSERSTACK_ACCESS_KEY.
 
         // Platform configuration — multi-platform takes precedence over single-platform
         var platformsList = parsePlatformsList();
@@ -278,7 +278,7 @@ public class BrowserStackSdkHelper {
      *
      * @return the resolved build name
      */
-    private static String resolveBuildName() {
+    static String resolveBuildName() {
         var customBuildName = SHAFT.Properties.browserStack.buildName();
         if (!customBuildName.isEmpty()) {
             return customBuildName;
@@ -293,7 +293,7 @@ public class BrowserStackSdkHelper {
      *
      * @return the resolved project name
      */
-    private static String resolveProjectName() {
+    static String resolveProjectName() {
         var customProjectName = SHAFT.Properties.browserStack.projectName();
         if (!customProjectName.isEmpty()) {
             return customProjectName;

@@ -148,7 +148,9 @@ public interface Visuals extends EngineProperties<Visuals> {
     int animatedGifFrameDelay();
 
     /**
-     * Granular video policy. Profile levels except CUSTOM override this after property loading.
+     * Granular video policy. Profile levels except CUSTOM override this after property loading. Native
+     * Appium recording is local only: on BrowserStack, LambdaTest and Sauce Labs the provider session video
+     * is used instead.
      *
      * <p>Default: {@code false}. Possible values: true, false.
      *

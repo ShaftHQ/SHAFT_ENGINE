@@ -113,8 +113,8 @@ public class BrowserStackSdkHelperCoverageUnitTest {
         Map<String, Object> config = loadGeneratedYml(BrowserStackSdkHelper.generateBrowserStackYml());
         List<Map<String, Object>> platforms = (List<Map<String, Object>>) config.get("platforms");
 
-        assertEquals(config.get("userName"), "user-list");
-        assertEquals(config.get("accessKey"), "key-list");
+        assertTrue(!config.containsKey("userName")); // credentials are never written (#6826)
+        assertTrue(!config.containsKey("accessKey")); // credentials are never written (#6826)
         assertEquals(config.get("buildName"), "custom-build");
         assertEquals(config.get("projectName"), "custom-project");
         assertEquals(config.get("browserstackAutomation"), false);

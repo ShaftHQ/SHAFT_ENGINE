@@ -33,6 +33,8 @@ public class RecordManager {
     private static final String MISSING_DESKTOP_PROVIDER_MESSAGE = "Desktop video recording is enabled, but no provider "
             + "is available. Add io.github.shafthq:shaft-video to the test runtime dependencies.";
     private static final ThreadLocal<WebDriver> videoDriver = new ThreadLocal<>();
+    private static final java.util.concurrent.atomic.AtomicBoolean providerVideoNoticeLogged =
+            new java.util.concurrent.atomic.AtomicBoolean();
     private static final ThreadLocal<Boolean> isRecordingStarted = ThreadLocal.withInitial(() -> false);
 
     private RecordManager() {
@@ -50,6 +52,13 @@ public class RecordManager {
                 && !isRecordingStarted.get()
                 && driver != null
                 && DriverFactoryHelper.isMobileNativeExecution()) {
+            if (recordsOnProviderSide(SHAFT.Properties.platform.executionAddress())) {
+                if (!providerVideoNoticeLogged.getAndSet(true)) {
+                    ReportManager.logDiscrete("Skipping Appium screen recording: the cloud provider records the session "
+                            + "video itself; use the provider session video (videoParams_recordVideo is local-Appium only).");
+                }
+                return;
+            }
             videoDriver.set(driver);
             try {
                 if (driver instanceof AndroidDriver androidDriver) {
@@ -78,6 +87,15 @@ public class RecordManager {
         } else if (driver == null || shouldFallbackToDesktopRecorder(driver)) {
             startVideoRecording();
         }
+    }
+
+    /**
+     * Cloud providers (BrowserStack, LambdaTest, Sauce Labs) record every session themselves and reject
+     * Appium's {@code startRecordingScreen} (#6834).
+     */
+    static boolean recordsOnProviderSide(String executionAddress) {
+        String address = executionAddress == null ? "" : executionAddress.toLowerCase(java.util.Locale.ROOT);
+        return address.contains("browserstack") || address.contains("lambdatest") || address.contains("saucelabs");
     }
 
     private static boolean shouldFallbackToDesktopRecorder(WebDriver driver) {
