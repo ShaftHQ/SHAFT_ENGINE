@@ -35,21 +35,7 @@ the PR with an explicit base. Persist its `baseRefName`, PR identity, and
 
 ### Riskiest assumption (before merge)
 
-The PR body has a `## Riskiest assumption` section. Name the assumption in the
-change that is most likely to be wrong, and link one targeted test or command
-that exercises it. A trivial PR writes `N/A` in that section. The PR body gate
-(`scripts/ci/validate_pr_closing_keywords.py`) rejects a body that omits the
-section. Dependabot and `github-actions[bot]` are exempt.
-
-Worked example (#6841): the change assumed `enabled=false` was a safe way to
-skip Flutter setup. It was not. Only the nightly runs (#6859, #6865) caught
-the break. The section that would have forced the check:
-
-```markdown
-## Riskiest assumption
-
-`enabled=false` still launches Flutter. Targeted test: `FlutterEnabledFalseTest`.
-```
+Name the riskiest assumption and one targeted test, or `N/A`. The body gate rejects a missing `## Riskiest assumption` section. Dependabot is exempt.
 
 ### Human PR open checklist (before first push)
 
@@ -184,14 +170,8 @@ and `python3 .chaos-engine/install.py doctor --project . --agent-summary`. Reloa
 `install.py install` without `--source` and `--commit`. Replace
 `<configured-upstream>` with the adopter repository from installer identity.
 
-An owner-authorized history correction binds the expected remote tip and uses
-`git push --force-with-lease origin HEAD:<branch>`; unguarded `--force` is never
-safe. A rewrite-only gate waiver is machine-readable, names exact non-protected
-check IDs, the exact head SHA, replacement proof, owner review, and an expiry.
-It records `waived`, never `passed`. Security, ownership, corruption, rollback,
-secret-safety, installer acceptance, and confirmed correctness checks cannot be
-waived. An authorized merge bypass likewise records the obsolete checks waived
-and focused proofs observed; it must not represent remote checks as green.
+Owner-authorized history correction and non-protected gate waivers:
+[work-github-playbook-promotion.md](details/work-github-playbook-promotion.md).
 
 1. **Clear every GitHub comment before acceptance.** Read and address every open
    review thread, inline review comment, conversation comment, check annotation,

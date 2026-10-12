@@ -10,13 +10,13 @@ workflow, and record them on the tracker. The Related failures field is either
 those issues or the exact words `none found`.
 
 ```bash
-python3 chaos-engine/tool.py siblings nightly-failure:e2e-tests
+python3 .chaos-engine/tool.py siblings nightly-failure:e2e-tests
 ```
 
 `tool.py siblings` prints the `gh issue list --label nightly-failure:<workflow>`
 query and any rows `gh` returns. Do this before classifying a new root cause.
-#6859 and #6775 shared a root cause and were not linked; the pattern step is
-what would have connected them.
+Two nightly trackers once shared a root cause and were not linked; this step
+is what would have connected them.
 
 ## 0. Ground the scope before asking anything
 

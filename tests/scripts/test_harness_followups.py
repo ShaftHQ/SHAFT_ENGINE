@@ -68,11 +68,16 @@ class RgStdinTest(unittest.TestCase):
             there.mkdir()
             (here / "note.txt").write_text("PATHLESS_TOKEN\n", encoding="utf-8")
             (there / "note.txt").write_text("PATHED_TOKEN\n", encoding="utf-8")
+            if shutil.which("rg") is None:
+                self.skipTest("rg is not installed")
             read_fd, write_fd = os.pipe()
             holder: dict[str, object] = {}
 
             def invoke() -> None:
-                holder["result"] = mindset.run_rg(["rg", "PATHLESS_TOKEN"], cwd=here, stdin=read_fd)
+                try:
+                    holder["result"] = mindset.run_rg(["rg", "PATHLESS_TOKEN"], cwd=here, stdin=read_fd)
+                except OSError as error:
+                    holder["error"] = error
 
             worker = threading.Thread(target=invoke)
             worker.start()
@@ -85,6 +90,8 @@ class RgStdinTest(unittest.TestCase):
             if not blocked:
                 os.close(write_fd)
             self.assertFalse(blocked, "pathless rg waited on stdin")
+            if "error" in holder:
+                raise holder["error"]
             result = holder["result"]
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertIn("PATHLESS_TOKEN", result.stdout)
