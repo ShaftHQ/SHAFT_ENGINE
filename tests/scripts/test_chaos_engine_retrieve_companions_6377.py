@@ -457,6 +457,33 @@ class MaintainTest(unittest.TestCase):
         self.assertEqual(1, code)
         self.assertEqual([], calls)
 
+    def test_maintain_restarts_refresh_running_superseded_code(self):
+        root = self.tmp / "core-superseded"
+        root.mkdir()
+        (root / "manifest.json").write_text(
+            '{"source": {"repository": "o/r", "branch": "main"}}', encoding="utf-8")
+        (root / "stores.py").write_text("# reinstalled\n", encoding="utf-8")
+        lease = self.work / ".chaos-engine-state/jobs/stores-refresh/lease.json"
+        lease.parent.mkdir(parents=True)
+        lease.write_text('{"state": "running", "started_at": 1}', encoding="utf-8")
+        self.assertTrue(self.tool.refresh_runs_superseded_code(root, self.work))
+        calls = []
+
+        def runner(command, **_):
+            calls.append(command)
+            return unittest.mock.Mock(returncode=0)
+
+        with unittest.mock.patch.object(self.tool, "shared_project_root", return_value=self.work), \
+                unittest.mock.patch.object(self.tool, "maintain_sync", return_value=(True, "sync: current")), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(0, self.tool.maintain(root, runner=runner))
+        stops = [index for index, command in enumerate(calls) if command[-2:] == ["stop", "stores-refresh"]]
+        starts = [index for index, command in enumerate(calls) if "start" in command and "stores-refresh" in command]
+        self.assertEqual(1, len(stops))
+        self.assertLess(stops[0], starts[0])
+        lease.write_text('{"state": "done", "started_at": 1}', encoding="utf-8")
+        self.assertFalse(self.tool.refresh_runs_superseded_code(root, self.work))
+
     def test_background_refresh_failure_only_warns_6849(self):
         root = self.tmp / "core-6849"
         root.mkdir()
