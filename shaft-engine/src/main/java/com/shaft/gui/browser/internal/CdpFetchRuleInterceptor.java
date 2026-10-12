@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -38,7 +37,7 @@ public final class CdpFetchRuleInterceptor implements AutoCloseable {
     private static final long RESPONSE_TIMEOUT_SECONDS = 120;
     private static final String ID_ATTRIBUTE = "shaft.fetch.requestId";
     private final Map<String, CompletableFuture<Map<String, Object>>> responses = new ConcurrentHashMap<>();
-    private final ExecutorService workers = Executors.newVirtualThreadPerTaskExecutor();
+    private final ExecutorService workers = CdpWorkers.newPool("shaft-cdp-fetch");
     private final HttpHandler handler;
     private final DevTools devTools;
     private volatile boolean closed;
