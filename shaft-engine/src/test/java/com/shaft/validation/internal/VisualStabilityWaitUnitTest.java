@@ -47,4 +47,14 @@ public class VisualStabilityWaitUnitTest {
 
         Assert.assertFalse(builder(element).waitForVisualStability(Duration.ofMillis(50), Duration.ofMillis(5)));
     }
+
+    @Test
+    public void backendsWithoutStabilizationDelegateToMatchesReferenceImage() {
+        com.shaft.gui.driver.ElementAssertions assertions = mock(com.shaft.gui.driver.ElementAssertions.class,
+                org.mockito.Mockito.CALLS_REAL_METHODS);
+        ValidationsExecutor executor = mock(ValidationsExecutor.class);
+        org.mockito.Mockito.doReturn(executor).when(assertions).matchesReferenceImage();
+
+        Assert.assertSame(assertions.matchesReferenceImageWhenStable(), executor);
+    }
 }
