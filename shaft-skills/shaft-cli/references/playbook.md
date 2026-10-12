@@ -5,6 +5,11 @@ pipeline is the deliverable. Exact syntax lives in the
 [generated CLI reference](../../references/shaft-cli-commands.md); exact tool
 names live in the [generated MCP catalog](../../references/shaft-mcp-tools.md).
 
+Assistants without MCP access (shell only) use the same tools through the
+installer's stable `~/.local/bin/shaft-cli` shim: `shaft-cli tools`, then
+`shaft-cli call <tool> key=value`. The installer prints a paste-ready stdio
+definition for MCP hosts it did not configure.
+
 ## Ten practices
 
 1. Prefer CLI for stateless, repeatable, scriptable work; prefer direct MCP for interactive work or state that already lives in the connected client. [`SHAFT-MCP`]
