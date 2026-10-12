@@ -11,15 +11,27 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Enumeration;
 import java.util.List;
 
 public class CucumberFeatureListenerUnitTest {
     @Test
-    public void constructorsAndEventPublisherRegistrationShouldWork() {
-        String adapterSource = AllureCucumber8Jvm.class.getProtectionDomain().getCodeSource().getLocation().toString();
-        Assert.assertTrue(adapterSource.contains("allure-cucumber8-jvm-a1df39ff"), adapterSource);
+    public void constructorsAndEventPublisherRegistrationShouldWork() throws Exception {
+        // install unpacks the resolved jar into target/classes before this suite runs.
+        // The jar must still be on the classpath so the class is that build, not an in-tree copy.
+        Enumeration<URL> adapterResources = AllureCucumber8Jvm.class.getClassLoader()
+                .getResources("io/qameta/allure/cucumber8jvm/AllureCucumber8Jvm.class");
+        boolean resolvedJar = false;
+        while (adapterResources.hasMoreElements()) {
+            if (adapterResources.nextElement().toString().contains("allure-cucumber8-jvm-a1df39ff")) {
+                resolvedJar = true;
+            }
+        }
+        Assert.assertTrue(resolvedJar, "allure-cucumber8-jvm-a1df39ff is not on the classpath");
+        Assert.assertFalse(Files.exists(Path.of("src/main/java/io/qameta/allure/cucumber8jvm/AllureCucumber8Jvm.java")));
         new CucumberFeatureListener();
         CucumberFeatureListener listener = new CucumberFeatureListener(Mockito.mock(AllureLifecycle.class));
         EventPublisher publisher = Mockito.mock(EventPublisher.class);
