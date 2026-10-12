@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.element.internal.interaction.IosNonHittableTap.IosTapHadNoEffectException;
 import io.appium.java_client.ios.IOSDriver;
 import org.mockito.ArgumentCaptor;
 import org.openqa.selenium.By;
@@ -150,5 +151,19 @@ public class IosNonHittableTapTest {
         String flat = text.toString().toLowerCase();
         assertTrue(flat.contains("not hittable"), text.toString());
         assertTrue(flat.contains("no effect"), text.toString());
+        assertTrue(hasType(thrown, IosTapHadNoEffectException.class), text.toString());
+    }
+
+    private static boolean hasType(Throwable thrown, Class<? extends Throwable> type) {
+        Throwable current = thrown;
+        int depth = 0;
+        while (current != null && depth < 8) {
+            if (type.isInstance(current)) {
+                return true;
+            }
+            current = current.getCause();
+            depth++;
+        }
+        return false;
     }
 }
