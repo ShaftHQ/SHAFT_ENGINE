@@ -22,6 +22,8 @@ def load(name: str):
     path = SOURCE / f"{name}.py" if not name.startswith("scripts/") else ROOT / name
     if name == "validate_pr_closing_keywords":
         path = ROOT / "scripts/ci/validate_pr_closing_keywords.py"
+    elif name == "hooks/retrieve_justification":
+        path = SOURCE / "hooks" / "retrieve_justification.py"
     spec = importlib.util.spec_from_file_location(f"followup_{name}", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -198,6 +200,79 @@ class HostPruneAndUsageTest(unittest.TestCase):
             self.assertLessEqual(len(stored), 65536)
             self.assertLessEqual(len(json.loads(stored)["records"]), 100)
 
+    def test_later_citation_flips_cited_through_the_store_ledger(self):
+        mindset = load("harness_mindset")
+        gate = load("hooks/retrieve_justification")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            relative = "chaos-engine/retrieve.py"
+            hit = project / relative
+            hit.parent.mkdir(parents=True)
+            hit.write_text("retrieve\n", encoding="utf-8")
+            mindset.record_retrieve_usage(
+                project,
+                store="graphify",
+                hit_count=1,
+                byte_size=12,
+                paths=[relative],
+            )
+            raw = json.loads(
+                (project / ".chaos-engine-state" / "retrieve-usage.json").read_text(encoding="utf-8")
+            )
+            self.assertFalse(raw["records"][0]["cited"])
+            cited = gate.record_citations(project, "graphify", f"src={relative} L40\n")
+            self.assertIn(relative, cited)
+            rate = mindset.usage_rate(project)
+            self.assertEqual(1, rate["cited"])
+            self.assertEqual(1, rate["records"])
+            self.assertEqual(1, mindset.doctor_followups(project)["retrieveUsage"]["cited"])
+            self.assertEqual("retrieve hit use: 1/1", mindset.usage_line(project))
+
+    def test_later_read_flips_cited_through_the_read_tool(self):
+        mindset = load("harness_mindset")
+        gate = load("hooks/retrieve_justification")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            relative = "chaos-engine/retrieve.py"
+            hit = project / relative
+            hit.parent.mkdir(parents=True)
+            hit.write_text("retrieve\n", encoding="utf-8")
+            mindset.record_retrieve_usage(
+                project,
+                store="mempalace",
+                hit_count=1,
+                byte_size=8,
+                paths=[relative],
+            )
+            reason = gate.file_read_block_reason(
+                project=project,
+                event_name="PreToolUse",
+                tool_name="Read",
+                tool_input={"file_path": str(hit.resolve())},
+                commands=(),
+            )
+            self.assertIsNone(reason)
+            self.assertEqual(1, mindset.usage_rate(project)["cited"])
+
+    def test_retrieve_attaches_the_same_call_citation_after_the_usage_row(self):
+        retrieve = load("retrieve")
+        mindset = load("harness_mindset")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            tool = project / "chaos-engine"
+            tool.mkdir()
+            (tool / "tool.py").write_text("print('tool')\n", encoding="utf-8")
+            (tool / "retrieve.py").write_text("retrieve\n", encoding="utf-8")
+            body = "src=chaos-engine/retrieve.py L40\n"
+            completed = unittest.mock.Mock(returncode=0, stdout=body, stderr="")
+            with unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed):
+                receipt = retrieve.retrieve("retrieve budget token", store="graphify", project=project)
+            self.assertEqual("used", receipt["status"])
+            self.assertEqual(["chaos-engine/retrieve.py"], [hit["path"] for hit in receipt["hits"]])
+            rate = mindset.usage_rate(project)
+            self.assertEqual(1, rate["records"])
+            self.assertEqual(1, rate["cited"])
+
 
 class PrSectionTest(unittest.TestCase):
     def test_missing_assumption_is_rejected_and_explicit_na_is_accepted(self):
@@ -245,6 +320,48 @@ class PrSectionTest(unittest.TestCase):
             mindset.record_rule_trigger(project, "rg-explicit-path")
             report = mindset.zero_trigger_report(project)
         self.assertNotIn("rg-explicit-path", report["zeroTriggers"])
+
+    def test_shipped_checks_record_their_rule_triggers(self):
+        mindset = load("harness_mindset")
+        gate = load("validate_pr_closing_keywords")
+        retrieve = load("retrieve")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            tool = project / "chaos-engine"
+            tool.mkdir()
+            (tool / "tool.py").write_text("print('tool')\n", encoding="utf-8")
+            env = {
+                "CHAOS_ENGINE_PROJECT": str(project),
+                "PR_AUTHOR": "mohab",
+                "PR_TITLE": "Lesson: restated a gate",
+                "PR_BODY": "",
+            }
+            body = (
+                "## Riskiest assumption\n\nN/A\n"
+                "## Outcome changed\n\nWould have avoided the Flutter nightly failure.\n"
+            )
+            with unittest.mock.patch.dict(os.environ, env, clear=False):
+                findings = gate.mindset_body_errors(body)
+            self.assertEqual([], findings)
+            completed = unittest.mock.Mock(
+                returncode=0, stdout="src=chaos-engine/retrieve.py L40\n", stderr=""
+            )
+            with unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed):
+                retrieve._run_store(project, "graphify", "retrieve budget token")
+            if shutil.which("rg") is None:
+                mindset.prepare_rg(["rg", "token"], project=project)
+            else:
+                mindset.run_rg(["rg", "token"], cwd=project)
+            mindset.prune_orphaned_host_entries(project, dry_run=True)
+            report = mindset.zero_trigger_report(project)
+        for rule_id in (
+            "riskiest-assumption",
+            "lesson-outcome",
+            "relevance-floor",
+            "rg-explicit-path",
+            "host-prune",
+        ):
+            self.assertNotIn(rule_id, report["zeroTriggers"], rule_id)
 
 
 class MemPalacePinTest(unittest.TestCase):

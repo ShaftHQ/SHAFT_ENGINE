@@ -344,6 +344,37 @@ def _citable(project: Path, path: str) -> bool:
         return False
 
 
+def _mindset_module():
+    cached = getattr(_mindset_module, "module", None)
+    if cached is not None:
+        return cached
+    import importlib.util
+
+    mindset_path = Path(__file__).resolve().parents[1] / "harness_mindset.py"
+    spec = importlib.util.spec_from_file_location("chaos_engine_harness_mindset_cite", mindset_path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _mindset_module.module = module
+    return module
+
+
+def _note_cited_paths(project: Path, paths: list[str]) -> None:
+    """Flip retrieve-usage cited when a ledger citation or a Read names that path."""
+    wanted = [path for path in paths if path]
+    if not wanted:
+        return
+    try:
+        module = _mindset_module()
+        if module is None:
+            return
+        for path in wanted:
+            module.note_path_read(project, path)
+    except (OSError, TypeError, ValueError, ImportError):
+        return
+
+
 def record_citations(project: Path, store: str, text: str) -> list[str]:
     """Append paths from a MemPalace or Graphify result. Other stores no-op."""
     return record_store_outcome(project, store, "used", "", text)
@@ -511,6 +542,7 @@ def record_store_outcome(
     if isinstance(previous, dict):
         payload["indexState"] = previous
     _write_payload(project, payload)
+    _note_cited_paths(project, fresh)
     return fresh
 
 
@@ -1208,5 +1240,7 @@ def file_read_block_reason(
             _mark_session(project, session_id, owe=True)
         elif paths:
             _index_allows_without_retrieve(project, paths)
+        if tool_name == "Read":
+            _note_cited_paths(project, [_project_relative(project, path) for path in paths])
         return None
     return _shell_block(project, commands, session_id)

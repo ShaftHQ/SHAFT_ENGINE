@@ -155,15 +155,16 @@ def rg_has_path(argv: list[str]) -> bool:
     return False
 
 
-def prepare_rg(argv: list[str]) -> tuple[list[str], bool]:
+def prepare_rg(argv: list[str], *, project: Path | None = None) -> tuple[list[str], bool]:
     """Pathless ``rg`` searches ``.`` and must not read stdin. A pathed ``rg`` is unchanged."""
+    _record_check(project, "rg-explicit-path")
     if rg_has_path(argv):
         return list(argv), False
     return [*argv, "."], True
 
 
 def run_rg(argv: list[str], *, cwd: Path, stdin: int | None = None) -> subprocess.CompletedProcess[str]:
-    command, ignore_stdin = prepare_rg(argv)
+    command, ignore_stdin = prepare_rg(argv, project=cwd)
     return subprocess.run(  # nosec B603 - caller argv plus an explicit path; no shell.
         command,
         cwd=cwd,
@@ -178,8 +179,11 @@ def store_budget_bytes(store: str) -> int:
     return STORE_BUDGET_BYTES.get(store, 800)
 
 
-def relevance_floor(hits: list[Mapping[str, Any]], query: str) -> list[dict[str, Any]]:
+def relevance_floor(
+    hits: list[Mapping[str, Any]], query: str, *, project: Path | None = None
+) -> list[dict[str, Any]]:
     """Drop hits that share no query token with their path. No fallback to leftovers."""
+    _record_check(project, "relevance-floor")
     tokens = {token.casefold() for token in re.findall(r"[A-Za-z0-9_.-]{3,}", query or "")}
     if not tokens:
         return []
@@ -337,6 +341,7 @@ def prune_orphaned_host_entries(
     removed once they are older than ``lease_seconds``. Live receipt and active
     anchor files at the project root are never deleted. ``dry_run`` reports only.
     """
+    _record_check(project, "host-prune")
     import time
 
     moment = time.time() if now is None else now
@@ -383,7 +388,10 @@ def _section(body: str, heading: re.Pattern[str]) -> str | None:
     return rest[: nxt.start()] if nxt else rest
 
 
-def assumption_section_errors(body: str, *, author: str = "") -> list[str]:
+def assumption_section_errors(
+    body: str, *, author: str = "", project: Path | None = None
+) -> list[str]:
+    _record_check(project, "riskiest-assumption")
     if author.casefold() in BOT_AUTHORS:
         return []
     text = _section(body or "", ASSUMPTION_HEADING)
@@ -399,7 +407,10 @@ def assumption_section_errors(body: str, *, author: str = "") -> list[str]:
     return ["Riskiest assumption section needs one targeted test link or explicit N/A"]
 
 
-def lesson_outcome_errors(body: str, *, title: str = "") -> list[str]:
+def lesson_outcome_errors(
+    body: str, *, title: str = "", project: Path | None = None
+) -> list[str]:
+    _record_check(project, "lesson-outcome")
     if LESSON_TITLE.search(title or "") is None:
         return []
     text = _section(body or "", OUTCOME_HEADING)
@@ -424,6 +435,16 @@ def record_lesson_note(project: Path, text: str) -> Path:
 
 def _triggers_path(project: Path) -> Path:
     return project / ".chaos-engine-state" / RULE_TRIGGERS_NAME
+
+
+def _record_check(project: Path | None, rule_id: str) -> None:
+    """Count one evaluation of a shipped check. Missing project stays a no-op."""
+    if project is None:
+        return
+    try:
+        record_rule_trigger(Path(project), rule_id)
+    except (OSError, TypeError, ValueError):
+        return
 
 
 def record_rule_trigger(project: Path, rule_id: str, *, when: datetime | None = None) -> dict[str, Any]:
