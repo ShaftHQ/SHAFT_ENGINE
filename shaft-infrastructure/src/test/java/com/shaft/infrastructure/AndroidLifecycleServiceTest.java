@@ -27,6 +27,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AndroidLifecycleServiceTest {
     @Test
+    void emulatorRunsUnderAnEightGigabyteCgroupCapOnLinuxByDefault() {
+        assertEquals(List.of("systemd-run", "--user", "--scope", "--quiet", "-p", "MemoryMax=8G",
+                        "-p", "MemorySwapMax=0"),
+                AndroidLifecycleService.memoryCapPrefix("Linux", null, Optional.of("systemd-run")));
+    }
+
+    @Test
+    void emulatorMemoryCapIsConfigurableAndCanBeDisabled() {
+        assertEquals("MemoryMax=12G", AndroidLifecycleService.memoryCapPrefix("Linux", " 12 ",
+                Optional.of("systemd-run")).get(5));
+        assertEquals("MemoryMax=8G", AndroidLifecycleService.memoryCapPrefix("Linux", "not-a-number",
+                Optional.of("systemd-run")).get(5));
+        assertTrue(AndroidLifecycleService.memoryCapPrefix("Linux", "0", Optional.of("systemd-run")).isEmpty());
+    }
+
+    @Test
+    void emulatorMemoryCapIsSkippedOffLinuxOrWithoutASystemdUserManager() {
+        assertTrue(AndroidLifecycleService.memoryCapPrefix("Mac OS X", null, Optional.of("systemd-run")).isEmpty());
+        assertTrue(AndroidLifecycleService.memoryCapPrefix("Windows 11", null, Optional.of("systemd-run")).isEmpty());
+        assertTrue(AndroidLifecycleService.memoryCapPrefix("Linux", null, Optional.empty()).isEmpty());
+    }
+
+    @Test
     void linkedRuntimeStateAncestorStartsNoProcess(@TempDir Path temp) throws Exception {
         Fixture fixture = installed(temp);
         Path state = fixture.paths().state();

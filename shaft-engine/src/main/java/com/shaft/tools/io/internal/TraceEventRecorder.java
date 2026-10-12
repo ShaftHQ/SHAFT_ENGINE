@@ -1,5 +1,6 @@
 package com.shaft.tools.io.internal;
 
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.capabilities.AutomationBackend;
 import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
@@ -486,7 +487,8 @@ public final class TraceEventRecorder {
     }
 
     private static String currentUrl(WebDriver driver) {
-        if (driver == null) {
+        // Native app sessions have no URL; Appium answers "Method has not yet been implemented" (#6827).
+        if (driver == null || DriverFactoryHelper.isMobileNativeExecution()) {
             return "";
         }
         try {
@@ -523,7 +525,8 @@ public final class TraceEventRecorder {
      * traced.
      */
     private static SeleniumTraceCapture.Result domSnapshot(WebDriver driver) {
-        if (driver == null || !isDomSnapshotEnabled()) {
+        // A native app has no DOM: the outerHTML script is rejected with "Method is not implemented" (#6827).
+        if (driver == null || !isDomSnapshotEnabled() || DriverFactoryHelper.isMobileNativeExecution()) {
             return null;
         }
         try {

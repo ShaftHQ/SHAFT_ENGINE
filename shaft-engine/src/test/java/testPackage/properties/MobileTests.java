@@ -16,6 +16,8 @@ public class MobileTests {
     String appPackage;
     String appActivity;
     String bundleId;
+    String language;
+    String locale;
 
 
     @BeforeClass
@@ -31,6 +33,8 @@ public class MobileTests {
         appPackage = SHAFT.Properties.mobile.appPackage();
         appActivity = SHAFT.Properties.mobile.appActivity();
         bundleId = SHAFT.Properties.mobile.bundleId();
+        language = SHAFT.Properties.mobile.language();
+        locale = SHAFT.Properties.mobile.locale();
     }
 
     @Test
@@ -45,6 +49,8 @@ public class MobileTests {
                 .app(app)
                 .appPackage(appPackage)
                 .appActivity(appActivity)
-                .bundleId(bundleId);
+                .bundleId(bundleId)
+                .language(language)
+                .locale(locale);
     }
 }

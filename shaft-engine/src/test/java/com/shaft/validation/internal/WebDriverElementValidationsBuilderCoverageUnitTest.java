@@ -96,6 +96,37 @@ public class WebDriverElementValidationsBuilderCoverageUnitTest {
                 null, "elementDomAttributeEquals", null, "disabled", "is disabled; disabled attribute");
     }
 
+    @Test(description = "Issue #6821: native mobile sessions validate enabled/visible state through the element, not web-only DOM attributes")
+    public void nativeMobileStateAssertionsAvoidWebOnlyDomAttributes() {
+        String originalPlatform = originalPlatform();
+        com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform("Android");
+        com.shaft.driver.SHAFT.Properties.mobile.set().browserName("");
+        try {
+            assertNativeStateAssertion(WebDriverElementValidationsBuilder::isEnabled, "elementEnabledEquals", "is enabled; enabled state is TRUE.");
+            assertNativeStateAssertion(WebDriverElementValidationsBuilder::isDisabled, "elementEnabledEquals", "is disabled; enabled state is FALSE.");
+            assertNativeStateAssertion(WebDriverElementValidationsBuilder::isVisible, "elementDisplayedEquals", "is visible; displayed state is TRUE.");
+            assertNativeStateAssertion(WebDriverElementValidationsBuilder::isHidden, "elementDisplayedEquals", "is hidden; displayed state is FALSE.");
+        } finally {
+            com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform(originalPlatform);
+        }
+    }
+
+    private static String originalPlatform() {
+        return com.shaft.driver.SHAFT.Properties.platform.targetPlatform();
+    }
+
+    private void assertNativeStateAssertion(ThrowingInvocation invocation, String expectedMethod, String reportSnippet) {
+        var builder = newBuilder();
+        try {
+            invocation.invoke(builder);
+        } catch (Throwable ignored) {
+            // no live driver in a unit context; only the configured state is asserted
+        }
+        Assert.assertEquals(builder.validationMethod, expectedMethod);
+        Assert.assertNull(builder.elementAttribute, "native state must not read a DOM attribute");
+        Assert.assertTrue(builder.reportMessageBuilder.toString().contains(reportSnippet), builder.reportMessageBuilder.toString());
+    }
+
     private WebDriverElementValidationsBuilder newBuilder() {
         return new WebDriverElementValidationsBuilder(
                 ValidationEnums.ValidationCategory.HARD_ASSERT,

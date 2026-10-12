@@ -1,5 +1,6 @@
 package com.shaft.gui.element.internal;
 
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
@@ -77,9 +78,13 @@ final class FailureEvidence {
                 ? ElementActionabilityDiagnostics.collect(locator, driver, matched, failure)
                 : actionability);
         evidence.putIfAbsent("matchCount", matched == null ? 0 : matched.size());
-        evidence.put("title", safe(() -> driver.getTitle()));
+        boolean nativeApp = DriverFactoryHelper.isMobileNativeExecution();
+        if (!nativeApp) {
+            // Get Title, iframe probes and the DOM candidate script do not exist in native sessions (#6828, #6829).
+            evidence.put("title", safe(() -> driver.getTitle()));
+        }
         evidence.put("screenshotAttached", screenshotAttached);
-        if (matched == null || matched.isEmpty()) {
+        if (!nativeApp && (matched == null || matched.isEmpty())) {
             evidence.put("frameMatchCounts", frameMatchCounts(locator, driver));
             evidence.put("nearestCandidates", nearestCandidates(locator, driver));
         }

@@ -19,6 +19,8 @@
 - Switch from `NATIVE_APP` to a discovered `WEBVIEW_*` context before using web locators, then switch back for a system dialog.
 - Use `driver.touch().swipeElementIntoView(target, TouchActions.SwipeDirection.DOWN).tap(target)` and assert the selected item.
 - Rotate to landscape and back only when orientation behavior is the explicit acceptance criterion.
+- Test another language with `SHAFT.Properties.mobile.set().language("ar").locale("EG")` before the driver starts (`appium:language`, `appium:locale`; also works on BrowserStack). An `adb` app-locale change is lost when Appium resets the app, and raw `System.setProperty` calls trip the test-code guardrails.
+- In a native session assert state with `isEnabled()`, `isDisabled()`, `isVisible()` and `isHidden()`; SHAFT reads them from the element, not from web-only DOM attributes. SHAFT never sends browser-only commands (Get Title, Get URL, tag-name iframe probes, DOM scripts, Close Window) to a native session.
 
 ## Boundary
 

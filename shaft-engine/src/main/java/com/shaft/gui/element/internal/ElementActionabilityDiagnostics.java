@@ -1,5 +1,6 @@
 package com.shaft.gui.element.internal;
 
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.tools.internal.support.JavaHelper;
@@ -63,8 +64,9 @@ final class ElementActionabilityDiagnostics {
         Map<String, Object> diagnostics = new LinkedHashMap<>();
         List<String> warnings = new ArrayList<>();
         diagnostics.put("locator", locator == null ? "" : JavaHelper.formatLocatorToString(locator));
+        boolean nativeApp = DriverFactoryHelper.isMobileNativeExecution();
         putIfPresent(diagnostics, "currentUrl",
-                driver == null ? null : safe("current URL", warnings, driver::getCurrentUrl));
+                driver == null || nativeApp ? null : safe("current URL", warnings, driver::getCurrentUrl));
         putIfPresent(diagnostics, "failureType", failure == null ? null : failure.getClass().getName());
         putIfPresent(diagnostics, "failureMessage", failure == null ? null : failure.getMessage());
         putIfPresent(diagnostics, "context", context());
@@ -93,6 +95,11 @@ final class ElementActionabilityDiagnostics {
         putIfPresent(diagnostics, "accessibleName", safeElement("accessible name", diagnostics, warnings, element::getAccessibleName));
         putIfPresent(diagnostics, "textPreview", preview(safeElement("text preview", diagnostics, warnings, element::getText)));
         putIfPresent(diagnostics, "rect", rect(safeElement("element rectangle", diagnostics, warnings, element::getRect)));
+        if (nativeApp) {
+            // aria/title/placeholder reads, CSS values and the DOM targetability script are web-only (#6831).
+            diagnostics.put("recommendation", recommendation(diagnostics, new LinkedHashMap<>()));
+            return finish(diagnostics, warnings);
+        }
         putIfPresent(diagnostics, "accessibleNameHints", accessibleNameHints(element, diagnostics, warnings));
 
         Map<String, Object> css = css(element, diagnostics, warnings);

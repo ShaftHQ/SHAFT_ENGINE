@@ -1,5 +1,6 @@
 package com.shaft.gui.element.internal.interaction;
 
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import org.openqa.selenium.WebElement;
 
 import java.util.List;
@@ -106,7 +107,9 @@ public final class ElementClassifier {
         if (element == null) {
             return ElementKind.UNKNOWN;
         }
-        return classify(fromWebElement(element));
+        return classify(DriverFactoryHelper.isMobileNativeExecution()
+                ? fromNativeElement(element)
+                : fromWebElement(element));
     }
 
     /**
@@ -313,6 +316,37 @@ public final class ElementClassifier {
                 || className.contains("imask")
                 || className.contains("mask-input")
                 || className.contains("masked-input");
+    }
+
+    /**
+     * Native Android/iOS signals only (#6833). Appium rejects the web-only attributes with a 404 that
+     * cannot change, so each signal is read once, never retried and never followed by a DOM property read.
+     * The element's class name is the native widget type; {@code enabled="false"} maps to the disabled flag.
+     */
+    static ElementSignals fromNativeElement(WebElement element) {
+        String enabled = safeNativeAttribute(element, "enabled");
+        return new ElementSignals(
+                safeTagName(element),
+                null,
+                null,
+                null,
+                null,
+                "false".equalsIgnoreCase(enabled) ? "true" : null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                safeNativeAttribute(element, "class"),
+                null);
+    }
+
+    private static String safeNativeAttribute(WebElement element, String name) {
+        try {
+            return element.getDomAttribute(name);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private static ElementSignals fromWebElement(WebElement element) {

@@ -1,5 +1,6 @@
 package com.shaft.validation.internal;
 
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.VisualComparisonOptions;
@@ -309,6 +310,9 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
      */
     @Override
     public ValidationsExecutor isVisible() {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            return nativeElementState("elementDisplayedEquals", "is visible; displayed state ").isTrue();
+        }
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "hidden";
         reportMessageBuilder.append("is visible; hidden attribute ");
@@ -322,6 +326,9 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
      */
     @Override
     public ValidationsExecutor isEnabled() {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            return nativeElementState("elementEnabledEquals", "is enabled; enabled state ").isTrue();
+        }
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "disabled";
         reportMessageBuilder.append("is enabled; disabled attribute ");
@@ -361,6 +368,9 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
      */
     @Override
     public ValidationsExecutor isHidden() {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            return nativeElementState("elementDisplayedEquals", "is hidden; displayed state ").isFalse();
+        }
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "hidden";
         reportMessageBuilder.append("is hidden; hidden attribute ");
@@ -374,6 +384,9 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
      */
     @Override
     public ValidationsExecutor isDisabled() {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            return nativeElementState("elementEnabledEquals", "is disabled; enabled state ").isFalse();
+        }
         this.validationMethod = "elementDomAttributeEquals";
         this.elementAttribute = "disabled";
         reportMessageBuilder.append("is disabled; disabled attribute ");
@@ -427,4 +440,17 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
     }
 
 
+
+    /**
+     * Native mobile sessions (UiAutomator2, XCUITest) reject the web-only {@code disabled} and
+     * {@code hidden} DOM attributes (#6821), so enabled and displayed states are read through
+     * {@link org.openqa.selenium.WebElement#isEnabled()} and {@code isDisplayed()}, which every
+     * driver supports.
+     */
+    private NativeValidationsBuilder nativeElementState(String method, String message) {
+        this.validationMethod = method;
+        this.elementAttribute = null;
+        reportMessageBuilder.append(message);
+        return new NativeValidationsBuilder(this);
+    }
 }

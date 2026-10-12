@@ -164,6 +164,31 @@ public interface Mobile extends EngineProperties<Mobile> {
     @DefaultValue("")
     String bundleId();
 
+    /**
+     * Language the Appium session should run the app in, sent as the {@code appium:language}
+     * capability. Unlike an {@code adb} app-locale change, it survives Appium's default app reset and
+     * also works on BrowserStack. Leave empty to keep the device language.
+     *
+     * <p>Possible values: example: ar, en.
+     *
+     * @return the configured value of {@code mobile_language}
+     */
+    @Key("mobile_language")
+    @DefaultValue("")
+    String language();
+
+    /**
+     * Locale (region) the Appium session should run the app in, sent as the {@code appium:locale}
+     * capability. Use together with {@link #language()}. Leave empty to keep the device locale.
+     *
+     * <p>Possible values: example: EG, US.
+     *
+     * @return the configured value of {@code mobile_locale}
+     */
+    @Key("mobile_locale")
+    @DefaultValue("")
+    String locale();
+
     /** Maximum time in seconds to wait for a Flutter element. Zero keeps the default wait behavior. */
     @Key("mobile_flutterElementWaitTimeout")
     @DefaultValue("60")
@@ -347,6 +372,30 @@ public interface Mobile extends EngineProperties<Mobile> {
          */
         public SetProperty bundleId(String value) {
             setProperty("mobile_bundleId", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code mobile_language} property at runtime, sent as the {@code appium:language}
+         * capability. Set it before the driver starts.
+         *
+         * @param value the new value of {@code mobile_language}, example: ar
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty language(String value) {
+            setProperty("mobile_language", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code mobile_locale} property at runtime, sent as the {@code appium:locale}
+         * capability. Set it before the driver starts.
+         *
+         * @param value the new value of {@code mobile_locale}, example: EG
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty locale(String value) {
+            setProperty("mobile_locale", value);
             return this;
         }
 

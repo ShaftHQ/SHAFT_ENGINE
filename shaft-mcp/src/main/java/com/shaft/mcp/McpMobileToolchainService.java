@@ -116,6 +116,9 @@ final class McpMobileToolchainService {
         Path appiumRoot = sharedAndroid ? managedAppiumRoot : legacyAppiumRoot;
         List<Path> nodeBins = sharedAndroid ? List.of(managedNodeBin(), nodeBin()) : List.of(nodeBin());
         List<String> warnings = new ArrayList<>();
+        if (sharedAndroid) {
+            warnings.addAll(McpEmulatorMemoryProbe.currentWarnings());
+        }
 
         Optional<Path> node = resolveExecutable("node", nodeBins);
         Optional<Path> npm = resolveExecutable("npm", nodeBins);
