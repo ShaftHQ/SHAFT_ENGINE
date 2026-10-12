@@ -68,6 +68,8 @@
 <li><a href="#appPackage(java.lang.String)" tabindex="0">appPackage(String)</a></li>
 <li><a href="#appActivity(java.lang.String)" tabindex="0">appActivity(String)</a></li>
 <li><a href="#bundleId(java.lang.String)" tabindex="0">bundleId(String)</a></li>
+<li><a href="#language(java.lang.String)" tabindex="0">language(String)</a></li>
+<li><a href="#locale(java.lang.String)" tabindex="0">locale(String)</a></li>
 <li><a href="#flutterElementWaitTimeout(int)" tabindex="0">flutterElementWaitTimeout(int)</a></li>
 <li><a href="#flutterServerLaunchTimeout(int)" tabindex="0">flutterServerLaunchTimeout(int)</a></li>
 <li><a href="#flutterSystemPort(int)" tabindex="0">flutterSystemPort(int)</a></li>
@@ -184,6 +186,18 @@ an already installed app without providing mobile_app.</div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#flutterSystemPort(int)" class="member-name-link">flutterSystemPort</a><wbr>(int&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>mobile_flutterSystemPort</code> property at runtime.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#language(java.lang.String)" class="member-name-link">language</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>mobile_language</code> property at runtime, sent as the <code>appium:language</code>
+capability.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#locale(java.lang.String)" class="member-name-link">locale</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>mobile_locale</code> property at runtime, sent as the <code>appium:locale</code>
+capability.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#platformName(java.lang.String)" class="member-name-link">platformName</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
@@ -447,6 +461,38 @@ an already installed app without providing mobile_app.</div>
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>value</code> - the new value of <code>mobile_bundleId</code></dd>
+<dt>Returns:</dt>
+<dd>this <a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal"><code>Mobile.SetProperty</code></a> instance for chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="language(java.lang.String)">
+<h3>language</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></span>&nbsp;<span class="element-name">language</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>mobile_language</code> property at runtime, sent as the <code>appium:language</code>
+capability. Set it before the driver starts.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>mobile_language</code>, example: ar</dd>
+<dt>Returns:</dt>
+<dd>this <a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal"><code>Mobile.SetProperty</code></a> instance for chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="locale(java.lang.String)">
+<h3>locale</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></span>&nbsp;<span class="element-name">locale</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>mobile_locale</code> property at runtime, sent as the <code>appium:locale</code>
+capability. Set it before the driver starts.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - the new value of <code>mobile_locale</code>, example: EG</dd>
 <dt>Returns:</dt>
 <dd>this <a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal"><code>Mobile.SetProperty</code></a> instance for chaining</dd>
 </dl>

@@ -60,6 +60,8 @@
 <li><a href="#appPackage()" tabindex="0">appPackage()</a></li>
 <li><a href="#appActivity()" tabindex="0">appActivity()</a></li>
 <li><a href="#bundleId()" tabindex="0">bundleId()</a></li>
+<li><a href="#language()" tabindex="0">language()</a></li>
+<li><a href="#locale()" tabindex="0">locale()</a></li>
 <li><a href="#flutterElementWaitTimeout()" tabindex="0">flutterElementWaitTimeout()</a></li>
 <li><a href="#flutterServerLaunchTimeout()" tabindex="0">flutterServerLaunchTimeout()</a></li>
 <li><a href="#flutterSystemPort()" tabindex="0">flutterSystemPort()</a></li>
@@ -188,6 +190,18 @@ or via CLI arguments, just make sure to add mobile_ as a prefix.</div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#flutterSystemPort()" class="member-name-link">flutterSystemPort</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Local system port used by the Flutter driver; zero lets the driver choose.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#language()" class="member-name-link">language</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Language the Appium session should run the app in, sent as the <code>appium:language</code>
+capability.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#locale()" class="member-name-link">locale</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Locale (region) the Appium session should run the app in, sent as the <code>appium:locale</code>
+capability.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#platformName()" class="member-name-link">platformName</a>()</code></div>
@@ -423,6 +437,43 @@ via CLI arguments, just make sure to add mobile_ as a prefix.
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the configured value of <code>mobile_bundleId</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="language()">
+<h3>language</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("mobile_language")
+@DefaultValue("")
+</span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">language</span>()</div>
+<div class="block">Language the Appium session should run the app in, sent as the <code>appium:language</code>
+capability. Unlike an <code>adb</code> app-locale change, it survives Appium's default app reset and
+also works on BrowserStack. Leave empty to keep the device language.
+
+<p>Possible values: example: ar, en.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>mobile_language</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="locale()">
+<h3>locale</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("mobile_locale")
+@DefaultValue("")
+</span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">locale</span>()</div>
+<div class="block">Locale (region) the Appium session should run the app in, sent as the <code>appium:locale</code>
+capability. Use together with <a href="#language()"><code>language()</code></a>. Leave empty to keep the device locale.
+
+<p>Possible values: example: EG, US.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>mobile_locale</code></dd>
 </dl>
 </div>
 </section>
