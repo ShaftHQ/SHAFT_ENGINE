@@ -39,9 +39,9 @@ class BundledAppiumSecurityOverridesTest {
     }
 
     /**
-     * npm overrides cannot reach a dependency's bundled tree, so a bumped package can ship an
-     * older copy of an overridden (security-pinned) package; appium-uiautomator2-driver 8.7.0
-     * bundles axios 1.19.0 (#6382). No copy may resolve below its override.
+     * npm overrides cannot replace an {@code inBundle} copy or a copy inside a shrinkwrapped
+     * driver tree. Those stay on the published driver. Every other copy must resolve at or
+     * above its override.
      */
     @ParameterizedTest
     @ValueSource(strings = {"appium", "appium-ios", "appium-windows", "lighthouse", "reporting"})
@@ -52,6 +52,9 @@ class BundledAppiumSecurityOverridesTest {
         List<String> belowOverride = new ArrayList<>();
         for (Map.Entry<String, JsonNode> override : overrides.properties()) {
             for (Map.Entry<String, JsonNode> entry : packages.properties()) {
+                if (unreachableByOverride(entry.getKey(), entry.getValue(), packages)) {
+                    continue;
+                }
                 String version = entry.getValue().path("version").asText();
                 if (entry.getKey().endsWith("node_modules/" + override.getKey())
                         && compareVersions(version, override.getValue().asText()) < 0) {
@@ -60,6 +63,26 @@ class BundledAppiumSecurityOverridesTest {
             }
         }
         assertEquals(List.of(), belowOverride, bundle + " lockfile escapes its npm overrides");
+    }
+
+    /**
+     * True for a published driver copy that npm overrides do not replace.
+     */
+    private static boolean unreachableByOverride(String path, JsonNode entry, JsonNode packages) {
+        if (entry.path("inBundle").asBoolean(false)) {
+            return true;
+        }
+        String cursor = path;
+        while (true) {
+            int split = cursor.lastIndexOf("/node_modules/");
+            if (split < 0) {
+                return false;
+            }
+            cursor = cursor.substring(0, split);
+            if (packages.path(cursor).path("hasShrinkwrap").asBoolean(false)) {
+                return true;
+            }
+        }
     }
 
     /**

@@ -158,6 +158,9 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertLess(helper.find("APK_PATH="), helper.find('ls -l "$APK_PATH"'))
         self.assertIn("-Dallure.automaticallyOpen=false", helper)
         self.assertIn("-DheadlessExecution=true", helper)
+        self.assertEqual(1, helper.count("socket hang up"))
+        self.assertIn("Restarting Appium once.", helper)
+        self.assertLess(helper.find("socket hang up"), helper.rfind("attempt_flutter_test"))
         self.assertIn("shaft-engine/allure-results", helper)
         self.assertIn("127.0.0.1:4723", helper)
 
