@@ -278,6 +278,19 @@ def ungated_script_module_failures(root: Path) -> list[str]:
     return [f"script test module not selected by harness_pr_gate (add it to scripts/ci/harness_pr_gate.py): {detail}"]
 
 
+def shipped_validator_import_failures(root: Path, changed: list[str]) -> list[str]:
+    """Shipped validators must ship every scripts.* module they import (#6843). Lazy import keeps the
+    consumer copy of this file free of a new module-scope dependency."""
+    if not (root / "scripts/mcp/install_shaft_agentic_tools.py").is_file():
+        return []
+    from scripts.ci import validation_manifest_imports as manifest
+
+    if not manifest.touches_shipped_validators(root, changed):
+        return []
+    return [f"shipped validator import missing from AGENT_VALIDATION_SCRIPT_FILES (#6843): {item}"
+            for item in manifest.missing_imports(root, manifest.shipped_files(root))]
+
+
 def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
     """Return contract failures for one overlay diff. Empty means the push may proceed."""
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
@@ -289,6 +302,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
         failures.extend(portable_core_path_failures(root))
     if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):
         failures.extend(ungated_script_module_failures(root))
+    failures.extend(shipped_validator_import_failures(root, changed))
     if any(touches_workflows(path) for path in changed):
         failures.extend(
             f"workflow template drift (#3798): {item}; sync shaft-engine/src/main/resources/examples/.github/workflows"
