@@ -74,6 +74,10 @@ compaction. Do not treat a compacted context as a session end.
 - Nightly tracker autoclose and prove-close dispatch live in the
   [delivery playbook](work-github-playbook.md#pr-merger-workflow-arm-watch-fix-confirm).
   Targeted `jobs` values must not close full-matrix trackers.
+- Full-suite-only failures (pass alone or in a small `tests=` selection): before bisecting,
+  scan the same run for in-JVM unit tests of that subsystem failing with `TimeoutException`.
+  That signals shared-executor starvation (#6775: CDP handlers on virtual threads), not order.
+  Pick `tests=` globs with `pkg/**/*Test*`; `pkg.*` skips subpackages.
 
 ### Mid-session realignment: named HALT conditions
 
