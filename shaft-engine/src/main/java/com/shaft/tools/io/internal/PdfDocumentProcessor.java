@@ -51,8 +51,8 @@ public final class PdfDocumentProcessor {
         Path input = validateInput(source, options);
         PdfDocumentExporter.preflight(input, exportRequests);
         List<PdfPageResult> pages = new ArrayList<>();
-        ExecutorService ocrExecutor = Executors.newSingleThreadExecutor(Thread.ofVirtual()
-                .name("shaft-pdf-ocr-", 0).factory());
+        ExecutorService ocrExecutor = Executors.newSingleThreadExecutor(
+                com.shaft.tools.internal.support.PlatformThreads.daemonFactory("shaft-pdf-ocr"));
         try (PDDocument document = Loader.loadPDF(input.toFile(), IOUtils.createTempFileOnlyStreamCache())) {
             if (document.isEncrypted()) {
                 throw new IllegalArgumentException("Encrypted PDF documents are not supported: " + input);

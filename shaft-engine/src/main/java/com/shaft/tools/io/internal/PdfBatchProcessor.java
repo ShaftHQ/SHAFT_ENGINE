@@ -29,7 +29,7 @@ public final class PdfBatchProcessor {
             return processFailFast(immutableRequests, rasterBudget);
         }
         try (ExecutorService executor = Executors.newFixedThreadPool(options.parallelism(),
-                Thread.ofVirtual().name("shaft-pdf-batch-", 0).factory())) {
+                com.shaft.tools.internal.support.PlatformThreads.daemonFactory("shaft-pdf-batch"))) {
             List<Future<PdfBatchItemResult>> futures = immutableRequests.stream().map(request -> executor.submit(() -> {
                 try {
                     return new PdfBatchItemResult(request.source(), PdfDocumentProcessor.process(request.source(),
