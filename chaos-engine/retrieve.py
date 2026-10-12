@@ -131,6 +131,8 @@ _HIT = re.compile(
     r"(?::L?(?P<colon>\d+)|\s+L(?P<space>\d+))?"
 )
 _HIT_LIMIT = 8
+# MemPalace prints only a basename ("Source: CdpWorkers.java"); resolve unique ones to repo paths.
+_SOURCE_LINE = re.compile(r"^\s*Source:\s+(?P<name>[\w.-]+\.[A-Za-z0-9]+)\s*$", re.MULTILINE)
 _EXCERPT_WITH_HITS = 800
 
 
@@ -209,6 +211,24 @@ def _structured_hits(
     matched = [item for item in found if _hit_matches_query(str(item["path"]), tokens)]
     chosen = matched if matched else found
     return chosen[:limit]
+
+
+def _source_name_hits(project: Path, body: str, limit: int = _HIT_LIMIT) -> list[dict[str, object]]:
+    """Repo paths for MemPalace ``Source:`` basenames that name exactly one tracked file."""
+    names = list(dict.fromkeys(match.group("name") for match in _SOURCE_LINE.finditer(body)))
+    if not names:
+        return []
+    try:
+        listed = subprocess.run(  # nosec B603 B607 - fixed git argv, no shell.
+            ["git", "ls-files"], cwd=project, capture_output=True, text=True, check=False, timeout=20
+        ).stdout.splitlines()
+    except (OSError, subprocess.SubprocessError):
+        return []
+    by_name: dict[str, list[str]] = {}
+    for path in listed:
+        by_name.setdefault(path.rsplit("/", 1)[-1], []).append(path)
+    hits = [{"path": by_name[name][0]} for name in names if len(by_name.get(name, [])) == 1]
+    return hits[:limit]
 
 
 _BUDGET_HINT = re.compile(
@@ -583,6 +603,8 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
     if outside is not None:
         return outside
     hits = _structured_hits(body, query=query)
+    if not hits and store == "mempalace":
+        hits = _source_name_hits(project, body)
     excerpt = _bounded_excerpt(body, _EXCERPT_WITH_HITS if hits else 4096)
     receipt = {
         "store": store,

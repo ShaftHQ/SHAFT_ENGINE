@@ -69,3 +69,12 @@ LICENSE
 # do not block freshness until the package moves or Graphify stops dropping
 # build/ sources. Do not ignore other IntelliJ Java tests.
 shaft-intellij/src/test/java/com/shaft/intellij/build/
+# ChaosEngine harness and generated trees
+.chaos-engine-runtime/
+.chaos-engine-state/
+plugins/
+.claude/
+.codex/
+.gemini/
+.grok/
+.agents/
