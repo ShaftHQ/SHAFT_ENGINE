@@ -136,7 +136,8 @@ value, the specified file is copied to the project root as <code>browserstack.ym
 SHAFT's property-to-YAML mapping is skipped entirely. This allows users to provide their
 own SDK configuration file and override SHAFT's properties.
 
-<p>The generated file includes authentication credentials, platform configuration,
+<p>The generated file never contains credentials (#6826); the SDK reads them from
+<code>BROWSERSTACK_USERNAME</code> / <code>BROWSERSTACK_ACCESS_KEY</code>. It includes platform configuration,
 build/project naming, and optional settings like local testing, debugging, and
 geo-location.</div>
 <dl class="notes">

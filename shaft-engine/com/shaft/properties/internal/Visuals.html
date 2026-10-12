@@ -417,7 +417,9 @@ attempts can enable GIFs automatically.
 <div class="member-signature"><span class="annotations">@Key("videoParams_recordVideo")
 @DefaultValue("false")
 </span><span class="return-type">boolean</span>&nbsp;<span class="element-name">videoParamsRecordVideo</span>()</div>
-<div class="block">Granular video policy. Profile levels except CUSTOM override this after property loading.
+<div class="block">Granular video policy. Profile levels except CUSTOM override this after property loading. Native
+Appium recording is local only: on BrowserStack, LambdaTest and Sauce Labs the provider session video
+is used instead.
 
 <p>Default: <code>false</code>. Possible values: true, false.</div>
 <dl class="notes">
