@@ -11,7 +11,7 @@ import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.gherkin.Feature;
 import io.cucumber.core.resource.Resource;
 import io.cucumber.plugin.event.*;
-import io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm;
+import io.qameta.allure.cucumber8jvm.AllureCucumber8Jvm;
 import org.testng.Reporter;
 
 import java.io.ByteArrayInputStream;
@@ -24,7 +24,7 @@ import java.util.UUID;
  * Cucumber test-run listener that bridges Cucumber events to SHAFT reporting and Allure.
  */
 @SuppressWarnings("unused")
-public class CucumberTestRunnerListener extends AllureCucumber7Jvm {
+public class CucumberTestRunnerListener extends AllureCucumber8Jvm {
 
     /**
      * Creates a new Cucumber test runner listener.

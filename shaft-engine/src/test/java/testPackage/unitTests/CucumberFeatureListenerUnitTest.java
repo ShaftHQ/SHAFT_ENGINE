@@ -21,7 +21,7 @@ public class CucumberFeatureListenerUnitTest {
         CucumberFeatureListener listener = new CucumberFeatureListener(Mockito.mock(AllureLifecycle.class));
         EventPublisher publisher = Mockito.mock(EventPublisher.class);
         listener.setEventPublisher(publisher);
-        // Parent AllureCucumber7Jvm handlers plus SHAFT overlays
+        // Parent AllureCucumber8Jvm handlers plus SHAFT overlays
         Mockito.verify(publisher, Mockito.atLeast(6)).registerHandlerFor(Mockito.any(), Mockito.any());
     }
 

@@ -14,8 +14,8 @@ import io.cucumber.messages.types.Scenario;
 import io.cucumber.plugin.event.*;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
-import io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm;
-import io.qameta.allure.cucumber7jvm.testsourcemodel.TestSourcesModelProxy;
+import io.qameta.allure.cucumber8jvm.AllureCucumber8Jvm;
+import io.qameta.allure.cucumber8jvm.testsourcemodel.TestSourcesModelProxy;
 import lombok.Getter;
 import org.testng.Reporter;
 
@@ -29,7 +29,7 @@ import static com.shaft.listeners.internal.CucumberHelper.recordScenarioResult;
 import static com.shaft.listeners.internal.CucumberHelper.shaftTearDown;
 
 /**
- * SHAFT Cucumber plugin: delegates Allure 3 reporting to {@link AllureCucumber7Jvm}
+ * SHAFT Cucumber plugin: delegates Allure 3 reporting to {@link AllureCucumber8Jvm}
  * and overlays SHAFT-specific scenario bookkeeping, attachments, and teardown.
  */
 @SuppressWarnings({
@@ -37,7 +37,7 @@ import static com.shaft.listeners.internal.CucumberHelper.shaftTearDown;
         "ClassFanOutComplexity",
         "PMD.ExcessiveImports",
 })
-public class CucumberFeatureListener extends AllureCucumber7Jvm {
+public class CucumberFeatureListener extends AllureCucumber8Jvm {
 
     /** The name of the most recently started Cucumber scenario, used for report labelling. */
     @Getter

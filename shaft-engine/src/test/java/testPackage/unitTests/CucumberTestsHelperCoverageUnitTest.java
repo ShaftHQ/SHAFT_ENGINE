@@ -60,6 +60,8 @@ public class CucumberTestsHelperCoverageUnitTest {
         Assert.assertEquals(parameters.get("cucumber.filter.tags"), com.shaft.driver.SHAFT.Properties.cucumber.cucumberFilterTags());
         Assert.assertEquals(parameters.get("cucumber.glue"), com.shaft.driver.SHAFT.Properties.cucumber.cucumberGlue());
         Assert.assertEquals(parameters.get("cucumber.plugin"), com.shaft.driver.SHAFT.Properties.cucumber.cucumberPlugin());
+        Assert.assertTrue(parameters.get("cucumber.plugin").contains("json:allure-results/cucumber.json"),
+                parameters.get("cucumber.plugin"));
         Assert.assertEquals(parameters.get("cucumber.object-factory"), com.shaft.driver.SHAFT.Properties.cucumber.cucumberObjectFactory());
         Assert.assertEquals(parameters.get("cucumber.snippet-type"), com.shaft.driver.SHAFT.Properties.cucumber.cucumberSnippetType());
     }
