@@ -185,6 +185,9 @@ def recorded_source(source: dict, project: Path) -> tuple[str, str]:
     return repository, branch
 
 
+STORES_REFRESH_JOB = "stores-refresh"
+
+
 def maintain_commands(installed_root: Path, project: Path) -> list[list[str]]:
     """Reinstall from the recorded source, then doctor and a stale-store refresh.
 
@@ -210,7 +213,9 @@ def maintain_commands(installed_root: Path, project: Path) -> list[list[str]]:
     return [
         reinstall,
         [python, str(installed_root / "install.py"), "doctor", "--project", str(project)],
-        [python, str(installed_root / "tool.py"), "stores", "refresh", "--if-stale"],
+        # #6849: the re-mine can take many minutes after main moves; run it as a durable job.
+        [python, str(installed_root / "tool.py"), "job", "start", STORES_REFRESH_JOB, "--",
+         python, str(installed_root / "tool.py"), "stores", "refresh", "--if-stale"],
     ]
 
 
@@ -245,6 +250,13 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
         return 1
     for command in commands:
         completed = runner(command, cwd=project, check=False)  # nosec B603 - fixed owned argv.
+        if STORES_REFRESH_JOB in command:
+            if getattr(completed, "returncode", 0) != 0:
+                print(f"maintain: warning: stores refresh not started (already running or failed); "
+                      f"check `tool.py job status {STORES_REFRESH_JOB}`", file=sys.stderr)
+            else:
+                print(f"maintain: stores refresh runs in the background; `tool.py job status {STORES_REFRESH_JOB}`")
+            continue
         if completed.returncode != 0:
             print(f"maintain: failed at `{' '.join(command[1:3])}`", file=sys.stderr)
             return completed.returncode or 1
