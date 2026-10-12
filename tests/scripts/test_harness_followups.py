@@ -6,14 +6,11 @@ import importlib.util
 import json
 import os
 import shutil
-import subprocess
-import sys
 import tempfile
 import threading
 import time
 import unittest
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "chaos-engine"
@@ -50,11 +47,11 @@ class DisjointInstallTest(unittest.TestCase):
                 install.install(project_inside, nested, COMMIT)
             inside_temp = project / "tmp"
             inside_temp.mkdir()
-            with mock.patch.object(mindset, "tempfile_dir", return_value=str(inside_temp)):
+            with unittest.mock.patch.object(mindset, "tempfile_dir", return_value=str(inside_temp)):
                 parent = mindset.disjoint_download_parent(project)
             self.assertFalse(mindset.path_is_inside(parent, project))
             bootstrap = load("bootstrap")
-            with mock.patch.object(bootstrap.tempfile, "gettempdir", return_value=str(inside_temp)):
+            with unittest.mock.patch.object(bootstrap.tempfile, "gettempdir", return_value=str(inside_temp)):
                 downloaded = bootstrap.disjoint_download_parent(project)
             self.assertFalse(mindset.path_is_inside(downloaded, project))
 
@@ -104,11 +101,11 @@ class RetrieveBudgetTest(unittest.TestCase):
             "src=shaft-intellij/src/ShaftPluginExecutor.java L12\n"
             "src=chaos-engine/retrieve.py L40\n" + ("x" * 5000)
         )
-        completed = mock.Mock(returncode=0, stdout=body, stderr="")
+        completed = unittest.mock.Mock(returncode=0, stdout=body, stderr="")
         with (
-            mock.patch.object(retrieve.subprocess, "run", return_value=completed),
-            mock.patch.object(retrieve, "_tool_py", return_value=SOURCE / "tool.py"),
-            mock.patch.object(retrieve, "_record_store_outcome"),
+            unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed),
+            unittest.mock.patch.object(retrieve, "_tool_py", return_value=SOURCE / "tool.py"),
+            unittest.mock.patch.object(retrieve, "_record_store_outcome"),
         ):
             receipt = retrieve._run_store(ROOT, "graphify", "retrieve budget token")
         paths = [hit["path"] for hit in receipt["hits"]]
@@ -120,11 +117,11 @@ class RetrieveBudgetTest(unittest.TestCase):
     def test_memory_no_hit_receipt_is_small(self):
         retrieve = load("retrieve")
         body = "memory excerpt\n" + ("unrelated prose " * 200)
-        completed = mock.Mock(returncode=0, stdout=body, stderr="")
+        completed = unittest.mock.Mock(returncode=0, stdout=body, stderr="")
         with (
-            mock.patch.object(retrieve.subprocess, "run", return_value=completed),
-            mock.patch.object(retrieve, "_tool_py", return_value=SOURCE / "tool.py"),
-            mock.patch.object(retrieve, "_record_store_outcome"),
+            unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed),
+            unittest.mock.patch.object(retrieve, "_tool_py", return_value=SOURCE / "tool.py"),
+            unittest.mock.patch.object(retrieve, "_record_store_outcome"),
         ):
             receipt = retrieve._run_store(ROOT, "memory", "nothing matches here")
         encoded = json.dumps(receipt).encode("utf-8")
@@ -164,7 +161,7 @@ class HostPruneAndUsageTest(unittest.TestCase):
         mindset = load("harness_mindset")
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
-            secret = "user@example.com secret document body"
+            secret = "notes/do-not-persist-this-body.md"
             mindset.record_retrieve_usage(
                 project,
                 store="graphify",
@@ -211,7 +208,7 @@ class PrSectionTest(unittest.TestCase):
     def test_lessons_pr_without_an_outcome_is_rejected(self):
         mindset = load("harness_mindset")
         gate = load("validate_pr_closing_keywords")
-        with mock.patch.dict(os.environ, {"PR_TITLE": "Lesson: restated a gate", "PR_BODY": ""}):
+        with unittest.mock.patch.dict(os.environ, {"PR_TITLE": "Lesson: restated a gate", "PR_BODY": ""}):
             errors = gate.mindset_body_errors("## Riskiest assumption\n\nN/A\n")
         self.assertTrue(any(item["code"] == "lesson-outcome" for item in errors))
         self.assertEqual(

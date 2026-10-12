@@ -740,6 +740,7 @@ def retrieve(
                 paths=paths,
             )
         except (OSError, TypeError, ValueError):
+            # Hit accounting is best-effort and must not fail the retrieve.
             pass
     if chosen == "graphify":
         receipt["freshness"] = graph_freshness_field(root)
