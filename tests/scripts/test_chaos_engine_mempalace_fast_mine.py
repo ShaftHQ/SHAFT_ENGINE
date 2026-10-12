@@ -60,6 +60,18 @@ class FastMineTest(unittest.TestCase):
         self.assertIn(self.shim.install(), {True, False})
 
 
+class FastMinePinTest(unittest.TestCase):
+    def test_pinned_mempalace_is_a_supported_shim_version(self) -> None:
+        """A MemPalace pin bump silently disables the 4.8x shim; re-measure and extend SUPPORTED_VERSIONS."""
+        import json
+
+        shim = _load("mempalace_fast_mine")
+        pin = json.loads((ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8"))
+        package = json.dumps(pin)
+        version = package.split("mempalace==", 1)[1].split('"', 1)[0]
+        self.assertIn(version, shim.SUPPORTED_VERSIONS)
+
+
 class FastMinePrefixTest(unittest.TestCase):
     def test_launcher_shebang_selects_the_shim(self) -> None:
         stores = _load("stores")
