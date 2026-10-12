@@ -373,7 +373,7 @@ bare "rerun doctor".
 | Item | Official install / publish | Heal path |
 | --- | --- | --- |
 | Caveman / Ponytail / ICM Architect | CE vendor rematerialize (`chaos-engine/vendor/{caveman,ponytail,icm-architect}` → `plugins/`) | `hosts.rematerialize_companions` on doctor when enabled-but-missing |
-| MemPalace | `uv tool install --with chromadb==1.5.9 mempalace==3.8.0` | `repair --component mempalace` / account provisioner |
+| MemPalace | `uv tool install --with chromadb==1.5.9 mempalace==3.10.0` | `repair --component mempalace` / account provisioner |
 | Graphify | `uv tool install --with tree-sitter-sql==0.3.11 graphifyy==0.9.43` | `repair --component graphify` |
 | Memory | `npm install -g @aictx/memory@0.2.1` | `repair --component memory` |
 | Context7 | `npm install -g ctx7@latest` | doctor auto-heal via `repair --component tools` / official npm (#5812) |

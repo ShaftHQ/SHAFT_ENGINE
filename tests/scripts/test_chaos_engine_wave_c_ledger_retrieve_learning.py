@@ -185,7 +185,8 @@ class WaveCLedgerRetrieveLearningTests(unittest.TestCase):
             receipt = self.retrieve._run_store(ROOT, "memory", "project lock collision")
         argv = run.call_args.args[0]
         self.assertEqual(["memory", "query", "project lock collision"], argv[2:])
-        self.assertEqual("used", receipt["status"])
+        self.assertEqual("skipped", receipt["status"])
+        self.assertLess(len(str(receipt).encode("utf-8")), 300)
 
     def test_memory_query_verb_exists_in_the_installed_memory_cli(self):
         """#6329: contract against the real pinned CLI when this machine has it."""

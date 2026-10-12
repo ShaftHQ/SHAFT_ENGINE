@@ -71,8 +71,11 @@ runs:
             "The scheduled workflow **$WF_NAME** failed." \
             "" \
             "- Run: $RUN_URL" \
+            "- Related failures: none found" \
             "" \
-            "Filed automatically. Dedupes on the \`$LABEL\` label (one open issue per workflow) and closes automatically when \`$WF_NAME\` next succeeds.")
+            "Filed automatically. Dedupes on the \`$LABEL\` label (one open issue per workflow) and closes automatically when \`$WF_NAME\` next succeeds." \
+            "" \
+            "Triage replaces \`Related failures: none found\` when \`tool.py siblings $LABEL\` lists another tracker with this signature.")
           url=$(gh issue create --repo "$REPO" \
             --title "Nightly failure: $WF_NAME" \
             --label "$LABEL" \

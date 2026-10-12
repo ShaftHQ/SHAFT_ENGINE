@@ -33,6 +33,10 @@ the PR with an explicit base. Persist its `baseRefName`, PR identity, and
 `closingIssuesReferences`. Keep nonempty `## Summary`, `## Checks`, and
 `## Continuation` sections current for the delivered head.
 
+### Riskiest assumption (before merge)
+
+Name the riskiest assumption and one targeted test, or `N/A`. The body gate rejects a missing `## Riskiest assumption` section. Dependabot is exempt.
+
 ### Human PR open checklist (before first push)
 
 Human-authored PRs fail Release-note governance without a classification label.
@@ -166,14 +170,8 @@ and `python3 .chaos-engine/install.py doctor --project . --agent-summary`. Reloa
 `install.py install` without `--source` and `--commit`. Replace
 `<configured-upstream>` with the adopter repository from installer identity.
 
-An owner-authorized history correction binds the expected remote tip and uses
-`git push --force-with-lease origin HEAD:<branch>`; unguarded `--force` is never
-safe. A rewrite-only gate waiver is machine-readable, names exact non-protected
-check IDs, the exact head SHA, replacement proof, owner review, and an expiry.
-It records `waived`, never `passed`. Security, ownership, corruption, rollback,
-secret-safety, installer acceptance, and confirmed correctness checks cannot be
-waived. An authorized merge bypass likewise records the obsolete checks waived
-and focused proofs observed; it must not represent remote checks as green.
+Owner-authorized history correction and non-protected gate waivers:
+[work-github-playbook-promotion.md](details/work-github-playbook-promotion.md).
 
 1. **Clear every GitHub comment before acceptance.** Read and address every open
    review thread, inline review comment, conversation comment, check annotation,
