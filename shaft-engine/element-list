@@ -48,3 +48,5 @@ com.shaft.tools.io.trace
 com.shaft.validation
 com.shaft.validation.accessibility
 com.shaft.validation.internal
+io.qameta.allure.cucumber8jvm
+io.qameta.allure.cucumber8jvm.testsourcemodel
