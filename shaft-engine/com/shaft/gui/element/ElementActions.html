@@ -61,6 +61,8 @@
 <li><a href="#assertThat(org.openqa.selenium.By)" tabindex="0">assertThat(By)</a></li>
 <li><a href="#verifyThat(org.openqa.selenium.By)" tabindex="0">verifyThat(By)</a></li>
 <li><a href="#getElementsCount(org.openqa.selenium.By)" tabindex="0">getElementsCount(By)</a></li>
+<li><a href="#isPresent(org.openqa.selenium.By,java.time.Duration)" tabindex="0">isPresent(By, Duration)</a></li>
+<li><a href="#waitUntilAnyPresent(java.time.Duration,org.openqa.selenium.By...)" tabindex="0">waitUntilAnyPresent(Duration, By...)</a></li>
 <li><a href="#executeNativeMobileCommand(java.lang.String,java.util.Map)" tabindex="0">executeNativeMobileCommand(String, Map)</a></li>
 <li><a href="#click(org.openqa.selenium.By)" tabindex="0">click(By)</a></li>
 <li><a href="#click(com.shaft.gui.ocr.OcrTarget)" tabindex="0">click(OcrTarget)</a></li>
@@ -289,78 +291,90 @@ thead which include all the column labels and tbody which includes all table dat
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Hovers over the hoverElements in sequence then clicks the clickableElement</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#scrollToElement(org.openqa.selenium.By)" class="member-name-link">scrollToElement</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#isPresent(org.openqa.selenium.By,java.time.Duration)" class="member-name-link">isPresent</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Checks whether an optional element (an update prompt, a permission dialog) appears within the given time.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#scrollToElement(org.openqa.selenium.By)" class="member-name-link">scrollToElement</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">If the element is outside the viewport, scrolls the bottom of the element to the bottom of the viewport.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#select(org.openqa.selenium.By,java.lang.String)" class="member-name-link">select</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#select(org.openqa.selenium.By,java.lang.String)" class="member-name-link">select</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;valueOrVisibleText)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Selects an element from a dropdown list using its displayed text or attribute Value</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setValueUsingJavaScript(org.openqa.selenium.By,java.lang.String)" class="member-name-link">setValueUsingJavaScript</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#setValueUsingJavaScript(org.openqa.selenium.By,java.lang.String)" class="member-name-link">setValueUsingJavaScript</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Used to SetProperty value for an element (hidden or visible) using javascript</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#submitFormUsingJavaScript(org.openqa.selenium.By)" class="member-name-link">submitFormUsingJavaScript</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#submitFormUsingJavaScript(org.openqa.selenium.By)" class="member-name-link">submitFormUsingJavaScript</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Used to submit a form using javascript</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToDefaultContent()" class="member-name-link">switchToDefaultContent</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToDefaultContent()" class="member-name-link">switchToDefaultContent</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Switches focus to default content, is mainly used in coordination with
 <a href="#switchToIframe(org.openqa.selenium.By)"><code>switchToIframe(By)</code></a> to exit any iFrame layer and go back
 to the main page</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToIframe(org.openqa.selenium.By)" class="member-name-link">switchToIframe</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToIframe(org.openqa.selenium.By)" class="member-name-link">switchToIframe</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Switches focus to a certain iFrame, is mainly used in coordination with
 <a href="#switchToDefaultContent()"><code>switchToDefaultContent()</code></a> to navigate inside any iFrame
 layer and go back to the main page</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToParentFrame()" class="member-name-link">switchToParentFrame</a>()</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#switchToParentFrame()" class="member-name-link">switchToParentFrame</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Switches focus from the current iframe to its parent frame.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#type(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">type</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
- <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;text)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
-<div class="block">Types the provided text into the target element, replacing any existing value.</div>
-</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeAppend(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">typeAppend</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#type(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">type</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;text)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Types the provided text into the target element, replacing any existing value.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeAppend(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">typeAppend</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;text)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Appends the required string into the target element, regardless of the
 current text value.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeFileLocationForUpload(org.openqa.selenium.By,java.lang.String)" class="member-name-link">typeFileLocationForUpload</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeFileLocationForUpload(org.openqa.selenium.By,java.lang.String)" class="member-name-link">typeFileLocationForUpload</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;filePath)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">ValidationEnums the required file path into an input[type='file'] button, to
 successfully upload the target file.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeSecure(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">typeSecure</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="internal/Actions.html" title="class in com.shaft.gui.element.internal">Actions</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#typeSecure(org.openqa.selenium.By,java.lang.CharSequence...)" class="member-name-link">typeSecure</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator,
  <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/CharSequence.html" title="class or interface in java.lang" class="external-link">CharSequence</a>...&nbsp;text)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Checks if there is any text in an element, clears it, then types the required
 string into the target element.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverElementValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverElementValidationsBuilder</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat(org.openqa.selenium.By)" class="member-name-link">verifyThat</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="../../validation/internal/WebDriverElementValidationsBuilder.html" title="class in com.shaft.validation.internal">WebDriverElementValidationsBuilder</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyThat(org.openqa.selenium.By)" class="member-name-link">verifyThat</a><wbr>(org.openqa.selenium.By&nbsp;elementLocator)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Starts a soft-assertion (verification) chain on the target element.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a><wbr>&lt;org.openqa.selenium.By&gt;</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#waitUntilAnyPresent(java.time.Duration,org.openqa.selenium.By...)" class="member-name-link">waitUntilAnyPresent</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout,
+ org.openqa.selenium.By...&nbsp;locators)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Waits in one poll for whichever of several elements appears first, e.g.</div>
 </div>
 </div>
 </div>
@@ -535,6 +549,43 @@ Failures are collected and reported at the end of the test rather than stopping 
 <li><a href="https://shafthq.github.io/">SHAFT User Guide &ndash; Element Actions</a></li>
 </ul>
 </dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="isPresent(org.openqa.selenium.By,java.time.Duration)">
+<h3>isPresent</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">boolean</span>&nbsp;<span class="element-name">isPresent</span><wbr><span class="parameters">(org.openqa.selenium.By&nbsp;elementLocator,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout)</span></div>
+<div class="block">Checks whether an optional element (an update prompt, a permission dialog) appears within the given time.
+This is a query, not an assertion: an absent element returns <code>false</code> without a failed step, and the
+wait is the explicit <code>timeout</code>, not the element-identification timeout. Works for web and native sessions.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>elementLocator</code> - the locator of the optional element</dd>
+<dd><code>timeout</code> - how long to poll; <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html#ZERO" title="class or interface in java.time" class="external-link"><code>Duration.ZERO</code></a> checks once</dd>
+<dt>Returns:</dt>
+<dd><code>true</code> when at least one matching element appeared in time</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="waitUntilAnyPresent(java.time.Duration,org.openqa.selenium.By...)">
+<h3>waitUntilAnyPresent</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html" title="class or interface in java.util" class="external-link">Optional</a>&lt;org.openqa.selenium.By&gt;</span>&nbsp;<span class="element-name">waitUntilAnyPresent</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html" title="class or interface in java.time" class="external-link">Duration</a>&nbsp;timeout,
+ org.openqa.selenium.By...&nbsp;locators)</span></div>
+<div class="block">Waits in one poll for whichever of several elements appears first, e.g. "the interruption or the screen
+under test". Report-free like <a href="#isPresent(org.openqa.selenium.By,java.time.Duration)"><code>isPresent(By, Duration)</code></a>.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>timeout</code> - how long to poll; <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/time/Duration.html#ZERO" title="class or interface in java.time" class="external-link"><code>Duration.ZERO</code></a> checks once</dd>
+<dd><code>locators</code> - the candidate locators, checked in order on every poll</dd>
+<dt>Returns:</dt>
+<dd>the first locator that matched, or empty when none appeared in time</dd>
 </dl>
 </div>
 </section>
