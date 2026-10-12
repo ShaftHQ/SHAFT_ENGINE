@@ -9,9 +9,9 @@ import subprocess  # nosec B404 - runs the tool CLI under test with fixed argv.
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from contextlib import redirect_stdout
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 CE = ROOT / "chaos-engine"
@@ -28,7 +28,7 @@ class TaskLedgerTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        patcher = mock.patch.dict(os.environ, {"CHAOS_ENGINE_TASKS_DIR": self.tmp.name})
+        patcher = unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_TASKS_DIR": self.tmp.name})
         patcher.start()
         self.addCleanup(patcher.stop)
         self.ledger = load()
@@ -68,7 +68,7 @@ class TaskLedgerTest(unittest.TestCase):
 
     def test_absent_and_invalid_names(self):
         self.assertEqual(6, self.run_main(["missing"], "resume")[0])
-        with mock.patch("sys.stderr", io.StringIO()):
+        with unittest.mock.patch("sys.stderr", io.StringIO()):
             self.assertEqual(2, self.run_main(["../escape", "step"])[0])
 
     def test_tool_cli_routes_checkpoint_and_resume(self):
