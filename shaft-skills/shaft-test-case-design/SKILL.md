@@ -6,3 +6,5 @@ description: Use when designing reviewable test cases or scenarios with traceabi
 # SHAFT Test Case Design
 
 Start with [shaft-developer](../shaft-developer/SKILL.md), then read and follow [the test-case-design playbook](references/playbook.md).
+
+For a map across more than one source, read [the journey and coverage map](references/journey-coverage-map.md).

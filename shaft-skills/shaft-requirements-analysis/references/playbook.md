@@ -28,4 +28,6 @@
 Return traced criteria, a categorized gap register, ranked risks, open questions,
 and the evidence needed for acceptance.
 
+For a map across more than one source, follow [the journey and coverage map](../../shaft-test-case-design/references/journey-coverage-map.md).
+
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).
