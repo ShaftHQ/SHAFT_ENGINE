@@ -5,6 +5,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts.ci.overlay_pre_push import overlay_pre_push_failures
 from scripts.ci.workflow_template_sync import (
@@ -59,6 +60,20 @@ class WorkflowTemplateSyncTest(unittest.TestCase):
         failures = overlay_pre_push_failures(self.root, [".github/workflows/ci.yml"])
         self.assertTrue(any("workflow template drift" in item for item in failures), failures)
         self.assertEqual([], overlay_pre_push_failures(self.root, ["README.md"]))
+
+    def test_pre_push_flags_a_script_test_module_the_pr_gate_does_not_select(self):
+        from scripts.ci import overlay_pre_push
+
+        ungated = "tests.scripts.test_brand_new_module"
+        failures = ["AssertionError: Lists differ: [] != ['" + ungated + "']"]
+        with mock.patch.object(overlay_pre_push, "ungated_script_module_failures", return_value=failures):
+            result = overlay_pre_push.overlay_pre_push_failures(self.root, ["tests/scripts/test_brand_new_module.py"])
+        self.assertEqual(failures, result)
+
+    def test_live_repository_selects_every_script_test_module(self):
+        from scripts.ci.overlay_pre_push import ungated_script_module_failures
+
+        self.assertEqual([], ungated_script_module_failures(ROOT))
 
     def test_live_repository_templates_are_in_sync(self):
         self.assertEqual([], stale_template_actions(ROOT))
