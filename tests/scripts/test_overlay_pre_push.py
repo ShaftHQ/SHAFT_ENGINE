@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from scripts.ci.overlay_pre_push import (
+    coverage_ratchet_failures,
     PLAYBOOK,
     overlay_pre_push_failures,
     playbook_contract_failures,
@@ -206,6 +207,30 @@ class OverlayPrePushTest(unittest.TestCase):
         self.assertTrue(any("release-note label" in f for f in live))
         self.assertEqual([], fixture)
         mocked.assert_called_once()
+
+
+class CoverageRatchetPrePushTest(unittest.TestCase):
+    """#6851: the Javadoc/test-reference ratchets run before push when Java sources change."""
+
+    def _root(self, temporary: str, exit_code: int) -> Path:
+        root = Path(temporary)
+        (root / "scripts/ci").mkdir(parents=True)
+        for name in ("validate_javadoc_coverage.py", "validate_test_reference_coverage.py"):
+            (root / "scripts/ci" / name).write_text(
+                f"print('Public members no test calls')\nraise SystemExit({exit_code})\n", encoding="utf-8")
+        return root
+
+    def test_java_change_runs_ratchets_and_reports_regressions(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            failures = coverage_ratchet_failures(self._root(temporary, 1), ["m/src/main/java/A.java"])
+        self.assertEqual(2, len(failures))
+        self.assertIn("no test calls", failures[1])
+
+    def test_passing_ratchets_and_non_java_changes_are_silent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = self._root(temporary, 0)
+            self.assertEqual([], coverage_ratchet_failures(root, ["m/src/main/java/A.java"]))
+            self.assertEqual([], coverage_ratchet_failures(root, ["docs/readme.md"]))
 
 
 

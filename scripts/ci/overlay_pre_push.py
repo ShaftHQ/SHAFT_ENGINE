@@ -295,6 +295,25 @@ def shipped_validator_import_failures(root: Path, changed: list[str]) -> list[st
             for item in manifest.missing_imports(root, manifest.shipped_files(root))]
 
 
+COVERAGE_RATCHETS = ("scripts/ci/validate_javadoc_coverage.py", "scripts/ci/validate_test_reference_coverage.py")
+
+
+def coverage_ratchet_failures(root: Path, changed: list[str]) -> list[str]:
+    """New public Java API must be documented and test-called before push (#6851 ratchet miss)."""
+    if not any(p.replace("\\", "/").endswith(".java") and "/src/" in p for p in changed):
+        return []
+    failures = []
+    for script in COVERAGE_RATCHETS:
+        if not (root / script).is_file():
+            continue
+        # nosec B603 - fixed in-repo ratchet scripts, list args only.
+        result = subprocess.run([sys.executable, script], cwd=root, capture_output=True, text=True, check=False)  # nosec B603
+        if result.returncode:
+            lines = (result.stdout + result.stderr).strip().splitlines()
+            failures.append(f"{script} failed (#6851): " + "; ".join(lines[:4]))
+    return failures
+
+
 def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
     """Return contract failures for one overlay diff. Empty means the push may proceed."""
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
@@ -307,6 +326,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):
         failures.extend(ungated_script_module_failures(root))
     failures.extend(shipped_validator_import_failures(root, changed))
+    failures.extend(coverage_ratchet_failures(root, changed))
     if "scripts/mcp/install_shaft_agentic_tools.py" in {p.replace("\\", "/") for p in changed}:
         # #6849: Installer verification is CI-only and path-filtered; it runs this ~30 s end-to-end check.
         print("overlay pre-push: warning: installer changed; run "
