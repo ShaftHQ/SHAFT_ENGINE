@@ -348,10 +348,10 @@ class PrSectionTest(unittest.TestCase):
             )
             with unittest.mock.patch.object(retrieve.subprocess, "run", return_value=completed):
                 retrieve._run_store(project, "graphify", "retrieve budget token")
-            try:
+            if shutil.which("rg") is None:
+                mindset.prepare_rg(["rg", "token"], project=project)
+            else:
                 mindset.run_rg(["rg", "token"], cwd=project)
-            except OSError:
-                pass
             mindset.prune_orphaned_host_entries(project, dry_run=True)
             report = mindset.zero_trigger_report(project)
         for rule_id in (
