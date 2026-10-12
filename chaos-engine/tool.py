@@ -580,15 +580,23 @@ def resolve_maven_tools_command(installed_root: Path) -> list[str]:
     return [str(java), "-jar", str(jar)]
 
 
-# #6525 durable jobs and #6854 task ledger: work that outlives the agent session.
-SESSION_TOOLS = {"job": "jobs.py", "checkpoint": "task_ledger.py", "resume": "task_ledger.py"}
+# In-process stdlib scripts: dod, usage, #6525 durable jobs, #6854 task ledger.
+SCRIPT_TOOLS = {
+    "dod": "dod.py",
+    "usage": "session_token_usage.py",
+    "job": "jobs.py",
+    "checkpoint": "task_ledger.py",
+    "resume": "task_ledger.py",
+}
 
 
-def session_tool(installed_root: Path, tool: str, arguments: list[str]) -> int:
-    module = runpy.run_path(str(installed_root / SESSION_TOOLS[tool]), run_name=f"_chaos_engine_{tool}")
-    if tool == "job":
-        return int(module["main"](arguments))
-    return int(module["main"](arguments, tool))
+def script_tool(installed_root: Path, tool: str, arguments: list[str]) -> int:
+    module = runpy.run_path(str(installed_root / SCRIPT_TOOLS[tool]), run_name=f"_chaos_engine_{tool}")
+    if tool == "usage":
+        return int(module["main"](["usage", *arguments]))
+    if tool in {"checkpoint", "resume"}:
+        return int(module["main"](arguments, tool))
+    return int(module["main"](arguments))
 
 
 def main() -> int:
@@ -609,14 +617,10 @@ def main() -> int:
             return 0
         if tool == "maintain":
             return maintain(installed_root)
-        if tool in {"dod", "usage"}:
-            script = "dod.py" if tool == "dod" else "session_token_usage.py"
-            module = runpy.run_path(str(installed_root / script), run_name=f"_chaos_engine_{tool}")
-            return int(module["main"](arguments if tool == "dod" else ["usage", *arguments]))
+        if tool in SCRIPT_TOOLS:
+            return script_tool(installed_root, tool, arguments)
         if tool == "stores":
             return stores_command(installed_root, arguments)
-        if tool in SESSION_TOOLS:
-            return session_tool(installed_root, tool, arguments)
         if tool == "retrieve":
             path = installed_root / "retrieve.py"
             if not path.is_file():
