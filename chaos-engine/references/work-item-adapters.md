@@ -12,7 +12,7 @@ Only live create/search/edit path in this repository today.
 | List/search | `gh issue list --repo OWNER/REPO --state STATE --search QUERY --limit 1000 --json url` |
 | Create | `gh issue create --repo OWNER/REPO --title TITLE --body BODY --label LABELS` |
 | Edit labels | `gh issue edit N --repo OWNER/REPO --add-label L --remove-label L` |
-| View | `gh issue view N --repo OWNER/REPO --json labels` |
+| View | `gh issue view N --repo OWNER/REPO --json labels,comments` |
 
 URL shape: `https://github.com/OWNER/REPO/issues/N`
 

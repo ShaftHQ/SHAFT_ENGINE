@@ -263,6 +263,13 @@ class IssueFilingTest(unittest.TestCase):
         receipt = validate_issue_plan(planned(), TAXONOMY)
         self.assertEqual("allow", receipt["decision"])
 
+    def test_github_issue_view_requests_comments(self):
+        adapter = (ROOT / "chaos-engine/references/work-item-adapters.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "gh issue view N --repo OWNER/REPO --json labels,comments",
+            adapter,
+        )
+
     def test_work_item_contract_names_spec_kit_sections(self):
         skill = (ROOT / "chaos-engine/skills/work-item/SKILL.md").read_text(encoding="utf-8")
         contract = (ROOT / "chaos-engine/references/work-item.md").read_text(encoding="utf-8")
