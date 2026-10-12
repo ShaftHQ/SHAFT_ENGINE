@@ -29,7 +29,7 @@ jobs:
 
       - name: Upload Allure Report
         if: always()
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           path: "allure-report/api_Allure.html"
           if-no-files-found: ignore
