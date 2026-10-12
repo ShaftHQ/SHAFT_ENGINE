@@ -306,7 +306,8 @@ def coverage_ratchet_failures(root: Path, changed: list[str]) -> list[str]:
     for script in COVERAGE_RATCHETS:
         if not (root / script).is_file():
             continue
-        result = subprocess.run([sys.executable, script], cwd=root, capture_output=True, text=True, check=False)
+        # nosec B603 - fixed in-repo ratchet scripts, list args only.
+        result = subprocess.run([sys.executable, script], cwd=root, capture_output=True, text=True, check=False)  # nosec B603
         if result.returncode:
             lines = (result.stdout + result.stderr).strip().splitlines()
             failures.append(f"{script} failed (#6851): " + "; ".join(lines[:4]))
