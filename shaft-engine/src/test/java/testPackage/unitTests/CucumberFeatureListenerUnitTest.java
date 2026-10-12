@@ -4,6 +4,7 @@ import com.shaft.listeners.CucumberFeatureListener;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.cucumber.plugin.event.*;
 import io.qameta.allure.AllureLifecycle;
+import io.qameta.allure.cucumber8jvm.AllureCucumber8Jvm;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -17,11 +18,13 @@ import java.util.List;
 public class CucumberFeatureListenerUnitTest {
     @Test
     public void constructorsAndEventPublisherRegistrationShouldWork() {
+        String adapterSource = AllureCucumber8Jvm.class.getProtectionDomain().getCodeSource().getLocation().toString();
+        Assert.assertTrue(adapterSource.contains("shaft-engine"), adapterSource);
         new CucumberFeatureListener();
         CucumberFeatureListener listener = new CucumberFeatureListener(Mockito.mock(AllureLifecycle.class));
         EventPublisher publisher = Mockito.mock(EventPublisher.class);
         listener.setEventPublisher(publisher);
-        // Parent AllureCucumber7Jvm handlers plus SHAFT overlays
+        // Parent AllureCucumber8Jvm handlers plus SHAFT overlays
         Mockito.verify(publisher, Mockito.atLeast(6)).registerHandlerFor(Mockito.any(), Mockito.any());
     }
 
