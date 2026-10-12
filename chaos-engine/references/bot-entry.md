@@ -40,6 +40,20 @@ delivery, start the next queued item. A turn that ends while CI runs must leave
 a wake (a PR-scoped CI listener) whose prompt resumes the queue; a host whose
 scheduled runs cannot create listeners hands that to the parent.
 
+## Session cap (Grok Bot default)
+
+Grok Bot stops a background session at about 50 minutes of wall-clock time.
+Pings do not extend a wall-clock cap; resume instead:
+
+- Start each session with `python3 .chaos-engine/tool.py resume TASK` and
+  `tool.py checkpoint TASK STEP --start`; follow its `next:` line, not the transcript.
+- Keep each work unit under 40 minutes. After each step (commit, push, PR,
+  merge) run `tool.py checkpoint TASK STEP --branch B --pr N --next "..."`.
+- When `tool.py checkpoint TASK --budget` exits 3, push WIP, record `--next`,
+  and end the turn.
+- Parent: on "interrupted before it finished", re-dispatch with the
+  `tool.py resume TASK` output as the brief. Never poll a child to keep it alive.
+
 ## After each delivery
 
 Learning Session after every final delivery: when the owner approves a

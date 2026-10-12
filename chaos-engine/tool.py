@@ -266,7 +266,7 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
 
 def tool_help_text() -> str:
     """One usage text for every host. There is no per-host help."""
-    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job"}))
+    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume"}))
     return (
         "usage: tool.py <tool|retrieve> [args...]\n"
         "       tool.py --help\n"
@@ -294,6 +294,11 @@ def tool_help_text() -> str:
         "  tool.py job resume NAME  (watchdog: no-op while live or done)\n"
         "  tool.py job stop NAME\n"
         "  tool.py job checkpoint NAME STEP [--check]\n"
+        "\n"
+        "checkpoint/resume (agent work across session caps; references/durable-jobs.md):\n"
+        "  tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next TEXT] [--start]\n"
+        "  tool.py checkpoint TASK --budget [--minutes 40]  (exit 3 = wrap up now)\n"
+        "  tool.py resume [TASK]  (short brief; exit 6 = no ledger)\n"
     )
 
 
@@ -603,6 +608,9 @@ def main() -> int:
             # #6525: durable jobs outlive the agent session (lease, heartbeat, checkpoints).
             module = runpy.run_path(str(installed_root / "jobs.py"), run_name="_chaos_engine_job")
             return int(module["main"](arguments))
+        if tool in {"checkpoint", "resume"}:
+            module = runpy.run_path(str(installed_root / "task_ledger.py"), run_name="_chaos_engine_task")
+            return int(module["main"](arguments, tool))
         if tool == "retrieve":
             path = installed_root / "retrieve.py"
             if not path.is_file():

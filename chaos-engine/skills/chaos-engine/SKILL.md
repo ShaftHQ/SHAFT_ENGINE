@@ -75,7 +75,8 @@ on explicit invocation.
 - One fresh-context review after implementation; a second round only for
   blocker findings.
 - Sessions die at ~45-50 min: long work runs as a durable job (route
-  below); check `tool.py job status` before resuming.
+  below); check `tool.py job status` before resuming. Agent work checkpoints
+  each step (`tool.py checkpoint`) and restarts from `tool.py resume`.
 - One blocking CI wait per push; on failure fix the isolated cause, retry at
   most once, then stop and report. Never re-run checks that already passed.
 - Status reports are always a Markdown table (one row per item), then Risks;
