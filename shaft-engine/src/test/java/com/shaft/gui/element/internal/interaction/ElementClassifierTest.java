@@ -230,4 +230,23 @@ public class ElementClassifierTest {
             com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform(originalPlatform);
         }
     }
+
+    @Test(description = "#6775 nightly: Flutter reports enabled=false on editable fields; native classification must not reject type()")
+    public void nativeEnabledFalseIsNotClassifiedDisabled() {
+        String original = com.shaft.driver.SHAFT.Properties.mobile.automationName();
+        com.shaft.driver.SHAFT.Properties.mobile.set().automationName("FlutterIntegration");
+        try {
+            assertFlutterFieldIsTypeable();
+        } finally {
+            com.shaft.driver.SHAFT.Properties.mobile.set().automationName(original);
+        }
+    }
+
+    private static void assertFlutterFieldIsTypeable() {
+        WebElement field = mock(WebElement.class);
+        when(field.getTagName()).thenReturn("android.widget.EditText");
+        when(field.getDomAttribute("enabled")).thenReturn("false");
+        when(field.getDomAttribute("class")).thenReturn("android.widget.EditText");
+        Assert.assertNotEquals(ElementClassifier.classify(ElementClassifier.fromNativeElement(field)), ElementKind.DISABLED);
+    }
 }
