@@ -69,6 +69,22 @@
                 <version>3.6.2</version>
                 <executions>
                     <execution>
+                        <id>stage-upstream-adapter-classes</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>python3</executable>
+                            <arguments>
+                                <argument>${project.basedir}/prepare_upstream_adapter.py</argument>
+                                <argument>${project.build.directory}</argument>
+                                <argument>${adapter.upstream.sha256}</argument>
+                                <argument>--classes-only</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>prepare-upstream-adapter</id>
                         <phase>prepare-package</phase>
                         <goals>

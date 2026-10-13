@@ -141,6 +141,7 @@ CHECKS = {
             "tests.scripts.test_omniroute_tdd_pdca",
             "tests.scripts.test_omniroute_portability",
             "tests.scripts.test_chaos_engine_public_landing",
+            "tests.scripts.test_nonblocked_lessons",
         ),
     ),
     "skill-contract": Check(
@@ -669,6 +670,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_self_improve.py",
         "tests/scripts/test_chaos_engine_host_parity_matrix.py",
         "tests/scripts/test_chaos_engine_public_landing.py",
+        "tests/scripts/test_nonblocked_lessons.py",
     ),
     "plugins": (
         "agent-plugins/*",

@@ -6,6 +6,10 @@ applyTo: "**/src/test/java/**/*.java"
 
 - Follow the existing TestNG, JUnit, or Cucumber style in the affected module.
   Use descriptive scenario-based test names.
+- `org.testng.Assert.assertThrows` returns void and `expectThrows` returns the
+  throwable. Use `assertThrows` only as a statement when the test needs the
+  type. Use `expectThrows` when the test needs the throwable. Do not assign
+  `assertThrows`.
 - Browser tests create a fresh driver per test and clean it in an always-run
   teardown. For `ThreadLocal` drivers, call both `quit()` and `remove()`.
 - Browser tests run headlessly; headed-only behavior needs explicit user

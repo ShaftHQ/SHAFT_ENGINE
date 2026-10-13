@@ -11,3 +11,4 @@ pins **ultra**; the vendor "Default: full" line does not apply here. Off only:
 - Never drop not/never/no/only/except. Numbers, units, paths, commands exact.
 - No preamble or narration between tool calls. No announcing the style.
 - Safety warnings, irreversible-action confirmations and ambiguity: write clearly.
+- An in-tree copy is not a resolved upstream adapter, even when its unit test passes.
