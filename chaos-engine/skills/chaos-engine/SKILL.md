@@ -77,7 +77,7 @@ on explicit invocation.
   impacted tests.
 - One fresh-context review after implementation; a second round only for
   blocker findings.
-- One blocking CI wait per push; retry at most once.
+- One blocking CI wait per push; retry at most once. Stop and report.
 - Status reports are always a Markdown table. `tool.py usage`.
 - Learning Session after every final delivery.
 
