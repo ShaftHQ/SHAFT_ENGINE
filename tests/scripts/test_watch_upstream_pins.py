@@ -15,11 +15,14 @@ from scripts.ci.watch_upstream_pins import (
     CAVEMAN_OVERLAY,
     Pin,
     Stable,
+    apply_linked_pin,
     compare_and_suggest,
     compare_pin,
     load_pins,
     main,
     newest_stable_version,
+    unlinked_pin_error,
+    uv_release_from_github_payload,
 )
 
 
@@ -377,6 +380,169 @@ class WatchUpstreamPinsTest(unittest.TestCase):
         self.assertIn("'scripts/ci/watch_upstream_pins.py'", guidance)
         self.assertIn("'tests/scripts/test_watch_upstream_pins.py'", guidance)
         self.assertIn("'.github/workflows/upstream-watch.yml'", guidance)
+
+
+class LinkedPinSyncTest(unittest.TestCase):
+    """A newer stable release moves every consumer, or the bump is rejected."""
+
+    OLD = "0.11.29"
+    NEW = "0.12.4"
+    WINDOWS_OLD = "a" * 64
+    LINUX_OLD = "b" * 64
+    WINDOWS_NEW = "c" * 64
+    LINUX_NEW = "d" * 64
+
+    def spec(self) -> dict:
+        return {
+            "dependencies": {
+                "python": {"minimumVersion": "3.14.0", "maximumSeries": "3.14"},
+                "mempalace": {"stableChannel": MEMPALACE_URL},
+                "graphify": {"stableChannel": GRAPHIFY_URL},
+            },
+            "runtimes": {
+                "python": {"version": "3.11", "provider": "uv-managed"},
+                "uv": {
+                    "version": self.OLD,
+                    "artifacts": {
+                        "windows-x64": {
+                            "url": f"https://github.com/astral-sh/uv/releases/download/{self.OLD}/uv-x86_64-pc-windows-msvc.zip",
+                            "sha256": self.WINDOWS_OLD,
+                        },
+                        "linux-x64": {
+                            "url": f"https://github.com/astral-sh/uv/releases/download/{self.OLD}/uv-x86_64-unknown-linux-gnu.tar.gz",
+                            "sha256": self.LINUX_OLD,
+                        },
+                    },
+                },
+            },
+            "tools": {
+                "uv": {"package": f"uv=={self.OLD}"},
+                "mempalace": {"package": "mempalace==3.10.0"},
+                "graphify": {"package": "graphifyy==0.9.88"},
+            },
+        }
+
+    def wrappers(self) -> dict[str, str]:
+        return {
+            "install.ps1": (
+                f'$digest = "{self.WINDOWS_OLD}"\n'
+                f'Invoke-WebRequest "https://github.com/astral-sh/uv/releases/download/{self.OLD}/uv-win.zip"\n'
+            ),
+            "install.sh": (
+                f'uv_sha={self.LINUX_OLD}\n'
+                f'fetch "$uv_archive" "https://github.com/astral-sh/uv/releases/download/{self.OLD}/uv-linux.tar.gz"\n'
+            ),
+        }
+
+    def release(self) -> dict:
+        return {
+            "component": "uv",
+            "version": self.NEW,
+            "artifacts": {
+                "windows-x64": {"sha256": self.WINDOWS_NEW},
+                "linux-x64": {"sha256": self.LINUX_NEW},
+            },
+        }
+
+    def test_stable_release_rewrites_every_consumer_and_rejects_one_side(self) -> None:
+        updated, wrappers = apply_linked_pin(self.spec(), self.wrappers(), self.release())
+        self.assertIsNone(unlinked_pin_error(updated, wrappers, "uv"))
+        self.assertEqual(f"uv=={self.NEW}", updated["tools"]["uv"]["package"])
+        self.assertEqual(self.NEW, updated["runtimes"]["uv"]["version"])
+        for platform, row in updated["runtimes"]["uv"]["artifacts"].items():
+            self.assertIn(self.NEW, row["url"])
+            self.assertNotIn(self.OLD, row["url"])
+            self.assertEqual(
+                self.WINDOWS_NEW if platform.startswith("windows") else self.LINUX_NEW,
+                row["sha256"],
+            )
+        for text in wrappers.values():
+            self.assertIn(self.NEW, text)
+            self.assertNotIn(self.OLD, text)
+        self.assertIn(self.WINDOWS_NEW, wrappers["install.ps1"])
+        self.assertIn(self.LINUX_NEW, wrappers["install.sh"])
+        self.assertEqual("3.11", updated["runtimes"]["python"]["version"])
+        self.assertEqual("3.14", updated["dependencies"]["python"]["maximumSeries"])
+        self.assertNotEqual(
+            updated["runtimes"]["python"]["version"],
+            updated["dependencies"]["python"]["maximumSeries"],
+        )
+        self.assertEqual("mempalace==3.10.0", updated["tools"]["mempalace"]["package"])
+        one_sided = json.loads(json.dumps(updated))
+        one_sided["tools"]["uv"]["package"] = "uv==9.9.9"
+        self.assertIsNotNone(unlinked_pin_error(one_sided, wrappers, "uv"))
+        with self.assertRaises(ValueError):
+            apply_linked_pin(self.spec(), self.wrappers(), {"component": "python", "version": "3.14.8", "artifacts": {}})
+
+    def test_apply_writes_the_linked_files_from_a_fixture_release(self) -> None:
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(root, ignore_errors=True))
+        chaos = root / "chaos-engine"
+        chaos.mkdir()
+        (chaos / "dependencies.json").write_text(json.dumps(self.spec()), encoding="utf-8")
+        (chaos / "install.ps1").write_text(self.wrappers()["install.ps1"], encoding="utf-8")
+        (chaos / "install.sh").write_text(self.wrappers()["install.sh"], encoding="utf-8")
+        for name, commit, repository in (
+            ("caveman", "a" * 40, "JuliusBrussee/caveman"),
+            ("icm-architect", "b" * 40, "RinDig/icm-architect"),
+            ("ponytail", "c" * 40, "DietrichGebert/ponytail"),
+        ):
+            pin_dir = chaos / "vendor" / name
+            pin_dir.mkdir(parents=True)
+            (pin_dir / "PIN.json").write_text(
+                json.dumps({"repository": repository, "commit": commit}),
+                encoding="utf-8",
+            )
+        spec = self.spec()
+        spec["dependencies"]["mempalace"] = {"stableChannel": MEMPALACE_URL}
+        spec["dependencies"]["graphify"] = {"stableChannel": GRAPHIFY_URL}
+        spec["tools"]["graphify"] = {"package": "graphifyy==0.9.88"}
+        (chaos / "dependencies.json").write_text(json.dumps(spec), encoding="utf-8")
+
+        def fetch(pin: Pin) -> Stable:
+            if pin.kind == "pypi":
+                return Stable(version=pin.current)
+            return Stable(release_commit=pin.current)
+
+        with redirect_stdout(io.StringIO()):
+            code = main(
+                ["--root", str(root), "--apply"],
+                fetch=fetch,
+                release_for=lambda component: self.release() if component == "uv" else None,
+            )
+        self.assertEqual(0, code)
+        written = json.loads((chaos / "dependencies.json").read_text(encoding="utf-8"))
+        ps1 = (chaos / "install.ps1").read_text(encoding="utf-8")
+        shell = (chaos / "install.sh").read_text(encoding="utf-8")
+        self.assertEqual(self.NEW, written["runtimes"]["uv"]["version"])
+        self.assertEqual(f"uv=={self.NEW}", written["tools"]["uv"]["package"])
+        self.assertIn(self.NEW, ps1)
+        self.assertIn(self.NEW, shell)
+        self.assertIn(self.WINDOWS_NEW, ps1)
+        self.assertIn(self.LINUX_NEW, shell)
+        self.assertEqual("3.11", written["runtimes"]["python"]["version"])
+        self.assertEqual("3.14", written["dependencies"]["python"]["maximumSeries"])
+
+    def test_github_payload_requires_every_os_digest(self) -> None:
+        assets = [
+            {"name": filename, "digest": "sha256:" + ("ab" * 32)}
+            for filename in (
+                "uv-x86_64-pc-windows-msvc.zip",
+                "uv-aarch64-pc-windows-msvc.zip",
+                "uv-x86_64-unknown-linux-gnu.tar.gz",
+                "uv-aarch64-unknown-linux-gnu.tar.gz",
+                "uv-x86_64-apple-darwin.tar.gz",
+                "uv-aarch64-apple-darwin.tar.gz",
+            )
+        ]
+        release = uv_release_from_github_payload({"tag_name": "0.12.4", "assets": assets})
+        self.assertEqual("uv", release["component"])
+        self.assertEqual("0.12.4", release["version"])
+        self.assertEqual(set(release["artifacts"]), {
+            "windows-x64", "windows-arm64", "linux-x64", "linux-arm64", "macos-x64", "macos-arm64",
+        })
+        with self.assertRaises(Exception):
+            uv_release_from_github_payload({"tag_name": "0.12.4", "assets": assets[:-1]})
 
 
 if __name__ == "__main__":

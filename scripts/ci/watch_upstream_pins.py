@@ -17,6 +17,7 @@ Report-only unless ``--write``. ``--write`` opens or updates one issue titled
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -248,6 +249,51 @@ def _request_json(url: str, *, github: bool) -> tuple[int, Any]:
         raise UpstreamError(f"{url} did not return JSON: {error}") from error
 
 
+UV_ASSETS = {
+    "windows-x64": "uv-x86_64-pc-windows-msvc.zip",
+    "windows-arm64": "uv-aarch64-pc-windows-msvc.zip",
+    "linux-x64": "uv-x86_64-unknown-linux-gnu.tar.gz",
+    "linux-arm64": "uv-aarch64-unknown-linux-gnu.tar.gz",
+    "macos-x64": "uv-x86_64-apple-darwin.tar.gz",
+    "macos-arm64": "uv-aarch64-apple-darwin.tar.gz",
+}
+
+
+def uv_release_from_github_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Build one uv pin release from a GitHub release document.
+
+    Every OS asset must carry a sha256 digest. A missing digest refuses the
+    bump instead of leaving that platform on the previous checksum.
+    """
+    tag = str(payload.get("tag_name") or "").lstrip("v")
+    assets = payload.get("assets")
+    if not _STABLE_VERSION.fullmatch(tag) or not isinstance(assets, list):
+        raise UpstreamError("uv release payload is not a stable release")
+    digests: dict[str, str] = {}
+    for asset in assets:
+        if not isinstance(asset, dict):
+            continue
+        digest = str(asset.get("digest") or "")
+        if digest.startswith("sha256:"):
+            digests[str(asset.get("name") or "")] = digest.split(":", 1)[1]
+    artifacts: dict[str, dict[str, str]] = {}
+    for platform, filename in UV_ASSETS.items():
+        digest = digests.get(filename)
+        if digest is None or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise UpstreamError(f"uv release is missing a sha256 digest for {filename}")
+        artifacts[platform] = {"sha256": digest}
+    return {"component": "uv", "version": tag, "artifacts": artifacts}
+
+
+def fetch_uv_release() -> dict[str, Any]:
+    status, payload = _request_json(
+        "https://api.github.com/repos/astral-sh/uv/releases/latest", github=True
+    )
+    if status != 200 or not isinstance(payload, dict):
+        raise UpstreamError(f"uv release lookup failed: HTTP {status}")
+    return uv_release_from_github_payload(payload)
+
+
 def fetch_pypi(url: str) -> Stable:
     status, payload = _request_json(url, github=False)
     if status != 200 or not isinstance(payload, dict):
@@ -356,6 +402,151 @@ class GhIssueStore:
         )
 
 
+def _replace_package_version(package: str, version: str) -> str:
+    if "==" in package:
+        name, _old = package.split("==", 1)
+        return f"{name}=={version}"
+    if package.startswith("@") and package.count("@") >= 2:
+        name, _old = package.rsplit("@", 1)
+        return f"{name}@{version}"
+    if "@" in package:
+        name, _old = package.rsplit("@", 1)
+        return f"{name}@{version}"
+    raise ValueError(f"package pin is not name==version or name@version: {package}")
+
+
+def apply_linked_pin(
+    spec: Mapping[str, Any],
+    wrappers: Mapping[str, str],
+    release: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, str]]:
+    """Move every consumer of one component pin onto ``release`` together.
+
+    The generation Python series (``runtimes.python``) and the project-runtime
+    Python series (``dependencies.python``) are not this pin and are left as
+    they are. A release that omits an OS artifact is rejected so no platform
+    keeps the previous checksum.
+    """
+    component = str(release.get("component") or "")
+    version = str(release.get("version") or "")
+    provided = release.get("artifacts")
+    if not component or not _STABLE_VERSION.fullmatch(version):
+        raise ValueError("stable release is missing a component or a stable version")
+    if component == "python":
+        raise ValueError("the Python generation pin and the project-runtime pin are not one bump")
+    updated = copy.deepcopy(dict(spec))
+    tools = updated.get("tools")
+    runtimes = updated.get("runtimes")
+    if not isinstance(tools, dict) or component not in tools:
+        raise ValueError(f"{component} has no tool pin to move")
+    if not isinstance(runtimes, dict) or component not in runtimes:
+        raise ValueError(f"{component} has no runtime pin to move")
+    runtime = runtimes[component]
+    if not isinstance(runtime, dict):
+        raise ValueError(f"{component} runtime pin is invalid")
+    artifacts = runtime.get("artifacts")
+    if not isinstance(artifacts, dict) or not artifacts:
+        raise ValueError(f"{component} has no per-OS artifacts")
+    if not isinstance(provided, Mapping) or set(provided) != set(artifacts):
+        raise ValueError(f"{component} stable release must name every OS artifact")
+    old_version = str(runtime.get("version") or "")
+    if not old_version:
+        raise ValueError(f"{component} runtime pin has no version")
+    if _version_key(version) < _version_key(old_version):
+        raise ValueError(f"{component} stable {version} is older than pin {old_version}")
+    tool = tools[component]
+    if not isinstance(tool, dict) or not isinstance(tool.get("package"), str):
+        raise ValueError(f"{component} tool pin has no package")
+    next_wrappers = dict(wrappers)
+    if _version_key(version) == _version_key(old_version):
+        return updated, next_wrappers
+    tool["package"] = _replace_package_version(str(tool["package"]), version)
+    runtime["version"] = version
+    for platform, row in artifacts.items():
+        if not isinstance(row, dict) or not isinstance(row.get("url"), str):
+            raise ValueError(f"{component} artifact is invalid: {platform}")
+        incoming = provided[platform]
+        digest = incoming.get("sha256") if isinstance(incoming, Mapping) else None
+        if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ValueError(f"{component} artifact checksum is invalid: {platform}")
+        old_digest = str(row.get("sha256") or "")
+        if old_version not in str(row["url"]):
+            raise ValueError(f"{component} artifact URL is not on {old_version}: {platform}")
+        row["url"] = str(row["url"]).replace(old_version, version)
+        row["sha256"] = digest
+        if version not in row["url"]:
+            raise ValueError(f"{component} artifact URL missed {version}: {platform}")
+        for label, text in list(next_wrappers.items()):
+            if old_digest and old_digest in text:
+                next_wrappers[label] = text.replace(old_digest, digest)
+    for label, text in list(next_wrappers.items()):
+        if old_version not in text:
+            raise ValueError(f"installer provisioning pin {label} does not contain {old_version}")
+        next_wrappers[label] = text.replace(old_version, version)
+    return updated, next_wrappers
+
+
+def unlinked_pin_error(
+    spec: Mapping[str, Any],
+    wrappers: Mapping[str, str],
+    component: str,
+) -> str | None:
+    """Reject a bump that moved only one consumer of ``component``."""
+    tools = spec.get("tools") if isinstance(spec.get("tools"), dict) else {}
+    runtimes = spec.get("runtimes") if isinstance(spec.get("runtimes"), dict) else {}
+    tool = tools.get(component) if isinstance(tools, dict) else None
+    runtime = runtimes.get(component) if isinstance(runtimes, dict) else None
+    package = tool.get("package") if isinstance(tool, dict) else None
+    if not isinstance(package, str) or "==" not in package:
+        return f"{component} tool pin is missing"
+    tool_version = package.split("==", 1)[1]
+    runtime_version = runtime.get("version") if isinstance(runtime, dict) else None
+    if tool_version != runtime_version:
+        return f"{component} tool pin {tool_version} != runtime pin {runtime_version}"
+    artifacts = runtime.get("artifacts") if isinstance(runtime, dict) else None
+    if not isinstance(artifacts, dict) or not artifacts:
+        return f"{component} has no per-OS artifacts"
+    for platform, row in artifacts.items():
+        url = row.get("url") if isinstance(row, dict) else None
+        digest = row.get("sha256") if isinstance(row, dict) else None
+        if not isinstance(url, str) or runtime_version not in url:
+            return f"{platform} artifact is not on {runtime_version}"
+        if not isinstance(digest, str) or not any(digest in text for text in wrappers.values()):
+            return f"{platform} checksum is absent from the installer provisioning pins"
+    for label, text in wrappers.items():
+        if not isinstance(text, str) or runtime_version not in text:
+            return f"installer provisioning pin {label} is not {runtime_version}"
+    generation = runtimes.get("python") if isinstance(runtimes, dict) else None
+    project = spec.get("dependencies")
+    project_python = project.get("python") if isinstance(project, dict) else None
+    generation_pin = generation.get("version") if isinstance(generation, dict) else None
+    project_pin = project_python.get("maximumSeries") if isinstance(project_python, dict) else None
+    if isinstance(generation_pin, str) and isinstance(project_pin, str) and generation_pin == project_pin:
+        return "generation Python pin collapsed into the project-runtime pin"
+    return None
+
+
+def apply_release_files(root: Path, release: Mapping[str, Any]) -> None:
+    """Rewrite the linked pin files under ``root`` or reject a one-sided result."""
+    spec_path = root / "chaos-engine" / "dependencies.json"
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    wrapper_paths = {
+        "install.ps1": root / "chaos-engine" / "install.ps1",
+        "install.sh": root / "chaos-engine" / "install.sh",
+    }
+    wrappers = {
+        label: path.read_text(encoding="utf-8")
+        for label, path in wrapper_paths.items()
+    }
+    updated, rewritten = apply_linked_pin(spec, wrappers, release)
+    error = unlinked_pin_error(updated, rewritten, str(release["component"]))
+    if error:
+        raise ValueError(error)
+    spec_path.write_text(json.dumps(updated, indent=2) + "\n", encoding="utf-8")
+    for label, path in wrapper_paths.items():
+        path.write_text(rewritten[label], encoding="utf-8")
+
+
 def format_report(verdicts: Sequence[Verdict]) -> str:
     rows = [
         {
@@ -374,6 +565,7 @@ def main(
     argv: list[str] | None = None,
     fetch: Callable[[Pin], Stable] = fetch_stable,
     store_factory: Callable[[str], Any] = GhIssueStore,
+    release_for: Callable[[str], Mapping[str, Any] | None] | None = None,
 ) -> int:
     parser = argparse.ArgumentParser(description="Compare repository pins to the latest stable upstream.")
     parser.add_argument("--root", type=Path, default=Path.cwd())
@@ -382,6 +574,11 @@ def main(
         action="store_true",
         help="Open or update one GitHub issue. The default is report-only.",
     )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Move every linked consumer of a published stable release together.",
+    )
     parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", "ShaftHQ/SHAFT_ENGINE"))
     args = parser.parse_args(argv)
     try:
@@ -389,6 +586,12 @@ def main(
         upstream = {pin.name: fetch(pin) for pin in pins}
         store = store_factory(args.repo) if args.write else None
         verdicts, _action = compare_and_suggest(pins, upstream, store)
+        if args.apply:
+            source = release_for or (lambda name: fetch_uv_release() if name == "uv" else None)
+            for component in ("uv",):
+                release = source(component)
+                if release:
+                    apply_release_files(args.root, release)
     except (UpstreamError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 1

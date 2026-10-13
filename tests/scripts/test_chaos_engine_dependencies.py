@@ -11,6 +11,8 @@ import re
 import os
 import shutil
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import unittest
 import unittest.mock as mock
@@ -2725,6 +2727,226 @@ class PythonDownloadLag6325Test(unittest.TestCase):
         installs = [command for command in calls if command[1:3] == ["python", "install"]]
         self.assertEqual([["/tools/uv", "python", "install", "3.14.7", "--no-progress"]], installs)
         self.assertIn(["/tools/uv", "python", "find", "3.14.7"], calls)
+
+
+class GraphifyExtractProvision6934Test(unittest.TestCase):
+    """#6934: a false graphify extract failure is shared across host probes.
+
+    A Windows Store alias and a POSIX missing binary are the same unusable
+    probe. An empty corpus does not abort provision. A real extract diagnostic
+    still fails, and the install trace carries that child text.
+    """
+
+    CORPUS_EMPTY = (
+        "[graphify extract] graph is empty — extraction produced no nodes. "
+        "Possible causes: all files skipped, binary-only corpus, or LLM returned no edges."
+    )
+
+    def specification(self):
+        return {
+            "schemaVersion": 3,
+            "dependencies": {
+                "python": {
+                    "executables": ["python3"],
+                    "probe": ["python3", "--version"],
+                }
+            },
+        }
+
+    def test_store_stub_and_missing_binary_are_the_same_unusable_probe(self):
+        module = load_controller()
+        specification = self.specification()
+        probed = []
+
+        def runner(*_args, **_kwargs):
+            probed.append(True)
+            return SimpleNamespace(returncode=0, stdout="Python 3.14.0", stderr="")
+
+        def which_windows(name, path=None):
+            if name == "python3":
+                return r"C:\Users\PC\AppData\Local\Microsoft\WindowsApps\python3.exe"
+            return None
+
+        windows_local, windows_commands = module.discover_account_commands(
+            specification, which=which_windows, runner=runner
+        )
+        posix_local, posix_commands = module.discover_account_commands(
+            specification, which=lambda *_args, **_kwargs: None, runner=runner
+        )
+        self.assertEqual("missing", windows_local["python"]["status"])
+        self.assertEqual("missing", posix_local["python"]["status"])
+        self.assertNotIn("python3", windows_commands)
+        self.assertNotIn("python3", posix_commands)
+        self.assertEqual([], probed)
+        self.assertEqual(
+            "store-stub",
+            module.executable_probe_kind(
+                r"C:\Users\PC\AppData\Local\Microsoft\WindowsApps\python3.exe"
+            ),
+        )
+        self.assertEqual("missing", module.executable_probe_kind(None))
+        self.assertEqual("missing", module.executable_probe_kind(""))
+
+    def test_false_extract_continues_and_genuine_extract_keeps_the_child_reason(self):
+        module = load_controller()
+        child = self.CORPUS_EMPTY
+        windows_probes = [
+            {
+                "name": "python",
+                "path": r"C:\Users\PC\AppData\Local\Microsoft\WindowsApps\python3.exe",
+                "kind": "store-stub",
+            },
+            {
+                "name": "graphify",
+                "path": r"C:\Users\PC\.local\bin\graphify.exe",
+                "kind": "real",
+            },
+        ]
+        posix_probes = [
+            {"name": "python", "path": "/usr/bin/python3", "kind": "missing"},
+            {"name": "graphify", "path": "/home/user/.local/bin/graphify", "kind": "real"},
+        ]
+
+        def runner(outcome):
+            def run(command, **_kwargs):
+                return SimpleNamespace(returncode=1, stdout="", stderr=outcome)
+            return run
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            planned = module.project_setup_plan(
+                project,
+                {"graphify": str(project / "graphify")},
+            )
+            self.assertEqual(
+                [str(project / "graphify"), "extract", ".", "--code-only"],
+                planned[0],
+            )
+            windows = module._run_project_setup_command(
+                [r"C:\Users\PC\.local\bin\graphify.exe", "extract", ".", "--code-only"],
+                project,
+                runner=runner(child),
+                host_probes=windows_probes,
+            )
+            posix = module._run_project_setup_command(
+                ["/home/user/.local/bin/graphify", "extract", ".", "--code-only"],
+                project,
+                runner=runner(child),
+                host_probes=posix_probes,
+            )
+            self.assertEqual(0, windows.returncode)
+            self.assertEqual(0, posix.returncode)
+            stub_launch = module._run_project_setup_command(
+                [r"C:\Users\PC\.local\bin\graphify.exe", "extract", ".", "--code-only"],
+                project,
+                runner=runner(
+                    "Python was not found; run without arguments to install from the Microsoft Store"
+                ),
+                host_probes=windows_probes,
+            )
+            missing_launch = module._run_project_setup_command(
+                ["/home/user/.local/bin/graphify", "extract", ".", "--code-only"],
+                project,
+                runner=runner("graphify: No such file or directory"),
+                host_probes=posix_probes,
+            )
+            self.assertEqual(0, stub_launch.returncode)
+            self.assertEqual(0, missing_launch.returncode)
+            with self.assertRaises(RuntimeError) as caught:
+                module._run_project_setup_command(
+                    ["/home/user/.local/bin/graphify", "extract", ".", "--code-only"],
+                    project,
+                    runner=runner("error: path not found: /no/such"),
+                    host_probes=[
+                        {"name": "python", "path": "/usr/bin/python3", "kind": "real"},
+                        {
+                            "name": "graphify",
+                            "path": "/home/user/.local/bin/graphify",
+                            "kind": "real",
+                        },
+                    ],
+                )
+        message = str(caught.exception)
+        self.assertIn("path not found: /no/such", message)
+        self.assertNotEqual("CE-INSTALL-FAILED", message)
+        self.assertNotIn("bootstrap failed with exit 1", message)
+
+    def test_install_trace_and_shell_wrapper_include_the_child_reason(self):
+        bootstrap_spec = importlib.util.spec_from_file_location(
+            "chaos_engine_bootstrap_6934", ROOT / "chaos-engine/bootstrap.py"
+        )
+        if bootstrap_spec is None or bootstrap_spec.loader is None:
+            self.fail("bootstrap module did not load")
+        bootstrap = importlib.util.module_from_spec(bootstrap_spec)
+        bootstrap_spec.loader.exec_module(bootstrap)
+        error = RuntimeError(
+            "dependency command failed: graphify.exe: error: path not found: /no/such"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            with mock.patch.object(
+                bootstrap, "install_latest", side_effect=error
+            ), mock.patch.object(sys, "argv", [
+                "bootstrap.py",
+                "--project",
+                str(project),
+                "--repository",
+                "ShaftHQ/SHAFT_ENGINE",
+            ]):
+                self.assertEqual(1, bootstrap.main())
+            payload = json.loads(
+                (project / ".chaos-engine-state/install-trace.json").read_text(encoding="utf-8")
+            )
+            result = payload["result"]
+            self.assertEqual("CE-INSTALL-FAILED", result["error"])
+            self.assertIn("path not found: /no/such", result["cause"])
+            self.assertNotEqual("CE-INSTALL-FAILED", result["cause"])
+
+            fake_bin = project / "bin"
+            fake_bin.mkdir()
+            real_python = sys.executable
+            fake = fake_bin / "python3"
+            fake.write_text(
+                "#!/bin/sh\n"
+                "if [ \"$1\" = \"-c\" ]; then\n"
+                f"  exec {real_python} \"$@\"\n"
+                "fi\n"
+                "project=\"\"\n"
+                "previous=\"\"\n"
+                "for argument in \"$@\"; do\n"
+                "  if [ \"$previous\" = \"--project\" ]; then project=$argument; fi\n"
+                "  previous=$argument\n"
+                "done\n"
+                "mkdir -p \"$project/.chaos-engine-state\"\n"
+                "printf '%s\\n' "
+                "'{\"result\":{\"cause\":\"dependency command failed: graphify: "
+                "error: path not found: /no/such\",\"error\":\"CE-INSTALL-FAILED\","
+                "\"status\":\"failed\"},\"trace\":[]}' "
+                "> \"$project/.chaos-engine-state/install-trace.json\"\n"
+                "exit 1\n",
+                encoding="utf-8",
+            )
+            fake.chmod(0o755)
+            env = os.environ.copy()
+            env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
+            env["CHAOS_ENGINE_REPOSITORY"] = "ShaftHQ/SHAFT_ENGINE"
+            env.pop("CHAOS_ENGINE_INSTALL_URL", None)
+            completed = subprocess.run(
+                ["sh", str(ROOT / "chaos-engine/install.sh")],
+                cwd=project,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+        self.assertNotEqual(0, completed.returncode)
+        self.assertIn("path not found: /no/such", completed.stderr)
+        self.assertIn("ChaosEngine bootstrap failed with exit", completed.stderr)
+        self.assertNotEqual(
+            "ChaosEngine bootstrap failed with exit 1",
+            completed.stderr.strip().splitlines()[-1],
+        )
 
 
 if __name__ == "__main__":

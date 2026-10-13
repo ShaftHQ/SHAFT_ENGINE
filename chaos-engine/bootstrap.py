@@ -2716,6 +2716,15 @@ def installer_cli_prefix(project: Path | None = None) -> str | None:
     return f"{command} .chaos-engine/install.py"
 
 
+def failed_install_result(error: BaseException) -> dict[str, str]:
+    """Failure payload. ``cause`` is the child reason, not only the error code."""
+    return {
+        "status": "failed",
+        "error": classify_install_error(error),
+        "cause": one_line_cause(error),
+    }
+
+
 def classify_install_error(error: BaseException) -> str:
     if isinstance(error, (KeyboardInterrupt, InstallCancelled)):
         return "CE-INSTALL-CANCELLED"
@@ -3125,7 +3134,7 @@ def main() -> int:
         code = classify_install_error(error)
         write_install_trace(
             Path(args.project).resolve(),
-            {"status": "failed", "error": code},
+            failed_install_result(error),
             reporter.traces,
         )
         emit_install_failure(

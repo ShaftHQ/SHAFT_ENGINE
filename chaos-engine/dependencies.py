@@ -763,8 +763,13 @@ def discover_account_commands(
         sibling_paths: dict[str, str] = {}
         for command in names:
             selected = (preferred_commands or {}).get(command)
+            if selected and executable_probe_kind(str(selected)) != "real":
+                selected = None
             if not selected or not Path(selected).is_file():
                 selected = which(command, path=search_path)
+            if selected and executable_probe_kind(str(selected)) != "real":
+                # A Windows Store alias and a POSIX miss are the same unusable probe.
+                selected = None
             if selected:
                 resolved = Path(selected).resolve()
                 if any(part.startswith(".chaos-engine-runtime") for part in resolved.parts):
@@ -1546,7 +1551,98 @@ class _AccountCommandError(RuntimeError):
 
     def __init__(self, message: str, *, stderr: str, stdout: str) -> None:
         super().__init__(message)
+        self.stderr = stderr
+        self.stdout = stdout
         self.full_output = f"{stderr}\n{stdout}"
+
+
+def account_host_probes(local: dict[str, dict[str, object]]) -> list[dict[str, str]]:
+    """Probe facts for the provision decision. Missing keys stay out of the list."""
+    probes: list[dict[str, str]] = []
+    for name, record in local.items():
+        if not isinstance(record, dict):
+            continue
+        path = record.get("executable")
+        if not isinstance(path, str) or not path:
+            continue
+        kind = record.get("probeKind")
+        if kind not in {"real", "store-stub", "missing"}:
+            kind = executable_probe_kind(path)
+        probes.append({"name": name, "path": path, "kind": str(kind)})
+    return probes
+
+
+def launcher_name(command: str) -> str:
+    """Last path segment, whether the host writes ``\\`` or ``/``."""
+    normalized = str(command).replace("\\", "/")
+    return normalized.rsplit("/", 1)[-1]
+
+
+def executable_probe_kind(path: str | None) -> str:
+    """Classify one launcher path. A Store alias and a missing path are equally unusable.
+
+    POSIX ``which`` already returns nothing for a missing binary. Windows
+    ``which`` returns the ``WindowsApps`` app-execution alias, which is not an
+    interpreter. Callers treat both kinds with one rule.
+    """
+    if path is None or not str(path).strip():
+        return "missing"
+    folded = str(path).replace("/", "\\").casefold()
+    if "\\windowsapps\\" in folded:
+        return "store-stub"
+    return "real"
+
+
+_CORPUS_EMPTY_MARKERS = ("graph is empty", "extraction produced no nodes")
+_UNUSABLE_LAUNCH_MARKERS = (
+    "microsoft store",
+    "windowsapps",
+    "not recognized as an internal or external command",
+    "no such file or directory",
+    "cannot find the file",
+    "the system cannot find",
+    "winerror 2",
+)
+
+
+def decide_provision_child(
+    *,
+    command: list[str],
+    returncode: int,
+    stdout: str,
+    stderr: str,
+    probes: list[dict[str, str]] | None = None,
+) -> tuple[str, str]:
+    """Decide whether one provision child failed for a real reason.
+
+    ``continue`` is the false failure: graphify had nothing to index, or the
+    host probe is a Windows Store stub or a POSIX missing binary and the child
+    never started a real extract. ``fail`` keeps the child text so the install
+    report is not only ``CE-INSTALL-FAILED``.
+    """
+    reason = ((stderr or "").strip() or (stdout or "").strip())[:500]
+    name = launcher_name(command[0]) if command else "command"
+    graphify_setup = (
+        bool(command)
+        and name.casefold() in {"graphify", "graphify.exe"}
+        and len(command) >= 2
+        and command[1] in GRAPHIFY_ABSORBED_SUBCOMMANDS
+    )
+    if returncode == 0:
+        return "ok", reason
+    folded = reason.casefold()
+    if graphify_setup and any(marker in folded for marker in _CORPUS_EMPTY_MARKERS):
+        return "continue", reason
+    unusable = any(
+        isinstance(item, dict) and item.get("kind") in {"store-stub", "missing"}
+        for item in (probes or [])
+    )
+    if graphify_setup and unusable and (
+        not reason or any(marker in folded for marker in _UNUSABLE_LAUNCH_MARKERS)
+    ):
+        return "continue", reason or f"executable probe is unusable for {name}"
+    detail = reason or "no process output"
+    return "fail", f"dependency command failed: {name}: {detail}"
 
 
 
@@ -1638,6 +1734,7 @@ def _run_project_setup_command(
     runner=subprocess.run,
     extra_environment: dict[str, str] | None = None,
     stdin=None,
+    host_probes: list[dict[str, str]] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run one project-setup command.
 
@@ -1648,7 +1745,9 @@ def _run_project_setup_command(
     ``--out`` target). If the launcher is still healthy, keep the upgrade
     moving and emit the ``graphify-empty-output-after-version`` fingerprint;
     graphify output is derived data. A non-zero exit that prints a diagnostic
-    stays red.
+    stays red, and that diagnostic is the child reason (#6934). An empty
+    corpus and an unusable Store-stub or missing-binary probe are the same
+    false failure on every host and do not abort provision.
     """
     try:
         return _run_account_command(
@@ -1659,6 +1758,16 @@ def _run_project_setup_command(
             stdin=stdin,
         )
     except _AccountCommandError as error:
+        decision, detail = decide_provision_child(
+            command=command,
+            returncode=1,
+            stdout=error.stdout,
+            stderr=error.stderr,
+            probes=host_probes,
+        )
+        if decision == "continue":
+            print(f"chaos-engine: graphify setup continued: {detail}", file=sys.stderr)
+            return subprocess.CompletedProcess(command, 0, error.stdout, error.stderr)
         if not is_graphify_empty_output(command, error):
             raise
         partial = project / "graphify-out"
@@ -1938,6 +2047,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
                 runner=runner,
                 extra_environment=environment,
                 stdin=stdin,
+                host_probes=account_host_probes(local),
             )
         if action == "init" and not user_configuration:
             apply_owned_mempalace_excludes(project)
