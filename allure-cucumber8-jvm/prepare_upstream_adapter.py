@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Stage the pinned Allure Cucumber 8 adapter jar, sources, and javadoc.
+"""
+Stage the pinned Allure Cucumber 8 adapter jar, sources, and javadoc.
 
 SHAFT redistributes the allure-java build a1df39ff under its own version so
 Maven Central can serve it. The jar bytes are rejected unless the SHA-256
@@ -12,11 +13,12 @@ import hashlib
 import io
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - mvn and javadoc are fixed toolchain commands
 import sys
 import tarfile
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlparse
 
 JAR_URL = (
     "https://raw.githubusercontent.com/MohabMohie/allure-java/maven-repo/"
@@ -28,9 +30,41 @@ SOURCE_PREFIX = f"allure-java-{SOURCE_COMMIT}/allure-cucumber8-jvm/src/main/java
 USER_AGENT = "shaft-engine-allure-cucumber8-publish"
 
 
+def toolchain(name: str) -> str:
+    if name == "mvn":
+        override = os.environ.get("MVN", "")
+        if override:
+            return override
+    java_home = os.environ.get("JAVA_HOME", "")
+    if java_home:
+        base = Path(java_home) / "bin" / name
+        for candidate in (Path(str(base) + ".exe"), base):
+            if candidate.is_file():
+                return str(candidate)
+    names = (f"{name}.cmd", f"{name}.bat", f"{name}.exe", name) if os.name == "nt" else (name,)
+    for candidate_name in names:
+        found = shutil.which(candidate_name)
+        if found:
+            return found
+    raise RuntimeError(f"{name} is not on PATH")
+
+
+def run_tool(argv: list[str]) -> None:
+    command = argv
+    if os.name == "nt" and argv[0].lower().endswith((".cmd", ".bat")):
+        command = ["cmd.exe", "/d", "/c", *argv]
+    try:
+        subprocess.run(command, check=True)  # nosec B603 - the executable is a resolved toolchain and the argument list is fixed
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"toolchain not found: {argv[0]}") from exc
+
+
 def download(url: str) -> bytes:
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.hostname not in {"raw.githubusercontent.com", "github.com"}:
+        raise RuntimeError(f"refusing download URL {url}")
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=120) as response:
+    with urllib.request.urlopen(request, timeout=120) as response:  # nosec B310 - https hosts checked above
         return response.read()
 
 
@@ -106,18 +140,16 @@ def javadoc_classpath(work: Path) -> str:
         encoding="utf-8",
     )
     output = work / "javadoc-classpath.txt"
-    mvn = os.environ.get("MVN", "mvn")
-    subprocess.run(
+    run_tool(
         [
-            mvn,
+            toolchain("mvn"),
             "-f",
             str(pom),
             "-B",
             "dependency:build-classpath",
             f"-Dmdep.outputFile={output}",
             "-DincludeScope=compile",
-        ],
-        check=True,
+        ]
     )
     return output.read_text(encoding="utf-8").strip()
 
@@ -131,11 +163,9 @@ def write_javadoc(source_root: Path, work: Path) -> None:
     if javadoc_out.exists():
         shutil.rmtree(javadoc_out)
     javadoc_out.mkdir()
-    java_home = os.environ.get("JAVA_HOME", "")
-    javadoc = str(Path(java_home) / "bin" / "javadoc") if java_home else "javadoc"
-    subprocess.run(
+    run_tool(
         [
-            javadoc,
+            toolchain("javadoc"),
             "-quiet",
             "-d",
             str(javadoc_out),
@@ -148,8 +178,7 @@ def write_javadoc(source_root: Path, work: Path) -> None:
             "-Xdoclint:none",
             "-encoding",
             "UTF-8",
-        ],
-        check=True,
+        ]
     )
     if not any(javadoc_out.rglob("*.html")):
         raise RuntimeError("javadoc produced no html")
