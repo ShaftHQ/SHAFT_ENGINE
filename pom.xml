@@ -29,6 +29,7 @@
     </scm>
 
     <modules>
+        <module>allure-cucumber8-jvm</module>
         <module>shaft-engine</module>
         <module>shaft-infrastructure</module>
         <module>shaft-pilot-core</module>

@@ -51,6 +51,7 @@ changing that token silently breaks both distribution publishers.
 | `shaft-pilot-release.yml` | release-relevant pull request, nightly, manual | Rehearses the release contract, consumers, IntelliJ candidate, Capture, MCP transports, container, and a release-prep dry run; a failed nightly run files or recovers one `nightly-failure:release-candidate` issue. |
 | `mavenCentral_cd.yml` | release-relevant push to `main`, manual | Validates, signs, publishes, verifies, releases with minimal notes from `scripts/ci/render_release_notes.py` (#6232), dispatches the guide, and announces. |
 | `maven-central-reconcile.yml` | manual only | Safely completes a partially published immutable Maven Central version; dry-run defaults on. |
+| `publish-allure-cucumber8.yml` | manual; push of this workflow or `allure-cucumber8-jvm` on `ChaosEngine/6262-consume-adapter` | Publishes `io.github.shafthq:allure-cucumber8-jvm` at the reactor version when Maven Central does not already have that version. |
 | `prepare-release-pr.yml` | manual only | Updates the dated reactor and tool versions and opens the release PR. |
 | `publishJavaDocs.yml` | successful Maven Central workflow, manual | Publishes aggregate JavaDocs to the `javadoc` branch. |
 | `intellij-eap-verify.yml` | nightly schedule, manual | Builds and tests the IntelliJ plugin against the latest EAP snapshot (`-PverifyEap`). |
