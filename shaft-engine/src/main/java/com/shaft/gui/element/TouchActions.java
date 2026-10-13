@@ -804,84 +804,149 @@ public class TouchActions extends FluentWebDriverAction {
     private TouchActions swipeImageOrTextIntoView(By scrollableElementLocator, ImageTarget imageTarget, OcrTarget ocrTarget,
                                                    SwipeDirection swipeDirection) {
         try {
-            boolean firstAttempt = true;
-            int[] previousPixels = null;
-            int stableFrames = 0;
-            String lastOcrMiss = null;
-            int maxAttempts = ocrTarget != null ? 50 : 30;
-            int maxStableFrames = ocrTarget != null ? 8 : 2;
-            SwipeDirection activeDirection = swipeDirection;
-            boolean movedEarlier = false;
-            boolean oppositeTried = false;
-            for (int attempt = 0; attempt < maxAttempts; attempt++) {
-                // Prefer the scroll container's own screenshot so OCR/image search stays in
-                // element-local pixels and avoids BrowserStack window-vs-screenshot scale drift.
-                ContainerSearchFrame frame = captureSwipeSearchFrame(scrollableElementLocator);
-                byte[] screenshot = frame.screenshot();
-                int[] currentPixels = frame.containerLocal()
-                        ? screenshotPixels(screenshot)
-                        : stablePixels(screenshot, scrollableElementLocator);
-                ImageTarget effectiveImageTarget = imageTarget == null ? null
-                        : (frame.containerLocal() ? imageTarget
-                        : constrainToContainer(imageTarget, scrollableElementLocator, screenshot));
-                OcrTarget effectiveOcrTarget = ocrTarget == null ? null
-                        : (frame.containerLocal() ? ocrTarget
-                        : constrainToContainer(ocrTarget, scrollableElementLocator, screenshot));
-                boolean found;
-                if (imageTarget != null) {
-                    found = ImageProcessingActions.isUniqueImageTargetInView(effectiveImageTarget, screenshot)
-                            || (!frame.containerLocal() && findUsingAppiumImages(effectiveImageTarget).isPresent());
-                } else {
-                    lastOcrMiss = ocrFindMiss(effectiveOcrTarget, screenshot, swipeDirection);
-                    found = lastOcrMiss == null;
-                }
-                if (found && ocrTarget != null && !displayedExactText(ocrTarget.expectedText())) {
-                    // A container screenshot can OCR a clipped or misread label while the
-                    // real text node is still off-screen (Android horizontal TAB 1).
-                    found = false;
-                    lastOcrMiss = "OCR matched \"" + ocrTarget.expectedText()
-                            + "\" but no displayed element has that exact text.";
-                }
-                if (found) {
+            ImageSearchCursor cursor = new ImageSearchCursor(swipeDirection, ocrTarget != null);
+            for (int attempt = 0; attempt < cursor.maxAttempts; attempt++) {
+                if (imageSearchFound(scrollableElementLocator, imageTarget, ocrTarget, swipeDirection, cursor)) {
                     elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
                             Thread.currentThread().getStackTrace()[1].getMethodName(), "direction=" + swipeDirection, null, null);
                     return this;
                 }
-                stableFrames = previousPixels != null && Arrays.equals(previousPixels, currentPixels)
-                        ? stableFrames + 1 : 0;
-                if (stableFrames >= maxStableFrames) {
-                    break;
-                }
-                previousPixels = currentPixels;
-                boolean moved = performImageScrollStep(scrollableElementLocator, activeDirection, firstAttempt);
-                ScrollMotion.Stop stop = ScrollMotion.classify(moved, movedEarlier, oppositeTried);
-                if (moved) {
-                    movedEarlier = true;
-                }
-                if (stop == ScrollMotion.Stop.TRY_OPPOSITE) {
-                    // A no-op in the caller's direction is not the scroll boundary.
-                    activeDirection = ScrollMotion.opposite(activeDirection);
-                    oppositeTried = true;
-                } else if (!moved && imageTarget == null && (ocrTarget == null || lastOcrMiss == null)) {
-                    break;
-                }
-                firstAttempt = false;
-                // Delay after every OCR/image scroll to let the viewport settle before the next search.
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
+                if (advanceImageSearch(scrollableElementLocator, imageTarget, ocrTarget, cursor)) {
                     break;
                 }
             }
-            String miss = "Target was not found before the view reached its scroll boundary.";
-            if (lastOcrMiss != null && !lastOcrMiss.isBlank()) {
-                miss += " " + lastOcrMiss;
-            }
-            throw new IllegalStateException(miss);
+            throw new IllegalStateException(imageSearchMiss(cursor.lastOcrMiss));
         } catch (Throwable throwable) {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "direction=" + swipeDirection, null, throwable);
             return this;
+        }
+    }
+
+    private boolean imageSearchFound(By scrollableElementLocator, ImageTarget imageTarget, OcrTarget ocrTarget,
+                                     SwipeDirection swipeDirection, ImageSearchCursor cursor) {
+        ContainerSearchFrame frame = captureSwipeSearchFrame(scrollableElementLocator);
+        cursor.remember(frame, scrollableElementLocator);
+        if (imageTarget != null) {
+            return imageTargetInFrame(frame, scrollableElementLocator, imageTarget);
+        }
+        return ocrTargetInFrame(frame, scrollableElementLocator, ocrTarget, swipeDirection, cursor);
+    }
+
+    private boolean imageTargetInFrame(ContainerSearchFrame frame, By scrollableElementLocator, ImageTarget imageTarget) {
+        byte[] screenshot = frame.screenshot();
+        ImageTarget effective = frame.containerLocal()
+                ? imageTarget
+                : constrainToContainer(imageTarget, scrollableElementLocator, screenshot);
+        if (ImageProcessingActions.isUniqueImageTargetInView(effective, screenshot)) {
+            return true;
+        }
+        return !frame.containerLocal() && findUsingAppiumImages(effective).isPresent();
+    }
+
+    private boolean ocrTargetInFrame(ContainerSearchFrame frame, By scrollableElementLocator, OcrTarget ocrTarget,
+                                     SwipeDirection swipeDirection, ImageSearchCursor cursor) {
+        byte[] screenshot = frame.screenshot();
+        OcrTarget effective = frame.containerLocal()
+                ? ocrTarget
+                : constrainToContainer(ocrTarget, scrollableElementLocator, screenshot);
+        cursor.lastOcrMiss = ocrFindMiss(effective, screenshot, swipeDirection);
+        if (cursor.lastOcrMiss != null) {
+            return false;
+        }
+        if (displayedExactText(ocrTarget.expectedText())) {
+            return true;
+        }
+        // A container screenshot can OCR a clipped or misread label while the
+        // real text node is still off-screen (Android horizontal TAB 1).
+        cursor.lastOcrMiss = "OCR matched \"" + ocrTarget.expectedText()
+                + "\" but no displayed element has that exact text.";
+        return false;
+    }
+
+    /**
+     * @return true when this attempt is the scroll boundary and the search must stop
+     */
+    private boolean advanceImageSearch(By scrollableElementLocator, ImageTarget imageTarget, OcrTarget ocrTarget,
+                                       ImageSearchCursor cursor) {
+        if (cursor.noteStableFrame()) {
+            return true;
+        }
+        boolean moved = performImageScrollStep(scrollableElementLocator, cursor.activeDirection, cursor.firstAttempt);
+        if (cursor.recordMotion(moved, imageTarget, ocrTarget)) {
+            return true;
+        }
+        cursor.firstAttempt = false;
+        return !ImageSearchCursor.pauseForViewport();
+    }
+
+    private static String imageSearchMiss(String lastOcrMiss) {
+        String miss = "Target was not found before the view reached its scroll boundary.";
+        if (lastOcrMiss != null && !lastOcrMiss.isBlank()) {
+            miss += " " + lastOcrMiss;
+        }
+        return miss;
+    }
+
+    private final class ImageSearchCursor {
+        private int[] previousPixels;
+        private int[] currentPixels;
+        private int stableFrames;
+        private String lastOcrMiss;
+        private SwipeDirection activeDirection;
+        private boolean movedEarlier;
+        private boolean oppositeTried;
+        private boolean firstAttempt = true;
+        private final int maxAttempts;
+        private final int maxStableFrames;
+
+        private ImageSearchCursor(SwipeDirection direction, boolean ocr) {
+            activeDirection = direction;
+            maxAttempts = ocr ? 50 : 30;
+            maxStableFrames = ocr ? 8 : 2;
+        }
+
+        private void remember(ContainerSearchFrame frame, By scrollableElementLocator) {
+            byte[] screenshot = frame.screenshot();
+            currentPixels = frame.containerLocal()
+                    ? screenshotPixels(screenshot)
+                    : stablePixels(screenshot, scrollableElementLocator);
+        }
+
+        private boolean noteStableFrame() {
+            stableFrames = previousPixels != null && Arrays.equals(previousPixels, currentPixels)
+                    ? stableFrames + 1 : 0;
+            if (stableFrames >= maxStableFrames) {
+                return true;
+            }
+            previousPixels = currentPixels;
+            return false;
+        }
+
+        /**
+         * @return true when a no-move with no visual target is the boundary.
+         *         A no-op while a target still exists switches to the opposite direction instead.
+         */
+        private boolean recordMotion(boolean moved, ImageTarget imageTarget, OcrTarget ocrTarget) {
+            ScrollMotion.Stop stop = ScrollMotion.classify(moved, movedEarlier, oppositeTried);
+            if (moved) {
+                movedEarlier = true;
+            }
+            if (stop == ScrollMotion.Stop.TRY_OPPOSITE) {
+                activeDirection = ScrollMotion.opposite(activeDirection);
+                oppositeTried = true;
+                return false;
+            }
+            return !moved && imageTarget == null && (ocrTarget == null || lastOcrMiss == null);
+        }
+
+        private static boolean pauseForViewport() {
+            try {
+                Thread.sleep(1000);
+                return true;
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
         }
     }
 

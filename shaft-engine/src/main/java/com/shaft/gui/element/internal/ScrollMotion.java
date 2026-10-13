@@ -55,35 +55,33 @@ public final class ScrollMotion {
     public static Box clampToScreen(int left, int top, int width, int height, int screenWidth, int screenHeight) {
         int maxWidth = Math.max(screenWidth, 1);
         int maxHeight = Math.max(screenHeight, 1);
-        int boxLeft = left;
-        int boxTop = top;
-        int boxWidth = width;
-        int boxHeight = height;
-        if (boxLeft < 0) {
-            boxLeft = 0;
+        int boxLeft = clampStart(left, maxWidth);
+        int boxTop = clampStart(top, maxHeight);
+        return new Box(
+                boxLeft,
+                boxTop,
+                clampExtent(boxLeft, width, maxWidth),
+                clampExtent(boxTop, height, maxHeight));
+    }
+
+    private static int clampStart(int start, int limit) {
+        if (start < 0) {
+            return 0;
         }
-        if (boxTop < 0) {
-            boxTop = 0;
+        if (start > limit - 1) {
+            return limit - 1;
         }
-        if (boxLeft > maxWidth - 1) {
-            boxLeft = maxWidth - 1;
+        return start;
+    }
+
+    private static int clampExtent(int start, int extent, int limit) {
+        if (extent > limit - start) {
+            extent = limit - start;
         }
-        if (boxTop > maxHeight - 1) {
-            boxTop = maxHeight - 1;
+        if (extent < 1) {
+            return 1;
         }
-        if (boxWidth > maxWidth - boxLeft) {
-            boxWidth = maxWidth - boxLeft;
-        }
-        if (boxHeight > maxHeight - boxTop) {
-            boxHeight = maxHeight - boxTop;
-        }
-        if (boxWidth < 1) {
-            boxWidth = 1;
-        }
-        if (boxHeight < 1) {
-            boxHeight = 1;
-        }
-        return new Box(boxLeft, boxTop, boxWidth, boxHeight);
+        return extent;
     }
 
     public static TouchActions.SwipeDirection opposite(TouchActions.SwipeDirection direction) {
