@@ -157,6 +157,12 @@
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>
         </dependency>
+        <!-- Cucumber 8 adapter. Published at the shaft-engine version on Maven Central. -->
+        <dependency>
+            <groupId>io.github.shafthq</groupId>
+            <artifactId>allure-cucumber8-jvm</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-testng</artifactId>
@@ -653,21 +659,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <configuration>
-                    <!-- Parent includes only com/**. The Cucumber 8 adapter lives in io.qameta. -->
-                    <includes>
-                        <include>com/**/*</include>
-                        <include>io/**/*</include>
-                        <include>META-INF/**/*</include>
-                        <include>junit-platform.properties</include>
-                        <include>images/**/*</include>
-                        <include>resources/**/*</include>
-                    </includes>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

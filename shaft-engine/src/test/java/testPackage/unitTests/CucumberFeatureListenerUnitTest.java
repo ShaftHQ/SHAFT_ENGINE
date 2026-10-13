@@ -11,15 +11,20 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
 public class CucumberFeatureListenerUnitTest {
     @Test
-    public void constructorsAndEventPublisherRegistrationShouldWork() {
-        String adapterSource = AllureCucumber8Jvm.class.getProtectionDomain().getCodeSource().getLocation().toString();
-        Assert.assertTrue(adapterSource.contains("shaft-engine"), adapterSource);
+    public void constructorsAndEventPublisherRegistrationShouldWork() throws Exception {
+        // The loaded adapter must be the resolved jar. An unpack into target/classes is a local copy.
+        URL source = AllureCucumber8Jvm.class.getProtectionDomain().getCodeSource().getLocation();
+        String location = source.toString();
+        Assert.assertTrue(location.contains("allure-cucumber8-jvm-10.4.20261010.jar"), location);
+        Assert.assertFalse(location.contains("target/classes"), location);
+        Assert.assertFalse(Files.exists(Path.of("src/main/java/io/qameta/allure/cucumber8jvm/AllureCucumber8Jvm.java")));
         new CucumberFeatureListener();
         CucumberFeatureListener listener = new CucumberFeatureListener(Mockito.mock(AllureLifecycle.class));
         EventPublisher publisher = Mockito.mock(EventPublisher.class);
