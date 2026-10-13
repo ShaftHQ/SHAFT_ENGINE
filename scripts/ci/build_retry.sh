@@ -35,7 +35,10 @@ shift
 # 'Connect(ion)? timed out' is one event under two spellings: the OS reporting
 # ETIMEDOUT on connect (ConnectException, what PR #4491 hit) and the JDK's own
 # connect deadline expiring (SocketTimeoutException).
-RETRYABLE='Could not find artifact [^ ]+ in central|status code: 429|Too Many Requests|Could not transfer artifact|Connection reset|Connect(ion)? timed out|Read timed out|Premature end of Content-Length'
+# "Failed to read artifact descriptor" is the same Central refusal as a missing POM
+# (Ubuntu_Firefox_Grid, run 38362240871): the descriptor never arrived, so a fresh
+# process can. A compilation failure does not contain this phrase.
+RETRYABLE='Could not find artifact [^ ]+ in central|status code: 429|Too Many Requests|Could not transfer artifact|Failed to read artifact descriptor|Connection reset|Connect(ion)? timed out|Read timed out|Premature end of Content-Length'
 
 output=$(mktemp)
 trap 'rm -f "$output"' EXIT
