@@ -39,6 +39,15 @@ NON_CENTRAL_MISS = (
 GENUINE_FAILURE = (
     "[ERROR] Failed to execute goal on project shaft-visual: Compilation failure"
 )
+# Ubuntu_Firefox_Grid, run 38362240871: Central did not return the plugin POM.
+# The same install succeeded on Chrome grid. A fresh process is the lever.
+CENTRAL_DESCRIPTOR = (
+    "[ERROR] Failed to execute goal org.apache.maven.plugins:maven-dependency-plugin:3.11.0:build-classpath "
+    "(default-cli) on project allure-cucumber8-javadoc-classpath: Execution default-cli of goal "
+    "org.apache.maven.plugins:maven-dependency-plugin:3.11.0:build-classpath failed: "
+    "Plugin org.apache.maven.plugins:maven-dependency-plugin:3.11.0 or one of its dependencies could not be resolved: "
+    "Failed to read artifact descriptor for org.apache.maven.resolver:maven-resolver-util:jar:1.9.25"
+)
 # The real thing, from the PR #4491 run this script's second caller was added
 # for (issue #4494). Linux reports a connect that never opened as ConnectException
 # 'Connection timed out'; a JDK socket connect timeout reports the same event as
@@ -155,6 +164,12 @@ class BuildRetryScriptTest(unittest.TestCase):
         completed, attempts = self._run(command, attempts=3)
         self.assertNotEqual(0, completed.returncode)
         self.assertEqual(1, attempts)
+
+    def test_a_central_descriptor_miss_is_retried_in_a_fresh_process(self):
+        command = self._fake_command(output=CENTRAL_DESCRIPTOR, fail_times=1)
+        completed, attempts = self._run(command, attempts=2)
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertEqual(2, attempts)
 
     def test_a_genuine_build_failure_is_not_retried(self):
         # Retrying a compilation error would burn the job's timeout to reach the
