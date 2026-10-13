@@ -277,10 +277,7 @@ public class ElementActionsHelper {
     private List<Object> waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility, boolean enforceElementUniqueness) {
         boolean isValidToCheckForVisibility = isValidToCheckForVisibility(elementLocator, checkForVisibility);
         var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
-        boolean collectLocatorHealth = LocatorHealthReporter.isEnabled();
-        long locatorHealthStart = collectLocatorHealth ? System.nanoTime() : 0L;
-        AtomicInteger locatorHealthPollingAttempts = collectLocatorHealth ? new AtomicInteger() : null;
-        AtomicInteger locatorHealthStaleRetries = collectLocatorHealth ? new AtomicInteger() : null;
+        LocateHealth locatorHealth = new LocateHealth(LocatorHealthReporter.isEnabled());
         // issue #4332: false on every poll of the primary fluentWait below -- disambiguation must stay
         // a strict LAST RESORT, applied only once the full identification-timeout retry window is
         // exhausted, mirroring Actions.performAction's #4321 lastResortNarrowingAllowed flag.
@@ -292,20 +289,20 @@ public class ElementActionsHelper {
                 isMobileExecution,
                 enforceElementUniqueness,
                 lastResortNarrowingAllowed,
-                locatorHealthPollingAttempts,
-                locatorHealthStaleRetries);
+                locatorHealth.polls,
+                locatorHealth.staleRetries);
         try {
             List<Object> locatedElement = new SynchronizationManager(driver).fluentWait(isValidToCheckForVisibility)
                     .until(attemptLocate::apply);
             recordLocatorHealthLookup(
                     elementLocator,
-                    locatorHealthStart,
-                    locatorHealthPollingAttempts,
+                    locatorHealth.start,
+                    locatorHealth.polls,
                     resolvedElementCount(locatedElement),
                     false,
-                    locatorHealthStaleRetries);
+                    locatorHealth.staleRetries);
             return locatedElement;
-        } catch (org.openqa.selenium.TimeoutException timeoutException) {
+        } catch (TimeoutException timeoutException) {
             return elementMissingAfterTimeout(
                     driver,
                     elementLocator,
@@ -313,17 +310,10 @@ public class ElementActionsHelper {
                     enforceElementUniqueness,
                     lastResortNarrowingAllowed,
                     attemptLocate,
-                    locatorHealthStart,
-                    locatorHealthPollingAttempts,
-                    locatorHealthStaleRetries,
+                    locatorHealth,
                     timeoutException);
-        } catch (org.openqa.selenium.InvalidSelectorException invalidSelectorException) {
-            return invalidSelectorInformation(
-                    elementLocator,
-                    locatorHealthStart,
-                    locatorHealthPollingAttempts,
-                    locatorHealthStaleRetries,
-                    invalidSelectorException);
+        } catch (InvalidSelectorException invalidSelectorException) {
+            return invalidSelectorInformation(elementLocator, locatorHealth, invalidSelectorException);
         }
     }
 
@@ -510,21 +500,19 @@ public class ElementActionsHelper {
             boolean enforceElementUniqueness,
             AtomicBoolean lastResortNarrowingAllowed,
             Function<WebDriver, List<Object>> attemptLocate,
-            long locatorHealthStart,
-            AtomicInteger locatorHealthPollingAttempts,
-            AtomicInteger locatorHealthStaleRetries,
-            org.openqa.selenium.TimeoutException timeoutException) {
+            LocateHealth locatorHealth,
+            TimeoutException timeoutException) {
         if (enforceElementUniqueness && com.shaft.gui.element.internal.Actions.isCausedByAmbiguousLocator(timeoutException)) {
             lastResortNarrowingAllowed.set(true);
             try {
                 List<Object> locatedElement = attemptLocate.apply(driver);
                 recordLocatorHealthLookup(
                         elementLocator,
-                        locatorHealthStart,
-                        locatorHealthPollingAttempts,
+                        locatorHealth.start,
+                        locatorHealth.polls,
                         resolvedElementCount(locatedElement),
                         false,
-                        locatorHealthStaleRetries);
+                        locatorHealth.staleRetries);
                 return locatedElement;
             } catch (RuntimeException stillUnresolvable) {
                 // fall through to the ordinary timeout handling below, using the ORIGINAL
@@ -533,11 +521,11 @@ public class ElementActionsHelper {
         }
         recordLocatorHealthLookup(
                 elementLocator,
-                locatorHealthStart,
-                locatorHealthPollingAttempts,
+                locatorHealth.start,
+                locatorHealth.polls,
                 0,
                 true,
-                locatorHealthStaleRetries);
+                locatorHealth.staleRetries);
         HealingResolution resolution = HealingManager.resolve(
                         driver,
                         elementLocator,
@@ -558,7 +546,7 @@ public class ElementActionsHelper {
         return elementInformation;
     }
 
-    private static String locateTimeoutMessage(org.openqa.selenium.TimeoutException timeoutException) {
+    private static String locateTimeoutMessage(TimeoutException timeoutException) {
         var cause = timeoutException.getCause();
         var causeMessage = cause == null ? null : cause.getMessage();
         if (causeMessage != null && !causeMessage.isBlank() && causeMessage.contains("\n")) {
@@ -569,23 +557,33 @@ public class ElementActionsHelper {
 
     private List<Object> invalidSelectorInformation(
             By elementLocator,
-            long locatorHealthStart,
-            AtomicInteger locatorHealthPollingAttempts,
-            AtomicInteger locatorHealthStaleRetries,
-            org.openqa.selenium.InvalidSelectorException invalidSelectorException) {
+            LocateHealth locatorHealth,
+            InvalidSelectorException invalidSelectorException) {
         recordLocatorHealthLookup(
                 elementLocator,
-                locatorHealthStart,
-                locatorHealthPollingAttempts,
+                locatorHealth.start,
+                locatorHealth.polls,
                 0,
                 false,
-                locatorHealthStaleRetries);
+                locatorHealth.staleRetries);
         ReportManager.logDiscrete(invalidSelectorException.getMessage());
         var elementInformation = new ArrayList<>();
         elementInformation.add(0);
         elementInformation.add(null);
         elementInformation.add(invalidSelectorException);
         return elementInformation;
+    }
+
+    private static final class LocateHealth {
+        private final long start;
+        private final AtomicInteger polls;
+        private final AtomicInteger staleRetries;
+
+        private LocateHealth(boolean collect) {
+            start = collect ? System.nanoTime() : 0L;
+            polls = collect ? new AtomicInteger() : null;
+            staleRetries = collect ? new AtomicInteger() : null;
+        }
     }
 
     private static void recordLocatorHealthLookup(

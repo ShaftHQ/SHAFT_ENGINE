@@ -1216,7 +1216,7 @@ public class AndroidTouchActionsCoverageUnitTest {
 
     private List<String> failedSearchDirections(By container, TouchActions.SwipeDirection caller) throws Exception {
         AndroidDriver driver = scrollingDriver(false, false);
-        ElementActionsHelper helper = prepareSearch(driver, container);
+        ElementActionsHelper helper = prepareSearch(container);
         TouchActions touchActions = new TouchActions(driver);
         injectElementActionsHelper(touchActions, helper);
         swipe(touchActions, container, caller);
@@ -1237,7 +1237,7 @@ public class AndroidTouchActionsCoverageUnitTest {
         AndroidDriver driver = scrollingDriver(true, false);
         WebElement visible = onScreenElement();
         when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(), List.of(), List.of(visible));
-        ElementActionsHelper helper = prepareSearch(driver, container);
+        ElementActionsHelper helper = prepareSearch(container);
         TouchActions touchActions = new TouchActions(driver);
         injectElementActionsHelper(touchActions, helper);
         TouchActions returned = swipe(touchActions, container, caller);
@@ -1248,7 +1248,7 @@ public class AndroidTouchActionsCoverageUnitTest {
 
     private List<String> endOfPageAfterMovement(TouchActions.SwipeDirection caller) throws Exception {
         AndroidDriver driver = scrollingDriver(false, true);
-        ElementActionsHelper helper = prepareSearch(driver, null);
+        ElementActionsHelper helper = prepareSearch(null);
         TouchActions touchActions = new TouchActions(driver);
         injectElementActionsHelper(touchActions, helper);
         swipe(touchActions, null, caller);
@@ -1289,7 +1289,7 @@ public class AndroidTouchActionsCoverageUnitTest {
         return driver;
     }
 
-    private ElementActionsHelper prepareSearch(AndroidDriver driver, By container) {
+    private ElementActionsHelper prepareSearch(By container) {
         ElementActionsHelper helper = screenshotHelper();
         if (container != null) {
             RemoteWebElement element = mock(RemoteWebElement.class);

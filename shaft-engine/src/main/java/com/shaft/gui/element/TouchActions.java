@@ -1960,9 +1960,9 @@ public class TouchActions extends FluentWebDriverAction {
                         yield false;
                     }
                     case END_AFTER_MOVEMENT ->
-                            throw new RuntimeException("Element not found after scrolling to the end of the page.");
+                            throw new IllegalStateException("Element not found after scrolling to the end of the page.");
                     case NO_MOVEMENT ->
-                            throw new RuntimeException("Element not found; scrolling did not move the scrollable.");
+                            throw new IllegalStateException("Element not found; scrolling did not move the scrollable.");
                 };
             });
         } catch (RuntimeException exception) {

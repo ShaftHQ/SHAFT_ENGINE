@@ -4,7 +4,6 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
-import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
@@ -1332,15 +1331,9 @@ public class ActionsCoverageUnitTest {
 
                 model.reset(NestedScrollModel.belowTheFold());
                 TouchActions touchActions = new TouchActions(driver);
-                ElementActionsHelper touchHelper = mock(ElementActionsHelper.class);
-                when(touchHelper.identifyUniqueElement(any(), any(By.class))).thenReturn(List.of("target", element));
-                Field touchField = FluentWebDriverAction.class.getDeclaredField("elementActionsHelper");
-                touchField.setAccessible(true);
-                touchField.set(touchActions, touchHelper);
                 Assert.assertSame(touchActions.swipeElementIntoView(null, LOCATOR, TouchActions.SwipeDirection.DOWN), touchActions);
                 Assert.assertTrue(model.childIntersects());
                 Assert.assertEquals(model.scrollTop, 250);
-                verify(touchHelper, never()).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
 
                 model.reset(NestedScrollModel.belowTheFold());
                 new ElementActionsHelper(true).identifyUniqueElement(driver, LOCATOR);

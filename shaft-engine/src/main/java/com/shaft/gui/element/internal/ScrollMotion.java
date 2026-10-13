@@ -41,14 +41,16 @@ public final class ScrollMotion {
     public static Box nullContainerBox(TouchActions.SwipeDirection direction, int screenWidth, int screenHeight) {
         int width = screenWidth;
         int height = screenHeight * 90 / 100;
-        int left = 0;
-        int top = 0;
-        switch (direction) {
-            case UP -> top = screenHeight - 100;
-            case DOWN -> top = 100;
-            case RIGHT -> left = 100;
-            case LEFT -> left = screenWidth - 100;
-        }
+        int top = switch (direction) {
+            case UP -> screenHeight - 100;
+            case DOWN -> 100;
+            case LEFT, RIGHT -> 0;
+        };
+        int left = switch (direction) {
+            case RIGHT -> 100;
+            case LEFT -> screenWidth - 100;
+            case UP, DOWN -> 0;
+        };
         return clampToScreen(left, top, width, height, screenWidth, screenHeight);
     }
 
@@ -75,13 +77,8 @@ public final class ScrollMotion {
     }
 
     private static int clampExtent(int start, int extent, int limit) {
-        if (extent > limit - start) {
-            extent = limit - start;
-        }
-        if (extent < 1) {
-            return 1;
-        }
-        return extent;
+        int fitted = extent > limit - start ? limit - start : extent;
+        return fitted < 1 ? 1 : fitted;
     }
 
     public static TouchActions.SwipeDirection opposite(TouchActions.SwipeDirection direction) {
