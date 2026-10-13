@@ -18,7 +18,7 @@ class NonblockedLessonTests(unittest.TestCase):
     def test_skill_forbids_a_repository_that_answers_for_other_coordinates(self):
         skill = read("chaos-engine/skills/chaos-engine/SKILL.md")
         self.assertIn(
-            "forbids a Maven repository that returns 200 for any coordinate "
+            "forbids a maven repository that returns 200 for any coordinate "
             "other than the intended artifact",
             skill,
         )
@@ -40,7 +40,7 @@ class NonblockedLessonTests(unittest.TestCase):
     def test_kernel_check_rejects_a_warm_maven_cache(self):
         kernel = read("chaos-engine/hooks/kernel.py")
         self.assertIn(
-            "A warm Maven cache is not proof of a newly declared repository",
+            "A warm maven cache is not proof of a newly declared repository",
             kernel,
         )
         self.assertIn("jitpack.io", kernel)

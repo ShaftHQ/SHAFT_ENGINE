@@ -70,22 +70,16 @@ on explicit invocation.
 
 ## Check and deliver
 
-- The chaos-engine skill forbids a Maven repository that returns 200 for any
+- The chaos-engine skill forbids a maven repository that returns 200 for any
   coordinate other than the intended artifact. A repository that 404s every
   other coordinate stays allowed.
 - Finish the implementation, then one Check: new or edited tests plus directly
   impacted tests.
 - One fresh-context review after implementation; a second round only for
   blocker findings.
-- Sessions die at ~45-50 min: long work runs as a durable job (route
-  below); check `tool.py job status` before resuming.
-- One blocking CI wait per push; on failure fix the isolated cause, retry at
-  most once, then stop and report. Never re-run checks that already passed.
-- Status reports are always a Markdown table (one row per item), then Risks;
-  token use per task: `python3 .chaos-engine/tool.py usage`.
-- Learning Session after every final delivery (approval, publish, final
-  merge), unasked: lessons diff, spec issue, ONE PR to merged, per
-  [self-improve](../self-improve/SKILL.md). Never local queues.
+- One blocking CI wait per push; retry at most once.
+- Status reports are always a Markdown table. `tool.py usage`.
+- Learning Session after every final delivery.
 
 ## Route
 
