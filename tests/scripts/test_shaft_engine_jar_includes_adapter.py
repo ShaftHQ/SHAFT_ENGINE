@@ -26,15 +26,19 @@ class ShaftEngineJarIncludesAdapterTest(unittest.TestCase):
         pom = POM.read_text(encoding="utf-8")
         parent = (REPO_ROOT / "pom.xml").read_text(encoding="utf-8")
         self.assertIn("<artifactId>allure-cucumber8-jvm</artifactId>", pom)
-        self.assertIn("<version>a1df39ff</version>", pom)
         adapter = pom.split("<artifactId>allure-cucumber8-jvm</artifactId>", 1)[1].split("</dependency>", 1)[0]
+        self.assertIn("<version>${project.version}</version>", adapter)
         self.assertNotIn("<optional>", adapter)
+        self.assertNotIn("a1df39ff", pom)
         self.assertNotIn("unpack-cucumber8-adapter", pom)
         self.assertNotIn("<include>io/**/*</include>", pom)
         self.assertNotIn("jitpack.io", pom)
         self.assertNotIn("jitpack.io", parent)
-        self.assertNotIn("raw.githubusercontent.com/MohabMohie/allure-java/maven-repo/", pom)
-        self.assertIn("raw.githubusercontent.com/MohabMohie/allure-java/maven-repo/", parent)
+        self.assertNotIn("<repositories>", parent)
+        self.assertNotIn("raw.githubusercontent.com/MohabMohie/allure-java/maven-repo/", parent)
+        module = (REPO_ROOT / "allure-cucumber8-jvm" / "pom.xml").read_text(encoding="utf-8")
+        self.assertIn("ace544ca18fa1839da535242a8150a0776198958f29ca242b75f3235ec34c36d", module)
+        self.assertNotIn("<repositories>", module)
         self.assertFalse(VENDOR_SOURCE.exists())
         packaged = [
             path

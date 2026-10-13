@@ -28,21 +28,8 @@
         <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
     </scm>
 
-    <repositories>
-        <!-- Hosts only io.github.shafthq:allure-cucumber8-jvm. Other coordinates 404 here and stay on Maven Central. -->
-        <repository>
-            <id>shafthq-allure-cucumber8</id>
-            <url>https://raw.githubusercontent.com/MohabMohie/allure-java/maven-repo/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
     <modules>
+        <module>allure-cucumber8-jvm</module>
         <module>shaft-engine</module>
         <module>shaft-infrastructure</module>
         <module>shaft-pilot-core</module>

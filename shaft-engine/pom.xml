@@ -157,11 +157,11 @@
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>
         </dependency>
-        <!-- Cucumber 8 adapter jar from allure-java a1df39ff. The parent repository 404s every other coordinate, so docker-java stays on Maven Central. -->
+        <!-- Cucumber 8 adapter. Published at the shaft-engine version on Maven Central. -->
         <dependency>
             <groupId>io.github.shafthq</groupId>
             <artifactId>allure-cucumber8-jvm</artifactId>
-            <version>a1df39ff</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>

@@ -1,0 +1,66 @@
+name: Publish Cucumber 8 Allure adapter
+
+# Publishes io.github.shafthq:allure-cucumber8-jvm at the reactor version.
+# Gradle does not read repositories from a POM, so this coordinate has to be
+# on Maven Central. A later SHAFT release republishes the same module at the
+# new reactor version. This workflow skips when the current version is already
+# on Central.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ChaosEngine/6262-consume-adapter
+    paths:
+      - .github/workflows/publish-allure-cucumber8.yml
+      - allure-cucumber8-jvm/**
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish allure-cucumber8-jvm
+    if: github.event.repository.fork == false
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6
+        with:
+          java-version: "25"
+          distribution: "zulu"
+          check-latest: true
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Set up Maven
+        uses: stCarolas/setup-maven@v5.1
+        with:
+          maven-version: 3.9.12
+      - name: Skip when this version is already on Maven Central
+        id: central
+        run: |
+          set -euo pipefail
+          version="$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)"
+          url="https://repo1.maven.org/maven2/io/github/shafthq/allure-cucumber8-jvm/${version}/allure-cucumber8-jvm-${version}.pom"
+          code="$(curl -s -o /dev/null -w '%{http_code}' "$url")"
+          echo "version=${version} central_http=${code}"
+          if [ "${code}" = "200" ]; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Deploy allure-cucumber8-jvm
+        if: steps.central.outputs.already != 'true'
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+        run: |
+          mvn --batch-mode -f allure-cucumber8-jvm/pom.xml deploy -DskipTests \
+            "-Dgpg.keyname=${{ secrets.GPG_KEYNAME }}" \
+            "-Dgpg.passphrase=${{ secrets.GPG_PASSPHRASE }}"
