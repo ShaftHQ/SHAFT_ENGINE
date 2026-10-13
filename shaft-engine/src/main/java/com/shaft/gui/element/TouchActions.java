@@ -9,6 +9,8 @@ import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.MobileSessionStateManager;
+import com.shaft.gui.element.internal.ScrollMotion;
+import com.shaft.gui.element.internal.WebScroll;
 import com.shaft.gui.internal.healing.HealingManager;
 import com.shaft.gui.internal.healing.HealingResolution;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -808,6 +810,9 @@ public class TouchActions extends FluentWebDriverAction {
             String lastOcrMiss = null;
             int maxAttempts = ocrTarget != null ? 50 : 30;
             int maxStableFrames = ocrTarget != null ? 8 : 2;
+            SwipeDirection activeDirection = swipeDirection;
+            boolean movedEarlier = false;
+            boolean oppositeTried = false;
             for (int attempt = 0; attempt < maxAttempts; attempt++) {
                 // Prefer the scroll container's own screenshot so OCR/image search stays in
                 // element-local pixels and avoids BrowserStack window-vs-screenshot scale drift.
@@ -848,9 +853,16 @@ public class TouchActions extends FluentWebDriverAction {
                     break;
                 }
                 previousPixels = currentPixels;
-                if (!performImageScrollStep(scrollableElementLocator, swipeDirection, firstAttempt)
-                        && (ocrTarget == null || lastOcrMiss == null)
-                        && imageTarget == null) {
+                boolean moved = performImageScrollStep(scrollableElementLocator, activeDirection, firstAttempt);
+                ScrollMotion.Stop stop = ScrollMotion.classify(moved, movedEarlier, oppositeTried);
+                if (moved) {
+                    movedEarlier = true;
+                }
+                if (stop == ScrollMotion.Stop.TRY_OPPOSITE) {
+                    // A no-op in the caller's direction is not the scroll boundary.
+                    activeDirection = ScrollMotion.opposite(activeDirection);
+                    oppositeTried = true;
+                } else if (!moved && imageTarget == null && (ocrTarget == null || lastOcrMiss == null)) {
                     break;
                 }
                 firstAttempt = false;
@@ -980,10 +992,13 @@ public class TouchActions extends FluentWebDriverAction {
                     }
                 } else {
                     // regular touch screen device
-                    if (scrollableElementLocator != null) {
-                        new Actions(driverFactoryHelper.getDriver()).moveToElement(((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1))).scrollToElement(((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), targetElementLocator).get(1))).perform();
-                    } else {
-                        new Actions(driverFactoryHelper.getDriver()).scrollToElement(((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), targetElementLocator).get(1))).perform();
+                    WebElement targetElement = (WebElement) elementActionsHelper.identifyUniqueElement(
+                            driverFactoryHelper.getDriver(), targetElementLocator).get(1);
+                    WebElement containerElement = scrollableElementLocator == null ? null
+                            : (WebElement) elementActionsHelper.identifyUniqueElement(
+                            driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+                    if (!WebScroll.scrollIntoView(driverFactoryHelper.getDriver(), targetElement, containerElement)) {
+                        throw new IllegalStateException("Element is still outside the viewport after scrolling.");
                     }
                 }
                 elementActionsHelper.passAction(driverFactoryHelper.getDriver(), targetElementLocator,
@@ -1412,8 +1427,10 @@ public class TouchActions extends FluentWebDriverAction {
     private List<Object> attemptToSwipeElementIntoViewByImage(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
         AtomicReference<List<Object>> visualIdentificationObjects = new AtomicReference<>(
                 elementActionsHelper.findElementPresence(driverFactoryHelper.getDriver(), targetElementImage));
-        AtomicBoolean canScrollMore = new AtomicBoolean(true);
         AtomicBoolean isFirstAttempt = new AtomicBoolean(true);
+        SwipeDirection[] activeDirection = {swipeDirection};
+        boolean[] movedEarlier = {false};
+        boolean[] oppositeTried = {false};
         try {
             new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
                 List<Object> currentAttempt = elementActionsHelper.findElementPresence(driverFactoryHelper.getDriver(), targetElementImage);
@@ -1423,8 +1440,19 @@ public class TouchActions extends FluentWebDriverAction {
                     ReportManager.logDiscrete("Element found on screen.");
                     return true;
                 }
-                canScrollMore.set(performImageScrollStep(scrollableElementLocator, swipeDirection, isFirstAttempt.getAndSet(false)));
-                return !canScrollMore.get();
+                boolean moved = performImageScrollStep(scrollableElementLocator, activeDirection[0], isFirstAttempt.getAndSet(false));
+                ScrollMotion.Stop stop = ScrollMotion.classify(moved, movedEarlier[0], oppositeTried[0]);
+                if (moved) {
+                    movedEarlier[0] = true;
+                }
+                if (stop == ScrollMotion.Stop.TRY_OPPOSITE) {
+                    activeDirection[0] = ScrollMotion.opposite(activeDirection[0]);
+                    oppositeTried[0] = true;
+                    return false;
+                }
+                // Keep searching while the scrollable is moving. Stop after the opposite direction
+                // also fails to move, or after a later false that follows real movement.
+                return stop != ScrollMotion.Stop.CONTINUE;
             });
         } catch (TimeoutException timeoutException) {
             ReportManager.logDiscrete(timeoutException.getMessage());
@@ -1777,18 +1805,13 @@ public class TouchActions extends FluentWebDriverAction {
                         scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX() + (elementRectangle.getWidth() * 30 / 100), "top", elementRectangle.getY()));
             }
         } else {
-            //scrolling inside the screen
+            //scrolling inside the screen. Margins stay, then the box is clamped onto the screen.
+            ScrollMotion.Box box = ScrollMotion.nullContainerBox(swipeDirection, screenSize.getWidth(), screenSize.getHeight());
             scrollParameters.putAll(ImmutableMap.of(
-                    "width", screenSize.getWidth(), "height", screenSize.getHeight() * 90 / 100,
+                    "width", box.width(), "height", box.height(),
+                    "left", box.left(), "top", box.top(),
                     "percent", 0.8
             ));
-            switch (swipeDirection) {
-                case UP -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", screenSize.getHeight() - 100));
-                case DOWN -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", 100));
-                // expected issues with RIGHT and LEFT
-                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
-                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
-            }
         }
         scrollParameters.putAll(ImmutableMap.of(
                 "direction", swipeDirection.name().toLowerCase(Locale.ROOT)
@@ -1845,22 +1868,37 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
-        var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
-        AtomicBoolean canScrollMore = new AtomicBoolean(true);
         AtomicBoolean isFirstAttempt = new AtomicBoolean(true);
+        SwipeDirection[] activeDirection = {swipeDirection};
+        boolean[] movedEarlier = {false};
+        boolean[] oppositeTried = {false};
         try {
             new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
                 // for the animated GIF:
                 elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
-                var elementExistsOnViewPort = isTargetVisibleInViewport(targetElementLocator);
-                if (elementExistsOnViewPort)
+                if (isTargetVisibleInViewport(targetElementLocator))
                     return true;
-                canScrollMore.set(performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false)));
-                elementExistsOnViewPort = isTargetVisibleInViewport(targetElementLocator);
-                if (!canScrollMore.get() && !elementExistsOnViewPort)
-                    throw new RuntimeException("Element not found after scrolling to the end of the page.");
-                return elementExistsOnViewPort;
+                var scrollParameters = prepareParameters(activeDirection[0], scrollableElementLocator, targetElementLocator);
+                boolean moved = performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false));
+                if (isTargetVisibleInViewport(targetElementLocator))
+                    return true;
+                ScrollMotion.Stop stop = ScrollMotion.classify(moved, movedEarlier[0], oppositeTried[0]);
+                if (moved) {
+                    movedEarlier[0] = true;
+                }
+                return switch (stop) {
+                    case CONTINUE -> false;
+                    case TRY_OPPOSITE -> {
+                        activeDirection[0] = ScrollMotion.opposite(activeDirection[0]);
+                        oppositeTried[0] = true;
+                        yield false;
+                    }
+                    case END_AFTER_MOVEMENT ->
+                            throw new RuntimeException("Element not found after scrolling to the end of the page.");
+                    case NO_MOVEMENT ->
+                            throw new RuntimeException("Element not found; scrolling did not move the scrollable.");
+                };
             });
         } catch (RuntimeException exception) {
             HealingResolution resolution = targetElementLocator == null

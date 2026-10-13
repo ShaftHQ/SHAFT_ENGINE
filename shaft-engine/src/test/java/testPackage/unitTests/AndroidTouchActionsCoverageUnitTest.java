@@ -1118,6 +1118,235 @@ public class AndroidTouchActionsCoverageUnitTest {
         verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
     }
 
+    @Test
+    public void scrollGestureStaysOnScreenAndANoMoveIsNotTheEndOfThePage() throws Exception {
+        List<String> firstNullFailure = null;
+        List<String> firstNestedFailure = null;
+        List<String> firstReveal = null;
+        List<String> firstNestedReveal = null;
+        List<String> firstEnd = null;
+        List<String> firstMovedEnd = null;
+        List<String> firstStopped = null;
+        for (int run = 0; run < 2; run++) {
+            for (int[] screen : new int[][]{{1080, 2400}, {320, 480}}) {
+                for (TouchActions.SwipeDirection direction : TouchActions.SwipeDirection.values()) {
+                    Map<Object, Object> gesture = captureNullContainerGesture(screen[0], screen[1], direction);
+                    assertGestureBoxOnScreen(gesture, screen[0], screen[1]);
+                    Assert.assertEquals(String.valueOf(gesture.get("direction")),
+                            direction.name().toLowerCase(java.util.Locale.ROOT));
+                    if (direction == TouchActions.SwipeDirection.UP && screen[1] == 2400) {
+                        int top = ((Number) gesture.get("top")).intValue();
+                        int height = ((Number) gesture.get("height")).intValue();
+                        Assert.assertFalse(top == screen[1] - 100 && height == screen[1] * 90 / 100,
+                                "null-container UP must not keep a 90% height under top = screenHeight - 100");
+                    }
+                }
+            }
+            assertIosScrollMapsStayDirectionOnly();
+            List<String> nullFailure = failedSearchDirections(null, TouchActions.SwipeDirection.UP);
+            List<String> nestedFailure = failedSearchDirections(By.id("nested"), TouchActions.SwipeDirection.UP);
+            List<String> reveal = revealedSearchDirections(null, TouchActions.SwipeDirection.UP);
+            List<String> nestedReveal = revealedSearchDirections(By.id("nested"), TouchActions.SwipeDirection.LEFT);
+            List<String> stopped = endOfPageAfterMovement(TouchActions.SwipeDirection.UP);
+            List<String> end = swipeToEndDirections(false);
+            List<String> movedEnd = swipeToEndDirections(true);
+            if (run == 0) {
+                firstNullFailure = nullFailure;
+                firstNestedFailure = nestedFailure;
+                firstReveal = reveal;
+                firstNestedReveal = nestedReveal;
+                firstStopped = stopped;
+                firstEnd = end;
+                firstMovedEnd = movedEnd;
+            } else {
+                Assert.assertEquals(nullFailure, firstNullFailure);
+                Assert.assertEquals(nestedFailure, firstNestedFailure);
+                Assert.assertEquals(reveal, firstReveal);
+                Assert.assertEquals(nestedReveal, firstNestedReveal);
+                Assert.assertEquals(stopped, firstStopped);
+                Assert.assertEquals(end, firstEnd);
+                Assert.assertEquals(movedEnd, firstMovedEnd);
+            }
+            Assert.assertEquals(nullFailure, List.of("up", "down"));
+            Assert.assertEquals(nestedFailure, List.of("up", "down"));
+            Assert.assertEquals(reveal, List.of("up", "down"));
+            Assert.assertEquals(nestedReveal, List.of("left", "right"));
+            Assert.assertEquals(stopped, List.of("up", "up"));
+            Assert.assertEquals(end, List.of("down"));
+            Assert.assertEquals(movedEnd, List.of("down", "down"));
+        }
+    }
+
+    private Map<Object, Object> captureNullContainerGesture(int screenWidth, int screenHeight,
+                                                            TouchActions.SwipeDirection direction) throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(screenWidth, screenHeight));
+        WebElement onScreen = onScreenElement();
+        when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(onScreen));
+        doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TouchActions touchActions = touchActionsWithScreenshots(driver);
+        touchActions.swipeElementIntoView(By.id("target"), direction);
+        return capturedGestureMaps(driver, "mobile: scrollGesture").getFirst();
+    }
+
+    private void assertIosScrollMapsStayDirectionOnly() throws Exception {
+        IOSDriver driver = createMockIOSDriver();
+        WebElement visible = onScreenElement();
+        when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(visible));
+        doReturn(Boolean.TRUE).when(driver).executeScript(eq("mobile: scroll"), anyMap());
+        TouchActions touchActions = touchActionsWithScreenshots(driver);
+        touchActions.swipeElementIntoView(By.id("target"), TouchActions.SwipeDirection.UP);
+        Assert.assertEquals(capturedGestureMaps(driver, "mobile: scroll").getFirst(), Map.of("direction", "up"));
+
+        IOSDriver contained = createMockIOSDriver();
+        WebElement containedVisible = onScreenElement();
+        when(contained.findElements(any(By.class))).thenReturn(List.of(), List.of(containedVisible));
+        doReturn(Boolean.TRUE).when(contained).executeScript(eq("mobile: scroll"), anyMap());
+        TouchActions containedActions = new TouchActions(contained);
+        ElementActionsHelper helper = screenshotHelper();
+        RemoteWebElement container = mock(RemoteWebElement.class);
+        when(container.getId()).thenReturn("ios-container-id");
+        when(container.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
+        when(helper.identifyUniqueElement(any(), eq(By.id("tray")))).thenReturn(List.of("tray", container));
+        injectElementActionsHelper(containedActions, helper);
+        containedActions.swipeElementIntoView(By.id("tray"), By.id("target"), TouchActions.SwipeDirection.LEFT);
+        Assert.assertEquals(capturedGestureMaps(contained, "mobile: scroll").getFirst(),
+                Map.of("direction", "left", "elementId", "ios-container-id"));
+    }
+
+    private List<String> failedSearchDirections(By container, TouchActions.SwipeDirection caller) throws Exception {
+        AndroidDriver driver = scrollingDriver(false, false);
+        ElementActionsHelper helper = prepareSearch(driver, container);
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, helper);
+        swipe(touchActions, container, caller);
+        verify(helper).failAction(eq(driver), anyString(), any(), org.mockito.ArgumentMatchers.<Throwable>argThat(throwable ->
+                throwable.getMessage() != null
+                        && throwable.getMessage().contains("did not move")
+                        && !throwable.getMessage().contains("Element not found after scrolling to the end of the page.")));
+        verify(helper, never()).passAction(any(), any(), anyString(), any(), any(), any());
+        List<Map<Object, Object>> maps = capturedGestureMaps(driver, "mobile: scrollGesture");
+        if (container != null) {
+            Assert.assertEquals(maps.getFirst().get("elementId"), "nested-id");
+            Assert.assertEquals(maps.get(1).get("elementId"), "nested-id");
+        }
+        return directionsOf(maps);
+    }
+
+    private List<String> revealedSearchDirections(By container, TouchActions.SwipeDirection caller) throws Exception {
+        AndroidDriver driver = scrollingDriver(true, false);
+        WebElement visible = onScreenElement();
+        when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(), List.of(), List.of(visible));
+        ElementActionsHelper helper = prepareSearch(driver, container);
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, helper);
+        TouchActions returned = swipe(touchActions, container, caller);
+        Assert.assertSame(returned, touchActions);
+        verify(helper, never()).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
+        return directionsOf(capturedGestureMaps(driver, "mobile: scrollGesture"));
+    }
+
+    private List<String> endOfPageAfterMovement(TouchActions.SwipeDirection caller) throws Exception {
+        AndroidDriver driver = scrollingDriver(false, true);
+        ElementActionsHelper helper = prepareSearch(driver, null);
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, helper);
+        swipe(touchActions, null, caller);
+        verify(helper).failAction(eq(driver), anyString(), any(), org.mockito.ArgumentMatchers.<Throwable>argThat(throwable ->
+                throwable.getMessage() != null
+                        && throwable.getMessage().contains("Element not found after scrolling to the end of the page.")));
+        return directionsOf(capturedGestureMaps(driver, "mobile: scrollGesture"));
+    }
+
+    private List<String> swipeToEndDirections(boolean movesThenStops) throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(1080, 2400));
+        if (movesThenStops) {
+            doReturn(true).doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        } else {
+            doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        }
+        ElementActionsHelper helper = screenshotHelper();
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, helper);
+        touchActions.swipeToEndOfView(TouchActions.SwipeDirection.DOWN);
+        verify(helper, never()).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
+        List<String> directions = directionsOf(capturedGestureMaps(driver, "mobile: scrollGesture"));
+        Assert.assertFalse(directions.contains("up"));
+        return directions;
+    }
+
+    private AndroidDriver scrollingDriver(boolean revealOnSecondGesture, boolean moveThenStop) {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(1080, 2400));
+        if (revealOnSecondGesture) {
+            doReturn(false).doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        } else if (moveThenStop) {
+            doReturn(true).doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        } else {
+            doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        }
+        return driver;
+    }
+
+    private ElementActionsHelper prepareSearch(AndroidDriver driver, By container) {
+        ElementActionsHelper helper = screenshotHelper();
+        if (container != null) {
+            RemoteWebElement element = mock(RemoteWebElement.class);
+            when(element.getId()).thenReturn("nested-id");
+            when(element.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 400, 300));
+            when(helper.identifyUniqueElement(any(), eq(container))).thenReturn(List.of(container.toString(), element));
+        }
+        return helper;
+    }
+
+    private TouchActions swipe(TouchActions touchActions, By container, TouchActions.SwipeDirection caller) {
+        if (container == null) {
+            return touchActions.swipeElementIntoView(By.id("target"), caller);
+        }
+        return touchActions.swipeElementIntoView(container, By.id("target"), caller);
+    }
+
+    private TouchActions touchActionsWithScreenshots(WebDriver driver) throws Exception {
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, screenshotHelper());
+        return touchActions;
+    }
+
+    private ElementActionsHelper screenshotHelper() {
+        ElementActionsHelper helper = mock(ElementActionsHelper.class);
+        when(helper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        return helper;
+    }
+
+    private WebElement onScreenElement() {
+        WebElement onScreen = mock(WebElement.class);
+        when(onScreen.isDisplayed()).thenReturn(true);
+        when(onScreen.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 10, 20, 20));
+        return onScreen;
+    }
+
+    private static void assertGestureBoxOnScreen(Map<Object, Object> gesture, int screenWidth, int screenHeight) {
+        int left = ((Number) gesture.get("left")).intValue();
+        int top = ((Number) gesture.get("top")).intValue();
+        int width = ((Number) gesture.get("width")).intValue();
+        int height = ((Number) gesture.get("height")).intValue();
+        Assert.assertTrue(left >= 0 && top >= 0 && width > 0 && height > 0, gesture.toString());
+        Assert.assertTrue((long) left + width <= screenWidth, gesture.toString());
+        Assert.assertTrue((long) top + height <= screenHeight, gesture.toString());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<Object, Object>> capturedGestureMaps(org.openqa.selenium.JavascriptExecutor driver, String script) {
+        ArgumentCaptor<Map<Object, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(driver, atLeastOnce()).executeScript(eq(script), captor.capture());
+        return captor.getAllValues();
+    }
+
+    private static List<String> directionsOf(List<Map<Object, Object>> maps) {
+        return maps.stream().map(map -> String.valueOf(map.get("direction"))).toList();
+    }
+
     private AndroidDriver createMockAndroidDriver() {
         AndroidDriver driver = mock(AndroidDriver.class);
         WebDriver.Options options = mock(WebDriver.Options.class);

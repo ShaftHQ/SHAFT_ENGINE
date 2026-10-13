@@ -4,6 +4,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.FluentWebDriverAction;
+import com.shaft.gui.element.TouchActions;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.gui.internal.image.AnimatedGifManager;
@@ -56,6 +58,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,6 +69,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -1278,6 +1282,122 @@ public class ActionsCoverageUnitTest {
         }
     }
 
+    @Test
+    public void webScrollFinishesWithoutSmoothAndMovesNestedOverflowIntoView() throws Exception {
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(2);
+        Integer firstScrollTop = null;
+        Integer firstApplyCount = null;
+        for (int run = 0; run < 2; run++) {
+            NestedScrollModel model = NestedScrollModel.belowTheFold();
+            List<String> scripts = new ArrayList<>();
+            WebDriver driver = scrollDriver(model, scripts);
+            WebElement element = standardElement();
+            when(element.getTagName()).thenReturn("button");
+            when(driver.findElements(any(By.class))).thenReturn(List.of(element));
+            DriverFactoryHelper helper = helperFor(driver);
+
+            try (var ignoredWait = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class);
+                 var ignoredAllure = org.mockito.Mockito.mockStatic(Allure.class)) {
+                AllureLifecycle lifecycle = mock(AllureLifecycle.class);
+                ignoredAllure.when(Allure::getLifecycle).thenReturn(lifecycle);
+
+                for (String mode : List.of("w3c", "javascript", "legacy")) {
+                    model.reset(NestedScrollModel.belowTheFold());
+                    SHAFT.Properties.flags.set().scrollingMode(mode);
+                    new Actions(helper).click(LOCATOR);
+                    Assert.assertTrue(model.childIntersects(), mode);
+                    Assert.assertEquals(model.scrollTop, 250, mode);
+                }
+                verify(element, atLeastOnce()).click();
+
+                model.reset(NestedScrollModel.belowTheFold());
+                Actions explicit = new Actions(helper);
+                Assert.assertSame(explicit.scrollToElement(LOCATOR), explicit);
+                Assert.assertTrue(model.childIntersects());
+                Assert.assertEquals(model.scrollTop, 250);
+
+                model.reset(NestedScrollModel.unchanged());
+                RuntimeException unchanged = Assert.expectThrows(RuntimeException.class,
+                        () -> new Actions(helper).scrollToElement(LOCATOR));
+                Assert.assertTrue(hasCause(unchanged, IllegalStateException.class));
+                Assert.assertEquals(model.scrollTop, 0);
+                Assert.assertFalse(model.childIntersects());
+
+                model.reset(NestedScrollModel.cannotReach());
+                RuntimeException stillOutside = Assert.expectThrows(RuntimeException.class,
+                        () -> new Actions(helper).scrollToElement(LOCATOR));
+                Assert.assertTrue(hasCause(stillOutside, IllegalStateException.class));
+                Assert.assertFalse(model.childIntersects());
+                Assert.assertTrue(model.scrollTop > 0);
+
+                model.reset(NestedScrollModel.belowTheFold());
+                TouchActions touchActions = new TouchActions(driver);
+                ElementActionsHelper touchHelper = mock(ElementActionsHelper.class);
+                when(touchHelper.identifyUniqueElement(any(), any(By.class))).thenReturn(List.of("target", element));
+                Field touchField = FluentWebDriverAction.class.getDeclaredField("elementActionsHelper");
+                touchField.setAccessible(true);
+                touchField.set(touchActions, touchHelper);
+                Assert.assertSame(touchActions.swipeElementIntoView(null, LOCATOR, TouchActions.SwipeDirection.DOWN), touchActions);
+                Assert.assertTrue(model.childIntersects());
+                Assert.assertEquals(model.scrollTop, 250);
+                verify(touchHelper, never()).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
+
+                model.reset(NestedScrollModel.belowTheFold());
+                new ElementActionsHelper(true).identifyUniqueElement(driver, LOCATOR);
+                Assert.assertTrue(model.childIntersects());
+                Assert.assertEquals(model.scrollTop, 250);
+            }
+
+            for (String script : scripts) {
+                Assert.assertFalse(script.contains("smooth"), script);
+                Assert.assertFalse(script.contains("behavior"), script);
+            }
+            Assert.assertTrue(scripts.stream().anyMatch(script -> script.contains("parentElement") && script.contains("scrollHeight")));
+            int applyCount = (int) scripts.stream().filter(script -> script.contains("shaft-scroll-apply")).count();
+            Assert.assertTrue(applyCount > 0);
+            if (run == 0) {
+                firstScrollTop = model.scrollTop;
+                firstApplyCount = applyCount;
+            } else {
+                Assert.assertEquals(model.scrollTop, firstScrollTop);
+                Assert.assertEquals(applyCount, firstApplyCount);
+            }
+        }
+    }
+
+    private WebDriver scrollDriver(NestedScrollModel model, List<String> scripts) {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings()
+                .extraInterfaces(JavascriptExecutor.class, TakesScreenshot.class));
+        when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES)).thenReturn(PNG);
+        doAnswer(invocation -> {
+            String script = invocation.getArgument(0);
+            scripts.add(script);
+            if (script.contains("shaft-scroll-apply")) {
+                double[] offset = lastTwoNumbers(invocation.getArguments());
+                model.apply(offset[0], offset[1]);
+                return Map.of("scrollLeft", model.scrollLeft, "scrollTop", model.scrollTop);
+            }
+            if (script.contains("shaft-scroll-metrics")) {
+                return model.metrics();
+            }
+            return null;
+        }).when((JavascriptExecutor) driver).executeScript(anyString(), any(Object[].class));
+        return driver;
+    }
+
+    private static double[] lastTwoNumbers(Object[] arguments) {
+        List<Object> flat = new ArrayList<>();
+        for (int index = 1; index < arguments.length; index++) {
+            if (arguments[index] instanceof Object[] nested) {
+                flat.addAll(List.of(nested));
+            } else {
+                flat.add(arguments[index]);
+            }
+        }
+        return new double[]{((Number) flat.get(flat.size() - 2)).doubleValue(),
+                ((Number) flat.get(flat.size() - 1)).doubleValue()};
+    }
+
     private DriverFactoryHelper helperFor(WebDriver driver) {
         DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
         when(helper.getDriver()).thenReturn(driver);
@@ -1374,6 +1494,107 @@ public class ActionsCoverageUnitTest {
             }
         }
         return null;
+    }
+
+    private static final class NestedScrollModel {
+        int scrollLeft;
+        int scrollTop;
+        int maxScrollLeft;
+        int maxScrollTop;
+        int contentLeft;
+        int contentTop;
+        int childWidth;
+        int childHeight;
+        int viewLeft;
+        int viewTop;
+        int viewWidth;
+        int viewHeight;
+        boolean honorScroll = true;
+
+        static NestedScrollModel belowTheFold() {
+            NestedScrollModel model = new NestedScrollModel();
+            model.maxScrollLeft = 400;
+            model.maxScrollTop = 400;
+            model.contentTop = 250;
+            model.childWidth = 40;
+            model.childHeight = 30;
+            model.viewWidth = 200;
+            model.viewHeight = 120;
+            return model;
+        }
+
+        static NestedScrollModel unchanged() {
+            NestedScrollModel model = belowTheFold();
+            model.honorScroll = false;
+            return model;
+        }
+
+        static NestedScrollModel cannotReach() {
+            NestedScrollModel model = belowTheFold();
+            model.maxScrollTop = 30;
+            return model;
+        }
+
+        void reset(NestedScrollModel source) {
+            scrollLeft = 0;
+            scrollTop = 0;
+            maxScrollLeft = source.maxScrollLeft;
+            maxScrollTop = source.maxScrollTop;
+            contentLeft = source.contentLeft;
+            contentTop = source.contentTop;
+            childWidth = source.childWidth;
+            childHeight = source.childHeight;
+            viewLeft = source.viewLeft;
+            viewTop = source.viewTop;
+            viewWidth = source.viewWidth;
+            viewHeight = source.viewHeight;
+            honorScroll = source.honorScroll;
+        }
+
+        void apply(double nextLeft, double nextTop) {
+            if (!honorScroll) {
+                return;
+            }
+            scrollLeft = clamp(nextLeft, maxScrollLeft);
+            scrollTop = clamp(nextTop, maxScrollTop);
+        }
+
+        Map<String, Object> metrics() {
+            int childLeft = contentLeft - scrollLeft + viewLeft;
+            int childTop = contentTop - scrollTop + viewTop;
+            Map<String, Object> metrics = new LinkedHashMap<>();
+            metrics.put("childLeft", childLeft);
+            metrics.put("childTop", childTop);
+            metrics.put("childRight", childLeft + childWidth);
+            metrics.put("childBottom", childTop + childHeight);
+            metrics.put("viewLeft", viewLeft);
+            metrics.put("viewTop", viewTop);
+            metrics.put("viewRight", viewLeft + viewWidth);
+            metrics.put("viewBottom", viewTop + viewHeight);
+            metrics.put("scrollLeft", scrollLeft);
+            metrics.put("scrollTop", scrollTop);
+            metrics.put("maxScrollLeft", maxScrollLeft);
+            metrics.put("maxScrollTop", maxScrollTop);
+            return metrics;
+        }
+
+        boolean childIntersects() {
+            int childLeft = contentLeft - scrollLeft + viewLeft;
+            int childTop = contentTop - scrollTop + viewTop;
+            int left = Math.max(childLeft, viewLeft);
+            int top = Math.max(childTop, viewTop);
+            int right = Math.min(childLeft + childWidth, viewLeft + viewWidth);
+            int bottom = Math.min(childTop + childHeight, viewTop + viewHeight);
+            return right > left && bottom > top;
+        }
+
+        private static int clamp(double value, int max) {
+            int rounded = (int) Math.round(value);
+            if (rounded < 0) {
+                return 0;
+            }
+            return Math.min(rounded, Math.max(max, 0));
+        }
     }
 
     private static final class RecordingActions extends Actions {

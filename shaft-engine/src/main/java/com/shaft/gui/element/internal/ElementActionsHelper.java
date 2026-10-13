@@ -358,22 +358,17 @@ public class ElementActionsHelper {
                             if (isValidToCheckForVisibility) {
                                 if (!isMobileExecution) {
                                     try {
-                                        // native Javascript scroll to center (smooth / auto)
-                                        ((JavascriptExecutor) driver).executeScript("""
-                                                    
-                                                    arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""",
-                                                targetElement);
-                                    } catch (Throwable throwable1) {
-                                        try {
-                                            // w3c compliant scroll
-                                            new Actions(driver).
-                                                    scrollToElement(targetElement).
-                                                    perform();
-                                        } catch (Throwable throwable2) {
-                                            // old school selenium scroll
-                                            ((Locatable) driver).getCoordinates().
-                                                    inViewPort();
+                                        if (!WebScroll.scrollIntoView(driver, targetElement)) {
+                                            try {
+                                                new Actions(driver).scrollToElement(targetElement).perform();
+                                            } catch (Throwable throwable2) {
+                                                if (driver instanceof Locatable locatable) {
+                                                    locatable.getCoordinates().inViewPort();
+                                                }
+                                            }
                                         }
+                                    } catch (Throwable ignored) {
+                                        // Locate-time scroll is best-effort. Visibility is still confirmed below.
                                     }
                                 } else {
                                     targetElement.
