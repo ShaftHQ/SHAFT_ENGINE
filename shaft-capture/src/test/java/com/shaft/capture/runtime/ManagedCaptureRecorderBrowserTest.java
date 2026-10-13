@@ -652,7 +652,10 @@ class ManagedCaptureRecorderBrowserTest {
             Thread.sleep(2000);
 
             driver.navigate().to(baseUrl + "popup");
-            waitFor(() -> navigateRowCount(js) >= 1);
+            // The overlay announces this row from a 500ms poll after the new document loads.
+            // The budget stays loose so a slower browser still reaches the exact-one check below.
+            waitFor(() -> navigateRowCount(js) >= 1, Duration.ofSeconds(20),
+                    () -> "A user navigation must show a Navigate to row. Rows: " + actionRowTexts(js));
             // The (pre-fix, duplicate) navigation pollers both ran on a 500ms interval; sleeping
             // across several ticks gives a reintroduced duplicate loop every chance to fire again
             // before asserting the count stayed at exactly one.
@@ -2410,11 +2413,22 @@ class ManagedCaptureRecorderBrowserTest {
     }
 
     private static void waitFor(java.util.function.BooleanSupplier condition) throws InterruptedException {
-        InstantDeadline deadline = new InstantDeadline(Duration.ofSeconds(5));
+        waitFor(condition, Duration.ofSeconds(5), null);
+    }
+
+    private static void waitFor(
+            java.util.function.BooleanSupplier condition,
+            Duration timeout,
+            java.util.function.Supplier<String> failureDetail) throws InterruptedException {
+        InstantDeadline deadline = new InstantDeadline(timeout);
         while (!condition.getAsBoolean() && !deadline.expired()) {
             Thread.sleep(50);
         }
-        assertTrue(condition.getAsBoolean());
+        if (failureDetail == null) {
+            assertTrue(condition.getAsBoolean());
+        } else {
+            assertTrue(condition.getAsBoolean(), failureDetail.get());
+        }
     }
 
     private record InstantDeadline(long deadlineNanos) {
