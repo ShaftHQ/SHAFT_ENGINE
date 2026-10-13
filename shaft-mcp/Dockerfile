@@ -1,5 +1,9 @@
 FROM maven:3.9.11-eclipse-temurin-25 AS builder
 
+# allure-cucumber8-jvm stages its adapter with python3. The Maven base image does not ship it.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /build
 COPY . .
 RUN mvn --batch-mode --no-transfer-progress -pl shaft-mcp -am install -DskipTests -Dgpg.skip -Dcyclonedx.skip \
