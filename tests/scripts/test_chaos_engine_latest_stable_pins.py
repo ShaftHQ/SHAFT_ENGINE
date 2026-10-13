@@ -6,7 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - fixed node argv for the shipped resolver, never a shell.
 import tempfile
 import unittest
 from pathlib import Path
@@ -135,7 +135,7 @@ process.stdout.write(lines.join('\n') + '\n');
             env["HOME"] = str(home)
             env["USERPROFILE"] = str(home)
             env["XDG_CONFIG_HOME"] = str(home)
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603 - resolved node path and a fixed script.
                 [
                     node,
                     "-e",
