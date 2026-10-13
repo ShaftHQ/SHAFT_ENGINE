@@ -2779,34 +2779,47 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
         self.assertNotIn("python3", windows_commands)
         self.assertNotIn("python3", posix_commands)
         self.assertEqual([], probed)
+        self.assertEqual("store-stub", windows_local["python"]["probeKind"])
         self.assertEqual(
-            "store-stub",
-            module.executable_probe_kind(
-                r"C:\Users\PC\AppData\Local\Microsoft\WindowsApps\python3.exe"
-            ),
+            r"C:\Users\PC\AppData\Local\Microsoft\WindowsApps\python3.exe",
+            windows_local["python"]["executable"],
         )
+        self.assertEqual("missing", posix_local["python"]["probeKind"])
+        self.assertNotIn("executable", posix_local["python"])
+        windows_probes = module.account_host_probes(windows_local)
+        posix_probes = module.account_host_probes(posix_local)
+        self.assertEqual(["store-stub"], [item["kind"] for item in windows_probes])
+        self.assertEqual(["missing"], [item["kind"] for item in posix_probes])
         self.assertEqual("missing", module.executable_probe_kind(None))
         self.assertEqual("missing", module.executable_probe_kind(""))
+
+    def host_probes_from_which(self, module, which):
+        """Probes produced by discover, not a hand-built kind list."""
+        specification = {
+            "schemaVersion": 3,
+            "dependencies": {
+                "python": {
+                    "executables": ["python3"],
+                    "probe": ["python3", "--version"],
+                },
+                "graphify": {
+                    "executables": ["graphify"],
+                    "probe": ["graphify", "--version"],
+                },
+            },
+        }
+
+        def version_runner(*_args, **_kwargs):
+            return SimpleNamespace(returncode=0, stdout="graphify 0.9.88", stderr="")
+
+        local, _commands = module.discover_account_commands(
+            specification, which=which, runner=version_runner
+        )
+        return module.account_host_probes(local)
 
     def test_false_extract_continues_and_genuine_extract_keeps_the_child_reason(self):
         module = load_controller()
         child = self.CORPUS_EMPTY
-        windows_probes = [
-            {
-                "name": "python",
-                "path": r"C:\Users\PC\AppData\Local\Microsoft\WindowsApps\python3.exe",
-                "kind": "store-stub",
-            },
-            {
-                "name": "graphify",
-                "path": r"C:\Users\PC\.local\bin\graphify.exe",
-                "kind": "real",
-            },
-        ]
-        posix_probes = [
-            {"name": "python", "path": "/usr/bin/python3", "kind": "missing"},
-            {"name": "graphify", "path": "/home/user/.local/bin/graphify", "kind": "real"},
-        ]
 
         def runner(outcome):
             def run(command, **_kwargs):
@@ -2815,22 +2828,59 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
-            planned = module.project_setup_plan(
-                project,
-                {"graphify": str(project / "graphify")},
+            graphify_bin = project / "graphify"
+            python_bin = project / "python3"
+            graphify_bin.write_text("", encoding="utf-8")
+            python_bin.write_text("", encoding="utf-8")
+
+            def which_windows(name, path=None):
+                if name == "python3":
+                    return r"C:\Users\PC\AppData\Local\Microsoft\WindowsApps\python3.exe"
+                if name == "graphify":
+                    return str(graphify_bin)
+                return None
+
+            def which_posix(name, path=None):
+                if name == "graphify":
+                    return str(graphify_bin)
+                return None
+
+            def which_real(name, path=None):
+                if name == "python3":
+                    return str(python_bin)
+                if name == "graphify":
+                    return str(graphify_bin)
+                return None
+
+            windows_probes = self.host_probes_from_which(module, which_windows)
+            posix_probes = self.host_probes_from_which(module, which_posix)
+            real_probes = self.host_probes_from_which(module, which_real)
+            self.assertIn("store-stub", [item["kind"] for item in windows_probes])
+            self.assertIn("missing", [item["kind"] for item in posix_probes])
+            self.assertTrue(real_probes)
+            self.assertTrue(all(item["kind"] == "real" for item in real_probes))
+            windows_graphify = next(
+                item["path"] for item in windows_probes if item["name"] == "graphify"
             )
+            posix_graphify = next(
+                item["path"] for item in posix_probes if item["name"] == "graphify"
+            )
+            real_graphify = next(
+                item["path"] for item in real_probes if item["name"] == "graphify"
+            )
+            planned = module.project_setup_plan(project, {"graphify": str(graphify_bin)})
             self.assertEqual(
-                [str(project / "graphify"), "extract", ".", "--code-only"],
+                [str(graphify_bin), "extract", ".", "--code-only"],
                 planned[0],
             )
             windows = module._run_project_setup_command(
-                [r"C:\Users\PC\.local\bin\graphify.exe", "extract", ".", "--code-only"],
+                [windows_graphify, "extract", ".", "--code-only"],
                 project,
                 runner=runner(child),
                 host_probes=windows_probes,
             )
             posix = module._run_project_setup_command(
-                ["/home/user/.local/bin/graphify", "extract", ".", "--code-only"],
+                [posix_graphify, "extract", ".", "--code-only"],
                 project,
                 runner=runner(child),
                 host_probes=posix_probes,
@@ -2838,7 +2888,7 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
             self.assertEqual(0, windows.returncode)
             self.assertEqual(0, posix.returncode)
             stub_launch = module._run_project_setup_command(
-                [r"C:\Users\PC\.local\bin\graphify.exe", "extract", ".", "--code-only"],
+                [windows_graphify, "extract", ".", "--code-only"],
                 project,
                 runner=runner(
                     "Python was not found; run without arguments to install from the Microsoft Store"
@@ -2846,7 +2896,7 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
                 host_probes=windows_probes,
             )
             missing_launch = module._run_project_setup_command(
-                ["/home/user/.local/bin/graphify", "extract", ".", "--code-only"],
+                [posix_graphify, "extract", ".", "--code-only"],
                 project,
                 runner=runner("graphify: No such file or directory"),
                 host_probes=posix_probes,
@@ -2855,20 +2905,21 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
             self.assertEqual(0, missing_launch.returncode)
             with self.assertRaises(RuntimeError) as caught:
                 module._run_project_setup_command(
-                    ["/home/user/.local/bin/graphify", "extract", ".", "--code-only"],
+                    [real_graphify, "extract", ".", "--code-only"],
                     project,
                     runner=runner("error: path not found: /no/such"),
-                    host_probes=[
-                        {"name": "python", "path": "/usr/bin/python3", "kind": "real"},
-                        {
-                            "name": "graphify",
-                            "path": "/home/user/.local/bin/graphify",
-                            "kind": "real",
-                        },
-                    ],
+                    host_probes=real_probes,
+                )
+            with self.assertRaises(RuntimeError) as stubbed_genuine:
+                module._run_project_setup_command(
+                    [windows_graphify, "extract", ".", "--code-only"],
+                    project,
+                    runner=runner("error: path not found: /no/such"),
+                    host_probes=windows_probes,
                 )
         message = str(caught.exception)
         self.assertIn("path not found: /no/such", message)
+        self.assertIn("path not found: /no/such", str(stubbed_genuine.exception))
         self.assertNotEqual("CE-INSTALL-FAILED", message)
         self.assertNotIn("bootstrap failed with exit 1", message)
 

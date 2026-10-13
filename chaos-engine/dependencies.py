@@ -743,6 +743,37 @@ def _account_search_path() -> str:
     return os.pathsep.join([*(str(path) for path in candidates), current])
 
 
+def _remember_unusable(
+    notes: dict[str, tuple[str, str | None]], command: str, selected: str | None
+) -> str | None:
+    """Return a real launcher path, or record a Store stub or a missing one."""
+    if not selected:
+        notes.setdefault(command, ("missing", None))
+        return None
+    kind = executable_probe_kind(selected)
+    if kind != "real":
+        notes[command] = (kind, selected)
+        return None
+    notes.pop(command, None)
+    return selected
+
+
+def _stamp_unusable_probe(
+    record: dict[str, object], notes: dict[str, tuple[str, str | None]]
+) -> None:
+    """Attach the unusable probe so provision can see a Store stub or a miss."""
+    if not notes:
+        return
+    kind, path = next(iter(notes.values()))
+    for candidate_kind, candidate_path in notes.values():
+        if candidate_kind == "store-stub":
+            kind, path = candidate_kind, candidate_path
+            break
+    record["probeKind"] = kind
+    if path:
+        record["executable"] = path
+
+
 def discover_account_commands(
     specification: dict[str, object], *, preferred_commands: dict[str, str] | None = None,
     which=shutil.which, runner=subprocess.run
@@ -761,15 +792,17 @@ def discover_account_commands(
         if not isinstance(names, list) or not all(isinstance(item, str) for item in names):
             raise ValueError(f"dependency executable contract is invalid: {name}")
         sibling_paths: dict[str, str] = {}
+        unusable: dict[str, tuple[str, str | None]] = {}
         for command in names:
-            selected = (preferred_commands or {}).get(command)
-            if selected and executable_probe_kind(str(selected)) != "real":
-                selected = None
+            preferred = (preferred_commands or {}).get(command)
+            selected = _remember_unusable(
+                unusable, command, preferred if isinstance(preferred, str) else None
+            )
             if not selected or not Path(selected).is_file():
-                selected = which(command, path=search_path)
-            if selected and executable_probe_kind(str(selected)) != "real":
-                # A Windows Store alias and a POSIX miss are the same unusable probe.
-                selected = None
+                found = which(command, path=search_path)
+                selected = _remember_unusable(
+                    unusable, command, found if isinstance(found, str) else None
+                )
             if selected:
                 resolved = Path(selected).resolve()
                 if any(part.startswith(".chaos-engine-runtime") for part in resolved.parts):
@@ -791,12 +824,14 @@ def discover_account_commands(
                     "siblings": sibling_paths,
                 }
                 continue
-            components[name] = {
+            missing = {
                 "status": "missing",
                 "healthy": False,
                 "version": None,
                 "siblings": sibling_paths,
             }
+            _stamp_unusable_probe(missing, unusable)
+            components[name] = missing
             continue
         probed = probe_account_dependency(
             name, sibling_paths[primary], value, runner=runner
@@ -1557,16 +1592,20 @@ class _AccountCommandError(RuntimeError):
 
 
 def account_host_probes(local: dict[str, dict[str, object]]) -> list[dict[str, str]]:
-    """Probe facts for the provision decision. Missing keys stay out of the list."""
+    """Probe facts for the provision decision. A Store stub and a miss stay in the list."""
     probes: list[dict[str, str]] = []
     for name, record in local.items():
         if not isinstance(record, dict):
             continue
-        path = record.get("executable")
-        if not isinstance(path, str) or not path:
-            continue
+        raw_path = record.get("executable")
+        path = raw_path if isinstance(raw_path, str) else ""
         kind = record.get("probeKind")
-        if kind not in {"real", "store-stub", "missing"}:
+        if kind in {"store-stub", "missing"}:
+            probes.append({"name": name, "path": path, "kind": str(kind)})
+            continue
+        if not path:
+            continue
+        if kind != "real":
             kind = executable_probe_kind(path)
         probes.append({"name": name, "path": path, "kind": str(kind)})
     return probes
