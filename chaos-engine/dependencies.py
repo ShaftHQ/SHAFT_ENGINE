@@ -59,9 +59,18 @@ REQUIRED_DISPATCHES = {
 }
 def _load_schema3_tools() -> dict[str, dict[str, object]]:
     """Load the schema v3 tool contract from the dependency file beside this module."""
-    document = json.loads(
-        Path(__file__).resolve().with_name("dependencies.json").read_text(encoding="utf-8")
-    )
+    path = Path(__file__).resolve().with_name("dependencies.json")
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError as error:
+        cli = "py -3" if os.name == "nt" else "python3"
+        raise ValueError(
+            "ChaosEngine dependency specification is missing "
+            "(wiped or incomplete `.chaos-engine` runtime). fix-next: run the "
+            "ChaosEngine install one-liner from INSTALL.md, then "
+            f"`{cli} .chaos-engine/install.py doctor --project .`"
+        ) from error
+    document = json.loads(raw)
     tools = document.get("tools")
     if not isinstance(tools, dict):
         raise ValueError("tool dependency specification is invalid")

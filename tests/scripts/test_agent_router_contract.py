@@ -1316,9 +1316,9 @@ class ConsultGateTest(unittest.TestCase):
         content = compact(VENDOR_CAVEMAN)
         for exact in (
             "not/never/no/only/except",
-            "numbers, units exact",
-            "user's dominant language",
-            "cli commands",
+            "numbers and units exact",
+            "user's language",
+            "commands, paths, api names exact",
             "errors quoted exact",
         ):
             self.assertIn(exact, content)
@@ -1327,20 +1327,19 @@ class ConsultGateTest(unittest.TestCase):
         self.assertNotIn("not/never/no/only/except", entrypoint)
 
     def test_ponytail_has_separate_reuse_native_dependency_and_code_rungs(self):
-        ponytail = compact(VENDOR_PONYTAIL).split("the ladder", 1)[1]
+        ponytail = compact(VENDOR_PONYTAIL).split("the smallest complete change", 1)[1]
         rungs = (
-            "does this need to exist at all",
+            "does it need to exist",
             "already in this codebase",
-            "stdlib does it",
-            "native platform feature covers it",
-            "already-installed dependency solves it",
+            "standard library or a platform feature",
+            "an installed dependency",
             "the minimum code that works",
         )
         positions = [ponytail.index(rung) for rung in rungs]
         self.assertEqual(positions, sorted(positions))
         entrypoint = compact(ENTRYPOINT)
         self.assertIn("vendor/ponytail/skills/ponytail/skill.md", compact(ROUTER_CATALOG))
-        self.assertNotIn("does this need to exist at all", entrypoint)
+        self.assertNotIn("does it need to exist", entrypoint)
 
     def test_every_ponytail_marker_names_its_ceiling_and_upgrade_trigger(self):
         markers = []

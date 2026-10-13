@@ -82,10 +82,10 @@ function writeConfig(dir, mode) {
 
 function resolve(at) {
   process.chdir(at);
-  return {
-    caveman: caveman.getDefaultMode(at),
-    ponytail: ponytail.getDefaultMode(),
-  };
+  const modes = {};
+  modes.caveman = caveman.getDefaultMode(at);
+  modes.ponytail = ponytail.getDefaultMode();
+  return modes;
 }
 
 const lines = [];
