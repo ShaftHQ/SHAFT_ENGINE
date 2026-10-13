@@ -277,249 +277,312 @@ public class ElementActionsHelper {
     private List<Object> waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility, boolean enforceElementUniqueness) {
         boolean isValidToCheckForVisibility = isValidToCheckForVisibility(elementLocator, checkForVisibility);
         var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
-        boolean collectLocatorHealth = LocatorHealthReporter.isEnabled();
-        long locatorHealthStart = collectLocatorHealth ? System.nanoTime() : 0L;
-        AtomicInteger locatorHealthPollingAttempts = collectLocatorHealth ? new AtomicInteger() : null;
-        AtomicInteger locatorHealthStaleRetries = collectLocatorHealth ? new AtomicInteger() : null;
+        LocateHealth locatorHealth = new LocateHealth(LocatorHealthReporter.isEnabled());
         // issue #4332: false on every poll of the primary fluentWait below -- disambiguation must stay
         // a strict LAST RESORT, applied only once the full identification-timeout retry window is
         // exhausted, mirroring Actions.performAction's #4321 lastResortNarrowingAllowed flag.
         AtomicBoolean lastResortNarrowingAllowed = new AtomicBoolean(false);
-        Function<WebDriver, List<Object>> attemptLocate = f -> {
-                        if (locatorHealthPollingAttempts != null) {
-                            locatorHealthPollingAttempts.incrementAndGet();
-                        }
-                        try {
-                            ElementInformation elementInformation = new ElementInformation();
-                            List<WebElement> targetElements;
-                            // BLOCK #1 :: GETTING THE ELEMENT
-                            By shadowDomLocator = ShadowLocatorBuilder.shadowDomLocator.get();
-                            By cssSelector = ShadowLocatorBuilder.cssSelector.get();
-                            if (shadowDomLocator != null && cssSelector == elementLocator) {
-                                SearchContext shadowRoot = driver.findElement(shadowDomLocator).getShadowRoot();
-                                targetElements = shadowRoot.findElements(cssSelector);
-                                ensureElementListIsNotEmpty(targetElements, cssSelector);
-                            } else if (LocatorBuilder.getIFrameLocator().get() != null) {
-                                try {
-                                    targetElements = driver.switchTo()
-                                            .frame(driver.findElement(LocatorBuilder.getIFrameLocator().get()))
-                                            .findElements(elementLocator);
-                                    ensureElementListIsNotEmpty(targetElements, elementLocator);
-                                } catch (NoSuchElementException exception) {
-                                    targetElements = resolveMatchingElements(driver, elementLocator);
-                                }
-                            } else {
-                                try {
-                                    targetElements = resolveMatchingElements(driver, elementLocator);
-                                } catch (InvalidSelectorException invalidSelectorException) {
-                                    //break and fail immediately if invalid selector
-                                    reportActionResult(driver, null, null, null, null, null, false);
-                                    FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", invalidSelectorException);
-                                    throw invalidSelectorException;
-                                }
-                            }
-                            // issue #4332: mirror Actions.performAction's #4321 last-resort
-                            // disambiguation for this separate identifyUniqueElement retry/timeout
-                            // path. Always throws during the normal retry loop (lastResortNarrowingAllowed
-                            // is false on every poll), preserving the full identification-timeout window
-                            // for a still-settling page; only the single last-resort attempt made after
-                            // that window is exhausted (see the TimeoutException handling below) allows
-                            // narrowing, and only when exactly one match is displayed and enabled. When
-                            // the last-resort attempt still can't narrow to a single actionable match,
-                            // this deliberately does NOT throw -- targetElements stays ambiguous so
-                            // identifyUniqueElement's own uniqueness check (one level up) reports the
-                            // failure exactly as it did before this fix.
-                            if (enforceElementUniqueness && targetElements.size() > 1
-                                    && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique()
-                                    && !(elementLocator instanceof RelativeLocator.RelativeBy)) {
-                                if (!lastResortNarrowingAllowed.get()) {
-                                    throw new MultipleElementsFoundException();
-                                }
-                                int matchCountBeforeNarrowing = targetElements.size();
-                                Optional<WebElement> uniqueActionable =
-                                        com.shaft.gui.element.internal.Actions.uniqueDisplayedAndEnabledElement(targetElements);
-                                if (uniqueActionable.isPresent()) {
-                                    ReportManager.logDiscrete("Locator " + JavaHelper.formatLocatorToString(elementLocator)
-                                            + " matched " + matchCountBeforeNarrowing
-                                            + " elements; auto-resolved to the only displayed and enabled one"
-                                            + " after the identification timeout was exhausted.");
-                                    targetElements = List.of(uniqueActionable.get());
-                                }
-                            }
-                            WebElement targetElement = targetElements.getFirst();
-                            // BLOCK #2 :: GETTING THE ELEMENT LOCATION (RECT)
-                            try {
-                                elementInformation.setElementRect(targetElement.getRect());
-                            } catch (ClassCastException | WebDriverException ignored) {
-                                // Flutter Integration Driver can return String sizes from getRect.
-                                // Optional metadata must not fail an otherwise successful locate.
-                            }
-                            // BLOCK #3 :: SCROLLING TO ELEMENT | CONFIRMING IT IS DISPLAYED
-                            if (isValidToCheckForVisibility) {
-                                if (!isMobileExecution) {
-                                    try {
-                                        // native Javascript scroll to center (smooth / auto)
-                                        ((JavascriptExecutor) driver).executeScript("""
-                                                    
-                                                    arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""",
-                                                targetElement);
-                                    } catch (Throwable throwable1) {
-                                        try {
-                                            // w3c compliant scroll
-                                            new Actions(driver).
-                                                    scrollToElement(targetElement).
-                                                    perform();
-                                        } catch (Throwable throwable2) {
-                                            // old school selenium scroll
-                                            ((Locatable) driver).getCoordinates().
-                                                    inViewPort();
-                                        }
-                                    }
-                                } else {
-                                    targetElement.
-                                            isDisplayed();
-                                }
-                            }
-                            // BLOCK #4 :: GETTING THE NUMBER OF FOUND ELEMENTS
-                            elementInformation.setNumberOfFoundElements(targetElements.size());
-
-                            // BLOCK #5 :: GETTING INNER HTML AND OUTER HTML
-                            if (!
-
-                                    isMobileExecution &&
-                                    GET_ELEMENT_HTML) {
-                                elementInformation.setOuterHTML(targetElement.getDomProperty("outerHTML"));
-                                elementInformation.setInnerHTML(
-                                        targetElement.getDomProperty("innerHTML"));
-                            }
-                            // BLOCK #6 :: GETTING ELEMENT NAME
-                            if (SHAFT.Properties.reporting.
-                                    captureElementName()) {
-                                var elementName = JavaHelper.
-                                        formatLocatorToString(elementLocator);
-                                try {
-                                    // getAccessibleName() triggers GET .../computedlabel which is
-                                    // unsupported by Appium native sessions (returns 404)
-                                    if (!DriverFactoryHelper.isMobileNativeExecution()) {
-                                        var accessibleName = targetElement.getAccessibleName();
-                                        if (
-                                                accessibleName != null && !accessibleName.
-                                                        isBlank()) {
-                                            elementName =
-                                                    accessibleName;
-                                        }
-                                    }
-                                } catch (Throwable throwable) {
-                                    //happens on some elements that show unhandled inspector error
-                                    //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
-                                    //ignore
-                                }
-                                elementInformation.setElementName(elementName);
-                            }
-                            elementInformation.setFirstElement(targetElement);
-                            elementInformation.setLocator(elementLocator);
-                            HealingManager.observe(
-                                    driver,
-                                    elementLocator,
-                                    targetElements,
-                                    "ELEMENT_RESOLUTION",
-                                    LocatorBuilder.getIFrameLocator().get(),
-                                    shadowDomLocator,
-                                    cssSelector);
-
-                            return elementInformation.toList();
-                            // int numberOfFoundElements
-                            // WebElement firstElement
-                            // By locator
-                            // String outerHTML (or empty string)
-                            // String innerHTML (or empty string)
-                            // String elementName (or empty string)
-                        } catch (StaleElementReferenceException staleElementReferenceException) {
-                            if (locatorHealthStaleRetries != null) {
-                                locatorHealthStaleRetries.incrementAndGet();
-                            }
-                            throw staleElementReferenceException;
-                        }
-        };
+        Function<WebDriver, List<Object>> attemptLocate = f -> locatePresentElement(
+                driver,
+                elementLocator,
+                isValidToCheckForVisibility,
+                isMobileExecution,
+                enforceElementUniqueness,
+                lastResortNarrowingAllowed,
+                locatorHealth.polls,
+                locatorHealth.staleRetries);
         try {
             List<Object> locatedElement = new SynchronizationManager(driver).fluentWait(isValidToCheckForVisibility)
                     .until(attemptLocate::apply);
             recordLocatorHealthLookup(
                     elementLocator,
-                    locatorHealthStart,
-                    locatorHealthPollingAttempts,
+                    locatorHealth.start,
+                    locatorHealth.polls,
                     resolvedElementCount(locatedElement),
                     false,
-                    locatorHealthStaleRetries);
+                    locatorHealth.staleRetries);
             return locatedElement;
-        } catch (org.openqa.selenium.TimeoutException timeoutException) {
-            if (enforceElementUniqueness && com.shaft.gui.element.internal.Actions.isCausedByAmbiguousLocator(timeoutException)) {
-                // issue #4332: the full identification-timeout retry window is exhausted and the
-                // locator is still ambiguous on every unmodified retry. Take exactly one more look,
-                // this time allowing narrowing to the single actionable match if there is one --
-                // mirrors Actions.performAction's #4321 last-resort attempt.
-                lastResortNarrowingAllowed.set(true);
-                try {
-                    List<Object> locatedElement = attemptLocate.apply(driver);
-                    recordLocatorHealthLookup(
-                            elementLocator,
-                            locatorHealthStart,
-                            locatorHealthPollingAttempts,
-                            resolvedElementCount(locatedElement),
-                            false,
-                            locatorHealthStaleRetries);
-                    return locatedElement;
-                } catch (RuntimeException stillUnresolvable) {
-                    // fall through to the ordinary timeout handling below, using the ORIGINAL
-                    // timeoutException so the reported failure is unchanged from before this fix.
-                }
-            }
-            recordLocatorHealthLookup(
+        } catch (TimeoutException timeoutException) {
+            return elementMissingAfterTimeout(
+                    driver,
                     elementLocator,
-                    locatorHealthStart,
-                    locatorHealthPollingAttempts,
-                    0,
-                    true,
-                    locatorHealthStaleRetries);
-            // In case the element was not found / not visible and the timeout expired
-            HealingResolution resolution = HealingManager.resolve(
-                            driver,
-                            elementLocator,
-                            "ELEMENT_RESOLUTION",
-                            isValidToCheckForVisibility,
-                            LocatorBuilder.getIFrameLocator().get(),
-                            ShadowLocatorBuilder.shadowDomLocator.get(),
-                            ShadowLocatorBuilder.cssSelector.get())
-                    .orElse(null);
-            if (resolution != null) {
-                return recoveredElementInformation(driver, elementLocator, resolution);
-            }
-            var cause = timeoutException.getCause();
-            var causeMessage = cause == null ? null : cause.getMessage();
-            causeMessage = causeMessage != null && !causeMessage.isBlank() && causeMessage.contains("\n")
-                    ? timeoutException.getMessage() + " || " + causeMessage.substring(0, causeMessage.indexOf("\n"))
-                    : timeoutException.getMessage();
-            ReportManager.logDiscrete(causeMessage);
-            var elementInformation = new ArrayList<>();
-            elementInformation.add(0);
-            elementInformation.add(null);
-            elementInformation.add(timeoutException);
-            return elementInformation;
-        } catch (org.openqa.selenium.InvalidSelectorException invalidSelectorException) {
-            recordLocatorHealthLookup(
+                    isValidToCheckForVisibility,
+                    enforceElementUniqueness,
+                    lastResortNarrowingAllowed,
+                    attemptLocate,
+                    locatorHealth,
+                    timeoutException);
+        } catch (InvalidSelectorException invalidSelectorException) {
+            return invalidSelectorInformation(elementLocator, locatorHealth, invalidSelectorException);
+        }
+    }
+
+    private List<Object> locatePresentElement(
+            WebDriver driver,
+            By elementLocator,
+            boolean isValidToCheckForVisibility,
+            boolean isMobileExecution,
+            boolean enforceElementUniqueness,
+            AtomicBoolean lastResortNarrowingAllowed,
+            AtomicInteger locatorHealthPollingAttempts,
+            AtomicInteger locatorHealthStaleRetries) {
+        if (locatorHealthPollingAttempts != null) {
+            locatorHealthPollingAttempts.incrementAndGet();
+        }
+        try {
+            ElementInformation elementInformation = new ElementInformation();
+            List<WebElement> targetElements = narrowAmbiguousMatch(
                     elementLocator,
-                    locatorHealthStart,
-                    locatorHealthPollingAttempts,
-                    0,
-                    false,
-                    locatorHealthStaleRetries);
-            // In case the selector is not valid
-            ReportManager.logDiscrete(invalidSelectorException.getMessage());
-            var elementInformation = new ArrayList<>();
-            elementInformation.add(0);
-            elementInformation.add(null);
-            elementInformation.add(invalidSelectorException);
-            return elementInformation;
+                    findLocatedElements(driver, elementLocator),
+                    enforceElementUniqueness,
+                    lastResortNarrowingAllowed);
+            WebElement targetElement = targetElements.getFirst();
+            readElementRect(elementInformation, targetElement);
+            scrollLocatedElement(driver, targetElement, isValidToCheckForVisibility, isMobileExecution);
+            elementInformation.setNumberOfFoundElements(targetElements.size());
+            readElementHtml(elementInformation, targetElement, isMobileExecution);
+            readElementName(elementInformation, targetElement, elementLocator);
+            elementInformation.setFirstElement(targetElement);
+            elementInformation.setLocator(elementLocator);
+            HealingManager.observe(
+                    driver,
+                    elementLocator,
+                    targetElements,
+                    "ELEMENT_RESOLUTION",
+                    LocatorBuilder.getIFrameLocator().get(),
+                    ShadowLocatorBuilder.shadowDomLocator.get(),
+                    ShadowLocatorBuilder.cssSelector.get());
+            return elementInformation.toList();
+        } catch (StaleElementReferenceException staleElementReferenceException) {
+            if (locatorHealthStaleRetries != null) {
+                locatorHealthStaleRetries.incrementAndGet();
+            }
+            throw staleElementReferenceException;
+        }
+    }
+
+    private List<WebElement> findLocatedElements(WebDriver driver, By elementLocator) {
+        By shadowDomLocator = ShadowLocatorBuilder.shadowDomLocator.get();
+        By cssSelector = ShadowLocatorBuilder.cssSelector.get();
+        if (shadowDomLocator != null && cssSelector == elementLocator) {
+            SearchContext shadowRoot = driver.findElement(shadowDomLocator).getShadowRoot();
+            List<WebElement> targetElements = shadowRoot.findElements(cssSelector);
+            ensureElementListIsNotEmpty(targetElements, cssSelector);
+            return targetElements;
+        }
+        if (LocatorBuilder.getIFrameLocator().get() != null) {
+            return findElementsInFrame(driver, elementLocator);
+        }
+        try {
+            return resolveMatchingElements(driver, elementLocator);
+        } catch (InvalidSelectorException invalidSelectorException) {
+            reportActionResult(driver, null, null, null, null, null, false);
+            FailureReporter.fail(ElementActionsHelper.class, "Failed to identify unique element", invalidSelectorException);
+            throw invalidSelectorException;
+        }
+    }
+
+    private List<WebElement> findElementsInFrame(WebDriver driver, By elementLocator) {
+        try {
+            List<WebElement> targetElements = driver.switchTo()
+                    .frame(driver.findElement(LocatorBuilder.getIFrameLocator().get()))
+                    .findElements(elementLocator);
+            ensureElementListIsNotEmpty(targetElements, elementLocator);
+            return targetElements;
+        } catch (NoSuchElementException exception) {
+            return resolveMatchingElements(driver, elementLocator);
+        }
+    }
+
+    private static boolean ambiguousMatchNeedsNarrowing(By elementLocator, List<WebElement> targetElements,
+                                                        boolean enforceElementUniqueness) {
+        return enforceElementUniqueness
+                && targetElements.size() > 1
+                && SHAFT.Properties.flags.forceCheckElementLocatorIsUnique()
+                && !(elementLocator instanceof RelativeLocator.RelativeBy);
+    }
+
+    private List<WebElement> narrowAmbiguousMatch(By elementLocator, List<WebElement> targetElements,
+                                                  boolean enforceElementUniqueness,
+                                                  AtomicBoolean lastResortNarrowingAllowed) {
+        if (!ambiguousMatchNeedsNarrowing(elementLocator, targetElements, enforceElementUniqueness)) {
+            return targetElements;
+        }
+        if (!lastResortNarrowingAllowed.get()) {
+            throw new MultipleElementsFoundException();
+        }
+        int matchCountBeforeNarrowing = targetElements.size();
+        Optional<WebElement> uniqueActionable =
+                com.shaft.gui.element.internal.Actions.uniqueDisplayedAndEnabledElement(targetElements);
+        if (uniqueActionable.isEmpty()) {
+            return targetElements;
+        }
+        ReportManager.logDiscrete("Locator " + JavaHelper.formatLocatorToString(elementLocator)
+                + " matched " + matchCountBeforeNarrowing
+                + " elements; auto-resolved to the only displayed and enabled one"
+                + " after the identification timeout was exhausted.");
+        return List.of(uniqueActionable.get());
+    }
+
+    private static void readElementRect(ElementInformation elementInformation, WebElement targetElement) {
+        try {
+            elementInformation.setElementRect(targetElement.getRect());
+        } catch (ClassCastException | WebDriverException ignored) {
+            // Flutter Integration Driver can return String sizes from getRect.
+            // Optional metadata must not fail an otherwise successful locate.
+        }
+    }
+
+    private static void scrollLocatedElement(WebDriver driver, WebElement targetElement,
+                                             boolean isValidToCheckForVisibility, boolean isMobileExecution) {
+        if (!isValidToCheckForVisibility) {
+            return;
+        }
+        if (isMobileExecution) {
+            targetElement.isDisplayed();
+            return;
+        }
+        try {
+            if (!WebScroll.scrollIntoView(driver, targetElement)) {
+                scrollWithSeleniumActions(driver, targetElement);
+            }
+        } catch (Throwable ignored) {
+            // Locate-time scroll is best-effort. Visibility is still confirmed below.
+        }
+    }
+
+    private static void scrollWithSeleniumActions(WebDriver driver, WebElement targetElement) {
+        try {
+            new Actions(driver).scrollToElement(targetElement).perform();
+        } catch (Throwable throwable2) {
+            if (driver instanceof Locatable locatable) {
+                locatable.getCoordinates().inViewPort();
+            }
+        }
+    }
+
+    private static void readElementHtml(ElementInformation elementInformation, WebElement targetElement,
+                                        boolean isMobileExecution) {
+        if (isMobileExecution || !GET_ELEMENT_HTML) {
+            return;
+        }
+        elementInformation.setOuterHTML(targetElement.getDomProperty("outerHTML"));
+        elementInformation.setInnerHTML(targetElement.getDomProperty("innerHTML"));
+    }
+
+    private void readElementName(ElementInformation elementInformation, WebElement targetElement, By elementLocator) {
+        if (!SHAFT.Properties.reporting.captureElementName()) {
+            return;
+        }
+        elementInformation.setElementName(accessibleElementName(targetElement, elementLocator));
+    }
+
+    private static String accessibleElementName(WebElement targetElement, By elementLocator) {
+        var elementName = JavaHelper.formatLocatorToString(elementLocator);
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            return elementName;
+        }
+        try {
+            var accessibleName = targetElement.getAccessibleName();
+            if (accessibleName != null && !accessibleName.isBlank()) {
+                return accessibleName;
+            }
+        } catch (Throwable throwable) {
+            // Older Selenium Grid builds throw on computedlabel. The locator text remains the name.
+        }
+        return elementName;
+    }
+
+    private List<Object> elementMissingAfterTimeout(
+            WebDriver driver,
+            By elementLocator,
+            boolean isValidToCheckForVisibility,
+            boolean enforceElementUniqueness,
+            AtomicBoolean lastResortNarrowingAllowed,
+            Function<WebDriver, List<Object>> attemptLocate,
+            LocateHealth locatorHealth,
+            TimeoutException timeoutException) {
+        if (enforceElementUniqueness && com.shaft.gui.element.internal.Actions.isCausedByAmbiguousLocator(timeoutException)) {
+            lastResortNarrowingAllowed.set(true);
+            try {
+                List<Object> locatedElement = attemptLocate.apply(driver);
+                recordLocatorHealthLookup(
+                        elementLocator,
+                        locatorHealth.start,
+                        locatorHealth.polls,
+                        resolvedElementCount(locatedElement),
+                        false,
+                        locatorHealth.staleRetries);
+                return locatedElement;
+            } catch (RuntimeException stillUnresolvable) {
+                // fall through to the ordinary timeout handling below, using the ORIGINAL
+                // timeoutException so the reported failure is unchanged from before this fix.
+            }
+        }
+        recordLocatorHealthLookup(
+                elementLocator,
+                locatorHealth.start,
+                locatorHealth.polls,
+                0,
+                true,
+                locatorHealth.staleRetries);
+        HealingResolution resolution = HealingManager.resolve(
+                        driver,
+                        elementLocator,
+                        "ELEMENT_RESOLUTION",
+                        isValidToCheckForVisibility,
+                        LocatorBuilder.getIFrameLocator().get(),
+                        ShadowLocatorBuilder.shadowDomLocator.get(),
+                        ShadowLocatorBuilder.cssSelector.get())
+                .orElse(null);
+        if (resolution != null) {
+            return recoveredElementInformation(driver, elementLocator, resolution);
+        }
+        ReportManager.logDiscrete(locateTimeoutMessage(timeoutException));
+        var elementInformation = new ArrayList<>();
+        elementInformation.add(0);
+        elementInformation.add(null);
+        elementInformation.add(timeoutException);
+        return elementInformation;
+    }
+
+    private static String locateTimeoutMessage(TimeoutException timeoutException) {
+        var cause = timeoutException.getCause();
+        var causeMessage = cause == null ? null : cause.getMessage();
+        if (causeMessage != null && !causeMessage.isBlank() && causeMessage.contains("\n")) {
+            return timeoutException.getMessage() + " || " + causeMessage.substring(0, causeMessage.indexOf("\n"));
+        }
+        return timeoutException.getMessage();
+    }
+
+    private List<Object> invalidSelectorInformation(
+            By elementLocator,
+            LocateHealth locatorHealth,
+            InvalidSelectorException invalidSelectorException) {
+        recordLocatorHealthLookup(
+                elementLocator,
+                locatorHealth.start,
+                locatorHealth.polls,
+                0,
+                false,
+                locatorHealth.staleRetries);
+        ReportManager.logDiscrete(invalidSelectorException.getMessage());
+        var elementInformation = new ArrayList<>();
+        elementInformation.add(0);
+        elementInformation.add(null);
+        elementInformation.add(invalidSelectorException);
+        return elementInformation;
+    }
+
+    private static final class LocateHealth {
+        private final long start;
+        private final AtomicInteger polls;
+        private final AtomicInteger staleRetries;
+
+        private LocateHealth(boolean collect) {
+            start = collect ? System.nanoTime() : 0L;
+            polls = collect ? new AtomicInteger() : null;
+            staleRetries = collect ? new AtomicInteger() : null;
         }
     }
 

@@ -9,6 +9,8 @@ import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.MobileSessionStateManager;
+import com.shaft.gui.element.internal.ScrollMotion;
+import com.shaft.gui.element.internal.WebScroll;
 import com.shaft.gui.internal.healing.HealingManager;
 import com.shaft.gui.internal.healing.HealingResolution;
 import com.shaft.gui.internal.image.ScreenshotManager;
@@ -802,74 +804,149 @@ public class TouchActions extends FluentWebDriverAction {
     private TouchActions swipeImageOrTextIntoView(By scrollableElementLocator, ImageTarget imageTarget, OcrTarget ocrTarget,
                                                    SwipeDirection swipeDirection) {
         try {
-            boolean firstAttempt = true;
-            int[] previousPixels = null;
-            int stableFrames = 0;
-            String lastOcrMiss = null;
-            int maxAttempts = ocrTarget != null ? 50 : 30;
-            int maxStableFrames = ocrTarget != null ? 8 : 2;
-            for (int attempt = 0; attempt < maxAttempts; attempt++) {
-                // Prefer the scroll container's own screenshot so OCR/image search stays in
-                // element-local pixels and avoids BrowserStack window-vs-screenshot scale drift.
-                ContainerSearchFrame frame = captureSwipeSearchFrame(scrollableElementLocator);
-                byte[] screenshot = frame.screenshot();
-                int[] currentPixels = frame.containerLocal()
-                        ? screenshotPixels(screenshot)
-                        : stablePixels(screenshot, scrollableElementLocator);
-                ImageTarget effectiveImageTarget = imageTarget == null ? null
-                        : (frame.containerLocal() ? imageTarget
-                        : constrainToContainer(imageTarget, scrollableElementLocator, screenshot));
-                OcrTarget effectiveOcrTarget = ocrTarget == null ? null
-                        : (frame.containerLocal() ? ocrTarget
-                        : constrainToContainer(ocrTarget, scrollableElementLocator, screenshot));
-                boolean found;
-                if (imageTarget != null) {
-                    found = ImageProcessingActions.isUniqueImageTargetInView(effectiveImageTarget, screenshot)
-                            || (!frame.containerLocal() && findUsingAppiumImages(effectiveImageTarget).isPresent());
-                } else {
-                    lastOcrMiss = ocrFindMiss(effectiveOcrTarget, screenshot, swipeDirection);
-                    found = lastOcrMiss == null;
-                }
-                if (found && ocrTarget != null && !displayedExactText(ocrTarget.expectedText())) {
-                    // A container screenshot can OCR a clipped or misread label while the
-                    // real text node is still off-screen (Android horizontal TAB 1).
-                    found = false;
-                    lastOcrMiss = "OCR matched \"" + ocrTarget.expectedText()
-                            + "\" but no displayed element has that exact text.";
-                }
-                if (found) {
+            ImageSearchCursor cursor = new ImageSearchCursor(swipeDirection, ocrTarget != null);
+            for (int attempt = 0; attempt < cursor.maxAttempts; attempt++) {
+                if (imageSearchFound(scrollableElementLocator, imageTarget, ocrTarget, swipeDirection, cursor)) {
                     elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
                             Thread.currentThread().getStackTrace()[1].getMethodName(), "direction=" + swipeDirection, null, null);
                     return this;
                 }
-                stableFrames = previousPixels != null && Arrays.equals(previousPixels, currentPixels)
-                        ? stableFrames + 1 : 0;
-                if (stableFrames >= maxStableFrames) {
-                    break;
-                }
-                previousPixels = currentPixels;
-                if (!performImageScrollStep(scrollableElementLocator, swipeDirection, firstAttempt)
-                        && (ocrTarget == null || lastOcrMiss == null)
-                        && imageTarget == null) {
-                    break;
-                }
-                firstAttempt = false;
-                // Delay after every OCR/image scroll to let the viewport settle before the next search.
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
+                if (advanceImageSearch(scrollableElementLocator, imageTarget, ocrTarget, cursor)) {
                     break;
                 }
             }
-            String miss = "Target was not found before the view reached its scroll boundary.";
-            if (lastOcrMiss != null && !lastOcrMiss.isBlank()) {
-                miss += " " + lastOcrMiss;
-            }
-            throw new IllegalStateException(miss);
+            throw new IllegalStateException(imageSearchMiss(cursor.lastOcrMiss));
         } catch (Throwable throwable) {
             elementActionsHelper.failAction(driverFactoryHelper.getDriver(), "direction=" + swipeDirection, null, throwable);
             return this;
+        }
+    }
+
+    private boolean imageSearchFound(By scrollableElementLocator, ImageTarget imageTarget, OcrTarget ocrTarget,
+                                     SwipeDirection swipeDirection, ImageSearchCursor cursor) {
+        ContainerSearchFrame frame = captureSwipeSearchFrame(scrollableElementLocator);
+        cursor.remember(frame, scrollableElementLocator);
+        if (imageTarget != null) {
+            return imageTargetInFrame(frame, scrollableElementLocator, imageTarget);
+        }
+        return ocrTargetInFrame(frame, scrollableElementLocator, ocrTarget, swipeDirection, cursor);
+    }
+
+    private boolean imageTargetInFrame(ContainerSearchFrame frame, By scrollableElementLocator, ImageTarget imageTarget) {
+        byte[] screenshot = frame.screenshot();
+        ImageTarget effective = frame.containerLocal()
+                ? imageTarget
+                : constrainToContainer(imageTarget, scrollableElementLocator, screenshot);
+        if (ImageProcessingActions.isUniqueImageTargetInView(effective, screenshot)) {
+            return true;
+        }
+        return !frame.containerLocal() && findUsingAppiumImages(effective).isPresent();
+    }
+
+    private boolean ocrTargetInFrame(ContainerSearchFrame frame, By scrollableElementLocator, OcrTarget ocrTarget,
+                                     SwipeDirection swipeDirection, ImageSearchCursor cursor) {
+        byte[] screenshot = frame.screenshot();
+        OcrTarget effective = frame.containerLocal()
+                ? ocrTarget
+                : constrainToContainer(ocrTarget, scrollableElementLocator, screenshot);
+        cursor.lastOcrMiss = ocrFindMiss(effective, screenshot, swipeDirection);
+        if (cursor.lastOcrMiss != null) {
+            return false;
+        }
+        if (displayedExactText(ocrTarget.expectedText())) {
+            return true;
+        }
+        // A container screenshot can OCR a clipped or misread label while the
+        // real text node is still off-screen (Android horizontal TAB 1).
+        cursor.lastOcrMiss = "OCR matched \"" + ocrTarget.expectedText()
+                + "\" but no displayed element has that exact text.";
+        return false;
+    }
+
+    /**
+     * @return true when this attempt is the scroll boundary and the search must stop
+     */
+    private boolean advanceImageSearch(By scrollableElementLocator, ImageTarget imageTarget, OcrTarget ocrTarget,
+                                       ImageSearchCursor cursor) {
+        if (cursor.noteStableFrame()) {
+            return true;
+        }
+        boolean moved = performImageScrollStep(scrollableElementLocator, cursor.activeDirection, cursor.firstAttempt);
+        if (cursor.recordMotion(moved, imageTarget, ocrTarget)) {
+            return true;
+        }
+        cursor.firstAttempt = false;
+        return !ImageSearchCursor.pauseForViewport();
+    }
+
+    private static String imageSearchMiss(String lastOcrMiss) {
+        String miss = "Target was not found before the view reached its scroll boundary.";
+        if (lastOcrMiss != null && !lastOcrMiss.isBlank()) {
+            miss += " " + lastOcrMiss;
+        }
+        return miss;
+    }
+
+    private final class ImageSearchCursor {
+        private int[] previousPixels;
+        private int[] currentPixels;
+        private int stableFrames;
+        private String lastOcrMiss;
+        private SwipeDirection activeDirection;
+        private boolean movedEarlier;
+        private boolean oppositeTried;
+        private boolean firstAttempt = true;
+        private final int maxAttempts;
+        private final int maxStableFrames;
+
+        private ImageSearchCursor(SwipeDirection direction, boolean ocr) {
+            activeDirection = direction;
+            maxAttempts = ocr ? 50 : 30;
+            maxStableFrames = ocr ? 8 : 2;
+        }
+
+        private void remember(ContainerSearchFrame frame, By scrollableElementLocator) {
+            byte[] screenshot = frame.screenshot();
+            currentPixels = frame.containerLocal()
+                    ? screenshotPixels(screenshot)
+                    : stablePixels(screenshot, scrollableElementLocator);
+        }
+
+        private boolean noteStableFrame() {
+            stableFrames = previousPixels != null && Arrays.equals(previousPixels, currentPixels)
+                    ? stableFrames + 1 : 0;
+            if (stableFrames >= maxStableFrames) {
+                return true;
+            }
+            previousPixels = currentPixels;
+            return false;
+        }
+
+        /**
+         * @return true when a no-move with no visual target is the boundary.
+         *         A no-op while a target still exists switches to the opposite direction instead.
+         */
+        private boolean recordMotion(boolean moved, ImageTarget imageTarget, OcrTarget ocrTarget) {
+            ScrollMotion.Stop stop = ScrollMotion.classify(moved, movedEarlier, oppositeTried);
+            if (moved) {
+                movedEarlier = true;
+            }
+            if (stop == ScrollMotion.Stop.TRY_OPPOSITE) {
+                activeDirection = ScrollMotion.opposite(activeDirection);
+                oppositeTried = true;
+                return false;
+            }
+            return !moved && imageTarget == null && (ocrTarget == null || lastOcrMiss == null);
+        }
+
+        private static boolean pauseForViewport() {
+            try {
+                Thread.sleep(1000);
+                return true;
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
         }
     }
 
@@ -980,10 +1057,13 @@ public class TouchActions extends FluentWebDriverAction {
                     }
                 } else {
                     // regular touch screen device
-                    if (scrollableElementLocator != null) {
-                        new Actions(driverFactoryHelper.getDriver()).moveToElement(((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), scrollableElementLocator).get(1))).scrollToElement(((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), targetElementLocator).get(1))).perform();
-                    } else {
-                        new Actions(driverFactoryHelper.getDriver()).scrollToElement(((WebElement) elementActionsHelper.identifyUniqueElement(driverFactoryHelper.getDriver(), targetElementLocator).get(1))).perform();
+                    WebElement targetElement = (WebElement) elementActionsHelper.identifyUniqueElement(
+                            driverFactoryHelper.getDriver(), targetElementLocator).get(1);
+                    WebElement containerElement = scrollableElementLocator == null ? null
+                            : (WebElement) elementActionsHelper.identifyUniqueElement(
+                            driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
+                    if (!WebScroll.scrollIntoView(driverFactoryHelper.getDriver(), targetElement, containerElement)) {
+                        throw new IllegalStateException("Element is still outside the viewport after scrolling.");
                     }
                 }
                 elementActionsHelper.passAction(driverFactoryHelper.getDriver(), targetElementLocator,
@@ -1412,8 +1492,10 @@ public class TouchActions extends FluentWebDriverAction {
     private List<Object> attemptToSwipeElementIntoViewByImage(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
         AtomicReference<List<Object>> visualIdentificationObjects = new AtomicReference<>(
                 elementActionsHelper.findElementPresence(driverFactoryHelper.getDriver(), targetElementImage));
-        AtomicBoolean canScrollMore = new AtomicBoolean(true);
         AtomicBoolean isFirstAttempt = new AtomicBoolean(true);
+        SwipeDirection[] activeDirection = {swipeDirection};
+        boolean[] movedEarlier = {false};
+        boolean[] oppositeTried = {false};
         try {
             new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
                 List<Object> currentAttempt = elementActionsHelper.findElementPresence(driverFactoryHelper.getDriver(), targetElementImage);
@@ -1423,8 +1505,19 @@ public class TouchActions extends FluentWebDriverAction {
                     ReportManager.logDiscrete("Element found on screen.");
                     return true;
                 }
-                canScrollMore.set(performImageScrollStep(scrollableElementLocator, swipeDirection, isFirstAttempt.getAndSet(false)));
-                return !canScrollMore.get();
+                boolean moved = performImageScrollStep(scrollableElementLocator, activeDirection[0], isFirstAttempt.getAndSet(false));
+                ScrollMotion.Stop stop = ScrollMotion.classify(moved, movedEarlier[0], oppositeTried[0]);
+                if (moved) {
+                    movedEarlier[0] = true;
+                }
+                if (stop == ScrollMotion.Stop.TRY_OPPOSITE) {
+                    activeDirection[0] = ScrollMotion.opposite(activeDirection[0]);
+                    oppositeTried[0] = true;
+                    return false;
+                }
+                // Keep searching while the scrollable is moving. Stop after the opposite direction
+                // also fails to move, or after a later false that follows real movement.
+                return stop != ScrollMotion.Stop.CONTINUE;
             });
         } catch (TimeoutException timeoutException) {
             ReportManager.logDiscrete(timeoutException.getMessage());
@@ -1777,18 +1870,13 @@ public class TouchActions extends FluentWebDriverAction {
                         scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX() + (elementRectangle.getWidth() * 30 / 100), "top", elementRectangle.getY()));
             }
         } else {
-            //scrolling inside the screen
+            //scrolling inside the screen. Margins stay, then the box is clamped onto the screen.
+            ScrollMotion.Box box = ScrollMotion.nullContainerBox(swipeDirection, screenSize.getWidth(), screenSize.getHeight());
             scrollParameters.putAll(ImmutableMap.of(
-                    "width", screenSize.getWidth(), "height", screenSize.getHeight() * 90 / 100,
+                    "width", box.width(), "height", box.height(),
+                    "left", box.left(), "top", box.top(),
                     "percent", 0.8
             ));
-            switch (swipeDirection) {
-                case UP -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", screenSize.getHeight() - 100));
-                case DOWN -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", 100));
-                // expected issues with RIGHT and LEFT
-                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
-                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
-            }
         }
         scrollParameters.putAll(ImmutableMap.of(
                 "direction", swipeDirection.name().toLowerCase(Locale.ROOT)
@@ -1845,22 +1933,37 @@ public class TouchActions extends FluentWebDriverAction {
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
-        var scrollParameters = prepareParameters(swipeDirection, scrollableElementLocator, targetElementLocator);
-        AtomicBoolean canScrollMore = new AtomicBoolean(true);
         AtomicBoolean isFirstAttempt = new AtomicBoolean(true);
+        SwipeDirection[] activeDirection = {swipeDirection};
+        boolean[] movedEarlier = {false};
+        boolean[] oppositeTried = {false};
         try {
             new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
                 // for the animated GIF:
                 elementActionsHelper.takeScreenshot(driverFactoryHelper.getDriver(), null, "swipeElementIntoView", null, true);
 
-                var elementExistsOnViewPort = isTargetVisibleInViewport(targetElementLocator);
-                if (elementExistsOnViewPort)
+                if (isTargetVisibleInViewport(targetElementLocator))
                     return true;
-                canScrollMore.set(performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false)));
-                elementExistsOnViewPort = isTargetVisibleInViewport(targetElementLocator);
-                if (!canScrollMore.get() && !elementExistsOnViewPort)
-                    throw new RuntimeException("Element not found after scrolling to the end of the page.");
-                return elementExistsOnViewPort;
+                var scrollParameters = prepareParameters(activeDirection[0], scrollableElementLocator, targetElementLocator);
+                boolean moved = performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false));
+                if (isTargetVisibleInViewport(targetElementLocator))
+                    return true;
+                ScrollMotion.Stop stop = ScrollMotion.classify(moved, movedEarlier[0], oppositeTried[0]);
+                if (moved) {
+                    movedEarlier[0] = true;
+                }
+                return switch (stop) {
+                    case CONTINUE -> false;
+                    case TRY_OPPOSITE -> {
+                        activeDirection[0] = ScrollMotion.opposite(activeDirection[0]);
+                        oppositeTried[0] = true;
+                        yield false;
+                    }
+                    case END_AFTER_MOVEMENT ->
+                            throw new IllegalStateException("Element not found after scrolling to the end of the page.");
+                    case NO_MOVEMENT ->
+                            throw new IllegalStateException("Element not found; scrolling did not move the scrollable.");
+                };
             });
         } catch (RuntimeException exception) {
             HealingResolution resolution = targetElementLocator == null

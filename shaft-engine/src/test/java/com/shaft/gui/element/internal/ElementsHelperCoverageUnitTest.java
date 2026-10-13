@@ -31,7 +31,9 @@ import java.util.function.Function;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -108,7 +110,8 @@ public class ElementsHelperCoverageUnitTest {
             Assert.assertEquals(information.get(3), "<button id='sample'>Save</button>");
             Assert.assertEquals(information.get(4), "Save");
             Assert.assertEquals(information.get(5), "Save Button");
-            verify((JavascriptExecutor) driver).executeScript(any(String.class), eq(element));
+            verify((JavascriptExecutor) driver).executeScript(
+                    contains("/* shaft-scroll-metrics */"), eq(element), isNull());
             driverFactoryHelper.verify(DriverFactoryHelper::isMobileNativeExecution, Mockito.atLeastOnce());
             driverFactoryHelper.verify(DriverFactoryHelper::isMobileWebExecution, Mockito.atLeastOnce());
         }

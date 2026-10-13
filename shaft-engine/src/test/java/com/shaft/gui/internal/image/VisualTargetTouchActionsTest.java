@@ -317,6 +317,54 @@ public class VisualTargetTouchActionsTest {
         Assert.assertEquals(finds.get(), 3);
     }
 
+    @Test
+    public void imageSwipeNoMoveIssuesTheOppositeDirectionOnTheSameAxis() throws Exception {
+        List<Map<Object, Object>> first = imageNoMoveGestures(TouchActions.SwipeDirection.UP);
+        List<Map<Object, Object>> second = imageNoMoveGestures(TouchActions.SwipeDirection.RIGHT);
+        Assert.assertEquals(directions(first), List.of("up", "down"));
+        Assert.assertEquals(directions(second), List.of("right", "left"));
+        Assert.assertEquals(directions(imageNoMoveGestures(TouchActions.SwipeDirection.UP)), directions(first));
+        for (Map<Object, Object> gesture : first) {
+            assertBoxOnScreen(gesture, 100, 100);
+        }
+        for (Map<Object, Object> gesture : second) {
+            assertBoxOnScreen(gesture, 100, 100);
+        }
+    }
+
+    private List<Map<Object, Object>> imageNoMoveGestures(TouchActions.SwipeDirection direction) throws Exception {
+        byte[] screenshot = image(false);
+        SequencedProvider provider = new SequencedProvider(3);
+        VisualProcessingProviderRegistry.setProviderForTesting(provider);
+        AndroidDriver driver = driver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TestTouchActions actions = actions(driver);
+        ImageTarget target = ImageTarget.fromBytes(screenshot).matchingMode(ImageMatchingMode.TEMPLATE);
+        try (MockedConstruction<ScreenshotManager> ignored = mockConstruction(ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            actions.swipeElementIntoView(target, direction);
+        }
+        Assert.assertEquals(provider.targets.size(), 3);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<Object, Object>> parameters = ArgumentCaptor.forClass(Map.class);
+        verify(driver, times(2)).executeScript(eq("mobile: scrollGesture"), parameters.capture());
+        return parameters.getAllValues();
+    }
+
+    private static List<String> directions(List<Map<Object, Object>> gestures) {
+        return gestures.stream().map(gesture -> String.valueOf(gesture.get("direction"))).toList();
+    }
+
+    private static void assertBoxOnScreen(Map<Object, Object> gesture, int screenWidth, int screenHeight) {
+        int left = ((Number) gesture.get("left")).intValue();
+        int top = ((Number) gesture.get("top")).intValue();
+        int width = ((Number) gesture.get("width")).intValue();
+        int height = ((Number) gesture.get("height")).intValue();
+        Assert.assertTrue(left >= 0 && top >= 0 && width > 0 && height > 0, gesture.toString());
+        Assert.assertTrue((long) left + width <= screenWidth, gesture.toString());
+        Assert.assertTrue((long) top + height <= screenHeight, gesture.toString());
+    }
+
     private static TestTouchActions actions(WebDriver driver) {
         return new TestTouchActions(driver, mock(ElementActionsHelper.class));
     }

@@ -563,49 +563,18 @@ public class Actions extends ElementActions {
                 reportContext.set(ActionReportContext.from(action, locator, data, accessibleName.get()));
 
                 if (!isMobileNativeExecution) {
-                // scroll to element (avoid relocating the element if already found)
-                switch (SHAFT.Properties.flags.scrollingMode().toLowerCase()){
-                    case "w3c" -> {
+                    // One synchronous scroll for w3c, javascript, and legacy. Unchanged offsets are
+                    // not movement, and a target that stays outside is not treated as in view.
+                    WebElement scrollTarget = foundElements.get().getFirst();
+                    if (d instanceof JavascriptExecutor) {
+                        WebScroll.scrollIntoView(d, scrollTarget);
+                    } else if (d instanceof Locatable locatable) {
                         try {
-                            // w3c compliant scroll
-                            new org.openqa.selenium.interactions.Actions(d).scrollToElement(foundElements.get().getFirst()).perform();
-                        } catch (Throwable throwable1) {
-                            // old school selenium scroll
-                            if (d instanceof Locatable locatable) {
-                                locatable.getCoordinates().inViewPort();
-                            } else if (d instanceof JavascriptExecutor) {
-                                // native Javascript scroll to center (smooth / auto)
-                                ((JavascriptExecutor) d).executeScript("""
-                                    arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
-                            }
-                        }
-                    }
-                    case "javascript" -> {
-                        try {
-                            // native Javascript scroll to center (smooth / auto)
-                            ((JavascriptExecutor) d).executeScript("""
-                                arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
-                        } catch (Throwable throwable) {
-                            try {
-                                // w3c compliant scroll
-                                new org.openqa.selenium.interactions.Actions(d).scrollToElement(foundElements.get().getFirst()).perform();
-                            } catch (Throwable throwable1) {
-                                // old school selenium scroll
-                                if (d instanceof Locatable locatable)
-                                    locatable.getCoordinates().inViewPort();
-                            }
-                        }
-                    }
-                    case "legacy" -> {
-                        if (d instanceof Locatable locatable) {
                             locatable.getCoordinates().inViewPort();
-                        } else if (d instanceof JavascriptExecutor) {
-                            // native Javascript scroll to center (smooth / auto)
-                            ((JavascriptExecutor) d).executeScript("""
-                                    arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", foundElements.get().getFirst());
+                        } catch (Throwable ignored) {
+                            // Best-effort pre-action scroll. The action still runs.
                         }
                     }
-                }
                 }
 
                 // A failed lazy-loading probe must not abort the element action. The wait
@@ -788,6 +757,14 @@ public class Actions extends ElementActions {
                     case SCROLL_TO_ELEMENT -> {
                         if (isMobileNativeExecution) {
                             performTouchAction().swipeElementIntoView(locator, TouchActions.SwipeDirection.DOWN);
+                        } else {
+                            WebElement scrollTarget = foundElements.get().getFirst();
+                            boolean inView = d instanceof JavascriptExecutor
+                                    ? WebScroll.scrollIntoView(d, scrollTarget)
+                                    : false;
+                            if (!inView) {
+                                throw new IllegalStateException("Element is still outside the viewport after scrolling.");
+                            }
                         }
                     }
                     case SELECT -> selectValue(foundElements.get().getFirst(), locator, String.valueOf(data));
