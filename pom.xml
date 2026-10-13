@@ -79,7 +79,11 @@
         <jackson.legacy.version>2.22.3</jackson.legacy.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
         <tools.jackson.core.version>3.2.3</tools.jackson.core.version>
-        <selenium.version>4.50.0</selenium.version>
+        <selenium.version>4.51.0</selenium.version>
+        <!-- Selenium 4.51.0 resolves org.jetbrains:annotations 26.1.0. Kotlin stdlib
+             (ReportPortal -> OkHttp) still requests 13.0. One managed version keeps
+             dependencyConvergence on. -->
+        <jetbrains.annotations.version>26.1.0</jetbrains.annotations.version>
         <playwright.version>1.63.0</playwright.version>
         <slf4j.version>2.0.20</slf4j.version>
         <grpc.version>1.84.2</grpc.version>
@@ -401,6 +405,11 @@
                 <version>${javassist.version}</version>
             </dependency>
             <!-- Convergence pins for transitive conflicts introduced by monolithic dependency loading -->
+            <dependency>
+                <groupId>org.jetbrains</groupId>
+                <artifactId>annotations</artifactId>
+                <version>${jetbrains.annotations.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.google.api-client</groupId>
                 <artifactId>google-api-client</artifactId>
