@@ -99,6 +99,10 @@ VENDOR = (
     ("caveman", "vendor/caveman/skills/caveman/SKILL.md",
      "Ultra-compressed communication companion. Use on every reply at ultra intensity; mandatory on "
      "the implementation path. Stop only with 'stop caveman' or 'normal mode'.", "INSTALLED_BY_DEFAULT"),
+    ("ultracave", "vendor/caveman/skills/ultracave/SKILL.md",
+     "Upstream caveman ultra intensity, stored as its own skill. Use when the pinned mode is ultra: "
+     "fragments, each fact once, payload kept verbatim. Stop with 'stop caveman' or 'normal mode'.",
+     "INSTALLED_BY_DEFAULT"),
     ("ponytail", "vendor/ponytail/skills/ponytail/SKILL.md",
      "Laziest-solution-that-works companion. Use at ultra before the first edit on the "
      "implementation path to choose the smallest correct change. Stop with 'stop ponytail'.",
@@ -173,9 +177,11 @@ def build_index() -> dict:
             "family": family, "hosts": _hosts(native),
         })
     for name, path, description, codex_default in VENDOR:
+        # ultracave is the intensity body inside the caveman plugin, not its own plugin.
+        native = {} if name == "ultracave" else _NATIVE
         entries.append({
             "name": name, "kind": "vendor", "path": path, "description": description,
-            "family": "companion", "codexDefault": codex_default, "hosts": _hosts(_NATIVE),
+            "family": "companion", "codexDefault": codex_default, "hosts": _hosts(native),
         })
     for name, description in ROLES:
         entries.append({

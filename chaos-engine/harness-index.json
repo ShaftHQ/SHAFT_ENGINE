@@ -237,6 +237,25 @@
     },
     {
       "codexDefault": "INSTALLED_BY_DEFAULT",
+      "description": "Upstream caveman ultra intensity, stored as its own skill. Use when the pinned mode is ultra: fragments, each fact once, payload kept verbatim. Stop with 'stop caveman' or 'normal mode'.",
+      "family": "companion",
+      "hosts": {
+        "antigravity": "catalog",
+        "claude": "catalog",
+        "codex": "catalog",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "vendor",
+      "name": "ultracave",
+      "path": "vendor/caveman/skills/ultracave/SKILL.md"
+    },
+    {
+      "codexDefault": "INSTALLED_BY_DEFAULT",
       "description": "Laziest-solution-that-works companion. Use at ultra before the first edit on the implementation path to choose the smallest correct change. Stop with 'stop ponytail'.",
       "family": "companion",
       "hosts": {

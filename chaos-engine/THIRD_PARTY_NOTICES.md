@@ -24,7 +24,7 @@ included here.
 - Local pin: [vendor/ponytail/PIN.json](vendor/ponytail/PIN.json)
 - Local license: [vendor/ponytail/LICENSE](vendor/ponytail/LICENSE)
 
-Skill and hook bodies in that pin are verbatim upstream.
+The skill body in that pin is verbatim upstream. `hooks/ponytail-config.js` carries a ChaosEngine project-mode overlay, documented in [vendor/ponytail/INVENTORY.md](vendor/ponytail/INVENTORY.md). The other hook bodies are verbatim upstream.
 
 
 ## ICM Architect

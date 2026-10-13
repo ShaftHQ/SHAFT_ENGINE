@@ -1,0 +1,36 @@
+name: Upstream pin watch
+
+# Compares repository pins for MemPalace, Graphify, and vendored companion
+# skills with the latest stable upstream. Opens or updates one issue when a
+# pin is behind. Does not merge, and does not install or upgrade tools.
+
+on:
+  schedule:
+    # Weekly Monday 09:15 UTC, after the 08:00 Selenium pin job.
+    - cron: '15 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-pin-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Compare repository pins to stable upstream
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+
+      - name: Compare pins and file one suggestion
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/ci/watch_upstream_pins.py --write

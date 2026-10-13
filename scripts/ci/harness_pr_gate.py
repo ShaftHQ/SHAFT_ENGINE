@@ -142,6 +142,7 @@ CHECKS = {
             "tests.scripts.test_omniroute_portability",
             "tests.scripts.test_chaos_engine_public_landing",
             "tests.scripts.test_nonblocked_lessons",
+            "tests.scripts.test_chaos_engine_latest_stable_pins",
         ),
     ),
     "skill-contract": Check(
@@ -521,6 +522,11 @@ CHECKS = {
         "genai-spans",
         ("tests.scripts.test_chaos_engine_genai_spans_6518",),
     ),
+    "upstream-watch-contract": Check(
+        "upstream-watch-contract",
+        "installer",
+        ("tests.scripts.test_watch_upstream_pins",),
+    ),
 }
 
 SURFACE_CHECKS = {
@@ -547,7 +553,10 @@ SURFACE_CHECKS = {
         "protected-installer-acceptance",
         "protected-rollback",
         "installer-ux-contract",
+        "upstream-watch-contract",
     ),
+    # Script and workflow edits run the pin check without the installer suite.
+    "upstream-watch": ("upstream-watch-contract",),
     "documentation": ("documentation-inventory-contract",),
     "accessibility": ("accessibility-contract",),
     "identities": ("identity-contract", "identity-recovery-contract"),
@@ -629,6 +638,11 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_mempalace_owned_excludes_6540.py",
         "tests/scripts/test_chaos_engine_retrieve_companions_6377.py",
     ),
+    "upstream-watch": (
+        "scripts/ci/watch_upstream_pins.py",
+        "tests/scripts/test_watch_upstream_pins.py",
+        ".github/workflows/upstream-watch.yml",
+    ),
     "hosts": (
         "chaos-engine/hosts.py",
         ".claude/settings.json",
@@ -671,6 +685,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_host_parity_matrix.py",
         "tests/scripts/test_chaos_engine_public_landing.py",
         "tests/scripts/test_nonblocked_lessons.py",
+        "tests/scripts/test_chaos_engine_latest_stable_pins.py",
     ),
     "plugins": (
         "agent-plugins/*",
