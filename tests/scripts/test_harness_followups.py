@@ -438,8 +438,8 @@ class MemPalacePinTest(unittest.TestCase):
 
         shim = load("mempalace_fast_mine")
         pin = json.loads((SOURCE / "dependencies.json").read_text(encoding="utf-8"))
-        self.assertEqual("mempalace==3.10.0", pin["tools"]["mempalace"]["package"])
-        self.assertIn("3.10.0", shim.SUPPORTED_VERSIONS)
+        version = pin["tools"]["mempalace"]["package"].split("==", 1)[1]
+        self.assertIn(version, shim.SUPPORTED_VERSIONS)
 
         def fresh():
             db = sqlite3.connect(":memory:")

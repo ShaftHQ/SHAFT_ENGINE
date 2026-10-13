@@ -3,11 +3,12 @@
 //
 // Resolution order for default mode:
 //   1. PONYTAIL_DEFAULT_MODE environment variable
-//   2. Config file defaultMode field:
+//   2. ChaosEngine project mode only: ultra when a ChaosEngine router exists
+//   3. Config file defaultMode field:
 //      - $XDG_CONFIG_HOME/ponytail/config.json (any platform, if set)
 //      - ~/.config/ponytail/config.json (macOS / Linux fallback)
 //      - %APPDATA%\ponytail\config.json (Windows fallback)
-//   3. 'full'
+//   4. 'full'
 
 const fs = require('fs');
 const path = require('path');
@@ -73,14 +74,48 @@ function getClaudeDir() {
   return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
 }
 
+function getQoderDir() {
+  return process.env.QODER_CONFIG_DIR || path.join(os.homedir(), '.qoder');
+}
+
+// ChaosEngine project mode: when a ChaosEngine router exists in the walk,
+// never fall through to user-level ponytail config. Project mode only.
+function isChaosEngineProject(startDir) {
+  try {
+    let dir = path.resolve(startDir || process.cwd());
+    const markers = [
+      'chaos-engine/skills/chaos-engine/SKILL.md',
+      '.chaos-engine/skills/chaos-engine/SKILL.md',
+    ];
+    for (let i = 0; i < 64; i++) {
+      for (const rel of markers) {
+        try {
+          const st = fs.lstatSync(path.join(dir, rel));
+          if (!st.isSymbolicLink() && st.isFile()) return true;
+        } catch (e) { /* next */ }
+      }
+      const parent = path.dirname(dir);
+      if (parent === dir) return false;
+      dir = parent;
+    }
+  } catch (e) { /* treat as non-project */ }
+  return false;
+}
+
 function getDefaultMode() {
   // 1. Environment variable (highest priority)
-  const envMode = process.env.PONYTAIL_DEFAULT_MODE;
   // ponytail: a default must be a runtime level (off/lite/full/ultra); review is
-  // a session-only mode, never a valid default (#377). Validate against
-  // RUNTIME_MODES so a stray env var or config can't make review the default.
-  if (envMode && RUNTIME_MODES.includes(envMode.toLowerCase())) {
-    return envMode.toLowerCase();
+  // a session-only mode, never a valid default (#377). Normalize here so values
+  // with whitespace or mixed casing still resolve correctly.
+  const envMode = normalizeMode(process.env.PONYTAIL_DEFAULT_MODE);
+  if (envMode) {
+    return envMode;
+  }
+
+  // ChaosEngine project mode only: never fall through to user config.
+  // ChaosEngine pins ultra, the highest runtime level. review stays session-only.
+  if (isChaosEngineProject(process.cwd())) {
+    return 'ultra';
   }
 
   // 2. Config file
@@ -88,8 +123,9 @@ function getDefaultMode() {
     const configPath = getConfigPath();
     // Strip UTF-8 BOM (common on Windows-saved files) so JSON.parse doesn't choke
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, ''));
-    if (config.defaultMode && RUNTIME_MODES.includes(config.defaultMode.toLowerCase())) {
-      return config.defaultMode.toLowerCase();
+    const configMode = normalizeMode(config.defaultMode);
+    if (configMode) {
+      return configMode;
     }
   } catch (e) {
     // Config file doesn't exist or is invalid — fall through
@@ -155,9 +191,11 @@ module.exports = {
   VALID_MODES,
   RUNTIME_MODES,
   getDefaultMode,
+  isChaosEngineProject,
   getConfigDir,
   getConfigPath,
   getClaudeDir,
+  getQoderDir,
   getHideStatus,
   getQuietStartup,
   isShellSafe,

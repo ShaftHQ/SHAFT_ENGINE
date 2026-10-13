@@ -329,22 +329,25 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             )
 
         self.assertTrue(module.version_at_least(specification["schemaVersion"], 3))
+        mempalace = specification["tools"]["mempalace"]
+        graphify = specification["tools"]["graphify"]
+        memory = specification["tools"]["memory"]
         self.assertEqual(
             [[
                 "/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with",
-                "chromadb==1.5.9", "mempalace==3.10.0",
+                *mempalace["with"], mempalace["package"],
             ]],
             plan["mempalace"],
         )
         self.assertEqual(
             [[
                 "/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with",
-                "tree-sitter-sql==0.3.11", "graphifyy==0.9.43",
+                *graphify["with"], graphify["package"],
             ]],
             plan["graphify"],
         )
         self.assertEqual(
-            [["/user/bin/npm", "install", "-g", "@aictx/memory@0.2.1"]],
+            [["/user/bin/npm", "install", "-g", memory["package"]]],
             plan["memory"],
         )
         self.assertEqual([], plan["context7"])
@@ -352,11 +355,16 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
     def test_mempalace_account_plan_reinstalls_every_nonreused_action_with_pins(self):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
-        expected = {
-            "installed": ["/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.10.0"],
-            "upgraded": ["/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.10.0"],
-            "repaired": ["/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with", "chromadb==1.5.9", "mempalace==3.10.0"],
-        }
+        mempalace = specification["tools"]["mempalace"]
+        pinned = [
+            "/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with",
+            *mempalace["with"], mempalace["package"],
+        ]
+        forced = [
+            "/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with",
+            *mempalace["with"], mempalace["package"],
+        ]
+        expected = {"installed": pinned, "upgraded": forced, "repaired": forced}
         for action, command in expected.items():
             with self.subTest(action=action):
                 plan = module.account_tool_plan(
@@ -371,16 +379,19 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
     def test_mempalace_install_plans_pin_chromadb_model_loader(self):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
-        self.assertEqual("mempalace==3.10.0", specification["tools"]["mempalace"]["package"])
-        self.assertEqual(["chromadb==1.5.9"], specification["tools"]["mempalace"]["with"])
+        package = specification["tools"]["mempalace"]["package"]
+        extras = specification["tools"]["mempalace"]["with"]
+        self.assertTrue(package.startswith("mempalace=="))
+        self.assertEqual(1, len(extras))
+        self.assertTrue(extras[0].startswith("chromadb=="))
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             generated = module.generation_install_plan(root, specification)["mempalace"][0]
             legacy = module.install_plan(root, specification)["mempalace"][0]
         for command in (generated, legacy):
             self.assertIn("--with", command)
-            self.assertEqual("chromadb==1.5.9", command[command.index("--with") + 1])
-            self.assertEqual("mempalace==3.10.0", command[-1])
+            self.assertEqual(extras[0], command[command.index("--with") + 1])
+            self.assertEqual(package, command[-1])
 
     def test_runtime_specification_rejects_any_schema3_tool_contract_drift(self):
         module = load_controller()
@@ -390,7 +401,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             "floating": lambda value: value["tools"]["mempalace"].update(package="mempalace"),
             "wrong": lambda value: value["tools"]["mempalace"].__setitem__("with", ["chromadb==1.5.8"]),
             "multiple": lambda value: value["tools"]["mempalace"].__setitem__("with", ["chromadb==1.5.9", "other==1.0.0"]),
-            "future": lambda value: value["tools"]["mempalace"].update(package="mempalace==3.8.1"),
+            "renamed": lambda value: value["tools"]["mempalace"].update(package="other==1.0.0"),
             "extra-tool": lambda value: value["tools"].update(rogue={"package": "rogue==1.0.0"}),
         }
         for name, fields in source["tools"].items():
@@ -425,14 +436,87 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, "tool dependency specification is not the exact"):
                         module.install_plan(root, specification)
 
+    def test_planner_follows_the_contract_and_a_mutated_pin_copy(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        executables = {"uv": "/user/bin/uv", "npm": "/user/bin/npm"}
+        install_actions = {"mempalace": "installed", "graphify": "installed"}
+
+        def planned(spec):
+            return module.account_tool_plan(
+                Path("."), spec, actions=install_actions, executables=executables,
+                resolved_versions={"python": "3.14.2"},
+            )
+
+        canonical = planned(specification)
+        self.assertEqual(
+            specification["tools"]["mempalace"]["package"], canonical["mempalace"][0][-1]
+        )
+        self.assertEqual(
+            specification["tools"]["graphify"]["package"], canonical["graphify"][0][-1]
+        )
+
+        def bumped(package: str) -> str:
+            if "==" in package:
+                name, version = package.split("==", 1)
+                separator = "=="
+            else:
+                name, version = package.rsplit("@", 1)
+                separator = "@"
+            head, tail = version.rsplit(".", 1)
+            return f"{name}{separator}{head}.{int(tail) + 1}"
+
+        mutated = copy.deepcopy(specification)
+        for name in ("mempalace", "graphify"):
+            mutated["tools"][name]["package"] = bumped(specification["tools"][name]["package"])
+            self.assertNotEqual(
+                specification["tools"][name]["package"], mutated["tools"][name]["package"]
+            )
+        followed = planned(mutated)
+        self.assertEqual(mutated["tools"]["mempalace"]["package"], followed["mempalace"][0][-1])
+        self.assertEqual(mutated["tools"]["graphify"]["package"], followed["graphify"][0][-1])
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            generated = module.generation_install_plan(root, mutated)
+            legacy = module.install_plan(root, mutated)
+        for plan in (generated, legacy):
+            self.assertEqual(mutated["tools"]["mempalace"]["package"], plan["mempalace"][0][-1])
+            self.assertEqual(mutated["tools"]["graphify"]["package"], plan["graphify"][0][-1])
+        local = {
+            name: {"healthy": True, "version": "0.0.1"}
+            for name in mutated["dependencies"]
+        }
+        with mock.patch.object(module, "resolve_stable_version", return_value="99.0.0"):
+            resolved = module.resolve_account_actions(mutated, local)
+        self.assertEqual(
+            mutated["tools"]["mempalace"]["package"].split("==", 1)[1],
+            resolved["mempalace"]["resolvedVersion"],
+        )
+        self.assertNotEqual("99.0.0", resolved["mempalace"]["resolvedVersion"])
+        heal_spec = importlib.util.spec_from_file_location(
+            "official_self_heal_pin_follow", ROOT / "chaos-engine/official_self_heal.py"
+        )
+        if heal_spec is None or heal_spec.loader is None:
+            raise RuntimeError("official self-heal module could not be loaded")
+        heal = importlib.util.module_from_spec(heal_spec)
+        heal_spec.loader.exec_module(heal)
+        for name in ("mempalace", "graphify"):
+            command = heal.official_command_for(name)
+            self.assertIn(specification["tools"][name]["package"], command)
+            for extra in specification["tools"][name]["with"]:
+                self.assertIn(extra, command)
+            self.assertTrue(command.startswith("uv tool install "))
+
     def test_mempalace_action_resolution_uses_the_declared_pin_not_the_latest_channel(self):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        pinned = specification["tools"]["mempalace"]["package"].split("==", 1)[1]
         local = {name: {"healthy": True, "version": "99.0.0"} for name in specification["dependencies"]}
-        local["mempalace"] = {"healthy": True, "version": "3.7.9"}
+        local["mempalace"] = {"healthy": True, "version": "0.0.1"}
         with mock.patch.object(module, "resolve_stable_version", return_value="99.0.0"):
             actions = module.resolve_account_actions(specification, local)
-        self.assertEqual("3.10.0", actions["mempalace"]["resolvedVersion"])
+        self.assertEqual(pinned, actions["mempalace"]["resolvedVersion"])
+        self.assertNotEqual("99.0.0", actions["mempalace"]["resolvedVersion"])
         self.assertEqual("upgraded", actions["mempalace"]["action"])
 
     def test_transient_network_failure_is_retried_then_succeeds(self):
@@ -468,7 +552,10 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
         local = {name: {"healthy": True, "version": "1.0.0"} for name in specification["dependencies"]}
-        local["mempalace"] = {"healthy": True, "version": "3.10.0"}
+        local["mempalace"] = {
+            "healthy": True,
+            "version": specification["tools"]["mempalace"]["package"].split("==", 1)[1],
+        }
         with mock.patch.object(module, "resolve_stable_version", side_effect=OSError("down")):
             actions = module.resolve_account_actions(specification, local)
         self.assertEqual("reused", actions["graphify"]["action"])
@@ -480,7 +567,10 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
         local = {name: {"healthy": True, "version": "1.0.0"} for name in specification["dependencies"]}
-        local["mempalace"] = {"healthy": True, "version": "3.10.0"}
+        local["mempalace"] = {
+            "healthy": True,
+            "version": specification["tools"]["mempalace"]["package"].split("==", 1)[1],
+        }
         local["graphify"] = {"healthy": False, "version": None, "status": "absent"}
         with mock.patch.object(module, "resolve_stable_version", side_effect=OSError("down")):
             actions = module.resolve_account_actions(specification, local)
@@ -505,10 +595,11 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             executables={"uv": "/user/bin/uv", "npm": "/user/bin/npm"},
             resolved_versions=versions,
         )
+        graphify = specification["tools"]["graphify"]
         self.assertEqual(
             [[
                 "/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with",
-                "tree-sitter-sql==0.3.11", "graphifyy==0.9.53",
+                *graphify["with"], "graphifyy==0.9.53",
             ]],
             first_plan["graphify"],
         )
@@ -529,7 +620,10 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
             name: {"healthy": True, "version": version}
             for name, version in versions.items()
         })
-        local["mempalace"] = {"healthy": True, "version": "3.10.0"}
+        local["mempalace"] = {
+            "healthy": True,
+            "version": specification["tools"]["mempalace"]["package"].split("==", 1)[1],
+        }
         with mock.patch.object(
             module,
             "resolve_stable_version",
@@ -632,6 +726,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
         contract = specification["dependencies"]["mempalace"]
+        pinned = specification["tools"]["mempalace"]["package"].split("==", 1)[1]
         with tempfile.TemporaryDirectory() as temporary:
             stub = str(Path(temporary) / "mempalace.cmd")
             Path(stub).write_text("@echo off\r\n", encoding="utf-8")
@@ -640,7 +735,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
 
             def tracking_runner(command, **_kwargs):
                 received_commands.append(list(command))
-                return SimpleNamespace(returncode=0, stdout="mempalace 3.10.0", stderr="")
+                return SimpleNamespace(returncode=0, stdout=f"mempalace {pinned}", stderr="")
 
             with mock.patch.object(module.os, "name", "nt"), \
                  mock.patch.object(module, "_account_search_path", return_value=""):
@@ -655,7 +750,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         self.assertEqual("/c", invoked[1])
         self.assertEqual(stub, invoked[2])
         self.assertTrue(result["healthy"])
-        self.assertEqual("3.10.0", result["version"])
+        self.assertEqual(pinned, result["version"])
 
     def test_stable_versions_reject_prerelease_and_yanked_candidates(self):
         module = load_controller()

@@ -62,15 +62,25 @@ REMOVING_ANCHOR_PREFIX = ".chaos-engine-hosts.removing-"
 ANCHOR_TOKEN = re.compile(r"^[0-9a-f]{64}$")
 SCHEMA_VERSION = 1
 PLUGIN_NAME = "chaos-engine"
+def _vendor_pin_commit(name: str, root: Path | None = None) -> str:
+    """Read one vendored companion commit from that companion's PIN.json."""
+    base = Path(root) if root is not None else Path(__file__).resolve().parent
+    document = json.loads((base / "vendor" / name / "PIN.json").read_text(encoding="utf-8"))
+    commit = document.get("commit") if isinstance(document, dict) else None
+    if not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise ValueError(f"vendor pin commit is invalid: {name}")
+    return commit
+
+
 CAVEMAN_PLUGIN_NAME = "caveman"
 CAVEMAN_PLUGIN_VERSION = "0.1.0"
-CAVEMAN_UPSTREAM_COMMIT = "766dce6b1394ebb56a3090748d5a0240a5aefb36"
+CAVEMAN_UPSTREAM_COMMIT = _vendor_pin_commit("caveman")
 PONYTAIL_PLUGIN_NAME = "ponytail"
 PONYTAIL_PLUGIN_VERSION = "0.1.0"
-PONYTAIL_UPSTREAM_COMMIT = "2ed6c52c9d7e5e56942508591085fd45dea277d3"
+PONYTAIL_UPSTREAM_COMMIT = _vendor_pin_commit("ponytail")
 ICM_ARCHITECT_PLUGIN_NAME = "icm-architect"
 ICM_ARCHITECT_PLUGIN_VERSION = "0.1.0"
-ICM_ARCHITECT_UPSTREAM_COMMIT = "e16cafe6a664dcf6d787a726b452adba77d913f4"
+ICM_ARCHITECT_UPSTREAM_COMMIT = _vendor_pin_commit("icm-architect")
 # Intensity companions (SessionStart required) stay caveman/ponytail.
 # ICM Architect is an installer-owned advisory skill companion (#6001).
 COMPANION_PLUGIN_NAMES = (

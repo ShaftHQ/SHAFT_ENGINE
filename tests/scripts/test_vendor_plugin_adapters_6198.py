@@ -64,22 +64,47 @@ class ShortAdapterTest(unittest.TestCase):
         self.assertEqual(vendor, images["plugins/ponytail/skills/ponytail/SKILL.md"])
 
 
+def _caveman_activation_project(temporary: str) -> tuple[Path, Path, Path]:
+    project = Path(temporary) / "project"
+    for relative, content in HOSTS.companion_plugin_images().items():
+        if relative.startswith("plugins/caveman/"):
+            target = project / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+    vendor_root = project / ".chaos-engine/vendor/caveman/skills"
+    for skill in ("caveman", "ultracave"):
+        target = vendor_root / skill / "SKILL.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(SOURCE / "vendor/caveman/skills" / skill / "SKILL.md", target)
+    home = Path(temporary) / "home"
+    home.mkdir()
+    plugin = project / "plugins/caveman"
+    # The published ultracave file is the full body. Drop it so the
+    # assertion can pass only through the vendor-first candidate.
+    published_ultra = plugin / "skills/ultracave/SKILL.md"
+    if published_ultra.is_file():
+        published_ultra.unlink()
+    return project, plugin, home
+
+
+def _run_caveman_activate(project: Path, plugin: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(  # nosec B603 - fixed node hook in a temp project.
+        [shutil.which("node"), str(plugin / "src/hooks/caveman-activate.js")],
+        cwd=project,
+        env=env,
+        input="{}",
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+
 @unittest.skipIf(shutil.which("node") is None, "node is required for the activate hook")
 class CavemanActivationTest(unittest.TestCase):
     def test_activation_reads_the_vendor_body_behind_a_short_adapter(self):
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary) / "project"
-            for relative, content in HOSTS.companion_plugin_images().items():
-                if relative.startswith("plugins/caveman/"):
-                    target = project / relative
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_bytes(content)
-            vendor = project / ".chaos-engine/vendor/caveman/skills/caveman/SKILL.md"
-            vendor.parent.mkdir(parents=True)
-            shutil.copyfile(SOURCE / "vendor/caveman/skills/caveman/SKILL.md", vendor)
-            home = Path(temporary) / "home"
-            home.mkdir()
-            plugin = project / "plugins/caveman"
+            project, plugin, home = _caveman_activation_project(temporary)
             env = {
                 **os.environ,
                 "HOME": str(home),
@@ -88,19 +113,40 @@ class CavemanActivationTest(unittest.TestCase):
                 "CLAUDE_PLUGIN_ROOT": str(plugin),
                 "CAVEMAN_DEFAULT_MODE": "ultra",
             }
-            completed = subprocess.run(  # nosec B603 - fixed node hook in a temp project.
-                [shutil.which("node"), str(plugin / "src/hooks/caveman-activate.js")],
-                cwd=project,
-                env=env,
-                input="{}",
-                capture_output=True,
-                text=True,
-                timeout=30,
-                check=False,
-            )
+            completed = _run_caveman_activate(project, plugin, env)
         self.assertEqual(0, completed.returncode, completed.stderr)
         self.assertIn("CAVEMAN MODE ACTIVE", completed.stdout)
-        self.assertIn("## Intensity", completed.stdout, "fell back to the minimal ruleset")
+        self.assertIn("## Floor", completed.stdout, "fell back to the minimal ruleset")
+
+    def test_project_mode_keeps_ultracave_when_user_config_is_off(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project, plugin, home = _caveman_activation_project(temporary)
+            marker = project / "chaos-engine/skills/chaos-engine/SKILL.md"
+            marker.parent.mkdir(parents=True)
+            marker.write_text("# ChaosEngine\n", encoding="utf-8")
+            config_dir = home / "caveman"
+            config_dir.mkdir()
+            (config_dir / "config.json").write_text(
+                '{"defaultMode": "off"}\n', encoding="utf-8"
+            )
+            env = {
+                key: value
+                for key, value in os.environ.items()
+                if key != "CAVEMAN_DEFAULT_MODE"
+            }
+            env.update(
+                {
+                    "HOME": str(home),
+                    "USERPROFILE": str(home),
+                    "XDG_CONFIG_HOME": str(home),
+                    "CLAUDE_CONFIG_DIR": str(home / ".claude"),
+                    "CLAUDE_PLUGIN_ROOT": str(plugin),
+                }
+            )
+            completed = _run_caveman_activate(project, plugin, env)
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIn("mode: ultracave", completed.stdout)
+        self.assertIn("## Floor", completed.stdout, "fell back to the minimal ruleset")
 
 
 class ListingBudgetTest(unittest.TestCase):

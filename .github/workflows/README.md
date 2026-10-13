@@ -69,6 +69,7 @@ changing that token silently breaks both distribution publishers.
 | `trace-viewer-acceptance.yml` | trace-relevant pull request and push to `main` | Native Playwright trace parity across engines plus offline Chromium viewer acceptance. |
 | `agent-plugin-acceptance.yml` | weekly (all jobs), daily (3-OS ChaosEngine installer jobs), manual | Native-client routing, external guardrail-corpus scoring, agnix conformance, and the 3-OS installer acceptance that carries macOS off the PR path; files a tracking issue on a scheduled failure. |
 | `update-selenium-grid-versions.yml` | weekly, manual | Updates Selenium Grid image references and opens a validated PR. |
+| `upstream-watch.yml` | weekly, manual | Compares repository pins for MemPalace, Graphify, and vendored companion skills with the latest stable upstream. Opens or updates one issue when a pin is behind. Does not merge or install. |
 
 The quality validator fails when an active `*.yml` file is missing from this
 table. Remove a row only in the same change that deletes its workflow.

@@ -449,6 +449,7 @@ Generated skill index (`chaos-engine/harness_index.py`):
 - [local-openai-compat](../../chaos-engine/skills/local-openai-compat/SKILL.md) (route)
 - [local-coding-delegate](../../chaos-engine/skills/local-coding-delegate/SKILL.md) (route)
 - [caveman](../../chaos-engine/vendor/caveman/skills/caveman/SKILL.md) (vendor)
+- [ultracave](../../chaos-engine/vendor/caveman/skills/ultracave/SKILL.md) (vendor)
 - [ponytail](../../chaos-engine/vendor/ponytail/skills/ponytail/SKILL.md) (vendor)
 - [icm-architect](../../chaos-engine/vendor/icm-architect/skills/icm-architect/SKILL.md) (vendor)
 

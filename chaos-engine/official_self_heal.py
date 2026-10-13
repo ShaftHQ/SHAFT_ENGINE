@@ -20,6 +20,20 @@ from typing import Callable
 OFFICIAL_SELF_HEAL_HANDOFF_RELATIVE = ".chaos-engine-state/official-self-heal-handoff.md"
 COMPANION_HANDOFF_RELATIVE = ".chaos-engine-state/companion-handoff.md"
 
+
+def _uv_tool_install(tool: str) -> str:
+    """Build one uv tool install command from dependencies.json tools[tool]."""
+    document = json.loads(
+        (Path(__file__).resolve().parent / "dependencies.json").read_text(encoding="utf-8")
+    )
+    record = document["tools"][tool]
+    extras = " ".join(f"--with {item}" for item in record.get("with") or ())
+    package = str(record["package"])
+    if extras:
+        return f"uv tool install {extras} {package}"
+    return f"uv tool install {package}"
+
+
 # Inventory: item → official install command (upstream docs or CE vendor publish).
 OFFICIAL_INSTALL_COMMANDS: dict[str, str] = {
     "caveman": (
@@ -30,8 +44,8 @@ OFFICIAL_INSTALL_COMMANDS: dict[str, str] = {
         "CE vendor rematerialize: hosts.rematerialize_companions "
         "(chaos-engine/vendor/ponytail → plugins/ponytail/)"
     ),
-    "mempalace": "uv tool install --with chromadb==1.5.9 mempalace==3.10.0",
-    "graphify": "uv tool install --with tree-sitter-sql==0.3.11 graphifyy==0.9.43",
+    "mempalace": _uv_tool_install("mempalace"),
+    "graphify": _uv_tool_install("graphify"),
     "memory": "npm install -g @aictx/memory@0.2.1",
     "context7": "npm install -g ctx7@latest",
     "uv": (

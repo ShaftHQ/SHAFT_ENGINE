@@ -57,27 +57,39 @@ REQUIRED_DISPATCHES = {
     "memory",
     "memory-mcp",
 }
-PINNED_MEMPALACE_PACKAGE = "mempalace==3.10.0"
-PINNED_MEMPALACE_WITH = ("chromadb==1.5.9",)
+def _load_schema3_tools() -> dict[str, dict[str, object]]:
+    """Load the schema v3 tool contract from the dependency file beside this module."""
+    path = Path(__file__).resolve().with_name("dependencies.json")
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError as error:
+        cli = "py -3" if os.name == "nt" else "python3"
+        raise ValueError(
+            "ChaosEngine dependency specification is missing "
+            "(wiped or incomplete `.chaos-engine` runtime). fix-next: run the "
+            "ChaosEngine install one-liner from INSTALL.md, then "
+            f"`{cli} .chaos-engine/install.py doctor --project .`"
+        ) from error
+    document = json.loads(raw)
+    tools = document.get("tools")
+    if not isinstance(tools, dict):
+        raise ValueError("tool dependency specification is invalid")
+    loaded: dict[str, dict[str, object]] = {}
+    for name, record in tools.items():
+        if not isinstance(name, str) or not isinstance(record, dict):
+            raise ValueError("tool dependency specification is invalid")
+        loaded[name] = {
+            key: list(value) if isinstance(value, list) else value
+            for key, value in record.items()
+        }
+    return loaded
+
+
+SCHEMA3_TOOLS = _load_schema3_tools()
+PINNED_MEMPALACE_PACKAGE = str(SCHEMA3_TOOLS["mempalace"]["package"])
+PINNED_MEMPALACE_WITH = tuple(SCHEMA3_TOOLS["mempalace"]["with"])
 # Opt-in CLIs are never provisioned. A missing binary must not block account setup.
 OPTIONAL_ACCOUNT_DEPENDENCIES = frozenset({"deja"})
-SCHEMA3_TOOLS = {
-    "uv": {"package": "uv==0.11.29"},
-    "mempalace": {
-        "package": PINNED_MEMPALACE_PACKAGE,
-        "with": list(PINNED_MEMPALACE_WITH),
-        "commands": ["mempalace", "mempalace-mcp"],
-    },
-    "graphify": {
-        "package": "graphifyy==0.9.43",
-        "with": ["tree-sitter-sql==0.3.11"],
-        "commands": ["graphify"],
-    },
-    "memory": {
-        "package": "@aictx/memory@0.2.1",
-        "commands": ["memory", "memory-mcp"],
-    },
-}
 WINDOWS_UV_JUNCTION_TAG = 0xA0000003
 WINDOWS_UV_ALIAS = re.compile(
     r"uv-python/cpython-(?P<version>3\.\d+)-windows-(?P<arch>x86_64|aarch64)-none"
@@ -830,7 +842,9 @@ def resolve_account_actions(
     """Combine local health with independently attempted stable-channel resolution."""
     validate_runtime_specification(specification)
     contracts = specification["dependencies"]
-    pinned_mempalace_version = PINNED_MEMPALACE_PACKAGE.removeprefix("mempalace==")
+    pinned_mempalace_version = _pinned_package_identity(
+        specification["tools"]["mempalace"]["package"]
+    )[1]
     resolved: dict[str, dict[str, object]] = {}
     for name, contract in contracts.items():  # type: ignore[union-attr]
         if name == "maven-tools-mcp":
@@ -1966,6 +1980,47 @@ def select_runtime_artifact(
     return dict(artifact)
 
 
+def _pinned_package_identity(package: object) -> tuple[str, str] | None:
+    """Return (name, version) for a uv ``name==version`` or npm ``name@version`` pin."""
+    if not isinstance(package, str) or not package or any(character.isspace() for character in package):
+        return None
+    if "==" in package:
+        name, version = package.split("==", 1)
+    elif package.startswith("@") and package.count("@") >= 2:
+        name, version = package.rsplit("@", 1)
+    elif "@" in package and not package.startswith("@"):
+        name, version = package.rsplit("@", 1)
+    else:
+        return None
+    if not name or not version:
+        return None
+    return name, version
+
+
+def _schema3_tools_match(tools: dict[str, object]) -> bool:
+    """Same tool set, commands, and extras. Package versions may move; names may not."""
+    if set(tools) != set(SCHEMA3_TOOLS):
+        return False
+    for name, expected in SCHEMA3_TOOLS.items():
+        actual = tools.get(name)
+        if not isinstance(actual, dict) or set(actual) != set(expected):
+            return False
+        for key, value in expected.items():
+            if key == "package":
+                expected_identity = _pinned_package_identity(value)
+                actual_identity = _pinned_package_identity(actual.get("package"))
+                if (
+                    expected_identity is None
+                    or actual_identity is None
+                    or expected_identity[0] != actual_identity[0]
+                ):
+                    return False
+                continue
+            if actual.get(key) != value:
+                return False
+    return True
+
+
 def validate_runtime_specification(specification: dict[str, object]) -> None:
     if specification.get("schemaVersion") not in {2, 3}:
         raise ValueError("dependency specification schema is unsupported")
@@ -1979,7 +2034,7 @@ def validate_runtime_specification(specification: dict[str, object]) -> None:
             raise ValueError("account dependency specification is invalid")
         if not isinstance(tools, dict):
             raise ValueError("tool dependency specification is invalid")
-        if tools != SCHEMA3_TOOLS:
+        if not _schema3_tools_match(tools):
             raise ValueError("tool dependency specification is not the exact schema v3 contract")
         for name, contract in dependencies.items():
             if (

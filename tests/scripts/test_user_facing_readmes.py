@@ -5,6 +5,8 @@ import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from scripts.ci.validate_documentation_boundaries import ALLOWED_NESTED_READMES
+
 ROOT = Path(__file__).resolve().parents[2]
 POM_NS = {"m": "http://maven.apache.org/POM/4.0.0"}
 LINK = re.compile(r"!\[[^\]]*\]\(([^)]+)\)|\[[^\]]*\]\(([^)]+)\)")
@@ -84,6 +86,13 @@ class UserFacingReadmeTest(unittest.TestCase):
             self.assertGreater(checked, 0, module)
             for destination in broken:
                 self.fail(f"{module}/README.md -> {destination}")
+
+    def test_each_reactor_readme_is_an_approved_nested_readme(self) -> None:
+        modules = reactor_readme_dirs()
+        self.assertIn("allure-cucumber8-jvm", modules)
+        for module in modules:
+            path = f"{module}/README.md"
+            self.assertIn(path, ALLOWED_NESTED_READMES, path)
 
     def test_touched_user_facing_links_resolve(self) -> None:
         checked_total = 0

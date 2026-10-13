@@ -65,6 +65,9 @@ ALLOWED_EXACT = {
     "shaft-sikulix/README.md",
     "report-aggregate/README.md",
     "shaft-bom/README.md",
+    # Redistributed Cucumber 8 adapter. Same short reactor orientation as the
+    # other module READMEs; product usage stays on the user-guide site.
+    "allure-cucumber8-jvm/README.md",
     "legacy-shaft-engine/README.md",
     "shaft-intellij/README.md",
     "shaft-skills/README.md",
