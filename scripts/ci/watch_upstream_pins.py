@@ -576,6 +576,27 @@ def unlinked_pin_error(
     return None
 
 
+def _consumer_fingerprint(
+    spec: Mapping[str, Any], wrappers: Mapping[str, str], component: str
+) -> tuple[object, ...]:
+    """Version and checksum identity. Formatting of the spec file is not part of it."""
+    tools = spec.get("tools") if isinstance(spec.get("tools"), dict) else {}
+    runtimes = spec.get("runtimes") if isinstance(spec.get("runtimes"), dict) else {}
+    tool = tools.get(component) if isinstance(tools, dict) else None
+    runtime = runtimes.get(component) if isinstance(runtimes, dict) else None
+    package = tool.get("package") if isinstance(tool, dict) else None
+    version = runtime.get("version") if isinstance(runtime, dict) else None
+    artifacts = runtime.get("artifacts") if isinstance(runtime, dict) else None
+    digests: list[tuple[str, object, object]] = []
+    if isinstance(artifacts, dict):
+        for platform in sorted(artifacts):
+            row = artifacts[platform]
+            if isinstance(row, dict):
+                digests.append((platform, row.get("url"), row.get("sha256")))
+    texts = tuple(sorted((label, text) for label, text in wrappers.items()))
+    return package, version, tuple(digests), texts
+
+
 def apply_release_files(root: Path, release: Mapping[str, Any]) -> None:
     """Rewrite the linked pin files under ``root`` or reject a one-sided result."""
     spec_path = root / "chaos-engine" / "dependencies.json"
@@ -588,10 +609,15 @@ def apply_release_files(root: Path, release: Mapping[str, Any]) -> None:
         label: path.read_text(encoding="utf-8")
         for label, path in wrapper_paths.items()
     }
+    component = str(release["component"])
     updated, rewritten = apply_linked_pin(spec, wrappers, release)
-    error = unlinked_pin_error(updated, rewritten, str(release["component"]))
+    error = unlinked_pin_error(updated, rewritten, component)
     if error:
         raise ValueError(error)
+    if _consumer_fingerprint(spec, wrappers, component) == _consumer_fingerprint(
+        updated, rewritten, component
+    ):
+        return
     spec_path.write_text(json.dumps(updated, indent=2) + "\n", encoding="utf-8")
     for label, path in wrapper_paths.items():
         path.write_text(rewritten[label], encoding="utf-8")

@@ -16,6 +16,7 @@ from scripts.ci.watch_upstream_pins import (
     Pin,
     Stable,
     apply_linked_pin,
+    apply_release_files,
     compare_and_suggest,
     compare_pin,
     load_pins,
@@ -522,6 +523,32 @@ class LinkedPinSyncTest(unittest.TestCase):
         self.assertIn(self.LINUX_NEW, shell)
         self.assertEqual("3.11", written["runtimes"]["python"]["version"])
         self.assertEqual("3.14", written["dependencies"]["python"]["maximumSeries"])
+
+    def test_equal_release_does_not_rewrite_the_live_pin_files(self) -> None:
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: __import__("shutil").rmtree(root, ignore_errors=True))
+        chaos = root / "chaos-engine"
+        chaos.mkdir()
+        spec_bytes = (ROOT / "chaos-engine/dependencies.json").read_bytes()
+        ps1_bytes = (ROOT / "chaos-engine/install.ps1").read_bytes()
+        shell_bytes = (ROOT / "chaos-engine/install.sh").read_bytes()
+        (chaos / "dependencies.json").write_bytes(spec_bytes)
+        (chaos / "install.ps1").write_bytes(ps1_bytes)
+        (chaos / "install.sh").write_bytes(shell_bytes)
+        spec = json.loads(spec_bytes)
+        artifacts = spec["runtimes"]["uv"]["artifacts"]
+        release = {
+            "component": "uv",
+            "version": spec["runtimes"]["uv"]["version"],
+            "artifacts": {
+                platform: {"sha256": row["sha256"]}
+                for platform, row in artifacts.items()
+            },
+        }
+        apply_release_files(root, release)
+        self.assertEqual(spec_bytes, (chaos / "dependencies.json").read_bytes())
+        self.assertEqual(ps1_bytes, (chaos / "install.ps1").read_bytes())
+        self.assertEqual(shell_bytes, (chaos / "install.sh").read_bytes())
 
     def test_github_payload_requires_every_os_digest(self) -> None:
         assets = [

@@ -1644,6 +1644,34 @@ _UNUSABLE_LAUNCH_MARKERS = (
 )
 
 
+def _probe_kind_for_launcher(
+    command: list[str], probes: list[dict[str, str]] | None
+) -> str | None:
+    """Kind of this command's own launcher. A sibling tool's probe does not match."""
+    if not command:
+        return None
+    launched = launcher_name(command[0]).casefold()
+    stem = launched[:-4] if launched.endswith(".exe") else launched
+    for item in probes or []:
+        if not isinstance(item, dict):
+            continue
+        labels: list[str] = []
+        path = item.get("path")
+        path_label = launcher_name(path) if isinstance(path, str) and path else ""
+        for raw in (item.get("name"), path_label):
+            if not isinstance(raw, str) or not raw.strip():
+                continue
+            folded = raw.casefold()
+            labels.append(folded)
+            if folded.endswith(".exe"):
+                labels.append(folded[:-4])
+        if launched in labels or stem in labels:
+            kind = item.get("kind")
+            if kind in {"real", "store-stub", "missing"}:
+                return str(kind)
+    return None
+
+
 def decide_provision_child(
     *,
     command: list[str],
@@ -1654,9 +1682,10 @@ def decide_provision_child(
 ) -> tuple[str, str]:
     """Decide whether one provision child failed for a real reason.
 
-    ``continue`` is the false failure: graphify had nothing to index, or the
-    host probe is a Windows Store stub or a POSIX missing binary and the child
-    never started a real extract. ``fail`` keeps the child text so the install
+    ``continue`` is the false failure: graphify had nothing to index, or
+    graphify's own launcher is a Windows Store stub or a POSIX missing binary
+    and the child never started a real extract. A sibling probe does not absorb
+    a real extract diagnostic. ``fail`` keeps the child text so the install
     report is not only ``CE-INSTALL-FAILED``.
     """
     reason = ((stderr or "").strip() or (stdout or "").strip())[:500]
@@ -1672,11 +1701,8 @@ def decide_provision_child(
     folded = reason.casefold()
     if graphify_setup and any(marker in folded for marker in _CORPUS_EMPTY_MARKERS):
         return "continue", reason
-    unusable = any(
-        isinstance(item, dict) and item.get("kind") in {"store-stub", "missing"}
-        for item in (probes or [])
-    )
-    if graphify_setup and unusable and (
+    launcher_kind = _probe_kind_for_launcher(command, probes)
+    if graphify_setup and launcher_kind in {"store-stub", "missing"} and (
         not reason or any(marker in folded for marker in _UNUSABLE_LAUNCH_MARKERS)
     ):
         return "continue", reason or f"executable probe is unusable for {name}"
@@ -1785,8 +1811,9 @@ def _run_project_setup_command(
     moving and emit the ``graphify-empty-output-after-version`` fingerprint;
     graphify output is derived data. A non-zero exit that prints a diagnostic
     stays red, and that diagnostic is the child reason (#6934). An empty
-    corpus and an unusable Store-stub or missing-binary probe are the same
-    false failure on every host and do not abort provision.
+    corpus and an unusable graphify launcher (Store stub or missing binary)
+    are the same false failure on every host and do not abort provision.
+    A sibling tool's probe does not absorb a real extract diagnostic.
     """
     try:
         return _run_account_command(

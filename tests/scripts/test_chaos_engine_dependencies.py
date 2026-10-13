@@ -2887,19 +2887,75 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
             )
             self.assertEqual(0, windows.returncode)
             self.assertEqual(0, posix.returncode)
+            source_miss = (
+                "graphify extract failed: [Errno 2] No such file or directory: 'src/App.java'"
+            )
+            with self.assertRaises(RuntimeError) as source_error:
+                module._run_project_setup_command(
+                    [windows_graphify, "extract", ".", "--code-only"],
+                    project,
+                    runner=runner(source_miss),
+                    host_probes=windows_probes,
+                )
+            self.assertIn("src/App.java", str(source_error.exception))
+            self.assertIn("No such file or directory", str(source_error.exception))
+            calls = []
+
+            def empty_runner(command, **_kwargs):
+                calls.append(list(command))
+                if command[1:2] == ["--version"]:
+                    return SimpleNamespace(returncode=0, stdout="graphify 0.9.88", stderr="")
+                return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+            stderr_buffer = io.StringIO()
+            with mock.patch.object(module.sys, "stderr", stderr_buffer):
+                empty = module._run_project_setup_command(
+                    [windows_graphify, "extract", ".", "--code-only"],
+                    project,
+                    runner=empty_runner,
+                    host_probes=windows_probes,
+                )
+            extract_calls = [command for command in calls if "extract" in command]
+            self.assertEqual(2, len(extract_calls))
+            self.assertTrue(any(command[1:2] == ["--version"] for command in calls))
+            self.assertNotIn("executable probe is unusable", stderr_buffer.getvalue())
+            self.assertEqual(0, empty.returncode)
+
+            def which_graphify_stub(name, path=None):
+                if name == "graphify":
+                    return r"C:\Users\PC\AppData\Local\Microsoft\WindowsApps\graphify.exe"
+                if name == "python3":
+                    return str(python_bin)
+                return None
+
+            def which_graphify_missing(name, path=None):
+                if name == "python3":
+                    return str(python_bin)
+                return None
+
+            graphify_stub_probes = self.host_probes_from_which(module, which_graphify_stub)
+            graphify_missing_probes = self.host_probes_from_which(module, which_graphify_missing)
+            self.assertEqual(
+                "store-stub",
+                next(item["kind"] for item in graphify_stub_probes if item["name"] == "graphify"),
+            )
+            missing_kind = next(
+                item["kind"] for item in graphify_missing_probes if item["name"] == "graphify"
+            )
+            self.assertEqual("missing", missing_kind)
             stub_launch = module._run_project_setup_command(
-                [windows_graphify, "extract", ".", "--code-only"],
+                [str(graphify_bin), "extract", ".", "--code-only"],
                 project,
                 runner=runner(
                     "Python was not found; run without arguments to install from the Microsoft Store"
                 ),
-                host_probes=windows_probes,
+                host_probes=graphify_stub_probes,
             )
             missing_launch = module._run_project_setup_command(
-                [posix_graphify, "extract", ".", "--code-only"],
+                [str(graphify_bin), "extract", ".", "--code-only"],
                 project,
                 runner=runner("graphify: No such file or directory"),
-                host_probes=posix_probes,
+                host_probes=graphify_missing_probes,
             )
             self.assertEqual(0, stub_launch.returncode)
             self.assertEqual(0, missing_launch.returncode)
