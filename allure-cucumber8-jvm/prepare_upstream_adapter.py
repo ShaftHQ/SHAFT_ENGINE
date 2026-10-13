@@ -22,6 +22,7 @@ import subprocess  # nosec B404 - mvn and javadoc are fixed toolchain commands
 import sys
 import tarfile
 import urllib.request
+import zipfile
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -189,9 +190,36 @@ def write_javadoc(source_root: Path, work: Path) -> None:
         raise RuntimeError("javadoc produced no html")
 
 
+def stage_classes(jar_bytes: bytes, classes_dir: Path) -> None:
+    """Unpack the pinned jar so a reactor ``test`` build can compile dependents.
+
+    The publish copy still happens at package. ``mvn test`` stops before that,
+    and shaft-engine would otherwise compile against an empty ``target/classes``.
+    """
+    classes_dir.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(io.BytesIO(jar_bytes)) as archive:
+        for info in archive.infolist():
+            name = info.filename
+            if name.endswith("/"):
+                continue
+            parts = Path(name).parts
+            if name.startswith(("/", "\\")) or ".." in parts or not parts:
+                raise RuntimeError(f"refusing jar path {name}")
+            destination = classes_dir.joinpath(*parts)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(archive.read(info))
+    marker = classes_dir / "io/qameta/allure/cucumber8jvm/AllureCucumber8Jvm.class"
+    if not marker.is_file():
+        raise RuntimeError("adapter jar did not include AllureCucumber8Jvm.class")
+
+
 def main() -> int:
-    if len(sys.argv) != 3:
-        print("usage: prepare_upstream_adapter.py TARGET_DIR EXPECTED_SHA256", file=sys.stderr)
+    classes_only = len(sys.argv) == 4 and sys.argv[3] == "--classes-only"
+    if not classes_only and len(sys.argv) != 3:
+        print(
+            "usage: prepare_upstream_adapter.py TARGET_DIR EXPECTED_SHA256 [--classes-only]",
+            file=sys.stderr,
+        )
         return 2
     target = Path(sys.argv[1]).resolve()
     expected = sys.argv[2].strip().lower()
@@ -202,6 +230,9 @@ def main() -> int:
         print(f"adapter jar sha256 {digest} != {expected}", file=sys.stderr)
         return 1
     (target / "upstream-adapter.jar").write_bytes(jar_bytes)
+    if classes_only:
+        stage_classes(jar_bytes, target / "classes")
+        return 0
     source_root = target / "upstream-src"
     extract_java_sources(download(SOURCE_URL), source_root)
     write_javadoc(source_root, target)

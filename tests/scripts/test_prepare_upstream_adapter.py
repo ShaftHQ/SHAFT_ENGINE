@@ -1,8 +1,10 @@
 """The adapter publish helper only downloads the pinned upstream hosts."""
 
 import importlib.util
+import io
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -40,6 +42,29 @@ class PrepareUpstreamAdapterTest(unittest.TestCase):
             ["cmd.exe", "/d", "/c", r"C:\Maven\bin\mvn.cmd", "-version"],
             check=True,
         )
+
+    def test_stage_classes_writes_the_adapter_class(self):
+        module = load_script()
+        payload = io.BytesIO()
+        with zipfile.ZipFile(payload, "w") as archive:
+            archive.writestr(
+                "io/qameta/allure/cucumber8jvm/AllureCucumber8Jvm.class",
+                b"ok",
+            )
+        with tempfile.TemporaryDirectory() as temporary:
+            classes = Path(temporary)
+            module.stage_classes(payload.getvalue(), classes)
+            written = classes / "io/qameta/allure/cucumber8jvm/AllureCucumber8Jvm.class"
+            self.assertEqual(b"ok", written.read_bytes())
+
+    def test_stage_classes_refuses_parent_paths(self):
+        module = load_script()
+        payload = io.BytesIO()
+        with zipfile.ZipFile(payload, "w") as archive:
+            archive.writestr("../evil.class", b"no")
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaises(RuntimeError):
+                module.stage_classes(payload.getvalue(), Path(temporary))
 
     def test_java_home_javadoc_exe_is_preferred(self):
         module = load_script()
