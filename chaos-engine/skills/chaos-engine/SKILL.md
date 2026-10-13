@@ -70,6 +70,9 @@ on explicit invocation.
 
 ## Check and deliver
 
+- The chaos-engine skill forbids a Maven repository that returns 200 for any
+  coordinate other than the intended artifact. A repository that 404s every
+  other coordinate stays allowed.
 - Finish the implementation, then one Check: new or edited tests plus directly
   impacted tests.
 - One fresh-context review after implementation; a second round only for

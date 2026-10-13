@@ -32,6 +32,12 @@ active worktree, bind the full `HEAD` SHA and branch, push, and create or update
 the PR with an explicit base. Persist its `baseRefName`, PR identity, and
 `closingIssuesReferences`. Keep nonempty `## Summary`, `## Checks`, and
 `## Continuation` sections current for the delivered head.
+On the runs observed for pull request 6913, a body-only edit does not re-run
+PR Gate Summary or Release-note governance. Current workflows: `pr-gate.yml`
+has no `edited` type, so a body-only edit does not re-run PR Gate Summary.
+`release-note-governance.yml` includes `edited`, so a body-only edit does
+re-run Release-note governance. Push a commit before expecting PR Gate Summary
+to read the new body.
 
 ### Riskiest assumption (before merge)
 

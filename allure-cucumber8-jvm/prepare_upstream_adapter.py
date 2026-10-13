@@ -5,6 +5,11 @@ Stage the pinned Allure Cucumber 8 adapter jar, sources, and javadoc.
 SHAFT redistributes the allure-java build a1df39ff under its own version so
 Maven Central can serve it. The jar bytes are rejected unless the SHA-256
 matches the pin passed by the module POM.
+
+JitPack's single-module publish of that commit said BUILD SUCCESSFUL and is
+served as com.github.MohabMohie:allure-java:a1df39fffb1389ecbce951d617b5da3c49bb1a3a,
+not com.github.USER.REPO:module:COMMIT. This script does not add jitpack.io
+as a Maven repository.
 """
 
 from __future__ import annotations

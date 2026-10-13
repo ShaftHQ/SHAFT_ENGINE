@@ -26,6 +26,10 @@ LIFECYCLE_TRANSITIONS: Mapping[str, tuple[str, ...]] = {
     "Planned": ("Approved", "Blocked"),
     "Approved": ("Do", "Blocked"),
     "Do": ("Check", "Blocked"),
+    # A warm Maven cache is not proof of a newly declared repository.
+    # jitpack.io served the docker-java POM for a coordinate that was not the
+    # intended artifact. Stay in Check until a resolve that does not reuse that
+    # cache succeeds.
     "Check": ("Act", "Blocked"),
     "Act": ("PullRequest", "Blocked"),
     "PullRequest": ("Reviewed", "Blocked"),

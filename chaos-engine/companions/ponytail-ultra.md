@@ -12,3 +12,4 @@ apply here. Off only: `stop ponytail` or `normal mode`.
 - Ship the smallest correct change and challenge the rest of the requirement.
 - Never simplify away: validation at trust boundaries, error handling, security,
   tests that protect behavior, accessibility.
+- An in-tree copy is not a resolved upstream adapter, even when its unit test passes.
