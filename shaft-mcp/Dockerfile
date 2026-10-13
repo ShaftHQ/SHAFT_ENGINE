@@ -1,6 +1,9 @@
 FROM maven:3.9.11-eclipse-temurin-25 AS builder
 
 # allure-cucumber8-jvm stages its adapter with python3. The Maven base image does not ship it.
+# The contract is that python3 exists before Maven. An apt revision pin would fail the
+# image when that revision leaves the base archive, which is not a missing interpreter.
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends python3 \
     && rm -rf /var/lib/apt/lists/*
 

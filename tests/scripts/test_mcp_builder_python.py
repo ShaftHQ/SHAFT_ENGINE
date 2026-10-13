@@ -1,4 +1,5 @@
-"""shaft-mcp Maven builder images must have python3 before they run Maven.
+"""
+shaft-mcp Maven builder images must have python3 before they run Maven.
 
 allure-cucumber8-jvm stages its adapter with <executable>python3</executable>.
 The maven:eclipse-temurin builder does not ship python3, so the image build
