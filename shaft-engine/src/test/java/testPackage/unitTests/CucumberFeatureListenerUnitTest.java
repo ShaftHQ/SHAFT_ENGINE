@@ -20,9 +20,10 @@ public class CucumberFeatureListenerUnitTest {
     @Test
     public void constructorsAndEventPublisherRegistrationShouldWork() throws Exception {
         // The loaded adapter must be the resolved jar. An unpack into target/classes is a local copy.
+        // The jar version tracks the SHAFT release, so the check accepts any version segment.
         URL source = AllureCucumber8Jvm.class.getProtectionDomain().getCodeSource().getLocation();
         String location = source.toString();
-        Assert.assertTrue(location.contains("allure-cucumber8-jvm-10.4.20261010.jar"), location);
+        Assert.assertTrue(location.contains("allure-cucumber8-jvm-") && location.contains(".jar"), location);
         Assert.assertFalse(location.contains("target/classes"), location);
         Assert.assertFalse(Files.exists(Path.of("src/main/java/io/qameta/allure/cucumber8jvm/AllureCucumber8Jvm.java")));
         new CucumberFeatureListener();
