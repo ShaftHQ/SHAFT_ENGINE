@@ -14,7 +14,8 @@ import java.util.Map;
  * {@code scrollTop} on the nested overflow ancestor (or the document) and returns only after that
  * assignment. It does not use {@code behavior: "smooth"}. Unchanged {@code scrollLeft} and
  * {@code scrollTop} are not movement. A target that is still outside the viewport is not treated
- * as scrolled into view.
+ * as scrolled into view. The document scrolling element is measured against the layout viewport
+ * ({@code 0, 0, innerWidth, innerHeight}). A nested overflow ancestor keeps its own border box.
  */
 public final class WebScroll {
     static final String METRICS_SCRIPT = """
@@ -37,9 +38,19 @@ public final class WebScroll {
               }
               return document.scrollingElement || document.documentElement;
             }
+            function layoutViewport() {
+              return {left: 0, top: 0, right: window.innerWidth || 0, bottom: window.innerHeight || 0};
+            }
+            function viewOf(node) {
+              const root = document.scrollingElement || document.documentElement;
+              if (node === root || node === document.documentElement) {
+                return layoutViewport();
+              }
+              return node.getBoundingClientRect();
+            }
             const scroller = ancestor(element);
             const child = element.getBoundingClientRect();
-            const view = scroller.getBoundingClientRect();
+            const view = viewOf(scroller);
             return {
               childLeft: child.left,
               childTop: child.top,

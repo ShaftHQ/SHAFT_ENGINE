@@ -1345,6 +1345,11 @@ public class ActionsCoverageUnitTest {
                 Assert.assertFalse(script.contains("smooth"), script);
                 Assert.assertFalse(script.contains("behavior"), script);
             }
+            String metricsScript = scripts.stream()
+                    .filter(script -> script.contains("/* shaft-scroll-metrics */"))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("metrics script was not recorded"));
+            assertDocumentViewUsesLayoutViewport(metricsScript);
             Assert.assertTrue(scripts.stream().anyMatch(script -> script.contains("parentElement") && script.contains("scrollHeight")));
             int applyCount = (int) scripts.stream().filter(script -> script.contains("shaft-scroll-apply")).count();
             Assert.assertTrue(applyCount > 0);
@@ -1356,6 +1361,17 @@ public class ActionsCoverageUnitTest {
                 Assert.assertEquals(applyCount, firstApplyCount);
             }
         }
+    }
+
+    private static void assertDocumentViewUsesLayoutViewport(String metricsScript) {
+        int root = metricsScript.indexOf("document.scrollingElement || document.documentElement");
+        int viewportWidth = metricsScript.indexOf("window.innerWidth");
+        int viewportHeight = metricsScript.indexOf("window.innerHeight");
+        int nestedBox = metricsScript.indexOf("return node.getBoundingClientRect()");
+        Assert.assertTrue(root >= 0, metricsScript);
+        Assert.assertTrue(viewportWidth > root && viewportHeight > root, metricsScript);
+        Assert.assertTrue(nestedBox > viewportHeight, metricsScript);
+        Assert.assertFalse(metricsScript.contains("const view = scroller.getBoundingClientRect()"), metricsScript);
     }
 
     private WebDriver scrollDriver(NestedScrollModel model, List<String> scripts) {
