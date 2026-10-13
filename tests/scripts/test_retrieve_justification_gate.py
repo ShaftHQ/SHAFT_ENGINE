@@ -768,6 +768,150 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     command,
                 )
 
+    def test_multiline_listings_are_not_citation_blocks(self):
+        """Unquoted newlines split commands. Redirects are not checkout paths."""
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_multiline")
+        evidence = (
+            'python3 .chaos-engine/tool.py retrieve --store graphify '
+            '"J04 allure results evidence path"\n'
+            ">/dev/null\n"
+            "ls -la docs/defects/evidence/J04 2>&1 | head -20\n"
+            'echo "---- SUREFIRE ----"\n'
+            "ls target/surefire-reports 2>/dev/null | head\n"
+            'echo "---- SESSION SEARCH ----"\n'
+            "find /home/mohab/.grok/sessions -name '*result.json' 2>/dev/null | head -20\n"
+            'echo "---- TMP GOAL ----"\n'
+            "find /tmp -name '*result.json' 2>/dev/null | head -20"
+        )
+        png = (
+            "ls -la docs/defects/evidence/J04 2>&1 | head\n"
+            'echo "---- SEARCH RESULT JSON ----"\n'
+            "find /tmp /home/mohab/.grok/sessions -name '*-result.json' "
+            "-path '*allure*' 2>/dev/null |\n"
+            "head -40\n"
+            'echo "---- KNOWN PNG ----"\n'
+            "find /media/mohab/Data/hrsd-automation-tests /tmp /home/mohab "
+            "-name '5189c2d7*' 2>/dev/null |\n"
+            "head\n"
+            'echo "---- SUREFIRE ----"\n'
+            "ls -la target/surefire-reports 2>/dev/null | head"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src" / "hooks.bak").mkdir(parents=True)
+            (project / "src" / "Foo.java").write_text("class Foo {}\n", encoding="utf-8")
+            for command in (evidence, png):
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                        session_id="listing",
+                    ),
+                    command,
+                )
+            outside = "find /home/mohab/.grok/sessions -name '*result.json' 2>/dev/null"
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(outside,),
+                    session_id="outside-redir",
+                )
+            )
+            self.assertIsNone(gate.session_retrieve_gap(project, "outside-redir"))
+            for command in (
+                "ls -la docs/defects/evidence/J04",
+                "ls target/surefire-reports",
+                "find /home/mohab/.grok/sessions -name '*result.json'",
+            ):
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                        session_id="single",
+                    ),
+                    command,
+                )
+            denied = (
+                "cat src/hooks.bak",
+                "sed -n '1,20p' src/hooks.bak",
+                "cat src/hooks.bak 2>/dev/null",
+                "cat \\\nsrc/hooks.bak",
+                "python3 -c \"print(1)\nopen('src/hooks.bak').read()\"",
+                "python3 - <<'PY'\nPath(\"src/hooks.bak\").read_text()\nPY",
+                "find . -exec cat {} +",
+                "find . -execdir cat {} +",
+                "gh api repos/ShaftHQ/SHAFT_ENGINE/actions/jobs/1/logs "
+                "&& sed -n '1,20p' src/hooks.bak",
+            )
+            for command in denied:
+                self.assertIsNotNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                        session_id="still-denied",
+                    ),
+                    command,
+                )
+            for command in ("find src -name Foo.java", "rg Foo src"):
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                        session_id="owed",
+                    ),
+                    command,
+                )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "owed"))
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=("cat src/Foo.java",),
+                    session_id="cheap-file",
+                )
+            )
+            self.assertIsNone(gate.session_retrieve_gap(project, "cheap-file"))
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=("find src -name Foo.java",),
+                    session_id="early",
+                )
+            )
+            self.assertIsNone(
+                gate.file_read_block_reason(
+                    project=project,
+                    event_name="PreToolUse",
+                    tool_name="Bash",
+                    tool_input={},
+                    commands=(
+                        'python3 .chaos-engine/tool.py retrieve --store graphify "callers"',
+                    ),
+                    session_id="early",
+                )
+            )
+            self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "early"))
+
 
 if __name__ == "__main__":
     unittest.main()
