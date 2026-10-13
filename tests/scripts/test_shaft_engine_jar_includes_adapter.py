@@ -1,4 +1,4 @@
-"""The packaged shaft-engine jar must contain the Cucumber 8 adapter package."""
+"""SHAFT consumes the Cucumber 8 adapter jar and does not unpack it into shaft-engine."""
 
 import unittest
 import zipfile
@@ -22,15 +22,20 @@ VENDOR_SOURCE = (
 
 
 class ShaftEngineJarIncludesAdapterTest(unittest.TestCase):
-    def test_jar_includes_io_package(self):
+    def test_adapter_jar_is_consumed_not_unpacked(self):
         pom = POM.read_text(encoding="utf-8")
+        parent = (REPO_ROOT / "pom.xml").read_text(encoding="utf-8")
         self.assertIn("<artifactId>allure-cucumber8-jvm</artifactId>", pom)
         self.assertIn("<version>a1df39ff</version>", pom)
-        self.assertIn("raw.githubusercontent.com/MohabMohie/allure-java/maven-repo/", pom)
+        adapter = pom.split("<artifactId>allure-cucumber8-jvm</artifactId>", 1)[1].split("</dependency>", 1)[0]
+        self.assertNotIn("<optional>", adapter)
+        self.assertNotIn("unpack-cucumber8-adapter", pom)
+        self.assertNotIn("<include>io/**/*</include>", pom)
         self.assertNotIn("jitpack.io", pom)
+        self.assertNotIn("jitpack.io", parent)
+        self.assertNotIn("raw.githubusercontent.com/MohabMohie/allure-java/maven-repo/", pom)
+        self.assertIn("raw.githubusercontent.com/MohabMohie/allure-java/maven-repo/", parent)
         self.assertFalse(VENDOR_SOURCE.exists())
-        self.assertIn("<include>io/**/*</include>", pom)
-        self.assertIn("<include>com/**/*</include>", pom)
         packaged = [
             path
             for path in sorted((REPO_ROOT / "shaft-engine" / "target").glob("shaft-engine-*.jar"))
@@ -40,7 +45,7 @@ class ShaftEngineJarIncludesAdapterTest(unittest.TestCase):
             return
         with zipfile.ZipFile(packaged[-1]) as archive:
             names = archive.namelist()
-            self.assertIn(ADAPTER_CLASS, names)
+            self.assertNotIn(ADAPTER_CLASS, names)
             self.assertNotIn("module-info.class", names)
             self.assertNotIn("META-INF/aop-ajc.xml", names)
 

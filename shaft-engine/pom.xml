@@ -35,20 +35,6 @@
         <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
     </scm>
 
-    <repositories>
-        <!-- Hosts only io.github.shafthq:allure-cucumber8-jvm. Other coordinates 404 here and stay on Maven Central. -->
-        <repository>
-            <id>shafthq-allure-cucumber8</id>
-            <url>https://raw.githubusercontent.com/MohabMohie/allure-java/maven-repo/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
     <dependencies>
         <!-- SHAFT.API.grpc (#6406): reflection client; already on the runtime classpath via tink-gcpkms, version from grpc-bom. -->
         <dependency>
@@ -171,12 +157,11 @@
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>
         </dependency>
-        <!-- Resolvable Cucumber 8 adapter (allure-java a1df39ff). Optional so Central consumers do not resolve it; prepare-package copies its classes into this jar. -->
+        <!-- Cucumber 8 adapter jar from allure-java a1df39ff. The parent repository 404s every other coordinate, so docker-java stays on Maven Central. -->
         <dependency>
             <groupId>io.github.shafthq</groupId>
             <artifactId>allure-cucumber8-jvm</artifactId>
             <version>a1df39ff</version>
-            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>
@@ -674,46 +659,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.8.1</version>
-                <executions>
-                    <execution>
-                        <id>unpack-cucumber8-adapter</id>
-                        <phase>prepare-package</phase>
-                        <goals>
-                            <goal>unpack</goal>
-                        </goals>
-                        <configuration>
-                            <artifactItems>
-                                <artifactItem>
-                                    <groupId>io.github.shafthq</groupId>
-                                    <artifactId>allure-cucumber8-jvm</artifactId>
-                                    <version>a1df39ff</version>
-                                    <outputDirectory>${project.build.outputDirectory}</outputDirectory>
-                                    <includes>io/qameta/allure/cucumber8jvm/**</includes>
-                                </artifactItem>
-                            </artifactItems>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <configuration>
-                    <!-- Parent includes only com/**. The resolved Cucumber 8 adapter is unpacked under io.qameta. -->
-                    <includes>
-                        <include>com/**/*</include>
-                        <include>io/**/*</include>
-                        <include>META-INF/**/*</include>
-                        <include>junit-platform.properties</include>
-                        <include>images/**/*</include>
-                        <include>resources/**/*</include>
-                    </includes>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
