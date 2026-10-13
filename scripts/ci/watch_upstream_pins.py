@@ -260,7 +260,8 @@ UV_ASSETS = {
 
 
 def uv_release_from_github_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
-    """Build one uv pin release from a GitHub release document.
+    """
+    Build one uv pin release from a GitHub release document.
 
     Every OS asset must carry a sha256 digest. A missing digest refuses the
     bump instead of leaving that platform on the previous checksum.
@@ -415,30 +416,28 @@ def _replace_package_version(package: str, version: str) -> str:
     raise ValueError(f"package pin is not name==version or name@version: {package}")
 
 
-def apply_linked_pin(
-    spec: Mapping[str, Any],
-    wrappers: Mapping[str, str],
-    release: Mapping[str, Any],
-) -> tuple[dict[str, Any], dict[str, str]]:
-    """Move every consumer of one component pin onto ``release`` together.
-
-    The generation Python series (``runtimes.python``) and the project-runtime
-    Python series (``dependencies.python``) are not this pin and are left as
-    they are. A release that omits an OS artifact is rejected so no platform
-    keeps the previous checksum.
-    """
+def _linked_component(release: Mapping[str, Any]) -> tuple[str, str]:
     component = str(release.get("component") or "")
     version = str(release.get("version") or "")
-    provided = release.get("artifacts")
     if not component or not _STABLE_VERSION.fullmatch(version):
         raise ValueError("stable release is missing a component or a stable version")
     if component == "python":
         raise ValueError("the Python generation pin and the project-runtime pin are not one bump")
-    updated = copy.deepcopy(dict(spec))
-    tools = updated.get("tools")
-    runtimes = updated.get("runtimes")
+    return component, version
+
+
+def _linked_tool(spec: Mapping[str, Any], component: str) -> dict[str, Any]:
+    tools = spec.get("tools")
     if not isinstance(tools, dict) or component not in tools:
         raise ValueError(f"{component} has no tool pin to move")
+    tool = tools[component]
+    if not isinstance(tool, dict) or not isinstance(tool.get("package"), str):
+        raise ValueError(f"{component} tool pin has no package")
+    return tool
+
+
+def _linked_runtime(spec: Mapping[str, Any], component: str) -> tuple[dict[str, Any], dict[str, Any], str]:
+    runtimes = spec.get("runtimes")
     if not isinstance(runtimes, dict) or component not in runtimes:
         raise ValueError(f"{component} has no runtime pin to move")
     runtime = runtimes[component]
@@ -447,42 +446,93 @@ def apply_linked_pin(
     artifacts = runtime.get("artifacts")
     if not isinstance(artifacts, dict) or not artifacts:
         raise ValueError(f"{component} has no per-OS artifacts")
-    if not isinstance(provided, Mapping) or set(provided) != set(artifacts):
-        raise ValueError(f"{component} stable release must name every OS artifact")
     old_version = str(runtime.get("version") or "")
     if not old_version:
         raise ValueError(f"{component} runtime pin has no version")
+    return runtime, artifacts, old_version
+
+
+def _same_artifact_set(component: str, artifacts: Mapping[str, Any], provided: object) -> Mapping[str, Any]:
+    if not isinstance(provided, Mapping) or set(provided) != set(artifacts):
+        raise ValueError(f"{component} stable release must name every OS artifact")
+    return provided
+
+
+def _refuse_downgrade(component: str, version: str, old_version: str) -> None:
     if _version_key(version) < _version_key(old_version):
         raise ValueError(f"{component} stable {version} is older than pin {old_version}")
-    tool = tools[component]
-    if not isinstance(tool, dict) or not isinstance(tool.get("package"), str):
-        raise ValueError(f"{component} tool pin has no package")
+
+
+def _rewrite_one_artifact(
+    component: str,
+    platform: str,
+    row: object,
+    old_version: str,
+    version: str,
+    incoming: object,
+) -> str:
+    if not isinstance(row, dict) or not isinstance(row.get("url"), str):
+        raise ValueError(f"{component} artifact is invalid: {platform}")
+    digest = incoming.get("sha256") if isinstance(incoming, Mapping) else None
+    if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+        raise ValueError(f"{component} artifact checksum is invalid: {platform}")
+    if old_version not in str(row["url"]):
+        raise ValueError(f"{component} artifact URL is not on {old_version}: {platform}")
+    row["url"] = str(row["url"]).replace(old_version, version)
+    row["sha256"] = digest
+    if version not in row["url"]:
+        raise ValueError(f"{component} artifact URL missed {version}: {platform}")
+    return digest
+
+
+def _old_digest(row: Mapping[str, Any]) -> str:
+    return str(row.get("sha256") or "")
+
+
+def _stamp_digest(wrappers: dict[str, str], old_digest: str, digest: str) -> None:
+    if not old_digest:
+        return
+    for label, text in list(wrappers.items()):
+        if old_digest in text:
+            wrappers[label] = text.replace(old_digest, digest)
+
+
+def _stamp_version(wrappers: dict[str, str], old_version: str, version: str) -> None:
+    for label, text in list(wrappers.items()):
+        if old_version not in text:
+            raise ValueError(f"installer provisioning pin {label} does not contain {old_version}")
+        wrappers[label] = text.replace(old_version, version)
+
+
+def apply_linked_pin(
+    spec: Mapping[str, Any],
+    wrappers: Mapping[str, str],
+    release: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, str]]:
+    """
+    Move every consumer of one component pin onto ``release`` together.
+
+    The generation Python series (``runtimes.python``) and the project-runtime
+    Python series (``dependencies.python``) are not this pin and are left as
+    they are. A release that omits an OS artifact is rejected so no platform
+    keeps the previous checksum.
+    """
+    component, version = _linked_component(release)
+    updated = copy.deepcopy(dict(spec))
+    tool = _linked_tool(updated, component)
+    runtime, artifacts, old_version = _linked_runtime(updated, component)
+    provided = _same_artifact_set(component, artifacts, release.get("artifacts"))
+    _refuse_downgrade(component, version, old_version)
     next_wrappers = dict(wrappers)
     if _version_key(version) == _version_key(old_version):
         return updated, next_wrappers
     tool["package"] = _replace_package_version(str(tool["package"]), version)
     runtime["version"] = version
     for platform, row in artifacts.items():
-        if not isinstance(row, dict) or not isinstance(row.get("url"), str):
-            raise ValueError(f"{component} artifact is invalid: {platform}")
-        incoming = provided[platform]
-        digest = incoming.get("sha256") if isinstance(incoming, Mapping) else None
-        if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
-            raise ValueError(f"{component} artifact checksum is invalid: {platform}")
-        old_digest = str(row.get("sha256") or "")
-        if old_version not in str(row["url"]):
-            raise ValueError(f"{component} artifact URL is not on {old_version}: {platform}")
-        row["url"] = str(row["url"]).replace(old_version, version)
-        row["sha256"] = digest
-        if version not in row["url"]:
-            raise ValueError(f"{component} artifact URL missed {version}: {platform}")
-        for label, text in list(next_wrappers.items()):
-            if old_digest and old_digest in text:
-                next_wrappers[label] = text.replace(old_digest, digest)
-    for label, text in list(next_wrappers.items()):
-        if old_version not in text:
-            raise ValueError(f"installer provisioning pin {label} does not contain {old_version}")
-        next_wrappers[label] = text.replace(old_version, version)
+        previous = _old_digest(row)
+        _rewrite_one_artifact(component, platform, row, old_version, version, provided[platform])
+        _stamp_digest(next_wrappers, previous, str(row["sha256"]))
+    _stamp_version(next_wrappers, old_version, version)
     return updated, next_wrappers
 
 

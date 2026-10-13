@@ -2730,7 +2730,8 @@ class PythonDownloadLag6325Test(unittest.TestCase):
 
 
 class GraphifyExtractProvision6934Test(unittest.TestCase):
-    """#6934: a false graphify extract failure is shared across host probes.
+    """
+    A false graphify extract failure is shared across host probes.
 
     A Windows Store alias and a POSIX missing binary are the same unusable
     probe. An empty corpus does not abort provision. A real extract diagnostic
@@ -2931,7 +2932,7 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
             env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
             env["CHAOS_ENGINE_REPOSITORY"] = "ShaftHQ/SHAFT_ENGINE"
             env.pop("CHAOS_ENGINE_INSTALL_URL", None)
-            completed = subprocess.run(
+            completed = subprocess.run(  # nosec B603 B607 - fixed install.sh path, never a shell string.
                 ["sh", str(ROOT / "chaos-engine/install.sh")],
                 cwd=project,
                 env=env,
