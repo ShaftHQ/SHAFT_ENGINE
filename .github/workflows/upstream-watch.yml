@@ -2,7 +2,9 @@ name: Upstream pin watch
 
 # Compares repository pins for MemPalace, Graphify, and vendored companion
 # skills with the latest stable upstream. Opens or updates one issue when a
-# pin is behind. Does not merge, and does not install or upgrade tools.
+# pin is behind. When a published uv release is newer, rewrites every linked
+# consumer and the installer provisioning pin to that release and opens a PR.
+# Does not install tools, and does not merge the PR.
 
 on:
   schedule:
@@ -23,14 +25,28 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
-      contents: read
+      contents: write
       issues: write
+      pull-requests: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
 
-      - name: Compare pins and file one suggestion
+      - name: Compare pins and synchronize linked releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python3 scripts/ci/watch_upstream_pins.py --write
+        run: python3 scripts/ci/watch_upstream_pins.py --write --apply
+
+      - name: Open a pull request when linked pins moved
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          git diff --quiet && exit 0
+          branch="chore/upstream-pin-sync-${GITHUB_RUN_ID}"
+          git checkout -b "$branch"
+          git add chaos-engine/dependencies.json chaos-engine/install.ps1 chaos-engine/install.sh
+          git -c user.email="actions@users.noreply.github.com" -c user.name="ChaosEngine pin sync" commit -m "Synchronize linked ChaosEngine pins to the published stable release."
+          git push --set-upstream origin "$branch"
+          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" --title "Synchronize linked ChaosEngine pins" --body "A published stable release moved every linked ChaosEngine consumer and the installer provisioning pin together."

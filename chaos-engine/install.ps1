@@ -341,6 +341,20 @@ try {
     else { $invoke = @($python) + $arguments }
     & $invoke[0] @($invoke[1..($invoke.Length - 1)])
     if ($LASTEXITCODE -ne 0) {
+        $cause = $null
+        $trace = Join-Path $project ".chaos-engine-state\install-trace.json"
+        if (Test-Path -LiteralPath $trace) {
+            try {
+                $payload = Get-Content -LiteralPath $trace -Raw | ConvertFrom-Json
+                $cause = [string]$payload.result.cause
+            }
+            catch {
+                $cause = $null
+            }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($cause)) {
+            throw "ChaosEngine bootstrap failed with exit ${LASTEXITCODE}: $cause"
+        }
         throw "ChaosEngine bootstrap failed with exit $LASTEXITCODE"
     }
 }

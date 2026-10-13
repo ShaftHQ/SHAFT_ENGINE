@@ -219,4 +219,36 @@ fi
 for forwarded_flag in $forwarded_flags; do
   set -- "$@" "$forwarded_flag"
 done
+set +e
 "$@"
+status=$?
+set -e
+if [ "$status" -ne 0 ]; then
+  cause=""
+  trace="${project}/.chaos-engine-state/install-trace.json"
+  if [ -f "$trace" ]; then
+    # Same interpreter that ran bootstrap. A host with only uv-managed Python
+    # has no python3 on PATH, and a Windows Store stub named python3 is not it.
+    cause_script='
+import json, sys
+path = sys.argv[1]
+try:
+    payload = json.load(open(path, encoding="utf-8"))
+except (OSError, ValueError):
+    raise SystemExit(0)
+result = payload.get("result") if isinstance(payload, dict) else None
+cause = result.get("cause") if isinstance(result, dict) else None
+if isinstance(cause, str) and cause.strip():
+    sys.stdout.write(cause.strip())
+'
+    if [ -n "$python" ]; then
+      cause=$("$python" -c "$cause_script" "$trace" 2>/dev/null || true)
+    elif [ -n "${uv:-}" ]; then
+      cause=$("$uv" run --no-project --managed-python -c "$cause_script" "$trace" 2>/dev/null || true)
+    fi
+  fi
+  if [ -n "$cause" ]; then
+    fail "ChaosEngine bootstrap failed with exit ${status}: ${cause}"
+  fi
+  fail "ChaosEngine bootstrap failed with exit ${status}"
+fi
