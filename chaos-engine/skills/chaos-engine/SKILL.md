@@ -80,7 +80,7 @@ on explicit invocation.
 - One blocking CI wait per push; retry at most once. Stop and report.
 - Status reports are always a Markdown table. `tool.py usage`.
 - Learning Session after every final delivery.
-- SHAFT and ChaosEngine work is not done until pushed, a pull request is open, and that pull request is merged to the default branch ([delivery phase gates](../../references/delivery-phase-gates.md)). A local commit, a green test, or an open pull request is not completion.
+- Repository work is not done until pushed, a pull request is open, and that pull request is merged to the default branch ([delivery phase gates](../../references/delivery-phase-gates.md)). A local commit, a green test, or an open pull request is not completion.
 
 ## Route
 

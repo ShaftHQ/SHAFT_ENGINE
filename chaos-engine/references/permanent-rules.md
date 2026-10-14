@@ -32,7 +32,7 @@ Assistant memory keeps only this pointer: "Follow the ChaosEngine core card
 | Work-machine writes are parent-run one-shot jobs | [parent shell](../skills/local-agency/references/parent-rog-shell.md) |
 | Task isolation, fresh primary, cleanup scopes | [task isolation](task-isolation.md), [cleanup scopes](cleanup-scopes.md) |
 | Delegates load the delegate card, not the router | [delegate card](delegate-card.md) |
-| SHAFT and ChaosEngine repository changes are not done until pushed, a pull request is open, and that pull request is merged to the default branch | [delivery phase gates](delivery-phase-gates.md) |
+| Repository changes are not done until pushed, a pull request is open, and that pull request is merged to the default branch | [delivery phase gates](delivery-phase-gates.md) |
 | Owner autonomy: act within the delegated scope; ask the owner for opinions, never for approval | [kanban](../skills/kanban/SKILL.md) |
 | Single thread by default; delegate only when the owner enables delegation | [delegation](delegation.md) |
 | Fewest pull requests: group to-deliver issues | [kanban](../skills/kanban/SKILL.md) |
