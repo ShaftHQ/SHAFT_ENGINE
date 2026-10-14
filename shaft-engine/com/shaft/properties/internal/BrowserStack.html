@@ -173,7 +173,7 @@ properties at runtime.</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#appUrl()" class="member-name-link">appUrl</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">URL of a previously uploaded app on BrowserStack App Automate.</div>
+<div class="block">Immutable id of one uploaded app on BrowserStack App Automate (<code>bs://...</code>).</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#browserstackAutomation()" class="member-name-link">browserstackAutomation</a>()</code></div>
@@ -199,7 +199,7 @@ from SHAFT properties.</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#customID()" class="member-name-link">customID</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Custom ID assigned to an app uploaded to BrowserStack App Automate.</div>
+<div class="block">Upload label sent with a new app file.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#debug()" class="member-name-link">debug</a>()</code></div>
@@ -360,12 +360,12 @@ Override via a properties file or system property for your own account.</div>
 <div class="member-signature"><span class="annotations">@Key("browserStack.appUrl")
 @DefaultValue("")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">appUrl</span>()</div>
-<div class="block">URL of a previously uploaded app on BrowserStack App Automate.
-Note that this URL expires regularly; use <a href="#customID()"><code>customID()</code></a> to reference the latest upload.
+<div class="block">Immutable id of one uploaded app on BrowserStack App Automate (<code>bs://...</code>).
+The session capability is this id. A latest-upload alias is not the capability.
 <p>Property key: <code>browserStack.appUrl</code> — default: <code>""</code></div>
 <dl class="notes">
 <dt>Returns:</dt>
-<dd>the app URL string, or empty if not configured</dd>
+<dd>the immutable app URL, or empty if not configured</dd>
 </dl>
 </div>
 </section>
@@ -377,13 +377,12 @@ Note that this URL expires regularly; use <a href="#customID()"><code>customID()
 <div class="member-signature"><span class="annotations">@Key("browserStack.customID")
 @DefaultValue("")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">customID</span>()</div>
-<div class="block">Custom ID assigned to an app uploaded to BrowserStack App Automate.
-Using a custom ID always resolves to the latest uploaded version with that ID,
-avoiding expiry issues associated with <a href="#appUrl()"><code>appUrl()</code></a>.
+<div class="block">Upload label sent with a new app file. It tracks the latest upload and must not be copied
+into the session capability. The capability stays the immutable id returned by that upload.
 <p>Property key: <code>browserStack.customID</code> — default: <code>""</code></div>
 <dl class="notes">
 <dt>Returns:</dt>
-<dd>the custom ID string, or empty if not configured</dd>
+<dd>the upload label, or empty if not configured</dd>
 </dl>
 </div>
 </section>

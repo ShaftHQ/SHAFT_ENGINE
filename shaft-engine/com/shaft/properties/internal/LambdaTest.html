@@ -174,7 +174,7 @@ Controls credentials, OS/browser versions, and platform capabilities for remote 
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#appUrl()" class="member-name-link">appUrl</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Use appUrl to test a previously uploaded app file.</div>
+<div class="block">Immutable id of one uploaded app.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#autoAcceptAlerts()" class="member-name-link">autoAcceptAlerts</a>()</code></div>
@@ -209,7 +209,7 @@ Controls credentials, OS/browser versions, and platform capabilities for remote 
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#customID()" class="member-name-link">customID</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
-<div class="block">Custom app ID for testing a previously uploaded app by its custom identifier.</div>
+<div class="block">Upload label for a new app file.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#debug()" class="member-name-link">debug</a>()</code></div>
@@ -392,7 +392,8 @@ Controls credentials, OS/browser versions, and platform capabilities for remote 
 <div class="member-signature"><span class="annotations">@Key("LambdaTest.appUrl")
 @DefaultValue("")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">appUrl</span>()</div>
-<div class="block">Use appUrl to test a previously uploaded app file.</div>
+<div class="block">Immutable id of one uploaded app. The session capability is this id.
+A latest-upload alias is not the capability.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the configured value of <code>LambdaTest.appUrl</code></dd>
@@ -847,7 +848,8 @@ using the LambdaTest SDK (automate-config.yml).</div>
 <div class="member-signature"><span class="annotations">@Key("LambdaTest.customID")
 @DefaultValue("")
 </span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">customID</span>()</div>
-<div class="block">Custom app ID for testing a previously uploaded app by its custom identifier.</div>
+<div class="block">Upload label for a new app file. It tracks the latest upload and must not be copied
+into the session capability.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the configured value of <code>LambdaTest.customID</code></dd>

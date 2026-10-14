@@ -62,6 +62,7 @@
 <ol class="toc-list">
 <li><a href="#withCustomReportMessage(java.lang.String)" tabindex="0">withCustomReportMessage(String)</a></li>
 <li><a href="#perform()" tabindex="0">perform()</a></li>
+<li><a href="#finishOrDefer()" tabindex="0">finishOrDefer()</a></li>
 </ol>
 </li>
 </ol>
@@ -119,14 +120,19 @@
 <div class="table-header col-first">Modifier and Type</div>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#perform()" class="member-name-link">perform</a>()</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>final <a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#finishOrDefer()" class="member-name-link">finishOrDefer</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Run the terminal now, unless this same statement still attaches a custom report message or calls <a href="#perform()"><code>perform()</code></a>.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code>void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#perform()" class="member-name-link">perform</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Execute this validation</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withCustomReportMessage(java.lang.String)" class="member-name-link">withCustomReportMessage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;customReportMessage)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#withCustomReportMessage(java.lang.String)" class="member-name-link">withCustomReportMessage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;customReportMessage)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Set a customized business-readable message that will appear in the execution report instead of the technical log message which will be nested under it</div>
 </div>
 </div>
@@ -231,6 +237,16 @@
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">perform</span>()</div>
 <div class="block">Execute this validation</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="finishOrDefer()">
+<h3>finishOrDefer</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public final</span>&nbsp;<span class="return-type"><a href="ValidationsExecutor.html" title="class in com.shaft.validation.internal">ValidationsExecutor</a></span>&nbsp;<span class="element-name">finishOrDefer</span>()</div>
+<div class="block">Run the terminal now, unless this same statement still attaches a custom report message or calls <a href="#perform()"><code>perform()</code></a>.
+An unchained terminal still fails immediately.</div>
 </div>
 </section>
 </li>

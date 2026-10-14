@@ -157,8 +157,13 @@ direction.</div>
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ScrollMotion.Box.html" title="class in com.shaft.gui.element.internal">ScrollMotion.Box</a></span>&nbsp;<span class="element-name">nullContainerBox</span><wbr><span class="parameters">(<a href="../TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;direction,
  int&nbsp;screenWidth,
  int&nbsp;screenHeight)</span></div>
-<div class="block">Null-container Android <code>mobile: scrollGesture</code> box. The historical margins are kept,
-then the rectangle is clamped so it lies entirely on the screen.</div>
+<div class="block">Null-container Android <code>mobile: scrollGesture</code> box.
+
+<p>The box is built already on the screen. UP and LEFT used to start 100px from the far edge
+and then let <a href="#clampToScreen(int,int,int,int,int,int)"><code>clampToScreen(int, int, int, int, int, int)</code></a> cut them down to a thin strip, so the opposite-direction
+search reported that the scrollable did not move. DOWN and RIGHT keep a 100px margin and a
+span of about nine tenths of the screen. UP and LEFT use that same span, placed so the far
+edge still clears the margin.</div>
 </div>
 </section>
 </li>
