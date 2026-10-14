@@ -182,6 +182,22 @@ class ExecutionClassSkillTest(unittest.TestCase):
                 negated = "do not" in lowered or "must not" in lowered or "never " in lowered
                 self.assertFalse(instructs_new_file and not negated, f"{path.relative_to(ROOT)}: {line}")
 
+    def test_skill_edits_select_this_module(self):
+        from scripts.ci.harness_pr_gate import classify_paths
+
+        own_file = "tests/scripts/test_execution_class_skills.py"
+        paths = (
+            "shaft-skills/shaft-test-execution/references/playbook.md",
+            own_file,
+        )
+        for path in paths:
+            modules = classify_paths([path]).test_modules
+            self.assertIn("tests.scripts.test_execution_class_skills", modules, path)
+        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        self.assertIn(own_file, workflow)
+        scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(encoding="utf-8")
+        self.assertIn("tests.scripts.test_execution_class_skills", scheduled)
+
 
 if __name__ == "__main__":
     unittest.main()

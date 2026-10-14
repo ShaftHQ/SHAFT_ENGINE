@@ -159,7 +159,12 @@ CHECKS = {
         ("tests.scripts.test_validate_agent_plugins",),
     ),
     "plugin-quality-contract": Check(
-        "plugin-quality-contract", "plugins", ("tests.scripts.test_shaft_skill_quality",)
+        "plugin-quality-contract",
+        "plugins",
+        (
+            "tests.scripts.test_shaft_skill_quality",
+            "tests.scripts.test_execution_class_skills",
+        ),
     ),
     "retrieval-contract": Check(
         "retrieval-contract",
@@ -696,6 +701,7 @@ SURFACE_PATTERNS = {
         "scripts/ci/shaft_skill_*",
         "tests/scripts/test_*plugin*.py",
         "tests/scripts/test_shaft_skill*.py",
+        "tests/scripts/test_execution_class_skills.py",
     ),
     "retrieval": (
         ".memory/*",
