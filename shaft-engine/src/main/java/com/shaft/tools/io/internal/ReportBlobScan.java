@@ -1,5 +1,6 @@
 package com.shaft.tools.io.internal;
 
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,8 +18,40 @@ final class ReportBlobScan {
     private ReportBlobScan() {
     }
 
-    static Matcher tokens(String text) {
+    static Matcher tokens(CharSequence text) {
         return TOKEN.matcher(text);
+    }
+
+    /**
+     * A reusable ISO-8859-1 view of one byte buffer. Regex scans this directly so a
+     * large report does not allocate a String per window.
+     */
+    static final class Latin1Window implements CharSequence {
+        private final byte[] data;
+        private int length;
+
+        Latin1Window(byte[] data) {
+            this.data = data;
+        }
+
+        void setLength(int length) {
+            this.length = length;
+        }
+
+        @Override
+        public int length() {
+            return length;
+        }
+
+        @Override
+        public char charAt(int index) {
+            return (char) (data[index] & 0xff);
+        }
+
+        @Override
+        public CharSequence subSequence(int start, int end) {
+            return new String(data, start, end - start, StandardCharsets.ISO_8859_1);
+        }
     }
 
     static boolean atLeast(Matcher token, int minimum) {

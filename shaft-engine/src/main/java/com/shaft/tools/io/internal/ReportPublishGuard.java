@@ -107,48 +107,51 @@ public final class ReportPublishGuard {
     }
 
     private static void scan(InputStream input, List<Hit> hits) throws IOException {
-        byte[] window = new byte[WINDOW];
-        byte[] pending = new byte[0];
-        long pendingStart = 0;
-        long absolute = 0;
+        byte[] slide = new byte[WINDOW + MAX_BLOB];
+        ReportBlobScan.Latin1Window text = new ReportBlobScan.Latin1Window(slide);
+        Matcher tokens = ReportBlobScan.tokens(text);
+        Matcher blobs = ReportBlobScan.tokens(text);
+        Matcher[] plain = new Matcher[SHAPES.size()];
+        for (int i = 0; i < SHAPES.size(); i++) {
+            plain[i] = SHAPES.get(i).pattern().matcher(text);
+        }
+        int slideLen = 0;
+        long filePos = 0;
         while (true) {
-            int read = input.read(window);
+            int read = input.read(slide, slideLen, WINDOW);
             if (read < 0) {
                 break;
             }
-            byte[] chunk = new byte[pending.length + read];
-            System.arraycopy(pending, 0, chunk, 0, pending.length);
-            System.arraycopy(window, 0, chunk, pending.length, read);
-            long chunkStart = pendingStart;
-            String text = new String(chunk, StandardCharsets.ISO_8859_1);
-            collectPlaintext(text, chunkStart, hits);
-            collectBase64(text, chunkStart, hits);
-            int carry = Math.min(chunk.length, MAX_BLOB);
-            pending = new byte[carry];
-            System.arraycopy(chunk, chunk.length - carry, pending, 0, carry);
-            pendingStart = chunkStart + chunk.length - carry;
-            absolute += read;
-            if (absolute < 0) {
-                break;
+            slideLen += read;
+            text.setLength(slideLen);
+            collectPlaintext(plain, blobs, filePos, hits);
+            collectBase64(text, tokens, filePos, hits);
+            int keep = Math.min(slideLen, MAX_BLOB);
+            int discard = slideLen - keep;
+            if (discard > 0) {
+                System.arraycopy(slide, discard, slide, 0, keep);
+                slideLen = keep;
+                filePos += discard;
             }
         }
     }
 
-    private static void collectPlaintext(String text, long chunkStart, List<Hit> hits) {
-        for (Shape shape : SHAPES) {
-            Matcher matcher = shape.pattern().matcher(text);
+    private static void collectPlaintext(Matcher[] plain, Matcher blobs, long chunkStart, List<Hit> hits) {
+        for (int i = 0; i < plain.length; i++) {
+            Matcher matcher = plain[i];
+            matcher.reset();
             while (matcher.find()) {
-                if (insideDecodedBlob(text, matcher.start())) {
+                if (insideDecodedBlob(blobs, matcher.start())) {
                     continue;
                 }
                 byte[] replacement = asterisks(matcher.end() - matcher.start());
-                hits.add(new Hit(shape.secretClass(), chunkStart + matcher.start(), replacement));
+                hits.add(new Hit(SHAPES.get(i).secretClass(), chunkStart + matcher.start(), replacement));
             }
         }
     }
 
-    private static void collectBase64(String text, long chunkStart, List<Hit> hits) {
-        Matcher matcher = ReportBlobScan.tokens(text);
+    private static void collectBase64(CharSequence text, Matcher matcher, long chunkStart, List<Hit> hits) {
+        matcher.reset();
         while (matcher.find()) {
             Hit hit = decodedHit(text, matcher, chunkStart);
             if (hit != null) {
@@ -157,7 +160,7 @@ public final class ReportPublishGuard {
         }
     }
 
-    private static Hit decodedHit(String text, Matcher matcher, long chunkStart) {
+    private static Hit decodedHit(CharSequence text, Matcher matcher, long chunkStart) {
         if (!publishableToken(text, matcher)) {
             return null;
         }
@@ -174,7 +177,7 @@ public final class ReportPublishGuard {
         return new Hit(String.join(",", redaction.classes()), chunkStart + matcher.start(), reencoded);
     }
 
-    private static boolean publishableToken(String text, Matcher matcher) {
+    private static boolean publishableToken(CharSequence text, Matcher matcher) {
         int length = matcher.end() - matcher.start();
         if (!ReportBlobScan.atLeast(matcher, ReportBlobScan.PUBLISH_MINIMUM)) {
             return false;
@@ -240,18 +243,22 @@ public final class ReportPublishGuard {
         return reencoded;
     }
 
-    private static boolean imageContext(String text, int start) {
+    private static boolean imageContext(CharSequence text, int start) {
         int from = Math.max(0, start - 80);
-        String context = text.substring(from, start).toLowerCase(java.util.Locale.ROOT);
-        return context.contains("image/") || context.contains("data:image") || context.contains("video/");
+        StringBuilder context = new StringBuilder(start - from);
+        for (int i = from; i < start; i++) {
+            context.append(Character.toLowerCase(text.charAt(i)));
+        }
+        String lower = context.toString();
+        return lower.contains("image/") || lower.contains("data:image") || lower.contains("video/");
     }
 
-    private static boolean insideDecodedBlob(String text, int index) {
-        Matcher matcher = ReportBlobScan.tokens(text);
-        while (matcher.find()) {
-            if (ReportBlobScan.atLeast(matcher, ReportBlobScan.PUBLISH_MINIMUM)
-                    && matcher.start() <= index
-                    && index < matcher.end()) {
+    private static boolean insideDecodedBlob(Matcher blobs, int index) {
+        blobs.reset();
+        while (blobs.find()) {
+            if (ReportBlobScan.atLeast(blobs, ReportBlobScan.PUBLISH_MINIMUM)
+                    && blobs.start() <= index
+                    && index < blobs.end()) {
                 return true;
             }
         }

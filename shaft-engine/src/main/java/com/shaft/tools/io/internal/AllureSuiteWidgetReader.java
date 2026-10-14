@@ -48,41 +48,44 @@ public final class AllureSuiteWidgetReader {
             return 0;
         }
         boolean found = false;
-        byte[] pending = new byte[0];
+        byte[] slide = new byte[WINDOW + CARRY];
+        ReportBlobScan.Latin1Window text = new ReportBlobScan.Latin1Window(slide);
+        Matcher tokens = ReportBlobScan.tokens(text);
+        int slideLen = 0;
         try (InputStream input = Files.newInputStream(widgetFile)) {
-            byte[] window = new byte[WINDOW];
             while (true) {
-                int read = input.read(window);
+                int read = input.read(slide, slideLen, WINDOW);
                 if (read < 0) {
                     break;
                 }
-                byte[] chunk = new byte[pending.length + read];
-                System.arraycopy(pending, 0, chunk, 0, pending.length);
-                System.arraycopy(window, 0, chunk, pending.length, read);
-                if (containsSuite(chunk, suiteName)) {
+                slideLen += read;
+                text.setLength(slideLen);
+                if (containsSuite(text, tokens, suiteName)) {
                     found = true;
                 }
-                int carry = Math.min(chunk.length, CARRY);
-                pending = new byte[carry];
-                System.arraycopy(chunk, chunk.length - carry, pending, 0, carry);
+                int keep = Math.min(slideLen, CARRY);
+                int discard = slideLen - keep;
+                if (discard > 0) {
+                    System.arraycopy(slide, discard, slide, 0, keep);
+                    slideLen = keep;
+                }
             }
         }
         return found ? 1 : 0;
     }
 
-    private static boolean containsSuite(byte[] chunk, String suiteName) {
-        String text = new String(chunk, StandardCharsets.ISO_8859_1);
-        if (outsideBase64(text, suiteName)) {
+    private static boolean containsSuite(CharSequence text, Matcher tokens, String suiteName) {
+        if (outsideBase64(text, tokens, suiteName)) {
             return true;
         }
-        Matcher matcher = ReportBlobScan.tokens(text);
-        while (matcher.find()) {
-            int length = matcher.end() - matcher.start();
-            if (!ReportBlobScan.atLeast(matcher, ReportBlobScan.WIDGET_MINIMUM) || length > WINDOW) {
+        tokens.reset();
+        while (tokens.find()) {
+            int length = tokens.end() - tokens.start();
+            if (!ReportBlobScan.atLeast(tokens, ReportBlobScan.WIDGET_MINIMUM) || length > WINDOW) {
                 continue;
             }
             try {
-                String decoded = new String(Base64.getDecoder().decode(matcher.group()), StandardCharsets.UTF_8);
+                String decoded = new String(Base64.getDecoder().decode(tokens.group()), StandardCharsets.UTF_8);
                 if (decoded.contains(suiteName)) {
                     return true;
                 }
@@ -93,14 +96,15 @@ public final class AllureSuiteWidgetReader {
         return false;
     }
 
-    private static boolean outsideBase64(String text, String suiteName) {
+    private static boolean outsideBase64(CharSequence text, Matcher tokens, String suiteName) {
         int from = 0;
-        while (from <= text.length() - suiteName.length()) {
-            int at = text.indexOf(suiteName, from);
+        int limit = text.length() - suiteName.length();
+        while (from <= limit) {
+            int at = indexOf(text, suiteName, from);
             if (at < 0) {
                 return false;
             }
-            if (!insideRun(text, at, at + suiteName.length())) {
+            if (!insideRun(tokens, at, at + suiteName.length())) {
                 return true;
             }
             from = at + 1;
@@ -108,8 +112,27 @@ public final class AllureSuiteWidgetReader {
         return false;
     }
 
-    private static boolean insideRun(String text, int start, int end) {
-        Matcher matcher = ReportBlobScan.tokens(text);
+    private static int indexOf(CharSequence text, String needle, int from) {
+        int limit = text.length() - needle.length();
+        for (int i = from; i <= limit; i++) {
+            if (matchesAt(text, needle, i)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static boolean matchesAt(CharSequence text, String needle, int offset) {
+        for (int i = 0; i < needle.length(); i++) {
+            if (text.charAt(offset + i) != needle.charAt(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean insideRun(Matcher matcher, int start, int end) {
+        matcher.reset();
         while (matcher.find()) {
             if (ReportBlobScan.atLeast(matcher, ReportBlobScan.WIDGET_MINIMUM)
                     && matcher.start() <= start
