@@ -234,7 +234,13 @@ def _overlay_push_block(commands: tuple[str, ...]) -> str:
         return "overlay pre-push contract failed: checker unavailable"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    failures = module.overlay_pre_push_failures(project)
+    try:
+        failures = module.overlay_pre_push_failures(project)
+    except Exception as error:
+        # A checker crash is a contract failure. Leaving it uncaught makes the
+        # hook protocol report invalid JSON, and the same push is retried.
+        detail = str(error).strip().splitlines()[0] if str(error).strip() else type(error).__name__
+        return "overlay pre-push contract failed: " + type(error).__name__ + ": " + detail
     if not failures:
         return ""
     return "overlay pre-push contract failed: " + str(failures[0])

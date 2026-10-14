@@ -1306,6 +1306,43 @@ def touched_allowlisted_modules(root: Path, paths: list[str]) -> tuple[str, ...]
     return tuple(touched)
 
 
+def ungated_script_modules(root: Path) -> list[str]:
+    """``tests/scripts`` modules with no PR-gate check, workflow name, or allowlist row.
+
+    Stdlib only. The pre-push hook calls this directly so it does not import the
+    test module, whose other tests depend on packages the hook interpreter lacks.
+    """
+    gated: set[str] = set()
+    for check in CHECKS.values():
+        for name in check.modules:
+            parts = name.split(".")
+            if len(parts) >= 3 and parts[0] == "tests" and parts[1] == "scripts":
+                gated.add(".".join(parts[:3]))
+    workflow_dir = root / ".github" / "workflows"
+    workflows = ""
+    if workflow_dir.is_dir():
+        workflows = "\n".join(
+            path.read_text(encoding="utf-8", errors="ignore")
+            for path in sorted(workflow_dir.glob("*.yml"))
+        )
+    scripts = root / "tests" / "scripts"
+    if not scripts.is_dir():
+        return []
+    missing: list[str] = []
+    for path in sorted(scripts.glob("test_*.py")):
+        dotted = f"tests.scripts.{path.stem}"
+        if dotted in gated:
+            continue
+        reason = UNGATED_TEST_ALLOWLIST.get(dotted, "")
+        if isinstance(reason, str) and reason.strip():
+            continue
+        relative = path.relative_to(root).as_posix()
+        if dotted in workflows or relative in workflows:
+            continue
+        missing.append(dotted)
+    return missing
+
+
 def classify_paths(paths: list[str]) -> GatePlan:
     selected: list[str] = []
     unknown: list[str] = []

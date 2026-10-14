@@ -265,21 +265,30 @@ def portable_core_path_failures(root: Path) -> list[str]:
 def ungated_script_module_failures(root: Path) -> list[str]:
     """Refuse a new tests/scripts module that no harness PR-gate check selects (#6839).
 
-    Same check as ``UngatedScriptModuleGuardTest``; CI's Agent Guidance Gate fails on it otherwise.
+    Loads the stdlib checker by path. Importing the test module pulled PyYAML
+    into the hook interpreter, and that crash was reported as invalid JSON.
+    A consumer copy of this file has no harness gate and skips the check.
     """
-    gate = root / "tests/scripts/test_harness_pr_gate.py"
+    gate = root / "scripts/ci/harness_pr_gate.py"
     if not gate.is_file():
         return []
-    import unittest
-
-    from tests.scripts.test_harness_pr_gate import UngatedScriptModuleGuardTest
-
-    result = unittest.TestResult()
-    unittest.defaultTestLoader.loadTestsFromTestCase(UngatedScriptModuleGuardTest).run(result)
-    if result.wasSuccessful():
+    name = "chaos_engine_harness_pr_gate"
+    module = sys.modules.get(name)
+    if module is None or not hasattr(module, "ungated_script_modules"):
+        spec = importlib.util.spec_from_file_location(name, gate)
+        if spec is None or spec.loader is None:
+            return ["ungated script modules: checker unavailable"]
+        module = importlib.util.module_from_spec(spec)
+        # Dataclasses look up the class module in sys.modules during class body.
+        sys.modules[name] = module
+        spec.loader.exec_module(module)
+    missing = module.ungated_script_modules(root)
+    if not missing:
         return []
-    detail = (result.failures + result.errors)[0][1].strip().splitlines()[-1]
-    return [f"script test module not selected by harness_pr_gate (add it to scripts/ci/harness_pr_gate.py): {detail}"]
+    return [
+        "script test module not selected by harness_pr_gate "
+        "(add it to scripts/ci/harness_pr_gate.py): " + missing[0]
+    ]
 
 
 def shipped_validator_import_failures(root: Path, changed: list[str]) -> list[str]:
