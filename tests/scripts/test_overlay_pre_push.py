@@ -145,6 +145,56 @@ class OverlayPrePushTest(unittest.TestCase):
             self.assertEqual(Path(captured[0][0]), Path(git))
             self.assertEqual(captured[0][1:], ["rev-parse", "--show-toplevel"])
 
+    def test_overlay_push_block_reports_a_checker_crash(self):
+        """A checker exception is a contract failure, not an invalid-JSON deny."""
+        import importlib.util
+        import os
+
+        spec = importlib.util.spec_from_file_location(
+            "ce_guard_crash", ROOT / "chaos-engine/hooks/guard.py"
+        )
+        self.assertIsNotNone(spec and spec.loader)
+        ce_guard = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ce_guard)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            git = shutil.which("git")
+            self.assertIsNotNone(git)
+            subprocess.run([git, "init"], cwd=root, check=True, capture_output=True)  # nosec B603
+            script = root / "scripts/ci/overlay_pre_push.py"
+            script.parent.mkdir(parents=True)
+            script.write_text(
+                "def overlay_pre_push_failures(root, paths=None):\n"
+                "    raise ModuleNotFoundError(\"No module named 'yaml'\")\n",
+                encoding="utf-8",
+            )
+            previous = Path.cwd()
+            try:
+                os.chdir(root)
+                blocked = ce_guard._overlay_push_block(("git push origin HEAD",))
+            finally:
+                os.chdir(previous)
+        self.assertIn("ModuleNotFoundError", blocked)
+        self.assertIn("yaml", blocked)
+        self.assertNotIn("invalid JSON", blocked)
+
+    def test_agents_guard_reports_a_checker_crash(self):
+        from scripts.agents import guard
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            script = root / "scripts/ci/overlay_pre_push.py"
+            script.parent.mkdir(parents=True)
+            script.write_text(
+                "def overlay_pre_push_failures(root, paths=None):\n"
+                "    raise ModuleNotFoundError(\"No module named 'yaml'\")\n",
+                encoding="utf-8",
+            )
+            reason = guard._overlay_pre_push_reason(str(root))
+        self.assertIn("ModuleNotFoundError", reason)
+        self.assertIn("yaml", reason)
+        self.assertNotIn("invalid JSON", reason)
+
     def test_live_playbook_and_entrypoint_satisfy_the_contract(self):
         text = (ROOT / PLAYBOOK).read_text(encoding="utf-8")
         self.assertEqual([], playbook_contract_failures(text))

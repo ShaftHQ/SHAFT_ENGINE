@@ -234,7 +234,13 @@ def _overlay_push_block(commands: tuple[str, ...]) -> str:
         return "overlay pre-push contract failed: checker unavailable"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    failures = module.overlay_pre_push_failures(project)
+    try:
+        failures = module.overlay_pre_push_failures(project)
+    except Exception as error:
+        # A checker crash is a contract failure. Leaving it uncaught makes the
+        # hook protocol report invalid JSON, and the same push is retried.
+        detail = str(error).strip().splitlines()[0] if str(error).strip() else type(error).__name__
+        return "overlay pre-push contract failed: " + type(error).__name__ + ": " + detail
     if not failures:
         return ""
     return "overlay pre-push contract failed: " + str(failures[0])
@@ -273,11 +279,25 @@ def pull_request_merged_command(command: str) -> bool:
     return confirmed_delivery_command(command) and not terminal_delivery_command(command)
 
 
+def _enables_auto_merge(arguments: list[str]) -> bool:
+    """True when ``gh pr merge --auto`` only arms merge and leaves the PR open.
+
+    ``--auto=false`` is an immediate merge. Exit 0 on an arm is not delivery.
+    """
+    for arg in arguments:
+        if arg == "--auto":
+            return True
+        if arg.startswith("--auto="):
+            return arg.split("=", 1)[1].casefold() not in {"false", "0", "no"}
+    return False
+
+
 def confirmed_delivery_command(command: str) -> bool:
     """True for merge delivery that completes a PR without waiting on delivery-status.
 
-    Intermediate pushes and draft PR create/edit stay mutation-only so Learning
-    Session never starts early. A successful gh pr merge is confirmed delivery
+    Intermediate pushes, draft PR create/edit, and ``gh pr merge --auto`` stay
+    off this path so Learning Session never starts while the pull request is
+    open. A successful ``gh pr merge`` without ``--auto`` is confirmed delivery
     even when chaos-engine files were untouched.
     """
     if terminal_delivery_command(command):
@@ -288,7 +308,9 @@ def confirmed_delivery_command(command: str) -> bool:
     head, arguments = command_head(parsed)
     if head != "gh" or len(arguments) < 2:
         return False
-    return arguments[0] == "pr" and arguments[1] == "merge"
+    if arguments[0] != "pr" or arguments[1] != "merge":
+        return False
+    return not _enables_auto_merge(arguments)
 
 
 def learning_session_finalize_command(command: str) -> bool:

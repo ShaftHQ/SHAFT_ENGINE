@@ -1126,28 +1126,15 @@ class UngatedScriptModuleGuardTest(unittest.TestCase):
     """#6244: every tests/scripts/test_*.py is gated, workflow-named, or allowlisted."""
 
     def test_every_script_test_module_is_selected_or_allowlisted(self) -> None:
+        from scripts.ci.harness_pr_gate import ungated_script_modules
+
         gated = set()
         for check in CHECKS.values():
             for name in check.modules:
                 parts = name.split(".")
                 if len(parts) >= 3 and parts[0] == "tests" and parts[1] == "scripts":
                     gated.add(".".join(parts[:3]))
-        workflows = "\n".join(
-            path.read_text(encoding="utf-8", errors="ignore")
-            for path in (ROOT / ".github/workflows").glob("*.yml")
-        )
-        missing = []
-        for path in sorted((ROOT / "tests/scripts").glob("test_*.py")):
-            dotted = f"tests.scripts.{path.stem}"
-            if dotted in gated:
-                continue
-            reason = UNGATED_TEST_ALLOWLIST.get(dotted, "")
-            if isinstance(reason, str) and reason.strip():
-                continue
-            if dotted in workflows or path.relative_to(ROOT).as_posix() in workflows:
-                continue
-            missing.append(dotted)
-        self.assertEqual([], missing)
+        self.assertEqual([], ungated_script_modules(ROOT))
         for dotted, reason in UNGATED_TEST_ALLOWLIST.items():
             self.assertTrue(str(reason).strip(), dotted)
             self.assertNotIn(dotted, gated, dotted)

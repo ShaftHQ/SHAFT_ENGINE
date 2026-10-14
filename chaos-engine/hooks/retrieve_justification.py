@@ -752,7 +752,12 @@ def _command_head(tokens: list[str]) -> tuple[str, list[str]]:
 
 
 def _segments(command: str) -> list[str]:
-    """Split on &&, ||, and ; outside quotes. A quoted semicolon stays in one command."""
+    """Split on &&, ||, ;, and newlines outside quotes. A quoted separator stays put.
+
+    A backslash-newline is a shell continuation, not a split. The python-heredoc
+    check in ``_shell_block`` still sees the whole command, so that body stays
+    one program.
+    """
     parts: list[str] = []
     buf: list[str] = []
     quote = ""
@@ -771,12 +776,15 @@ def _segments(command: str) -> list[str]:
             buf.append(character)
             index += 1
             continue
+        if character == "\\" and index + 1 < len(text) and text[index + 1] == "\n":
+            index += 2
+            continue
         if text.startswith("&&", index) or text.startswith("||", index):
             parts.append("".join(buf).strip())
             buf = []
             index += 2
             continue
-        if character == ";":
+        if character in {";", "\n"}:
             parts.append("".join(buf).strip())
             buf = []
             index += 1
@@ -807,6 +815,24 @@ def _unquote(raw: str) -> str:
     text = (raw or "").strip()
     if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
         return text[1:-1]
+    return text
+
+
+def _read_operand(token: str) -> str | None:
+    """Path this token opens, or None when it is not a file-read operand.
+
+    Output redirects (``>/dev/null``, ``2>&1``, ``2>/dev/null``) and fd copies
+    are not checkout paths. ``<file`` opens file. A bare ``<`` is only the
+    operator; the next token stays the path.
+    """
+    text = _unquote(token)
+    if not text or text.startswith("<<") or re.fullmatch(r"\d*<&.*", text):
+        return None
+    if re.fullmatch(r"(?:&>>?|\d*>&|\d*>>?|\d*>\|).*", text):
+        return None
+    attached = re.fullmatch(r"\d*<(.*)", text)
+    if attached:
+        return attached.group(1) or None
     return text
 
 
@@ -969,7 +995,14 @@ def _paths_in_segment(segment: str) -> list[str]:
     except ValueError:
         return []
     _head, arguments = _command_head(tokens)
-    return [item for item in arguments if not item.startswith("-") and ("/" in item or "." in item)]
+    paths: list[str] = []
+    for item in arguments:
+        if item.startswith("-"):
+            continue
+        text = _read_operand(item)
+        if text and ("/" in text or "." in text):
+            paths.append(text)
+    return paths
 
 
 def _only_store_scripts(paths: list[str]) -> bool:
@@ -1127,8 +1160,15 @@ def _positionals(arguments: list[str]) -> tuple[list[str], bool]:
             index += 1
             continue
         if item == "--":
-            found.extend(arguments[index + 1 :])
+            found.extend(
+                argument
+                for argument in arguments[index + 1 :]
+                if _read_operand(argument) == _unquote(argument)
+            )
             break
+        if _read_operand(item) != _unquote(item):
+            index += 1
+            continue
         if item.startswith("-"):
             index += 1
             continue
@@ -1143,6 +1183,9 @@ def _find_start_paths(arguments: list[str]) -> list[str]:
     index = 0
     while index < len(arguments):
         item = arguments[index]
+        if _read_operand(item) != _unquote(item):
+            index += 1
+            continue
         if item in {"-exec", "-execdir", "-ok", "-okdir"}:
             index += 1
             while index < len(arguments) and arguments[index] not in {";", "+"}:
@@ -1193,8 +1236,8 @@ def downloads_job_log(command: str) -> bool:
 
 
 def _filter_token_is_file(token: str) -> bool:
-    """False for flags and sed programs. Those are not checkout paths."""
-    text = _unquote(token)
+    """False for flags, sed programs, and output redirects. Those are not checkout paths."""
+    text = _read_operand(token)
     if not text or text.startswith("-") or _SED_PROGRAM.match(text):
         return False
     return "/" in text or "." in text

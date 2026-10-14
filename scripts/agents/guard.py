@@ -3030,7 +3030,11 @@ def _overlay_pre_push_reason(root: str) -> str | None:
         return "overlay pre-push contract failed: checker unavailable"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    failures = module.overlay_pre_push_failures(project)
+    try:
+        failures = module.overlay_pre_push_failures(project)
+    except Exception as error:
+        detail = str(error).strip().splitlines()[0] if str(error).strip() else type(error).__name__
+        return "overlay pre-push contract failed: " + type(error).__name__ + ": " + detail
     if not failures:
         return None
     return "overlay pre-push contract failed: " + str(failures[0])

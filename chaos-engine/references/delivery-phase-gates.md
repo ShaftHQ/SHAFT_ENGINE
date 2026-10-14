@@ -38,7 +38,8 @@ GAP-EXIT2).
 ## Delivery is merge
 
 Implemented repository changes are not complete when the files exist only in
-the working tree or on a local branch. By default, finish the delivery:
+the working tree or on a local branch. A local commit, a green test, or an
+open pull request is not completion. By default, finish the delivery:
 
 1. Commit on a `ChaosEngine/…` branch taken from the fetched default branch.
 2. Push that branch.

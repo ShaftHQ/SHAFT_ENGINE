@@ -45,12 +45,9 @@ Answer in one line each before task-specific discovery:
 | One module, reversible | Short plan: premises, two options, chosen one, proof. |
 | Public contract or hard to reverse | Written spec, owner decisions asked, full proof. |
 
-Re-triage when a premise is false, a third fix fails, or scope grows. Before
-the first broad search or unnamed read in a project area, run one
-`python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "<q>"`
-(graphify: structure; mempalace: history) and record `retrieve: used` or
-`skipped(<reason>)` ([retrieve-first](../../references/retrieve-first.md)).
-Bound reads; prefer one script.
+Re-triage when a premise is false. Before a broad search, run one
+`python3 .chaos-engine/tool.py retrieve` and record `skipped(<reason>)`
+([retrieve-first](../../references/retrieve-first.md)).
 
 ## Plan, then go
 
@@ -79,7 +76,8 @@ on explicit invocation.
   blocker findings.
 - One blocking CI wait per push; retry at most once. Stop and report.
 - Status reports are always a Markdown table. `tool.py usage`.
-- Learning Session after every final delivery.
+- Learning Session after every final delivery. Never local queues.
+- Repository work is not done until the pull request is merged.
 
 ## Route
 
