@@ -43,6 +43,27 @@ class AndroidLifecycleServiceTest {
     }
 
     @Test
+    void coldBootFlagsFollowACapKillOrASnapshotWedge() {
+        assertFalse(EmulatorBoot.coldBootAfterCapKill(true, false));
+        assertFalse(EmulatorBoot.coldBootAfterCapKill(true, true));
+        assertFalse(EmulatorBoot.coldBootAfterCapKill(false, false));
+        assertTrue(EmulatorBoot.coldBootAfterCapKill(false, true));
+        assertFalse(EmulatorBoot.snapshotOrRendererWedge(null));
+        assertFalse(EmulatorBoot.snapshotOrRendererWedge("   "));
+        assertFalse(EmulatorBoot.snapshotOrRendererWedge("device offline"));
+        assertTrue(EmulatorBoot.snapshotOrRendererWedge("snapshot failed to load"));
+        assertTrue(EmulatorBoot.snapshotOrRendererWedge("renderer configured differently"));
+        List<String> warm = EmulatorBoot.emulatorCommand("emulator", "Pixel", 5554, 2048, 2, false);
+        List<String> cold = EmulatorBoot.emulatorCommand("emulator", "Pixel", 5554, 2048, 2, true);
+        assertFalse(warm.contains("-no-snapshot-load"));
+        assertTrue(warm.contains("-no-snapshot-save"));
+        assertEquals("Pixel", warm.get(warm.indexOf("-avd") + 1));
+        assertEquals("5554", warm.get(warm.indexOf("-port") + 1));
+        assertTrue(cold.contains("-no-snapshot-load"));
+        assertTrue(cold.contains("-no-snapshot-save"));
+    }
+
+    @Test
     void emulatorMemoryCapIsSkippedOffLinuxOrWithoutASystemdUserManager() {
         assertTrue(AndroidLifecycleService.memoryCapPrefix("Mac OS X", null, Optional.of("systemd-run")).isEmpty());
         assertTrue(AndroidLifecycleService.memoryCapPrefix("Windows 11", null, Optional.of("systemd-run")).isEmpty());
