@@ -1,4 +1,4 @@
-package com.shaft.driver.internal.DriverFactory;
+package com.shaft.driver.internal;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;

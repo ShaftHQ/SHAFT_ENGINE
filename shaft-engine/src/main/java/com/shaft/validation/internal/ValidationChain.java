@@ -7,7 +7,9 @@ import java.lang.StackWalker.StackFrame;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * A terminal such as {@code isEqualTo} evaluates immediately when its result is discarded.
@@ -23,6 +25,7 @@ final class ValidationChain {
     private static final int[] POP = new int[256];
     private static final int[] PUSH = new int[256];
     private static final int[] LEN = new int[256];
+    private static final int[] SCAN = new int[256];
     private static final ClassValue<Parsed> CLASSES = new ClassValue<>() {
         @Override
         protected Parsed computeValue(Class<?> type) {
@@ -135,6 +138,23 @@ final class ValidationChain {
         op(0xbe, 1, 1, 1);
         op(0xc0, 1, 1, 3);
         op(0xc1, 1, 1, 3);
+        System.arraycopy(LEN, 0, SCAN, 0, LEN.length);
+        scanWidth(0xb6, 3);
+        scanWidth(0xb7, 3);
+        scanWidth(0xb8, 3);
+        scanWidth(0xb9, 5);
+        scanWidth(0xba, 5);
+        scanRange(0x99, 0xa8, 3);
+        scanWidth(0xa9, 2);
+        scanRange(0xac, 0xb1, 1);
+        scanWidth(0xbf, 1);
+        scanWidth(0xc2, 1);
+        scanWidth(0xc3, 1);
+        scanWidth(0xc5, 4);
+        scanWidth(0xc6, 3);
+        scanWidth(0xc7, 3);
+        scanWidth(0xc8, 5);
+        scanWidth(0xc9, 5);
     }
 
     private ValidationChain() {
@@ -143,20 +163,30 @@ final class ValidationChain {
     static boolean callerContinues() {
         try {
             return StackWalker.getInstance(Option.RETAIN_CLASS_REFERENCE)
-                    .walk(stream -> {
-                        String invoked = null;
-                        for (StackFrame frame : stream.limit(12).toList()) {
-                            if (internalFrame(frame.getClassName())) {
-                                invoked = frame.getMethodName();
-                                continue;
-                            }
-                            return resultIsChained(frame, invoked);
-                        }
-                        return false;
-                    });
+                    .walk(ValidationChain::chainedInWalk);
         } catch (RuntimeException ignored) {
             return false;
         }
+    }
+
+    private static boolean chainedInWalk(Stream<StackFrame> stream) {
+        List<StackFrame> frames = stream.limit(12).toList();
+        String invoked = null;
+        StackFrame caller = null;
+        int index = 0;
+        while (caller == null && index < frames.size()) {
+            StackFrame frame = frames.get(index);
+            if (internalFrame(frame.getClassName())) {
+                invoked = frame.getMethodName();
+            } else {
+                caller = frame;
+            }
+            index++;
+        }
+        if (caller == null) {
+            return false;
+        }
+        return resultIsChained(caller, invoked);
     }
 
     private static boolean internalFrame(String className) {
@@ -179,7 +209,7 @@ final class ValidationChain {
         int pc = 0;
         while (pc >= 0 && pc < body.code.length) {
             int opcode = body.code[pc] & 0xff;
-            if (opcode >= INVOKEVIRTUAL && opcode <= INVOKEDYNAMIC && body.lineAt(pc) == frame.getLineNumber()) {
+            if (isInvoke(opcode) && body.lineAt(pc) == frame.getLineNumber()) {
                 int index = ((body.code[pc + 1] & 0xff) << 8) | (body.code[pc + 2] & 0xff);
                 if (invokedName.equals(parsed.name(index))) {
                     matches++;
@@ -196,51 +226,93 @@ final class ValidationChain {
         if (width <= 0) {
             return false;
         }
-        int pc = bci + width;
+        return walkChain(parsed, code, bci + width);
+    }
+
+    private static boolean walkChain(Parsed parsed, byte[] code, int pc) {
         int depth = 1;
         int limit = Math.min(code.length, pc + 256);
-        while (pc < limit && depth >= 1) {
-            int opcode = code[pc] & 0xff;
-            if (opcode >= INVOKEVIRTUAL && opcode <= INVOKEDYNAMIC) {
-                int index = ((code[pc + 1] & 0xff) << 8) | (code[pc + 2] & 0xff);
-                String descriptor = parsed.descriptor(index);
-                if (descriptor == null) {
-                    return false;
-                }
-                int arguments = argumentSlots(descriptor);
-                if (arguments < 0) {
-                    return false;
-                }
-                boolean receiver = opcode != INVOKESTATIC && opcode != INVOKEDYNAMIC;
-                int pop = arguments + (receiver ? 1 : 0);
-                if (receiver && depth == pop && chainMethod(parsed.name(index))) {
-                    return true;
-                }
-                if (pop > depth) {
-                    return false;
-                }
-                depth = depth - pop + returnSlots(descriptor);
-                if (depth < 1) {
-                    return false;
-                }
-                pc += opcode == INVOKEINTERFACE || opcode == INVOKEDYNAMIC ? 5 : 3;
-                continue;
-            }
-            int length = LEN[opcode];
-            if (length <= 0) {
-                return false;
-            }
-            int pop = POP[opcode];
-            if (pop > depth) {
-                return false;
-            }
-            depth = depth - pop + PUSH[opcode];
-            if (depth < 1) {
-                return false;
-            }
-            pc += length;
+        int status = Step.CONTINUE;
+        while (pc < limit && depth >= 1 && status == Step.CONTINUE) {
+            Step step = oneStep(parsed, code, pc, depth);
+            status = step.status();
+            pc = step.pc();
+            depth = step.depth();
         }
-        return false;
+        return status == Step.FOUND;
+    }
+
+    private static Step oneStep(Parsed parsed, byte[] code, int pc, int depth) {
+        int opcode = code[pc] & 0xff;
+        if (isInvoke(opcode)) {
+            return invokeStep(parsed, code, pc, depth, opcode);
+        }
+        return straightStep(code, pc, depth, opcode);
+    }
+
+    private static Step invokeStep(Parsed parsed, byte[] code, int pc, int depth, int opcode) {
+        int index = ((code[pc + 1] & 0xff) << 8) | (code[pc + 2] & 0xff);
+        String descriptor = parsed.descriptor(index);
+        int arguments = descriptor == null ? -1 : argumentSlots(descriptor);
+        if (arguments < 0) {
+            return Step.stop();
+        }
+        return invokeWithArguments(parsed, index, pc, depth, opcode, descriptor, arguments);
+    }
+
+    private static Step invokeWithArguments(Parsed parsed, int index, int pc, int depth, int opcode,
+                                             String descriptor, int arguments) {
+        boolean receiver = takesReceiver(opcode);
+        int pop = arguments + (receiver ? 1 : 0);
+        if (pop > depth) {
+            return Step.stop();
+        }
+        if (matchesChain(parsed, index, receiver, depth, pop)) {
+            return Step.found();
+        }
+        return afterInvoke(pc, depth, opcode, descriptor, pop);
+    }
+
+    private static Step afterInvoke(int pc, int depth, int opcode, String descriptor, int pop) {
+        int nextDepth = depth - pop + returnSlots(descriptor);
+        if (nextDepth < 1) {
+            return Step.stop();
+        }
+        return Step.cont(pc + invokeLength(opcode), nextDepth);
+    }
+
+    private static boolean takesReceiver(int opcode) {
+        return opcode != INVOKESTATIC && opcode != INVOKEDYNAMIC;
+    }
+
+    private static int invokeLength(int opcode) {
+        if (opcode == INVOKEINTERFACE || opcode == INVOKEDYNAMIC) {
+            return 5;
+        }
+        return 3;
+    }
+
+    private static boolean matchesChain(Parsed parsed, int index, boolean receiver, int depth, int pop) {
+        if (!receiver || depth != pop) {
+            return false;
+        }
+        return chainMethod(parsed.name(index));
+    }
+
+    private static Step straightStep(byte[] code, int pc, int depth, int opcode) {
+        int length = LEN[opcode];
+        if (length <= 0) {
+            return Step.stop();
+        }
+        int pop = POP[opcode];
+        if (pop > depth) {
+            return Step.stop();
+        }
+        int nextDepth = depth - pop + PUSH[opcode];
+        if (nextDepth < 1) {
+            return Step.stop();
+        }
+        return Step.cont(pc + length, nextDepth);
     }
 
     private static int instructionWidth(byte[] code, int bci) {
@@ -253,36 +325,61 @@ final class ValidationChain {
 
     private static int nextPc(byte[] code, int pc) {
         int opcode = code[pc] & 0xff;
+        if (opcode == 0xaa) {
+            return tableSwitchEnd(code, pc);
+        }
+        if (opcode == 0xab) {
+            return lookupSwitchEnd(code, pc);
+        }
+        if (opcode == 0xc4) {
+            return wideEnd(code, pc);
+        }
+        return advance(code, pc, SCAN[opcode]);
+    }
+
+    private static int tableSwitchEnd(byte[] code, int pc) {
         try {
-            if (opcode == 0xaa) {
-                int index = (pc + 4) & ~3;
-                int low = readInt(code, index + 4);
-                int high = readInt(code, index + 8);
-                return index + 12 + (high - low + 1) * 4;
-            }
-            if (opcode == 0xab) {
-                int index = (pc + 4) & ~3;
-                int pairs = readInt(code, index + 4);
-                return index + 8 + pairs * 8;
-            }
-            if (opcode == 0xc4) {
-                return pc + ((code[pc + 1] & 0xff) == 0x84 ? 6 : 4);
-            }
+            int index = (pc + 4) & ~3;
+            int low = readInt(code, index + 4);
+            int high = readInt(code, index + 8);
+            return index + 12 + (high - low + 1) * 4;
         } catch (RuntimeException ignored) {
             return -1;
         }
-        int width = instructionWidth(code, pc);
-        if (width <= 0) {
-            width = switch (opcode) {
-                case 0xa7, 0xa8, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f, 0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xc6, 0xc7 -> 3;
-                case 0xa9 -> 2;
-                case 0xac, 0xad, 0xae, 0xaf, 0xb0, 0xb1, 0xbf, 0xc2, 0xc3 -> 1;
-                case 0xc5 -> 4;
-                case 0xc8, 0xc9 -> 5;
-                default -> 0;
-            };
+    }
+
+    private static int lookupSwitchEnd(byte[] code, int pc) {
+        try {
+            int index = (pc + 4) & ~3;
+            int pairs = readInt(code, index + 4);
+            return index + 8 + pairs * 8;
+        } catch (RuntimeException ignored) {
+            return -1;
         }
-        return width <= 0 || pc + width > code.length ? -1 : pc + width;
+    }
+
+    private static int wideEnd(byte[] code, int pc) {
+        try {
+            int next = (code[pc + 1] & 0xff) == 0x84 ? 6 : 4;
+            return pc + next;
+        } catch (RuntimeException ignored) {
+            return -1;
+        }
+    }
+
+    private static int advance(byte[] code, int pc, int width) {
+        if (width <= 0 || pc + width > code.length) {
+            return -1;
+        }
+        return pc + width;
+    }
+
+    private static boolean isInvoke(int opcode) {
+        return opcode == INVOKEVIRTUAL
+                || opcode == INVOKESPECIAL
+                || opcode == INVOKESTATIC
+                || opcode == INVOKEINTERFACE
+                || opcode == INVOKEDYNAMIC;
     }
 
     private static int readInt(byte[] code, int offset) {
@@ -365,6 +462,34 @@ final class ValidationChain {
         LEN[opcode] = length;
     }
 
+    private static void scanWidth(int opcode, int length) {
+        SCAN[opcode] = length;
+    }
+
+    private static void scanRange(int from, int to, int length) {
+        for (int opcode = from; opcode <= to; opcode++) {
+            SCAN[opcode] = length;
+        }
+    }
+
+    private record Step(int status, int pc, int depth) {
+        static final int CONTINUE = 0;
+        static final int FOUND = 1;
+        static final int STOP = -1;
+
+        static Step cont(int pc, int depth) {
+            return new Step(CONTINUE, pc, depth);
+        }
+
+        static Step found() {
+            return new Step(FOUND, 0, 0);
+        }
+
+        static Step stop() {
+            return new Step(STOP, 0, 0);
+        }
+    }
+
     private record MethodBody(byte[] code, int[] linePc, int[] lineNo) {
         int lineAt(int bci) {
             int line = -1;
@@ -380,7 +505,22 @@ final class ValidationChain {
     }
 
     private record Parsed(String[] utf8, int[] refName, int[] refType, Map<String, MethodBody> methods) {
+        private static final int[] POOL_SKIP = new int[21];
         private static final Parsed EMPTY = new Parsed(new String[1], new int[1], new int[1], Map.of());
+
+        static {
+            POOL_SKIP[3] = 4;
+            POOL_SKIP[4] = 4;
+            POOL_SKIP[7] = 2;
+            POOL_SKIP[8] = 2;
+            POOL_SKIP[15] = 3;
+            POOL_SKIP[16] = 2;
+            POOL_SKIP[19] = 2;
+            POOL_SKIP[20] = 2;
+        }
+
+        private record Pool(String[] utf8, int[] refName, int[] refType) {
+        }
 
         static Parsed read(Class<?> type) {
             try {
@@ -435,6 +575,15 @@ final class ValidationChain {
             }
             buffer.getChar();
             buffer.getChar();
+            Pool pool = readPool(buffer);
+            if (pool == null) {
+                return EMPTY;
+            }
+            Map<String, MethodBody> methods = readMethodBodies(buffer, pool.utf8());
+            return new Parsed(pool.utf8(), pool.refName(), pool.refType(), methods);
+        }
+
+        private static Pool readPool(ByteBuffer buffer) {
             int count = buffer.getChar();
             String[] utf8 = new String[count];
             int[] nameAndTypeName = new int[count];
@@ -442,42 +591,78 @@ final class ValidationChain {
             int[] refNameAndType = new int[count];
             for (int index = 1; index < count; index++) {
                 int tag = buffer.get() & 0xff;
-                switch (tag) {
-                    case 1 -> {
-                        int length = buffer.getChar();
-                        byte[] data = new byte[length];
-                        buffer.get(data);
-                        utf8[index] = new String(data, StandardCharsets.UTF_8);
-                    }
-                    case 7, 8, 16, 19, 20 -> buffer.getChar();
-                    case 3, 4 -> buffer.getInt();
-                    case 5, 6 -> {
-                        buffer.getLong();
-                        index++;
-                    }
-                    case 9, 10, 11 -> {
-                        buffer.getChar();
-                        refNameAndType[index] = buffer.getChar();
-                    }
-                    case 12 -> {
-                        nameAndTypeName[index] = buffer.getChar();
-                        nameAndTypeDescriptor[index] = buffer.getChar();
-                    }
-                    case 15 -> {
-                        buffer.get();
-                        buffer.getChar();
-                    }
-                    case 17, 18 -> {
-                        buffer.getChar();
-                        refNameAndType[index] = buffer.getChar();
-                    }
-                    default -> {
-                        return EMPTY;
-                    }
+                int consumed = consumePoolTag(buffer, tag, utf8, nameAndTypeName, nameAndTypeDescriptor, refNameAndType, index);
+                if (consumed == 0) {
+                    return null;
+                }
+                if (consumed == 2) {
+                    index++;
                 }
             }
             int[] refName = new int[count];
             int[] refType = new int[count];
+            linkRefs(count, nameAndTypeName, nameAndTypeDescriptor, refNameAndType, refName, refType);
+            return new Pool(utf8, refName, refType);
+        }
+
+        private static int consumePoolTag(ByteBuffer buffer, int tag, String[] utf8, int[] nameAndTypeName,
+                                           int[] nameAndTypeDescriptor, int[] refNameAndType, int index) {
+            int special = specialPoolTag(buffer, tag, utf8, nameAndTypeName, nameAndTypeDescriptor, refNameAndType, index);
+            if (special >= 0) {
+                return special;
+            }
+            return skipPoolTag(buffer, tag);
+        }
+
+        private static int specialPoolTag(ByteBuffer buffer, int tag, String[] utf8, int[] nameAndTypeName,
+                                           int[] nameAndTypeDescriptor, int[] refNameAndType, int index) {
+            if (tag == 1) {
+                return readUtf8(buffer, utf8, index);
+            }
+            if (widePoolTag(tag)) {
+                buffer.getLong();
+                return 2;
+            }
+            if (tag == 12) {
+                nameAndTypeName[index] = buffer.getChar();
+                nameAndTypeDescriptor[index] = buffer.getChar();
+                return 1;
+            }
+            if (memberRef(tag)) {
+                buffer.getChar();
+                refNameAndType[index] = buffer.getChar();
+                return 1;
+            }
+            return -1;
+        }
+
+        private static boolean widePoolTag(int tag) {
+            return tag == 5 || tag == 6;
+        }
+
+        private static int skipPoolTag(ByteBuffer buffer, int tag) {
+            int skip = tag < POOL_SKIP.length ? POOL_SKIP[tag] : 0;
+            if (skip <= 0) {
+                return 0;
+            }
+            buffer.position(buffer.position() + skip);
+            return 1;
+        }
+
+        private static int readUtf8(ByteBuffer buffer, String[] utf8, int index) {
+            int length = buffer.getChar();
+            byte[] data = new byte[length];
+            buffer.get(data);
+            utf8[index] = new String(data, StandardCharsets.UTF_8);
+            return 1;
+        }
+
+        private static boolean memberRef(int tag) {
+            return tag == 9 || tag == 10 || tag == 11 || tag == 17 || tag == 18;
+        }
+
+        private static void linkRefs(int count, int[] nameAndTypeName, int[] nameAndTypeDescriptor,
+                                      int[] refNameAndType, int[] refName, int[] refType) {
             for (int index = 1; index < count; index++) {
                 int nameAndType = refNameAndType[index];
                 if (nameAndType > 0 && nameAndType < count) {
@@ -485,6 +670,9 @@ final class ValidationChain {
                     refType[index] = nameAndTypeDescriptor[nameAndType];
                 }
             }
+        }
+
+        private static Map<String, MethodBody> readMethodBodies(ByteBuffer buffer, String[] utf8) {
             buffer.getChar();
             buffer.getChar();
             buffer.getChar();
@@ -499,7 +687,7 @@ final class ValidationChain {
             for (int method = 0; method < methodCount; method++) {
                 readMethod(buffer, utf8, methods);
             }
-            return new Parsed(utf8, refName, refType, methods);
+            return methods;
         }
 
         private static void skipMember(ByteBuffer buffer) {

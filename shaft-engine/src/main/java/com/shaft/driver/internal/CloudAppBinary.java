@@ -1,4 +1,4 @@
-package com.shaft.driver.internal.DriverFactory;
+package com.shaft.driver.internal;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -59,32 +59,60 @@ public final class CloudAppBinary {
         if (appFile == null || !Files.isRegularFile(appFile)) {
             return null;
         }
-        try (ZipFile zip = new ZipFile(appFile.toFile())) {
-            var entries = zip.entries();
-            while (entries.hasMoreElements()) {
-                ZipEntry entry = entries.nextElement();
-                String name = entry.getName();
-                if (entry.isDirectory() || name == null || !name.endsWith("Info.plist") || entry.getSize() > 2_000_000L) {
-                    continue;
-                }
-                byte[] bytes;
-                try (InputStream input = zip.getInputStream(entry)) {
-                    bytes = input.readNBytes(2_000_000);
-                }
-                String text = new String(bytes, StandardCharsets.ISO_8859_1);
-                int simulator = indexOfIgnoreCase(text, "iphonesimulator");
-                int device = indexOfIgnoreCase(text, "iphoneos");
-                if (simulator >= 0 && (device < 0 || simulator <= device)) {
-                    return "iphonesimulator";
-                }
-                if (device >= 0) {
-                    return "iphoneos";
-                }
-            }
+        try {
+            return platformInZip(appFile);
         } catch (IOException ignored) {
             return null;
         }
+    }
+
+    private static String platformInZip(Path appFile) throws IOException {
+        try (ZipFile zip = new ZipFile(appFile.toFile())) {
+            var entries = zip.entries();
+            String platform = null;
+            while (platform == null && entries.hasMoreElements()) {
+                platform = platformOfEntry(zip, entries.nextElement());
+            }
+            return platform;
+        }
+    }
+
+    private static String platformOfEntry(ZipFile zip, ZipEntry entry) throws IOException {
+        if (!plistEntry(entry)) {
+            return null;
+        }
+        byte[] bytes;
+        try (InputStream input = zip.getInputStream(entry)) {
+            bytes = input.readNBytes(2_000_000);
+        }
+        return platformName(new String(bytes, StandardCharsets.ISO_8859_1));
+    }
+
+    private static boolean plistEntry(ZipEntry entry) {
+        String name = entry.getName();
+        if (entry.isDirectory() || name == null) {
+            return false;
+        }
+        if (!name.endsWith("Info.plist")) {
+            return false;
+        }
+        return entry.getSize() <= 2_000_000L;
+    }
+
+    private static String platformName(String text) {
+        int simulator = indexOfIgnoreCase(text, "iphonesimulator");
+        int device = indexOfIgnoreCase(text, "iphoneos");
+        if (simulator >= 0 && deviceFollows(device, simulator)) {
+            return "iphonesimulator";
+        }
+        if (device >= 0) {
+            return "iphoneos";
+        }
         return null;
+    }
+
+    private static boolean deviceFollows(int device, int simulator) {
+        return device < 0 || simulator <= device;
     }
 
     /**

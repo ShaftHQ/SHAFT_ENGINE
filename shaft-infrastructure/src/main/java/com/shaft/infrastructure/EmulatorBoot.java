@@ -20,6 +20,10 @@ public final class EmulatorBoot {
     private EmulatorBoot() {
     }
 
+    /**
+     * @param evidence emulator log tail and exception text from the failed boot
+     * @return true when the text is a snapshot load failure or a renderer mismatch
+     */
     public static boolean snapshotOrRendererWedge(String evidence) {
         if (evidence == null || evidence.isBlank()) {
             return false;
@@ -41,6 +45,15 @@ public final class EmulatorBoot {
         return !emulatorAlive && appiumAlive;
     }
 
+    /**
+     * @param emulatorExecutable emulator binary
+     * @param avdName            AVD name
+     * @param port               console port
+     * @param ramMb              memory megabytes
+     * @param cores              CPU cores
+     * @param coldBoot           when true, add {@code -no-snapshot-load}
+     * @return the emulator argv, without a memory-cap prefix
+     */
     public static List<String> emulatorCommand(String emulatorExecutable, String avdName, int port,
                                                int ramMb, int cores, boolean coldBoot) {
         List<String> command = new ArrayList<>();

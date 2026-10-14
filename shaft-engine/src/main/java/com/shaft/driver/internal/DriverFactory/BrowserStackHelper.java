@@ -6,6 +6,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.CloudAppBinary;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
@@ -157,10 +158,10 @@ public class BrowserStackHelper {
      */
     private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
         ReportManager.logDiscrete("Configuring BrowserStack native-app execution with an existing app URL.");
-        appUrl = CloudAppBinary.sessionBuildId(appUrl, SHAFT.Properties.browserStack.customID());
-        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
+        String pinnedAppUrl = CloudAppBinary.sessionBuildId(appUrl, SHAFT.Properties.browserStack.customID());
+        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + pinnedAppUrl;
         // set properties
-        MutableCapabilities browserStackCapabilities = setBrowserStackProperties(username, password, deviceName, osVersion, appUrl);
+        MutableCapabilities browserStackCapabilities = setBrowserStackProperties(username, password, deviceName, osVersion, pinnedAppUrl);
         passAction(testData);
         return browserStackCapabilities;
     }
