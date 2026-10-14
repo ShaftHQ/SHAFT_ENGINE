@@ -76,7 +76,7 @@ on explicit invocation.
   blocker findings.
 - One blocking CI wait per push; retry at most once. Stop and report.
 - Status reports are always a Markdown table. `tool.py usage`.
-- Learning Session after every final delivery.
+- Learning Session after every final delivery. Never local queues.
 - Repository work is not done until the pull request is merged.
 
 ## Route
