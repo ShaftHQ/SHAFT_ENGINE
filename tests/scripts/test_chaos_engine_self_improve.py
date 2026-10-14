@@ -120,6 +120,9 @@ class SelfImproveSkillTests(unittest.TestCase):
     def test_portable_guard_marks_pr_merge_as_confirmed_delivery(self):
         guard = load(ROOT / "chaos-engine/hooks/guard.py", "ce_guard_si_delivery")
         self.assertTrue(guard.confirmed_delivery_command("gh pr merge 123 --merge"))
+        self.assertFalse(guard.confirmed_delivery_command("gh pr merge 123 --merge --auto"))
+        self.assertFalse(guard.confirmed_delivery_command("gh pr merge 123 --auto --merge"))
+        self.assertTrue(guard.confirmed_delivery_command("gh pr merge 123 --merge --auto=false"))
         self.assertTrue(
             guard.confirmed_delivery_command(
                 "py -3 scripts/agents/chaos_engine_cli.py delivery-status "
