@@ -108,6 +108,58 @@ class AndroidLifecycleServiceTest {
     }
 
     @Test
+    void capKillColdBootsAfterStoppingLeftoverAppiumAndASnapshotWedgeRetriesOnce(@TempDir Path temp)
+            throws Exception {
+        assertEquals("pressure-or-wedge", EmulatorBoot.RECYCLE_CADENCE);
+
+        Fixture capFixture = installed(temp.resolve("cap"));
+        RecordingRuntime capRuntime = new RecordingRuntime();
+        AndroidLifecycleService capLifecycle = new AndroidLifecycleService(capFixture.paths(), SetupPlatform.LINUX,
+                SetupArchitecture.X64, capFixture.request(), capFixture.operations(), capRuntime, new RecordingHealth());
+        capLifecycle.start(capFixture.plan(), capFixture.approval(), capFixture.options());
+        capRuntime.setAlive("emulator", false);
+
+        ManagedEnvironment cold = capLifecycle.start(capFixture.plan(), capFixture.approval(), capFixture.options());
+
+        assertFalse(capRuntime.commands.get(0).contains("-no-snapshot-load"));
+        assertTrue(capRuntime.commands.get(2).contains("-no-snapshot-load"));
+        assertTrue(capRuntime.stopped.contains("appium"));
+        cold.close();
+
+        Fixture wedgeFixture = installed(temp.resolve("wedge"));
+        RecordingRuntime wedgeRuntime = new RecordingRuntime();
+        RecordingHealth wedgeHealth = new RecordingHealth();
+        wedgeHealth.failEmulatorOnce = "snapshot failed to load under a different renderer";
+        AndroidLifecycleService wedgeLifecycle = new AndroidLifecycleService(wedgeFixture.paths(),
+                SetupPlatform.LINUX, SetupArchitecture.X64, wedgeFixture.request(), wedgeFixture.operations(),
+                wedgeRuntime, wedgeHealth);
+
+        ManagedEnvironment recovered = wedgeLifecycle.start(wedgeFixture.plan(), wedgeFixture.approval(),
+                wedgeFixture.options());
+
+        assertEquals(3, wedgeRuntime.commands.size());
+        assertFalse(wedgeRuntime.commands.get(0).contains("-no-snapshot-load"));
+        assertTrue(wedgeRuntime.commands.get(1).contains("-no-snapshot-load"));
+        recovered.close();
+
+        Fixture otherFixture = installed(temp.resolve("other"));
+        RecordingRuntime otherRuntime = new RecordingRuntime();
+        RecordingHealth otherHealth = new RecordingHealth();
+        otherHealth.failEmulatorOnce = null;
+        otherHealth.failEmulatorMessage = "device offline";
+        AndroidLifecycleService otherLifecycle = new AndroidLifecycleService(otherFixture.paths(),
+                SetupPlatform.LINUX, SetupArchitecture.X64, otherFixture.request(), otherFixture.operations(),
+                otherRuntime, otherHealth);
+
+        IOException offline = assertThrows(IOException.class, () -> otherLifecycle.start(otherFixture.plan(),
+                otherFixture.approval(), otherFixture.options()));
+
+        assertTrue(offline.getMessage().contains("device offline"));
+        assertEquals(1, otherRuntime.commands.size());
+        assertFalse(otherRuntime.commands.get(0).contains("-no-snapshot-load"));
+    }
+
+    @Test
     void shutdownSharesOneDeadlineAcrossAppiumAndEmulator(@TempDir Path temp) throws Exception {
         Fixture fixture = installed(temp);
         RecordingRuntime runtime = new RecordingRuntime();
@@ -356,11 +408,21 @@ class AndroidLifecycleServiceTest {
     private static final class RecordingHealth implements AndroidRuntimeHealth {
         private final List<String> events = new ArrayList<>();
         private boolean failAppium;
+        private String failEmulatorMessage;
+        private String failEmulatorOnce;
 
         @Override
         public void awaitEmulator(String serial, AndroidRuntimeLayout layout, Map<String, String> environment,
-                                  Duration timeout) {
+                                  Duration timeout) throws IOException {
             events.add("emulator:" + serial);
+            if (failEmulatorOnce != null) {
+                String message = failEmulatorOnce;
+                failEmulatorOnce = null;
+                throw new IOException(message);
+            }
+            if (failEmulatorMessage != null) {
+                throw new IOException(failEmulatorMessage);
+            }
         }
 
         @Override

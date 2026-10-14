@@ -40,7 +40,7 @@ Classify each numbered step by screen state, not by control id or keyword. Recor
 | Class | Meaning |
 | --- | --- |
 | SAFE | The step does not write, pay, or send. Automate it. |
-| STOP-BEFORE | The screen is a final review, payment, cancel, reopen, reply, edit, OTP, upload, or feedback. Fill and assert the control is enabled. Do not tap, submit, pay, or send. |
+| STOP-BEFORE | The screen is a final review, payment, cancel, reopen, reply, edit, OTP, upload, or feedback. Fill and assert the control is enabled. Do not tap, submit, pay, or send. Do not tap delete or cancel as a final action, and do not call a state-changing API. Stop on the last safe screen. |
 | DESIGN-ONLY | A success or confirmation state. Check it from the design or from existing data. Do not drive the product into that state. |
 
 Review the classified list once per journey before any automation.

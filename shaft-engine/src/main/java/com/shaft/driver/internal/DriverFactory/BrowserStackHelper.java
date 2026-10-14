@@ -14,6 +14,7 @@ import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.MutableCapabilities;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -111,6 +112,7 @@ public class BrowserStackHelper {
         // upload app to browserstack api
         String appPath = FileActions.getInstance(true).getAbsolutePath(relativePathToAppFile);
         ReportManager.logDiscrete("BrowserStack app upload path: " + appPath);
+        CloudAppBinary.rejectSimulatorBinaryForRealDevice(Path.of(appPath));
 
         String userProvidedCustomID = SHAFT.Properties.browserStack.customID();
         String custom_id = "".equals(userProvidedCustomID) ? "shaft-engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
@@ -129,7 +131,7 @@ public class BrowserStackHelper {
                     .perform();
             var response = api.getResponse();
             var tempAppUrl = RestActions.getResponseJSONValue(response, "app_url");
-            appUrl = Objects.requireNonNull(tempAppUrl);
+            appUrl = CloudAppBinary.sessionBuildId(Objects.requireNonNull(tempAppUrl), custom_id);
             ReportManager.logDiscrete("BrowserStack uploaded app URL: " + appUrl);
         } catch (NullPointerException exception) {
             failAction(testData, exception);
@@ -155,6 +157,7 @@ public class BrowserStackHelper {
      */
     private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
         ReportManager.logDiscrete("Configuring BrowserStack native-app execution with an existing app URL.");
+        appUrl = CloudAppBinary.sessionBuildId(appUrl, SHAFT.Properties.browserStack.customID());
         String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
         // set properties
         MutableCapabilities browserStackCapabilities = setBrowserStackProperties(username, password, deviceName, osVersion, appUrl);

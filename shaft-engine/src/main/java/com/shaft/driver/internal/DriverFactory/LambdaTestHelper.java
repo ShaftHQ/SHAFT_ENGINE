@@ -14,6 +14,7 @@ import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.*;
 
 public class LambdaTestHelper {
@@ -73,6 +74,9 @@ public class LambdaTestHelper {
         // upload app to LambdaTest api
         String appPath = FileActions.getInstance(true).getAbsolutePath(relativePathToAppFile);
         ReportManager.logDiscrete("LambdaTest app upload path: " + appPath);
+        if (SHAFT.Properties.lambdaTest.isRealMobile()) {
+            CloudAppBinary.rejectSimulatorBinaryForRealDevice(Path.of(appPath));
+        }
 
         String userProvidedCustomID = SHAFT.Properties.lambdaTest.customID();
         String custom_id = "".equals(userProvidedCustomID) ? "shaft-engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
@@ -83,7 +87,7 @@ public class LambdaTestHelper {
         parameters.put("name", custom_id);
         var appUrl = "";
         try (ProgressBarLogger ignored = new ProgressBarLogger("Uploading app to LambdaTest...")) {
-            appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new SHAFT.API(serviceUri).post(appUploadServiceName).setContentType("multipart/form-data").setParameters(parameters, RestActions.ParametersType.FORM).setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC).perform(), "app_url"));
+            appUrl = CloudAppBinary.sessionBuildId(Objects.requireNonNull(RestActions.getResponseJSONValue(new SHAFT.API(serviceUri).post(appUploadServiceName).setContentType("multipart/form-data").setParameters(parameters, RestActions.ParametersType.FORM).setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC).perform(), "app_url")), custom_id);
             ReportManager.logDiscrete("LambdaTest uploaded app URL: " + appUrl);
         } catch (NullPointerException exception) {
             failAction(testData, exception);
@@ -125,6 +129,7 @@ public class LambdaTestHelper {
      */
     private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
         ReportManager.logDiscrete("Configuring LambdaTest native-app execution with an existing app URL.");
+        appUrl = CloudAppBinary.sessionBuildId(appUrl, SHAFT.Properties.lambdaTest.customID());
         String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
         // set properties
         passAction(testData);

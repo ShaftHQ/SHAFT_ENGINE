@@ -2,8 +2,12 @@
 
 Choose one row from the user's immediate requested output. Load no adjacent
 skill preemptively. For a multi-stage request, finish and verify one output,
-then return here and choose the next row. If no row fits, ask for the missing
-intent instead of approximating a specialist.
+then return here and choose the next row. If no row fits, the result is no skill. Do not load the nearest skill.
+
+| Request with no row | Result |
+| --- | --- |
+| Desktop window, desktop application, or desktop automation | no skill. Do not load `shaft-web-actions`. |
+| CLI of a product under test | no skill. `shaft-cli` is the SHAFT CLI, not that product. |
 
 ## Product stages (Design, Automation, Reporting)
 

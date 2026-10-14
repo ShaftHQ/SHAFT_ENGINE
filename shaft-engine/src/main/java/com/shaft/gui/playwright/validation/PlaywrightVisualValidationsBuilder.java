@@ -56,8 +56,7 @@ public final class PlaywrightVisualValidationsBuilder extends VisualValidationsB
     @Override
     public ValidationsExecutor perform() {
         var executor = new PlaywrightValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     PlaywrightSession session() {

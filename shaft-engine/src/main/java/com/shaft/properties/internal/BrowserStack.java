@@ -91,26 +91,23 @@ public interface BrowserStack extends EngineProperties<BrowserStack> {
     @DefaultValue("")
     String deviceName();
 
-    //Use appUrl to test a previously uploaded app file
     /**
-     * URL of a previously uploaded app on BrowserStack App Automate.
-     * Note that this URL expires regularly; use {@link #customID()} to reference the latest upload.
+     * Immutable id of one uploaded app on BrowserStack App Automate ({@code bs://...}).
+     * The session capability is this id. A latest-upload alias is not the capability.
      * <p>Property key: {@code browserStack.appUrl} — default: {@code ""}
      *
-     * @return the app URL string, or empty if not configured
+     * @return the immutable app URL, or empty if not configured
      */
     @Key("browserStack.appUrl")
     @DefaultValue("")
     String appUrl();
 
-    //Use customID to test the latest uploaded version as the above url expires regularly
     /**
-     * Custom ID assigned to an app uploaded to BrowserStack App Automate.
-     * Using a custom ID always resolves to the latest uploaded version with that ID,
-     * avoiding expiry issues associated with {@link #appUrl()}.
+     * Upload label sent with a new app file. It tracks the latest upload and must not be copied
+     * into the session capability. The capability stays the immutable id returned by that upload.
      * <p>Property key: {@code browserStack.customID} — default: {@code ""}
      *
-     * @return the custom ID string, or empty if not configured
+     * @return the upload label, or empty if not configured
      */
     @Key("browserStack.customID")
     @DefaultValue("")

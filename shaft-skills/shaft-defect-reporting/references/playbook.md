@@ -30,4 +30,8 @@
 Return title, context, preconditions, minimal steps, expected and actual result,
 evidence, reproducibility, severity rationale, impact, links, and verification.
 
+## Execution class
+
+- Defect ids match whole tokens, not substrings of hostnames, paths, or device names. `SHAFT#6940` is a token. A longer word that merely contains those digits is not. The id has to be on the throwable (#6947).
+
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

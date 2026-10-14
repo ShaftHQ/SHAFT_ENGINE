@@ -36,4 +36,13 @@
 - `driver.element().click(locator)` and `driver.touch().tap(locator)` share one hittable outcome.
 - Do not report pass when the page source is unchanged after a non-hittable tap.
 
+## Execution class
+
+- A missing requested accessibility id is not a skip while the tree shows the control. Content description counts. XPath `!=` on an unset attribute drops the node. `not(...)` keeps it, for example `not(@content-desc='marker' or @name='marker')`.
+- Do not tap Done or Save when the oracle is an in-memory count. That tap writes device state for later tests in the same install. Tapping it is allowed when save is the scenario.
+- Do not work around tracked scroll bug #6940 with a coordinate tap, a null container, or a reversed direction. Re-check whether https://github.com/ShaftHQ/SHAFT_ENGINE/pull/6942 fixed the nested mobile list. Do not claim that it did. #6908 stays the example of a successful tap that does nothing.
+- Android language proof reads visible `text`, not `content-desc`. `content-desc` may be the automation tag. A locale change is a new process: `SHAFT.Properties.mobile.set().language(...).locale(...)` before the driver starts. Do not cold-boot or wipe between language cohorts when the emulator is healthy. Cold-boot belongs to the pressure-or-wedge cadence when the emulator is wedged. Do not copy an iOS label into an Android accessibility id.
+- Keyboard dismissal is not an unguarded system Back. Use `hideKeyboard`. It can no-op. A no-op is not permission to press Back. After the hide, the control that must stay is still visible. A locale-only miss asks for a screenshot before a product-defect conclusion. A wrapping locale can cover a control with the keyboard.
+- Optional screens use `isPresent(By, Duration)` or `waitUntilAnyPresent(Duration, By...)`. Do not use `getElementsCount` and do not catch a click. Absence is a branch, not a failure. A once-per-launch prompt is one check per session unless a measurement shows it returns on each test. A mandatory screen stays an assertion. Do not invent a second presence API (#6842).
+
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

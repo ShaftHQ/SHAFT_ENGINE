@@ -24,4 +24,11 @@
 
 - Assertions do not decide scenario coverage, locator strategy, or failure root cause; route those deliverables to `shaft-test-case-design`, `shaft-locator-design`, or `shaft-failure-analysis`.
 
+## Execution class
+
+- Android language proof reads visible `text`, not `content-desc`. A locale change is a new process, with `language()` and `locale()` set before the driver starts. Do not cold-boot or wipe between language cohorts when the emulator is healthy.
+- A static element uses `matchesReferenceImage`. A surface that is still changing uses `matchesReferenceImageWhenStable` (#6823). Do not call `matchesReferenceImage` on that surface. Take two screenshots a few seconds apart before adding the check. If they differ, use the stable API or do not add the check. The first run stores the baseline and passes. Commit that file. It matches one resolution. Another resolution is not a comparison against that baseline.
+- Optional screens use `isPresent(By, Duration)` or `waitUntilAnyPresent`. Do not use `getElementsCount` and do not catch a click. Absence is a branch. A once-per-launch prompt is one check per session unless measured. Do not invent a new presence method (#6842).
+- A shipped assertion has a stated way to fail. Reject `exists()` on an id that is also on the wrong screen, a non-empty check that passes on whitespace (trim first; whitespace-only text is not non-empty), a number label with no digit, an enabled-state change that did not record the before state, and a check that is true in every language used as proof of one language.
+
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

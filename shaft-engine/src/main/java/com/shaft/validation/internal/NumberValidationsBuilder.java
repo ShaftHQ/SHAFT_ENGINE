@@ -55,8 +55,7 @@ public class NumberValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is equal to \"").append(expectedValue).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -84,8 +83,7 @@ public class NumberValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -100,8 +98,7 @@ public class NumberValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is greater than or equal to \"").append(expectedValue).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -116,8 +113,7 @@ public class NumberValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is greater than \"").append(expectedValue).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -132,8 +128,7 @@ public class NumberValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is less than or equal to \"").append(expectedValue).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -148,7 +143,6 @@ public class NumberValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is less than \"").append(expectedValue).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 }

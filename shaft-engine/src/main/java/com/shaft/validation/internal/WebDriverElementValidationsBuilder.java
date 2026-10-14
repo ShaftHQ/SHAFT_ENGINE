@@ -70,8 +70,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.validationMethod = "elementExists";
         reportMessageBuilder.append("exists.");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -85,8 +84,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.validationMethod = "elementExists";
         reportMessageBuilder.append("does not exist.");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -103,8 +101,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
         appendVisualValidationMessage(true);
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -178,8 +175,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.visualValidationEngine = visualValidationEngine;
         appendVisualValidationMessage(true);
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -196,8 +192,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
         appendVisualValidationMessage(false);
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -213,8 +208,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         this.visualValidationEngine = visualValidationEngine;
         appendVisualValidationMessage(false);
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -264,8 +258,7 @@ public class WebDriverElementValidationsBuilder implements com.shaft.gui.driver.
         appendShaftElementNameIfAvailable();
         reportMessageBuilder.append("matches the aria snapshot \"").append(snapshotFileName).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     private void appendVisualValidationMessage(boolean shouldMatch) {

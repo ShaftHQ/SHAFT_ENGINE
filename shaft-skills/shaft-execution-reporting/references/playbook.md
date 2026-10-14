@@ -28,4 +28,13 @@
 Return provenance, reconciled results, coverage, clusters, defects, stability,
 gate status, risks, evidence links, and owned next actions.
 
+## Execution class
+
+- `historyId` and `testCaseId` include platform, and language when language is a separate cohort, before the report is built. The same platform and language keep both ids. A parameter that already includes platform is not counted again. A shared display name across platforms or languages is a broken report, not a retry. Do not fix this by editing the generated HTML.
+- Defect ids match whole tokens. `SHAFT#6940` is a token. A hostname, path, or device name that merely contains the same digits is not. The id also has to be on the throwable (#6947), not only in a report string.
+- Decode base64 report blobs before a secret scan. A hit blocks publish and must not echo the secret. A plaintext grep is not success. Checking `browserstack.yml` is not enough (#6826 stays).
+- Allure 3 suite widgets may be base64. A plaintext miss is not an empty report. Decode the widget with a bounded scan. Do not load the whole single-file HTML as one string (#3407). A name in plaintext and in base64 counts once. An empty results directory stays unverified.
+- A later run deletes `allure-results` when `allure.cleanResultsDirectory` is true (the default). Keep a previous cohort by turning that property off or by copying into the project workspace first, for example `target/allure-results-kept`.
+- The delivery report lists each test name. Platform and language are distinguishable on the name or the suite. A pass count alone is not the report. A count that does not match the visible names fails the check.
+
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

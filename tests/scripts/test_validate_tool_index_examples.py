@@ -207,8 +207,7 @@ class DeliveredSkillContractTest(unittest.TestCase):
             "shaft-developer",
             "Use when starting any SHAFT testing task; route to one specialist skill.",
             "# SHAFT Developer\n\n"
-            "Read [the routing map](references/routing.md).\n\n"
-            "[Write tests](../shaft-write-tests/SKILL.md)\n",
+            "Read [the routing map](references/routing.md).\n",
         )
         self._write_skill(
             "shaft-write-tests",
