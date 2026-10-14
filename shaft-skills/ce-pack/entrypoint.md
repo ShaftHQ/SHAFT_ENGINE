@@ -18,7 +18,7 @@ apply unchanged to repository and portable installed hosts.
   `%APPDATA%\chaos-engine\authorizations.md`). Load it when present; without
   it, ask before signing as, attributing to, or sharing for the owner.
 - Task branches use `ChaosEngine/*` and start from fetched `origin/main`.
-- SHAFT and ChaosEngine tasks are complete only when the pull request is merged to the default branch. A local commit, a green test, or an open pull request is not completion.
+- SHAFT and ChaosEngine tasks are complete only when the pull request is merged.
 - Agents never manually start, rerun, or replace the `E2E Tests` or
   `Local E2E Tests` workflows. Smallest local proof and exact-head PR checks
   gate delivery; scheduled nightly workflows own E2E execution.
