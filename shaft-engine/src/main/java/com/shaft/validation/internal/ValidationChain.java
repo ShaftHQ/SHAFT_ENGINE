@@ -229,9 +229,10 @@ final class ValidationChain {
         return walkChain(parsed, code, bci + width);
     }
 
-    private static boolean walkChain(Parsed parsed, byte[] code, int pc) {
+    private static boolean walkChain(Parsed parsed, byte[] code, int start) {
+        int pc = start;
         int depth = 1;
-        int limit = Math.min(code.length, pc + 256);
+        int limit = Math.min(code.length, start + 256);
         int status = Step.CONTINUE;
         while (pc < limit && depth >= 1 && status == Step.CONTINUE) {
             Step step = oneStep(parsed, code, pc, depth);
@@ -247,7 +248,7 @@ final class ValidationChain {
         if (isInvoke(opcode)) {
             return invokeStep(parsed, code, pc, depth, opcode);
         }
-        return straightStep(code, pc, depth, opcode);
+        return straightStep(pc, depth, opcode);
     }
 
     private static Step invokeStep(Parsed parsed, byte[] code, int pc, int depth, int opcode) {
@@ -299,7 +300,7 @@ final class ValidationChain {
         return chainMethod(parsed.name(index));
     }
 
-    private static Step straightStep(byte[] code, int pc, int depth, int opcode) {
+    private static Step straightStep(int pc, int depth, int opcode) {
         int length = LEN[opcode];
         if (length <= 0) {
             return Step.stop();
