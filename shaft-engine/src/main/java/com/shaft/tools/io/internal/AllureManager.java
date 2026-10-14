@@ -898,6 +898,12 @@ public class AllureManager {
         }
     }
 
+    /**
+     * Deletes {@code allure-results} when {@code allure.cleanResultsDirectory} is true (the default).
+     * A later run keeps the previous cohort only when that property is false, or when the caller
+     * copied the directory into the project workspace (for example {@code target/allure-results-kept})
+     * before this clean runs. Copies outside the project are not the supported keep path.
+     */
     private static void cleanAllureResultsDirectory() {
         if (SHAFT.Properties.allure.cleanResultsDirectory()) {
             var allureResultsPath = getResultsPath();
@@ -1123,12 +1129,20 @@ public class AllureManager {
                 bodyPatch += allureOverviewPanelPatch();
             }
             String appRootPatch = scan.headerButtonsPresent() ? "" : allureHeaderButtonsPatch();
-            if (headPatch.isEmpty() && bodyPatch.isEmpty() && appRootPatch.isEmpty()) {
-                return;
+            if (!headPatch.isEmpty() || !bodyPatch.isEmpty() || !appRootPatch.isEmpty()) {
+                writePatchedIndex(indexPath, scan, headPatch, bodyPatch, appRootPatch);
             }
-            writePatchedIndex(indexPath, scan, headPatch, bodyPatch, appRootPatch);
         } catch (IOException e) {
             ReportManager.logDiscrete("Could not patch Allure report styling: " + e.getMessage());
+        }
+        guardPublishedReport(indexPath);
+    }
+
+    private static void guardPublishedReport(Path indexPath) {
+        try {
+            ReportPublishGuard.prepare(indexPath);
+        } catch (IOException e) {
+            ReportManager.logDiscrete("Could not scan the Allure report before publish: " + e.getMessage());
         }
     }
 

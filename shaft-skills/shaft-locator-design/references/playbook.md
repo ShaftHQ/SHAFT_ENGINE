@@ -25,4 +25,9 @@
 - This skill identifies and verifies elements; route page ownership to `shaft-page-objects`, action composition to `shaft-web-actions` or `shaft-mobile-actions`, and code insertion to `shaft-change-verification`.
 - Mobile identity still follows the three locator tiers; coordinates are not a tier.
 
+## Execution class
+
+- A missing requested accessibility id is not a skip while the accessibility tree shows the control. Content description counts as the control being on screen. Skip only after the tree has neither the id nor the content description.
+- XPath `!=` on an unset attribute drops the node. `not(@content-desc='marker' or @name='marker')` keeps it. Use `not(...)` when the platform may omit `name` or `content-desc`.
+
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

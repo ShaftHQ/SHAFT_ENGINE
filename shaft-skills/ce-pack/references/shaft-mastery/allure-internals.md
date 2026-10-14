@@ -5,8 +5,12 @@
 passed/failed/broken/skipped; failed = assertion, broken = unexpected
 exception), plus `*-container.json` (fixtures/grouping), attachments by UUID,
 `categories.json`, `environment.properties`, `history/` (trend, keyed by
-historyId = hash of fullName+params). Retries: multiple result files share a
-historyId; the report shows the last, others become "retries".
+historyId and testCaseId include suite identity before the report is built:
+platform, and language when language is a separate cohort. A parameter that
+already carries platform or language is counted once. The same platform and
+language still share both ids, so a real retry stays a retry. Rewriting ids in
+the generated HTML is not the fix. A shared display name across platforms or
+languages is a broken report, not a retry.
 
 ## Verdict discipline (SHAFT hard rule)
 An empty or unexpectedly small `allure-results` invalidates any pass/fail
@@ -30,6 +34,7 @@ issue #3407). The proven pattern (PR #3433, `AllureManager`):
   of all earlier patch lengths — compute final offsets, don't re-scan.
 - Windows: replace-moves are not atomic under file-watcher/AV contention;
   use `ATOMIC_MOVE` with fallback and never leave a half-written index.
+- Allure 3 suite widgets may be base64. A plaintext miss is not an empty report. Decode the widget payload with a bounded scan before deciding the suite is absent. Do not `Files.readString` the whole single-file HTML (#3407). A name that is both plaintext and base64 counts once. An empty results directory (no `*-result.json`) stays unverified. Decoding does not invent a suite.
 
 ## Ops rules
 - Never `allure serve`/`allure open` in agent sessions (guard-enforced);

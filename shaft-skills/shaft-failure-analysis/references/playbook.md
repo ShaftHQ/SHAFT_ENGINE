@@ -31,4 +31,11 @@
 Return classification, timeline, hypotheses tested, root cause or unknowns,
 confidence, affected owner, corrective action, and verification check.
 
+## Execution class
+
+- When an upstream issue already tracks the failure, do not work around it. Leave the test failed or blocked with that issue id.
+- #6940 is the list that reports end of page while the screen is still mid-list. Do not work around it with a coordinate tap, a null container, or a reversed direction. Re-check whether https://github.com/ShaftHQ/SHAFT_ENGINE/pull/6942 fixed the nested mobile list. Do not claim that it did. Web scroll in that pull is not evidence about the mobile list.
+- #6908 stays the example of a control that reports success and does not activate. A missing control is not #6908.
+- A non-blank custom report message is on the thrown `AssertionError`. A raw driver exception still needs the defect id on that throwable.
+
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

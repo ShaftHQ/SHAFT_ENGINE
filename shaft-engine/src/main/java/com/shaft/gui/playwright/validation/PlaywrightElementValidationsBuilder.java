@@ -90,16 +90,14 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     public ValidationsExecutor exists() {
         reportMessageBuilder.append("exists.");
         var executor = executor("elementExists", ValidationEnums.ValidationType.POSITIVE);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     @Override
     public ValidationsExecutor doesNotExist() {
         reportMessageBuilder.append("does not exist.");
         var executor = executor("elementExists", ValidationEnums.ValidationType.NEGATIVE);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     @Override
@@ -217,8 +215,7 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
         appendShaftElementNameIfAvailable();
         reportMessageBuilder.append("matches the aria snapshot \"").append(snapshotFileName).append("\".");
         var executor = builder("elementAriaSnapshotMatches", null, null).createAriaSnapshotExecutor(snapshotFileName);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     @Override
@@ -266,8 +263,7 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
                 .append(" the reference image.");
         var executor = builder("elementMatches", null, null)
                 .createVisualExecutor(validationType, visualValidationEngine);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     private void appendShaftElementNameIfAvailable() {
@@ -290,8 +286,7 @@ public class PlaywrightElementValidationsBuilder implements ElementAssertions {
     private ValidationsExecutor expectedState(String validationMethod, ValidationEnums.ValidationType validationType) {
         reportMessageBuilder.append("is ").append(validationType.getValue() ? "TRUE." : "FALSE.");
         var executor = executor(validationMethod, validationType);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     private PlaywrightValidationsExecutor executor(String validationMethod, ValidationEnums.ValidationType validationType) {

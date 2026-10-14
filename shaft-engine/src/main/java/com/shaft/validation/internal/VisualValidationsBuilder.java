@@ -98,7 +98,6 @@ public class VisualValidationsBuilder {
      */
     public ValidationsExecutor perform() {
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 }

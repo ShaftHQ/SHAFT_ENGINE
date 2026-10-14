@@ -9,7 +9,8 @@ actual params in canonical tool-index.json (see scripts/mcp/generate_tool_index.
 
 The same offline pass also enforces the installed skill-family contract: every identifier is
 ``shaft-*`` hyphen-case, folder/frontmatter names agree, only ``name`` and ``description`` appear
-in frontmatter, the ``shaft-developer`` hub directly links every routed specialist, local links
+in frontmatter, the ``shaft-developer`` hub links only ``references/routing.md`` and does not
+link the other specialists, ``routing.md`` links every specialist once, local links
 resolve, and each specialist directly links its hub and playbook. Literal MCP names are checked
 against the canonical tool index, so retired names fail even outside ``## Example calls``.
 
@@ -300,11 +301,10 @@ def _route_coverage_problems(
             problems.append(
                 f"{HUB_SKILL_NAME}/references/routing.md: duplicate route for specialist {duplicate!r} ({count} links)"
             )
-    for route_name in sorted(route_counts):
-        if route_name not in hub_links:
-            problems.append(
-                f"{HUB_SKILL_NAME}/SKILL.md: missing direct link for routed specialist {route_name!r}"
-            )
+    for route_name in sorted(hub_links):
+        problems.append(
+            f"{HUB_SKILL_NAME}/SKILL.md: entry must not link specialist {route_name!r}; load it from routing.md"
+        )
     return problems
 
 

@@ -67,9 +67,9 @@ public interface LambdaTest extends EngineProperties<LambdaTest> {
     @DefaultValue("")
     String deviceName();
 
-    //Use appUrl to test a previously uploaded app file
     /**
-     * Use appUrl to test a previously uploaded app file.
+     * Immutable id of one uploaded app. The session capability is this id.
+     * A latest-upload alias is not the capability.
      *
      * @return the configured value of {@code LambdaTest.appUrl}
      */
@@ -359,7 +359,8 @@ public interface LambdaTest extends EngineProperties<LambdaTest> {
     boolean console();
 
     /**
-     * Custom app ID for testing a previously uploaded app by its custom identifier.
+     * Upload label for a new app file. It tracks the latest upload and must not be copied
+     * into the session capability.
      *
      * @return the configured value of {@code LambdaTest.customID}
      */
@@ -762,8 +763,8 @@ public interface LambdaTest extends EngineProperties<LambdaTest> {
         }
 
         /**
-         * Overrides the {@code LambdaTest.customID} property at runtime. Custom app ID for testing a
-         * previously uploaded app by its custom identifier.
+         * Overrides the {@code LambdaTest.customID} property at runtime. Upload label only.
+         * The session capability stays the immutable app id.
          *
          * @param value the new value of {@code LambdaTest.customID}
          * @return this {@link SetProperty} instance for chaining

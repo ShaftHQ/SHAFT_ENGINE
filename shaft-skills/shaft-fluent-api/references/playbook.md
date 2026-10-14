@@ -9,7 +9,7 @@
 5. Preserve ordered side effects and stop after the first state-changing failure rather than masking it with later steps. [`ISTQB-CTFL`, `SHAFT-REPORTING`]
 6. End validation chains with a terminal assertion method; SHAFT evaluates that method immediately, while an unfinished builder is not an assertion. [`SHAFT-GUIDE`]
 7. Choose `assertThat()` for a blocking invariant and `verifyThat()` only when collecting further evidence after a noncritical mismatch is intentional. [`SHAFT-GUIDE`, `ISTQB-CTFL`]
-8. Attach `withCustomReportMessage(...)` to the smallest meaningful action or validation, using domain intent rather than restating syntax. [`SHAFT-REPORTING`]
+8. Attach `withCustomReportMessage(...)` to the smallest meaningful action or validation, using domain intent rather than restating syntax. A non-blank custom report message is part of the thrown `AssertionError` and of the accumulated soft-assert text, together with the expected and actual values. An id passed only there is visible on the throwable. A blank message adds no empty prefix. `forceFail` already uses that string as the actual value, so it is not prefixed again. A passing validation that sets the message does not throw. A raw driver exception still needs the defect id on that throwable, not only in the report string. [`SHAFT-REPORTING`]
 9. Do not mix raw Selenium/Appium/REST-assured calls or third-party assertions into a SHAFT chain. [`SHAFT-GUIDE`, `SELENIUM-PRACTICES`]
 10. Compile the exact chain and run the nearest test; use `test_code_guardrails_check` before accepting generated code. [`SHAFT-MCP`, `ISTQB-CTFL`]
 

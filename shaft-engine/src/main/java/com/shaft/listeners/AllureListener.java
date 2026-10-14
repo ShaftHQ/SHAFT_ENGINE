@@ -1,6 +1,7 @@
 package com.shaft.listeners;
 
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.listeners.internal.AllureSuiteIdentity;
 import com.shaft.listeners.internal.ExecutionFailureContext;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -269,6 +270,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
      */
     @Override
     public void beforeTestStop(TestResult result) {
+        applySuiteIdentity(result);
         redactStatusDetails(result);
         if (Status.SKIPPED.equals(result.getStatus())) {
             ExecutionFailureContext.PendingConfigFailure pendingFailure =
@@ -306,6 +308,35 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
             }
         }
         TestLifecycleListener.super.beforeTestStop(result);
+    }
+
+    /**
+     * Platform and language are part of the suite identity. Allure 3 hashes {@code testCaseId}
+     * plus parameters and will overwrite a null {@code historyId} after this hook, so both ids are
+     * set here, before the report is built. A parameter that already names platform or language
+     * is not counted again.
+     */
+    private static void applySuiteIdentity(TestResult result) {
+        String platform = "";
+        String language = "";
+        try {
+            platform = com.shaft.driver.SHAFT.Properties.platform.targetPlatform();
+        } catch (RuntimeException ignored) {
+            platform = "";
+        }
+        try {
+            String configuredLanguage = com.shaft.driver.SHAFT.Properties.mobile.language();
+            String configuredLocale = com.shaft.driver.SHAFT.Properties.mobile.locale();
+            language = configuredLanguage == null ? "" : configuredLanguage.trim();
+            if (configuredLocale != null && !configuredLocale.isBlank()
+                    && !language.contains(configuredLocale.trim())) {
+                String locale = configuredLocale.trim();
+                language = language.isBlank() ? locale : language + "-" + locale;
+            }
+        } catch (RuntimeException ignored) {
+            language = "";
+        }
+        AllureSuiteIdentity.apply(result, platform, language);
     }
 
     private static void redactStatusDetails(TestResult result) {

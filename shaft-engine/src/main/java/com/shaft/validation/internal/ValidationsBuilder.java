@@ -112,7 +112,6 @@ public class ValidationsBuilder {
         reportMessageBuilder.append(message);
         this.validationMethod = "forceFail";
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 }

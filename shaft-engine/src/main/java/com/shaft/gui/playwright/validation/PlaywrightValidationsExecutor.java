@@ -70,6 +70,7 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
     private final String ariaSnapshotFileName;
     private String validationCategoryString;
     private String customReportMessage = "";
+    private boolean suppliedCustomReportMessage;
 
     PlaywrightValidationsExecutor(PlaywrightNativeValidationsBuilder builder) {
         super(new SeedBuilder(builder.validationCategory()));
@@ -119,12 +120,14 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
 
     @Override
     public ValidationsExecutor withCustomReportMessage(String customReportMessage) {
-        this.customReportMessage = customReportMessage;
-        return this;
+        this.customReportMessage = customReportMessage == null ? "" : customReportMessage;
+        this.suppliedCustomReportMessage = customReportMessage != null && !customReportMessage.isBlank();
+        return settleUnlessChained();
     }
 
     @Override
     public void perform() {
+        runDeferredNow();
         ReportManager.log(customReportMessage);
     }
 
@@ -785,7 +788,8 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
 
     private void reportValidationState(Outcome outcome, long validationStartTime) {
         ValidationsHelper.reportValidationState(validationCategory, outcome.passed(), outcome.expected(),
-                outcome.actual(), attachments(outcome), validationStartTime, outcome.visualComparisonAttached());
+                outcome.actual(), attachments(outcome), validationStartTime, outcome.visualComparisonAttached(),
+                suppliedCustomReportMessage ? customReportMessage : null);
     }
 
     private List<List<Object>> attachments(Outcome outcome) {

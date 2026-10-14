@@ -24,6 +24,6 @@
 
 - If the requested deliverable is still requirements, test cases, locators, page-object design, or failure diagnosis, finish that specialist output first; do not hide an unresolved design decision inside code.
 
-Before automating a step, apply the side-effect review in [the journey and coverage map](../../shaft-test-case-design/references/journey-coverage-map.md).
+Before automating a step, apply the side-effect review in [the journey and coverage map](../../shaft-test-case-design/references/journey-coverage-map.md). STOP-BEFORE includes delete, cancel as a final action, and state-changing API calls. Stop on the last safe screen.
 
 Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

@@ -60,6 +60,7 @@ public class ValidationsHelper {
     private static final ThreadLocal<Boolean> profiledValidationSuccessful = new ThreadLocal<>();
     private final ValidationEnums.ValidationCategory validationCategory;
     private final String validationCategoryString;
+    private String customReportMessage = "";
     // captured at construction (the start of the validation flow) so the reported
     // outcome step reflects the real validation duration instead of zero
     private long validationStartTime = System.currentTimeMillis();
@@ -67,6 +68,10 @@ public class ValidationsHelper {
     ValidationsHelper(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;
         this.validationCategoryString = validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT) ? "Assert" : "Verify";
+    }
+
+    void useCustomReportMessage(String customReportMessage) {
+        this.customReportMessage = customReportMessage == null ? "" : customReportMessage;
     }
 
     public static AssertionError getVerificationErrorToForceFail() {
@@ -207,8 +212,21 @@ public class ValidationsHelper {
                                              List<List<Object>> attachments,
                                              long validationStartTime,
                                              boolean richEvidenceAlreadyAttached) {
+        reportValidationState(validationCategory, validationState, expected, actual, attachments,
+                validationStartTime, richEvidenceAlreadyAttached, null);
+    }
+
+    public static void reportValidationState(ValidationEnums.ValidationCategory validationCategory,
+                                             boolean validationState,
+                                             Object expected,
+                                             Object actual,
+                                             List<List<Object>> attachments,
+                                             long validationStartTime,
+                                             boolean richEvidenceAlreadyAttached,
+                                             String customReportMessage) {
         var validationsHelper = new ValidationsHelper(validationCategory);
         validationsHelper.validationStartTime = validationStartTime;
+        validationsHelper.useCustomReportMessage(customReportMessage);
         validationsHelper.reportValidationStateWithRichEvidence(validationState, expected, actual, attachments,
                 richEvidenceAlreadyAttached);
     }
@@ -1367,7 +1385,8 @@ public class ValidationsHelper {
     private void handleValidationFailure(Object expected, Object actual, By locator, List<List<Object>> attachments,
                                          TraceEventRecorder.Event traceEvent, CheckpointType checkpointType,
                                          String checkpointMessage) {
-        String failureMessage = this.validationCategoryString.replace("erify", "erificat") + "ion failed; expected " + expected + ", but found " + actual;
+        String failureMessage = ValidationFailureText.compose(
+                this.validationCategoryString, expected, actual, this.customReportMessage);
         // Format failure message using CustomSoftAssert for enhanced stack trace reporting
         AssertionError assertionError = new AssertionError(failureMessage);
         // Automatically extract package pattern from stack trace

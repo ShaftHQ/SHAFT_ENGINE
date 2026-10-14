@@ -117,6 +117,7 @@ jobs:
             tests.scripts.test_omniroute_portability
             tests.scripts.test_chaos_engine_research
             tests.scripts.test_delivery_status
+            tests.scripts.test_execution_class_skills
             tests.scripts.test_extract_allure_failures
             tests.scripts.test_github_client
             tests.scripts.test_graphify_maintenance

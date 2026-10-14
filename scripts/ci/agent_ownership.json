@@ -62,7 +62,7 @@
     },
     "shaft skill routing": {
       "owner": "shaft-skills/shaft-developer/SKILL.md",
-      "terms": ["select exactly one lifecycle implementation or tool specialist", "closest specialist"]
+      "terms": ["select exactly one lifecycle implementation or tool specialist", "desktop automation has no skill"]
     },
     "CI aggregation": {
       "owner": "scripts/ci/validate_agent_setup.py",

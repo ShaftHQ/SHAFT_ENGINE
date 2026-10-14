@@ -39,6 +39,8 @@ final class AndroidLifecycleService {
     private final AndroidRuntimeController runtime;
     private final AndroidRuntimeHealth health;
     private final AndroidRuntimeLayout layout;
+    /** Set when a cap kill left Appium alive and the next start must cold-boot. */
+    private boolean coldBootRequested;
 
     AndroidLifecycleService(ShaftCachePaths paths, SetupPlatform platform, SetupArchitecture architecture,
                             AndroidSetupRequest request, AndroidToolchainOperations operations,
@@ -174,37 +176,70 @@ final class AndroidLifecycleService {
         Map<String, String> androidEnvironment = androidEnvironment();
         Set<String> removed = Set.of("APPIUM_HOME", "ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_AVD_HOME",
                 "ANDROID_SERIAL", "REPO_OS_OVERRIDE");
-        AndroidOwnedProcess emulator = null;
-        AndroidOwnedProcess appium = null;
-        try {
-            List<String> emulatorCommand = new ArrayList<>(memoryCapPrefix(System.getProperty("os.name", ""),
-                    System.getProperty(MEMORY_CAP_PROPERTY), SYSTEMD_RUN_PROBE.get()));
-            emulatorCommand.addAll(List.of(layout.emulator().toString(), "-avd", request.avdName(),
-                    "-port", Integer.toString(EMULATOR_CONSOLE_PORT), "-no-snapshot-save", "-no-boot-anim",
-                    "-no-audio", "-no-window", "-memory", Integer.toString(request.ramMb()), "-cores",
-                    Integer.toString(request.cores())));
-            emulator = runtime.start("emulator", emulatorCommand, layout.sdkRoot(), androidEnvironment, removed,
-                    layout.emulatorLog());
-            health.awaitEmulator(layout.serial(), layout, androidEnvironment, options.startupTimeout());
-            URI endpoint = URI.create("http://127.0.0.1:" + request.appiumPort() + '/');
-            Map<String, String> appiumEnvironment = new LinkedHashMap<>(androidEnvironment);
-            appiumEnvironment.put("APPIUM_HOME", layout.appiumHome().toString());
-            appium = runtime.start("appium", List.of(layout.nodeExecutable().toString(),
-                    layout.appiumEntryPoint().toString(), "--address", "127.0.0.1", "--port",
-                    Integer.toString(request.appiumPort()), "--base-path", "/"), layout.appiumHome(),
-                    Map.copyOf(appiumEnvironment), removed, layout.appiumLog());
-            health.awaitAppium(endpoint, options.startupTimeout());
-            AndroidRuntimeLease lease = new AndroidRuntimeLease(1, plan.digest(), request.avdName(), layout.serial(),
-                    endpoint.toString(), ProcessIdentity.of(emulator), ProcessIdentity.of(appium), 1);
-            writeLease(lease);
-            return environment(receipt, new ActiveRuntime(lease, emulator, appium), options);
-        } catch (IOException failure) {
-            suppressCleanupFailure(failure, appium, emulator, options.shutdownTimeout());
-            throw failure;
-        } catch (RuntimeException failure) {
-            suppressCleanupFailure(failure, appium, emulator, options.shutdownTimeout());
-            throw failure;
+        boolean coldBoot = coldBootRequested;
+        coldBootRequested = false;
+        IOException wedgeFailure = null;
+        for (int attempt = 0; attempt < 2; attempt++) {
+            AndroidOwnedProcess emulator = null;
+            AndroidOwnedProcess appium = null;
+            try {
+                List<String> emulatorCommand = new ArrayList<>(memoryCapPrefix(System.getProperty("os.name", ""),
+                        System.getProperty(MEMORY_CAP_PROPERTY), SYSTEMD_RUN_PROBE.get()));
+                emulatorCommand.addAll(EmulatorBoot.emulatorCommand(layout.emulator().toString(), request.avdName(),
+                        EMULATOR_CONSOLE_PORT, request.ramMb(), request.cores(), coldBoot));
+                emulator = runtime.start("emulator", emulatorCommand, layout.sdkRoot(), androidEnvironment, removed,
+                        layout.emulatorLog());
+                health.awaitEmulator(layout.serial(), layout, androidEnvironment, options.startupTimeout());
+                URI endpoint = URI.create("http://127.0.0.1:" + request.appiumPort() + '/');
+                Map<String, String> appiumEnvironment = new LinkedHashMap<>(androidEnvironment);
+                appiumEnvironment.put("APPIUM_HOME", layout.appiumHome().toString());
+                appium = runtime.start("appium", List.of(layout.nodeExecutable().toString(),
+                        layout.appiumEntryPoint().toString(), "--address", "127.0.0.1", "--port",
+                        Integer.toString(request.appiumPort()), "--base-path", "/"), layout.appiumHome(),
+                        Map.copyOf(appiumEnvironment), removed, layout.appiumLog());
+                health.awaitAppium(endpoint, options.startupTimeout());
+                AndroidRuntimeLease lease = new AndroidRuntimeLease(1, plan.digest(), request.avdName(), layout.serial(),
+                        endpoint.toString(), ProcessIdentity.of(emulator), ProcessIdentity.of(appium), 1);
+                writeLease(lease);
+                return environment(receipt, new ActiveRuntime(lease, emulator, appium), options);
+            } catch (IOException failure) {
+                suppressCleanupFailure(failure, appium, emulator, options.shutdownTimeout());
+                if (!coldBoot && EmulatorBoot.snapshotOrRendererWedge(bootEvidence(failure))) {
+                    coldBoot = true;
+                    wedgeFailure = failure;
+                    continue;
+                }
+                throw failure;
+            } catch (RuntimeException failure) {
+                suppressCleanupFailure(failure, appium, emulator, options.shutdownTimeout());
+                throw failure;
+            }
         }
+        throw wedgeFailure == null ? new IOException("Android emulator cold boot did not start.") : wedgeFailure;
+    }
+
+    private String bootEvidence(Throwable failure) {
+        StringBuilder evidence = new StringBuilder();
+        Throwable current = failure;
+        for (int depth = 0; current != null && depth < 4; depth++) {
+            if (current.getMessage() != null) {
+                evidence.append(current.getMessage()).append('\n');
+            }
+            current = current.getCause();
+        }
+        try {
+            Path log = layout.emulatorLog();
+            if (Files.isRegularFile(log)) {
+                String logged = Files.readString(log);
+                if (logged.length() > 16_384) {
+                    logged = logged.substring(logged.length() - 16_384);
+                }
+                evidence.append(logged);
+            }
+        } catch (IOException ignored) {
+            return evidence.toString();
+        }
+        return evidence.toString();
     }
 
     private void suppressCleanupFailure(Throwable failure, AndroidOwnedProcess appium,
@@ -243,6 +278,15 @@ final class AndroidLifecycleService {
             return Optional.empty();
         }
         if (emulator.isEmpty() || appium.isEmpty()) {
+            if (EmulatorBoot.coldBootAfterCapKill(emulator.isPresent(), appium.isPresent())) {
+                IOException cleanup = stopStarted(appium.orElseThrow(), null, options.shutdownTimeout());
+                if (cleanup != null) {
+                    throw cleanup;
+                }
+                Files.deleteIfExists(leasePath());
+                coldBootRequested = true;
+                return Optional.empty();
+            }
             throw new IOException("The SHAFT Android runtime lease is stale or only partially alive; manual recovery "
                     + "is required before starting another runtime.");
         }

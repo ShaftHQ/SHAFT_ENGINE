@@ -21,8 +21,7 @@ public class JSONValidationsBuilder extends NativeValidationsBuilder {
         this.jsonIgnoringOrderComparison = true;
         reportMessageBuilder.append("equals \"").append(expectedValue).append("\", ignoring ordering.");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -38,7 +37,6 @@ public class JSONValidationsBuilder extends NativeValidationsBuilder {
         this.jsonIgnoringOrderComparison = true;
         reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\", ignoring ordering.");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 }

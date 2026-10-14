@@ -326,7 +326,11 @@ final class McpMobileToolchainService {
                 "sdkmanager --sdk_root=" + sdkRoot + " " + String.join(" ", quotePackages(packages)),
                 "avdmanager create avd --force --name " + resolvedName + " --package " + quote(imagePackage)
                         + " --device " + resolvedDevice,
-                "emulator -avd " + resolvedName + " -no-snapshot-save");
+                "emulator -avd " + resolvedName
+                        + " -no-snapshot-save"
+                        + " # -no-snapshot-save is not a cold boot;"
+                        + " a snapshot or renderer mismatch retries once with -no-snapshot-load;"
+                        + " recycle cadence is pressure-or-wedge");
         return new McpAndroidEmulatorProposal(
                 resolvedName,
                 resolvedDevice,

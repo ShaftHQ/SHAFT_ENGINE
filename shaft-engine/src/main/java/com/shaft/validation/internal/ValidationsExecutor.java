@@ -31,6 +31,8 @@ public class ValidationsExecutor {
     private String validationCategoryString;
     private By locator;
     private String customReportMessage = "";
+    private boolean suppliedCustomReportMessage;
+    private boolean deferred;
     private ValidationEnums.VisualValidationEngine visualValidationEngine;
     private String elementAttribute;
     private String elementCssProperty;
@@ -165,15 +167,45 @@ public class ValidationsExecutor {
      * @return the current executor for source compatibility with legacy validation chains
      */
     public ValidationsExecutor withCustomReportMessage(String customReportMessage) {
-        this.customReportMessage = customReportMessage;
-        return this;
+        this.customReportMessage = customReportMessage == null ? "" : customReportMessage;
+        this.suppliedCustomReportMessage = customReportMessage != null && !customReportMessage.isBlank();
+        return settleUnlessChained();
     }
 
     /**
      * Execute this validation
      */
     public void perform() {
+        runDeferredNow();
         ReportManager.log(customReportMessage);
+    }
+
+    /**
+     * Run the terminal now, unless this same statement still attaches a custom report message or calls {@link #perform()}.
+     * An unchained terminal still fails immediately.
+     */
+    public final ValidationsExecutor finishOrDefer() {
+        if (ValidationChain.callerContinues()) {
+            deferred = true;
+            return this;
+        }
+        internalPerform();
+        return this;
+    }
+
+    protected final void runDeferredNow() {
+        if (deferred) {
+            deferred = false;
+            internalPerform();
+        }
+    }
+
+    protected final ValidationsExecutor settleUnlessChained() {
+        if (deferred && !ValidationChain.callerContinues()) {
+            deferred = false;
+            internalPerform();
+        }
+        return this;
     }
 
     protected void internalPerform() {
@@ -216,6 +248,9 @@ public class ValidationsExecutor {
         long profilerStart = FlakeProfiler.isEnabled() ? System.nanoTime() : 0L;
         boolean successful = false;
         var validationsHelper = new ValidationsHelper(validationCategory);
+        if (suppliedCustomReportMessage) {
+            validationsHelper.useCustomReportMessage(customReportMessage);
+        }
         ValidationsHelper.beginProfiledValidation();
         try {
             switch (validationMethod) {

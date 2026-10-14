@@ -235,7 +235,13 @@ class ShaftSkillQualityTest(unittest.TestCase):
         self.assertIn("scripts/ci/harness_pr_gate.py", workflow)
         plan = classify_paths(["scripts/ci/shaft_skill_quality.py"])
         quality = next(check for check in plan.checks if check.id == "plugin-quality-contract")
-        self.assertEqual(("tests.scripts.test_shaft_skill_quality",), quality.modules)
+        self.assertEqual(
+            (
+                "tests.scripts.test_shaft_skill_quality",
+                "tests.scripts.test_execution_class_skills",
+            ),
+            quality.modules,
+        )
 
     def assertDefect(self, code: str):
         defects = validate_repository(self.root)

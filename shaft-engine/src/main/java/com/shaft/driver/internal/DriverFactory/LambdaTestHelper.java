@@ -6,6 +6,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.CloudAppBinary;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.internal.FailureReporter;
 import com.shaft.tools.io.internal.ProgressBarLogger;
@@ -14,6 +15,7 @@ import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.*;
 
 public class LambdaTestHelper {
@@ -73,6 +75,9 @@ public class LambdaTestHelper {
         // upload app to LambdaTest api
         String appPath = FileActions.getInstance(true).getAbsolutePath(relativePathToAppFile);
         ReportManager.logDiscrete("LambdaTest app upload path: " + appPath);
+        if (SHAFT.Properties.lambdaTest.isRealMobile()) {
+            CloudAppBinary.rejectSimulatorBinaryForRealDevice(Path.of(appPath));
+        }
 
         String userProvidedCustomID = SHAFT.Properties.lambdaTest.customID();
         String custom_id = "".equals(userProvidedCustomID) ? "shaft-engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
@@ -83,7 +88,7 @@ public class LambdaTestHelper {
         parameters.put("name", custom_id);
         var appUrl = "";
         try (ProgressBarLogger ignored = new ProgressBarLogger("Uploading app to LambdaTest...")) {
-            appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new SHAFT.API(serviceUri).post(appUploadServiceName).setContentType("multipart/form-data").setParameters(parameters, RestActions.ParametersType.FORM).setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC).perform(), "app_url"));
+            appUrl = CloudAppBinary.sessionBuildId(Objects.requireNonNull(RestActions.getResponseJSONValue(new SHAFT.API(serviceUri).post(appUploadServiceName).setContentType("multipart/form-data").setParameters(parameters, RestActions.ParametersType.FORM).setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC).perform(), "app_url")), custom_id);
             ReportManager.logDiscrete("LambdaTest uploaded app URL: " + appUrl);
         } catch (NullPointerException exception) {
             failAction(testData, exception);
@@ -125,12 +130,13 @@ public class LambdaTestHelper {
      */
     private static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
         ReportManager.logDiscrete("Configuring LambdaTest native-app execution with an existing app URL.");
-        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
+        String pinnedAppUrl = CloudAppBinary.sessionBuildId(appUrl, SHAFT.Properties.lambdaTest.customID());
+        String testData = "Username: " + username + ", Access Key: " + maskSecret(password) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + pinnedAppUrl;
         // set properties
         passAction(testData);
 
         MutableCapabilities lambdaTestCapabilities = new MutableCapabilities();
-        HashMap<String, Object> lambdaTestOptions = setLambdaTestProperties(username, password, deviceName, osVersion, appUrl);
+        HashMap<String, Object> lambdaTestOptions = setLambdaTestProperties(username, password, deviceName, osVersion, pinnedAppUrl);
         lambdaTestOptions.put("w3c", SHAFT.Properties.lambdaTest.w3c());
         if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             lambdaTestOptions.put("platformName", Platform.ANDROID);
@@ -141,7 +147,7 @@ public class LambdaTestHelper {
         lambdaTestOptions.put("platformVersion", osVersion);
         lambdaTestOptions.put("isRealMobile", SHAFT.Properties.lambdaTest.isRealMobile());
         lambdaTestOptions.put("appProfiling", SHAFT.Properties.lambdaTest.appProfiling());
-        lambdaTestOptions.put("app", appUrl);
+        lambdaTestOptions.put("app", pinnedAppUrl);
 
         lambdaTestCapabilities.setCapability("lt:options", lambdaTestOptions);
         return lambdaTestCapabilities;

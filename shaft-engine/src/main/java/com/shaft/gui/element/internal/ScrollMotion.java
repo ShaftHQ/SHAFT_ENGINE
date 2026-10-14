@@ -35,23 +35,49 @@ public final class ScrollMotion {
     }
 
     /**
-     * Null-container Android {@code mobile: scrollGesture} box. The historical margins are kept,
-     * then the rectangle is clamped so it lies entirely on the screen.
+     * Null-container Android {@code mobile: scrollGesture} box.
+     *
+     * <p>The box is built already on the screen. UP and LEFT used to start 100px from the far edge
+     * and then let {@link #clampToScreen} cut them down to a thin strip, so the opposite-direction
+     * search reported that the scrollable did not move. DOWN and RIGHT keep a 100px margin and a
+     * span of about nine tenths of the screen. UP and LEFT use that same span, placed so the far
+     * edge still clears the margin.
      */
     public static Box nullContainerBox(TouchActions.SwipeDirection direction, int screenWidth, int screenHeight) {
-        int width = screenWidth;
-        int height = screenHeight * 90 / 100;
+        int safeWidth = Math.max(screenWidth, 1);
+        int safeHeight = Math.max(screenHeight, 1);
+        boolean vertical = direction == TouchActions.SwipeDirection.UP || direction == TouchActions.SwipeDirection.DOWN;
+        int span = motionSpan(vertical ? safeHeight : safeWidth);
+        int margin = edgeMargin(vertical ? safeHeight : safeWidth, span);
+        int width = vertical ? safeWidth : span;
+        int height = vertical ? span : Math.min(safeHeight, Math.max(span, safeHeight * 90 / 100));
+        if (height > safeHeight) {
+            height = safeHeight;
+        }
         int top = switch (direction) {
-            case UP -> screenHeight - 100;
-            case DOWN -> 100;
+            case UP -> Math.max(0, safeHeight - margin - height);
+            case DOWN -> Math.min(margin, Math.max(0, safeHeight - height));
             case LEFT, RIGHT -> 0;
         };
         int left = switch (direction) {
-            case RIGHT -> 100;
-            case LEFT -> screenWidth - 100;
+            case LEFT -> Math.max(0, safeWidth - margin - width);
+            case RIGHT -> Math.min(margin, Math.max(0, safeWidth - width));
             case UP, DOWN -> 0;
         };
-        return clampToScreen(left, top, width, height, screenWidth, screenHeight);
+        return clampToScreen(left, top, width, height, safeWidth, safeHeight);
+    }
+
+    private static int motionSpan(int axis) {
+        int span = axis * 90 / 100;
+        return span < 1 ? axis : span;
+    }
+
+    private static int edgeMargin(int axis, int span) {
+        int margin = Math.min(100, Math.max(0, axis / 10));
+        if (margin + span > axis) {
+            margin = Math.max(0, axis - span);
+        }
+        return margin;
     }
 
     public static Box clampToScreen(int left, int top, int width, int height, int screenWidth, int screenHeight) {

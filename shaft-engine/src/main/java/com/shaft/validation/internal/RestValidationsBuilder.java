@@ -102,8 +102,7 @@ public class RestValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is equal to the contents of this file \"").append(fileRelativePath).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -120,8 +119,7 @@ public class RestValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("is equal to the contents of this file \"").append(fileRelativePath).append("\" (Ignoring Ordering).");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -138,8 +136,7 @@ public class RestValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("is not equal to the contents of this file \"").append(fileRelativePath).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -156,8 +153,7 @@ public class RestValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("is not equal to the contents of this file \"").append(fileRelativePath).append("\" (Ignoring Ordering).");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -174,8 +170,7 @@ public class RestValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("contains the contents of this file \"").append(fileRelativePath).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -192,8 +187,7 @@ public class RestValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("does not contain the contents of this file \"").append(fileRelativePath).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -254,8 +248,7 @@ public class RestValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         reportMessageBuilder.append("schema matches that in this file \"").append(fileRelativePath).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 
     /**
@@ -272,7 +265,6 @@ public class RestValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("schema does not match that in this file \"").append(fileRelativePath).append("\".");
         var executor = new ValidationsExecutor(this);
-        executor.internalPerform();
-        return executor;
+        return executor.finishOrDefer();
     }
 }
