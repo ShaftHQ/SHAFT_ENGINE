@@ -210,8 +210,8 @@ final class ValidationChain {
         while (pc >= 0 && pc < body.code.length) {
             int opcode = body.code[pc] & 0xff;
             if (isInvoke(opcode) && body.lineAt(pc) == frame.getLineNumber()) {
-                int index = ((body.code[pc + 1] & 0xff) << 8) | (body.code[pc + 2] & 0xff);
-                if (invokedName.equals(parsed.name(index))) {
+                int index = invokeIndex(body.code, pc);
+                if (index >= 0 && invokedName.equals(parsed.name(index))) {
                     matches++;
                     allChained &= chainedAfter(parsed, body.code, pc);
                 }
@@ -252,7 +252,10 @@ final class ValidationChain {
     }
 
     private static Step invokeStep(Parsed parsed, byte[] code, int pc, int depth, int opcode) {
-        int index = ((code[pc + 1] & 0xff) << 8) | (code[pc + 2] & 0xff);
+        int index = invokeIndex(code, pc);
+        if (index < 0) {
+            return Step.stop();
+        }
         String descriptor = parsed.descriptor(index);
         int arguments = descriptor == null ? -1 : argumentSlots(descriptor);
         if (arguments < 0) {
@@ -373,6 +376,13 @@ final class ValidationChain {
             return -1;
         }
         return pc + width;
+    }
+
+    private static int invokeIndex(byte[] code, int pc) {
+        if (pc < 0 || pc >= code.length - 2) {
+            return -1;
+        }
+        return ((code[pc + 1] & 0xff) << 8) | (code[pc + 2] & 0xff);
     }
 
     private static boolean isInvoke(int opcode) {
