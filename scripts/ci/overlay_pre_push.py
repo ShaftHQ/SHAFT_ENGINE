@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import shutil
 import subprocess  # nosec B404 - fixed git invocations, list args only.
 import sys
@@ -181,7 +182,7 @@ def _gh_open_pr_for_head(root: Path) -> dict | None:
                 "pr",
                 "view",
                 "--json",
-                "number,labels,author,isDraft",
+                "number,labels,author,isDraft,body,title",
                 "--head",
                 name,
             ],
@@ -201,6 +202,46 @@ def _gh_open_pr_for_head(root: Path) -> dict | None:
     except (ValueError, TypeError):
         return None
     return payload if isinstance(payload, dict) else None
+
+
+def pr_body_failures(root: Path, *, pr_fetcher=_gh_open_pr_for_head) -> list[str]:
+    """Fail when the open PR body would fail CI's PR Body guard (#6995 miss).
+
+    The guard reads the event payload, so fixing the body after a red run
+    still costs a push and a full CI round trip. Fix the body first; hosts
+    without the guard hook (bots) get the same check here.
+    """
+    pr = pr_fetcher(root)
+    if not pr or not isinstance(pr.get("body"), str):
+        return []
+    # Loaded by path: consumer copies of this hook ship without the CI validator.
+    validator = root / "scripts" / "ci" / "validate_pr_closing_keywords.py"
+    if not validator.is_file():
+        return []
+    spec = importlib.util.spec_from_file_location("chaos_engine_pr_body_validator", validator)
+    if spec is None or spec.loader is None:
+        return []
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except Exception:  # nosec B110 - an unloadable validator must not block a push.
+        return []
+    mindset_body_errors = module.mindset_body_errors
+    previous = os.environ.get("PR_TITLE")
+    os.environ["PR_TITLE"] = str(pr.get("title") or "")
+    try:
+        findings = mindset_body_errors(pr["body"])
+    finally:
+        if previous is None:
+            os.environ.pop("PR_TITLE", None)
+        else:
+            os.environ["PR_TITLE"] = previous
+    number = pr.get("number") or "?"
+    return [
+        f"PR #{number} body would fail the PR Body guard: {item.get('message', item)}; "
+        f"fix it with `gh api -X PATCH repos/OWNER/REPO/pulls/{number} -F body=@FILE`, then push"
+        for item in findings
+    ]
 
 
 def release_note_label_failures(root: Path, *, pr_fetcher=_gh_open_pr_for_head) -> list[str]:
@@ -382,6 +423,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     if paths is None:
         failures.extend(code_quality_failures(root))
         failures.extend(release_note_label_failures(root))
+        failures.extend(pr_body_failures(root))
     if any(path.replace("\\", "/").lstrip("./").startswith("chaos-engine/") for path in changed):
         failures.extend(portable_core_path_failures(root))
     if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):

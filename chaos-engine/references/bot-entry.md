@@ -54,6 +54,17 @@ Pings do not extend a wall-clock cap; resume instead:
 - Parent: on "interrupted before it finished", re-dispatch with the
   `tool.py resume TASK` output as the brief. Never poll a child to keep it alive.
 
+## Token economy
+
+- One round trip per PR: `overlay_pre_push.py` also checks the open PR body
+  and the README inventories, so fix what it reports before pushing, never after.
+- Filter test and CI logs to the verdict:
+  `2>&1 | grep -E "^(OK|FAILED|FAIL:|AssertionError)" | cut -c1-300`.
+  Never print a whole job log or assertion dump.
+- Babysit with one blocking loop that exits on merge or on the first `fail`.
+  With a merge queue, `gh pr merge --auto --merge` enqueues the PR.
+- `checkpoint TASK --budget 40` after every merge. When it exits 3, stop.
+
 ## Delivery ledger
 
 Several tasks, issues, or PRs: first record each with `tool.py checkpoint
