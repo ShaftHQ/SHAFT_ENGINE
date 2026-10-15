@@ -263,6 +263,16 @@
     },
     {
       "id": 27,
+      "prompt": "The release regression cycle is over: evaluate exit criteria, list waived criteria and residual risk, archive evidence, retire obsolete tests, and hand the suite over.",
+      "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
+      "files": [],
+      "expectations": [
+        "The structured chosen_skill is exactly shaft-test-completion.",
+        "The structured chosen_skill is none of: shaft-test-monitoring, shaft-stakeholder-reporting."
+      ]
+    },
+    {
+      "id": 28,
       "prompt": "Monitor the active regression run for progress, coverage, gates, duration, retries, flakiness, infrastructure health, risks, and completion signals.",
       "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
       "files": [],
@@ -272,7 +282,7 @@
       ]
     },
     {
-      "id": 28,
+      "id": 29,
       "prompt": "Create a risk-based test plan with objectives, scope, approach, resources, estimates, schedule, entry and exit criteria, and monitoring.",
       "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
       "files": [],
@@ -282,7 +292,7 @@
       ]
     },
     {
-      "id": 29,
+      "id": 30,
       "prompt": "generate code for opening Chrome, navigating to https://shafthq.github.io/, asserting \"Reliable automation evidence for every release.\"",
       "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
       "files": [],
@@ -292,7 +302,7 @@
       ]
     },
     {
-      "id": 30,
+      "id": 31,
       "prompt": "Implement browser navigation, cookie setup, file upload, drag-and-drop, window switching, element interaction, and a screenshot using the current web APIs.",
       "expected_output": "One structured chosen_skill value naming the specialist for the immediate deliverable.",
       "files": [],

@@ -794,7 +794,7 @@ class InstallShaftMcpTest(unittest.TestCase):
             ], installed)
             for target in installed:
                 self.assertTrue((target / "shaft-developer" / "SKILL.md").is_file())
-                self.assertEqual(30, len(list(target.glob("*/SKILL.md"))))
+                self.assertEqual(31, len(list(target.glob("*/SKILL.md"))))
 
     def test_install_shaft_skills_prunes_identical_github_copies_but_keeps_user_skills(self):
         # #6817: one canonical copy; stale `.github/skills` pack copies go, edited/user skills stay.
@@ -1014,7 +1014,7 @@ class InstallShaftMcpTest(unittest.TestCase):
         manifest = MODULE.shaft_skill_files(source)
 
         self.assertEqual(tuple(sorted(manifest)), manifest)
-        self.assertEqual(30, sum(relative.endswith("/SKILL.md") for relative in manifest))
+        self.assertEqual(31, sum(relative.endswith("/SKILL.md") for relative in manifest))
         for relative in manifest:
             self.assertTrue((source / relative).is_file(), f"manifest entry missing on disk: {relative}")
 
