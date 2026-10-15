@@ -53,6 +53,7 @@
 <li><a href="#clampToScreen(int,int,int,int,int,int)" tabindex="0">clampToScreen(int, int, int, int, int, int)</a></li>
 <li><a href="#opposite(com.shaft.gui.element.TouchActions.SwipeDirection)" tabindex="0">opposite(TouchActions.SwipeDirection)</a></li>
 <li><a href="#classify(boolean,boolean,boolean)" tabindex="0">classify(boolean, boolean, boolean)</a></li>
+<li><a href="#step(boolean,boolean,boolean)" tabindex="0">step(boolean, boolean, boolean)</a></li>
 </ol>
 </li>
 </ol>
@@ -94,8 +95,13 @@ direction.</div>
 <div class="col-second even-row-color"><code><a href="ScrollMotion.Box.html" class="type-name-link" title="class in com.shaft.gui.element.internal">ScrollMotion.Box</a></code></div>
 <div class="col-last even-row-color">&nbsp;</div>
 <div class="col-first odd-row-color"><code>static enum&nbsp;</code></div>
-<div class="col-second odd-row-color"><code><a href="ScrollMotion.Stop.html" class="type-name-link" title="enum class in com.shaft.gui.element.internal">ScrollMotion.Stop</a></code></div>
-<div class="col-last odd-row-color">&nbsp;</div>
+<div class="col-second odd-row-color"><code><a href="ScrollMotion.Step.html" class="type-name-link" title="enum class in com.shaft.gui.element.internal">ScrollMotion.Step</a></code></div>
+<div class="col-last odd-row-color">
+<div class="block">What the W3C swipe-into-view loop does after one gesture that did not reveal the target.</div>
+</div>
+<div class="col-first even-row-color"><code>static enum&nbsp;</code></div>
+<div class="col-second even-row-color"><code><a href="ScrollMotion.Stop.html" class="type-name-link" title="enum class in com.shaft.gui.element.internal">ScrollMotion.Stop</a></code></div>
+<div class="col-last even-row-color">&nbsp;</div>
 </div>
 </section>
 </li>
@@ -133,6 +139,13 @@ direction.</div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="../TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a></code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#opposite(com.shaft.gui.element.TouchActions.SwipeDirection)" class="member-name-link">opposite</a><wbr>(<a href="../TouchActions.SwipeDirection.html" title="enum class in com.shaft.gui.element">TouchActions.SwipeDirection</a>&nbsp;direction)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="ScrollMotion.Step.html" title="enum class in com.shaft.gui.element.internal">ScrollMotion.Step</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#step(boolean,boolean,boolean)" class="member-name-link">step</a><wbr>(boolean&nbsp;gestureMoved,
+ boolean&nbsp;movedEarlier,
+ boolean&nbsp;oppositeTried)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Next step of swipe-into-view (#6931).</div>
+</div>
 </div>
 </div>
 </div>
@@ -162,8 +175,8 @@ direction.</div>
 <p>The box is built already on the screen. UP and LEFT used to start 100px from the far edge
 and then let <a href="#clampToScreen(int,int,int,int,int,int)"><code>clampToScreen(int, int, int, int, int, int)</code></a> cut them down to a thin strip, so the opposite-direction
 search reported that the scrollable did not move. DOWN and RIGHT keep a 100px margin and a
-span of about nine tenths of the screen. UP and LEFT use that same span, placed so the far
-edge still clears the margin.</div>
+span of about nine tenths of the screen. LEFT uses that same span, placed so the far
+edge still clears the margin. UP is the documented exception: see <code>historicalUpBox</code>.</div>
 </div>
 </section>
 </li>
@@ -200,6 +213,25 @@ edge still clears the margin.</div>
 <dd><code>gestureMoved</code> - this gesture returned true (the scrollable moved)</dd>
 <dd><code>movedEarlier</code> - some earlier gesture in this search returned true</dd>
 <dd><code>oppositeAlreadyTried</code> - the other direction on this axis was already issued</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="step(boolean,boolean,boolean)">
+<h3>step</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="ScrollMotion.Step.html" title="enum class in com.shaft.gui.element.internal">ScrollMotion.Step</a></span>&nbsp;<span class="element-name">step</span><wbr><span class="parameters">(boolean&nbsp;gestureMoved,
+ boolean&nbsp;movedEarlier,
+ boolean&nbsp;oppositeTried)</span></div>
+<div class="block">Next step of swipe-into-view (#6931). A gesture that does not move tries the opposite
+direction once (the 0ffb2b1d fix). An end reached after movement also searches the rest
+of the range once before failing (the scrollInExpandableLists regression).</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>gestureMoved</code> - the last gesture reported it can scroll further</dd>
+<dd><code>movedEarlier</code> - an earlier gesture in the current direction moved</dd>
+<dd><code>oppositeTried</code> - the direction was already flipped once</dd>
 </dl>
 </div>
 </section>
