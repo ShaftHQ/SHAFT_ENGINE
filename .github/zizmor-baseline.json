@@ -20,7 +20,7 @@
   "live-tools-nightly.yml::unpinned-uses": 19,
   "maven-central-reconcile.yml::unpinned-uses": 4,
   "mavenCentral_cd.yml::unpinned-uses": 25,
-  "pr-gate.yml::unpinned-uses": 47,
+  "pr-gate.yml::unpinned-uses": 48,
   "pr-time-to-merge.yml::unpinned-uses": 2,
   "prepare-release-pr.yml::unpinned-uses": 3,
   "publish-allure-cucumber8.yml::unpinned-uses": 3,
