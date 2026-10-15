@@ -7,15 +7,24 @@ coverage:
   range: "1..100"
 
   status:
+    # #6990 coverage layer: blocking statuses. Project may not drop more than
+    # 0.5%; new/changed lines need 80%. Not ruleset-required (Codecov does not
+    # report on merge_group); babysitting treats a red status as blocking and
+    # the weekly quality report tracks drops on main.
     project:
       default:
         target: auto
-        threshold: 1%
-        informational: true
+        threshold: 0.5%
+        informational: false
     patch:
       default:
-        target: auto
-        threshold: 10%
+        target: 80%
+        informational: false
+
+flag_management:
+  default_rules:
+    # Path-scoped PR legs upload only the modules they touch; carry the rest.
+    carryforward: true
 
 parsers:
   xml:

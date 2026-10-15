@@ -16,6 +16,10 @@ inputs:
     description: 'JaCoCo XML files that must exist and be non-empty'
     required: false
     default: ''
+  flags:
+    description: 'Codecov flag for this upload (module); carried forward when a PR skips it'
+    required: false
+    default: ''
   source-id:
     description: 'Unique source name for failure evidence; defaults to the job id'
     required: false
@@ -48,7 +52,9 @@ runs:
       id: gate
       shell: bash
       run: |
-        if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+        # #6990 coverage layer: pull requests upload too, so Codecov can post
+        # blocking patch/project statuses (flags carry forward per module).
+        if [ "$GITHUB_REF" = "refs/heads/main" ] || [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
           echo "enabled=true" >> "$GITHUB_OUTPUT"
         else
           echo "enabled=false" >> "$GITHUB_OUTPUT"
@@ -195,6 +201,7 @@ runs:
         fail_ci_if_error: true
         disable_search: true
         files: ${{ steps.resolve.outputs.files }}
+        flags: ${{ inputs.flags }}
         verbose: true
 
     - name: Summarize coverage result
