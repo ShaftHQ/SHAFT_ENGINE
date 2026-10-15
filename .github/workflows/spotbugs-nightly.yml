@@ -1,0 +1,77 @@
+name: SpotBugs nightly
+
+# #6999 PR 2: full-reactor SpotBugs + FindSecBugs on main. SARIF goes to code
+# scanning; a per-module count above .github/spotbugs-baseline.json opens or
+# updates one `ci-spotbugs` issue, which is closed once the night is clean.
+# Off the PR path, so it adds nothing to the 15-minute PR gate.
+
+on:
+  schedule:
+    - cron: '17 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spotbugs-nightly
+  cancel-in-progress: false
+
+jobs:
+  spotbugs:
+    name: SpotBugs + FindSecBugs
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      issues: write
+      security-events: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Analyze
+        run: >-
+          mvn --batch-mode --no-transfer-progress -Pspotbugs -DskipTests -Dgpg.skip
+          compile com.github.spotbugs:spotbugs-maven-plugin:4.10.5.0:spotbugs
+      - name: Merge SARIF
+        run: |
+          mkdir -p sarif
+          for f in */target/spotbugsSarif.json; do cp "$f" "sarif/$(dirname "$(dirname "$f")").sarif"; done
+      - name: Upload SARIF to code scanning
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@ce5e7eeac396d720fe2d802714996c8ce561e311 # v3
+        with:
+          sarif_file: sarif
+          category: spotbugs
+      - name: Trend and tracker
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set +e
+          python3 scripts/ci/spotbugs_trend.py > spotbugs.md
+          code=$?
+          set -e
+          cat spotbugs.md >> "$GITHUB_STEP_SUMMARY"
+          existing=$(gh issue list --repo "$REPO" --label ci-spotbugs --state open --json number --jq '.[0].number // empty')
+          if [ "$code" = 0 ]; then
+            [ -n "$existing" ] && gh issue close "$existing" --repo "$REPO" --comment "SpotBugs back at or below baseline."
+            exit 0
+          fi
+          [ "$code" = 2 ] || exit "$code"
+          gh label create ci-spotbugs --repo "$REPO" --color D93F0B --description "SpotBugs regression on main (#6999)" 2>/dev/null || true
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" --body-file spotbugs.md
+          else
+            gh issue create --repo "$REPO" --label ci-spotbugs --title "SpotBugs findings above baseline on main" --body-file spotbugs.md
+          fi

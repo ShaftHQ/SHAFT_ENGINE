@@ -1,0 +1,20 @@
+{
+  "allure-cucumber8-jvm": 0,
+  "report-aggregate": 0,
+  "shaft-ai": 48,
+  "shaft-browserstack": 0,
+  "shaft-capture": 104,
+  "shaft-capture-proxy": 12,
+  "shaft-cli": 18,
+  "shaft-doctor": 99,
+  "shaft-engine": 469,
+  "shaft-heal": 3,
+  "shaft-infrastructure": 80,
+  "shaft-mcp": 120,
+  "shaft-ocr": 0,
+  "shaft-pilot-core": 8,
+  "shaft-sikulix": 2,
+  "shaft-ui-match": 0,
+  "shaft-video": 2,
+  "shaft-visual": 9
+}
