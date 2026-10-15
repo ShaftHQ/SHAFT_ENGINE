@@ -1948,20 +1948,18 @@ public class TouchActions extends FluentWebDriverAction {
                 boolean moved = performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false));
                 if (isTargetVisibleInViewport(targetElementLocator))
                     return true;
-                ScrollMotion.Stop stop = ScrollMotion.classify(moved, movedEarlier[0], oppositeTried[0]);
-                if (moved) {
-                    movedEarlier[0] = true;
-                }
-                return switch (stop) {
+                ScrollMotion.Step step = ScrollMotion.step(moved, movedEarlier[0], oppositeTried[0]);
+                movedEarlier[0] = moved || movedEarlier[0];
+                return switch (step) {
                     case CONTINUE -> false;
-                    case TRY_OPPOSITE -> {
+                    case FLIP -> {
                         activeDirection[0] = ScrollMotion.opposite(activeDirection[0]);
                         oppositeTried[0] = true;
                         yield false;
                     }
-                    case END_AFTER_MOVEMENT ->
+                    case FAIL_END ->
                             throw new IllegalStateException("Element not found after scrolling to the end of the page.");
-                    case NO_MOVEMENT ->
+                    case FAIL_NO_MOVEMENT ->
                             throw new IllegalStateException("Element not found; scrolling did not move the scrollable.");
                 };
             });

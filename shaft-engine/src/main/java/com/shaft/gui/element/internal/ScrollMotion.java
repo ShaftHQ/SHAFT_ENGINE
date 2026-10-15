@@ -40,31 +40,43 @@ public final class ScrollMotion {
      * <p>The box is built already on the screen. UP and LEFT used to start 100px from the far edge
      * and then let {@link #clampToScreen} cut them down to a thin strip, so the opposite-direction
      * search reported that the scrollable did not move. DOWN and RIGHT keep a 100px margin and a
-     * span of about nine tenths of the screen. UP and LEFT use that same span, placed so the far
-     * edge still clears the margin.
+     * span of about nine tenths of the screen. LEFT uses that same span, placed so the far
+     * edge still clears the margin. UP is the documented exception: see {@code historicalUpBox}.
      */
     public static Box nullContainerBox(TouchActions.SwipeDirection direction, int screenWidth, int screenHeight) {
         int safeWidth = Math.max(screenWidth, 1);
         int safeHeight = Math.max(screenHeight, 1);
-        boolean vertical = direction == TouchActions.SwipeDirection.UP || direction == TouchActions.SwipeDirection.DOWN;
-        int span = motionSpan(vertical ? safeHeight : safeWidth);
-        int margin = edgeMargin(vertical ? safeHeight : safeWidth, span);
+        return direction == TouchActions.SwipeDirection.UP
+                ? historicalUpBox(safeWidth, safeHeight)
+                : clampedBox(direction, safeWidth, safeHeight);
+    }
+
+    // Documented exception (#6931): UP keeps the historical rectangle (top = H - 100,
+    // height = 0.9H) without clamping. UiAutomator2 resolves it against the scrollable.
+    // Both clamped variants (a 100px strip, or a 0.9H box near the top) produce a
+    // scrollGesture that does not move ApiDemos lists on BrowserStack.
+    private static Box historicalUpBox(int safeWidth, int safeHeight) {
+        return new Box(0, Math.max(0, safeHeight - 100), safeWidth, safeHeight * 90 / 100);
+    }
+
+    private static Box clampedBox(TouchActions.SwipeDirection direction, int safeWidth, int safeHeight) {
+        boolean vertical = direction == TouchActions.SwipeDirection.DOWN;
+        int axis = vertical ? safeHeight : safeWidth;
+        int span = motionSpan(axis);
+        int margin = edgeMargin(axis, span);
         int width = vertical ? safeWidth : span;
         int height = vertical ? span : Math.min(safeHeight, Math.max(span, safeHeight * 90 / 100));
-        if (height > safeHeight) {
-            height = safeHeight;
-        }
-        int top = switch (direction) {
-            case UP -> Math.max(0, safeHeight - margin - height);
-            case DOWN -> Math.min(margin, Math.max(0, safeHeight - height));
-            case LEFT, RIGHT -> 0;
-        };
-        int left = switch (direction) {
+        return clampToScreen(clampedLeft(direction, margin, width, safeWidth),
+                vertical ? Math.min(margin, Math.max(0, safeHeight - height)) : 0,
+                width, Math.min(height, safeHeight), safeWidth, safeHeight);
+    }
+
+    private static int clampedLeft(TouchActions.SwipeDirection direction, int margin, int width, int safeWidth) {
+        return switch (direction) {
             case LEFT -> Math.max(0, safeWidth - margin - width);
             case RIGHT -> Math.min(margin, Math.max(0, safeWidth - width));
             case UP, DOWN -> 0;
         };
-        return clampToScreen(left, top, width, height, safeWidth, safeHeight);
     }
 
     private static int motionSpan(int axis) {
@@ -132,5 +144,35 @@ public final class ScrollMotion {
             return Stop.TRY_OPPOSITE;
         }
         return Stop.NO_MOVEMENT;
+    }
+
+    /** What the W3C swipe-into-view loop does after one gesture that did not reveal the target. */
+    public enum Step {
+        /** Keep swiping in the current direction. */
+        CONTINUE,
+        /** Swipe the other way: either the first gesture did not move, or one end was reached. */
+        FLIP,
+        /** Both ends were searched. */
+        FAIL_END,
+        /** Neither direction moved the scrollable. */
+        FAIL_NO_MOVEMENT
+    }
+
+    /**
+     * Next step of swipe-into-view (#6931). A gesture that does not move tries the opposite
+     * direction once (the 0ffb2b1d fix). An end reached after movement also searches the rest
+     * of the range once before failing (the scrollInExpandableLists regression).
+     *
+     * @param gestureMoved the last gesture reported it can scroll further
+     * @param movedEarlier an earlier gesture in the current direction moved
+     * @param oppositeTried the direction was already flipped once
+     */
+    public static Step step(boolean gestureMoved, boolean movedEarlier, boolean oppositeTried) {
+        return switch (classify(gestureMoved, movedEarlier, oppositeTried)) {
+            case CONTINUE -> Step.CONTINUE;
+            case TRY_OPPOSITE -> Step.FLIP;
+            case END_AFTER_MOVEMENT -> oppositeTried ? Step.FAIL_END : Step.FLIP;
+            case NO_MOVEMENT -> Step.FAIL_NO_MOVEMENT;
+        };
     }
 }

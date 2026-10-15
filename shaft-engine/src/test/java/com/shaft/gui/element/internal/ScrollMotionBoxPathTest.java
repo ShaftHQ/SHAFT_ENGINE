@@ -3,6 +3,7 @@ package com.shaft.gui.element.internal;
 import com.shaft.gui.element.TouchActions;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -15,14 +16,32 @@ public class ScrollMotionBoxPathTest {
 
     @Test
     public void oppositeDirectionBoxIsOnTheScrollableAndTallEnoughToMoveIt() {
-        ScrollMotion.Box up = ScrollMotion.nullContainerBox(TouchActions.SwipeDirection.UP, WIDTH, HEIGHT);
-        assertNotEquals(up.top(), 2300);
-        assertNotEquals(up.height(), 100);
-        assertOnScrollable(TouchActions.SwipeDirection.UP, up);
-
-        for (TouchActions.SwipeDirection direction : TouchActions.SwipeDirection.values()) {
+        for (TouchActions.SwipeDirection direction : new TouchActions.SwipeDirection[]{
+                TouchActions.SwipeDirection.DOWN, TouchActions.SwipeDirection.LEFT, TouchActions.SwipeDirection.RIGHT}) {
             assertOnScrollable(direction, ScrollMotion.nullContainerBox(direction, WIDTH, HEIGHT));
         }
+    }
+
+    @Test
+    public void upKeepsTheUnclampedHistoricalRectangleProvenOnBrowserStack() {
+        ScrollMotion.Box up = ScrollMotion.nullContainerBox(TouchActions.SwipeDirection.UP, WIDTH, HEIGHT);
+        assertEquals(up, new ScrollMotion.Box(0, HEIGHT - 100, WIDTH, HEIGHT * 90 / 100));
+        assertNotEquals(up.height(), 100, "UP must not be clamped to a thin strip");
+    }
+
+    @Test
+    public void noOpFirstGestureStillTriesTheOppositeDirection() {
+        // 0ffb2b1d scenario: the user chose the wrong direction and nothing moved.
+        assertEquals(ScrollMotion.step(false, false, false), ScrollMotion.Step.FLIP);
+        assertEquals(ScrollMotion.step(false, false, true), ScrollMotion.Step.FAIL_NO_MOVEMENT);
+    }
+
+    @Test
+    public void endReachedAfterMovementSearchesTheRestOfTheRangeOnce() {
+        // scrollInExpandableLists regression: movement, then the end, without finding the target.
+        assertEquals(ScrollMotion.step(true, false, false), ScrollMotion.Step.CONTINUE);
+        assertEquals(ScrollMotion.step(false, true, false), ScrollMotion.Step.FLIP);
+        assertEquals(ScrollMotion.step(false, true, true), ScrollMotion.Step.FAIL_END);
     }
 
     private static void assertOnScrollable(TouchActions.SwipeDirection direction, ScrollMotion.Box box) {

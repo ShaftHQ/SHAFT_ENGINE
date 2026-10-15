@@ -1131,14 +1131,17 @@ public class AndroidTouchActionsCoverageUnitTest {
             for (int[] screen : new int[][]{{1080, 2400}, {320, 480}}) {
                 for (TouchActions.SwipeDirection direction : TouchActions.SwipeDirection.values()) {
                     Map<Object, Object> gesture = captureNullContainerGesture(screen[0], screen[1], direction);
-                    assertGestureBoxOnScreen(gesture, screen[0], screen[1]);
+                    if (direction != TouchActions.SwipeDirection.UP) {
+                        assertGestureBoxOnScreen(gesture, screen[0], screen[1]);
+                    }
                     Assert.assertEquals(String.valueOf(gesture.get("direction")),
                             direction.name().toLowerCase(java.util.Locale.ROOT));
                     if (direction == TouchActions.SwipeDirection.UP && screen[1] == 2400) {
                         int top = ((Number) gesture.get("top")).intValue();
                         int height = ((Number) gesture.get("height")).intValue();
-                        Assert.assertFalse(top == screen[1] - 100 && height == screen[1] * 90 / 100,
-                                "null-container UP must not keep a 90% height under top = screenHeight - 100");
+                        // Documented exception (#6931): UP keeps the unclamped historical rectangle.
+                        Assert.assertTrue(top == screen[1] - 100 && height == screen[1] * 90 / 100,
+                                "null-container UP keeps top = screenHeight - 100 and a 90% height");
                     }
                 }
             }
@@ -1171,7 +1174,7 @@ public class AndroidTouchActionsCoverageUnitTest {
             Assert.assertEquals(nestedFailure, List.of("up", "down"));
             Assert.assertEquals(reveal, List.of("up", "down"));
             Assert.assertEquals(nestedReveal, List.of("left", "right"));
-            Assert.assertEquals(stopped, List.of("up", "up"));
+            Assert.assertEquals(stopped, List.of("up", "up", "down"));
             Assert.assertEquals(end, List.of("down"));
             Assert.assertEquals(movedEnd, List.of("down", "down"));
         }
