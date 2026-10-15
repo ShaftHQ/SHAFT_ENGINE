@@ -44,6 +44,12 @@ class QualityLayersTest(unittest.TestCase):
         self.assertIn('"$GITHUB_EVENT_NAME" = "pull_request"', action)
         self.assertIn("flags: ${{ inputs.flags }}", action)
 
+    def test_main_push_uploads_every_coverage_flag(self) -> None:
+        workflow = yaml.safe_load((ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8"))
+        self.assertIn("refs/heads/main", workflow["jobs"]["changes"]["outputs"]["coverage_all"])
+        for job in ("intellij-build", "cli", "capture-e2e", "unit-tests", "template-coupling"):
+            self.assertIn("needs.changes.outputs.coverage_all == 'true'", workflow["jobs"][job]["if"], job)
+
 
 if __name__ == "__main__":
     unittest.main()
