@@ -37,10 +37,24 @@ class CodecovStatusGateTest(unittest.TestCase):
         with mock.patch.object(gate, "fetch", return_value={}), mock.patch.object(gate.time, "sleep"):
             self.assertEqual(0, gate.main(["--repo", "o/r", "--sha", "x", "--timeout", "0"]))
 
+    def test_java_main_pr_fails_when_codecov_never_reports(self) -> None:
+        with mock.patch.object(gate, "fetch", return_value={}), mock.patch.object(gate.time, "sleep"), \
+                mock.patch.object(gate, "pr_changes_java_main", return_value=True):
+            self.assertEqual(1, gate.main(["--repo", "o/r", "--sha", "x", "--pr", "7", "--timeout", "0"]))
+        with mock.patch.object(gate, "fetch", return_value={"codecov/patch": "pending"}), \
+                mock.patch.object(gate.time, "sleep"), mock.patch.object(gate, "pr_changes_java_main", return_value=False):
+            self.assertEqual(0, gate.main(["--repo", "o/r", "--sha", "x", "--pr", "7", "--timeout", "0"]))
+
+    def test_java_main_detection(self) -> None:
+        self.assertTrue(gate.is_java_main("shaft-mcp/src/main/java/a/B.java"))
+        self.assertFalse(gate.is_java_main("src/test/java/a/BTest.java"))
+        self.assertFalse(gate.is_java_main("scripts/ci/x.py"))
+
     def test_summary_runs_gate_on_pull_request_only(self) -> None:
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
         self.assertIn("scripts/ci/codecov_status_gate.py", workflow)
         self.assertIn("if: github.event_name == 'pull_request'", workflow)
+        self.assertIn('--pr "$PR_NUMBER"', workflow)
         config = (ROOT / "codecov.yml").read_text(encoding="utf-8")
         self.assertIn("wait_for_ci: false", config)
 
