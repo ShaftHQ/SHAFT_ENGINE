@@ -5,7 +5,8 @@ Codecov statuses cannot be ruleset-required: Codecov does not report on
 merge_group, so a required Codecov context would hang the merge queue. The
 required ``PR Gate Summary`` runs this on pull_request only; merge_group skips
 it. Polling is bounded: an absent status (no upload) or one still pending at
-the deadline passes with a warning, so the gate never hangs. Codecov
+the deadline fails when the PR changes Java main sources and passes with a
+warning otherwise; the poll is bounded, so the gate never hangs. Codecov
 re-notifies per upload, so a state must settle before it counts.
 """
 from __future__ import annotations
@@ -67,6 +68,22 @@ def _get(url: str, token: str):
         return json.load(response)
 
 
+def is_java_main(path: str) -> bool:
+    """A production Java source: its coverage must be reported."""
+    return path.endswith(".java") and "src/main/" in path
+
+
+def pr_changes_java_main(repo: str, pr: int, token: str) -> bool:
+    page = 1
+    while True:
+        files = _get(f"https://api.github.com/repos/{repo}/pulls/{pr}/files?per_page=100&page={page}", token)
+        if any(is_java_main(f.get("filename", "")) for f in files):
+            return True
+        if len(files) < 100:
+            return False
+        page += 1
+
+
 def fetch(repo: str, sha: str, token: str) -> dict[str, str]:
     base = f"https://api.github.com/repos/{repo}/commits/{sha}"
     runs = _get(f"{base}/check-runs?per_page=100", token).get("check_runs", [])
@@ -78,11 +95,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", ""))
     parser.add_argument("--sha", required=True)
     parser.add_argument("--timeout", type=int, default=240)
+    parser.add_argument("--pr", type=int, default=0,
+                        help="PR number; a PR touching Java main sources must get a final Codecov verdict")
     parser.add_argument("--interval", type=int, default=15)
     parser.add_argument("--settle", type=int, default=60,
                         help="seconds a final state must stay unchanged; Codecov re-notifies per upload")
     args = parser.parse_args(argv)
     token = os.environ.get("GITHUB_TOKEN", "")
+    strict = bool(args.pr) and pr_changes_java_main(args.repo, args.pr, token)
     deadline = time.monotonic() + args.timeout
     seen: dict[str, str] | None = None
     stable_since = time.monotonic()
@@ -102,8 +122,11 @@ def main(argv: list[str] | None = None) -> int:
         if now >= deadline:
             if result == "pass":
                 print(f"Codecov green (not settled): {states}")
+            elif strict:
+                print(f"::error::PR changes Java main sources but Codecov is not final ({states or 'none posted'}). Re-run the gate once Codecov reports.")
+                return 1
             else:
-                print(f"::warning::Codecov not final before deadline ({states or 'none posted'}); not blocking")
+                print(f"::warning::Codecov not final before deadline ({states or 'none posted'}); no Java main change, not blocking")
             return 0
         time.sleep(args.interval)
 

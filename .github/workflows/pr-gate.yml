@@ -1437,7 +1437,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: python3 scripts/ci/codecov_status_gate.py --sha "$HEAD_SHA"
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 scripts/ci/codecov_status_gate.py --sha "$HEAD_SHA" --pr "$PR_NUMBER" --timeout 360
 
   # Issue #6185: a red post-merge `main` run used to go unnoticed. This job
   # files or updates one rolling `ci-main-red` issue per failing leg (assigned
