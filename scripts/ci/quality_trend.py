@@ -83,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True)
     parser.add_argument("--limit", type=int, default=30)
-    parser.add_argument("--coverage-floor", type=float, default=61.0)
+    parser.add_argument("--coverage-floor", type=float, default=61.4)
     args = parser.parse_args(argv)
     runs, coverage = fetch(args.repo, args.limit)
     summary = summarize(codacy_rows(runs), coverage, args.coverage_floor)

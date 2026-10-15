@@ -32,5 +32,18 @@ class QualityLayersTest(unittest.TestCase):
         self.assertIn("ci-quality", text)
 
 
+    def test_coverage_statuses_block_and_carry_forward(self) -> None:
+        config = yaml.safe_load((ROOT / "codecov.yml").read_text(encoding="utf-8"))
+        status = config["coverage"]["status"]
+        self.assertEqual("80%", status["patch"]["default"]["target"])
+        self.assertFalse(status["patch"]["default"]["informational"])
+        self.assertEqual("0.5%", status["project"]["default"]["threshold"])
+        self.assertFalse(status["project"]["default"]["informational"])
+        self.assertTrue(config["flag_management"]["default_rules"]["carryforward"])
+        action = (ROOT / ".github/actions/upload-jacoco-coverage/action.yml").read_text(encoding="utf-8")
+        self.assertIn('"$GITHUB_EVENT_NAME" = "pull_request"', action)
+        self.assertIn("flags: ${{ inputs.flags }}", action)
+
+
 if __name__ == "__main__":
     unittest.main()

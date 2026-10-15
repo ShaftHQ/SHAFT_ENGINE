@@ -63,7 +63,7 @@ Pings do not extend a wall-clock cap; resume instead:
   Never print a whole job log or assertion dump.
 - Babysit with one blocking loop that exits on merge or on the first `fail`.
   With a merge queue, `gh pr merge --auto --merge` enqueues the PR. Before
-  it merges, read non-blocking analysis reporters and fix their new findings.
+  it merges, read non-blocking analysis and coverage reporters and fix them.
 - `checkpoint TASK --budget 40` after every merge. When it exits 3, stop.
 
 ## Delivery ledger

@@ -424,6 +424,7 @@ jobs:
               - 'tests/scripts/test_pr_time_to_merge_report.py'
               - 'scripts/ci/quality_trend.py'
               - 'tests/scripts/test_quality_layers_6990.py'
+              - 'codecov.yml'
               - '.github/workflows/pr-time-to-merge.yml'
               - 'scripts/ci/shard_test_selector.py'
               - 'tests/scripts/test_shard_test_selector.py'
@@ -639,6 +640,7 @@ jobs:
           files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
           required-files: ./shaft-intellij/build/reports/jacoco/test/jacocoTestReport.xml
           source-id: pr-gate-intellij-build
+          flags: shaft-intellij
       - name: Upload plugin distribution
         uses: actions/upload-artifact@v7.0.2
         with:
@@ -713,6 +715,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           required-files: ./shaft-cli/target/jacoco/jacoco.xml
           source-id: pr-gate-cli-${{ matrix.os }}
+          flags: shaft-cli
       - name: Run packaged shaft-cli binary
         shell: bash
         run: |
@@ -764,6 +767,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           required-files: ./shaft-capture/target/jacoco/jacoco.xml
           source-id: pr-gate-capture-e2e
+          flags: shaft-capture-e2e
 
   # Path-conditioned unit-test leg (issue #3849): shaft-engine and the Java
   # modules downstream of it reached main with zero PR-time test execution --
@@ -923,6 +927,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           required-files: ./${{ matrix.module }}/target/jacoco/jacoco.xml
           source-id: pr-gate-unit-${{ matrix.leg || matrix.module }}
+          flags: ${{ matrix.leg || matrix.module }}
 
   template-coupling:
     name: Template Coupling Gate
@@ -960,6 +965,7 @@ jobs:
           codecov-token: ${{ secrets.CODECOV_TOKEN }}
           required-files: ./shaft-mcp/target/jacoco/jacoco.xml
           source-id: pr-gate-template-coupling
+          flags: templates
 
   # Issue #4081: MacOSX_Safari_Local hung after a heap OOM and burned the full
   # 6-hour default job ceiling on a macos-latest runner (10x billing
