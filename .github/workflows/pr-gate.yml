@@ -67,6 +67,10 @@ jobs:
       chaos_gauge: ${{ steps.filter.outputs.chaos_gauge }}
       installer_os: ${{ steps.installer-tier.outputs.installer_os }}
       installer_contracts_os: ${{ steps.installer-tier.outputs.installer_contracts_os }}
+      # #6990 phase 3: heavy legs are post-merge unless the PR opts in by label.
+      cli_os: ${{ steps.installer-tier.outputs.cli_os }}
+      run_capture_browser: ${{ steps.installer-tier.outputs.run_capture_browser }}
+      run_intellij_verify: ${{ steps.installer-tier.outputs.run_intellij_verify }}
     permissions:
       contents: read
       issues: read
@@ -645,7 +649,7 @@ jobs:
   intellij-verify-plugin:
     name: Verify IntelliJ plugin (Plugin Verifier)
     needs: changes
-    if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
+    if: (needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true') && needs.changes.outputs.run_intellij_verify == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -665,7 +669,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-2025]
+        # #6990: PR runs ubuntu only; windows-2025 post-merge or ci:cli-windows / ci:full.
+        os: ${{ fromJSON(needs.changes.outputs.cli_os) }}
     steps:
       # .memory relation filenames exceed MAX_PATH with the runner workspace prefix;
       # without long paths, git checkout itself fails on Windows runners.
@@ -717,7 +722,7 @@ jobs:
   capture-e2e:
     name: SHAFT Capture Browser E2E
     needs: changes
-    if: needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true'
+    if: (needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true') && needs.changes.outputs.run_capture_browser == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:

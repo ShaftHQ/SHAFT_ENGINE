@@ -62,7 +62,8 @@ class WorkflowTest(unittest.TestCase):
         workflow = self.workflow()
         self.assertEqual({"pull_request": {"types": ["labeled"]}}, workflow["on"])
         job = workflow["jobs"]["rerun"]
-        self.assertIn("github.event.label.name == 'ci:installer-macos'", job["if"])
+        self.assertIn('"ci:installer-macos"', job["if"])
+        self.assertIn("github.event.label.name", job["if"])
         self.assertIn("head.repo.full_name == github.repository", job["if"])
         self.assertEqual({"actions": "write", "contents": "read"}, job["permissions"])
         self.assertEqual({"contents": "read"}, workflow["permissions"])

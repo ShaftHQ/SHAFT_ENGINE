@@ -133,6 +133,18 @@ table. Remove a row only in the same change that deletes its workflow.
 | Push to `main` (post-merge, never cancelled) | ubuntu-22.04, windows-2025, macos-15 | windows-2025, macos-15 |
 | Daily 04:15 UTC (`agent-plugin-acceptance.yml`) | 3-OS installer acceptance + live installer, `notify` on failure | — |
 
+### Post-merge legs with label opt-in (#6990 phase 3)
+
+| Leg | Pull request | Push to `main` (path-scoped) | PR opt-in label |
+|---|---|---|---|
+| SHAFT Capture Browser E2E | skipped | runs | `ci:capture-e2e` |
+| Verify IntelliJ plugin (Plugin Verifier) | skipped (Build IntelliJ plugin still runs) | runs | `ci:intellij-verify` |
+| shaft-cli | ubuntu-22.04 | ubuntu-22.04, windows-2025 | `ci:cli-windows` |
+| All post-merge legs incl. macOS/Windows installer | — | — | `ci:full` |
+
+Release workflows keep their full verify. A red post-merge leg is tracked by
+`Main red reaction` (rolling issue, auto-closed on green); main rolls forward.
+
 `scripts/ci/chaos_installer_tier.py` resolves the tier from live PR labels;
 adding the label re-runs PR Gate automatically via `installer-macos-rerun.yml`
 (#6208). A macOS-only break is caught post-merge
