@@ -477,13 +477,9 @@ def pending_checkpoint(session_id: str, now: datetime | None = None) -> dict | N
         for value in fingerprints:
             counts[value] = counts.get(value, 0) + 1
         repeated = [value for value, count in counts.items() if count >= 3]
-        recent = _recent(active, now)
         if repeated:
-            fingerprints = [value for value in fingerprints if value in repeated]
-            same = len(set(fingerprints)) == 1
-        elif len(recent) >= 3:
-            fingerprints = [str(item.get("fingerprint", "manual")) for item in recent]
-        else:
+            same = len(repeated) == 1
+        elif len(_recent(active, now)) < 3:
             return None
     return {
         "depth": "deep" if same else "task",
