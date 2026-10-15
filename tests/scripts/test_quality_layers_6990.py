@@ -60,6 +60,17 @@ class QualityLayersTest(unittest.TestCase):
             self.assertIn(name, flags)
             self.assertIn(f"flags: {name}", workflow)
 
+    def test_codecov_yml_uses_only_schema_keys(self) -> None:
+        # An unknown key makes Codecov reject the WHOLE file and fall back to
+        # defaults (no carryforward, no 80% patch target): `parsers.xml` did.
+        # Validate changes with `curl --data-binary @codecov.yml https://codecov.io/validate`.
+        config = yaml.safe_load((ROOT / "codecov.yml").read_text(encoding="utf-8"))
+        top = {"codecov", "coverage", "flag_management", "component_management", "parsers",
+               "comment", "ignore", "fixes", "flags", "github_checks", "profiling", "slack_app", "beta_groups"}
+        self.assertEqual(set(), set(config) - top)
+        parsers = {"gcov", "go", "javascript", "jacoco", "cobertura", "v1"}
+        self.assertEqual(set(), set(config.get("parsers") or {}) - parsers)
+
 
 if __name__ == "__main__":
     unittest.main()

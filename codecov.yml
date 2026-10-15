@@ -59,14 +59,6 @@ flag_management:
     - name: templates
       carryforward: true
 
-parsers:
-  xml:
-    branch_detection:
-      conditional: yes
-      loop: yes
-      method: no
-      macro: no
-
 comment:
   layout: "reach,diff,flags,tree"
   behavior: default
