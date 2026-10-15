@@ -443,7 +443,7 @@ class AssistantCommandRoutingTest {
                 "shaft-fluent-api", "shaft-guide-search", "shaft-locator-design", "shaft-mcp",
                 "shaft-mobile-actions", "shaft-nonfunctional-test-design", "shaft-page-objects",
                 "shaft-recording-codegen", "shaft-requirements-analysis", "shaft-stakeholder-reporting",
-                "shaft-test-case-design", "shaft-test-data-design", "shaft-test-environment",
+                "shaft-test-case-design", "shaft-test-completion", "shaft-test-data-design", "shaft-test-environment",
                 "shaft-test-execution", "shaft-test-monitoring", "shaft-test-planning",
                 "shaft-test-recording", "shaft-web-actions");
         String response = invocation.localResponse();

@@ -163,6 +163,12 @@
       "rejected_skills": ["shaft-test-monitoring"]
     },
     {
+      "id": "route-test-completion",
+      "prompt": "The release regression cycle is over: evaluate exit criteria, list waived criteria and residual risk, archive evidence, retire obsolete tests, and hand the suite over.",
+      "expected_skill": "shaft-test-completion",
+      "rejected_skills": ["shaft-test-monitoring", "shaft-stakeholder-reporting"]
+    },
+    {
       "id": "route-test-monitoring",
       "prompt": "Monitor the active regression run for progress, coverage, gates, duration, retries, flakiness, infrastructure health, risks, and completion signals.",
       "expected_skill": "shaft-test-monitoring",

@@ -228,7 +228,7 @@ class ShaftSkillRoutingEvalTest(unittest.TestCase):
         self.assertEqual(defects, [])
         corpus = json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
         review = json.loads(REVIEW_PATH.read_text(encoding="utf-8"))
-        self.assertEqual(len(corpus["cases"]), 30)
+        self.assertEqual(len(corpus["cases"]), 31)
         self.assertEqual(
             {case["expected_skill"] for case in corpus["cases"]},
             set(review["skills"]),

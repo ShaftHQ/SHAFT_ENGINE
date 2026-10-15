@@ -679,6 +679,7 @@ final class AssistantCommand {
 
                 Lifecycle: $shaft-requirements-analysis, $shaft-test-planning, $shaft-test-case-design,
                 $shaft-test-data-design, $shaft-test-environment, $shaft-test-execution, $shaft-test-monitoring,
+                $shaft-test-completion,
                 $shaft-failure-analysis, $shaft-flaky-test-analysis, $shaft-defect-reporting,
                 $shaft-execution-reporting, $shaft-stakeholder-reporting, $shaft-accessibility-testing,
                 $shaft-nonfunctional-test-design.

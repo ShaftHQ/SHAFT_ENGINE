@@ -31,6 +31,7 @@ installer is a separate product and must not publish `shaft-mcp` into CE
 | Browser, device, service, dependency, configuration, or environment readiness | [`shaft-test-environment`](../../shaft-test-environment/SKILL.md) |
 | Run approved tests and capture trustworthy execution evidence | [`shaft-test-execution`](../../shaft-test-execution/SKILL.md) |
 | Monitor progress, gates, coverage, duration, retries, or execution health | [`shaft-test-monitoring`](../../shaft-test-monitoring/SKILL.md) |
+| Close a cycle: exit criteria, residual risk, archive, testware retirement, handover, or lessons | [`shaft-test-completion`](../../shaft-test-completion/SKILL.md) |
 | Diagnose one consistent failed or broken result and identify root cause | [`shaft-failure-analysis`](../../shaft-failure-analysis/SKILL.md) |
 | Diagnose inconsistent pass/fail outcomes under equivalent conditions | [`shaft-flaky-test-analysis`](../../shaft-flaky-test-analysis/SKILL.md) |
 | File or improve a reproducible product defect report | [`shaft-defect-reporting`](../../shaft-defect-reporting/SKILL.md) |

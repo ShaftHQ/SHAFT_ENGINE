@@ -125,6 +125,11 @@
       "confusion_with": ["shaft-test-planning", "shaft-requirements-analysis"],
       "notes": "Concrete scenarios, data, steps, and expected outcomes bound this design specialist."
     },
+    "shaft-test-completion": {
+      "scores": {"trigger_precision": 5, "sibling_overlap": 4, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 3, "context_cost": 5},
+      "confusion_with": ["shaft-test-monitoring", "shaft-stakeholder-reporting"],
+      "notes": "Cycle closure (exit criteria, archive, testware decisions, handover) is distinct from live monitoring and business reporting."
+    },
     "shaft-test-data-design": {
       "scores": {"trigger_precision": 5, "sibling_overlap": 5, "dependency_depth": 5, "reference_freshness": 4, "runnable_evidence": 4, "context_cost": 4},
       "confusion_with": ["shaft-database-testing"],
