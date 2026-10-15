@@ -1013,5 +1013,35 @@
                 </plugins>
             </build>
         </profile>
+        <!-- #6999 PR 2: SpotBugs + FindSecBugs, run nightly by spotbugs-nightly.yml
+             (`mvn -Pspotbugs compile spotbugs:spotbugs`). Report-only: the
+             nightly ratchets per-module totals against .github/spotbugs-baseline.json. -->
+        <profile>
+            <id>spotbugs</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.spotbugs</groupId>
+                        <artifactId>spotbugs-maven-plugin</artifactId>
+                        <version>4.10.5.0</version>
+                        <configuration>
+                            <effort>Default</effort>
+                            <threshold>Medium</threshold>
+                            <failOnError>false</failOnError>
+                            <xmlOutput>true</xmlOutput>
+                            <sarifOutput>true</sarifOutput>
+                            <onlyAnalyze>com.shaft.-</onlyAnalyze>
+                            <plugins>
+                                <plugin>
+                                    <groupId>com.h3xstream.findsecbugs</groupId>
+                                    <artifactId>findsecbugs-plugin</artifactId>
+                                    <version>1.14.0</version>
+                                </plugin>
+                            </plugins>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 </project>
