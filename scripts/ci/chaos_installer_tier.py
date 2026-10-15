@@ -33,6 +33,8 @@ MACOS = "macos-15"
 OPT_IN_LABEL = "ci:installer-macos"
 WINDOWS_OPT_IN_LABEL = "ci:installer-windows"
 FULL_LABEL = "ci:full"
+# A merge-queue group re-checks the PR tier only; post-merge legs run on push (#6990).
+PR_TIER_EVENTS = frozenset({"pull_request", "merge_group"})
 POST_MERGE_LEGS = {
     "run_capture_browser": "ci:capture-e2e",
     "run_intellij_verify": "ci:intellij-verify",
@@ -54,7 +56,9 @@ def parse_labels(raw: str) -> set[str]:
 
 def opted_in(event_name: str, labels: set[str], label: str) -> bool:
     """Post-merge legs run on every non-PR event, or on a PR carrying ``label``/``ci:full``."""
-    return event_name != "pull_request" or label in labels or FULL_LABEL in labels
+    if event_name not in PR_TIER_EVENTS:
+        return True
+    return label in labels or FULL_LABEL in labels
 
 
 def includes_macos(event_name: str, labels: set[str]) -> bool:

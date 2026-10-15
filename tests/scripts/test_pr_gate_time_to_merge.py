@@ -50,6 +50,13 @@ class MacosInstallerTierTest(unittest.TestCase):
         for label in tier.OPT_IN_LABELS:
             self.assertIn(label, rerun)
 
+    def test_merge_group_runs_the_pr_tier_only_6990(self) -> None:
+        self.assertEqual(tier.outputs("pull_request", set()), tier.outputs("merge_group", set()))
+        gate = load("pr-gate.yml")
+        self.assertIn("merge_group", gate["on"])
+        governance = load("release-note-governance.yml")
+        self.assertIn("merge_group", governance["on"])
+
     def test_windows_contracts_are_post_merge_or_opt_in_6990(self) -> None:
         self.assertEqual(["windows-2025"], tier.contracts_os("pull_request", {"ci:installer-windows"}))
         self.assertIn("windows-2025", tier.contracts_os("push", set()))
