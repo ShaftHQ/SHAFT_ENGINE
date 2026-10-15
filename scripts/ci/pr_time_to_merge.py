@@ -12,7 +12,7 @@ import argparse
 import json
 import shutil
 import statistics
-import subprocess
+import subprocess  # nosec B404 - fixed gh argument vector, never a shell.
 import sys
 from datetime import datetime
 
@@ -65,7 +65,7 @@ def fetch_merged(repo: str, limit: int) -> list[dict]:
     gh = shutil.which("gh")
     if gh is None:
         raise SystemExit("gh CLI not found")
-    raw = subprocess.run(  # noqa: S603 - fixed argv, resolved executable
+    raw = subprocess.run(  # nosec B603 - fixed argv, resolved executable
         [gh, "api", f"repos/{repo}/pulls?state=closed&base=main&sort=updated&direction=desc&per_page=100"],
         check=True, capture_output=True, text=True,
     ).stdout
@@ -79,7 +79,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--target", type=float, default=TARGET_MEDIAN_MINUTES)
     parser.add_argument("--input", help="JSON file of PRs instead of gh api (tests)")
     args = parser.parse_args(argv)
-    prs = json.load(open(args.input, encoding="utf-8")) if args.input else fetch_merged(args.repo, args.limit)
+    if args.input:
+        with open(args.input, encoding="utf-8") as handle:
+            prs = json.load(handle)
+    else:
+        prs = fetch_merged(args.repo, args.limit)
     summary = summarize(prs, args.target)
     print(render(summary))
     print(json.dumps(summary))
