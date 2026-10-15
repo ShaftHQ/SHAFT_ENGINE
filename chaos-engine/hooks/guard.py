@@ -208,6 +208,41 @@ def git_commit_command(command: str) -> bool:
     return head == "git" and bool(arguments) and arguments[0] == "commit"
 
 
+def _read_body_file(value: str) -> str | None:
+    try:
+        return Path(value).read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+
+def _pr_body_argument(arguments: list[str]) -> str | None:
+    """Body text of ``gh pr create|edit`` arguments; None when absent or unreadable."""
+    body = None
+    for index, item in enumerate(arguments):
+        flag, _, inline = item.partition("=")
+        value = inline if inline else (arguments[index + 1] if index + 1 < len(arguments) else None)
+        if value is None:
+            continue
+        if flag in {"--body-file", "-F"}:
+            body = _read_body_file(value)
+        elif flag in {"--body", "-b"}:
+            body = value
+    return body
+
+
+def _assumption_errors(body: str) -> list[str]:
+    mindset = Path(__file__).resolve().parents[1] / "harness_mindset.py"
+    spec = importlib.util.spec_from_file_location("chaos_engine_pr_body_mindset", mindset)
+    if not mindset.is_file() or spec is None or spec.loader is None:
+        return []
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+        return list(module.assumption_section_errors(body))
+    except Exception:  # nosec B110 - an unavailable checker must not block PR creation.
+        return []
+
+
 def _pr_body_block(commands: tuple[str, ...]) -> str:
     """Check a ``gh pr create|edit`` body for the riskiest-assumption section before it ships.
 
@@ -215,41 +250,11 @@ def _pr_body_block(commands: tuple[str, ...]) -> str:
     old event body, so a fix then costs a push and a full CI round trip.
     """
     for command in commands:
-        parsed = shell_tokens(command)
-        if len(parsed) < 3 or command_head(parsed)[0] != "gh":
+        head, arguments = command_head(shell_tokens(command))
+        if head != "gh" or arguments[:2] not in (["pr", "create"], ["pr", "edit"]):
             continue
-        arguments = command_head(parsed)[1]
-        if arguments[:2] not in (["pr", "create"], ["pr", "edit"]):
-            continue
-        body = None
-        for index, item in enumerate(arguments):
-            value = arguments[index + 1] if index + 1 < len(arguments) else None
-            if item in {"--body-file", "-F"} and value:
-                try:
-                    body = Path(value).read_text(encoding="utf-8")
-                except OSError:
-                    return ""
-            elif item in {"--body", "-b"} and value is not None:
-                body = value
-            elif item.startswith("--body-file="):
-                try:
-                    body = Path(item.split("=", 1)[1]).read_text(encoding="utf-8")
-                except OSError:
-                    return ""
-            elif item.startswith("--body="):
-                body = item.split("=", 1)[1]
-        if body is None:
-            continue
-        mindset = Path(__file__).resolve().parents[1] / "harness_mindset.py"
-        spec = importlib.util.spec_from_file_location("chaos_engine_pr_body_mindset", mindset)
-        if not mindset.is_file() or spec is None or spec.loader is None:
-            return ""
-        module = importlib.util.module_from_spec(spec)
-        try:
-            spec.loader.exec_module(module)
-            errors = module.assumption_section_errors(body)
-        except Exception:  # nosec B110 - an unavailable checker must not block PR creation.
-            return ""
+        body = _pr_body_argument(arguments)
+        errors = _assumption_errors(body) if body is not None else []
         if errors:
             return (
                 "PR body would fail the CI PR Body guard: " + errors[0] + ". Add `## Riskiest assumption` "
