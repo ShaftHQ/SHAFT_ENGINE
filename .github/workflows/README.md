@@ -133,6 +133,15 @@ table. Remove a row only in the same change that deletes its workflow.
 | Push to `main` (post-merge, never cancelled) | ubuntu-22.04, windows-2025, macos-15 | windows-2025, macos-15 |
 | Daily 04:15 UTC (`agent-plugin-acceptance.yml`) | 3-OS installer acceptance + live installer, `notify` on failure | — |
 
+### Merge queue readiness (#6990 phase 4)
+
+`pr-gate.yml` and `release-note-governance.yml` trigger on `merge_group`. A
+queue group runs the PR tier (no post-merge legs), path-filtered against the
+default branch. Governance skips label validation there, because labels were
+already checked on the pull request. Before enabling the queue, every required
+check must report on `merge_group`: the external `Codacy Static Code Analysis`
+app does not, so drop it from the required list (keep it as a PR check) first.
+
 ### Post-merge legs with label opt-in (#6990 phase 3)
 
 | Leg | Pull request | Push to `main` (path-scoped) | PR opt-in label |

@@ -8,8 +8,9 @@ name: Release-note governance
 #
 # Required-check contract: no paths filter and no job-level `if`, so the one
 # job named exactly "Release-note governance" reports a conclusion on every
-# pull request event and never leaves a required check pending. If a merge
-# queue is adopted (#6193), add `merge_group:` here too.
+# pull request event and never leaves a required check pending. On
+# `merge_group` (#6990 phase 4) the job reports success after the unit tests:
+# the PR's labels were already validated on the pull_request event.
 #
 # Issue #6300: adding or removing a classification label (breaking-change, bug,
 # enhancement, skip-release-notes) must start a new run. Label events do not
@@ -19,6 +20,7 @@ name: Release-note governance
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+  merge_group:
   push:
     branches: [ main ]
 
@@ -41,6 +43,7 @@ jobs:
       - name: Test and validate release-note governance
         run: |
           python3 -m unittest tests.scripts.test_validate_release_notes tests.scripts.test_render_release_notes -v
+          if [ "$GITHUB_EVENT_NAME" = "merge_group" ]; then exit 0; fi
           python3 scripts/ci/validate_release_notes.py --event "$GITHUB_EVENT_PATH"
         env:
           GH_TOKEN: ${{ github.token }}
