@@ -63,7 +63,7 @@ class ReflectionReceiptAdapterTest(unittest.TestCase):
         reason = guard.checkpoint_reason({"depth": "task", "failureFingerprints": ["abc"]})
         controller = str(guard._reflection_controller())
         self.assertIn(f"The gate executed `{controller}`", reason)
-        self.assertIn(f"`{controller}` receipt", reason)
+        self.assertIn(f"{controller} receipt --session-id", reason)
         self.assertNotIn("scripts/agents/reflection.py", reason)
 
     def test_denied_reflection_retry_does_not_append_a_fingerprint(self) -> None:

@@ -46,6 +46,11 @@ _SECRET = re.compile(
     r"authorization)\s*(?:=|:)\s*\S+|bearer\s+\S+)"
 )
 _GITHUB_ISSUE_URL = re.compile(r"https://github\.com/[^/]+/[^/]+/issues/[1-9]\d*")
+# Distinct-fingerprint failures only count toward a third-fix checkpoint when
+# they are recent. A long goal session collects unrelated failures over hours;
+# they are not a stuck fix loop. Repeated fingerprints and explicit triggers
+# still count for the whole window since the last receipt.
+RECENT_FAILURE_WINDOW_SECONDS = 1800
 
 
 def scope_session_id(session_id: str, agent_id: object = None) -> str:
@@ -431,7 +436,23 @@ def reflection_controller_drift(start: Path) -> str:
     )
 
 
-def pending_checkpoint(session_id: str) -> dict | None:
+def _recent(active: list[dict], now: datetime | None) -> list[dict]:
+    current = (now or datetime.now(UTC)).astimezone(UTC)
+    kept = []
+    for item in active:
+        try:
+            seen = datetime.fromisoformat(str(item.get("observedAt")).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            kept.append(item)
+            continue
+        if seen.tzinfo is None:
+            seen = seen.replace(tzinfo=UTC)
+        if (current - seen.astimezone(UTC)).total_seconds() <= RECENT_FAILURE_WINDOW_SECONDS:
+            kept.append(item)
+    return kept
+
+
+def pending_checkpoint(session_id: str, now: datetime | None = None) -> dict | None:
     """Open a receipt on the third attempted failure, then allow one commit."""
     active = active_entries(session_id)
     explicit = next((item for item in reversed(active) if item.get("kind") == "reflection-trigger"), None)
@@ -443,6 +464,7 @@ def pending_checkpoint(session_id: str) -> dict | None:
                 {str(item.get("fingerprint", "manual")) for item in active}
             ),
             "attemptCount": len(active),
+            "sessionId": session_id,
         }
     # A receipt authorizes the next mutation. One later failure does not
     # reopen the checkpoint (#6309). Three new attempted failures still do.
@@ -450,11 +472,21 @@ def pending_checkpoint(session_id: str) -> dict | None:
         return None
     fingerprints = [str(item.get("fingerprint", "manual")) for item in active]
     same = len(set(fingerprints)) == 1
+    if not same:
+        counts: dict[str, int] = {}
+        for value in fingerprints:
+            counts[value] = counts.get(value, 0) + 1
+        repeated = [value for value, count in counts.items() if count >= 3]
+        if repeated:
+            same = len(repeated) == 1
+        elif len(_recent(active, now)) < 3:
+            return None
     return {
         "depth": "deep" if same else "task",
         "trigger": "repeated-fingerprint" if same else "third-fix",
-        "failureFingerprints": sorted(set(fingerprints)),
+        "failureFingerprints": sorted({str(item.get("fingerprint", "manual")) for item in active}),
         "attemptCount": len(active),
+        "sessionId": session_id,
     }
 
 
@@ -535,6 +567,64 @@ def accept_terminal_reflection(session_id: str) -> bool:
     if not isinstance(entry["receiptHash"], str):
         return False
     return append_entry(session_id, entry)
+
+
+def recovery_command(controller: object, session_id: str, checkpoint: dict) -> str:
+    """Copy-pasteable receipt command for the pending checkpoint (#6978).
+
+    The session id is embedded, the token is read from the session ledger,
+    and trigger/fingerprints come from the checkpoint, so the agent only
+    supplies its reflection text.
+    """
+    import shlex
+
+    return " ".join(
+        [
+            "python3",
+            shlex.quote(str(controller)),
+            "receipt",
+            "--session-id",
+            shlex.quote(session_id),
+            "--assumption '<what was wrong>'",
+            "--alternative '<approach not taken>'",
+            "--change '<what you will do differently>'",
+            "--proof '<check you ran>'",
+            "--outcome '<its result>'",
+        ]
+    )
+
+
+def recovery_message(controller: object, session_id: str, checkpoint: dict) -> str:
+    """Block text that leads with the command, so host truncation keeps it."""
+    return (
+        f"Reflection required ({checkpoint['depth']}, trigger {checkpoint.get('trigger', 'unknown')}, "
+        f"{checkpoint.get('attemptCount', len(checkpoint['failureFingerprints']))} failures). "
+        f"Fill in and run: {recovery_command(controller, session_id, checkpoint)} . "
+        "Then retry. Pause mutation and unchanged retries until it records. "
+        f"Sanitized fingerprints: {','.join(checkpoint['failureFingerprints'])}. "
+        f"The gate executed `{controller}`. "
+        "Do not read reflection.py to discover that command."
+    )
+
+
+def quick_receipt(arguments: argparse.Namespace, session_id: str) -> dict:
+    """Build a receipt for the pending checkpoint from short flags."""
+    checkpoint = pending_checkpoint(session_id)
+    if checkpoint is None:
+        raise ValueError("no reflection checkpoint is pending; nothing to record")
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "taskId": arguments.task_id,
+        "trigger": checkpoint["trigger"],
+        "failureFingerprints": checkpoint["failureFingerprints"],
+        "failedAssumption": arguments.assumption,
+        "approachesCompared": [arguments.alternative, arguments.change],
+        "chosenExperiment": arguments.proof,
+        "changedApproach": arguments.change,
+        "proofCommandOrCheck": arguments.proof,
+        "proofOutcome": arguments.outcome,
+        "durableDisposition": arguments.disposition,
+    }
 
 
 def _safe_text(name: str, value: object, *, allow_github_issue: bool = False) -> str:
@@ -715,10 +805,18 @@ def main(argv: list[str] | None = None) -> int:
     receipt_command = commands.add_parser("receipt", help="append a bounded JSON receipt")
     receipt_command.add_argument("--session-id", required=True)
     receipt_command.add_argument("--agent-id")
-    receipt_command.add_argument("--session-token", required=True)
-    receipt_input = receipt_command.add_mutually_exclusive_group(required=True)
+    receipt_command.add_argument(
+        "--session-token", help="defaults to this session's ledger token"
+    )
+    receipt_input = receipt_command.add_mutually_exclusive_group()
     receipt_input.add_argument("--json", dest="receipt_json")
     receipt_input.add_argument("--file", type=Path)
+    for flag in ("--assumption", "--alternative", "--change", "--proof", "--outcome"):
+        receipt_command.add_argument(flag)
+    receipt_command.add_argument("--task-id", default="reflection-checkpoint")
+    receipt_command.add_argument(
+        "--disposition", default="nothing-durable", choices=sorted(DISPOSITIONS)
+    )
     trigger_command = commands.add_parser("trigger", help="record an explicit semantic trigger")
     trigger_command.add_argument("--session-id", required=True)
     trigger_command.add_argument("--agent-id")
@@ -762,14 +860,22 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(str(error))
         print(json.dumps({"recorded": recorded, "failureId": arguments.failure_id}, separators=(",", ":")))
         return 0
+    quick = ("assumption", "alternative", "change", "proof", "outcome")
     try:
-        rendered = (
-            arguments.receipt_json
-            if arguments.receipt_json is not None
-            else arguments.file.read_text(encoding="utf-8")
-        )
-        payload = json.loads(rendered)
-        recorded = record_receipt(session_id, payload, arguments.session_token)
+        if arguments.receipt_json is not None or arguments.file is not None:
+            rendered = (
+                arguments.receipt_json
+                if arguments.receipt_json is not None
+                else arguments.file.read_text(encoding="utf-8")
+            )
+            payload = json.loads(rendered)
+        else:
+            missing = [f"--{name}" for name in quick if not getattr(arguments, name)]
+            if missing:
+                raise ValueError("provide --json/--file or all of: " + ", ".join(missing))
+            payload = quick_receipt(arguments, session_id)
+        token = arguments.session_token or _read_session_token(session_id) or ""
+        recorded = record_receipt(session_id, payload, token)
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
         parser.error(str(error))
     print(json.dumps(recorded, separators=(",", ":"), sort_keys=True))

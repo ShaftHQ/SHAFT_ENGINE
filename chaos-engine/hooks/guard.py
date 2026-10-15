@@ -409,16 +409,8 @@ def read_only_diagnostic_command(command: str) -> bool:
     return arguments == ["branch", "--show-current"]
 
 
-def checkpoint_reason(checkpoint: dict) -> str:
-    fingerprints = ",".join(checkpoint["failureFingerprints"])
-    controller = _reflection_controller()
-    return (
-        f"Reflection required ({checkpoint['depth']}). Sanitized fingerprints: "
-        f"{fingerprints}. Pause mutation and unchanged retries. "
-        f"The gate executed `{controller}`. Append a validated receipt with "
-        f"`{controller}` receipt. "
-        "Do not read reflection.py to discover that command."
-    )
+def checkpoint_reason(checkpoint: dict, session_id: str = "<session-id>") -> str:
+    return reflection.recovery_message(_reflection_controller(), session_id, checkpoint)
 
 
 def _reflection_controller() -> Path:
@@ -868,7 +860,7 @@ def _record_failed_result(
     )
     checkpoint = reflection.pending_checkpoint(session_id)
     if checkpoint:
-        print(json.dumps({"additionalContext": checkpoint_reason(checkpoint)}))
+        print(json.dumps({"additionalContext": checkpoint_reason(checkpoint, session_id)}))
     return bool(checkpoint)
 
 
@@ -918,7 +910,7 @@ def _command_guard_state(
     if push_block:
         return receipt_command, mutation, push_block
     if event_name == "PreToolUse" and checkpoint and not receipt_command and (mutation or unchanged_test):
-        return receipt_command, mutation, checkpoint_reason(checkpoint)
+        return receipt_command, mutation, checkpoint_reason(checkpoint, session_id)
     uninspectable = _uninspectable_functions_call(
         tool_name, tool_input, functions_source, functions_direct, commands
     )
