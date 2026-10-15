@@ -2656,6 +2656,11 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--skip-tools", action="store_true", help=argparse.SUPPRESS)
     result.add_argument("--with-maven-tools", action="store_true")
     result.add_argument(
+        "--skip-pack-post-install",
+        action="store_true",
+        help="do not run the selected project pack's postInstall installer",
+    )
+    result.add_argument(
         "--consumer",
         action="store_true",
         help="consumer-repository mode: keep the overlay out of git status via .git/info/exclude",
@@ -3076,6 +3081,77 @@ def emit_install_failure(
     return None
 
 
+def pack_post_installs(project: Path) -> list[dict]:
+    """``postInstall`` entries of the project packs the installer selected.
+
+    A pack is selected from project files (``installWhen``), so its
+    ``postInstall`` runs automatically for that project type. Optional
+    add-ons are never auto-selected and have no ``postInstall``.
+    """
+    found = []
+    for profile in sorted((project / ".chaos-engine" / "packs").glob("*/profile.json")):
+        try:
+            value = json.loads(profile.read_text(encoding="utf-8")).get("postInstall")
+        except (OSError, ValueError, AttributeError):
+            continue
+        script = value.get("script") if isinstance(value, dict) else None
+        arguments = value.get("args", []) if isinstance(value, dict) else []
+        if (
+            isinstance(script, str)
+            and re.fullmatch(r"[A-Za-z0-9_./-]+\.py", script)
+            and ".." not in script.split("/")
+            and isinstance(arguments, list)
+            and all(isinstance(item, str) and item.startswith("--") for item in arguments)
+        ):
+            found.append({"pack": profile.parent.name, "script": script, "args": arguments})
+    return found
+
+
+def run_pack_post_install(
+    project: Path,
+    repository: str,
+    commit: str,
+    entry: dict,
+    *,
+    opener=urllib.request.urlopen,
+    runner=subprocess.run,
+) -> int:
+    """Download the pack's installer from the same commit and run it in the project."""
+    encoded_repository = "/".join(urllib.parse.quote(part, safe="") for part in repository.split("/"))
+    content = read_response(
+        opener, f"https://raw.githubusercontent.com/{encoded_repository}/{commit}/{entry['script']}"
+    )
+    with tempfile.TemporaryDirectory(prefix="ce-pack-post-install-") as temporary:
+        script = Path(temporary) / Path(entry["script"]).name
+        script.write_bytes(content)
+        completed = runner(  # nosec B603 - fixed interpreter, pinned-commit script, validated flag list.
+            [sys.executable, str(script), *entry["args"]], cwd=project, check=False
+        )
+    return int(completed.returncode)
+
+
+def post_install_packs(args, result: dict) -> int:
+    project = Path(args.project).resolve()
+    commit = str(result.get("commit") or args.branch or "main")
+    worst = 0
+    for entry in pack_post_installs(project):
+        if args.skip_pack_post_install:
+            print(f"Skipped {entry['pack']} pack postInstall (--skip-pack-post-install).", file=sys.stderr)
+            continue
+        print(f"Running {entry['pack']} pack postInstall: {entry['script']}", file=sys.stderr)
+        try:
+            code = run_pack_post_install(project, args.repository, commit, entry)
+        except (OSError, ValueError, urllib.error.URLError) as error:
+            code = 1
+            print(f"{entry['pack']} pack postInstall could not start: {error}", file=sys.stderr)
+        result.setdefault("packPostInstall", {})[entry["pack"]] = code
+        if code:
+            print(f"{entry['pack']} pack postInstall failed (exit {code}); ChaosEngine itself is installed. "
+                  f"Rerun the installer, or run {entry['script']} {' '.join(entry['args'])}.", file=sys.stderr)
+        worst = worst or code
+    return worst
+
+
 MINIMUM_PYTHON = (3, 11)
 
 
@@ -3146,9 +3222,10 @@ def main() -> int:
         )
         return 1
     reporter.close()
+    post_install_code = post_install_packs(args, result) if isinstance(result, dict) else 0
     if not getattr(sys.stdout, "isatty", lambda: False)():
         print(json.dumps(result, sort_keys=True))
-    return 0
+    return 1 if post_install_code else 0
 
 
 if __name__ == "__main__":

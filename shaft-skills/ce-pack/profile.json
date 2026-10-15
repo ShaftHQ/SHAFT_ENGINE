@@ -5,6 +5,10 @@
   "installWhen": {
     "mavenArtifactIds": ["shaft-engine"]
   },
+  "postInstall": {
+    "script": "scripts/mcp/install_shaft_agentic_tools.py",
+    "args": ["--install-shaft-skills", "--install-shaft-cli"]
+  },
   "portableForbiddenTokens": ["shaft"],
   "distribution": {
     "id": "repository",
