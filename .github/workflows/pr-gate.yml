@@ -1373,9 +1373,8 @@ jobs:
 
   # Issue #6185: a red post-merge `main` run used to go unnoticed. This job
   # files or updates one rolling `ci-main-red` issue per failing leg (assigned
-  # to the owner), closes an issue once its leg passes again on `main`, and for
-  # a ChaosEngine fresh-installer leg opens a revert PR of the merge commit
-  # (BOT_TOKEN, so the revert PR runs CI). It runs on every `main` push so a
+  # to the owner) and closes it once its leg passes again on `main`. It never
+  # opens a revert: main rolls forward (#6990). It runs on every `main` push so a
   # recovery can close the issue; it is not a leg of the summary.
   main-red-reaction:
     name: Main red reaction
@@ -1393,9 +1392,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.BOT_TOKEN || github.token }}
       - name: Set up Python 3.13
         uses: actions/setup-python@v7.0.0
         with:
@@ -1403,7 +1399,6 @@ jobs:
       - name: File, update, or close ci-main-red issues
         env:
           GH_TOKEN: ${{ github.token }}
-          REVERT_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: >-
           python3 scripts/ci/main_red_reaction.py
           --repo "$GITHUB_REPOSITORY"

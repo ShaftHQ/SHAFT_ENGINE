@@ -30,7 +30,6 @@ class PlanTest(unittest.TestCase):
         plan = build_plan(jobs, {})
         self.assertEqual(["Unit Tests (shaft-engine)"], [job.name for job in plan.create])
         self.assertEqual((), plan.comment)
-        self.assertFalse(plan.revert)
 
     def test_existing_issue_is_commented_not_duplicated(self) -> None:
         title = issue_title("Agent Guidance Gate")
@@ -47,9 +46,11 @@ class PlanTest(unittest.TestCase):
         plan = build_plan(jobs, issues)
         self.assertEqual(((11, "Build IntelliJ plugin"),), plan.close)
 
-    def test_installer_leg_failure_requests_a_revert_pr(self) -> None:
+    def test_installer_leg_failure_files_a_tracker_and_never_reverts_6990(self) -> None:
         plan = build_plan([_job("ChaosEngine fresh installer (macos-15)", "failure")], {})
-        self.assertTrue(plan.revert)
+        self.assertEqual(1, len(plan.create))
+        self.assertFalse(hasattr(plan, "revert"))
+        self.assertFalse(hasattr(reaction, "open_revert_pr"))
 
     def test_parse_jobs_reads_gh_json_lines(self) -> None:
         lines = "\n".join(
@@ -58,20 +59,13 @@ class PlanTest(unittest.TestCase):
         )
         self.assertEqual([Job("a", "success", "u"), Job("b", "", "u")], parse_jobs(lines + "\n"))
 
-    def test_issue_body_names_run_commit_pr_and_revert(self) -> None:
+    def test_issue_body_names_run_commit_pr_and_roll_forward(self) -> None:
         body = reaction.issue_body(
             _job("leg", "failure"),
-            {"run_url": "RUN", "sha": "SHA", "pr": "#1 title", "revert": "REVERT"},
+            {"run_url": "RUN", "sha": "SHA", "pr": "#1 title"},
         )
-        for token in ("RUN", "SHA", "#1 title", "REVERT", "P0"):
+        for token in ("RUN", "SHA", "#1 title", "Roll forward", "P0"):
             self.assertIn(token, body)
-
-    def test_revert_without_bot_token_is_reported_not_attempted(self) -> None:
-        runner = reaction.Runner(dry_run=True)
-        with patch.object(runner, "run") as run:
-            result = reaction.open_revert_pr(runner, "o/r", "a" * 40, "#1", "")
-        run.assert_not_called()
-        self.assertIn("BOT_TOKEN", result)
 
     def test_dry_run_never_mutates(self) -> None:
         runner = reaction.Runner(dry_run=True)

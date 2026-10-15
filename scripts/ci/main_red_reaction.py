@@ -4,9 +4,8 @@ React to a post-merge PR Gate run on ``main`` (issue #6185).
 
 A red leg files, or updates, one rolling issue per failing leg (label
 ``ci-main-red``, assigned to the owner). A leg that passes again on a later
-``main`` run closes its issue. When a ChaosEngine fresh-installer leg fails,
-the reaction also opens a revert pull request of the merge commit; humans or
-agents decide whether to merge it. ChaosEngine installs from ``main``, so the
+``main`` run closes its issue. The reaction never opens a revert: main rolls
+forward, and the rolling issue is the tracker (#6990, nightly-tracker pattern). ChaosEngine installs from ``main``, so the
 post-merge run is the only safety net for legs that no longer run on PRs.
 """
 
@@ -26,10 +25,6 @@ OWNER = "MohabMohie"
 TITLE_PREFIX = "Main red: "
 IGNORED_JOBS = frozenset({"PR Gate Summary", "Main red reaction"})
 FAILED_CONCLUSIONS = frozenset({"failure", "timed_out"})
-REVERT_LEG_PREFIX = "ChaosEngine fresh installer"
-REVERT_LABEL = "skip-release-notes"
-BOT_NAME = "github-actions[bot]"
-BOT_EMAIL = "41898282+github-actions[bot]@users.noreply.github.com"
 
 
 @dataclass(frozen=True)
@@ -44,7 +39,6 @@ class Plan:
     create: tuple[Job, ...]
     comment: tuple[tuple[int, Job], ...]
     close: tuple[tuple[int, str], ...]
-    revert: bool
 
 
 def parse_jobs(lines: str) -> list[Job]:
@@ -89,8 +83,7 @@ def build_plan(jobs: list[Job], open_issues: dict[str, int]) -> Plan:
         for title, number in sorted(open_issues.items())
         if (leg := leg_from_title(title)) is not None and leg in passing
     )
-    revert = any(job.name.startswith(REVERT_LEG_PREFIX) for job in failing)
-    return Plan(create, comment, close, revert)
+    return Plan(create, comment, close)
 
 
 def issue_body(job: Job, context: dict[str, str]) -> str:
@@ -101,10 +94,9 @@ def issue_body(job: Job, context: dict[str, str]) -> str:
             f"- Run: {context['run_url']} (job: {job.url or 'n/a'})",
             f"- Merge commit: {context['sha']}",
             f"- Originating PR: {context['pr'] or 'unknown'}",
-            f"- Revert PR: {context['revert'] or 'not opened'}",
             "",
-            "Treat as P0: ChaosEngine adopters install from `main`. Fix forward or "
-            "merge the revert PR. This issue closes automatically when the leg "
+            "Treat as P0: ChaosEngine adopters install from `main`. Roll forward with "
+            "a fix; never revert. This issue closes automatically when the leg "
             "passes again on a later `main` run.",
         )
     )
@@ -169,53 +161,6 @@ def originating_pr(runner: Runner, repo: str, sha: str) -> str:
     return output
 
 
-def open_revert_pr(runner: Runner, repo: str, sha: str, pr: str, token: str) -> str:
-    """Open (or reuse) a revert PR of ``sha`` on top of the current ``main``."""
-    if not token:
-        return "not opened: BOT_TOKEN is unavailable"
-    branch = f"revert/main-red-{sha[:12]}"
-    env = {"GH_TOKEN": token}
-    existing = runner.run(
-        [
-            runner.gh, "pr", "list", "--repo", repo, "--head", branch,
-            "--state", "open", "--json", "url", "--jq", ".[0].url // empty",
-        ],
-        env=env,
-    )
-    if existing:
-        return existing
-    git = runner.git
-    parents = runner.run([git, "rev-list", "--parents", "-n", "1", sha]).split()
-    mainline = ["-m", "1"] if len(parents) > 2 else []
-    try:
-        runner.run([git, "fetch", "origin", "main"], mutate=True)
-        runner.run([git, "checkout", "-B", branch, "origin/main"], mutate=True)
-        runner.run(
-            [git, "-c", f"user.name={BOT_NAME}", "-c", f"user.email={BOT_EMAIL}",
-             "revert", "--no-edit", *mainline, sha],
-            mutate=True,
-        )
-    except subprocess.CalledProcessError:
-        subprocess.run([git, "revert", "--abort"], check=False)  # nosec B603
-        return "not opened: the revert does not apply cleanly on current main"
-    runner.run([git, "push", "origin", f"HEAD:refs/heads/{branch}"], mutate=True)
-    body = (
-        f"Reverts {sha} ({pr or 'originating PR unknown'}) because a ChaosEngine "
-        "fresh-installer leg failed on the post-merge `main` run. Opened by the "
-        "PR Gate main-red reaction (#6185); merge it or fix forward."
-    )
-    return runner.run(
-        [
-            runner.gh, "pr", "create", "--repo", repo, "--base", "main",
-            "--head", branch, "--label", REVERT_LABEL,
-            "--title", f"revert: {sha[:12]} (ChaosEngine installer red on main)",
-            "--body", body,
-        ],
-        env=env,
-        mutate=True,
-    )
-
-
 def apply_plan(runner: Runner, repo: str, plan: Plan, context: dict[str, str]) -> None:
     if plan.create or plan.comment:
         runner.run(
@@ -274,16 +219,11 @@ def main(argv: list[str] | None = None) -> int:
         "run_url": f"{args.server_url}/{args.repo}/actions/runs/{args.run_id}",
         "sha": args.sha,
         "pr": originating_pr(runner, args.repo, args.sha),
-        "revert": "",
     }
-    if plan.revert:
-        context["revert"] = open_revert_pr(
-            runner, args.repo, args.sha, context["pr"], os.environ.get("REVERT_TOKEN", "")
-        )
     apply_plan(runner, args.repo, plan, context)
     print(
         f"main-red-reaction create={len(plan.create)} comment={len(plan.comment)} "
-        f"close={len(plan.close)} revert={context['revert'] or 'none'}"
+        f"close={len(plan.close)}"
     )
     return 0
 
