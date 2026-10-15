@@ -34,6 +34,22 @@ class MacosInstallerTierTest(unittest.TestCase):
         self.assertEqual(["ubuntu-22.04", "windows-2025"], tier.installer_os("pull_request", set()))
         self.assertEqual([], tier.contracts_os("pull_request", {"enhancement"}))
 
+    def test_phase3_heavy_legs_are_post_merge_or_opt_in_6990(self) -> None:
+        pr = dict(line.split("=", 1) for line in tier.outputs("pull_request", set()).splitlines())
+        self.assertEqual('["ubuntu-22.04"]', pr["cli_os"])
+        self.assertEqual("false", pr["run_capture_browser"])
+        self.assertEqual("false", pr["run_intellij_verify"])
+        push = dict(line.split("=", 1) for line in tier.outputs("push", set()).splitlines())
+        self.assertEqual('["ubuntu-22.04", "windows-2025"]', push["cli_os"])
+        self.assertEqual("true", push["run_capture_browser"])
+        full = dict(line.split("=", 1) for line in tier.outputs("pull_request", {"ci:full"}).splitlines())
+        self.assertEqual("true", full["run_intellij_verify"])
+        self.assertIn("macos-15", full["installer_os"])
+        self.assertEqual("true", tier.outputs("pull_request", {"ci:capture-e2e"}).splitlines()[3].split("=")[1])
+        rerun = (ROOT / ".github/workflows/installer-macos-rerun.yml").read_text(encoding="utf-8")
+        for label in tier.OPT_IN_LABELS:
+            self.assertIn(label, rerun)
+
     def test_windows_contracts_are_post_merge_or_opt_in_6990(self) -> None:
         self.assertEqual(["windows-2025"], tier.contracts_os("pull_request", {"ci:installer-windows"}))
         self.assertIn("windows-2025", tier.contracts_os("push", set()))

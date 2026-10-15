@@ -12,6 +12,12 @@ PR critical path) runs post-merge on every push to ``main`` and on a pull
 request that carries ``ci:installer-windows`` (#6990). The same UX modules
 still run on Linux inside Agent Guidance on every PR, and the Windows fresh
 installer still runs on every installer PR.
+
+#6990 phase 3 also moves three heavy PR legs to post-merge ``main`` (scoped
+by the same path filters, never cancelled, tracked by Main red reaction):
+SHAFT Capture Browser E2E (``ci:capture-e2e``), the IntelliJ Plugin Verifier
+(``ci:intellij-verify``) and the Windows shaft-cli leg (``ci:cli-windows``).
+``ci:full`` opts a pull request into every post-merge leg.
 """
 
 from __future__ import annotations
@@ -26,6 +32,13 @@ WINDOWS = "windows-2025"
 MACOS = "macos-15"
 OPT_IN_LABEL = "ci:installer-macos"
 WINDOWS_OPT_IN_LABEL = "ci:installer-windows"
+FULL_LABEL = "ci:full"
+POST_MERGE_LEGS = {
+    "run_capture_browser": "ci:capture-e2e",
+    "run_intellij_verify": "ci:intellij-verify",
+}
+CLI_WINDOWS_LABEL = "ci:cli-windows"
+OPT_IN_LABELS = (OPT_IN_LABEL, WINDOWS_OPT_IN_LABEL, FULL_LABEL, CLI_WINDOWS_LABEL, *POST_MERGE_LEGS.values())
 
 
 def parse_labels(raw: str) -> set[str]:
@@ -39,8 +52,17 @@ def parse_labels(raw: str) -> set[str]:
     return {str(item) for item in value if isinstance(item, str)}
 
 
+def opted_in(event_name: str, labels: set[str], label: str) -> bool:
+    """Post-merge legs run on every non-PR event, or on a PR carrying ``label``/``ci:full``."""
+    return event_name != "pull_request" or label in labels or FULL_LABEL in labels
+
+
 def includes_macos(event_name: str, labels: set[str]) -> bool:
-    return event_name != "pull_request" or OPT_IN_LABEL in labels
+    return opted_in(event_name, labels, OPT_IN_LABEL)
+
+
+def cli_os(event_name: str, labels: set[str]) -> list[str]:
+    return ["ubuntu-22.04", *([WINDOWS] if opted_in(event_name, labels, CLI_WINDOWS_LABEL) else [])]
 
 
 def installer_os(event_name: str, labels: set[str]) -> list[str]:
@@ -49,7 +71,7 @@ def installer_os(event_name: str, labels: set[str]) -> list[str]:
 
 
 def includes_windows_contracts(event_name: str, labels: set[str]) -> bool:
-    return event_name != "pull_request" or WINDOWS_OPT_IN_LABEL in labels
+    return opted_in(event_name, labels, WINDOWS_OPT_IN_LABEL)
 
 
 def contracts_os(event_name: str, labels: set[str]) -> list[str]:
@@ -65,6 +87,11 @@ def outputs(event_name: str, labels: set[str]) -> str:
         (
             "installer_os=" + json.dumps(installer_os(event_name, labels)),
             "installer_contracts_os=" + json.dumps(contracts_os(event_name, labels)),
+            "cli_os=" + json.dumps(cli_os(event_name, labels)),
+            *(
+                f"{key}=" + str(opted_in(event_name, labels, label)).lower()
+                for key, label in POST_MERGE_LEGS.items()
+            ),
         )
     )
 

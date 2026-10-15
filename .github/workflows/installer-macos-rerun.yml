@@ -21,7 +21,7 @@ concurrency:
 jobs:
   rerun:
     name: Re-run PR Gate for macOS installer opt-in
-    if: (github.event.label.name == 'ci:installer-macos' || github.event.label.name == 'ci:installer-windows') && github.event.pull_request.head.repo.full_name == github.repository
+    if: contains(fromJSON('["ci:installer-macos","ci:installer-windows","ci:full","ci:capture-e2e","ci:intellij-verify","ci:cli-windows"]'), github.event.label.name) && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:

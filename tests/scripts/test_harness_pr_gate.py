@@ -627,7 +627,7 @@ class OutputAndWorkflowTest(unittest.TestCase):
 
         self.assertEqual(set(), referenced - outputs)
         # Tier outputs come from the installer-tier step, not the path filter (#6990).
-        tier_outputs = {"installer_os", "installer_contracts_os"}
+        tier_outputs = {"installer_os", "installer_contracts_os", "cli_os", "run_capture_browser", "run_intellij_verify"}
         self.assertEqual(set(), referenced - filters - tier_outputs)
 
     def test_pr_gate_definition_and_shared_actions_have_distinct_fanout(self) -> None:
