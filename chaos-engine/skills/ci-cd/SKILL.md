@@ -59,6 +59,7 @@ Main rolls forward. A failing post-merge leg opens or updates one rolling issue 
 - Run the cheap CI tests locally before every push: workflow README/inventory, timeout, path-filter and PR-body validators.
 - Check the PR body against the repo's required sections, and name a targeted test, before creating the PR.
 - A body edit does not re-run a PR-body guard that reads the event payload. Push a commit instead.
+- Validate every third-party CI config (coverage, analysis) against the vendor's validator in pre-push and CI. Some vendors silently ignore a whole file over one unknown key, and fall back to defaults.
 
 ## Delivery order, queue, stacks
 
