@@ -277,6 +277,14 @@ CHEAP_CI_CONTRACTS = (
      "AssembleActAsMohabPluginTest.test_assembly_keeps_every_relative_markdown_link_inside_the_package"),
     (lambda p: p == "scripts/ci/harness_pr_gate.py",
      "tests.scripts.test_harness_pr_gate", "UngatedModulesRunInCiTest.test_allowlist_never_exceeds_the_ceiling"),
+    # A new workflow missing from .github/workflows/README.md failed CI (#6993 miss).
+    (lambda p: p.startswith(".github/workflows/"),
+     "tests.scripts.test_validate_quality_configuration",
+     "ValidateQualityConfigurationTest.test_repository_configuration_is_valid"),
+    # A new skill missing from the ChaosEngine README inventory (#6991 miss).
+    (lambda p: p.startswith("chaos-engine/skills/") or p == "chaos-engine/harness_index.py",
+     "tests.scripts.test_validate_chaos_engine_readme",
+     "ChaosEngineReadmeInventoryTest.test_repository_readme_matches_every_source_derived_inventory"),
 )
 
 

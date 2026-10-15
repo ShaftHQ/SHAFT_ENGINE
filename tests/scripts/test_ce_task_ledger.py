@@ -54,6 +54,13 @@ class TaskLedgerTest(unittest.TestCase):
         self.assertTrue(self.ledger.over_budget("t2", 40, now=41 * 60)[0])
         self.assertEqual(3, self.run_main(["t2", "--budget", "--minutes", "0"])[0])
 
+    def test_budget_accepts_minutes_inline_6990(self):
+        # `checkpoint TASK --budget 40` used to fail with "unrecognized arguments: 40".
+        self.ledger.record("t4", "start", start=True, now=0)
+        code, out = self.run_main(["t4", "--budget", "40"])
+        self.assertIn(code, (0, 3))
+        self.assertIn("/40 min", out)
+
     def test_new_session_start_resets_budget_and_counts_sessions(self):
         self.ledger.record("t3", "a", start=True, now=0)
         self.ledger.record("t3", "b", start=True, now=3000)
