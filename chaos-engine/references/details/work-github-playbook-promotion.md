@@ -52,6 +52,6 @@ and focused proofs observed; it must not represent remote checks as green.
 
 The guard checks the body of `gh pr create|edit` for a `## Riskiest assumption`
 section that names a test in backticks or links one (or says `N/A`), before
-the command runs ([test](../../../tests/scripts/test_guard_pr_body_preflight.py)).
+the command runs (test: `tests/scripts/test_guard_pr_body_preflight.py`).
 A CI rerun reuses the old event body, so a body fixed after CI fails costs a
 push and a full CI round trip.
