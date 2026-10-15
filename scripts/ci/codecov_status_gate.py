@@ -103,7 +103,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     token = os.environ.get("GITHUB_TOKEN", "")
     strict = bool(args.pr) and pr_changes_java_main(args.repo, args.pr, token)
-    deadline = time.monotonic() + args.timeout
+    # Only a Java main change waits the full timeout; others need no verdict,
+    # so they cap the wait to keep the gate inside the 15-min target.
+    deadline = time.monotonic() + (args.timeout if strict else min(args.timeout, 60))
     seen: dict[str, str] | None = None
     stable_since = time.monotonic()
     while True:
