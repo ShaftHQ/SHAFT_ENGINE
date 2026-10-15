@@ -427,6 +427,9 @@ jobs:
               - 'tests/scripts/test_pr_time_to_merge_report.py'
               - 'scripts/ci/quality_trend.py'
               - 'tests/scripts/test_quality_layers_6990.py'
+              - 'scripts/ci/errorprone_ratchet.py'
+              - 'tests/scripts/test_errorprone_ratchet.py'
+              - '.github/errorprone-baseline.json'
               - 'scripts/ci/workflow_security_gate.py'
               - 'tests/scripts/test_workflow_security_gate.py'
               - '.github/zizmor-baseline.json'
@@ -1019,6 +1022,50 @@ jobs:
           sarif_file: zizmor.sarif
           category: zizmor
 
+  # #6999: Error Prone + NullAway on the PR's changed Java modules, ratcheted
+  # per module::check against .github/errorprone-baseline.json. Runs in
+  # parallel with unit tests, so it adds no wall time to the gate.
+  bug-analysis:
+    name: Bug Analysis (Error Prone + NullAway)
+    needs: changes
+    if: github.event_name != 'push' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Changed Java modules
+        id: mods
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: |
+          mods=$(git diff --name-only "$BASE_SHA" HEAD -- '*.java' | grep '/src/main/' | cut -d/ -f1 | sort -u | paste -sd, - || true)
+          echo "modules=$mods" >> "$GITHUB_OUTPUT"
+          echo "Changed Java modules: ${mods:-none}"
+      - name: Compile changed modules with Error Prone
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+        run: |
+          set -o pipefail
+          mvn --batch-mode --no-transfer-progress -Perrorprone -pl "$MODULES" -am \
+            install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip 2>&1 | tee errorprone.log
+      - name: Ratchet against baseline
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+        run: python3 scripts/ci/errorprone_ratchet.py errorprone.log --modules "$MODULES"
+
   workflow-timeouts:
     name: Workflow Timeout Guard
     needs: changes
@@ -1046,6 +1093,7 @@ jobs:
           tests.scripts.test_validate_shaft_pilot_release
           tests.scripts.test_codecov_status_gate
           tests.scripts.test_main_red_reaction
+          tests.scripts.test_errorprone_ratchet
           tests.scripts.test_workflow_security_gate
           tests.scripts.test_pr_gate_time_to_merge
           tests.scripts.test_pr_time_to_merge_report
@@ -1382,6 +1430,7 @@ jobs:
       - unit-tests
       - template-coupling
       - workflow-timeouts
+      - bug-analysis
       - workflow-security
       - module-boundary
       - javadoc-coverage
@@ -1414,6 +1463,7 @@ jobs:
           UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
           TEMPLATES_RESULT: ${{ needs.template-coupling.result }}
           WORKFLOW_TIMEOUTS_RESULT: ${{ needs.workflow-timeouts.result }}
+          BUG_ANALYSIS_RESULT: ${{ needs.bug-analysis.result }}
           WORKFLOW_SECURITY_RESULT: ${{ needs.workflow-security.result }}
           MODULE_BOUNDARY_RESULT: ${{ needs.module-boundary.result }}
           JAVADOC_COVERAGE_RESULT: ${{ needs.javadoc-coverage.result }}
@@ -1442,6 +1492,7 @@ jobs:
             echo "| unit-tests | ${UNIT_TESTS_RESULT} |"
             echo "| template-coupling | ${TEMPLATES_RESULT} |"
             echo "| workflow-timeouts | ${WORKFLOW_TIMEOUTS_RESULT} |"
+            echo "| bug-analysis | ${BUG_ANALYSIS_RESULT} |"
             echo "| workflow-security | ${WORKFLOW_SECURITY_RESULT} |"
             echo "| module-boundary | ${MODULE_BOUNDARY_RESULT} |"
             echo "| javadoc-coverage | ${JAVADOC_COVERAGE_RESULT} |"
@@ -1460,7 +1511,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${WORKFLOW_SECURITY_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${STATIC_ANALYSIS_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${BUG_ANALYSIS_RESULT}" "${WORKFLOW_SECURITY_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${STATIC_ANALYSIS_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)
