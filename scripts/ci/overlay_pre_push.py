@@ -269,6 +269,12 @@ CHEAP_CI_CONTRACTS = (
      "tests.scripts.test_ce_lean_harness", "BudgetTests.test_implement_path_fits_16_kib_on_every_host"),
     (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
      "tests.scripts.test_ce_lean_harness", "LintTests.test_lean_lint_is_clean_against_its_shrink_only_allowlist"),
+    # A relative link that leaves the shipped package breaks installs (#6987 miss).
+    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
+     "tests.scripts.test_ce_guard_reachability", "GuardReachabilityTest.test_installed_overlay_has_no_broken_relative_links"),
+    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
+     "tests.scripts.test_assemble_chaos_engine_plugin",
+     "AssembleActAsMohabPluginTest.test_assembly_keeps_every_relative_markdown_link_inside_the_package"),
     (lambda p: p == "scripts/ci/harness_pr_gate.py",
      "tests.scripts.test_harness_pr_gate", "UngatedModulesRunInCiTest.test_allowlist_never_exceeds_the_ceiling"),
 )
