@@ -66,6 +66,9 @@ jobs:
       pr_gate: ${{ steps.filter.outputs.pr_gate }}
       infra: ${{ steps.filter.outputs.infra }}
       workflows: ${{ steps.filter.outputs.workflows }}
+      # #6990: every main commit uploads every Codecov flag, so PR carryforward
+      # always has a full base report (path-filtered main runs left flags missing).
+      coverage_all: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
       agent_guidance: ${{ steps.filter.outputs.agent_guidance }}
       chaos_installer: ${{ steps.filter.outputs.chaos_installer }}
       chaos_gauge: ${{ steps.filter.outputs.chaos_gauge }}
@@ -625,7 +628,7 @@ jobs:
   intellij-build:
     name: Build IntelliJ plugin
     needs: changes
-    if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
+    if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true'
     runs-on: ubuntu-22.04
     # A clean build takes ~5m and a connect timeout at :verifyPlugin dependency
     # resolution takes ~2m40s to surface, so the second attempt issue #4494 buys
@@ -679,7 +682,7 @@ jobs:
   cli:
     name: shaft-cli (${{ matrix.os }})
     needs: changes
-    if: needs.changes.outputs.cli == 'true' || needs.changes.outputs.infra == 'true'
+    if: needs.changes.outputs.cli == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -739,7 +742,7 @@ jobs:
   capture-e2e:
     name: SHAFT Capture Browser E2E
     needs: changes
-    if: (needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true') && needs.changes.outputs.run_capture_browser == 'true'
+    if: (needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true') && needs.changes.outputs.run_capture_browser == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -854,7 +857,7 @@ jobs:
     needs: changes
     if: >-
       needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true'
-      || needs.changes.outputs.infra == 'true'
+      || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     strategy:
@@ -940,7 +943,7 @@ jobs:
   template-coupling:
     name: Template Coupling Gate
     needs: changes
-    if: needs.changes.outputs.templates == 'true' || needs.changes.outputs.infra == 'true'
+    if: needs.changes.outputs.templates == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:

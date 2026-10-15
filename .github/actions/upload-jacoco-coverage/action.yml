@@ -202,6 +202,11 @@ runs:
         disable_search: true
         files: ${{ steps.resolve.outputs.files }}
         flags: ${{ inputs.flags }}
+        # #6990: Codecov carries skipped flags forward from the commit's parent.
+        # A PR head's git parent is an older PR commit (or an update-branch merge
+        # whose first parent is the PR branch) that never had those flags, so
+        # point the parent at the PR base: main, which uploads every flag.
+        commit_parent: ${{ github.event.pull_request.base.sha }}
         verbose: true
 
     - name: Summarize coverage result

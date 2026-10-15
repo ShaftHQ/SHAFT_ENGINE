@@ -44,6 +44,22 @@ class QualityLayersTest(unittest.TestCase):
         self.assertIn('"$GITHUB_EVENT_NAME" = "pull_request"', action)
         self.assertIn("flags: ${{ inputs.flags }}", action)
 
+    def test_main_push_uploads_every_coverage_flag(self) -> None:
+        workflow = yaml.safe_load((ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8"))
+        self.assertIn("refs/heads/main", workflow["jobs"]["changes"]["outputs"]["coverage_all"])
+        for job in ("intellij-build", "cli", "capture-e2e", "unit-tests", "template-coupling"):
+            self.assertIn("needs.changes.outputs.coverage_all == 'true'", workflow["jobs"][job]["if"], job)
+
+    def test_pr_uploads_carry_forward_from_the_pr_base(self) -> None:
+        action = (ROOT / ".github/actions/upload-jacoco-coverage/action.yml").read_text(encoding="utf-8")
+        self.assertIn("commit_parent: ${{ github.event.pull_request.base.sha }}", action)
+        config = yaml.safe_load((ROOT / "codecov.yml").read_text(encoding="utf-8"))
+        flags = {f["name"] for f in config["flag_management"]["individual_flags"] if f["carryforward"]}
+        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        for name in ("shaft-cli", "shaft-intellij", "templates", "shaft-capture-e2e"):
+            self.assertIn(name, flags)
+            self.assertIn(f"flags: {name}", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
