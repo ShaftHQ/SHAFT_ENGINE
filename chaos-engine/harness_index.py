@@ -72,6 +72,10 @@ SKILLS = (
     ("git-cleanup", "portable", "skills/git-cleanup/SKILL.md",
      "Use when a git worktree is dirty or another local branch or worktree exists. "
      "Ask before cleanup unless the session is unattended.", "delivery"),
+    ("ci-cd", "portable", "skills/ci-cd/SKILL.md",
+     "Use when PR merge waits are long or CI/CD is being designed, audited, or sped up in any "
+     "repo with source control: targets, PR/main/nightly tiers, opt-in labels, roll-forward "
+     "tracking, merge queue, stacked PRs.", "delivery"),
     ("local-agency", "portable", "skills/local-agency/SKILL.md",
      "Use when the adopter asks to delegate to local agents (OpenCode / OSS agency) against a READY "
      "local runtime instead of orchestrator-session subagents.", "delegation"),
@@ -240,8 +244,9 @@ def render_catalog(index: dict) -> str:
 ROUTER_USE = {
     "kanban": "several deliverables, tickets, or delegates",
     "work-item": "open or rewrite an issue or work item",
-    "self-improve": "Final delivery confirmed (Learning Session)",
+    "self-improve": "after final delivery",
     "git-cleanup": "dirty worktree or stray branches",
+    "ci-cd": "slow merges, CI",
     "local-agency": "delegate to local OSS agents",
     "local-runtimes": "pick a local inference runtime",
     "omniroute": "OmniRoute runtime selected",
@@ -252,7 +257,7 @@ ROUTER_USE = {
     "Zero-LLM first": "install, doctor, repair by script",
     "Heal": "drifted or unhealthy install",
     "Level-1 catalog": "secondary skill or tool needed",
-    "Context firewall": "isolate research or broad explore",
+    "Context firewall": "isolate broad research",
     "harness-learn": "traces show the overlay should change",
     "design-loop": "design doc needs review rounds",
     "deep-research": "cited multi-source research",
@@ -292,7 +297,7 @@ def render_route_table(index: dict) -> str:
             f"[{entry['name']}](../{entry['path'][len('skills/'):]})"
             for entry in sorted(local, key=lambda entry: entry["name"] != "local-runtimes")
         )
-        lines.append(f"| Local LLM | optional local runtime or local agents | {links} |")
+        lines.append(f"| Local LLM | local runtime or agents | {links} |")
     for entry in selected:
         if entry in local:
             continue
@@ -308,6 +313,7 @@ def render_route_table(index: dict) -> str:
             "public-landing": "Public landing",
             "learn-traces": "Learn traces",
             "git-cleanup": "Git cleanup",
+            "ci-cd": "CI",
         }.get(entry["name"], entry["name"])
         lines.append(f"| {label} | {use} | [{filename}]({href}) |")
     return "\n".join(lines)

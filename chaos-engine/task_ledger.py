@@ -8,7 +8,7 @@ and a resume brief the next session (or the parent) reads instead of the
 transcript.
 
     tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next TEXT] [--start]
-    tool.py checkpoint TASK --budget [--minutes 40]   exit 3 = wrap up now
+    tool.py checkpoint TASK --budget [N | --minutes N] exit 3 = wrap up now
     tool.py resume [TASK]                             brief; exit 6 = absent
     tool.py checkpoint TASK --item ID --group G --status S [--note TEXT]
 
@@ -194,7 +194,11 @@ def main(argv: list[str] | None = None, command: str = "checkpoint") -> int:
         parser.add_argument("--pr", default="")
         parser.add_argument("--next", dest="next_action", default="")
         parser.add_argument("--start", action="store_true", help="mark a new session start")
-        parser.add_argument("--budget", action="store_true", help="exit 3 once the session budget is spent")
+        # `--budget 40` and `--budget --minutes 40` both work (#6990).
+        parser.add_argument(
+            "--budget", nargs="?", const=0.0, default=None, type=float, metavar="MINUTES",
+            help="exit 3 once the session budget (MINUTES, default --minutes) is spent",
+        )
         parser.add_argument("--minutes", type=float, default=DEFAULT_BUDGET_MINUTES)
         parser.add_argument("--item", help="delivery-ledger item (issue/PR/task id)")
         parser.add_argument("--group", default="", help="target PR group for --item")
@@ -205,7 +209,9 @@ def main(argv: list[str] | None = None, command: str = "checkpoint") -> int:
             record_item(ns.task, ns.item, group=ns.group, status=ns.status, note=ns.note)
             print(items_table(ns.task))
             return 0
-        if ns.budget:
+        if ns.budget is not None:
+            if ns.budget > 0:
+                ns.minutes = ns.budget
             spent, elapsed = over_budget(ns.task, ns.minutes)
             verdict = "wrap up: push WIP, checkpoint --next, end turn" if spent else "ok"
             print(f"{ns.task}: {elapsed:.0f}/{ns.minutes:.0f} min; {verdict}")

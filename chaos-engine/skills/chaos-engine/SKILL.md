@@ -83,15 +83,16 @@ on explicit invocation.
 <!-- HARNESS-ROUTES:START -->
 | Route | Use when | Load |
 | --- | --- | --- |
-| Local LLM | optional local runtime or local agents | [local-runtimes](../local-runtimes/SKILL.md), [local-agency](../local-agency/SKILL.md), [omniroute](../omniroute/SKILL.md), [freetoken](../freetoken/SKILL.md), [colibri](../colibri/SKILL.md), [local-openai-compat](../local-openai-compat/SKILL.md), [local-coding-delegate](../local-coding-delegate/SKILL.md) |
+| Local LLM | local runtime or agents | [local-runtimes](../local-runtimes/SKILL.md), [local-agency](../local-agency/SKILL.md), [omniroute](../omniroute/SKILL.md), [freetoken](../freetoken/SKILL.md), [colibri](../colibri/SKILL.md), [local-openai-compat](../local-openai-compat/SKILL.md), [local-coding-delegate](../local-coding-delegate/SKILL.md) |
 | work-item | open or rewrite an issue or work item | [SKILL.md](../work-item/SKILL.md) |
-| self-improve | Final delivery confirmed (Learning Session) | [SKILL.md](../self-improve/SKILL.md) |
+| self-improve | after final delivery | [SKILL.md](../self-improve/SKILL.md) |
 | kanban | several deliverables, tickets, or delegates | [SKILL.md](../kanban/SKILL.md) |
 | Git cleanup | dirty worktree or stray branches | [SKILL.md](../git-cleanup/SKILL.md) |
+| CI | slow merges, CI | [SKILL.md](../ci-cd/SKILL.md) |
 | Zero-LLM first | install, doctor, repair by script | [zero-llm-catalog.md](../../references/zero-llm-catalog.md) |
 | Heal | drifted or unhealthy install | [heal-route.md](../../references/heal-route.md) |
 | Level-1 catalog | secondary skill or tool needed | [level-1-catalog.md](../../references/level-1-catalog.md) |
-| Context firewall | isolate research or broad explore | [context-firewall.md](../../references/context-firewall.md) |
+| Context firewall | isolate broad research | [context-firewall.md](../../references/context-firewall.md) |
 | Harness learn | traces show the overlay should change | [harness-learn.md](../../references/harness-learn.md) |
 | Design loop | design doc needs review rounds | [design-loop.md](../../references/design-loop.md) |
 | Deep research | cited multi-source research | [deep-research.md](../../references/deep-research.md) |

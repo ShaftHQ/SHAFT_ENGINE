@@ -91,6 +91,24 @@
       "path": "skills/git-cleanup/SKILL.md"
     },
     {
+      "description": "Use when PR merge waits are long or CI/CD is being designed, audited, or sped up in any repo with source control: targets, PR/main/nightly tiers, opt-in labels, roll-forward tracking, merge queue, stacked PRs.",
+      "family": "delivery",
+      "hosts": {
+        "antigravity": "catalog",
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "ci-cd",
+      "path": "skills/ci-cd/SKILL.md"
+    },
+    {
       "description": "Use when the adopter asks to delegate to local agents (OpenCode / OSS agency) against a READY local runtime instead of orchestrator-session subagents.",
       "family": "delegation",
       "hosts": {

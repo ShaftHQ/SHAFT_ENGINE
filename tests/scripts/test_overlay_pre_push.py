@@ -282,6 +282,15 @@ class CoverageRatchetPrePushTest(unittest.TestCase):
             self.assertEqual([], coverage_ratchet_failures(root, ["m/src/main/java/A.java"]))
             self.assertEqual([], coverage_ratchet_failures(root, ["docs/readme.md"]))
 
+class WorkflowReadmeContractTest(unittest.TestCase):
+    def test_workflow_and_skill_inventories_run_before_push_6990(self) -> None:
+        from scripts.ci import overlay_pre_push as gate
+
+        ids = {test_id for _predicate, _module, test_id in gate.CHEAP_CI_CONTRACTS}
+        self.assertIn("ValidateQualityConfigurationTest.test_repository_configuration_is_valid", ids)
+        self.assertIn(
+            "ChaosEngineReadmeInventoryTest.test_repository_readme_matches_every_source_derived_inventory", ids
+        )
 
 
 if __name__ == "__main__":

@@ -122,6 +122,7 @@
   "expected_skill_names": {
     "chaos-engine/skills": [
       "chaos-engine",
+      "ci-cd",
       "colibri",
       "freetoken",
       "git-cleanup",

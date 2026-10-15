@@ -495,6 +495,7 @@ usable without Mermaid; unknown source entries fail the inventory validator.
 | Item | Purpose | Source of truth | Status | Platforms | Provisioner | Owner | Failure behavior |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | chaos-engine | >- | chaos-engine/skills/chaos-engine/SKILL.md | required | all hosts | core or pinned vendor installer | canonical skill | required skill blocks routing; optional skill reports capability gap |
+| ci-cd | >- | chaos-engine/skills/ci-cd/SKILL.md | optional routed | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
 | colibri | >- | chaos-engine/skills/colibri/SKILL.md | optional routed | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
 | freetoken | >- | chaos-engine/skills/freetoken/SKILL.md | optional routed | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
 | git-cleanup | Use when a git worktree is dirty or another local branch or worktree exists. Ask before cleanup unless the session is unattended. | chaos-engine/skills/git-cleanup/SKILL.md | optional routed | all hosts | core or pinned vendor installer | skill package | required skill blocks routing; optional skill reports capability gap |
