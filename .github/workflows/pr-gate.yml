@@ -412,6 +412,9 @@ jobs:
               # Issue #6187/#6184: installer OS tier and time-to-merge pins.
               - 'scripts/ci/chaos_installer_tier.py'
               - 'tests/scripts/test_pr_gate_time_to_merge.py'
+              - 'scripts/ci/pr_time_to_merge.py'
+              - 'tests/scripts/test_pr_time_to_merge_report.py'
+              - '.github/workflows/pr-time-to-merge.yml'
               - 'scripts/ci/shard_test_selector.py'
               - 'tests/scripts/test_shard_test_selector.py'
               # Issue #6206: the quality-configuration validator ran nowhere in
@@ -979,6 +982,7 @@ jobs:
           tests.scripts.test_validate_shaft_pilot_release
           tests.scripts.test_main_red_reaction
           tests.scripts.test_pr_gate_time_to_merge
+          tests.scripts.test_pr_time_to_merge_report
           tests.scripts.test_shard_test_selector
           tests.scripts.test_validate_quality_configuration
           tests.scripts.test_rerun_pr_gate_on_label
