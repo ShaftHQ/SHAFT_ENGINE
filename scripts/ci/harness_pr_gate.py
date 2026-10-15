@@ -321,6 +321,7 @@ CHECKS = {
             "tests.scripts.test_ce_guard_reachability",
             "tests.scripts.test_skill_index_parity",
             "tests.scripts.test_git_cleanup_skill",
+            "tests.scripts.test_guard_pr_body_preflight",
             "tests.scripts.test_chaos_engine_ui_delivery",
         ),
     ),
@@ -841,6 +842,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_ce_guard_reachability.py",
         "tests/scripts/test_skill_index_parity.py",
         "tests/scripts/test_git_cleanup_skill.py",
+        "tests/scripts/test_guard_pr_body_preflight.py",
         "tests/scripts/test_chaos_engine_ui_delivery.py",
     ),
     # #6222: inputs of the formerly weekly-only modules. Each is a cheap

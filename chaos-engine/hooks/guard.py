@@ -208,6 +208,56 @@ def git_commit_command(command: str) -> bool:
     return head == "git" and bool(arguments) and arguments[0] == "commit"
 
 
+def _pr_body_block(commands: tuple[str, ...]) -> str:
+    """Check a ``gh pr create|edit`` body for the riskiest-assumption section before it ships.
+
+    CI's PR Body guard rejects a missing or link-free section, and a rerun keeps the
+    old event body, so a fix then costs a push and a full CI round trip.
+    """
+    for command in commands:
+        parsed = shell_tokens(command)
+        if len(parsed) < 3 or command_head(parsed)[0] != "gh":
+            continue
+        arguments = command_head(parsed)[1]
+        if arguments[:2] not in (["pr", "create"], ["pr", "edit"]):
+            continue
+        body = None
+        for index, item in enumerate(arguments):
+            value = arguments[index + 1] if index + 1 < len(arguments) else None
+            if item in {"--body-file", "-F"} and value:
+                try:
+                    body = Path(value).read_text(encoding="utf-8")
+                except OSError:
+                    return ""
+            elif item in {"--body", "-b"} and value is not None:
+                body = value
+            elif item.startswith("--body-file="):
+                try:
+                    body = Path(item.split("=", 1)[1]).read_text(encoding="utf-8")
+                except OSError:
+                    return ""
+            elif item.startswith("--body="):
+                body = item.split("=", 1)[1]
+        if body is None:
+            continue
+        mindset = Path(__file__).resolve().parents[1] / "harness_mindset.py"
+        spec = importlib.util.spec_from_file_location("chaos_engine_pr_body_mindset", mindset)
+        if not mindset.is_file() or spec is None or spec.loader is None:
+            return ""
+        module = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(module)
+            errors = module.assumption_section_errors(body)
+        except Exception:  # nosec B110 - an unavailable checker must not block PR creation.
+            return ""
+        if errors:
+            return (
+                "PR body would fail the CI PR Body guard: " + errors[0] + ". Add `## Riskiest assumption` "
+                "naming the assumption and one targeted test in backticks (or N/A), then rerun."
+            )
+    return ""
+
+
 def _overlay_push_block(commands: tuple[str, ...]) -> str:
     if not any(re.search(r"\bgit\s+push\b", command) for command in commands):
         return ""
@@ -859,7 +909,7 @@ def _command_guard_state(
     )
     checkpoint = reflection.pending_checkpoint(session_id)
     unchanged_test = _unchanged_test_requested(event, commands, tool_name, session_id)
-    push_block = _overlay_push_block(commands) if event_name == "PreToolUse" else ""
+    push_block = (_overlay_push_block(commands) or _pr_body_block(commands)) if event_name == "PreToolUse" else ""
     if push_block:
         return receipt_command, mutation, push_block
     if event_name == "PreToolUse" and checkpoint and not receipt_command and (mutation or unchanged_test):
