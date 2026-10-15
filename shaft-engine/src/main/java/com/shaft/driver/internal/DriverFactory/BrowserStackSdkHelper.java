@@ -220,7 +220,11 @@ public class BrowserStackSdkHelper {
             return Boolean.parseBoolean(value);
         }
         if (value.matches("-?\\d{1,9}")) {
-            return Integer.parseInt(value);
+            try {
+                return Integer.parseInt(value);
+            } catch (NumberFormatException ignored) {
+                return raw;
+            }
         }
         if (value.startsWith("{") || value.startsWith("[")) {
             try {
