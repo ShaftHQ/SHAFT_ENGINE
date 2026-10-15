@@ -1,0 +1,49 @@
+name: PR time to merge
+
+# #6990 phase 2: weekly open->merge report for the last 30 merged PRs. A median
+# above the 15-minute target opens or updates one `ci-pr-time` issue.
+
+on:
+  schedule:
+    - cron: '30 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-time-to-merge
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: Report PR time to merge
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+
+      - name: Measure and alert
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set +e
+          python3 scripts/ci/pr_time_to_merge.py --repo "$REPO" > report.md
+          code=$?
+          set -e
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+          [ "$code" = 0 ] && exit 0
+          [ "$code" = 2 ] || exit "$code"
+          gh label create ci-pr-time --repo "$REPO" --color D93F0B --description "PR time to merge above target (#6990)" 2>/dev/null || true
+          existing=$(gh issue list --repo "$REPO" --label ci-pr-time --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" --body-file report.md
+          else
+            gh issue create --repo "$REPO" --label ci-pr-time --title "PR time to merge above the 15-minute target" --body-file report.md
+          fi
