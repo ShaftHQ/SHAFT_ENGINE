@@ -322,6 +322,7 @@ CHECKS = {
             "tests.scripts.test_skill_index_parity",
             "tests.scripts.test_git_cleanup_skill",
             "tests.scripts.test_guard_pr_body_preflight",
+            "tests.scripts.test_reflection_recovery",
             "tests.scripts.test_chaos_engine_ui_delivery",
         ),
     ),
@@ -843,6 +844,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_skill_index_parity.py",
         "tests/scripts/test_git_cleanup_skill.py",
         "tests/scripts/test_guard_pr_body_preflight.py",
+        "tests/scripts/test_reflection_recovery.py",
         "tests/scripts/test_chaos_engine_ui_delivery.py",
     ),
     # #6222: inputs of the formerly weekly-only modules. Each is a cheap
@@ -1218,7 +1220,6 @@ UNGATED_TEST_ALLOWLIST = {
     'tests.scripts.test_prepare_release_pr': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_reconcile_maven_central_release': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_reflection_commit_credit': UNGATED_TEST_ALLOWLIST_REASON,
-    'tests.scripts.test_reflection_recovery': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_retrieve_justification_gate': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_reviewer_headings_6138': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_run_sharded_and_merge': UNGATED_TEST_ALLOWLIST_REASON,
