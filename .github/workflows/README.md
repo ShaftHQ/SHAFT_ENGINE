@@ -127,7 +127,8 @@ table. Remove a row only in the same change that deletes its workflow.
 
 | Trigger | Fresh installer | Installer UX contracts |
 |---|---|---|
-| Pull request | ubuntu-22.04, windows-2025 | windows-2025 (Linux via Agent Guidance) |
+| Pull request | ubuntu-22.04, windows-2025 | — (Linux via Agent Guidance; Windows post-merge, #6990) |
+| Pull request labelled `ci:installer-windows` | ubuntu-22.04, windows-2025 | windows-2025 |
 | Pull request labelled `ci:installer-macos` | + macos-15 | + macos-15 |
 | Push to `main` (post-merge, never cancelled) | ubuntu-22.04, windows-2025, macos-15 | windows-2025, macos-15 |
 | Daily 04:15 UTC (`agent-plugin-acceptance.yml`) | 3-OS installer acceptance + live installer, `notify` on failure | — |

@@ -1232,13 +1232,16 @@ jobs:
   chaos-installer-contracts:
     name: ChaosEngine installer contracts (${{ matrix.os }})
     needs: changes
-    if: needs.changes.outputs.chaos_installer == 'true'
+    # #6990: off the PR critical path unless labelled ci:installer-windows or
+    # ci:installer-macos; an empty tier skips the job (summary accepts skipped).
+    if: needs.changes.outputs.chaos_installer == 'true' && needs.changes.outputs.installer_contracts_os != '[]'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        # PR: windows-2025; push to main / ci:installer-macos label: + macos-15.
+        # PR: none (Linux via Agent Guidance); ci:installer-windows: windows-2025;
+        # ci:installer-macos: + macos-15; push to main: windows-2025, macos-15.
         os: ${{ fromJSON(needs.changes.outputs.installer_contracts_os) }}
     steps:
       - name: Enable Windows long paths

@@ -32,7 +32,13 @@ class MacosInstallerTierTest(unittest.TestCase):
 
     def test_pull_request_without_label_skips_macos(self) -> None:
         self.assertEqual(["ubuntu-22.04", "windows-2025"], tier.installer_os("pull_request", set()))
-        self.assertEqual(["windows-2025"], tier.contracts_os("pull_request", {"enhancement"}))
+        self.assertEqual([], tier.contracts_os("pull_request", {"enhancement"}))
+
+    def test_windows_contracts_are_post_merge_or_opt_in_6990(self) -> None:
+        self.assertEqual(["windows-2025"], tier.contracts_os("pull_request", {"ci:installer-windows"}))
+        self.assertIn("windows-2025", tier.contracts_os("push", set()))
+        job = load("pr-gate.yml")["jobs"]["chaos-installer-contracts"]
+        self.assertIn("installer_contracts_os != '[]'", job["if"])
 
     def test_labelled_pull_request_and_main_push_include_macos(self) -> None:
         for event, labels in (("pull_request", {"ci:installer-macos"}), ("push", set())):
