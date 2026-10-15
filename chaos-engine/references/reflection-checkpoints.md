@@ -10,9 +10,14 @@ source excerpts, or user-specific absolute paths.
 - Two attempted failures do not demand a receipt.
 - The third attempted failure stops for a receipt (`third-fix`, or
   `repeated-fingerprint` when every fingerprint matches). A fourth distinct
-  failure without a new receipt is forbidden. The denial names the
-  reflection controller the gate executed and tells you to append the receipt
-  with that same file. It does not invite a read of `reflection.py`.
+  failure without a new receipt is forbidden. Distinct fingerprints count
+  toward `third-fix` only within the last 30 minutes, so unrelated failures
+  spread over a long goal session do not block it. Repeated fingerprints and
+  explicit triggers count since the last receipt. The denial leads with the
+  exact receipt command for this session: the controller the gate executed,
+  the session id, and short flags (`--assumption`, `--alternative`,
+  `--change`, `--proof`, `--outcome`). Fill them in and run it. The token is
+  read from the session ledger. Do not read `reflection.py`.
 - A valid receipt authorizes one following `git commit` of that fix. The
   receipt and the commit are separate commands. A combined shell does not
   hide the third failure. The one-hour terminal receipt stays mandatory.
@@ -56,9 +61,9 @@ local receipt or resumption, and hooks never create or update issues.
 
 For semantic events the hook cannot infer safely, record the trigger explicitly
 with (repo-only) `py -3 scripts/agents/reflection.py trigger --session-id {id} --trigger
-{enum}`. Append a receipt without creating a blocked intermediate file using
-(repo-only) `py -3 scripts/agents/reflection.py receipt --session-id {id} --session-token
-{token} --json {receipt-json}`. Mark only a proved setup, syntax, or capability
+{enum}`. Append a receipt with the short flags from the denial, or with
+(repo-only) `py -3 scripts/agents/reflection.py receipt --session-id {id} --json
+{receipt-json}`. `--session-token` is optional and defaults to the ledger token. Mark only a proved setup, syntax, or capability
 probe by exact ID with the `non-attempt` subcommand. Portable installs use the
 same subcommands through `.chaos-engine/hooks/reflection.py`.
 

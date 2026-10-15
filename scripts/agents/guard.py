@@ -4803,18 +4803,8 @@ def _reflection_blocks_tool(
 
 
 def _reflection_block_reason(checkpoint: dict) -> str:
-    depth = checkpoint["depth"]
-    attempts = checkpoint["attemptCount"]
-    fingerprints = ",".join(checkpoint["failureFingerprints"])
-    return (
-        f"Reflection required ({depth}, {attempts} observed attempted failures). "
-        f"Sanitized fingerprints: {fingerprints}. "
-        "Pause mutation and unchanged reruns; reconstruct the bounded fingerprint, "
-        "compare at least two approaches, choose one diagnostic experiment, prove its "
-        "outcome, then append a validated receipt with "
-        "`py -3 scripts/agents/reflection.py receipt`. "
-        "Do not read reflection.py to discover that command."
-    )
+    session_id = str(checkpoint.get("sessionId") or "<session-id>")
+    return _reflection.recovery_message("scripts/agents/reflection.py", session_id, checkpoint)
 
 
 def run_user_prompt_submit(hook_input: dict) -> int:

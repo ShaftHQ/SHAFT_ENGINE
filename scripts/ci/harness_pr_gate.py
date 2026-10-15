@@ -1218,6 +1218,7 @@ UNGATED_TEST_ALLOWLIST = {
     'tests.scripts.test_prepare_release_pr': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_reconcile_maven_central_release': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_reflection_commit_credit': UNGATED_TEST_ALLOWLIST_REASON,
+    'tests.scripts.test_reflection_recovery': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_retrieve_justification_gate': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_reviewer_headings_6138': UNGATED_TEST_ALLOWLIST_REASON,
     'tests.scripts.test_run_sharded_and_merge': UNGATED_TEST_ALLOWLIST_REASON,
