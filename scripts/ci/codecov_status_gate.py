@@ -84,10 +84,20 @@ def pr_changes_java_main(repo: str, pr: int, token: str) -> bool:
         page += 1
 
 
-def fetch(repo: str, sha: str, token: str) -> dict[str, str]:
+def signature(check_runs: list[dict], statuses: list[dict]) -> tuple:
+    """Changes whenever Codecov recomputes (title and timestamps move per upload)."""
+    runs = sorted((r.get("name", ""), r.get("conclusion"), (r.get("output") or {}).get("title"), r.get("completed_at"))
+                  for r in check_runs if _wanted(r.get("name", "")))
+    stats = sorted((s.get("context", ""), s.get("state"), s.get("description"), s.get("updated_at"))
+                   for s in statuses if _wanted(s.get("context", "")))
+    return tuple(runs), tuple(stats)
+
+
+def fetch(repo: str, sha: str, token: str) -> tuple[dict[str, str], tuple]:
     base = f"https://api.github.com/repos/{repo}/commits/{sha}"
     runs = _get(f"{base}/check-runs?per_page=100", token).get("check_runs", [])
-    return latest_states(runs, _get(f"{base}/statuses?per_page=100", token))
+    statuses = _get(f"{base}/statuses?per_page=100", token)
+    return latest_states(runs, statuses), signature(runs, statuses)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -98,21 +108,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--pr", type=int, default=0,
                         help="PR number; a PR touching Java main sources must get a final Codecov verdict")
     parser.add_argument("--interval", type=int, default=15)
-    parser.add_argument("--settle", type=int, default=60,
+    parser.add_argument("--settle", type=int, default=90,
                         help="seconds a final state must stay unchanged; Codecov re-notifies per upload")
     args = parser.parse_args(argv)
     token = os.environ.get("GITHUB_TOKEN", "")
     strict = bool(args.pr) and pr_changes_java_main(args.repo, args.pr, token)
-    # Only a Java main change waits the full timeout; others need no verdict,
-    # so they cap the wait to keep the gate inside the 15-min target.
-    deadline = time.monotonic() + (args.timeout if strict else min(args.timeout, 60))
-    seen: dict[str, str] | None = None
-    stable_since = time.monotonic()
+    # Nothing posted on a non-Java PR: give up after 60 s (no verdict needed,
+    # keeps the 15-min target). Once Codecov posts anything, wait the full
+    # timeout for it to settle: a red seen mid-upload is not a verdict.
+    started = time.monotonic()
+    seen: tuple | None = None
+    stable_since = started
     while True:
-        states = fetch(args.repo, args.sha, token)
+        states, sig = fetch(args.repo, args.sha, token)
         now = time.monotonic()
-        if states != seen:
-            seen, stable_since = states, now
+        deadline = started + (args.timeout if strict or states else min(args.timeout, 60))
+        if sig != seen:
+            seen, stable_since = sig, now
         result, failing = verdict(states)
         settled = now - stable_since >= args.settle
         if result == "fail" and (settled or now >= deadline):

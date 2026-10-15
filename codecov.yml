@@ -28,6 +28,36 @@ flag_management:
   default_rules:
     # Path-scoped PR legs upload only the modules they touch; carry the rest.
     carryforward: true
+  # Every flag main uploads, named exactly as the upload steps name them.
+  individual_flags:
+    - name: shaft-ai
+      carryforward: true
+    - name: shaft-capture
+      carryforward: true
+    - name: shaft-capture-e2e
+      carryforward: true
+    - name: shaft-cli
+      carryforward: true
+    - name: shaft-doctor
+      carryforward: true
+    - name: shaft-engine-shard-1
+      carryforward: true
+    - name: shaft-engine-shard-2
+      carryforward: true
+    - name: shaft-heal
+      carryforward: true
+    - name: shaft-infrastructure
+      carryforward: true
+    - name: shaft-intellij
+      carryforward: true
+    - name: shaft-mcp
+      carryforward: true
+    - name: shaft-ocr
+      carryforward: true
+    - name: shaft-pilot-core
+      carryforward: true
+    - name: templates
+      carryforward: true
 
 parsers:
   xml:
