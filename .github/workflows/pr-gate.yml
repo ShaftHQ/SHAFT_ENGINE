@@ -422,6 +422,8 @@ jobs:
               - 'tests/scripts/test_pr_gate_time_to_merge.py'
               - 'scripts/ci/pr_time_to_merge.py'
               - 'tests/scripts/test_pr_time_to_merge_report.py'
+              - 'scripts/ci/quality_trend.py'
+              - 'tests/scripts/test_quality_layers_6990.py'
               - '.github/workflows/pr-time-to-merge.yml'
               - 'scripts/ci/shard_test_selector.py'
               - 'tests/scripts/test_shard_test_selector.py'
@@ -992,6 +994,7 @@ jobs:
           tests.scripts.test_main_red_reaction
           tests.scripts.test_pr_gate_time_to_merge
           tests.scripts.test_pr_time_to_merge_report
+          tests.scripts.test_quality_layers_6990
           tests.scripts.test_shard_test_selector
           tests.scripts.test_validate_quality_configuration
           tests.scripts.test_rerun_pr_gate_on_label
@@ -1067,6 +1070,30 @@ jobs:
   # the shaft-engine unit-tests leg above and was then deleted too), so there
   # is no known-orphan set left to tolerate -- the raw validator step is
   # blocking, same as the unit test step.
+  # #6990 quality layer: blocking, diff-scoped in-repo static analysis (Python
+  # complexity/empty-except/lambda/F541/weak-assert, Java NPath) mirroring the
+  # classes Codacy flags. Codacy stays as a non-blocking PR reporter; quality
+  # layers are only rearranged or added, never removed.
+  static-analysis:
+    name: Static Analysis (diff-scoped)
+    needs: changes
+    if: github.event_name != 'push'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Run diff-scoped static analysis
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+        run: python3 scripts/ci/code_quality_preflight.py --base "$BASE_SHA"
+
   orphaned-suite-files:
     name: Orphaned Suite XML Guard
     needs: changes
@@ -1303,6 +1330,7 @@ jobs:
       - module-boundary
       - javadoc-coverage
       - orphaned-suite-files
+      - static-analysis
       - pr-body-autoclose-guard
       - dependency-changes
       - dependency-review
@@ -1329,6 +1357,7 @@ jobs:
           MODULE_BOUNDARY_RESULT: ${{ needs.module-boundary.result }}
           JAVADOC_COVERAGE_RESULT: ${{ needs.javadoc-coverage.result }}
           ORPHANED_SUITE_FILES_RESULT: ${{ needs.orphaned-suite-files.result }}
+          STATIC_ANALYSIS_RESULT: ${{ needs.static-analysis.result }}
           PR_BODY_AUTOCLOSE_GUARD_RESULT: ${{ needs.pr-body-autoclose-guard.result }}
           DEPENDENCY_CHANGES_RESULT: ${{ needs.dependency-changes.result }}
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
@@ -1355,6 +1384,7 @@ jobs:
             echo "| module-boundary | ${MODULE_BOUNDARY_RESULT} |"
             echo "| javadoc-coverage | ${JAVADOC_COVERAGE_RESULT} |"
             echo "| orphaned-suite-files | ${ORPHANED_SUITE_FILES_RESULT} |"
+            echo "| static-analysis | ${STATIC_ANALYSIS_RESULT} |"
             echo "| pr-body-autoclose-guard | ${PR_BODY_AUTOCLOSE_GUARD_RESULT} |"
             echo "| dependency-changes | ${DEPENDENCY_CHANGES_RESULT} |"
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
@@ -1368,7 +1398,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${STATIC_ANALYSIS_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)
