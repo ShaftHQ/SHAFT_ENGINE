@@ -4,7 +4,7 @@ from __future__ import annotations
 import importlib.util
 import unittest
 from pathlib import Path
-from unittest import mock
+import unittest.mock as mock
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location("codecov_status_gate", ROOT / "scripts/ci/codecov_status_gate.py")
