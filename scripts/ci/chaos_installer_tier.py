@@ -6,6 +6,12 @@ Pull requests run the fresh installer on Linux and Windows only. macOS (27.8
 minute median, zero regressions caught in 22 PR runs) runs on every push to
 ``main`` (post-merge, never cancelled), nightly, and on a pull request that
 carries the ``ci:installer-macos`` opt-in label.
+
+The Windows installer UX contracts leg (PowerShell hook launcher, ~11 minute
+PR critical path) runs post-merge on every push to ``main`` and on a pull
+request that carries ``ci:installer-windows`` (#6990). The same UX modules
+still run on Linux inside Agent Guidance on every PR, and the Windows fresh
+installer still runs on every installer PR.
 """
 
 from __future__ import annotations
@@ -15,9 +21,11 @@ import json
 import sys
 
 PR_TIER = ("ubuntu-22.04", "windows-2025")
-CONTRACTS_PR_TIER = ("windows-2025",)
+CONTRACTS_PR_TIER: tuple[str, ...] = ()
+WINDOWS = "windows-2025"
 MACOS = "macos-15"
 OPT_IN_LABEL = "ci:installer-macos"
+WINDOWS_OPT_IN_LABEL = "ci:installer-windows"
 
 
 def parse_labels(raw: str) -> set[str]:
@@ -40,8 +48,14 @@ def installer_os(event_name: str, labels: set[str]) -> list[str]:
     return [*tier, MACOS] if includes_macos(event_name, labels) else tier
 
 
+def includes_windows_contracts(event_name: str, labels: set[str]) -> bool:
+    return event_name != "pull_request" or WINDOWS_OPT_IN_LABEL in labels
+
+
 def contracts_os(event_name: str, labels: set[str]) -> list[str]:
     tier = list(CONTRACTS_PR_TIER)
+    if includes_windows_contracts(event_name, labels):
+        tier.append(WINDOWS)
     return [*tier, MACOS] if includes_macos(event_name, labels) else tier
 
 

@@ -626,7 +626,9 @@ class OutputAndWorkflowTest(unittest.TestCase):
         }
 
         self.assertEqual(set(), referenced - outputs)
-        self.assertEqual(set(), referenced - filters)
+        # Tier outputs come from the installer-tier step, not the path filter (#6990).
+        tier_outputs = {"installer_os", "installer_contracts_os"}
+        self.assertEqual(set(), referenced - filters - tier_outputs)
 
     def test_pr_gate_definition_and_shared_actions_have_distinct_fanout(self) -> None:
         workflow = self.workflow()
