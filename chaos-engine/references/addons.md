@@ -31,6 +31,15 @@ automatically; removing an add-on that another selected add-on requires is
 refused and names the dependent. A later upgrade without flags keeps the
 recorded set.
 
+## Project-pack exception
+
+Add-ons stay opt-in. A project pack is different: the installer selects it
+from project files (`installWhen` in the pack's `profile.json`). When the
+selected pack declares `postInstall` (a repository script and flags), the
+bootstrap downloads that script from the same commit and runs it in the
+project once the core installs. Some packs use this to run their own tool installer. Pass `--skip-pack-post-install` to skip it. If it fails, the
+core install is kept and the exit code is non-zero.
+
 ## Load
 
 Installed add-ons live at `.chaos-engine/addons/<name>/`. Open the add-on's
