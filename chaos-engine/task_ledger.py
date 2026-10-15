@@ -10,6 +10,13 @@ transcript.
     tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next TEXT] [--start]
     tool.py checkpoint TASK --budget [--minutes 40]   exit 3 = wrap up now
     tool.py resume [TASK]                             brief; exit 6 = absent
+    tool.py checkpoint TASK --item ID --group G --status S [--note TEXT]
+
+Delivery ledger (#6980): when a user asks for several tasks, issues, or PRs,
+record every item with its target PR group and status before implementing,
+show the table, and update the item at each milestone (todo, in-progress,
+PR #N, merged, blocked: reason). ``resume`` prints the table, so a resumed
+session or the parent sees what is left without the transcript.
 
 State: ``$CHAOS_ENGINE_TASKS_DIR`` or ``~/.local/state/chaos-engine/tasks``,
 one ``TASK.jsonl`` per task, outside any worktree so it survives cleanup.
@@ -73,6 +80,49 @@ def record(name: str, step: str, *, branch: str = "", pr: str = "", next_action:
     return row
 
 
+ITEM_STATUSES = ("todo", "in-progress", "pr", "merged", "blocked", "skipped")
+
+
+def record_item(name: str, item: str, *, group: str = "", status: str = "todo", note: str = "",
+                now: float | None = None) -> dict:
+    head = status.split(" ", 1)[0].split(":", 1)[0].casefold()
+    if head not in ITEM_STATUSES:
+        raise ValueError(f"status must start with one of: {', '.join(ITEM_STATUSES)}")
+    if head == "blocked" and not note and ":" not in status:
+        raise ValueError("blocked needs a reason: --status 'blocked: why' or --note")
+    row = {"t": round(now if now is not None else time.time()), "item": item, "status": status}
+    if group:
+        row["group"] = group
+    if note:
+        row["note"] = note
+    path = ledger(name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, separators=(",", ":")) + "\n")
+    return row
+
+
+def items(name: str) -> dict[str, dict]:
+    """Latest row per delivery item, in first-recorded order."""
+    latest: dict[str, dict] = {}
+    for row in entries(name):
+        if "item" in row:
+            merged = {**latest.get(row["item"], {}), **row}
+            latest[row["item"]] = merged
+    return latest
+
+
+def items_table(name: str) -> str:
+    rows = items(name)
+    if not rows:
+        return ""
+    lines = ["| Item | Group | Status |", "|---|---|---|"]
+    for item, row in rows.items():
+        status = row["status"] + (f" ({row['note']})" if row.get("note") else "")
+        lines.append(f"| {item} | {row.get('group', '')} | {status} |")
+    return "\n".join(lines)
+
+
 def session_start(rows: list[dict]) -> float | None:
     for row in reversed(rows):
         if row.get("start"):
@@ -92,6 +142,10 @@ def brief(name: str) -> str | None:
     rows = entries(name)
     if not rows:
         return None
+    table = items_table(name)
+    rows = [row for row in rows if "step" in row]
+    if not rows:
+        return table or None
     merged: dict = {}
     for row in rows:
         merged.update({k: v for k, v in row.items() if k not in {"start"}})
@@ -101,8 +155,10 @@ def brief(name: str) -> str | None:
     parts += [f"{key} {merged[key]}" for key in ("branch", "pr") if key in merged]
     text = "; ".join(parts)
     if merged["step"] == DONE:
-        return text + "\nstatus: done; nothing to resume"
-    return text + f"\nnext: {merged.get('next', 'reread the PR/branch state, then continue')}"
+        text += "\nstatus: done; nothing to resume"
+    else:
+        text += f"\nnext: {merged.get('next', 'reread the PR/branch state, then continue')}"
+    return text + ("\n" + table if table else "")
 
 
 def open_tasks() -> list[str]:
@@ -111,7 +167,7 @@ def open_tasks() -> list[str]:
         return []
     names = []
     for path in sorted(root.glob("*.jsonl")):
-        rows = entries(path.stem)
+        rows = [row for row in entries(path.stem) if "step" in row]
         if rows and rows[-1].get("step") != DONE:
             names.append(path.stem)
     return names
@@ -140,7 +196,15 @@ def main(argv: list[str] | None = None, command: str = "checkpoint") -> int:
         parser.add_argument("--start", action="store_true", help="mark a new session start")
         parser.add_argument("--budget", action="store_true", help="exit 3 once the session budget is spent")
         parser.add_argument("--minutes", type=float, default=DEFAULT_BUDGET_MINUTES)
+        parser.add_argument("--item", help="delivery-ledger item (issue/PR/task id)")
+        parser.add_argument("--group", default="", help="target PR group for --item")
+        parser.add_argument("--status", default="todo", help="todo|in-progress|pr #N|merged|blocked: why")
+        parser.add_argument("--note", default="")
         ns = parser.parse_args(args)
+        if ns.item:
+            record_item(ns.task, ns.item, group=ns.group, status=ns.status, note=ns.note)
+            print(items_table(ns.task))
+            return 0
         if ns.budget:
             spent, elapsed = over_budget(ns.task, ns.minutes)
             verdict = "wrap up: push WIP, checkpoint --next, end turn" if spent else "ok"

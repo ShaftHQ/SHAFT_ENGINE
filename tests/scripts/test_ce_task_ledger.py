@@ -79,5 +79,40 @@ class TaskLedgerTest(unittest.TestCase):
         self.assertIn("next: push", result.stdout)
 
 
+class DeliveryLedgerTest(TaskLedgerTest):
+    """#6980: multi-item asks persist item -> group -> status."""
+
+    def test_items_table_tracks_latest_status_and_resume_shows_it(self):
+        self.run_main(["all-open", "plan", "--start"])
+        self.run_main(["all-open", "--item", "#6978", "--group", "G1", "--status", "todo"])
+        code, table = self.run_main(["all-open", "--item", "#4307", "--status", "blocked: upstream decision"])
+        self.assertEqual(0, code)
+        self.assertIn("| #4307 |  | blocked: upstream decision |", table)
+        self.run_main(["all-open", "--item", "#6978", "--status", "pr #6979"])
+        self.run_main(["all-open", "--item", "#6978", "--status", "merged"])
+        code, brief = self.run_main(["all-open"], "resume")
+        self.assertEqual(0, code)
+        self.assertIn("| #6978 | G1 | merged |", brief)
+        self.assertNotIn("pr #6979", brief)
+        self.assertIn("next:", brief)
+        self.assertEqual(["#6978", "#4307"], list(self.ledger.items("all-open")))
+
+    def test_blocked_needs_reason_and_status_is_validated(self):
+        code, _ = self.run_main(["t", "--item", "#1", "--status", "blocked"])
+        self.assertEqual(2, code)
+        code, _ = self.run_main(["t", "--item", "#1", "--status", "wip"])
+        self.assertEqual(2, code)
+
+    def test_core_guidance_requires_the_ledger_before_implementing(self):
+        for relative in (
+            "skills/chaos-engine/SKILL.md",
+            "references/bot-entry.md",
+            "references/orchestrator-follow-through.md",
+        ):
+            text = (CE / relative).read_text(encoding="utf-8")
+            self.assertIn("delivery-ledger", text.replace("Delivery ledger", "delivery-ledger").casefold(), relative)
+        self.assertIn("--item ID --group G --status todo", (CE / "references/bot-entry.md").read_text(encoding="utf-8").replace("\n", " "))
+
+
 if __name__ == "__main__":
     unittest.main()

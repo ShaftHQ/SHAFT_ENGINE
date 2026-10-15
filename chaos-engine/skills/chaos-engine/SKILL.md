@@ -51,8 +51,8 @@ Re-triage when a premise is false. Before a broad search, run one
 
 ## Plan, then go
 
-During planning, ask only questions whose answer changes the plan, and never
-one the repository or sources can answer. Once the plan is approved, go
+Plan with only questions that change the plan and that sources cannot
+answer. Many items: [delivery ledger](../../references/bot-entry.md#delivery-ledger) first. Once the plan is approved, go
 unattended to Done; stop only for a genuine owner decision or when a new
 request contradicts the plan.
 

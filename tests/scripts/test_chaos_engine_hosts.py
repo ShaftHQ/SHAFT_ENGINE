@@ -4678,6 +4678,22 @@ class CompanionPinTest(unittest.TestCase):
         self.assertNotIn("@caveman-ai/cli", entrypoint)
 
 
+class ClientCommandNoneOutputTest(unittest.TestCase):
+    """#6975: Windows returned stdout None and json.loads(None) failed activation."""
+
+    def test_none_stdout_is_text_and_invalid_json_names_the_command(self):
+        hosts = load(HOSTS, "hosts_none_stdout")
+
+        def runner(*_args, **kwargs):
+            self.assertEqual("utf-8", kwargs.get("encoding"))
+            return subprocess.CompletedProcess(_args[0], 0, stdout=None, stderr=None)
+
+        result = hosts.client_command("claude", ["plugin", "list"], Path("."), runner=runner)
+        self.assertEqual("", result.stdout)
+        with self.assertRaisesRegex(RuntimeError, r"`claude plugin list --json` returned invalid JSON"):
+            hosts.client_json("claude", ["plugin", "list", "--json"], Path("."), runner=runner)
+
+
 if __name__ == "__main__":
     unittest.main()
 

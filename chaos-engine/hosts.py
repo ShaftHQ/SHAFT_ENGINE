@@ -803,7 +803,7 @@ def retrieval_runtime_status(
                 "code": f"memory-{arguments[0]}-exit",
             }
         try:
-            payload = json.loads(result.stdout)
+            payload = json.loads(result.stdout or "")
         except json.JSONDecodeError:
             return {
                 "status": "recovery-required",
@@ -1559,9 +1559,15 @@ def client_command(
         cwd=project,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
         timeout=timeout,
     )
+    # Windows can hand back stdout/stderr as None (#6975: json.loads(None)
+    # failed "Activate clients"). Normalize so callers see text.
+    result.stdout = result.stdout or ""
+    result.stderr = result.stderr or ""
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()
         raise RuntimeError(f"client plugin command failed: {detail}")
@@ -1578,7 +1584,10 @@ def client_json(
     try:
         return json.loads(result.stdout)
     except json.JSONDecodeError as error:
-        raise RuntimeError("client plugin command returned invalid JSON") from error
+        name = Path(executable).name
+        raise RuntimeError(
+            f"client plugin command `{name} {' '.join(arguments)}` returned invalid JSON"
+        ) from error
 
 
 _STALE_MARKETPLACE_ERROR = re.compile(

@@ -54,6 +54,12 @@ Pings do not extend a wall-clock cap; resume instead:
 - Parent: on "interrupted before it finished", re-dispatch with the
   `tool.py resume TASK` output as the brief. Never poll a child to keep it alive.
 
+## Delivery ledger
+
+Several tasks, issues, or PRs: first record each with `tool.py checkpoint
+TASK --item ID --group G --status todo`, show the table, and update it at
+each milestone (`pr #N`, `merged`, `blocked: reason`). `resume` prints it.
+
 ## After each delivery
 
 Learning Session after every final delivery: when the owner approves a

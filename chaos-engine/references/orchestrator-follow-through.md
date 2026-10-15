@@ -27,6 +27,13 @@ ambiguity, and remove blockers within granted authority. Then keep, re-spec,
 upgrade, or kill. Never send a heartbeat. Validate errors and progress before
 the next handoff; bound retries and escalate instead of waiting indefinitely.
 
+## Delivery ledger
+
+For a multi-item ask, the orchestrator owns the
+[delivery ledger](bot-entry.md#delivery-ledger): build and show it before
+dispatching, pass `tool.py resume TASK` as each delegate's brief, and update
+item status at every inspection that sees a milestone.
+
 ## Consult and impediments
 
 Ask what is blocked and what would unblock. Do not rewrite a healthy writer's
