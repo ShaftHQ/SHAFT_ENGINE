@@ -51,6 +51,11 @@ Re-triage when a premise is false. Before a broad search, run one
 
 ## Plan, then go
 
+- Multi-item ask (several tasks, issues, or PRs): before implementing, record
+  each item with `tool.py checkpoint TASK --item ID --group G --status todo`,
+  show the table, and update each item at every milestone (in-progress,
+  pr #N, merged, blocked: reason). See [bot-entry](../../references/bot-entry.md#delivery-ledger).
+
 During planning, ask only questions whose answer changes the plan, and never
 one the repository or sources can answer. Once the plan is approved, go
 unattended to Done; stop only for a genuine owner decision or when a new
