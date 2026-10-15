@@ -427,6 +427,8 @@ jobs:
               - 'tests/scripts/test_pr_time_to_merge_report.py'
               - 'scripts/ci/quality_trend.py'
               - 'tests/scripts/test_quality_layers_6990.py'
+              - 'scripts/ci/api_compat_gate.py'
+              - 'tests/scripts/test_api_compat_gate.py'
               - 'scripts/ci/errorprone_ratchet.py'
               - 'tests/scripts/test_errorprone_ratchet.py'
               - 'scripts/ci/spotbugs_trend.py'
@@ -1070,6 +1072,64 @@ jobs:
           MODULES: ${{ steps.mods.outputs.modules }}
         run: python3 scripts/ci/errorprone_ratchet.py errorprone.log --modules "$MODULES"
 
+  # #7002: binary compatibility of changed published modules against the
+  # latest Maven Central release. A break blocks unless the PR carries the
+  # `breaking-change` label (release-note governance requires the note).
+  # pull_request only: labels were already judged before the queue.
+  api-compat:
+    name: API Compatibility (japicmp)
+    needs: changes
+    if: github.event_name == 'pull_request' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Changed published modules and release baselines
+        id: mods
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          changed=$(git diff --name-only "$BASE_SHA" HEAD -- '*.java' | grep '/src/main/' | cut -d/ -f1 | sort -u || true)
+          mkdir -p "$RUNNER_TEMP/japicmp"
+          mods=""
+          for m in $changed; do
+            meta="https://repo1.maven.org/maven2/io/github/shafthq/$m/maven-metadata.xml"
+            v=$(curl -sfL "$meta" | sed -n 's:.*<release>\(.*\)</release>.*:\1:p' | head -1) || true
+            [ -n "$v" ] || { echo "$m: not on Maven Central, skipped"; continue; }
+            curl -sfL -o "$RUNNER_TEMP/japicmp/$m.jar" "https://repo1.maven.org/maven2/io/github/shafthq/$m/$v/$m-$v.jar" || continue
+            echo "$m: baseline $v"
+            mods="${mods:+$mods,}$m"
+          done
+          echo "modules=$mods" >> "$GITHUB_OUTPUT"
+      - name: Build and compare
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+        run: |
+          mvn --batch-mode --no-transfer-progress -pl "$MODULES" -am install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip
+          mvn --batch-mode --no-transfer-progress -Pjapicmp -pl "$MODULES" \
+            com.github.siom79.japicmp:japicmp-maven-plugin:0.26.3:cmp "-Djapicmp.baselineDir=$RUNNER_TEMP/japicmp"
+      - name: Judge
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -o pipefail
+          python3 scripts/ci/api_compat_gate.py --modules "$MODULES" --labels "$LABELS" | tee -a "$GITHUB_STEP_SUMMARY"
+
   workflow-timeouts:
     name: Workflow Timeout Guard
     needs: changes
@@ -1101,6 +1161,7 @@ jobs:
           tests.scripts.test_codecov_status_gate
           tests.scripts.test_main_red_reaction
           tests.scripts.test_validate_codecov_yml
+          tests.scripts.test_api_compat_gate
           tests.scripts.test_errorprone_ratchet
           tests.scripts.test_spotbugs_trend
           tests.scripts.test_workflow_security_gate
@@ -1439,6 +1500,7 @@ jobs:
       - unit-tests
       - template-coupling
       - workflow-timeouts
+      - api-compat
       - bug-analysis
       - workflow-security
       - module-boundary
@@ -1472,6 +1534,7 @@ jobs:
           UNIT_TESTS_RESULT: ${{ needs.unit-tests.result }}
           TEMPLATES_RESULT: ${{ needs.template-coupling.result }}
           WORKFLOW_TIMEOUTS_RESULT: ${{ needs.workflow-timeouts.result }}
+          API_COMPAT_RESULT: ${{ needs.api-compat.result }}
           BUG_ANALYSIS_RESULT: ${{ needs.bug-analysis.result }}
           WORKFLOW_SECURITY_RESULT: ${{ needs.workflow-security.result }}
           MODULE_BOUNDARY_RESULT: ${{ needs.module-boundary.result }}
@@ -1501,6 +1564,7 @@ jobs:
             echo "| unit-tests | ${UNIT_TESTS_RESULT} |"
             echo "| template-coupling | ${TEMPLATES_RESULT} |"
             echo "| workflow-timeouts | ${WORKFLOW_TIMEOUTS_RESULT} |"
+            echo "| api-compat | ${API_COMPAT_RESULT} |"
             echo "| bug-analysis | ${BUG_ANALYSIS_RESULT} |"
             echo "| workflow-security | ${WORKFLOW_SECURITY_RESULT} |"
             echo "| module-boundary | ${MODULE_BOUNDARY_RESULT} |"
@@ -1520,7 +1584,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${BUG_ANALYSIS_RESULT}" "${WORKFLOW_SECURITY_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${STATIC_ANALYSIS_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${API_COMPAT_RESULT}" "${BUG_ANALYSIS_RESULT}" "${WORKFLOW_SECURITY_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${STATIC_ANALYSIS_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)
