@@ -164,7 +164,74 @@ public class BrowserStackSdkHelper {
         // App configuration for native mobile testing
         addAppConfiguration(config);
 
+        // Any other SDK option (testObservability, accessibility, percy, testReporting, ...)
+        addSdkPassThroughOptions(config, System.getProperties());
+
         return config;
+    }
+
+    /** Prefix for BrowserStack SDK options SHAFT passes through to {@code browserstack.yml} unchanged. */
+    static final String SDK_OPTION_PREFIX = "browserStack.sdk.";
+    private static final Set<String> CREDENTIAL_KEYS = Set.of("username", "accesskey");
+
+    /**
+     * Copies every {@code browserStack.sdk.<key>} property into the SDK configuration, so the full
+     * BrowserStack SDK feature set is reachable without SHAFT re-implementing each option.
+     * Dots in {@code <key>} nest maps ({@code browserStack.sdk.accessibilityOptions.wcagVersion}).
+     * Values {@code true}/{@code false}, integers, and JSON objects/arrays are typed; anything else
+     * stays a string. Pass-through values override generated ones. Credentials are refused
+     * (the SDK reads them from the environment).
+     *
+     * @param config     the configuration map to extend
+     * @param properties the property source, normally {@link System#getProperties()}
+     */
+    static void addSdkPassThroughOptions(Map<String, Object> config, Properties properties) {
+        var keys = new TreeSet<String>();
+        for (var name : properties.stringPropertyNames()) {
+            if (name.startsWith(SDK_OPTION_PREFIX) && name.length() > SDK_OPTION_PREFIX.length()) {
+                keys.add(name);
+            }
+        }
+        for (var name : keys) {
+            var path = name.substring(SDK_OPTION_PREFIX.length()).split("\\.");
+            if (CREDENTIAL_KEYS.contains(path[0].toLowerCase(Locale.ROOT))) {
+                ReportManager.logDiscrete("Ignoring BrowserStack SDK credential property " + name
+                        + "; set BROWSERSTACK_USERNAME / BROWSERSTACK_ACCESS_KEY instead.");
+                continue;
+            }
+            Map<String, Object> target = config;
+            for (int index = 0; index < path.length - 1; index++) {
+                var child = target.get(path[index]);
+                if (!(child instanceof Map)) {
+                    child = new LinkedHashMap<String, Object>();
+                    target.put(path[index], child);
+                }
+                @SuppressWarnings("unchecked")
+                var next = (Map<String, Object>) child;
+                target = next;
+            }
+            target.put(path[path.length - 1], typedSdkValue(properties.getProperty(name)));
+        }
+    }
+
+    private static Object typedSdkValue(String raw) {
+        var value = raw.trim();
+        if ("true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value)) {
+            return Boolean.parseBoolean(value);
+        }
+        if (value.matches("-?\\d{1,9}")) {
+            return Integer.parseInt(value);
+        }
+        if (value.startsWith("{") || value.startsWith("[")) {
+            try {
+                return value.startsWith("{")
+                        ? new org.json.JSONObject(value).toMap()
+                        : new JSONArray(value).toList();
+            } catch (org.json.JSONException ignored) {
+                return raw;
+            }
+        }
+        return raw;
     }
 
     /**
