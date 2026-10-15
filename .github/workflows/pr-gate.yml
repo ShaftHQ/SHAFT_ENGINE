@@ -1056,7 +1056,7 @@ jobs:
         run: |
           set -o pipefail
           mvn --batch-mode --no-transfer-progress -Perrorprone -pl "$MODULES" -am \
-            compile -DskipTests -Dgpg.skip 2>&1 | tee errorprone.log
+            install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip 2>&1 | tee errorprone.log
       - name: Ratchet against baseline
         if: steps.mods.outputs.modules != ''
         env:
