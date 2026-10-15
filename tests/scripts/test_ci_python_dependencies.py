@@ -18,6 +18,7 @@ EXPECTED_PINS = {
     "pyyaml": "6.0.3",
     "referencing": "0.37.0",
     "rpds-py": "2026.9.1",
+    "zizmor": "1.31.0",
 }
 EXPECTED_INSTALLS = {
     ".github/workflows/agent-plugin-acceptance.yml": (
@@ -30,6 +31,7 @@ EXPECTED_INSTALLS = {
     ".github/workflows/pr-gate.yml": (
         "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
         "python -m pip install --no-deps --requirement requirements-ci.txt --quiet",
+        "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
         "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
     ),
     ".github/workflows/publish-shaft-mcp.yml": (

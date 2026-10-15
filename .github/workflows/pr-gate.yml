@@ -993,12 +993,16 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
       - name: Install actionlint and zizmor (pinned)
         run: |
           curl -sSfL -o /tmp/al.tgz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
           echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  /tmp/al.tgz" | sha256sum -c -
           tar -xzf /tmp/al.tgz -C /tmp actionlint
-          python3 -m pip install --quiet zizmor==1.31.0
+          python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet
       - name: Gate
         run: python3 scripts/ci/workflow_security_gate.py --actionlint /tmp/actionlint
       - name: zizmor SARIF
