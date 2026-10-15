@@ -416,6 +416,16 @@ def coverage_ratchet_failures(root: Path, changed: list[str]) -> list[str]:
     return failures
 
 
+def codecov_yml_failures(root: Path, changed: list[str]) -> list[str]:
+    """#6990 lesson: Codecov ignores an invalid codecov.yml wholesale; validate it before push."""
+    if "codecov.yml" not in {p.replace("\\", "/").lstrip("./") for p in changed}:
+        return []
+    result = subprocess.run(  # nosec B603 - fixed script path
+        [sys.executable, str(root / "scripts/ci/validate_codecov_yml.py"), "--soft"],
+        cwd=root, capture_output=True, text=True, check=False)
+    return [] if result.returncode == 0 else [result.stdout.strip() or "codecov.yml validation failed"]
+
+
 def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
     """Return contract failures for one overlay diff. Empty means the push may proceed."""
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
@@ -431,6 +441,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     failures.extend(shipped_validator_import_failures(root, changed))
     failures.extend(cheap_ci_contract_failures(root, changed))
     failures.extend(coverage_ratchet_failures(root, changed))
+    failures.extend(codecov_yml_failures(root, changed))
     if "scripts/mcp/install_shaft_agentic_tools.py" in {p.replace("\\", "/") for p in changed}:
         # #6849: Installer verification is CI-only and path-filtered; it runs this ~30 s end-to-end check.
         print("overlay pre-push: warning: installer changed; run "
