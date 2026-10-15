@@ -1919,7 +1919,8 @@ public final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         }
         VirtualFile virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(file);
         if (virtualFile != null) {
-            FileEditorManager.getInstance(project).openFile(virtualFile, true);
+            FileEditorManager.getInstance(project).openFileEditor(
+                    new com.intellij.openapi.fileEditor.OpenFileDescriptor(project, virtualFile), true);
         }
     }
 

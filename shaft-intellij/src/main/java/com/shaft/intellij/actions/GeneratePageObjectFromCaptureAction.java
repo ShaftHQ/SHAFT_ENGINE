@@ -76,7 +76,8 @@ public final class GeneratePageObjectFromCaptureAction extends AnAction implemen
                 VirtualFile file = folder.createChildData(GeneratePageObjectFromCaptureAction.class,
                         target.getFileName().toString());
                 VfsUtil.saveText(file, draft.source());
-                FileEditorManager.getInstance(project).openFile(file, true);
+                FileEditorManager.getInstance(project).openFileEditor(
+                    new com.intellij.openapi.fileEditor.OpenFileDescriptor(project, file), true);
             } catch (IOException failure) {
                 ShaftNotifier.warn(project, TITLE, "Could not write the Page Object: " + failure.getMessage());
             }
