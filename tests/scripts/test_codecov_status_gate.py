@@ -32,18 +32,23 @@ class CodecovStatusGateTest(unittest.TestCase):
 
     def test_settled_failure_blocks_and_absent_never_hangs(self) -> None:
         red = {"codecov/patch": "failure"}
-        with mock.patch.object(gate, "fetch", return_value=red), mock.patch.object(gate.time, "sleep"):
+        with mock.patch.object(gate, "fetch", return_value=(red, ())), mock.patch.object(gate.time, "sleep"):
             self.assertEqual(1, gate.main(["--repo", "o/r", "--sha", "x", "--settle", "0"]))
-        with mock.patch.object(gate, "fetch", return_value={}), mock.patch.object(gate.time, "sleep"):
+        with mock.patch.object(gate, "fetch", return_value=({}, ())), mock.patch.object(gate.time, "sleep"):
             self.assertEqual(0, gate.main(["--repo", "o/r", "--sha", "x", "--timeout", "0"]))
 
     def test_java_main_pr_fails_when_codecov_never_reports(self) -> None:
-        with mock.patch.object(gate, "fetch", return_value={}), mock.patch.object(gate.time, "sleep"), \
+        with mock.patch.object(gate, "fetch", return_value=({}, ())), mock.patch.object(gate.time, "sleep"), \
                 mock.patch.object(gate, "pr_changes_java_main", return_value=True):
             self.assertEqual(1, gate.main(["--repo", "o/r", "--sha", "x", "--pr", "7", "--timeout", "0"]))
-        with mock.patch.object(gate, "fetch", return_value={"codecov/patch": "pending"}), \
+        with mock.patch.object(gate, "fetch", return_value=({"codecov/patch": "pending"}, ())), \
                 mock.patch.object(gate.time, "sleep"), mock.patch.object(gate, "pr_changes_java_main", return_value=False):
             self.assertEqual(0, gate.main(["--repo", "o/r", "--sha", "x", "--pr", "7", "--timeout", "0"]))
+
+    def test_signature_moves_with_codecov_recompute(self) -> None:
+        a = [{"name": "codecov/project", "conclusion": "failure", "output": {"title": "59.85%"}, "completed_at": "t1"}]
+        b = [{"name": "codecov/project", "conclusion": "failure", "output": {"title": "61.60%"}, "completed_at": "t2"}]
+        self.assertNotEqual(gate.signature(a, []), gate.signature(b, []))
 
     def test_java_main_detection(self) -> None:
         self.assertTrue(gate.is_java_main("shaft-mcp/src/main/java/a/B.java"))
