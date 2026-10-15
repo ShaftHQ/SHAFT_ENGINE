@@ -19,7 +19,7 @@ public record SetupOptions(SetupProfile profile, SetupMode mode, ShaftCachePaths
         Objects.requireNonNull(paths, "paths");
         startupTimeout = positive(startupTimeout, "startupTimeout");
         shutdownTimeout = positive(shutdownTimeout, "shutdownTimeout");
-        remoteEndpoint = Objects.requireNonNull(remoteEndpoint, "remoteEndpoint");
+        Objects.requireNonNull(remoteEndpoint, "remoteEndpoint");
         remoteEndpoint.ifPresent(SetupOptions::validateRemoteEndpoint);
     }
 
