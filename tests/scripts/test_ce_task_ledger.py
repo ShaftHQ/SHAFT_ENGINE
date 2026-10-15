@@ -111,6 +111,7 @@ class DeliveryLedgerTest(TaskLedgerTest):
         ):
             text = (CE / relative).read_text(encoding="utf-8")
             self.assertIn("delivery-ledger", text.replace("Delivery ledger", "delivery-ledger").casefold(), relative)
+            self.assertIn("wip limit", text.casefold(), relative)
         self.assertIn("--item ID --group G --status todo", (CE / "references/bot-entry.md").read_text(encoding="utf-8").replace("\n", " "))
 
 
