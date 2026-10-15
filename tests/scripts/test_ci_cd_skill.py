@@ -11,7 +11,8 @@ class CiCdSkillTest(unittest.TestCase):
     def test_skill_states_targets_tiers_and_roll_forward(self) -> None:
         text = SKILL.read_text(encoding="utf-8")
         for token in ("name: ci-cd", "10 min", "15 min", "Push to main", "Nightly",
-                      "Never auto-revert", "merge_group", "ci:full", "Release"):
+                      "Never auto-revert", "merge_group", "ci:full", "Release",
+                      "never removed", "equal or better coverage"):
             self.assertIn(token, text)
 
     def test_skill_is_indexed(self) -> None:

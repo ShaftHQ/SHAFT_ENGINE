@@ -292,6 +292,14 @@ class WorkflowReadmeContractTest(unittest.TestCase):
             "ChaosEngineReadmeInventoryTest.test_repository_readme_matches_every_source_derived_inventory", ids
         )
 
+class PrBodyPreflightTest(unittest.TestCase):
+    def test_open_pr_body_without_assumption_link_blocks_push(self) -> None:
+        from scripts.ci import overlay_pre_push as gate
+
+        bad = {"number": 7, "title": "x", "body": "## What\nstuff"}
+        self.assertTrue(gate.pr_body_failures(Path("."), pr_fetcher=lambda _root: bad))
+        self.assertEqual([], gate.pr_body_failures(Path("."), pr_fetcher=lambda _root: None))
+
 
 if __name__ == "__main__":
     unittest.main()

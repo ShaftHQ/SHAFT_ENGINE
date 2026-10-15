@@ -41,6 +41,15 @@ Move a leg off PR only when all three hold:
 
 Keep a live-label opt-in such as `ci:<leg>`, plus `ci:full`, and re-run the gate when the label is added. Read labels from the API, because re-runs replay the old event payload.
 
+## Quality layers are never removed
+
+Tests, static analysis, coverage and review may be rearranged or added, but never removed.
+The one exception is a layer that repeated, evidenced analysis proves an utter waste.
+Moving a layer, for example from PR to main or from blocking to reporter, must keep equal or better coverage:
+- a blocking in-repo equivalent;
+- findings resolved before merge;
+- a tracker issue on main.
+
 ## Never auto-revert
 
 Main rolls forward. A failing post-merge leg opens or updates one rolling issue (P0, assigned to the owner), and the next green run closes it. Do not open revert PRs automatically.
@@ -53,7 +62,7 @@ Main rolls forward. A failing post-merge leg opens or updates one rolling issue 
 
 ## Delivery order, queue, stacks
 
-- One PR at a time: babysit it to merged, then open the next.
+- One PR at a time: babysit it to merged, then open the next. With a merge queue, `gh pr merge --auto --merge` enqueues the PR.
 - Merge queue: add `merge_group:` to every workflow that reports a required check, and run the PR tier there. External apps that do not report on `merge_group` must leave the required list first.
 - Stacked PRs: run cheap checks on every layer, and expensive legs only on the lowest unmerged layer or the top of the stack (`github.event.pull_request.stack`).
 
