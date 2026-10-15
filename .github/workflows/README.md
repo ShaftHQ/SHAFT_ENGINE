@@ -89,8 +89,7 @@ table. Remove a row only in the same change that deletes its workflow.
   gets its own concurrency group and is never cancelled, so every merge commit
   finishes its post-merge legs. `Main red reaction` then files or updates one
   `ci-main-red` issue per failing leg, closes it when the leg passes again on
-  `main`, and opens a revert PR for a failing ChaosEngine fresh-installer leg
-  (#6185).
+  `main`. It never opens a revert PR: main rolls forward (#6185, #6990).
 - The ChaosEngine fresh-installer matrix and the installer UX contracts
   (`chaos-installer-contracts`, non-Linux runners) start right after
   `changes`, in parallel with Agent Guidance Gate. On Linux the UX modules run
@@ -137,7 +136,7 @@ table. Remove a row only in the same change that deletes its workflow.
 `scripts/ci/chaos_installer_tier.py` resolves the tier from live PR labels;
 adding the label re-runs PR Gate automatically via `installer-macos-rerun.yml`
 (#6208). A macOS-only break is caught post-merge
-and handled by `Main red reaction` (issue + revert PR).
+and tracked by `Main red reaction` (rolling issue, auto-closed on green; no revert).
 - `publish-intellij-plugin.yml` and `publish-shaft-mcp.yml` listen for an actual
   published release rather than the Maven workflow conclusion, because an
   already-published version is a successful no-op delivery.
