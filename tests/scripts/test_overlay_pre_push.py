@@ -286,3 +286,41 @@ class CoverageRatchetPrePushTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class _ProbeContract(unittest.TestCase):
+    """Fails only when the cheap-contract test below arms it."""
+
+    armed = False
+
+    def test_probe(self) -> None:
+        if _ProbeContract.armed:
+            self.fail("budget exceeded probe")
+
+
+class CheapCiContractTest(unittest.TestCase):
+    """#6982: Agent Guidance Gate's cheap tests run in pre-push for their inputs."""
+
+    def test_runs_only_for_matching_paths_and_reports_failure(self) -> None:
+        from unittest.mock import patch
+
+        from scripts.ci import overlay_pre_push as gate
+
+        root = Path(__file__).resolve().parents[2]
+        probe = ((lambda p: p.endswith(".md"), "tests.scripts.test_overlay_pre_push", "_ProbeContract.test_probe"),)
+        with patch.object(gate, "CHEAP_CI_CONTRACTS", probe):
+            _ProbeContract.armed = True
+            try:
+                self.assertEqual([], gate.cheap_ci_contract_failures(root, ["a.py"]))
+                failures = gate.cheap_ci_contract_failures(root, ["chaos-engine/x.md"])
+            finally:
+                _ProbeContract.armed = False
+        self.assertEqual(1, len(failures))
+        self.assertIn("budget exceeded probe", failures[0])
+
+    def test_real_contracts_pass_on_this_tree(self) -> None:
+        from scripts.ci import overlay_pre_push as gate
+
+        root = Path(__file__).resolve().parents[2]
+        changed = ["chaos-engine/references/bot-entry.md", "scripts/ci/harness_pr_gate.py"]
+        self.assertEqual([], gate.cheap_ci_contract_failures(root, changed))
