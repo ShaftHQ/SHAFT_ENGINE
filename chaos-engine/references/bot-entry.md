@@ -59,8 +59,10 @@ Pings do not extend a wall-clock cap; resume instead:
 Several tasks, issues, or PRs: first record each with `tool.py checkpoint
 TASK --item ID --group G --status todo`, show the table, and update it at
 each milestone (`pr #N`, `merged`, `blocked: reason`). `resume` prints it.
-WIP limit: finish before you start. Do not open new work while your own
-PRs are still unmerged. Babysit them to merged first.
+WIP limit: finish before you start. Deliver sequentially: open PR 1,
+babysit it to merged, then start the next item. Never open new work while
+your own PRs are unmerged. When parallel work is really needed, stack the
+PRs (each based on the previous branch) instead of opening independent ones.
 
 ## After each delivery
 

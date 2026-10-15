@@ -52,7 +52,7 @@ Re-triage when a premise is false. Before a broad search, run one
 ## Plan, then go
 
 Plan with only questions that change the plan and that sources cannot
-answer. Many items: [delivery ledger](../../references/bot-entry.md#delivery-ledger) first. Once the plan is approved, go
+answer. Many items: [delivery ledger](../../references/bot-entry.md#delivery-ledger) first; WIP limit: merge each PR before the next. Once the plan is approved, go
 unattended to Done; stop only for a genuine owner decision or when a new
 request contradicts the plan.
 

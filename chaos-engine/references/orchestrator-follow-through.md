@@ -32,7 +32,9 @@ the next handoff; bound retries and escalate instead of waiting indefinitely.
 For a multi-item ask, the orchestrator owns the
 [delivery ledger](bot-entry.md#delivery-ledger): build and show it before
 dispatching, pass `tool.py resume TASK` as each delegate's brief, and update
-item status at every inspection that sees a milestone.
+item status at every inspection that sees a milestone. Enforce the
+[WIP limit](bot-entry.md#delivery-ledger): do not dispatch the next item while
+an earlier item's PR is unmerged, unless it is stacked on that PR.
 
 ## Consult and impediments
 
