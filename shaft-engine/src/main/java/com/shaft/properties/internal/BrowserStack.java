@@ -22,6 +22,11 @@ import org.aeonbits.owner.ConfigFactory;
  *     .osVersion("11")
  *     .browserVersion("latest");
  * }</pre>
+ *
+ * <p>Any other BrowserStack SDK option is passed through to the generated {@code browserstack.yml}
+ * as {@code browserStack.sdk.<option>} (dots nest; booleans, integers and JSON are typed), for
+ * example {@code browserStack.sdk.testObservability=true} or
+ * {@code browserStack.sdk.accessibilityOptions.wcagVersion=wcag21aa}. Credentials are never written.
  */
 @SuppressWarnings({"SpellCheckingInspection", "unused"})
 @Sources({"system:properties",
