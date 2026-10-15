@@ -1,5 +1,8 @@
 codecov:
   require_ci_to_pass: yes
+  notify:
+    # PR Gate Summary polls Codecov (#6990); waiting for CI would deadlock it.
+    wait_for_ci: false
 
 coverage:
   precision: 2
