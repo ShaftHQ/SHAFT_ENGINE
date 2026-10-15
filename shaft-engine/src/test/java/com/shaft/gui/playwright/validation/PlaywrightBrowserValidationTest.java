@@ -654,7 +654,7 @@ public class PlaywrightBrowserValidationTest {
         MockedStatic<ValidationsHelper> reporting = org.mockito.Mockito.mockStatic(ValidationsHelper.class);
         reporting.when(() -> ValidationsHelper.reportValidationState(
                         any(com.shaft.validation.ValidationEnums.ValidationCategory.class), anyBoolean(), any(), any(),
-                        anyList(), anyLong(), anyBoolean()))
+                        anyList(), anyLong(), anyBoolean(), any()))
                 .thenAnswer(invocation -> {
                     captured.set(invocation.getArgument(4));
                     return null;

@@ -3009,6 +3009,11 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
             self.assertEqual("CE-INSTALL-FAILED", result["error"])
             self.assertIn("path not found: /no/such", result["cause"])
             self.assertNotEqual("CE-INSTALL-FAILED", result["cause"])
+            if os.name == "nt":
+                # install.sh is the POSIX installer (Windows uses install.ps1).
+                # Git Bash cannot exec the fake shebang python3, so the script
+                # falls through to uv bootstrap and rejects MINGW (#6970).
+                return
 
             fake_bin = project / "bin"
             fake_bin.mkdir()
