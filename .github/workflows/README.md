@@ -70,7 +70,7 @@ changing that token silently breaks both distribution publishers.
 | `agent-plugin-acceptance.yml` | weekly (all jobs), daily (3-OS ChaosEngine installer jobs), manual | Native-client routing, external guardrail-corpus scoring, agnix conformance, and the 3-OS installer acceptance that carries macOS off the PR path; files a tracking issue on a scheduled failure. |
 | `update-selenium-grid-versions.yml` | weekly, manual | Updates Selenium Grid image references and opens a validated PR. |
 | `upstream-watch.yml` | weekly, manual | Compares repository pins for MemPalace, Graphify, and vendored companion skills with the latest stable upstream. Opens or updates one issue when a pin is behind. Does not merge or install. |
-| `pr-time-to-merge.yml` | weekly, manual | Reports median/p90 PR open→merge minutes for the last 30 merged PRs; a median above 15 minutes opens or updates one `ci-pr-time` issue (#6990). |
+| `pr-time-to-merge.yml` | weekly, manual | Reports median/p90 PR open→merge minutes for the last 30 merged PRs (a median above 15 minutes opens or updates one `ci-pr-time` issue) and the main quality trend: Codacy check runs plus Codecov coverage (a regression opens or updates one `ci-quality` issue) (#6990). |
 
 The quality validator fails when an active `*.yml` file is missing from this
 table. Remove a row only in the same change that deletes its workflow.

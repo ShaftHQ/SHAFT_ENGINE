@@ -62,7 +62,8 @@ Pings do not extend a wall-clock cap; resume instead:
   `2>&1 | grep -E "^(OK|FAILED|FAIL:|AssertionError)" | cut -c1-300`.
   Never print a whole job log or assertion dump.
 - Babysit with one blocking loop that exits on merge or on the first `fail`.
-  With a merge queue, `gh pr merge --auto --merge` enqueues the PR.
+  With a merge queue, `gh pr merge --auto --merge` enqueues the PR. Before
+  it merges, read non-blocking analysis reporters and fix their new findings.
 - `checkpoint TASK --budget 40` after every merge. When it exits 3, stop.
 
 ## Delivery ledger
