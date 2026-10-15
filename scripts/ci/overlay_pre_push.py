@@ -262,6 +262,44 @@ def portable_core_path_failures(root: Path) -> list[str]:
     return [f"portable core path check failed: {detail}"]
 
 
+# CI-only cheap contract tests that missed pre-push in #6979/#6981, costing a
+# CI round trip each. (path predicate, module, test id) run in-process.
+CHEAP_CI_CONTRACTS = (
+    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
+     "tests.scripts.test_ce_lean_harness", "BudgetTests.test_implement_path_fits_16_kib_on_every_host"),
+    (lambda p: p.startswith("chaos-engine/") and p.endswith(".md"),
+     "tests.scripts.test_ce_lean_harness", "LintTests.test_lean_lint_is_clean_against_its_shrink_only_allowlist"),
+    (lambda p: p == "scripts/ci/harness_pr_gate.py",
+     "tests.scripts.test_harness_pr_gate", "UngatedModulesRunInCiTest.test_allowlist_never_exceeds_the_ceiling"),
+)
+
+
+def cheap_ci_contract_failures(root: Path, changed: list[str]) -> list[str]:
+    """Run the Agent Guidance Gate's cheap byte-budget/lint/allowlist tests before push."""
+    import importlib
+    import unittest
+
+    normalized = [p.replace("\\", "/").lstrip("./") for p in changed]
+    failures = []
+    for predicate, module_name, test_id in CHEAP_CI_CONTRACTS:
+        if not any(predicate(p) for p in normalized):
+            continue
+        if not (root / (module_name.replace(".", "/") + ".py")).is_file():
+            continue
+        try:
+            module = importlib.import_module(module_name)
+            suite = unittest.defaultTestLoader.loadTestsFromName(test_id, module)
+        except (ImportError, AttributeError) as error:
+            failures.append(f"{module_name}.{test_id}: could not load ({error})")
+            continue
+        result = unittest.TestResult()
+        suite.run(result)
+        if not result.wasSuccessful():
+            detail = (result.failures + result.errors)[0][1].strip().splitlines()[-1]
+            failures.append(f"{module_name}.{test_id} failed: {detail}")
+    return failures
+
+
 def ungated_script_module_failures(root: Path) -> list[str]:
     """Refuse a new tests/scripts module that no harness PR-gate check selects (#6839).
 
@@ -335,6 +373,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):
         failures.extend(ungated_script_module_failures(root))
     failures.extend(shipped_validator_import_failures(root, changed))
+    failures.extend(cheap_ci_contract_failures(root, changed))
     failures.extend(coverage_ratchet_failures(root, changed))
     if "scripts/mcp/install_shaft_agentic_tools.py" in {p.replace("\\", "/") for p in changed}:
         # #6849: Installer verification is CI-only and path-filtered; it runs this ~30 s end-to-end check.
