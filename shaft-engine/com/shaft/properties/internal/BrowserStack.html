@@ -108,7 +108,12 @@ Automate and App Automate platforms.
     .accessKey("myKey")
     .osVersion("11")
     .browserVersion("latest");
-</code></pre></div>
+</code></pre>
+
+<p>Any other BrowserStack SDK option is passed through to the generated <code>browserstack.yml</code>
+as <code>browserStack.sdk.&lt;option&gt;</code> (dots nest; booleans, integers and JSON are typed), for
+example <code>browserStack.sdk.testObservability=true</code> or
+<code>browserStack.sdk.accessibilityOptions.wcagVersion=wcag21aa</code>. Credentials are never written.</div>
 </div>
 </section>
 <section class="summary">
