@@ -356,18 +356,28 @@ jobs:
       # never fails the release: the artifacts are already public, and a missing
       # attestation must not skip Marketplace, shaft-mcp or the GitHub Release.
       - name: Attest build provenance (jars + SBOM)
+        id: attest
         continue-on-error: true
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             */target/*-${{ needs.cd_maven_validate.outputs.release_version }}.jar
             target/bom.json
+      # #7040: Scorecard Signed-Releases looks for *.intoto.jsonl release assets.
+      - name: Stage provenance bundle for the GitHub Release
+        if: steps.attest.outcome == 'success'
+        continue-on-error: true
+        env:
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: cp "${BUNDLE_PATH}" "target/SHAFT_ENGINE-${RELEASE_VERSION}.intoto.jsonl"
       - name: Keep the SBOM for the GitHub Release
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-sbom
-          path: target/bom.json
+          path: |
+            target/bom.json
+            target/*.intoto.jsonl
           if-no-files-found: warn
 
   verify_public_shaft_mcp_installer:
