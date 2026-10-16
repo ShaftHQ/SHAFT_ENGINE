@@ -47,7 +47,8 @@ Answer in one line each before task-specific discovery:
 
 Re-triage when a premise is false. Before a broad search, run one
 `python3 .chaos-engine/tool.py retrieve` and record `skipped(<reason>)`
-([retrieve-first](../../references/retrieve-first.md)).
+([retrieve-first](../../references/retrieve-first.md)). Gated: PR `## Plan` +
+`retrieve:` lines; `checkpoint --spec`.
 
 ## Plan, then go
 

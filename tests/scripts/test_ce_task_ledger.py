@@ -32,6 +32,10 @@ class TaskLedgerTest(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
         self.ledger = load()
+        specs = Path(self.tmp.name) / "specs"
+        specs.mkdir()
+        for task in ("cli", "all-open"):
+            (specs / f"spec-{task}.md").write_text("# Spec\n", encoding="utf-8")
 
     def run_main(self, args, command="checkpoint"):
         out = io.StringIO()
@@ -120,6 +124,38 @@ class DeliveryLedgerTest(TaskLedgerTest):
             self.assertIn("delivery-ledger", text.replace("Delivery ledger", "delivery-ledger").casefold(), relative)
             self.assertIn("wip limit", text.casefold(), relative)
         self.assertIn("--item ID --group G --status todo", (CE / "references/bot-entry.md").read_text(encoding="utf-8").replace("\n", " "))
+
+
+
+
+class SpecGateTest(TaskLedgerTest):
+    """An in-flight checkpoint needs a spec on disk; done, --item and --budget stay exempt."""
+
+    def test_in_flight_step_without_spec_is_refused(self):
+        err = io.StringIO()
+        with unittest.mock.patch("sys.stderr", err):
+            code, _ = self.run_main(["nospec", "implement"])
+        self.assertEqual(4, code)
+        self.assertIn("nospec: no spec; write one before coding", err.getvalue())
+        self.assertFalse(self.ledger.ledger("nospec").exists())
+
+    def test_spec_flag_is_recorded_and_reused(self):
+        spec = Path(self.tmp.name) / "elsewhere.md"
+        spec.write_text("# Spec\nplan\n", encoding="utf-8")
+        self.assertEqual(0, self.run_main(["flagged", "implement", "--spec", str(spec)])[0])
+        self.assertEqual(0, self.run_main(["flagged", "pushed"])[0])
+        self.assertEqual(str(spec.resolve()), self.ledger.entries("flagged")[0]["spec"])
+
+    def test_default_spec_dir_and_exemptions(self):
+        self.assertEqual(0, self.run_main(["all-open", "implement"])[0])
+        self.assertEqual(0, self.run_main(["nospec2", "done"])[0])
+        self.assertEqual(0, self.run_main(["nospec3", "--item", "#1", "--status", "todo"])[0])
+
+    def test_empty_spec_file_does_not_count(self):
+        empty = Path(self.tmp.name) / "empty.md"
+        empty.write_text("", encoding="utf-8")
+        with unittest.mock.patch("sys.stderr", io.StringIO()):
+            self.assertEqual(4, self.run_main(["empty", "implement", "--spec", str(empty)])[0])
 
 
 if __name__ == "__main__":

@@ -370,6 +370,7 @@ class PrSectionTest(unittest.TestCase):
                 "PR_BODY": "",
             }
             body = (
+                "## Plan\n\nspec-x.md\n\nretrieve: mempalace used\n\n"
                 "## Riskiest assumption\n\nN/A\n"
                 "## Outcome changed\n\nWould have avoided the Flutter nightly failure.\n"
             )
@@ -389,6 +390,7 @@ class PrSectionTest(unittest.TestCase):
             report = mindset.zero_trigger_report(project)
         for rule_id in (
             "riskiest-assumption",
+            "plan-receipts",
             "lesson-outcome",
             "relevance-floor",
             "rg-explicit-path",

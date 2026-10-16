@@ -238,7 +238,7 @@ def _assumption_errors(body: str) -> list[str]:
     module = importlib.util.module_from_spec(spec)
     try:
         spec.loader.exec_module(module)
-        return list(module.assumption_section_errors(body))
+        return list(module.assumption_section_errors(body)) + list(module.plan_receipt_errors(body))
     except Exception:  # nosec B110 - an unavailable checker must not block PR creation.
         return []
 
@@ -257,8 +257,9 @@ def _pr_body_block(commands: tuple[str, ...]) -> str:
         errors = _assumption_errors(body) if body is not None else []
         if errors:
             return (
-                "PR body would fail the CI PR Body guard: " + errors[0] + ". Add `## Riskiest assumption` "
-                "naming the assumption and one targeted test in backticks (or N/A), then rerun."
+                "PR body would fail the CI PR Body guard: " + errors[0] + ". It needs `## Riskiest assumption` "
+                "(one targeted test in backticks, or N/A), `## Plan`, and "
+                "`retrieve: [store] used|skipped(<reason>)` lines; then rerun."
             )
     return ""
 
