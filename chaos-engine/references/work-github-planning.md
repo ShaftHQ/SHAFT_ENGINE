@@ -83,7 +83,7 @@ compaction. Do not treat a compacted context as a session end.
 
 - After plan approval, stay fully unattended until every in-scope ticket is
   merged or closed, or the owner names a true HALT. Compaction is not stop.
-- Merge per the [playbook merge rule](work-github-playbook.md) (`--merge --auto`).
+- Merge with `gh pr merge --merge --auto` only (no squash, no unguarded force).
 - Do not weaken or delete tests to reach green.
 - Adversarial review (recommend on; ≤2 rounds after final scope commit + CI)
   uses the host **most-intelligent** subagent, never the local mechanical model.
