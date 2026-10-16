@@ -20,6 +20,9 @@ Use a script or focused test when you would otherwise:
 - apply the same mechanical edit in several files;
 - prove a behavior that a short executable already can fail.
 - watch an open PR: one `scripts/agents/watch_pr_checks.py --until-merged` run, not a chat poll.
+- wait for a test run: block on its decisive log line with a timeout (`Tests run:`, `Finished test`), not on fixed sleeps;
+- read a log through a filter for decisive lines, cut to width, never whole;
+- re-derive a failure's facts: keep one triage note per failure (screen, source, cause, disproving check).
 
 Mechanical one-file edits still inspect the target, apply the change, and
 report it. Do not invent a script for a single obvious line.

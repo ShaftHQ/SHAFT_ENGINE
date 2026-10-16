@@ -38,3 +38,4 @@ confidence, affected owner, corrective action, and verification check.
 - #6908 stays the example of a control that reports success and does not activate. A missing control is not #6908.
 - A non-blank custom report message is on the thrown `AssertionError`. A raw driver exception still needs the defect id on that throwable.
 - Look at the screen before naming a UI failure: record the foreground activity or window (mobile) or URL and title (web), the visible automation ids, and the failure screenshot. A known-defect label or the assertion text is not a classification until the screen state agrees with it (#7068).
+- Each hypothesis names the one cheap check that would disprove it (session status, device proxy, screenshot, page source). Run that check before naming the cause and record its outcome in the triage note; a label taken from the error text is not a cause (#7084).

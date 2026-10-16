@@ -7152,6 +7152,10 @@ def validate_install_options(args: argparse.Namespace) -> None:
         raise ValueError("--fix-next-only cannot be combined with --json")
     if getattr(args, "json", False) and getattr(args, "agent_summary", False):
         raise ValueError("--agent-summary cannot be combined with --json")
+    commit = getattr(args, "commit", None)
+    if isinstance(commit, str) and COMMIT_PATTERN.fullmatch(commit) is None:
+        raise ValueError("--commit must be the full lowercase 40-hex sha, for example "
+                         "`--commit $(git rev-parse HEAD)`; a ref such as HEAD is not accepted")
 
 
 WITH_MCP_MARKER = ".chaos-engine-state/with-mcp"
