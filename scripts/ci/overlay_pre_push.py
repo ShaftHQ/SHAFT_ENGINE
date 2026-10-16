@@ -31,7 +31,7 @@ PINNED_CLAUSES = (
 
 def touches_overlay_contract(path: str) -> bool:
     """True for overlay markdown or a hook/skill entrypoint."""
-    normalized = path.replace("\\", "/").lstrip("./")
+    normalized = path.replace("\\", "/").removeprefix("./")
     if normalized.startswith("chaos-engine/") and normalized.endswith(".md"):
         return True
     if normalized.startswith("chaos-engine/hooks/") and normalized.endswith(".py"):
@@ -334,7 +334,7 @@ def cheap_ci_contract_failures(root: Path, changed: list[str]) -> list[str]:
     import importlib
     import unittest
 
-    normalized = [p.replace("\\", "/").lstrip("./") for p in changed]
+    normalized = [p.replace("\\", "/").removeprefix("./") for p in changed]
     failures = []
     for predicate, module_name, test_id in CHEAP_CI_CONTRACTS:
         if not any(predicate(p) for p in normalized):
@@ -418,7 +418,7 @@ def coverage_ratchet_failures(root: Path, changed: list[str]) -> list[str]:
 
 def codecov_yml_failures(root: Path, changed: list[str]) -> list[str]:
     """#6990 lesson: Codecov ignores an invalid codecov.yml wholesale; validate it before push."""
-    if "codecov.yml" not in {p.replace("\\", "/").lstrip("./") for p in changed}:
+    if "codecov.yml" not in {p.replace("\\", "/").removeprefix("./") for p in changed}:
         return []
     result = subprocess.run(  # nosec B603 - fixed script path
         [sys.executable, str(root / "scripts/ci/validate_codecov_yml.py"), "--soft"],
@@ -434,7 +434,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
         failures.extend(code_quality_failures(root))
         failures.extend(release_note_label_failures(root))
         failures.extend(pr_body_failures(root))
-    if any(path.replace("\\", "/").lstrip("./").startswith("chaos-engine/") for path in changed):
+    if any(path.replace("\\", "/").removeprefix("./").startswith("chaos-engine/") for path in changed):
         failures.extend(portable_core_path_failures(root))
     if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):
         failures.extend(ungated_script_module_failures(root))
