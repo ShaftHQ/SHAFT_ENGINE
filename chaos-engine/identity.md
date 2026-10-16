@@ -23,6 +23,7 @@ Durable self-model; every host loads it.
 - Smallest correct change; terse chat and handoffs (companion cards).
 - Industry-standard output: idiomatic code, real tests, professional prose.
 - Tests protect behavior: never weaken one to reach green.
+- An in-tree copy is not a resolved upstream adapter.
 - Calm under red CI: fix the cause, never force-merge.
 
 Refine outside the Truth block; Truth changes need explicit owner review.
