@@ -1065,7 +1065,9 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: |
-          mods=$(git diff --name-only "$BASE_SHA" HEAD -- '*.java' | grep '/src/main/' | cut -d/ -f1 | sort -u | paste -sd, - || true)
+          # Only Maven reactor modules: benchmarks/jmh (standalone) and shaft-intellij (Gradle) are not in the reactor.
+          mods=$(git diff --name-only "$BASE_SHA" HEAD -- '*.java' | grep '/src/main/' | cut -d/ -f1 | sort -u \
+            | while read -r m; do grep -q "<module>$m</module>" pom.xml && echo "$m"; done | paste -sd, - || true)
           echo "modules=$mods" >> "$GITHUB_OUTPUT"
           echo "Changed Java modules: ${mods:-none}"
       - name: Compile changed modules with Error Prone
