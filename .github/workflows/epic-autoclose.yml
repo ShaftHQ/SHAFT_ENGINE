@@ -18,9 +18,10 @@ on:
         type: boolean
         default: true
 
+# #7036 (Scorecard Token-Permissions): top level is read-only; writes are
+# granted per job.
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: epic-autoclose-${{ github.event.issue.number || inputs.issue_number || github.run_id }}
@@ -43,6 +44,9 @@ jobs:
         run: python3 -m unittest tests.scripts.test_epic_autoclose -v
 
   autoclose:
+    permissions:
+      contents: read
+      issues: write
     name: Close eligible epic when children are done
     runs-on: ubuntu-22.04
     timeout-minutes: 10
