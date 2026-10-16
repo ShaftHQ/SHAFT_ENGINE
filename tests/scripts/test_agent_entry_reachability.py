@@ -66,7 +66,7 @@ class LiveTreeTest(unittest.TestCase):
         import lifecycle
 
         cards = {f"chaos-engine/{card}" for card in lifecycle.COMPANION_CARDS.values()}
-        self.assertTrue(cards <= set(roots["bot"]))
+        self.assertLessEqual(cards, set(roots["bot"]))
 
 
 if __name__ == "__main__":

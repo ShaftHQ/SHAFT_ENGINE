@@ -206,6 +206,14 @@ def entry_reach(root: Path, deployable: str) -> dict[str, set[str]]:
     return reach
 
 
+def entry_gap(element: str, deployable: str, entries: dict[str, set[str]]) -> str:
+    """Name the entries a deployable element is missing from, or return ''."""
+    if not element.startswith(deployable):
+        return ""
+    missing = sorted(name for name, seen in entries.items() if element not in seen)
+    return f"{element} (not linked from the {'/'.join(missing)} entry)" if missing else ""
+
+
 def path_tokens(root: Path, reached: set[str], roots: set[str]) -> dict[str, str]:
     """Map each harness path token found in a reachable file to the file naming it.
 
@@ -346,11 +354,10 @@ def harness_report(root: Path) -> dict[str, list[str]]:
     for element in elements:
         if any(matcher.match(element) for matcher in exemption_matchers):
             continue
-        if element.startswith(deployable):
-            missing = sorted(name for name, seen in entries.items() if element not in seen)
-            if missing:
-                orphans.append(f"{element} (not linked from the {'/'.join(missing)} entry)")
-                continue
+        one_sided = entry_gap(element, deployable, entries)
+        if one_sided:
+            orphans.append(one_sided)
+            continue
         if element in reached:
             by_link.append(element)
             continue
