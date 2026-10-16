@@ -3,7 +3,6 @@ package com.shaft.intellij.ui;
 import com.intellij.ide.BrowserUtil;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.Disposable;
-import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -1919,8 +1918,7 @@ public final class ShaftMcpSetupPanel extends JPanel implements Disposable {
         }
         VirtualFile virtualFile = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(file);
         if (virtualFile != null) {
-            FileEditorManager.getInstance(project).openFileEditor(
-                    new com.intellij.openapi.fileEditor.OpenFileDescriptor(project, virtualFile), true);
+            new com.intellij.openapi.fileEditor.OpenFileDescriptor(project, virtualFile).navigate(true);
         }
     }
 

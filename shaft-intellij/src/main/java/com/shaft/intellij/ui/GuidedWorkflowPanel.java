@@ -1488,8 +1488,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
             var virtualFile = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
                     .refreshAndFindFileByNioFile(path);
             if (virtualFile != null && project != null) {
-                FileEditorManager.getInstance(project).openFileEditor(
-                    new com.intellij.openapi.fileEditor.OpenFileDescriptor(project, virtualFile), true);
+                new com.intellij.openapi.fileEditor.OpenFileDescriptor(project, virtualFile).navigate(true);
             }
         } catch (RuntimeException | Error headlessTestEnvironment) {
             // Best effort: the path was already reported in the status label.
