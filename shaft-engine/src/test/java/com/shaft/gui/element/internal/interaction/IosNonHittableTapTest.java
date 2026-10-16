@@ -35,6 +35,9 @@ import static org.testng.Assert.fail;
  * Drives the shipped iOS element click and {@code touch().tap(locator)} from their public entry points.
  * A non-hittable element whose page source does not change must not be reported as a successful tap.
  */
+// Instance fields (driver, helper, saved properties) are per-test state: methods must not interleave
+// under the nightly's -DsetParallel=METHODS (#6931).
+@Test(singleThreaded = true)
 public class IosNonHittableTapTest {
     private static final By LOGIN = By.xpath("//*[@name='login_iam_loginButton']");
     private static final String UNCHANGED_SOURCE = "<XCUIElementTypeApplication><XCUIElementTypeButton name=\"login_iam_loginButton\" hittable=\"false\"/></XCUIElementTypeApplication>";
