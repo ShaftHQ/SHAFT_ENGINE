@@ -49,7 +49,8 @@ else:
 
 class RerunFailuresScriptTest(unittest.TestCase):
     def setUp(self) -> None:
-        if shutil.which("bash") is None:
+        self.bash = shutil.which("bash")
+        if self.bash is None:
             self.skipTest("bash not available")
         self.tmp = tempfile.TemporaryDirectory()
         self.work = Path(self.tmp.name)
@@ -65,7 +66,7 @@ class RerunFailuresScriptTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def run_script(self, *extra: str, env: dict | None = None) -> subprocess.CompletedProcess:
-        return subprocess.run(["bash", str(SCRIPT), "--attempts", "3", *extra, "suite.xml"],  # nosec B603
+        return subprocess.run([self.bash, str(SCRIPT), "--attempts", "3", *extra, "suite.xml"],  # nosec B603
                               cwd=self.work, env=env or self.env, capture_output=True, text=True, timeout=60)
 
     def statuses(self) -> dict[str, str]:
