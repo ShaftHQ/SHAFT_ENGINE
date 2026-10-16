@@ -21,3 +21,6 @@ comma-separated class list) or a `suiteXmlFiles` value the project already
 owns. Do not add a TestNG XML file.
 
 Never guess SHAFT syntax, tool names, execution evidence, or product behavior.
+
+Bracketed citation keys (for example `ISTQB-CTFL`) in every playbook resolve in
+[the shared bibliography](references/sources.md).

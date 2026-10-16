@@ -22,5 +22,3 @@
 ## Boundary
 
 - Fluent composition does not choose the locator, page-object owner, or business oracle; route those decisions to their specialists before polishing the chain.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

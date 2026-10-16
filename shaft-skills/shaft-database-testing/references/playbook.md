@@ -23,5 +23,3 @@
 ## Boundary
 
 - Do not add direct database checks for convenience when the requirement is an external contract; route service behavior to `shaft-api-testing` and environment provisioning to `shaft-test-environment`.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

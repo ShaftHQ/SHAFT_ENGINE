@@ -29,5 +29,3 @@ Return plan scope, risk-to-coverage mapping, activities, dependencies, estimates
 criteria, measures, owners, and unresolved decisions.
 
 Record scenario progress with the [journey and coverage map](../../shaft-test-case-design/references/journey-coverage-map.md).
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

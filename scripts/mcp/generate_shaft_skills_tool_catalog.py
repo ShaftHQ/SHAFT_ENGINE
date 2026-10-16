@@ -359,6 +359,12 @@ def collapse_whitespace(value: str) -> str:
     return " ".join(value.split())
 
 
+def heading_anchor(heading: str) -> str:
+    """GitHub-style anchor for a Markdown heading."""
+    kept = "".join(ch for ch in heading.lower() if ch.isalnum() or ch in " -_")
+    return kept.replace(" ", "-")
+
+
 def render_catalog(services: list[ServiceSection], total: int) -> str:
     lines = [
         "# SHAFT MCP Tool Catalog",
@@ -375,7 +381,14 @@ def render_catalog(services: list[ServiceSection], total: int) -> str:
         "lookup instead of one at a time, e.g. Claude Code "
         '`ToolSearch("select:mcp__shaft-mcp__<a>,mcp__shaft-mcp__<b>")`.',
         "",
+        "## Contents",
+        "",
     ]
+    # A table of contents lets agents read one tool family instead of the whole file.
+    for service in services:
+        heading = f"{human_heading(service.class_name)} ({service.class_name})"
+        lines.append(f"- [{heading}](#{heading_anchor(heading)}): {len(service.tools)} tools")
+    lines.append("")
     for service in services:
         lines.append(f"## {human_heading(service.class_name)} ({service.class_name})")
         lines.append("")

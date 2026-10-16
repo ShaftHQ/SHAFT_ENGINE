@@ -23,5 +23,3 @@
 ## Boundary
 
 - This gate verifies an already chosen behavior and design; route new test intent, locator choice, page ownership, or root-cause diagnosis to its specialist before changing the diff.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

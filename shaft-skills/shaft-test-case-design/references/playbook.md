@@ -27,5 +27,3 @@
 
 Return concise case IDs, trace links, technique, priority, setup, data, steps,
 expected evidence, cleanup, and automation suitability.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

@@ -34,5 +34,3 @@ Report journey progress from the [journey and coverage map](../../shaft-test-cas
 
 - A delivery set is finished when each result passed, failed with a named id, or was blocked with a named id. An all-green filter must not build that report. Scenario status Done in the journey coverage map still needs a passing run. That sentence stays. An unclassified skip is not finished.
 - The delivery report lists each test name, with platform and language distinguishable. A pass count alone is not the report. A count that does not match the visible names fails the check.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

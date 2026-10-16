@@ -31,5 +31,3 @@ privacy classification, setup/reset/cleanup, ownership, and retention.
 ## Execution class
 
 - Do not tap Done or Save when the oracle is an in-memory count. That tap persists device state for later tests in the same install. Tapping it is allowed when save is the scenario.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

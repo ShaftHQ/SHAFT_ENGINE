@@ -1,4 +1,5 @@
-"""Always-loaded instruction budget (top-20 #7, #12).
+"""
+Always-loaded instruction budget (top-20 #7, #12).
 
 Fails when the bundle a bot host loads every task (entry --full, bot-entry,
 AGENTS.md) grows more than tolerance_pct over the recorded baseline, when it
@@ -9,7 +10,7 @@ from __future__ import annotations
 
 import json
 import re
-import subprocess
+import subprocess  # nosec B404 - runs the repository's own tool.py
 import sys
 import unittest
 from pathlib import Path
@@ -21,7 +22,7 @@ TIMESTAMP = re.compile(r"\b20\d\d-\d\d-\d\d(?:[T ]\d\d:\d\d)?")
 
 
 def entry_full() -> str:
-    result = subprocess.run([sys.executable, str(CE / "tool.py"), "entry", "--full"],
+    result = subprocess.run([sys.executable, str(CE / "tool.py"), "entry", "--full"],  # nosec B603 - fixed argv
                             cwd=ROOT, capture_output=True, text=True, timeout=60, check=True)
     return result.stdout
 

@@ -28,4 +28,4 @@
 Return flake evidence, controlled variables, suspected and eliminated causes,
 repair or quarantine controls, repeated-run proof, rate, and residual risk.
 
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).
+Attempt history for retry count and cost: the failures-only reruns of [shaft-test-execution](../../shaft-test-execution/references/playbook.md) archive each attempt under `target/attempts/`.

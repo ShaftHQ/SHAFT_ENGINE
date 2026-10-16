@@ -23,5 +23,3 @@
 ## Boundary
 
 - Return authoritative guide evidence and current syntax, not an unverified implementation; route code, actions, locators, or assertions to their focused specialist.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).
