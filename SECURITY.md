@@ -80,12 +80,14 @@ in the relevant
 
 ## Secret Scanning
 
-Secret scanning and push protection are enabled on this public repository. Settings are owned by the
-organization's enforced "Default" code-security configuration, which also sets non-provider patterns
-and validity checks to enabled. As of 2026-10-16 that configuration's attachment reports `failed`, and
-the repository-level REST settings for non-provider patterns and validity checks stay `disabled`
-(validity checks need GitHub Secret Protection, a paid Team/Enterprise feature). Open secret-scanning
-alerts at enablement: 0. Tracked in #7011.
+Secret scanning and push protection are enabled on this public repository. The settings are owned by
+the organization's enforced "Default" code-security configuration, which also enables non-provider
+patterns and validity checks. On 2026-10-16 the configuration was re-attached to this repository
+(scope `selected`, no change to the configuration itself); its status stays `failed`, so non-provider
+patterns remain `disabled`. The likely cause is that the configuration also turns on CodeQL default
+setup, which cannot coexist with this repository's advanced CodeQL workflow (`security.yml`).
+Validity checks stay off: they need GitHub Secret Protection, a paid Team/Enterprise feature, and the
+organization is on the free plan. Open secret-scanning alerts: 0. Tracked in #7011.
 
 ## Disclosure Policy
 
