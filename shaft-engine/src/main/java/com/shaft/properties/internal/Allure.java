@@ -57,6 +57,17 @@ public interface Allure extends EngineProperties<Allure> {
     boolean accumulateReports(); //allows html files to accumulate in the allure report directory
 
     /**
+     * Whether every test result gets automatic {@code os}, {@code sut} and {@code location} labels and
+     * {@code key:value} tags derived from the run configuration (#7053).
+     * <p>Property key: {@code allure.automaticRunLabels} — default: {@code true}
+     *
+     * @return {@code true} to add the labels; {@code false} to leave labelling to the test
+     */
+    @Key("allure.automaticRunLabels")
+    @DefaultValue("true")
+    boolean automaticRunLabels();
+
+    /**
      * Whether the Allure results directory should be cleaned before a new test run starts.
      * Disable this when you want to merge results from multiple partial runs.
      * <p>Property key: {@code allure.cleanResultsDirectory} — default: {@code true}
@@ -273,6 +284,17 @@ public interface Allure extends EngineProperties<Allure> {
          */
         public SetProperty accumulateReports(boolean value) {
             setProperty("allure.accumulateReports", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.automaticRunLabels} property at runtime.
+         *
+         * @param value {@code true} to add automatic run labels
+         * @return this instance for method chaining
+         */
+        public SetProperty automaticRunLabels(boolean value) {
+            setProperty("allure.automaticRunLabels", String.valueOf(value));
             return this;
         }
 
