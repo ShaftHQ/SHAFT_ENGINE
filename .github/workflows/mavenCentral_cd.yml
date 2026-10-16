@@ -282,6 +282,9 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+      # #7003: SLSA build provenance for the released jars and SBOM (additive).
+      id-token: write
+      attestations: write
     outputs:
       release_version: ${{ needs.cd_maven_validate.outputs.release_version }}
     steps:
@@ -349,6 +352,23 @@ jobs:
             "-Dgpg.passphrase=${{secrets.GPG_PASSPHRASE}}"
       - name: Verify published Maven Central coordinates
         run: python3 scripts/ci/verify_maven_central_release.py "${RELEASE_VERSION}"
+      # #7003: attest what was just deployed. Runs after Central verification and
+      # never fails the release: the artifacts are already public, and a missing
+      # attestation must not skip Marketplace, shaft-mcp or the GitHub Release.
+      - name: Attest build provenance (jars + SBOM)
+        continue-on-error: true
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            */target/*-${{ needs.cd_maven_validate.outputs.release_version }}.jar
+            target/bom.json
+      - name: Keep the SBOM for the GitHub Release
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-sbom
+          path: target/bom.json
+          if-no-files-found: warn
 
   verify_public_shaft_mcp_installer:
     name: Verify public shaft-mcp installer (${{ matrix.os }})
@@ -459,6 +479,13 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: agent-plugin-release-assets
+          path: /tmp/agent-plugin-release-assets
+      # #7003: attach the attested aggregate SBOM to the GitHub Release.
+      - name: Download release SBOM
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-sbom
           path: /tmp/agent-plugin-release-assets
       - name: Create GitHub Release
         id: create_release
