@@ -86,15 +86,11 @@ Need parallel? Stack PRs on the previous branch.
 
 ## After each delivery
 
-Learning Session after every final delivery: when the owner approves a
-deliverable, a publish completes, or the final PR merges, the bot runs it
-itself, at once, without being asked. CLI hosts' Stop hook enforces the same
-rule. Follow the [router contract](router-contract.md#learning-session): diff
-the session lessons against the skills, file one spec issue, open ONE PR
-(`skip-release-notes`, auto-merge MERGE), and babysit it to merged; nothing new
-is one report line. Then run
-`python3 .chaos-engine/tool.py maintain` to fast-forward, reinstall, and
-re-check doctor before the next task.
+Learning Session after every final delivery (owner approval, completed
+publish, or final merge): run it yourself at once, per the
+[router contract](router-contract.md#learning-session). Then run
+`python3 .chaos-engine/tool.py maintain` before the next task.
+
 Lock held, harness edits, or an older overlay:
 [harness maintenance](harness-maintenance.md#maintain).
 

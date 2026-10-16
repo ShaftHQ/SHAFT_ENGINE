@@ -17,8 +17,7 @@ Duty ownership: [agent_ownership.json](scripts/ci/agent_ownership.json).
 
 ## Repository safety
 
-- Read live files first, preserve unrelated and pre-existing work, and keep
-  changes within the requested repository and task scope.
+- General safety is iron law 7 of the core card; repository specifics follow.
 - Do not launch GUI applications, browsers, editors, installers, servers, or
   watchers without explicit authorization.
 - Keep Maven tests scoped and headless with
