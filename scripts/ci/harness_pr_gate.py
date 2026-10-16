@@ -146,6 +146,7 @@ CHECKS = {
             "tests.scripts.test_always_loaded_budget",
             "tests.scripts.test_ce_load_stamp",
             "tests.scripts.test_ce_hook_bot_parity",
+            "tests.scripts.test_doctor_origin_only_7100",
             "tests.scripts.test_ce_personality_load",
         ),
     ),
