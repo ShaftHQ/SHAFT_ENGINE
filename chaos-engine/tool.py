@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import functools
 import hashlib
 import importlib.util
 import os
@@ -31,18 +30,22 @@ _CAPTURE_STORES = frozenset({"mempalace", "graphify"})
 CORE_ENTRY_FILES = ("identity.md", "skills/chaos-engine/SKILL.md")
 
 
-@functools.lru_cache(maxsize=None)
+_LIFECYCLE: list = []
+
+
 def _lifecycle():
     """One source for the card set and stop phrases: the CLI SessionStart hook's own.
 
     Loaded on first use, not at import, so a partial core still reaches its heal path.
     """
-    spec = importlib.util.spec_from_file_location(
-        "_chaos_engine_lifecycle", Path(__file__).resolve().parent / "hooks" / "lifecycle.py"
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    if not _LIFECYCLE:
+        spec = importlib.util.spec_from_file_location(
+            "_chaos_engine_lifecycle", Path(__file__).resolve().parent / "hooks" / "lifecycle.py"
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _LIFECYCLE.append(module)
+    return _LIFECYCLE[0]
 
 
 def stopped_companions(opt_out: str) -> frozenset[str]:
