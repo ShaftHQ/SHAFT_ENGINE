@@ -6,6 +6,21 @@ implement it. Live operator steps today remain in `chaos-engine/INSTALL.md` (rep
 Caller matrices and acceptance proof live in
 [`installer-program-executable-spec.md`](installer-program-executable-spec.md).
 
+## Contents
+
+- [Goal](#goal)
+- [Profiles](#profiles)
+- [Current root owners (live files, 2026-09-08)](#current-root-owners-live-files-2026-09-08)
+- [Deterministic merge](#deterministic-merge)
+- [Success with agent prompt](#success-with-agent-prompt)
+- [Branded installers](#branded-installers)
+- [Install guide](#install-guide)
+- [Agentic one-command prompt](#agentic-one-command-prompt)
+- [Child work streams](#child-work-streams)
+- [Official self-heal](#official-self-heal)
+- [Out of scope](#out-of-scope)
+- [Proof for this spec PR](#proof-for-this-spec-pr)
+
 Triggered by Windows verify failure (`CE-INSTALL-FAILED`, unhealthy
 `hooks` + `mcps`, `win32`, `distribution=repository`, core rematerialized).
 Those closed items repaired other failure classes; they do not cover this

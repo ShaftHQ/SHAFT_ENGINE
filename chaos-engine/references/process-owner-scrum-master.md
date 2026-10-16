@@ -4,6 +4,15 @@ Normative owner of orchestrator-mode process ownership. Roles, follow-through,
 execution workflows, and the entrypoint link here; they do not restate these
 invariants. Load this reference whenever the selected workflow is orchestrated.
 
+## Contents
+
+- [Role purpose and authority](#role-purpose-and-authority)
+- [Core governance invariants](#core-governance-invariants)
+- [Targeted research triggers](#targeted-research-triggers)
+- [MUST versus Adaptive](#must-versus-adaptive)
+- [Delivery hygiene (token + quality)](#delivery-hygiene-token--quality)
+- [Anti-patterns and self-correction](#anti-patterns-and-self-correction)
+
 The default delivery method is Kanban: limit WIP, pull work, eliminate waste.
 process-owner is the role name. Scrum-master is an alias only when the user
 explicitly asks to act as Scrum-master. TDD/PDCA is the quality loop inside

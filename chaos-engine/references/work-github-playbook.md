@@ -3,6 +3,15 @@
 A session-shaped method for taking an issue from filed to merged. Load
 the canonical ChaosEngine entrypoint alongside this playbook. Start with [planning and tracking](work-github-planning.md), then return here for delivery.
 
+## Contents
+
+- [Harness program](#harness-program)
+- [4. Implement, check, review, deliver](#4-implement-check-review-deliver)
+- [5. Docs, catalog, and screenshots — only where real](#5-docs-catalog-and-screenshots--only-where-real)
+- [6. Terminal Learning Session](#6-terminal-learning-session)
+- [7. Push, PR, green, merge, compact](#7-push-pr-green-merge-compact)
+- [8. Report](#8-report)
+
 GitHub writes use `gh` (`issue create`, `pr create`, comments, labels). Never
 GitHub MCP for those jobs. Default ChaosEngine MCP catalogs never include
 GitHub MCP. If a host already has GitHub MCP, leave it unchanged.

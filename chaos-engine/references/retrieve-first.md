@@ -4,6 +4,16 @@ You are here because the work has earned a look at what is already known.
 Three stores answer three different questions, and none of them answers
 another's.
 
+## Contents
+
+- [Depth comes from triage, not from reflex](#depth-comes-from-triage-not-from-reflex)
+- [What each store is for](#what-each-store-is-for)
+- [Retrieve orchestrator](#retrieve-orchestrator)
+- [Heuristics once per task](#heuristics-once-per-task)
+- [Bounded retrieval](#bounded-retrieval)
+- [The completion half](#the-completion-half)
+- [Degraded mode and issue noise](#degraded-mode-and-issue-noise)
+
 ## Depth comes from triage, not from reflex
 
 The entrypoint already computed blast radius and reversibility. Read retrieval
