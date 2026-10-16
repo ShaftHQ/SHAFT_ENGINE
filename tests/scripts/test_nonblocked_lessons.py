@@ -16,7 +16,9 @@ def read(relative):
 
 class NonblockedLessonTests(unittest.TestCase):
     def test_skill_forbids_a_repository_that_answers_for_other_coordinates(self):
-        skill = read("chaos-engine/skills/chaos-engine/SKILL.md")
+        # Moved off the always-loaded core card (single-incident lesson) into
+        # the permanent rules, which stay enforced here.
+        skill = read("chaos-engine/references/permanent-rules.md")
         self.assertIn(
             "forbids a maven repository that returns 200 for any coordinate "
             "other than the intended artifact",

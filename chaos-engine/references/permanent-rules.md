@@ -42,6 +42,7 @@ Assistant memory keeps only this pointer: "Follow the ChaosEngine core card
 | Work in the agent's own sandbox when cost is equal; the owner workstation only runs the final install and doctor | [task isolation](task-isolation.md) |
 | Short messages; no duplicate verification; one cheap call per status check | [CI status economy](ci-status-economy.md) |
 | Retrieve and load companion cards at task start; store runs stop only on a stall, never a fixed timeout | [retrieve-first](retrieve-first.md) |
+| The chaos-engine skill forbids a maven repository that returns 200 for any coordinate other than the intended artifact; a repository that 404s every other coordinate stays allowed | [permanent rules](permanent-rules.md) |
 | Non-TTY shells: always pass a path to `rg` (it otherwise waits on stdin) | [eliminate-waste](eliminate-waste.md) |
 
 Stale memory corrected by this sweep: "Headroom installs by default" is

@@ -57,24 +57,23 @@ request contradicts the plan.
 
 ## Implement
 
-Load both companion cards at task start, before discovery:
-[Caveman ultra](../../companions/caveman-ultra.md) (chat, internal notes,
-handoffs) and [Ponytail ultra](../../companions/ponytail-ultra.md). Bots
-without hooks start from [bot entry](../../references/bot-entry.md). Off only
-with `stop caveman`, `stop ponytail`, or `normal mode`. Vendor bodies load only
-on explicit invocation.
+`tool.py entry` bundles the companion cards
+[Caveman ultra](../../companions/caveman-ultra.md) (chat, notes, handoffs) and
+[Ponytail ultra](../../companions/ponytail-ultra.md); read them only without
+entry. Hookless bots: [bot entry](../../references/bot-entry.md). Off only with
+`stop caveman`, `stop ponytail`, or `normal mode`. Vendor bodies load only on
+explicit invocation. Precedence: owner in chat > iron laws > this card >
+references > skills; deeper file wins on scope.
 
 ## Check and deliver
 
-- The chaos-engine skill forbids a maven repository that returns 200 for any
-  coordinate other than the intended artifact. A repository that 404s every
-  other coordinate stays allowed.
 - Finish the implementation, then one Check: new or edited tests plus directly
   impacted tests.
 - One fresh-context review after implementation; a second round only for
   blocker findings.
-- One blocking CI wait per push; retry at most once. Stop and report.
-- Status reports are always a Markdown table. `tool.py usage`.
+- One blocking CI wait per push (one background babysit loop to merged);
+  retry at most once, then report.
+- Status reports are always a Markdown table: deltas, at most 15 lines.
 - Learning Session after every final delivery. Never local queues.
 - Repository work is not done until the pull request is merged.
 
