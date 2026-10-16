@@ -787,34 +787,17 @@ public class ValidationsHelper {
 
             // get reference image
             byte[] referenceImage = ImageProcessingActions.getReferenceImage(locator);
-            if (referenceImage !=null && !Arrays.equals(new byte[0], referenceImage)) {
-                ReportManagerHelper.logDiscrete("Reference image found.", Level.INFO);
-            } else {
-                ReportManagerHelper.logDiscrete("Reference image not found, attempting to capture new reference.", Level.INFO);
-            }
+            logReferenceImageState(referenceImage);
 
             new SynchronizationManager(driver).fluentWait(true).until(f -> {
                 // get actual screenshot
                 byte[] elementScreenshot;
                 Boolean actualResult;
 
-                try {
-                    elementScreenshot = driver.findElement(locator).getScreenshotAs(OutputType.BYTES);
-                } catch (NoSuchElementException noSuchElementException) {
-                    lookupFailure.set(noSuchElementException);
-                    throw noSuchElementException;
-                } catch (WebDriverException webDriverException) {
-                    if (String.valueOf(webDriverException.getMessage()).contains("Cannot take screenshot with 0 width.")) {
-                        NoSuchElementException zeroWidth = new NoSuchElementException("Cannot take screenshot with 0 width.");
-                        lookupFailure.set(zeroWidth);
-                        throw zeroWidth;
-                    } else if (String.valueOf(webDriverException.getMessage()).contains("NS_ERROR_FAILURE")) {
-                        return false; // force the wait block to try again in case of unknown error with firefox
-                    } else {
-                        throw webDriverException;
-                    }
+                elementScreenshot = captureElementScreenshot(driver, locator, lookupFailure);
+                if (elementScreenshot == null) {
+                    return false; // force the wait block to try again in case of unknown error with firefox
                 }
-                lookupFailure.set(null);
                 actualResult = ImageProcessingActions.compareAgainstBaseline(driver, locator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
 
                 // prepare content for allure attachment
@@ -846,16 +829,59 @@ public class ValidationsHelper {
         //reporting block
         var parameters = new LinkedHashMap<String, String>();
         parameters.put("Locator", String.valueOf(locator));
-        Object actualForReport = describeMatchesActual(validationState.get(), actual.get(), lookupFailure.get(), locator);
-        parameters.put("Should match", String.valueOf(expected.get()));
-        parameters.put("Visual engine", internalVisualEngine.get().name());
+        reportElementMatches(driver, locator, internalVisualEngine.get(), validationState.get(), expected.get(), actual.get(),
+                lookupFailure.get(), parameters, elementCount.get() == 0, attachments, visualComparisonAttached.get());
+    }
+
+    private static void logReferenceImageState(byte[] referenceImage) {
+        if (referenceImage != null && !Arrays.equals(new byte[0], referenceImage)) {
+            ReportManagerHelper.logDiscrete("Reference image found.", Level.INFO);
+        } else {
+            ReportManagerHelper.logDiscrete("Reference image not found, attempting to capture new reference.", Level.INFO);
+        }
+    }
+
+    private void reportElementMatches(WebDriver driver, By locator, ValidationEnums.VisualValidationEngine engine,
+                                      boolean validationPassed, boolean expected, boolean actual, RuntimeException lookupFailure,
+                                      LinkedHashMap<String, String> parameters, boolean elementMissing,
+                                      List<List<Object>> attachments, boolean visualComparisonAttached) {
+        Object actualForReport = describeMatchesActual(validationPassed, actual, lookupFailure, locator);
+        parameters.put("Should match", String.valueOf(expected));
+        parameters.put("Visual engine", engine.name());
         parameters.put("Actual value", String.valueOf(actualForReport));
         updateAllureParameters(parameters);
         if (actualForReport instanceof String notFound) {
             ReportManagerHelper.logDiscrete(notFound, Level.WARN);
         }
         // force take page screenshot, (rather than element highlighted screenshot)
-        reportValidationState(validationState.get(), expected.get(), actualForReport, driver, elementCount.get() == 0 ? null : locator, attachments, visualComparisonAttached.get());
+        reportValidationState(validationPassed, expected, actualForReport, driver, elementMissing ? null : locator,
+                attachments, visualComparisonAttached);
+    }
+
+    /**
+     * Captures the element screenshot for {@code matchesReferenceImage()}. Records why the element could not be
+     * found (#7052) and rethrows so the fluent wait retries; returns {@code null} for a transient Firefox error.
+     */
+    private static byte[] captureElementScreenshot(WebDriver driver, By locator, AtomicReference<RuntimeException> lookupFailure) {
+        try {
+            byte[] screenshot = driver.findElement(locator).getScreenshotAs(OutputType.BYTES);
+            lookupFailure.set(null);
+            return screenshot;
+        } catch (NoSuchElementException noSuchElementException) {
+            lookupFailure.set(noSuchElementException);
+            throw noSuchElementException;
+        } catch (WebDriverException webDriverException) {
+            String message = String.valueOf(webDriverException.getMessage());
+            if (message.contains("Cannot take screenshot with 0 width.")) {
+                NoSuchElementException zeroWidth = new NoSuchElementException("Cannot take screenshot with 0 width.");
+                lookupFailure.set(zeroWidth);
+                throw zeroWidth;
+            }
+            if (message.contains("NS_ERROR_FAILURE")) {
+                return null;
+            }
+            throw webDriverException;
+        }
     }
 
     /**
