@@ -58,13 +58,16 @@ verbose reports were most of the waste.
   Before `gh pr create`, validate the body file:
   `PR_TITLE="$T" PR_BODY="$(cat body.md)" python3 scripts/ci/validate_pr_closing_keywords.py` (repo-only).
   SHA-pin every new `uses:` and run changed contract tests with `python3 -I`
-  (stdlib only, as on the runner).
+  (stdlib only, as on the runner). Run pre-push under `set -o pipefail`;
+  never pipe it to `tail` before `&&`. Add the release-note label at create
+  time (REST labels API when `gh pr edit` errors).
 - Filter test and CI logs to the verdict:
   `2>&1 | grep -E "^(OK|FAILED|FAIL:|AssertionError)" | cut -c1-300`.
   Never print a whole job log or assertion dump. Keep a known-failures list
   instead of re-running the base commit to compare.
 - Babysit with ONE background loop per PR, not repeated poll calls: it exits on
-  merged, on the first `fail`, or when the PR is green but not queued (then it
+  merged, on the first `fail` (latest run per check name; a failed required
+  check exits 1 at once), or when the PR is green but not queued (then it
   prints the `enqueuePullRequest` error, which names the blocker). Await it
   once. `gh pr merge --auto --merge` may print a merge-queue message yet still
   set auto-merge; confirm `autoMergeRequest`. Before it merges, read
