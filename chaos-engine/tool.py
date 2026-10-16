@@ -640,6 +640,9 @@ SCRIPT_TOOLS = {
 
 
 def script_tool(installed_root: Path, tool: str, arguments: list[str]) -> int:
+    if tool in LOAD_STAMP_GATED and not load_stamp_fresh(installed_root):
+        print(LOAD_STAMP_REFUSAL, file=sys.stderr)
+        return 2
     module = runpy.run_path(str(installed_root / SCRIPT_TOOLS[tool]), run_name=f"_chaos_engine_{tool}")
     if tool == "usage":
         return int(module["main"](["usage", *arguments]))
@@ -679,9 +682,6 @@ def main() -> int:
 
                 print(json.dumps(rows, sort_keys=True))
             return 0
-        if tool in LOAD_STAMP_GATED and not load_stamp_fresh(installed_root):
-            print(LOAD_STAMP_REFUSAL, file=sys.stderr)
-            return 2
         if tool in SCRIPT_TOOLS:
             return script_tool(installed_root, tool, arguments)
         if tool == "stores":
