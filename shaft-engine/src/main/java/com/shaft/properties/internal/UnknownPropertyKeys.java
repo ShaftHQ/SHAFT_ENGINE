@@ -32,27 +32,27 @@ public final class UnknownPropertyKeys {
             "junit-platform.properties", "reportportal.properties");
     private static final List<String> PASS_THROUGH_PREFIXES = List.of("capabilities.", "browserStack.",
             "lambdaTest.", "mobile_", "appium:");
-    private static volatile Set<String> knownKeys;
+    private static final Set<String> KNOWN_KEYS = collectKnownKeys();
 
     private UnknownPropertyKeys() {
     }
 
     /** All {@code @Key} values declared by the SHAFT property interfaces. */
     static Set<String> knownKeys() {
-        Set<String> keys = knownKeys;
-        if (keys == null) {
-            keys = new TreeSet<>();
-            for (Class<?> type : PROPERTY_INTERFACES) {
-                for (Method method : type.getMethods()) {
-                    Config.Key key = method.getAnnotation(Config.Key.class);
-                    if (key != null) {
-                        keys.add(key.value());
-                    }
+        return KNOWN_KEYS;
+    }
+
+    private static Set<String> collectKnownKeys() {
+        Set<String> keys = new TreeSet<>();
+        for (Class<?> type : PROPERTY_INTERFACES) {
+            for (Method method : type.getMethods()) {
+                Config.Key key = method.getAnnotation(Config.Key.class);
+                if (key != null) {
+                    keys.add(key.value());
                 }
             }
-            knownKeys = keys;
         }
-        return keys;
+        return java.util.Collections.unmodifiableSet(keys);
     }
 
     /**
