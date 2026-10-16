@@ -6,13 +6,7 @@ Projects, and any other independent bot. `AGENTS.md` is not read for you.
 
 ## No `.chaos-engine/` yet
 
-- Fresh clone: install from a copy of its own `chaos-engine/` kept outside
-  the project (source and project must be disjoint), pinned to HEAD:
-  `cp -r chaos-engine ../ce-src && python3 chaos-engine/install.py install --project . --source ../ce-src --commit "$(git rev-parse HEAD)"` (repo-only: run in the source checkout)
-  (add `--with-<add-on>` flags as needed; `install.py addons --project .`
-  lists them). Expect a few minutes for the first store index.
-- Linked worktree: install in the primary checkout, then
-  `python3 <primary>/.chaos-engine/worktree_overlay.py materialize --primary <primary> --session <worktree>`.
+Install first: [harness maintenance](harness-maintenance.md#install).
 
 ## Every task, before discovery
 
@@ -101,22 +95,8 @@ the session lessons against the skills, file one spec issue, open ONE PR
 is one report line. Then run
 `python3 .chaos-engine/tool.py maintain` to fast-forward, reinstall, and
 re-check doctor before the next task.
-An interrupted `maintain` keeps running and holds `.chaos-engine.lock`; a
-second one fails with "another ChaosEngine operation is already running".
-Check the holder PID it names and `python3 .chaos-engine/install.py status --project . --json`
-before rerunning; a healthy core at the new commit means it already finished.
-The local pre-push hook does not run the Agent Guidance Gate. Before pushing a
-reference or skill edit in the ChaosEngine source repository, run (repo-only)
-`python3 scripts/ci/harness_pr_gate.py --base "$(git merge-base HEAD origin/HEAD)" --head "$(git rev-parse HEAD)"` (repo-only;
-issue tags and bare angle-bracket placeholders in references fail it).
-Read every `status=failed` line of its output, not only the tail. Delete
-`.pytest_cache/` first; it and materialized overlay files fail two contracts
-only locally.
-An older overlay can record a git-digest source without a repository; its
-`maintain` then stops at "repository must be an explicit GitHub
-owner/repository" after the fast-forward. Reinstall once with
-`python3 .chaos-engine/bootstrap.py --project . --repository OWNER/REPO --branch BRANCH --distribution portable`;
-newer overlays recover on their own.
+Lock held, harness edits, or an older overlay:
+[harness maintenance](harness-maintenance.md#maintain).
 
 ## Make it automatic
 
