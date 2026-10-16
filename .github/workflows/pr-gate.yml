@@ -427,6 +427,7 @@ jobs:
               - 'tests/scripts/test_pr_time_to_merge_report.py'
               - 'scripts/ci/quality_trend.py'
               - 'tests/scripts/test_quality_layers_6990.py'
+              - 'tests/scripts/test_release_provenance.py'
               - 'scripts/ci/api_compat_gate.py'
               - 'tests/scripts/test_api_compat_gate.py'
               - 'scripts/ci/errorprone_ratchet.py'
@@ -1160,6 +1161,7 @@ jobs:
           tests.scripts.test_validate_shaft_pilot_release
           tests.scripts.test_codecov_status_gate
           tests.scripts.test_main_red_reaction
+          tests.scripts.test_release_provenance
           tests.scripts.test_validate_codecov_yml
           tests.scripts.test_api_compat_gate
           tests.scripts.test_errorprone_ratchet
