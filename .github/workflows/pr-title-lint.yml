@@ -1,0 +1,31 @@
+name: PR title lint
+
+# #7010: advisory conventional-commit title check (release notes come from labels,
+# see .github/release.yml). Prints a warning with a suggested title; never fails.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-title-lint-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: PR title lint
+    runs-on: ubuntu-22.04
+    timeout-minutes: 3
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/ci
+      - name: Lint title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: python3 scripts/ci/pr_title_lint.py
