@@ -5,6 +5,19 @@
 <!-- Replace this with your description -->
 
 
+## Plan
+
+> Required by the PR Body guard. Link the spec or list the plan steps, then add one receipt line per
+> retrieve: `retrieve: mempalace used`, or `retrieve: graphify skipped(<reason>)`.
+
+retrieve:
+
+
+## Riskiest assumption
+
+> Required. Name the assumption and one targeted test in backticks, or write N/A.
+
+
 ## 🔗 Related Issue(s)
 
 > Link any related issues (use `Closes #<number>` to auto-close on merge, or `Related to #<number>` for partial fixes).

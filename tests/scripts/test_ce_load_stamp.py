@@ -69,7 +69,9 @@ class LoadStampTest(unittest.TestCase):
         self.assertEqual("run entry --full\n", blocked.stderr)
         self.assertEqual("", blocked.stdout)
         self.assertEqual(0, self.run_tool("entry", "--full").returncode)
-        passed = self.run_tool("checkpoint", "t", "implement", "--next", "push")
+        spec = Path(self._tmp.name) / "spec-t.md"
+        spec.write_text("# Spec\n", encoding="utf-8")
+        passed = self.run_tool("checkpoint", "t", "implement", "--next", "push", "--spec", str(spec))
         self.assertEqual(0, passed.returncode, passed.stderr)
         self.assertNotIn("entry --full", passed.stdout + passed.stderr)
 

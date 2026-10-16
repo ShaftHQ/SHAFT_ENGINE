@@ -66,9 +66,9 @@ def entries(name: str) -> list[dict]:
 
 
 def record(name: str, step: str, *, branch: str = "", pr: str = "", next_action: str = "",
-           start: bool = False, now: float | None = None) -> dict:
+           start: bool = False, now: float | None = None, spec: str = "") -> dict:
     row = {"t": round(now if now is not None else time.time()), "step": step}
-    for key, value in (("branch", branch), ("pr", pr), ("next", next_action)):
+    for key, value in (("branch", branch), ("pr", pr), ("next", next_action), ("spec", spec)):
         if value:
             row[key] = value
     if start:
@@ -161,6 +161,27 @@ def brief(name: str) -> str | None:
     return text + ("\n" + table if table else "")
 
 
+SPEC_REFUSAL = (
+    "{task}: no spec; write one before coding (problem, evidence/root cause, retrieved prior art, "
+    "plan steps, riskiest assumption + the test that proves it, files touched, out of scope) and pass "
+    "`--spec PATH` once, or save it as {default}"
+)
+
+
+def spec_dir() -> Path:
+    override = os.environ.get("CHAOS_ENGINE_SPEC_DIR")
+    return Path(override) if override else tasks_root() / "specs"
+
+
+def find_spec(name: str, given: str = "") -> Path | None:
+    """The task's spec: --spec, else the last recorded one, else spec-<task>.md in spec_dir()."""
+    recorded = [row["spec"] for row in entries(name) if row.get("spec")] if ledger(name).is_file() else []
+    for candidate in (given, *reversed(recorded), str(spec_dir() / f"spec-{name}.md")):
+        if candidate and Path(candidate).is_file() and Path(candidate).stat().st_size > 0:
+            return Path(candidate).resolve()
+    return None
+
+
 def open_tasks() -> list[str]:
     root = tasks_root()
     if not root.is_dir():
@@ -171,6 +192,17 @@ def open_tasks() -> list[str]:
         if rows and rows[-1].get("step") != DONE:
             names.append(path.stem)
     return names
+
+
+def checkpoint_step(ns: argparse.Namespace) -> int:
+    """Record a step; an in-flight (non-done) step needs a spec on disk first (exit 4)."""
+    spec = find_spec(ns.task, ns.spec) if ns.step != DONE else None
+    if ns.step != DONE and spec is None:
+        print(SPEC_REFUSAL.format(task=ns.task, default=spec_dir() / f"spec-{ns.task}.md"), file=sys.stderr)
+        return 4
+    record(ns.task, ns.step, branch=ns.branch, pr=ns.pr, next_action=ns.next_action, start=ns.start,
+           spec=str(spec) if ns.spec and spec else "")
+    return 0
 
 
 def main(argv: list[str] | None = None, command: str = "checkpoint") -> int:
@@ -194,6 +226,7 @@ def main(argv: list[str] | None = None, command: str = "checkpoint") -> int:
         parser.add_argument("--pr", default="")
         parser.add_argument("--next", dest="next_action", default="")
         parser.add_argument("--start", action="store_true", help="mark a new session start")
+        parser.add_argument("--spec", default="", help="the task's spec file; required before a non-done step")
         # `--budget 40` and `--budget --minutes 40` both work (#6990).
         parser.add_argument(
             "--budget", nargs="?", const=0.0, default=None, type=float, metavar="MINUTES",
@@ -218,8 +251,7 @@ def main(argv: list[str] | None = None, command: str = "checkpoint") -> int:
             return 3 if spent else 0
         if not ns.step:
             parser.error("STEP is required unless --budget is given")
-        record(ns.task, ns.step, branch=ns.branch, pr=ns.pr, next_action=ns.next_action, start=ns.start)
-        return 0
+        return checkpoint_step(ns)
     except ValueError as error:
         print(str(error), file=sys.stderr)
         return 2

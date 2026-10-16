@@ -36,9 +36,19 @@ class PrBodyPreflightTest(unittest.TestCase):
     def test_valid_bodies_and_other_commands_pass(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             body = Path(temporary, "good.md")
-            body.write_text("x\n\n## Riskiest assumption\nThat y. Targeted test: `test_y`.\n", encoding="utf-8")
+            body.write_text("x\n\n## Plan\nspec-x.md\n\nretrieve: mempalace used\nretrieve: graphify skipped index is stale\n\n"
+                            "## Riskiest assumption\nThat y. Targeted test: `test_y`.\n", encoding="utf-8")
             self.assertEqual("", self.guard._pr_body_block((f"gh pr create --body-file {body}",)))
-        self.assertEqual("", self.guard._pr_body_block(("gh pr create --body 'x\n\n## Riskiest assumption\nN/A'",)))
+        self.assertEqual("", self.guard._pr_body_block(
+            ("gh pr create --body 'x\n\n## Plan\nsteps\nretrieve: mempalace used\n\n## Riskiest assumption\nN/A'",)))
+
+    def test_missing_plan_or_receipt_is_blocked(self) -> None:
+        no_plan = "gh pr create --body 'retrieve: mempalace used\n\n## Riskiest assumption\nN/A'"
+        self.assertIn("`## Plan`", self.guard._pr_body_block((no_plan,)))
+        no_receipt = "gh pr create --body '## Plan\nsteps\n\n## Riskiest assumption\nN/A'"
+        self.assertIn("receipt line", self.guard._pr_body_block((no_receipt,)))
+        bare_skip = "gh pr create --body '## Plan\nsteps\nretrieve: graphify skipped\n\n## Riskiest assumption\nN/A'"
+        self.assertIn("skipped without a reason", self.guard._pr_body_block((bare_skip,)))
         self.assertEqual("", self.guard._pr_body_block(("gh pr view 5",)))
         self.assertEqual("", self.guard._pr_body_block(("gh pr create --fill",)))
         self.assertEqual("", self.guard._pr_body_block(("gh pr create --body-file /no/such/file",)))

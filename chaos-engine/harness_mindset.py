@@ -44,6 +44,7 @@ RULE_IDS = (
     "host-prune",
     "memory-no-hit",
     "riskiest-assumption",
+    "plan-receipts",
     "pattern-before-triage",
     "lesson-outcome",
     "rule-retirement",
@@ -52,6 +53,10 @@ RULE_TRIGGERS_NAME = "rule-triggers.json"
 LESSON_NOTES_NAME = "lesson-notes.log"
 
 ASSUMPTION_HEADING = re.compile(r"^##[ \t]+Riskiest assumption[ \t]*$", re.MULTILINE)
+PLAN_HEADING = re.compile(r"^##[ \t]+Plan[ \t]*$", re.MULTILINE)
+RETRIEVE_LINE = re.compile(
+    r"^[ \t>*-]*`?retrieve:[ \t]*(?:([\w.-]+)[ \t]+)?(used|skipped|exempt)\b[ \t]*(.*)$", re.MULTILINE | re.IGNORECASE
+)
 OUTCOME_HEADING = re.compile(r"^##[ \t]+Outcome changed[ \t]*$", re.MULTILINE)
 LESSON_TITLE = re.compile(r"^(?:Lesson|Lessons)\b", re.IGNORECASE)
 NEXT_HEADING = re.compile(r"^##[ \t]+", re.MULTILINE)
@@ -405,6 +410,25 @@ def assumption_section_errors(
     if re.search(r"https?://\S+", text) or re.search(r"`[^`\n]+`", text):
         return []
     return ["Riskiest assumption section needs one targeted test link or explicit N/A"]
+
+
+def plan_receipt_errors(body: str, *, author: str = "", project: Path | None = None) -> list[str]:
+    """Require a ``## Plan`` section and ``retrieve:`` receipts: used, or skipped with a reason."""
+    _record_check(project, "plan-receipts")
+    if author.casefold() in BOT_AUTHORS:
+        return []
+    errors: list[str] = []
+    if _section(body or "", PLAN_HEADING) is None:
+        errors.append("PR body is missing the `## Plan` section (spec path and plan steps)")
+    receipts = RETRIEVE_LINE.findall(body or "")
+    if not receipts:
+        errors.append("PR body has no `retrieve: [store] used|skipped(<reason>)` receipt line")
+    errors += [
+        f"retrieve receipt{' for ' + store if store else ''} is {verdict} without a reason"
+        for store, verdict, reason in receipts
+        if verdict.casefold() != "used" and not re.search(r"\w", reason)
+    ]
+    return errors
 
 
 def lesson_outcome_errors(
