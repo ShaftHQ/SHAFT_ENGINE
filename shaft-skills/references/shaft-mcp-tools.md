@@ -6,6 +6,25 @@ Total tools: 122
 
 Agents should use these exact tool names instead of guessing or listing tools at runtime. Client tool-name prefixes vary: some clients expose `shaft-mcp:<name>`, others expose `mcp__shaft-mcp__<name>` (for example Claude Code). On clients that defer tool schemas until requested, batch-load only the tools you need in a single lookup instead of one at a time, e.g. Claude Code `ToolSearch("select:mcp__shaft-mcp__<a>,mcp__shaft-mcp__<b>")`.
 
+## Contents
+
+- [Autobot (AutobotService)](#autobot-autobotservice): 5 tools
+- [Browser (BrowserService)](#browser-browserservice): 18 tools
+- [Capture (CaptureService)](#capture-captureservice): 21 tools
+- [Coding Partner (CodingPartnerService)](#coding-partner-codingpartnerservice): 2 tools
+- [Design (DesignService)](#design-designservice): 10 tools
+- [Doctor (DoctorService)](#doctor-doctorservice): 6 tools
+- [Element (ElementService)](#element-elementservice): 11 tools
+- [Engine (EngineService)](#engine-engineservice): 3 tools
+- [Guide (GuideService)](#guide-guideservice): 1 tools
+- [Healer (HealerService)](#healer-healerservice): 2 tools
+- [Infrastructure Mcp (InfrastructureMcpService)](#infrastructure-mcp-infrastructuremcpservice): 9 tools
+- [Mobile (MobileService)](#mobile-mobileservice): 14 tools
+- [Planner (PlannerService)](#planner-plannerservice): 1 tools
+- [Shaft Project (ShaftProjectService)](#shaft-project-shaftprojectservice): 3 tools
+- [Test Automation (TestAutomationService)](#test-automation-testautomationservice): 2 tools
+- [Trace (TraceService)](#trace-traceservice): 14 tools
+
 ## Autobot (AutobotService)
 
 - `autobot_local_agent_clients` — lists local SHAFT Autobot CLI clients that do not require SHAFT cloud API keys

@@ -106,6 +106,23 @@ class ParseToolAnnotationTest(unittest.TestCase):
         self.assertEqual([], errors)
 
 
+class CatalogContentsTest(unittest.TestCase):
+    def test_contents_links_every_service_heading(self):
+        content, _, services = MODULE.build()
+        contents = content.split("## Contents", 1)[1].split("\n## ", 1)[0]
+        links = [line for line in contents.splitlines() if line.startswith("- [")]
+        self.assertEqual(services, len(links))
+        for line in links:
+            anchor = line.split("](#", 1)[1].split(")", 1)[0]
+            heading = line[3:].split("](", 1)[0]
+            self.assertIn(f"\n## {heading}\n", content)
+            self.assertEqual(anchor, MODULE.heading_anchor(heading))
+
+    def test_heading_anchor_matches_github(self):
+        self.assertEqual("coding-partner-codingpartnerservice",
+                         MODULE.heading_anchor("Coding Partner (CodingPartnerService)"))
+
+
 class BuildCatalogGuardsTest(unittest.TestCase):
     """Tests for the correctness guards enforced by build_catalog()."""
 
