@@ -6,9 +6,10 @@ on:
     - cron: '0 8 * * 1'
   workflow_dispatch:
 
+# #7036 (Scorecard Token-Permissions): top level is read-only; writes are
+# granted per job.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: update-selenium-grid-versions
@@ -16,6 +17,9 @@ concurrency:
 
 jobs:
   update-versions:
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:

@@ -15,10 +15,11 @@ on:
       - Publish IntelliJ Plugin
     types: [ completed ]
 
+# #7036 (Scorecard Token-Permissions): top level is read-only; writes are
+# granted per job.
 permissions:
   actions: read
   contents: read
-  issues: write
 
 concurrency:
   group: code-coverage-failure-notifier
@@ -26,6 +27,10 @@ concurrency:
 
 jobs:
   notify:
+    permissions:
+      actions: read
+      contents: read
+      issues: write
     if: github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-22.04
     timeout-minutes: 10

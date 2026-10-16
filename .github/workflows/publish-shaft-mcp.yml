@@ -5,10 +5,10 @@ on:
     types: [published]
   workflow_dispatch:
 
+# #7036 (Scorecard Token-Permissions): top level is read-only; writes are
+# granted per job.
 permissions:
   contents: read
-  packages: write
-  id-token: write
 
 concurrency:
   group: publish-shaft-mcp
@@ -16,6 +16,10 @@ concurrency:
 
 jobs:
   publish:
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     # Runs only for an actual published SHAFT release (created by mavenCentral_cd.yml's
     # announce_release job), not merely because that workflow's run concluded successfully -
     # its build_release_and_deliver job now also concludes successfully when it skips a

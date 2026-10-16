@@ -8,9 +8,10 @@ on:
         required: true
         type: string
 
+# #7036 (Scorecard Token-Permissions): top level is read-only; writes are
+# granted per job.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: prepare-release-pr-${{ inputs.release_date }}
@@ -18,6 +19,9 @@ concurrency:
 
 jobs:
   prepare-release-pr:
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:

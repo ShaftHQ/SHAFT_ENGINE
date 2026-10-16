@@ -27,10 +27,11 @@ on:
     - cron: '30 2 * * 0'
   workflow_dispatch:
 
+# #7036 (Scorecard Token-Permissions): top level is read-only; writes are
+# granted per job.
 permissions:
   actions: read
   contents: read
-  security-events: write
 
 concurrency:
   group: security-${{ github.event.pull_request.number || github.ref }}
@@ -38,6 +39,10 @@ concurrency:
 
 jobs:
   codeql:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     name: CodeQL
     runs-on: ubuntu-22.04
     timeout-minutes: 15
