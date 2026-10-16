@@ -6,7 +6,6 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.WriteCommandAction;
-import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -76,8 +75,7 @@ public final class GeneratePageObjectFromCaptureAction extends AnAction implemen
                 VirtualFile file = folder.createChildData(GeneratePageObjectFromCaptureAction.class,
                         target.getFileName().toString());
                 VfsUtil.saveText(file, draft.source());
-                FileEditorManager.getInstance(project).openFileEditor(
-                    new com.intellij.openapi.fileEditor.OpenFileDescriptor(project, file), true);
+                new com.intellij.openapi.fileEditor.OpenFileDescriptor(project, file).navigate(true);
             } catch (IOException failure) {
                 ShaftNotifier.warn(project, TITLE, "Could not write the Page Object: " + failure.getMessage());
             }

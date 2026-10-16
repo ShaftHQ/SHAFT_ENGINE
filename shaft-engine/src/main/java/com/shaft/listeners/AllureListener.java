@@ -2,6 +2,7 @@ package com.shaft.listeners;
 
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.listeners.internal.AllureSuiteIdentity;
+import com.shaft.listeners.internal.AutomaticRunLabels;
 import com.shaft.listeners.internal.ExecutionFailureContext;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -271,6 +272,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     @Override
     public void beforeTestStop(TestResult result) {
         applySuiteIdentity(result);
+        AutomaticRunLabels.apply(result);
         redactStatusDetails(result);
         if (Status.SKIPPED.equals(result.getStatus())) {
             ExecutionFailureContext.PendingConfigFailure pendingFailure =
