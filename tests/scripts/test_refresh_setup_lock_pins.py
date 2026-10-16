@@ -92,12 +92,24 @@ class SetupNpmAutomationContractTest(unittest.TestCase):
         self.assertIn("groups:", block)
 
     def test_refresh_job_guards_bot_token_and_names_fallback(self):
-        text = (self.ROOT / ".github/workflows/setup-lock-pins.yml").read_text(encoding="utf-8")
+        text = (self.ROOT / ".github/workflows/setup-lock-pins-push.yml").read_text(encoding="utf-8")
         self.assertIn("Verify BOT_TOKEN can push", text)
         self.assertIn("BOT_TOKEN expired or lacks push", text)
         self.assertIn("Lock-pin push rejected", text)
         self.assertGreaterEqual(text.count("refresh_setup_lock_pins.py --write' on the PR branch"), 2)
         self.assertLess(text.index("Verify BOT_TOKEN can push"), text.index("Checkout Dependabot head"))
+
+    def test_privileged_push_never_checks_out_or_runs_pr_code(self):
+        """#7035: no pull_request_target; the BOT_TOKEN half is a workflow_run that applies a validated patch."""
+        compute = (self.ROOT / ".github/workflows/setup-lock-pins.yml").read_text(encoding="utf-8")
+        self.assertNotIn("pull_request_target", compute)
+        self.assertNotIn("secrets.", compute)
+        push = (self.ROOT / ".github/workflows/setup-lock-pins-push.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_run:", push)
+        self.assertNotIn("ref:", push)
+        self.assertIn("SetupPlanner", push)
+        self.assertIn("core.hooksPath /dev/null", push)
+        self.assertIn("refresh_setup_lock_pins.py --root . --check", push)
 
 
 TARBALL = b"fixture tarball bytes"

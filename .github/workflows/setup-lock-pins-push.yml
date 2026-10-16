@@ -1,0 +1,126 @@
+name: Setup Lock Pins Push
+
+# #7035 (Scorecard Dangerous-Workflow): privileged half of the setup lock-pin
+# refresh (#6357, #6381). `setup-lock-pins.yml` computes the pin patch on
+# `pull_request` without secrets; this workflow_run job validates it and pushes
+# it to the same-repository Dependabot branch with `BOT_TOKEN`. It never checks
+# out or executes pull-request code: the patch is plain data, restricted to the
+# planner pin files, and the PR identity is re-read from the API, not from the
+# artifact.
+
+on:
+  workflow_run:
+    workflows: ["Setup Lock Pins"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: setup-lock-pins-push-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  push:
+    name: Push Dependabot setup lock pins
+    if: >-
+      github.event.workflow_run.event == 'pull_request'
+      && github.event.workflow_run.actor.login == 'dependabot[bot]'
+      && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    steps:
+      - name: Download pin patch
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: setup-lock-pins-patch
+          path: ${{ runner.temp }}/pins
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Resolve and validate the pull request
+        id: pr
+        if: steps.download.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PINS: ${{ runner.temp }}/pins
+        run: |
+          if [ ! -s "${PINS}/pins.patch" ]; then
+            echo "setup lock pins already match"
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          number=$(sed -n 1p "${PINS}/meta.txt" | tr -cd '0-9')
+          [ -n "${number}" ] || { echo "::error::Artifact carries no PR number"; exit 1; }
+          gh api "repos/${REPO}/pulls/${number}" --jq '[.user.login, .head.repo.full_name, .head.sha, .head.ref, .state] | @tsv' > "${RUNNER_TEMP}/pr.tsv"
+          IFS=$'\t' read -r login head_repo head_sha head_ref state < "${RUNNER_TEMP}/pr.tsv"
+          if [ "${login}" != "dependabot[bot]" ] || [ "${head_repo}" != "${REPO}" ] \
+             || [ "${head_sha}" != "${RUN_HEAD_SHA}" ] || [ "${state}" != "open" ]; then
+            echo "::error::PR #${number} is not an open same-repository Dependabot PR at ${RUN_HEAD_SHA}; refusing to push."
+            exit 1
+          fi
+          case "${head_ref}" in dependabot/*) ;; *) echo "::error::Unexpected head ref ${head_ref}"; exit 1 ;; esac
+          # Only the planner pin files may change.
+          bad=$(grep -E '^diff --git ' "${PINS}/pins.patch" | awk '{print $3}' | sed 's#^a/##' \
+            | grep -Ev '^shaft-infrastructure/src/main/java/com/shaft/infrastructure/[A-Za-z]+SetupPlanner\.java$' || true)
+          if [ -n "${bad}" ]; then
+            echo "::error::Pin patch touches files outside the planners: ${bad}"
+            exit 1
+          fi
+          { echo "push=true"; echo "head_ref=${head_ref}"; echo "head_sha=${head_sha}"; } >> "$GITHUB_OUTPUT"
+      - name: Checkout trusted base
+        if: steps.pr.outputs.push == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: base
+          persist-credentials: false
+      - name: Verify BOT_TOKEN can push (#6370)
+        if: steps.pr.outputs.push == 'true'
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          fallback="Fallback: run 'python3 scripts/ci/refresh_setup_lock_pins.py --write' on the PR branch and push."
+          if [ -z "${BOT_TOKEN}" ]; then
+            echo "::error title=BOT_TOKEN missing::The org BOT_TOKEN secret is empty, so the lock-pin refresh cannot push. ${fallback}"
+            exit 1
+          fi
+          push=$(curl -fsS -H "Authorization: Bearer ${BOT_TOKEN}" "https://api.github.com/repos/${REPO}" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("permissions",{}).get("push",False))') || push=error
+          if [ "${push}" != "True" ]; then
+            echo "::error title=BOT_TOKEN expired or lacks push::BOT_TOKEN could not authenticate with push access (got: ${push}). Renew the org BOT_TOKEN PAT. ${fallback}"
+            exit 1
+          fi
+      - name: Checkout Dependabot head as data, apply and push
+        if: steps.pr.outputs.push == 'true'
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PINS: ${{ runner.temp }}/pins
+        run: |
+          # Plain git fetch of the branch tip: no hooks, actions or scripts from
+          # the pull request run. Only the validated patch is applied.
+          git init -q head && cd head
+          git config core.hooksPath /dev/null
+          auth=$(printf 'x-access-token:%s' "${BOT_TOKEN}" | base64 -w0)
+          git -c "http.extraheader=Authorization: Basic ${auth}" fetch -q --depth=1 "https://github.com/${REPO}.git" "${HEAD_SHA}"
+          git checkout -q --detach FETCH_HEAD
+          git apply --index "${PINS}/pins.patch"
+          # Confirm with the trusted base script (offline, reads only).
+          python3 ../base/scripts/ci/refresh_setup_lock_pins.py --root . --check
+          git -c user.name="shaft-lock-pin-bot" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Refresh setup lock and package pins for the Dependabot bump." \
+            -m "Generated by .github/workflows/setup-lock-pins.yml (#6357, #6381, #7035)."
+          if ! git -c "http.extraheader=Authorization: Basic ${auth}" push -q "https://github.com/${REPO}.git" "HEAD:refs/heads/${HEAD_REF}"; then
+            echo "::error title=Lock-pin push rejected::Push with BOT_TOKEN was rejected; renew the org BOT_TOKEN PAT. Fallback: run 'python3 scripts/ci/refresh_setup_lock_pins.py --write' on the PR branch and push."
+            exit 1
+          fi
