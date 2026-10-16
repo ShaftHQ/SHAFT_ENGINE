@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/gh-run-rerun-in-progress-misleading.md",
+  "content_hash": "sha256:39a961d5e99427df4e047c9697f2f9a3b01ac158ed6c56372a5118e905914827",
+  "created_at": "2026-10-16T21:20:00+03:00",
+  "evidence": [],
+  "id": "gotcha.gh-run-rerun-in-progress-misleading",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after #7088-#7091"
+  },
+  "status": "active",
+  "tags": [
+    "ci",
+    "github"
+  ],
+  "title": "`gh run rerun` on a running workflow says the workflow file may be broken",
+  "type": "gotcha",
+  "updated_at": "2026-10-16T21:20:00+03:00"
+}

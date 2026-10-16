@@ -1,0 +1,1 @@
+`gh run rerun <id> --failed` answers "cannot be rerun; its workflow file may be broken" while other jobs of that run are still going. Wait for `status == completed`, then rerun. A one-off Maven Central `VersionRangeResolutionException` (bcutil range in the gpg plugin) is transient: rerun the failed job, don't change the build.
