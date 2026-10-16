@@ -44,6 +44,6 @@ bundle shrinks by more than 10%, lower `bytes` to lock in the gain.
 
 Before moving, merging or deleting a guidance line, search `tests/scripts` for
 its phrase. A pinned phrase stays where its test reads it, or the test moves
-with it in the same commit. SHAFT specialist playbooks load one per turn, so a
-rule repeated across them is intentional; link instead only within one skill.
+with it in the same commit. Specialist skills that load one per turn may repeat a
+rule on purpose; link instead only within one skill.
 
