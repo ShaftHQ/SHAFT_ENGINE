@@ -238,7 +238,13 @@ def _assumption_errors(body: str) -> list[str]:
     module = importlib.util.module_from_spec(spec)
     try:
         spec.loader.exec_module(module)
-        return list(module.assumption_section_errors(body)) + list(module.plan_receipt_errors(body))
+        # The guard runs only in agent sessions, so this body is agentic by definition:
+        # it must carry the marker, which is what makes CI apply the plan checks.
+        marker = [] if module.is_agentic(body) else [
+            f"agent PR body is missing the `{module.AGENTIC_MARKER}` marker (it identifies agentic PRs)"
+        ]
+        return list(module.assumption_section_errors(body)) + marker + list(
+            module.plan_receipt_errors(body + "\n" + module.AGENTIC_MARKER))
     except Exception:  # nosec B110 - an unavailable checker must not block PR creation.
         return []
 
@@ -258,8 +264,8 @@ def _pr_body_block(commands: tuple[str, ...]) -> str:
         if errors:
             return (
                 "PR body would fail the CI PR Body guard: " + errors[0] + ". It needs `## Riskiest assumption` "
-                "(one targeted test in backticks, or N/A), `## Plan`, and "
-                "`retrieve: [store] used|skipped(<reason>)` lines; then rerun."
+                "(one targeted test in backticks, or N/A), `## Plan`, "
+                "`retrieve: [store] used|skipped(<reason>)` lines, and `<!-- chaos-engine:agentic -->`; then rerun."
             )
     return ""
 

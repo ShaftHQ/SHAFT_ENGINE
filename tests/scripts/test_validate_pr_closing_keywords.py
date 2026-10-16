@@ -54,6 +54,7 @@ CI is the real verification for this change.
 """
 
 
+AGENT_MARKER = "<!-- chaos-engine:agentic -->"
 CLEAN_BODY = (
     "Closes #4127\n\n## Plan\n\nspec-4127.md: steps 1-3\n\nretrieve: mempalace used\n"
     "retrieve: graphify skipped index is stale\n\n## Riskiest assumption\n\nN/A\n"
@@ -428,19 +429,33 @@ class NightlyTrackerCloseTest(unittest.TestCase):
 class MainCLIIntegrationTest(unittest.TestCase):
     """Exercises the actual CLI entry point CI invokes: PR_BODY + PR_COMMITS_JSON env vars."""
 
-    def test_cli_blocks_a_body_without_plan_or_receipts(self):
-        result = self._run_cli(body="Closes #4127\n\n## Riskiest assumption\n\nN/A\n")
+    def test_agent_pr_without_plan_fails(self):
+        result = self._run_cli(body=AGENT_MARKER + "\nCloses #4127\n\n## Riskiest assumption\n\nN/A\n")
         self.assertEqual(result.returncode, 1)
         self.assertIn("`## Plan`", result.stderr)
         self.assertIn("receipt line", result.stderr)
 
-    def test_cli_blocks_a_skip_without_reason(self):
-        result = self._run_cli(body=CLEAN_BODY.replace("retrieve: graphify skipped index is stale", "retrieve: graphify skipped"))
+    def test_human_pr_without_plan_passes(self):
+        result = self._run_cli(body="Closes #4127\n\n## Riskiest assumption\n\nN/A\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_agent_pr_with_plan_passes(self):
+        result = self._run_cli(body=AGENT_MARKER + "\n" + CLEAN_BODY)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_agentic_label_without_marker_still_requires_a_plan(self):
+        result = self._run_cli(body="Closes #4127\n\n## Riskiest assumption\n\nN/A\n", labels="bug,agentic")
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("`## Plan`", result.stderr)
+
+    def test_agent_skip_without_reason_fails(self):
+        body = AGENT_MARKER + "\n" + CLEAN_BODY.replace("retrieve: graphify skipped index is stale", "retrieve: graphify skipped")
+        result = self._run_cli(body=body)
         self.assertEqual(result.returncode, 1)
         self.assertIn("skipped without a reason", result.stderr)
 
-    def _run_cli(self, *, body="", commits_json="", cwd=REPO_ROOT):
-        env = {**os.environ, "PR_BODY": body, "PR_COMMITS_JSON": commits_json}
+    def _run_cli(self, *, body="", commits_json="", cwd=REPO_ROOT, labels=""):
+        env = {**os.environ, "PR_BODY": body, "PR_COMMITS_JSON": commits_json, "PR_LABELS": labels}
         return subprocess.run(  # nosec B603
             [sys.executable, CLI_SCRIPT],
             capture_output=True,

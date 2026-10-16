@@ -7,8 +7,9 @@
 
 ## Plan
 
-> Required by the PR Body guard. Link the spec or list the plan steps, then add one receipt line per
-> retrieve: `retrieve: mempalace used`, or `retrieve: graphify skipped(<reason>)`.
+> Required only for agentic PRs (body marker `<!-- chaos-engine:agentic -->` or the `agentic` label);
+> optional for humans. Link the spec or list the plan steps, then one receipt line per retrieve:
+> `retrieve: mempalace used`, or `retrieve: graphify skipped(<reason>)`.
 
 retrieve:
 

@@ -22,6 +22,8 @@ Install first: [harness maintenance](harness-maintenance.md#install).
    ([retrieve-first](retrieve-first.md)).
 3. Record `retrieve: used|skipped(<reason>)|exempt(harness)` in the
    [research receipt](research-receipt.md).
+   Agentic PRs carry `<!-- chaos-engine:agentic -->` (or the `agentic` label);
+   CI then requires `## Plan` and `retrieve:` lines. Human PRs are exempt.
 
 Re-runs print one line while the harness is unchanged; `--full` reprints the
 cards. Run `--full` at the start of every conversation and after every
