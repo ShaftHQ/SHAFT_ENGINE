@@ -71,7 +71,7 @@ public class PropertiesHelperInitializationUnitTest {
                 "targetBrowserName=chrome",
                 "headlessExecution=false",
                 "retryMaximumNumberOfAttempts=0",
-                "screenshotParamsWhenToTakeAScreenshot=ValidationPointsOnly",
+                "screenshotParams_whenToTakeAScreenshot=ValidationPointsOnly",
                 "managedLocalAi.enabled=false",
                 "managedLocalAi.transparentProvisioning=true",
                 "managedLocalAi.model=auto",
