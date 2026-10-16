@@ -435,8 +435,9 @@ def _policy_digest_map(root: Path) -> dict[str, str]:
         for path in base.rglob("*"):
             if not path.is_file() or path.suffix.lower() not in _POLICY_SUFFIXES:
                 continue
-            if ".chaos-engine" in path.relative_to(root).parts:
-                continue
+            relative = path.relative_to(root)
+            if ".chaos-engine" in relative.parts or _install_module().is_origin_only(relative):
+                continue  # source-only files never install, so they cannot drift (#7097)
             files[path.relative_to(root).as_posix()] = _sha256(path)
     return files
 

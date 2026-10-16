@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/new-source-only-file-must-be-checked-against-doctor.md",
+  "content_hash": "sha256:4a483484a0d802142e2b48082ff7e4e05635ee3187fea6d5e9395116a500aaca",
+  "created_at": "2026-10-17T00:52:34+03:00",
+  "evidence": [],
+  "id": "gotcha.new-source-only-file-must-be-checked-against-doctor",
+  "source": {
+    "kind": "agent",
+    "task": "Fix doctor origin-only drift after #7097"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "installer"
+  ],
+  "title": "A new source-only file must be checked against doctor",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T00:52:34+03:00"
+}
