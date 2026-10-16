@@ -776,7 +776,7 @@ class AgentPluginClientSmokeTest(unittest.TestCase):
         self.assertIn("        env:\n          ANTHROPIC_API_KEY", live_step)
         self.assertIn("          OPENAI_API_KEY", live_step)
         self.assertIn("if: always()", live)
-        self.assertIn("actions/upload-artifact@v7", live)
+        self.assertIn("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7", live)
         agent_evidence_upload = live.split(
             "      - name: Upload structured compatibility evidence", 1
         )[1].split("\n      - name:", 1)[0]

@@ -84,10 +84,10 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Filter changed paths
         id: filter
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
           filters: |
             chaos_installer:
@@ -489,7 +489,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate documentation boundaries
         run: python3 scripts/ci/validate_documentation_boundaries.py
 
@@ -501,9 +501,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
@@ -540,11 +540,11 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
@@ -588,7 +588,7 @@ jobs:
           --output harness-pr-gate.json
       - name: Upload harness gate receipt
         if: always()
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: harness-pr-gate
           path: harness-pr-gate.json
@@ -614,13 +614,13 @@ jobs:
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -646,7 +646,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build IntelliJ plugin
         uses: ./.github/actions/intellij-verify
         with:
@@ -662,7 +662,7 @@ jobs:
           source-id: pr-gate-intellij-build
           flags: shaft-intellij
       - name: Upload plugin distribution
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: shaft-intellij-plugin
           path: shaft-intellij/build/distributions/*.zip
@@ -682,7 +682,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run IntelliJ Plugin Verifier
         uses: ./.github/actions/intellij-verify
         with:
@@ -706,9 +706,9 @@ jobs:
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -756,15 +756,15 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: "25"
           distribution: "zulu"
           check-latest: true
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v5.1
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
           maven-version: 3.9.5
       - name: Cache Maven repository
@@ -882,9 +882,9 @@ jobs:
             leg: shaft-engine-shard-2
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -905,7 +905,7 @@ jobs:
           mvn --batch-mode
           -pl shaft-engine test
           "-Dtest=$(python3 scripts/ci/shard_test_selector.py --index "$SHARD_INDEX" --total 2 --selector
-          '-Dtest=testPackage/unitTests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, PlaywrightNaturalActionExecutorTest, ShardPartitionerUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, PropertyContractCoverageUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, MatchesReferenceImageNotFoundUnitTest, ArchitectureRulesUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, com.shaft.tools.io.internal.Rfc8259SiblingEscapeJsonTest, JourneyCoverageFixtureTest, testPackage.ThreadLocalGuiTeardownGuardTest, JsonActionsTests, MultipleElementsFailureTest, TouchMultipleElementsFailureTest, LazyLoadingFixtureLiveTest, HealingActionsIntegrationTest, ClickTypeMicrobenchTest, DesktopInteractionStrategiesTest, ElementClassifierTest, InteractionStrategiesActionsTest, MobileInteractionStrategiesTest, !RestValidationsBuilderUnitTest'
+          '-Dtest=testPackage/unitTests/*, DriverFactoryHelperAugmentationUnitTest, DriverFactoryHelperCoverageUnitTest, DriverFactoryHelperStorageStateUnitTest, OptionsManagerCoverageUnitTest, RemoteGridPreflightUnitTest, ActionsCoverageUnitTest, ActionsExceptionDetailsUnitTest, ElementInformationCoverageUnitTest, ElementsHelperCoverageUnitTest, AriaSnapshotHelperUnitTest, MobileAccessibilityTreeConverterUnitTest, AnimatedGifManagerCoverageUnitTest, ImageProcessingActionsReportingUnitTest, ImageProcessingActionsScreenshotBaselineUnitTest, ScreenshotHelperCoverageUnitTest, ScreenshotManagerCoverageUnitTest, LocatorHealthReporterUnitTest, RecordManagerCoverageUnitTest, PlaywrightSessionFactoryStorageStateUnitTest, PlaywrightNaturalActionExecutorTest, ShardPartitionerUnitTest, UpdateCheckerUnitTest, LightHouseGenerateReportCoverageUnitTest, PropertiesHelperDownloadRetryUnitTest, PropertyFileManagerInternalUnitTest, PropertyContractCoverageUnitTest, AllureManagerCoverageUnitTest, BrowserPerformanceExecutionReportUnitTest, FlakeProfilerUnitTest, ProgressBarLoggerCoverageUnitTest, ValidationsHelperCoverageUnitTest, ValidationsHelperNewPatternCoverageUnitTest, MatchesReferenceImageNotFoundUnitTest, ArchitectureRulesUnitTest, ParserFuzzSeedsUnitTest, VisualValidationsBuilderUnitTest, WebDriverElementValidationsBuilderAriaSnapshotUnitTest, WebDriverElementValidationsBuilderCoverageUnitTest, AssertionEvidenceReporterTest, FailureTraceReporterTest, com.shaft.tools.io.internal.Rfc8259SiblingEscapeJsonTest, JourneyCoverageFixtureTest, testPackage.ThreadLocalGuiTeardownGuardTest, JsonActionsTests, MultipleElementsFailureTest, TouchMultipleElementsFailureTest, LazyLoadingFixtureLiveTest, HealingActionsIntegrationTest, ClickTypeMicrobenchTest, DesktopInteractionStrategiesTest, ElementClassifierTest, InteractionStrategiesActionsTest, MobileInteractionStrategiesTest, !RestValidationsBuilderUnitTest'
           )"
           -Dsurefire.failIfNoSpecifiedTests=false
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
@@ -964,15 +964,15 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: '25'
           distribution: 'zulu'
           check-latest: true
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v5.1
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
           maven-version: 3.9.12
       - name: Cache Maven repository
@@ -1016,7 +1016,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Install actionlint and zizmor (pinned)
@@ -1195,9 +1195,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
@@ -1258,9 +1258,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Run Javadoc coverage unit tests
@@ -1278,9 +1278,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Run pilot module boundary tests
@@ -1315,11 +1315,11 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Run diff-scoped static analysis
@@ -1335,9 +1335,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Run orphaned suite file guard unit tests
@@ -1381,11 +1381,11 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Fetch PR commit messages
@@ -1422,9 +1422,9 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Dependency Review
-        uses: actions/dependency-review-action@v5
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5
         with:
           config-file: './.github/dependency-review-config.yml'
 
@@ -1439,7 +1439,7 @@ jobs:
       review: ${{ steps.diff.outputs.review }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Test dependency diff classifier
@@ -1475,9 +1475,9 @@ jobs:
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Run fresh-install acceptance
@@ -1490,7 +1490,7 @@ jobs:
           --output chaos-engine-live-installer-evidence.json
       - name: Upload fresh-install evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: chaos-engine-live-installer-${{ matrix.os }}
           path: chaos-engine-live-installer-evidence.json
@@ -1521,9 +1521,9 @@ jobs:
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Run installer UX contracts
@@ -1661,7 +1661,7 @@ jobs:
       # context would hang the queue). pull_request only; bounded poll.
       - name: Checkout coverage gate script
         if: github.event_name == 'pull_request'
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: scripts/ci/codecov_status_gate.py
           sparse-checkout-cone-mode: false
@@ -1693,9 +1693,9 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: File, update, or close ci-main-red issues

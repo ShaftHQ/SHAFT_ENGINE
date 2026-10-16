@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Validate release metadata
         run: python3 scripts/ci/validate_shaft_pilot_release.py
       - name: Verify IntelliJ plugin
@@ -36,12 +36,16 @@ jobs:
   publish:
     needs: verify
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     # Own budget for sign and Marketplace upload. Never wrap that upload in
     # the verify retry helper: a Marketplace version number is single-use.
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Publish to JetBrains Marketplace
         uses: ./.github/actions/intellij-verify
         with:
@@ -51,6 +55,12 @@ jobs:
           certificate-chain: ${{ secrets.JETBRAINS_PLUGIN_CERTIFICATE_CHAIN }}
           private-key: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY }}
           private-key-password: ${{ secrets.JETBRAINS_PLUGIN_PRIVATE_KEY_PASSWORD }}
+      # #7044: additive provenance after the single-use Marketplace upload.
+      - name: Attest plugin provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: shaft-intellij/build/distributions/*.zip
 
   notify-missed-publish:
     name: Fail closed on missed Marketplace publish
@@ -63,7 +73,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: File a dedicated miss issue when a release does not publish
         uses: ./.github/actions/notify-intellij-marketplace-publish
         with:

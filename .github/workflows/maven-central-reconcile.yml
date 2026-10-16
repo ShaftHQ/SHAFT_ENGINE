@@ -62,7 +62,7 @@ jobs:
             exit 1
           fi
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_ref }}
           fetch-depth: 0
@@ -79,11 +79,11 @@ jobs:
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -98,7 +98,7 @@ jobs:
       - name: Cache Maven repository
         uses: ./.github/actions/cache-maven-repo
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v5.1
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
           maven-version: 3.9.12
       - name: Setup Prerequisites

@@ -1170,13 +1170,13 @@ class ChaosEngineLiveInstallerAcceptanceTest(TestCase):
         checkout = next(
             step
             for step in job["steps"]
-            if str(step.get("uses", "")).startswith("actions/checkout@v7")
+            if str(step.get("uses", "")).startswith("actions/checkout@")
         )
         self.assertEqual(2, checkout["with"]["fetch-depth"])
         uploads = [
             step
             for step in job["steps"]
-            if str(step.get("uses", "")).startswith("actions/upload-artifact@v7")
+            if str(step.get("uses", "")).startswith("actions/upload-artifact@")
         ]
         self.assertEqual(1, len(uploads))
         self.assertEqual("always()", uploads[0]["if"])

@@ -100,7 +100,7 @@ jobs:
       actions: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Consolidate Test Results
         uses: ./.github/actions/consolidate-test-results
         with:
@@ -132,7 +132,7 @@ jobs:
           - 5432:5432
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Connect to PostgreSQL
         run: |
             cd shaft-engine/src/main/resources/docker-compose/postgres/
@@ -170,7 +170,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -200,7 +200,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -231,7 +231,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -269,7 +269,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Native Selenium Grid
         run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=0 --scale firefox=10 -d
       - name: Setup Test Environment
@@ -315,7 +315,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Native Selenium Grid
         run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
       - name: Setup Test Environment
@@ -361,7 +361,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Native Selenium Grid
         run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=0 --scale edge=10 --scale firefox=0 -d
       - name: Setup Test Environment
@@ -407,7 +407,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -444,7 +444,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -481,7 +481,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -525,7 +525,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -564,7 +564,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -603,7 +603,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -644,25 +644,25 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
           java-version: '17'
           node-version: '20'
       - name: Setup Flutter 3.22.1
-        uses: subosito/flutter-action@v2.23.0
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.22.1
           channel: stable
       - name: Setup Android SDK
         # Default packages include deprecated `tools`, which Google stopped
         # serving (android-actions/setup-android#537). Request only what we need.
-        uses: android-actions/setup-android@v4.0.4
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: platform-tools
       - name: Checkout pinned appium-flutter-server demo-app
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: AppiumTestDistribution/appium-flutter-server
           # Pinned commit -- never track a moving branch; there is no
@@ -681,7 +681,7 @@ jobs:
           flutter build apk --debug
           cd android && bash "$GITHUB_WORKSPACE/scripts/ci/build_retry.sh" 2 60 ./gradlew app:assembleDebug -Ptarget="$(pwd)/../integration_test/appium.dart"
       - name: Upload wired Flutter demo-app APK
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: flutter-demo-apk
           path: appium-flutter-server/demo-app/build/app/outputs/apk/debug/app-debug.apk
@@ -703,7 +703,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Download freshly-built Flutter demo-app APK
         id: download_flutter_demo_apk
         # Tolerate a missing artifact: Flutter_Demo_App_Build runs with
@@ -711,7 +711,7 @@ jobs:
         # this job's unrelated native-Android coverage. If the build failed,
         # no artifact exists here -- fall through and keep the checked-in apk.
         continue-on-error: true
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: flutter-demo-apk
           path: ${{ runner.temp }}/flutter-demo-apk
@@ -765,14 +765,14 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Download freshly-built Flutter demo-app APK
         id: download_flutter_demo_apk
         # Mirror Android_Native: Flutter_Demo_App_Build is continue-on-error, so a
         # missing artifact must not skip FlutterTest entirely. Fall through to the
         # checked-in APK when the overnight build did not upload one.
         continue-on-error: true
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: flutter-demo-apk
           path: ${{ runner.temp }}/flutter-demo-apk
@@ -809,7 +809,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -868,7 +868,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -935,7 +935,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -971,7 +971,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1015,7 +1015,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1051,7 +1051,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1095,7 +1095,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1125,7 +1125,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1155,7 +1155,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1189,7 +1189,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Native Selenium Grid
         run: docker compose -f shaft-engine/src/main/resources/docker-compose/selenium4.yml up --scale chrome=10 --scale edge=0 --scale firefox=0 -d
       - name: Setup Test Environment
@@ -1223,7 +1223,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -1291,10 +1291,10 @@ jobs:
           - 5432:5432
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Create Kubernetes Kind Cluster
-        uses: helm/kind-action@v1.15.1
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
         with:
           cluster_name: moon
           wait: 120s
@@ -1308,7 +1308,7 @@ jobs:
           kubectl get nodes -o wide
 
       - name: Setup Helm
-        uses: azure/setup-helm@v5.0.1
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
           version: v3.18.4
 
@@ -1445,7 +1445,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: File or recover the nightly tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:

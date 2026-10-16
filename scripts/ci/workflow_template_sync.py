@@ -12,7 +12,7 @@ from pathlib import Path
 
 MAIN_WORKFLOWS = ".github/workflows"
 TEMPLATE_WORKFLOWS = "shaft-engine/src/main/resources/examples/.github/workflows"
-_USES = re.compile(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)\s*(?:#.*)?$")
+_USES = re.compile(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)\s*(?:#\s*(\S+).*)?$")
 
 
 def touches_workflows(path: str) -> bool:
@@ -48,6 +48,9 @@ def action_versions(directory: Path) -> dict[str, tuple[str, tuple[int, ...]]]:
                 continue
             action, _, raw = reference.rpartition("@")
             parsed = _version(raw)
+            if parsed is None and match.group(2):
+                raw = match.group(2)  # SHA pin: compare the "# vX.Y.Z" tag comment (#7037)
+                parsed = _version(raw)
             if parsed is None:
                 continue
             current = newest.get(action)

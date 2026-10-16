@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  */
 class GeneratedWorkflowActionVersionFreshnessTest {
 
-    private static final Pattern USES_LINE = Pattern.compile("^\\s*(?:-\\s*)?uses:\\s*([^\\s#]+)\\s*(?:#.*)?$");
+    private static final Pattern USES_LINE = Pattern.compile("^\\s*(?:-\\s*)?uses:\\s*([^\\s#]+)\\s*(?:#\\s*(\\S+).*)?$");
 
     @Test
     void templateActionVersionsShouldNotTrailTheMainRepoWorkflows() throws IOException {
@@ -80,29 +80,33 @@ class GeneratedWorkflowActionVersionFreshnessTest {
         try (Stream<Path> workflowFiles = Files.list(workflowsDirectory)) {
             for (Path workflowFile : workflowFiles.filter(GeneratedWorkflowActionVersionFreshnessTest::isYaml).toList()) {
                 for (String line : Files.readAllLines(workflowFile)) {
-                    Matcher matcher = USES_LINE.matcher(line);
-                    if (!matcher.matches()) {
-                        continue;
-                    }
-                    String reference = matcher.group(1);
-                    if (reference.startsWith("./") || reference.startsWith("docker://")) {
-                        continue;
-                    }
-                    int at = reference.lastIndexOf('@');
-                    if (at < 0) {
-                        continue;
-                    }
-                    String action = reference.substring(0, at);
-                    Version version = Version.parse(reference.substring(at + 1));
-                    if (version == null) {
-                        continue;
-                    }
-                    versionsByAction.merge(action, version, (existing, candidate) ->
-                            candidate.isOlderThan(existing) ? existing : candidate);
+                    recordActionVersion(line, versionsByAction);
                 }
             }
         }
         return versionsByAction;
+    }
+
+    /** Records one {@code uses:} line's comparable version, keeping the newest per action. */
+    private static void recordActionVersion(String line, Map<String, Version> versionsByAction) {
+        Matcher matcher = USES_LINE.matcher(line);
+        if (!matcher.matches()) {
+            return;
+        }
+        String reference = matcher.group(1);
+        int at = reference.lastIndexOf('@');
+        if (at < 0 || reference.startsWith("./") || reference.startsWith("docker://")) {
+            return;
+        }
+        Version version = Version.parse(reference.substring(at + 1));
+        if (version == null && matcher.group(2) != null) {
+            // SHA pin: compare the "# vX.Y.Z" tag comment (#7037)
+            version = Version.parse(matcher.group(2));
+        }
+        if (version != null) {
+            versionsByAction.merge(reference.substring(0, at), version, (existing, candidate) ->
+                    candidate.isOlderThan(existing) ? existing : candidate);
+        }
     }
 
     private static boolean isYaml(Path path) {
