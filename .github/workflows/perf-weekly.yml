@@ -42,7 +42,7 @@ jobs:
         run: |
           mvn --batch-mode --no-transfer-progress -pl shaft-engine -am install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip -Dcyclonedx.skip
           version=$(mvn -q -DforceStdout help:evaluate -Dexpression=project.version)
-          mvn --batch-mode --no-transfer-progress -f benchmarks/jmh/pom.xml package "-Dshaft.version=$version"
+          mvn --batch-mode --no-transfer-progress -f benchmarks/jmh/pom.xml package -DskipTests "-Dshaft.version=$version"
       - name: Run benchmarks
         run: java -jar benchmarks/jmh/target/benchmarks.jar -rf json -rff jmh-result.json | tail -n 20 | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Download previous baseline
