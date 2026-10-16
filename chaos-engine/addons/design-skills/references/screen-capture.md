@@ -59,6 +59,9 @@ Sleep 2s
   Verify the re-shoot by downscaling it and diffing against the old still.
 - Windows footage comes from a real Windows machine (PowerShell), recorded
   with the same tape discipline or the OS recorder at a fixed size.
+- Websites: render JavaScript pages in a headless browser (a plain download
+  can be an empty shell), dismiss cookie banners and overlays, and scroll
+  section by section so scroll-triggered content is captured.
 
 ## Workflow
 

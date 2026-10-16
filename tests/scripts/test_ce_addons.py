@@ -26,6 +26,7 @@ CARDS = (
     "html-motion-graphics", "technical-animation", "screen-capture", "edit-assembly",
     "cutting-pacing", "color-grading", "audio-mix-loudness", "noise-removal", "voice-over-tts",
     "captions-subtitles", "video-restoration-upscaling", "delivery-qc", "explainer-arc",
+    "launch-video",
 )
 
 
@@ -215,7 +216,7 @@ class DesignContentTests(unittest.TestCase):
     def test_router_links_every_card_within_budget(self):
         router = (DESIGN / "SKILL.md").read_text(encoding="utf-8")
         self.assertLessEqual(len(router.encode("utf-8")), 4096)
-        self.assertEqual(21, len(CARDS))
+        self.assertEqual(22, len(CARDS))
         for name in CARDS:
             card = DESIGN / "references" / f"{name}.md"
             self.assertIn(f"references/{name}.md", router)

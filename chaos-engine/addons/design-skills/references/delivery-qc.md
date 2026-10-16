@@ -89,6 +89,11 @@ toward about -14 LUFS), so the D15 -16 LUFS speech master stays.
    Deliver only when QC passes and no verified moderate or worse finding is
    open; anything earlier is named and sent as DRAFT with its open failures.
 
+Poster frame: pick the strongest settled frame (text fully in), save it as
+the poster image, and bake it in as frame 0 by replacing that frame, so the
+duration and audio sync stay unchanged and every platform's thumbnail
+shows it.
+
 ## Verify
 
 - `design_qc.py delivery out.mp4 --preset 1080p --fps 30` passes (and

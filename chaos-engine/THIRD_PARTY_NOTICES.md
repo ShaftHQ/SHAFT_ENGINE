@@ -88,6 +88,7 @@ when the add-on is installed).
 - claude-remotion-skill: MIT. https://github.com/haidrrrry/claude-remotion-skill
 - ffmpeg-video-editor: MIT. https://github.com/bryanwhl/ffmpeg-video-editor
 - video-editor: MIT. https://github.com/naveedharri/video-editor
+- brag: MIT (ideas only; bundled music and effects not reused). https://github.com/latent-spaces/brag
 
 Tools the cards call (VHS, Manim, Kokoro, whisper.cpp, DeepFilterNet,
 Real-ESRGAN, VMAF, FFmpeg) are installed by the user and are not bundled.

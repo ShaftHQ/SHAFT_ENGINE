@@ -144,6 +144,7 @@ CHECKS = {
             "tests.scripts.test_nonblocked_lessons",
             "tests.scripts.test_chaos_engine_latest_stable_pins",
             "tests.scripts.test_always_loaded_budget",
+            "tests.scripts.test_ce_load_stamp",
         ),
     ),
     "skill-contract": Check(

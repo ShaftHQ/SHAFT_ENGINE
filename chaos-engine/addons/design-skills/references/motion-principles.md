@@ -35,6 +35,9 @@ scenes, or kinetic type. D09 and D10 consume the tokens defined here.
   saturated red flashes entirely.
 - Web motion ships a `prefers-reduced-motion: reduce` variant (crossfade or
   none); anything that plays longer than 5 s can be paused.
+- Check stills mid-transition, not only settled frames. A crossfade between
+  two busy layouts is a muddy double exposure: stagger it (old out, then new
+  in) or dip through the background.
 
 ## Workflow
 

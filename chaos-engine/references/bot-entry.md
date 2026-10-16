@@ -15,6 +15,8 @@ Install first: [harness maintenance](harness-maintenance.md#install).
    (`skills/chaos-engine/SKILL.md`), and both companion cards
    (`companions/caveman-ultra.md`, `companions/ponytail-ultra.md`).
    Without a shell: read those four files directly.
+   `checkpoint`/`resume` refuse after 40 min; write `reload harness first`
+   in summaries and checkpoints.
 2. Run one `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "<q>"`
    before the first broad search or unnamed read
    ([retrieve-first](retrieve-first.md)).

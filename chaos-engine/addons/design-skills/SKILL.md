@@ -32,26 +32,27 @@ only when a user passed `--with-design-skills`. Without it, use core
 | Step | Card | Use when |
 | --- | --- | --- |
 | Plan | [D01 brief and storyboard](references/design-brief-storyboard.md) | any video, ad, or visual campaign starts |
-| Story | [D21 explainer arc](references/explainer-arc.md) | an explainer needs a hook, arc, and audience versions |
+| Story | [D21 explainer arc](references/explainer-arc.md) | an explainer needs hook, arc, audience versions |
+| Launch | [D22 launch video](references/launch-video.md) | short showcase, poster, share copy |
 | Brand | [D02 brand system](references/brand-system.md) | tokens, logo, voice are needed |
 | Web | [D03 visual direction](references/web-visual-direction.md) | a surface needs an aesthetic idea |
-| Landing | [Public landing](../../references/public-landing.md) | a calling card or product landing page for humans, search, and agents |
+| Landing | [Public landing](../../references/public-landing.md) | product landing page for humans, search, and agents |
 | Web | [D04 interface audit](references/web-interface-audit.md) | a UI needs a rule-by-rule audit |
 | Type | [D05 typography and layout](references/typography-layout.md) | scale, measure, grid |
 | Color | [D06 color and contrast](references/color-contrast.md) | palettes, contrast, overlays |
 | Image | [D07 image graphics](references/image-graphics.md) | posters, OG cards, thumbnails, diagrams |
 | Motion | [D08 motion principles](references/motion-principles.md) | easing, timing, holds, flashes |
-| Motion | [D09 HTML motion graphics](references/html-motion-graphics.md) | lower thirds, stings, kinetic type |
-| Motion | [D10 technical animation](references/technical-animation.md) | architecture or data-flow explainers |
+| Motion | [D09 HTML motion graphics](references/html-motion-graphics.md) | lower thirds, kinetic type |
+| Motion | [D10 technical animation](references/technical-animation.md) | architecture or data flow |
 | Capture | [D11 screen capture](references/screen-capture.md) | real terminal or browser footage |
 | Edit | [D12 edit assembly](references/edit-assembly.md) | EDL-driven ffmpeg edit |
 | Cut | [D13 cutting and pacing](references/cutting-pacing.md) | rhythm, dead air, J/L cuts |
 | Color | [D14 color grading](references/color-grading.md) | BT.709 conform and grade |
 | Audio | [D15 mix and loudness](references/audio-mix-loudness.md) | ducking, two-pass loudnorm |
-| Audio | [D16 noise removal](references/noise-removal.md) | recorded speech is noisy |
+| Audio | [D16 noise removal](references/noise-removal.md) | noisy speech |
 | Voice | [D17 voice-over (TTS)](references/voice-over-tts.md) | narration without a recording |
 | Access | [D18 captions](references/captions-subtitles.md) | SRT/WebVTT, burned-in captions |
-| Clean | [D19 restoration and upscaling](references/video-restoration-upscaling.md) | denoise, stabilize, upscale |
+| Clean | [D19 restoration and upscaling](references/video-restoration-upscaling.md) | denoise, upscale |
 | Ship | [D20 delivery QC](references/delivery-qc.md) | final encode, manifest, gate |
 
 End-to-end order for a product or tutorial video:
