@@ -39,3 +39,11 @@ Bytes a bot host loads every task (`tool.py entry --full`, bot entry,
 [always-loaded-budget.json](../always-loaded-budget.json); the harness gate
 fails beyond that. Move new detail to an on-demand reference instead. When the
 bundle shrinks by more than 10%, lower `bytes` to lock in the gain.
+
+## Moving guidance text
+
+Before moving, merging or deleting a guidance line, search `tests/scripts` for
+its phrase. A pinned phrase stays where its test reads it, or the test moves
+with it in the same commit. SHAFT specialist playbooks load one per turn, so a
+rule repeated across them is intentional; link instead only within one skill.
+

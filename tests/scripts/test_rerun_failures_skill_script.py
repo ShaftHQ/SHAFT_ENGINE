@@ -1,4 +1,5 @@
-"""Failures-only rerun script shipped with shaft-test-execution (#7059).
+"""
+Failures-only rerun script shipped with shaft-test-execution (#7059).
 
 A stub `mvn` writes Allure results and TestNG's testng-failed.xml, so the test
 proves attempt 2 reruns only the failure, keeps the passed and the

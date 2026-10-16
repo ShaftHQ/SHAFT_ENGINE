@@ -50,6 +50,10 @@ Moving a layer, for example from PR to main or from blocking to reporter, must k
 - findings resolved before merge;
 - a tracker issue on main.
 
+A new or changed gate is done only after it ran on one real pass case and one
+real fail case; a coverage gate no PR of its kind had exercised blocked every
+such PR.
+
 ## Never auto-revert
 
 Main rolls forward. A failing post-merge leg opens or updates one rolling issue (P0, assigned to the owner), and the next green run closes it. Do not open revert PRs automatically.
