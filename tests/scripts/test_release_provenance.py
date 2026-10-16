@@ -32,6 +32,14 @@ class ReleaseProvenanceTest(unittest.TestCase):
         readme = (ROOT / ".github/workflows/README.md").read_text(encoding="utf-8")
         self.assertIn("gh attestation verify", readme)
 
+    def test_intoto_bundle_staged_for_release_assets(self) -> None:
+        job = self.wf["jobs"]["build_release_and_deliver"]
+        step = next(s for s in job["steps"] if s.get("name") == "Stage provenance bundle for the GitHub Release")
+        self.assertTrue(step["continue-on-error"])
+        self.assertIn(".intoto.jsonl", step["run"])
+        upload = next(s for s in job["steps"] if s.get("name") == "Keep the SBOM for the GitHub Release")
+        self.assertIn("*.intoto.jsonl", upload["with"]["path"])
+
 
 if __name__ == "__main__":
     unittest.main()
