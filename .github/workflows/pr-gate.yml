@@ -944,7 +944,7 @@ jobs:
           bash scripts/ci/build_retry.sh 2 60
           mvn --batch-mode
           -pl shaft-ocr test
-          '-Dtest=TessdataModelManagerTest,TesseractOcrProviderTest,OcrLanguageRegistryTest'
+          '-Dtest=TessdataModelManagerTest,TesseractOcrProviderTest,OcrLanguageRegistryTest,OcrImagePreprocessorTest,JavaCppTesseractBackendTest'
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Upload module coverage to Codecov
         if: always()
