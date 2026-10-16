@@ -1043,5 +1043,46 @@
                 </plugins>
             </build>
         </profile>
+        <!-- #7002: API/binary compatibility against the latest Maven Central
+             release jar, downloaded to -Djapicmp.baselineDir=<dir>/<artifactId>.jar, run by the PR gate's
+             "API Compatibility" leg on changed published modules via
+             `package japicmp:cmp`. Report-only here; the leg decides. -->
+        <profile>
+            <id>japicmp</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.siom79.japicmp</groupId>
+                        <artifactId>japicmp-maven-plugin</artifactId>
+                        <version>0.26.3</version>
+                        <configuration>
+                            <oldVersion>
+                                <file>
+                                    <path>${japicmp.baselineDir}/${project.artifactId}.jar</path>
+                                </file>
+                            </oldVersion>
+                            <newVersion>
+                                <file>
+                                    <path>${project.build.directory}/${project.build.finalName}.${project.packaging}</path>
+                                </file>
+                            </newVersion>
+                            <parameter>
+                                <onlyModified>true</onlyModified>
+                                <skipPomModules>true</skipPomModules>
+                                <ignoreMissingOldVersion>true</ignoreMissingOldVersion>
+                                <breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>
+                                <breakBuildOnSourceIncompatibleModifications>false</breakBuildOnSourceIncompatibleModifications>
+                                <includes>
+                                    <include>com.shaft</include>
+                                </includes>
+                                <accessModifier>protected</accessModifier>
+                            </parameter>
+                            <skipXmlReport>false</skipXmlReport>
+                            <skipHtmlReport>true</skipHtmlReport>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 </project>
