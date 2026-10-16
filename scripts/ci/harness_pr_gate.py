@@ -154,7 +154,7 @@ CHECKS = {
     "guidance-reachability-contract": Check(
         "guidance-reachability-contract",
         "guidance",
-        ("tests.scripts.test_agent_harness_reachability",),
+        ("tests.scripts.test_agent_harness_reachability", "tests.scripts.test_agent_entry_reachability"),
     ),
     "plugin-contract": Check(
         "plugin-contract",

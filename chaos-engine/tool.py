@@ -27,41 +27,30 @@ HELP_FLAGS = frozenset({"--help", "-h", "help"})
 _CAPTURE_STORES = frozenset({"mempalace", "graphify"})
 
 
-ENTRY_FILES = (
-    "identity.md",
-    "skills/chaos-engine/SKILL.md",
-    "companions/caveman-ultra.md",
-    "companions/ponytail-ultra.md",
-)
-_COMPANION_ENTRY = {
-    "caveman": "companions/caveman-ultra.md",
-    "ponytail": "companions/ponytail-ultra.md",
-}
+def _lifecycle():
+    """One source for the card set and stop phrases: the CLI SessionStart hook's own."""
+    spec = importlib.util.spec_from_file_location(
+        "_chaos_engine_lifecycle", Path(__file__).resolve().parent / "hooks" / "lifecycle.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def stopped_companions(opt_out: str) -> frozenset[str]:
-    """Ultra cards stay in the entry bundle until an explicit stop (#autoload).
-
-    ``stop caveman``, ``stop ponytail``, and ``normal mode`` are the only offs.
-    Vendor skill bodies are never part of this bundle.
-    """
-    folded = str(opt_out or "").casefold()
-    if "normal mode" in folded:
-        return frozenset(_COMPANION_ENTRY)
-    stopped = set()
-    if "stop caveman" in folded:
-        stopped.add("caveman")
-    if "stop ponytail" in folded:
-        stopped.add("ponytail")
-    return frozenset(stopped)
+_LIFECYCLE = _lifecycle()
+_COMPANION_ENTRY = _LIFECYCLE.COMPANION_CARDS
+stopped_companions = _LIFECYCLE.stopped_companion_names
+ENTRY_FILES = ("identity.md", "skills/chaos-engine/SKILL.md", *_COMPANION_ENTRY.values())
 
 
 def entry_files(opt_out: str = "") -> tuple[str, ...]:
     stopped = stopped_companions(opt_out)
     return tuple(
         relative for relative in ENTRY_FILES
-        if relative not in { _COMPANION_ENTRY[name] for name in stopped }
+        if relative not in {_COMPANION_ENTRY[name] for name in stopped}
     )
+
+
 ENTRY_RETRIEVE = (
     "Next: run `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "
     '"<q>"` before the first broad search, then record `retrieve: used` or '

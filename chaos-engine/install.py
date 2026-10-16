@@ -711,6 +711,7 @@ def is_origin_only(relative: Path) -> bool:
             "decision-quality-calibration.md",
             "decision-quality-calibration.aggregate.json",
             "decision-quality-report.md",
+            "references/harness-files.md",
         }
     )
 

@@ -47,3 +47,9 @@ its phrase. A pinned phrase stays where its test reads it, or the test moves
 with it in the same commit. Specialist skills that load one per turn may repeat a
 rule on purpose; link instead only within one skill.
 
+
+## Harness file index
+
+Source repo only: every harness file not on a task route is indexed in
+[harness files](harness-files.md), enforced by
+`tests/scripts/test_agent_entry_reachability.py`.
