@@ -19,6 +19,9 @@ the product claims will cite (doc URLs, command output, files).
 ## Rules
 
 - One message per piece. A second message is a second video.
+- Plan the hook first: after one viewing a stranger knows what it is, who
+  it is for, and how to get it. Use the product's own wording; generic
+  marketing lines are banned.
 - Write for the screen and the ear: short sentences, spoken numbers, no
   acronyms the audience has not seen yet.
 - Every product claim carries `evidence` (URL, command plus output, or file
@@ -27,6 +30,7 @@ the product claims will cite (doc URLs, command output, files).
   `brief.md` and commit both.
 - Narration that asserts something visible gets a `claims` entry (line,
   word time, `must` and `mustNot` screen patterns) in `claims.json`.
+- Short launch or showcase clips follow [D22](launch-video.md).
 - Persuasive explainers and audience versions follow
   [D21](explainer-arc.md): `beat` on every scene.
 - Durations add up to the target within 5%. Hand-offs name the next card and

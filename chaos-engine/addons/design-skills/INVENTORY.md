@@ -26,6 +26,7 @@ Pinned: 2026-10-03.
 | [xinntao/Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) | `a4abfb2979a7bbff3f69f58f58ae324608821e27` | BSD-3-Clause | upscaling model | D19 |
 | [xinntao/Real-ESRGAN-ncnn-vulkan](https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan) | `37026f49824c5cf84062e7c6a5dd71445dcf610f` | MIT | GPU upscaler binary | D19 |
 | [Netflix/vmaf](https://github.com/Netflix/vmaf) | `0497a0f299706b3124241f6ffc7fffc81d5665eb` | BSD-2-Clause-Patent | quality metric | D19 |
+| [latent-spaces/brag](https://github.com/latent-spaces/brag) | `069432cac935ed1895859df201c31436c07fb74e` | MIT (bundled music/SFX not reused) | launch-video rules re-expressed | D01, D08, D11, D20, D22 |
 | [remotion-dev/remotion](https://github.com/remotion-dev/remotion) | `e385a83dbde54179c0457ad90b7d7c3a4b6ab44a` | custom (company licence may be required) | documented alternative only | D09 |
 
 ## Not used
