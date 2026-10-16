@@ -121,7 +121,7 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
         steps = workflow["jobs"]["Ubuntu_Flutter_Emulator_Local"]["steps"]
         setup = next(step for step in steps if step.get("name") == "Setup Android SDK")
-        self.assertEqual("android-actions/setup-android@v4.0.4", setup["uses"])
+        self.assertEqual("android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd", setup["uses"])
         self.assertEqual("platform-tools", setup.get("with", {}).get("packages"))
         self.assertNotIn("tools", (setup.get("with", {}).get("packages") or "").split())
 
