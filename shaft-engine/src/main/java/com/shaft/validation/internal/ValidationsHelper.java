@@ -774,6 +774,10 @@ public class ValidationsHelper {
         AtomicReference<ValidationEnums.VisualValidationEngine> internalVisualEngine = new AtomicReference<>(visualValidationEngine);
         List<List<Object>> attachments = new ArrayList<>();
         AtomicBoolean visualComparisonAttached = new AtomicBoolean(false);
+        // #7052: remember why the element could not be captured, so a missing element is reported
+        // as such instead of "expected false, but found false".
+        AtomicReference<RuntimeException> lookupFailure = new AtomicReference<>();
+        expected.set(validationType.getValue());
 
         try {
             //https://github.com/assertthat/selenium-shutterbug/issues/105
@@ -796,15 +800,21 @@ public class ValidationsHelper {
 
                 try {
                     elementScreenshot = driver.findElement(locator).getScreenshotAs(OutputType.BYTES);
+                } catch (NoSuchElementException noSuchElementException) {
+                    lookupFailure.set(noSuchElementException);
+                    throw noSuchElementException;
                 } catch (WebDriverException webDriverException) {
-                    if (Objects.requireNonNull(webDriverException.getMessage()).contains("Cannot take screenshot with 0 width.")) {
-                        throw new NoSuchElementException("Cannot take screenshot with 0 width.");
-                    } else if (Objects.requireNonNull(webDriverException.getMessage()).contains("NS_ERROR_FAILURE")) {
+                    if (String.valueOf(webDriverException.getMessage()).contains("Cannot take screenshot with 0 width.")) {
+                        NoSuchElementException zeroWidth = new NoSuchElementException("Cannot take screenshot with 0 width.");
+                        lookupFailure.set(zeroWidth);
+                        throw zeroWidth;
+                    } else if (String.valueOf(webDriverException.getMessage()).contains("NS_ERROR_FAILURE")) {
                         return false; // force the wait block to try again in case of unknown error with firefox
                     } else {
                         throw webDriverException;
                     }
                 }
+                lookupFailure.set(null);
                 actualResult = ImageProcessingActions.compareAgainstBaseline(driver, locator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
 
                 // prepare content for allure attachment
@@ -836,12 +846,30 @@ public class ValidationsHelper {
         //reporting block
         var parameters = new LinkedHashMap<String, String>();
         parameters.put("Locator", String.valueOf(locator));
+        Object actualForReport = describeMatchesActual(validationState.get(), actual.get(), lookupFailure.get(), locator);
         parameters.put("Should match", String.valueOf(expected.get()));
         parameters.put("Visual engine", internalVisualEngine.get().name());
-        parameters.put("Actual value", String.valueOf(actual.get()));
+        parameters.put("Actual value", String.valueOf(actualForReport));
         updateAllureParameters(parameters);
+        if (actualForReport instanceof String notFound) {
+            ReportManagerHelper.logDiscrete(notFound, Level.WARN);
+        }
         // force take page screenshot, (rather than element highlighted screenshot)
-        reportValidationState(validationState.get(), expected, actual, driver, elementCount.get() == 0 ? null : locator, attachments, visualComparisonAttached.get());
+        reportValidationState(validationState.get(), expected.get(), actualForReport, driver, elementCount.get() == 0 ? null : locator, attachments, visualComparisonAttached.get());
+    }
+
+    /**
+     * #7052: the value reported as "actual" by {@code matchesReferenceImage()}. A failed validation whose last
+     * attempt could not find the element reports that cause instead of a bare {@code false}; every other
+     * outcome keeps the boolean comparison result.
+     */
+    static Object describeMatchesActual(boolean validationPassed, boolean actual, RuntimeException lookupFailure, By locator) {
+        if (validationPassed || lookupFailure == null) {
+            return actual;
+        }
+        String cause = String.valueOf(lookupFailure.getMessage()).lines().findFirst().orElse("");
+        return "Element not found for locator " + locator + " (" + lookupFailure.getClass().getSimpleName()
+                + (cause.isBlank() ? "" : ": " + cause) + ")";
     }
 
     protected void validateMatchesScreenshot(WebDriver driver, By locator, boolean pageLevel, List<By> maskLocators,
