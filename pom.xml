@@ -1070,6 +1070,8 @@
                                 <onlyModified>true</onlyModified>
                                 <skipPomModules>true</skipPomModules>
                                 <ignoreMissingOldVersion>true</ignoreMissingOldVersion>
+                                <!-- Optional/provided deps (e.g. JUnit in shaft-cli) are not on the cmp classpath. -->
+                                <ignoreMissingClasses>true</ignoreMissingClasses>
                                 <breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>
                                 <breakBuildOnSourceIncompatibleModifications>false</breakBuildOnSourceIncompatibleModifications>
                                 <includes>
