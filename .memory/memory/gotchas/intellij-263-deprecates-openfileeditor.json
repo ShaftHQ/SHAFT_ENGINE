@@ -1,0 +1,22 @@
+{
+  "anchors": [
+    "shaft-intellij/src/main/java/com/shaft/intellij/"
+  ],
+  "body_path": "memory/gotchas/intellij-263-deprecates-openfileeditor.md",
+  "content_hash": "sha256:39dea5aa2be7e8e653d07d99183662dfc1ada3b66ac0f4dde2ba915c0d6db36b",
+  "created_at": "2026-10-16T18:17:15+03:00",
+  "evidence": [],
+  "id": "gotcha.intellij-263-deprecates-openfileeditor",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after groups C-F (#7070, #7072, #7073, F)"
+  },
+  "status": "active",
+  "tags": [
+    "intellij",
+    "issue-6977"
+  ],
+  "title": "IntelliJ 263 deprecates both FileEditorManager.openFile and openFileEditor",
+  "type": "gotcha",
+  "updated_at": "2026-10-16T18:17:15+03:00"
+}

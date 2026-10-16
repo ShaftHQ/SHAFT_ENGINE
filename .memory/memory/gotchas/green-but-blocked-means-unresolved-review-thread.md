@@ -1,0 +1,1 @@
+#7072 had every check green and auto-merge on, yet stayed BLOCKED and never entered the queue: a github-code-quality review thread was unresolved and conversation resolution is required. Fix the finding, resolve the thread, and have the babysitter print unresolved thread paths whenever mergeStateStatus is BLOCKED.
