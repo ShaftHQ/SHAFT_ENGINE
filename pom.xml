@@ -56,8 +56,10 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <surefireArgLine>--enable-native-access=ALL-UNNAMED --sun-misc-unsafe-memory-access=allow -Xshare:off -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</surefireArgLine>
         <mockito.version>5.23.0</mockito.version>
+        <archunit.version>1.5.1</archunit.version>
         <mockitoAgentArgLine>-javaagent:"${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar"</mockitoAgentArgLine>
-        <surefire.excludedGroups>allure3-visual-demo,trace-viewer-browser-acceptance,browser-capture-acceptance,playwright-trace-acceptance</surefire.excludedGroups>
+        <!-- quarantine (#7005): known-flaky tests with an owner issue; run nightly by quarantine-nightly.yml. -->
+        <surefire.excludedGroups>allure3-visual-demo,trace-viewer-browser-acceptance,browser-capture-acceptance,playwright-trace-acceptance,quarantine</surefire.excludedGroups>
         <jdk.version>25</jdk.version>
         <lombok.version>1.18.46</lombok.version>
         <maven.min.version>3.9.0</maven.min.version>
@@ -1047,6 +1049,60 @@
              release jar, downloaded to -Djapicmp.baselineDir=<dir>/<artifactId>.jar, run by the PR gate's
              "API Compatibility" leg on changed published modules via
              `package japicmp:cmp`. Report-only here; the leg decides. -->
+        <!-- #7004: mutation testing (PIT). Report-only: PR leg on changed classes,
+             weekly full per module. No threshold until a baseline exists. -->
+        <profile>
+            <id>pitest</id>
+            <properties>
+                <pitest.targetClasses>com.shaft.*</pitest.targetClasses>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.30.1</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.3</version>
+                            </dependency>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-testng-plugin</artifactId>
+                                <version>1.0.0</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>${pitest.targetClasses}</param>
+                            </targetClasses>
+                            <outputFormats>
+                                <param>XML</param>
+                            </outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                            <failWhenNoMutations>false</failWhenNoMutations>
+                            <skipFailingTests>true</skipFailingTests>
+                            <threads>4</threads>
+                            <timeoutConstant>4000</timeoutConstant>
+                            <!-- Same exclusions as surefire.excludedGroups, one tag per param. -->
+                            <excludedGroups>
+                                <param>allure3-visual-demo</param>
+                                <param>trace-viewer-browser-acceptance</param>
+                                <param>browser-capture-acceptance</param>
+                                <param>playwright-trace-acceptance</param>
+                                <param>quarantine</param>
+                            </excludedGroups>
+                            <jvmArgs>
+                                <value>--enable-native-access=ALL-UNNAMED</value>
+                                <value>-Dfile.encoding=UTF-8</value>
+                            </jvmArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>japicmp</id>
             <build>

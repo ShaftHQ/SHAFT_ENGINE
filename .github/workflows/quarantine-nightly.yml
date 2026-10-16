@@ -1,0 +1,67 @@
+name: Quarantine nightly
+
+# #7005: tests tagged `quarantine` (known-flaky, each with an owner issue) are
+# excluded from the PR gate through surefire.excludedGroups and run here every
+# night, so they keep running without blocking PRs. Off the PR path.
+
+on:
+  schedule:
+    - cron: '53 1 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quarantine-nightly
+  cancel-in-progress: false
+
+jobs:
+  quarantine:
+    name: Quarantined shaft-engine tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Build
+        run: mvn --batch-mode --no-transfer-progress -pl shaft-engine -am install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip -Dcyclonedx.skip
+      - name: Run quarantined tests
+        run: >-
+          mvn --batch-mode --no-transfer-progress -pl shaft-engine test
+          -Dgroups=quarantine
+          -Dsurefire.excludedGroups=allure3-visual-demo,trace-viewer-browser-acceptance,browser-capture-acceptance,playwright-trace-acceptance
+          -Dsurefire.failIfNoSpecifiedTests=false
+          '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Post test report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Quarantine_Nightly
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Judge
+        run: |
+          python3 - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          from pathlib import Path
+          report = Path('shaft-engine/target/surefire-reports/testng-results.xml')
+          if not report.exists():
+              print('No quarantined tests ran.'); sys.exit(0)
+          root = ET.parse(report).getroot()
+          failed, total = int(root.get('failed', '0')), int(root.get('total', '0'))
+          print(f'quarantined tests: total={total} failed={failed}')
+          sys.exit(1 if failed else 0)
+          PY

@@ -1,0 +1,58 @@
+name: Mutation testing weekly
+
+# #7004: full PIT run per module, weekly, off the PR path (adds nothing to the
+# 15-minute PR gate). Report-only: scores go to the run summary and the XML
+# reports are uploaded; a blocking ratchet comes once a baseline exists.
+
+on:
+  schedule:
+    - cron: '41 2 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-weekly
+  cancel-in-progress: false
+
+jobs:
+  pit:
+    name: PIT ${{ matrix.module }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [shaft-engine, shaft-mcp, shaft-cli, shaft-ai, shaft-doctor]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Build
+        env:
+          MODULE: ${{ matrix.module }}
+        run: mvn --batch-mode --no-transfer-progress -pl "$MODULE" -am install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip -Dcyclonedx.skip
+      - name: Mutation coverage
+        env:
+          MODULE: ${{ matrix.module }}
+        run: mvn --batch-mode --no-transfer-progress -Ppitest -pl "$MODULE" org.pitest:pitest-maven:mutationCoverage
+      - name: Summary
+        if: always()
+        run: python3 scripts/ci/pit_diff_scope.py summary . | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pit-${{ matrix.module }}
+          path: ${{ matrix.module }}/target/pit-reports/
+          if-no-files-found: ignore

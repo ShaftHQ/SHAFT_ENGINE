@@ -582,6 +582,13 @@
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.mockito/mockito-core -->
+        <!-- #7006: architecture rules (frozen baseline) -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit</artifactId>
+            <version>${archunit.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>

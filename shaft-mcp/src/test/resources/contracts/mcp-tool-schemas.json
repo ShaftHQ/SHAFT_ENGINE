@@ -1,0 +1,2939 @@
+{
+  "autobot_local_agent_clients" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "autobot_local_agent_run" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allowSourceMutation" : {
+        "type" : "boolean"
+      },
+      "client" : {
+        "type" : "string"
+      },
+      "command" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "environment" : {
+        "type" : "object"
+      },
+      "mode" : {
+        "type" : "string"
+      },
+      "prompt" : {
+        "type" : "string"
+      },
+      "timeoutSeconds" : {
+        "type" : "integer"
+      },
+      "workingDirectory" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "client", "mode", "prompt", "workingDirectory", "command", "environment", "timeoutSeconds", "allowSourceMutation" ],
+    "type" : "object"
+  },
+  "autobot_provider_chat" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allowSourceMutation" : {
+        "type" : "boolean"
+      },
+      "mode" : {
+        "type" : "string"
+      },
+      "model" : {
+        "type" : "string"
+      },
+      "prompt" : {
+        "type" : "string"
+      },
+      "provider" : {
+        "type" : "string"
+      },
+      "timeoutSeconds" : {
+        "type" : "integer"
+      },
+      "workingDirectory" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "provider", "model", "mode", "prompt", "workingDirectory", "timeoutSeconds", "allowSourceMutation" ],
+    "type" : "object"
+  },
+  "autobot_provider_models" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "model" : {
+        "type" : "string"
+      },
+      "provider" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "provider", "model" ],
+    "type" : "object"
+  },
+  "autobot_provider_status" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "model" : {
+        "type" : "string"
+      },
+      "provider" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "provider", "model" ],
+    "type" : "object"
+  },
+  "browser_accessibility_audit" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "wcagTags" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      }
+    },
+    "required" : [ "wcagTags" ],
+    "type" : "object"
+  },
+  "browser_aria_snapshot" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "locatorStrategy", "locatorValue" ],
+    "type" : "object"
+  },
+  "browser_delete_cookies" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "name" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "browser_get_current_url" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "browser_get_page_dom" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "maxCharacters" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ "maxCharacters" ],
+    "type" : "object"
+  },
+  "browser_get_title" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "browser_navigate" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "newWindow" : {
+        "type" : "boolean"
+      },
+      "targetUrl" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "targetUrl" ],
+    "type" : "object"
+  },
+  "browser_navigate_back" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "browser_navigate_forward" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "browser_network_requests" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "id" : {
+        "type" : "integer"
+      },
+      "limit" : {
+        "type" : "integer"
+      },
+      "urlFilter" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "urlFilter", "limit" ],
+    "type" : "object"
+  },
+  "browser_open_intent" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "maxCharacters" : {
+        "type" : "integer"
+      },
+      "maxElements" : {
+        "type" : "integer"
+      },
+      "targetUrl" : {
+        "type" : "string"
+      },
+      "userIntent" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "targetUrl", "userIntent", "maxCharacters", "maxElements" ],
+    "type" : "object"
+  },
+  "browser_refresh" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "browser_route" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "method" : {
+        "type" : "string"
+      },
+      "responseBody" : {
+        "type" : "string"
+      },
+      "responseHeaders" : {
+        "type" : "object"
+      },
+      "responseStatus" : {
+        "type" : "integer"
+      },
+      "url" : {
+        "type" : "string"
+      },
+      "urlGlob" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "method", "urlGlob", "url", "responseStatus", "responseBody", "responseHeaders" ],
+    "type" : "object"
+  },
+  "browser_set_window_size" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "height" : {
+        "type" : "integer"
+      },
+      "mode" : {
+        "enum" : [ "CUSTOM", "MAXIMIZE", "FULLSCREEN" ],
+        "type" : "string"
+      },
+      "width" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ "width", "height" ],
+    "type" : "object"
+  },
+  "browser_storage_state_load" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "filePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "filePath" ],
+    "type" : "object"
+  },
+  "browser_storage_state_save" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "filePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "filePath" ],
+    "type" : "object"
+  },
+  "browser_take_screenshot" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "includeBase64" : {
+        "type" : "boolean"
+      },
+      "outputPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "outputPath", "includeBase64" ],
+    "type" : "object"
+  },
+  "browser_unroute" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "routeId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "routeId" ],
+    "type" : "object"
+  },
+  "capture_api_generate" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "className" : {
+        "type" : "string"
+      },
+      "excludedTransactionIds" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "openApiSpecPath" : {
+        "type" : "string"
+      },
+      "outputDirectory" : {
+        "type" : "string"
+      },
+      "overwrite" : {
+        "type" : "boolean"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "pinnedJsonPaths" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "replay" : {
+        "type" : "boolean"
+      },
+      "sessionPath" : {
+        "type" : "string"
+      },
+      "style" : {
+        "type" : "string"
+      },
+      "validationDepth" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sessionPath", "outputDirectory", "packageName", "className", "style", "validationDepth", "overwrite", "replay", "openApiSpecPath", "excludedTransactionIds", "pinnedJsonPaths" ],
+    "type" : "object"
+  },
+  "capture_api_response_leaves" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "excludedTransactionIds" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "sessionPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sessionPath", "excludedTransactionIds" ],
+    "type" : "object"
+  },
+  "capture_api_start" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "browser" : {
+        "type" : "string"
+      },
+      "headless" : {
+        "type" : "boolean"
+      },
+      "mobileDeviceLabel" : {
+        "type" : "string"
+      },
+      "mobilePlatform" : {
+        "type" : "string"
+      },
+      "networkOptions" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "captureRequestBodies" : {
+            "type" : "boolean"
+          },
+          "captureResponseBodies" : {
+            "type" : "boolean"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "excludeAssets" : {
+            "type" : "boolean"
+          },
+          "excludePattern" : {
+            "type" : "string"
+          },
+          "includePattern" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "targetUrl" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "targetUrl", "browser", "headless", "networkOptions" ],
+    "type" : "object"
+  },
+  "capture_api_status" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "capture_api_stop" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "discard" : {
+        "type" : "boolean"
+      }
+    },
+    "required" : [ "discard" ],
+    "type" : "object"
+  },
+  "capture_api_transactions" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "excludePattern" : {
+        "type" : "string"
+      },
+      "includeAssets" : {
+        "type" : "boolean"
+      }
+    },
+    "required" : [ "includeAssets", "excludePattern" ],
+    "type" : "object"
+  },
+  "capture_backend_comparison" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "className" : {
+        "type" : "string"
+      },
+      "driverVariableName" : {
+        "type" : "string"
+      },
+      "outputDirectory" : {
+        "type" : "string"
+      },
+      "overwrite" : {
+        "type" : "boolean"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "sessionPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sessionPath", "outputDirectory", "packageName", "className", "overwrite", "driverVariableName" ],
+    "type" : "object"
+  },
+  "capture_checkpoint" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "description" : {
+        "type" : "string"
+      },
+      "kind" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "description", "kind" ],
+    "type" : "object"
+  },
+  "capture_code_blocks" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "backend" : {
+        "description" : "codegen target: web (default) | playwright | mobile; blank infers from the active engine",
+        "type" : "string"
+      },
+      "className" : {
+        "description" : "Java class name for the generated class; defaults to RecordedFlowTest",
+        "type" : "string"
+      },
+      "driverVariableName" : {
+        "description" : "Java driver variable name used in extracted snippets; defaults to driver",
+        "type" : "string"
+      },
+      "outputDirectory" : {
+        "description" : "generated project root inside the MCP workspace; defaults to generated-tests under the workspace",
+        "type" : "string"
+      },
+      "overwrite" : {
+        "description" : "overwrite an existing generated file; defaults to false",
+        "type" : "boolean"
+      },
+      "packageName" : {
+        "description" : "Java package for the generated class; defaults to tests.generated",
+        "type" : "string"
+      },
+      "sessionPath" : {
+        "description" : "persisted Capture JSON path inside the MCP workspace; blank uses the most recently modified recording under recordings/",
+        "type" : "string"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "capture_codegen_features" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "capture_evidence_pack" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "reportPath" : {
+        "type" : "string"
+      },
+      "reviewPath" : {
+        "type" : "string"
+      },
+      "screenshotPaths" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "sourcePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sourcePath", "reportPath", "reviewPath", "screenshotPaths" ],
+    "type" : "object"
+  },
+  "capture_generate_replay" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "properties" : {
+      "allowLocalAi" : {
+        "description" : "explicit approval for local inference",
+        "type" : "boolean"
+      },
+      "allowRemoteAi" : {
+        "description" : "explicit approval for remote inference",
+        "type" : "boolean"
+      },
+      "backend" : {
+        "description" : "codegen target: web (default) | playwright | mobile; blank infers from the active engine",
+        "type" : "string"
+      },
+      "className" : {
+        "description" : "generated Java class name; blank derives a name from the recorded session (its goal, or a seeded name), suffixed Test",
+        "type" : "string"
+      },
+      "driverVariableName" : {
+        "description" : "Java driver variable name used in extracted snippets; blank defaults to driver",
+        "type" : "string"
+      },
+      "outputDirectory" : {
+        "description" : "generated project root inside the MCP workspace; blank defaults to generated-tests under the workspace",
+        "type" : "string"
+      },
+      "overwrite" : {
+        "description" : "whether existing generated source and test-data files may be replaced; status reports are always refreshed; defaults to false",
+        "type" : "boolean"
+      },
+      "packageName" : {
+        "description" : "generated Java package; blank defaults to generated.capture",
+        "type" : "string"
+      },
+      "replay" : {
+        "description" : "whether to compile AND execute the generated test, replay-proving it: true is required for the report status to be SUCCESS (the replay actually passed); false -- or any replay that never runs, e.g. after a compilation failure -- yields codegen-only output the report marks UNCONFIRMED, never SUCCESS; defaults to false",
+        "type" : "boolean"
+      },
+      "sessionPath" : {
+        "description" : "persisted Capture JSON path inside the MCP workspace; blank uses the most recently modified recording under recordings/",
+        "type" : "string"
+      },
+      "useAi" : {
+        "description" : "whether to request optional AI enrichment preview",
+        "type" : "boolean"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "capture_pick_locator" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "candidates" : {
+        "items" : {
+          "additionalProperties" : false,
+          "properties" : {
+            "expression" : {
+              "type" : "string"
+            },
+            "stable" : {
+              "type" : "boolean"
+            },
+            "strategy" : {
+              "type" : "string"
+            },
+            "uniquenessCount" : {
+              "format" : "int32",
+              "type" : "integer"
+            },
+            "visible" : {
+              "type" : "boolean"
+            }
+          },
+          "required" : [ "expression", "stable", "strategy", "uniquenessCount", "visible" ],
+          "type" : "object"
+        },
+        "type" : "array"
+      }
+    },
+    "required" : [ "candidates" ],
+    "type" : "object"
+  },
+  "capture_record_at_target_code_blocks" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "backend" : {
+        "description" : "codegen target: web (default) | playwright | mobile; blank infers from the active engine",
+        "type" : "string"
+      },
+      "className" : {
+        "description" : "Java class name for the generated class; defaults to RecordedFlowTest",
+        "type" : "string"
+      },
+      "driverVariableName" : {
+        "description" : "Java driver variable name used in extracted snippets; defaults to driver",
+        "type" : "string"
+      },
+      "insertAfter" : {
+        "type" : "string"
+      },
+      "outputDirectory" : {
+        "description" : "generated project root inside the MCP workspace; defaults to generated-tests under the workspace",
+        "type" : "string"
+      },
+      "overwrite" : {
+        "description" : "overwrite an existing generated file; defaults to false",
+        "type" : "boolean"
+      },
+      "packageName" : {
+        "description" : "Java package for the generated class; defaults to tests.generated",
+        "type" : "string"
+      },
+      "sessionPath" : {
+        "description" : "persisted Capture JSON path inside the MCP workspace; blank uses the most recently modified recording under recordings/",
+        "type" : "string"
+      },
+      "targetSourcePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "targetSourcePath", "insertAfter" ],
+    "type" : "object"
+  },
+  "capture_set_mode" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "mode" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "mode" ],
+    "type" : "object"
+  },
+  "capture_start" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "browser" : {
+        "description" : "Chrome or Edge; blank selects Chrome; WEB/NONE only",
+        "type" : "string"
+      },
+      "codegenOptions" : {
+        "additionalProperties" : false,
+        "description" : "full Playwright-codegen-compatible request (viewport, geolocation, HAR, proxy, API capture, etc.); when supplied, its own fields replace targetUrl/browser/outputPath/headless/sessionGoal entirely; WEB/NONE only, absorbs capture_start_codegen",
+        "properties" : {
+          "apiCapture" : {
+            "description" : "whether API network recording is enabled for this session",
+            "type" : "boolean"
+          },
+          "blockServiceWorkers" : {
+            "description" : "whether service workers should be blocked",
+            "type" : "boolean"
+          },
+          "browser" : {
+            "description" : "Chrome or Edge; blank selects Chrome",
+            "type" : "string"
+          },
+          "channel" : {
+            "description" : "Chromium channel hint (e.g. chrome, msedge); mapped through SHAFT browser selection",
+            "type" : "string"
+          },
+          "colorScheme" : {
+            "description" : "preferred color scheme hint (e.g. light or dark)",
+            "type" : "string"
+          },
+          "deviceName" : {
+            "description" : "device emulation hint",
+            "type" : "string"
+          },
+          "geolocation" : {
+            "description" : "geolocation as latitude,longitude",
+            "type" : "string"
+          },
+          "headless" : {
+            "description" : "whether to launch without a visible browser window; unspecified defaults to headless per repo policy",
+            "type" : "boolean"
+          },
+          "ignoreHttpsErrors" : {
+            "description" : "whether HTTPS certificate errors are ignored",
+            "type" : "boolean"
+          },
+          "language" : {
+            "description" : "locale/language hint (e.g. en-US)",
+            "type" : "string"
+          },
+          "loadStoragePath" : {
+            "description" : "storage-state input path to restore cookies/local storage from before recording starts",
+            "type" : "string"
+          },
+          "networkOptions" : {
+            "additionalProperties" : false,
+            "description" : "network capture filtering options; ignored unless apiCapture is set",
+            "properties" : {
+              "captureRequestBodies" : {
+                "type" : "boolean"
+              },
+              "captureResponseBodies" : {
+                "type" : "boolean"
+              },
+              "enabled" : {
+                "type" : "boolean"
+              },
+              "excludeAssets" : {
+                "type" : "boolean"
+              },
+              "excludePattern" : {
+                "type" : "string"
+              },
+              "includePattern" : {
+                "type" : "string"
+              }
+            },
+            "type" : "object"
+          },
+          "outputPath" : {
+            "description" : "recording/capture JSON output path; blank selects a timestamped recording",
+            "type" : "string"
+          },
+          "proxyBypass" : {
+            "description" : "comma-separated proxy bypass list",
+            "type" : "string"
+          },
+          "proxyServer" : {
+            "description" : "proxy server URL",
+            "type" : "string"
+          },
+          "saveHarContent" : {
+            "description" : "HAR body-content emission mode: blank or none (the default) keeps truncated network-trace preview bodies, full emits complete request/response bodies from API-capture's full-body store; opt-in because full bodies are not scrubbed for secrets/PII",
+            "type" : "string"
+          },
+          "saveHarGlob" : {
+            "description" : "HAR URL glob filter restricting which requests are written to the HAR",
+            "type" : "string"
+          },
+          "saveHarPath" : {
+            "description" : "HAR output path; blank disables HAR capture",
+            "type" : "string"
+          },
+          "saveStoragePath" : {
+            "description" : "storage-state output path to persist cookies/local storage to when the session ends",
+            "type" : "string"
+          },
+          "sessionGoal" : {
+            "description" : "optional user intent for the journey; drives generated test class and method names",
+            "type" : "string"
+          },
+          "targetLanguage" : {
+            "description" : "requested codegen target language metadata; SHAFT emits fluent Java only (no Python/TypeScript/C# exporters); other values warn and still generate Java",
+            "type" : "string"
+          },
+          "targetUrl" : {
+            "description" : "initial http, https, or file URL; blank or omitted opens an empty browser at about:blank",
+            "type" : "string"
+          },
+          "testIdAttribute" : {
+            "description" : "preferred test id attribute (e.g. data-testid); takes priority over SHAFT's default test id attribute list when locating elements",
+            "type" : "string"
+          },
+          "timeoutMillis" : {
+            "description" : "maximum browser timeout in milliseconds; 0 or unset applies no explicit timeout",
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "timezone" : {
+            "description" : "timezone hint (e.g. America/Los_Angeles)",
+            "type" : "string"
+          },
+          "userAgent" : {
+            "description" : "user-agent override",
+            "type" : "string"
+          },
+          "userDataDirectory" : {
+            "description" : "persistent browser profile directory; blank uses a temporary profile",
+            "type" : "string"
+          },
+          "viewportSize" : {
+            "description" : "viewport size as width,height in pixels (e.g. 1280,720)",
+            "type" : "string"
+          }
+        },
+        "required" : [ "apiCapture", "blockServiceWorkers", "browser", "channel", "colorScheme", "deviceName", "geolocation", "headless", "ignoreHttpsErrors", "language", "loadStoragePath", "networkOptions", "outputPath", "proxyBypass", "proxyServer", "saveHarContent", "saveHarGlob", "saveHarPath", "saveStoragePath", "sessionGoal", "targetLanguage", "targetUrl", "testIdAttribute", "timeoutMillis", "timezone", "userAgent", "userDataDirectory", "viewportSize" ],
+        "type" : "object"
+      },
+      "headless" : {
+        "description" : "whether to launch without a visible window; blank/omitted defaults to headless per repo policy; WEB/NONE only",
+        "type" : "boolean"
+      },
+      "outputPath" : {
+        "description" : "recording/capture JSON path; blank selects a timestamped recording",
+        "type" : "string"
+      },
+      "sessionGoal" : {
+        "description" : "optional user intent for the journey; drives generated test class and method names on WEB, or the recorder's mode label on PLAYWRIGHT/mobile",
+        "type" : "string"
+      },
+      "targetUrl" : {
+        "description" : "initial http, https, or file URL; blank opens an empty browser; WEB/NONE only",
+        "type" : "string"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "capture_status" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "capture_step_delete" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "stepId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "stepId" ],
+    "type" : "object"
+  },
+  "capture_step_reorder" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "direction" : {
+        "type" : "string"
+      },
+      "stepId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "stepId", "direction" ],
+    "type" : "object"
+  },
+  "capture_stop" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "discard" : {
+        "type" : "boolean"
+      }
+    },
+    "required" : [ "discard" ],
+    "type" : "object"
+  },
+  "capture_target_candidates" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "maxResults" : {
+        "type" : "integer"
+      },
+      "repositoryPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "repositoryPath", "maxResults" ],
+    "type" : "object"
+  },
+  "design_analyze" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "acceptedGapIds" : {
+        "type" : "string"
+      },
+      "filePath" : {
+        "type" : "string"
+      },
+      "sourceUrl" : {
+        "type" : "string"
+      },
+      "text" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "text", "filePath", "sourceUrl", "acceptedGapIds" ],
+    "type" : "object"
+  },
+  "design_coverage" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "acceptedGapIds" : {
+        "type" : "string"
+      },
+      "filePath" : {
+        "type" : "string"
+      },
+      "gherkin" : {
+        "type" : "string"
+      },
+      "sourceUrl" : {
+        "type" : "string"
+      },
+      "text" : {
+        "type" : "string"
+      },
+      "waived" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "text", "filePath", "sourceUrl", "acceptedGapIds", "gherkin", "waived" ],
+    "type" : "object"
+  },
+  "design_examples" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "acceptedGapIds" : {
+        "type" : "string"
+      },
+      "droppedExampleIds" : {
+        "type" : "string"
+      },
+      "filePath" : {
+        "type" : "string"
+      },
+      "sourceUrl" : {
+        "type" : "string"
+      },
+      "text" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "text", "filePath", "sourceUrl", "acceptedGapIds", "droppedExampleIds" ],
+    "type" : "object"
+  },
+  "design_gap_map" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "acceptedGapIds" : {
+        "type" : "string"
+      },
+      "filePath" : {
+        "type" : "string"
+      },
+      "gherkin" : {
+        "type" : "string"
+      },
+      "sourceUrl" : {
+        "type" : "string"
+      },
+      "text" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "text", "filePath", "sourceUrl", "acceptedGapIds", "gherkin" ],
+    "type" : "object"
+  },
+  "design_gherkin_draft" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "acceptedGapIds" : {
+        "type" : "string"
+      },
+      "filePath" : {
+        "type" : "string"
+      },
+      "sourceUrl" : {
+        "type" : "string"
+      },
+      "text" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "text", "filePath", "sourceUrl", "acceptedGapIds" ],
+    "type" : "object"
+  },
+  "design_handoff" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "accept" : {
+        "type" : "string"
+      },
+      "acceptedGapIds" : {
+        "type" : "string"
+      },
+      "acceptedGherkinSnapshot" : {
+        "type" : "string"
+      },
+      "coverageWaived" : {
+        "type" : "string"
+      },
+      "filePath" : {
+        "type" : "string"
+      },
+      "gherkin" : {
+        "type" : "string"
+      },
+      "lintWaived" : {
+        "type" : "string"
+      },
+      "sourceUrl" : {
+        "type" : "string"
+      },
+      "text" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "text", "filePath", "sourceUrl", "acceptedGapIds", "gherkin", "coverageWaived", "lintWaived", "accept", "acceptedGherkinSnapshot" ],
+    "type" : "object"
+  },
+  "design_ingest" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "filePath" : {
+        "type" : "string"
+      },
+      "sourceUrl" : {
+        "type" : "string"
+      },
+      "text" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "text", "filePath", "sourceUrl" ],
+    "type" : "object"
+  },
+  "design_lexicon" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "action" : {
+        "type" : "string"
+      },
+      "phrase" : {
+        "type" : "string"
+      },
+      "query" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "action", "query", "phrase" ],
+    "type" : "object"
+  },
+  "design_lint" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "acceptedGapIds" : {
+        "type" : "string"
+      },
+      "filePath" : {
+        "type" : "string"
+      },
+      "gherkin" : {
+        "type" : "string"
+      },
+      "sourceUrl" : {
+        "type" : "string"
+      },
+      "text" : {
+        "type" : "string"
+      },
+      "waived" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "text", "filePath", "sourceUrl", "acceptedGapIds", "gherkin", "waived" ],
+    "type" : "object"
+  },
+  "design_readiness" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "accept" : {
+        "type" : "string"
+      },
+      "acceptedGapIds" : {
+        "type" : "string"
+      },
+      "acceptedGherkinSnapshot" : {
+        "type" : "string"
+      },
+      "coverageWaived" : {
+        "type" : "string"
+      },
+      "filePath" : {
+        "type" : "string"
+      },
+      "gherkin" : {
+        "type" : "string"
+      },
+      "lintWaived" : {
+        "type" : "string"
+      },
+      "sourceUrl" : {
+        "type" : "string"
+      },
+      "text" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "text", "filePath", "sourceUrl", "acceptedGapIds", "gherkin", "coverageWaived", "lintWaived", "accept", "acceptedGherkinSnapshot" ],
+    "type" : "object"
+  },
+  "doctor_analyze_failed_allure" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allowLocalAi" : {
+        "type" : "boolean"
+      },
+      "allowRemoteAi" : {
+        "type" : "boolean"
+      },
+      "allowedSourcePaths" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "allureResultPaths" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "backend" : {
+        "type" : "string"
+      },
+      "driverVariableName" : {
+        "type" : "string"
+      },
+      "historicalBundlePaths" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "includePageSnapshots" : {
+        "type" : "boolean"
+      },
+      "includeScreenshots" : {
+        "type" : "boolean"
+      },
+      "minimumAllureResults" : {
+        "type" : "integer"
+      },
+      "outputDirectory" : {
+        "type" : "string"
+      },
+      "repositoryRoot" : {
+        "type" : "string"
+      },
+      "useAi" : {
+        "type" : "boolean"
+      }
+    },
+    "required" : [ "allureResultPaths", "historicalBundlePaths", "outputDirectory", "includeScreenshots", "includePageSnapshots", "minimumAllureResults", "repositoryRoot", "allowedSourcePaths", "useAi", "allowLocalAi", "allowRemoteAi", "driverVariableName" ],
+    "type" : "object"
+  },
+  "doctor_analyze_trace" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "backend" : {
+        "type" : "string"
+      },
+      "tracePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "tracePath", "backend" ],
+    "type" : "object"
+  },
+  "doctor_cause_label" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "action" : {
+        "type" : "string"
+      },
+      "causeCategory" : {
+        "type" : "string"
+      },
+      "evidencePath" : {
+        "type" : "string"
+      },
+      "signature" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "action", "signature" ],
+    "type" : "object"
+  },
+  "doctor_managed_local_ai_status" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "doctor_propose_advisory_locator" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "healingReportPath" : {
+        "type" : "string"
+      },
+      "outputDirectory" : {
+        "type" : "string"
+      },
+      "repositoryRoot" : {
+        "type" : "string"
+      },
+      "sourcePatchConsent" : {
+        "type" : "boolean"
+      },
+      "sourcePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "repositoryRoot", "healingReportPath", "sourcePath", "sourcePatchConsent", "outputDirectory" ],
+    "type" : "object"
+  },
+  "doctor_propose_healed_locator" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "healingReportPath" : {
+        "type" : "string"
+      },
+      "outputDirectory" : {
+        "type" : "string"
+      },
+      "repositoryRoot" : {
+        "type" : "string"
+      },
+      "sourcePatchConsent" : {
+        "type" : "boolean"
+      },
+      "sourcePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "repositoryRoot", "healingReportPath", "sourcePath", "sourcePatchConsent", "outputDirectory" ],
+    "type" : "object"
+  },
+  "doctor_suggest_fix" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allowLocalAi" : {
+        "type" : "boolean"
+      },
+      "allowRemoteAi" : {
+        "type" : "boolean"
+      },
+      "allowedSourcePaths" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "backend" : {
+        "type" : "string"
+      },
+      "driverVariableName" : {
+        "type" : "string"
+      },
+      "jsonReportPath" : {
+        "type" : "string"
+      },
+      "repositoryRoot" : {
+        "type" : "string"
+      },
+      "useAi" : {
+        "type" : "boolean"
+      }
+    },
+    "required" : [ "jsonReportPath", "repositoryRoot", "allowedSourcePaths", "useAi", "allowLocalAi", "allowRemoteAi", "driverVariableName" ],
+    "type" : "object"
+  },
+  "driver_initialize" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "engine" : {
+        "enum" : [ "NONE", "WEB", "MOBILE_NATIVE", "MOBILE_WEB", "PLAYWRIGHT" ],
+        "type" : "string"
+      },
+      "mobileOptions" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "app" : {
+            "type" : "string"
+          },
+          "appActivity" : {
+            "type" : "string"
+          },
+          "appPackage" : {
+            "type" : "string"
+          },
+          "appiumServerUrl" : {
+            "type" : "string"
+          },
+          "automationName" : {
+            "type" : "string"
+          },
+          "browser" : {
+            "type" : "string"
+          },
+          "bundleId" : {
+            "type" : "string"
+          },
+          "deviceName" : {
+            "type" : "string"
+          },
+          "headless" : {
+            "type" : "boolean"
+          },
+          "height" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pixelRatio" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "platformName" : {
+            "type" : "string"
+          },
+          "platformVersion" : {
+            "type" : "string"
+          },
+          "targetUrl" : {
+            "type" : "string"
+          },
+          "udid" : {
+            "type" : "string"
+          },
+          "userAgent" : {
+            "type" : "string"
+          },
+          "width" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "targetBrowser" : {
+        "description" : "browser to launch on the WEB engine; blank/omitted defers to the configured targetBrowserName property (default chrome); PLAYWRIGHT/MOBILE engines resolve their own default independently",
+        "enum" : [ "CHROME", "FIREFOX", "SAFARI", "EDGE" ],
+        "type" : "string"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "driver_quit" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "element_clear" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "locatorStrategy", "locatorValue" ],
+    "type" : "object"
+  },
+  "element_click" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      },
+      "mode" : {
+        "enum" : [ "SINGLE", "DOUBLE", "LONG" ],
+        "type" : "string"
+      }
+    },
+    "required" : [ "locatorStrategy", "locatorValue" ],
+    "type" : "object"
+  },
+  "element_count" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "locatorStrategy", "locatorValue" ],
+    "type" : "object"
+  },
+  "element_drag_and_drop" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "offsetX" : {
+        "type" : "integer"
+      },
+      "offsetY" : {
+        "type" : "integer"
+      },
+      "sourceLocatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "sourceLocatorValue" : {
+        "type" : "string"
+      },
+      "targetLocatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "targetLocatorValue" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sourceLocatorStrategy", "sourceLocatorValue" ],
+    "type" : "object"
+  },
+  "element_highlight" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "locatorStrategy", "locatorValue" ],
+    "type" : "object"
+  },
+  "element_hover" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "locatorStrategy", "locatorValue" ],
+    "type" : "object"
+  },
+  "element_is_displayed" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "locatorStrategy", "locatorValue" ],
+    "type" : "object"
+  },
+  "element_is_enabled" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "locatorStrategy", "locatorValue" ],
+    "type" : "object"
+  },
+  "element_is_selected" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "locatorStrategy", "locatorValue" ],
+    "type" : "object"
+  },
+  "element_type" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "append" : {
+        "type" : "boolean"
+      },
+      "clear" : {
+        "type" : "boolean"
+      },
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      },
+      "text" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "locatorStrategy", "locatorValue", "text" ],
+    "type" : "object"
+  },
+  "element_upload_file" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "filePath" : {
+        "type" : "string"
+      },
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "locatorStrategy", "locatorValue", "filePath" ],
+    "type" : "object"
+  },
+  "generate_test_report" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "healer_run_failed_test" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allowLocalAi" : {
+        "type" : "boolean"
+      },
+      "allowRemoteAi" : {
+        "type" : "boolean"
+      },
+      "allowedSourcePaths" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "backend" : {
+        "type" : "string"
+      },
+      "driverVariableName" : {
+        "type" : "string"
+      },
+      "includePageSnapshots" : {
+        "type" : "boolean"
+      },
+      "includeScreenshots" : {
+        "type" : "boolean"
+      },
+      "maxAttempts" : {
+        "type" : "integer"
+      },
+      "networkValidationApproved" : {
+        "type" : "boolean"
+      },
+      "outputDirectory" : {
+        "type" : "string"
+      },
+      "repositoryRoot" : {
+        "type" : "string"
+      },
+      "testCommand" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "useConfiguredAi" : {
+        "type" : "boolean"
+      }
+    },
+    "required" : [ "repositoryRoot", "testCommand", "outputDirectory", "maxAttempts", "includeScreenshots", "includePageSnapshots", "allowedSourcePaths", "networkValidationApproved", "useConfiguredAi", "allowLocalAi", "allowRemoteAi", "driverVariableName" ],
+    "type" : "object"
+  },
+  "mobile_activate_app" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "appId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "appId" ],
+    "type" : "object"
+  },
+  "mobile_background_app" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "seconds" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ "seconds" ],
+    "type" : "object"
+  },
+  "mobile_get_accessibility_tree" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "maxCharacters" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ "maxCharacters" ],
+    "type" : "object"
+  },
+  "mobile_get_contexts" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "maxCharacters" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ "maxCharacters" ],
+    "type" : "object"
+  },
+  "mobile_hide_keyboard" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "mobile_inspector_record_start" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "androidAbi" : {
+        "type" : "string"
+      },
+      "androidApiLevel" : {
+        "type" : "integer"
+      },
+      "androidCores" : {
+        "type" : "integer"
+      },
+      "androidDeviceProfile" : {
+        "type" : "string"
+      },
+      "androidImageTag" : {
+        "type" : "string"
+      },
+      "androidRamMb" : {
+        "type" : "integer"
+      },
+      "app" : {
+        "type" : "string"
+      },
+      "appActivity" : {
+        "type" : "string"
+      },
+      "appPackage" : {
+        "type" : "string"
+      },
+      "bundleId" : {
+        "type" : "string"
+      },
+      "deviceName" : {
+        "type" : "string"
+      },
+      "includeSensitiveValues" : {
+        "type" : "boolean"
+      },
+      "openInspector" : {
+        "type" : "boolean"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "platformName" : {
+        "type" : "string"
+      },
+      "platformVersion" : {
+        "type" : "string"
+      },
+      "provisionAndroidEmulator" : {
+        "type" : "boolean"
+      },
+      "selectedAndroidAvdName" : {
+        "type" : "string"
+      },
+      "udid" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "platformName", "outputPath", "includeSensitiveValues", "app", "appPackage", "appActivity", "bundleId", "udid", "deviceName", "platformVersion", "selectedAndroidAvdName", "androidApiLevel", "androidDeviceProfile", "androidImageTag", "androidAbi", "androidRamMb", "androidCores", "provisionAndroidEmulator", "openInspector" ],
+    "type" : "object"
+  },
+  "mobile_inspector_record_status" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "action" : {
+        "type" : "string"
+      },
+      "checkpointName" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "mobile_inspector_record_stop" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "discard" : {
+        "type" : "boolean"
+      }
+    },
+    "required" : [ "discard" ],
+    "type" : "object"
+  },
+  "mobile_keyboard_key" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "key" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "key" ],
+    "type" : "object"
+  },
+  "mobile_rotate" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "orientation" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "orientation" ],
+    "type" : "object"
+  },
+  "mobile_swipe" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "direction" : {
+        "type" : "string"
+      },
+      "endX" : {
+        "type" : "integer"
+      },
+      "endY" : {
+        "type" : "integer"
+      },
+      "locatorStrategy" : {
+        "enum" : [ "ID", "CSSSELECTOR", "CSS", "SELECTOR", "XPATH", "NAME", "TAGNAME", "CLASSNAME", "ACCESSIBILITY_ID", "ANDROID_UIAUTOMATOR", "IOS_PREDICATE", "IOS_CLASS_CHAIN", "SHAFT_LOCATOR" ],
+        "type" : "string"
+      },
+      "locatorValue" : {
+        "type" : "string"
+      },
+      "movement" : {
+        "type" : "string"
+      },
+      "offsetX" : {
+        "type" : "integer"
+      },
+      "offsetY" : {
+        "type" : "integer"
+      },
+      "startX" : {
+        "type" : "integer"
+      },
+      "startY" : {
+        "type" : "integer"
+      },
+      "text" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "mobile_switch_context" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "contextName" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "contextName" ],
+    "type" : "object"
+  },
+  "mobile_tap_coordinates" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "x" : {
+        "type" : "integer"
+      },
+      "y" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ "x", "y" ],
+    "type" : "object"
+  },
+  "mobile_toolchain_status" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "platformName" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "platformName" ],
+    "type" : "object"
+  },
+  "report_clusters" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allureResultsPath" : {
+        "type" : "string"
+      },
+      "doctorReportPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "report_flake" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allureResultsPath" : {
+        "type" : "string"
+      },
+      "doctorReportPath" : {
+        "type" : "string"
+      },
+      "historyPath" : {
+        "type" : "string"
+      },
+      "limitPerHistoryId" : {
+        "type" : "integer"
+      },
+      "transitionThreshold" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "report_heal" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "proposalsPath" : {
+        "type" : "string"
+      },
+      "reportsPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "report_history" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allureResultsPath" : {
+        "type" : "string"
+      },
+      "doctorReportPath" : {
+        "type" : "string"
+      },
+      "historyPath" : {
+        "type" : "string"
+      },
+      "limitPerHistoryId" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "report_merge_shards" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "outputDirectory" : {
+        "type" : "string"
+      },
+      "shardBlobPaths" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      }
+    },
+    "required" : [ "shardBlobPaths", "outputDirectory" ],
+    "type" : "object"
+  },
+  "report_mute" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "action" : {
+        "type" : "string"
+      },
+      "muteStorePath" : {
+        "type" : "string"
+      },
+      "passed" : {
+        "type" : "boolean"
+      },
+      "reason" : {
+        "type" : "string"
+      },
+      "recoverAfterPasses" : {
+        "type" : "integer"
+      },
+      "testId" : {
+        "type" : "string"
+      },
+      "writeSurefireExcludes" : {
+        "type" : "boolean"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "report_open" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allureResultsPath" : {
+        "type" : "string"
+      },
+      "openInBrowser" : {
+        "type" : "boolean"
+      },
+      "reportPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "report_smart_tags" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allureResultsPath" : {
+        "type" : "string"
+      },
+      "doctorReportPath" : {
+        "type" : "string"
+      },
+      "flakyTransitionThreshold" : {
+        "type" : "integer"
+      },
+      "historyPath" : {
+        "type" : "string"
+      },
+      "limitPerHistoryId" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "report_summary" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allureResultsPath" : {
+        "type" : "string"
+      },
+      "doctorReportPath" : {
+        "type" : "string"
+      },
+      "healProposalsPath" : {
+        "type" : "string"
+      },
+      "healReportsPath" : {
+        "type" : "string"
+      },
+      "historyPath" : {
+        "type" : "string"
+      },
+      "reportPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "setup_catalog" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "setup_doctor" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "request" : {
+        "additionalProperties" : false,
+        "description" : "setup profile, paths, policy, and components",
+        "properties" : {
+          "autoStart" : {
+            "type" : "boolean"
+          },
+          "cacheRoot" : {
+            "type" : "string"
+          },
+          "components" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "dataRoot" : {
+            "type" : "string"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "offline" : {
+            "type" : "boolean"
+          },
+          "operation" : {
+            "type" : "string"
+          },
+          "preferSystemTools" : {
+            "type" : "boolean"
+          },
+          "profile" : {
+            "type" : "string"
+          },
+          "remoteEndpoint" : {
+            "type" : "string"
+          },
+          "reuseOwnedProcesses" : {
+            "type" : "boolean"
+          },
+          "shutdownTimeout" : {
+            "type" : "string"
+          },
+          "startupTimeout" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "autoStart", "cacheRoot", "components", "dataRoot", "mode", "offline", "operation", "preferSystemTools", "profile", "remoteEndpoint", "reuseOwnedProcesses", "shutdownTimeout", "startupTimeout" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "request" ],
+    "type" : "object"
+  },
+  "setup_install" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "acceptedLicenses" : {
+        "description" : "explicitly accepted license identifiers",
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "approvedDigest" : {
+        "description" : "exact plan digest explicitly approved by the caller",
+        "type" : "string"
+      },
+      "planJson" : {
+        "description" : "exact plan JSON returned by setup_plan",
+        "type" : "string"
+      },
+      "request" : {
+        "additionalProperties" : false,
+        "description" : "the same paths and execution policy used to create the plan",
+        "properties" : {
+          "autoStart" : {
+            "type" : "boolean"
+          },
+          "cacheRoot" : {
+            "type" : "string"
+          },
+          "components" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "dataRoot" : {
+            "type" : "string"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "offline" : {
+            "type" : "boolean"
+          },
+          "operation" : {
+            "type" : "string"
+          },
+          "preferSystemTools" : {
+            "type" : "boolean"
+          },
+          "profile" : {
+            "type" : "string"
+          },
+          "remoteEndpoint" : {
+            "type" : "string"
+          },
+          "reuseOwnedProcesses" : {
+            "type" : "boolean"
+          },
+          "shutdownTimeout" : {
+            "type" : "string"
+          },
+          "startupTimeout" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "autoStart", "cacheRoot", "components", "dataRoot", "mode", "offline", "operation", "preferSystemTools", "profile", "remoteEndpoint", "reuseOwnedProcesses", "shutdownTimeout", "startupTimeout" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "planJson", "approvedDigest", "request" ],
+    "type" : "object"
+  },
+  "setup_logs" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "profile" : {
+        "description" : "legacy setup profile capability query",
+        "type" : "string"
+      },
+      "request" : {
+        "additionalProperties" : false,
+        "description" : "setup profile, owned paths, policy, and components",
+        "properties" : {
+          "autoStart" : {
+            "type" : "boolean"
+          },
+          "cacheRoot" : {
+            "type" : "string"
+          },
+          "components" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "dataRoot" : {
+            "type" : "string"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "offline" : {
+            "type" : "boolean"
+          },
+          "operation" : {
+            "type" : "string"
+          },
+          "preferSystemTools" : {
+            "type" : "boolean"
+          },
+          "profile" : {
+            "type" : "string"
+          },
+          "remoteEndpoint" : {
+            "type" : "string"
+          },
+          "reuseOwnedProcesses" : {
+            "type" : "boolean"
+          },
+          "shutdownTimeout" : {
+            "type" : "string"
+          },
+          "startupTimeout" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "autoStart", "cacheRoot", "components", "dataRoot", "mode", "offline", "operation", "preferSystemTools", "profile", "remoteEndpoint", "reuseOwnedProcesses", "shutdownTimeout", "startupTimeout" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "setup_plan" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "request" : {
+        "additionalProperties" : false,
+        "description" : "setup profile, ownership mode, paths, policy, and components",
+        "properties" : {
+          "autoStart" : {
+            "type" : "boolean"
+          },
+          "cacheRoot" : {
+            "type" : "string"
+          },
+          "components" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "dataRoot" : {
+            "type" : "string"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "offline" : {
+            "type" : "boolean"
+          },
+          "operation" : {
+            "type" : "string"
+          },
+          "preferSystemTools" : {
+            "type" : "boolean"
+          },
+          "profile" : {
+            "type" : "string"
+          },
+          "remoteEndpoint" : {
+            "type" : "string"
+          },
+          "reuseOwnedProcesses" : {
+            "type" : "boolean"
+          },
+          "shutdownTimeout" : {
+            "type" : "string"
+          },
+          "startupTimeout" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "autoStart", "cacheRoot", "components", "dataRoot", "mode", "offline", "operation", "preferSystemTools", "profile", "remoteEndpoint", "reuseOwnedProcesses", "shutdownTimeout", "startupTimeout" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "request" ],
+    "type" : "object"
+  },
+  "setup_start" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "acceptedLicenses" : {
+        "description" : "explicitly accepted license identifiers",
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "approvedDigest" : {
+        "description" : "exact plan digest explicitly approved by the caller",
+        "type" : "string"
+      },
+      "planJson" : {
+        "description" : "exact plan JSON returned by setup_plan",
+        "type" : "string"
+      },
+      "profile" : {
+        "description" : "legacy setup profile capability query",
+        "type" : "string"
+      },
+      "request" : {
+        "additionalProperties" : false,
+        "description" : "the same paths and execution policy used to create the plan",
+        "properties" : {
+          "autoStart" : {
+            "type" : "boolean"
+          },
+          "cacheRoot" : {
+            "type" : "string"
+          },
+          "components" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "dataRoot" : {
+            "type" : "string"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "offline" : {
+            "type" : "boolean"
+          },
+          "operation" : {
+            "type" : "string"
+          },
+          "preferSystemTools" : {
+            "type" : "boolean"
+          },
+          "profile" : {
+            "type" : "string"
+          },
+          "remoteEndpoint" : {
+            "type" : "string"
+          },
+          "reuseOwnedProcesses" : {
+            "type" : "boolean"
+          },
+          "shutdownTimeout" : {
+            "type" : "string"
+          },
+          "startupTimeout" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "autoStart", "cacheRoot", "components", "dataRoot", "mode", "offline", "operation", "preferSystemTools", "profile", "remoteEndpoint", "reuseOwnedProcesses", "shutdownTimeout", "startupTimeout" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "setup_status" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "request" : {
+        "additionalProperties" : false,
+        "description" : "setup profile, paths, policy, and components",
+        "properties" : {
+          "autoStart" : {
+            "type" : "boolean"
+          },
+          "cacheRoot" : {
+            "type" : "string"
+          },
+          "components" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "dataRoot" : {
+            "type" : "string"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "offline" : {
+            "type" : "boolean"
+          },
+          "operation" : {
+            "type" : "string"
+          },
+          "preferSystemTools" : {
+            "type" : "boolean"
+          },
+          "profile" : {
+            "type" : "string"
+          },
+          "remoteEndpoint" : {
+            "type" : "string"
+          },
+          "reuseOwnedProcesses" : {
+            "type" : "boolean"
+          },
+          "shutdownTimeout" : {
+            "type" : "string"
+          },
+          "startupTimeout" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "autoStart", "cacheRoot", "components", "dataRoot", "mode", "offline", "operation", "preferSystemTools", "profile", "remoteEndpoint", "reuseOwnedProcesses", "shutdownTimeout", "startupTimeout" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "request" ],
+    "type" : "object"
+  },
+  "setup_stop" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "acceptedLicenses" : {
+        "description" : "explicitly accepted license identifiers",
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "approvedDigest" : {
+        "description" : "exact plan digest explicitly approved by the caller",
+        "type" : "string"
+      },
+      "planJson" : {
+        "description" : "exact plan JSON returned by setup_plan",
+        "type" : "string"
+      },
+      "profile" : {
+        "description" : "legacy setup profile capability query",
+        "type" : "string"
+      },
+      "request" : {
+        "additionalProperties" : false,
+        "description" : "the same paths and execution policy used to create the plan",
+        "properties" : {
+          "autoStart" : {
+            "type" : "boolean"
+          },
+          "cacheRoot" : {
+            "type" : "string"
+          },
+          "components" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "dataRoot" : {
+            "type" : "string"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "offline" : {
+            "type" : "boolean"
+          },
+          "operation" : {
+            "type" : "string"
+          },
+          "preferSystemTools" : {
+            "type" : "boolean"
+          },
+          "profile" : {
+            "type" : "string"
+          },
+          "remoteEndpoint" : {
+            "type" : "string"
+          },
+          "reuseOwnedProcesses" : {
+            "type" : "boolean"
+          },
+          "shutdownTimeout" : {
+            "type" : "string"
+          },
+          "startupTimeout" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "autoStart", "cacheRoot", "components", "dataRoot", "mode", "offline", "operation", "preferSystemTools", "profile", "remoteEndpoint", "reuseOwnedProcesses", "shutdownTimeout", "startupTimeout" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ ],
+    "type" : "object"
+  },
+  "setup_verify" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "request" : {
+        "additionalProperties" : false,
+        "description" : "setup profile, paths, policy, and components",
+        "properties" : {
+          "autoStart" : {
+            "type" : "boolean"
+          },
+          "cacheRoot" : {
+            "type" : "string"
+          },
+          "components" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "dataRoot" : {
+            "type" : "string"
+          },
+          "mode" : {
+            "type" : "string"
+          },
+          "offline" : {
+            "type" : "boolean"
+          },
+          "operation" : {
+            "type" : "string"
+          },
+          "preferSystemTools" : {
+            "type" : "boolean"
+          },
+          "profile" : {
+            "type" : "string"
+          },
+          "remoteEndpoint" : {
+            "type" : "string"
+          },
+          "reuseOwnedProcesses" : {
+            "type" : "boolean"
+          },
+          "shutdownTimeout" : {
+            "type" : "string"
+          },
+          "startupTimeout" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "autoStart", "cacheRoot", "components", "dataRoot", "mode", "offline", "operation", "preferSystemTools", "profile", "remoteEndpoint", "reuseOwnedProcesses", "shutdownTimeout", "startupTimeout" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "request" ],
+    "type" : "object"
+  },
+  "shaft_coding_partner_diff" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "codeBlocks" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "insertionAnchor" : {
+        "type" : "string"
+      },
+      "repositoryPath" : {
+        "type" : "string"
+      },
+      "targetSourcePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "repositoryPath", "targetSourcePath", "codeBlocks", "insertionAnchor" ],
+    "type" : "object"
+  },
+  "shaft_coding_partner_plan" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "artifactPaths" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "backend" : {
+        "type" : "string"
+      },
+      "currentSourcePath" : {
+        "type" : "string"
+      },
+      "intent" : {
+        "type" : "string"
+      },
+      "maxResults" : {
+        "type" : "integer"
+      },
+      "repositoryPath" : {
+        "type" : "string"
+      },
+      "selectedText" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "repositoryPath", "intent", "backend", "currentSourcePath", "selectedText", "artifactPaths", "maxResults" ],
+    "type" : "object"
+  },
+  "shaft_guide_search" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "maxResults" : {
+        "type" : "integer"
+      },
+      "query" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "query", "maxResults" ],
+    "type" : "object"
+  },
+  "shaft_project_create" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "artifactId" : {
+        "type" : "string"
+      },
+      "groupId" : {
+        "type" : "string"
+      },
+      "includeDependabot" : {
+        "type" : "boolean"
+      },
+      "includeGithubActions" : {
+        "type" : "boolean"
+      },
+      "optionalModules" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "outputDirectory" : {
+        "type" : "string"
+      },
+      "overwrite" : {
+        "type" : "boolean"
+      },
+      "platform" : {
+        "type" : "string"
+      },
+      "runner" : {
+        "type" : "string"
+      },
+      "shaftVersion" : {
+        "type" : "string"
+      },
+      "version" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "outputDirectory", "runner", "platform", "groupId", "artifactId", "version", "shaftVersion", "optionalModules", "includeGithubActions", "includeDependabot", "overwrite" ],
+    "type" : "object"
+  },
+  "shaft_project_init_agents" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "loop" : {
+        "type" : "string"
+      },
+      "overwrite" : {
+        "type" : "boolean"
+      },
+      "targetDirectory" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "loop", "targetDirectory", "overwrite" ],
+    "type" : "object"
+  },
+  "shaft_project_upgrade" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "allowAiRepair" : {
+        "type" : "boolean"
+      },
+      "approve" : {
+        "type" : "boolean"
+      },
+      "compileCommand" : {
+        "type" : "string"
+      },
+      "compileTimeout" : {
+        "type" : "integer"
+      },
+      "dryRun" : {
+        "type" : "boolean"
+      },
+      "projectRoot" : {
+        "type" : "string"
+      },
+      "shaftVersion" : {
+        "type" : "string"
+      },
+      "skipBaselineCompile" : {
+        "type" : "boolean"
+      },
+      "upgradeType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "projectRoot", "upgradeType", "dryRun", "approve", "shaftVersion", "compileCommand", "compileTimeout", "skipBaselineCompile", "allowAiRepair" ],
+    "type" : "object"
+  },
+  "test_automation_scenarios" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "area" : {
+        "type" : "string"
+      },
+      "intent" : {
+        "type" : "string"
+      },
+      "maxResults" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ "area", "intent", "maxResults" ],
+    "type" : "object"
+  },
+  "test_code_guardrails_check" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "code" : {
+        "type" : "string"
+      },
+      "language" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "language", "code" ],
+    "type" : "object"
+  },
+  "test_plan_explore" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "goal" : {
+        "type" : "string"
+      },
+      "maxDepth" : {
+        "type" : "integer"
+      },
+      "maxPages" : {
+        "type" : "integer"
+      },
+      "targetUrl" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "targetUrl", "goal", "maxDepth", "maxPages" ],
+    "type" : "object"
+  },
+  "trace_latest" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "maxResults" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ "maxResults" ],
+    "type" : "object"
+  },
+  "trace_open_viewer" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "tracePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "tracePath" ],
+    "type" : "object"
+  },
+  "trace_read" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "maxCharacters" : {
+        "type" : "integer"
+      },
+      "tracePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "tracePath", "maxCharacters" ],
+    "type" : "object"
+  },
+  "trace_summarize" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "tracePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "tracePath" ],
+    "type" : "object"
+  },
+  "verify_run_focused" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "command" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "networkValidationApproved" : {
+        "type" : "boolean"
+      },
+      "repositoryRoot" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "repositoryRoot", "command", "networkValidationApproved" ],
+    "type" : "object"
+  }
+}
