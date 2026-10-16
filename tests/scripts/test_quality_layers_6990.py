@@ -45,7 +45,15 @@ class QualityLayersTest(unittest.TestCase):
         self.assertTrue(config["flag_management"]["default_rules"]["carryforward"])
         action = (ROOT / ".github/actions/upload-jacoco-coverage/action.yml").read_text(encoding="utf-8")
         self.assertIn('"$GITHUB_EVENT_NAME" = "pull_request"', action)
-        self.assertIn("flags: ${{ inputs.flags }}", action)
+        self.assertIn("flags: ${{ inputs.flags || (github.event_name != 'pull_request' && 'main-suites' || '') }}", action)
+
+    def test_unflagged_main_uploads_are_carried_forward(self) -> None:
+        # #7057: main's unflagged e2e/release uploads could not be carried
+        # forward, so every Java PR read as a ~9% project drop.
+        config = yaml.safe_load((ROOT / "codecov.yml").read_text(encoding="utf-8"))
+        flags = {f["name"]: f["carryforward"] for f in config["flag_management"]["individual_flags"]}
+        self.assertTrue(flags.get("main-suites"))
+        self.assertEqual("0.5%", config["coverage"]["status"]["project"]["default"]["threshold"])
 
     def test_main_push_uploads_every_coverage_flag(self) -> None:
         workflow = yaml.safe_load((ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8"))
