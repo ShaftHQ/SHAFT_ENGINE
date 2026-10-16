@@ -267,9 +267,82 @@ jobs:
 
   # Kept job id `build_release_and_deliver` so downstream needs/outputs stay stable.
   # This job is now the publish gate: waits for parallel IntelliJ + python + Maven validate, then deploys.
+  # #7002: the release fails on a binary-incompatible API change unless a PR
+  # merged since the previous release carries the `breaking-change` label.
+  # Added as one more pre-deploy gate; nothing is deployed when it fails.
+  cd_api_compat:
+    name: CD — API compatibility vs previous release (japicmp)
+    needs: check_release_needed
+    if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Published modules and previous-release baselines
+        id: mods
+        run: |
+          mkdir -p "$RUNNER_TEMP/japicmp"
+          mods=""
+          for pom in */pom.xml; do
+            m=${pom%/pom.xml}
+            meta="https://repo1.maven.org/maven2/io/github/shafthq/$m/maven-metadata.xml"
+            v=$(curl -sfL "$meta" | sed -n 's:.*<release>\(.*\)</release>.*:\1:p' | head -1) || true
+            [ -n "$v" ] || { echo "$m: not on Maven Central, skipped"; continue; }
+            curl -sfL -o "$RUNNER_TEMP/japicmp/$m.jar" "https://repo1.maven.org/maven2/io/github/shafthq/$m/$v/$m-$v.jar" || continue
+            echo "$m: baseline $v"
+            mods="${mods:+$mods,}$m"
+          done
+          echo "modules=$mods" >> "$GITHUB_OUTPUT"
+      - name: Breaking-change label on PRs since the previous release
+        id: labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          labels=""
+          if [ -n "$tag" ]; then
+            since=$(git log -1 --format=%cI "$tag")
+            n=$(gh pr list -R "$REPO" --state merged --label breaking-change --search "merged:>=${since}" --json number --jq length)
+            [ "${n:-0}" -gt 0 ] && labels="breaking-change"
+            echo "previous release $tag ($since): $n breaking-change PR(s)"
+          fi
+          echo "labels=$labels" >> "$GITHUB_OUTPUT"
+      - name: Build and compare
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+        run: |
+          mvn --batch-mode --no-transfer-progress -pl "$MODULES" -am install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip
+          mvn --batch-mode --no-transfer-progress -Pjapicmp -pl "$MODULES" \
+            com.github.siom79.japicmp:japicmp-maven-plugin:0.26.3:cmp "-Djapicmp.baselineDir=$RUNNER_TEMP/japicmp"
+      - name: Judge
+        if: steps.mods.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.mods.outputs.modules }}
+          LABELS: ${{ steps.labels.outputs.labels }}
+        run: |
+          set -o pipefail
+          python3 scripts/ci/api_compat_gate.py --modules "$MODULES" --labels "$LABELS" | tee -a "$GITHUB_STEP_SUMMARY"
+
   build_release_and_deliver:
     name: CD — deploy Maven Central
-    needs: [check_release_needed, cd_intellij_verify, cd_python_validators, cd_maven_validate]
+    needs: [check_release_needed, cd_intellij_verify, cd_python_validators, cd_maven_validate, cd_api_compat]
     if: github.event.repository.fork == false && needs.check_release_needed.outputs.already_released != 'true'
     env:
       gpg.keyname: ${{ secrets.GPG_KEYNAME }}

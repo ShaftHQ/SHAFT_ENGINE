@@ -39,6 +39,18 @@ class ReleaseProvenanceTest(unittest.TestCase):
         self.assertIn(".intoto.jsonl", step["run"])
         upload = next(s for s in job["steps"] if s.get("name") == "Keep the SBOM for the GitHub Release")
         self.assertIn("*.intoto.jsonl", upload["with"]["path"])
+    def test_release_blocks_on_unlabelled_binary_break(self) -> None:
+        jobs = self.wf["jobs"]
+        self.assertIn("cd_api_compat", jobs["build_release_and_deliver"]["needs"])
+        compat = jobs["cd_api_compat"]
+        self.assertNotIn("continue-on-error", compat)
+        judge = next(s for s in compat["steps"] if s.get("name") == "Judge")
+        self.assertNotIn("continue-on-error", judge)
+        self.assertIn("api_compat_gate.py", judge["run"])
+
+    def test_japicmp_does_not_ignore_missing_classes_globally(self) -> None:
+        self.assertNotIn("ignoreMissingClasses", (ROOT / "pom.xml").read_text(encoding="utf-8"))
+        self.assertIn("junit-jupiter-api", (ROOT / "shaft-cli/pom.xml").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
