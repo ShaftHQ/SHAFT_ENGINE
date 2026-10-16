@@ -73,9 +73,9 @@ SKILLS = (
      "Use when a git worktree is dirty or another local branch or worktree exists. "
      "Ask before cleanup unless the session is unattended.", "delivery"),
     ("ci-cd", "portable", "skills/ci-cd/SKILL.md",
-     "Use when PR merge waits are long or CI/CD is being designed, audited, or sped up in any "
-     "repo with source control: targets, PR/main/nightly tiers, opt-in labels, roll-forward "
-     "tracking, merge queue, stacked PRs.", "delivery"),
+     "Use when PR merge waits are long or CI/CD is being designed, audited, or sped up: "
+     "targets, PR/main/nightly tiers, opt-in labels, roll-forward, merge queue, release and "
+     "privileged workflows.", "delivery"),
     ("local-agency", "portable", "skills/local-agency/SKILL.md",
      "Use when the adopter asks to delegate to local agents (OpenCode / OSS agency) against a READY "
      "local runtime instead of orchestrator-session subagents.", "delegation"),

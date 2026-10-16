@@ -2,8 +2,8 @@
 name: ci-cd
 description: >-
   Use when PR merge waits are long or CI/CD is being designed, audited, or sped
-  up in any repo with source control: targets, PR/main/nightly tiers, opt-in
-  labels, roll-forward tracking, merge queue, stacked PRs.
+  up: targets, PR/main/nightly tiers, opt-in labels, roll-forward, merge queue,
+  release and privileged workflows.
 license: MIT
 ---
 
@@ -60,10 +60,19 @@ Main rolls forward. A failing post-merge leg opens or updates one rolling issue 
 - Check the PR body against the repo's required sections, and name a targeted test, before creating the PR.
 - A body edit does not re-run a PR-body guard that reads the event payload. Push a commit instead.
 - Validate every third-party CI config (coverage, analysis) against the vendor's validator in pre-push and CI. Some vendors silently ignore a whole file over one unknown key, and fall back to defaults.
+- Coverage carryforward reads the vendor's record of the git parent. An old branch whose parent chain lacks the full flag set never goes green. Move its commits to a fresh branch from main, and make every main push upload every flag.
+- A gate that reads an external status, such as Codecov, must wait for a settled verdict (an unchanged title and completion time across polls). The vendor recomputes per upload, so a mid-upload red is not final.
+
+## Release and privileged workflows
+
+- New release safety is additive: a hard gate before publishing, and `continue-on-error` for anything after publishing, such as attestation or SBOM upload, so it can never strand a published release.
+- An API-compatibility baseline must be the published artifact downloaded as a file. Comparing against the same version number resolves to the reactor jar, so the build compares the jar with itself. Give the comparator any missing optional dependencies precisely; never set a global ignore-missing-classes, which hides real breaks.
+- `pull_request_target` and `workflow_run` jobs never check out or run PR code. Use two workflows instead: the unprivileged `pull_request` job computes a result and uploads an artifact. The privileged `workflow_run` job re-reads the PR from the API, validates the artifact against an allow-list, applies it as data and pushes.
 
 ## Delivery order, queue, stacks
 
-- One PR at a time: babysit it to merged, then open the next. With a merge queue, `gh pr merge --auto --merge` enqueues the PR.
+- One PR at a time: babysit it to merged, then open the next. With a merge queue, `gh pr merge --auto --merge` prints "merge strategy is set by the merge queue" but may still enable auto-merge. Confirm `autoMergeRequest` is set. If the PR is green and not queued, call the GraphQL `enqueuePullRequest` mutation: its error names the exact blocker, such as a cancelled or expected required check.
+- A required check must never share a concurrency group across runs. GitHub keeps only one pending run per group, so a burst of PR events cancels the queued one, and a cancelled required check blocks the queue. Use a per-run group (`github.run_id`) and no cancellation.
 - Merge queue: add `merge_group:` to every workflow that reports a required check, and run the PR tier there. External apps that do not report on `merge_group` must leave the required list first.
 - Stacked PRs: run cheap checks on every layer, and expensive legs only on the lowest unmerged layer or the top of the stack (`github.event.pull_request.stack`).
 

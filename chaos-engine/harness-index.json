@@ -91,7 +91,7 @@
       "path": "skills/git-cleanup/SKILL.md"
     },
     {
-      "description": "Use when PR merge waits are long or CI/CD is being designed, audited, or sped up in any repo with source control: targets, PR/main/nightly tiers, opt-in labels, roll-forward tracking, merge queue, stacked PRs.",
+      "description": "Use when PR merge waits are long or CI/CD is being designed, audited, or sped up: targets, PR/main/nightly tiers, opt-in labels, roll-forward, merge queue, release and privileged workflows.",
       "family": "delivery",
       "hosts": {
         "antigravity": "catalog",
