@@ -31,7 +31,7 @@
   "publishJavaDocs.yml::unpinned-uses": 4,
   "release-note-governance.yml::unpinned-uses": 1,
   "security.yml::unpinned-uses": 5,
-  "setup-lock-pins.yml::dangerous-triggers": 1,
+  "setup-lock-pins-push.yml::dangerous-triggers": 1,
   "setup-lock-pins.yml::unpinned-uses": 5,
   "shaft-mcp.yml::unpinned-uses": 7,
   "shaft-pilot-release.yml::unpinned-uses": 19,
