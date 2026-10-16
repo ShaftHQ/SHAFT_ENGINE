@@ -198,7 +198,7 @@ final class JavaCppTesseractBackend implements TesseractBackend {
         }
     }
 
-    private static Correction rotate(Correction correction, double degrees) {
+    static Correction rotate(Correction correction, double degrees) {
         if (Math.abs(degrees) < 0.001 || Math.abs(degrees - 360) < 0.001) {
             return correction;
         }
@@ -239,7 +239,7 @@ final class JavaCppTesseractBackend implements TesseractBackend {
         }
     }
 
-    private static OcrResult transform(OcrResult result, AffineTransform correctedToOriginal) {
+    static OcrResult transform(OcrResult result, AffineTransform correctedToOriginal) {
         if (correctedToOriginal.isIdentity()) {
             return result;
         }
@@ -274,7 +274,7 @@ final class JavaCppTesseractBackend implements TesseractBackend {
     private record Orientation(boolean detected, int rotationDegrees, double confidence) {
     }
 
-    private record Correction(byte[] image, AffineTransform correctedToOriginal) {
+    record Correction(byte[] image, AffineTransform correctedToOriginal) {
     }
 
     private static int imageWidth(org.bytedeco.leptonica.PIX pix) {
@@ -305,7 +305,7 @@ final class JavaCppTesseractBackend implements TesseractBackend {
         } while (iterator.Next(level));
     }
 
-    private static int pageSegmentationMode(OcrOptions options) {
+    static int pageSegmentationMode(OcrOptions options) {
         return switch (options.pageSegmentationMode()) {
             case AUTO -> PSM_AUTO;
             case SINGLE_BLOCK -> PSM_SINGLE_BLOCK;
@@ -315,7 +315,7 @@ final class JavaCppTesseractBackend implements TesseractBackend {
         };
     }
 
-    private static String normalize(String text) {
+    static String normalize(String text) {
         return text == null ? "" : text.strip().replaceAll("\\R+", "\n");
     }
 }
