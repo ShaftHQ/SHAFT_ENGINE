@@ -72,6 +72,7 @@ changing that token silently breaks both distribution publishers.
 | `upstream-watch.yml` | weekly, manual | Compares repository pins for MemPalace, Graphify, and vendored companion skills with the latest stable upstream. Opens or updates one issue when a pin is behind. Does not merge or install. |
 | `pr-time-to-merge.yml` | weekly, manual | Reports median/p90 PR open→merge minutes for the last 30 merged PRs (a median above 15 minutes opens or updates one `ci-pr-time` issue) and the main quality trend: Codacy check runs plus Codecov coverage (a regression opens or updates one `ci-quality` issue) (#6990). |
 | `spotbugs-nightly.yml` | nightly, manual | Full-reactor SpotBugs + FindSecBugs (`-Pspotbugs`) with SARIF to code scanning; a per-module count above `.github/spotbugs-baseline.json` opens or updates one `ci-spotbugs` issue, closed when clean (#6999). |
+| `scorecard.yml` | push to `main`, weekly, manual | OpenSSF Scorecard supply-chain checks; SARIF to code scanning and published to the Scorecard API (README badge); the weekly quality report tracks the score (#7001). |
 
 The quality validator fails when an active `*.yml` file is missing from this
 table. Remove a row only in the same change that deletes its workflow.

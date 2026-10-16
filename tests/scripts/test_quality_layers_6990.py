@@ -25,6 +25,9 @@ class QualityLayersTest(unittest.TestCase):
         self.assertTrue(qt.summarize(rows, 70.0, 61.0)["regression"])
         self.assertTrue(qt.summarize([], 60.0, 61.0)["regression"])
         self.assertFalse(qt.summarize([], 62.0, 61.0)["regression"])
+        # #7001: a Scorecard score below its floor is a regression too.
+        self.assertTrue(qt.summarize([], 62.0, 61.0, 5.5, 6.0)["regression"])
+        self.assertFalse(qt.summarize([], 62.0, 61.0, None, 6.0)["regression"])
 
     def test_weekly_workflow_tracks_quality_regressions(self) -> None:
         text = (ROOT / ".github/workflows/pr-time-to-merge.yml").read_text(encoding="utf-8")
@@ -70,6 +73,16 @@ class QualityLayersTest(unittest.TestCase):
         self.assertEqual(set(), set(config) - top)
         parsers = {"gcov", "go", "javascript", "jacoco", "cobertura", "v1"}
         self.assertEqual(set(), set(config.get("parsers") or {}) - parsers)
+
+    def test_scorecard_workflow_publishes_and_uploads(self) -> None:
+        workflow = yaml.safe_load((ROOT / ".github/workflows/scorecard.yml").read_text(encoding="utf-8"))
+        triggers = workflow[True] if True in workflow else workflow["on"]
+        self.assertNotIn("pull_request", triggers)
+        steps = str(workflow["jobs"]["analysis"]["steps"])
+        self.assertIn("ossf/scorecard-action@", steps)
+        self.assertIn("'publish_results': True", steps)
+        self.assertIn("upload-sarif", steps)
+        self.assertIn("ossf-scorecard", (ROOT / "README.md").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

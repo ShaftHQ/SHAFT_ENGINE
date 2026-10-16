@@ -15,6 +15,7 @@ drives the run. The verdict comes back with logs, screenshots, and a report.
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=for-the-badge&logo=apachemaven)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
 [![Build](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/pr-gate.yml?branch=main&style=for-the-badge&label=build)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/pr-gate.yml)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/ShaftHQ/SHAFT_ENGINE?style=for-the-badge&label=openssf%20scorecard)](https://scorecard.dev/viewer/?uri=github.com/ShaftHQ/SHAFT_ENGINE)
 [![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_ENGINE?style=for-the-badge)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/ShaftHQ/SHAFT_ENGINE?style=for-the-badge&logo=github)](https://github.com/ShaftHQ/SHAFT_ENGINE)
 [![User guide](https://img.shields.io/badge/user_guide-live-006ec0?style=for-the-badge)](https://shafthq.github.io/)
