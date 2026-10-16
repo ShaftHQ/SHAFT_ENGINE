@@ -22,6 +22,7 @@ from tests.scripts.ce_installed_fixture import (
     SOURCE,
     build_installed_project,
     installed_layout,
+    installer,
     load_module,
     parity_hosts,
 )
@@ -49,6 +50,8 @@ def broken_installed_links() -> list[tuple[str, int, str]]:
                     continue
                 resolved = posixpath.normpath(posixpath.join(posixpath.dirname(relative), target))
                 if resolved not in layout and resolved.rstrip("/") not in directories:
+                    if installer().is_origin_only(Path(resolved)):
+                        continue  # declared source-repo-only, absent from every install by design
                     broken.append((relative, number, target))
     return broken
 

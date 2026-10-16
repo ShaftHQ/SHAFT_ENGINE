@@ -159,6 +159,10 @@ def link_walk(root: Path, entrypoint: str) -> tuple[set[str], list[str]]:
                 twin = root / "chaos-engine" / relative.removeprefix(".chaos-engine/")
                 if resolved.exists() or twin.exists():
                     reached.add(relative)
+                    # Walk the source twin so a host whose pointer links the
+                    # snapshot (AGENTS.md) reaches what the snapshot reaches.
+                    if twin.is_file():
+                        queue.append(twin.relative_to(root).as_posix())
                     continue
                 broken.append(f"{current} -> {raw}")
                 continue
@@ -167,6 +171,47 @@ def link_walk(root: Path, entrypoint: str) -> tuple[set[str], list[str]]:
                 continue
             queue.append(relative)
     return reached, broken
+
+
+CLI_POINTERS = ("AGENTS.md", "CLAUDE.md")
+BOT_POINTER = "chaos-engine/references/bot-entry.md"
+
+
+def entry_roots(root: Path, deployable: str) -> dict[str, list[str]]:
+    """Roots of the two real entries; the shared cards come from tool.py, the one source.
+
+    CLI hosts load the pointer files and SessionStart injects identity and the
+    companion cards; bots run `tool.py entry`, which prints the same set, plus
+    bot-entry.md. Reading entry_files() here keeps the gate and the bundle from
+    drifting apart.
+    """
+    import importlib.util
+
+    if not (root / deployable / "tool.py").is_file():
+        return {}  # a fixture tree without the bundle; the live-tree test pins both entries
+    spec = importlib.util.spec_from_file_location("_ce_tool", root / deployable / "tool.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    cards = [f"{deployable}{relative}" for relative in module.entry_files()]
+    return {"cli": [*CLI_POINTERS, *cards], "bot": [BOT_POINTER, *cards]}
+
+
+def entry_reach(root: Path, deployable: str) -> dict[str, set[str]]:
+    reach: dict[str, set[str]] = {}
+    for name, starts in entry_roots(root, deployable).items():
+        reached: set[str] = set()
+        for start in starts:
+            reached |= link_walk(root, start)[0]
+        reach[name] = reached
+    return reach
+
+
+def entry_gap(element: str, deployable: str, entries: dict[str, set[str]]) -> str:
+    """Name the entries a deployable element is missing from, or return ''."""
+    if not element.startswith(deployable):
+        return ""
+    missing = sorted(name for name, seen in entries.items() if element not in seen)
+    return f"{element} (not linked from the {'/'.join(missing)} entry)" if missing else ""
 
 
 def path_tokens(root: Path, reached: set[str], roots: set[str]) -> dict[str, str]:
@@ -305,8 +350,13 @@ def harness_report(root: Path) -> dict[str, list[str]]:
     by_link: list[str] = []
     by_exact_token: list[str] = []
     wildcard_only: list[str] = []
+    entries = entry_reach(root, deployable)
     for element in elements:
         if any(matcher.match(element) for matcher in exemption_matchers):
+            continue
+        one_sided = entry_gap(element, deployable, entries)
+        if one_sided:
+            orphans.append(one_sided)
             continue
         if element in reached:
             by_link.append(element)
@@ -325,6 +375,7 @@ def harness_report(root: Path) -> dict[str, list[str]]:
 
     return {
         "orphans": sorted(orphans),
+        "entry_reach": {name: sorted(seen) for name, seen in entries.items()},
         "broken_links": sorted(broken),
         "stale_named_paths": stale,
         "absorbed_by_name": absorbed_by_name,

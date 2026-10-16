@@ -11,7 +11,7 @@ from pathlib import Path
 
 CE = Path(__file__).resolve().parents[2] / "chaos-engine"
 FILES = ("tool.py", "identity.md", "skills/chaos-engine/SKILL.md",
-         "companions/caveman-ultra.md", "companions/ponytail-ultra.md", "task_ledger.py")
+         "companions/caveman-ultra.md", "companions/ponytail-ultra.md", "task_ledger.py", "hooks/lifecycle.py")
 
 
 def _load_tool():
