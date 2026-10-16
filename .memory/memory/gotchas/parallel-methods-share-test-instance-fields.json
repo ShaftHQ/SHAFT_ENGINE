@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/parallel-methods-share-test-instance-fields.md",
+  "content_hash": "sha256:5d13522ff6e02aedf99f1f9039252730afdf282738d35f1a4de2a72559e9adb4",
+  "created_at": "2026-10-16T21:20:00+03:00",
+  "evidence": [],
+  "id": "gotcha.parallel-methods-share-test-instance-fields",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after #7088-#7091"
+  },
+  "status": "active",
+  "tags": [
+    "testing",
+    "nightly"
+  ],
+  "title": "Nightly runs methods in parallel; per-test instance fields race",
+  "type": "gotcha",
+  "updated_at": "2026-10-16T21:20:00+03:00"
+}
