@@ -833,7 +833,7 @@ public class ValidationsHelper {
                 lookupFailure.get(), parameters, elementCount.get() == 0, attachments, visualComparisonAttached.get());
     }
 
-    private static void logReferenceImageState(byte[] referenceImage) {
+    static void logReferenceImageState(byte[] referenceImage) {
         if (referenceImage != null && !Arrays.equals(new byte[0], referenceImage)) {
             ReportManagerHelper.logDiscrete("Reference image found.", Level.INFO);
         } else {
@@ -862,7 +862,7 @@ public class ValidationsHelper {
      * Captures the element screenshot for {@code matchesReferenceImage()}. Records why the element could not be
      * found (#7052) and rethrows so the fluent wait retries; returns {@code null} for a transient Firefox error.
      */
-    private static byte[] captureElementScreenshot(WebDriver driver, By locator, AtomicReference<RuntimeException> lookupFailure) {
+    static byte[] captureElementScreenshot(WebDriver driver, By locator, AtomicReference<RuntimeException> lookupFailure) {
         try {
             byte[] screenshot = driver.findElement(locator).getScreenshotAs(OutputType.BYTES);
             lookupFailure.set(null);
