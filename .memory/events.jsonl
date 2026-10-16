@@ -1249,3 +1249,7 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.gh-run-rerun-in-progress-misleading","timestamp":"2026-10-16T21:20:00+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.installer-commit-needs-full-sha","timestamp":"2026-10-16T21:20:00+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.parallel-methods-share-test-instance-fields","timestamp":"2026-10-16T21:20:00+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.tool-py-stdlib-import-feeds-readme-inventory","timestamp":"2026-10-17T00:19:07+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.tool-py-import-time-dependency-breaks-heal-path","timestamp":"2026-10-17T00:19:07+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.diff-scoped-complexity-blocks-edits-to-hot-functions","timestamp":"2026-10-17T00:19:07+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.agentic-pr-body-needs-riskiest-assumption","timestamp":"2026-10-17T00:19:07+03:00"}

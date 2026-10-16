@@ -92,12 +92,45 @@ def entry_output(installed_root: Path, full: bool = False, opt_out: str = "") ->
             f"ChaosEngine entry unchanged ({digest}); new conversation, context summary, or cards not in context: "
             "run `python3 .chaos-engine/tool.py entry --full`.\n"
         )
+    write_entry_stamp(installed_root, opt_out, digest)
+    return bundle
+
+
+def write_entry_stamp(installed_root: Path, opt_out: str = "", digest: str = "") -> None:
+    """The one load-stamp writer: `entry` (bots) and SessionStart/PreCompact (CLI hooks)."""
+    if not digest:
+        digest = hashlib.sha256(entry_bundle(installed_root, opt_out).encode("utf-8")).hexdigest()[:12]
+    stamp = installed_root / "runtime" / "entry-stamp"
     try:
         stamp.parent.mkdir(parents=True, exist_ok=True)
         stamp.write_text(f"{digest} {int(time.time())} {opt_out}".rstrip() + "\n", encoding="utf-8")
     except OSError:
         pass  # read-only installs simply print the bundle every time
-    return bundle
+
+
+def entry_stamp_time(installed_root: Path) -> int:
+    try:
+        return int((installed_root / "runtime" / "entry-stamp").read_text(encoding="utf-8").split(" ", 2)[1])
+    except (OSError, ValueError, IndexError):
+        return 0
+
+
+RETRIEVE_REFUSAL = "run `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace \"<q>\"` first"
+
+
+def retrieve_owed(installed_root: Path, arguments: list[str]) -> bool:
+    """Bot twin of the CLI Stop retrieve gate: a work step needs a retrieve since the last load."""
+    if installed_root.name != ".chaos-engine" or len(arguments) < 2:
+        return False
+    if arguments[1] in {"done", "--budget"} or "--start" in arguments or "--budget" in arguments:
+        return False
+    gate = installed_root / "hooks" / "retrieve_justification.py"
+    if not gate.is_file():
+        return False  # partial core: doctor reports it; the CLI Stop gate is absent there too
+    spec = importlib.util.spec_from_file_location("_chaos_engine_justification", gate)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return not module.retrieved_since(installed_root.parent, entry_stamp_time(installed_root))
 
 
 LOAD_STAMP_MAX_AGE = 40 * 60
@@ -638,6 +671,9 @@ SCRIPT_TOOLS = {
 def script_tool(installed_root: Path, tool: str, arguments: list[str]) -> int:
     if tool in LOAD_STAMP_GATED and not load_stamp_fresh(installed_root):
         print(LOAD_STAMP_REFUSAL, file=sys.stderr)
+        return 2
+    if tool == "checkpoint" and retrieve_owed(installed_root, arguments):
+        print(RETRIEVE_REFUSAL, file=sys.stderr)
         return 2
     module = runpy.run_path(str(installed_root / SCRIPT_TOOLS[tool]), run_name=f"_chaos_engine_{tool}")
     if tool == "usage":

@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/diff-scoped-complexity-blocks-edits-to-hot-functions.md",
+  "content_hash": "sha256:a9ce0ce76a5a17ff760962e1e22d91a8ee598f5b85285803ef2e367b318bb73d",
+  "created_at": "2026-10-17T00:19:07+03:00",
+  "evidence": [],
+  "id": "gotcha.diff-scoped-complexity-blocks-edits-to-hot-functions",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after #7097"
+  },
+  "status": "active",
+  "tags": [
+    "harness",
+    "ci"
+  ],
+  "title": "Any edit to an over-complex function fails the diff-scoped preflight",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T00:19:07+03:00"
+}

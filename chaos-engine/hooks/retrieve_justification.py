@@ -513,6 +513,15 @@ def session_retrieve_gap(project: Path, session_id: str) -> str | None:
     return RETRIEVE_COMMAND
 
 
+def retrieved_since(project: Path, since: float) -> bool:
+    """True when any live session recorded a retrieve at or after `since` (bot and CLI share it)."""
+    sessions = _live_sessions(_load_payload(project))
+    return any(
+        isinstance(row, dict) and row.get("retrieved") and float(row.get("updated") or 0) >= since
+        for row in sessions.values()
+    )
+
+
 def broad_search_context(project: Path, session_id: str | None) -> str | None:
     """One non-blocking line for the first broad search in this session."""
     now = time.time()

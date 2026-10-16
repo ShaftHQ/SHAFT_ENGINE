@@ -1,0 +1,1 @@
+#7097 cost two CI round trips: no `## Riskiest assumption` section and no release-note label. Write all three sections and pass `--label skip-release-notes` (REST labels API if `gh pr edit` errors) at `gh pr create`.
