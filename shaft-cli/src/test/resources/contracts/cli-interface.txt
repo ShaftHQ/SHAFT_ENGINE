@@ -1,0 +1,284 @@
+shaft-cli
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli browser
+  option --args arity=1
+  option --json arity=0
+  option --stdio-ok arity=0
+  option -V,--version arity=0
+  option -h,--help arity=0
+  param 0 ACTION arity=1 required
+  param 1..* key=value arity=0..1
+shaft-cli call
+  option --args arity=1
+  option --json arity=0
+  option --stdio-ok arity=0
+  option -V,--version arity=0
+  option -h,--help arity=0
+  param 0 TOOL arity=1 required
+  param 1..* key=value arity=0..1
+shaft-cli capture
+  option --args arity=1
+  option --json arity=0
+  option --stdio-ok arity=0
+  option -V,--version arity=0
+  option -h,--help arity=0
+  param 0 ACTION arity=1 required
+  param 1..* key=value arity=0..1
+shaft-cli codegen
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli design
+  option --args arity=1
+  option --json arity=0
+  option --stdio-ok arity=0
+  option -V,--version arity=0
+  option -h,--help arity=0
+  param 0 ACTION arity=1 required
+  param 1..* key=value arity=0..1
+shaft-cli doctor
+  option --args arity=1
+  option --json arity=0
+  option --stdio-ok arity=0
+  option -V,--version arity=0
+  option -h,--help arity=0
+  param 0 ACTION arity=1 required
+  param 1..* key=value arity=0..1
+shaft-cli element
+  option --args arity=1
+  option --json arity=0
+  option --stdio-ok arity=0
+  option -V,--version arity=0
+  option -h,--help arity=0
+  param 0 ACTION arity=1 required
+  param 1..* key=value arity=0..1
+shaft-cli guide
+  option --args arity=1
+  option --json arity=0
+  option --stdio-ok arity=0
+  option -V,--version arity=0
+  option -h,--help arity=0
+  param 0 ACTION arity=1 required
+  param 1..* key=value arity=0..1
+shaft-cli help
+  option -h,--help arity=0
+  param 0 COMMAND arity=0..1
+shaft-cli report
+  option --args arity=1
+  option --json arity=0
+  option --stdio-ok arity=0
+  option -V,--version arity=0
+  option -h,--help arity=0
+  param 0 ACTION arity=1 required
+  param 1..* key=value arity=0..1
+shaft-cli session
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli session start
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli session status
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli session stop
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli setup
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli setup catalog
+  option --json arity=0
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli setup doctor
+  option --abi arity=1
+  option --api-level arity=1
+  option --auto-start arity=0
+  option --avd-name arity=1
+  option --cache-root arity=1
+  option --cores arity=1
+  option --data-root arity=1
+  option --device-profile arity=1
+  option --image-tag arity=1
+  option --json arity=0
+  option --language arity=1
+  option --mode arity=1
+  option --offline arity=0
+  option --port arity=1
+  option --prefer-system-tools arity=0
+  option --profile arity=1 required
+  option --ram-mb arity=1
+  option --reuse-owned-processes arity=0
+  option --shutdown-timeout arity=1
+  option --startup-timeout arity=1
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli setup install
+  option --abi arity=1
+  option --accept-license arity=1
+  option --api-level arity=1
+  option --approve arity=1 required
+  option --auto-start arity=0
+  option --avd-name arity=1
+  option --cache-root arity=1
+  option --cores arity=1
+  option --data-root arity=1
+  option --device-profile arity=1
+  option --image-tag arity=1
+  option --json arity=0
+  option --language arity=1
+  option --offline arity=0
+  option --plan arity=1 required
+  option --port arity=1
+  option --prefer-system-tools arity=0
+  option --ram-mb arity=1
+  option --reuse-owned-processes arity=0
+  option --shutdown-timeout arity=1
+  option --startup-timeout arity=1
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli setup logs
+  option --abi arity=1
+  option --api-level arity=1
+  option --auto-start arity=0
+  option --avd-name arity=1
+  option --cache-root arity=1
+  option --cores arity=1
+  option --data-root arity=1
+  option --device-profile arity=1
+  option --image-tag arity=1
+  option --offline arity=0
+  option --port arity=1
+  option --prefer-system-tools arity=0
+  option --profile arity=1 required
+  option --ram-mb arity=1
+  option --reuse-owned-processes arity=0
+  option --shutdown-timeout arity=1
+  option --startup-timeout arity=1
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli setup plan
+  option --abi arity=1
+  option --api-level arity=1
+  option --auto-start arity=0
+  option --avd-name arity=1
+  option --cache-root arity=1
+  option --cores arity=1
+  option --data-root arity=1
+  option --device-profile arity=1
+  option --image-tag arity=1
+  option --json arity=0
+  option --language arity=1
+  option --mode arity=1
+  option --offline arity=0
+  option --operation arity=1
+  option --output arity=1 required
+  option --port arity=1
+  option --prefer-system-tools arity=0
+  option --profile arity=1 required
+  option --ram-mb arity=1
+  option --reuse-owned-processes arity=0
+  option --shutdown-timeout arity=1
+  option --startup-timeout arity=1
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli setup start
+  option --abi arity=1
+  option --accept-license arity=1
+  option --api-level arity=1
+  option --approve arity=1 required
+  option --auto-start arity=0
+  option --avd-name arity=1
+  option --cache-root arity=1
+  option --cores arity=1
+  option --data-root arity=1
+  option --device-profile arity=1
+  option --image-tag arity=1
+  option --json arity=0
+  option --language arity=1
+  option --offline arity=0
+  option --plan arity=1 required
+  option --port arity=1
+  option --prefer-system-tools arity=0
+  option --ram-mb arity=1
+  option --reuse-owned-processes arity=0
+  option --shutdown-timeout arity=1
+  option --startup-timeout arity=1
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli setup status
+  option --abi arity=1
+  option --api-level arity=1
+  option --auto-start arity=0
+  option --avd-name arity=1
+  option --cache-root arity=1
+  option --cores arity=1
+  option --data-root arity=1
+  option --device-profile arity=1
+  option --image-tag arity=1
+  option --json arity=0
+  option --language arity=1
+  option --mode arity=1
+  option --offline arity=0
+  option --port arity=1
+  option --prefer-system-tools arity=0
+  option --profile arity=1 required
+  option --ram-mb arity=1
+  option --reuse-owned-processes arity=0
+  option --shutdown-timeout arity=1
+  option --startup-timeout arity=1
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli setup stop
+  option --abi arity=1
+  option --accept-license arity=1
+  option --api-level arity=1
+  option --approve arity=1
+  option --auto-start arity=0
+  option --avd-name arity=1
+  option --cache-root arity=1
+  option --cores arity=1
+  option --data-root arity=1
+  option --device-profile arity=1
+  option --image-tag arity=1
+  option --json arity=0
+  option --language arity=1
+  option --offline arity=0
+  option --plan arity=1
+  option --port arity=1
+  option --prefer-system-tools arity=0
+  option --profile arity=1
+  option --ram-mb arity=1
+  option --reuse-owned-processes arity=0
+  option --shutdown-timeout arity=1
+  option --startup-timeout arity=1
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli setup verify
+  option --abi arity=1
+  option --api-level arity=1
+  option --auto-start arity=0
+  option --avd-name arity=1
+  option --cache-root arity=1
+  option --cores arity=1
+  option --data-root arity=1
+  option --device-profile arity=1
+  option --image-tag arity=1
+  option --json arity=0
+  option --language arity=1
+  option --mode arity=1
+  option --offline arity=0
+  option --port arity=1
+  option --prefer-system-tools arity=0
+  option --profile arity=1 required
+  option --ram-mb arity=1
+  option --reuse-owned-processes arity=0
+  option --shutdown-timeout arity=1
+  option --startup-timeout arity=1
+  option -V,--version arity=0
+  option -h,--help arity=0
+shaft-cli tools
+  option --cached arity=0
+  option --json arity=0
+  option -V,--version arity=0
+  option -h,--help arity=0
