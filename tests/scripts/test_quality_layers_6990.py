@@ -87,3 +87,12 @@ class QualityLayersTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ScorecardFloorRatchetTest(unittest.TestCase):
+    def test_floor_is_ratcheted_above_zero(self) -> None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("qt", ROOT / "scripts/ci/quality_trend.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        self.assertGreaterEqual(mod.SCORECARD_FLOOR, 4.0)
