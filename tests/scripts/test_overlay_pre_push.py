@@ -341,3 +341,16 @@ class CheapCiContractTest(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         changed = ["chaos-engine/references/bot-entry.md", "scripts/ci/harness_pr_gate.py"]
         self.assertEqual([], gate.cheap_ci_contract_failures(root, changed))
+
+
+class DotDirectoryPathTest(unittest.TestCase):
+    """A dot-directory path keeps its leading dot, so the workflows-README row check runs (slipped twice)."""
+
+    def test_workflow_change_runs_the_workflows_readme_contract(self):
+        from scripts.ci import overlay_pre_push as gate
+
+        predicates = [pred for pred, mod, _ in gate.CHEAP_CI_CONTRACTS
+                      if mod == "tests.scripts.test_validate_quality_configuration"]
+        self.assertTrue(any(pred(".github/workflows/new.yml") for pred in predicates))
+        source = (Path(__file__).resolve().parents[2] / "scripts/ci/overlay_pre_push.py").read_text(encoding="utf-8")
+        self.assertNotIn('.lstrip("./")', source)

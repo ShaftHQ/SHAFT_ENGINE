@@ -59,6 +59,9 @@ Main rolls forward. A failing post-merge leg opens or updates one rolling issue 
 - Run the cheap CI tests locally before every push: workflow README/inventory, timeout, path-filter and PR-body validators.
 - Check the PR body against the repo's required sections, and name a targeted test, before creating the PR.
 - A body edit does not re-run a PR-body guard that reads the event payload. Push a commit instead.
+- Contract tests that CI runs with plain `unittest` must import only the standard library. A module installed on the dev box but not on the runner, such as PyYAML, passes locally and fails in CI.
+- Normalize paths with `removeprefix("./")`, never `lstrip("./")`. `lstrip` also strips the dot from `.github/`, so path-triggered pre-push checks silently stop running.
+- Never delete a worktree or branch before checking that the cherry-pick or merge landed (`git status`, `git log`). If you already did, recover the commit with `git fsck --lost-found`.
 - Validate every third-party CI config (coverage, analysis) against the vendor's validator in pre-push and CI. Some vendors silently ignore a whole file over one unknown key, and fall back to defaults.
 - Coverage carryforward reads the vendor's record of the git parent. An old branch whose parent chain lacks the full flag set never goes green. Move its commits to a fresh branch from main, and make every main push upload every flag.
 - A gate that reads an external status, such as Codecov, must wait for a settled verdict (an unchanged title and completion time across polls). The vendor recomputes per upload, so a mid-upload red is not final.
