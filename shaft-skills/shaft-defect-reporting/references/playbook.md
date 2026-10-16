@@ -33,3 +33,4 @@ evidence, reproducibility, severity rationale, impact, links, and verification.
 ## Execution class
 
 - Defect ids match whole tokens, not substrings of hostnames, paths, or device names. `SHAFT#6940` is a token. A longer word that merely contains those digits is not. The id has to be on the throwable (#6947).
+- Device logs (logcat) can carry auth headers. Keep only method, path, and status lines; delete raw captures and never attach them. Tokens come from an ignored file or the environment and are never printed (#7086).

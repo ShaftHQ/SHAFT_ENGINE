@@ -7195,6 +7195,9 @@ def main() -> int:
                 )
             elif args.source is None or args.commit is None:
                 raise ValueError("install needs --source and --commit, or --from-bundle")
+            if COMMIT_PATTERN.fullmatch(args.commit) is None:
+                raise ValueError("--commit must be the full lowercase 40-hex sha, for example "
+                                 "`--commit $(git rev-parse HEAD)`; a ref such as HEAD is not accepted")
             refusal = linked_worktree_refusal(args.project)
             if refusal:
                 raise RuntimeError(refusal)

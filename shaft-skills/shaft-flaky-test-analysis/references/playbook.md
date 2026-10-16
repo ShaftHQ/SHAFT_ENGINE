@@ -29,3 +29,7 @@ Return flake evidence, controlled variables, suspected and eliminated causes,
 repair or quarantine controls, repeated-run proof, rate, and residual risk.
 
 Attempt history for retry count and cost: the failures-only reruns of [shaft-test-execution](../../shaft-test-execution/references/playbook.md) archive each attempt under `target/attempts/`.
+
+## Execution class
+
+- A test is flaky only after it passes when run alone on the same code. A failure that reproduces alone is a defect; route it to `shaft-failure-analysis` (#7082).
