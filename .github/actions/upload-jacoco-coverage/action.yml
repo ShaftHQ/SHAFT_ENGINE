@@ -201,7 +201,11 @@ runs:
         fail_ci_if_error: true
         disable_search: true
         files: ${{ steps.resolve.outputs.files }}
-        flags: ${{ inputs.flags }}
+        # #7057: unflagged non-PR uploads (e2e/release/nightly suites on main)
+        # cannot be carried forward, so every Java PR read as a project drop.
+        # Flag them `main-suites` (carryforward in codecov.yml). PR uploads keep
+        # their explicit module flag; an unflagged PR upload stays unflagged.
+        flags: ${{ inputs.flags || (github.event_name != 'pull_request' && 'main-suites' || '') }}
         # #6990: Codecov carries skipped flags forward from the commit's parent.
         # A PR head's git parent is an older PR commit (or an update-branch merge
         # whose first parent is the PR branch) that never had those flags, so

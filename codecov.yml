@@ -58,6 +58,9 @@ flag_management:
       carryforward: true
     - name: templates
       carryforward: true
+    # #7057: every non-PR upload without a module flag (e2e, release, nightly).
+    - name: main-suites
+      carryforward: true
 
 comment:
   layout: "reach,diff,flags,tree"
