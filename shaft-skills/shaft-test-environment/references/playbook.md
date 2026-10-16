@@ -34,5 +34,3 @@ reset rules, evidence paths, drift status, and blockers.
 - One device has one Appium session and one Maven run. Stop the Appium this agent started when the suite ends, including after a failure. Do not start a second server beside a leftover the lease did not start. Do not stop an emulator the user asked to keep.
 - A journey installs the supplied binary even when `versionCode` matches. Do not compile the app from the automation repository.
 - On a real-device cloud session, refuse a simulator binary (`iphonesimulator`) and an emulator-only Android ABI (`x86` or `x86_64` with no device ABI) before upload or session start. Pin the immutable uploaded build id. A latest-upload alias is not the capability. A simulator session may use a simulator binary. `browserStack.buildName` grouping is not a substitute for that id.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

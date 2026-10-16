@@ -27,5 +27,3 @@
 
 Return flake evidence, controlled variables, suspected and eliminated causes,
 repair or quarantine controls, repeated-run proof, rate, and residual risk.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

@@ -38,5 +38,3 @@ transcript. Exact names live in the [generated MCP catalog](../../references/sha
 - Redact tokens from tool output before repeating it.
 - Close with `driver_quit` when the task owns the driver.
 - `mobile_tap_coordinates` is not a success path.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

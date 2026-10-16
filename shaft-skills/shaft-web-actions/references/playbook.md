@@ -26,5 +26,3 @@ An action that returns without an exception is not proof the control fired.
 ## Boundary
 
 - Do not use this skill to invent locators, redesign page objects, or choose business assertions; obtain those specialist outputs first.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

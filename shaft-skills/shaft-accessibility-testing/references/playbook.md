@@ -27,5 +27,3 @@
 
 Return scope and level, test matrix, criterion-linked findings, affected users,
 evidence, severity, limitations, remediation, and retest status.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

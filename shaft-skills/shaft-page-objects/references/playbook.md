@@ -22,5 +22,3 @@
 ## Boundary
 
 - Keep a one-off interaction in the test until reuse or complexity earns an object; route locator ranking to `shaft-locator-design` and executable test assembly to `shaft-automated-test-authoring`.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

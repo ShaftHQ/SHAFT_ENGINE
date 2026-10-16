@@ -30,5 +30,3 @@
 ## Boundary
 
 - Use API capture only to discover traffic or draft code; the final test still needs reviewed contracts, deterministic data, explicit oracles, and focused verification.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

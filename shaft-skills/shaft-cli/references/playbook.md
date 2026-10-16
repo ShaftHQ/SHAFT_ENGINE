@@ -43,5 +43,3 @@ definition for MCP hosts it did not configure.
 - Generated mobile Java taps with `driver.touch().tap(locator)` and never `tapByCoordinates`.
 - Prefer the checked-in catalog over dumping `shaft-cli tools` live output into the chat.
 - Inside a `shaft-cli session`, mobile taps still use a locator, not viewport coordinates.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

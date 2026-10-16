@@ -35,5 +35,3 @@ exceptions, control actions, forecast, and completion status.
 - The verdict is the Surefire or TestNG report. Maven exit 0 is not success when `testFailureIgnore` is set.
 - One watcher reports a cohort copy or device loss. Do not poll a long suite with short waits.
 - Do not add a TestNG XML file. Use `-Dtest` or a suite the project already owns.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

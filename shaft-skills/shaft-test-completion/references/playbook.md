@@ -27,5 +27,3 @@
 
 Return an exit-criteria table, reconciled counts, residual risks and waivers,
 testware decisions, archive links, handover notes, lessons, and a completion status.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

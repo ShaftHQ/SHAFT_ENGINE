@@ -27,5 +27,3 @@
 
 Return quality risks, measurable objectives, model, environment, scenarios,
 observability, thresholds, safety controls, repeat strategy, and limitations.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).

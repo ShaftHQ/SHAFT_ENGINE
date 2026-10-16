@@ -47,5 +47,3 @@ status counts, artifacts, retries, blockers, and exit-criterion result.
 - A later run deletes `allure-results` when `allure.cleanResultsDirectory` is true (the default). Keep a previous cohort by setting that property false for the next run, or by copying the directory into the project workspace first (for example `target/allure-results-kept`). A copy outside the project is not the supported keep path.
 - Decode base64 report blobs before a secret scan. A hit blocks publish and must not echo the secret. A plaintext grep is not success. Checking `browserstack.yml` is not that scan (#6826 stays: that file must not hold credentials).
 - A delivery set is finished when each result passed, failed with a named id, or was blocked with a named id. An all-green filter must not build that report. Scenario status Done in the journey coverage map still means a passing run. That sentence is unchanged. An unclassified skip is not finished.
-
-Sources: [shared authoritative bibliography](../../shaft-developer/references/sources.md).
