@@ -75,6 +75,7 @@ Main rolls forward. A failing post-merge leg opens or updates one rolling issue 
 ## Delivery order, queue, stacks
 
 - One PR at a time: babysit it to merged, then open the next. With a merge queue, `gh pr merge --auto --merge` prints "merge strategy is set by the merge queue" but may still enable auto-merge. Confirm `autoMergeRequest` is set. If the PR is green and not queued, call the GraphQL `enqueuePullRequest` mutation: its error names the exact blocker, such as a cancelled or expected required check.
+- A code-scanning alert on changed lines opens a review conversation. Under a resolve-conversations rule, it blocks the enqueue even when the scanner check is not required. Fix the finding, or, if it is accepted by design, reply with the reason and resolve the thread. Resolving does not dismiss the alert.
 - A required check must never share a concurrency group across runs. GitHub keeps only one pending run per group, so a burst of PR events cancels the queued one, and a cancelled required check blocks the queue. Use a per-run group (`github.run_id`) and no cancellation.
 - Merge queue: add `merge_group:` to every workflow that reports a required check, and run the PR tier there. External apps that do not report on `merge_group` must leave the required list first.
 - Stacked PRs: run cheap checks on every layer, and expensive legs only on the lowest unmerged layer or the top of the stack (`github.event.pull_request.stack`).
