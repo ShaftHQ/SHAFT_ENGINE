@@ -232,6 +232,7 @@ jobs:
               - 'tests/scripts/test_shaft_skill_cli_examples.py'
               - 'tests/scripts/test_shaft_skill_quality.py'
               - 'tests/scripts/test_execution_class_skills.py'
+              - 'tests/scripts/test_rerun_failures_skill_script.py'
               - 'tests/scripts/test_shaft_skill_routing_eval.py'
               - 'tests/scripts/test_shaft_skill_candidate_intake.py'
               - 'tests/scripts/test_agnix_conformance.py'

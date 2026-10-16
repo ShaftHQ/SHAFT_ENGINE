@@ -139,6 +139,7 @@ jobs:
             tests.scripts.test_shaft_skill_cli_examples
             tests.scripts.test_shaft_skill_quality
             tests.scripts.test_shaft_skill_routing_eval
+            tests.scripts.test_rerun_failures_skill_script
             tests.scripts.test_shaft_skills_content
             tests.scripts.test_sync_user_harness
             tests.scripts.test_validate_agent_guidance
