@@ -56,14 +56,30 @@ Pings do not extend a wall-clock cap; resume instead:
 
 ## Token economy
 
+Measured on 20 CI PRs: polling, preventable CI round trips and
+verbose reports were most of the waste.
+
 - One round trip per PR: `overlay_pre_push.py` also checks the open PR body
   and the README inventories, so fix what it reports before pushing, never after.
+  Before `gh pr create`, validate the body file:
+  `PR_TITLE="$T" PR_BODY="$(cat body.md)" python3 scripts/ci/validate_pr_closing_keywords.py` (repo-only).
+  SHA-pin every new `uses:` and run changed contract tests with `python3 -I`
+  (stdlib only, as on the runner).
 - Filter test and CI logs to the verdict:
   `2>&1 | grep -E "^(OK|FAILED|FAIL:|AssertionError)" | cut -c1-300`.
-  Never print a whole job log or assertion dump.
-- Babysit with one blocking loop that exits on merge or on the first `fail`.
-  With a merge queue, `gh pr merge --auto --merge` enqueues the PR. Before
-  it merges, read non-blocking analysis and coverage reporters and fix them.
+  Never print a whole job log or assertion dump. Keep a known-failures list
+  instead of re-running the base commit to compare.
+- Babysit with ONE background loop per PR, not repeated poll calls: it exits on
+  merged, on the first `fail`, or when the PR is green but not queued (then it
+  prints the `enqueuePullRequest` error, which names the blocker). Await it
+  once. `gh pr merge --auto --merge` may print a merge-queue message yet still
+  set auto-merge; confirm `autoMergeRequest`. Before it merges, read
+  non-blocking analysis and coverage reporters and fix them.
+- Bound every tool call to 60 s or less; anything longer runs in the background.
+- Trust a green gate: no local re-verification after CI passes.
+- Reports are deltas only (merged, next, blockers), at most 15 lines.
+- Keep tools and drafts outside `/tmp` (a box restore wipes it) and check
+  `git ls-files -d` before each push.
 - `checkpoint TASK --budget 40` after every merge. When it exits 3, stop.
 
 ## Delivery ledger
