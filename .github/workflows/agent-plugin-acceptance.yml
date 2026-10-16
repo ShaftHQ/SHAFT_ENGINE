@@ -44,7 +44,7 @@ jobs:
       cross_exclude: ${{ steps.pick.outputs.cross_exclude }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Select the jobs this event may run
         id: pick
         env:
@@ -66,11 +66,11 @@ jobs:
         python: ['3.11', '3.13', '3.14']
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
       - name: Install managed CI Python dependencies
@@ -204,9 +204,9 @@ jobs:
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.13'
       - name: Run fresh-install, dependency, and wrapper acceptance
@@ -239,11 +239,11 @@ jobs:
         if: runner.os == 'Windows'
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.13'
       - name: Run real fresh, offline, upgrade, repair, and rollback sequence
@@ -256,7 +256,7 @@ jobs:
           --output chaos-engine-live-installer-evidence.json
       - name: Upload live installer evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: chaos-engine-live-installer-${{ matrix.os }}
           path: chaos-engine-live-installer-evidence.json
@@ -275,9 +275,9 @@ jobs:
         os: [ubuntu-22.04, windows-2025]
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.13'
       - name: Run platform-sensitive harness contracts
@@ -301,9 +301,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.13'
       - name: Resolve pinned agnix contract
@@ -337,7 +337,7 @@ jobs:
             --output agnix-conformance-evidence.json
       - name: Upload agnix conformance evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: agnix-conformance-evidence
           path: agnix-conformance-evidence.json
@@ -352,9 +352,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.13'
       - name: Verify and score pinned external guardrail corpus
@@ -363,7 +363,7 @@ jobs:
           --output external-guardrail-corpus-evidence.json
       - name: Upload external guardrail evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: external-guardrail-corpus-evidence
           path: external-guardrail-corpus-evidence.json
@@ -378,15 +378,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.13'
       - name: Install managed CI Python dependencies
         run: python -m pip install --no-deps --requirement requirements-ci.txt --quiet
       - name: Set up Node.js 24
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
       - name: Install pinned native plugin clients
@@ -403,7 +403,7 @@ jobs:
           --output agent-plugin-client-evidence.json
       - name: Upload structured compatibility evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: agent-plugin-live-acceptance-evidence
           path: agent-plugin-client-evidence.json
@@ -418,9 +418,9 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.13'
       - name: Check protected promotion inputs
@@ -516,7 +516,7 @@ jobs:
           --output chaos-engine-promotion-evidence.json
       - name: Upload secret-free promotion evidence
         if: always()
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: chaos-engine-promotion-evidence
           path: |
@@ -546,7 +546,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: File or recover the scheduled tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:

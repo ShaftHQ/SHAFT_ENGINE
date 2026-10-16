@@ -167,8 +167,8 @@ class AgentPluginReleaseTest(unittest.TestCase):
         self.assertLess(install_index, build_index)
         self.assertLess(build_index, deploy_index)
         self.assertIn("name: agent-plugin-release-assets", workflow_text)
-        self.assertIn("actions/upload-artifact@v7", workflow_text)
-        self.assertIn("actions/download-artifact@v8", workflow_text)
+        self.assertIn("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7", workflow_text)
+        self.assertIn("actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8", workflow_text)
         self.assertIn("artifacts: /tmp/agent-plugin-release-assets/*", workflow_text)
 
     def test_reconciliation_rejects_a_mutable_source_ref_before_checkout(self):

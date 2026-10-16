@@ -33,7 +33,7 @@ jobs:
       changed: ${{ steps.version-diff.outputs.changed }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
@@ -86,7 +86,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Verify IntelliJ plugin release candidate
         uses: ./.github/actions/intellij-verify
       - name: Upload IntelliJ coverage to Codecov
@@ -105,9 +105,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Validate release contracts
@@ -120,13 +120,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: "25"
           distribution: "zulu"
@@ -136,7 +136,7 @@ jobs:
       - name: Cache Maven repository
         uses: ./.github/actions/cache-maven-repo
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v5.1
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
           maven-version: 3.9.12
       - name: Install SHAFT Pilot prerequisites without tests
@@ -178,9 +178,9 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: "25"
           distribution: "zulu"
@@ -188,7 +188,7 @@ jobs:
       - name: Cache Maven repository
         uses: ./.github/actions/cache-maven-repo
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v5.1
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
           maven-version: 3.9.12
       - name: Install SHAFT Pilot prerequisites without tests
@@ -213,15 +213,15 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: "25"
           distribution: "zulu"
@@ -229,7 +229,7 @@ jobs:
       - name: Cache Maven repository
         uses: ./.github/actions/cache-maven-repo
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v5.1
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
           maven-version: 3.9.12
       - name: Package the complete reactor
@@ -257,7 +257,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Reclaim disk space
         uses: ./.github/actions/reclaim-disk-space
       - name: Build and smoke the release container
@@ -274,9 +274,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
@@ -368,7 +368,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: File or recover the nightly tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:

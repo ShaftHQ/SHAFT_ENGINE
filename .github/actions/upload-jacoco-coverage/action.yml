@@ -195,7 +195,7 @@ runs:
         steps.resolve.outcome == 'success' &&
         steps.resolve.outputs.has-files == 'true'
       continue-on-error: true
-      uses: codecov/codecov-action@v7
+      uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
       with:
         token: ${{ inputs.codecov-token }}
         fail_ci_if_error: true
@@ -266,7 +266,7 @@ runs:
     - name: Preserve coverage failure evidence
       if: steps.summarize.outputs.status == 'failure'
       continue-on-error: true
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
       with:
         name: ${{ steps.summarize.outputs.artifact-name }}
         path: ${{ steps.summarize.outputs.record }}

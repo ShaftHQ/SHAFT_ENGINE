@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  */
 class GeneratedWorkflowActionVersionFreshnessTest {
 
-    private static final Pattern USES_LINE = Pattern.compile("^\\s*(?:-\\s*)?uses:\\s*([^\\s#]+)\\s*(?:#.*)?$");
+    private static final Pattern USES_LINE = Pattern.compile("^\\s*(?:-\\s*)?uses:\\s*([^\\s#]+)\\s*(?:#\\s*(\\S+).*)?$");
 
     @Test
     void templateActionVersionsShouldNotTrailTheMainRepoWorkflows() throws IOException {
@@ -94,6 +94,10 @@ class GeneratedWorkflowActionVersionFreshnessTest {
                     }
                     String action = reference.substring(0, at);
                     Version version = Version.parse(reference.substring(at + 1));
+                    if (version == null && matcher.group(2) != null) {
+                        // SHA pin: compare the "# vX.Y.Z" tag comment (#7037)
+                        version = Version.parse(matcher.group(2));
+                    }
                     if (version == null) {
                         continue;
                     }

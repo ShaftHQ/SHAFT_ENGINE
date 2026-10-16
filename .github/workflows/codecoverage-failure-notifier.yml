@@ -36,7 +36,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: File or update the code coverage tracking issue
         continue-on-error: true
         uses: ./.github/actions/notify-codecoverage-failure

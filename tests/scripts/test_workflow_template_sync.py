@@ -39,6 +39,14 @@ class WorkflowTemplateSyncTest(unittest.TestCase):
             stale_template_actions(self.root),
         )
 
+    def test_sha_pin_compares_its_tag_comment(self):
+        _write(self.root, MAIN_WORKFLOWS, "ci.yml", "actions/upload-artifact@" + "b" * 40 + " # v7.0.2")
+        _write(self.root, TEMPLATE_WORKFLOWS, "web.yml", "actions/upload-artifact@v7.0.1")
+        self.assertEqual(
+            ["actions/upload-artifact: template pins v7.0.1 but the repository now uses v7.0.2"],
+            stale_template_actions(self.root),
+        )
+
     def test_equal_newer_sha_local_and_template_only_actions_are_ignored(self):
         _write(self.root, MAIN_WORKFLOWS, "ci.yml", "actions/checkout@v7", "actions/cache@" + "a" * 40, "./.github/actions/x")
         _write(self.root, TEMPLATE_WORKFLOWS, "api.yml", "actions/checkout@v7.0.0", "actions/cache@v4", "only/template@v1")

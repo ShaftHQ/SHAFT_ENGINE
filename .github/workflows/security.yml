@@ -52,23 +52,23 @@ jobs:
         language: [ 'java' ]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4.38.3
+        uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           languages: ${{ matrix.language }}
           build-mode: manual
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: '25'
           distribution: 'zulu'
           check-latest: true
 
       - name: Set up Maven
-        uses: stCarolas/setup-maven@v5.1
+        uses: stCarolas/setup-maven@12eb41b233df95d49b0c11fc1b5bc8312e5d4ce0 # v5.1
         with:
           maven-version: 3.9.5
 
@@ -76,4 +76,4 @@ jobs:
         run: mvn -B -pl shaft-infrastructure,shaft-engine,shaft-pilot-core,shaft-capture,shaft-capture-proxy,shaft-doctor,shaft-ai,shaft-heal,shaft-browserstack,shaft-video,shaft-visual,shaft-ui-match,shaft-ocr,shaft-sikulix,shaft-mcp,report-aggregate -am clean package --file pom.xml -DskipTests -Dgpg.skip
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4.38.3
+        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3

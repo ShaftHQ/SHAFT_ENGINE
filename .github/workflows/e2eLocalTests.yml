@@ -59,7 +59,7 @@ jobs:
       actions: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Consolidate Test Results
         uses: ./.github/actions/consolidate-test-results
         with:
@@ -83,7 +83,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -124,7 +124,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -162,7 +162,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -204,7 +204,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -247,7 +247,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -317,7 +317,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -352,7 +352,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -426,7 +426,7 @@ jobs:
           }
       - name: Upload Appium server log
         if: always()
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Windows_Appium_Desktop_Local_server_log
           path: ${{ runner.temp }}\appium-server.log
@@ -453,7 +453,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -495,7 +495,7 @@ jobs:
       - name: Enable Windows long paths
         run: git config --global core.longpaths true
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -507,7 +507,7 @@ jobs:
         continue-on-error: true
         run: mvn -pl shaft-engine -am -e test "-DdefaultElementIdentificationTimeout=5" "-DsetParallelMode=NONE" "-DretryMaximumNumberOfAttempts=1" "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DmaximumPerformanceMode=2" "-DtargetBrowserName=MicrosoftEdge" "-DgenerateAllureReportArchive=true" "-Dtest=${{ github.event.inputs.tests != '' && github.event.inputs.tests || '%regex[.*CucumberTests.*]' }}"
       - name: Set up Python
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.13'
       # The %regex[.*CucumberTests.*] selector also matches unrelated unit tests (e.g.
@@ -556,7 +556,7 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
@@ -654,27 +654,27 @@ jobs:
       duration: ${{ steps.post_test_report.outputs.duration }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
           java-version: '17'
           node-version: '20'
       - name: Setup Flutter 3.22.1
-        uses: subosito/flutter-action@v2.23.0
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version: 3.22.1
           channel: stable
       - name: Setup Android SDK
         # Default packages include deprecated `tools`, which Google stopped
         # serving (android-actions/setup-android#537). Request only what we need.
-        uses: android-actions/setup-android@v4.0.4
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: platform-tools
       - name: Flutter emulator preflight
         run: bash scripts/ci/flutter_emulator_preflight.sh
       - name: Checkout pinned appium-flutter-server demo-app
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: AppiumTestDistribution/appium-flutter-server
           ref: 78ba97a6146091b944335d0db3330f74416f3ac7
@@ -696,7 +696,7 @@ jobs:
           ls -l "$APK_PATH"
           cp "$APK_PATH" shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk
       - name: Set up JDK 25 for Maven
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -707,7 +707,7 @@ jobs:
       - name: Boot emulator, open Flutter session, run FlutterTest tap/type/text
         id: flutter_e2e
         continue-on-error: true
-        uses: reactivecircus/android-emulator-runner@v2.38.0
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         env:
           FLUTTER_TEST_SELECTOR: ${{ github.event.inputs.tests != '' && github.event.inputs.tests || 'testPackage.appium.FlutterTest' }}
         with:
@@ -719,7 +719,7 @@ jobs:
           script: bash "$GITHUB_WORKSPACE/scripts/ci/run_ubuntu_flutter_emulator_e2e.sh"
       - name: Upload Appium server log
         if: always()
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Ubuntu_Flutter_Emulator_Local_appium_log
           path: ${{ runner.temp }}/appium-server.log
@@ -743,7 +743,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: File or recover the nightly tracking issue
         uses: ./.github/actions/notify-nightly-failure
         with:

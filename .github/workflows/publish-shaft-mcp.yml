@@ -20,6 +20,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      attestations: write
     # Runs only for an actual published SHAFT release (created by mavenCentral_cd.yml's
     # announce_release job), not merely because that workflow's run concluded successfully -
     # its build_release_and_deliver job now also concludes successfully when it skips a
@@ -29,15 +30,15 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout released source
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
       - name: Set up Python 3.13
-        uses: actions/setup-python@v7.0.0
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
       - name: Set up JDK 25
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           java-version: '25'
           distribution: 'zulu'
@@ -45,13 +46,14 @@ jobs:
       - name: Read reactor version
         run: echo "VERSION=$(mvn -f pom.xml help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_ENV"
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push OCI image
-        uses: docker/build-push-action@v7
+        id: image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: shaft-mcp/Dockerfile
@@ -59,6 +61,14 @@ jobs:
           tags: |
             ghcr.io/shafthq/shaft-engine-mcp:${{ env.VERSION }}
             ghcr.io/shafthq/shaft-engine-mcp:latest
+      # #7044: additive provenance; never blocks the already-pushed image.
+      - name: Attest OCI image provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ghcr.io/shafthq/shaft-engine-mcp
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
       - name: Materialize and validate MCP registry metadata
         working-directory: shaft-mcp
         run: |
