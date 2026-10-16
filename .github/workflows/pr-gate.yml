@@ -1113,7 +1113,8 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          changed=$(git diff --name-only "$BASE_SHA" HEAD -- '*.java' | grep '/src/main/' | cut -d/ -f1 | sort -u || true)
+          changed=$(git diff --name-only "$BASE_SHA" HEAD -- '*.java' | grep '/src/main/' | cut -d/ -f1 | sort -u \
+            | while read -r m; do grep -q "<module>$m</module>" pom.xml && echo "$m"; done || true)
           mkdir -p "$RUNNER_TEMP/japicmp"
           mods=""
           for m in $changed; do

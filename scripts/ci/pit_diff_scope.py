@@ -8,6 +8,7 @@ summary: PIT mutations.xml reports -> markdown with killed/survived and score.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import xml.etree.ElementTree as ET  # nosec B405 - local build output only
 from pathlib import Path
@@ -16,8 +17,21 @@ MAX_MODULES = 2
 MAX_CLASSES = 15
 
 
-def scope(paths: list[str], max_modules: int = MAX_MODULES, max_classes: int = MAX_CLASSES) -> dict[str, list[str]]:
-    """Map module -> FQCNs of changed main classes, skipping deleted/non-module files."""
+def reactor_modules(pom: Path = Path("pom.xml")) -> set[str] | None:
+    """Maven reactor module names from the root pom; None when there is no pom (no filtering)."""
+    try:
+        text = pom.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    return set(re.findall(r"<module>\s*([^<\s]+)\s*</module>", text))
+
+
+def scope(paths: list[str], max_modules: int = MAX_MODULES, max_classes: int = MAX_CLASSES,
+          reactor: set[str] | None = None) -> dict[str, list[str]]:
+    """Map module -> FQCNs of changed main classes, skipping deleted/non-module files.
+
+    Directories outside the Maven reactor (shaft-intellij is Gradle, benchmarks/jmh is standalone) are skipped.
+    """
     result: dict[str, list[str]] = {}
     for raw in paths:
         parts = raw.strip().split("/")
@@ -27,6 +41,8 @@ def scope(paths: list[str], max_modules: int = MAX_MODULES, max_classes: int = M
             continue
         fqcn = ".".join(parts[4:])[: -len(".java")]
         module = parts[0]
+        if reactor is not None and module not in reactor:
+            continue
         if module not in result and len(result) >= max_modules:
             continue
         classes = result.setdefault(module, [])
@@ -66,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("root", nargs="?", default=".")
     args = parser.parse_args(argv)
     if args.cmd == "scope":
-        for module, classes in scope(sys.stdin.read().splitlines()).items():
+        for module, classes in scope(sys.stdin.read().splitlines(), reactor=reactor_modules()).items():
             print(f"{module}\t{','.join(classes)}")
     else:
         print(summarize(sorted(Path(args.root).glob("*/target/pit-reports/mutations.xml"))), end="")

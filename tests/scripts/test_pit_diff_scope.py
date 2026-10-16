@@ -41,7 +41,7 @@ class ScopeTest(unittest.TestCase):
 
     def test_cli_scope_prints_tab_separated(self) -> None:
         out = io.StringIO()
-        with unittest.mock.patch("sys.stdin", io.StringIO("m/src/main/java/a/B.java\nm/src/main/java/a/C.java\n")), redirect_stdout(out):
+        with unittest.mock.patch("sys.stdin", io.StringIO("m/src/main/java/a/B.java\nm/src/main/java/a/C.java\n")), unittest.mock.patch.object(pit, "reactor_modules", return_value={"m"}), redirect_stdout(out):
             self.assertEqual(0, pit.main(["scope"]))
         self.assertEqual("m\ta.B,a.C\n", out.getvalue())
 
@@ -63,6 +63,25 @@ class SummaryTest(unittest.TestCase):
     def test_no_reports_is_explicit(self) -> None:
         self.assertIn("No mutations generated", pit.summarize([]))
 
+
+
+class ReactorFilterTest(unittest.TestCase):
+    def test_non_reactor_directories_are_skipped(self):
+        paths = ["shaft-intellij/src/main/java/com/shaft/intellij/A.java",
+                 "shaft-engine/src/main/java/com/shaft/B.java"]
+        self.assertEqual({"shaft-engine": ["com.shaft.B"]}, pit.scope(paths, reactor={"shaft-engine"}))
+
+    def test_reactor_modules_reads_root_pom(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pom = Path(tmp) / "pom.xml"
+            pom.write_text("<modules><module>shaft-engine</module>\n<module> shaft-cli </module></modules>", encoding="utf-8")
+            self.assertEqual({"shaft-engine", "shaft-cli"}, pit.reactor_modules(pom))
+            self.assertIsNone(pit.reactor_modules(Path(tmp) / "missing.xml"))
+
+    def test_repository_reactor_excludes_gradle_plugin(self):
+        modules = pit.reactor_modules(ROOT / "pom.xml")
+        self.assertIn("shaft-engine", modules)
+        self.assertNotIn("shaft-intellij", modules)
 
 if __name__ == "__main__":
     unittest.main()
