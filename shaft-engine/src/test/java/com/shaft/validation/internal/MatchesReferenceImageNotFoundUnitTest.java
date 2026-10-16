@@ -9,7 +9,8 @@ import org.openqa.selenium.WebElement;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -21,7 +22,7 @@ public class MatchesReferenceImageNotFoundUnitTest {
     @Test
     public void reportsTheElementNotFoundCauseWhenTheElementNeverAppeared() {
         Object actual = ValidationsHelper.describeMatchesActual(false, false,
-                new NoSuchElementException("no such element: Unable to locate element"), LOCATOR);
+                List.of(new NoSuchElementException("no such element: Unable to locate element")), LOCATOR);
         Assert.assertTrue(actual instanceof String, "a missing element must be reported as a cause, not a boolean");
         String message = (String) actual;
         Assert.assertTrue(message.contains("Element not found"), message);
@@ -32,15 +33,15 @@ public class MatchesReferenceImageNotFoundUnitTest {
 
     @Test
     public void keepsThePassingResultUnchanged() {
-        Assert.assertEquals(ValidationsHelper.describeMatchesActual(true, true, null, LOCATOR), Boolean.TRUE);
+        Assert.assertEquals(ValidationsHelper.describeMatchesActual(true, true, List.of(), LOCATOR), Boolean.TRUE);
         // a stale lookup failure from an earlier retry never overrides a passing comparison
         Assert.assertEquals(ValidationsHelper.describeMatchesActual(true, true,
-                new NoSuchElementException("earlier retry"), LOCATOR), Boolean.TRUE);
+                List.of(new NoSuchElementException("earlier retry")), LOCATOR), Boolean.TRUE);
     }
 
     @Test
     public void keepsTheImageMismatchResultWhenTheElementWasFound() {
-        Assert.assertEquals(ValidationsHelper.describeMatchesActual(false, false, null, LOCATOR), Boolean.FALSE);
+        Assert.assertEquals(ValidationsHelper.describeMatchesActual(false, false, List.of(), LOCATOR), Boolean.FALSE);
     }
 
     private static WebDriver driverThrowing(RuntimeException failure) {
@@ -51,29 +52,29 @@ public class MatchesReferenceImageNotFoundUnitTest {
 
     @Test
     public void captureRecordsAndRethrowsAMissingElement() {
-        AtomicReference<RuntimeException> failure = new AtomicReference<>();
+        List<RuntimeException> failure = new ArrayList<>();
         NoSuchElementException missing = new NoSuchElementException("gone");
         Assert.assertThrows(NoSuchElementException.class,
                 () -> ValidationsHelper.captureElementScreenshot(driverThrowing(missing), LOCATOR, failure));
-        Assert.assertSame(failure.get(), missing);
+        Assert.assertEquals(failure, List.of(missing));
     }
 
     @Test
     public void captureTreatsZeroWidthAsNotFound() {
-        AtomicReference<RuntimeException> failure = new AtomicReference<>();
+        List<RuntimeException> failure = new ArrayList<>();
         Assert.assertThrows(NoSuchElementException.class, () -> ValidationsHelper.captureElementScreenshot(
                 driverThrowing(new WebDriverException("Cannot take screenshot with 0 width.")), LOCATOR, failure));
-        Assert.assertTrue(failure.get() instanceof NoSuchElementException);
+        Assert.assertTrue(failure.getFirst() instanceof NoSuchElementException);
     }
 
     @Test
     public void captureRetriesOnFirefoxTransientErrorAndRethrowsOthers() {
-        AtomicReference<RuntimeException> failure = new AtomicReference<>();
-        Assert.assertNull(ValidationsHelper.captureElementScreenshot(
-                driverThrowing(new WebDriverException("NS_ERROR_FAILURE")), LOCATOR, failure));
+        List<RuntimeException> failure = new ArrayList<>();
+        Assert.assertEquals(ValidationsHelper.captureElementScreenshot(
+                driverThrowing(new WebDriverException("NS_ERROR_FAILURE")), LOCATOR, failure).length, 0);
         Assert.assertThrows(WebDriverException.class, () -> ValidationsHelper.captureElementScreenshot(
                 driverThrowing(new WebDriverException("session deleted")), LOCATOR, failure));
-        Assert.assertNull(failure.get());
+        Assert.assertTrue(failure.isEmpty());
     }
 
     @Test
@@ -82,9 +83,9 @@ public class MatchesReferenceImageNotFoundUnitTest {
         when(element.getScreenshotAs(OutputType.BYTES)).thenReturn(new byte[]{7});
         WebDriver driver = mock(WebDriver.class);
         when(driver.findElement(LOCATOR)).thenReturn(element);
-        AtomicReference<RuntimeException> failure = new AtomicReference<>(new NoSuchElementException("earlier"));
+        List<RuntimeException> failure = new ArrayList<>(List.of(new NoSuchElementException("earlier")));
         Assert.assertEquals(ValidationsHelper.captureElementScreenshot(driver, LOCATOR, failure), new byte[]{7});
-        Assert.assertNull(failure.get());
+        Assert.assertTrue(failure.isEmpty());
     }
 
     @Test
