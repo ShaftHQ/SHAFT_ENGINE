@@ -827,10 +827,9 @@ public class ValidationsHelper {
             //timeout was exhausted and the validation failed
         }
         //reporting block
-        var parameters = new LinkedHashMap<String, String>();
-        parameters.put("Locator", String.valueOf(locator));
-        reportElementMatches(driver, locator, internalVisualEngine.get(), validationState.get(), expected.get(), actual.get(),
-                lookupFailure, parameters, elementCount.get() == 0, attachments, visualComparisonAttached.get());
+        Object actualForReport = describeMatchesActual(validationState.get(), actual.get(), lookupFailure, locator);
+        reportElementMatches(driver, locator, internalVisualEngine.get(), validationState.get(), expected.get(), actualForReport,
+                elementCount.get() == 0, attachments, visualComparisonAttached.get());
     }
 
     static void logReferenceImageState(byte[] referenceImage) {
@@ -842,10 +841,10 @@ public class ValidationsHelper {
     }
 
     private void reportElementMatches(WebDriver driver, By locator, ValidationEnums.VisualValidationEngine engine,
-                                      boolean validationPassed, boolean expected, boolean actual, List<RuntimeException> lookupFailure,
-                                      Map<String, String> parameters, boolean elementMissing,
+                                      boolean validationPassed, boolean expected, Object actualForReport, boolean elementMissing,
                                       List<List<Object>> attachments, boolean visualComparisonAttached) {
-        Object actualForReport = describeMatchesActual(validationPassed, actual, lookupFailure, locator);
+        var parameters = new LinkedHashMap<String, String>();
+        parameters.put("Locator", String.valueOf(locator));
         parameters.put("Should match", String.valueOf(expected));
         parameters.put("Visual engine", engine.name());
         parameters.put("Actual value", String.valueOf(actualForReport));
