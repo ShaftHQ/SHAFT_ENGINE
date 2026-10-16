@@ -1243,3 +1243,5 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.bug-analysis-only-reactor-modules","timestamp":"2026-10-16T18:17:15+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.lychee-gnu-build-needs-newer-glibc","timestamp":"2026-10-16T18:17:15+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.intellij-263-deprecates-openfileeditor","timestamp":"2026-10-16T18:17:15+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.babysit-must-detect-merged-state","timestamp":"2026-10-16T19:25:20+03:00"}
+{"actor":"agent","event":"memory.updated","id":"gotcha.bug-analysis-only-reactor-modules","timestamp":"2026-10-16T19:25:20+03:00"}
