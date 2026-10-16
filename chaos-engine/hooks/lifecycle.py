@@ -202,8 +202,27 @@ def read_stopped_companions(session_id: str) -> frozenset[str]:
     return frozenset(part for part in text.split() if part in COMPANION_CARDS)
 
 
+def stamp_cards_loaded(session_id: str = "") -> None:
+    """CLI twin of `tool.py entry --full`: SessionStart re-injects the cards, so write the same load stamp."""
+    installed = Path(__file__).resolve().parents[1]
+    tool_path = installed / "tool.py"
+    if installed.name != ".chaos-engine" or not tool_path.is_file():
+        return
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("_chaos_engine_tool_stamp", tool_path)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    stopped = read_stopped_companions(session_id)
+    module.write_entry_stamp(installed, " ".join(f"stop {name}" for name in sorted(stopped)))
+
+
 def session_start_context(token: str | None, activation: str, session_id: str = "") -> str:
     """Return the compact SessionStart locator line set (<= 600 bytes)."""
+    with contextlib.suppress(Exception):
+        stamp_cards_loaded(session_id)
     parts = [f"ChaosEngine: {activation}"]
     if token:
         parts.append(f"Reflection session token (never track it): {token}")
