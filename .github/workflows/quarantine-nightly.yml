@@ -21,6 +21,9 @@ jobs:
     name: Quarantined shaft-engine tests
     runs-on: ubuntu-22.04
     timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,6 +46,12 @@ jobs:
           -Dsurefire.excludedGroups=allure3-visual-demo,trace-viewer-browser-acceptance,browser-capture-acceptance,playwright-trace-acceptance
           -Dsurefire.failIfNoSpecifiedTests=false
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      - name: Post test report
+        if: always()
+        uses: ./.github/actions/post-test-report
+        with:
+          job-name: Quarantine_Nightly
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
       - name: Judge
         run: |
           python3 - <<'PY'
