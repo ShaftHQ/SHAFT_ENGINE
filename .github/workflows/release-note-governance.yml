@@ -28,9 +28,14 @@ permissions:
   contents: read
   pull-requests: read
 
+# Every run gets its own concurrency group and nothing is cancelled. A shared
+# group allows only one *pending* run, so a burst of events (opened + labeled +
+# edited) cancelled the queued run and left the required check "cancelled",
+# which blocks the merge queue. The job is tiny (<1 min); the newest run on a
+# head SHA is the one GitHub reports, so letting older runs finish is harmless.
 concurrency:
-  group: release-note-governance-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'labeled' && github.event.action != 'unlabeled' }}
+  group: release-note-governance-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   release-governance:
