@@ -2,6 +2,16 @@
 
 Cloud implementers write code directly; local runtimes are optional for narrow mechanical or offline jobs, and a local runtime never reviews its own diff.
 
+## Contents
+
+- [Capability levels](#capability-levels)
+- [Research / explore firewall](#research--explore-firewall)
+- [Main-thread duties](#main-thread-duties)
+- [Orchestrator duties](#orchestrator-duties)
+- [Independent adversarial review](#independent-adversarial-review)
+- [Delegate covenant](#delegate-covenant)
+- [Returned-work review](#returned-work-review)
+
 Default is single-thread: the main agent does the work itself. Delegate only
 when the owner enables delegation for the session or project.
 

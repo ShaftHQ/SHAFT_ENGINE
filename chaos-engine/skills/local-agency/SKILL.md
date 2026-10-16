@@ -67,31 +67,9 @@ yourself with that env; do not persist the config into the durable user file.
 `medium` for tool loops). `--no-pure` exists for callers that already isolate
 plugins. `--pure` still only disables plugins.
 
-## CE brief (design turns)
+## Design-turn brief and OpenCode preflight
 
-For design/spec-shaped local turns, build a locator-only system brief with [`ce_brief.py`](../../ce_brief.py) or via dispatch:
-
-```text
-python3 .chaos-engine/skills/local-agency/scripts/dispatch.py brief --json
-python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp config --with-ce-brief
-python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer llamacpp chat --prompt '…' --with-ce-brief
-```
-
-Do not dump full SKILL bodies into the model context.
-Unit/eval contracts: [`ce-brief-unit-fixtures.json`](../../evals/ce-brief-unit-fixtures.json).
-
-
-## CE project pointers (OpenCode preflight)
-
-Before emitting `config` / `argv` OpenCode material, `dispatch.py` fail-closes unless the
-target worktree has ChaosEngine project pointers:
-
-- `AGENTS.md`
-- `.agents/skills/chaos-engine/` (install-generated skill adapter)
-
-`--pure` only disables external plugins; it does **not** load ChaosEngine and does **not**
-replace those pointers. Missing pointers → `state=UNHEALTHY` with `ce_pointers.missing`.
-
+On demand: [brief and preflight](references/brief-and-preflight.md).
 
 ## Dispatch modes
 

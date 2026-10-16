@@ -2,6 +2,20 @@
 
 Learned in coalesce wave: babysit, process-owner, and parent turns burned tokens re-reading unchanged CI state. This policy is portable. Codex, Claude, Grok CLI, Gemini, Copilot, and Grok Bot share it; no host-only memory exception.
 
+## Contents
+
+- [Agent Plugin Live Acceptance dispatch](#agent-plugin-live-acceptance-dispatch)
+- [Wait by event wake, never by LLM poll](#wait-by-event-wake-never-by-llm-poll)
+- [A green check can hide failing tests](#a-green-check-can-hide-failing-tests)
+- [A late label can leave a cancelled required check](#a-late-label-can-leave-a-cancelled-required-check)
+- [A registry 404 for a published artifact is infrastructure first](#a-registry-404-for-a-published-artifact-is-infrastructure-first)
+- [Digest only](#digest-only)
+- [One status channel](#one-status-channel)
+- [Fingerprint-first failed logs](#fingerprint-first-failed-logs)
+- [Known fingerprints](#known-fingerprints)
+- [Executor prompt schema](#executor-prompt-schema)
+- [Related](#related)
+
 ## Agent Plugin Live Acceptance dispatch
 
 - Dispatch only the jobs the gate names. Installer part 1 on windows-2025 and

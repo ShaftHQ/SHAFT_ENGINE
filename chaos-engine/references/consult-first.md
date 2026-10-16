@@ -4,6 +4,14 @@ You are here because the entrypoint's triage selected a depth beyond the
 trivial row. Decide what good looks like and how the change will be proved
 before touching anything. No edits yet.
 
+## Contents
+
+- [Full pass](#full-pass)
+- [Executable specification for consequential work](#executable-specification-for-consequential-work)
+- [Plan artifact destination](#plan-artifact-destination)
+- [Lifecycle](#lifecycle)
+- [Output](#output)
+
 Triage is unconditional and lives in the entrypoint, so a trivial task never
 loads this file. Arrive already knowing which points you owe. If triage and the
 user's framing disagree about size, say so in one line and work to the larger.

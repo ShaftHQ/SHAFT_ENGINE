@@ -2,6 +2,17 @@
 
 Read this half before work starts. Return to the [delivery playbook](work-github-playbook.md) for review, learning, CI, and merge.
 
+## Contents
+
+- [Pattern step (before triage)](#pattern-step-before-triage)
+- [0. Ground the scope before asking anything](#0-ground-the-scope-before-asking-anything)
+- [1. Keep asking follow-ups until decision-ready; then go unattended](#1-keep-asking-follow-ups-until-decision-ready-then-go-unattended)
+- [Attendance mode (ask once at plan approval)](#attendance-mode-ask-once-at-plan-approval)
+- [2. Branch and track](#2-branch-and-track)
+- [3. Work items in dependency order, front-loading risk](#3-work-items-in-dependency-order-front-loading-risk)
+- [3b. Tracking issue + one-issue-per-subtask (mandatory default for new work)](#3b-tracking-issue--one-issue-per-subtask-mandatory-default-for-new-work)
+- [3c. GitHub sub-issues + CE program epic auto-close](#3c-github-sub-issues--ce-program-epic-auto-close)
+
 ## Pattern step (before triage)
 
 Start by asking what the failing signal shares with work already filed. Search

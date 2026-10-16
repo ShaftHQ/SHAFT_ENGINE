@@ -6,6 +6,20 @@ this file adds ethics detail, profile selection, portability, roles, and
 ownership. Load it only when a route needs one of these; delegates use the
 [delegate card](delegate-card.md).
 
+## Contents
+
+- [Implementation preflight](#implementation-preflight)
+- [Red flags](#red-flags)
+- [Project profile](#project-profile)
+- [Task isolation](#task-isolation)
+- [Operating contract](#operating-contract)
+- [Always-composed behavior](#always-composed-behavior)
+- [Route notes](#route-notes)
+- [Roles and capability levels](#roles-and-capability-levels)
+- [Ownership and completion](#ownership-and-completion)
+- [Reflection](#reflection)
+- [Learning Session](#learning-session)
+
 ## Implementation preflight
 
 For module or public-contract triage, use the
