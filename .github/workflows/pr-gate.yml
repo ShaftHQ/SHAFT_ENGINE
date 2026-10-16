@@ -1216,6 +1216,7 @@ jobs:
           tests.scripts.test_flaky_report
           tests.scripts.test_consumer_transitive_pins
           tests.scripts.test_pr_title_lint
+          tests.scripts.test_jmh_compare
           tests.scripts.test_assert_intellij_marketplace_receipt
           tests.scripts.test_validate_shaft_pilot_release
           tests.scripts.test_codecov_status_gate
