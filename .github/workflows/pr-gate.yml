@@ -1132,6 +1132,52 @@ jobs:
           set -o pipefail
           python3 scripts/ci/api_compat_gate.py --modules "$MODULES" --labels "$LABELS" | tee -a "$GITHUB_STEP_SUMMARY"
 
+  # #7004: diff-scoped mutation testing (PIT), report-only. Changed main classes
+  # of at most 2 modules, hard-capped at 5 minutes; the score lands in the step
+  # summary and never blocks (no threshold until a baseline exists).
+  mutation-testing:
+    name: Mutation Testing (PIT, report-only)
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.javacore == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    continue-on-error: true
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up JDK 25
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          java-version: '25'
+          distribution: 'zulu'
+          check-latest: true
+      - name: Cache Maven repository
+        uses: ./.github/actions/cache-maven-repo
+      - name: Changed classes
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git diff --name-only --diff-filter=AM "$BASE_SHA" HEAD -- '*.java' | python3 scripts/ci/pit_diff_scope.py scope > "$RUNNER_TEMP/pit-scope.tsv"
+          cat "$RUNNER_TEMP/pit-scope.tsv"
+          echo "modules=$(cut -f1 "$RUNNER_TEMP/pit-scope.tsv" | paste -sd, -)" >> "$GITHUB_OUTPUT"
+      - name: Mutate changed classes (5-minute cap)
+        if: steps.scope.outputs.modules != ''
+        env:
+          MODULES: ${{ steps.scope.outputs.modules }}
+        run: |
+          mvn --batch-mode --no-transfer-progress -pl "$MODULES" -am install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip -Dcyclonedx.skip
+          while IFS=$'\t' read -r module classes; do
+            timeout 300 mvn --batch-mode --no-transfer-progress -Ppitest -pl "$module" \
+              org.pitest:pitest-maven:mutationCoverage "-Dpitest.targetClasses=$classes" || echo "::warning::PIT on $module did not finish (report-only)"
+          done < "$RUNNER_TEMP/pit-scope.tsv"
+      - name: Mutation summary
+        if: always() && steps.scope.outputs.modules != ''
+        run: python3 scripts/ci/pit_diff_scope.py summary . | tee -a "$GITHUB_STEP_SUMMARY"
+
   workflow-timeouts:
     name: Workflow Timeout Guard
     needs: changes
@@ -1158,6 +1204,7 @@ jobs:
           tests.scripts.test_validate_workflow_test_gating
           tests.scripts.test_epic_autoclose
           tests.scripts.test_intellij_verify_retry
+          tests.scripts.test_pit_diff_scope
           tests.scripts.test_assert_intellij_marketplace_receipt
           tests.scripts.test_validate_shaft_pilot_release
           tests.scripts.test_codecov_status_gate
