@@ -1,0 +1,1 @@
+lychee v0.24.2 x86_64-unknown-linux-gnu requires GLIBC 2.38/2.39; ubuntu-22.04 ships 2.35, so Internal links failed with exit 123. Use the x86_64-unknown-linux-musl asset (checksum-pinned) on older runners.

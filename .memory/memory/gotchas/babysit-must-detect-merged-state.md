@@ -1,0 +1,1 @@
+#7070 merged through the queue between polls while the babysitter kept reading mergeStateStatus (AWAITING_CHECKS/UNKNOWN) and never exited. Query `state` in the same graphql call, treat MERGED as winning over every other signal, and re-check MERGED once more before reporting TIMEOUT.

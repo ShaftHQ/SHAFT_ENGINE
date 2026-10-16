@@ -1236,3 +1236,10 @@
 {"actor":"agent","event":"memory.updated","id":"gotcha.sikulix-migrated-to-oculix-4-0-0","timestamp":"2026-09-24T17:54:00+03:00"}
 {"actor":"agent","event":"memory.superseded","id":"gotcha.chaos-engine-untouched-is-not-a-valid-learning-session-skip","timestamp":"2026-10-01T23:59:00+03:00"}
 {"actor":"agent","event":"memory.created","id":"decision.learning-session-is-trigger-based","timestamp":"2026-10-01T23:59:00+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.babysit-must-detect-merged-state","timestamp":"2026-10-16T18:17:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.green-but-blocked-means-unresolved-review-thread","timestamp":"2026-10-16T18:17:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.rerun-reuses-old-pr-body","timestamp":"2026-10-16T18:17:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.run-harness-gate-before-workflow-wide-edits","timestamp":"2026-10-16T18:17:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.bug-analysis-only-reactor-modules","timestamp":"2026-10-16T18:17:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.lychee-gnu-build-needs-newer-glibc","timestamp":"2026-10-16T18:17:15+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.intellij-263-deprecates-openfileeditor","timestamp":"2026-10-16T18:17:15+03:00"}

@@ -1,0 +1,1 @@
+The Error Prone + NullAway job derived modules from the first path segment of changed src/main Java files, so standalone `benchmarks/jmh` (and Gradle `shaft-intellij`) produced `-pl benchmarks` and 'Could not find the selected project in the reactor'. The step now keeps a directory only if `<module>dir</module>` is in the root pom.

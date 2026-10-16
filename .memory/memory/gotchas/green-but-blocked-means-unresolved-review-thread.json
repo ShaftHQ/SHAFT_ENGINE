@@ -1,0 +1,20 @@
+{
+  "body_path": "memory/gotchas/green-but-blocked-means-unresolved-review-thread.md",
+  "content_hash": "sha256:92906a05d72c85b917f3e03806bc3bf4f7ef15ff818f85cef804298d5bb04fef",
+  "created_at": "2026-10-16T18:17:15+03:00",
+  "evidence": [],
+  "id": "gotcha.green-but-blocked-means-unresolved-review-thread",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after groups C-F (#7070, #7072, #7073, F)"
+  },
+  "status": "active",
+  "tags": [
+    "merge-queue",
+    "babysit",
+    "review-threads"
+  ],
+  "title": "Green checks plus BLOCKED with no queue entry: look for an unresolved bot review thread",
+  "type": "gotcha",
+  "updated_at": "2026-10-16T18:17:15+03:00"
+}
