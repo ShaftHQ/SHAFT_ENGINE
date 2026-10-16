@@ -1253,3 +1253,6 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.tool-py-import-time-dependency-breaks-heal-path","timestamp":"2026-10-17T00:19:07+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.diff-scoped-complexity-blocks-edits-to-hot-functions","timestamp":"2026-10-17T00:19:07+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.agentic-pr-body-needs-riskiest-assumption","timestamp":"2026-10-17T00:19:07+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.media-release-must-not-be-latest","timestamp":"2026-10-17T00:45:00+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.publish-shaft-mcp-runs-on-any-release","timestamp":"2026-10-17T00:45:00+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.readme-media-cannot-live-on-docs-site","timestamp":"2026-10-17T00:45:00+03:00"}

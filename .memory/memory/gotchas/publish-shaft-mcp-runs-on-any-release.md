@@ -1,0 +1,1 @@
+`publish-shaft-mcp.yml` triggers on `release: published` with no tag filter, so a video or media release could build and push the shaft-mcp OCI image. Since #7100 the job runs only when the tag has no `-` (SHAFT version tags are `X.Y.YYYYMMDD`); `test_publish_shaft_mcp_release_guard` pins it. The hero release run showed `skipped`. Always use a dashed tag for media releases.

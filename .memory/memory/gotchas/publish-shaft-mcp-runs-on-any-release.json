@@ -1,0 +1,19 @@
+{
+  "body_path": "memory/gotchas/publish-shaft-mcp-runs-on-any-release.md",
+  "content_hash": "sha256:d7d522ddc8fae469d7c9156dbcf5a6e082fc8f8c6bb004a86f0f791fabfb0cdd",
+  "created_at": "2026-10-17T00:45:00+03:00",
+  "evidence": [],
+  "id": "gotcha.publish-shaft-mcp-runs-on-any-release",
+  "source": {
+    "kind": "agent",
+    "task": "Lessons pass after #7100"
+  },
+  "status": "active",
+  "tags": [
+    "release",
+    "ci"
+  ],
+  "title": "publish-shaft-mcp ran on every published release, media included",
+  "type": "gotcha",
+  "updated_at": "2026-10-17T00:45:00+03:00"
+}
