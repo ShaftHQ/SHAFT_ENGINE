@@ -929,7 +929,14 @@ jobs:
           bash scripts/ci/build_retry.sh 2 60
           mvn --batch-mode
           -pl ${{ matrix.module }} test
+          -Dsurefire.rerunFailingTestsCount=1
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
+      # #7005: a test that passed only on the retry above is flagged, not green-silent.
+      - name: Report flaky ${{ matrix.module }} tests
+        if: always() && matrix.module != 'shaft-engine' && matrix.module != 'shaft-ocr'
+        env:
+          MODULE: ${{ matrix.module }}
+        run: python3 scripts/ci/flaky_report.py "$MODULE" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Run deterministic shaft-ocr unit tests
         if: matrix.module == 'shaft-ocr'
         run: >-
@@ -1205,6 +1212,7 @@ jobs:
           tests.scripts.test_epic_autoclose
           tests.scripts.test_intellij_verify_retry
           tests.scripts.test_pit_diff_scope
+          tests.scripts.test_flaky_report
           tests.scripts.test_assert_intellij_marketplace_receipt
           tests.scripts.test_validate_shaft_pilot_release
           tests.scripts.test_codecov_status_gate

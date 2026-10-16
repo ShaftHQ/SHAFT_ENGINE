@@ -58,7 +58,8 @@
         <mockito.version>5.23.0</mockito.version>
         <archunit.version>1.5.1</archunit.version>
         <mockitoAgentArgLine>-javaagent:"${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar"</mockitoAgentArgLine>
-        <surefire.excludedGroups>allure3-visual-demo,trace-viewer-browser-acceptance,browser-capture-acceptance,playwright-trace-acceptance</surefire.excludedGroups>
+        <!-- quarantine (#7005): known-flaky tests with an owner issue; run nightly by quarantine-nightly.yml. -->
+        <surefire.excludedGroups>allure3-visual-demo,trace-viewer-browser-acceptance,browser-capture-acceptance,playwright-trace-acceptance,quarantine</surefire.excludedGroups>
         <jdk.version>25</jdk.version>
         <lombok.version>1.18.46</lombok.version>
         <maven.min.version>3.9.0</maven.min.version>
@@ -1091,6 +1092,7 @@
                                 <param>trace-viewer-browser-acceptance</param>
                                 <param>browser-capture-acceptance</param>
                                 <param>playwright-trace-acceptance</param>
+                                <param>quarantine</param>
                             </excludedGroups>
                             <jvmArgs>
                                 <value>--enable-native-access=ALL-UNNAMED</value>
