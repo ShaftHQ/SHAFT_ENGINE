@@ -300,7 +300,13 @@ public final class PropertyFileManager {
                     sortedPropertyFiles.sort(Comparator.comparing(file -> file.getAbsolutePath()));
                     for (File propertyFile : sortedPropertyFiles) {
                         ReportManager.logDiscrete("Loading properties file: " + propertyFile, Level.DEBUG);
-                        loadPropertiesFromFile(properties, propertyFile);
+                        java.util.Properties fromFile = new java.util.Properties();
+                        if (loadPropertiesFromFile(fromFile, propertyFile)) {
+                            // #7085: warn only, never fail, about likely misspelled SHAFT keys.
+                            UnknownPropertyKeys.warnings(propertyFile.getName(), fromFile.stringPropertyNames())
+                                    .forEach(warning -> ReportManager.logDiscrete(warning, Level.WARN));
+                            properties.putAll(fromFile);
+                        }
                     }
                     applyLoadedPropertiesToSystem(properties);
                 } else {
