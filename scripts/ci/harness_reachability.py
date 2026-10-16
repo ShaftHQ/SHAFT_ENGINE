@@ -182,7 +182,7 @@ def entry_roots(root: Path, deployable: str) -> dict[str, list[str]]:
 
     CLI hosts load the pointer files and SessionStart injects identity and the
     companion cards; bots run `tool.py entry`, which prints the same set, plus
-    bot-entry.md. Reading ENTRY_FILES here keeps the gate and the bundle from
+    bot-entry.md. Reading entry_files() here keeps the gate and the bundle from
     drifting apart.
     """
     import importlib.util
@@ -192,7 +192,7 @@ def entry_roots(root: Path, deployable: str) -> dict[str, list[str]]:
     spec = importlib.util.spec_from_file_location("_ce_tool", root / deployable / "tool.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    cards = [f"{deployable}{relative}" for relative in module.ENTRY_FILES]
+    cards = [f"{deployable}{relative}" for relative in module.entry_files()]
     return {"cli": [*CLI_POINTERS, *cards], "bot": [BOT_POINTER, *cards]}
 
 

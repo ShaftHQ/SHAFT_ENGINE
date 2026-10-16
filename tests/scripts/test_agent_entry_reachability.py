@@ -19,7 +19,7 @@ def fixture(root: Path, agents_links: str = "", bot_links: str = "") -> None:
     ce = root / "chaos-engine"
     (ce / "skills/chaos-engine").mkdir(parents=True)
     (ce / "references").mkdir()
-    (ce / "tool.py").write_text(f"ENTRY_FILES = {CARDS!r}\n", encoding="utf-8")
+    (ce / "tool.py").write_text(f"def entry_files():\n    return {CARDS!r}\n", encoding="utf-8")
     (ce / "identity.md").write_text("# id\n", encoding="utf-8")
     (ce / "skills/chaos-engine/SKILL.md").write_text("[a](../../references/a.md)\n", encoding="utf-8")
     (ce / "references/a.md").write_text("# a\n", encoding="utf-8")

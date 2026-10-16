@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import importlib.util
 import os
@@ -27,8 +28,15 @@ HELP_FLAGS = frozenset({"--help", "-h", "help"})
 _CAPTURE_STORES = frozenset({"mempalace", "graphify"})
 
 
+CORE_ENTRY_FILES = ("identity.md", "skills/chaos-engine/SKILL.md")
+
+
+@functools.lru_cache(maxsize=None)
 def _lifecycle():
-    """One source for the card set and stop phrases: the CLI SessionStart hook's own."""
+    """One source for the card set and stop phrases: the CLI SessionStart hook's own.
+
+    Loaded on first use, not at import, so a partial core still reaches its heal path.
+    """
     spec = importlib.util.spec_from_file_location(
         "_chaos_engine_lifecycle", Path(__file__).resolve().parent / "hooks" / "lifecycle.py"
     )
@@ -37,18 +45,14 @@ def _lifecycle():
     return module
 
 
-_LIFECYCLE = _lifecycle()
-_COMPANION_ENTRY = _LIFECYCLE.COMPANION_CARDS
-stopped_companions = _LIFECYCLE.stopped_companion_names
-ENTRY_FILES = ("identity.md", "skills/chaos-engine/SKILL.md", *_COMPANION_ENTRY.values())
+def stopped_companions(opt_out: str) -> frozenset[str]:
+    return _lifecycle().stopped_companion_names(opt_out)
 
 
 def entry_files(opt_out: str = "") -> tuple[str, ...]:
     stopped = stopped_companions(opt_out)
-    return tuple(
-        relative for relative in ENTRY_FILES
-        if relative not in {_COMPANION_ENTRY[name] for name in stopped}
-    )
+    cards = _lifecycle().COMPANION_CARDS
+    return CORE_ENTRY_FILES + tuple(card for name, card in cards.items() if name not in stopped)
 
 
 ENTRY_RETRIEVE = (
