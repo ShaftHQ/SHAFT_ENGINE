@@ -36,10 +36,35 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-      - name: Checkout released source
+      # #7035 (Scorecard Dangerous-Workflow): never check out a workflow_run head
+      # directly. Start from the trusted default ref, then switch only to a commit
+      # that a release tag in this repository points at, and only when the
+      # upstream run came from this repository's release or manual dispatch and the
+      # commit is tagged or on main.
+      - name: Checkout trusted default ref
         uses: actions/checkout@v7.0.1
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Switch to the released commit
+        if: github.event_name == 'workflow_run'
+        env:
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          RUN_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          case "${RUN_EVENT}" in release|workflow_dispatch) ;; *) RUN_REPO="untrusted-event" ;; esac
+          if [ "${RUN_REPO}" != "${REPO}" ]; then
+            echo "::error::Refusing to deploy: upstream run event=${RUN_EVENT} repo=${RUN_REPO}"
+            exit 1
+          fi
+          if ! git tag --points-at "${HEAD_SHA}" | grep -q . \
+             && ! git merge-base --is-ancestor "${HEAD_SHA}" origin/main; then
+            echo "::error::Refusing to deploy ${HEAD_SHA}: not a release tag and not on main"
+            exit 1
+          fi
+          git checkout --detach "${HEAD_SHA}"
       - name: Set up Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@1.6
       - name: Deploy to Fly.io
