@@ -1,3 +1,6 @@
+# #7061: golden contract snapshots compare byte-for-byte on every OS
+shaft-cli/src/test/resources/contracts/* text eol=lf
+shaft-mcp/src/test/resources/contracts/* text eol=lf
 scripts/mcp/*.sh text eol=lf
 scripts/ci/*.sh text eol=lf
 .claude/workflows/*.js text eol=lf

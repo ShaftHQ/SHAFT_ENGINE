@@ -35,7 +35,7 @@ class CliInterfaceContractTest {
             Files.writeString(SNAPSHOT, actual, StandardCharsets.UTF_8);
         }
         assertTrue(Files.exists(SNAPSHOT), "missing " + SNAPSHOT + "; generate with -Dshaft.contract.update=true");
-        assertEquals(Files.readString(SNAPSHOT, StandardCharsets.UTF_8), actual,
+        assertEquals(Files.readString(SNAPSHOT, StandardCharsets.UTF_8).replace("\r\n", "\n"), actual.replace("\r\n", "\n"),
                 "CLI interface changed. If intended, regenerate " + SNAPSHOT
                         + " with -Dshaft.contract.update=true and label a breaking change.");
     }
