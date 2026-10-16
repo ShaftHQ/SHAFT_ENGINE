@@ -23,6 +23,9 @@ CODACY = "Codacy Static Code Analysis"
 NEW_ISSUES = re.compile(r"(\d+)\s+new issue", re.IGNORECASE)
 
 
+# Ratchet: first published OpenSSF Scorecard was 4.4 (2026-10-16). Only raise this.
+SCORECARD_FLOOR = 4.0
+
 def _gh(path: str) -> object:
     gh = shutil.which("gh")
     if gh is None:
@@ -42,7 +45,7 @@ def codacy_rows(runs: list[dict]) -> list[dict]:
 
 
 def summarize(rows: list[dict], coverage: float | None, floor: float,
-              scorecard: float | None = None, scorecard_floor: float = 0.0) -> dict:
+              scorecard: float | None = None, scorecard_floor: float = SCORECARD_FLOOR) -> dict:
     failing = sum(1 for row in rows if row["conclusion"] == "failure")
     new_issues = sum(row["new_issues"] for row in rows)
     coverage_drop = coverage is not None and coverage < floor
@@ -100,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit", type=int, default=30)
     parser.add_argument("--coverage-floor", type=float, default=61.4)
     # Raise to the first published score once it exists; a drop then opens ci-quality.
-    parser.add_argument("--scorecard-floor", type=float, default=0.0)
+    parser.add_argument("--scorecard-floor", type=float, default=SCORECARD_FLOOR)
     args = parser.parse_args(argv)
     runs, coverage = fetch(args.repo, args.limit)
     summary = summarize(codacy_rows(runs), coverage, args.coverage_floor,
