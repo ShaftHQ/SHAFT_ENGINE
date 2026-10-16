@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Diff-scoped mutation testing helper (#7004). Report-only, never blocks.
+"""
+Diff-scoped mutation testing helper (#7004); report-only, never blocks.
 
 scope:   changed src/main Java files -> "module<TAB>fqcn,fqcn" lines (capped).
 summary: PIT mutations.xml reports -> markdown with killed/survived and score.
@@ -8,7 +9,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 - local build output only
 from pathlib import Path
 
 MAX_MODULES = 2
@@ -38,7 +39,7 @@ def summarize(reports: list[Path]) -> str:
     counts: dict[str, int] = {}
     survivors: list[str] = []
     for report in reports:
-        for mutation in ET.parse(report).getroot().iter("mutation"):
+        for mutation in ET.parse(report).getroot().iter("mutation"):  # nosec B314 - trusted local build output
             status = mutation.get("status", "UNKNOWN")
             counts[status] = counts.get(status, 0) + 1
             if status == "SURVIVED" and len(survivors) < 10:
