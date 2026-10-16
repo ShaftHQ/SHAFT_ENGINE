@@ -16,7 +16,7 @@ import re
 import subprocess  # nosec B404 - optional rg, fixed argv, no shell.
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 DISJOINT_MESSAGE = "ChaosEngine source and project trees must be disjoint"
 
@@ -53,6 +53,8 @@ RULE_TRIGGERS_NAME = "rule-triggers.json"
 LESSON_NOTES_NAME = "lesson-notes.log"
 
 ASSUMPTION_HEADING = re.compile(r"^##[ \t]+Riskiest assumption[ \t]*$", re.MULTILINE)
+AGENTIC_MARKER = "<!-- chaos-engine:agentic -->"
+AGENTIC_LABEL = "agentic"
 PLAN_HEADING = re.compile(r"^##[ \t]+Plan[ \t]*$", re.MULTILINE)
 RETRIEVE_LINE = re.compile(
     r"^[ \t>*-]*`?retrieve:[ \t]*(?:([\w.-]+)[ \t]+)?(used|skipped|exempt)\b[ \t]*(.*)$", re.MULTILINE | re.IGNORECASE
@@ -412,10 +414,22 @@ def assumption_section_errors(
     return ["Riskiest assumption section needs one targeted test link or explicit N/A"]
 
 
-def plan_receipt_errors(body: str, *, author: str = "", project: Path | None = None) -> list[str]:
-    """Require a ``## Plan`` section and ``retrieve:`` receipts: used, or skipped with a reason."""
+def is_agentic(body: str, labels: Iterable[str] = ()) -> bool:
+    """Agentic PR: the harness marker is in the body, or the PR carries the ``agentic`` label.
+
+    Branch names do not count: humans use ``fix/`` and ``feat/`` too. The local guard
+    refuses an agent's ``gh pr create|edit`` body without the marker, so every
+    harness-made PR carries it; the label covers PRs opened outside the hook.
+    """
+    return AGENTIC_MARKER in (body or "") or AGENTIC_LABEL in {label.strip().casefold() for label in labels}
+
+
+def plan_receipt_errors(
+    body: str, *, author: str = "", project: Path | None = None, labels: Iterable[str] = ()
+) -> list[str]:
+    """Agentic PRs only: require ``## Plan`` and ``retrieve:`` receipts (used, or skipped with a reason)."""
     _record_check(project, "plan-receipts")
-    if author.casefold() in BOT_AUTHORS:
+    if author.casefold() in BOT_AUTHORS or not is_agentic(body, labels):
         return []
     errors: list[str] = []
     if _section(body or "", PLAN_HEADING) is None:

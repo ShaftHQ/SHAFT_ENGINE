@@ -338,7 +338,8 @@ def mindset_body_errors(body: str) -> list[dict[str, str]]:
     project = Path(project_text) if project_text else Path(__file__).resolve().parents[2]
     for message in module.assumption_section_errors(body, author=author, project=project):
         findings.append(issue("riskiest-assumption", "pull_request.body", message))
-    for message in module.plan_receipt_errors(body, author=author, project=project):
+    labels = [label for label in os.environ.get("PR_LABELS", "").split(",") if label.strip()]
+    for message in module.plan_receipt_errors(body, author=author, project=project, labels=labels):
         findings.append(issue("plan-receipts", "pull_request.body", message))
     for message in module.lesson_outcome_errors(body, title=title, project=project):
         findings.append(issue("lesson-outcome", "pull_request.body", message))
