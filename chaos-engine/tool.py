@@ -11,6 +11,7 @@ import runpy
 import shutil
 import subprocess  # nosec B404 - executes only fixed owned tool names.
 import sys
+import time
 from pathlib import Path
 
 
@@ -87,7 +88,7 @@ def entry_output(installed_root: Path, full: bool = False, opt_out: str = "") ->
     digest = hashlib.sha256(bundle.encode("utf-8")).hexdigest()[:12]
     stamp = installed_root / "runtime" / "entry-stamp"
     try:
-        unchanged = stamp.read_text(encoding="utf-8").strip() == digest
+        unchanged = stamp.read_text(encoding="utf-8").split(" ", 1)[0].strip() == digest
     except OSError:
         unchanged = False
     if unchanged and not full:
@@ -97,10 +98,28 @@ def entry_output(installed_root: Path, full: bool = False, opt_out: str = "") ->
         )
     try:
         stamp.parent.mkdir(parents=True, exist_ok=True)
-        stamp.write_text(digest + "\n", encoding="utf-8")
+        stamp.write_text(f"{digest} {int(time.time())} {opt_out}".rstrip() + "\n", encoding="utf-8")
     except OSError:
         pass  # read-only installs simply print the bundle every time
     return bundle
+
+
+LOAD_STAMP_MAX_AGE = 40 * 60
+LOAD_STAMP_GATED = {"checkpoint", "resume"}
+LOAD_STAMP_REFUSAL = "run entry --full"
+
+
+def load_stamp_fresh(installed_root: Path, now: float | None = None) -> bool:
+    """Load-stamp gate: the cards were printed by `entry --full` (or a changed bundle) under 40 min ago."""
+    if installed_root.name != ".chaos-engine":
+        return True
+    try:
+        digest, stamped, *phrase = (installed_root / "runtime" / "entry-stamp").read_text(encoding="utf-8").split(" ", 2)
+        age = (time.time() if now is None else now) - int(stamped)
+    except (OSError, ValueError):
+        return False
+    current = hashlib.sha256(entry_bundle(installed_root, " ".join(phrase).strip()).encode("utf-8")).hexdigest()[:12]
+    return 0 <= age <= LOAD_STAMP_MAX_AGE and digest == current
 
 
 MAINTAIN_STASH = "chaos-engine-maintain"
@@ -660,6 +679,9 @@ def main() -> int:
 
                 print(json.dumps(rows, sort_keys=True))
             return 0
+        if tool in LOAD_STAMP_GATED and not load_stamp_fresh(installed_root):
+            print(LOAD_STAMP_REFUSAL, file=sys.stderr)
+            return 2
         if tool in SCRIPT_TOOLS:
             return script_tool(installed_root, tool, arguments)
         if tool == "stores":
