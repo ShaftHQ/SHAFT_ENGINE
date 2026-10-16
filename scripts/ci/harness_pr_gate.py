@@ -311,6 +311,7 @@ CHECKS = {
             "tests.scripts.test_watch_pr_checks",
             "tests.scripts.test_overlay_pre_push",
             "tests.scripts.test_workflow_template_sync",
+            "tests.scripts.test_publish_shaft_mcp_release_guard",
             "tests.scripts.test_validation_manifest_imports",
             "tests.scripts.test_code_quality_preflight",
             "tests.scripts.test_branded_installer_ce_standard",
