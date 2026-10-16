@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
-from unittest import mock
+import unittest.mock
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location("pit_diff_scope", ROOT / "scripts/ci/pit_diff_scope.py")
@@ -41,7 +41,7 @@ class ScopeTest(unittest.TestCase):
 
     def test_cli_scope_prints_tab_separated(self) -> None:
         out = io.StringIO()
-        with mock.patch("sys.stdin", io.StringIO("m/src/main/java/a/B.java\nm/src/main/java/a/C.java\n")), redirect_stdout(out):
+        with unittest.mock.patch("sys.stdin", io.StringIO("m/src/main/java/a/B.java\nm/src/main/java/a/C.java\n")), redirect_stdout(out):
             self.assertEqual(0, pit.main(["scope"]))
         self.assertEqual("m\ta.B,a.C\n", out.getvalue())
 
