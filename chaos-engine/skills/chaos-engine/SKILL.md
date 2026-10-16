@@ -57,7 +57,7 @@ request contradicts the plan.
 
 ## Implement
 
-`tool.py entry` bundles the companion cards
+Companion cards apply at task start; `tool.py entry` bundles
 [Caveman ultra](../../companions/caveman-ultra.md) (chat, notes, handoffs) and
 [Ponytail ultra](../../companions/ponytail-ultra.md); read them only without
 entry. Hookless bots: [bot entry](../../references/bot-entry.md). Off only with
@@ -72,8 +72,9 @@ references > skills; deeper file wins on scope.
 - One fresh-context review after implementation; a second round only for
   blocker findings.
 - One blocking CI wait per push (one background babysit loop to merged);
-  retry at most once, then report.
+  retry at most once. Stop and report.
 - Status reports are always a Markdown table: deltas, at most 15 lines.
+  `tool.py usage`.
 - Learning Session after every final delivery. Never local queues.
 - Repository work is not done until the pull request is merged.
 
