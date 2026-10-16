@@ -25,7 +25,11 @@ jobs:
     # announce_release job), not merely because that workflow's run concluded successfully -
     # its build_release_and_deliver job now also concludes successfully when it skips a
     # no-op delivery for an already-published version, which must not re-publish here.
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    # Media releases (for example `shaft-hero-video-20261017`) also emit `release: published`;
+    # only a SHAFT version tag (digits and dots, no '-') may publish the image (#7095).
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event_name == 'release' && !contains(github.event.release.tag_name, '-'))
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
