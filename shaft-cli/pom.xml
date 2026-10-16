@@ -142,4 +142,29 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <!-- #7002: shaft-cli ships a JUnit extension whose JUnit types are test-scoped
+             (the user's project provides them). Give japicmp exactly that API on its
+             classpath instead of ignoring missing classes globally. -->
+        <profile>
+            <id>japicmp</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.siom79.japicmp</groupId>
+                        <artifactId>japicmp-maven-plugin</artifactId>
+                        <configuration>
+                            <dependencies>
+                                <dependency>
+                                    <groupId>org.junit.jupiter</groupId>
+                                    <artifactId>junit-jupiter-api</artifactId>
+                                    <version>${junit.bom.version}</version>
+                                </dependency>
+                            </dependencies>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

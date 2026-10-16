@@ -48,6 +48,10 @@ class ReleaseProvenanceTest(unittest.TestCase):
         self.assertNotIn("continue-on-error", judge)
         self.assertIn("api_compat_gate.py", judge["run"])
 
+    def test_japicmp_does_not_ignore_missing_classes_globally(self) -> None:
+        self.assertNotIn("ignoreMissingClasses", (ROOT / "pom.xml").read_text(encoding="utf-8"))
+        self.assertIn("junit-jupiter-api", (ROOT / "shaft-cli/pom.xml").read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()
