@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "note": "Always-loaded bytes on a bot host: tool.py entry --full + references/bot-entry.md + AGENTS.md. Grow at most tolerance_pct over bytes; lower bytes when the bundle shrinks.",
-  "bytes": 18203,
+  "bytes": 17813,
   "tolerance_pct": 5,
   "shrink_ratchet_pct": 10
 }
