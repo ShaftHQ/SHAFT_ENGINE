@@ -1,6 +1,6 @@
 import os
 import unittest
-from unittest import mock
+import unittest.mock
 
 from scripts.ci import pr_title_lint as lint
 
@@ -23,7 +23,7 @@ class PrTitleLintTest(unittest.TestCase):
         self.assertEqual("fix: Retry a miss", lint.suggestion("Retry a miss"))
 
     def test_main_is_advisory_and_emits_a_warning(self):
-        with mock.patch.dict(os.environ, {"PR_TITLE": "Keep it"}), mock.patch("builtins.print") as printed:
+        with unittest.mock.patch.dict(os.environ, {"PR_TITLE": "Keep it"}), unittest.mock.patch("builtins.print") as printed:
             self.assertEqual(0, lint.main())
         self.assertTrue(printed.call_args[0][0].startswith("::warning"))
 
