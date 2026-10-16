@@ -6,16 +6,6 @@ description: Use when Grok or Copilot may not honor an exit-2 hard block and the
 
 Living adapter-outcome matrix for ChaosEngine across Claude Code, Codex, Grok, Gemini, GitHub Copilot, OpenCode, Cursor, and Grok Bot; independent bots (GPTs and others) follow the Grok Bot column via the bot entry.
 
-## Contents
-
-- [Harness parity (permanent)](#harness-parity-permanent)
-- [One implementation for every host](#one-implementation-for-every-host)
-- [Matrix](#matrix)
-- [Measured gaps (severity)](#measured-gaps-severity)
-- [Official self-heal](#official-self-heal)
-- [How to refresh](#how-to-refresh)
-- [GAP-EXIT2 compensating UX checklist (Grok / Copilot)](#gap-exit2-compensating-ux-checklist-grok--copilot)
-
 Parity means the same workflow *outcomes* on all eight hosts (not UI chrome parity).
 Machine-checkable capability pins also live in `scripts/ci/agent_harness_parity.json`.
 

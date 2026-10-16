@@ -31,3 +31,11 @@ An older overlay can record a git-digest source without a repository; its
 owner/repository" after the fast-forward. Reinstall once with
 `python3 .chaos-engine/bootstrap.py --project . --repository OWNER/REPO --branch BRANCH --distribution portable`;
 newer overlays recover on their own.
+
+## Always-loaded budget
+
+Bytes a bot host loads every task (`tool.py entry --full`, bot entry,
+`AGENTS.md`) may grow at most 5% over
+[always-loaded-budget.json](../always-loaded-budget.json); the harness gate
+fails beyond that. Move new detail to an on-demand reference instead. When the
+bundle shrinks by more than 10%, lower `bytes` to lock in the gain.
