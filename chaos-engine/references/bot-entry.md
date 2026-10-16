@@ -61,8 +61,8 @@ verbose reports were most of the waste.
 
 - One round trip per PR: `overlay_pre_push.py` also checks the open PR body
   and the README inventories, so fix what it reports before pushing, never after.
-  Before `gh pr create`, validate the body file (repo-only):
-  `PR_TITLE="$T" PR_BODY="$(cat body.md)" python3 scripts/ci/validate_pr_closing_keywords.py`.
+  Before `gh pr create`, validate the body file:
+  `PR_TITLE="$T" PR_BODY="$(cat body.md)" python3 scripts/ci/validate_pr_closing_keywords.py` (repo-only).
   SHA-pin every new `uses:` and run changed contract tests with `python3 -I`
   (stdlib only, as on the runner).
 - Filter test and CI logs to the verdict:
