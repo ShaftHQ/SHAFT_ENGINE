@@ -1,0 +1,6 @@
+# #7008: link check config shared by the PR (offline) and weekly (external) runs.
+exclude_path = ["node_modules", "target", "\\.memory/"]
+# Generated at install time by the ChaosEngine installer; not tracked in git.
+exclude = ["/\\.chaos-engine/", "^https?://localhost", "^https?://127\\.0\\.0\\.1", "^mailto:"]
+max_concurrency = 16
+accept = [200, 206, 429]

@@ -78,6 +78,16 @@ Security-related dependency updates land as Dependabot pull requests and appear
 in the relevant
 [release changelog](https://github.com/ShaftHQ/SHAFT_ENGINE/releases).
 
+## Secret Scanning
+
+Secret scanning and push protection are enabled on this public repository. The settings are owned by
+the organization's enforced "Default" code-security configuration, which enables non-provider patterns.
+On 2026-10-16 CodeQL default setup was disabled in that configuration (this repository keeps its
+advanced CodeQL workflow, `security.yml`), and the configuration was re-attached to this repository; its
+status moved from `failed` to `enforced`. Validity checks stay off: they need GitHub Secret Protection, a
+paid Team/Enterprise feature, and the organization is on the free plan. Open secret-scanning alerts at
+enablement: 0. Tracked in #7011.
+
 ## Disclosure Policy
 
 SHAFT Engine follows **coordinated disclosure**:
