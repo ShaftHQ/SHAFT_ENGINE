@@ -8,6 +8,19 @@ description: Use when a render, ASR, or QC run takes minutes, so the work must s
 How to run the [technical-video pipeline](technical-video.md) without redoing
 work. Five stages, in order; one CPU-heavy job at a time.
 
+## 0. Creative exploration (before production)
+
+- Write three directions of different kinds (for example a UI documentary of
+  one task, a typographic essay, a real-output montage) before any storyboard.
+  Each direction gets: the one idea, the hook frame, the hero moment, the
+  matching [craft cards](../craft/), and one idea from the
+  [innovation bank](../craft/innovation-bank.md).
+- Run the cover-the-logo test (would it still work for a competitor? then it
+  is not the idea) and the first-association test on each.
+- Pick one of the three directions with a one-line reason in `STATUS.md`;
+  the other two stay as fallbacks. Source: motionmaxxing SKILL.md:90, map in
+  [research/motionmaxxing-map.md](../research/motionmaxxing-map.md).
+
 ## 1. Detached build
 
 - Launch every render as a core [durable job](../../../../references/durable-jobs.md),

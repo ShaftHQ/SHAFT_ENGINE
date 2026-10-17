@@ -51,6 +51,9 @@ scenes, or kinetic type. D09 and D10 consume the tokens defined here.
   token files (mark token files with `design-qc: allow`).
 - `design_qc.py holds storyboard.json` passes.
 - `design_qc.py flash render.mp4` passes.
+- `design_qc.py fadeonly|springs|motiondur|chrome <src>` pass: entries move,
+  at most one visible spring, median move <= 0.6 s, no HUD chrome
+  ([C07](craft/motion-graphics-craft.md)).
 - An e2e test or screenshot shows the reduced-motion variant.
 
 ## Sources

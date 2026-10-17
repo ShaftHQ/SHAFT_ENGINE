@@ -9,6 +9,7 @@ A skipped check is never a pass. Stdlib only; media checks call ffmpeg/ffprobe.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import difflib
 import glob
 import hashlib
@@ -1356,6 +1357,14 @@ def cmd_all(args: argparse.Namespace) -> int:
     return report("all", worst, steps=len(plan.get("checks", [])), cached=cached)
 
 
+def craft_qc():
+    """Load the sibling craft checks (motion grammar, copy, layout, rhythm)."""
+    spec = importlib.util.spec_from_file_location("design_craft_qc", Path(__file__).with_name("craft_qc.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = root.add_subparsers(dest="command", required=True)
@@ -1517,6 +1526,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--out", required=True)
     p.add_argument("--spectrum", help="also write a spectrum picture of each window")
     add("doctor", cmd_doctor, "which tools are present")
+    craft_qc().register(add, sys.modules[__name__])
     p = add("all", cmd_all, "run a JSON plan of checks")
     p.add_argument("plan")
     p.add_argument("--cache", help="JSON cache: skip steps whose inputs match a cached pass")
