@@ -6142,16 +6142,7 @@ def _repair_policy_overlay(project: Path, runner) -> dict[str, object]:
             "action": "reinstalled-from-local-source", "healed": mismatches}
 
 
-def repair_component(project: Path, component: str, *, runner=None) -> dict[str, object]:
-    """Zero-LLM targeted repair for one component; policy-overlay reinstalls outside the lock."""
-    if str(component).strip().casefold() == "policy-overlay":
-        import subprocess
-
-        return _repair_policy_overlay(Path(project).resolve(), runner or subprocess.run)
-    return _repair_component_locked(project, component, runner=runner)
-
-
-def _repair_component_locked(  # noqa: MC0001 - component switch keeps one operator entrypoint.
+def repair_component(  # noqa: MC0001 - component switch keeps one operator entrypoint.
     project: Path,
     component: str,
     *,
@@ -6326,6 +6317,18 @@ def _repair_component_locked(  # noqa: MC0001 - component switch keeps one opera
                 _install_store_schedule(project)
             return payload
         raise ValueError(f"repair not implemented for component: {name}")
+
+
+_repair_component_locked = repair_component
+
+
+def repair_component(project: Path, component: str, *, runner=None) -> dict[str, object]:
+    """Zero-LLM targeted repair for one component; policy-overlay reinstalls outside the lock."""
+    if str(component).strip().casefold() == "policy-overlay":
+        import subprocess
+
+        return _repair_policy_overlay(Path(project).resolve(), runner or subprocess.run)
+    return _repair_component_locked(project, component, runner=runner)
 
 
 def linked_worktree_refusal(project: Path) -> str | None:
