@@ -106,6 +106,9 @@ shows it.
   0.6-1.4 s unless the brief sets `--max`; motion band 0.5-6; poster-worthy
   first frame; no shot over `--max-shot`). Vertical text boxes pass
   `safezones`. Copy passes `copyslop`.
+- PNG-sequence encodes carry no BT.709 tags; tag at mux with
+  `-bsf:v h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1`
+  before `colortags`.
 - `design_qc.py all qc-plan.json` ends `pass`; any `skipped` step is
   reported in the PR with the missing tool.
 - Vertical frames inspected against the safe zone overlay, and

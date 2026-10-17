@@ -21,6 +21,9 @@ work. Five stages, in order; one CPU-heavy job at a time.
   the other two stay as fallbacks. Source: motionmaxxing SKILL.md:90, map in
   [research/motionmaxxing-map.md](../research/motionmaxxing-map.md).
 
+- Frame metrics depend on the measuring resolution: calibrate a band on
+  reference films at the check's own metric (64x36 luma) before trusting it.
+
 ## 1. Detached build
 
 - Launch every render as a core [durable job](../../../../references/durable-jobs.md),

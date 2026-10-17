@@ -55,3 +55,16 @@ section that names a test in backticks or links one (or says `N/A`), before
 the command runs (test: `tests/scripts/test_guard_pr_body_preflight.py`).
 A CI rerun reuses the old event body, so a body fixed after CI fails costs a
 push and a full CI round trip.
+
+## Pre-push pitfalls
+
+Bots: check these before a push when `overlay_pre_push.py` or a local gate fails.
+
+- `overlay_pre_push.py` rejects: a non-root `README.md` (name folder indexes
+  `index.md`), issue tags in add-on references, a hard-coded null-device path
+  (use `os.devnull`), and a new `tests/scripts/test_*.py` module that no
+  `harness_pr_gate.py` check selects. Add-on routers stay within 4096 bytes.
+- When `doctor` reports host or overlay drift, ownership and eval-suite tests
+  fail locally; rerun them in a clean `git worktree` before calling them real.
+- `bot-entry.md` is always loaded: new detail goes into an on-demand file like
+  this one (`test_always_loaded_budget`).

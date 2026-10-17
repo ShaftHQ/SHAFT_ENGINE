@@ -2,6 +2,8 @@
 
 Eleven disciplines, 20 verified references each. Links were checked live on
 2026-10-17 with [linkcheck.py](../../scripts/linkcheck.py) (HTTP 2xx/3xx). Link, never copy, their media.
+Many publishers answer scripted requests with 403/429/400: replace such a
+reference with a primary page that answers; never keep an unchecked link.
 
 | Discipline | File | Craft card |
 | --- | --- | --- |
