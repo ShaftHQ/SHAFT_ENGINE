@@ -121,6 +121,7 @@
   ],
   "expected_skill_names": {
     "chaos-engine/skills": [
+      "architect",
       "chaos-engine",
       "ci-cd",
       "colibri",

@@ -1,9 +1,8 @@
 ---
 name: local-runtimes
 description: >-
-  Use when choosing an optional local inference runtime for a narrow mechanical or
-  offline job. One table routes to OmniRoute, FreeToken, Colibri, a loopback
-  server, or the hardware probe.
+  Use when choosing an optional local inference runtime for a narrow mechanical
+  or offline job.
 license: MIT
 ---
 

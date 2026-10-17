@@ -58,11 +58,10 @@ request contradicts the plan.
 
 ## Implement
 
-Companion cards apply at task start; `tool.py entry` bundles
-[Caveman ultra](../../companions/caveman-ultra.md) (chat, notes, handoffs) and
-[Ponytail ultra](../../companions/ponytail-ultra.md); read them only without
-entry. Hookless bots: [bot entry](../../references/bot-entry.md). Off only with
-`stop caveman`, `stop ponytail`, or `normal mode`. Vendor bodies load only on
+Companions at task start via `tool.py entry` (hookless bots:
+[bot entry](../../references/bot-entry.md)): [Caveman ultra](../../companions/caveman-ultra.md),
+[Ponytail ultra](../../companions/ponytail-ultra.md).
+Off only: `stop caveman`, `stop ponytail`, `normal mode`. Vendor bodies only on
 explicit invocation. Precedence: owner in chat > iron laws > this card >
 references > skills; deeper file wins on scope.
 
@@ -88,6 +87,7 @@ references > skills; deeper file wins on scope.
 | work-item | open or rewrite an issue or work item | [SKILL.md](../work-item/SKILL.md) |
 | self-improve | after final delivery | [SKILL.md](../self-improve/SKILL.md) |
 | kanban | several deliverables, tickets, or delegates | [SKILL.md](../kanban/SKILL.md) |
+| architect | design, API, risk, review | [SKILL.md](../architect/SKILL.md) |
 | Git cleanup | dirty worktree or stray branches | [SKILL.md](../git-cleanup/SKILL.md) |
 | CI | slow merges, CI | [SKILL.md](../ci-cd/SKILL.md) |
 | Zero-LLM first | install, doctor, repair by script | [zero-llm-catalog.md](../../references/zero-llm-catalog.md) |

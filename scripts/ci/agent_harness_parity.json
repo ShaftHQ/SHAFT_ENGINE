@@ -1496,6 +1496,40 @@
       "antigravity": [
         "chaos-engine/references/retrieve-first.md"
       ]
+    },
+    {
+      "id": "architect_skill",
+      "owner": "chaos-engine/skills/architect/SKILL.md",
+      "check": "tests/scripts/test_architect_skill_parity.py::test_every_host_reaches_the_skill_and_every_card",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/skills/architect/SKILL.md"
+      ],
+      "codex": [
+        "chaos-engine/skills/architect/SKILL.md"
+      ],
+      "copilot": [
+        "chaos-engine/skills/architect/SKILL.md"
+      ],
+      "gemini": [
+        "chaos-engine/skills/architect/SKILL.md"
+      ],
+      "grok": [
+        "chaos-engine/skills/architect/SKILL.md"
+      ],
+      "opencode": [
+        "chaos-engine/skills/architect/SKILL.md"
+      ],
+      "cursor": [
+        "chaos-engine/skills/architect/SKILL.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/skills/architect/SKILL.md"
+      ],
+      "antigravity": [
+        "chaos-engine/skills/architect/SKILL.md"
+      ],
+      "note": "Architect judgement cards: one source, on demand via the core route; Copilot IntelliJ reaches it through .github/copilot-instructions.md."
     }
   ]
 }

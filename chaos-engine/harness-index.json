@@ -73,6 +73,24 @@
       "path": "skills/kanban/SKILL.md"
     },
     {
+      "description": "Use for design-level judgement: requirements, quality attributes, trade-offs, ADR, contracts, resilience, security, observability, refactor, debug, review, debt.",
+      "family": "delivery",
+      "hosts": {
+        "antigravity": "catalog",
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "architect",
+      "path": "skills/architect/SKILL.md"
+    },
+    {
       "description": "Use when a git worktree is dirty or another local branch or worktree exists. Ask before cleanup unless the session is unattended.",
       "family": "delivery",
       "hosts": {
@@ -109,7 +127,7 @@
       "path": "skills/ci-cd/SKILL.md"
     },
     {
-      "description": "Use when the adopter asks to delegate to local agents (OpenCode / OSS agency) against a READY local runtime instead of orchestrator-session subagents.",
+      "description": "Use when the adopter asks to delegate to local OSS agents (OpenCode) on a READY local runtime.",
       "family": "delegation",
       "hosts": {
         "antigravity": "catalog",
@@ -127,7 +145,7 @@
       "path": "skills/local-agency/SKILL.md"
     },
     {
-      "description": "Use when choosing an optional local inference runtime for a narrow mechanical or offline job. One table routes to OmniRoute, FreeToken, Colibri, a loopback server, or the hardware probe.",
+      "description": "Use when choosing an optional local inference runtime for a narrow mechanical or offline job.",
       "family": "local-runtime",
       "hosts": {
         "antigravity": "catalog",
@@ -217,7 +235,7 @@
       "path": "skills/local-openai-compat/SKILL.md"
     },
     {
-      "description": "Hardware size-class probe for local models. Use when you must learn which model size this machine can host before any runtime is picked.",
+      "description": "Hardware size-class probe. Use when you must learn which local model size this machine can host.",
       "family": "local-runtime",
       "hosts": {
         "antigravity": "catalog",

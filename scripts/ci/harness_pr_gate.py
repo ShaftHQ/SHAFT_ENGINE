@@ -351,7 +351,7 @@ CHECKS = {
     "router-contract": Check(
         "router-contract",
         "guidance",
-        ("tests.scripts.test_agent_router_contract",),
+        ("tests.scripts.test_agent_router_contract", "tests.scripts.test_architect_skill_parity"),
     ),
     "harness-portability-contract": Check(
         "harness-portability-contract",
