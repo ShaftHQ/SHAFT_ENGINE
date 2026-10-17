@@ -123,6 +123,7 @@ DEFAULT_BUNDLE_COMPONENTS = (
 OPT_IN_BUNDLE_COMPONENTS = ("deja",)
 REPAIRABLE_COMPONENTS = frozenset({
     "plugins",
+    "policy-overlay",
     "hosts",
     "core",
     "mempalace",
@@ -6091,6 +6092,56 @@ def finalize_dependency_tombstone(removing: Path) -> None:
     removing.rmdir()
 
 
+def _overlay_match_module():
+    spec = importlib.util.spec_from_file_location(
+        "ce_overlay_match_repair", Path(__file__).resolve().with_name("overlay_match.py")
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError("overlay_match.py is missing next to install.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _repair_policy_overlay(project: Path, runner) -> dict[str, object]:
+    """Heal doctor's policy-overlay drift: reinstall from a snapshot of the checkout's source.
+
+    Runs outside the project lock because the reinstall takes that lock itself.
+    """
+    import shutil as _shutil
+    import subprocess
+    import tempfile
+
+    match = _overlay_match_module()
+    source, overlay = project / "chaos-engine", project / INSTALL_DIRECTORY
+    if not overlay.is_dir():
+        raise ValueError("ChaosEngine core is missing; rerun the install one-liner before repair")
+    if not (source / "install.py").is_file():
+        raise ValueError(
+            "policy-overlay drift outside a repository checkout: rerun the ChaosEngine install one-liner"
+        )
+    mismatches = match.policy_hash_mismatches(source, overlay)
+    if not mismatches:
+        removed = remove_nested_install_artifacts(overlay) if match.nested_overlay_drift(overlay) else []
+        action = "removed-nested-overlay" if removed else "verified"
+        return {"status": "repaired", "component": "policy-overlay", "action": action, "removed": removed}
+    commit = subprocess.run(  # nosec B603 B607 - fixed git argv, no shell.
+        ["git", "-C", str(project), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    snapshot = Path(tempfile.mkdtemp(prefix="chaos-engine-repair-")) / "chaos-engine"
+    _shutil.copytree(source, snapshot, ignore=_shutil.ignore_patterns("__pycache__"))
+    argv = [sys.executable, str(snapshot / "install.py"), "install", "--project", str(project),
+            "--source", str(snapshot), "--commit", commit]
+    completed = runner(argv, cwd=project, check=False)
+    if getattr(completed, "returncode", 1) != 0:
+        raise ValueError("policy-overlay reinstall failed: " + " ".join(argv[1:3]))
+    left = match.policy_hash_mismatches(source, overlay)
+    if left:
+        raise ValueError("policy-overlay still drifts after reinstall: " + ", ".join(left[:5]))
+    return {"status": "repaired", "component": "policy-overlay",
+            "action": "reinstalled-from-local-source", "healed": mismatches}
+
+
 def repair_component(  # noqa: MC0001 - component switch keeps one operator entrypoint.
     project: Path,
     component: str,
@@ -6266,6 +6317,18 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
                 _install_store_schedule(project)
             return payload
         raise ValueError(f"repair not implemented for component: {name}")
+
+
+_repair_component_locked = repair_component
+
+
+def repair_component(project: Path, component: str, *, runner=None) -> dict[str, object]:
+    """Zero-LLM targeted repair for one component; policy-overlay reinstalls outside the lock."""
+    if str(component).strip().casefold() == "policy-overlay":
+        import subprocess
+
+        return _repair_policy_overlay(Path(project).resolve(), runner or subprocess.run)
+    return _repair_component_locked(project, component, runner=runner)
 
 
 def linked_worktree_refusal(project: Path) -> str | None:

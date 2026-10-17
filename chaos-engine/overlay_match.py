@@ -501,7 +501,7 @@ def apply_policy_hash_doctor(
                 "mismatches": mismatches,
                 "nestedDrift": nested,
                 "fixNext": (
-                    "python3 .chaos-engine/install.py repair --project . --component core. "
+                    "python3 .chaos-engine/install.py repair --project . --component policy-overlay. "
                     "Do not hand-edit a nested .chaos-engine/.chaos-engine tree."
                 ),
             }
