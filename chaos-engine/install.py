@@ -6142,7 +6142,16 @@ def _repair_policy_overlay(project: Path, runner) -> dict[str, object]:
             "action": "reinstalled-from-local-source", "healed": mismatches}
 
 
-def repair_component(  # noqa: MC0001 - component switch keeps one operator entrypoint.
+def repair_component(project: Path, component: str, *, runner=None) -> dict[str, object]:
+    """Zero-LLM targeted repair for one component; policy-overlay reinstalls outside the lock."""
+    if str(component).strip().casefold() == "policy-overlay":
+        import subprocess
+
+        return _repair_policy_overlay(Path(project).resolve(), runner or subprocess.run)
+    return _repair_component_locked(project, component, runner=runner)
+
+
+def _repair_component_locked(  # noqa: MC0001 - component switch keeps one operator entrypoint.
     project: Path,
     component: str,
     *,
@@ -6160,8 +6169,6 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
             + "; choose one of "
             + ", ".join(sorted(REPAIRABLE_COMPONENTS))
         )
-    if name == "policy-overlay":
-        return _repair_policy_overlay(project, runner or subprocess.run)
     runner = runner or subprocess.run
     with project_lock(project):
         _recover_transaction(project)
