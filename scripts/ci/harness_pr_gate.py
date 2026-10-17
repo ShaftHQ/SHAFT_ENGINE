@@ -334,6 +334,7 @@ CHECKS = {
             "tests.scripts.test_reflection_recovery",
             "tests.scripts.test_bootstrap_pack_post_install",
             "tests.scripts.test_chaos_engine_ui_delivery",
+            "tests.scripts.test_architect_skill_parity",
         ),
     ),
     # #6222: modules that only ran in the weekly acceptance run, each selected
@@ -351,7 +352,7 @@ CHECKS = {
     "router-contract": Check(
         "router-contract",
         "guidance",
-        ("tests.scripts.test_agent_router_contract", "tests.scripts.test_architect_skill_parity"),
+        ("tests.scripts.test_agent_router_contract",),
     ),
     "harness-portability-contract": Check(
         "harness-portability-contract",
