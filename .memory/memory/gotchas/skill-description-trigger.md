@@ -1,0 +1,1 @@
+validate_skills rejects descriptions without 'Use when ...'/'before ...'; 'Use to ...' fails.

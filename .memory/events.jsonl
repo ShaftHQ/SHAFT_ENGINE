@@ -1257,3 +1257,9 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.publish-shaft-mcp-runs-on-any-release","timestamp":"2026-10-17T00:45:00+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.readme-media-cannot-live-on-docs-site","timestamp":"2026-10-17T00:45:00+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.new-source-only-file-must-be-checked-against-doctor","timestamp":"2026-10-17T00:52:34+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.portable-payload-forbids-project-tokens","timestamp":"2026-10-17T10:06:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.new-skill-generated-surfaces","timestamp":"2026-10-17T10:06:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.new-test-module-gating","timestamp":"2026-10-17T10:06:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.skill-description-trigger","timestamp":"2026-10-17T10:06:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.box-env-artifacts-false-failures","timestamp":"2026-10-17T10:06:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.memory-save-needs-synced-primary","timestamp":"2026-10-17T10:06:12+03:00"}

@@ -1,0 +1,1 @@
+Ignored local artifacts (.github/hooks from installer, plugins/caveman vendor tree, .pytest_cache README) fail ownership/setup/marketplace tests locally but not in CI; diff failure lists against a fresh worktree before fixing.
