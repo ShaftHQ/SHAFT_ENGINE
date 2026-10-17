@@ -1263,3 +1263,6 @@
 {"actor":"agent","event":"memory.created","id":"gotcha.skill-description-trigger","timestamp":"2026-10-17T10:06:12+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.box-env-artifacts-false-failures","timestamp":"2026-10-17T10:06:12+03:00"}
 {"actor":"agent","event":"memory.created","id":"gotcha.memory-save-needs-synced-primary","timestamp":"2026-10-17T10:06:12+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.graphify-doc-nodes-need-source-file","timestamp":"2026-10-17T12:31:29+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.mempalace-ignore-wildcard-negation-leaks","timestamp":"2026-10-17T12:31:29+03:00"}
+{"actor":"agent","event":"memory.created","id":"gotcha.verify-tool-semantics-with-real-scanner","timestamp":"2026-10-17T12:31:29+03:00"}

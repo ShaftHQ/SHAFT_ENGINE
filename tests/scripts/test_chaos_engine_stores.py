@@ -273,7 +273,7 @@ class SharedStoreTest(unittest.TestCase):
         self.assertEqual(moved, self.stores.palace_indexed_revision(palace))
         self.assertEqual(snapshot, self.stores.store_snapshot_path(common))
         self.assertEqual(2, len([command for command in calls if "mine" in command]))
-        self.assertEqual(["*", "!*/", "!/other.py"], self.ignores[-1])
+        self.assertEqual(["/*", "!/other.py"], self.ignores[-1])
         self.assertFalse((snapshot / ".gitignore").exists())
         self.assertEqual(["other.py"], self.stores.incremental_mine_paths(snapshot, revision, moved))
         self.assertEqual([], self.stores.incremental_mine_paths(snapshot, moved, moved))
@@ -510,6 +510,56 @@ class SharedStoreTest(unittest.TestCase):
             (self.stores.resolve_palace(self.primary) / "documentation-pages.json").read_text(encoding="utf-8")
         )
         self.assertIn("journeys/start.mdx", {page["path"] for page in palace_filing["pages"]})
+
+
+class StoreIndexAttributionTest(unittest.TestCase):
+    """Doc nodes name their file; an incremental mine stays confined to its paths."""
+
+    PATHS = ["chaos-engine/skills/architect/SKILL.md", "chaos-engine/skills/architect/references/design.md", "top.md"]
+
+    def setUp(self):
+        self.stores = load_stores()
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def _tree(self) -> None:
+        for relative in [*self.PATHS, "chaos-engine/skills/architect/references/other.md",
+                         "chaos-engine/skills/kanban/SKILL.md", "chaos-engine/tool.py", "drop.md"]:
+            (self.root / relative).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / relative).write_text("x\n", encoding="utf-8")
+        (self.root / ".gitignore").write_text("\n".join(self.stores.confine_rules(self.PATHS)) + "\n", encoding="utf-8")
+
+    def test_doc_node_carries_source_file_and_retrieve_names_it(self):
+        graph = self.root / "graph.json"
+        merged = self.stores.merge_documentation_graph(
+            graph, {"pages": [{"path": self.PATHS[0], "headings": ["Architect"], "links": []}]})
+        node = next(n for n in merged["nodes"] if n["id"] == "docs:" + self.PATHS[0])
+        self.assertEqual(self.PATHS[0], node["source_file"])
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("ce_retrieve_doc_src", ROOT / "chaos-engine" / "retrieve.py")
+        retrieve = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(retrieve)
+        line = f"NODE {node['label']} [src={node['source_file']} loc= community=]"
+        self.assertEqual([{"path": self.PATHS[0]}], retrieve._structured_hits(line, query="architect"))
+
+    def test_confine_rules_have_no_wildcard_negation_and_git_keeps_only_paths(self):
+        self._tree()
+        rules = self.stores.confine_rules(self.PATHS)
+        self.assertNotIn("!*/", rules)
+        subprocess.run(["git", "init", "-q", str(self.root)], check=True)  # nosec B603 B607
+        listed = subprocess.run(  # nosec B603 B607
+            ["git", "ls-files", "--others", "--exclude-standard"], cwd=self.root,
+            capture_output=True, text=True, check=True).stdout.split()
+        self.assertEqual(sorted(self.PATHS), sorted(listed))
+
+    def test_mempalace_scanner_mines_only_the_paths(self):
+        try:
+            from mempalace.miner import scan_project
+        except ImportError:
+            self.skipTest("mempalace is not importable")
+        self._tree()
+        found = sorted(Path(p).relative_to(self.root.resolve()).as_posix() for p in scan_project(str(self.root)))
+        self.assertEqual(sorted(self.PATHS), found)
 
 
 if __name__ == "__main__":

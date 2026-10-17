@@ -569,6 +569,8 @@ def merge_documentation_graph(graph_json: Path, indexed: dict) -> dict:
             "label": label,
             "kind": "document",
             "path": page_path,
+            "source_file": page_path,
+            "file_type": "document",
             "headings": list(headings),
         })
         for link in page.get("links") or []:
@@ -705,6 +707,21 @@ def incremental_mine_paths(snapshot: Path, previous: str | None, revision: str) 
     return None if len(paths) > INCREMENTAL_MINE_LIMIT else paths
 
 
+def confine_rules(paths: list[str]) -> list[str]:
+    """Anchored ignore rules that keep exactly ``paths``, honoured by git and MemPalace.
+
+    A wildcard ``!*/`` makes MemPalace un-ignore every file under every directory, turning an
+    incremental mine into a full walk; so open each ancestor directory explicitly instead.
+    """
+    folders = sorted({"/".join(path.split("/")[:depth]) for path in paths
+                      for depth in range(1, path.count("/") + 1)},
+                     key=lambda folder: (folder.count("/"), folder))
+    rules = ["/*"]
+    for folder in folders:
+        rules += [f"!/{folder}/", f"/{folder}/*"]
+    return rules + [f"!/{path}" for path in paths]
+
+
 def _mine_only(snapshot: Path, paths: list[str], invoke: Runner, mine: list[str]) -> None:
     """Mine just ``paths``: a temporary root ``.gitignore`` hides every other file from the miner.
 
@@ -714,8 +731,7 @@ def _mine_only(snapshot: Path, paths: list[str], invoke: Runner, mine: list[str]
     ignore = snapshot / ".gitignore"
     original = ignore.read_bytes() if ignore.is_file() else None
     stat = ignore.stat() if original is not None else None
-    rules = ["*", "!*/", *(f"!/{path}" for path in paths)]
-    ignore.write_text("\n".join(rules) + "\n", encoding="utf-8")
+    ignore.write_text("\n".join(confine_rules(paths)) + "\n", encoding="utf-8")
     try:
         _run(invoke, mine, snapshot)
     finally:
