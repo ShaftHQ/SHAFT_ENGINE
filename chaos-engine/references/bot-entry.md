@@ -38,15 +38,6 @@ delivery, start the next queued item. A turn that ends while CI runs must leave
 a wake (a PR-scoped CI listener) whose prompt resumes the queue; a host whose
 scheduled runs cannot create listeners hands that to the parent.
 
-## Pre-push pitfalls
-
-- `overlay_pre_push.py` rejects: a non-root `README.md` (name folder indexes
-  `index.md`), issue tags in add-on references, a hard-coded null-device path (use
-  `os.devnull`), and a new `tests/scripts/test_*.py` module that no
-  `harness_pr_gate.py` check selects. Add-on routers stay within 4096 bytes.
-- When `doctor` reports host or overlay drift, ownership and eval-suite tests
-  fail locally; rerun them in a clean `git worktree` before calling them real.
-
 ## Session cap (Grok Bot default)
 
 Grok Bot stops a background session at about 50 minutes of wall-clock time.
