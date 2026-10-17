@@ -28,6 +28,7 @@ Pinned: 2026-10-03.
 | [Netflix/vmaf](https://github.com/Netflix/vmaf) | `0497a0f299706b3124241f6ffc7fffc81d5665eb` | BSD-2-Clause-Patent | quality metric | D19 |
 | [latent-spaces/brag](https://github.com/latent-spaces/brag) | `069432cac935ed1895859df201c31436c07fb74e` | MIT (bundled music/SFX not reused) | launch-video rules re-expressed | D01, D08, D11, D20, D22 |
 | [remotion-dev/remotion](https://github.com/remotion-dev/remotion) | `e385a83dbde54179c0457ad90b7d7c3a4b6ab44a` | custom (company licence may be required) | documented alternative only | D09 |
+| [Tejashmakwana/motionmaxxing](https://github.com/Tejashmakwana/motionmaxxing) | `8c8ec0f2a6f6c9a0da15cd24f7b1298ab298368c` | Apache-2.0 (NOTICE: Tejas Makwana; GSAP, fonts and showcase media excluded and not used) | re-expressed: never-ship list, craft laws, gates G2/G3/G5, measured eases; map in references/research/motionmaxxing-map.md | D08, D09, D20, craft cards |
 
 ## Not used
 

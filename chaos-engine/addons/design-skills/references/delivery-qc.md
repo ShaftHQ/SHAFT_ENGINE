@@ -102,6 +102,10 @@ shows it.
   passes: the mix between narration lines is -60 dBFS or quieter.
 - `design_qc.py manifest manifest.json` passes: every asset has a hash and a
   licence.
+- `design_qc.py endhold|motionband|hook|cutrhythm out.mp4` pass (end hold
+  0.6-1.4 s unless the brief sets `--max`; motion band 0.5-6; poster-worthy
+  first frame; no shot over `--max-shot`). Vertical text boxes pass
+  `safezones`. Copy passes `copyslop`.
 - `design_qc.py all qc-plan.json` ends `pass`; any `skipped` step is
   reported in the PR with the missing tool.
 - Vertical frames inspected against the safe zone overlay, and

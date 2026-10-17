@@ -5,7 +5,7 @@ description: Use when a task designs or edits a web surface, image, motion graph
 
 # Design skills (add-on)
 
-Optional ChaosEngine add-on. Installed at `.chaos-engine/addons/design-skills/`
+Optional add-on. Installed at `.chaos-engine/addons/design-skills/`
 only when a user passed `--with-design-skills`. Without it, use core
 [ui-delivery](../../references/ui-delivery.md) for UI work.
 
@@ -18,7 +18,7 @@ only when a user passed `--with-design-skills`. Without it, use core
    viewport x theme matrix.
 3. Every deliverable ends with its card's **Verify** list run through
    [design_qc.py](scripts/design_qc.py). `skipped` is not `pass`:
-   install the tool or report the gap.
+   install the tool or report it.
 4. Real evidence only: real captures, real command output, real product
    facts. Mockups are labelled. No generated text inside images.
 5. Licences first: record every font, track, voice, model, and footage
@@ -55,9 +55,11 @@ only when a user passed `--with-design-skills`. Without it, use core
 | Clean | [D19 restoration and upscaling](references/video-restoration-upscaling.md) | denoise, upscale |
 | Ship | [D20 delivery QC](references/delivery-qc.md) | final encode, manifest, gate |
 
-End-to-end order for a product or tutorial video:
+Expert: [craft cards](references/craft/index.md).
+
+End-to-end order for a product video:
 [technical-video pipeline](references/pipelines/technical-video.md); run it
 with the [runbook](references/pipelines/runbook.md) (detached build, fast
 gates, idle QC, review, then deliver).
-Project packs may add brand facts; this add-on stays project-neutral.
+Project packs add brand facts; this add-on is project-neutral.
 Upstream pins and licences: [INVENTORY.md](INVENTORY.md).
