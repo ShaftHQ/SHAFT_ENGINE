@@ -79,6 +79,10 @@ verbose reports were most of the waste.
 - Bound every tool call to 60 s or less; anything longer runs in the background.
 - Trust a green gate: no local re-verification after CI passes.
 - Reports are deltas only (merged, next, blockers), at most 15 lines.
+- One worktree per worker on a shared box: `git worktree add "$WT"
+  origin/HEAD -b "$BRANCH"`; never branch, stage, or install in another
+  worker's clone. Empty `/workspace` or logged-out `gh` at start means the
+  box is still mounting: recheck, never clone over it.
 - Keep tools and drafts outside `/tmp` (a box restore wipes it) and check
   `git ls-files -d` before each push.
 - `checkpoint TASK --budget 40` after every merge. When it exits 3, stop.

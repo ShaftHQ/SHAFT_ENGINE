@@ -65,6 +65,7 @@ Main rolls forward. A failing post-merge leg opens or updates one rolling issue 
 - A body edit does not re-run a PR-body guard that reads the event payload. Push a commit instead.
 - Contract tests that CI runs with plain `unittest` must import only the standard library. A module installed on the dev box but not on the runner, such as PyYAML, passes locally and fails in CI.
 - Normalize paths with `removeprefix("./")`, never `lstrip("./")`. `lstrip` also strips the dot from `.github/`, so path-triggered pre-push checks silently stop running.
+- Before babysitting, `git ls-remote origin "$BRANCH"` must equal `git rev-parse HEAD`. An unpushed local commit leaves CI testing the old head.
 - Run `git status` before each push and check for unexpected deletions. A box restore can drop tracked files under cache-like directory names (`build/`, `coverage/`) in every worktree; restore them with `git ls-files -d -z | xargs -0 git checkout --`.
 - Never delete a worktree or branch before checking that the cherry-pick or merge landed (`git status`, `git log`). If you already did, recover the commit with `git fsck --lost-found`.
 - Validate every third-party CI config (coverage, analysis) against the vendor's validator in pre-push and CI. Some vendors silently ignore a whole file over one unknown key, and fall back to defaults.

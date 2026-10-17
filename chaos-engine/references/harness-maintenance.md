@@ -15,6 +15,11 @@ Install, `maintain` recovery and harness-edit checks for bots that start from
 
 ## Maintain
 
+An install older than a repair component rejects it (`argument --component:
+invalid choice`): reinstall from the checkout first (Install above), then run
+the repair.
+
+
 An interrupted `maintain` keeps running and holds `.chaos-engine.lock`; a
 second one fails with "another ChaosEngine operation is already running".
 Check the holder PID it names and `python3 .chaos-engine/install.py status --project . --json`

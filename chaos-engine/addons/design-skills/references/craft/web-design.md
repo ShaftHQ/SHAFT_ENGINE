@@ -38,6 +38,7 @@ A page, landing, or docs surface needs senior-level layout, type, and interactio
 | Text contrast | 4.5:1 body, 3:1 large and UI | WCAG 2.2 1.4.3/1.4.11 | `contrast` |
 | Target size | 24x24 CSS px min, 44 preferred | WCAG 2.2 2.5.8; Apple HIG | review |
 | LCP / INP / CLS | < 2.5 s / < 200 ms / < 0.1 | web.dev Core Web Vitals | Lighthouse |
+| README CTAs | both in the first screen at 1280x800 and 390x844 | GitHub README fold | render matrix |
 | UI transition | 150-300 ms; enter decelerates | Material 3 motion | `motiondur`, `easing` |
 
 ## Anti-patterns
@@ -58,6 +59,15 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
 
 - `design_qc.py measure|typescale|contrast|unslop|easing <path>`
 - `core ui-delivery viewport x theme matrix`
+
+## GitHub README surfaces
+
+- Render with the Markdown API `{"mode": "markdown"}`; `gfm` is comment mode
+  and turns every newline into `<br>`.
+- The API pulls a relative image out of `<a><picture>`; github.com keeps the
+  nesting. Check hero links on the live page, not the API output.
+- Headless Chrome media emulation does not pick `<picture>` sources: launch
+  with `--force-prefers-reduced-motion`, and swap dark srcsets yourself.
 
 ## References
 
