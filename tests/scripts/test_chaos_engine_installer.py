@@ -4881,7 +4881,7 @@ class NestedOverlayTree6225Test(unittest.TestCase):
             self.assertEqual("recovery-required", status["status"])
             row = status["components"]["policy-overlay"]
             self.assertIn("skills/chaos-engine/SKILL.md", row["nestedDrift"])
-            self.assertIn("repair --project . --component core", row["fixNext"])
+            self.assertIn("repair --project . --component policy-overlay", row["fixNext"])
 
 
 class ReceiptShimWiring6230Test(unittest.TestCase):
