@@ -5,6 +5,12 @@ from pathlib import Path
 from scripts.ci.readme_contract import USER_GUIDE_ROOT
 from scripts.ci.validate_documentation_boundaries import validate_repository
 
+HERO_LOOP = ".github/assets/readme/shaft-hero-loop.gif"
+HERO_MP4 = (
+    "https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/"
+    "shaft-hero-video-20261017/shaft-hero-16x9.mp4"
+)
+
 
 class ValidateDocumentationBoundariesTest(unittest.TestCase):
     def setUp(self):
@@ -15,7 +21,18 @@ class ValidateDocumentationBoundariesTest(unittest.TestCase):
 </picture>
 
 [![Build](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/pr-gate.yml?branch=main&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/pr-gate.yml)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/ShaftHQ/SHAFT_ENGINE)](https://scorecard.dev/viewer/?uri=github.com/ShaftHQ/SHAFT_ENGINE)
+[![Codecov](https://img.shields.io/codecov/c/github/ShaftHQ/SHAFT_ENGINE)](https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)
 [User guide]({USER_GUIDE_ROOT})
+[![Star SHAFT on GitHub](https://img.shields.io/badge/Star_on_GitHub-9a6700)](https://github.com/ShaftHQ/SHAFT_ENGINE)
+
+<a href="{HERO_MP4}">
+  <img src="{HERO_LOOP}" alt="SHAFT in action: a 3-line test and its green Allure report." width="820">
+</a>
+
+**Upgrade to SHAFT_ENGINE**
+
+## Quickstart
 [Generate your first project]({USER_GUIDE_ROOT})
 [Sponsor SHAFT](https://github.com/sponsors/MohabMohie)
 
@@ -532,6 +549,156 @@ flowchart LR
 
         self.assertIn(
             "modular-era-feature-catalog.md is missing the canonical release-history link",
+            validate_repository(self.root),
+        )
+
+    # Conversion rules from the README design overhaul (#7095 follow-up).
+
+    def test_valid_readme_fixture_passes_conversion_rules(self):
+        self.assertEqual(validate_repository(self.root), [])
+
+    def test_requires_hero_loop_linked_to_release_mp4(self):
+        self.write(
+            "README.md",
+            self.valid_readme.replace(f'<a href="{HERO_MP4}">', '<a href="https://example.com/">'),
+        )
+
+        self.assertIn(
+            "README.md hero loop must appear once and link to the release mp4",
+            validate_repository(self.root),
+        )
+
+    def test_rejects_duplicate_hero_loop(self):
+        self.write(
+            "README.md",
+            self.valid_readme
+            + f'\n<a href="{HERO_MP4}"><img src="{HERO_LOOP}" alt="Again"></a>\n',
+        )
+
+        self.assertIn(
+            "README.md hero loop must appear once and link to the release mp4",
+            validate_repository(self.root),
+        )
+
+    def test_requires_upgrade_call_to_action(self):
+        self.write(
+            "README.md",
+            self.valid_readme.replace("Upgrade to SHAFT_ENGINE", "Try SHAFT"),
+        )
+
+        self.assertIn(
+            "README.md is missing the Upgrade to SHAFT_ENGINE call to action",
+            validate_repository(self.root),
+        )
+
+    def test_requires_star_call_to_action_before_first_section(self):
+        star = (
+            "[![Star SHAFT on GitHub](https://img.shields.io/badge/Star_on_GitHub-9a6700)]"
+            "(https://github.com/ShaftHQ/SHAFT_ENGINE)\n"
+        )
+        self.write(
+            "README.md",
+            self.valid_readme.replace(star, "") + "\n## Later\n\n" + star,
+        )
+
+        self.assertIn(
+            "README.md must offer the User Guide and Star calls to action before the first section",
+            validate_repository(self.root),
+        )
+
+    def test_requires_user_guide_call_to_action_before_first_section(self):
+        moved = self.valid_readme.replace(f"[User guide]({USER_GUIDE_ROOT})\n", "").replace(
+            f"[Generate your first project]({USER_GUIDE_ROOT})\n", ""
+        )
+        self.write(
+            "README.md",
+            moved
+            + f"\n## Later\n\n[User guide]({USER_GUIDE_ROOT})\n"
+            f"[Generate your first project]({USER_GUIDE_ROOT})\n",
+        )
+
+        self.assertIn(
+            "README.md must offer the User Guide and Star calls to action before the first section",
+            validate_repository(self.root),
+        )
+
+    def test_rejects_more_than_four_status_badges_before_first_section(self):
+        extra = (
+            "[![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_ENGINE)](LICENSE)\n"
+            "[![Stars](https://img.shields.io/github/stars/ShaftHQ/SHAFT_ENGINE)]"
+            "(https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers)\n"
+            "[![Maven](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine)]"
+            "(https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)\n"
+        )
+        self.write("README.md", extra + self.valid_readme)
+
+        self.assertIn(
+            "README.md exceeds the 4-badge budget above the first section",
+            validate_repository(self.root),
+        )
+
+    def test_call_to_action_buttons_do_not_count_as_status_badges(self):
+        buttons = "".join(
+            f"[![Button {index}](https://img.shields.io/badge/Button_{index}-0969da)]"
+            f"({USER_GUIDE_ROOT})\n"
+            for index in range(3)
+        )
+        self.write("README.md", buttons + self.valid_readme)
+
+        self.assertEqual(validate_repository(self.root), [])
+
+    def test_requires_codecov_badge_right_after_scorecard_badge(self):
+        codecov = (
+            "[![Codecov](https://img.shields.io/codecov/c/github/ShaftHQ/SHAFT_ENGINE)]"
+            "(https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)\n"
+        )
+        build_line = next(
+            line for line in self.valid_readme.splitlines() if "pr-gate.yml" in line
+        ) + "\n"
+        reordered = self.valid_readme.replace(codecov, "").replace(
+            build_line, codecov + build_line
+        )
+        self.write("README.md", reordered)
+
+        self.assertIn(
+            "README.md must place the Codecov badge right after the OpenSSF Scorecard badge",
+            validate_repository(self.root),
+        )
+
+    def test_requires_alt_text_on_every_image(self):
+        self.write(
+            "README.md",
+            self.valid_readme.replace(
+                'alt="SHAFT in action: a 3-line test and its green Allure report."', 'alt=""'
+            ),
+        )
+
+        self.assertIn(
+            "README.md images need a non-empty alt text of at most 160 characters",
+            validate_repository(self.root),
+        )
+
+    def test_rejects_overlong_alt_text(self):
+        self.write(
+            "README.md",
+            self.valid_readme.replace(
+                "SHAFT in action: a 3-line test and its green Allure report.", "word " * 40
+            ),
+        )
+
+        self.assertIn(
+            "README.md images need a non-empty alt text of at most 160 characters",
+            validate_repository(self.root),
+        )
+
+    def test_rejects_empty_markdown_image_alt_text(self):
+        self.write(
+            "README.md",
+            self.valid_readme.replace("[![OpenSSF Scorecard]", "[![]"),
+        )
+
+        self.assertIn(
+            "README.md images need a non-empty alt text of at most 160 characters",
             validate_repository(self.root),
         )
 

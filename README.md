@@ -2,44 +2,42 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="shaft-engine/src/main/resources/images/shaft_white.png">
-  <img src="shaft-engine/src/main/resources/images/shaft_standard.png" alt="SHAFT S logo" width="240">
+  <img src="shaft-engine/src/main/resources/images/shaft_standard.png" alt="SHAFT logo" width="240">
 </picture>
 
-# SHAFT
+# Write the test. SHAFT does the rest.
 
-**Write the test. SHAFT handles drivers, waits, evidence, and the report.**
+One Java engine for web, mobile, API, CLI, database, and desktop.<br>
+Drivers, waits, and evidence are handled. Every run ends in an Allure report.
 
-One Java engine for web, mobile, API, CLI, database, and desktop, with an Allure report on every run.
+[![Read the User Guide](https://img.shields.io/badge/Read_the_User_Guide-%E2%86%92-0969da?style=for-the-badge&labelColor=0969da)](https://shafthq.github.io/)
+&nbsp;
+[![Star SHAFT on GitHub](https://img.shields.io/badge/%E2%AD%90_Star_on_GitHub-9a6700?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ShaftHQ/SHAFT_ENGINE)
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?style=for-the-badge&logo=apachemaven)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
-[![Build](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/pr-gate.yml?branch=main&style=for-the-badge&label=build)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/pr-gate.yml)
-[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/ShaftHQ/SHAFT_ENGINE?style=for-the-badge&label=openssf%20scorecard)](https://scorecard.dev/viewer/?uri=github.com/ShaftHQ/SHAFT_ENGINE)
-[![Codecov](https://img.shields.io/codecov/c/github/ShaftHQ/SHAFT_ENGINE?style=for-the-badge&logo=codecov)](https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)
-[![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_ENGINE?style=for-the-badge)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/ShaftHQ/SHAFT_ENGINE?style=for-the-badge&logo=github)](https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers)
-
-<img src=".github/assets/readme/shaft-hero-loop.gif" alt="SHAFT in 26 seconds: a green Allure report, one Maven dependency and a 3-line test typed in IntelliJ, a real CI run turning from red to green, mvn test passing, and the Star and User Guide buttons." width="720">
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?label=maven%20central&color=0969da)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
+[![Build](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/pr-gate.yml?branch=main&label=build)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/pr-gate.yml)
+[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/ShaftHQ/SHAFT_ENGINE?label=openssf%20scorecard)](https://scorecard.dev/viewer/?uri=github.com/ShaftHQ/SHAFT_ENGINE)
+[![Codecov](https://img.shields.io/codecov/c/github/ShaftHQ/SHAFT_ENGINE?label=coverage&logo=codecov)](https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)
 
 <a href="https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-hero-video-20261017/shaft-hero-16x9.mp4">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/readme/shaft-hero-thumb-dark-1280x720.jpg">
-    <img src=".github/assets/readme/shaft-hero-thumb-light-1280x720.jpg" alt="Watch the 26-second SHAFT clip (mp4, captioned): SHAFT in 26 seconds: a green Allure report, one Maven dependency and a 3-line test typed in IntelliJ, a real CI run turning from red to green, mvn test passing, and the Star and User Guide buttons." width="360">
+    <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset=".github/assets/readme/shaft-hero-thumb-dark-1280x720.jpg">
+    <source media="(prefers-reduced-motion: reduce)" srcset=".github/assets/readme/shaft-hero-thumb-light-1280x720.jpg">
+    <img src=".github/assets/readme/shaft-hero-loop.gif" alt="SHAFT in action: a 3-line test, mvn test passing, and the green Allure report it produces." width="820">
   </picture>
 </a>
 
-<sub>▶ Watch the 26-second clip with captions · [100-second overview](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-feature-video-v2-20261009/SHAFT-business-16x9-v2-1080p.mp4)</sub>
-
-**[⭐ Star SHAFT](https://github.com/ShaftHQ/SHAFT_ENGINE)** · **[Generate your first project](https://shafthq.github.io/)** · **[Read the User Guide](https://shafthq.github.io/)**
+<sub>**Upgrade to SHAFT_ENGINE** · ▶ [Watch the 26-second clip with sound and captions](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-hero-video-20261017/shaft-hero-16x9.mp4) · [100-second overview](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-feature-video-v2-20261009/SHAFT-business-16x9-v2-1080p.mp4)</sub>
 
 </div>
 
 ## Why SHAFT
 
-- **Stop rebuilding plumbing.** Managed Selenium and Appium drivers, synchronized actions, and smart waits work out of the box.
-- **One fluent API, every surface.** Web, mobile, REST/GraphQL, database, CLI, and desktop live in the same test.
-- **Evidence by default.** Logs, screenshots, and attachments flow into an Allure report on every run.
-- **Scale by configuration.** Run the same test locally, on Grid, BrowserStack, or LambdaTest, with TestNG, JUnit, or Cucumber.
-- **Open and trusted.** MIT licensed, published to Maven Central, with an OpenSSF Scorecard and a public coverage report.
+- **No plumbing.** Managed Selenium and Appium drivers, synchronized actions, and smart waits.
+- **One fluent API.** Web, mobile, REST/GraphQL, database, CLI, and desktop in the same test.
+- **Evidence by default.** Steps, screenshots, and logs land in an Allure report on every run.
+- **Scale by configuration.** Local, Grid, BrowserStack, or LambdaTest; TestNG, JUnit, or Cucumber.
+- **Open and trusted.** MIT licensed, on Maven Central, with an OpenSSF Scorecard and public coverage.
 
 ## How it works
 
@@ -61,9 +59,9 @@ flowchart LR
     N --> E
 ```
 
-## 30-second quickstart
+## Quickstart
 
-The fastest route is to **[generate your first project](https://shafthq.github.io/)** and run `mvn test`. To add SHAFT to an existing project, use `io.github.shafthq:shaft-engine` (take the version from the Maven Central badge):
+**[Generate your first project](https://shafthq.github.io/)** and run `mvn test`. Already on Maven? Add `io.github.shafthq:shaft-engine` (version from the Maven Central badge):
 
 ```xml
 <dependency>
@@ -73,6 +71,8 @@ The fastest route is to **[generate your first project](https://shafthq.github.i
 </dependency>
 ```
 
+Then write the test:
+
 ```java
 SHAFT.GUI.WebDriver driver = new SHAFT.GUI.WebDriver();
 driver.browser().navigateToURL("https://shafthq.github.io/")
@@ -80,20 +80,20 @@ driver.browser().navigateToURL("https://shafthq.github.io/")
 driver.quit();
 ```
 
-Run `mvn test` and the Allure report opens with every step, screenshot, and log.
+Run `mvn test`. The Allure report opens with every step, screenshot, and log.
 
-## Next steps
+## Where to next
 
-| You are | Go to |
-|---|---|
-| Writing tests | **[User Guide](https://shafthq.github.io/)**: setup, the full API, and examples |
-| Using IntelliJ | [shaft-intellij](shaft-intellij/README.md) |
-| Contributing or maintaining | [CONTRIBUTING.md](CONTRIBUTING.md), the maintainers guide entry point |
-| An AI agent | [AGENTS.md](AGENTS.md); start with `$shaft-developer`, then the [MCP tools](shaft-skills/references/shaft-mcp-tools.md) or [CLI commands](shaft-skills/references/shaft-cli-commands.md) |
+- **Writing tests:** the **[User Guide](https://shafthq.github.io/)** has setup, the full API, and examples.
+- **Using IntelliJ:** [shaft-intellij](shaft-intellij/README.md).
+- **Contributing or maintaining:** [CONTRIBUTING.md](CONTRIBUTING.md) is the entry point to the maintainers guide.
+- **AI agents:** [AGENTS.md](AGENTS.md). Start with `$shaft-developer`, then the [MCP tools](shaft-skills/references/shaft-mcp-tools.md) or [CLI commands](shaft-skills/references/shaft-cli-commands.md).
 
 <div align="center">
 
-**If SHAFT saves your team time, [⭐ star the repo](https://github.com/ShaftHQ/SHAFT_ENGINE). It helps other testers find it.**
+**If SHAFT saves your team time, star the repo.** It helps other testers find it.
+
+[![Star SHAFT on GitHub](https://img.shields.io/badge/%E2%AD%90_Star_on_GitHub-9a6700?style=for-the-badge&logo=github&logoColor=white)](https://github.com/ShaftHQ/SHAFT_ENGINE)
 
 </div>
 
@@ -101,4 +101,4 @@ Run `mvn test` and the Allure report opens with every step, screenshot, and log.
 
 [Open an issue](https://github.com/ShaftHQ/SHAFT_ENGINE/issues) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Sponsor](https://github.com/sponsors/MohabMohie)
 
-BrowserStack, LambdaTest, Applitools, and JetBrains have provided tooling or open-source program support. This is support for the project, not a claim of financial sponsorship, customer status, or endorsement.
+<sub>BrowserStack, LambdaTest, Applitools, and JetBrains have provided tooling or open-source program support. This is support for the project, not a claim of financial sponsorship, customer status, or endorsement.</sub>

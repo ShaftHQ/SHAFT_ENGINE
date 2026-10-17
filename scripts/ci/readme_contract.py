@@ -48,6 +48,28 @@ _BUILD_BADGE = re.compile(
     + r"\)",
     flags=re.IGNORECASE,
 )
+HERO_LOOP = ".github/assets/readme/shaft-hero-loop.gif"
+HERO_RELEASE_PREFIX = "https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/"
+UPGRADE_CTA = "Upgrade to SHAFT_ENGINE"
+STAR_DESTINATIONS = (
+    "https://github.com/ShaftHQ/SHAFT_ENGINE",
+    "https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers",
+)
+STATUS_BADGE_BUDGET = 4
+ALT_TEXT_LIMIT = 160
+_SHIELDS = "https://img.shields.io/"
+_FIRST_SECTION = re.compile(r"^#{2}[ \t]", flags=re.MULTILINE)
+_ANCHOR_BLOCK = re.compile(
+    r"<a\b([^>]*)>(.*?)</a\s*>", flags=re.DOTALL | re.IGNORECASE
+)
+_MARKDOWN_IMAGE = re.compile(r"!\[([^\]\n]*)\]\(\s*<?([^\s)>]+)>?")
+_LINKED_MARKDOWN_IMAGE = re.compile(
+    r"\[!\[([^\]\n]*)\]\([^)\s]+\)\]\(\s*<?([^\s)>]+)>?\)"
+)
+_MARKDOWN_LINK = re.compile(r"(?<!!)\[([^\]\n]+)\]\(\s*<?([^\s)>]+)>?\)")
+_ALT_ATTRIBUTE = re.compile(
+    r"\balt\s*=\s*(?:\"([^\"]*)\"|'([^']*)')", flags=re.IGNORECASE
+)
 _MERMAID_NODE = re.compile(r"\b([A-Za-z][\w-]*)\s*\[([^\]]+)\]")
 _MERMAID_EDGE = re.compile(
     r"\b([A-Za-z][\w-]*)(?:\[[^\]]+\])?\s*-->\s*([A-Za-z][\w-]*)"
@@ -202,6 +224,82 @@ def _has_accessible_evidence_workflow(markup: str) -> bool:
     return False
 
 
+def _above_first_section(markup: str) -> str:
+    match = _FIRST_SECTION.search(markup)
+    return markup if match is None else markup[: match.start()]
+
+
+def _hero_errors(link_scan: str, visible: str) -> list[str]:
+    errors: list[str] = []
+    loops = [
+        image
+        for image in _IMG_TAG.finditer(link_scan)
+        if _attributes(image.group(1)).get("src", "") == HERO_LOOP
+    ]
+    linked = [
+        anchor
+        for anchor in _ANCHOR_BLOCK.finditer(link_scan)
+        if HERO_LOOP in anchor.group(2)
+        and _attributes(anchor.group(1)).get("href", "").startswith(HERO_RELEASE_PREFIX)
+        and _attributes(anchor.group(1)).get("href", "").lower().endswith(".mp4")
+    ]
+    if len(loops) != 1 or len(linked) != 1:
+        errors.append("README.md hero loop must appear once and link to the release mp4")
+    if UPGRADE_CTA not in visible:
+        errors.append(f"README.md is missing the {UPGRADE_CTA} call to action")
+    return errors
+
+
+def _call_to_action_errors(link_scan: str) -> list[str]:
+    fold = _above_first_section(link_scan)
+    guide = USER_GUIDE_ROOT in destinations(fold)
+    star = any(
+        destination in STAR_DESTINATIONS and "star" in label.casefold()
+        for label, destination in (
+            *_LINKED_MARKDOWN_IMAGE.findall(fold),
+            *_MARKDOWN_LINK.findall(fold),
+        )
+    )
+    if guide and star:
+        return []
+    return [
+        "README.md must offer the User Guide and Star calls to action before the first section"
+    ]
+
+
+def _badge_errors(link_scan: str) -> list[str]:
+    errors: list[str] = []
+    fold = _above_first_section(link_scan)
+    status = [
+        source
+        for _, source in _MARKDOWN_IMAGE.findall(fold)
+        if source.startswith(_SHIELDS) and not source.startswith(_SHIELDS + "badge/")
+    ]
+    if len(status) > STATUS_BADGE_BUDGET:
+        errors.append(
+            f"README.md exceeds the {STATUS_BADGE_BUDGET}-badge budget above the first section"
+        )
+    kinds = ["codecov" if "/codecov/" in s else "scorecard" if "/ossf-scorecard/" in s else "" for s in status]
+    if "codecov" in kinds and "scorecard" in kinds:
+        if kinds.index("codecov") != kinds.index("scorecard") + 1:
+            errors.append(
+                "README.md must place the Codecov badge right after the OpenSSF Scorecard badge"
+            )
+    return errors
+
+
+def _alt_text_errors(link_scan: str) -> list[str]:
+    alts = [alt for alt, _ in _MARKDOWN_IMAGE.findall(link_scan)]
+    for image in _IMG_TAG.finditer(link_scan):
+        match = _ALT_ATTRIBUTE.search(image.group(1))
+        alts.append("" if match is None else next(g for g in match.groups() if g is not None))
+    if any(not alt.strip() or len(alt) > ALT_TEXT_LIMIT for alt in alts):
+        return [
+            f"README.md images need a non-empty alt text of at most {ALT_TEXT_LIMIT} characters"
+        ]
+    return []
+
+
 def validate_readme_contract(readme: str) -> list[str]:
     """Validate the visible, developer-facing trust contract owned by README.md."""
     errors: list[str] = []
@@ -253,4 +351,8 @@ def validate_readme_contract(readme: str) -> list[str]:
     if _BUILD_BADGE.search(link_scan) is None:
         errors.append("README.md is missing the pr-gate.yml build badge")
 
+    errors.extend(_hero_errors(link_scan, visible))
+    errors.extend(_call_to_action_errors(link_scan))
+    errors.extend(_badge_errors(link_scan))
+    errors.extend(_alt_text_errors(link_scan))
     return errors
