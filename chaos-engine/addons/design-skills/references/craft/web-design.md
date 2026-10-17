@@ -60,6 +60,17 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
 - `design_qc.py measure|typescale|contrast|unslop|easing <path>`
 - `core ui-delivery viewport x theme matrix`
 
+## Delivery gates
+
+- Fold and line-count tests also run with a forced wide fallback font
+  (`font-family: "DejaVu Sans"`): CI runners render `system-ui` as DejaVu Sans,
+  about 18% wider than Noto Sans, so a 2-line H1 passes locally and wraps in CI.
+- Install from the repository's lockfile: `yarn.lock` means
+  `yarn install --frozen-lockfile`; `npm ci` needs `package-lock.json`.
+- Before merge, a second bot reviews as a developer, one round, even with every
+  local gate green. On a landing page it caught a reduced-motion blocker and a
+  PR gate that filtered out the new tests.
+
 ## GitHub README surfaces
 
 - Render with the Markdown API `{"mode": "markdown"}`; `gfm` is comment mode

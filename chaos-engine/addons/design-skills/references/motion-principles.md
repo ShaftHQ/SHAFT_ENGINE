@@ -34,7 +34,8 @@ scenes, or kinetic type. D09 and D10 consume the tokens defined here.
 - No more than three general flashes in any one-second period; avoid
   saturated red flashes entirely.
 - Web motion ships a `prefers-reduced-motion: reduce` variant (crossfade or
-  none); anything that plays longer than 5 s can be paused.
+  none); anything that plays longer than 5 s can be paused. Global overrides
+  use `0.01ms`, not `0s` ([D04](web-interface-audit.md)).
 - Check stills mid-transition, not only settled frames. A crossfade between
   two busy layouts is a muddy double exposure: stagger it (old out, then new
   in) or dip through the background.

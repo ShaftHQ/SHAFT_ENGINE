@@ -28,6 +28,12 @@ in the policy owner this page points at. This page does not restate it.
 - Remaining images stay readable in light and dark themes and have alt text.
   Use a `<picture>` pair when one asset cannot serve both themes.
 - A generated animation lives in the repository, or on a host you just probed.
+- Reuse media the owner already approved (a README hero clip, its poster)
+  before rendering new media; README and site then show the same proof.
+- A number fetched at build time (release, stars) is validated inside the
+  fetch script (version pattern, positive integer). A failed or odd reply keeps
+  the committed value. Rewrite the tracked file only in CI, so a local build
+  never dirties git.
 
 ## Three readers
 

@@ -28,7 +28,12 @@ is fixed in the same PR or filed as an issue; nothing stays only in chat.
   `autocomplete` and input types, submit never disabled without a reason.
 - Touch: targets at least 44 by 44 CSS px; spacing between adjacent targets.
 - Motion: `prefers-reduced-motion` honored; no autoplay longer than 5 s
-  without pause.
+  without pause. A global override uses `0.01ms`, never `0s`: collapsibles
+  (`<details>`, sidebar categories) finish on `transitionend`, which a zero
+  duration never fires, so they stay open at 0 px with focusable content.
+  Autoplay is re-evaluated on a `matchMedia` change.
+- Names: an `aria-label` contains the visible text, starting with it (WCAG
+  2.5.3 label in name).
 - Typography: no viewport-only font sizes; tabular numbers in tables.
 - Images: explicit width and height, `alt` text, lazy loading below the fold.
 - Locale: dates, numbers, and plurals through `Intl`; no text in images.
@@ -48,6 +53,7 @@ is fixed in the same PR or filed as an issue; nothing stays only in chat.
 - axe-core: 0 violations in every theme.
 - Lighthouse accessibility score of 95 or higher.
 - Touch target sizes measured with `getBoundingClientRect()` in an e2e test.
+- Under reduced motion, collapsing a `<details>` leaves `open === false`.
 - Report header records the rule-set SHA; a newer upstream SHA is noted as
   drift, not silently adopted.
 
