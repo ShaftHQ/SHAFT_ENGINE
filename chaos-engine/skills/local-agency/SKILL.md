@@ -1,8 +1,8 @@
 ---
 name: local-agency
 description: >-
-  Use when the adopter asks to delegate to local agents (OpenCode / OSS agency)
-  against a READY local runtime instead of orchestrator-session subagents.
+  Use when the adopter asks to delegate to local OSS agents (OpenCode) on a
+  READY local runtime.
 license: MIT
 ---
 

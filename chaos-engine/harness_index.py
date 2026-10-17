@@ -69,6 +69,8 @@ SKILLS = (
     ("kanban", "portable", "skills/kanban/SKILL.md",
      "Use when work has several deliverables, tickets, or delegates: board, WIP 1 writer + 2 "
      "review, pull rule, Definition of Done, findings fixed or filed.", "delivery"),
+    ("architect", "portable", "skills/architect/SKILL.md",
+     "Use for design-level judgement: requirements, quality attributes, trade-offs, ADR, contracts, resilience, security, observability, refactor, debug, review, debt.", "delivery"),
     ("git-cleanup", "portable", "skills/git-cleanup/SKILL.md",
      "Use when a git worktree is dirty or another local branch or worktree exists. "
      "Ask before cleanup unless the session is unattended.", "delivery"),
@@ -77,12 +79,9 @@ SKILLS = (
      "targets, PR/main/nightly tiers, opt-in labels, roll-forward, merge queue, release and "
      "privileged workflows.", "delivery"),
     ("local-agency", "portable", "skills/local-agency/SKILL.md",
-     "Use when the adopter asks to delegate to local agents (OpenCode / OSS agency) against a READY "
-     "local runtime instead of orchestrator-session subagents.", "delegation"),
+     "Use when the adopter asks to delegate to local OSS agents (OpenCode) on a READY local runtime.", "delegation"),
     ("local-runtimes", "portable", "skills/local-runtimes/SKILL.md",
-     "Use when choosing an optional local inference runtime for a narrow mechanical or offline job. "
-     "One table routes to OmniRoute, FreeToken, Colibri, a loopback server, or the hardware probe.",
-     "local-runtime"),
+     "Use when choosing an optional local inference runtime for a narrow mechanical or offline job.", "local-runtime"),
     ("omniroute", "route", "skills/omniroute/SKILL.md",
      "Use when local-runtimes selected the OmniRoute process for bounded work: runner, delegate "
      "continuity, capability enforcement and proof of dispatch.", "local-runtime"),
@@ -96,8 +95,7 @@ SKILLS = (
      "Loopback OpenAI-compatible peers (Ollama, LM Studio, llamacpp on 127.0.0.1). Use when a "
      "narrow task should go to an already READY loopback server.", "local-runtime"),
     ("local-coding-delegate", "route", "skills/local-coding-delegate/SKILL.md",
-     "Hardware size-class probe for local models. Use when you must learn which model size this "
-     "machine can host before any runtime is picked.", "local-runtime"),
+     "Hardware size-class probe. Use when you must learn which local model size this machine can host.", "local-runtime"),
 )
 VENDOR = (
     ("caveman", "vendor/caveman/skills/caveman/SKILL.md",
@@ -247,6 +245,7 @@ ROUTER_USE = {
     "self-improve": "after final delivery",
     "git-cleanup": "dirty worktree or stray branches",
     "ci-cd": "slow merges, CI",
+    "architect": "design, API, risk, review",
     "local-agency": "delegate to local OSS agents",
     "local-runtimes": "pick a local inference runtime",
     "omniroute": "OmniRoute runtime selected",

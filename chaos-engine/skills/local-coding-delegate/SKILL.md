@@ -1,8 +1,8 @@
 ---
 name: local-coding-delegate
 description: >-
-  Hardware size-class probe for local models. Use when you must learn which model
-  size this machine can host before any runtime is picked.
+  Hardware size-class probe. Use when you must learn which local model size this
+  machine can host.
 license: MIT
 ---
 
