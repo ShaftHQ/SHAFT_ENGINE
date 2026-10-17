@@ -1,0 +1,20 @@
+E       FileNotFoundError: [Errno 2] No such file or directory: '/workspace/designer/SHAFT_ENGINE/chaos-engine/addons/design-skills/references/research/web-design.md'
+
+/usr/lib/python3.13/pathlib/_local.py:539: FileNotFoundError
+=========================== short test summary info ============================
+FAILED tests/scripts/test_ce_design_craft.py::CraftLintTests::test_chrome_flags_hud_counters_timecodes_and_tracked_caps
+FAILED tests/scripts/test_ce_design_craft.py::CraftLintTests::test_copyslop_flags_slogan_copy
+FAILED tests/scripts/test_ce_design_craft.py::CraftLintTests::test_fadeonly_flags_opacity_only_entries
+FAILED tests/scripts/test_ce_design_craft.py::CraftLintTests::test_measure_flags_lines_outside_45_to_75_characters
+FAILED tests/scripts/test_ce_design_craft.py::CraftLintTests::test_motiondur_flags_slow_defaults
+FAILED tests/scripts/test_ce_design_craft.py::CraftLintTests::test_safezones_keep_text_out_of_platform_ui
+FAILED tests/scripts/test_ce_design_craft.py::CraftLintTests::test_springs_allows_one_visible_spring
+FAILED tests/scripts/test_ce_design_craft.py::CraftLintTests::test_typescale_needs_clear_steps_and_few_sizes
+FAILED tests/scripts/test_ce_design_craft.py::CraftMediaTests::test_cutrhythm_flags_overlong_shots
+FAILED tests/scripts/test_ce_design_craft.py::CraftMediaTests::test_endhold_flags_a_long_frozen_ending
+FAILED tests/scripts/test_ce_design_craft.py::CraftMediaTests::test_hook_needs_a_poster_frame_and_early_change
+FAILED tests/scripts/test_ce_design_craft.py::CraftMediaTests::test_motionband_flags_a_film_too_still_to_exist
+FAILED tests/scripts/test_ce_design_craft.py::CraftCardTests::test_eleven_craft_cards_have_targets_and_an_anchored_rubric
+FAILED tests/scripts/test_ce_design_craft.py::CraftCardTests::test_motionmaxxing_map_attribution_and_exploration_stage
+FAILED tests/scripts/test_ce_design_craft.py::CraftCardTests::test_research_has_220_linked_references
+15 failed in 2.11s

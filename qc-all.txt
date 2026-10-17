@@ -1,0 +1,31 @@
+hook before: {"change": 0.7, "check": "hook", "poster_std": 0.7, "status": "fail"}
+hook after: {"change": 8.4, "check": "hook", "poster_std": 76.4, "status": "pass"}
+endhold before: {"band": [0.6, 1.4], "check": "endhold", "hold_s": 2.03, "status": "fail"}
+endhold after: {"band": [0.6, 1.4], "check": "endhold", "hold_s": 1.1, "status": "pass"}
+motionband before: {"band": [0.5, 6.0], "check": "motionband", "mean": 0.24, "status": "fail"}
+motionband after: {"band": [0.5, 6.0], "check": "motionband", "mean": 0.78, "status": "pass"}
+cutrhythm before: {"check": "cutrhythm", "max_shot": 4.0, "shots": [12.0], "status": "fail"}
+cutrhythm after: {"check": "cutrhythm", "max_shot": 4.0, "shots": [2.6, 2.8, 2.2, 2.6, 1.8], "status": "pass"}
+flatframes before: {"check": "flatframes", "edge_s": 1.0, "frames": 360, "runs": [{"frames": 4, "start": 3.43}, {"frames": 2, "start": 6.97}, {"frames": 1, "start": 9.0}], "status": "fail"}
+flatframes after: {"check": "flatframes", "edge_s": 1.0, "frames": 360, "runs": [], "status": "pass"}
+flash before: {"check": "flash", "max_flashes_per_second": 0, "status": "pass"}
+flash after: {"check": "flash", "max_flashes_per_second": 0, "status": "pass"}
+blackfreeze before: {"check": "blackfreeze", "problems": ["black at 0s", "freeze at 0s", "freeze at 1.4s", "freeze at 4.5s", "freeze at 10s"], "status": "fail"}
+blackfreeze after: {"check": "blackfreeze", "problems": [], "status": "pass"}
+chrome before: {"check": "chrome", "files": 1, "hits": ["before.html:5 tracked-caps", "before.html:11 hud-counter", "before.html:12 hud-counter", "before.html:13 hud
+chrome after: {"check": "chrome", "files": 1, "hits": [], "status": "pass"}
+copyslop before: {"check": "copyslop", "files": 1, "hits": ["before.html:11 meet-x", "before.html:12 unlock", "before.html:12 future-of"], "status": "fail"}
+copyslop after: {"check": "copyslop", "files": 1, "hits": [], "status": "pass"}
+easing before: {"check": "easing", "files": 1, "hits": ["before.html:4 linear-easing"], "status": "fail"}
+easing after: {"check": "easing", "files": 1, "hits": [], "status": "pass"}
+motiondur before: {"check": "motiondur", "median_s": 1.0, "n": 1, "status": "fail"}
+motiondur after: {"check": "motiondur", "median_s": 0.375, "n": 2, "status": "pass"}
+fadeonly before: {"check": "fadeonly", "hits": [], "status": "pass"}
+fadeonly after: {"check": "fadeonly", "hits": [], "status": "pass"}
+springs before: {"check": "springs", "max": 1, "springs": 0, "status": "pass"}
+springs after: {"check": "springs", "max": 1, "springs": 0, "status": "pass"}
+typescale before: {"check": "typescale", "sizes": [40.0, 30.0, 14.0], "status": "pass", "tight": []}
+typescale after: {"check": "typescale", "sizes": [50.0, 39.0, 25.0], "status": "pass", "tight": []}
+safezones before: {"check": "safezones", "format": "9x16", "hits": ["label", "cta"], "status": "fail"}
+safezones after: {"check": "safezones", "format": "9x16", "hits": [], "status": "pass"}
+colortags before/after: pass (tagged at mux, bsf h264_metadata)

@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+/* "before": the pre-level-up defaults */
+body{margin:0;width:540px;height:960px;background:#000;font-family:Inter,Arial,sans-serif;color:#fff;overflow:hidden}
+.s{position:absolute;inset:0;opacity:0;transition: opacity 1s linear}
+.label{position:absolute;top:40px;left:30px;font-size:14px;letter-spacing: 0.3em;text-transform:uppercase}
+.counter{position:absolute;top:40px;right:30px;font-size:14px}
+h1{position:absolute;top:380px;width:100%;text-align:center;font-size:40px;margin:0}
+img{position:absolute;left:40px;width:460px;top:300px;border-radius:40px}
+.cta{position:absolute;bottom:80px;width:100%;text-align:center;font-size:30px}
+</style></head><body>
+<div class="s" id="a"><div class="label">Scene</div><div class="counter">01 / INTRO</div><h1>Meet SHAFT.</h1></div>
+<div class="s" id="b"><div class="counter">02 / CODE</div><h1 style="top:160px">Unlock the future of testing.</h1><img src="cap/pom-crop.png"></div>
+<div class="s" id="c"><div class="counter">03 / REPORT</div><img src="cap/allure-payoff3.png"></div>
+<div class="s" id="d"><img src="cap/logo.png" style="width:200px;left:170px;top:330px;border-radius:0"><div class="cta">Fast. Simple. Reliable.</div></div>
+<script>
+const S=[["a",0.6,3.5],["b",3.5,7],["c",7,9],["d",9,12.01]];
+function op(t,a,b){if(t<a||t>=b)return 0;return Math.min(1,(t-a)/1,(b-t)/1+ (b>12?1:0))}
+function setT(t){for(const[id,a,b]of S){const e=document.getElementById(id);e.style.transition='none';e.style.opacity=op(t,a,b);}}
+</script></body></html>

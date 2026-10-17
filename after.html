@@ -1,0 +1,43 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+/* "after": craft cards C07 C09 C10 C11 applied */
+body{margin:0;width:540px;height:960px;background:#0d1117;font-family:Inter,Arial,sans-serif;color:#f0f3f6;overflow:hidden}
+.s{position:absolute;inset:0;visibility:hidden}
+/* timing tokens mirrored by setT(): land 0.4 s, opacity helper 0.17 s, button 0.35 s */
+h1,h2,.shot{transition: transform 0.4s var(--land), opacity 0.17s var(--land)}
+.btn{transition: transform 0.35s var(--land)}
+.g{position:absolute;inset:0;background:radial-gradient(120% 70% at 50% 35%,#16301f 0%,#0d1117 60%)}
+h1{position:absolute;left:40px;right:40px;top:150px;font-size:50px;line-height:1.05;margin:0;font-weight:700;letter-spacing:-0.02em}
+h2{position:absolute;left:40px;right:40px;top:150px;font-size:39px;line-height:1.1;margin:0;font-weight:700}
+.shot{position:absolute;left:24px;width:492px;border-radius:12px;box-shadow:0 30px 60px #0008}
+.btn{position:absolute;left:60px;right:60px;height:64px;border-radius:12px;font-size:25px;font-weight:700;display:flex;align-items:center;justify-content:center}
+</style></head><body>
+<div class="g" id="bg"></div>
+<div class="s" id="a"><img class="shot" id="ai" src="cap/allure-payoff3.png" style="top:330px"><h1 id="ah">Green tests.<br>Real evidence.</h1></div>
+<div class="s" id="b"><h2 id="bh">The whole test is three lines.</h2><img class="shot" id="bi" src="cap/ide-last-crop.png" style="top:330px"></div>
+<div class="s" id="c"><h2 id="ch">Red in CI. Fixed. Green.</h2><img class="shot" id="ci" src="cap/gh-hook.png" style="top:330px"></div>
+<div class="s" id="d"><h2 id="dh">Every step, screenshotted.</h2><img class="shot" id="di" src="cap/allure-payoff3.png" style="top:330px"></div>
+<div class="s" id="e"><h1 id="eh" style="top:300px;text-align:center">Upgrade your tests.</h1>
+<div class="btn" id="e1" style="top:470px;background:#238636">&#9733; Star on GitHub</div>
+<div class="btn" id="e2" style="top:560px;border:2px solid #f0f3f6">Read the User Guide</div></div>
+<script>
+// measured eases (re-expressed from motionmaxxing motion.md sec 2): land = softLand, leave = accelExit
+const land=t=>1-Math.pow(1-t,3.4), leave=t=>Math.pow(t,2.6), cl=x=>Math.max(0,Math.min(1,x));
+const S=[["a",0,2.6],["b",2.6,5.4],["c",5.4,7.6],["d",7.6,10.2],["e",10.2,12.01]];
+function el(id){return document.getElementById(id)}
+// frames are pure functions of t: tokens document timing, setT drives it
+document.querySelectorAll('h1,h2,.shot,.btn').forEach(e=>e.style.transition='none');
+function enter(id,t,t0,dur,dy,scale){const p=land(cl((t-t0)/dur));const o=0.25+0.75*cl((t-t0)/0.17);
+ el(id).style.transform=`translateY(${(1-p)*dy}px) scale(${1+(scale-1)*(1-p)})`;el(id).style.opacity=t<t0?0:o;}
+function setT(t){
+ for(const[id,a,b]of S){el(id).style.visibility=(t>=a&&t<b)?'visible':'hidden'}
+ // hook: payoff on frame 1, already moving (slow push)
+ el('ai').style.transform=`scale(${1.04+0.05*t/2.6}) translateY(${-12*t}px)`; el('ah').style.transform=`translateY(${-6*t}px)`;
+ enter('bh',t,2.6,0.4,40,1);enter('bi',t,2.7,0.4,0,1.6);if(t>=3.1)el('bi').style.transform=`scale(${1+0.03*(t-3.1)}) translateY(${-14*(t-3.1)}px)`;
+ enter('ch',t,5.4,0.4,40,1);el('ci').style.transform=`scale(${1.3-0.25*land(cl((t-5.4)/0.5))}) translateY(${-12*(t-5.4)}px)`;
+ enter('dh',t,7.6,0.4,40,1);el('di').style.transform=`scale(${1.8-0.7*land(cl((t-7.6)/0.6))}) translateY(${-30*(t-7.6)}px)`;
+ enter('eh',t,10.2,0.4,0,1.8);enter('e1',t,10.5,0.35,30,1);enter('e2',t,10.77,0.35,30,1);
+ el('bg').style.transform=`translateY(${-4*t}px) scale(${1+t/200})`;
+ // end card keeps one living thing
+ el('e1').style.boxShadow=`0 0 ${10+8*Math.sin(t*3)}px #2ea04366`;
+}
+</script></body></html>
