@@ -21,6 +21,7 @@ Return to the router after delivery. The optional `design-skills`
 - Find which PR workflow runs the UI/e2e suite:
   `rg -n "pull_request|playwright|e2e" .github/workflows`. A suite that runs
   only on push or deploy is a CI coverage gap. Record it now, not after green.
+  A `--grep` subset of a spec is one too: gate the whole file.
 
 ## Red, then green
 
