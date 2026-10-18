@@ -32,6 +32,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,6 +42,7 @@ public class PdfFileManagerDocumentContractTest {
 
     @AfterMethod(alwaysRun = true)
     public void reset() {
+        Thread.interrupted();
         OcrProcessingProviderRegistry.clearProviderForTesting();
         temporaryFiles.forEach(path -> {
             try {
@@ -192,6 +194,95 @@ public class PdfFileManagerDocumentContractTest {
         IllegalArgumentException oversized = Assert.expectThrows(IllegalArgumentException.class,
                 () -> new PdfFileManager(pdf.toString()).process(options().withResourceLimits(1, 10, 2_000_000)));
         Assert.assertTrue(oversized.getMessage().contains("exceeds the configured maximum 1"), oversized.getMessage());
+    }
+
+    @Test
+    public void pixelLimitAndOcrFailuresStayOnTheCallingDocument() throws IOException {
+        Path nativePdf = createNativePdf("Limit");
+        IllegalArgumentException pixels = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(nativePdf.toString()).process(
+                        options().withResourceLimits(10 * 1024 * 1024, 10, 100)));
+        Assert.assertTrue(pixels.getMessage().contains("rendered pixels, above the configured maximum 100"),
+                pixels.getMessage());
+
+        Path scanned = createScannedPdf();
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(blockingProvider()));
+        IllegalStateException timedOut = Assert.expectThrows(IllegalStateException.class,
+                () -> new PdfFileManager(scanned.toString()).process(options().withPageTimeout(Duration.ofMillis(1))));
+        Assert.assertTrue(timedOut.getMessage().contains("OCR timed out for PDF page 1"), timedOut.getMessage());
+        Assert.assertTrue(timedOut.getCause() instanceof java.util.concurrent.TimeoutException, String.valueOf(timedOut.getCause()));
+
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(interruptingProvider()));
+        IllegalStateException interrupted = Assert.expectThrows(IllegalStateException.class,
+                () -> new PdfFileManager(scanned.toString()).process(options().withPageTimeout(Duration.ofSeconds(30))));
+        Thread.interrupted();
+        Assert.assertTrue(interrupted.getMessage().contains("PDF OCR was interrupted for page 1"), interrupted.getMessage());
+
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(failingProvider(new IllegalStateException("provider rejected the page"))));
+        IllegalStateException rethrown = Assert.expectThrows(IllegalStateException.class,
+                () -> new PdfFileManager(scanned.toString()).process(options()));
+        Assert.assertEquals(rethrown.getMessage(), "provider rejected the page");
+
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(failingProvider(new AssertionError("ocr engine failed"))));
+        IllegalStateException wrapped = Assert.expectThrows(IllegalStateException.class,
+                () -> new PdfFileManager(scanned.toString()).process(options()));
+        Assert.assertTrue(wrapped.getMessage().contains("PDF OCR failed for page 1"), wrapped.getMessage());
+        Assert.assertTrue(wrapped.getCause() instanceof AssertionError, String.valueOf(wrapped.getCause()));
+    }
+
+    private static OcrProcessingProvider blockingProvider() {
+        return new OcrProcessingProvider() {
+            @Override
+            public OcrResult recognize(byte[] image, OcrOptions options) {
+                try {
+                    Thread.sleep(5_000);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                }
+                return ocrResult("Late");
+            }
+        };
+    }
+
+    private static OcrProcessingProvider interruptingProvider() {
+        Thread caller = Thread.currentThread();
+        return new OcrProcessingProvider() {
+            @Override
+            public OcrResult recognize(byte[] image, OcrOptions options) {
+                Thread interrupter = new Thread(() -> {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                    caller.interrupt();
+                }, "shaft-test-ocr-interrupt");
+                interrupter.setDaemon(true);
+                interrupter.start();
+                try {
+                    Thread.sleep(5_000);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                }
+                return ocrResult("Late");
+            }
+        };
+    }
+
+    private static OcrProcessingProvider failingProvider(Throwable failure) {
+        return new OcrProcessingProvider() {
+            @Override
+            public OcrResult recognize(byte[] image, OcrOptions options) {
+                if (failure instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                if (failure instanceof Error error) {
+                    throw error;
+                }
+                throw new IllegalStateException(failure);
+            }
+        };
     }
 
     private static OcrProcessingProvider provider(OcrResult result) {
