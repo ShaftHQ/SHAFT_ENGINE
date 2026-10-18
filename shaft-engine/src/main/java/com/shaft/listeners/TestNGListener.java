@@ -333,13 +333,10 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         // thread. Classes with no @BeforeClass never reached the old BeforeClass-only
         // gate, so a previous class's executionAddress stayed in force. Same-class
         // methods keep overrides set earlier in that class.
-        ITestNGMethod incomingMethod = method.getTestMethod();
-        if (incomingMethod != null) {
-            Class<?> incomingClass = incomingMethod.getRealClass();
-            if (incomingClass != null && !incomingClass.equals(activeTestClass.get())) {
-                Properties.clearForCurrentThread();
-                activeTestClass.set(incomingClass);
-            }
+        Class<?> incomingClass = method.getTestMethod().getRealClass();
+        if (incomingClass != null && !incomingClass.equals(activeTestClass.get())) {
+            Properties.clearForCurrentThread();
+            activeTestClass.set(incomingClass);
         }
         TestNGListenerHelper.setXmlTest(method.getTestMethod().getXmlTest());
         JiraHelper.prepareTestResultAttributes(method, iTestResult);

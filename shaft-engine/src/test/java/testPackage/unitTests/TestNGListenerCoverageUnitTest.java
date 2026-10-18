@@ -548,6 +548,24 @@ public class TestNGListenerCoverageUnitTest {
     }
 
     @Test
+    public void beforeInvocationWithoutARealClassKeepsTheCurrentExecutionAddress() throws Exception {
+        String baseline = com.shaft.driver.SHAFT.Properties.platform.executionAddress();
+        String leaked = "local".equals(baseline) ? "http://stale-thread.example:4444" : "local";
+        try {
+            invokeClassBoundary(String.class, true);
+            com.shaft.driver.SHAFT.Properties.platform.set().executionAddress(leaked);
+
+            invokeClassBoundary(null, false);
+
+            assertEquals(com.shaft.driver.SHAFT.Properties.platform.executionAddress(), leaked,
+                    "A configuration method with no real class must not clear the current override.");
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+            clearActiveTestClass();
+        }
+    }
+
+    @Test
     public void beforeMethodOfTheSameClassKeepsThatClassExecutionAddress() throws Exception {
         String baseline = com.shaft.driver.SHAFT.Properties.platform.executionAddress();
         String leaked = "local".equals(baseline) ? "http://stale-thread.example:4444" : "local";
