@@ -34,6 +34,7 @@ runs:
           if [ "$attempt" -lt 3 ]; then
             # A Central blip is cached in *.lastUpdated, so the next attempt
             # would skip the network until Maven's update interval elapsed.
+            # resolver-status.properties is the resolver's copy of that miss.
             find "${HOME}/.m2/repository" \( -name '*.lastUpdated' -o -name 'resolver-status.properties' \) -type f -delete 2>/dev/null || true
             sleep "$((attempt * 10))"
           fi
