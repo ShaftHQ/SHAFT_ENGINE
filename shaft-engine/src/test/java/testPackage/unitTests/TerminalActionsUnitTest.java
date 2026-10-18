@@ -1,25 +1,46 @@
 package testPackage.unitTests;
 
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.ChannelShell;
+import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+import com.shaft.cli.SshCommandResult;
 import com.shaft.cli.SshConnectionOptions;
 import com.shaft.cli.SshShellOptions;
+import com.shaft.cli.SshShellSession;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.SHAFT;
 import org.apache.commons.lang3.SystemUtils;
+import org.mockito.MockedConstruction;
 import org.testng.Assert;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.StringReader;
 import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -813,4 +834,109 @@ public class TerminalActionsUnitTest {
                 () -> terminal.openShell(SshShellOptions.builder().build()));
         Assert.assertTrue(failure.getMessage().contains("dockerized remote terminals"));
     }
+
+    @Test(description = "Reusable SSH commands, port forwards, and SFTP use the injected session and do not open a socket")
+    public void reusableRemoteSessionShouldExecuteCommandsForwardsAndSftpOffline() throws Exception {
+        TerminalActions terminal = TerminalActions.getRemoteInstance("host.example.com", 22, "user", "", "", false);
+        Session session = mock(Session.class);
+        when(session.isConnected()).thenReturn(true);
+        ChannelExec exec = mock(ChannelExec.class);
+        when(session.openChannel("exec")).thenReturn(exec);
+        when(exec.getInputStream()).thenAnswer(invocation -> new ByteArrayInputStream("remote-ok\n".getBytes(StandardCharsets.UTF_8)));
+        when(exec.getErrStream()).thenAnswer(invocation -> new ByteArrayInputStream(new byte[0]));
+        when(exec.isClosed()).thenReturn(true);
+        when(exec.getExitStatus()).thenReturn(0);
+        when(exec.isConnected()).thenReturn(true);
+        when(session.setPortForwardingL(0, "127.0.0.1", 9)).thenReturn(11, 12);
+        doThrow(new JSchException("busy")).when(session).delPortForwardingL(11);
+        setField(terminal, "reusableRemoteSession", session);
+
+        List<SshCommandResult> results = terminal.performSshCommands(List.of("echo remote-ok"), Map.of("TOKEN", "secret"));
+        Assert.assertEquals(results.size(), 1);
+        Assert.assertEquals(results.get(0).exitCode(), 0);
+        Assert.assertTrue(results.get(0).stdout().contains("remote-ok"));
+        Assert.assertTrue(terminal.performSshCommand("echo remote-ok").stdout().contains("remote-ok"));
+
+        Assert.assertEquals(terminal.forwardLocalPort(0, "127.0.0.1", 9), "11");
+        Assert.assertEquals(terminal.forwardLocalPort(0, "127.0.0.1", 9), "12");
+        Assert.assertEquals(terminal.forwardRemotePort(2222, "127.0.0.1", 9), "2222");
+        verify(session).setPortForwardingR(2222, "127.0.0.1", 9);
+
+        Path localFile = createTempDir("sftp").resolve("payload.txt");
+        Files.writeString(localFile, "payload");
+        ChannelSftp sftp = mock(ChannelSftp.class);
+        when(session.openChannel("sftp")).thenReturn(sftp);
+        when(sftp.isConnected()).thenReturn(true);
+        Assert.assertEquals(terminal.uploadFile(localFile.toString(), "/tmp/payload.txt"), "/tmp/payload.txt");
+        verify(sftp).put(anyString(), eq("/tmp/payload.txt"));
+        String downloaded = terminal.downloadFile("/tmp/payload.txt", localFile.getParent().resolve("down.txt").toString());
+        Assert.assertTrue(downloaded.endsWith("down.txt"));
+        verify(sftp).get(eq("/tmp/payload.txt"), anyString());
+
+        ChannelShell shell = mock(ChannelShell.class);
+        when(session.openChannel("shell")).thenReturn(shell);
+        when(shell.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[0]));
+        when(shell.getOutputStream()).thenReturn(new ByteArrayOutputStream());
+        SshShellSession opened = terminal.openShell(SshShellOptions.builder().build());
+        Assert.assertNotNull(opened);
+        opened.close();
+        Assert.assertSame(terminal.getJschSession(), session);
+        terminal.quit();
+        verify(session).delPortForwardingL(12);
+        verify(session).delPortForwardingR(2222);
+        verify(session).disconnect();
+    }
+
+    @Test(description = "createOptionsBackedSshSession should configure a mocked JSch session and report connect failure")
+    public void createOptionsBackedSshSessionShouldConfigureMockedJschWithoutConnecting() throws Throwable {
+        Path key = Files.createTempFile("shaft-id", ".pem");
+        Path knownHosts = Files.createTempFile("shaft-known", ".hosts");
+        Files.writeString(key, "not-a-real-key");
+        SshConnectionOptions options = SshConnectionOptions.builder()
+                .host("host.example.com")
+                .port(22)
+                .username("user")
+                .privateKey(key)
+                .privateKeyPassphrase("secret")
+                .password("pw")
+                .knownHosts(knownHosts)
+                .strictHostKeyChecking(true)
+                .keyboardInteractive((destination, name, instruction, prompt, echo) -> new String[]{"response"})
+                .extraJschConfig("PreferredAuthentications", "publickey")
+                .build();
+        TerminalActions terminal = TerminalActions.getRemoteInstance(options);
+        var createSession = MethodHandles.privateLookupIn(TerminalActions.class, MethodHandles.lookup())
+                .findVirtual(TerminalActions.class, "createOptionsBackedSshSession",
+                        MethodType.methodType(Session.class, SshConnectionOptions.class));
+        AtomicInteger attempts = new AtomicInteger();
+        try (MockedConstruction<JSch> ignored = mockConstruction(JSch.class, (jsch, context) -> {
+            Session session = mock(Session.class);
+            when(jsch.getSession("user", "host.example.com", 22)).thenReturn(session);
+            if (attempts.incrementAndGet() > 1) {
+                doThrow(new JSchException("connection refused")).when(session).connect();
+            }
+        })) {
+            Session created = (Session) createSession.invoke(terminal, options);
+            Assert.assertNotNull(created);
+            verify(created).setPassword("pw");
+            verify(created).connect();
+            verify(created).setUserInfo(any());
+
+            RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                    () -> createSession.invoke(terminal, options));
+            Assert.assertTrue(failure.getMessage().contains("host.example.com"));
+        } finally {
+            terminal.quit();
+            Files.deleteIfExists(key);
+            Files.deleteIfExists(knownHosts);
+        }
+    }
+
+    private static void setField(Object target, String name, Object value) throws Exception {
+        Field field = target.getClass().getDeclaredField(name);
+        MethodHandles.privateLookupIn(target.getClass(), MethodHandles.lookup())
+                .findVarHandle(target.getClass(), name, field.getType())
+                .set(target, value);
+    }
+
 }
