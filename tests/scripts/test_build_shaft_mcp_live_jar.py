@@ -23,6 +23,8 @@ class BuildShaftMcpLiveJarTest(unittest.TestCase):
         self.assertIn("for attempt in 1 2 3; do", build_script)
         self.assertIn('sleep "$((attempt * 10))"', build_script)
         self.assertIn('exit "$status"', build_script)
+        self.assertIn("-name '*.lastUpdated'", build_script)
+        self.assertIn("-name 'resolver-status.properties'", build_script)
         self.assertRegex(
             build_script,
             re.compile(
@@ -52,6 +54,7 @@ class BuildShaftMcpLiveJarTest(unittest.TestCase):
             fake_sleep.chmod(0o755)
             environment = os.environ | {
                 "PATH": f"{temporary_path}{os.pathsep}{os.environ['PATH']}",
+                "HOME": str(temporary_path),
             }
 
             completed = subprocess.run(
@@ -89,6 +92,7 @@ class BuildShaftMcpLiveJarTest(unittest.TestCase):
             fake_sleep.chmod(0o755)
             environment = os.environ | {
                 "PATH": f"{temporary_path}{os.pathsep}{os.environ['PATH']}",
+                "HOME": str(temporary_path),
             }
 
             completed = subprocess.run(
@@ -107,6 +111,45 @@ class BuildShaftMcpLiveJarTest(unittest.TestCase):
             for install, copy_dependencies in zip(maven_commands[::2], maven_commands[1::2]):
                 self.assertIn("install", install)
                 self.assertIn("dependency:copy-dependencies", copy_dependencies)
+
+
+    def test_retry_drops_a_cached_resolution_failure_before_the_next_attempt(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_path = Path(temporary_directory)
+            marker = temporary_path / ".m2" / "repository" / "org" / "example" / "a.jar.lastUpdated"
+            marker.parent.mkdir(parents=True)
+            marker.write_text("lastUpdated\n", encoding="utf-8")
+            seen = temporary_path / "seen.log"
+            fake_maven = temporary_path / "mvn"
+            fake_maven.write_text(
+                "#!/usr/bin/env bash\n"
+                "marker=\"$HOME/.m2/repository/org/example/a.jar.lastUpdated\"\n"
+                "if [ -f \"$marker\" ]; then echo present; else echo absent; fi >> \"$(dirname \"$0\")/seen.log\"\n"
+                "if [ \"$(wc -l < \"$(dirname \"$0\")/seen.log\")\" -eq 1 ]; then exit 1; fi\n",
+                encoding="utf-8",
+            )
+            fake_sleep = temporary_path / "sleep"
+            fake_sleep.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+            fake_maven.chmod(0o755)
+            fake_sleep.chmod(0o755)
+            environment = os.environ | {
+                "PATH": f"{temporary_path}{os.pathsep}{os.environ['PATH']}",
+                "HOME": str(temporary_path),
+            }
+
+            completed = subprocess.run(
+                ["bash", "-e"],
+                input=(
+                    b'PATH="$(dirname "$(command -v mvn)"):$PATH"\n'
+                    + self._build_script().encode()
+                ),
+                capture_output=True,
+                env=environment,
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr.decode())
+            self.assertEqual(seen.read_text(encoding="utf-8").splitlines(), ["present", "absent", "absent"])
+            self.assertFalse(marker.exists())
 
 
 if __name__ == "__main__":
