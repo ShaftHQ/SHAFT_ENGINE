@@ -1453,9 +1453,15 @@ public class Actions extends ElementActions {
         try {
             return captureScreenshot(element, false);
         } catch (RuntimeException failure) {
-            // Evidence capture can rethrow the same provider failure (a mock or a second click).
-            // A distinct wrapper keeps addSuppressed from seeing one throwable twice.
-            throw new ActionExecutionException("Failure screenshot could not be captured.", failure);
+            // A mock can rethrow the action failure from getScreenshotAs. A new instance
+            // keeps addSuppressed from seeing that throwable twice. The text stays the
+            // screenshot failure's own message so a different failure is still visible
+            // on the original exception.
+            String message = failure.getMessage();
+            if (message == null || message.isBlank()) {
+                message = "Failure screenshot could not be captured.";
+            }
+            throw new ActionExecutionException(message, failure);
         }
     }
 
