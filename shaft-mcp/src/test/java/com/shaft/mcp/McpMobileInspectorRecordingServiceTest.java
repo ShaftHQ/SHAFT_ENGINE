@@ -485,6 +485,7 @@ class McpMobileInspectorRecordingServiceTest {
 
         @Override
         public void install(McpAndroidEmulatorProposal proposal) {
+            // The test double never installs an SDK. start() returns the scripted environment.
         }
 
         @Override

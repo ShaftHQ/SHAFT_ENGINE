@@ -1,6 +1,5 @@
 package com.shaft.mcp;
 
-import com.shaft.doctor.history.LocalMuteModels;
 import com.shaft.doctor.model.CauseCategory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
