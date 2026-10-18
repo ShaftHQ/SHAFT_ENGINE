@@ -1455,7 +1455,7 @@ public class Actions extends ElementActions {
         } catch (RuntimeException failure) {
             // Evidence capture can rethrow the same provider failure (a mock or a second click).
             // A distinct wrapper keeps addSuppressed from seeing one throwable twice.
-            throw new RuntimeException("Failure screenshot could not be captured.", failure);
+            throw new ActionExecutionException("Failure screenshot could not be captured.", failure);
         }
     }
 
