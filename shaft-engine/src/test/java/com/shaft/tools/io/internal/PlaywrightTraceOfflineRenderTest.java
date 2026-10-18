@@ -260,7 +260,7 @@ public class PlaywrightTraceOfflineRenderTest {
 
     private static ObjectNode object(String... pairs) {
         ObjectNode object = JSON.createObjectNode();
-        for (int index = 0; index < pairs.length; index += 2) {
+        for (int index = 0; index + 1 < pairs.length; index += 2) {
             object.put(pairs[index], pairs[index + 1]);
         }
         return object;
