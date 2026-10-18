@@ -6303,6 +6303,14 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
                     "action": "runtime-repair",
                     "receiptStatus": receipt.get("status") if isinstance(receipt, dict) else None,
                 }
+            if name == "tools":
+                heal = getattr(host_controller, "ensure_managed_temurin_jdk", None)
+                if callable(heal):
+                    produced = heal(specification)
+                    payload["temurin"] = str(produced) if produced else "absent"
+                    payload["fixNext"] = getattr(
+                        host_controller, "TEMURIN_REPAIR_HINT", "repair --component tools"
+                    )
             if name == "mempalace":
                 # #6236: repair must create a missing or uninitialized palace.
                 try:

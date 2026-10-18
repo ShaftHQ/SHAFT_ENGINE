@@ -941,6 +941,17 @@ _MEMPALACE_OPERATOR_BACKUP = re.compile(
 )
 
 
+def _corrupt_palace_gate(palace: Path) -> dict[str, str] | None:
+    """Load stores.corrupt_palace_gate. Doctor reports quarantine + rebuild, not hits."""
+    path = Path(__file__).resolve().with_name("stores.py")
+    spec = importlib.util.spec_from_file_location("chaos_engine_stores_doctor_gate", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.corrupt_palace_gate(palace)
+
+
 def quarantine_mempalace_operator_backups(
     palace: Path, children: list[Path] | None = None
 ) -> list[Path]:
@@ -1156,6 +1167,10 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
                 "status": "recovery-required",
                 "detail": "SQLite-exact MemPalace state is unreadable or malformed",
             }
+        # #7118: a torn snapshot must not look like a healthy or partial store.
+        gate = _corrupt_palace_gate(palace)
+        if gate is not None:
+            return {"status": "recovery-required", "detail": gate["detail"]}
         if not _sqlite_runtime_valid(
             exact,
             required_schema=SQLITE_EXACT_SCHEMA,

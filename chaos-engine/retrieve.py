@@ -544,6 +544,32 @@ def _run_deja(project: Path, query: str, *, host: str | None, mode: str) -> dict
     }
 
 
+def _load_stores():
+    import importlib.util as _ilu
+
+    spec = _ilu.spec_from_file_location(
+        "chaos_engine_stores_retrieve_gate", Path(__file__).resolve().with_name("stores.py")
+    )
+    if spec is None or spec.loader is None:
+        return None
+    module = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _corrupt_mempalace_gate(project: Path) -> dict[str, str] | None:
+    """quick_check the palace before search. Corrupt → quarantine, never partial hits (#7118)."""
+    stores = _load_stores()
+    if stores is None:
+        return None
+    try:
+        palace = stores.resolve_palace(project)
+    except (OSError, RuntimeError):
+        return None
+    gate = stores.corrupt_palace_gate(palace)
+    return gate
+
+
 def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
     """One attempt; no retries. Missing/unhealthy → degraded; empty relevance → skipped."""
     tool = _tool_py(project)
@@ -557,6 +583,19 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
     if store == "deja":
         return _run_deja(project, query, host=None, mode="search")
     # Map store → advisory CLI shape (bounded; never writes).
+    if store == "mempalace":
+        gate = _corrupt_mempalace_gate(project)
+        if gate is not None:
+            return {
+                "store": store,
+                "status": STATUS_DEGRADED,
+                "reason": "corrupt-quarantined",
+                "query": query,
+                "hits": [],
+                "detail": gate["detail"],
+                "fixNext": gate["fixNext"],
+                "quarantine": gate.get("quarantine", ""),
+            }
     if store == "memory":
         args = [sys.executable, str(tool), "memory", "query", query]
     elif store == "mempalace":

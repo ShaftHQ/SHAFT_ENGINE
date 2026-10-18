@@ -13,7 +13,9 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import shutil
+import sqlite3
 import subprocess  # nosec B404 - fixed git and store CLIs, no shell.
 import sys
 import tempfile
@@ -370,6 +372,13 @@ class RefreshBusy(RuntimeError):
     """Another process holds the shared store refresh lock."""
 
 
+class SnapshotRefused(RuntimeError):
+    """A store snapshot or restore was refused because the refresh lease is held (#7118)."""
+
+
+CORRUPT_PALACE_DETAIL = "corrupt → quarantine + rebuild"
+
+
 @contextmanager
 def refresh_lock(common_dir: Path) -> Iterator[None]:
     """Hold the repository store lock. A second refresh exits without building."""
@@ -402,6 +411,158 @@ def refresh_lock(common_dir: Path) -> Iterator[None]:
         else:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
         lock_file.close()
+
+
+def sqlite_quick_check(database: Path, *, bound: int = 1) -> str:
+    """Bounded ``PRAGMA quick_check``. ``ok``, or the first failure detail (#7118)."""
+    if not database.is_file():
+        return "missing"
+    limit = max(1, int(bound))
+    connection = None
+    try:
+        connection = sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True)
+        connection.execute("PRAGMA query_only=ON")
+        row = connection.execute(f"PRAGMA quick_check({limit})").fetchone()
+    except sqlite3.Error as error:
+        return str(error)
+    finally:
+        if connection is not None:
+            connection.close()
+    if not row:
+        return "quick_check returned nothing"
+    return str(row[0])
+
+
+def quarantine_corrupt_palace(palace: Path) -> Path:
+    """Move a torn sqlite_exact image out of the live palace (#7118)."""
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    destination = palace / ".chaos-engine-quarantine" / f"corrupt-{stamp}"
+    if destination.exists():
+        destination = destination.with_name(f"{destination.name}-{secrets.token_hex(2)}")
+    destination.mkdir(parents=True)
+    for suffix in ("", "-wal", "-shm"):
+        source = palace / f"sqlite_exact.sqlite3{suffix}"
+        if source.is_file() and not source.is_symlink():
+            source.rename(destination / source.name)
+    return destination
+
+
+def corrupt_palace_gate(palace: Path) -> dict[str, str] | None:
+    """Quarantine a palace whose bounded quick_check is not ok.
+
+    A locked database is left alone: a live mine is not corruption. Returns
+    None when the palace is missing or consistent.
+    """
+    database = palace / "sqlite_exact.sqlite3"
+    if not database.is_file():
+        return None
+    detail = sqlite_quick_check(database)
+    if detail == "ok" or "locked" in detail.casefold():
+        return None
+    try:
+        quarantined = quarantine_corrupt_palace(palace)
+        quarantine = str(quarantined)
+    except OSError:
+        quarantine = ""
+    return {
+        "detail": CORRUPT_PALACE_DETAIL,
+        "quickCheck": detail,
+        "quarantine": quarantine,
+        "fixNext": "python3 .chaos-engine/tool.py stores refresh",
+    }
+
+
+def _backup_sqlite(source: Path, destination: Path) -> str:
+    """Crash-consistent copy via the SQLite backup API. A bare file copy is never a snapshot."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        destination.unlink()
+    src = sqlite3.connect(f"{source.resolve().as_uri()}?mode=ro", uri=True)
+    dst = sqlite3.connect(destination)
+    try:
+        src.backup(dst)
+        dst.commit()
+    finally:
+        dst.close()
+        src.close()
+    status = sqlite_quick_check(destination)
+    if status != "ok":
+        destination.unlink(missing_ok=True)
+        raise RuntimeError(f"store snapshot failed quick_check: {status}")
+    return status
+
+
+def snapshot_palace_database(cwd: Path, destination: Path) -> str:
+    """Snapshot the shared palace, or refuse while a refresh/mine holds the lease.
+
+    #7118 writer: the torn file beside
+    ``.git/chaos-engine/mempalace/sqlite_exact.sqlite3`` was not produced by
+    ``ensure_store_snapshot`` (that path is a detached git worktree) or by
+    ``stores refresh`` (mempalace mine writes the live database; it does not
+    copy it). The page and index damage matches a file copy of the main
+    database without its WAL while a mine held this lease. That copy is a box
+    snapshot outside the harness: it must stay idle of the lease. This
+    function is the harness snapshot. It uses the SQLite backup API, then
+    ``quick_check``.
+    """
+    palace = resolve_palace(cwd)
+    source = palace / "sqlite_exact.sqlite3"
+    if not source.is_file():
+        raise RuntimeError("palace database is missing")
+
+    def copy() -> str:
+        return _backup_sqlite(source, destination)
+
+    common = resolve_common_dir(cwd)
+    if common is None:
+        return copy()
+    try:
+        with refresh_lock(common):
+            return copy()
+    except RefreshBusy as error:
+        raise SnapshotRefused("store snapshot refused: refresh lease is held") from error
+
+
+def restore_palace_database(cwd: Path, snapshot: Path) -> str:
+    """Restore a snapshot with the backup API, or refuse while the lease is held.
+
+    A snapshot that fails ``quick_check`` is not restored. A published image
+    that then fails ``quick_check`` is quarantined and reported as corrupt.
+    """
+    incoming = sqlite_quick_check(snapshot)
+    if incoming != "ok":
+        raise RuntimeError(f"{CORRUPT_PALACE_DETAIL}: snapshot {incoming}")
+
+    def publish() -> str:
+        palace = resolve_palace(cwd)
+        palace.mkdir(parents=True, exist_ok=True)
+        staging = palace / ".sqlite_exact.restore.part"
+        target = palace / "sqlite_exact.sqlite3"
+        try:
+            _backup_sqlite(snapshot, staging)
+            for suffix in ("-wal", "-shm"):
+                sidecar = palace / f"sqlite_exact.sqlite3{suffix}"
+                if sidecar.is_file() and not sidecar.is_symlink():
+                    sidecar.unlink()
+            staging.replace(target)
+        except BaseException:
+            if staging.exists():
+                staging.unlink(missing_ok=True)
+            raise
+        status = sqlite_quick_check(target)
+        if status != "ok":
+            quarantine_corrupt_palace(palace)
+            raise RuntimeError(f"{CORRUPT_PALACE_DETAIL}: restored {status}")
+        return status
+
+    common = resolve_common_dir(cwd)
+    if common is None:
+        return publish()
+    try:
+        with refresh_lock(common):
+            return publish()
+    except RefreshBusy as error:
+        raise SnapshotRefused("store restore refused: refresh lease is held") from error
 
 
 def _run(runner: Runner, command: list[str], cwd: Path) -> None:

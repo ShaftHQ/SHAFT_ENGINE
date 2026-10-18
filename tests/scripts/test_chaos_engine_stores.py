@@ -8,7 +8,9 @@ import os
 import shutil
 import sqlite3
 import subprocess  # nosec B404 - tests run fixed local Git commands.
+import sys
 import tempfile
+import time
 import unittest
 import unittest.mock
 from pathlib import Path
@@ -560,6 +562,102 @@ class StoreIndexAttributionTest(unittest.TestCase):
         self._tree()
         found = sorted(Path(p).relative_to(self.root.resolve()).as_posix() for p in scan_project(str(self.root)))
         self.assertEqual(sorted(self.PATHS), found)
+
+
+class PalaceSnapshot7118Test(unittest.TestCase):
+    """#7118: a snapshot during a mine is refused; a consistent snapshot passes quick_check."""
+
+    def setUp(self):
+        self.stores = load_stores()
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        subprocess.run(["git", "init", "-q", str(self.root)], check=True)  # nosec B603 B607
+        self.palace = self.root / ".git" / "chaos-engine" / "mempalace"
+        self.palace.mkdir(parents=True)
+        self.database = self.palace / "sqlite_exact.sqlite3"
+        connection = sqlite3.connect(self.database)
+        connection.execute("create table documents(id integer primary key, body text)")
+        connection.execute("insert into documents(body) values ('live')")
+        connection.commit()
+        connection.close()
+
+    def test_snapshot_is_consistent_and_refused_while_a_mine_holds_the_lease(self):
+        destination = self.root / "snap.sqlite3"
+        self.assertEqual("ok", self.stores.snapshot_palace_database(self.root, destination))
+        self.assertEqual("ok", self.stores.sqlite_quick_check(destination))
+        copied = sqlite3.connect(destination)
+        try:
+            self.assertEqual("live", copied.execute("select body from documents").fetchone()[0])
+        finally:
+            copied.close()
+        flag = self.root / "held"
+        holder = subprocess.Popen(  # nosec B603 - fixed interpreter holding the store lease.
+            [sys.executable, "-c",
+             "import importlib.util,sys,time\nfrom pathlib import Path\n"
+             "spec=importlib.util.spec_from_file_location('stores', sys.argv[1])\n"
+             "mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)\n"
+             "flag=Path(sys.argv[3])\n"
+             "with mod.refresh_lock(Path(sys.argv[2])):\n"
+             "    flag.write_text('held')\n"
+             "    time.sleep(30)\n",
+             str(STORES), str(self.root / ".git"), str(flag)],
+        )
+        try:
+            for _ in range(50):
+                if flag.is_file():
+                    break
+                time.sleep(0.05)
+            self.assertTrue(flag.is_file())
+            with self.assertRaises(self.stores.SnapshotRefused):
+                self.stores.snapshot_palace_database(self.root, self.root / "during-mine.sqlite3")
+            self.assertFalse((self.root / "during-mine.sqlite3").exists())
+        finally:
+            holder.terminate()
+            holder.wait(timeout=5)
+
+    def test_corrupt_palace_is_quarantined_instead_of_returned_as_hits(self):
+        self.database.write_bytes(b"not a database")
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "ce_retrieve_7118", ROOT / "chaos-engine" / "retrieve.py"
+        )
+        retrieve = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(retrieve)
+        project = self.root
+        (project / "chaos-engine").mkdir()
+        (project / "chaos-engine" / "tool.py").write_text("# tool\n", encoding="utf-8")
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": str(self.palace)}), \
+             unittest.mock.patch.object(retrieve.subprocess, "run", side_effect=AssertionError("searched")):
+            receipt = retrieve._run_store(project, "mempalace", "lease")
+        self.assertEqual("degraded", receipt["status"])
+        self.assertEqual("corrupt-quarantined", receipt["reason"])
+        self.assertEqual([], receipt["hits"])
+        self.assertEqual(self.stores.CORRUPT_PALACE_DETAIL, receipt["detail"])
+        self.assertFalse(self.database.exists())
+        self.assertTrue(list((self.palace / ".chaos-engine-quarantine").glob("corrupt-*")))
+        status = load_hosts_directory_status(self.palace)
+        self.assertEqual("initialization-required", status["status"])
+
+    def test_doctor_reports_corrupt_before_the_file_is_already_gone(self):
+        fresh = self.palace / "other"
+        fresh.mkdir()
+        torn = fresh / "sqlite_exact.sqlite3"
+        torn.write_bytes(b"not a database")
+        status = load_hosts_directory_status(fresh)
+        self.assertEqual("recovery-required", status["status"])
+        self.assertEqual(self.stores.CORRUPT_PALACE_DETAIL, status["detail"])
+        self.assertFalse(torn.exists())
+
+
+def load_hosts_directory_status(palace: Path) -> dict:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "ce_hosts_7118", ROOT / "chaos-engine" / "hosts.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.mempalace_directory_status(palace)
 
 
 if __name__ == "__main__":

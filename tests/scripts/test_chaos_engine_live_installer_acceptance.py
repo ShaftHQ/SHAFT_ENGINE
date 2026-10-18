@@ -1314,6 +1314,53 @@ class BasePythonDownloadLag6325Test(TestCase):
         self.assertEqual("fail", evidence["phases"][0]["status"])
 
 
+PYTHON_CHANNEL_DETAIL = (
+    "CE-INSTALL-FAILED: dependency setup blocked: python; "
+    "failed phase: Provision dependencies; unhealthy: not reported"
+)
+
+
+class BasePythonChannelBlocked7116Test(TestCase):
+    """#7116: frozen-base python channel block skips the base chain and still installs the candidate."""
+
+    def test_channel_block_skips_only_the_base_chain(self):
+        module = load_acceptance()
+        base = module.KNOWN_BASE_SHA
+        candidate = "d" * 40
+        command = module.public_wrapper_command(base, windows=False)
+        failure = module.AcceptanceCommandFailure(command, 1, PYTHON_CHANNEL_DETAIL)
+        self.assertTrue(module.base_python_channel_blocked(failure))
+        self.assertFalse(module.base_python_channel_blocked(RuntimeError(PYTHON_CHANNEL_DETAIL)))
+        installs = []
+
+        def wrapper(commit, project, **_kwargs):
+            installs.append(commit)
+            if commit == base:
+                raise failure
+            state = project / ".chaos-engine-state/mempalace"
+            state.mkdir(parents=True, exist_ok=True)
+            state.joinpath(".mined").write_bytes(b"current\n")
+            project.joinpath(".chaos-engine-dependencies.json").write_text(
+                json.dumps({"commands": {"uv": "uv"}}), encoding="utf-8"
+            )
+
+        verify_results = iter(({"actions": {"uv": "installed"}}, {"actions": {"uv": "reused"}}))
+        evidence = {"phases": []}
+        with tempfile.TemporaryDirectory() as temporary, \
+                mock.patch.object(module, "run_public_wrapper_with_diagnostics", side_effect=wrapper), \
+                mock.patch.object(module, "verify_account_phase", side_effect=lambda *a, **k: dict(next(verify_results))), \
+                mock.patch.object(module, "account_receipt_commands", return_value={"uv": "uv"}), \
+                mock.patch.object(module, "assert_account_search_paths"), \
+                mock.patch.object(module, "assert_local_mempalace"), \
+                mock.patch.object(module, "assert_single_generated_mempalace"):
+            module.run_acceptance(Path(temporary), evidence, candidate_sha=candidate, base_sha=base)
+        statuses = {phase["name"]: phase["status"] for phase in evidence["phases"]}
+        self.assertEqual("skipped", statuses["base-public-wrapper"])
+        self.assertEqual("pass", statuses["fresh-account-candidate-wrapper"])
+        self.assertEqual(module.BASE_PYTHON_CHANNEL_BLOCKED, evidence["baseUpgradeChain"]["reason"])
+        self.assertEqual([candidate, candidate], installs[1:])
+
+
 ABI_FILLER = "wheel " * 400
 ABI_DETAIL = (
     "CE-INSTALL-FAILED: dependency command failed: uv: error: No solution found when "

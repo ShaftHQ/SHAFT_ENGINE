@@ -67,6 +67,8 @@ __all__ = (
     "managed_maven_root",
     "maven_version",
     "verified_managed_maven",
+    "TEMURIN_REPAIR_HINT",
+    "temurin_provision_lock",
     "ensure_managed_temurin_jdk",
     "ensure_managed_maven",
     "verified_maven_tools_jar",
@@ -95,6 +97,7 @@ __all__ = (
     "_runtime_artifact",
     "_write_runtime_receipt",
     "_materialize_runtime",
+    "_quarantine_invalid_temurin",
     "_prepare_temurin",
     "_prepare_maven",
     "_ambient_maven",
@@ -132,6 +135,9 @@ MAVEN_TOOLS_CACHE_LOCK_INIT_POLL_SECONDS = 0.02
 
 
 TEMURIN_RECEIPT = "runtime-receipt.json"
+
+# #7115: an invalid managed tree is not a permanent failure. This is the command that heals it.
+TEMURIN_REPAIR_HINT = "repair --component tools"
 
 
 LEGACY_MAVEN_TOOLS_SERVER = {
@@ -310,7 +316,67 @@ def _prepare_temurin(transaction: Path, version: str, host_platform: str) -> Non
     javac = installed_java.with_name("javac.exe" if os.name == "nt" else "javac")
     if not javac.is_file():
         raise ValueError("Temurin JDK archive did not contain javac")
+    major = java_major(installed_java)
+    if major is None or major < 25:
+        raise ValueError("Temurin JDK archive failed java -version")
     _write_runtime_receipt(transaction, "temurin", version, host_platform, "java", relative_java)
+
+
+@contextmanager
+def temurin_provision_lock(root: Path, *, timeout: float = 120):
+    """Hold the live provision lock. A second provision waits; it does not clobber (#7115)."""
+    path = root.parent / f"{root.name}.provision.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.open("a+b")
+    if handle.seek(0, os.SEEK_END) == 0:
+        handle.write(b"\0")
+        handle.flush()
+    handle.seek(0)
+    deadline = time.monotonic() + timeout
+    try:
+        while True:
+            try:
+                if os.name == "nt":
+                    import msvcrt  # pylint: disable=import-outside-toplevel
+
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl  # pylint: disable=import-outside-toplevel
+
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(
+                        "managed Temurin provision lock is still held; "
+                        f"a live provision is not clobbered ({TEMURIN_REPAIR_HINT})"
+                    )
+                time.sleep(0.05)
+        yield
+    finally:
+        try:
+            handle.seek(0)
+            if os.name == "nt":
+                import msvcrt  # pylint: disable=import-outside-toplevel
+
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl  # pylint: disable=import-outside-toplevel
+
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
+        handle.close()
+
+
+def _quarantine_invalid_temurin(root: Path) -> Path:
+    """Move an unverified tree aside so provisioning can publish a new one (#7115)."""
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    destination = root.parent / f"{root.name}.invalid-{stamp}"
+    if destination.exists() or is_link_or_reparse(destination):
+        destination = root.parent / f"{root.name}.invalid-{stamp}-{secrets.token_hex(2)}"
+    root.rename(destination)
+    return destination
 
 
 def _prepare_maven(transaction: Path, version: str, host_platform: str) -> None:
@@ -329,9 +395,16 @@ def ensure_managed_temurin_jdk(
     opener=None,
     reporter=None,
     confirmer=None,
+    lock_timeout: float = 120,
 ) -> Path | None:
-    """Provision checksum-verified Temurin JDK into the CE tools cache when needed (#5630)."""
-    _, architecture, host_platform = _tools_host_platform()
+    """Provision checksum-verified Temurin JDK into the CE tools cache when needed (#5630).
+
+    An unverified tree with no live lock is quarantined and re-provisioned (#7115).
+    Extraction lands in a sibling ``.part`` directory and is renamed only after
+    ``java -version`` and the receipt checksum succeed. A ``.part`` tree is never
+    a published root.
+    """
+    _, _architecture, host_platform = _tools_host_platform()
     temurin = _runtime_contract(specification, "temurin")
     version = (
         str(temurin["version"])
@@ -347,31 +420,48 @@ def ensure_managed_temurin_jdk(
         return None
     artifact = _runtime_artifact(temurin, host_platform)
     module = _load_dependencies_controller() if artifact is not None else None
-    if module is None:
+    if artifact is None or module is None:
         return None
-    parent = root.parent
-    parent.mkdir(parents=True, exist_ok=True)
+    root.parent.mkdir(parents=True, exist_ok=True)
     if confirmer is not None:
         confirmer(f"Download Temurin JDK {version} from {artifact[0]}")
     if reporter is not None:
         reporter.trace(f"provision managed Temurin JDK {version}")
-    if root.exists() or is_link_or_reparse(root):
-        # Incomplete prior attempt — refuse to clobber without a clean tree.
-        if verified_managed_temurin(java, host_platform, version=version) is None:
-            raise ValueError("existing managed Temurin JDK tree is invalid")
-        return java.resolve()
-    _materialize_runtime(
-        module,
-        artifact,
-        opener or urllib.request.urlopen,
-        parent / f".{version}-{architecture}.{secrets.token_hex(8)}.building",
-        root,
-        reporter=reporter,
-        prepare=lambda transaction: _prepare_temurin(transaction, version, host_platform),
-    )
+    part = root.parent / f"{root.name}.part"
+    with temurin_provision_lock(root, timeout=lock_timeout):
+        verified = verified_managed_temurin(java, host_platform, version=version)
+        if verified is not None and java_compiler_present(verified):
+            return verified
+        if is_link_or_reparse(root):
+            raise ValueError(
+                "managed Temurin JDK tree is a link; "
+                f"heal it with {TEMURIN_REPAIR_HINT}"
+            )
+        if root.exists():
+            _quarantine_invalid_temurin(root)
+        if part.exists() and not is_link_or_reparse(part):
+            shutil.rmtree(part)
+        try:
+            _materialize_runtime(
+                module,
+                artifact,
+                opener or urllib.request.urlopen,
+                part,
+                root,
+                reporter=reporter,
+                prepare=lambda transaction: _prepare_temurin(transaction, version, host_platform),
+            )
+        except ValueError as error:
+            message = str(error)
+            if TEMURIN_REPAIR_HINT not in message:
+                raise ValueError(f"{message}; heal it with {TEMURIN_REPAIR_HINT}") from error
+            raise
     verified = verified_managed_temurin(java, host_platform, version=version)
     if verified is None or not java_compiler_present(verified):
-        raise ValueError("managed Temurin JDK provision did not produce a usable javac")
+        raise ValueError(
+            "managed Temurin JDK provision did not produce a usable javac; "
+            f"heal it with {TEMURIN_REPAIR_HINT}"
+        )
     return verified
 
 
@@ -930,7 +1020,13 @@ def verified_managed_temurin(
 ) -> Path | None:
     if not candidate.is_file() or is_link_or_reparse(candidate):
         return None
-    receipt_path = candidate.parents[3 if sys.platform == "darwin" else 1] / TEMURIN_RECEIPT
+    try:
+        receipt_path = candidate.parents[3 if sys.platform == "darwin" else 1] / TEMURIN_RECEIPT
+    except IndexError:
+        return None
+    # A sibling ``.part`` extract is not a published tree (#7115).
+    if receipt_path.parent.name.endswith(".part"):
+        return None
     if not receipt_path.is_file() or is_link_or_reparse(receipt_path):
         return None
     try:
