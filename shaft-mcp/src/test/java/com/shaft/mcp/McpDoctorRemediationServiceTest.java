@@ -17,7 +17,11 @@ import com.shaft.pilot.ai.AiResponseStatus;
 import com.shaft.pilot.ai.ApprovalPolicy;
 import com.shaft.pilot.ai.EvidenceReference;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -200,6 +204,74 @@ class McpDoctorRemediationServiceTest {
                 service.deterministicBlocks(diagnosis, "driver", CodegenBackend.WEBDRIVER);
 
         assertEquals(viaExplicitWebdriver, viaNullBackend);
+    }
+
+    @Test
+    void categoryBlocksCoverDataEnvironmentAndInfrastructure() {
+        Diagnosis diagnosis = diagnosis(List.of(
+                rankedCause(CauseCategory.DATA, 80, "Read the missing data."),
+                rankedCause(CauseCategory.ENVIRONMENT_CONFIGURATION, 70, "Check configuration."),
+                rankedCause(CauseCategory.INFRASTRUCTURE, 40, "Inspect the environment."),
+                rankedCause(CauseCategory.UNKNOWN, 20, "Collect more evidence.")));
+
+        List<McpCodeBlock> blocks = service.deterministicBlocks(diagnosis, "driver", CodegenBackend.WEBDRIVER);
+        String code = blocks.stream().map(McpCodeBlock::code).reduce("", (left, right) -> left + "\n" + right);
+
+        assertTrue(code.contains("Missing required test data."), code);
+        assertTrue(code.contains("Required test environment configuration is missing."), code);
+        assertEquals(2, blocks.stream().filter(block -> block.title().contains("Investigation checklist")).count());
+        assertTrue(blocks.stream().anyMatch(block -> block.id().equals("fix-prompt-data")));
+        assertTrue(blocks.stream().anyMatch(block -> block.id().equals("fix-prompt-unknown")));
+    }
+
+    @Test
+    void providerRequestKeepsReadableSourceAndDropsSecretOversizedAndMissingFiles(@TempDir Path repository)
+            throws Exception {
+        Files.writeString(repository.resolve("Sample.java"), "class Sample {}", StandardCharsets.UTF_8);
+        Files.writeString(repository.resolve("Sample.json"), "{\"ok\":true}", StandardCharsets.UTF_8);
+        Files.writeString(repository.resolve("Sample.xml"), "<ok/>", StandardCharsets.UTF_8);
+        Files.writeString(repository.resolve("secret.java"),
+                "String token = \"Authorization: Bearer planted-token-value\";", StandardCharsets.UTF_8);
+        Files.writeString(repository.resolve("huge.java"), "x".repeat(21_000), StandardCharsets.UTF_8);
+        AtomicReference<AiRequest> captured = new AtomicReference<>();
+        McpDoctorRemediationService aiService = new McpDoctorRemediationService(request -> {
+            captured.set(request);
+            return AiResponse.failure(AiResponseStatus.PROVIDER_UNAVAILABLE, "none", "", "unavailable",
+                    Duration.ZERO, request.deterministicFallback());
+        });
+        DoctorAnalysisResult result = new DoctorAnalysisResult(
+                new EvidenceBundle(
+                        EvidenceBundle.CURRENT_SCHEMA_VERSION,
+                        "bundle-source",
+                        List.of(),
+                        new RedactionSummary(List.of("rule"), List.of("password"), 2),
+                        Map.of()),
+                diagnosis("Source evidence check.", List.of()),
+                "",
+                "",
+                "");
+
+        McpAnalysisReport report = aiService.build(
+                result,
+                repository,
+                List.of("Sample.java", "Sample.json", "Sample.xml", "secret.java", "missing.java", "huge.java"),
+                true,
+                ApprovalPolicy.denyAll(),
+                "driver");
+
+        String evidence = captured.get().evidence().stream()
+                .map(item -> item.mediaType() + ":" + item.content())
+                .reduce("", (left, right) -> left + "\n" + right);
+        assertTrue(evidence.contains("text/x-java-source:class Sample {}"), evidence);
+        assertTrue(evidence.contains("application/json:{\"ok\":true}"), evidence);
+        assertTrue(evidence.contains("application/xml:<ok/>"), evidence);
+        assertFalse(evidence.contains("planted-token-value"), evidence);
+        assertFalse(evidence.contains("xxxxx"), evidence);
+        assertTrue(report.warnings().stream().anyMatch(warning -> warning.contains("secret-like")));
+        assertTrue(report.warnings().stream().anyMatch(warning -> warning.contains("could not be read")));
+        assertTrue(report.warnings().stream().anyMatch(warning -> warning.contains("source evidence budget")));
+        assertTrue(report.warnings().stream().anyMatch(warning -> warning.contains("omitted")));
+        assertTrue(report.warnings().stream().anyMatch(warning -> warning.contains("redacted sensitive field")));
     }
 
     private static RankedCause rankedCause(CauseCategory category, int trust, String fixPrompt) {

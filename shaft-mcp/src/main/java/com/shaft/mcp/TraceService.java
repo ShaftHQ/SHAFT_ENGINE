@@ -41,6 +41,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -119,7 +120,7 @@ public class TraceService {
         try (Stream<Path> paths = Files.walk(traceRoot, 3)) {
             paths.filter(path -> path.getFileName().toString().equals("index.json"))
                     .forEach(path -> readIndex(path, warnings).ifPresent(indexes::add));
-        } catch (IOException exception) {
+        } catch (IOException | UncheckedIOException exception) {
             warnings.add("Could not scan target/shaft-traces: " + exception.getMessage());
         }
         int limit = maxResults <= 0 ? DEFAULT_LATEST_LIMIT : Math.min(maxResults, MAX_LATEST_LIMIT);

@@ -38,4 +38,19 @@ class DoctorCauseLabelTest {
         assertFalse(raw.contains("allure-results"));
         assertFalse(raw.contains("secret-result"));
     }
+
+    @Test
+    void unknownAndBlankActionsReturnAnError(@TempDir Path workspace) {
+        DoctorService service = new DoctorService(McpWorkspacePolicy.of(workspace), new McpDoctorRemediationService());
+
+        McpCauseLabelResult unknown = service.causeLabel("drop", "sig-grid", "LOCATOR", null);
+        McpCauseLabelResult blank = service.causeLabel("  ", null, null, null);
+
+        assertEquals("error", unknown.status());
+        assertEquals("drop", unknown.action());
+        assertTrue(unknown.message().contains("confirm or suggest"));
+        assertEquals("unknown", blank.action());
+        assertEquals("error", blank.status());
+        assertEquals("", blank.signature());
+    }
 }
