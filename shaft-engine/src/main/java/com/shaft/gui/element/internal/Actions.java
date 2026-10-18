@@ -1450,7 +1450,19 @@ public class Actions extends ElementActions {
     }
 
     private byte[] takeFailureScreenshot(WebElement element) {
-        return captureScreenshot(element, false);
+        try {
+            return captureScreenshot(element, false);
+        } catch (RuntimeException failure) {
+            // A mock can rethrow the action failure from getScreenshotAs. A new instance
+            // keeps addSuppressed from seeing that throwable twice. The text stays the
+            // screenshot failure's own message so a different failure is still visible
+            // on the original exception.
+            String message = failure.getMessage();
+            if (message == null || message.isBlank()) {
+                message = "Failure screenshot could not be captured.";
+            }
+            throw new ActionExecutionException(message, failure);
+        }
     }
 
     private byte[] captureScreenshot(WebElement element, boolean isPass) {

@@ -54,6 +54,7 @@ import org.testng.annotations.Test;
 import java.awt.Color;
 import java.io.File;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -872,6 +873,26 @@ public class ActionsCoverageUnitTest {
                             && suppressed.getMessage().contains("element is not attached to the page document"));
             Assert.assertTrue(screenshotFailureWasSuppressed,
                     "Expected the screenshot-capture failure to be attached as suppressed, not to replace the root cause.");
+        }
+    }
+
+    @Test
+    public void takeFailureScreenshotUsesFallbackTextWhenCaptureFailureHasNoMessage() throws Exception {
+        SHAFT.Properties.visuals.set().screenshotParamsScreenshotType("VIEWPORT");
+        // A null message and a blank message each take a different side of the fallback condition.
+        // A fresh mock per case keeps the next stub from replaying the previous throw.
+        for (String captureMessage : new String[]{null, " "}) {
+            WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.withSettings().extraInterfaces(TakesScreenshot.class));
+            DriverFactoryHelper helper = helperFor(driver);
+            when(((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES))
+                    .thenThrow(new RuntimeException(captureMessage));
+            InvocationTargetException thrown = Assert.expectThrows(InvocationTargetException.class,
+                    () -> invoke(new Actions(helper), "takeFailureScreenshot", new Class[]{WebElement.class}, (Object) null));
+            Throwable wrapper = thrown.getCause();
+            Assert.assertEquals(wrapper.getClass(), Actions.ActionExecutionException.class);
+            Assert.assertEquals(wrapper.getMessage(), "Failure screenshot could not be captured.",
+                    "A capture failure with no text must keep a stable wrapper message.");
+            Assert.assertEquals(wrapper.getCause().getMessage(), captureMessage);
         }
     }
 
