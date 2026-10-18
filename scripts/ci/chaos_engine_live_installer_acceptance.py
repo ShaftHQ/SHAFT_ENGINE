@@ -407,6 +407,13 @@ UPSTREAM_PYTHON_ABI_WHEELS = re.compile(
 )
 BASE_CHAIN_SKIP_REASON = "upstream-python-download-lag"
 BASE_ABI_SKIP_REASON = "upstream-python-abi-wheels"
+# Frozen base 1dec809c blocks when python.org is unverified. The message has no
+# lookup error. That is the base installer, not a candidate regression (#7116).
+BASE_PYTHON_CHANNEL_BLOCKED = "base-python-channel-blocked"
+BASE_PYTHON_CHANNEL_BLOCKED_MARK = (
+    "CE-INSTALL-FAILED: dependency setup blocked: python; "
+    "failed phase: Provision dependencies"
+)
 
 
 def upstream_python_lag(error: Exception) -> str | None:
@@ -420,6 +427,20 @@ def upstream_python_lag(error: Exception) -> str | None:
         return None
     match = UPSTREAM_PYTHON_LAG.search(str(error))
     return match.group(1) if match else None
+
+
+def base_python_channel_blocked(error: Exception) -> bool:
+    """#7116: the immutable base reports ``dependency setup blocked: python`` with no assertion text.
+
+    Run 39016986689 job 117351087183 exited 1 in about 60s. The evidence artifact
+    was ``CE-INSTALL-FAILED: dependency setup blocked: python`` during
+    ``base-public-wrapper``. Base ``1dec809c`` classifies an unverified python.org
+    channel as ``blocked`` and prints only the dependency name. The candidate
+    install still runs.
+    """
+    if not isinstance(error, AcceptanceCommandFailure):
+        return False
+    return BASE_PYTHON_CHANNEL_BLOCKED_MARK in str(error)
 
 
 def upstream_python_abi_wheels(error: Exception) -> str | None:
@@ -1652,6 +1673,29 @@ def assert_single_generated_mempalace(project: Path, *, with_mcp: bool = True) -
             raise RuntimeError("generated MCP configuration supplied MemPalace storage")
 
 
+def _record_empty_project_smoke(
+    evidence: dict[str, object], smoke_elapsed: float, phase: str
+) -> None:
+    """Record the portable empty-project stopwatch without failing the matrix."""
+    smoke_budget = 300
+    evidence["emptyProjectSmoke"] = {
+        "profile": "portable-empty-project",
+        "referencePlatform": "linux",
+        "budgetSeconds": smoke_budget,
+        "elapsedSeconds": smoke_elapsed,
+        "phase": phase,
+        "status": "passed" if smoke_elapsed <= smoke_budget else "budget-exceeded",
+    }
+    # Soft on CI: record stopwatch evidence always. Hard 300s SLA is the
+    # documented Ubuntu reference expectation; live runners can exceed it
+    # under load without failing the broader acceptance matrix.
+    if smoke_elapsed > smoke_budget:
+        evidence["emptyProjectSmoke"]["status"] = "budget-exceeded"
+        evidence["emptyProjectSmoke"]["note"] = (
+            "exceeded documented 300s reference SLA; see INSTALL.md empty-project smoke"
+        )
+
+
 def run_acceptance(
     source: Path,
     evidence: dict[str, object],
@@ -1736,6 +1780,12 @@ def run_acceptance(
                         "status": "skipped",
                         "reason": BASE_ABI_SKIP_REASON,
                         "requestedPython": abi,
+                    }
+                if base_python_channel_blocked(error):
+                    return {
+                        "status": "skipped",
+                        "reason": BASE_PYTHON_CHANNEL_BLOCKED,
+                        "requestedPython": "blocked",
                     }
                 transition = exact_base_compatibility_transition(
                     error, base_sha, windows=os.name == "nt"
@@ -1846,27 +1896,7 @@ def run_acceptance(
         )
         fresh_phase = evidence["phases"][-1]
         smoke_elapsed = float(fresh_phase.get("durationSeconds") or 0)
-        smoke_budget = 300
-        evidence["emptyProjectSmoke"] = {
-            "profile": "portable-empty-project",
-            "referencePlatform": "linux",
-            "budgetSeconds": smoke_budget,
-            "elapsedSeconds": smoke_elapsed,
-            "phase": "fresh-account-candidate-wrapper",
-            "status": (
-                "passed"
-                if smoke_elapsed <= smoke_budget
-                else "budget-exceeded"
-            ),
-        }
-        # Soft on CI: record stopwatch evidence always. Hard 300s SLA is the
-        # documented Ubuntu reference expectation; live runners can exceed it
-        # under load without failing the broader acceptance matrix.
-        if smoke_elapsed > smoke_budget:
-            evidence["emptyProjectSmoke"]["status"] = "budget-exceeded"
-            evidence["emptyProjectSmoke"]["note"] = (
-                "exceeded documented 300s reference SLA; see INSTALL.md empty-project smoke"
-            )
+        _record_empty_project_smoke(evidence, smoke_elapsed, "fresh-account-candidate-wrapper")
         if all(action == "reused" for action in first_fresh["actions"].values()):
             raise RuntimeError("fresh account candidate install did not install isolated tools")
         if fresh_sentinel.read_bytes() != b"preserve fresh user data\n":

@@ -756,5 +756,99 @@ class ManagedRuntimeCliTest(TestCase):
             self.assertTrue(mvn.is_file())
 
 
+class TemurinPartialTree7115Test(TestCase):
+    """#7115: an unverified Temurin tree is quarantined and re-provisioned; a live lock is not."""
+
+    def _specification(self) -> dict:
+        platform_name = HOSTS._tools_host_platform()[2]
+        contract = json.loads((ROOT / "chaos-engine" / "dependencies.json").read_text(encoding="utf-8"))
+        temurin = contract["runtimes"]["temurin"]
+        self.assertIn(platform_name, temurin["artifacts"])
+        return {"runtimes": {"temurin": temurin}}
+
+    def _controller(self):
+        def download(_url, archive, _digest, _open_url, reporter=None):
+            archive.write_bytes(b"stub-archive")
+
+        def extract(_archive, destination):
+            java = destination / "bin" / "java"
+            javac = destination / "bin" / "javac"
+            java.parent.mkdir(parents=True, exist_ok=True)
+            java.write_text(
+                "#!/bin/sh\nprintf '%s\\n' 'openjdk version \"25.0.4\"' >&2\n",
+                encoding="utf-8",
+            )
+            java.chmod(0o755)
+            javac.write_bytes(b"javac")
+
+        return SimpleNamespace(_download_artifact=download, _extract_runtime_archive=extract)
+
+    def test_partial_tree_is_quarantined_and_reprovisioned(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            data = Path(temporary)
+            with mock.patch.dict(os.environ, {"XDG_DATA_HOME": str(data)}, clear=False), \
+                 mock.patch.object(HOSTS, "_load_dependencies_controller", return_value=self._controller()):
+                root = HOSTS.managed_temurin_root()
+                root.mkdir(parents=True)
+                (root / "partial").write_bytes(b"12mb-was-a-lie")
+                part = root.parent / f"{root.name}.part"
+                part.mkdir()
+                (part / "bin").mkdir()
+                java = part / "bin" / "java"
+                java.write_bytes(b"not-published")
+                self.assertIsNone(HOSTS.verified_managed_temurin(java, HOSTS._tools_host_platform()[2]))
+                produced = HOSTS.ensure_managed_temurin_jdk(self._specification())
+            self.assertIsNotNone(produced)
+            self.assertTrue(produced.is_file())
+            self.assertFalse(part.exists())
+            self.assertFalse(root.name.endswith(".part"))
+            quarantined = [path for path in root.parent.iterdir() if ".invalid-" in path.name]
+            self.assertEqual(1, len(quarantined))
+            self.assertTrue((quarantined[0] / "partial").is_file())
+            self.assertIn("repair --component tools", HOSTS.TEMURIN_REPAIR_HINT)
+
+    def test_live_lock_does_not_clobber_the_partial_tree(self):
+        import subprocess
+        import sys
+
+        with tempfile.TemporaryDirectory() as temporary:
+            data = Path(temporary)
+            with mock.patch.dict(os.environ, {"XDG_DATA_HOME": str(data)}, clear=False):
+                root = HOSTS.managed_temurin_root()
+                root.mkdir(parents=True)
+                (root / "partial").write_bytes(b"keep")
+                lock = root.parent / f"{root.name}.provision.lock"
+                flag = data / "held"
+                holder = subprocess.Popen(  # nosec B603 - fixed interpreter and flock script.
+                    [sys.executable, "-c", """import fcntl, sys, time
+from pathlib import Path
+p = Path(sys.argv[1])
+p.parent.mkdir(parents=True, exist_ok=True)
+f = p.open('a+b')
+f.seek(0, 2)
+f.write(b'\\0')
+f.flush()
+f.seek(0)
+fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+Path(sys.argv[2]).write_text('held')
+time.sleep(30)
+""", str(lock), str(flag)],
+                )
+                try:
+                    for _ in range(50):
+                        if flag.is_file():
+                            break
+                        time_sleep = __import__("time").sleep
+                        time_sleep(0.05)
+                    self.assertTrue(flag.is_file())
+                    with self.assertRaises(TimeoutError):
+                        HOSTS.ensure_managed_temurin_jdk(self._specification(), lock_timeout=0.3)
+                    self.assertEqual(b"keep", (root / "partial").read_bytes())
+                    self.assertFalse(any(".invalid-" in path.name for path in root.parent.iterdir()))
+                finally:
+                    holder.terminate()
+                    holder.wait(timeout=5)
+
+
 if __name__ == "__main__":
     main()

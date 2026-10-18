@@ -544,6 +544,123 @@ def _run_deja(project: Path, query: str, *, host: str | None, mode: str) -> dict
     }
 
 
+def _load_stores():
+    import importlib.util as _ilu
+
+    spec = _ilu.spec_from_file_location(
+        "chaos_engine_stores_retrieve_gate", Path(__file__).resolve().with_name("stores.py")
+    )
+    if spec is None or spec.loader is None:
+        return None
+    module = _ilu.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
+    return module
+
+
+def _git_common_without_process(project: Path) -> Path | None:
+    """Shared git dir from `.git` / `commondir` text. Never spawns git."""
+    git_path = project / ".git"
+    try:
+        if git_path.is_dir():
+            git_dir = git_path
+        elif git_path.is_file():
+            line = git_path.read_text(encoding="utf-8").strip()
+            if not line.startswith("gitdir:"):
+                return None
+            raw = Path(line.split(":", 1)[1].strip())
+            git_dir = raw if raw.is_absolute() else (project / raw).resolve()
+        else:
+            return None
+        common_file = git_dir / "commondir"
+        if common_file.is_file():
+            raw = Path(common_file.read_text(encoding="utf-8").strip())
+            return raw.resolve() if raw.is_absolute() else (git_dir / raw).resolve()
+        return git_dir.resolve()
+    except OSError:
+        return None
+
+
+def _palace_for_gate(project: Path) -> Path | None:
+    """Palace path for the corrupt-store gate, without a git subprocess."""
+    for name in ("CHAOS_ENGINE_MEMPALACE", "SHA" + "FT_MEMPALACE"):
+        configured = os.environ.get(name, "").strip()
+        if not configured:
+            continue
+        path = Path(configured).expanduser()
+        return path if path.is_absolute() else None
+    common = _git_common_without_process(project)
+    if common is not None:
+        return common / "chaos-engine" / "mempalace"
+    return project / ".chaos-engine-state" / "mempalace"
+
+
+def _corrupt_mempalace_gate(project: Path) -> dict[str, str] | None:
+    """quick_check the palace before search. Corrupt → quarantine, never partial hits (#7118)."""
+    stores = _load_stores()
+    if stores is None:
+        return None
+    palace = _palace_for_gate(project)
+    if palace is None:
+        return None
+    return stores.corrupt_palace_gate(palace)
+
+
+def _store_hit_receipt(
+    project: Path, store: str, query: str, completed: subprocess.CompletedProcess[str], origin_sync: bool
+) -> dict[str, Any]:
+    """Turn a zero-exit store command into a used, skipped, or outside-workspace receipt."""
+    body = (completed.stdout or "").strip()
+    if is_empty_result(body):
+        return {
+            "store": store,
+            "status": STATUS_SKIPPED,
+            "reason": "no-relevant-hits",
+            "query": query,
+        }
+    outside = _outside_workspace_receipt(project, store, query)
+    if outside is not None:
+        return outside
+    hits = _structured_hits(body, query=query)
+    if not hits and store == "mempalace":
+        hits = _source_name_hits(project, body)
+    mindset = _mindset()
+    if store == "graphify" and mindset is not None:
+        hits = mindset.relevance_floor(hits, query, project=project)
+        if not hits:
+            return {
+                "store": store,
+                "status": STATUS_SKIPPED,
+                "reason": "no-relevant-hits",
+                "query": query,
+                "hits": [],
+                "bytes": 0,
+            }
+    if store == "memory" and not hits and mindset is not None:
+        return mindset.memory_no_hit_receipt()
+    excerpt_limit = _EXCERPT_WITH_HITS if hits else 4096
+    if mindset is not None:
+        excerpt_limit = min(excerpt_limit, mindset.store_budget_bytes(store))
+    excerpt = _bounded_excerpt(body, excerpt_limit)
+    receipt = {
+        "store": store,
+        "status": STATUS_USED,
+        "reason": "hits",
+        "query": query,
+        "hits": hits,
+        "excerpt": excerpt,
+        "bytes": len(excerpt.encode("utf-8")),
+    }
+    _record_store_outcome(project, store, STATUS_USED, query, body)
+    if origin_sync:
+        receipt["originSync"] = "advisory"
+    return receipt
+
+
 def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
     """One attempt; no retries. Missing/unhealthy → degraded; empty relevance → skipped."""
     tool = _tool_py(project)
@@ -557,6 +674,19 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
     if store == "deja":
         return _run_deja(project, query, host=None, mode="search")
     # Map store → advisory CLI shape (bounded; never writes).
+    if store == "mempalace":
+        gate = _corrupt_mempalace_gate(project)
+        if gate is not None:
+            return {
+                "store": store,
+                "status": STATUS_DEGRADED,
+                "reason": "corrupt-quarantined",
+                "query": query,
+                "hits": [],
+                "detail": gate["detail"],
+                "fixNext": gate["fixNext"],
+                "quarantine": gate.get("quarantine", ""),
+            }
     if store == "memory":
         args = [sys.executable, str(tool), "memory", "query", query]
     elif store == "mempalace":
@@ -621,51 +751,7 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
             degraded.update(blocking=True, fixNext=BACKEND_MISMATCH_FIX)
             print(f"retrieve: MemPalace backend mismatch; {BACKEND_MISMATCH_FIX}", file=sys.stderr)
         return degraded
-    body = (completed.stdout or "").strip()
-    if is_empty_result(body):
-        return {
-            "store": store,
-            "status": STATUS_SKIPPED,
-            "reason": "no-relevant-hits",
-            "query": query,
-        }
-    outside = _outside_workspace_receipt(project, store, query)
-    if outside is not None:
-        return outside
-    hits = _structured_hits(body, query=query)
-    if not hits and store == "mempalace":
-        hits = _source_name_hits(project, body)
-    mindset = _mindset()
-    if store == "graphify" and mindset is not None:
-        hits = mindset.relevance_floor(hits, query, project=project)
-        if not hits:
-            return {
-                "store": store,
-                "status": STATUS_SKIPPED,
-                "reason": "no-relevant-hits",
-                "query": query,
-                "hits": [],
-                "bytes": 0,
-            }
-    if store == "memory" and not hits and mindset is not None:
-        return mindset.memory_no_hit_receipt()
-    excerpt_limit = _EXCERPT_WITH_HITS if hits else 4096
-    if mindset is not None:
-        excerpt_limit = min(excerpt_limit, mindset.store_budget_bytes(store))
-    excerpt = _bounded_excerpt(body, excerpt_limit)
-    receipt = {
-        "store": store,
-        "status": STATUS_USED,
-        "reason": "hits",
-        "query": query,
-        "hits": hits,
-        "excerpt": excerpt,
-        "bytes": len(excerpt.encode("utf-8")),
-    }
-    _record_store_outcome(project, store, STATUS_USED, query, body)
-    if origin_sync:
-        receipt["originSync"] = "advisory"
-    return receipt
+    return _store_hit_receipt(project, store, query, completed, origin_sync)
 
 
 def _recorded_mismatch(project: Path, store: str, recheck: bool) -> dict[str, Any] | None:

@@ -2392,8 +2392,11 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 "recovery-required",
                 module.mempalace_runtime_status(project)["status"],
             )
+            # #7118: a torn image is quarantined instead of left as a partial store.
+            self.assertFalse(exact.exists())
+            self.assertTrue(any((palace / ".chaos-engine-quarantine").glob("corrupt-*")))
 
-            exact.unlink()
+            exact.unlink(missing_ok=True)
             chroma = palace / "chroma.sqlite3"
             chroma.write_bytes(b"SQLite format 3\x00")
             self.assertEqual(
