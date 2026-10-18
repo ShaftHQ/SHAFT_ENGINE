@@ -29,7 +29,7 @@
   "shaft-engine/src/main/java/com/shaft/cli/SshShellSession.java": 1,
   "shaft-engine/src/main/java/com/shaft/cli/TerminalActions.java": 7,
   "shaft-engine/src/main/java/com/shaft/cucumber/BrowserSteps.java": 2,
-  "shaft-engine/src/main/java/com/shaft/driver/SHAFT.java": 9,
+  "shaft-engine/src/main/java/com/shaft/driver/SHAFT.java": 8,
   "shaft-engine/src/main/java/com/shaft/gui/browser/NetworkInterceptionRequestBuilder.java": 2,
   "shaft-engine/src/main/java/com/shaft/gui/capabilities/AutomationCapabilities.java": 2,
   "shaft-engine/src/main/java/com/shaft/gui/capabilities/UnsupportedAutomationFeatureException.java": 1,
