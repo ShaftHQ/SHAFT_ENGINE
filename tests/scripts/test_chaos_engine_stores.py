@@ -592,15 +592,16 @@ class PalaceSnapshot7118Test(unittest.TestCase):
             copied.close()
         flag = self.root / "held"
         holder = subprocess.Popen(  # nosec B603 - fixed interpreter holding the store lease.
-            [sys.executable, "-c",
-             "import importlib.util,sys,time\nfrom pathlib import Path\n"
-             "spec=importlib.util.spec_from_file_location('stores', sys.argv[1])\n"
-             "mod=importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)\n"
-             "flag=Path(sys.argv[3])\n"
-             "with mod.refresh_lock(Path(sys.argv[2])):\n"
-             "    flag.write_text('held')\n"
-             "    time.sleep(30)\n",
-             str(STORES), str(self.root / ".git"), str(flag)],
+            [sys.executable, "-c", """import importlib.util, sys, time
+from pathlib import Path
+spec = importlib.util.spec_from_file_location('stores', sys.argv[1])
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+flag = Path(sys.argv[3])
+with mod.refresh_lock(Path(sys.argv[2])):
+    flag.write_text('held')
+    time.sleep(30)
+""", str(STORES), str(self.root / ".git"), str(flag)],
         )
         try:
             for _ in range(50):
