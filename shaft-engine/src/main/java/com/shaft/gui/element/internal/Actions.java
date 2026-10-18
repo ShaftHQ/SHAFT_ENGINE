@@ -1450,7 +1450,13 @@ public class Actions extends ElementActions {
     }
 
     private byte[] takeFailureScreenshot(WebElement element) {
-        return captureScreenshot(element, false);
+        try {
+            return captureScreenshot(element, false);
+        } catch (RuntimeException failure) {
+            // Evidence capture can rethrow the same provider failure (a mock or a second click).
+            // A distinct wrapper keeps addSuppressed from seeing one throwable twice.
+            throw new RuntimeException("Failure screenshot could not be captured.", failure);
+        }
     }
 
     private byte[] captureScreenshot(WebElement element, boolean isPass) {

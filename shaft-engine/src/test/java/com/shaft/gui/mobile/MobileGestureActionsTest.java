@@ -77,6 +77,8 @@ public class MobileGestureActionsTest {
         Mockito.when(driver.findElements(locator)).thenReturn(List.of(element));
         IllegalStateException providerFailure = new IllegalStateException("native element click failed");
         Mockito.doThrow(providerFailure).when(element).click();
+        Mockito.doThrow(providerFailure).when(element).getScreenshotAs(Mockito.any());
+        Mockito.doThrow(providerFailure).when(driver).getScreenshotAs(Mockito.any());
         MobileActions mobile = new SHAFT.GUI.WebDriver(driver).mobile();
         GestureActions gestures = new GestureActions(mobile, new TouchActions(driver));
 
