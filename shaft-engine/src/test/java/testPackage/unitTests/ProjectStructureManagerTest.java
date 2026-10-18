@@ -58,6 +58,57 @@ public class ProjectStructureManagerTest {
                 .isEqualTo("com.shaft.listeners.TestNGListener").perform();
     }
 
+    @Test(description = "JUnit initialization writes the extension service files and appends autodetection once")
+    public void junitInitializationWritesExtensionFilesAndAppendsAutodetectionOnce() throws IOException {
+        useLocalServicesUnderRoot();
+        Path properties = tempServicesDirPath.resolve("junit-platform.properties");
+        Files.writeString(properties, "keep=1" + System.lineSeparator());
+
+        ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT);
+        ProjectStructureManager.initialize(ProjectStructureManager.RunType.JUNIT);
+
+        String content = Files.readString(properties);
+        SHAFT.Validations.assertThat().object(content.contains("keep=1")).isTrue().perform();
+        SHAFT.Validations.assertThat().object(count(content, "junit.jupiter.extensions.autodetection.enabled=true"))
+                .isEqualTo(1).perform();
+        Path extension = tempServicesDirPath.resolve("services").resolve("org.junit.jupiter.api.extension.Extension");
+        SHAFT.Validations.assertThat().object(Files.readString(extension).trim())
+                .isEqualTo("com.shaft.listeners.JunitExtension").perform();
+        Path session = tempServicesDirPath.resolve("services")
+                .resolve("org.junit.platform.launcher.LauncherSessionListener");
+        SHAFT.Validations.assertThat().object(Files.readString(session).trim())
+                .isEqualTo("com.shaft.listeners.JunitListener").perform();
+    }
+
+    @Test(description = "AI agent initialization registers the TestNG listener files")
+    public void aiAgentInitializationRegistersTestNgListeners() throws IOException {
+        useLocalServicesUnderRoot();
+        ProjectStructureManager.initialize(ProjectStructureManager.RunType.AI_AGENT);
+        Path listener = tempServicesDirPath.resolve("services").resolve("org.testng.ITestNGListener");
+        SHAFT.Validations.assertThat().object(Files.readString(listener).trim())
+                .isEqualTo("com.shaft.listeners.TestNGListener").perform();
+    }
+
+    @Test(description = "A non-local execution address leaves the services directory untouched")
+    public void nonLocalExecutionLeavesServicesUntouched() throws IOException {
+        useLocalServicesUnderRoot();
+        SHAFT.Properties.platform.set().executionAddress("dockerized");
+        Path marker = tempServicesDirPath.resolve("services").resolve("marker.txt");
+        Files.writeString(marker, "keep");
+
+        ProjectStructureManager.initialize(ProjectStructureManager.RunType.TESTNG);
+
+        SHAFT.Validations.assertThat().object(Files.readString(marker)).isEqualTo("keep").perform();
+        SHAFT.Validations.assertThat().object(Files.exists(
+                tempServicesDirPath.resolve("services").resolve("org.testng.ITestNGListener"))).isFalse().perform();
+    }
+
+    @Test(description = "The no-argument run-type probe reports TestNG while this shard is running")
+    public void identifyRunTypeReportsTestNgFromThisShard() {
+        SHAFT.Validations.assertThat().object(ProjectStructureManager.identifyRunType())
+                .isEqualTo(ProjectStructureManager.RunType.TESTNG).perform();
+    }
+
     @Test(description = "identifyRunType(suites) detects a Cucumber TestNG runner class in the suite even when " +
             "called before any Cucumber Runner stack frame exists, i.e. from IAlterSuiteListener#alter")
     public void identifyRunTypeWithSuitesDetectsCucumberTestNgRunnerClass() {
@@ -135,6 +186,26 @@ public class ProjectStructureManagerTest {
         ProjectStructureManager.RunType runType = ProjectStructureManager.identifyRunType(List.of(suiteA));
 
         SHAFT.Validations.assertThat().object(runType).isEqualTo(ProjectStructureManager.RunType.TESTNG).perform();
+    }
+
+    private void useLocalServicesUnderRoot() throws IOException {
+        savedExecutionAddress = SHAFT.Properties.platform.executionAddress();
+        savedServicesPath = SHAFT.Properties.paths.services();
+        tempServicesDirPath = Files.createTempDirectory("shaft-psm-");
+        Path services = tempServicesDirPath.resolve("services");
+        Files.createDirectories(services);
+        SHAFT.Properties.platform.set().executionAddress("local");
+        SHAFT.Properties.paths.set().services(services.toString() + File.separator);
+    }
+
+    private static int count(String value, String token) {
+        int found = 0;
+        int from = value.indexOf(token);
+        while (from >= 0) {
+            found++;
+            from = value.indexOf(token, from + token.length());
+        }
+        return found;
     }
 
     private void deleteTempServicesDirectory() throws IOException {
