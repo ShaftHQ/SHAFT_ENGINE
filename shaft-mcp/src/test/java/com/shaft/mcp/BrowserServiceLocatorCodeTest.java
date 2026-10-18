@@ -81,6 +81,38 @@ class BrowserServiceLocatorCodeTest {
     }
 
     @Test
+    void everyMappedAriaRoleEmitsTheMatchingRoleEnum() {
+        Map<String, String> roles = Map.ofEntries(
+                Map.entry("link", "LINK"),
+                Map.entry("textbox", "TEXTBOX"),
+                Map.entry("checkbox", "CHECKBOX"),
+                Map.entry("radio", "RADIO"),
+                Map.entry("combobox", "COMBOBOX"),
+                Map.entry("heading", "HEADING"),
+                Map.entry("img", "IMAGE"),
+                Map.entry("image", "IMAGE"),
+                Map.entry("list", "LIST"),
+                Map.entry("listitem", "LISTITEM"),
+                Map.entry("grid", "TABLE"),
+                Map.entry("row", "TABLE_ROW"),
+                Map.entry("gridcell", "TABLE_CELL"),
+                Map.entry("columnheader", "TABLE_COLUMNHEADER"));
+        for (Map.Entry<String, String> role : roles.entrySet()) {
+            LocatorCandidate candidate = roleCandidate(role.getKey() + ":Name", true);
+            String code = BrowserService.locatorCode(candidate, snapshot("div", role.getKey(), "Name", ""));
+            assertEquals("SHAFT.GUI.Locator.hasRole(Role." + role.getValue() + ").build()", code, role.getKey());
+        }
+    }
+
+    @Test
+    void labelStrategyUsesContainsTextAndBlankTagFallsBackToStar() {
+        LocatorCandidate label = candidate(LocatorCandidate.LocatorStrategy.LABEL, "Email", 1, true);
+        String code = BrowserService.locatorCode(label, snapshot(" ", "", "", "Email"));
+        assertTrue(code.contains("hasTagName(\"*\")"), code);
+        assertTrue(code.contains(".containsText(\"Email\")"), code);
+    }
+
+    @Test
     void unmappableRoleFallsThroughToGenericBuilder() {
         LocatorCandidate role = roleCandidate("searchbox:Search", true);
         String code = BrowserService.locatorCode(role, snapshot("div", "searchbox", "Search", ""));

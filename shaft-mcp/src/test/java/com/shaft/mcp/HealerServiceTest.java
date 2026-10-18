@@ -562,6 +562,40 @@ class HealerServiceTest {
                 "Offline flag should be added when network not approved");
     }
 
+    @Test
+    void allureSnapshotSkipsBlankAndMalformedResults(@TempDir Path tempDir) throws Exception {
+        Path repository = fakeRepository(tempDir);
+        Path output = Files.createDirectories(repository.resolve("allure-results"));
+        Files.writeString(output.resolve("blank-status-result.json"),
+                "{\"status\":\"\",\"name\":\"Blank\"}", StandardCharsets.UTF_8);
+        Files.writeString(output.resolve("blank-name-result.json"),
+                "{\"status\":\"failed\",\"name\":\"\"}", StandardCharsets.UTF_8);
+        Path locked = output.resolve("locked-result.json");
+        Files.writeString(locked, "{\"status\":\"failed\",\"name\":\"Locked\"}", StandardCharsets.UTF_8);
+        locked.toFile().setReadable(false, false);
+        try {
+            McpHealerRunResult result = service(tempDir, 0, "passed", "ok").runFailedTest(
+                    repository.toString(),
+                    List.of("mvn", "test", "-Dtest=PassingTest"),
+                    tempDir.resolve("target/healer").toString(),
+                    1,
+                    false,
+                    false,
+                    List.of(),
+                    false,
+                    false,
+                    false,
+                    false,
+                    "driver",
+                    null);
+
+            assertEquals(McpHealerRunResult.Status.PASSED, result.status());
+            assertEquals(1, result.attempts().getFirst().allureResultCount());
+        } finally {
+            locked.toFile().setReadable(true, false);
+        }
+    }
+
     private HealerService service() {
         return new HealerService(McpWorkspacePolicy.of(temp));
     }

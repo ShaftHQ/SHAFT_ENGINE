@@ -11,6 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class McpCaptureCodeBlockServiceTest {
@@ -462,6 +463,77 @@ class McpCaptureCodeBlockServiceTest {
                 .fromGeneratedSource(source, "driver");
 
         assertEquals(List.of("capture-full-class"), blocks.stream().map(McpCodeBlock::id).toList());
+    }
+
+    @Test
+    void fromGeneratedSourceRejectsAnUnreadablePathAndRendersDirectLocatorStrategies() throws Exception {
+        IllegalArgumentException unreadable = assertThrows(IllegalArgumentException.class,
+                () -> new McpCaptureCodeBlockService().fromGeneratedSource(temp, "driver"));
+        assertTrue(unreadable.getMessage().contains("could not be read"));
+
+        Path source = writeSource("""
+                package generated.capture;
+
+                import org.testng.annotations.Test;
+
+                public class StrategyReplayTest {
+                    @Test
+                    public void replayStrategies() {
+                        driver.element().click(SHAFT.GUI.Locator.inputField("say \\"hi\\""));
+                    }
+                }
+                """);
+        CaptureGenerationReport report = new CaptureGenerationReport(
+                CaptureGenerationReport.CURRENT_SCHEMA_VERSION,
+                "session-strategies",
+                CaptureGenerationReport.Status.SUCCESS,
+                source.toString(),
+                "",
+                CaptureReadiness.State.READY,
+                List.of(),
+                List.of(
+                        decision("event-id", "submit-id", "ID", "submit"),
+                        decision("event-name", "submit-name", "NAME", "submit"),
+                        decision("event-class", "submit-class", "CLASS_NAME", "submit"),
+                        decision("event-tag", "submit-tag", "TAG_NAME", "button"),
+                        decision("event-link", "login-link", "LINK_TEXT", "Login"),
+                        decision("event-partial", "login-partial", "PARTIAL_LINK_TEXT", "Log"),
+                        decision("event-xpath", "submit-xpath", "XPATH", "button"),
+                        decision("event-css", "submit-css", "CSS", "#submit"),
+                        decision("event-test", "submit-test", "TEST_ID", "submit"),
+                        decision("event-dup", "SubmitId", "ID", "other")),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                CaptureGenerationReport.Validation.skipped("Compilation was not requested."),
+                CaptureGenerationReport.Validation.skipped("Replay was not requested."),
+                CaptureGenerationReport.Enrichment.notRequested());
+
+        List<McpCodeBlock> blocks = new McpCaptureCodeBlockService()
+                .fromGeneratedSource(source, "not-valid", report);
+        String inventory = block(blocks, "capture-pom-locator-inventory").code();
+        McpCodeBlock method = block(blocks, "capture-test-method");
+
+        assertTrue(method.placement().contains("named driver"), method.placement());
+        assertTrue(inventory.contains("SHAFT.GUI.Locator.id(\"submit\")"), inventory);
+        assertTrue(inventory.contains("SHAFT.GUI.Locator.name(\"submit\")"), inventory);
+        assertTrue(inventory.contains("SHAFT.GUI.Locator.className(\"submit\")"), inventory);
+        assertTrue(inventory.contains("SHAFT.GUI.Locator.tagName(\"button\")"), inventory);
+        assertTrue(inventory.contains("hasText(\"Login\")"), inventory);
+        assertTrue(inventory.contains("containsText(\"Log\")"), inventory);
+        assertTrue(inventory.contains("By.xpath(\"button\")"), inventory);
+        assertTrue(inventory.contains("SHAFT.GUI.Locator.cssSelector(\"#submit\")"), inventory);
+        assertTrue(inventory.contains("cssSelector(\"submit\")"), inventory);
+        assertTrue(inventory.contains("say \\\"hi\\\""), inventory);
+        assertEquals(1, inventory.split("submitIdLocator", -1).length - 1, inventory);
+    }
+
+    private static CaptureGenerationReport.LocatorDecision decision(
+            String eventId, String logicalId, String strategy, String expression) {
+        return new CaptureGenerationReport.LocatorDecision(
+                List.of(eventId), logicalId, strategy, expression, 200, List.of(), List.of());
     }
 
     private Path writeSource(String source) throws Exception {

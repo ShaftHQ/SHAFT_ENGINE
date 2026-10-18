@@ -295,7 +295,88 @@ class CodingPartnerServiceTest {
         Path repository = temp;
         IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
                 () -> service().diff(repository.toString(), "src/test/java/pages/HomePage.java", List.of("  "), "x"));
+        IllegalArgumentException missingBlocks = assertThrows(IllegalArgumentException.class,
+                () -> service().diff(repository.toString(), "src/test/java/pages/HomePage.java", null, "x"));
         assertTrue(failure.getMessage().contains("code block"));
+        assertTrue(missingBlocks.getMessage().contains("code block"));
+    }
+
+    @Test
+    void diffWarnsOnThreadSleepAndInsertsWhenTheAnchorIsMissing() throws Exception {
+        Path page = temp.resolve("src/test/java/pages/HomePage.java");
+        Files.createDirectories(page.getParent());
+        Files.writeString(page, """
+                package pages;
+
+                public class HomePage {
+                    public void loginAs() {
+                        return;
+                    }
+                }
+                """);
+        Path empty = temp.resolve("src/test/java/pages/Empty.java");
+        Files.writeString(empty, "");
+
+        McpCodingPartnerDiff sleep = service().diff(
+                temp.toString(),
+                "src/test/java/pages/HomePage.java",
+                List.of("```java", "Thread.sleep(10);\n"),
+                "missingMethod");
+        McpCodingPartnerDiff created = service().diff(
+                temp.toString(),
+                "src/test/java/pages/Empty.java",
+                List.of("void added() {\r\n}\n"),
+                "");
+
+        assertEquals("missingMethod", sleep.insertionAnchor());
+        assertTrue(sleep.warnings().stream().anyMatch(warning -> warning.contains("raw Selenium")));
+        assertTrue(sleep.unifiedDiff().contains("+Thread.sleep(10);"));
+        assertFalse(sleep.unifiedDiff().contains("```"));
+        assertTrue(sleep.unifiedDiff().contains(" }"));
+        assertTrue(created.targetExists());
+        assertTrue(created.unifiedDiff().startsWith("--- a/src/test/java/pages/Empty.java"));
+        assertTrue(created.unifiedDiff().contains("@@ -0,0 +1,"));
+        assertTrue(created.unifiedDiff().contains("+void added() {"));
+        assertFalse(created.unifiedDiff().contains("\r"));
+    }
+
+    @Test
+    void diffRejectsATargetThatEscapesTheRepository() throws Exception {
+        Path repository = Files.createDirectories(temp.resolve("repo"));
+        Path outside = temp.resolve("outside/Evil.java");
+        Files.createDirectories(outside.getParent());
+        Files.writeString(outside, "class Evil {}");
+
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> service().diff(repository.toString(), "../outside/Evil.java", List.of("void added() {}"), ""));
+
+        assertTrue(failure.getMessage().contains("outside the MCP repository"));
+        assertEquals("class Evil {}", Files.readString(outside));
+    }
+
+    @Test
+    void planUsesGradleVerificationAndPlaywrightEvidencePaths() throws Exception {
+        Path repository = Files.createDirectories(temp.resolve("gradle-repo"));
+        Files.writeString(repository.resolve("build.gradle"), "plugins { id 'java' }");
+        Path evidence = repository.resolve("notes/trace.json");
+        Files.createDirectories(evidence.getParent());
+        Files.writeString(evidence, "{}");
+
+        McpCodingPartnerPlan plan = service().plan(
+                repository.toString(),
+                "Open home",
+                "playwright",
+                "",
+                "Thread.sleep(1);",
+                List.of("notes/trace.json", "  "),
+                5);
+
+        assertEquals("Playwright", plan.backend());
+        assertEquals("gradle testClasses", plan.verificationCommand());
+        assertEquals(List.of("notes/trace.json"), plan.evidencePaths());
+        assertTrue(plan.suggestedMcpCalls().contains("browser_get_page_dom"));
+        assertTrue(plan.warnings().stream().anyMatch(warning -> warning.contains("raw Selenium")));
+        assertTrue(plan.warnings().stream().anyMatch(warning -> warning.contains("No current source path")));
     }
 
     private CodingPartnerService service() {

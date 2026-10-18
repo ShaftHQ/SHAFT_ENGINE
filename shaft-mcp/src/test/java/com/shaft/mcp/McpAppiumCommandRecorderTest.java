@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -120,5 +121,67 @@ class McpAppiumCommandRecorderTest {
         McpMobileRecordingStatus stopped = recorder.stop(false);
 
         assertEquals(1, stopped.actionCount());
+    }
+
+    @Test
+    void recordsDeviceCommandsAndSkipsUnreplayableInspectorTraffic() {
+        Path output = temp.resolve("commands.json");
+        McpMobileRecordingService recorder = new McpMobileRecordingService(McpWorkspacePolicy.of(temp));
+        recorder.start(output.toString(), "mobile-inspector-android", true);
+        McpAppiumCommandRecorder commandRecorder = new McpAppiumCommandRecorder(recorder, () -> false);
+
+        commandRecorder.capture("POST", "/session/abc/element", "{\"using\":\"xpath\",\"value\":\"//button\"}",
+                500, "{\"value\":{}}");
+        commandRecorder.capture("POST", "/session/abc/element", "{\"using\":\"unknown\",\"value\":\"nope\"}",
+                200, "{\"value\":{\"ELEMENT\":\"legacy\"}}");
+        commandRecorder.capture("POST", "/session/abc/elements",
+                "{\"using\":\"class name\",\"value\":\"android.widget.Button\"}",
+                200, "{\"value\":[{\"ELEMENT\":\"el-2\"},{\"element-6066-11e4-a52e-4f735466cecf\":\"el-3\"}]}");
+        commandRecorder.capture("POST", "/session/abc/element/missing/click", "{}", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/element/el-2/clear", "{}", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/element/el-2/value", "{\"value\":[\"a\",\"b\"]}", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/element/el-2/attribute", "{}", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/orientation", "{\"orientation\":\"landscape\"}", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/appium/device/hide_keyboard", "{}", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/appium/app/background", "{\"duration\":4}", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/appium/device/activate_app", "{}", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/appium/device/activate_app", "{\"bundleId\":\"com.example\"}", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/actions", "{\"actions\":\"nope\"}", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/actions", """
+                {"actions":[{"type":"pointer","parameters":{"pointerType":"mouse"},"actions":[
+                {"type":"pointerMove","x":1,"y":2},{"type":"pointerDown"},{"type":"pointerUp"}]}]}""", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/actions", """
+                {"actions":[{"type":"pointer","parameters":{"pointerType":"touch"},"actions":[
+                {"type":"pointerMove","duration":0,"x":4,"y":8},
+                {"type":"pointerDown","button":0},
+                {"type":"pause","duration":40},
+                {"type":"pointerMove","duration":120,"x":40,"y":8},
+                {"type":"pointerUp","button":0}]}]}""", 200, "{}");
+        commandRecorder.capture("POST", "/session/abc/element", "{", 200, "{");
+        commandRecorder.capture("GET", "/session/abc/source", "", 200, "{\"value\":\"\"}");
+
+        recorder.stop(false);
+        McpMobileRecording recording = recorder.readRecording(output.toString());
+        List<String> actions = recording.actions().stream().map(McpMobileRecordedAction::action).toList();
+
+        assertTrue(actions.contains("clear"), actions.toString());
+        assertTrue(actions.contains("type"), actions.toString());
+        assertTrue(actions.contains("rotate"), actions.toString());
+        assertTrue(actions.contains("hideKeyboard"), actions.toString());
+        assertTrue(actions.contains("backgroundApp"), actions.toString());
+        assertTrue(actions.contains("activateApp"), actions.toString());
+        assertTrue(actions.contains("swipeCoordinates"), actions.toString());
+        assertEquals("ab", recording.actions().stream().filter(action -> "type".equals(action.action()))
+                .findFirst().orElseThrow().parameters().get("value"));
+        assertEquals("LANDSCAPE", recording.actions().stream().filter(action -> "rotate".equals(action.action()))
+                .findFirst().orElseThrow().parameters().get("orientation"));
+        assertEquals("4", recording.actions().stream().filter(action -> "backgroundApp".equals(action.action()))
+                .findFirst().orElseThrow().parameters().get("seconds"));
+        assertTrue(recording.warnings().stream().anyMatch(warning -> warning.contains("not replayable")));
+        assertTrue(recording.warnings().stream().anyMatch(warning -> warning.contains("not found through")));
+        assertTrue(recording.warnings().stream().anyMatch(warning -> warning.contains("not yet replayable")));
+        assertTrue(recording.warnings().stream().anyMatch(warning -> warning.contains("appId or bundleId")));
+        assertTrue(recording.warnings().stream().anyMatch(warning -> warning.contains("actions array")));
+        assertTrue(recording.warnings().stream().anyMatch(warning -> warning.contains("not recorded")));
     }
 }

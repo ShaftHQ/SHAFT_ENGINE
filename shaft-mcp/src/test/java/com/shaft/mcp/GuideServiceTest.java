@@ -7,6 +7,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -67,6 +68,168 @@ class GuideServiceTest {
         McpGuideSearchResult result = service.search("api", 99);
 
         assertEquals(5, result.matches().size());
+    }
+
+    @Test
+    void searchSkipsDuplicateRoutesAndUnreadablePages() {
+        Map<String, String> responses = new HashMap<>();
+        responses.put(GuideService.GUIDE_INDEX_URI.toString(), """
+                {
+                  "documents": [
+                    {"id": 1, "pageTitle": "Locators", "sectionTitle": "One", "sectionRoute": "/docs/reference/locators#one"},
+                    {"id": 2, "pageTitle": "Locators", "sectionTitle": "Duplicate", "sectionRoute": "/docs/reference/locators#one"},
+                    {"id": 3, "pageTitle": "Actions", "sectionTitle": "Click", "sectionRoute": "/docs/reference/actions#click"}
+                  ],
+                  "index": {"invertedIndex": [
+                    ["only"],
+                    ["locat", {"title": {"1": {}, "2": {}}}],
+                    ["action", {"content": {"3": {}}}]
+                  ]}
+                }
+                """);
+        responses.put("https://shafthq.github.io/docs/reference/actions", """
+                <html><body><main><h2 id="click">Click</h2><p>Click the control.</p></main></body></html>
+                """);
+        FakeGuideHttpClient http = new FakeGuideHttpClient(responses);
+        McpGuideSearchResult result = new GuideService(http).search("locat action", 5);
+
+        assertEquals(1, result.matches().size());
+        assertTrue(result.matches().getFirst().url().contains("/docs/reference/actions#click"));
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("Skipped an unreadable official guide page")));
+        assertEquals(1, http.requested().stream().filter(uri -> uri.getPath().endsWith("/locators")).count());
+    }
+
+    @Test
+    void searchKeepsOtherMatchesWhenAPageFetchIsInterrupted() {
+        Map<String, String> responses = pageResponses();
+        InterruptGuideClient http = new InterruptGuideClient(
+                responses, Set.of("https://shafthq.github.io/docs/reference/locators"));
+        try {
+            McpGuideSearchResult result = new GuideService(http).search("locat action", 5);
+
+            assertEquals(1, result.matches().size());
+            assertTrue(result.matches().getFirst().excerpt().contains("Click the control"));
+            assertTrue(result.warnings().stream()
+                    .anyMatch(warning -> warning.contains("Skipped an unreadable official guide page")));
+            assertTrue(Thread.currentThread().isInterrupted());
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test
+    void searchWarnsWhenTheIndexFetchIsInterrupted() {
+        InterruptGuideClient http = new InterruptGuideClient(Map.of(), Set.of(GuideService.GUIDE_INDEX_URI.toString()));
+        try {
+            McpGuideSearchResult result = new GuideService(http).search("api testing", 5);
+
+            assertTrue(result.matches().isEmpty());
+            assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("Could not read")));
+            assertTrue(Thread.currentThread().isInterrupted());
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test
+    void searchClassifiesHeadingsCodeAndClampsABlankQuery() {
+        Map<String, String> responses = new HashMap<>();
+        responses.put(GuideService.GUIDE_INDEX_URI.toString(), """
+                {
+                  "documents": [
+                    {"id": 1, "pageTitle": "Headings", "sectionTitle": "Present", "sectionRoute": "/docs/guides/headings#present"},
+                    {"id": 2, "pageTitle": "Headings", "sectionTitle": "Missing", "sectionRoute": "/docs/guides/missing#absent"}
+                  ],
+                  "index": {"invertedIndex": [["heading", {"title": {"1": {}, "2": {}}, "mystery": {"1": {}}}]]}
+                }
+                """);
+        responses.put("https://shafthq.github.io/docs/guides/headings", """
+                <html><body>
+                  <h2 id="present">Present</h2>
+                  <p>%s</p>
+                  <pre>public class SamplePage {}</pre>
+                  <pre>   </pre>
+                  <pre>int value = 1;</pre>
+                  <h2 id="next">Next</h2>
+                  <p>Should stay outside the present section.</p>
+                </body></html>
+                """.formatted("x".repeat(950)));
+        responses.put("https://shafthq.github.io/docs/guides/missing", """
+                <html><body><p>Whole page body for the missing fragment.</p></body></html>
+                """);
+        McpGuideSearchResult result = new GuideService(new FakeGuideHttpClient(responses)).search("heading", 5);
+        McpGuideSearchResult defaults = new GuideService(new FakeGuideHttpClient(responses)).search("   ", 0);
+        McpGuideSearchResult nullQuery = new GuideService(new FakeGuideHttpClient(manyApiResponses())).search(null, -1);
+
+        McpGuideMatch present = result.matches().stream()
+                .filter(match -> match.url().contains("#present")).findFirst().orElseThrow();
+        McpGuideMatch missing = result.matches().stream()
+                .filter(match -> match.url().contains("#absent")).findFirst().orElseThrow();
+        assertTrue(present.excerpt().startsWith("Present"));
+        assertTrue(present.excerpt().endsWith("..."));
+        assertFalse(present.excerpt().contains("Should stay outside"));
+        assertEquals(McpCodeBlock.Kind.FULL_CLASS, present.codeBlocks().get(0).kind());
+        assertEquals(McpCodeBlock.Kind.ACTION, present.codeBlocks().get(1).kind());
+        assertEquals(2, present.codeBlocks().size());
+        assertTrue(missing.excerpt().contains("Whole page body"));
+        assertEquals(
+                "SHAFT guide best practices locators actions API GUI CLI troubleshooting",
+                defaults.query());
+        assertEquals(5, nullQuery.matches().size());
+        assertEquals(
+                "SHAFT guide best practices locators actions API GUI CLI troubleshooting",
+                nullQuery.query());
+    }
+
+    @Test
+    void searchDoesNotFetchArchiveTagOrMaintainerRoutesAndMatchesPrefixes() {
+        Map<String, String> responses = new HashMap<>();
+        responses.put(GuideService.GUIDE_INDEX_URI.toString(), """
+                {
+                  "documents": [
+                    {"id": 1, "pageTitle": "Tags", "sectionTitle": "Api", "sectionRoute": "/docs/tags/api"},
+                    {"id": 2, "pageTitle": "Archive", "sectionTitle": "Api", "sectionRoute": "/docs/archive/old/api"},
+                    {"id": 3, "pageTitle": "Maintainer", "sectionTitle": "Api", "sectionRoute": "/docs/maintainers/api"},
+                    {"id": 4, "pageTitle": "Other", "sectionTitle": "Topic", "sectionRoute": "/docs/reference/other"}
+                  ],
+                  "index": {"invertedIndex": [["locators", {"content": {"4": {}}}]]}
+                }
+                """);
+        responses.put("https://shafthq.github.io/docs/reference/other", """
+                <html><body><main><p>Prefix matched guide text.</p></main></body></html>
+                """);
+        FakeGuideHttpClient http = new FakeGuideHttpClient(responses);
+
+        McpGuideSearchResult prefixed = new GuideService(http).search("locat", 5);
+
+        assertEquals(1, prefixed.matches().size());
+        assertTrue(prefixed.matches().getFirst().excerpt().contains("Prefix matched"));
+        assertTrue(http.requested().stream().noneMatch(uri -> uri.getPath().contains("/docs/tags")
+                || uri.getPath().contains("/docs/archive/")
+                || uri.getPath().contains("/docs/maintainers/")));
+    }
+
+    private static Map<String, String> pageResponses() {
+        Map<String, String> responses = new HashMap<>();
+        responses.put(GuideService.GUIDE_INDEX_URI.toString(), """
+                {
+                  "documents": [
+                    {"id": 1, "pageTitle": "Locators", "sectionTitle": "One", "sectionRoute": "/docs/reference/locators#one"},
+                    {"id": 3, "pageTitle": "Actions", "sectionTitle": "Click", "sectionRoute": "/docs/reference/actions#click"}
+                  ],
+                  "index": {"invertedIndex": [
+                    ["locat", {"title": {"1": {}}}],
+                    ["action", {"content": {"3": {}}}]
+                  ]}
+                }
+                """);
+        responses.put("https://shafthq.github.io/docs/reference/locators", """
+                <html><body><main><h2 id="one">One</h2><p>Locator text.</p></main></body></html>
+                """);
+        responses.put("https://shafthq.github.io/docs/reference/actions", """
+                <html><body><main><h2 id="click">Click</h2><p>Click the control.</p></main></body></html>
+                """);
+        return responses;
     }
 
     private static Map<String, String> baseResponses() {
@@ -194,6 +357,28 @@ class GuideServiceTest {
 
         private List<URI> requested() {
             return List.copyOf(requested);
+        }
+    }
+
+    private static final class InterruptGuideClient implements GuideService.GuideHttpClient {
+        private final Map<String, String> responses;
+        private final Set<String> interruptedUris;
+
+        private InterruptGuideClient(Map<String, String> responses, Set<String> interruptedUris) {
+            this.responses = responses;
+            this.interruptedUris = interruptedUris;
+        }
+
+        @Override
+        public String get(URI uri) throws IOException, InterruptedException {
+            if (interruptedUris.contains(uri.toString())) {
+                throw new InterruptedException("stopped");
+            }
+            String response = responses.get(uri.toString());
+            if (response == null) {
+                throw new IOException("No fixture for " + uri);
+            }
+            return response;
         }
     }
 }

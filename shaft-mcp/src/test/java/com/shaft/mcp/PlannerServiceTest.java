@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PlannerServiceTest {
@@ -137,6 +138,108 @@ class PlannerServiceTest {
         assertEquals("user@example.com", flow.steps().get(0).seedData());
         assertEquals("click", flow.steps().get(2).action());
         assertTrue(snapshot.links().stream().anyMatch(link -> link.contains("/dashboard")));
+    }
+
+    @Test
+    void buildSnapshotCoversFieldTypesEmptyFormsAndUnnamedControls() {
+        String html = """
+                <html><body>
+                <form aria-label="Billing-info">
+                  <select name="plan"><option>Pro</option></select>
+                  <input type="checkbox" name="agree" aria-label="Agree"/>
+                  <input type="radio" name="channel" aria-label="Email channel"/>
+                  <input type="tel" name="phone"/>
+                  <input type="number" name="qty"/>
+                  <input type="date" name="when"/>
+                  <input type="url" name="site"/>
+                  <input type="search" name="q"/>
+                  <textarea></textarea>
+                  <button type="submit">Pay</button>
+                </form>
+                <form id="empty"></form>
+                <a href="javascript:void(0)">Skip script</a>
+                <a href="#">Skip hash</a>
+                <button>Outside</button>
+                </body></html>
+                """;
+
+        PlannerService.PlannerPageSnapshot snapshot =
+                PlannerService.buildSnapshot("http://example.test/pay", "", html);
+
+        PlannerService.PlannerFlow billing = snapshot.flows().getFirst();
+        assertEquals("Billing info form", billing.title());
+        assertEquals("select", billing.steps().get(0).action());
+        assertEquals("Select an appropriate option", billing.steps().get(0).seedData());
+        assertEquals("check", billing.steps().get(1).action());
+        assertEquals("checked", billing.steps().get(1).seedData());
+        assertEquals("select", billing.steps().get(2).action());
+        assertEquals("selected", billing.steps().get(2).seedData());
+        assertEquals("+15551234567", billing.steps().get(3).seedData());
+        assertEquals("1", billing.steps().get(4).seedData());
+        assertEquals("2026-01-01", billing.steps().get(5).seedData());
+        assertEquals("https://example.com", billing.steps().get(6).seedData());
+        assertEquals("sample search", billing.steps().get(7).seedData());
+        assertTrue(billing.steps().get(8).seedData().startsWith("Sample text for "));
+        assertEquals("click", billing.steps().get(9).action());
+        assertTrue(snapshot.flows().stream().anyMatch(flow -> flow.title().equals("Navigate: Outside")));
+        assertTrue(snapshot.flows().stream().noneMatch(flow -> flow.title().contains("Skip")));
+    }
+
+    @Test
+    void crawlOrdersMatchingGoalFirstAndSkipsUnresolvableLinks() throws Exception {
+        Map<String, PlannerService.PlannerPageSnapshot> pages = new LinkedHashMap<>();
+        pages.put("https://example.test/a", new PlannerService.PlannerPageSnapshot(
+                "https://example.test/a", "Home",
+                List.of(sampleFlow("Login form"), sampleFlow("Checkout form")),
+                List.of("not a url", "https://example.test/a?q=1#frag", "https://example.test:443/b",
+                        "http://example.test/off")));
+        pages.put("https://example.test:443/b", new PlannerService.PlannerPageSnapshot(
+                "https://example.test:443/b", "B", List.of(), List.of()));
+
+        McpTestPlanExploreResult result = service(new FakeInspector(pages))
+                .crawl("https://example.test/a", "checkout", 2, 10);
+
+        assertEquals(2, result.pagesVisited());
+        assertTrue(result.plansWritten().get(0).contains("checkout-form"));
+        assertTrue(result.plansWritten().get(1).contains("login-form"));
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("1 unresolvable link")));
+        assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("1 off-origin link")));
+        String checkout = Files.readString(Path.of(result.plansWritten().get(0)));
+        assertTrue(checkout.contains("## Steps"));
+    }
+
+    @Test
+    void crawlRejectsBlankAndRelativeTargetsAndWarnsWhenNothingIsDiscovered() {
+        PlannerService planner = service(new FakeInspector(Map.of()));
+
+        assertThrows(IllegalArgumentException.class, () -> planner.crawl("  ", "", 1, 1));
+        assertThrows(IllegalArgumentException.class, () -> planner.crawl("/relative", "", 1, 1));
+        assertThrows(IllegalArgumentException.class, () -> planner.crawl("http://", "", 1, 1));
+
+        McpTestPlanExploreResult empty = service(new FakeInspector(Map.of(
+                "http://example.test/a", new PlannerService.PlannerPageSnapshot(
+                        "http://example.test/a", "Empty", List.of(), List.of()))))
+                .crawl("http://example.test/a", "x", 1, 1);
+        assertTrue(empty.plansWritten().isEmpty());
+        assertTrue(empty.warnings().stream()
+                .anyMatch(warning -> warning.contains("No forms or primary navigation")));
+    }
+
+    @Test
+    void renderPlanCoversSelectCheckAndUnknownUrl() {
+        PlannerService.PlannerLocator locator = new PlannerService.PlannerLocator("ID", "plan", "SHAFT.GUI.Locator.cssSelector(\"#plan\")");
+        PlannerService.PlannerFlow flow = new PlannerService.PlannerFlow("Choices", List.of(
+                new PlannerService.PlannerStep("select", "Plan", locator, "Pro"),
+                new PlannerService.PlannerStep("check", "Agree", locator, "checked"),
+                new PlannerService.PlannerStep("click", "Next", locator, "")),
+                "Confirm the form was saved.");
+
+        String markdown = PlannerService.renderPlan(flow, " ");
+
+        assertTrue(markdown.contains("(unknown URL)"));
+        assertTrue(markdown.contains("Select \"Pro\" for Plan"));
+        assertTrue(markdown.contains("Check Agree"));
+        assertTrue(markdown.contains("Click Next"));
     }
 
     private PlannerService service(FakeInspector inspector) {
