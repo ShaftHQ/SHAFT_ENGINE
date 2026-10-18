@@ -553,8 +553,50 @@ def _load_stores():
     if spec is None or spec.loader is None:
         return None
     module = _ilu.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
     return module
+
+
+def _git_common_without_process(project: Path) -> Path | None:
+    """Shared git dir from `.git` / `commondir` text. Never spawns git."""
+    git_path = project / ".git"
+    try:
+        if git_path.is_dir():
+            git_dir = git_path
+        elif git_path.is_file():
+            line = git_path.read_text(encoding="utf-8").strip()
+            if not line.startswith("gitdir:"):
+                return None
+            raw = Path(line.split(":", 1)[1].strip())
+            git_dir = raw if raw.is_absolute() else (project / raw).resolve()
+        else:
+            return None
+        common_file = git_dir / "commondir"
+        if common_file.is_file():
+            raw = Path(common_file.read_text(encoding="utf-8").strip())
+            return raw.resolve() if raw.is_absolute() else (git_dir / raw).resolve()
+        return git_dir.resolve()
+    except OSError:
+        return None
+
+
+def _palace_for_gate(project: Path) -> Path | None:
+    """Palace path for the corrupt-store gate, without a git subprocess."""
+    for name in ("CHAOS_ENGINE_MEMPALACE", "SHA" + "FT_MEMPALACE"):
+        configured = os.environ.get(name, "").strip()
+        if not configured:
+            continue
+        path = Path(configured).expanduser()
+        return path if path.is_absolute() else None
+    common = _git_common_without_process(project)
+    if common is not None:
+        return common / "chaos-engine" / "mempalace"
+    return project / ".chaos-engine-state" / "mempalace"
 
 
 def _corrupt_mempalace_gate(project: Path) -> dict[str, str] | None:
@@ -562,12 +604,10 @@ def _corrupt_mempalace_gate(project: Path) -> dict[str, str] | None:
     stores = _load_stores()
     if stores is None:
         return None
-    try:
-        palace = stores.resolve_palace(project)
-    except (OSError, RuntimeError):
+    palace = _palace_for_gate(project)
+    if palace is None:
         return None
-    gate = stores.corrupt_palace_gate(palace)
-    return gate
+    return stores.corrupt_palace_gate(palace)
 
 
 def _store_hit_receipt(

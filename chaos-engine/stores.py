@@ -418,9 +418,13 @@ def sqlite_quick_check(database: Path, *, bound: int = 1) -> str:
     if not database.is_file():
         return "missing"
     limit = max(1, int(bound))
+    # immutable when no WAL exists: a read-only open of a delete-journal
+    # database must not create -wal/-shm sidecars beside a healthy palace.
+    wal = database.with_name(database.name + "-wal")
+    query = "mode=ro" if wal.is_file() else "mode=ro&immutable=1"
     connection = None
     try:
-        connection = sqlite3.connect(f"{database.resolve().as_uri()}?mode=ro", uri=True)
+        connection = sqlite3.connect(f"{database.resolve().as_uri()}?{query}", uri=True)
         connection.execute("PRAGMA query_only=ON")
         row = connection.execute(f"PRAGMA quick_check({limit})").fetchone()
     except sqlite3.Error as error:

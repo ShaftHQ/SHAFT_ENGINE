@@ -948,7 +948,12 @@ def _corrupt_palace_gate(palace: Path) -> dict[str, str] | None:
     if spec is None or spec.loader is None:
         return None
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
     return module.corrupt_palace_gate(palace)
 
 
@@ -1151,6 +1156,7 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
         )
         if any(
             child.name not in chroma_names
+            and child.name != ".chaos-engine-quarantine"
             and (not child.is_dir() or segment.fullmatch(child.name) is None)
             for child in children
         ):
