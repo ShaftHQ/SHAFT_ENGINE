@@ -1673,7 +1673,9 @@ def assert_single_generated_mempalace(project: Path, *, with_mcp: bool = True) -
             raise RuntimeError("generated MCP configuration supplied MemPalace storage")
 
 
-def _record_empty_project_smoke(evidence: dict[str, object], smoke_elapsed: float) -> None:
+def _record_empty_project_smoke(
+    evidence: dict[str, object], smoke_elapsed: float, phase: str
+) -> None:
     """Record the portable empty-project stopwatch without failing the matrix."""
     smoke_budget = 300
     evidence["emptyProjectSmoke"] = {
@@ -1681,7 +1683,7 @@ def _record_empty_project_smoke(evidence: dict[str, object], smoke_elapsed: floa
         "referencePlatform": "linux",
         "budgetSeconds": smoke_budget,
         "elapsedSeconds": smoke_elapsed,
-        "phase": "fresh-account-candidate-wrapper",
+        "phase": phase,
         "status": "passed" if smoke_elapsed <= smoke_budget else "budget-exceeded",
     }
     # Soft on CI: record stopwatch evidence always. Hard 300s SLA is the
@@ -1894,7 +1896,7 @@ def run_acceptance(
         )
         fresh_phase = evidence["phases"][-1]
         smoke_elapsed = float(fresh_phase.get("durationSeconds") or 0)
-        _record_empty_project_smoke(evidence, smoke_elapsed)
+        _record_empty_project_smoke(evidence, smoke_elapsed, "fresh-account-candidate-wrapper")
         if all(action == "reused" for action in first_fresh["actions"].values()):
             raise RuntimeError("fresh account candidate install did not install isolated tools")
         if fresh_sentinel.read_bytes() != b"preserve fresh user data\n":
