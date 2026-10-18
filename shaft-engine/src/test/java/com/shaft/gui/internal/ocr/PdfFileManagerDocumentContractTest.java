@@ -230,6 +230,36 @@ public class PdfFileManagerDocumentContractTest {
         Assert.assertTrue(wrapped.getCause() instanceof AssertionError, String.valueOf(wrapped.getCause()));
     }
 
+    @Test
+    public void corruptBlankAndInterruptedBatchStayLocal() throws IOException {
+        Path corrupt = temporary("corrupt", ".pdf");
+        Files.writeString(corrupt, "not a pdf");
+        IllegalStateException unreadable = Assert.expectThrows(IllegalStateException.class,
+                () -> new PdfFileManager(corrupt.toString()).process(options()));
+        Assert.assertTrue(unreadable.getMessage().contains("Could not process PDF document"), unreadable.getMessage());
+
+        Path scanned = createScannedPdf();
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(provider(new OcrResult("   ", List.of()))));
+        var blank = new PdfFileManager(scanned.toString()).process(options().withAllureEvidence(true));
+        Assert.assertEquals(blank.pages().getFirst().source(), PdfTextSource.OCR);
+        Assert.assertEquals(blank.pages().getFirst().confidence(), 0.0, 0.0);
+
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(failingProvider(new IllegalStateException())));
+        var nameless = PdfFileManager.processAll(List.of(
+                new PdfDocumentRequest(scanned, options(), List.of())
+        ), new PdfBatchOptions(1, 32 * 1024 * 1024, false));
+        Assert.assertEquals(nameless.items().getFirst().failure(), "IllegalStateException");
+
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(interruptingProvider()));
+        IllegalStateException interrupted = Assert.expectThrows(IllegalStateException.class,
+                () -> PdfFileManager.processAll(List.of(
+                        new PdfDocumentRequest(scanned, options().withPageTimeout(Duration.ofSeconds(30)), List.of())
+                ), new PdfBatchOptions(1, 32 * 1024 * 1024, false)));
+        Thread.interrupted();
+        Assert.assertTrue(interrupted.getMessage().contains("PDF batch processing was interrupted"),
+                interrupted.getMessage());
+    }
+
     private static OcrProcessingProvider blockingProvider() {
         return new OcrProcessingProvider() {
             @Override
