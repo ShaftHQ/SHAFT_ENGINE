@@ -70,6 +70,64 @@ public class OpenApiCoverageReporterUnitTest {
         Assert.assertThrows(IllegalArgumentException.class, () -> OpenApiCoverageReporter.start(spec, 101));
     }
 
+    @Test(description = "OpenAPI coverage caches a file validation filter and ignores blank interactions")
+    public void testOpenApiCoverageFilterAndIgnoredInteractions() throws IOException {
+        String spec = writeSpec();
+        OpenApiValidationFilter first = OpenApiCoverageReporter.validationFilter(spec);
+        OpenApiValidationFilter second = OpenApiCoverageReporter.validationFilter(spec);
+        Assert.assertSame(first, second);
+
+        OpenApiCoverageReporter.start(spec, 80);
+        OpenApiCoverageReporter.recordInteraction(" ", RestActions.RequestType.GET, "/pets", null);
+        OpenApiCoverageReporter.recordInteraction(spec, null, "/pets", null);
+        OpenApiCoverageReporter.recordInteraction(spec, RestActions.RequestType.GET, " ", null);
+        OpenApiCoverageReporter.recordInteraction(spec, RestActions.RequestType.GET, "pets/7/?verbose=true", null);
+
+        String summary = OpenApiCoverageReporter.buildSummaryText();
+        assertTrue(summary.contains("GET /pets/{petId} (getPet) hits=1"), summary);
+        assertTrue(summary.contains("Unmatched operations:"), summary);
+        AssertionError reported = OpenApiCoverageReporter.reportAndGetThresholdFailure();
+        assertNotNull(reported);
+        assertTrue(reported.getMessage().contains("33.33% is below the configured 80% threshold"),
+                reported.getMessage());
+        Assert.assertNull(OpenApiCoverageReporter.reportAndGetThresholdFailure());
+    }
+
+    @Test(description = "OpenAPI coverage reports JSON, a met threshold, an empty document, and a missing spec")
+    public void testOpenApiCoverageReportEdges() throws IOException {
+        String spec = writeSpec();
+        OpenApiCoverageReporter.start(spec, 50);
+        OpenApiCoverageReporter.recordInteraction(spec, RestActions.RequestType.GET, "/pets", null);
+        OpenApiCoverageReporter.recordInteraction(spec, RestActions.RequestType.GET, "/pets/7", validationFailure());
+        OpenApiCoverageReporter.recordInteraction(spec, RestActions.RequestType.POST, "/orders", null);
+        Assert.assertNull(OpenApiCoverageReporter.thresholdFailure());
+
+        AssertionError reported = OpenApiCoverageReporter.reportAndGetThresholdFailure();
+        Assert.assertNull(reported);
+        Assert.assertNull(OpenApiCoverageReporter.reportAndGetThresholdFailure());
+
+        String untagged = writeUntaggedSpec();
+        OpenApiCoverageReporter.start(untagged, 100);
+        String untaggedSummary = OpenApiCoverageReporter.buildSummaryText();
+        assertTrue(untaggedSummary.contains("untagged"), untaggedSummary);
+        assertTrue(untaggedSummary.contains("GET /plain (GET /plain)"), untaggedSummary);
+        assertTrue(untaggedSummary.contains("Exercised operations: none"), untaggedSummary);
+        AssertionError untaggedReport = OpenApiCoverageReporter.reportAndGetThresholdFailure();
+        assertNotNull(untaggedReport);
+        assertTrue(untaggedReport.getMessage().contains("0.00% is below the configured 100% threshold"),
+                untaggedReport.getMessage());
+
+        String empty = writeEmptyPathsSpec();
+        OpenApiCoverageReporter.start(empty, 1);
+        AssertionError emptyPaths = OpenApiCoverageReporter.thresholdFailure();
+        assertNotNull(emptyPaths);
+        assertTrue(emptyPaths.getMessage().contains("0.00%"), emptyPaths.getMessage());
+
+        IllegalArgumentException missing = Assert.expectThrows(IllegalArgumentException.class,
+                () -> OpenApiCoverageReporter.start(specFile.getParent().resolve("missing-openapi.yaml").toString(), 0));
+        assertTrue(missing.getMessage().contains("Unable to load OpenAPI specification"), missing.getMessage());
+    }
+
     @Test(description = "SHAFT API requests are recorded in OpenAPI coverage")
     public void testShaftApiRequestRecordsOpenApiCoverage() throws Exception {
         String spec = writeResourceSpec();
@@ -140,6 +198,40 @@ public class OpenApiCoverageReporterUnitTest {
                         '201':
                           description: created
                 """);
+        return specFile.toString().replace("\\", "/");
+    }
+
+    private String writeUntaggedSpec() throws IOException {
+        return replaceSpec("""
+                openapi: 3.0.0
+                info:
+                  title: SHAFT Untagged Coverage Test API
+                  version: 1.0.0
+                paths:
+                  /plain:
+                    get:
+                      responses:
+                        '200':
+                          description: ok
+                """);
+    }
+
+    private String writeEmptyPathsSpec() throws IOException {
+        return replaceSpec("""
+                openapi: 3.0.0
+                info:
+                  title: SHAFT Empty Coverage Test API
+                  version: 1.0.0
+                paths: {}
+                """);
+    }
+
+    private String replaceSpec(String yaml) throws IOException {
+        if (specFile != null) {
+            Files.deleteIfExists(specFile);
+        }
+        specFile = Files.createTempFile("shaft-openapi-coverage", ".yaml");
+        Files.writeString(specFile, yaml);
         return specFile.toString().replace("\\", "/");
     }
 
