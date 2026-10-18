@@ -32,6 +32,9 @@ runs:
             exit 0
           fi
           if [ "$attempt" -lt 3 ]; then
+            # A Central blip is cached in *.lastUpdated, so the next attempt
+            # would skip the network until Maven's update interval elapsed.
+            find "${HOME}/.m2/repository" \( -name '*.lastUpdated' -o -name 'resolver-status.properties' \) -type f -delete 2>/dev/null || true
             sleep "$((attempt * 10))"
           fi
         done
