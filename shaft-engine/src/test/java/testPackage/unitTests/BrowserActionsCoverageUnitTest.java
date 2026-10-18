@@ -3,7 +3,11 @@ package testPackage.unitTests;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.internal.BidiConsoleLogSource;
 import com.shaft.gui.browser.internal.BrowserNetworkInterceptor;
+import com.shaft.gui.driver.BrowserConsoleMessage;
+import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
+import com.shaft.tools.io.internal.HttpContractRecorder;
 import com.shaft.gui.browser.internal.CdpFetchRuleInterceptor;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
 import com.shaft.properties.internal.Properties;
@@ -665,6 +669,56 @@ public class BrowserActionsCoverageUnitTest {
         browserActions.navigateToURL("https://example.com/fixture");
         verify(navigation).refresh();
         verify(navigation, Mockito.never()).to(anyString());
+    }
+
+    @Test(description = "Console messages and clear use the BiDi snapshot when the session is healthy")
+    public void consoleNamespaceShouldReadAndClearBidiMessages() {
+        try (MockedStatic<BidiConsoleLogSource> bidi = Mockito.mockStatic(BidiConsoleLogSource.class)) {
+            bidi.when(() -> BidiConsoleLogSource.isHealthy(driver)).thenReturn(true);
+            bidi.when(() -> BidiConsoleLogSource.snapshot(driver)).thenReturn(List.of(
+                    new BrowserObservabilityRecorder.ConsoleSnapshotEntry("console", "error", "boom", 1L),
+                    new BrowserObservabilityRecorder.ConsoleSnapshotEntry("console", "info", "ok", 2L)));
+
+            List<BrowserConsoleMessage> errors = browserActions.console().errors();
+            Assert.assertEquals(errors.size(), 1);
+            Assert.assertEquals(errors.get(0).message(), "boom");
+            Assert.assertTrue(browserActions.console().hasErrors());
+
+            browserActions.console().clear();
+            bidi.verify(() -> BidiConsoleLogSource.clear(driver));
+        }
+    }
+
+    @Test(description = "HTTP contract modes report unsupported drivers and roll back a failed setup")
+    public void contractModesShouldCoverUnsupportedAndFailedSetup() {
+        DriverFactoryHelper helper = mock(DriverFactoryHelper.class);
+        when(helper.getDriver()).thenReturn(driver);
+        when(helper.startBrowserNetworkObservation()).thenReturn(false);
+        BrowserActions actions = new BrowserActions(helper);
+
+        Assert.assertSame(actions.startContractRecording("target/selenium-contract.json"), actions);
+        Assert.assertSame(actions.assertContract("target/selenium-contract.json"), actions);
+        Assert.assertSame(actions.verifyContract("target/selenium-contract.json"), actions);
+
+        WebDriver devToolsDriver = mock(WebDriver.class, Mockito.withSettings()
+                .extraInterfaces(JavascriptExecutor.class, HasDevTools.class));
+        DevTools devTools = mock(DevTools.class);
+        when(((HasDevTools) devToolsDriver).maybeGetDevTools()).thenReturn(java.util.Optional.of(devTools));
+        when(helper.getDriver()).thenReturn(devToolsDriver);
+        when(helper.startBrowserNetworkObservation()).thenReturn(true);
+        BrowserActions devToolsActions = new BrowserActions(helper);
+        try {
+            Assert.assertSame(devToolsActions.startContractRecording("target/selenium-contract.json", "/api"), devToolsActions);
+            HttpContractRecorder.stopRecording();
+            Assert.assertSame(devToolsActions.assertContract("target/selenium-contract.json", "/api"), devToolsActions);
+            Assert.assertSame(devToolsActions.verifyContract("target/selenium-contract.json", "/api"), devToolsActions);
+            IllegalArgumentException failure = Assert.expectThrows(IllegalArgumentException.class,
+                    () -> devToolsActions.network().startContractRecording(" "));
+            Assert.assertTrue(failure.getMessage().contains("contractFilePath"));
+            verify(helper).stopBrowserNetworkObservation();
+        } finally {
+            HttpContractRecorder.clear();
+        }
     }
 
     private WebDriver createInterceptableDriver() {

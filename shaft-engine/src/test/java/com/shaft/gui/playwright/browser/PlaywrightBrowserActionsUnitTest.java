@@ -6,6 +6,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Route;
 import com.shaft.gui.browser.internal.PlaywrightNetworkInterceptor;
 import com.shaft.gui.playwright.internal.PlaywrightSession;
+import com.shaft.tools.io.internal.HttpContractRecorder;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.accessibility.AccessibilityActions;
 import org.mockito.MockedStatic;
@@ -149,5 +150,90 @@ public class PlaywrightBrowserActionsUnitTest {
 
         verify(page).navigate("https://example.com/secure");
         verify(interceptor).registerBasicAuthentication("https://example.com", "Basic dXNlcjpzZWNyZXRQYXNz");
+    }
+
+    @Test
+    public void shouldSwitchToWindowByHandleUrlTitleOrIndex() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        BrowserContext context = mock(BrowserContext.class);
+        Page first = mock(Page.class);
+        Page second = mock(Page.class);
+        when(session.browserContext()).thenReturn(context);
+        when(session.page()).thenReturn(first);
+        when(context.pages()).thenReturn(List.of(first, second));
+        when(first.url()).thenReturn("https://example.com/one");
+        when(second.url()).thenReturn("https://example.com/two");
+        when(first.title()).thenReturn("One");
+        when(second.title()).thenReturn("Two");
+        when(session.pageByHandle("page-2")).thenReturn(second);
+        BrowserActions actions = new BrowserActions(session);
+
+        Assert.assertSame(actions.switchToWindow("page-2"), actions);
+
+        when(session.pageByHandle("https://example.com/two")).thenReturn(null);
+        Assert.assertSame(actions.switchToWindow("https://example.com/two"), actions);
+
+        when(session.pageByHandle("Two")).thenReturn(null);
+        Assert.assertSame(actions.switchToWindow("Two"), actions);
+
+        when(session.pageByHandle("1")).thenReturn(null);
+        when(first.url()).thenReturn("https://example.com/other");
+        when(second.url()).thenReturn("https://example.com/else");
+        when(first.title()).thenReturn("Alpha");
+        when(second.title()).thenReturn("Beta");
+        Assert.assertSame(actions.switchToWindow("1"), actions);
+        verify(session, times(4)).setPage(second);
+
+        when(session.pageByHandle("9")).thenReturn(null);
+        IllegalArgumentException missingIndex = Assert.expectThrows(IllegalArgumentException.class,
+                () -> actions.switchToWindow("9"));
+        Assert.assertTrue(missingIndex.getMessage().contains("index"));
+
+        when(session.pageByHandle("missing")).thenReturn(null);
+        IllegalArgumentException missingPage = Assert.expectThrows(IllegalArgumentException.class,
+                () -> actions.switchToWindow("missing"));
+        Assert.assertTrue(missingPage.getMessage().contains("No Playwright page matches"));
+    }
+
+    @Test
+    public void shouldCloseTheCurrentWindowAndKeepTheNextOpenPage() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        BrowserContext context = mock(BrowserContext.class);
+        Page current = mock(Page.class);
+        Page remaining = mock(Page.class);
+        when(session.page()).thenReturn(current);
+        when(session.browserContext()).thenReturn(context);
+        when(context.pages()).thenReturn(List.of(remaining), List.of());
+        BrowserActions actions = new BrowserActions(session);
+
+        actions.closeCurrentWindow();
+        verify(current).close();
+        verify(session).setPage(remaining);
+
+        actions.closeCurrentWindow();
+        verify(session, times(1)).setPage(any(Page.class));
+    }
+
+    @Test
+    public void shouldStartPlaywrightContractsAndRollBackWhenSetupFails() {
+        PlaywrightSession session = mock(PlaywrightSession.class);
+        PlaywrightNetworkInterceptor interceptor = mock(PlaywrightNetworkInterceptor.class);
+        when(session.networkInterceptor()).thenReturn(interceptor);
+        when(session.page()).thenReturn(mock(Page.class));
+        BrowserActions actions = new BrowserActions(session);
+        try {
+            Assert.assertSame(actions.startContractRecording("target/pw-contract.json", "/api"), actions);
+            HttpContractRecorder.stopRecording();
+            Assert.assertSame(actions.assertContract("target/pw-contract.json", "/api"), actions);
+            Assert.assertSame(actions.verifyContract("target/pw-contract.json", "/api"), actions);
+            verify(interceptor, times(3)).startObserving();
+
+            IllegalArgumentException failure = Assert.expectThrows(IllegalArgumentException.class,
+                    () -> actions.startNetworkContractRecording(" "));
+            Assert.assertTrue(failure.getMessage().contains("contractFilePath"));
+            verify(interceptor).stopObserving();
+        } finally {
+            HttpContractRecorder.clear();
+        }
     }
 }

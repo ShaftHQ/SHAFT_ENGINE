@@ -1317,4 +1317,106 @@ public class AllureManagerUnitTest {
             SHAFT.Properties.allure.set().automaticallyOpen(Boolean.parseBoolean(originalAutomaticallyOpen));
         }
     }
+
+    @Test(description = "buildNpmInstallInvocation should prefer PATH npm, then a portable npm-cli.js")
+    public void buildNpmInstallInvocationShouldPreferPathNpmThenPortableCli() throws Exception {
+        Method buildInvocation = AllureManager.class.getDeclaredMethod(
+                "buildNpmInstallInvocation", String.class, String.class, String.class);
+        Method npmCliPath = AllureManager.class.getDeclaredMethod("getNpmCliJsPath");
+        buildInvocation.setAccessible(true);
+        npmCliPath.setAccessible(true);
+
+        String pathNpm = (String) buildInvocation.invoke(null, "node", "/tmp/shaft-cli-home", "3.5.0");
+        if (pathNpm != null) {
+            SHAFT.Validations.assertThat().object(pathNpm.startsWith("npm ")).isEqualTo(true).perform();
+            SHAFT.Validations.assertThat().object(pathNpm).contains("allure@3.5.0").perform();
+        }
+
+        Path cli = Path.of((String) npmCliPath.invoke(null));
+        Files.createDirectories(cli.getParent());
+        Files.writeString(cli, "// offline npm cli");
+        try {
+            String portable = (String) buildInvocation.invoke(null, "/opt/my node", "/tmp/shaft cli home", "3.5.0");
+            SHAFT.Validations.assertThat().object(portable).contains("npm-cli.js").perform();
+            SHAFT.Validations.assertThat().object(portable).contains("allure@3.5.0").perform();
+            SHAFT.Validations.assertThat().object(portable).contains("\"/opt/my node\"").perform();
+        } finally {
+            Files.deleteIfExists(cli);
+        }
+    }
+
+    @Test(description = "isExecutableOnPath should refuse to spawn a process after the thread is interrupted")
+    public void isExecutableOnPathShouldReturnFalseWhenTheThreadIsInterrupted() throws Exception {
+        Method isExecutableOnPath = AllureManager.class.getDeclaredMethod("isExecutableOnPath", String.class);
+        isExecutableOnPath.setAccessible(true);
+        Thread.currentThread().interrupt();
+        try {
+            Object found = isExecutableOnPath.invoke(null, "npm");
+            SHAFT.Validations.assertThat().object(found).isEqualTo(false).perform();
+        } finally {
+            Thread.interrupted();
+        }
+    }
+
+    @Test(description = "patchStatusDetailsInJson should derive package and testClass labels from fullName")
+    public void patchStatusDetailsShouldDerivePackageLabelFromFullName() throws Exception {
+        Method patchMethod = AllureManager.class.getDeclaredMethod("patchStatusDetailsInJson", String.class);
+        patchMethod.setAccessible(true);
+        String patched = (String) patchMethod.invoke(null, """
+                {"fullName":"com.example.Demo.testIt","labels":[{"name":"package","value":"com.example.Demo"}]}
+                """);
+        JsonNode root = MAPPER.readTree(patched);
+        SHAFT.Validations.assertThat().object(labelValue(root, "testClass")).isEqualTo("com.example.Demo").perform();
+        SHAFT.Validations.assertThat().object(labelValue(root, "package")).isEqualTo("com.example").perform();
+    }
+
+    private static String labelValue(JsonNode root, String name) {
+        for (JsonNode label : root.path("labels")) {
+            if (name.equals(label.path("name").asText())) {
+                return label.path("value").asText();
+            }
+        }
+        return "";
+    }
+
+    @Test(description = "tryProvisionAllureCliFromMavenZip should reject an unpinned version without touching npm")
+    public void tryProvisionAllureCliFromMavenZipShouldRejectAnUnpinnedVersion() {
+        SHAFT.Validations.assertThat()
+                .object(AllureManager.tryProvisionAllureCliFromMavenZip("not a version"))
+                .isEqualTo(false)
+                .perform();
+    }
+
+    @Test(description = "unpackAllureCliZip should extract a normal entry and refuse a zip-slip path")
+    public void unpackAllureCliZipShouldExtractAndRefuseZipSlip() throws Exception {
+        Path root = Path.of(System.getProperty("user.dir"), "target", "allure-cli-unpack");
+        Files.createDirectories(root);
+        Path zipPath = root.resolve("cli.zip");
+        Path destination = root.resolve("out");
+        Files.createDirectories(destination);
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(zipPath))) {
+            zip.putNextEntry(new ZipEntry("cli.js"));
+            zip.write("console.log('cli');".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+        }
+        SHAFT.Validations.assertThat()
+                .object(AllureManager.unpackAllureCliZip(zipPath.toFile(), destination.toFile()))
+                .isEqualTo(true)
+                .perform();
+        SHAFT.Validations.assertThat()
+                .object(Files.readString(destination.resolve("cli.js")))
+                .isEqualTo("console.log('cli');")
+                .perform();
+
+        Path slipZip = root.resolve("slip.zip");
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(slipZip))) {
+            zip.putNextEntry(new ZipEntry("../escape.txt"));
+            zip.write("nope".getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+        }
+        SHAFT.Validations.assertThat()
+                .object(AllureManager.unpackAllureCliZip(slipZip.toFile(), destination.toFile()))
+                .isEqualTo(false)
+                .perform();
+    }
 }
