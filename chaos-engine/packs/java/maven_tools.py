@@ -365,7 +365,7 @@ def temurin_provision_lock(root: Path, *, timeout: float = 120):
 
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
         except OSError:
-            pass
+            pass  # the lock file may already be closed by the other process
         handle.close()
 
 

@@ -820,16 +820,19 @@ class TemurinPartialTree7115Test(TestCase):
                 lock = root.parent / f"{root.name}.provision.lock"
                 flag = data / "held"
                 holder = subprocess.Popen(  # nosec B603 - fixed interpreter and flock script.
-                    [sys.executable, "-c",
-                     "import fcntl,sys,time\nfrom pathlib import Path\n"
-                     "p=Path(sys.argv[1]); p.parent.mkdir(parents=True, exist_ok=True)\n"
-                     "f=p.open('a+b')\n"
-                     "f.seek(0,2)\n"
-                     "f.write(b'\\0'); f.flush(); f.seek(0)\n"
-                     "fcntl.flock(f.fileno(), fcntl.LOCK_EX)\n"
-                     "Path(sys.argv[2]).write_text('held')\n"
-                     "time.sleep(30)\n",
-                     str(lock), str(flag)],
+                    [sys.executable, "-c", """import fcntl, sys, time
+from pathlib import Path
+p = Path(sys.argv[1])
+p.parent.mkdir(parents=True, exist_ok=True)
+f = p.open('a+b')
+f.seek(0, 2)
+f.write(b'\\0')
+f.flush()
+f.seek(0)
+fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+Path(sys.argv[2]).write_text('held')
+time.sleep(30)
+""", str(lock), str(flag)],
                 )
                 try:
                     for _ in range(50):
