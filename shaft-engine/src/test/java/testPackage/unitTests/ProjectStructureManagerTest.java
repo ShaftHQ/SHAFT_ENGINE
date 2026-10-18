@@ -200,14 +200,10 @@ public class ProjectStructureManagerTest {
 
     private static int count(String value, String token) {
         int found = 0;
-        int from = 0;
+        int from = value.indexOf(token);
         while (from >= 0) {
-            from = value.indexOf(token, from);
-            if (from < 0) {
-                break;
-            }
             found++;
-            from += token.length();
+            from = value.indexOf(token, from + token.length());
         }
         return found;
     }
