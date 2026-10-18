@@ -13,6 +13,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -56,6 +58,13 @@ public class AllureManagerUnitTest {
         Field field = clazz.getDeclaredField(fieldName);
         field.setAccessible(true);
         return field.get(null);
+    }
+
+    private static Object invokeDeclared(String name, Class<?> returnType, Class<?>[] parameterTypes, Object... args)
+            throws Throwable {
+        return MethodHandles.privateLookupIn(AllureManager.class, MethodHandles.lookup())
+                .findStatic(AllureManager.class, name, MethodType.methodType(returnType, parameterTypes))
+                .invokeWithArguments(args);
     }
 
     @Test(description = "patchStatusDetailsInJson should normalize step statusDetails and prune empty fixtures")
@@ -1319,24 +1328,21 @@ public class AllureManagerUnitTest {
     }
 
     @Test(description = "buildNpmInstallInvocation should prefer PATH npm, then a portable npm-cli.js")
-    public void buildNpmInstallInvocationShouldPreferPathNpmThenPortableCli() throws Exception {
-        Method buildInvocation = AllureManager.class.getDeclaredMethod(
-                "buildNpmInstallInvocation", String.class, String.class, String.class);
-        Method npmCliPath = AllureManager.class.getDeclaredMethod("getNpmCliJsPath");
-        buildInvocation.setAccessible(true);
-        npmCliPath.setAccessible(true);
-
-        String pathNpm = (String) buildInvocation.invoke(null, "node", "/tmp/shaft-cli-home", "3.5.0");
+    public void buildNpmInstallInvocationShouldPreferPathNpmThenPortableCli() throws Throwable {
+        Class<?>[] invocationTypes = {String.class, String.class, String.class};
+        String pathNpm = (String) invokeDeclared(
+                "buildNpmInstallInvocation", String.class, invocationTypes, "node", "/tmp/shaft-cli-home", "3.5.0");
         if (pathNpm != null) {
             SHAFT.Validations.assertThat().object(pathNpm.startsWith("npm ")).isEqualTo(true).perform();
             SHAFT.Validations.assertThat().object(pathNpm).contains("allure@3.5.0").perform();
         }
 
-        Path cli = Path.of((String) npmCliPath.invoke(null));
+        Path cli = Path.of((String) invokeDeclared("getNpmCliJsPath", String.class, new Class<?>[0]));
         Files.createDirectories(cli.getParent());
         Files.writeString(cli, "// offline npm cli");
         try {
-            String portable = (String) buildInvocation.invoke(null, "/opt/my node", "/tmp/shaft cli home", "3.5.0");
+            String portable = (String) invokeDeclared(
+                    "buildNpmInstallInvocation", String.class, invocationTypes, "/opt/my node", "/tmp/shaft cli home", "3.5.0");
             SHAFT.Validations.assertThat().object(portable).contains("npm-cli.js").perform();
             SHAFT.Validations.assertThat().object(portable).contains("allure@3.5.0").perform();
             SHAFT.Validations.assertThat().object(portable).contains("\"/opt/my node\"").perform();
@@ -1346,12 +1352,10 @@ public class AllureManagerUnitTest {
     }
 
     @Test(description = "isExecutableOnPath should refuse to spawn a process after the thread is interrupted")
-    public void isExecutableOnPathShouldReturnFalseWhenTheThreadIsInterrupted() throws Exception {
-        Method isExecutableOnPath = AllureManager.class.getDeclaredMethod("isExecutableOnPath", String.class);
-        isExecutableOnPath.setAccessible(true);
+    public void isExecutableOnPathShouldReturnFalseWhenTheThreadIsInterrupted() throws Throwable {
         Thread.currentThread().interrupt();
         try {
-            Object found = isExecutableOnPath.invoke(null, "npm");
+            Object found = invokeDeclared("isExecutableOnPath", boolean.class, new Class<?>[] {String.class}, "npm");
             SHAFT.Validations.assertThat().object(found).isEqualTo(false).perform();
         } finally {
             Thread.interrupted();
@@ -1359,10 +1363,8 @@ public class AllureManagerUnitTest {
     }
 
     @Test(description = "patchStatusDetailsInJson should derive package and testClass labels from fullName")
-    public void patchStatusDetailsShouldDerivePackageLabelFromFullName() throws Exception {
-        Method patchMethod = AllureManager.class.getDeclaredMethod("patchStatusDetailsInJson", String.class);
-        patchMethod.setAccessible(true);
-        String patched = (String) patchMethod.invoke(null, """
+    public void patchStatusDetailsShouldDerivePackageLabelFromFullName() throws Throwable {
+        String patched = (String) invokeDeclared("patchStatusDetailsInJson", String.class, new Class<?>[] {String.class}, """
                 {"fullName":"com.example.Demo.testIt","labels":[{"name":"package","value":"com.example.Demo"}]}
                 """);
         JsonNode root = MAPPER.readTree(patched);

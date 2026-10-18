@@ -35,6 +35,8 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -886,7 +888,7 @@ public class TerminalActionsUnitTest {
     }
 
     @Test(description = "createOptionsBackedSshSession should configure a mocked JSch session and report connect failure")
-    public void createOptionsBackedSshSessionShouldConfigureMockedJschWithoutConnecting() throws Exception {
+    public void createOptionsBackedSshSessionShouldConfigureMockedJschWithoutConnecting() throws Throwable {
         Path key = Files.createTempFile("shaft-id", ".pem");
         Path knownHosts = Files.createTempFile("shaft-known", ".hosts");
         Files.writeString(key, "not-a-real-key");
@@ -903,8 +905,9 @@ public class TerminalActionsUnitTest {
                 .extraJschConfig("PreferredAuthentications", "publickey")
                 .build();
         TerminalActions terminal = TerminalActions.getRemoteInstance(options);
-        Method createSession = TerminalActions.class.getDeclaredMethod("createOptionsBackedSshSession", SshConnectionOptions.class);
-        createSession.setAccessible(true);
+        var createSession = MethodHandles.privateLookupIn(TerminalActions.class, MethodHandles.lookup())
+                .findVirtual(TerminalActions.class, "createOptionsBackedSshSession",
+                        MethodType.methodType(Session.class, SshConnectionOptions.class));
         AtomicInteger attempts = new AtomicInteger();
         try (MockedConstruction<JSch> ignored = mockConstruction(JSch.class, (jsch, context) -> {
             Session session = mock(Session.class);
@@ -919,10 +922,9 @@ public class TerminalActionsUnitTest {
             verify(created).connect();
             verify(created).setUserInfo(any());
 
-            InvocationTargetException failure = Assert.expectThrows(InvocationTargetException.class,
+            RuntimeException failure = Assert.expectThrows(RuntimeException.class,
                     () -> createSession.invoke(terminal, options));
-            Assert.assertTrue(failure.getCause() instanceof RuntimeException);
-            Assert.assertTrue(failure.getCause().getMessage().contains("host.example.com"));
+            Assert.assertTrue(failure.getMessage().contains("host.example.com"));
         } finally {
             terminal.quit();
             Files.deleteIfExists(key);
@@ -932,8 +934,9 @@ public class TerminalActionsUnitTest {
 
     private static void setField(Object target, String name, Object value) throws Exception {
         Field field = target.getClass().getDeclaredField(name);
-        field.setAccessible(true);
-        field.set(target, value);
+        MethodHandles.privateLookupIn(target.getClass(), MethodHandles.lookup())
+                .findVarHandle(target.getClass(), name, field.getType())
+                .set(target, value);
     }
 
 }
