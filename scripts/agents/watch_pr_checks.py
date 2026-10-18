@@ -445,10 +445,13 @@ def _deferred_while_other_checks_pending(check: dict) -> bool:
     A PR Gate Summary failure during a live run is the cancelled workflow's
     summary. Codacy posts ``ACTION_REQUIRED`` before analysis finishes. That
     state stays pending until the other checks complete, then it is RED.
+    ``codecov/patch`` can post FAILURE at 0% while a later unit shard has not
+    uploaded yet, then update the same check to success. That early failure
+    stays pending. A patch failure after every other check has completed is RED.
     """
     name = str(check.get("name", ""))
     state = str(check.get("state", "")).upper()
-    if name == "PR Gate Summary":
+    if name in {"PR Gate Summary", "codecov/patch"}:
         return True
     return CODACY_NAME_MARKER in name.lower() and state == "ACTION_REQUIRED"
 

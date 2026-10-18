@@ -450,6 +450,27 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         self.assertEqual("RED", bucket)
         self.assertEqual("Codacy Static Code Analysis", failing[0]["name"])
 
+    def test_codecov_patch_failure_stays_pending_while_another_check_runs(self):
+        bucket, failing = watch_pr_checks.classify_checks(
+            [
+                {"name": "codecov/patch", "state": "FAILURE", "link": "https://app.codecov.io/early"},
+                {"name": "Unit Tests (shaft-engine-shard-2)", "state": "IN_PROGRESS", "link": "https://checks/shard"},
+            ]
+        )
+        self.assertEqual("PENDING", bucket)
+        self.assertEqual([], failing)
+
+    def test_codecov_patch_failure_is_red_after_other_checks_complete(self):
+        bucket, failing = watch_pr_checks.classify_checks(
+            [
+                {"name": "codecov/patch", "state": "FAILURE", "link": "https://app.codecov.io/done"},
+                {"name": "PR Gate Summary", "state": "SUCCESS", "link": "https://checks/gate"},
+                {"name": "Release-note governance", "state": "SUCCESS", "link": "https://checks/notes"},
+            ]
+        )
+        self.assertEqual("RED", bucket)
+        self.assertEqual("codecov/patch", failing[0]["name"])
+
     def test_a_real_failure_stays_red_while_another_check_runs(self):
         bucket, failing = watch_pr_checks.classify_checks(
             [
