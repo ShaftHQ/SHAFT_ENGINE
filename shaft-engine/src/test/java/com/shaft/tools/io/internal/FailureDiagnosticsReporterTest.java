@@ -151,6 +151,56 @@ public class FailureDiagnosticsReporterTest {
         }
     }
 
+    @Test(description = "Diagnostics JSON records a source snippet, artifact types, causes, and a broken status")
+    public void sourceSnippetArtifactTypesAndBrokenStatusAreRecorded() throws Exception {
+        try {
+            SHAFT.Properties.reporting.set().diagnosticsBundleEnabled(true).traceEnabled(false);
+            ReportContext.start(info("snippetScenario", snippetFailure(13)));
+            ReportContext.setStatus(Status.FAILED);
+
+            Assert.assertFalse(FailureDiagnosticsReporter.shouldAttachDiagnostics(null));
+            Assert.assertFalse(FailureDiagnosticsReporter.shouldAttachDiagnostics(info("snippetScenario", null)));
+
+            String json = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("snippetScenario", snippetFailure(13)),
+                    null,
+                    List.of("target/evidence.gif", "target/notes.zip", "target/page.html", "target/notes.txt",
+                            "target/api-capture.json"));
+            Assert.assertTrue(json.contains("> 13:"), json);
+            Assert.assertTrue(json.contains("String clearBeforeTypingMode;"), json);
+            Assert.assertTrue(json.contains("\"type\": \"image/gif\""), json);
+            Assert.assertTrue(json.contains("\"type\": \"text/html\""), json);
+            Assert.assertTrue(json.contains("\"type\": \"text/plain\""), json);
+            Assert.assertTrue(json.contains("target/notes.zip"), json);
+            Assert.assertTrue(json.contains("IllegalStateException: locator missing"), json);
+            Assert.assertEquals(field(json, "captureSessionId"), "api-capture.json");
+            Assert.assertTrue(json.contains("\"logs\": []"), json);
+
+            String blankLine = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("snippetScenario", snippetFailure(0)), " \n", List.of());
+            Assert.assertTrue(blankLine.contains("\"snippet\": \"\""), blankLine);
+            Assert.assertTrue(blankLine.contains("\"logLinesOmitted\": 0"), blankLine);
+
+            ReportContext.setStatus(Status.BROKEN);
+            String broken = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("snippetScenario", snippetFailure(13)), "one line", null);
+            Assert.assertTrue(broken.contains("\"status\": \"broken\""), broken);
+            Assert.assertTrue(broken.contains("\"captureSessionId\": \"\""), broken);
+
+            String noFailure = FailureDiagnosticsReporter.renderDiagnosticsJson(
+                    info("snippetScenario", null), " ", List.of());
+            Assert.assertTrue(noFailure.contains("\"type\": \"\""), noFailure);
+            Assert.assertTrue(noFailure.contains("\"causes\": []"), noFailure);
+
+            SHAFT.Properties.reporting.set().diagnosticsMaxArtifactMb(1);
+            String omitted = unzipDiagnostics(FailureDiagnosticsReporter.renderDiagnosticsZip("x".repeat(1024 * 1024 + 32)));
+            Assert.assertTrue(omitted.contains("Omitted because artifact exceeded shaft.diagnostics.maxArtifactMb=1"), omitted);
+        } finally {
+            ReportContext.clear();
+            Properties.clearForCurrentThread();
+        }
+    }
+
     @Test(description = "The final failure reporter should release native trace ownership for the worker thread")
     public void diagnosticsReporterShouldReleaseNativeTraceBeforeTheNextSameThreadTest() throws Exception {
         Field field = PlaywrightTraceManager.class.getDeclaredField("LAST_TRACE_PATH");
@@ -177,6 +227,14 @@ public class FailureDiagnosticsReporterTest {
         Method method = FailureDiagnosticsReporterTest.class.getDeclaredMethod("failingScenario");
         return new TestExecutionInfo("id-" + methodName, "customer.LoginTest", methodName, methodName,
                 "diagnostics test", method, throwable, false);
+    }
+
+    private static RuntimeException snippetFailure(int lineNumber) {
+        RuntimeException throwable = new RuntimeException("navigation failed", new IllegalStateException("locator missing"));
+        throwable.setStackTrace(new StackTraceElement[]{
+                new StackTraceElement("testPackage.properties.FlagsTests$Nested", "checkFlags", "FlagsTests.java", lineNumber)
+        });
+        return throwable;
     }
 
     private static RuntimeException failure() {
