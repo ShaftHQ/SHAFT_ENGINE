@@ -796,10 +796,21 @@ public class TestNGListenerCoverageUnitTest {
         }
     }
 
-    private static void clearActiveTestClass() throws Exception {
-        Field activeTestClass = TestNGListener.class.getDeclaredField("activeTestClass");
-        activeTestClass.setAccessible(true);
-        ((ThreadLocal<?>) activeTestClass.get(null)).remove();
+    private static void clearActiveTestClass() {
+        TestNGListener listener = new TestNGListener();
+        IInvokedMethod invokedMethod = Mockito.mock(IInvokedMethod.class);
+        ITestNGMethod testMethod = createTestMethod("afterClass");
+        ITestResult testResult = createTestResult("afterClass", null);
+        Mockito.when(invokedMethod.isTestMethod()).thenReturn(false);
+        Mockito.when(invokedMethod.isConfigurationMethod()).thenReturn(true);
+        Mockito.when(invokedMethod.getTestMethod()).thenReturn(testMethod);
+        Mockito.when(testMethod.isAfterClassConfiguration()).thenReturn(true);
+        Mockito.when(testResult.getStatus()).thenReturn(ITestResult.SUCCESS);
+        try (MockedStatic<IssueReporter> ignoredIssue = Mockito.mockStatic(IssueReporter.class);
+             MockedStatic<TestNGListenerHelper> ignoredHelper = Mockito.mockStatic(TestNGListenerHelper.class);
+             MockedStatic<ReportManagerHelper> ignoredReport = Mockito.mockStatic(ReportManagerHelper.class)) {
+            listener.afterInvocation(invokedMethod, testResult, Mockito.mock(ITestContext.class));
+        }
     }
 
     private static ITestNGMethod createTestMethod(String methodName) {
