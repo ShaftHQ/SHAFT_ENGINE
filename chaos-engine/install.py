@@ -6142,6 +6142,78 @@ def _repair_policy_overlay(project: Path, runner) -> dict[str, object]:
             "action": "reinstalled-from-local-source", "healed": mismatches}
 
 
+def _repair_dependency_component(
+    project: Path,
+    name: str,
+    target: Path,
+    host_controller: object,
+    runner: object,
+    repair_core_commit: str,
+    repair_capability: str | None,
+    account_commands: dict[str, str] | None,
+) -> dict[str, object]:
+    """Repair memory, mempalace, graphify, and tools, or reject an unknown component."""
+    import subprocess
+
+    if name == "memory" and hasattr(host_controller, "migrate_legacy_memory_store"):
+        migrated = host_controller.migrate_legacy_memory_store(project)
+        if isinstance(migrated, dict) and migrated.get("status") == "migrated":
+            return {
+                "status": "repaired",
+                "component": name,
+                "action": "migrate-legacy-objects",
+                "objects": migrated.get("objects"),
+            }
+    if name in {"memory", "mempalace", "graphify", "tools"}:
+        controller = load_dependency_controller(target)
+        specification = controller.load_specification(target / "dependencies.json")
+        account_receipt = project / ".chaos-engine-dependencies.json"
+        if account_receipt.is_file() and hasattr(controller, "install_account_dependencies"):
+            controller.install_account_dependencies(project, specification, runner=runner)
+            payload: dict[str, object] = {
+                "status": "repaired",
+                "component": name,
+                "action": "account-reinstall",
+            }
+        else:
+            runtime = project / ".chaos-engine-runtime"
+            repair = getattr(controller, "repair", None)
+            if not callable(repair):
+                raise ValueError("dependency repair is unavailable in this distribution")
+            plan_runner = runner
+            if plan_runner is None or plan_runner is subprocess.run:
+                plan_runner = controller.run_command
+            receipt = repair(runtime, specification, runner=plan_runner, force=True)
+            payload = {
+                "status": "repaired",
+                "component": name,
+                "action": "runtime-repair",
+                "receiptStatus": receipt.get("status") if isinstance(receipt, dict) else None,
+            }
+        if name == "tools":
+            heal = getattr(host_controller, "ensure_managed_temurin_jdk", None)
+            if callable(heal):
+                produced = heal(specification)
+                payload["temurin"] = str(produced) if produced else "absent"
+                payload["fixNext"] = getattr(
+                    host_controller, "TEMURIN_REPAIR_HINT", "repair --component tools"
+                )
+        if name == "mempalace":
+            # #6236: repair must create a missing or uninitialized palace.
+            try:
+                host_controller.initialize_mempalace_runtime(project)
+            except ValueError as error:
+                payload["palaceError"] = str(error)
+            payload["palace"] = str(
+                host_controller.mempalace_runtime_status(project).get("status") or "unknown"
+            )
+        if name in {"mempalace", "graphify"}:
+            payload["storeRefresh"] = _refresh_shared_store(project, name)
+            _install_store_schedule(project)
+        return payload
+    raise ValueError(f"repair not implemented for component: {name}")
+
+
 def repair_component(  # noqa: MC0001 - component switch keeps one operator entrypoint.
     project: Path,
     component: str,
@@ -6268,63 +6340,16 @@ def repair_component(  # noqa: MC0001 - component switch keeps one operator entr
             if name == "hooks":
                 payload["receiptShims"] = wire_receipt_shims(project)
             return payload
-        if name == "memory" and hasattr(host_controller, "migrate_legacy_memory_store"):
-            migrated = host_controller.migrate_legacy_memory_store(project)
-            if isinstance(migrated, dict) and migrated.get("status") == "migrated":
-                return {
-                    "status": "repaired",
-                    "component": name,
-                    "action": "migrate-legacy-objects",
-                    "objects": migrated.get("objects"),
-                }
-        if name in {"memory", "mempalace", "graphify", "tools"}:
-            controller = load_dependency_controller(target)
-            specification = controller.load_specification(target / "dependencies.json")
-            account_receipt = project / ".chaos-engine-dependencies.json"
-            if account_receipt.is_file() and hasattr(controller, "install_account_dependencies"):
-                controller.install_account_dependencies(project, specification, runner=runner)
-                payload: dict[str, object] = {
-                    "status": "repaired",
-                    "component": name,
-                    "action": "account-reinstall",
-                }
-            else:
-                runtime = project / ".chaos-engine-runtime"
-                repair = getattr(controller, "repair", None)
-                if not callable(repair):
-                    raise ValueError("dependency repair is unavailable in this distribution")
-                plan_runner = runner
-                if plan_runner is None or plan_runner is subprocess.run:
-                    plan_runner = controller.run_command
-                receipt = repair(runtime, specification, runner=plan_runner, force=True)
-                payload = {
-                    "status": "repaired",
-                    "component": name,
-                    "action": "runtime-repair",
-                    "receiptStatus": receipt.get("status") if isinstance(receipt, dict) else None,
-                }
-            if name == "tools":
-                heal = getattr(host_controller, "ensure_managed_temurin_jdk", None)
-                if callable(heal):
-                    produced = heal(specification)
-                    payload["temurin"] = str(produced) if produced else "absent"
-                    payload["fixNext"] = getattr(
-                        host_controller, "TEMURIN_REPAIR_HINT", "repair --component tools"
-                    )
-            if name == "mempalace":
-                # #6236: repair must create a missing or uninitialized palace.
-                try:
-                    host_controller.initialize_mempalace_runtime(project)
-                except ValueError as error:
-                    payload["palaceError"] = str(error)
-                payload["palace"] = str(
-                    host_controller.mempalace_runtime_status(project).get("status") or "unknown"
-                )
-            if name in {"mempalace", "graphify"}:
-                payload["storeRefresh"] = _refresh_shared_store(project, name)
-                _install_store_schedule(project)
-            return payload
-        raise ValueError(f"repair not implemented for component: {name}")
+        return _repair_dependency_component(
+            project,
+            name,
+            target,
+            host_controller,
+            runner,
+            repair_core_commit,
+            repair_capability,
+            account_commands,
+        )
 
 
 _repair_component_locked = repair_component

@@ -1018,6 +1018,91 @@ def attempt_mempalace_sqlite_exact_heal(palace: Path) -> bool:
             connection.close()
 
 
+def _classify_exact_mempalace(
+    palace: Path,
+    exact: Path,
+    wal: Path,
+    shared_memory: Path,
+    sidecar: Path,
+    mined: Path,
+) -> dict[str, str]:
+    """Classify the sqlite-exact palace after unknown children are quarantined."""
+    if sidecar.exists():
+        if not sidecar.is_dir() or is_link_or_reparse(sidecar):
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state contains unrecognized recoverable data",
+            }
+        try:
+            sidecar_children = list(sidecar.iterdir())
+        except OSError:
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state is unreadable or contains a link or reparse point",
+            }
+        if any(
+            child.name != "origin.json" or is_link_or_reparse(child)
+            for child in sidecar_children
+        ):
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state contains unrecognized recoverable data",
+            }
+    if mined.exists():
+        try:
+            mined_healthy = (
+                not is_link_or_reparse(mined)
+                and mined.is_file()
+                and mined.read_bytes() in {b"current\n", b"current\r\n"}
+            )
+        except OSError:
+            mined_healthy = False
+        if not mined_healthy:
+            return {
+                "status": "recovery-required",
+                "detail": "MemPalace state contains unrecognized recoverable data",
+            }
+    wal_exists = wal.exists()
+    shared_memory_exists = shared_memory.exists()
+    if not exact.exists() and (wal_exists or shared_memory_exists):
+        return {
+            "status": "recovery-required",
+            "detail": "SQLite-exact MemPalace WAL state has no database",
+        }
+    if exact.exists():
+        # Never open the DB (even for FTS heal) when WAL/SHM pairing is broken —
+        # a probe connection can create a missing sidecar and hide the defect.
+        if wal_exists != shared_memory_exists:
+            return {
+                "status": "recovery-required",
+                "detail": "SQLite-exact MemPalace state is unreadable or malformed",
+            }
+        # #7118: a torn snapshot must not look like a healthy or partial store.
+        gate = _corrupt_palace_gate(palace)
+        if gate is not None:
+            return {"status": "recovery-required", "detail": gate["detail"]}
+        if not _sqlite_runtime_valid(
+            exact,
+            required_schema=SQLITE_EXACT_SCHEMA,
+            required_indexes=SQLITE_EXACT_INDEXES,
+            collection="mempalace_drawers",
+        ):
+            if attempt_mempalace_sqlite_exact_heal(palace):
+                if _sqlite_runtime_valid(
+                    exact,
+                    required_schema=SQLITE_EXACT_SCHEMA,
+                    required_indexes=SQLITE_EXACT_INDEXES,
+                    collection="mempalace_drawers",
+                ):
+                    return {"status": "healthy", "backend": "sqlite_exact"}
+            return {
+                "status": "recovery-required",
+                "detail": "SQLite-exact MemPalace state is unreadable or malformed",
+            }
+        return {"status": "healthy", "backend": "sqlite_exact"}
+    return {"status": "initialization-required", "backend": "sqlite_exact"}
+
+
 def mempalace_directory_status(palace: Path) -> dict[str, str]:
     """Classify one MemPalace directory without importing its native backend."""
     if is_link_or_reparse(palace):
@@ -1117,80 +1202,7 @@ def mempalace_directory_status(palace: Path) -> dict[str, str]:
                 "status": "recovery-required",
                 "detail": "MemPalace state contains unrecognized recoverable data",
             }
-    if sidecar.exists():
-        if not sidecar.is_dir() or is_link_or_reparse(sidecar):
-            return {
-                "status": "recovery-required",
-                "detail": "MemPalace state contains unrecognized recoverable data",
-            }
-        try:
-            sidecar_children = list(sidecar.iterdir())
-        except OSError:
-            return {
-                "status": "recovery-required",
-                "detail": "MemPalace state is unreadable or contains a link or reparse point",
-            }
-        if any(
-            child.name != "origin.json" or is_link_or_reparse(child)
-            for child in sidecar_children
-        ):
-            return {
-                "status": "recovery-required",
-                "detail": "MemPalace state contains unrecognized recoverable data",
-            }
-    if mined.exists():
-        try:
-            mined_healthy = (
-                not is_link_or_reparse(mined)
-                and mined.is_file()
-                and mined.read_bytes() in {b"current\n", b"current\r\n"}
-            )
-        except OSError:
-            mined_healthy = False
-        if not mined_healthy:
-            return {
-                "status": "recovery-required",
-                "detail": "MemPalace state contains unrecognized recoverable data",
-            }
-    wal_exists = wal.exists()
-    shared_memory_exists = shared_memory.exists()
-    if not exact.exists() and (wal_exists or shared_memory_exists):
-        return {
-            "status": "recovery-required",
-            "detail": "SQLite-exact MemPalace WAL state has no database",
-        }
-    if exact.exists():
-        # Never open the DB (even for FTS heal) when WAL/SHM pairing is broken —
-        # a probe connection can create a missing sidecar and hide the defect.
-        if wal_exists != shared_memory_exists:
-            return {
-                "status": "recovery-required",
-                "detail": "SQLite-exact MemPalace state is unreadable or malformed",
-            }
-        # #7118: a torn snapshot must not look like a healthy or partial store.
-        gate = _corrupt_palace_gate(palace)
-        if gate is not None:
-            return {"status": "recovery-required", "detail": gate["detail"]}
-        if not _sqlite_runtime_valid(
-            exact,
-            required_schema=SQLITE_EXACT_SCHEMA,
-            required_indexes=SQLITE_EXACT_INDEXES,
-            collection="mempalace_drawers",
-        ):
-            if attempt_mempalace_sqlite_exact_heal(palace):
-                if _sqlite_runtime_valid(
-                    exact,
-                    required_schema=SQLITE_EXACT_SCHEMA,
-                    required_indexes=SQLITE_EXACT_INDEXES,
-                    collection="mempalace_drawers",
-                ):
-                    return {"status": "healthy", "backend": "sqlite_exact"}
-            return {
-                "status": "recovery-required",
-                "detail": "SQLite-exact MemPalace state is unreadable or malformed",
-            }
-        return {"status": "healthy", "backend": "sqlite_exact"}
-    return {"status": "initialization-required", "backend": "sqlite_exact"}
+    return _classify_exact_mempalace(palace, exact, wal, shared_memory, sidecar, mined)
 
 
 def mempalace_runtime_status(project: Path) -> dict[str, str]:

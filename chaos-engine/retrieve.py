@@ -570,6 +570,57 @@ def _corrupt_mempalace_gate(project: Path) -> dict[str, str] | None:
     return gate
 
 
+def _store_hit_receipt(
+    project: Path, store: str, query: str, completed: subprocess.CompletedProcess[str], origin_sync: bool
+) -> dict[str, Any]:
+    """Turn a zero-exit store command into a used, skipped, or outside-workspace receipt."""
+    body = (completed.stdout or "").strip()
+    if is_empty_result(body):
+        return {
+            "store": store,
+            "status": STATUS_SKIPPED,
+            "reason": "no-relevant-hits",
+            "query": query,
+        }
+    outside = _outside_workspace_receipt(project, store, query)
+    if outside is not None:
+        return outside
+    hits = _structured_hits(body, query=query)
+    if not hits and store == "mempalace":
+        hits = _source_name_hits(project, body)
+    mindset = _mindset()
+    if store == "graphify" and mindset is not None:
+        hits = mindset.relevance_floor(hits, query, project=project)
+        if not hits:
+            return {
+                "store": store,
+                "status": STATUS_SKIPPED,
+                "reason": "no-relevant-hits",
+                "query": query,
+                "hits": [],
+                "bytes": 0,
+            }
+    if store == "memory" and not hits and mindset is not None:
+        return mindset.memory_no_hit_receipt()
+    excerpt_limit = _EXCERPT_WITH_HITS if hits else 4096
+    if mindset is not None:
+        excerpt_limit = min(excerpt_limit, mindset.store_budget_bytes(store))
+    excerpt = _bounded_excerpt(body, excerpt_limit)
+    receipt = {
+        "store": store,
+        "status": STATUS_USED,
+        "reason": "hits",
+        "query": query,
+        "hits": hits,
+        "excerpt": excerpt,
+        "bytes": len(excerpt.encode("utf-8")),
+    }
+    _record_store_outcome(project, store, STATUS_USED, query, body)
+    if origin_sync:
+        receipt["originSync"] = "advisory"
+    return receipt
+
+
 def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
     """One attempt; no retries. Missing/unhealthy → degraded; empty relevance → skipped."""
     tool = _tool_py(project)
@@ -660,51 +711,7 @@ def _run_store(project: Path, store: str, query: str) -> dict[str, Any]:
             degraded.update(blocking=True, fixNext=BACKEND_MISMATCH_FIX)
             print(f"retrieve: MemPalace backend mismatch; {BACKEND_MISMATCH_FIX}", file=sys.stderr)
         return degraded
-    body = (completed.stdout or "").strip()
-    if is_empty_result(body):
-        return {
-            "store": store,
-            "status": STATUS_SKIPPED,
-            "reason": "no-relevant-hits",
-            "query": query,
-        }
-    outside = _outside_workspace_receipt(project, store, query)
-    if outside is not None:
-        return outside
-    hits = _structured_hits(body, query=query)
-    if not hits and store == "mempalace":
-        hits = _source_name_hits(project, body)
-    mindset = _mindset()
-    if store == "graphify" and mindset is not None:
-        hits = mindset.relevance_floor(hits, query, project=project)
-        if not hits:
-            return {
-                "store": store,
-                "status": STATUS_SKIPPED,
-                "reason": "no-relevant-hits",
-                "query": query,
-                "hits": [],
-                "bytes": 0,
-            }
-    if store == "memory" and not hits and mindset is not None:
-        return mindset.memory_no_hit_receipt()
-    excerpt_limit = _EXCERPT_WITH_HITS if hits else 4096
-    if mindset is not None:
-        excerpt_limit = min(excerpt_limit, mindset.store_budget_bytes(store))
-    excerpt = _bounded_excerpt(body, excerpt_limit)
-    receipt = {
-        "store": store,
-        "status": STATUS_USED,
-        "reason": "hits",
-        "query": query,
-        "hits": hits,
-        "excerpt": excerpt,
-        "bytes": len(excerpt.encode("utf-8")),
-    }
-    _record_store_outcome(project, store, STATUS_USED, query, body)
-    if origin_sync:
-        receipt["originSync"] = "advisory"
-    return receipt
+    return _store_hit_receipt(project, store, query, completed, origin_sync)
 
 
 def _recorded_mismatch(project: Path, store: str, recheck: bool) -> dict[str, Any] | None:
