@@ -28,8 +28,9 @@ Waste is any token, retry, duplicate tool, proxy hop, or retry-the-same-search t
 - Do not paste a raw check rollup into context. Read the `watch_pr_checks.py --digest` line ([CI status economy](ci-status-economy.md)).
 - One status channel per PR: a live watch lease silences scheduled status routines and parent re-narration.
 - Do not block a model turn on CI. Arm `watch_pr_checks.py` and end the turn. A goal sentence that says "wait until the watcher reports" is that watch, not a foreground sleep.
-- Do not re-read product source from a primary checkout that is behind `origin/main`. Read the feature worktree or `git show origin/main:path`.
-- Do not print `GLOBAL_TESTING_SCOPE` or any other full workflow selector. A class-selection check prints a match count.
+- Do not re-read product source from a primary checkout that is behind the fetched default branch. Read the feature worktree.
+- Do not print a full workflow selector. A class-selection check prints a match count.
+- A fresh triage receipt skips a repeat. `python3 scripts/agents/nightly_triage_receipt.py` (repo-only).
 - Offline coverage that only extends one already-selected test class ships as one pull request until that class diff exceeds 400 lines or the local class run exceeds 2 minutes. Further cases stay one unpushed commit while that pull request is open.
 - Do not push one tip per micro-fix. Run [tip-churn preflight](tip-churn-preflight.md) first.
 

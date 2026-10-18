@@ -239,12 +239,6 @@ Nightly trackers on `E2E Tests` and `Local E2E Tests` auto-close only when
 those workflows succeed with `jobs=all`. A targeted workflow_dispatch must not close them.
 A merge-time close and a manual `gh issue close` are not that proof either.
 
-A recorded triage receipt stays fresh until its `next_cron` or until any named
-workflow's latest `event=schedule` run id changes. Run
-`python3 scripts/agents/nightly_triage_receipt.py`. On SKIP, do not refetch job
-logs and do not open a product pull request. A goal line that repeats "triage
-the nightly logs" does not override a fresh SKIP.
-
 ## 8. Report
 
 Report what shipped, what was deferred and why, what remains open, and any
