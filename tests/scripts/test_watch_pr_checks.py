@@ -10,7 +10,7 @@ import unittest
 import unittest.mock
 from pathlib import Path
 
-from scripts.agents import watch_pr_checks
+from scripts.agents import nightly_triage_receipt, watch_pr_checks
 
 
 class WatchPrChecksRepositoryContextTest(unittest.TestCase):
@@ -449,6 +449,47 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         )
         self.assertEqual("RED", bucket)
         self.assertEqual("Codacy Static Code Analysis", failing[0]["name"])
+
+    def test_codecov_patch_failure_stays_pending_while_another_check_runs(self):
+        bucket, failing = watch_pr_checks.classify_checks(
+            [
+                {"name": "codecov/patch", "state": "FAILURE", "link": "https://app.codecov.io/early"},
+                {"name": "Unit Tests (shaft-engine-shard-2)", "state": "IN_PROGRESS", "link": "https://checks/shard"},
+            ]
+        )
+        self.assertEqual("PENDING", bucket)
+        self.assertEqual([], failing)
+
+    def test_codecov_patch_failure_is_red_after_other_checks_complete(self):
+        bucket, failing = watch_pr_checks.classify_checks(
+            [
+                {"name": "codecov/patch", "state": "FAILURE", "link": "https://app.codecov.io/done"},
+                {"name": "PR Gate Summary", "state": "SUCCESS", "link": "https://checks/gate"},
+                {"name": "Release-note governance", "state": "SUCCESS", "link": "https://checks/notes"},
+            ]
+        )
+        self.assertEqual("RED", bucket)
+        self.assertEqual("codecov/patch", failing[0]["name"])
+
+    def test_fresh_nightly_receipt_skips_and_a_new_run_id_triages(self):
+        runs = {"live": 1, "local": 2, "e2e": 3}
+        receipt = {"run_ids": runs, "decision": "NO_PRODUCT_FIX", "next_cron": "2026-10-19T01:00:00Z"}
+        self.assertEqual("SKIP", nightly_triage_receipt.freshness(receipt, runs, "2026-10-18T18:08:10Z"))
+        self.assertEqual("TRIAGE", nightly_triage_receipt.freshness(receipt, {"live": 9, "local": 2, "e2e": 3}, "2026-10-18T18:08:10Z"))
+        self.assertEqual("TRIAGE", nightly_triage_receipt.freshness(receipt, runs, "2026-10-19T01:00:00Z"))
+        self.assertEqual("TRIAGE", nightly_triage_receipt.freshness(None, runs, "2026-10-18T18:08:10Z"))
+
+    def test_session_countermeasures_are_written(self):
+        root = Path(__file__).resolve().parents[2] / "chaos-engine/references"
+        waste = (root / "eliminate-waste.md").read_text(encoding="utf-8")
+        economy = (root / "ci-status-economy.md").read_text(encoding="utf-8")
+        self.assertIn("nightly_triage_receipt.py", waste)
+        self.assertIn("repo-only", waste)
+        self.assertIn("fresh triage receipt", waste)
+        self.assertIn("codecov/patch", economy)
+        self.assertIn("end the turn", waste)
+        self.assertIn("400 lines", waste)
+        self.assertNotIn("origin/main", waste)
 
     def test_a_real_failure_stays_red_while_another_check_runs(self):
         bucket, failing = watch_pr_checks.classify_checks(

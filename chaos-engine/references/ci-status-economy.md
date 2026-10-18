@@ -116,6 +116,7 @@ When a job fails with "could not find artifact" for a release that should exist:
 | `memory-content-hash` | stale Memory `content_hash` | `tip_preflight.py --rehash` in the same tip |
 | `unresolved-review-threads` | all checks green but merge state `BLOCKED` by unresolved review threads; the watch goes RED | Fix or reply, then resolve each thread; see [Static-analysis gate](static-analysis-gate.md) |
 | `static-analysis-action-required` | static-analysis ≥medium finding | Blocking; see [Static-analysis ACTION_REQUIRED gate](static-analysis-gate.md) |
+| `codecov-patch-partial` | `codecov/patch` FAILURE while another check is still pending | Not RED. The same check often updates after a later shard uploads. A FAILURE after every other check has completed stays RED. |
 
 ## Executor prompt schema
 
