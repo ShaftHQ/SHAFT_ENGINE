@@ -6,7 +6,8 @@ import java.util.Optional;
 import java.util.ServiceLoader;
 
 final class OcrProcessingProviderRegistry {
-    private static final ThreadLocal<List<OcrProcessingProvider>> providersOverride = new ThreadLocal<>();
+    private static final InheritableThreadLocal<List<OcrProcessingProvider>> providersOverride =
+            new InheritableThreadLocal<>();
 
     private OcrProcessingProviderRegistry() {
     }

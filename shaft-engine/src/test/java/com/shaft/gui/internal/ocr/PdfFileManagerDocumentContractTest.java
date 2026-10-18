@@ -134,6 +134,66 @@ public class PdfFileManagerDocumentContractTest {
         Assert.assertFalse(Files.exists(output));
     }
 
+    @Test
+    public void batchKeepsGoingAfterOneFailureAndFailFastCancelsTheRest() throws IOException {
+        OcrProcessingProviderRegistry.setProvidersForTesting(List.of(provider(ocrResult("Alpha"))));
+        Path nativePdf = createNativePdf("Alpha");
+        Path missing = temporary("missing", ".pdf");
+        Files.deleteIfExists(missing);
+        var continued = PdfFileManager.processAll(List.of(
+                new PdfDocumentRequest(nativePdf, options(), List.of()),
+                new PdfDocumentRequest(missing, options(), List.of())
+        ), new PdfBatchOptions(2, 32 * 1024 * 1024, false));
+
+        Assert.assertTrue(continued.items().get(0).successful(), String.valueOf(continued.items().get(0).failure()));
+        Assert.assertTrue(continued.items().get(0).result().pages().getFirst().recognition().fullText().contains("Alpha"),
+                continued.items().get(0).result().pages().getFirst().recognition().fullText());
+        Assert.assertTrue(continued.items().get(1).failure().contains("PDF input does not exist"),
+                continued.items().get(1).failure());
+
+        Path oversized = createMixedPdf();
+        Path later = createNativePdf("Later");
+        var cancelled = PdfFileManager.processAll(List.of(
+                new PdfDocumentRequest(oversized, options().withResourceLimits(10 * 1024 * 1024, 1, 2_000_000), List.of()),
+                new PdfDocumentRequest(later, options(), List.of())
+        ), new PdfBatchOptions(1, 32 * 1024 * 1024, true));
+
+        Assert.assertTrue(cancelled.items().get(0).failure().contains("exceeds the configured maximum 1"),
+                cancelled.items().get(0).failure());
+        Assert.assertEquals(cancelled.items().get(1).failure(), "Cancelled: an earlier PDF batch item failed.");
+        Assert.assertTrue(new PdfFileManager(later.toString()).process(options()).pages().getFirst()
+                .recognition().fullText().contains("Later"));
+    }
+
+    @Test
+    public void batchRejectsDuplicateInputsAndOversizedFilesBeforeWriting() throws IOException {
+        Path pdf = createNativePdf("Only");
+        Path other = createNativePdf("Other");
+        Path firstOutput = temporary("first", ".json");
+        Path secondOutput = temporary("second", ".json");
+        Files.deleteIfExists(firstOutput);
+        Files.deleteIfExists(secondOutput);
+
+        IllegalArgumentException duplicate = Assert.expectThrows(IllegalArgumentException.class,
+                () -> PdfFileManager.processAll(List.of(
+                        new PdfDocumentRequest(pdf, options(), List.of(PdfExportRequest.to(PdfExportFormat.JSON, firstOutput))),
+                        new PdfDocumentRequest(pdf, options(), List.of(PdfExportRequest.to(PdfExportFormat.JSON, secondOutput)))
+                ), new PdfBatchOptions(1, 32 * 1024 * 1024, false)));
+        Assert.assertTrue(duplicate.getMessage().contains("Duplicate PDF batch input"), duplicate.getMessage());
+        Assert.assertFalse(Files.exists(firstOutput));
+
+        IllegalArgumentException collision = Assert.expectThrows(IllegalArgumentException.class,
+                () -> PdfFileManager.processAll(List.of(
+                        new PdfDocumentRequest(pdf, options(), List.of(PdfExportRequest.to(PdfExportFormat.JSON, other))),
+                        new PdfDocumentRequest(other, options(), List.of())
+                ), new PdfBatchOptions(1, 32 * 1024 * 1024, false)));
+        Assert.assertTrue(collision.getMessage().contains("PDF batch output collides with an input"), collision.getMessage());
+
+        IllegalArgumentException oversized = Assert.expectThrows(IllegalArgumentException.class,
+                () -> new PdfFileManager(pdf.toString()).process(options().withResourceLimits(1, 10, 2_000_000)));
+        Assert.assertTrue(oversized.getMessage().contains("exceeds the configured maximum 1"), oversized.getMessage());
+    }
+
     private static OcrProcessingProvider provider(OcrResult result) {
         return new OcrProcessingProvider() {
             @Override
