@@ -530,6 +530,42 @@ public class TestNGListenerCoverageUnitTest {
     }
 
     @Test
+    public void beforeMethodOfANewClassClearsThePreviousThreadsExecutionAddress() throws Exception {
+        String baseline = com.shaft.driver.SHAFT.Properties.platform.executionAddress();
+        String leaked = "local".equals(baseline) ? "http://stale-thread.example:4444" : "local";
+        try {
+            invokeClassBoundary(String.class, true);
+            com.shaft.driver.SHAFT.Properties.platform.set().executionAddress(leaked);
+
+            invokeClassBoundary(Integer.class, false);
+
+            assertEquals(com.shaft.driver.SHAFT.Properties.platform.executionAddress(), baseline,
+                    "A class that has no @BeforeClass must drop the previous thread's executionAddress.");
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+            clearActiveTestClass();
+        }
+    }
+
+    @Test
+    public void beforeMethodOfTheSameClassKeepsThatClassExecutionAddress() throws Exception {
+        String baseline = com.shaft.driver.SHAFT.Properties.platform.executionAddress();
+        String leaked = "local".equals(baseline) ? "http://stale-thread.example:4444" : "local";
+        try {
+            invokeClassBoundary(String.class, true);
+            com.shaft.driver.SHAFT.Properties.platform.set().executionAddress(leaked);
+
+            invokeClassBoundary(String.class, false);
+
+            assertEquals(com.shaft.driver.SHAFT.Properties.platform.executionAddress(), leaked,
+                    "Later methods of the same class must keep overrides that class set.");
+        } finally {
+            com.shaft.properties.internal.Properties.clearForCurrentThread();
+            clearActiveTestClass();
+        }
+    }
+
+    @Test
     public void sensitiveFailureStateShouldSurviveAfterInvocationUntilTerminalFailureCallback() throws Exception {
         String sensitiveValue = "opaque-testng-terminal-value-7193";
         TestNGListener listener = new TestNGListener();
@@ -739,6 +775,31 @@ public class TestNGListenerCoverageUnitTest {
         Mockito.when(testResult.getThrowable()).thenReturn(throwable);
 
         return testResult;
+    }
+
+    private static void invokeClassBoundary(Class<?> testClass, boolean beforeClass) throws Exception {
+        TestNGListener listener = new TestNGListener();
+        IInvokedMethod invokedMethod = Mockito.mock(IInvokedMethod.class);
+        ITestNGMethod testMethod = createTestMethod("classBoundary");
+        ITestResult testResult = createTestResult("classBoundary", null);
+        ITestContext testContext = Mockito.mock(ITestContext.class);
+        Mockito.when(invokedMethod.isTestMethod()).thenReturn(false);
+        Mockito.when(invokedMethod.isConfigurationMethod()).thenReturn(true);
+        Mockito.when(invokedMethod.getTestMethod()).thenReturn(testMethod);
+        Mockito.when(testMethod.isBeforeClassConfiguration()).thenReturn(beforeClass);
+        Mockito.when(testMethod.getRealClass()).thenReturn(testClass);
+        setExecutionStartTime(System.currentTimeMillis());
+        try (MockedStatic<RetryAnalyzer> ignoredRetry = Mockito.mockStatic(RetryAnalyzer.class);
+             MockedStatic<JiraHelper> ignoredJira = Mockito.mockStatic(JiraHelper.class);
+             MockedStatic<TestNGListenerHelper> ignoredHelper = Mockito.mockStatic(TestNGListenerHelper.class)) {
+            listener.beforeInvocation(invokedMethod, testResult, testContext);
+        }
+    }
+
+    private static void clearActiveTestClass() throws Exception {
+        Field activeTestClass = TestNGListener.class.getDeclaredField("activeTestClass");
+        activeTestClass.setAccessible(true);
+        ((ThreadLocal<?>) activeTestClass.get(null)).remove();
     }
 
     private static ITestNGMethod createTestMethod(String methodName) {

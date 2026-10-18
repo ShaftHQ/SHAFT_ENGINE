@@ -329,12 +329,14 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         if (method.isTestMethod()) {
             RetryAnalyzer.activateSupportingEvidenceCaptureForRetryAttempt();
         }
-        // Clear per-thread property overrides only when a new test class begins its lifecycle
-        // on a pooled thread.  Checking for class identity change prevents incorrectly clearing
-        // overrides set by an earlier @BeforeClass method on the same class.
-        if (method.isConfigurationMethod() && method.getTestMethod().isBeforeClassConfiguration()) {
-            Class<?> incomingClass = method.getTestMethod().getRealClass();
-            if (!incomingClass.equals(activeTestClass.get())) {
+        // Clear per-thread property overrides when a new test class begins on a pooled
+        // thread. Classes with no @BeforeClass never reached the old BeforeClass-only
+        // gate, so a previous class's executionAddress stayed in force. Same-class
+        // methods keep overrides set earlier in that class.
+        ITestNGMethod incomingMethod = method.getTestMethod();
+        if (incomingMethod != null) {
+            Class<?> incomingClass = incomingMethod.getRealClass();
+            if (incomingClass != null && !incomingClass.equals(activeTestClass.get())) {
                 Properties.clearForCurrentThread();
                 activeTestClass.set(incomingClass);
             }
