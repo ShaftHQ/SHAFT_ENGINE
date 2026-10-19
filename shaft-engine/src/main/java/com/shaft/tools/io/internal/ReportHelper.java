@@ -65,8 +65,11 @@ public class ReportHelper {
                         .filter(file -> !"default".equals(file))
                         .filter(file -> file.endsWith(".properties"))
                         .filter(file -> Files.isRegularFile(Path.of(propertiesPath, file)))
+                        // #7173: secret files are never attached; other files are attached with credentials masked.
+                        .filter(file -> !ReportSecrets.isSecretFile(file))
                         .forEach(file -> attachments.add(Arrays.asList("Properties", file.replace(".properties", ""),
-                                FileActions.getInstance(true).readFile(propertiesPath + File.separator + file))));
+                                ReportSecrets.redactProperties(
+                                        FileActions.getInstance(true).readFile(propertiesPath + File.separator + file)))));
                 if (!attachments.isEmpty()) {
                     ReportManagerHelper.logNestedSteps("Property Files", attachments);
                 }

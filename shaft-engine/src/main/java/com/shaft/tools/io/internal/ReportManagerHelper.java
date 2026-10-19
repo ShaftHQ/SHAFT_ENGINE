@@ -533,7 +533,8 @@ public class ReportManagerHelper {
      */
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
         if (!attachmentContent.trim().isEmpty()) {
-            createAttachment(attachmentType, attachmentName, new ByteArrayInputStream(attachmentContent.getBytes(StandardCharsets.UTF_8)));
+            createAttachment(attachmentType, attachmentName,
+                    new ByteArrayInputStream(ReportSecrets.redact(attachmentContent).getBytes(StandardCharsets.UTF_8)));
         } else {
             createLogEntry("Skipped report attachment '" + attachmentType + " - " + attachmentName + "' because its content was empty.", Level.DEBUG);
         }
@@ -756,7 +757,7 @@ public class ReportManagerHelper {
     }
 
     private static String normalizeLogText(String logText) {
-        return logText == null ? "null" : sanitizeControlCharacters(logText.trim());
+        return logText == null ? "null" : sanitizeControlCharacters(ReportSecrets.redact(logText.trim()));
     }
 
     /**
