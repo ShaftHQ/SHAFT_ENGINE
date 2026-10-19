@@ -27,6 +27,7 @@ public final class ReportSecrets {
     private static final Pattern SENSITIVE_KEY = Pattern.compile(
             "(?i).*(password|passwd|secret|token|api[._-]?key|access[._-]?key|private[._-]?key|authorization"
                     + "|credential|session[._-]?id).*");
+    private static final Pattern LINE_END = Pattern.compile("(?<=\n)");
     private static final Set<String> SECRET_KEYS = ConcurrentHashMap.newKeySet();
     private static final Set<String> SECRET_VALUES = ConcurrentHashMap.newKeySet();
     private static volatile List<String> valuesLongestFirst = List.of();
@@ -53,7 +54,9 @@ public final class ReportSecrets {
     public static void registerAll(Map<?, ?> properties) {
         properties.forEach((key, value) -> {
             SECRET_KEYS.add(String.valueOf(key).trim());
-            registerValue(value == null ? null : String.valueOf(value));
+            if (value != null) {
+                registerValue(String.valueOf(value));
+            }
         });
     }
 
@@ -93,7 +96,7 @@ public final class ReportSecrets {
      * @return {@code true} when the key is registered or its name looks sensitive
      */
     public static boolean isSensitiveKey(String key) {
-        return isSecretKey(key) || key != null && SENSITIVE_KEY.matcher(key).matches();
+        return isSecretKey(key) || (key != null && SENSITIVE_KEY.matcher(key).matches());
     }
 
     /**
@@ -102,11 +105,11 @@ public final class ReportSecrets {
      *
      * @param key   the property key
      * @param value the property value
-     * @return the value that is safe to publish
+     * @return the value that is safe to publish; empty for a {@code null} value
      */
     public static String publishableValue(String key, String value) {
         if (value == null) {
-            return null;
+            return "";
         }
         if (isSensitiveKey(key) && !value.isBlank() && !NON_SECRET_VALUES.contains(value.trim().toLowerCase(Locale.ROOT))) {
             return MASK;
@@ -118,14 +121,14 @@ public final class ReportSecrets {
      * Masks sensitive {@code key=value} lines of a properties file and redacts secret values.
      *
      * @param content the properties file content
-     * @return the content that is safe to attach
+     * @return the content that is safe to attach; empty for {@code null} content
      */
     public static String redactProperties(String content) {
         if (content == null) {
-            return null;
+            return "";
         }
         StringBuilder redacted = new StringBuilder(content.length());
-        for (String line : content.split("(?<=\n)")) {
+        for (String line : LINE_END.split(content)) {
             String trimmed = line.stripLeading();
             int separator = indexOfSeparator(trimmed);
             if (!trimmed.startsWith("#") && !trimmed.startsWith("!") && separator > 0) {
