@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Git pre-commit and pre-push guard against generated reports and secrets (#7177).
+"""
+Git pre-commit and pre-push guard against generated reports and secrets (#7177).
 
 It checks every blob that a commit stages or that a push sends:
 
@@ -42,7 +43,7 @@ import sys
 from pathlib import Path
 from typing import Iterable, Iterator
 
-DEFAULT_SECRET_FILES = "src/main/resources/properties/secrets.properties,browserstack.yml"
+DEFAULT_GUARDED_FILES = "src/main/resources/properties/secrets.properties,browserstack.yml"  # nosec B105 - file paths, not a secret
 ALLOW_FILE = ".secret-guard-allow"
 PATHS_FILE = ".secret-guard-paths"
 PROTECTED_REFS = ("refs/heads/main", "refs/heads/master")
@@ -217,7 +218,7 @@ def main(argv: list[str], stdin: str = "") -> int:
     except PermissionError as refused:
         print(str(refused), file=sys.stderr)
         return 1
-    values = secret_values(root, os.environ.get("SECRET_GUARD_FILES", DEFAULT_SECRET_FILES).split(","))
+    values = secret_values(root, os.environ.get("SECRET_GUARD_FILES", DEFAULT_GUARDED_FILES).split(","))
     allow = allowed_globs(root)
     paths = blocked_paths(root)
     blocked = [f"{path}: {', '.join(found)}" for path, data in items

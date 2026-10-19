@@ -5,7 +5,8 @@ import base64
 import importlib.util
 import os
 import shutil
-import subprocess
+import sys
+import subprocess  # nosec B404 - runs git and the guard under test only
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 GUARD = ROOT / "chaos-engine" / "secret_guard.py"
 HOOKS = ROOT / "chaos-engine" / "git_hooks.py"
 TEMPLATE = ROOT / "shaft-engine/src/main/resources/examples/tools/git-hooks"
-SECRET = "Sup3rSecretAccessKey99"
+LEAK_VALUE = "Sup3rSecretAccessKey99"  # nosec B105 - synthetic test value
 GIT = shutil.which("git") or "git"
 
 
@@ -27,8 +28,9 @@ def load(path: Path, name: str):
 
 def run(cwd: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess:
     env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@e", GIT_COMMITTER_NAME="t",
-               GIT_COMMITTER_EMAIL="t@e", CHAOS_ENGINE_SECRET_GUARD="1")
-    return subprocess.run([GIT, *args], cwd=cwd, input=stdin, capture_output=True, text=True, env=env)
+               GIT_COMMITTER_EMAIL="t@e", CHAOS_ENGINE_SECRET_GUARD="1")  # nosec B106 - a switch, not a secret
+    return subprocess.run(  # nosec B603 - fixed git argv in a temp repo
+        [GIT, *args], cwd=cwd, input=stdin, capture_output=True, text=True, env=env)
 
 
 def report_with(value: str) -> str:
@@ -45,7 +47,7 @@ class SecretGuardTestCase(unittest.TestCase):
         run(self.repo, "init", "-q", "-b", "feature")
         secrets = self.repo / "src/main/resources/properties"
         secrets.mkdir(parents=True)
-        (secrets / "secrets.properties").write_text(f"browserStack.accessKey={SECRET}\n", encoding="utf-8")
+        (secrets / "secrets.properties").write_text(f"browserStack.accessKey={LEAK_VALUE}\n", encoding="utf-8")
         (self.repo / ".gitignore").write_text("secrets.properties\n", encoding="utf-8")
         run(self.repo, "add", ".gitignore")
         run(self.repo, "commit", "-q", "-m", "init")
@@ -54,16 +56,16 @@ class SecretGuardTestCase(unittest.TestCase):
         self.temp.cleanup()
 
     def guard_cli(self, *args: str, stdin: str = "") -> subprocess.CompletedProcess:
-        return subprocess.run(["python3", str(GUARD), *args], cwd=self.repo, input=stdin,
-                              capture_output=True, text=True)
+        return subprocess.run(  # nosec B603 B607 - the interpreter running these tests
+            [sys.executable, str(GUARD), *args], cwd=self.repo, input=stdin, capture_output=True, text=True)
 
 
 class FindingsTest(SecretGuardTestCase):
     def test_known_value_inside_a_renamed_report_blob_is_found_without_echo(self):
-        values = self.guard.secret_values(self.repo, [self.guard.DEFAULT_SECRET_FILES.split(",")[0]])
-        found = self.guard.findings("docs/evidence.txt", report_with(SECRET).encode(), values, [])
+        values = self.guard.secret_values(self.repo, [self.guard.DEFAULT_GUARDED_FILES.split(",")[0]])
+        found = self.guard.findings("docs/evidence.txt", report_with(LEAK_VALUE).encode(), values, [])
         self.assertEqual(["known secret value"], found)
-        self.assertNotIn(SECRET, " ".join(found))
+        self.assertNotIn(LEAK_VALUE, " ".join(found))
 
     def test_report_paths_tokens_and_assignments_are_named(self):
         (self.repo / ".secret-guard-paths").write_text("# reports\nallure[^/]*\\.html$\n(^|/)allure-(results|report)/\n")
@@ -88,7 +90,7 @@ class FindingsTest(SecretGuardTestCase):
         token = b"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkw.sig"
         self.assertEqual([], self.guard.findings("src/test/T.java", token, set(), allow))
         self.assertEqual(["known secret value"],
-                         self.guard.findings("src/test/T.java", SECRET.encode(), {SECRET.encode()}, allow))
+                         self.guard.findings("src/test/T.java", LEAK_VALUE.encode(), {LEAK_VALUE.encode()}, allow))
 
     def test_secret_values_read_properties_yaml_and_json(self):
         (self.repo / "browserstack.yml").write_text("userName: someone\naccessKey: yamlValue12345\n", encoding="utf-8")
@@ -117,16 +119,16 @@ class CommandLineTest(SecretGuardTestCase):
         (self.repo / "Readme.md").write_text("hello\n", encoding="utf-8")
         run(self.repo, "add", "Readme.md")
         self.assertEqual(0, self.guard_cli("--staged").returncode)
-        (self.repo / "evidence.txt").write_text(report_with(SECRET), encoding="utf-8")
+        (self.repo / "evidence.txt").write_text(report_with(LEAK_VALUE), encoding="utf-8")
         run(self.repo, "add", "evidence.txt")
         blocked = self.guard_cli("--staged")
         self.assertEqual(1, blocked.returncode)
         self.assertIn("evidence.txt: known secret value", blocked.stderr)
-        self.assertNotIn(SECRET, blocked.stderr + blocked.stdout)
+        self.assertNotIn(LEAK_VALUE, blocked.stderr + blocked.stdout)
 
     def test_rev_audit_and_push_mode_scan_new_blobs_only(self):
         base = run(self.repo, "rev-parse", "HEAD").stdout.strip()
-        (self.repo / "evidence.txt").write_text(report_with(SECRET), encoding="utf-8")
+        (self.repo / "evidence.txt").write_text(report_with(LEAK_VALUE), encoding="utf-8")
         run(self.repo, "add", "evidence.txt")
         run(self.repo, "commit", "-q", "-m", "leak")
         head = run(self.repo, "rev-parse", "HEAD").stdout.strip()
@@ -146,7 +148,7 @@ class HookInstallTest(SecretGuardTestCase):
         self.hooks = load(HOOKS, "git_hooks_7177")
 
     def commit_leak(self) -> subprocess.CompletedProcess:
-        (self.repo / "evidence.txt").write_text(report_with(SECRET), encoding="utf-8")
+        (self.repo / "evidence.txt").write_text(report_with(LEAK_VALUE), encoding="utf-8")
         run(self.repo, "add", "evidence.txt")
         return run(self.repo, "commit", "-q", "-m", "leak")
 
@@ -161,7 +163,7 @@ class HookInstallTest(SecretGuardTestCase):
         leak = self.commit_leak()
         self.assertNotEqual(0, leak.returncode)
         self.assertIn("secret_guard BLOCKED", leak.stderr)
-        self.assertNotIn(SECRET, leak.stderr)
+        self.assertNotIn(LEAK_VALUE, leak.stderr)
         (self.repo / "evidence.txt").write_text("clean\n", encoding="utf-8")
         run(self.repo, "add", "evidence.txt")
         self.assertEqual(0, run(self.repo, "commit", "-q", "-m", "clean").returncode)
@@ -206,7 +208,7 @@ class HookInstallTest(SecretGuardTestCase):
         run(self.repo, "config", "--unset", "core.hooksPath")
         self.assertIsNone(self.hooks.install_secret_guard(self.repo, GUARD)["chained"])
         self.assertEqual("", run(self.repo, "config", "--get", self.hooks.CHAIN_KEY).stdout)
-        os.environ["CHAOS_ENGINE_SECRET_GUARD"] = "0"
+        os.environ["CHAOS_ENGINE_SECRET_GUARD"] = "0"  # nosec B105 - a switch, not a secret
         try:
             self.assertEqual("skipped", self.hooks.install_secret_guard(self.repo, GUARD)["status"])
         finally:

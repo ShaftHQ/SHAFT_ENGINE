@@ -1,4 +1,5 @@
-"""Install the secret guard as git pre-commit and pre-push hooks (#7177).
+"""
+Install the secret guard as git pre-commit and pre-push hooks (#7177).
 
 The hooks are written to ``<git common dir>/chaos-engine-hooks`` so they are never
 tracked and serve every worktree of the clone. ``core.hooksPath`` points there.
