@@ -78,6 +78,7 @@ import java.util.regex.Pattern;
  */
 public class AllureManager {
     private static final int INDEX_PATCH_BUFFER_SIZE = 64 * 1024;
+    private static final long MAX_INLINED_LOGO_BYTES = 1024L * 1024L;
 
     /**
      * Default Maven-local cache root for the pinned Allure 3 CLI (#5801).
@@ -339,6 +340,26 @@ public class AllureManager {
      *
      * @return the {@code <style>} block SHAFT patches into the generated Allure report
      */
+    /** Test seam: the cached Allure CLI command prefix. */
+    static String allureCommandPrefix() {
+        return cachedAllureCommandPrefix;
+    }
+
+    /** Test seam: replaces the cached Allure CLI command prefix. */
+    static void allureCommandPrefix(String prefix) {
+        cachedAllureCommandPrefix = prefix;
+    }
+
+    /** Test seam: the in-run allure-results folder path. */
+    static String allureResultsFolder() {
+        return allureResultsFolderPath;
+    }
+
+    /** Test seam: replaces the in-run allure-results folder path. */
+    static void allureResultsFolder(String path) {
+        allureResultsFolderPath = path;
+    }
+
     static String allureThemeColorsStyle() {
         return ALLURE_THEME_COLORS_STYLE;
     }
@@ -667,7 +688,6 @@ public class AllureManager {
     private static final TerminalActions internalTerminalSession = TerminalActions.getInstance(false, false, true);
     private static final FileActions internalFileSession = FileActions.getInstance(true);
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
-    private static final long MAX_INLINED_LOGO_BYTES = 1024L * 1024L;
     private static String allureResultsFolderPath = "";
     private static String allureOutPutDirectory = "";
     private static volatile Process realtimeMonitoringProcess;

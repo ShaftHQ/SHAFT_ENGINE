@@ -11,7 +11,6 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,7 +27,7 @@ import java.util.stream.Stream;
 @Test(singleThreaded = true)
 public class AllureReportRebuildTest {
     private static final String RESULT_JSON = """
-            {"uuid":"r1","name":"t","status":"passed","attachments":[{"name":"shot","source":"present-attachment.png","type":"image/png"}],
+            {"uuid":"r1","name":"t","status":"passed","attachments":[{"name":"shot","source":"present-attachment.png","type":"image/png"},{"name":"blank","source":""}],
              "steps":[{"name":"s","status":"passed","attachments":[{"name":"log","source":"missing-attachment.txt","type":"text/plain"}],"steps":[]}]}
             """;
     private static final String CONTAINER_JSON = """
@@ -50,15 +49,15 @@ public class AllureReportRebuildTest {
         Files.write(results.resolve("present-attachment.png"), new byte[]{1, 2, 3});
         Files.writeString(results.resolve("environment.xml"), "<environment>merged</environment>", StandardCharsets.UTF_8);
         originalLogo = SHAFT.Properties.allure.customLogo();
-        originalResultsFolder = (String) field("allureResultsFolderPath").get(null);
-        originalPrefix = (String) field("cachedAllureCommandPrefix").get(null);
+        originalResultsFolder = AllureManager.allureResultsFolder();
+        originalPrefix = AllureManager.allureCommandPrefix();
     }
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
         SHAFT.Properties.allure.set().customLogo(originalLogo);
-        field("allureResultsFolderPath").set(null, originalResultsFolder);
-        field("cachedAllureCommandPrefix").set(null, originalPrefix);
+        AllureManager.allureResultsFolder(originalResultsFolder);
+        AllureManager.allureCommandPrefix(originalPrefix);
         Properties.clearForCurrentThread();
         try (Stream<Path> paths = Files.walk(root)) {
             paths.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
@@ -69,6 +68,30 @@ public class AllureReportRebuildTest {
     public void missingAttachmentFilesAreListedFromResultsAndContainers() {
         Assert.assertEquals(AllureManager.findMissingAttachments(results),
                 List.of("missing-attachment.txt", "missing-fixture.txt"));
+    }
+
+    @Test
+    public void unreadableResultFilesAndNonDirectoriesYieldNoMissingAttachments() throws IOException {
+        Files.writeString(results.resolve("broken-result.json"), "{not json", StandardCharsets.UTF_8);
+        Assert.assertEquals(AllureManager.findMissingAttachments(results),
+                List.of("missing-attachment.txt", "missing-fixture.txt"), "a broken result file is skipped");
+        Assert.assertEquals(AllureManager.findMissingAttachments(results.resolve("r1-result.json")), List.of());
+    }
+
+    @Test
+    public void logoMimeTypeFollowsTheExtension() throws IOException {
+        byte[] bytes = {1, 2, 3};
+        for (String[] pair : new String[][]{{"svg", "image/svg+xml"}, {"jpg", "image/jpeg"}, {"jpeg", "image/jpeg"},
+                {"gif", "image/gif"}, {"webp", "image/webp"}}) {
+            Path logo = Files.write(root.resolve("logo." + pair[0]), bytes);
+            Assert.assertTrue(AllureManager.resolveReportLogo(logo.toString()).startsWith("data:" + pair[1] + ";base64,"),
+                    pair[0]);
+        }
+    }
+
+    @Test
+    public void malformedFileUriLogoIsKept() {
+        Assert.assertEquals(AllureManager.resolveReportLogo("file://remote-host/logo.png"), "file://remote-host/logo.png");
     }
 
     @Test
@@ -103,10 +126,10 @@ public class AllureReportRebuildTest {
         Path cli = root.resolve("fake-allure.sh");
         Files.writeString(cli, "#!/bin/sh\nmkdir -p \"$6\" && { echo '<html><head></head><body><div id=\"app\"></div>'; cat \"$3\"; echo '</body></html>'; } > \"$6/index.html\"\n",
                 StandardCharsets.UTF_8);
-        field("cachedAllureCommandPrefix").set(null, "sh \"" + cli + "\"");
-        field("allureResultsFolderPath").set(null, "unchanged-results/");
+        AllureManager.allureCommandPrefix("sh \"" + cli + "\"");
+        AllureManager.allureResultsFolder("unchanged-results/");
 
-        Path report = AllureManager.generateReport(results);
+        Path report = SHAFT.Report.generateAllureReport(results);
 
         Assert.assertEquals(report, root.resolve("allure-report").resolve("AllureReport.html"));
         String html = Files.readString(report, StandardCharsets.UTF_8);
@@ -114,7 +137,7 @@ public class AllureReportRebuildTest {
         Assert.assertEquals(Files.readString(results.resolve("environment.xml"), StandardCharsets.UTF_8),
                 "<environment>merged</environment>", "environment.xml is never rewritten");
         Assert.assertTrue(Files.exists(results.resolve("present-attachment.png")), "results are never cleaned");
-        Assert.assertEquals(field("allureResultsFolderPath").get(null), "unchanged-results/",
+        Assert.assertEquals(AllureManager.allureResultsFolder(), "unchanged-results/",
                 "the in-run results path is restored");
     }
 
@@ -123,11 +146,7 @@ public class AllureReportRebuildTest {
         if (SystemUtils.IS_OS_WINDOWS) {
             throw new SkipException("The stand-in Allure CLI is a POSIX command.");
         }
-        try {
-            field("cachedAllureCommandPrefix").set(null, "true");
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException(e);
-        }
+        AllureManager.allureCommandPrefix("true");
         Assert.assertThrows(IllegalStateException.class, () -> AllureManager.generateReport(results));
     }
 
@@ -137,9 +156,4 @@ public class AllureReportRebuildTest {
                 () -> SHAFT.Report.generateAllureReport(root.resolve("absent")));
     }
 
-    private static Field field(String name) throws NoSuchFieldException {
-        Field field = AllureManager.class.getDeclaredField(name);
-        field.setAccessible(true);
-        return field;
-    }
 }
