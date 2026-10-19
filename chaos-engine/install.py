@@ -4493,12 +4493,16 @@ def _install_secret_guard(project: Path, target: Path) -> dict[str, object] | No
     if spec is None or spec.loader is None:
         return None
     module = importlib.util.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
     try:
         spec.loader.exec_module(module)
         return module.install_secret_guard(project, target / "secret_guard.py")
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
         print(f"ChaosEngine secret guard was not installed: {error}", file=sys.stderr)
         return {"status": "failed", "reason": type(error).__name__}
+    finally:
+        sys.dont_write_bytecode = previous
 
 
 def _install_store_schedule(project: Path) -> None:

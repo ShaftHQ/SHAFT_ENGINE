@@ -95,6 +95,9 @@ def install_secret_guard(project: Path, guard_source: Path) -> dict[str, object]
     common = _git(project, "rev-parse", "--git-common-dir", missing_ok=True)
     if not common:
         return {"status": "skipped", "reason": "not a git repository"}
+    top = _git(project, "rev-parse", "--show-toplevel", missing_ok=True)
+    if not top or Path(top).resolve() != project.resolve():
+        return {"status": "skipped", "reason": "not the root of its git repository"}
     common_dir = Path(common) if Path(common).is_absolute() else (project / common)
     target = (common_dir / HOOKS_DIRECTORY).resolve()
     current = _git(project, "config", "--get", "core.hooksPath")

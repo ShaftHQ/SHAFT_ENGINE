@@ -209,6 +209,10 @@ class HookInstallTest(SecretGuardTestCase):
         plain = Path(self.temp.name) / "plain"
         plain.mkdir()
         self.assertEqual("skipped", self.hooks.install_secret_guard(plain, GUARD)["status"])
+        nested = self.repo / "nested"
+        nested.mkdir()
+        self.assertEqual("not the root of its git repository",
+                         self.hooks.install_secret_guard(nested, GUARD)["reason"])
 
 
 class TemplateParityTest(unittest.TestCase):
