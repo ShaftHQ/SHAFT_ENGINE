@@ -2133,5 +2133,25 @@ public class SHAFT {
         public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
             ReportManagerHelper.attach(attachmentType, attachmentName, attachmentContent);
         }
+
+        /**
+         * Rebuilds SHAFT's Allure report from an existing results directory without running tests, for
+         * example a folder that merges several runs. Uses the managed Allure 3 CLI, the
+         * {@code allure.*} settings (single-file mode, logo, theme) and SHAFT's report patch. Never
+         * cleans the results, never rewrites {@code environment.xml}, and warns about attachment files
+         * the results reference but the directory lacks.
+         *
+         * <pre>{@code
+         * Path report = SHAFT.Report.generateAllureReport(Path.of("target/merged-allure-results"));
+         * }</pre>
+         *
+         * @param resultsDirectory the Allure results directory; the report is written to its parent's {@code allure-report} folder
+         * @return the generated HTML report
+         * @throws IllegalArgumentException when {@code resultsDirectory} is not an existing directory
+         * @throws IllegalStateException    when the Allure CLI could not be resolved or produced no report
+         */
+        public static java.nio.file.Path generateAllureReport(java.nio.file.Path resultsDirectory) {
+            return com.shaft.tools.io.internal.AllureManager.generateReport(resultsDirectory);
+        }
     }
 }
