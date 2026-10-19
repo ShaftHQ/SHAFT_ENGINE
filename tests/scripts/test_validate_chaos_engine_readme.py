@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import shutil
 import tempfile
 import unittest
@@ -39,7 +40,8 @@ class ChaosEngineReadmeInventoryTest(unittest.TestCase):
         self.assertEqual([], validate(ROOT))
         sections = inventory_sections(ROOT)
 
-        self.assertIn("uv==0.11.29", sections["managed-dependencies"])
+        uv_pin = json.loads((ROOT / "chaos-engine" / "dependencies.json").read_text(encoding="utf-8"))["tools"]["uv"]["package"]
+        self.assertIn(uv_pin, sections["managed-dependencies"])
         self.assertIn("tree-sitter-sql==0.3.11", sections["managed-dependencies"])
         for skill in (
             "chaos-engine",
