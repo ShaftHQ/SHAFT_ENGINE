@@ -75,6 +75,10 @@ labelled with its heading trail, with the section text in `rationale` so queries
 reach sub-headings and body text. Bare `*.md` and `*.mdx` rules only keep pages
 out of the code extract; directory and path rules drop pages here too.
 
+`tool.py retrieve --store graphify` keeps a hit when a query word appears in
+its node label, its stored section text (`documentation-pages.json`), or its
+path. Label and text matches rank above path-only matches.
+
 Useful bounded reads:
 
 ```text

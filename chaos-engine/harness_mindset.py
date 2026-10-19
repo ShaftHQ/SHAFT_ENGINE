@@ -186,22 +186,40 @@ def store_budget_bytes(store: str) -> int:
     return STORE_BUDGET_BYTES.get(store, 800)
 
 
+# Too common to show a section is about the query; paths keep the old token rule.
+_TEXT_STOPWORDS = frozenset({"and", "are", "for", "from", "how", "into", "not", "that", "the", "this", "was", "what", "with"})
+
+
 def relevance_floor(
-    hits: list[Mapping[str, Any]], query: str, *, project: Path | None = None
+    hits: list[Mapping[str, Any]],
+    query: str,
+    *,
+    project: Path | None = None,
+    texts: Mapping[tuple[str, str], str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Drop hits that share no query token with their path. No fallback to leftovers."""
+    """Keep hits that share a query token with their label, stored text, or path.
+
+    Label and text matches rank above path-only matches; more matched tokens rank
+    higher; ties keep the store's order. No fallback to leftovers.
+    """
     _record_check(project, "relevance-floor")
     tokens = {token.casefold() for token in re.findall(r"[A-Za-z0-9_.-]{3,}", query or "")}
     if not tokens:
         return []
-    kept: list[dict[str, Any]] = []
-    for hit in hits:
+    words = tokens - _TEXT_STOPWORDS
+    scored: list[tuple[int, int, int, dict[str, Any]]] = []
+    for order, hit in enumerate(hits):
         path = str(hit.get("path") or "")
         lowered = path.casefold()
         parts = [part for part in re.split(r"[/_.\\-]+", lowered) if part]
-        if any(token in parts or token in lowered for token in tokens):
-            kept.append(dict(hit))
-    return kept
+        path_score = sum(1 for token in tokens if token in parts or token in lowered)
+        label = str(hit.get("label") or "")
+        content = " ".join((label, (texts or {}).get((path, label), ""))).casefold()
+        content_score = sum(1 for token in words if token in content) if label else 0
+        if path_score or content_score:
+            scored.append((-content_score, -path_score, order, dict(hit)))
+    scored.sort(key=lambda item: item[:3])
+    return [item[3] for item in scored]
 
 
 def bound_to_budget(text: str, store: str) -> str:
