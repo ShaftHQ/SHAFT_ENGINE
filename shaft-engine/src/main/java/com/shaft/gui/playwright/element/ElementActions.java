@@ -1,5 +1,6 @@
 package com.shaft.gui.playwright.element;
 
+import com.shaft.gui.internal.image.SecretScreenMask;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.options.BoundingBox;
 import com.google.common.annotations.Beta;
@@ -455,7 +456,10 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
      * Replaces the value of the element with the given text.
      */
     public ElementActions type(Locator elementLocator, CharSequence... text) {
-        return timed("playwright.element.type", elementLocator, () -> typeByKind(elementLocator, join(text), false));
+        return timed("playwright.element.type", elementLocator, () -> {
+            registerIfSecret(elementLocator, false, text);
+            typeByKind(elementLocator, join(text), false);
+        });
     }
 
     @Override
@@ -490,6 +494,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
      */
     public ElementActions typeAppend(Locator elementLocator, CharSequence... text) {
         return timed("playwright.element.typeAppend", elementLocator, () -> {
+            registerIfSecret(elementLocator, false, text);
             ElementSignals signals = readSignals(elementLocator);
             ElementKind kind = ElementClassifier.classify(signals);
             boolean masked = ElementClassifier.looksMasked(signals);
@@ -542,6 +547,7 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
      */
     public ElementActions typeSecure(Locator elementLocator, CharSequence... text) {
         return timed("playwright.element.typeSecure", elementLocator, () -> {
+            registerIfSecret(elementLocator, true, text);
             typeByKind(elementLocator, join(text), false);
             ReportManager.log("Typed secure text into Playwright element.");
         });
@@ -598,7 +604,8 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
      */
     public ElementActions captureScreenshot(Locator elementLocator) {
         return timed("playwright.element.captureScreenshot", elementLocator, () -> {
-            byte[] screenshot = elementLocator.screenshot();
+            byte[] screenshot = elementLocator.screenshot(new Locator.ScreenshotOptions()
+                    .setMask(SecretScreenMask.playwrightMask(elementLocator.page())));
             ReportManagerHelper.attach("Playwright Screenshot", "element.png", new ByteArrayInputStream(screenshot));
             ReportManager.log("Captured Playwright element screenshot.");
         });
@@ -619,6 +626,12 @@ public class ElementActions implements com.shaft.gui.driver.ElementActionsContra
      */
     public String ariaSnapshot(Locator elementLocator) {
         return AriaSnapshotHelper.captureAriaSnapshot(elementLocator);
+    }
+
+    private static void registerIfSecret(Locator locator, boolean secure, CharSequence... text) {
+        if (secure || SecretScreenMask.isSecret(text)) {
+            SecretScreenMask.register(locator);
+        }
     }
 
     private Locator resolve(By locator) {

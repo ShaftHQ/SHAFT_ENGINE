@@ -685,6 +685,7 @@ public class Actions extends ElementActions {
                     case TYPE, TYPE_SECURELY -> {
                         WebElement targetElement = foundElements.get().getFirst();
                         CharSequence[] text = (CharSequence[]) data;
+                        registerIfSecret(targetElement, action, text);
                         ElementKind kind = ElementClassifier.classify(targetElement);
                         if (isMobileNativeExecution) {
                             performMobileNativeType(d, targetElement, kind, text, action);
@@ -725,6 +726,7 @@ public class Actions extends ElementActions {
                     case TYPE_APPEND -> {
                         WebElement targetElement = foundElements.get().getFirst();
                         CharSequence[] text = (CharSequence[]) data;
+                        registerIfSecret(targetElement, action, text);
                         boolean shouldValidateTypedText = shouldValidateTypedText(text);
                         String expectedText = shouldValidateTypedText
                                 ? readElementValueForTyping(targetElement) + stringifyTypedValue(text)
@@ -743,12 +745,14 @@ public class Actions extends ElementActions {
                             validateTypedTextIfConfigured(targetElement, action, expectedText, shouldValidateTypedText);
                         }
                     }
-                    case JAVASCRIPT_SET_VALUE ->
-                            ((JavascriptExecutor) d).executeScript("""
+                    case JAVASCRIPT_SET_VALUE -> {
+                        registerIfSecret(foundElements.get().getFirst(), action, String.valueOf(data));
+                        ((JavascriptExecutor) d).executeScript("""
                                     arguments[0].value = arguments[1];
                                     arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
                                     arguments[0].dispatchEvent(new Event('change', {bubbles: true}));
                                     """, foundElements.get().getFirst(), data);
+                    }
                     case CLEAR -> {
                         executeClearBasedOnClearMode(foundElements.get().getFirst(), "native");
                         if (!"".equals(safeDomProperty(foundElements.get().getFirst(), "value")))
@@ -1513,7 +1517,22 @@ public class Actions extends ElementActions {
         }
     }
 
+    private static void registerIfSecret(WebElement element, ActionType action, CharSequence... text) {
+        if (ActionType.TYPE_SECURELY.equals(action) || com.shaft.gui.internal.image.SecretScreenMask.isSecret(text)) {
+            com.shaft.gui.internal.image.SecretScreenMask.register(element);
+        }
+    }
+
     private byte[] takeScreenshot(WebElement element) {
+        WebDriver driver = driverFactoryHelper.getDriver();
+        byte[] screenshot = Screenshots.getType() == Screenshots.ELEMENT
+                ? com.shaft.gui.internal.image.SecretScreenMask.maskedElement(driver, () -> captureRawScreenshot(element))
+                : com.shaft.gui.internal.image.SecretScreenMask.masked(driver, () -> captureRawScreenshot(element));
+        //append shaft watermark
+        return appendShaftWatermark(screenshot);
+    }
+
+    private byte[] captureRawScreenshot(WebElement element) {
         byte[] screenshot;
         switch (Screenshots.getType()) {
             case FULL -> {
@@ -1553,8 +1572,6 @@ public class Actions extends ElementActions {
             }
             default -> screenshot = ((TakesScreenshot) driverFactoryHelper.getDriver()).getScreenshotAs(OutputType.BYTES);
         }
-        //append shaft watermark
-        screenshot = appendShaftWatermark(screenshot);
         return screenshot;
     }
 
