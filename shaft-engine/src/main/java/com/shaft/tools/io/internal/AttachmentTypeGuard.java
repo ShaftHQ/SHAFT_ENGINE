@@ -1,6 +1,7 @@
 package com.shaft.tools.io.internal;
 
 import java.util.Locale;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -33,7 +34,7 @@ public final class AttachmentTypeGuard {
     }
 
     /**
-     * Describes what looks swapped in one attachment call, or returns {@code null} when nothing does.
+     * Describes what looks swapped in one attachment call, or returns an empty result when nothing does.
      * A type is treated as content when it is not a MIME type and is multi-line or longer than 127
      * characters; SHAFT keywords such as {@code Markdown} stay quiet. Text content that is exactly a MIME
      * type, while the type is not one, is reported as a swapped call too.
@@ -41,22 +42,22 @@ public final class AttachmentTypeGuard {
      * @param name        the attachment name
      * @param type        the attachment type
      * @param textContent the attachment content when it is text, otherwise {@code null}
-     * @return the warning to log, or {@code null}
+     * @return the warning to log, or empty
      */
-    public static String callTimeProblem(String name, String type, String textContent) {
+    public static Optional<String> callTimeProblem(String name, String type, String textContent) {
         if (type == null || isMimeType(type)) {
-            return null;
+            return Optional.empty();
         }
         if (type.length() > MAX_TYPE_LENGTH || type.contains("\n") || type.contains("\r")) {
-            return "Attachment '" + name + "' has content instead of a type ('" + abbreviate(type)
+            return Optional.of("Attachment '" + name + "' has content instead of a type ('" + abbreviate(type)
                     + "'); the arguments look swapped. Allure.attachment takes (name, type, content);"
-                    + " SHAFT.Report.attach takes (type, name, content).";
+                    + " SHAFT.Report.attach takes (type, name, content).");
         }
         if (textContent != null && isMimeType(textContent)) {
-            return "Attachment '" + name + "' has the MIME type '" + textContent.trim().toLowerCase(Locale.ROOT)
-                    + "' as its content and '" + abbreviate(type) + "' as its type; the arguments look swapped.";
+            return Optional.of("Attachment '" + name + "' has the MIME type '" + textContent.trim().toLowerCase(Locale.ROOT)
+                    + "' as its content and '" + abbreviate(type) + "' as its type; the arguments look swapped.");
         }
-        return null;
+        return Optional.empty();
     }
 
     /**

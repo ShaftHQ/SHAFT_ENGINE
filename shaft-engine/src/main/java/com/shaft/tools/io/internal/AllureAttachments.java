@@ -37,7 +37,7 @@ public final class AllureAttachments {
     }
 
     public static void add(String name, String type, InputStream content, String fileExtension) {
-        warnIfSwapped(name, type, null);
+        warnIfSwapped(name, type);
         write(name, type, content, fileExtension);
     }
 
@@ -53,11 +53,14 @@ public final class AllureAttachments {
         add(name, type, new ByteArrayInputStream(content == null ? new byte[0] : content), fileExtension);
     }
 
+    private static void warnIfSwapped(String name, String type) {
+        AttachmentTypeGuard.callTimeProblem(name, type, "")
+                .ifPresent(problem -> ReportManager.logDiscrete(problem, Level.WARN));
+    }
+
     private static void warnIfSwapped(String name, String type, String textContent) {
-        String problem = AttachmentTypeGuard.callTimeProblem(name, type, textContent);
-        if (problem != null) {
-            ReportManager.logDiscrete(problem, Level.WARN);
-        }
+        AttachmentTypeGuard.callTimeProblem(name, type, textContent)
+                .ifPresent(problem -> ReportManager.logDiscrete(problem, Level.WARN));
     }
 
     static AttachmentOptions options(String fileExtension) {

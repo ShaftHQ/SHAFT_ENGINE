@@ -32,24 +32,22 @@ public class AttachmentTypeGuardTest {
 
     @Test
     public void swappedCallsAreNamedWithoutTheWholeContent() {
-        String contentAsType = AttachmentTypeGuard.callTimeProblem("gap report", MARKDOWN, "text/markdown");
-        Assert.assertNotNull(contentAsType);
+        String contentAsType = AttachmentTypeGuard.callTimeProblem("gap report", MARKDOWN, "text/markdown").orElseThrow();
         Assert.assertTrue(contentAsType.contains("gap report"), contentAsType);
         Assert.assertTrue(contentAsType.contains("# J04 Services tab — locator gaps"), contentAsType);
         Assert.assertFalse(contentAsType.contains("missing id on Save"), "only the first line is quoted");
-        Assert.assertNotNull(AttachmentTypeGuard.callTimeProblem("long", "y".repeat(200), null), "over 127 chars");
-        String mimeAsContent = AttachmentTypeGuard.callTimeProblem("r", "Report", " text/markdown ");
-        Assert.assertNotNull(mimeAsContent);
+        Assert.assertTrue(AttachmentTypeGuard.callTimeProblem("long", "y".repeat(200), null).isPresent(), "over 127 chars");
+        String mimeAsContent = AttachmentTypeGuard.callTimeProblem("r", "Report", " text/markdown ").orElseThrow();
         Assert.assertTrue(mimeAsContent.contains("text/markdown"), mimeAsContent);
     }
 
     @Test
     public void legitimateCallsAreNotFlagged() {
-        Assert.assertNull(AttachmentTypeGuard.callTimeProblem("r", "text/markdown", MARKDOWN));
-        Assert.assertNull(AttachmentTypeGuard.callTimeProblem("r", "Markdown", MARKDOWN), "SHAFT keywords stay quiet");
-        Assert.assertNull(AttachmentTypeGuard.callTimeProblem("r", "JSON", null));
-        Assert.assertNull(AttachmentTypeGuard.callTimeProblem("r", null, "text"));
-        Assert.assertNull(AttachmentTypeGuard.callTimeProblem("r", "text/plain", "text/markdown"),
+        Assert.assertTrue(AttachmentTypeGuard.callTimeProblem("r", "text/markdown", MARKDOWN).isEmpty());
+        Assert.assertTrue(AttachmentTypeGuard.callTimeProblem("r", "Markdown", MARKDOWN).isEmpty(), "SHAFT keywords stay quiet");
+        Assert.assertTrue(AttachmentTypeGuard.callTimeProblem("r", "JSON", null).isEmpty());
+        Assert.assertTrue(AttachmentTypeGuard.callTimeProblem("r", null, "text").isEmpty());
+        Assert.assertTrue(AttachmentTypeGuard.callTimeProblem("r", "text/plain", "text/markdown").isEmpty(),
                 "a MIME type may describe a MIME string");
     }
 
