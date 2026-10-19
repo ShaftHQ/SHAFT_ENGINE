@@ -26,6 +26,11 @@ class PersonalityLoadTest(unittest.TestCase):
         self.assertIn("push back", out)
         self.assertIn("references/identity-push-back.md", out)
         self.assertTrue((CE / "references/identity-push-back.md").is_file())
+        # Oct 19 2026: constant push-back replaced "push back once, then comply".
+        self.assertNotIn("then comply", out)
+        self.assertIn("again on fresh evidence", out)
+        ref = (CE / "references/identity-push-back.md").read_text(encoding="utf-8")
+        self.assertIn("Keep pushing back", ref)
 
     def test_session_start_points_at_identity_and_both_companions(self):
         spec = importlib.util.spec_from_file_location("ce_lifecycle_personality", CE / "hooks/lifecycle.py")
