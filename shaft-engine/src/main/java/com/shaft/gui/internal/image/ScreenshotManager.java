@@ -179,7 +179,7 @@ public class ScreenshotManager {
         try {
             WebElement targetElement = findUniqueElementIgnoringVisibility(driver, targetElementLocator);
             if (targetElement != null) {
-                return targetElement.getScreenshotAs(OutputType.BYTES);
+                return SecretScreenMask.maskedElement(driver, () -> targetElement.getScreenshotAs(OutputType.BYTES));
             } else {
                 if (returnRegularScreenshotInCaseOfFailure) {
                     return this.takeViewportScreenshot(driver);

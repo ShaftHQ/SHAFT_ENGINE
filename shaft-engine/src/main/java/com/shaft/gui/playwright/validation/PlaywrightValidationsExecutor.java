@@ -804,7 +804,8 @@ final class PlaywrightValidationsExecutor extends ValidationsExecutor {
         }
         if (attachScreenshot) {
             try {
-                byte[] screenshot = evidencePage.screenshot(new Page.ScreenshotOptions().setFullPage(true));
+                byte[] screenshot = evidencePage.screenshot(new Page.ScreenshotOptions().setFullPage(true)
+                        .setMask(com.shaft.gui.internal.image.SecretScreenMask.playwrightMask(evidencePage)));
                 List<Object> screenshotAttachment = new ScreenshotManager()
                         .prepareImageForReport(screenshot, validationCategoryString);
                 if (screenshotAttachment != null && !screenshotAttachment.isEmpty()) {
