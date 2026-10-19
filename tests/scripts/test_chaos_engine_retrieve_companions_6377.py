@@ -419,6 +419,21 @@ class MaintainTest(unittest.TestCase):
         self.assertNotIn("--branch", reinstall)
         self.assertIn("Acme/Widget", reinstall)
 
+    def test_digest_install_in_consumer_repo_falls_back_to_harness_source(self):
+        """A consumer repo's origin is not the harness source; the official one still matches."""
+        root = self._digest_manifest("Harness/Source", "main")
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_REPOSITORY": ""}):
+            with self.assertRaisesRegex(ValueError, "install one-liner"):
+                self.tool.maintain_commands(root, self.work)
+            record = self.work / self.tool.INSTALL_SOURCE_RECORD
+            record.parent.mkdir(parents=True, exist_ok=True)
+            record.write_text('{"repository": "Harness/Source", "branch": "main"}', encoding="utf-8")
+            reinstall = self.tool.maintain_commands(root, self.work)[0]
+            self.assertEqual(["--repository", "Harness/Source"], reinstall[4:6])
+            record.write_text('{"repository": "Other/Repo"}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "install one-liner"):
+                self.tool.maintain_commands(root, self.work)
+
     def _local_manifest(self) -> Path:
         root = self.tmp / "local-core"
         root.mkdir(exist_ok=True)

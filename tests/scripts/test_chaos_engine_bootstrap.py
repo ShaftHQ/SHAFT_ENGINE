@@ -735,6 +735,23 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     self.assertIn("Rerun the same install command", err)
                     self.assertNotIn("Traceback", err)
 
+    def test_main_records_install_source_in_local_state_for_maintain(self):
+        """A digest manifest names no repository; maintain reads this local record instead."""
+        module = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            result = {"status": "installed", "root": str(project / ".chaos-engine"), "commit": COMMIT_ONE}
+            argv = ["bootstrap.py", "--project", str(project), "--repository", "Harness/Source", "--branch", "main"]
+            with mock.patch.object(module, "install_latest", return_value=result), \
+                    mock.patch.object(module, "post_install_packs", return_value=0), \
+                    mock.patch.object(module.sys, "argv", argv), \
+                    mock.patch.object(module.sys, "stdout", io.StringIO()):
+                self.assertEqual(0, module.main())
+            self.assertEqual(
+                {"repository": "Harness/Source", "branch": "main"},
+                json.loads((project / module.INSTALL_SOURCE_RECORD).read_text(encoding="utf-8")),
+            )
+
     def opener(self, commits: list[tuple[str, str]]):
         calls: list[str] = []
 
@@ -1245,6 +1262,35 @@ class ChaosEngineBootstrapTest(unittest.TestCase):
                     if "git/trees" not in url
                 )
             )
+
+    @unittest.skipIf(os.name == "nt", "POSIX file modes")
+    def test_download_source_keeps_git_executable_bit(self):
+        """A portable install must keep 100755 harness scripts runnable."""
+        module = load()
+        tree = {
+            "truncated": False,
+            "tree": [
+                {"path": "chaos-engine/skills/chaos-engine/SKILL.md", "type": "blob", "mode": "100644", "size": 5},
+                {"path": "chaos-engine/install.sh", "type": "blob", "mode": "100755", "size": 2},
+            ],
+        }
+
+        def opener(request, timeout=0):
+            del timeout
+            url = str(request.full_url if hasattr(request, "full_url") else request)
+            if "git/trees" in url:
+                return Response(json.dumps(tree).encode())
+            if url.endswith("SKILL.md"):
+                return Response(b"skill")
+            if url.endswith("install.sh"):
+                return Response(b"#!")
+            raise AssertionError(url)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            source = module.download_source("owner/repo", COMMIT_ONE, Path(temporary), opener=opener)
+
+            self.assertTrue(os.access(source / "install.sh", os.X_OK))
+            self.assertFalse((source / "skills/chaos-engine/SKILL.md").stat().st_mode & 0o111)
 
     def test_download_source_fetches_selected_blobs_in_parallel(self):
         module = load()

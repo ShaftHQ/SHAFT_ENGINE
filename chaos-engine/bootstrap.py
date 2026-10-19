@@ -2174,6 +2174,32 @@ def split_addon_flags(arguments: list[str]) -> tuple[set[str], set[str], list[st
     return requested, removed, rest
 
 
+def _select_addon_blobs(
+    tree: list, destination: Path, patterns: list[tuple[PurePosixPath, str]]
+) -> tuple[list[PurePosixPath], set[PurePosixPath]]:
+    """Add-on blobs still missing under ``destination``, and which of them are ``100755``."""
+    selected: list[PurePosixPath] = []
+    executable: set[PurePosixPath] = set()
+    for entry in tree:
+        path = PurePosixPath(str(entry.get("path", "")))
+        if entry.get("type") != "blob" or ".." in path.parts or path.is_absolute():
+            continue
+        if destination.joinpath(*path.parts).is_file():
+            continue
+        if not any(
+            path.is_relative_to(base) and fnmatch.fnmatchcase(path.relative_to(base).as_posix(), pattern)
+            for base, pattern in patterns
+        ):
+            continue
+        size = entry.get("size")
+        if not isinstance(size, int) or size < 0 or size > MAX_FILE_BYTES:
+            raise ValueError("ChaosEngine source file exceeds the download limit")
+        selected.append(path)
+        if entry.get("mode") == "100755":
+            executable.add(path)
+    return selected, executable
+
+
 def download_addon_files(
     repository: str,
     commit: str,
@@ -2206,20 +2232,7 @@ def download_addon_files(
     value = json.loads(document)
     if not isinstance(value, dict) or value.get("truncated") is not False:
         raise ValueError("GitHub returned an incomplete ChaosEngine source tree")
-    selected = []
-    for entry in value.get("tree", []):
-        path = PurePosixPath(str(entry.get("path", "")))
-        if entry.get("type") != "blob" or ".." in path.parts or path.is_absolute():
-            continue
-        if destination.joinpath(*path.parts).is_file():
-            continue
-        for base, pattern in patterns:
-            if path.is_relative_to(base) and fnmatch.fnmatchcase(path.relative_to(base).as_posix(), pattern):
-                size = entry.get("size")
-                if not isinstance(size, int) or size < 0 or size > MAX_FILE_BYTES:
-                    raise ValueError("ChaosEngine source file exceeds the download limit")
-                selected.append(path)
-                break
+    selected, executable = _select_addon_blobs(value.get("tree", []), destination, patterns)
     if len(selected) > MAX_FILES:
         raise ValueError("ChaosEngine add-on contains too many files")
     for path in selected:
@@ -2232,9 +2245,73 @@ def download_addon_files(
         target = destination.joinpath(*path.parts)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
+        if path in executable:
+            mark_executable(target)
     if reporter is not None:
         reporter.trace(f"download {len(selected)} add-on files")
     return len(selected)
+
+
+INSTALL_SOURCE_RECORD = ".chaos-engine-state/install-source.json"
+
+
+def record_install_source(project: Path, repository: str, branch: str | None) -> None:
+    """Keep the plain install source in local, untracked state for `maintain`.
+
+    A portable manifest stores only digests and a consumer repository's origin is not
+    the harness source, so `maintain` needs this record to rebuild the reinstall command.
+    """
+    path = Path(project) / INSTALL_SOURCE_RECORD
+    path.parent.mkdir(parents=True, exist_ok=True)
+    record = {"repository": normalize_repository(repository), "branch": branch or ""}
+    path.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+
+def _select_source_blobs(
+    tree: list,
+) -> tuple[list[tuple[PurePosixPath, int]], int, set[PurePosixPath]]:
+    """Bounded ChaosEngine and pack blobs to download, their total size, and the ``100755`` ones."""
+    selected: list[tuple[PurePosixPath, int]] = []
+    executable: set[PurePosixPath] = set()
+    total = 0
+    for entry in tree:
+        if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
+            raise ValueError("GitHub returned an invalid ChaosEngine source tree")
+        path = PurePosixPath(entry["path"])
+        if path.is_absolute() or ".." in path.parts or not path.parts:
+            raise ValueError("ChaosEngine source tree contains an unsafe path")
+        if path.parts[0] != "chaos-engine" and not is_pack_path(path):
+            continue
+        if entry.get("type") == "tree":
+            continue
+        if entry.get("type") != "blob" or entry.get("mode") not in {"100644", "100755"}:
+            raise ValueError("ChaosEngine source tree contains an unsupported entry")
+        size = entry.get("size")
+        if not isinstance(size, int) or size < 0 or size > MAX_FILE_BYTES:
+            raise ValueError("ChaosEngine source file exceeds the download limit")
+        if entry.get("mode") == "100755":
+            executable.add(path)
+        if is_pack_path(path):
+            selected.append((path, size))
+            total += size
+            continue
+        relative = PurePosixPath(*path.parts[1:])
+        if not relative.parts:
+            raise ValueError("ChaosEngine source tree has an unexpected layout")
+        if relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
+            "RESEARCH.md",
+            "STANDALONE.md",
+        }:
+            continue
+        selected.append((path, size))
+        total += size
+    return selected, total, executable
+
+
+def mark_executable(path: Path) -> None:
+    """Keep a Git ``100755`` blob runnable; raw downloads arrive as plain files."""
+    mode = path.stat().st_mode
+    path.chmod(mode | ((mode & 0o444) >> 2))
 
 
 def download_source(
@@ -2263,38 +2340,7 @@ def download_source(
     if not isinstance(tree, list):
         raise ValueError("GitHub returned an invalid ChaosEngine source tree")
 
-    selected: list[tuple[PurePosixPath, int]] = []
-    total = 0
-    for entry in tree:
-        if not isinstance(entry, dict) or not isinstance(entry.get("path"), str):
-            raise ValueError("GitHub returned an invalid ChaosEngine source tree")
-        path = PurePosixPath(entry["path"])
-        if path.is_absolute() or ".." in path.parts or not path.parts:
-            raise ValueError("ChaosEngine source tree contains an unsafe path")
-        if path.parts[0] != "chaos-engine" and not is_pack_path(path):
-            continue
-        if entry.get("type") == "tree":
-            continue
-        if entry.get("type") != "blob" or entry.get("mode") not in {"100644", "100755"}:
-            raise ValueError("ChaosEngine source tree contains an unsupported entry")
-        size = entry.get("size")
-        if not isinstance(size, int) or size < 0 or size > MAX_FILE_BYTES:
-            raise ValueError("ChaosEngine source file exceeds the download limit")
-        if is_pack_path(path):
-            selected.append((path, size))
-            total += size
-            continue
-        relative = PurePosixPath(*path.parts[1:])
-        if not relative.parts:
-            raise ValueError("ChaosEngine source tree has an unexpected layout")
-        if relative.parts[:2] == ("assets", "brand") or relative.as_posix() in {
-            "RESEARCH.md",
-            "STANDALONE.md",
-        }:
-            continue
-        selected.append((path, size))
-        total += size
-
+    selected, total, executable = _select_source_blobs(tree)
     if not selected:
         raise ValueError("ChaosEngine source tree has an unexpected layout")
     if len(selected) > MAX_FILES:
@@ -2324,6 +2370,8 @@ def download_source(
         with mkdir_lock:
             target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
+        if repository_path in executable:
+            mark_executable(target)
 
     workers = max(1, min(DOWNLOAD_WORKERS, len(selected)))
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -3202,6 +3250,7 @@ def main() -> int:
             addons_removed=addons_removed,
         )
         write_install_trace(Path(args.project).resolve(), result, reporter.traces)
+        record_install_source(Path(args.project).resolve(), args.repository, args.branch)
     except BaseException as error:
         if isinstance(error, SystemExit):
             raise

@@ -662,50 +662,169 @@ def _component_current(cwd: Path, component: str) -> bool:
 
 
 _DOC_SUFFIXES = {".md", ".mdx"}
-_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*#*\s*$")
+_FENCE_RE = re.compile(r"^\s*(```|~~~)")
 _LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 _SKIP_DOC_PARTS = frozenset({".git", "node_modules", "target"})
+_SECTION_TEXT_LIMIT = 600
+_GRAPHIFY_IGNORE = ".graphifyignore"
+
+
+def _ignore_regex(pattern: str) -> re.Pattern[str]:
+    """Translate one gitignore glob: ``**`` spans directories, ``*`` and ``?`` do not."""
+    out: list[str] = []
+    index = 0
+    while index < len(pattern):
+        if pattern.startswith("**/", index):
+            out.append("(?:.*/)?")
+            index += 3
+        elif pattern.startswith("**", index):
+            out.append(".*")
+            index += 2
+        elif pattern[index] == "*":
+            out.append("[^/]*")
+            index += 1
+        elif pattern[index] == "?":
+            out.append("[^/]")
+            index += 1
+        else:
+            out.append(re.escape(pattern[index]))
+            index += 1
+    return re.compile("".join(out) + r"\Z")
+
+
+def graphify_ignore_rules(root: Path) -> list[tuple[bool, bool, bool, re.Pattern[str]]]:
+    """Rules from ``root/.graphifyignore`` that the documentation pass honours.
+
+    Each rule is ``(negated, directory_only, anchored, regex)``. A bare document-suffix
+    rule (``*.md``) keeps pages out of Graphify's code extract, which this pass replaces,
+    so it does not drop pages here; every path and directory rule does.
+    """
+    path = root / _GRAPHIFY_IGNORE
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    rules: list[tuple[bool, bool, bool, re.Pattern[str]]] = []
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        negated = line.startswith("!")
+        line = line[1:] if negated else line
+        directory_only = line.endswith("/")
+        line = line.rstrip("/")
+        bare = line[3:] if line.startswith("**/") else line
+        if not directory_only and "/" not in bare and bare in {"*" + suffix for suffix in _DOC_SUFFIXES}:
+            continue
+        anchored = "/" in line
+        if not line:
+            continue
+        rules.append((negated, directory_only, anchored, _ignore_regex(line.lstrip("/"))))
+    return rules
+
+
+def graphify_ignored(relative: str, rules: list[tuple[bool, bool, bool, re.Pattern[str]]]) -> bool:
+    """True when a repo-relative file path, or a directory above it, matches the rules (last wins)."""
+    parts = relative.split("/")
+    candidates = [("/".join(parts[:end]), end < len(parts)) for end in range(1, len(parts) + 1)]
+    ignored = False
+    for negated, directory_only, anchored, regex in rules:
+        for candidate, is_directory in candidates:
+            if directory_only and not is_directory:
+                continue
+            target = candidate if anchored else candidate.rsplit("/", 1)[-1]
+            if regex.match(target):
+                ignored = not negated
+                break
+    return ignored
 
 
 def _documentation_files(root: Path) -> list[Path]:
     files: list[Path] = []
     if not root.is_dir():
         return files
+    rules = graphify_ignore_rules(root)
     for path in root.rglob("*"):
         if not path.is_file() or path.suffix.lower() not in _DOC_SUFFIXES:
             continue
         relative = path.relative_to(root)
         if any(part in _SKIP_DOC_PARTS for part in relative.parts):
             continue
+        if rules and graphify_ignored(relative.as_posix(), rules):
+            continue
         files.append(path)
     return sorted(files)
 
 
+def _anchor(heading: str, seen: dict[str, int]) -> str:
+    """GitHub-style heading anchor, suffixed ``-N`` when repeated on the page."""
+    slug = re.sub(r"[^\w\- ]", "", heading.casefold()).strip().replace(" ", "-") or "section"
+    count = seen.get(slug, 0)
+    seen[slug] = count + 1
+    return slug if count == 0 else f"{slug}-{count}"
+
+
+def _section_text(lines: list[str]) -> str:
+    return " ".join(" ".join(lines).split())[:_SECTION_TEXT_LIMIT]
+
+
 def index_documentation(root: Path) -> dict:
-    """File Markdown and MDX pages and extract their headings and links.
+    """File Markdown and MDX pages: headings, links, and one bounded text chunk per section.
 
     This is the zero-LLM documentation pass. External mine and code-only
-    extract commands still run; refresh merges this result afterward.
+    extract commands still run; refresh merges this result afterward. Pages
+    that ``.graphifyignore`` excludes are skipped, and headings inside fenced
+    code blocks are text, not sections.
     """
     pages: list[dict] = []
     for path in _documentation_files(root):
         headings: list[str] = []
         links: list[str] = []
+        sections: list[dict] = []
+        preamble: list[str] = []
+        body = preamble
+        trail: list[tuple[int, str]] = []
+        seen: dict[str, int] = {}
+        fenced = False
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            heading = _HEADING_RE.match(line)
+            if _FENCE_RE.match(line):
+                fenced = not fenced
+            heading = None if fenced else _HEADING_RE.match(line)
             if heading:
-                headings.append(heading.group(2).strip())
+                level = len(heading.group(1))
+                title = heading.group(2).strip()
+                headings.append(title)
+                trail = [item for item in trail if item[0] < level] + [(level, title)]
+                body = []
+                sections.append({
+                    "heading": title,
+                    "level": level,
+                    "trail": [item[1] for item in trail],
+                    "anchor": _anchor(title, seen),
+                    "lines": body,
+                })
+                continue
+            body.append(line)
             links.extend(match.group(1) for match in _LINK_RE.finditer(line))
+        for section in sections:
+            section["text"] = _section_text(section.pop("lines"))
         pages.append({
             "path": path.relative_to(root).as_posix(),
             "headings": headings,
             "links": links,
+            "text": _section_text(preamble),
+            "sections": sections,
         })
     return {"pages": pages}
 
 
 def merge_documentation_graph(graph_json: Path, indexed: dict) -> dict:
-    """Add documentation pages to a Graphify graph.json."""
+    """Add documentation pages, and one node per page section, to a Graphify graph.json.
+
+    A section node's label is its heading trail under the page title and its body
+    text rides in ``rationale``, which Graphify's query scorer reads.
+    """
     try:
         graph = json.loads(graph_json.read_text(encoding="utf-8"))
     except (OSError, ValueError, UnicodeError):
@@ -729,7 +848,12 @@ def merge_documentation_graph(graph_json: Path, indexed: dict) -> dict:
         headings = page.get("headings") or []
         if headings:
             label = str(headings[0])
-        nodes.append({
+        sections = [section for section in page.get("sections") or [] if isinstance(section, dict)]
+        page_text = str(page.get("text") or "")
+        if sections and sections[0].get("level") == 1:
+            title_section, sections = sections[0], sections[1:]
+            page_text = " ".join(part for part in (page_text, str(title_section.get("text") or "")) if part)
+        node = {
             "id": node_id,
             "label": label,
             "kind": "document",
@@ -737,7 +861,25 @@ def merge_documentation_graph(graph_json: Path, indexed: dict) -> dict:
             "source_file": page_path,
             "file_type": "document",
             "headings": list(headings),
-        })
+        }
+        if page_text:
+            node["rationale"] = page_text[:_SECTION_TEXT_LIMIT]
+        nodes.append(node)
+        for section in sections:
+            trail = [str(item) for item in section.get("trail") or [] if str(item) != label]
+            section_id = f"{node_id}#{section.get('anchor') or 'section'}"
+            section_node = {
+                "id": section_id,
+                "label": " › ".join([label, *trail]) if trail else label,
+                "kind": "section",
+                "path": page_path,
+                "source_file": page_path,
+                "file_type": "document",
+            }
+            if section.get("text"):
+                section_node["rationale"] = str(section["text"])
+            nodes.append(section_node)
+            edges.append({"source": node_id, "target": section_id, "kind": "contains"})
         for link in page.get("links") or []:
             edges.append({"source": node_id, "target": str(link), "kind": "link"})
     graph["nodes"] = nodes

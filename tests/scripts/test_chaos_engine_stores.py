@@ -514,6 +514,72 @@ class SharedStoreTest(unittest.TestCase):
         self.assertIn("journeys/start.mdx", {page["path"] for page in palace_filing["pages"]})
 
 
+class DocumentationPassTest(unittest.TestCase):
+    """The Markdown pass honours .graphifyignore and files every section, not just the title."""
+
+    def setUp(self):
+        self.stores = load_stores()
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def _write(self, relative: str, text: str = "# Page\n") -> None:
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    def test_graphifyignore_drops_harness_pages_but_not_bare_doc_suffix_rules(self):
+        for relative in (".chaos-engine/identity.md", ".agents/skills/x/SKILL.md", "notes/keep.md",
+                         "notes/drafts/skip.md", "notes/drafts/keep-me.md", "deep/target-like/page.mdx"):
+            self._write(relative)
+        (self.root / ".graphifyignore").write_text(
+            "# harness\n.chaos-engine/\n.agents/\n*.md\n**/*.mdx\nnotes/drafts/\n!notes/drafts/keep-me.md\n",
+            encoding="utf-8",
+        )
+        paths = [page["path"] for page in self.stores.index_documentation(self.root)["pages"]]
+        self.assertEqual(["deep/target-like/page.mdx", "notes/drafts/keep-me.md", "notes/keep.md"], paths)
+
+    def test_sections_become_graph_nodes_with_trail_labels_and_body_text(self):
+        self._write("teaching/leveling-up.md", (
+            "# Leveling Up\n\nIntro line.\n\n## Round 34\n\nAI-native cohort of 40 engineers.\n\n"
+            "### Outcomes\n\nShipped SHAFT pipelines.\n\n```bash\n# not a heading\n```\n\n## Round 34\n\nRepeat.\n"
+        ))
+        page = self.stores.index_documentation(self.root)["pages"][0]
+        self.assertEqual(["Leveling Up", "Round 34", "Outcomes", "Round 34"], page["headings"])
+        graph = self.stores.merge_documentation_graph(self.root / "graph.json", {"pages": [page]})
+        nodes = {node["id"]: node for node in graph["nodes"]}
+        top = nodes["docs:teaching/leveling-up.md"]
+        self.assertEqual("Leveling Up", top["label"])
+        self.assertEqual("Intro line.", top["rationale"])
+        round_34 = nodes["docs:teaching/leveling-up.md#round-34"]
+        self.assertEqual("Leveling Up › Round 34", round_34["label"])
+        self.assertEqual("AI-native cohort of 40 engineers.", round_34["rationale"])
+        self.assertEqual("teaching/leveling-up.md", round_34["source_file"])
+        outcomes = nodes["docs:teaching/leveling-up.md#outcomes"]
+        self.assertEqual("Leveling Up › Round 34 › Outcomes", outcomes["label"])
+        self.assertIn("# not a heading", outcomes["rationale"])
+        self.assertIn("docs:teaching/leveling-up.md#round-34-1", nodes)
+        self.assertIn(
+            {"source": "docs:teaching/leveling-up.md", "target": "docs:teaching/leveling-up.md#outcomes",
+             "kind": "contains"},
+            graph["edges"],
+        )
+
+    @unittest.skipUnless(shutil.which("graphify"), "graphify CLI not installed")
+    def test_graphify_query_finds_text_under_a_sub_heading(self):
+        self._write("teaching/leveling-up.md", "# Leveling Up\n\n## Cohorts\n\nRound thirtyfour mentoring.\n")
+        self._write("other.md", "# Other\n\nUnrelated.\n")
+        graph = self.root / "graph.json"
+        graph.write_text('{"directed": false, "multigraph": false, "graph": {}, "nodes": [], "edges": []}\n',
+                         encoding="utf-8")
+        self.stores.merge_documentation_graph(graph, self.stores.index_documentation(self.root))
+        completed = subprocess.run(  # nosec B603 B607 - fixed graphify argv.
+            ["graphify", "query", "thirtyfour mentoring", "--graph", str(graph)],
+            capture_output=True, text=True, check=False, timeout=60,
+        )
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertIn("Leveling Up › Cohorts", completed.stdout)
+
+
 class StoreIndexAttributionTest(unittest.TestCase):
     """Doc nodes name their file; an incremental mine stays confined to its paths."""
 

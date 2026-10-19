@@ -69,6 +69,12 @@ upstream, or ignore the path in `.graphifyignore`. Refresh owners split skips
 into ignore versus promote. A file missing from the graph is not automatically
 in MemPalace; that store has its own readable-extension list.
 
+After the code-only extract, refresh files every Markdown and MDX page that
+`.graphifyignore` does not exclude: one node per page plus one per section,
+labelled with its heading trail, with the section text in `rationale` so queries
+reach sub-headings and body text. Bare `*.md` and `*.mdx` rules only keep pages
+out of the code extract; directory and path rules drop pages here too.
+
 Useful bounded reads:
 
 ```text

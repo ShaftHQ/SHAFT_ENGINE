@@ -261,6 +261,20 @@ def _source_name_hits(project: Path, body: str, limit: int = _HIT_LIMIT) -> list
     return hits[:limit]
 
 
+def _mempalace_hits(project: Path, body: str, query: str) -> list[dict[str, object]]:
+    """MemPalace names each hit's file on its ``Source:`` line; excerpt links are page text.
+
+    A relative link inside an excerpt (``../index.md``) is not a hit and never becomes one.
+    """
+    sources = _source_name_hits(project, body)
+    if sources:
+        return sources
+    return [
+        hit for hit in _structured_hits(body, query=query)
+        if not str(hit["path"]).startswith(("../", "./"))
+    ]
+
+
 _BUDGET_HINT = re.compile(
     r"raise the token budget \(CLI: --budget\)[^.]*\.?\s*"
 )
@@ -625,9 +639,7 @@ def _store_hit_receipt(
     outside = _outside_workspace_receipt(project, store, query)
     if outside is not None:
         return outside
-    hits = _structured_hits(body, query=query)
-    if not hits and store == "mempalace":
-        hits = _source_name_hits(project, body)
+    hits = _mempalace_hits(project, body, query) if store == "mempalace" else _structured_hits(body, query=query)
     mindset = _mindset()
     if store == "graphify" and mindset is not None:
         hits = mindset.relevance_floor(hits, query, project=project)
