@@ -223,13 +223,39 @@ def _match_digest(digest: object, candidates: tuple[str, ...], *, fold: bool = F
     return ""
 
 
+INSTALL_SOURCE_RECORD = ".chaos-engine-state/install-source.json"
+
+
+def _recorded_install_source(project: Path) -> tuple[str, str]:
+    """`repository`/`branch` the bootstrap wrote to local, untracked state."""
+    import json
+
+    try:
+        value = json.loads((project / INSTALL_SOURCE_RECORD).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return "", ""
+    if not isinstance(value, dict):
+        return "", ""
+    repository, branch = value.get("repository"), value.get("branch")
+    return (repository if isinstance(repository, str) else "",
+            branch if isinstance(branch, str) else "")
+
+
 def recorded_source(source: dict, project: Path) -> tuple[str, str]:
-    """Plain `repository`/`branch` win; git-digest installs match candidates by sha256 (#6664)."""
+    """Plain `repository`/`branch` win; git-digest installs match candidates by sha256 (#6664).
+
+    A consumer repository's origin is not the harness source, so the source the
+    bootstrap recorded in local state is a candidate too; any candidate is used only when
+    its digest matches the manifest.
+    """
+    recorded_repository, recorded_branch = _recorded_install_source(project)
     repository = str(source.get("repository") or "") or _match_digest(
         source.get("repositorySha256"),
-        (os.environ.get("CHAOS_ENGINE_REPOSITORY", ""), _origin_repository(project)), fold=True)
+        (os.environ.get("CHAOS_ENGINE_REPOSITORY", ""), _origin_repository(project),
+         recorded_repository), fold=True)
     branch = str(source.get("branch") or "") or _match_digest(
-        source.get("branchSha256"), (default_branch_name(project), *DEFAULT_BRANCH_FALLBACKS))
+        source.get("branchSha256"),
+        (default_branch_name(project), *DEFAULT_BRANCH_FALLBACKS, recorded_branch))
     return repository, branch
 
 

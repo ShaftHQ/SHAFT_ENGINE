@@ -210,6 +210,26 @@ NODE install [src=chaos-engine/install.py loc=L12]
             self.assertEqual([{"path": "a/Unique.java"}], retrieve._source_name_hits(project, body))
             self.assertEqual([], retrieve._source_name_hits(project, "no sources here"))
 
+    def test_mempalace_hits_come_from_source_lines_not_excerpt_links(self):
+        """An excerpt's relative Markdown link is page text, not the hit's file."""
+        retrieve = load("chaos-engine/retrieve.py", "retrieve_source_over_links")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            subprocess.run(["git", "init", "-q"], cwd=project, check=True)  # nosec B603 B607
+            for relative in ("teaching/rounds.md", "index.md"):
+                (project / relative).parent.mkdir(parents=True, exist_ok=True)
+                (project / relative).write_text("x", encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=project, check=True)  # nosec B603 B607
+            body = (
+                "  [1] w / r\n      Source: rounds.md\n"
+                "      Round 34 notes, see [home](../index.md) and [tools](./tools/list.md).\n"
+            )
+            completed = subprocess.CompletedProcess([], 0, stdout=body, stderr="")
+            receipt = retrieve._store_hit_receipt(project, "mempalace", "round 34", completed, False)
+            self.assertEqual([{"path": "teaching/rounds.md"}], receipt["hits"])
+            linked_only = "  [1] w / r\n      Source: index.md\n      see [x](../other/page.md)\n"
+            self.assertEqual([], retrieve._mempalace_hits(project, linked_only.replace("index.md", "gone.md"), "x"))
+
     def test_graphify_citation_authorizes_a_second_read_and_denies_uncited(self):
         """Uncited reads run. A glob-only search owes a retrieve per session."""
         gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_session")
