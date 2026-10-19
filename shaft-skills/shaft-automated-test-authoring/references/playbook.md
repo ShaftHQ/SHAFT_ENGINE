@@ -11,7 +11,7 @@
 7. Rely on SHAFT synchronization and state assertions; never add `Thread.sleep`, raw driver calls, headed defaults, or brittle absolute locators. [`SHAFT-GUIDE`, `SELENIUM-PRACTICES`]
 8. Extract page, component, API, or data helpers only when reuse is proven; one test does not justify a new abstraction. [`SELENIUM-PRACTICES`]
 9. Run `test_code_guardrails_check`, review the real diff, and use the smallest focused compile or test that proves the new behavior. [`SHAFT-MCP`, `ISTQB-CTFL`]
-10. Preserve test identity, traceability, reports, attachments, and diagnostic messages so failures remain attributable and actionable. [`ALLURE-RESULTS`, `SHAFT-REPORTING`]
+10. Preserve test identity, traceability, reports, attachments, and diagnostic messages so failures remain attributable and actionable. [`ALLURE-RESULTS`, `SHAFT-REPORTING`] Write attachments with `SHAFT.Report.attach(type, name, content)`; raw `Allure.attachment` takes `(name, type, content)`, so never swap them (#7185).
 
 ## Valid examples
 
