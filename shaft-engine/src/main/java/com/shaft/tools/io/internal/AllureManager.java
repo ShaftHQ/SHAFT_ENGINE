@@ -2505,7 +2505,7 @@ public class AllureManager {
         internalFileSession.zipFiles(allureOutPutDirectory, archivePath);
     }
 
-    private static void writeEnvironmentVariablesToAllureResultsDirectory() {
+    static void writeEnvironmentVariablesToAllureResultsDirectory() {
         // reads all environment variables and then formats and writes them to be read
         // by the Allure report
         var props = ThreadLocalPropertiesManager.getEffectiveProperties();

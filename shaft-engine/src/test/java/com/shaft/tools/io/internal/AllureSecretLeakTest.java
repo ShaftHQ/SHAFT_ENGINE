@@ -1,7 +1,6 @@
 package com.shaft.tools.io.internal;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.listeners.AllureListener;
 import com.shaft.properties.internal.Properties;
 import com.shaft.properties.internal.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
@@ -19,7 +18,6 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,7 +40,6 @@ public class AllureSecretLeakTest {
     private static final String MASK = "********";
 
     private Path workDirectory;
-    private Path propertiesDirectory;
     private Path resultsDirectory;
     private String originalPropertiesPath;
     private String originalResultsPath;
@@ -51,7 +48,7 @@ public class AllureSecretLeakTest {
     @BeforeMethod(alwaysRun = true)
     public void setUp() throws IOException {
         workDirectory = Files.createTempDirectory("shaft-secret-leak");
-        propertiesDirectory = Files.createDirectories(workDirectory.resolve("properties"));
+        Path propertiesDirectory = Files.createDirectories(workDirectory.resolve("properties"));
         resultsDirectory = Files.createDirectories(workDirectory.resolve("allure-results"));
         Files.writeString(propertiesDirectory.resolve("secrets.properties"),
                 "api.clientSecret=" + SECRET_VALUE + System.lineSeparator(), StandardCharsets.UTF_8);
@@ -95,10 +92,8 @@ public class AllureSecretLeakTest {
     }
 
     @Test
-    public void environmentXmlCarriesNoSecretValues() throws Exception {
-        Method writer = AllureManager.class.getDeclaredMethod("writeEnvironmentVariablesToAllureResultsDirectory");
-        writer.setAccessible(true);
-        writer.invoke(null);
+    public void environmentXmlCarriesNoSecretValues() throws IOException {
+        AllureManager.writeEnvironmentVariablesToAllureResultsDirectory();
 
         String environment = Files.readString(resultsDirectory.resolve("environment.xml"), StandardCharsets.UTF_8);
         assertNoSecrets(environment);
