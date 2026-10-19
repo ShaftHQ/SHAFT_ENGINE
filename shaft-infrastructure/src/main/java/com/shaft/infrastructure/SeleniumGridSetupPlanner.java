@@ -17,7 +17,7 @@ final class SeleniumGridSetupPlanner {
      * Edge 152, so a new DevTools session was a no-op and network interception failed
      * before the image assertion. This tag ships Edge 153, which that client can speak.
      */
-    static final String IMAGE_TAG = "4.49.0-20260909";
+    static final String IMAGE_TAG = "4.51.0-20261010";
     static final String PROJECT = "shaft-selenium-grid";
     static final int DEFAULT_PORT = 4444;
     static final int DEFAULT_CHROME = 1;
