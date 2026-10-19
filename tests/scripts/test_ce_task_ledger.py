@@ -8,6 +8,7 @@ import os
 import subprocess  # nosec B404 - runs the tool CLI under test with fixed argv.
 import sys
 import tempfile
+import time
 import unittest
 import unittest.mock
 from contextlib import redirect_stdout
@@ -57,6 +58,29 @@ class TaskLedgerTest(unittest.TestCase):
         self.assertEqual((False, 10.0), self.ledger.over_budget("t2", 40, now=600))
         self.assertTrue(self.ledger.over_budget("t2", 40, now=41 * 60)[0])
         self.assertEqual(3, self.run_main(["t2", "--budget", "--minutes", "0"])[0])
+
+    def test_step_checkpoint_enforces_the_35_minute_stop_7194(self):
+        self.assertEqual(35, self.ledger.DEFAULT_BUDGET_MINUTES)
+        self.ledger.record("cli", "start", start=True, now=0)
+        self.assertEqual(0, self.ledger.session_gate("cli", 35, now=29 * 60))
+        err = io.StringIO()
+        with unittest.mock.patch("sys.stderr", err):
+            self.assertEqual(0, self.ledger.session_gate("cli", 35, now=31 * 60))
+            self.assertEqual(3, self.ledger.session_gate("cli", 35, now=36 * 60))
+        self.assertIn("finish this step, then stop", err.getvalue())
+        self.assertIn("36/35 min; stop: push WIP", err.getvalue())
+        self.ledger.record("cli", "tested", start=True, now=time.time() - 36 * 60)
+        with unittest.mock.patch("sys.stderr", io.StringIO()):
+            code, _ = self.run_main(["cli", "built", "--next", "run tests"])
+        self.assertEqual(3, code)
+        self.assertEqual("built", self.ledger.entries("cli")[-1]["step"])
+        self.assertEqual(0, self.run_main(["cli", "done"])[0])
+        self.assertEqual(0, self.run_main(["cli", "resumed", "--start"])[0])
+
+    def test_gap_past_the_host_cap_starts_a_new_session_7194(self):
+        self.ledger.record("gap", "old", start=True, now=0)
+        self.ledger.record("gap", "late", now=51 * 60)
+        self.assertFalse(self.ledger.over_budget("gap", 35, now=52 * 60)[0])
 
     def test_budget_accepts_minutes_inline_6990(self):
         # `checkpoint TASK --budget 40` used to fail with "unrecognized arguments: 40".
