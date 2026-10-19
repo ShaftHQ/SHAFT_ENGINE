@@ -1,8 +1,10 @@
 package com.shaft.tools.io.internal;
 
+import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureResultsWriteException;
 import io.qameta.allure.AttachmentOptions;
+import org.apache.logging.log4j.Level;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -29,11 +31,17 @@ public final class AllureAttachments {
     }
 
     public static void add(String name, String type, String body) {
+        warnIfSwapped(name, type, body);
         byte[] bytes = body == null ? new byte[0] : body.getBytes(StandardCharsets.UTF_8);
-        add(name, type, new ByteArrayInputStream(bytes), null);
+        write(name, type, new ByteArrayInputStream(bytes), null);
     }
 
     public static void add(String name, String type, InputStream content, String fileExtension) {
+        warnIfSwapped(name, type, null);
+        write(name, type, content, fileExtension);
+    }
+
+    private static void write(String name, String type, InputStream content, String fileExtension) {
         try {
             Allure.getLifecycle().addAttachment(name, type, content, options(fileExtension));
         } catch (AllureResultsWriteException exception) {
@@ -43,6 +51,13 @@ public final class AllureAttachments {
 
     public static void add(String name, String type, byte[] content, String fileExtension) {
         add(name, type, new ByteArrayInputStream(content == null ? new byte[0] : content), fileExtension);
+    }
+
+    private static void warnIfSwapped(String name, String type, String textContent) {
+        String problem = AttachmentTypeGuard.callTimeProblem(name, type, textContent);
+        if (problem != null) {
+            ReportManager.logDiscrete(problem, Level.WARN);
+        }
     }
 
     static AttachmentOptions options(String fileExtension) {
