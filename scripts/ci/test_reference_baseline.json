@@ -47,7 +47,6 @@
   "shaft-engine/src/main/java/com/shaft/properties/internal/Allure.java": 1,
   "shaft-engine/src/main/java/com/shaft/properties/internal/BrowserStack.java": 1,
   "shaft-engine/src/main/java/com/shaft/properties/internal/EngineProperties.java": 1,
-  "shaft-engine/src/main/java/com/shaft/properties/internal/PropertyFileManager.java": 1,
   "shaft-engine/src/main/java/com/shaft/tools/io/YAMLFileManager.java": 1,
   "shaft-heal/src/main/java/com/shaft/heal/model/HealingReport.java": 6,
   "shaft-infrastructure/src/main/java/com/shaft/infrastructure/LighthouseRuntime.java": 1,
