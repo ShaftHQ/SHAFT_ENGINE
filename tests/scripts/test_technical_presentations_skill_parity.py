@@ -64,6 +64,17 @@ class TechnicalPresentationsParityTest(unittest.TestCase):
         self.assertIn("never remove", rules)
         self.assertIn("skip slide", rules)
         self.assertIn("speaker notes", rules)
+        self.assertIn("never modify the owner's source files", rules)
+        self.assertIn("new file", rules)
+
+    def test_editable_output_rule_and_gotchas(self) -> None:
+        rules = _text(SKILL).split("## Hard rules", 1)[1].split("\n## ", 1)[0].casefold()
+        self.assertIn("native charts", rules)
+        self.assertIn("baked into an image", rules)
+        gotchas = _text(f"{BASE}/references/review.md").split("## 15 Gotchas", 1)[1]
+        for phrase in ('show="0"', "PDF export", "U+2B91", "Roboto Slab", "Lato", "file id"):
+            with self.subTest(phrase=phrase):
+                self.assertIn(phrase, gotchas)
 
     def test_brand_neutral_with_a_palette_hook(self) -> None:
         self.assertIn("brand palette file if present", _text(SKILL))

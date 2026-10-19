@@ -15,16 +15,21 @@ owns pedagogy and design. Load ONE card file below, not all.
 
 ## Hard rules
 
-1. **Never remove content from an existing deck.** Only add or update.
-   Unwanted slides are hidden (Google Slides: Slide › Skip slide; pptx
-   `show="0"`). Unwanted on-slide text moves verbatim into the speaker notes
-   or a hidden "Reference" appendix slide. The notes of a redesigned slide
-   point to the original ("Original slide: hidden slide N").
-2. **Brand hook.** Use the project's brand palette file if present (for
+1. **Never modify the owner's source files.** Every new version goes in a
+   new file: copy, then edit the copy.
+2. **Never remove content from an existing deck.** In the owner's own files,
+   only add or update: hide unwanted slides (Google Slides: Slide ›
+   Skip slide; pptx `show="0"`) and move unwanted text verbatim into the
+   speaker notes. In a new copy, a slide that has a replacement may be
+   deleted only when its text is kept verbatim in the replacement's speaker
+   notes; no replacement means hide.
+3. **Editable output.** Real text boxes, native charts and shapes, web or
+   Google fonts only; never text baked into an image.
+4. **Brand hook.** Use the project's brand palette file if present (for
    example `palette.md`, `brand.md`, or a theme file the owner names); check
    its pairs against card 9. No palette file: neutral theme plus one accent.
    Never invent brand colours.
-3. No learner or audience personal data on slides, notes, or recordings;
+5. No learner or audience personal data on slides, notes, or recordings;
    aggregate it.
 
 ## First: retrieve
@@ -51,7 +56,8 @@ owns pedagogy and design. Load ONE card file below, not all.
 | 10 | Retrieval checks | Recall at start; checkpoint every 7-10 slides. | [teach](references/teach.md#10-retrieval-checks) |
 | 11 | Worked examples | Worked, then faded, then solo. | [teach](references/teach.md#11-worked-examples) |
 | 12 | Voice and demos | Humour tied to the point; demos rehearsed with a reset. | [teach](references/teach.md#12-voice-and-demos) |
-| 13 | Refactor a deck | Redesign beside the original; hide, never delete. | [review](references/review.md#13-refactor-a-deck) |
+| 13 | Refactor a deck | New file; replace with notes, or hide. | [review](references/review.md#13-refactor-a-deck) |
 | 14 | Review | Reject the anti-pattern list; render and look. | [review](references/review.md#14-review) |
+| 15 | Gotchas | Skipped slides still export to PDF; check glyphs; Drive replace changes the id. | [review](references/review.md#15-gotchas) |
 
 Evidence behind the cards: [sources](references/sources.md).

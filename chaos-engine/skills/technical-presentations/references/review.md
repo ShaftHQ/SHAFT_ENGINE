@@ -2,12 +2,13 @@
 
 ## 13 Refactor a deck
 
-- Hard rule 1 applies: add or update only. Put the redesigned slide right
-  after the original, then hide the original, or collect originals in a
-  hidden "Reference" appendix ordered like the main flow.
-- Move cut text verbatim into the notes and say where it came from.
-- After any pptx import or export, confirm hidden slides stayed hidden.
-- Apply the brand hook (hard rule 2) through the theme or master, not per
+- Hard rule 1: work in a new file; the owner's source stays untouched.
+- In the copy, put each redesigned slide where the original was. Delete the
+  original only after its text is in the replacement's speaker notes,
+  verbatim, with "Original: slide N of <source file>". No replacement: hide
+  it, or collect it in a hidden "Reference" appendix.
+- Editing the owner's own file (only on request): hide, never delete.
+- Apply the brand hook (hard rule 4) through the theme or master, not per
   slide.
 
 ## 14 Review
@@ -22,5 +23,15 @@ Render every slide and look before calling it done. Reject on review:
   a logo on every slide.
 - Pies with 4+ slices, 3D charts, charts without a takeaway title.
 - Unreadable code or settings screenshots.
-- Any deleted slide or text (hard rule 1), or audience personal data (hard
-  rule 3).
+- An edited source file, deleted text, text baked into an image, or audience
+  personal data (hard rules 1, 2, 3, 5).
+
+## 15 Gotchas
+
+- pptx `show="0"` survives the Google Slides import as Skip slide, but the
+  PDF export still includes skipped slides; strip them from a PDF copy or
+  say so.
+- ⮑ (U+2B91) renders as tofu in Roboto Slab and Lato. Check every unusual
+  glyph in a Google PDF export, not only in the editor.
+- With only the Drive connector, replacing a deck creates a new file id;
+  update every link and share, and report the new id.
