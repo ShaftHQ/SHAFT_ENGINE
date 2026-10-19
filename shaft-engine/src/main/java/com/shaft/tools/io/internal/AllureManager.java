@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -77,6 +78,7 @@ import java.util.regex.Pattern;
  */
 public class AllureManager {
     private static final int INDEX_PATCH_BUFFER_SIZE = 64 * 1024;
+    private static final long MAX_INLINED_LOGO_BYTES = 1024L * 1024L;
 
     /**
      * Default Maven-local cache root for the pinned Allure 3 CLI (#5801).
@@ -331,6 +333,26 @@ public class AllureManager {
             }
             </style>
             """;
+
+    /** Test seam: the cached Allure CLI command prefix. */
+    static String allureCommandPrefix() {
+        return cachedAllureCommandPrefix;
+    }
+
+    /** Test seam: replaces the cached Allure CLI command prefix. */
+    static void allureCommandPrefix(String prefix) {
+        cachedAllureCommandPrefix = prefix;
+    }
+
+    /** Test seam: the in-run allure-results folder path. */
+    static String allureResultsFolder() {
+        return allureResultsFolderPath;
+    }
+
+    /** Test seam: replaces the in-run allure-results folder path. */
+    static void allureResultsFolder(String path) {
+        allureResultsFolderPath = path;
+    }
 
     /**
      * Exposes the injected Allure theme-color overrides for the brand-palette drift-guard test
@@ -733,13 +755,156 @@ public class AllureManager {
         copyAndOpenAllure();
     }
 
+    /**
+     * Rebuilds SHAFT's Allure report from an existing results directory without running tests (#7174),
+     * for example a folder that merges several runs.
+     *
+     * <p>It uses the same managed Allure 3 CLI, {@code allurerc.yaml} settings (single-file mode, logo,
+     * theme, grouping) and SHAFT index patch as a test run. The report and {@code allurerc.yaml} are
+     * written next to the results directory, in its parent. Nothing is cleaned, {@code environment.xml}
+     * is left as it is, and the report is not opened. A warning is logged for every attachment file the
+     * results reference but the directory does not contain.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Path report = AllureManager.generateReport(Path.of("target/merged-allure-results"));
+     * }</pre>
+     *
+     * @param resultsDirectory the directory holding {@code *-result.json}, {@code *-container.json} and attachment files
+     * @return the generated HTML report
+     * @throws IllegalArgumentException when {@code resultsDirectory} is not an existing directory
+     * @throws IllegalStateException    when the Allure CLI could not be resolved or produced no report
+     */
+    public static synchronized Path generateReport(Path resultsDirectory) {
+        Path results = Objects.requireNonNull(resultsDirectory, "resultsDirectory").toAbsolutePath().normalize();
+        if (!Files.isDirectory(results)) {
+            throw new IllegalArgumentException("Allure results directory does not exist: " + results);
+        }
+        String previousResultsFolderPath = allureResultsFolderPath;
+        String previousOutputDirectory = allureOutPutDirectory;
+        allureResultsFolderPath = results + File.separator;
+        try {
+            writeAllureReport();
+            String newFileName = publishAllureReport();
+            if (newFileName == null) {
+                throw new IllegalStateException("The Allure CLI did not generate a report from " + results
+                        + "; see the Allure generate output in the log.");
+            }
+            return reportDirectoryPath().resolve(newFileName);
+        } finally {
+            allureResultsFolderPath = previousResultsFolderPath;
+            allureOutPutDirectory = previousOutputDirectory;
+        }
+    }
+
+    /**
+     * Lists attachment files that result and container files reference but the results directory lacks.
+     * Allure marks such attachments as missed and the report shows them empty.
+     *
+     * @param resultsDirectory the Allure results directory
+     * @return the missing attachment file names, sorted and without duplicates
+     */
+    static List<String> findMissingAttachments(Path resultsDirectory) {
+        File[] resultFiles = resultsDirectory.toFile().listFiles((directory, name) ->
+                name.endsWith("-result.json") || name.endsWith("-container.json"));
+        if (resultFiles == null) {
+            return List.of();
+        }
+        java.util.TreeSet<String> missing = new java.util.TreeSet<>();
+        for (File resultFile : resultFiles) {
+            try {
+                JsonNode root = JSON_MAPPER.readTree(resultFile);
+                for (JsonNode attachments : root.findValues("attachments")) {
+                    for (JsonNode attachment : attachments) {
+                        String source = attachment.path("source").asString("");
+                        if (!source.isBlank() && !Files.isRegularFile(resultsDirectory.resolve(source))) {
+                            missing.add(source);
+                        }
+                    }
+                }
+            } catch (RuntimeException e) {
+                ReportManager.logDiscrete("Could not read Allure result " + resultFile.getName() + ": " + e.getMessage(),
+                        org.apache.logging.log4j.Level.WARN);
+            }
+        }
+        return List.copyOf(missing);
+    }
+
+    private static void warnAboutMissingAttachments(String resultsPath) {
+        if (resultsPath == null || resultsPath.isBlank() || !Files.isDirectory(Path.of(resultsPath))) {
+            return;
+        }
+        List<String> missing = findMissingAttachments(Path.of(resultsPath));
+        if (!missing.isEmpty()) {
+            ReportManager.logDiscrete(missing.size() + " attachment file(s) referenced by the Allure results are missing from \""
+                            + resultsPath + "\" and will show as missed in the report, for example: "
+                            + String.join(", ", missing.subList(0, Math.min(5, missing.size()))) + ".",
+                    org.apache.logging.log4j.Level.WARN);
+        }
+    }
+
+    /**
+     * Returns the logo value for {@code allurerc.yaml}. A local image ({@code file:} URI or file path)
+     * is inlined as a {@code data:} URI, because the Allure 3 report uses the value verbatim as the image
+     * source and cannot resolve a local file, which shows as a broken image in single-file reports.
+     * Remote URLs, {@code data:} URIs and unreadable files are returned unchanged.
+     *
+     * @param logo the configured {@code allure.customLogo}
+     * @return the value to write as the report logo
+     */
+    static String resolveReportLogo(String logo) {
+        if (logo == null || logo.isBlank()) {
+            return logo;
+        }
+        String lower = logo.trim().toLowerCase(java.util.Locale.ROOT);
+        if (lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("data:")) {
+            return logo;
+        }
+        try {
+            Path logoPath = lower.startsWith("file://") ? Path.of(java.net.URI.create(logo.trim()))
+                    : Path.of(lower.startsWith("file:") ? logo.trim().substring("file:".length()) : logo.trim());
+            if (Files.isRegularFile(logoPath) && Files.size(logoPath) <= MAX_INLINED_LOGO_BYTES) {
+                return "data:" + logoMimeType(logoPath) + ";base64,"
+                        + Base64.getEncoder().encodeToString(Files.readAllBytes(logoPath));
+            }
+        } catch (IOException | RuntimeException e) {
+            ReportManager.logDiscrete("Could not read allure.customLogo \"" + logo + "\": " + e.getMessage(),
+                    org.apache.logging.log4j.Level.WARN);
+            return logo;
+        }
+        ReportManager.logDiscrete("allure.customLogo \"" + logo + "\" is not a readable image of at most "
+                + MAX_INLINED_LOGO_BYTES / 1024 + " KB; the report may show a broken logo.", org.apache.logging.log4j.Level.WARN);
+        return logo;
+    }
+
+    private static String logoMimeType(Path logoPath) {
+        String name = logoPath.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+        if (name.endsWith(".svg")) {
+            return "image/svg+xml";
+        }
+        if (name.endsWith(".jpg") || name.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        if (name.endsWith(".gif")) {
+            return "image/gif";
+        }
+        if (name.endsWith(".webp")) {
+            return "image/webp";
+        }
+        return "image/png";
+    }
+
     private static void copyAndOpenAllure() {
-        internalFileSession.copyFolder(allureOutPutDirectory, reportDirectoryPath().toString());
-        internalFileSession.deleteFile(allureOutPutDirectory);
-        String newFileName = renameAllureReport();
+        String newFileName = publishAllureReport();
         if (newFileName != null) {
             openAllureReport(newFileName);
         }
+    }
+
+    private static String publishAllureReport() {
+        internalFileSession.copyFolder(allureOutPutDirectory, reportDirectoryPath().toString());
+        internalFileSession.deleteFile(allureOutPutDirectory);
+        return renameAllureReport();
     }
 
     /**
@@ -975,6 +1140,7 @@ public class AllureManager {
         // This prevents crashes on absent statusDetails and normalizes package/testClass labels
         // before Allure groups results.
         patchMissingStatusDetailsInResults(getResultsPath());
+        warnAboutMissingAttachments(getResultsPath());
         writeAllureCategoriesIfSupported();
 
         // Write allurerc.yaml with current settings (including custom title and optional history path)
@@ -1003,7 +1169,7 @@ public class AllureManager {
     private static void writeAllureConfig(String reportName, String outputDirectory) {
         String safeReportName = escapeYamlString(reportName);
         String safeOutputDir = escapeYamlString(portableConfigPath(Path.of(outputDirectory)));
-        String safeCustomLogo = escapeYamlString(SHAFT.Properties.allure.customLogo());
+        String safeCustomLogo = escapeYamlString(resolveReportLogo(SHAFT.Properties.allure.customLogo()));
         var configBuilder = new StringBuilder();
         configBuilder.append("name: \"").append(safeReportName).append("\"\n");
         configBuilder.append("output: \"").append(safeOutputDir).append("\"\n");
