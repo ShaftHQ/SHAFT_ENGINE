@@ -41,6 +41,8 @@ build/
 ### SHAFT ###
 allure-report/
 allure-results/
+# Generated reports are build output: attach them to the PR or ticket, never commit them (#7177).
+*allure*.html
 execution-summary/
 performanceReport/
 generate_allure_report.bat

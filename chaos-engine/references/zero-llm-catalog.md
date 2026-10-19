@@ -28,6 +28,7 @@ opening a host chat. Companion guidance: [script-first](script-first.md).
 | Rollback / uninstall | `... rollback|uninstall --project .` | Deterministic recovery |
 | Phase ledger | [`phase_ledger.py`](../phase_ledger.py) `record` / `show` / `summary` | Triage-scaled research gate + doctor `phaseLedger` |
 | Retrieve orchestrator | [`retrieve.py`](../retrieve.py) via `tool.py retrieve` | One store + used / skipped / degraded receipt |
+| Secret guard hooks | [`git_hooks.py`](../git_hooks.py) installs [`secret_guard.py`](../secret_guard.py) as pre-commit / pre-push | Blocks secret files, known values, tokens and `.secret-guard-paths` reports |
 | Wake pack | [`wake_pack.py`](../wake_pack.py) + `.chaos-engine-state/wake-pack.md` | Owner-curated ≤~120 tokens; draft-only MemPalace |
 | Portable Learning Session | [`learning_session.py`](../learning_session.py) `finalize` | Issues-first; **no** auto draft PRs |
 | Research preflight marker | `python3 .chaos-engine/hooks/reflection.py research-preflight --session-id <id>` | Unblocks opt-in research-before-mutation gate |
