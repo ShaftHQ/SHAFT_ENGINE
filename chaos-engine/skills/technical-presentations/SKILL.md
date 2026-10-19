@@ -49,15 +49,16 @@ owns pedagogy and design. Load ONE card file below, not all.
 | 3 | Storyboard | Layout per slide first, then copy to fit. | [plan](references/plan.md#3-storyboard) |
 | 4 | One idea | One idea per slide; passes the 3-second glance test. | [slide](references/slide.md#4-one-idea) |
 | 5 | Assertion-evidence | Claim title (sentence, ≤2 lines) over visual evidence. | [slide](references/slide.md#5-assertion-evidence) |
-| 6 | Multimedia | Mayer: coherence, signaling, redundancy, contiguity. | [slide](references/slide.md#6-multimedia-principles) |
+| 6 | Multimedia | Mayer: coherence, signaling, redundancy, contiguity; Appear/Fade builds only. | [slide](references/slide.md#6-multimedia-principles) |
+| 6a | Media treatment | Screenshots untinted and framed; diagrams redrawn natively; decor duotoned; logos greyscale. | [slide](references/slide.md#6a-media-treatment) |
 | 7 | Code slides | ≤8 lines, ≥24 pt mono, highlight active line, reveal by copies. | [technical](references/technical.md#7-code-slides) |
 | 8 | Data slides | One message per chart; takeaway in the title. | [technical](references/technical.md#8-data-slides) |
 | 9 | Type and contrast | WCAG 4.5:1 text, 3:1 large text and marks; never colour alone. | [technical](references/technical.md#9-type-and-contrast) |
-| 10 | Retrieval checks | Recall at start; checkpoint every 7-10 slides. | [teach](references/teach.md#10-retrieval-checks) |
+| 10 | Retrieval checks | Recall at start; checkpoint every 7-10 slides; interaction every 5-7. | [teach](references/teach.md#10-retrieval-checks) |
 | 11 | Worked examples | Worked, then faded, then solo. | [teach](references/teach.md#11-worked-examples) |
 | 12 | Voice and demos | Humour tied to the point; demos rehearsed with a reset. | [teach](references/teach.md#12-voice-and-demos) |
 | 13 | Refactor a deck | New file; replace with notes, or hide. | [review](references/review.md#13-refactor-a-deck) |
 | 14 | Review | Reject the anti-pattern list; render and look. | [review](references/review.md#14-review) |
-| 15 | Gotchas | Skipped slides still export to PDF; check glyphs; Drive replace changes the id. | [review](references/review.md#15-gotchas) |
+| 15 | Gotchas | Skipped slides still export to PDF; check glyphs in a real Google upload; Drive replace changes the id. | [review](references/review.md#15-gotchas) |
 
 Evidence behind the cards: [sources](references/sources.md).

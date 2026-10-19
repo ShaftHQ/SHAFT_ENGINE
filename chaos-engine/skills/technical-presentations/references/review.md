@@ -23,6 +23,11 @@ Render every slide and look before calling it done. Reject on review:
   a logo on every slide.
 - Pies with 4+ slices, 3D charts, charts without a takeaway title.
 - Unreadable code or settings screenshots.
+- More than 2 consecutive slides with the same layout geometry, or the same
+  concept drawn two ways on neighbouring slides.
+- A tinted screenshot, a pasted vendor diagram, a colour logo in a wall, or a
+  logo the presenter's CV does not back (card 6a).
+- A visible fact with no source in the notes.
 - An edited source file, deleted text, text baked into an image, or audience
   personal data (hard rules 1, 2, 3, 5).
 
@@ -31,7 +36,9 @@ Render every slide and look before calling it done. Reject on review:
 - pptx `show="0"` survives the Google Slides import as Skip slide, but the
   PDF export still includes skipped slides; strip them from a PDF copy or
   say so.
-- ⮑ (U+2B91) renders as tofu in Roboto Slab and Lato. Check every unusual
-  glyph in a Google PDF export, not only in the editor.
+- ⮑ (U+2B91) renders as tofu in Roboto Slab and Lato, and → (U+2192) or
+  ✓ ✗ ⚠ fall back to Times, Arial, or MS PGothic (card 9). Check every
+  non-ASCII glyph in a PDF export of a real Google Slides upload. A local
+  LibreOffice render substitutes fonts and hides the fallback.
 - With only the Drive connector, replacing a deck creates a new file id;
   update every link and share, and report the new id.

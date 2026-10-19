@@ -7,6 +7,9 @@
   alone, discuss, vote again (peer instruction). Answer and explanation on
   the next slide or in the notes. Low stakes, feedback always.
 - Recap slide per section with a repeated visual stamp.
+- Between checkpoints, an interaction every 5-7 slides: poll, "your turn"
+  prompt, or myth card. Never invent a presenter story; leave a notes
+  placeholder for the presenter's own.
 
 ## 11 Worked examples
 
