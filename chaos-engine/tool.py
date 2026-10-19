@@ -400,8 +400,8 @@ def tool_help_text() -> str:
         "  tool.py job checkpoint NAME STEP [--check]\n"
         "\n"
         "checkpoint/resume (agent work across session caps; references/durable-jobs.md):\n"
-        "  tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next TEXT] [--start]\n"
-        "  tool.py checkpoint TASK --budget [40]  (exit 3 = wrap up now)\n"
+        "  tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next TEXT] [--start]  (exit 3 = past 35 min, stop)\n"
+        "  tool.py checkpoint TASK --budget [35]  (exit 3 = wrap up now)\n"
         "  tool.py resume [TASK]  (short brief; exit 6 = no ledger)\n"
     )
 

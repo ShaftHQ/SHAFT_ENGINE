@@ -5,9 +5,12 @@ Some hosts (Grok Bot: about 50 minutes) hard-stop a background session on
 wall-clock time. Keepalive pings do not reset such a cap, so the work must be
 resumable instead: bounded work units, a short durable ledger line per step,
 and a resume brief the next session (or the parent) reads instead of the
-transcript.
+transcript. The harness enforces the stop: every in-flight step checkpoint
+also checks the session budget (default 35 min), warns in the last 5 minutes,
+and exits 3 once it is spent, after recording the step (#7194). A gap longer
+than the host cap starts a new session, so a stale ledger never blocks.
 
-    tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next TEXT] [--start]
+    tool.py checkpoint TASK STEP [--branch B] [--pr N] [--next TEXT] [--start]  exit 3 = stop now
     tool.py checkpoint TASK --budget [N | --minutes N] exit 3 = wrap up now
     tool.py resume [TASK]                             brief; exit 6 = absent
     tool.py checkpoint TASK --item ID --group G --status S [--note TEXT]
@@ -34,7 +37,10 @@ import time
 from pathlib import Path
 
 NAME_RE = re.compile(r"^[A-Za-z0-9_.-]{1,96}$")
-DEFAULT_BUDGET_MINUTES = 40
+DEFAULT_BUDGET_MINUTES = 35
+BUDGET_WARN_MINUTES = 5
+HOST_CAP_MINUTES = 50
+STOP_NOW = "stop: push WIP, checkpoint --next, end turn"
 DONE = "done"
 
 
@@ -124,8 +130,12 @@ def items_table(name: str) -> str:
 
 
 def session_start(rows: list[dict]) -> float | None:
-    for row in reversed(rows):
-        if row.get("start"):
+    """Latest `--start` row, or the first row after a gap longer than the host cap (a dead session)."""
+    rows = [row for row in rows if "t" in row]
+    for index in range(len(rows) - 1, -1, -1):
+        row = rows[index]
+        gap = index > 0 and row["t"] - rows[index - 1]["t"] > HOST_CAP_MINUTES * 60
+        if row.get("start") or gap:
             return float(row["t"])
     return float(rows[0]["t"]) if rows else None
 
@@ -202,6 +212,17 @@ def checkpoint_step(ns: argparse.Namespace) -> int:
         return 4
     record(ns.task, ns.step, branch=ns.branch, pr=ns.pr, next_action=ns.next_action, start=ns.start,
            spec=str(spec) if ns.spec and spec else "")
+    return session_gate(ns.task, ns.budget or ns.minutes) if ns.step != DONE else 0
+
+
+def session_gate(name: str, minutes: float, now: float | None = None) -> int:
+    """Hard stop after the step is recorded: exit 3 past the budget, warn in its last minutes."""
+    spent, elapsed = over_budget(name, minutes, now)
+    if spent:
+        print(f"{name}: {elapsed:.0f}/{minutes:.0f} min; {STOP_NOW}", file=sys.stderr)
+        return 3
+    if elapsed >= minutes - BUDGET_WARN_MINUTES:
+        print(f"{name}: {elapsed:.0f}/{minutes:.0f} min; finish this step, then stop", file=sys.stderr)
     return 0
 
 
@@ -246,7 +267,7 @@ def main(argv: list[str] | None = None, command: str = "checkpoint") -> int:
             if ns.budget > 0:
                 ns.minutes = ns.budget
             spent, elapsed = over_budget(ns.task, ns.minutes)
-            verdict = "wrap up: push WIP, checkpoint --next, end turn" if spent else "ok"
+            verdict = STOP_NOW if spent else "ok"
             print(f"{ns.task}: {elapsed:.0f}/{ns.minutes:.0f} min; {verdict}")
             return 3 if spent else 0
         if not ns.step:

@@ -15,8 +15,8 @@ Install first: [harness maintenance](harness-maintenance.md#install).
    (`skills/chaos-engine/SKILL.md`), and both companion cards
    (`companions/caveman-ultra.md`, `companions/ponytail-ultra.md`).
    Without a shell: read those four files directly.
-   `checkpoint`/`resume` refuse after 40 min; write `reload harness first`
-   in summaries and checkpoints.
+   `checkpoint`/`resume` refuse once the cards are 40 min old (rerun
+   `entry --full`); write `reload harness first` in summaries and checkpoints.
 2. Run one `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "<q>"`
    before the first broad search or unnamed read
    ([retrieve-first](retrieve-first.md)).
@@ -40,17 +40,17 @@ scheduled runs cannot create listeners hands that to the parent.
 
 ## Session cap (Grok Bot default)
 
-Grok Bot stops a background session at about 50 minutes of wall-clock time.
-Pings do not extend a wall-clock cap; resume instead:
+Grok Bot stops a background session at about 50 minutes of wall clock; pings
+do not extend it. The one session-length rule, enforced at 35 minutes:
 
-- Start each session with `python3 .chaos-engine/tool.py resume TASK` and
-  `tool.py checkpoint TASK STEP --start`; follow its `next:` line, not the transcript.
-- Keep each work unit under 40 minutes. After each step (commit, push, PR,
-  merge) run `tool.py checkpoint TASK STEP --branch B --pr N --next "..."`.
-- When `tool.py checkpoint TASK --budget` exits 3, push WIP, record `--next`,
-  and end the turn.
-- Parent: on "interrupted before it finished", re-dispatch with the
-  `tool.py resume TASK` output as the brief. Never poll a child to keep it alive.
+- Start with `python3 .chaos-engine/tool.py resume TASK` and
+  `tool.py checkpoint TASK STEP --start`; follow `next:`, not the transcript.
+- After every build, test, commit, push, PR or merge step, run
+  `tool.py checkpoint TASK STEP --branch B --pr N --next "..."`. It warns in
+  the last 5 minutes and exits 3 past 35: push WIP, record `--next`, end the turn.
+- Parent: one issue per background run; split batches. On "interrupted
+  before it finished", re-dispatch with `tool.py resume TASK` as the brief.
+  Never poll a child to keep it alive.
 
 ## Token economy
 
@@ -85,7 +85,6 @@ verbose reports were most of the waste.
   box is still mounting: recheck, never clone over it.
 - Keep tools and drafts outside `/tmp` (a box restore wipes it) and check
   `git ls-files -d` before each push.
-- `checkpoint TASK --budget 40` after every merge. When it exits 3, stop.
 
 ## Delivery ledger
 
