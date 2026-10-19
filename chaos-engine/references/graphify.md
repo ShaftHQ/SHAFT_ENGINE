@@ -77,7 +77,10 @@ out of the code extract; directory and path rules drop pages here too.
 
 `tool.py retrieve --store graphify` keeps a hit when a query word appears in
 its node label, its stored section text (`documentation-pages.json`), or its
-path. Label and text matches rank above path-only matches.
+path. Label and text matches rank above path-only matches. Hits then collapse
+to one per file at its best rank: the best section keeps `label` and `line`,
+`labels` lists up to three matching sections, and the freed slots go to more
+distinct files.
 
 Useful bounded reads:
 

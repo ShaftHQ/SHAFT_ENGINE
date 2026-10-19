@@ -266,6 +266,34 @@ def _graphify_hits(body: str, query: str = "") -> list[dict[str, object]]:
     return found if found else _structured_hits(body, query=query)
 
 
+_LABELS_PER_FILE = 3
+
+
+def _collapse_hits_by_file(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """One hit per path at its best-ranked position (#7179).
+
+    The best section keeps ``label`` and ``line``; when several sections of the
+    file matched, ``labels`` lists up to three of them in rank order.
+    """
+    collapsed: dict[str, dict[str, Any]] = {}
+    for hit in hits:
+        path = str(hit.get("path") or "")
+        label = hit.get("label")
+        kept = collapsed.get(path)
+        if kept is None:
+            collapsed[path] = dict(hit)
+            continue
+        if not label:
+            continue
+        labels = kept.setdefault("labels", [kept["label"]] if kept.get("label") else [])
+        if label not in labels and len(labels) < _LABELS_PER_FILE:
+            labels.append(label)
+    for hit in collapsed.values():
+        if len(hit.get("labels", ())) < 2:
+            hit.pop("labels", None)
+    return list(collapsed.values())
+
+
 def _graphify_texts(project: Path) -> dict[tuple[str, str], str]:
     stores = _load_stores()
     if stores is None or not hasattr(stores, "documentation_texts"):
@@ -681,7 +709,9 @@ def _store_hit_receipt(
     mindset = _mindset()
     if store == "graphify" and mindset is not None:
         texts = _graphify_texts(project) if any("label" in hit for hit in hits) else {}
-        hits = mindset.relevance_floor(hits, query, project=project, texts=texts)[:_HIT_LIMIT]
+        hits = _collapse_hits_by_file(
+            mindset.relevance_floor(hits, query, project=project, texts=texts)
+        )[:_HIT_LIMIT]
         if not hits:
             return {
                 "store": store,

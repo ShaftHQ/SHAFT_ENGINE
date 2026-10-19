@@ -176,6 +176,49 @@ class GraphifySectionRelevanceTest(unittest.TestCase):
         self.assertEqual([{"path": "chaos-engine/retrieve.py"}], kept)
 
 
+class GraphifyFileCollapseTest(unittest.TestCase):
+    """#7179: one Graphify hit per file; extra matching sections become labels, freed slots go to other files."""
+
+    PAGES = GraphifySectionRelevanceTest.PAGES
+    _receipt = GraphifySectionRelevanceTest._receipt
+
+    def test_sections_of_one_file_collapse_into_one_hit_with_ranked_labels(self):
+        audit = "teaching/course-updates/freshness-audit.md"
+        top = "Automatest course material: freshness audit (Oct 2026) › Top 10 fixes (in order)"
+        page = "Automatest course material: freshness audit (Oct 2026)"
+        receipt = self._receipt("freshness audit Eclipse screenshots", [(audit, page), (audit, top)])
+        self.assertEqual("used", receipt["status"], receipt)
+        self.assertEqual([audit], [hit["path"] for hit in receipt["hits"]], receipt)
+        hit = receipt["hits"][0]
+        self.assertEqual(top, hit["label"])
+        self.assertEqual([top, page], hit["labels"])
+
+    def test_single_section_hits_carry_no_labels_list(self):
+        receipt = self._receipt("Cohort profile", [
+            ("teaching/trainee-numbers.md", "Trainee numbers (verified vs estimated) › "
+             "Verified from attendance sheets › Cohort profile (rounds 31-34 forms, aggregate)"),
+        ])
+        self.assertNotIn("labels", receipt["hits"][0])
+
+    def test_freed_slots_go_to_more_distinct_files(self):
+        retrieve = load("retrieve")
+        nodes = [("chaos-engine/retrieve.py", f"retrieve section {index}") for index in range(10)]
+        nodes += [(f"chaos-engine/retrieve_{index}.py", "retrieve helper") for index in range(6)]
+        body = "".join(f"NODE {label} [src={path} loc=L{line} community=]\n"
+                       for line, (path, label) in enumerate(nodes, start=1))
+        completed = subprocess.CompletedProcess([], 0, stdout=body, stderr="")
+        with tempfile.TemporaryDirectory() as temporary, \
+                unittest.mock.patch.object(retrieve, "_record_store_outcome"):
+            receipt = retrieve._store_hit_receipt(Path(temporary), "graphify", "retrieve", completed, False)
+        paths = [hit["path"] for hit in receipt["hits"]]
+        self.assertEqual(len(paths), len(set(paths)), receipt)
+        self.assertEqual(7, len(paths), receipt)
+        first = receipt["hits"][0]
+        self.assertEqual("chaos-engine/retrieve.py", first["path"])
+        self.assertEqual(1, first["line"])
+        self.assertEqual(3, len(first["labels"]))
+
+
 class RetrieveBudgetTest(unittest.TestCase):
     def test_graphify_drops_irrelevant_hits_and_stays_in_budget(self):
         retrieve = load("retrieve")
