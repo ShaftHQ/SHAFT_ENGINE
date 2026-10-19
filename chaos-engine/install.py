@@ -4505,8 +4505,22 @@ def _install_secret_guard(project: Path, target: Path) -> dict[str, object] | No
         sys.dont_write_bytecode = previous
 
 
+class _NoSecretGuard(argparse.Action):
+    """``--no-secret-guard``: the same switch as ``CHAOS_ENGINE_SECRET_GUARD=0``."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, True)
+        os.environ["CHAOS_ENGINE_SECRET_GUARD"] = "0"
+
+
 def _install_store_schedule(project: Path) -> None:
-    """Write the daily timer during a real install. Tests do not touch the user timer."""
+    """Real-install side effects that tests never touch: the secret guard hooks, then the daily timer.
+
+    The guard is idempotent, so install and the store repairs that also land here simply re-wire it.
+    """
+    guard = _install_secret_guard(project, project / INSTALL_DIRECTORY)
+    if guard is not None and guard.get("status") != "installed":
+        print(f"ChaosEngine secret guard: {guard.get('status')} ({guard.get('reason')})", file=sys.stderr)
     if os.environ.get("CHAOS_ENGINE_STORE_SCHEDULE", "1").strip().casefold() in {
         "0", "false", "no", "off",
     }:
@@ -6471,7 +6485,8 @@ def parser() -> argparse.ArgumentParser:
     )
     install_command.add_argument(
         "--no-secret-guard",
-        action="store_true",
+        action=_NoSecretGuard,
+        nargs=0,
         default=False,
         help=(
             "Do not wire the secret guard into git pre-commit and pre-push "
@@ -7393,10 +7408,6 @@ def main() -> int:
                 if ".graphifyignore" not in untouched:
                     seed_graphify_ignore(args.project)
             _install_store_schedule(args.project)
-            if not getattr(args, "no_secret_guard", False):
-                guard = _install_secret_guard(args.project, target)
-                if guard is not None:
-                    result["secretGuard"] = guard
         elif args.command == "repair":
             result = repair_component(args.project, args.component)
         elif args.command == "addons":

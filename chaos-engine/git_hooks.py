@@ -10,7 +10,7 @@ A hooks setup that already existed is chained, not replaced:
 - ``pre-commit`` and ``pre-push`` run the guard first, then the chained hook,
 - every other chained hook gets a pass-through shim.
 
-Set ``CHAOS_ENGINE_SECRET_GUARD=0`` (or pass ``--no-secret-guard`` to install.py) to skip.
+Set ``CHAOS_ENGINE_SECRET_GUARD=0`` (or pass ``--no-secret-guard`` to install.py, which sets it) to skip.
 """
 from __future__ import annotations
 
