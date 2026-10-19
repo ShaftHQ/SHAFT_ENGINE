@@ -34,6 +34,7 @@
 - Glyphs: Google Slides falls back silently per character. ✓ ✗ ⚠ fall back to
   MS PGothic; → (U+2192) is missing from Google Fonts' Roboto Slab, Lato,
   Roboto, and Noto Sans, so it renders in Times or Arial. Use outline icons
-  for marks and native arrow shapes in diagrams. A prose → goes in a family
-  whose cmap has it (for example Source Sans 3, Inter, Fira Sans); check with
-  `TTFont(path).getBestCmap()` (fontTools) before choosing.
+  for marks and native arrow shapes in diagrams. Set a prose → alone in a
+  family whose cmap has it (checked with fontTools `TTFont(path).getBestCmap()`),
+  one weight heavier and +2 pt so it matches the line (for example Source
+  Sans 3 Black next to a slab serif); keep the baseline.

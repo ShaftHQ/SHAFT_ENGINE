@@ -32,6 +32,9 @@
   cards, or myth-to-fact pairs. Never animate titles, footers, logos, or
   charts. The fully built slide must read alone (PDF and print show it). One
   transition style deck-wide.
+- Google Slides import: a build on a group holding one shape is dropped, so
+  target the shape. An object build inside a paragraph-by-paragraph list is
+  moved out and adds a click, so put bullets and objects in separate boxes.
 
 ## 6a Media treatment
 

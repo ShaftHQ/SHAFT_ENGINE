@@ -8,7 +8,8 @@
   the next slide or in the notes. Low stakes, feedback always.
 - Recap slide per section with a repeated visual stamp.
 - Between checkpoints, an interaction every 5-7 slides: poll, "your turn"
-  prompt, or myth card. Never invent a presenter story; leave a notes
+  prompt, or myth card. Count across part dividers and recaps; a recap is
+  not an interaction. Never invent a presenter story; leave a notes
   placeholder for the presenter's own.
 
 ## 11 Worked examples
