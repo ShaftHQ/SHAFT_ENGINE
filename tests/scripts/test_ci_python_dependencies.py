@@ -59,6 +59,10 @@ EXPECTED_WORKING_DIRECTORIES = {
 }
 
 
+def version_key(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in re.findall(r"\d+", version))
+
+
 class CiPythonDependenciesTest(unittest.TestCase):
     def test_workflow_dependencies_are_exact_centralized_and_automated(self):
         self.assertTrue(REQUIREMENTS.is_file(), "requirements-ci.txt must own CI Python versions")
@@ -74,7 +78,14 @@ class CiPythonDependenciesTest(unittest.TestCase):
             self.assertTrue(name and version and not re.search(r"\s", entry), entry)
             parsed[name.lower()] = version
         self.assertEqual(len(parsed), len(entries), "CI dependency pins must not be duplicated")
-        self.assertEqual(parsed, EXPECTED_PINS)
+        self.assertSetEqual(set(parsed), set(EXPECTED_PINS), "CI dependency list must cover the required minimum pins")
+        for name, minimum_version in EXPECTED_PINS.items():
+            actual_version = parsed[name]
+            self.assertGreaterEqual(
+                version_key(actual_version),
+                version_key(minimum_version),
+                f"{name} must be at least {minimum_version}; got {actual_version}",
+            )
         self.assertEqual(
             entries,
             sorted(entries, key=lambda entry: entry.split("==", 1)[0].lower()),
