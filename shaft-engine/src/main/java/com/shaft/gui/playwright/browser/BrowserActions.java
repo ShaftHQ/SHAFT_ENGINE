@@ -790,7 +790,8 @@ public class BrowserActions implements com.shaft.gui.driver.BrowserActionsContra
     public BrowserActions captureScreenshot(Screenshots type) {
         return timedBrowserAction("playwright.browser.captureScreenshot", () -> {
             boolean fullPage = type == Screenshots.FULL;
-            byte[] screenshot = page().screenshot(new Page.ScreenshotOptions().setFullPage(fullPage));
+            byte[] screenshot = page().screenshot(new Page.ScreenshotOptions().setFullPage(fullPage)
+                    .setMask(com.shaft.gui.internal.image.SecretScreenMask.playwrightMask(page())));
             ReportManagerHelper.attach("Playwright Screenshot", type.name().toLowerCase(Locale.ROOT) + ".png",
                     new ByteArrayInputStream(screenshot));
             ReportManager.log("Captured Playwright page screenshot.");

@@ -168,6 +168,16 @@ public final class ReportSecrets {
         return redacted;
     }
 
+    /**
+     * Tells whether the text holds a registered secret value or a JWT-shaped token.
+     *
+     * @param text the text to check
+     * @return {@code true} when {@link #redact(String)} would mask part of it
+     */
+    public static boolean containsSecret(String text) {
+        return text != null && !text.isEmpty() && !redact(text).equals(text);
+    }
+
     /** Forgets every registered key and value. Intended for tests and re-initialization. */
     public static void clear() {
         SECRET_KEYS.clear();

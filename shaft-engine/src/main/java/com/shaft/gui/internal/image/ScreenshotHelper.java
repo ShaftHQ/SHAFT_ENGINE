@@ -118,15 +118,29 @@ public class ScreenshotHelper {
             return takeViewportScreenshot(driver, 6);
         }
         if (driver instanceof FirefoxDriver firefoxDriver) {
-            return firefoxDriver.getFullPageScreenshotAs(OutputType.BYTES);
+            return SecretScreenMask.masked(driver, () -> firefoxDriver.getFullPageScreenshotAs(OutputType.BYTES));
         } else if (driver instanceof HasCdp cdpDriver) {
-            return takeFullPageScreenshotUsingCDP(driver, cdpDriver);
+            try {
+                return SecretScreenMask.masked(driver, () -> {
+                    try {
+                        return takeFullPageScreenshotUsingCDP(driver, cdpDriver);
+                    } catch (IOException e) {
+                        throw new java.io.UncheckedIOException(e);
+                    }
+                });
+            } catch (java.io.UncheckedIOException e) {
+                throw e.getCause();
+            }
         } else {
             return takeFullPageScreenshotManually(driver, skipElements);
         }
     }
 
     protected static byte[] takeViewportScreenshot(WebDriver driver, int retryAttempts) {
+        return SecretScreenMask.masked(driver, () -> captureViewport(driver, retryAttempts));
+    }
+
+    private static byte[] captureViewport(WebDriver driver, int retryAttempts) {
         if (driver instanceof FlutterIntegrationTestDriver flutterDriver) {
             return takeFlutterIntegrationScreenshot(flutterDriver);
         }
@@ -156,7 +170,7 @@ public class ScreenshotHelper {
                     // Ubuntu_Edge_Grid, Ubuntu_Chrome_Grid
                     // org.openqa.selenium.WebDriverException: unknown error: unhandled inspector error: {"code":-32000,"message":"Unable to capture screenshot"}
                     driver.switchTo().defaultContent();
-                    return takeViewportScreenshot(driver, retryAttempts - 1);
+                    return captureViewport(driver, retryAttempts - 1);
                 } else {
                     FailureReporter.fail(ScreenshotHelper.class, "Failed to capture a screenshot", exception);
                     return null;

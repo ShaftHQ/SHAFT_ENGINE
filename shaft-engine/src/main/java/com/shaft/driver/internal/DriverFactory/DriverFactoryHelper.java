@@ -939,6 +939,7 @@ public class DriverFactoryHelper {
     public void closeDriver(WebDriver driver) {
         if (driver != null) {
             MobileEvidenceState.closeAndRemove(driver);
+            com.shaft.gui.internal.image.SecretScreenMask.forget(driver);
             if (SHAFT.Properties.visuals.videoParamsScope().equals("DriverSession")) {
                 RecordManager.attachVideoRecording();
             }
