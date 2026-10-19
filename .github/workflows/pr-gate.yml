@@ -190,6 +190,7 @@ jobs:
               - 'scripts/ci/agent_harness_parity.json'
               - 'tests/scripts/test_agent_router_contract.py'
               - 'tests/scripts/test_architect_skill_parity.py'
+              - 'tests/scripts/test_technical_presentations_skill_parity.py'
               - 'tests/scripts/test_agent_plugin_release.py'
               - 'tests/scripts/test_agent_harness_portability.py'
               - 'tests/scripts/test_agent_harness_reachability.py'

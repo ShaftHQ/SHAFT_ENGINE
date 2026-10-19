@@ -143,6 +143,7 @@ jobs:
             tests.scripts.test_rerun_failures_skill_script
             tests.scripts.test_shaft_skills_content
             tests.scripts.test_sync_user_harness
+            tests.scripts.test_technical_presentations_skill_parity
             tests.scripts.test_validate_agent_guidance
             tests.scripts.test_validate_chaos_engine_readme
             tests.scripts.test_validate_agent_ownership
