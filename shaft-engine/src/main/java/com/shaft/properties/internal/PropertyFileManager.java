@@ -305,6 +305,10 @@ public final class PropertyFileManager {
                             // #7085: warn only, never fail, about likely misspelled SHAFT keys.
                             UnknownPropertyKeys.warnings(propertyFile.getName(), fromFile.stringPropertyNames())
                                     .forEach(warning -> ReportManager.logDiscrete(warning, Level.WARN));
+                            if (com.shaft.tools.io.internal.ReportSecrets.isSecretFile(propertyFile.getName())) {
+                                // #7173: values from secret files are masked everywhere in the report.
+                                com.shaft.tools.io.internal.ReportSecrets.registerAll(fromFile);
+                            }
                             properties.putAll(fromFile);
                         }
                     }

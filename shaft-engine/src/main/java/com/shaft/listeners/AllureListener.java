@@ -7,6 +7,7 @@ import com.shaft.listeners.internal.ExecutionFailureContext;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.FailureTraceReporter;
+import com.shaft.tools.io.internal.ReportSecrets;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AttachmentOptions;
 import io.qameta.allure.AllureLifecycle;
@@ -108,7 +109,20 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     //Before each step Stop inside the methods
     @Override
     public void beforeStepStop(StepResult result) {
+        // #7173: no step name or parameter may carry a secret value into allure-results.
+        result.setName(ReportSecrets.redact(result.getName()));
+        redactParameters(result.getParameters());
+        if (result.getStatusDetails() != null) {
+            result.getStatusDetails().setMessage(ReportSecrets.redact(result.getStatusDetails().getMessage()));
+            result.getStatusDetails().setTrace(ReportSecrets.redact(result.getStatusDetails().getTrace()));
+        }
         StepLifecycleListener.super.beforeStepStop(result);
+    }
+
+    private static void redactParameters(java.util.List<io.qameta.allure.model.Parameter> parameters) {
+        if (parameters != null) {
+            parameters.forEach(parameter -> parameter.setValue(ReportSecrets.redact(parameter.getValue())));
+        }
     }
 
     /**
@@ -274,6 +288,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
         applySuiteIdentity(result);
         AutomaticRunLabels.apply(result);
         redactStatusDetails(result);
+        redactParameters(result.getParameters());
         if (Status.SKIPPED.equals(result.getStatus())) {
             ExecutionFailureContext.PendingConfigFailure pendingFailure =
                     ExecutionFailureContext.getAndClearPendingConfigFailureEvidence();
@@ -346,8 +361,8 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
         if (details == null) {
             return;
         }
-        details.setMessage(FailureTraceReporter.redactInvocationText(details.getMessage()));
-        details.setTrace(FailureTraceReporter.redactInvocationText(details.getTrace()));
+        details.setMessage(ReportSecrets.redact(FailureTraceReporter.redactInvocationText(details.getMessage())));
+        details.setTrace(ReportSecrets.redact(FailureTraceReporter.redactInvocationText(details.getTrace())));
     }
 
     private static void redactStatusDetails(FixtureResult result) {
@@ -355,8 +370,8 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
         if (details == null) {
             return;
         }
-        details.setMessage(FailureTraceReporter.redactInvocationText(details.getMessage()));
-        details.setTrace(FailureTraceReporter.redactInvocationText(details.getTrace()));
+        details.setMessage(ReportSecrets.redact(FailureTraceReporter.redactInvocationText(details.getMessage())));
+        details.setTrace(ReportSecrets.redact(FailureTraceReporter.redactInvocationText(details.getTrace())));
     }
 
     //After The @test stops

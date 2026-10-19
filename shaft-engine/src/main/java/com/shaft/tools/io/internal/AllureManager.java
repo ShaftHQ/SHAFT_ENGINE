@@ -2505,7 +2505,7 @@ public class AllureManager {
         internalFileSession.zipFiles(allureOutPutDirectory, archivePath);
     }
 
-    private static void writeEnvironmentVariablesToAllureResultsDirectory() {
+    static void writeEnvironmentVariablesToAllureResultsDirectory() {
         // reads all environment variables and then formats and writes them to be read
         // by the Allure report
         var props = ThreadLocalPropertiesManager.getEffectiveProperties();
@@ -2514,7 +2514,11 @@ public class AllureManager {
         // read properties from any explicit properties files
         for (var i = 0; i < props.size(); i++) {
             String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
-            String propertyValue = props.getProperty(propertyKey).trim();
+            if (ReportSecrets.isSecretKey(propertyKey)) {
+                // #7173: keys from secret property files never reach environment.xml.
+                continue;
+            }
+            String propertyValue = ReportSecrets.publishableValue(propertyKey, props.getProperty(propertyKey).trim());
 
             // excluding empty values, system properties (all system properties have "." in
             // their names), and any git branch issues
