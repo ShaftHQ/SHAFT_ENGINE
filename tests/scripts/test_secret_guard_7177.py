@@ -66,10 +66,15 @@ class FindingsTest(SecretGuardTestCase):
         self.assertNotIn(SECRET, " ".join(found))
 
     def test_report_paths_tokens_and_assignments_are_named(self):
+        (self.repo / ".secret-guard-paths").write_text("# reports\nallure[^/]*\\.html$\n(^|/)allure-(results|report)/\n")
+        blocked = self.guard.blocked_paths(self.repo)
         self.assertEqual(["generated report or secret file"],
-                         self.guard.findings("docs/x/run-allure.html", b"<html/>", set(), []))
+                         self.guard.findings("docs/x/run-allure.html", b"<html/>", set(), [], blocked))
         self.assertEqual(["generated report or secret file"],
-                         self.guard.findings("target/allure-results/a-result.json", b"{}", set(), []))
+                         self.guard.findings("target/allure-results/a-result.json", b"{}", set(), [], blocked))
+        self.assertEqual([], self.guard.findings("docs/x/run-allure.html", b"<html/>", set(), []))
+        self.assertEqual(["generated report or secret file"],
+                         self.guard.findings("config/browserstack.yml", b"", set(), []))
         token = b"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkw.sig"
         self.assertEqual(["JWT-like token"], self.guard.findings("a.txt", token, set(), []))
         self.assertEqual(["secret assignment"],
@@ -222,6 +227,8 @@ class TemplateParityTest(unittest.TestCase):
             text = (TEMPLATE / name).read_text(encoding="utf-8")
             self.assertIn(f'secret_guard.py" {flag}', text)
             self.assertTrue(os.access(TEMPLATE / name, os.X_OK))
+            self.assertIn("SECRET_GUARD_PATHS=", text)
+        self.assertIn("allure-(results|report)", (ROOT / ".secret-guard-paths").read_text(encoding="utf-8"))
         for gitignore in (ROOT / "shaft-engine/src/main/resources/examples").glob("*/*/.gitignore"):
             self.assertIn("*allure*.html", gitignore.read_text(encoding="utf-8"), str(gitignore))
 

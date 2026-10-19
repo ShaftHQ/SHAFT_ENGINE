@@ -287,6 +287,7 @@ CHECKS = {
         "installer",
         (
             "tests.scripts.test_chaos_engine_bootstrap",
+            "tests.scripts.test_secret_guard_7177",
             "tests.scripts.test_ce_packs",
             "tests.scripts.test_ce_addons",
             "tests.scripts.test_policy_overlay_repair",

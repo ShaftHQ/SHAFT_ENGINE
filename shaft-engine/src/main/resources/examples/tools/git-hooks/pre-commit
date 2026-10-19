@@ -1,4 +1,7 @@
 #!/bin/sh
 # SHAFT secret guard (#7177). Enable once per clone: git config core.hooksPath tools/git-hooks
 PY=$(command -v python3 || command -v python)
+# Generated SHAFT reports; .secret-guard-paths at the repository root adds more.
+SECRET_GUARD_PATHS="${SECRET_GUARD_PATHS:-allure[^/]*\.html$|(^|/)allure-(results|report)/}"
+export SECRET_GUARD_PATHS
 exec "$PY" "$(dirname "$0")/secret_guard.py" --staged

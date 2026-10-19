@@ -3,10 +3,10 @@
 
 It checks every blob that a commit stages or that a push sends:
 
-- paths of generated reports and local secret files (Allure HTML, allure-results/,
-  allure-report/, secrets.properties, browserstack.yml),
+- paths of local secret files (secrets.properties, browserstack.yml) and of the
+  generated reports the project names in ``.secret-guard-paths``,
 - literal values from the local secret files, raw and inside the base64 blobs of an
-  Allure single-file report,
+  single-file HTML report,
 - JWT-like tokens,
 - secret assignments such as ``accessKey = <value>``.
 
@@ -17,13 +17,16 @@ Usage::
 
     python3 secret_guard.py --staged                 # pre-commit
     python3 secret_guard.py --push < <pushed refs>    # pre-push (git passes the refs on stdin)
-    python3 secret_guard.py --rev origin/main..HEAD   # audit a branch
+    python3 secret_guard.py --rev @{upstream}..HEAD   # audit a branch
 
 ``SECRET_GUARD_FILES`` lists the local secret files (comma separated, relative to the
 repository root). The default is
 ``src/main/resources/properties/secrets.properties,browserstack.yml``.
 ``.secret-guard-allow`` at the repository root holds path globs, one per line, whose
 files skip the token and assignment checks. Report paths and known values are always checked.
+``.secret-guard-paths`` at the repository root, and ``SECRET_GUARD_PATHS`` (separated by
+``|`` like any regex alternation), add path regexes that are blocked like report paths,
+for the report names a project's own tools generate. The core knows no report tool.
 """
 from __future__ import annotations
 
@@ -41,9 +44,10 @@ from typing import Iterable, Iterator
 
 DEFAULT_SECRET_FILES = "src/main/resources/properties/secrets.properties,browserstack.yml"
 ALLOW_FILE = ".secret-guard-allow"
+PATHS_FILE = ".secret-guard-paths"
 PROTECTED_REFS = ("refs/heads/main", "refs/heads/master")
 BLOCKED_PATH = re.compile(
-    r"(?i)(allure[^/]*\.html$|(^|/)allure-(results|report)/|(^|/)secrets\.properties$|(^|/)browserstack\.yml$)"
+    r"(?i)((^|/)secrets\.properties$|(^|/)browserstack\.yml$)"
 )
 TOKEN = re.compile(rb"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}")
 ASSIGNMENT = re.compile(
@@ -110,6 +114,20 @@ def allowed_globs(root: Path) -> list[str]:
     return [line.strip() for line in lines if line.strip() and not line.lstrip().startswith("#")]
 
 
+def blocked_paths(root: Path) -> re.Pattern[str]:
+    """The core report and secret-file paths plus the project's own path regexes."""
+    extra = [os.environ.get("SECRET_GUARD_PATHS", "").strip()]
+    path = root / PATHS_FILE
+    if path.is_file():
+        lines = path.read_text(encoding="utf-8").splitlines()
+        extra += [line.strip() for line in lines if line.strip() and not line.lstrip().startswith("#")]
+    extra = [pattern for pattern in extra if pattern]
+    if not extra:
+        return BLOCKED_PATH
+    core = BLOCKED_PATH.pattern.removeprefix("(?i)")
+    return re.compile("|".join([core, *(f"(?:{pattern})" for pattern in extra)]), re.IGNORECASE)
+
+
 def _decoded_blobs(data: bytes) -> list[bytes]:
     blobs = [data]
     for encoded in REPORT_BLOB.findall(data):
@@ -120,9 +138,11 @@ def _decoded_blobs(data: bytes) -> list[bytes]:
     return blobs
 
 
-def findings(path: str, data: bytes, values: set[bytes], allow: list[str]) -> list[str]:
+def findings(
+    path: str, data: bytes, values: set[bytes], allow: list[str], blocked: re.Pattern[str] = BLOCKED_PATH
+) -> list[str]:
     """Name what is wrong with one blob, without its content."""
-    found = ["generated report or secret file"] if BLOCKED_PATH.search(path) else []
+    found = ["generated report or secret file"] if blocked.search(path) else []
     blobs = _decoded_blobs(data)
     if any(value in blob for blob in blobs for value in values):
         found.append("known secret value")
@@ -199,7 +219,9 @@ def main(argv: list[str], stdin: str = "") -> int:
         return 1
     values = secret_values(root, os.environ.get("SECRET_GUARD_FILES", DEFAULT_SECRET_FILES).split(","))
     allow = allowed_globs(root)
-    blocked = [f"{path}: {', '.join(found)}" for path, data in items for found in [findings(path, data, values, allow)] if found]
+    paths = blocked_paths(root)
+    blocked = [f"{path}: {', '.join(found)}" for path, data in items
+               for found in [findings(path, data, values, allow, paths)] if found]
     if blocked:
         print("secret_guard BLOCKED (values not shown):\n  " + "\n  ".join(blocked), file=sys.stderr)
         print("Fix the files, or a false positive in the guard or .secret-guard-allow. Never use --no-verify.",

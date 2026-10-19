@@ -167,7 +167,7 @@ disabled = ["game-animation-frames", "game-asset-core", "game-character-consiste
 uninstall, which strips both CE Grok spans). Doctor may emit a sync-advisory tip when Grok
 is present and the lean-skills flag was not used — never recovery-required.
 
-### Secret guard git hooks (#7177)
+### Secret guard git hooks
 
 `install` wires `secret_guard.py` into git `pre-commit` and `pre-push` for the clone. The
 hooks live in `<git common dir>/chaos-engine-hooks`, which is untracked and shared by every
@@ -176,12 +176,13 @@ the old `core.hooksPath` (or a populated `.git/hooks`) is kept in
 `chaosengine.chainedHooksPath`, and it still runs after the guard passes. Other hook names
 get pass-through shims.
 
-The guard blocks generated reports (Allure HTML, `allure-results/`, `allure-report/`),
-values from the local secret files named by `SECRET_GUARD_FILES` (raw and inside base64
+The guard blocks local secret files (`secrets.properties`, `browserstack.yml`), the
+generated report paths the project lists as regexes in `.secret-guard-paths` (or
+`SECRET_GUARD_PATHS`), values from the local secret files named by `SECRET_GUARD_FILES` (raw and inside base64
 report blobs), JWT-like tokens and secret assignments. It also refuses a direct push to
 `main`. It never prints a value. Path globs in `.secret-guard-allow` skip the token and
 assignment checks. Audit a branch with
-`python3 .git/chaos-engine-hooks/secret_guard.py --rev origin/main..HEAD`.
+`python3 .git/chaos-engine-hooks/secret_guard.py --rev @{upstream}..HEAD`.
 
 **Opt out:** `--no-secret-guard`, or `CHAOS_ENGINE_SECRET_GUARD=0`.
 **Undo:** set `core.hooksPath` back to the value in `chaosengine.chainedHooksPath`, or unset it.
