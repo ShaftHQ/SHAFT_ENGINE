@@ -859,11 +859,18 @@ public class AllureManager {
 
     private static String logoMimeType(Path logoPath) {
         String name = logoPath.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
-        if (name.endsWith(".svg")) return "image/svg+xml";
-        if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
-        if (name.endsWith(".gif")) return "image/gif";
-        if (name.endsWith(".webp")) return "image/webp";
-        if (name.endsWith(".ico")) return "image/x-icon";
+        if (name.endsWith(".svg")) {
+            return "image/svg+xml";
+        }
+        if (name.endsWith(".jpg") || name.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        if (name.endsWith(".gif")) {
+            return "image/gif";
+        }
+        if (name.endsWith(".webp")) {
+            return "image/webp";
+        }
         return "image/png";
     }
 
