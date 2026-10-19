@@ -243,6 +243,39 @@ def _structured_hits(
     return chosen[:limit]
 
 
+_GRAPHIFY_NODE = re.compile(
+    r"^NODE (?P<label>.+?) \[src=(?P<path>[^\s\]]+) loc=(?:L?(?P<line>\d+))?", re.MULTILINE
+)
+
+
+def _graphify_hits(body: str, query: str = "") -> list[dict[str, object]]:
+    """Graphify ``NODE`` lines in Graphify's order, each with its label; else path hits."""
+    found: list[dict[str, object]] = []
+    seen: set[tuple[str, str]] = set()
+    for match in _GRAPHIFY_NODE.finditer(body):
+        path, label = match.group("path"), match.group("label").strip()
+        if path.startswith(("../", "./")) or (path, label) in seen:
+            continue
+        seen.add((path, label))
+        item: dict[str, object] = {"path": path, "label": label}
+        if match.group("line"):
+            item["line"] = int(match.group("line"))
+        found.append(item)
+        if len(found) >= 200:
+            break
+    return found if found else _structured_hits(body, query=query)
+
+
+def _graphify_texts(project: Path) -> dict[tuple[str, str], str]:
+    stores = _load_stores()
+    if stores is None or not hasattr(stores, "documentation_texts"):
+        return {}
+    try:
+        return stores.documentation_texts(stores.resolve_graph_out(project))
+    except OSError:
+        return {}
+
+
 def _source_name_hits(project: Path, body: str, limit: int = _HIT_LIMIT) -> list[dict[str, object]]:
     """Repo paths for MemPalace ``Source:`` basenames that name exactly one tracked file."""
     names = list(dict.fromkeys(match.group("name") for match in _SOURCE_LINE.finditer(body)))
@@ -639,10 +672,16 @@ def _store_hit_receipt(
     outside = _outside_workspace_receipt(project, store, query)
     if outside is not None:
         return outside
-    hits = _mempalace_hits(project, body, query) if store == "mempalace" else _structured_hits(body, query=query)
+    if store == "mempalace":
+        hits = _mempalace_hits(project, body, query)
+    elif store == "graphify":
+        hits = _graphify_hits(body, query=query)
+    else:
+        hits = _structured_hits(body, query=query)
     mindset = _mindset()
     if store == "graphify" and mindset is not None:
-        hits = mindset.relevance_floor(hits, query, project=project)
+        texts = _graphify_texts(project) if any("label" in hit for hit in hits) else {}
+        hits = mindset.relevance_floor(hits, query, project=project, texts=texts)[:_HIT_LIMIT]
         if not hits:
             return {
                 "store": store,

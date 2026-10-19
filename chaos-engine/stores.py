@@ -819,6 +819,45 @@ def index_documentation(root: Path) -> dict:
     return {"pages": pages}
 
 
+def _documentation_labels(page: dict) -> tuple[str, str, list[tuple[str, str, str]]]:
+    """Page label, page text, and (anchor, label, text) per section, as the graph files them."""
+    label = str(page.get("path") or "")
+    headings = page.get("headings") or []
+    if headings:
+        label = str(headings[0])
+    sections = [section for section in page.get("sections") or [] if isinstance(section, dict)]
+    page_text = str(page.get("text") or "")
+    if sections and sections[0].get("level") == 1:
+        title_section, sections = sections[0], sections[1:]
+        page_text = " ".join(part for part in (page_text, str(title_section.get("text") or "")) if part)
+    filed: list[tuple[str, str, str]] = []
+    for section in sections:
+        trail = [str(item) for item in section.get("trail") or [] if str(item) != label]
+        section_label = " › ".join([label, *trail]) if trail else label
+        filed.append((str(section.get("anchor") or "section"), section_label, str(section.get("text") or "")))
+    return label, page_text, filed
+
+
+def documentation_texts(graph_out: Path) -> dict[tuple[str, str], str]:
+    """(path, label) -> stored text for every filed page and section node. Missing filing -> {}."""
+    try:
+        indexed = json.loads((graph_out / "documentation-pages.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeError):
+        return {}
+    pages = indexed.get("pages") if isinstance(indexed, dict) else None
+    texts: dict[tuple[str, str], str] = {}
+    for page in pages if isinstance(pages, list) else []:
+        if not isinstance(page, dict) or not page.get("path"):
+            continue
+        path = str(page["path"])
+        label, page_text, sections = _documentation_labels(page)
+        texts.setdefault((path, label), page_text[:_SECTION_TEXT_LIMIT])
+        for _anchor, section_label, text in sections:
+            joined = texts.get((path, section_label))
+            texts[(path, section_label)] = f"{joined} {text}".strip() if joined else text
+    return texts
+
+
 def merge_documentation_graph(graph_json: Path, indexed: dict) -> dict:
     """Add documentation pages, and one node per page section, to a Graphify graph.json.
 
@@ -844,15 +883,7 @@ def merge_documentation_graph(graph_json: Path, indexed: dict) -> dict:
         if not page_path:
             continue
         node_id = "docs:" + page_path
-        label = page_path
-        headings = page.get("headings") or []
-        if headings:
-            label = str(headings[0])
-        sections = [section for section in page.get("sections") or [] if isinstance(section, dict)]
-        page_text = str(page.get("text") or "")
-        if sections and sections[0].get("level") == 1:
-            title_section, sections = sections[0], sections[1:]
-            page_text = " ".join(part for part in (page_text, str(title_section.get("text") or "")) if part)
+        label, page_text, sections = _documentation_labels(page)
         node = {
             "id": node_id,
             "label": label,
@@ -860,24 +891,23 @@ def merge_documentation_graph(graph_json: Path, indexed: dict) -> dict:
             "path": page_path,
             "source_file": page_path,
             "file_type": "document",
-            "headings": list(headings),
+            "headings": list(page.get("headings") or []),
         }
         if page_text:
             node["rationale"] = page_text[:_SECTION_TEXT_LIMIT]
         nodes.append(node)
-        for section in sections:
-            trail = [str(item) for item in section.get("trail") or [] if str(item) != label]
-            section_id = f"{node_id}#{section.get('anchor') or 'section'}"
+        for anchor, section_label, text in sections:
+            section_id = f"{node_id}#{anchor}"
             section_node = {
                 "id": section_id,
-                "label": " › ".join([label, *trail]) if trail else label,
+                "label": section_label,
                 "kind": "section",
                 "path": page_path,
                 "source_file": page_path,
                 "file_type": "document",
             }
-            if section.get("text"):
-                section_node["rationale"] = str(section["text"])
+            if text:
+                section_node["rationale"] = text
             nodes.append(section_node)
             edges.append({"source": node_id, "target": section_id, "kind": "contains"})
         for link in page.get("links") or []:

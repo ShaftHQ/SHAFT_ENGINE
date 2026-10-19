@@ -104,6 +104,78 @@ class RgStdinTest(unittest.TestCase):
             self.assertNotIn(str(here), pathed.stdout)
 
 
+class GraphifySectionRelevanceTest(unittest.TestCase):
+    """A Graphify section hit is judged on its label and text, not only its file path."""
+
+    PAGES = {
+        "teaching/course-updates/freshness-audit.md": (
+            "# Automatest course material: freshness audit (Oct 2026)\n\nIntro.\n\n"
+            "## Top 10 fixes (in order)\n\n4. **Environment Setup** still Eclipse + JDK 17"
+            " + JavaSE-1.8 screenshots.\n"
+        ),
+        "teaching/trainee-numbers.md": (
+            "# Trainee numbers (verified vs estimated)\n\n## Verified from attendance sheets\n\n"
+            "### Cohort profile (rounds 31-34 forms, aggregate)\n\nMostly juniors.\n"
+        ),
+        "identity/profiles.md": "# Identity and public profiles\n\nLinks.\n",
+        "index.md": "# Home\n\nStart here.\n",
+    }
+
+    def _receipt(self, query: str, labels: list[tuple[str, str]]) -> dict:
+        retrieve = load("retrieve")
+        stores = load("stores")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            for relative, text in self.PAGES.items():
+                (project / relative).parent.mkdir(parents=True, exist_ok=True)
+                (project / relative).write_text(text, encoding="utf-8")
+            out = project / "graphify-out"
+            indexed = stores.index_documentation(project)
+            stores.write_documentation_filing(out, indexed)
+            graph = stores.merge_documentation_graph(out / "graph.json", indexed)
+            known = {(node["path"], node["label"]) for node in graph["nodes"]}
+            for item in labels:
+                self.assertIn(item, known)
+            body = "Graph: graphify-out/graph.json (9 nodes) | Start: [] | 9 nodes found\n\n" + "".join(
+                f"NODE {label} [src={path} loc= community=]\n" for path, label in labels
+            ) + "NODE ../index.md [src= loc= community=]\n"
+            completed = subprocess.CompletedProcess([], 0, stdout=body, stderr="")
+            env = {key: value for key, value in os.environ.items() if not key.endswith("GRAPHIFY_OUT")}
+            with (
+                unittest.mock.patch.dict(os.environ, env, clear=True),
+                unittest.mock.patch.object(retrieve, "_record_store_outcome"),
+            ):
+                return retrieve._store_hit_receipt(project, "graphify", query, completed, False)
+
+    def test_section_text_match_keeps_a_hit_whose_path_shares_no_query_word(self):
+        audit = "teaching/course-updates/freshness-audit.md"
+        receipt = self._receipt("Eclipse JDK 17 screenshots", [
+            (audit, "Automatest course material: freshness audit (Oct 2026) › Top 10 fixes (in order)"),
+            (audit, "Automatest course material: freshness audit (Oct 2026)"),
+        ])
+        self.assertEqual("used", receipt["status"], receipt)
+        first = receipt["hits"][0]
+        self.assertEqual(audit, first["path"])
+        self.assertIn("Top 10 fixes", first["label"])
+
+    def test_label_match_ranks_above_a_path_only_match(self):
+        receipt = self._receipt("Cohort profile", [
+            ("teaching/trainee-numbers.md", "Trainee numbers (verified vs estimated) › "
+             "Verified from attendance sheets › Cohort profile (rounds 31-34 forms, aggregate)"),
+            ("identity/profiles.md", "Identity and public profiles"),
+            ("index.md", "Home"),
+        ])
+        paths = [hit["path"] for hit in receipt["hits"]]
+        self.assertEqual("teaching/trainee-numbers.md", paths[0], receipt)
+        self.assertNotIn("index.md", paths)
+
+    def test_path_only_hits_still_pass_the_floor(self):
+        mindset = load("harness_mindset")
+        hits = [{"path": "chaos-engine/retrieve.py"}, {"path": "shaft-intellij/Plugin.java"}]
+        kept = mindset.relevance_floor(hits, "retrieve budget")
+        self.assertEqual([{"path": "chaos-engine/retrieve.py"}], kept)
+
+
 class RetrieveBudgetTest(unittest.TestCase):
     def test_graphify_drops_irrelevant_hits_and_stays_in_budget(self):
         retrieve = load("retrieve")
