@@ -54,6 +54,7 @@
 <li><a href="#report(java.lang.String,io.qameta.allure.model.Status)" tabindex="0">report(String, Status)</a></li>
 <li><a href="#attach(java.lang.String,java.lang.String,java.lang.String)" tabindex="0">attach(String, String, String)</a></li>
 <li><a href="#attach(java.lang.String,java.lang.String,java.io.InputStream)" tabindex="0">attach(String, String, InputStream)</a></li>
+<li><a href="#generateAllureReport(java.nio.file.Path)" tabindex="0">generateAllureReport(Path)</a></li>
 </ol>
 </li>
 </ol>
@@ -111,21 +112,27 @@ SHAFT.Report.attach("text/plain", "response.json", responseBody);
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Attaches a string artifact to the Allure report.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#log(java.lang.String)" class="member-name-link">log</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message)</code></div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#generateAllureReport(java.nio.file.Path)" class="member-name-link">generateAllureReport</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;resultsDirectory)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Rebuilds SHAFT's Allure report from an existing results directory without running tests, for
+example a folder that merges several runs.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#log(java.lang.String)" class="member-name-link">log</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Logs a message discretely (visible in the execution log file but not
 as a report step).</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#report(java.lang.String)" class="member-name-link">report</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#report(java.lang.String)" class="member-name-link">report</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Logs a message as a visible step in the Allure execution report.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#report(java.lang.String,io.qameta.allure.model.Status)" class="member-name-link">report</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message,
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#report(java.lang.String,io.qameta.allure.model.Status)" class="member-name-link">report</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;message,
  io.qameta.allure.model.Status&nbsp;stepStatus)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
 <div class="block">Logs a message as a visible step in the Allure execution report,
 rendered with the exact provided status instead of the current test status.</div>
 </div>
@@ -222,6 +229,31 @@ Failed and broken steps remain visible even while discrete logging is enabled.</
 <dd><code>attachmentType</code> - the MIME type of the attachment (e.g., <code>"image/png"</code>)</dd>
 <dd><code>attachmentName</code> - a human-readable name for the attachment</dd>
 <dd><code>attachmentContent</code> - an <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/io/InputStream.html" title="class or interface in java.io" class="external-link"><code>InputStream</code></a> providing the binary content</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="generateAllureReport(java.nio.file.Path)">
+<h3>generateAllureReport</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a></span>&nbsp;<span class="element-name">generateAllureReport</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;resultsDirectory)</span></div>
+<div class="block">Rebuilds SHAFT's Allure report from an existing results directory without running tests, for
+example a folder that merges several runs. Uses the managed Allure 3 CLI, the
+<code>allure.*</code> settings (single-file mode, logo, theme) and SHAFT's report patch. Never
+cleans the results, never rewrites <code>environment.xml</code>, and warns about attachment files
+the results reference but the directory lacks.
+
+<pre><code>Path report = SHAFT.Report.generateAllureReport(Path.of("target/merged-allure-results"));
+</code></pre></div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>resultsDirectory</code> - the Allure results directory; the report is written to its parent's <code>allure-report</code> folder</dd>
+<dt>Returns:</dt>
+<dd>the generated HTML report</dd>
+<dt>Throws:</dt>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/IllegalArgumentException.html" title="class or interface in java.lang" class="external-link">IllegalArgumentException</a></code> - when <code>resultsDirectory</code> is not an existing directory</dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/IllegalStateException.html" title="class or interface in java.lang" class="external-link">IllegalStateException</a></code> - when the Allure CLI could not be resolved or produced no report</dd>
 </dl>
 </div>
 </section>
