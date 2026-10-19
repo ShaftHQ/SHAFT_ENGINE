@@ -334,12 +334,6 @@ public class AllureManager {
             </style>
             """;
 
-    /**
-     * Exposes the injected Allure theme-color overrides for the brand-palette drift-guard test
-     * (issue #3504), so consistency with {@code ReportHtmlTheme} is checked without reflection.
-     *
-     * @return the {@code <style>} block SHAFT patches into the generated Allure report
-     */
     /** Test seam: the cached Allure CLI command prefix. */
     static String allureCommandPrefix() {
         return cachedAllureCommandPrefix;
@@ -360,6 +354,12 @@ public class AllureManager {
         allureResultsFolderPath = path;
     }
 
+    /**
+     * Exposes the injected Allure theme-color overrides for the brand-palette drift-guard test
+     * (issue #3504), so consistency with {@code ReportHtmlTheme} is checked without reflection.
+     *
+     * @return the {@code <style>} block SHAFT patches into the generated Allure report
+     */
     static String allureThemeColorsStyle() {
         return ALLURE_THEME_COLORS_STYLE;
     }
