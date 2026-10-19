@@ -37,6 +37,8 @@ import java.util.regex.Matcher;
 @Service
 public class ShaftProjectService {
     private static final String EXAMPLES_ROOT = "META-INF/shaft-mcp/examples";
+    private static final String GIT_HOOKS_DIRECTORY = "tools/git-hooks";
+    private static final List<String> SECRET_GUARD_HOOKS = List.of("pre-commit", "pre-push", "secret_guard.py");
     private static final String UPGRADER_RESOURCE = "META-INF/shaft-mcp/upgrade_to_modular_shaft.py";
     private static final String SHAFT_SKILLS_ROOT = "META-INF/shaft-mcp/shaft-skills";
     private static final String ROUTER_SKILL_NAME = "shaft-developer";
@@ -142,9 +144,10 @@ public class ShaftProjectService {
         }
 
         List<String> modules = checkedModules(optionalModules, selectedPlatform);
-        List<String> warnings = List.of();
+        List<String> warnings = new ArrayList<>();
         try {
             copyResourceDirectory(EXAMPLES_ROOT + "/" + selectedRunner + "/" + templateProject, output, overwrite);
+            copySecretGuardHooks(output, overwrite, warnings);
             Path pomPath = output.resolve("pom.xml");
             String pom = Files.readString(pomPath, StandardCharsets.UTF_8);
             pom = replaceFirst(pom, "<groupId>io\\.github\\.shafthq</groupId>",
@@ -173,7 +176,7 @@ public class ShaftProjectService {
                     selectedPlatform,
                     templateProject,
                     modules,
-                    warnings);
+                    List.copyOf(warnings));
         } catch (IOException exception) {
             throw new IllegalStateException("SHAFT project could not be generated.", exception);
         }
@@ -743,6 +746,19 @@ public class ShaftProjectService {
             throw new IllegalArgumentException("Could not locate project dependency section in pom.xml");
         }
         return pom.replaceFirst(marker, Matcher.quoteReplacement("\n" + block + "    </dependencies>\n    <build>"));
+    }
+
+    /**
+     * Ships the secret-guard git hooks (#7177): enable them with {@code git config core.hooksPath tools/git-hooks}.
+     */
+    private static void copySecretGuardHooks(Path output, boolean overwrite, List<String> warnings) throws IOException {
+        for (String hook : SECRET_GUARD_HOOKS) {
+            Path destination = output.resolve(GIT_HOOKS_DIRECTORY + "/" + hook);
+            copyResourceFile(EXAMPLES_ROOT + "/" + GIT_HOOKS_DIRECTORY + "/" + hook, destination, output, overwrite);
+            if (!destination.toFile().setExecutable(true, false)) {
+                warnings.add("Could not mark " + GIT_HOOKS_DIRECTORY + "/" + hook + " executable; run chmod +x on it.");
+            }
+        }
     }
 
     private static void copyResourceDirectory(String resourceRoot, Path target, boolean overwrite) throws IOException {

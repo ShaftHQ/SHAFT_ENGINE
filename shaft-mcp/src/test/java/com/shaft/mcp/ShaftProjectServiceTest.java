@@ -64,6 +64,14 @@ class ShaftProjectServiceTest {
         assertTrue(pom.contains("<artifactId>shaft-sikulix</artifactId>"));
         assertTrue(Files.exists(generated.resolve(".github/workflows/api.yml")));
         assertTrue(Files.exists(generated.resolve(".github/dependabot.yml")));
+        for (String hook : List.of("pre-commit", "pre-push", "secret_guard.py")) {
+            Path file = generated.resolve("tools/git-hooks/" + hook);
+            assertTrue(Files.isRegularFile(file), hook);
+            assertTrue(Files.isExecutable(file), hook);
+        }
+        assertTrue(Files.readString(generated.resolve("tools/git-hooks/pre-push")).contains("secret_guard.py\" --push"));
+        assertTrue(Files.readString(generated.resolve(".gitignore")).contains("*allure*.html"));
+        assertTrue(result.warnings().isEmpty(), String.valueOf(result.warnings()));
     }
 
     @Test

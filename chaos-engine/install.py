@@ -4481,6 +4481,26 @@ def _refresh_shared_store(project: Path, component: str) -> str:
     return "current"
 
 
+def _install_secret_guard(project: Path, target: Path) -> dict[str, object] | None:
+    """#7177: wire the secret guard into git pre-commit and pre-push. Tests do not touch real clones."""
+    argv = " ".join(sys.argv)
+    if "unittest" in argv or "tests/scripts" in argv:
+        return None
+    path = target / "git_hooks.py"
+    if not path.is_file() or not (target / "secret_guard.py").is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("ce_git_hooks_installer", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+        return module.install_secret_guard(project, target / "secret_guard.py")
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+        print(f"ChaosEngine secret guard was not installed: {error}", file=sys.stderr)
+        return {"status": "failed", "reason": type(error).__name__}
+
+
 def _install_store_schedule(project: Path) -> None:
     """Write the daily timer during a real install. Tests do not touch the user timer."""
     if os.environ.get("CHAOS_ENGINE_STORE_SCHEDULE", "1").strip().casefold() in {
@@ -6446,6 +6466,15 @@ def parser() -> argparse.ArgumentParser:
         help="Keep the deja transcript store off (also CHAOS_ENGINE_WITHOUT_DEJA=1).",
     )
     install_command.add_argument(
+        "--no-secret-guard",
+        action="store_true",
+        default=False,
+        help=(
+            "Do not wire the secret guard into git pre-commit and pre-push "
+            "(also CHAOS_ENGINE_SECRET_GUARD=0)."
+        ),
+    )
+    install_command.add_argument(
         "--lean-grok-skills",
         action="store_true",
         default=False,
@@ -7360,6 +7389,10 @@ def main() -> int:
                 if ".graphifyignore" not in untouched:
                     seed_graphify_ignore(args.project)
             _install_store_schedule(args.project)
+            if not getattr(args, "no_secret_guard", False):
+                guard = _install_secret_guard(args.project, target)
+                if guard is not None:
+                    result["secretGuard"] = guard
         elif args.command == "repair":
             result = repair_component(args.project, args.component)
         elif args.command == "addons":

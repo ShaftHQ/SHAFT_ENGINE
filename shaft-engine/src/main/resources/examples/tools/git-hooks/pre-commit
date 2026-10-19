@@ -1,0 +1,4 @@
+#!/bin/sh
+# SHAFT secret guard (#7177). Enable once per clone: git config core.hooksPath tools/git-hooks
+PY=$(command -v python3 || command -v python)
+exec "$PY" "$(dirname "$0")/secret_guard.py" --staged
