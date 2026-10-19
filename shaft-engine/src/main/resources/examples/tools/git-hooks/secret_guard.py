@@ -180,8 +180,10 @@ def pushed_revisions(refs: str) -> list[str]:
         if remote_ref in PROTECTED_REFS:
             raise PermissionError("secret_guard: no direct push to " + remote_ref)
         args.append(local_sha)
-        args.extend(["^" + remote_sha] if not ZERO_SHA.match(remote_sha) else ["--not", "--remotes"])
-    return args
+        if not ZERO_SHA.match(remote_sha):
+            args.append("^" + remote_sha)
+    # Blobs already on any remote are public; only new local commits need a scan (#7203).
+    return [*args, "--not", "--remotes"] if args else args
 
 
 def revisions(args: list[str]) -> Iterator[tuple[str, bytes]]:

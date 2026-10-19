@@ -110,7 +110,7 @@ class PushRulesTest(SecretGuardTestCase):
         self.assertEqual([], self.guard.pushed_revisions(f"(delete) {zero} refs/heads/x {'b' * 40}\n\n"))
         self.assertEqual(["a" * 40, "--not", "--remotes"],
                          self.guard.pushed_revisions(f"refs/heads/x {'a' * 40} refs/heads/x {zero}\n"))
-        self.assertEqual(["a" * 40, "^" + "b" * 40],
+        self.assertEqual(["a" * 40, "^" + "b" * 40, "--not", "--remotes"],
                          self.guard.pushed_revisions(f"refs/heads/x {'a' * 40} refs/heads/x {'b' * 40}\n"))
 
 
@@ -140,6 +140,31 @@ class CommandLineTest(SecretGuardTestCase):
         self.assertEqual(1, pushed.returncode)
         refused = self.guard_cli("--push", stdin=f"refs/heads/feature {head} refs/heads/main {base}\n")
         self.assertIn("no direct push to refs/heads/main", refused.stderr)
+
+    def test_push_skips_blobs_already_on_a_remote_but_scans_new_ones(self):
+        base = run(self.repo, "rev-parse", "HEAD").stdout.strip()
+        (self.repo / "fixture.txt").write_text(report_with(LEAK_VALUE), encoding="utf-8")
+        run(self.repo, "add", "fixture.txt")
+        run(self.repo, "commit", "-q", "-m", "fixture already on main")
+        on_main = run(self.repo, "rev-parse", "HEAD").stdout.strip()
+        run(self.repo, "update-ref", "refs/remotes/origin/main", on_main)
+        run(self.repo, "checkout", "-q", "-b", "feature", base)
+        (self.repo / "Readme.md").write_text("clean\n", encoding="utf-8")
+        run(self.repo, "add", "Readme.md")
+        run(self.repo, "commit", "-q", "-m", "clean work")
+        run(self.repo, "update-ref", "refs/remotes/origin/feature", "HEAD")
+        run(self.repo, "merge", "-q", "--no-edit", "origin/main")
+        merged = run(self.repo, "rev-parse", "HEAD").stdout.strip()
+        remote = run(self.repo, "rev-parse", "origin/feature").stdout.strip()
+        stdin = f"refs/heads/feature {merged} refs/heads/feature {remote}\n"
+        self.assertEqual(0, self.guard_cli("--push", stdin=stdin).returncode)
+        (self.repo / "evidence.txt").write_text(report_with(LEAK_VALUE) + "new run\n", encoding="utf-8")
+        run(self.repo, "add", "evidence.txt")
+        run(self.repo, "commit", "-q", "-m", "new leak")
+        head = run(self.repo, "rev-parse", "HEAD").stdout.strip()
+        blocked = self.guard_cli("--push", stdin=f"refs/heads/feature {head} refs/heads/feature {remote}\n")
+        self.assertEqual(1, blocked.returncode)
+        self.assertIn("evidence.txt", blocked.stderr)
 
 
 class HookInstallTest(SecretGuardTestCase):
