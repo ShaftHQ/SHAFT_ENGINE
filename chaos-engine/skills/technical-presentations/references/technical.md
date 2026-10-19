@@ -16,7 +16,8 @@
 - Declutter: no 3D, borders, or heavy grid; direct labels, not legends;
   context grey, the key series in the accent colour.
 - Pies only for 2-3 parts of a whole; otherwise a sorted bar chart.
-- Every number has a source and date in the notes.
+- Every number has a source and date in the notes. An unverifiable claim is
+  replaced, or moved to the notes as "Unverified, not shown".
 
 ## 9 Type and contrast
 
@@ -28,3 +29,12 @@
   fail or risk, green means pass; not decoration.
 - Check every brand palette pair before use; some brand pairs fail.
 - Alt text on meaningful images; empty alt on decorative ones.
+- Theme font slots (heading, body) name the deck's fonts in every new copy, so
+  new boxes never inherit Arial or Calibri.
+- Glyphs: Google Slides falls back silently per character. ✓ ✗ ⚠ fall back to
+  MS PGothic; → (U+2192) is missing from Google Fonts' Roboto Slab, Lato,
+  Roboto, and Noto Sans, so it renders in Times or Arial. Use outline icons
+  for marks and native arrow shapes in diagrams. Set a prose → alone in a
+  family whose cmap has it (checked with fontTools `TTFont(path).getBestCmap()`),
+  one weight heavier and +2 pt so it matches the line (for example Source
+  Sans 3 Black next to a slab serif); keep the baseline.
