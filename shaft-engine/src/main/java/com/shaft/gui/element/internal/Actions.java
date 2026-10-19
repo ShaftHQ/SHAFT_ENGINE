@@ -685,7 +685,7 @@ public class Actions extends ElementActions {
                     case TYPE, TYPE_SECURELY -> {
                         WebElement targetElement = foundElements.get().getFirst();
                         CharSequence[] text = (CharSequence[]) data;
-                        registerIfSecret(targetElement, action, text);
+                        registerIfSecret(d, targetElement, action, text);
                         ElementKind kind = ElementClassifier.classify(targetElement);
                         if (isMobileNativeExecution) {
                             performMobileNativeType(d, targetElement, kind, text, action);
@@ -726,7 +726,7 @@ public class Actions extends ElementActions {
                     case TYPE_APPEND -> {
                         WebElement targetElement = foundElements.get().getFirst();
                         CharSequence[] text = (CharSequence[]) data;
-                        registerIfSecret(targetElement, action, text);
+                        registerIfSecret(d, targetElement, action, text);
                         boolean shouldValidateTypedText = shouldValidateTypedText(text);
                         String expectedText = shouldValidateTypedText
                                 ? readElementValueForTyping(targetElement) + stringifyTypedValue(text)
@@ -746,7 +746,7 @@ public class Actions extends ElementActions {
                         }
                     }
                     case JAVASCRIPT_SET_VALUE -> {
-                        registerIfSecret(foundElements.get().getFirst(), action, String.valueOf(data));
+                        registerIfSecret(d, foundElements.get().getFirst(), action, String.valueOf(data));
                         ((JavascriptExecutor) d).executeScript("""
                                     arguments[0].value = arguments[1];
                                     arguments[0].dispatchEvent(new Event('input', {bubbles: true}));
@@ -1517,9 +1517,9 @@ public class Actions extends ElementActions {
         }
     }
 
-    private static void registerIfSecret(WebElement element, ActionType action, CharSequence... text) {
+    private static void registerIfSecret(WebDriver driver, WebElement element, ActionType action, CharSequence... text) {
         if (ActionType.TYPE_SECURELY.equals(action) || com.shaft.gui.internal.image.SecretScreenMask.isSecret(text)) {
-            com.shaft.gui.internal.image.SecretScreenMask.register(element);
+            com.shaft.gui.internal.image.SecretScreenMask.register(driver, element);
         }
     }
 

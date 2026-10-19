@@ -52,7 +52,7 @@ public class SecretScreenshotAcceptanceTest {
             long visible = darkPixels(ScreenshotHelper.takeViewportScreenshot(driver, 0), rect);
             Assert.assertTrue(visible > 200, "control: typed text is visible before registration, dark pixels=" + visible);
 
-            SecretScreenMask.register(field);
+            SecretScreenMask.register(driver, field);
             long masked = darkPixels(ScreenshotHelper.takeViewportScreenshot(driver, 0), rect);
             Assert.assertEquals(masked, 0L, "a registered secret leaves no dark pixels in its field");
             Assert.assertEquals(field.getDomAttribute("style"), driver.findElement(By.id("key")).getDomAttribute("style"));

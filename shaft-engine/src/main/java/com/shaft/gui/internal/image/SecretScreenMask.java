@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
@@ -49,10 +50,13 @@ public final class SecretScreenMask {
     private static final String RESTORE_SCRIPT = """
             arguments[0].forEach((e, i) => arguments[1][i] === null
                 ? e.removeAttribute('style') : e.setAttribute('style', arguments[1][i]));""";
-    private static final ThreadLocal<List<WebElement>> SECRET_ELEMENTS = ThreadLocal.withInitial(ArrayList::new);
+    private static final ThreadLocal<List<Secret>> SECRET_ELEMENTS = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<List<Locator>> SECRET_LOCATORS = ThreadLocal.withInitial(ArrayList::new);
     private static final ThreadLocal<int[]> DEPTH = ThreadLocal.withInitial(() -> new int[1]);
     private static final ThreadLocal<Boolean> VIDEO_WARNED = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    private record Secret(WebDriver driver, WebElement element) {
+    }
 
     private SecretScreenMask() {
     }
@@ -77,13 +81,30 @@ public final class SecretScreenMask {
     /**
      * Registers a WebDriver element that received a secret.
      *
-     * @param element the element whose text must be hidden in later screenshots
+     * @param driver  the driver session the element belongs to
+     * @param element the element whose text must be hidden in later screenshots of that session
      */
-    public static void register(WebElement element) {
-        if (element != null && !SECRET_ELEMENTS.get().contains(element)) {
-            SECRET_ELEMENTS.get().add(element);
+    public static void register(WebDriver driver, WebElement element) {
+        if (driver == null || element == null) {
+            return;
+        }
+        Secret secret = new Secret(unwrap(driver), element);
+        if (!SECRET_ELEMENTS.get().contains(secret)) {
+            SECRET_ELEMENTS.get().add(secret);
         }
         warnIfRecordingVideo();
+    }
+
+    /**
+     * Forgets the secret elements of a driver session, for example when it closes.
+     *
+     * @param driver the closing driver
+     */
+    public static void forget(WebDriver driver) {
+        if (driver != null) {
+            WebDriver session = unwrap(driver);
+            SECRET_ELEMENTS.get().removeIf(secret -> Objects.equals(secret.driver(), session));
+        }
     }
 
     /**
@@ -107,7 +128,7 @@ public final class SecretScreenMask {
     public static List<Locator> playwrightMask(Page page) {
         List<Locator> mask = new ArrayList<>();
         for (Locator locator : SECRET_LOCATORS.get()) {
-            if (locator.page() == page) {
+            if (Objects.equals(locator.page(), page)) {
                 mask.add(locator);
             }
         }
@@ -145,24 +166,49 @@ public final class SecretScreenMask {
 
     private static byte[] masked(WebDriver driver, Supplier<byte[]> capture, boolean viewportCoordinates) {
         int[] depth = DEPTH.get();
-        if (depth[0] > 0 || driver == null || live().isEmpty()) {
+        if (depth[0] > 0 || driver == null) {
+            return capture.get();
+        }
+        List<WebElement> elements = live(unwrap(driver));
+        if (elements.isEmpty()) {
             return capture.get();
         }
         depth[0]++;
         try {
-            if (DriverFactoryHelper.isMobileNativeExecution() || !(driver instanceof JavascriptExecutor)) {
-                return viewportCoordinates ? paintOver(driver, capture.get()) : new byte[0];
+            if (!DriverFactoryHelper.isMobileNativeExecution() && driver instanceof JavascriptExecutor js) {
+                return hideWithScript(js, elements, capture);
             }
-            return hideWithScript((JavascriptExecutor) driver, capture);
+            return viewportCoordinates ? paintOver(driver, elements, capture.get()) : new byte[0];
         } finally {
             depth[0]--;
         }
     }
 
-    private static List<WebElement> live() {
-        List<WebElement> elements = SECRET_ELEMENTS.get();
-        elements.removeIf(SecretScreenMask::isStale);
+    private static List<WebElement> live(WebDriver session) {
+        List<Secret> secrets = SECRET_ELEMENTS.get();
+        secrets.removeIf(secret -> Objects.equals(secret.driver(), session) && isStale(secret.element()));
+        List<WebElement> elements = new ArrayList<>();
+        for (Secret secret : secrets) {
+            if (Objects.equals(secret.driver(), session)) {
+                elements.add(secret.element());
+            }
+        }
         return elements;
+    }
+
+    private static WebDriver unwrap(WebDriver driver) {
+        WebDriver current = driver;
+        for (int hops = 0; hops < 5; hops++) {
+            if (current instanceof com.epam.healenium.SelfHealingDriver healing) {
+                current = healing.getDelegate();
+            } else if (current instanceof org.openqa.selenium.WrapsDriver wraps && wraps.getWrappedDriver() != null
+                    && !Objects.equals(wraps.getWrappedDriver(), current)) {
+                current = wraps.getWrappedDriver();
+            } else {
+                break;
+            }
+        }
+        return current;
     }
 
     private static boolean isStale(WebElement element) {
@@ -176,8 +222,7 @@ public final class SecretScreenMask {
         }
     }
 
-    private static byte[] hideWithScript(JavascriptExecutor js, Supplier<byte[]> capture) {
-        List<WebElement> elements = List.copyOf(SECRET_ELEMENTS.get());
+    private static byte[] hideWithScript(JavascriptExecutor js, List<WebElement> elements, Supplier<byte[]> capture) {
         Object saved;
         try {
             saved = js.executeScript(MASK_SCRIPT, elements);
@@ -195,7 +240,7 @@ public final class SecretScreenMask {
         }
     }
 
-    private static byte[] paintOver(WebDriver driver, byte[] image) {
+    private static byte[] paintOver(WebDriver driver, List<WebElement> elements, byte[] image) {
         if (image == null || image.length == 0) {
             return image;
         }
@@ -205,7 +250,7 @@ public final class SecretScreenMask {
             double scale = window.getWidth() > 0 ? (double) picture.getWidth() / window.getWidth() : 1.0;
             Graphics2D graphics = picture.createGraphics();
             graphics.setColor(Color.BLACK);
-            for (WebElement element : List.copyOf(SECRET_ELEMENTS.get())) {
+            for (WebElement element : elements) {
                 Rectangle rect = element.getRect();
                 graphics.fillRect((int) Math.floor(rect.getX() * scale), (int) Math.floor(rect.getY() * scale),
                         (int) Math.ceil(rect.getWidth() * scale), (int) Math.ceil(rect.getHeight() * scale));

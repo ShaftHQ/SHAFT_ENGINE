@@ -77,8 +77,8 @@ public class SecretScreenMaskTest {
     public void liveSecretElementIsHiddenOnlyDuringTheCapture() {
         JsDriver driver = mock(JsDriver.class);
         WebElement field = mock(WebElement.class);
-        SecretScreenMask.register(field);
-        SecretScreenMask.register(field);
+        SecretScreenMask.register(driver, field);
+        SecretScreenMask.register(driver, field);
         AtomicInteger captures = new AtomicInteger();
 
         byte[] image = SecretScreenMask.masked(driver, () -> {
@@ -96,9 +96,23 @@ public class SecretScreenMaskTest {
     @Test
     public void nestedCapturesMaskOnce() {
         JsDriver driver = mock(JsDriver.class);
-        SecretScreenMask.register(mock(WebElement.class));
+        SecretScreenMask.register(driver, mock(WebElement.class));
         SecretScreenMask.masked(driver, () -> SecretScreenMask.masked(driver, () -> IMAGE));
         verify(driver, times(1)).executeScript(contains("transparent"), any());
+    }
+
+    @Test
+    public void secretsBelongToTheirDriverSessionAndAreForgottenOnClose() {
+        JsDriver owner = mock(JsDriver.class);
+        JsDriver other = mock(JsDriver.class);
+        SecretScreenMask.register(owner, mock(WebElement.class));
+        SecretScreenMask.register(null, mock(WebElement.class));
+        SecretScreenMask.masked(other, () -> IMAGE);
+        verify(other, never()).executeScript(anyString(), any());
+        SecretScreenMask.forget(owner);
+        SecretScreenMask.forget(null);
+        SecretScreenMask.masked(owner, () -> IMAGE);
+        verify(owner, never()).executeScript(anyString(), any());
     }
 
     @Test
@@ -106,7 +120,7 @@ public class SecretScreenMaskTest {
         JsDriver driver = mock(JsDriver.class);
         WebElement gone = mock(WebElement.class);
         when(gone.isEnabled()).thenThrow(new StaleElementReferenceException("gone"));
-        SecretScreenMask.register(gone);
+        SecretScreenMask.register(driver, gone);
         Assert.assertSame(SecretScreenMask.masked(driver, () -> IMAGE), IMAGE);
         verify(driver, never()).executeScript(anyString(), any());
     }
@@ -115,7 +129,7 @@ public class SecretScreenMaskTest {
     public void captureIsDroppedWhenALiveSecretCannotBeHidden() {
         JsDriver driver = mock(JsDriver.class);
         when(driver.executeScript(contains("transparent"), any())).thenThrow(new WebDriverException("no js"));
-        SecretScreenMask.register(mock(WebElement.class));
+        SecretScreenMask.register(driver, mock(WebElement.class));
         AtomicInteger captures = new AtomicInteger();
         byte[] image = SecretScreenMask.masked(driver, () -> {
             captures.incrementAndGet();
@@ -131,7 +145,7 @@ public class SecretScreenMaskTest {
         when(driver.manage().window().getSize()).thenReturn(new Dimension(50, 40));
         WebElement field = mock(WebElement.class);
         when(field.getRect()).thenReturn(new Rectangle(10, 10, 20, 10));
-        SecretScreenMask.register(field);
+        SecretScreenMask.register(driver, field);
 
         byte[] image = SecretScreenMask.masked(driver, () -> whitePng(100, 80));
 
@@ -159,8 +173,8 @@ public class SecretScreenMaskTest {
     public void registeringWhileRecordingVideoStillRegisters() {
         SHAFT.Properties.visuals.set().videoParamsRecordVideo(true);
         JsDriver driver = mock(JsDriver.class);
-        SecretScreenMask.register(mock(WebElement.class));
-        SecretScreenMask.register(mock(WebElement.class));
+        SecretScreenMask.register(driver, mock(WebElement.class));
+        SecretScreenMask.register(driver, mock(WebElement.class));
         SecretScreenMask.masked(driver, () -> IMAGE);
         verify(driver).executeScript(contains("transparent"), any());
     }
@@ -178,5 +192,56 @@ public class SecretScreenMaskTest {
             throw new IllegalStateException(e);
         }
         return out.toByteArray();
+    }
+
+    @Test
+    public void edgeInputsAreIgnored() {
+        Assert.assertFalse(SecretScreenMask.isSecret((CharSequence[]) null));
+        Assert.assertFalse(SecretScreenMask.isSecret("plain", null));
+        Assert.assertFalse(com.shaft.tools.io.internal.ReportSecrets.containsSecret(null));
+        Assert.assertFalse(com.shaft.tools.io.internal.ReportSecrets.containsSecret(""));
+        JsDriver driver = mock(JsDriver.class);
+        SecretScreenMask.register(driver, null);
+        SecretScreenMask.register((com.microsoft.playwright.Locator) null);
+        Assert.assertSame(SecretScreenMask.masked(driver, () -> IMAGE), IMAGE);
+        Assert.assertSame(SecretScreenMask.masked(null, () -> IMAGE), IMAGE);
+    }
+
+    @Test
+    public void wrappedDriversShareTheSecretsOfTheirSession() {
+        JsDriver inner = mock(JsDriver.class);
+        WrappingDriver outer = mock(WrappingDriver.class);
+        when(outer.getWrappedDriver()).thenReturn(inner);
+        SecretScreenMask.register(outer, mock(WebElement.class));
+        SecretScreenMask.masked(inner, () -> IMAGE);
+        verify(inner).executeScript(contains("transparent"), any());
+        SecretScreenMask.forget(outer);
+        SecretScreenMask.masked(inner, () -> IMAGE);
+        verify(inner, times(1)).executeScript(contains("transparent"), any());
+    }
+
+    @Test
+    public void elementsOfAClosedSessionOrUnknownStateAreHandled() {
+        JsDriver driver = mock(JsDriver.class);
+        WebElement closed = mock(WebElement.class);
+        when(closed.isEnabled()).thenThrow(new org.openqa.selenium.NoSuchSessionException("gone"));
+        WebElement odd = mock(WebElement.class);
+        when(odd.isEnabled()).thenThrow(new IllegalStateException("odd"));
+        SecretScreenMask.register(driver, closed);
+        SecretScreenMask.register(driver, odd);
+        when(driver.executeScript(contains("removeAttribute"), any(), any())).thenThrow(new WebDriverException("restore"));
+        Assert.assertSame(SecretScreenMask.masked(driver, () -> IMAGE), IMAGE);
+        verify(driver).executeScript(contains("transparent"), any());
+    }
+
+    @Test
+    public void paintingOverAnUnreadableImageDropsIt() {
+        WebDriver driver = mock(WebDriver.class, org.mockito.Answers.RETURNS_DEEP_STUBS);
+        SecretScreenMask.register(driver, mock(WebElement.class));
+        Assert.assertEquals(SecretScreenMask.masked(driver, () -> new byte[]{1, 2, 3}).length, 0);
+        Assert.assertEquals(SecretScreenMask.masked(driver, () -> new byte[0]).length, 0);
+    }
+
+    interface WrappingDriver extends WebDriver, org.openqa.selenium.WrapsDriver {
     }
 }
