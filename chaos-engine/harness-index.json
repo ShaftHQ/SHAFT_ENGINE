@@ -91,6 +91,24 @@
       "path": "skills/architect/SKILL.md"
     },
     {
+      "description": "Use when planning, building, refactoring, or reviewing technical talks or training decks: story arc, claim titles, visual evidence, code slides, checkpoints. On demand only.",
+      "family": "on-demand",
+      "hosts": {
+        "antigravity": "catalog",
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "technical-presentations",
+      "path": "skills/technical-presentations/SKILL.md"
+    },
+    {
       "description": "Use when a git worktree is dirty or another local branch or worktree exists. Ask before cleanup unless the session is unattended.",
       "family": "delivery",
       "hosts": {

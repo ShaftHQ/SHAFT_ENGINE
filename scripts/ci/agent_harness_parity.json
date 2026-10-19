@@ -1530,6 +1530,40 @@
         "chaos-engine/skills/architect/SKILL.md"
       ],
       "note": "Architect judgement cards: one source, on demand via the core route; Copilot IntelliJ reaches it through .github/copilot-instructions.md."
+    },
+    {
+      "id": "technical_presentations_skill",
+      "owner": "chaos-engine/skills/technical-presentations/SKILL.md",
+      "check": "tests/scripts/test_technical_presentations_skill_parity.py::test_every_host_reaches_the_skill_and_every_card",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/skills/technical-presentations/SKILL.md"
+      ],
+      "codex": [
+        "chaos-engine/skills/technical-presentations/SKILL.md"
+      ],
+      "copilot": [
+        "chaos-engine/skills/technical-presentations/SKILL.md"
+      ],
+      "gemini": [
+        "chaos-engine/skills/technical-presentations/SKILL.md"
+      ],
+      "grok": [
+        "chaos-engine/skills/technical-presentations/SKILL.md"
+      ],
+      "opencode": [
+        "chaos-engine/skills/technical-presentations/SKILL.md"
+      ],
+      "cursor": [
+        "chaos-engine/skills/technical-presentations/SKILL.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/skills/technical-presentations/SKILL.md"
+      ],
+      "antigravity": [
+        "chaos-engine/skills/technical-presentations/SKILL.md"
+      ],
+      "note": "Technical-presentation cards: one source, on demand via the level-1 catalog (no always-loaded route row); Copilot IntelliJ reaches it through .github/copilot-instructions.md."
     }
   ]
 }

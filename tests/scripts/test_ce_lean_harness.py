@@ -139,9 +139,12 @@ class FlowTests(unittest.TestCase):
 
     def test_every_core_skill_is_linked_from_the_router(self):
         router = _router_text()
+        index = json.loads((CE / "harness-index.json").read_text(encoding="utf-8"))
+        # On-demand skills stay out of the always-loaded router; the level-1 catalog reaches them.
+        on_demand = {entry["name"] for entry in index["entries"] if entry.get("family") == "on-demand"}
         for skill in sorted((CE / "skills").glob("*/SKILL.md")):
             name = skill.parent.name
-            if name == "chaos-engine":
+            if name == "chaos-engine" or name in on_demand:
                 continue
             with self.subTest(skill=name):
                 self.assertIn(f"]({'../' + name}/SKILL.md)", router)

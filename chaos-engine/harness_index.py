@@ -71,6 +71,10 @@ SKILLS = (
      "review, pull rule, Definition of Done, findings fixed or filed.", "delivery"),
     ("architect", "portable", "skills/architect/SKILL.md",
      "Use for design-level judgement: requirements, quality attributes, trade-offs, ADR, contracts, resilience, security, observability, refactor, debug, review, debt.", "delivery"),
+    # On demand only: reached through the level-1 catalog, never the always-loaded route table.
+    ("technical-presentations", "portable", "skills/technical-presentations/SKILL.md",
+     "Use when planning, building, refactoring, or reviewing technical talks or training decks: "
+     "story arc, claim titles, visual evidence, code slides, checkpoints. On demand only.", "on-demand"),
     ("git-cleanup", "portable", "skills/git-cleanup/SKILL.md",
      "Use when a git worktree is dirty or another local branch or worktree exists. "
      "Ask before cleanup unless the session is unattended.", "delivery"),
@@ -287,7 +291,8 @@ def render_route_table(index: dict) -> str:
     selected = [
         entry for entry in index["entries"]
         if entry.get("family") == "reference"
-        or (entry["kind"] in {"portable", "route"} and entry["name"] != "chaos-engine")
+        or (entry["kind"] in {"portable", "route"} and entry["name"] != "chaos-engine"
+            and entry.get("family") != "on-demand")
     ]
     selected.sort(key=lambda entry: entry.get("family") == "reference")
     local = [entry for entry in selected if entry["name"] in LOCAL_LLM_SKILLS]
