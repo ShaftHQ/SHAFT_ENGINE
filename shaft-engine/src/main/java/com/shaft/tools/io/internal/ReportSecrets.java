@@ -27,7 +27,6 @@ public final class ReportSecrets {
     private static final Pattern SENSITIVE_KEY = Pattern.compile(
             "(?i).*(password|passwd|secret|token|api[._-]?key|access[._-]?key|private[._-]?key|authorization"
                     + "|credential|session[._-]?id).*");
-    private static final Pattern LINE_END = Pattern.compile("(?<=\n)");
     private static final Set<String> SECRET_KEYS = ConcurrentHashMap.newKeySet();
     private static final Set<String> SECRET_VALUES = ConcurrentHashMap.newKeySet();
     private static volatile List<String> valuesLongestFirst = List.of();
@@ -128,7 +127,7 @@ public final class ReportSecrets {
             return "";
         }
         StringBuilder redacted = new StringBuilder(content.length());
-        for (String line : LINE_END.split(content)) {
+        for (String line : linesKeepingEnds(content)) {
             String trimmed = line.stripLeading();
             int separator = indexOfSeparator(trimmed);
             if (!trimmed.startsWith("#") && !trimmed.startsWith("!") && separator > 0) {
@@ -174,6 +173,18 @@ public final class ReportSecrets {
         SECRET_KEYS.clear();
         SECRET_VALUES.clear();
         valuesLongestFirst = List.of();
+    }
+
+    private static List<String> linesKeepingEnds(String content) {
+        List<String> lines = new java.util.ArrayList<>();
+        int start = 0;
+        while (start < content.length()) {
+            int end = content.indexOf('\n', start);
+            int next = end < 0 ? content.length() : end + 1;
+            lines.add(content.substring(start, next));
+            start = next;
+        }
+        return lines;
     }
 
     private static int indexOfSeparator(String line) {
