@@ -830,6 +830,54 @@ public class AllureManager {
         return List.copyOf(missing);
     }
 
+    /**
+     * Lists attachments whose type is not a MIME type, for example because a swapped
+     * {@code Allure.attachment(name, content, type)} call stored the content as the type (#7185).
+     * Each entry reads {@code file: 'attachment name' -> type 'first 40 characters'}.
+     *
+     * @param resultsDirectory the Allure results directory
+     * @return the invalid attachment types, sorted
+     */
+    static List<String> findInvalidAttachmentTypes(Path resultsDirectory) {
+        File[] resultFiles = resultsDirectory.toFile().listFiles((directory, name) ->
+                name.endsWith("-result.json") || name.endsWith("-container.json"));
+        if (resultFiles == null) {
+            return List.of();
+        }
+        java.util.TreeSet<String> invalid = new java.util.TreeSet<>();
+        for (File resultFile : resultFiles) {
+            try {
+                for (JsonNode attachments : JSON_MAPPER.readTree(resultFile).findValues("attachments")) {
+                    for (JsonNode attachment : attachments) {
+                        JsonNode type = attachment.path("type");
+                        if (type.isString() && !AttachmentTypeGuard.isMimeType(type.asString())) {
+                            invalid.add(resultFile.getName() + ": '" + attachment.path("name").asString("?")
+                                    + "' -> type '" + AttachmentTypeGuard.abbreviate(type.asString()) + "'");
+                        }
+                    }
+                }
+            } catch (RuntimeException e) {
+                ReportManager.logDiscrete("Could not read Allure result " + resultFile.getName() + ": " + e.getMessage(),
+                        org.apache.logging.log4j.Level.WARN);
+            }
+        }
+        return List.copyOf(invalid);
+    }
+
+    private static void warnAboutInvalidAttachmentTypes(String resultsPath) {
+        if (resultsPath == null || resultsPath.isBlank() || !Files.isDirectory(Path.of(resultsPath))) {
+            return;
+        }
+        List<String> invalid = findInvalidAttachmentTypes(Path.of(resultsPath));
+        if (!invalid.isEmpty()) {
+            ReportManager.logDiscrete(invalid.size() + " attachment(s) in \"" + resultsPath + "\" have a type that is not a"
+                            + " MIME type, so the report will mislabel them; check the argument order (Allure.attachment"
+                            + " takes name, type, content). For example: "
+                            + String.join("; ", invalid.subList(0, Math.min(5, invalid.size()))) + ".",
+                    org.apache.logging.log4j.Level.WARN);
+        }
+    }
+
     private static void warnAboutMissingAttachments(String resultsPath) {
         if (resultsPath == null || resultsPath.isBlank() || !Files.isDirectory(Path.of(resultsPath))) {
             return;
@@ -1141,6 +1189,7 @@ public class AllureManager {
         // before Allure groups results.
         patchMissingStatusDetailsInResults(getResultsPath());
         warnAboutMissingAttachments(getResultsPath());
+        warnAboutInvalidAttachmentTypes(getResultsPath());
         writeAllureCategoriesIfSupported();
 
         // Write allurerc.yaml with current settings (including custom title and optional history path)
