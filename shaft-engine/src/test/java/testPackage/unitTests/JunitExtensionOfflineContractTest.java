@@ -29,18 +29,22 @@ import static org.mockito.Mockito.when;
  * part of that shard, so Codecov recorded the extension as uncovered.
  */
 public class JunitExtensionOfflineContractTest {
+    static final String RETRY_TARGET_PROPERTY = "shaft.offlineContract.retryTarget";
+
     private final JunitExtension extension = new JunitExtension();
     private int originalRetryCount;
     private boolean originalSkipLinkedIssues;
 
     @BeforeMethod(alwaysRun = true)
     public void rememberFlags() {
+        System.setProperty(RETRY_TARGET_PROPERTY, "true");
         originalRetryCount = SHAFT.Properties.flags.retryMaximumNumberOfAttempts();
         originalSkipLinkedIssues = SHAFT.Properties.flags.skipTestsWithLinkedIssues();
     }
 
     @AfterMethod(alwaysRun = true)
     public void restoreFlags() {
+        System.clearProperty(RETRY_TARGET_PROPERTY);
         SHAFT.Properties.flags.set()
                 .retryMaximumNumberOfAttempts(originalRetryCount)
                 .skipTestsWithLinkedIssues(originalSkipLinkedIssues);
@@ -165,6 +169,12 @@ public class JunitExtensionOfflineContractTest {
         return context;
     }
 
+    /**
+     * Retry targets are driven by this TestNG contract only. Without the guard, JUnit Platform
+     * discovery in the {@code junit} profile runs them as standalone tests and the deliberately
+     * failing target fails Ubuntu_JUnit_E2E.
+     */
+    @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = RETRY_TARGET_PROPERTY, matches = "true")
     public static class PassingRetryTarget {
         static int calls;
 
@@ -175,6 +185,12 @@ public class JunitExtensionOfflineContractTest {
         }
     }
 
+    /**
+     * Retry targets are driven by this TestNG contract only. Without the guard, JUnit Platform
+     * discovery in the {@code junit} profile runs them as standalone tests and the deliberately
+     * failing target fails Ubuntu_JUnit_E2E.
+     */
+    @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = RETRY_TARGET_PROPERTY, matches = "true")
     public static class FailingRetryTarget {
         @org.junit.jupiter.api.Test
         public void fails() {
