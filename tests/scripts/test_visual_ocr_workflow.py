@@ -265,8 +265,9 @@ class QuarantineNightlyEmptyTest(unittest.TestCase):
         path = ROOT / ".github" / "workflows" / "quarantine-nightly.yml"
         steps = yaml.safe_load(path.read_text(encoding="utf-8"))["jobs"]["quarantine"]["steps"]
         report = next(step for step in steps if step.get("name") == "Post test report")
-        self.assertIn("steps.count.outputs.total != '0'", report.get("if", ""))
-        self.assertTrue(any(step.get("id") == "count" for step in steps))
+        run = next(step for step in steps if step.get("name") == "Run quarantined tests")
+        self.assertEqual(run.get("if"), "steps.find.outputs.any == 'true'")
+        self.assertEqual(report.get("if"), "always() && steps.find.outputs.any == 'true'")
 class WindowsLocalCommandLineTest(unittest.TestCase):
     """cmd.exe caps a command line at 8191 chars; mvn.cmd under pwsh hits it."""
 

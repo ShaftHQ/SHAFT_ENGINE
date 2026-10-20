@@ -39,30 +39,24 @@ jobs:
         uses: ./.github/actions/cache-maven-repo
       - name: Build
         run: mvn --batch-mode --no-transfer-progress -pl shaft-engine -am install -DskipTests -Dmaven.javadoc.skip -Dgpg.skip -Dcyclonedx.skip
+      # An empty quarantine is healthy: skip the JVM run and its report, whose
+      # gate rejects 0-test runs (#7223). The Judge step then passes.
+      - name: Find quarantined tests
+        id: find
+        run: |
+          if grep -rqE '"quarantine"' shaft-engine/src/test/java; then any=true; else any=false; fi
+          echo "any=$any" >> "$GITHUB_OUTPUT"
+          echo "quarantined tests present: $any"
       - name: Run quarantined tests
+        if: steps.find.outputs.any == 'true'
         run: >-
           mvn --batch-mode --no-transfer-progress -pl shaft-engine test
           -Dgroups=quarantine
           -Dsurefire.excludedGroups=allure3-visual-demo,trace-viewer-browser-acceptance,browser-capture-acceptance,playwright-trace-acceptance
           -Dsurefire.failIfNoSpecifiedTests=false
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
-      - name: Count quarantined tests
-        id: count
-        if: always()
-        run: |
-          python3 - <<'PY'
-          import os, xml.etree.ElementTree as ET
-          from pathlib import Path
-          report = Path('shaft-engine/target/surefire-reports/testng-results.xml')
-          root = ET.parse(report).getroot() if report.exists() else None
-          # Executed verdicts only: TestNG's `total` also counts ignored methods.
-          total = sum(int(root.get(key, '0')) for key in ('passed', 'failed', 'skipped')) if root is not None else 0
-          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
-              out.write(f'total={total}\n')
-          PY
-      # An empty quarantine is healthy; the shared report gate rejects 0-test runs.
       - name: Post test report
-        if: always() && steps.count.outputs.total != '0'
+        if: always() && steps.find.outputs.any == 'true'
         uses: ./.github/actions/post-test-report
         with:
           job-name: Quarantine_Nightly
