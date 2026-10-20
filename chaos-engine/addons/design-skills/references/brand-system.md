@@ -43,9 +43,27 @@ their own files.
   feature. No hype words the evidence cannot back.
 - Fonts need a recorded licence (OFL or owned) before use in renders.
 
+## Brand card
+
+When a brand already has guidelines, keep a one-page brand card: a short,
+checkable digest that agents load first and treat as binding. Every value
+is measured from approved, live material (pixel-sampled hex, fonts read
+from the source or a PDF export, computed contrast), never invented. A
+generic or third-party template is never a brand source. Sections, in order:
+
+- Header: version, date, owner role, website, sources and "not sources".
+- Logo: files, clear space, minimum size per context, allowed backgrounds.
+- Palette by role, allowed text pairs and banned pairs with their ratios.
+- Type: families per role and script, glyph gaps with fallbacks, absolute
+  scale per canvas, floors, mixed-script rule (D05).
+- Grid and layout set; media, social and identity zones (LTR and RTL UI).
+- Imagery, icons, voice; then the check commands.
+
+Extensions made while designing are written back into the card.
+
 ## Workflow
 
-1. Look for existing brand sources; do not invent a brand when one exists.
+1. Look for existing brand sources (the brand card first); do not invent a brand when one exists.
 2. If none exist, derive a minimal token set from the shipped CSS and mark it
    "proposed" for owner review.
 3. Publish tokens as CSS variables for web and HyperFrames, and as Python or
@@ -57,6 +75,7 @@ their own files.
 - Sampled frames or images use token colors only (eyedropper or palette
   extraction, documented in the PR).
 - Logo clear space and minimum size measured on the rendered asset.
+- Every brand-card value traces to a named source asset.
 
 ## Sources
 
