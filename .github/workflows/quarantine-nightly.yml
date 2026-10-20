@@ -46,8 +46,21 @@ jobs:
           -Dsurefire.excludedGroups=allure3-visual-demo,trace-viewer-browser-acceptance,browser-capture-acceptance,playwright-trace-acceptance
           -Dsurefire.failIfNoSpecifiedTests=false
           '-DheadlessExecution=true' '-Dallure.automaticallyOpen=false' -Dgpg.skip
-      - name: Post test report
+      - name: Count quarantined tests
+        id: count
         if: always()
+        run: |
+          python3 - <<'PY'
+          import os, xml.etree.ElementTree as ET
+          from pathlib import Path
+          report = Path('shaft-engine/target/surefire-reports/testng-results.xml')
+          total = int(ET.parse(report).getroot().get('total', '0')) if report.exists() else 0
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
+              out.write(f'total={total}\n')
+          PY
+      # An empty quarantine is healthy; the shared report gate rejects 0-test runs.
+      - name: Post test report
+        if: always() && steps.count.outputs.total != '0'
         uses: ./.github/actions/post-test-report
         with:
           job-name: Quarantine_Nightly

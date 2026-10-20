@@ -256,3 +256,14 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertIn("Refusing WinAppDriver install URL that hits the GitHub Releases API", installer)
         self.assertIn("a76a8f4e44b29bad331acf6b6c248fcc65324f502f28826ad2acd5f3c80857fe", installer)
         self.assertIn("Get-FileHash -Algorithm SHA256", installer)
+
+
+class QuarantineNightlyEmptyTest(unittest.TestCase):
+    """An empty quarantine must not fail the nightly through the 0-test report gate."""
+
+    def test_post_test_report_skips_when_no_quarantined_tests(self):
+        path = ROOT / ".github" / "workflows" / "quarantine-nightly.yml"
+        steps = yaml.safe_load(path.read_text(encoding="utf-8"))["jobs"]["quarantine"]["steps"]
+        report = next(step for step in steps if step.get("name") == "Post test report")
+        self.assertIn("steps.count.outputs.total != '0'", report.get("if", ""))
+        self.assertTrue(any(step.get("id") == "count" for step in steps))
