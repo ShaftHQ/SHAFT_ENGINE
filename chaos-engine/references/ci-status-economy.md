@@ -9,6 +9,9 @@ Learned in coalesce wave: babysit, process-owner, and parent turns burned tokens
 - [A green check can hide failing tests](#a-green-check-can-hide-failing-tests)
 - [A late label can leave a cancelled required check](#a-late-label-can-leave-a-cancelled-required-check)
 - [A registry 404 for a published artifact is infrastructure first](#a-registry-404-for-a-published-artifact-is-infrastructure-first)
+- [Merge queue and same-account pull requests](#merge-queue-and-same-account-pull-requests)
+- [A rerun replays the old event](#a-rerun-replays-the-old-event)
+- [Release watch](#release-watch)
 - [Digest only](#digest-only)
 - [One status channel](#one-status-channel)
 - [Fingerprint-first failed logs](#fingerprint-first-failed-logs)
@@ -64,6 +67,34 @@ When a job fails with "could not find artifact" for a release that should exist:
 2. Reproduce with an empty local cache (`-Dmaven.repo.local`-style override). A pass confirms it.
 3. Fix by retrying in a fresh process (the repo's retry helper under `scripts/ci/`), never by editing versions.
 4. If `gh run view --log-failed` omits a failed job, read it with `gh api repos/<owner>/<repo>/actions/jobs/<job-id>/logs`.
+
+## Merge queue and same-account pull requests
+
+- With a merge queue, `gh pr merge --auto` hands the PR to the queue. Then
+  `autoMergeRequest` can read null while the PR is still queued. Check
+  `mergeQueueEntry` in GraphQL before you re-arm it, and re-check after every push.
+- GitHub refuses an approval from the account that authored the PR. When a
+  bot pushes as the owner's account, don't retry the approval. Rely on the
+  required checks and the merge queue, and say in the report that no
+  approval was given.
+
+## A rerun replays the old event
+
+`gh run rerun` replays the original event payload, so it never sees an edited
+PR body or title. To re-evaluate a body gate, trigger a new event (push a
+commit, or close and reopen the PR).
+
+## Release watch
+
+- A release-prep PR only bumps versions. Merging it is the publish: the
+  delivery workflow releases from the default branch when the version
+  changes. Before you merge, check that no release blockers are open.
+- Watching a release takes a whole session. Pre-deploy gates and the queue
+  take most of it. Watch every downstream job, IDE plugin jobs first.
+- A marketplace upload reported as "accepted, pending moderation" is not a
+  failure. Never re-run a publish: versions are single-use.
+- A scanner vulnerability alert (for example Scorecard) is a blocker only
+  after an OSV query over the resolved dependency list confirms it.
 
 ## Digest only
 

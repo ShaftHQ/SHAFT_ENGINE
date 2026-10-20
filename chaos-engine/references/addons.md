@@ -31,6 +31,12 @@ automatically; removing an add-on that another selected add-on requires is
 refused and names the dependent. A later upgrade without flags keeps the
 recorded set.
 
+## Private add-ons
+
+A private add-on or project pack never carries the owner's or a client's
+name, prices, or trainee data in shipped files. Use role placeholders (for
+example "the owner") and keep a validator in the pack that fails on them.
+
 ## Project-pack exception
 
 Add-ons stay opt-in. A project pack is different: the installer selects it

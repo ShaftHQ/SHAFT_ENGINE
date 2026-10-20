@@ -17,6 +17,17 @@ class CiEventWakeRuleTest(unittest.TestCase):
         text = (ROOT / "permanent-rules.md").read_text(encoding="utf-8")
         self.assertIn("ci-status-economy.md#wait-by-event-wake-never-by-llm-poll", text)
 
+    def test_harness_parity_lessons_tracked(self):
+        economy = (ROOT / "ci-status-economy.md").read_text(encoding="utf-8")
+        for needle in ("## Merge queue and same-account pull requests", "mergeQueueEntry",
+                       "## A rerun replays the old event", "## Release watch", "pending moderation",
+                       "Never re-run a publish", "OSV", "(#release-watch)"):
+            self.assertIn(needle, economy)
+        maintenance = (ROOT / "harness-maintenance.md").read_text(encoding="utf-8")
+        for needle in ("Never reinstall after `entry`", "git archive HEAD", "--head BRANCH --base main"):
+            self.assertIn(needle, maintenance)
+        self.assertIn("## Private add-ons", (ROOT / "addons.md").read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()
