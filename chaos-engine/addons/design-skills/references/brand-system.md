@@ -61,6 +61,24 @@ generic or third-party template is never a brand source. Sections, in order:
 
 Extensions made while designing are written back into the card.
 
+## Identity set
+
+- One master profile mark and one master cover, adapted per platform
+  (Facebook, LinkedIn, Google account), never redrawn per platform.
+- Per size: overlay the avatar circle (mark inside 92 % of it) and the
+  platform's profile and logo zones for LTR and RTL UI; check the photo at
+  250, 96, 64, 40, 32 and 24 px.
+- Email signature: nested-table HTML with inline styles (no `<style>` or
+  classes), images as marked slots with width and height (no hosted URL),
+  small text measured on the rendered preview at its displayed size.
+
+## Self-audit before delivery
+
+Before every handoff, audit the deliverable against the brand card: one row
+per rule, PASS or FAIL with the measurement and the evidence file. Then
+re-review your own renders at full size and at the smallest display size;
+fix and report anything that contradicts an earlier claim.
+
 ## Workflow
 
 1. Look for existing brand sources (the brand card first); do not invent a brand when one exists.
@@ -76,6 +94,7 @@ Extensions made while designing are written back into the card.
   extraction, documented in the PR).
 - Logo clear space and minimum size measured on the rendered asset.
 - Every brand-card value traces to a named source asset.
+- A delivery ships with its brand self-audit table (all rows PASS).
 
 ## Sources
 
