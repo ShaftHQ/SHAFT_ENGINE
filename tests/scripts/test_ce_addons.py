@@ -226,6 +226,14 @@ class DesignContentTests(unittest.TestCase):
             for section in ("## Use when", "## Verify", "## Sources"):
                 self.assertIn(section, text, name)
 
+    def test_deck_cards_carry_brand_card_and_render_rules(self):
+        brand = (DESIGN / "references" / "brand-system.md").read_text(encoding="utf-8")
+        for needle in ("## Brand card", "binding", "never a brand source", "written back"):
+            self.assertIn(needle, brand)
+        layout = (DESIGN / "references" / "typography-layout.md").read_text(encoding="utf-8")
+        for needle in ("## Rules for slides and decks", "<bdi>", "inline-flex", "<= 1 px", "pdffonts", "displayed size"):
+            self.assertIn(needle, layout)
+
     def test_relative_links_resolve(self):
         for path in DESIGN.rglob("*.md"):
             for target in re.findall(r"\]\(([^)#]+)(?:#[^)]*)?\)", path.read_text(encoding="utf-8")):

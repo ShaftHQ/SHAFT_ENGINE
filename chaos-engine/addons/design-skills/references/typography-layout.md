@@ -40,6 +40,21 @@ page, poster, slide, or video frame.
 - PowerShell on screen avoids continuations (assign to a variable, then
   call) and must parse.
 
+## Rules for slides and decks
+
+- Publish absolute pt tables per canvas (for example 10 in and 13.33 in
+  wide) so builders never scale by hand; at most 5 sizes per slide.
+- Code panels: at most 8 lines, fewer at the code floor, since Google
+  Slides renders mono taller.
+- Mixed scripts (for example Latin terms in Arabic): isolate each Latin run
+  (`<bdi>` in HTML, its own run in Slides), change only font, weight, and
+  color, keep a real space at each boundary, never raise or offset it, and
+  never put it in an inline-flex parent (it breaks the shared baseline).
+- Google import of pptxgenjs files: set `align` on every placeholder
+  (titles import centred otherwise), avoid `bullet:true` runs (Arial bullet
+  glyph), give each tracker label its own placeholder, and run
+  `office validate --repair` before upload.
+
 ## Script and language notes
 
 - CJK text: measure counts characters, target 30 to 40 per line.
@@ -65,6 +80,14 @@ page, poster, slide, or video frame.
   its final camera scale in each cut.
 - `design_qc.py psparse commands.ps1` passes for every PowerShell command
   shown (`--static` only where pwsh is missing, reported).
+
+- Mixed-script lines measured on the render: baseline offset <= 1 px,
+  boundary gap >= 0.15 em.
+- Decks are audited from the Google Slides render, not the local one: export
+  to PDF, `pdffonts` shows no fallback (Arial, Calibri), every slide is
+  checked at full size for overflow.
+- Text in small assets (email banners, thumbnails) is measured on the
+  rendered preview at its displayed size, not on the source canvas.
 
 ## Sources
 
