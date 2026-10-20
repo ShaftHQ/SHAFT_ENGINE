@@ -53,6 +53,24 @@ def target_version(current_version: str, release_date: str) -> str:
     return f"{current.group('major')}.{quarter}.{date:%Y%m%d}"
 
 
+def dry_run_release_date(current_version: str, candidate_date: str) -> str:
+    """Return ``candidate_date`` or, if it would not bump ``current_version``, the day after its date.
+
+    The release-prep dry run uses "tomorrow" UTC; on a release PR that already
+    sets tomorrow's version that is not newer, so it must move one day past it.
+    """
+    candidate = dt.date.fromisoformat(candidate_date)
+    if _version_key(target_version(current_version, candidate_date)) > _version_key(current_version):
+        return candidate.isoformat()
+    current_date = dt.datetime.strptime(str(_version_key(current_version)[2]), "%Y%m%d").date()
+    return (current_date + dt.timedelta(days=1)).isoformat()
+
+
+def resolve_release_date(release_date: str, current_version: str, *, after_current: bool) -> str:
+    """Apply ``--after-current`` to the requested release date."""
+    return dry_run_release_date(current_version, release_date) if after_current else release_date
+
+
 def _version_key(version: str) -> tuple[int, int, int]:
     match = RELEASE_VERSION.fullmatch(version)
     if not match:
@@ -274,10 +292,18 @@ def main() -> int:
     parser.add_argument("--release-date", required=True, help="Release date in YYYY-MM-DD format")
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--github-output", type=Path)
+    parser.add_argument(
+        "--after-current",
+        action="store_true",
+        help="Dry runs only: if the date would not bump the current version, use the day after it",
+    )
     args = parser.parse_args()
 
     try:
-        old_version, release_version, changed = prepare_release(args.root, args.release_date)
+        release_date = resolve_release_date(
+            args.release_date, root_version(args.root), after_current=args.after_current
+        )
+        old_version, release_version, changed = prepare_release(args.root, release_date)
     except ValueError as error:
         print(error, file=sys.stderr)
         return 1
