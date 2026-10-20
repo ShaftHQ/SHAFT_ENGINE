@@ -101,6 +101,32 @@ def contrast_ratio(a: str, b: str) -> float:
     return (la + 0.05) / (lb + 0.05)
 
 
+def lab(value: str) -> tuple[float, float, float]:
+    """sRGB hex to CIE L*a*b* (D65)."""
+    def linear(c: float) -> float:
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (linear(c) for c in hex_rgb(value))
+    xyz = (
+        (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047,
+        0.2126 * r + 0.7152 * g + 0.0722 * b,
+        (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883,
+    )
+    fx, fy, fz = (t ** (1 / 3) if t > 216 / 24389 else (24389 / 27 * t + 16) / 116 for t in xyz)
+    return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
+
+
+def cmd_skin(args: argparse.Namespace) -> int:
+    """Skin patches sampled from two sources (a:b hex) differ by at most --max Lab points (CIE76)."""
+    results, failed = [], False
+    for pair in args.pair:
+        a, _, b = pair.partition(":")
+        delta = round(math.dist(lab(a), lab(b)), 2)
+        ok = delta <= args.max
+        failed |= not ok
+        results.append({"pair": pair, "delta_e": delta, "ok": ok})
+    return report("skin", FAIL if failed else PASS, max=args.max, results=results)
+
+
 def cmd_contrast(args: argparse.Namespace) -> int:
     """Pairs as fg:bg[:kind] where kind is text (4.5), large (3) or ui (3)."""
     minimum = {"text": 4.5, "large": 3.0, "ui": 3.0}
@@ -1529,6 +1555,9 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("file")
     p.add_argument("--size")
     p.add_argument("--max-bytes", type=int)
+    p = add("skin", cmd_skin, "skin tone match across sources (Lab delta E)")
+    p.add_argument("--pair", action="append", required=True, help="hexA:hexB sampled skin patches")
+    p.add_argument("--max", type=float, default=2.0)
     p = add("layout", cmd_layout, "measured alignment of a rendered layout")
     p.add_argument("boxes", help="JSON: elements [{id,x,y,w,h}], baselines, brackets, gutters, clearance, centre")
     p.add_argument("--tol", type=float, default=2.0, help="pixels")

@@ -24,7 +24,9 @@ A vertical or square cut is made for Shorts, Reels, TikTok, LinkedIn, or X. Load
 
 ## Don't
 
-- Landscape video letterboxed in vertical.
+- Landscape video letterboxed in vertical: rebuild 9:16 as a true vertical
+  layout; where a wide shot must stay, fill behind it with a feathered,
+  blurred copy, never bars.
 - Text in the bottom 35% of a Reel.
 - Over 4 s with no new picture.
 

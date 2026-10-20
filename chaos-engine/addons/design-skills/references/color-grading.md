@@ -26,6 +26,8 @@ or a master shows wrong levels, washed-out blacks, or shifted brand colors.
 ## Rules
 
 - Correction before grade; one LUT at most, committed with its licence.
+- Mixed sources (car, studio, screen-cam) are matched on skin: sampled skin
+  patches differ by about 2 Lab points or less (`design_qc.py skin`).
 - Keep luma inside 16 to 235 (limited range) on the master; clamp graphics
   that use pure white.
 - Brand colors after encode stay close to their tokens; check a sampled frame
@@ -51,6 +53,7 @@ or a master shows wrong levels, washed-out blacks, or shifted brand colors.
 
 ## Verify
 
+- `design_qc.py skin --pair <hexA>:<hexB>` passes for every source pair.
 - `design_qc.py colortags master.mp4` passes (BT.709 primaries, transfer,
   matrix, limited range).
 - `design_qc.py levels master.mp4` passes (YMIN 16 or more, YMAX 235 or

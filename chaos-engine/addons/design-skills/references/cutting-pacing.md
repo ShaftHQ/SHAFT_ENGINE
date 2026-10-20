@@ -25,7 +25,11 @@ Give up the lower ones first.
 - Cut on action (a keypress, a page change, a cursor move) to hide the cut.
 - J cut: the next scene's audio starts before its picture. L cut: the
   current audio continues over the next picture. Use them to carry narration
-  across visual changes.
+  across visual changes. Start the early audio at a silent gap, then
+  confirm with ASR on that span that no tail of the previous sentence leaks
+  in.
+- A mandated brand intro follows a 2-3 s cold open (the strongest moment),
+  never opens the film.
 - Long waits (installs, builds) become labelled speed ramps or a cut with a
   time-skip card, never silent jumps. The badge names the speed and the REAL
   elapsed time ("sped up 24x, 16 s real").

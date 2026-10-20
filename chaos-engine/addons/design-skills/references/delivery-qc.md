@@ -55,11 +55,11 @@ toward about -14 LUFS), so the D15 -16 LUFS speech master stays.
 - Check each file against the delivery channel's per-file cap before
   uploading. Connector uploads can stop at 100 MB, while GitHub release
   assets take up to 2 GB. When a review master is over the cap, re-encode it
-  one CRF step higher from the same render (levels re-verified) and keep the
+  one CRF step higher from the same render (re-verify levels) and keep the
   full masters on the release.
 - A web embed (user guide, landing page) is re-encoded from the HD
-  derivative with the recipe of the previous embed pull request (for example
-  CRF 28, `+faststart`, AAC 96 kbps). A new version gets new file names (`-v2`)
+  derivative with the recipe of the previous embed pull request (e.g. CRF 28,
+  `+faststart`, AAC 96 kbps). A new version gets new file names (`-v2`)
   for the video, poster and captions, so a cached old video never pairs with
   new captions.
 - A media GitHub release is created with `--latest=false`. Read
@@ -69,6 +69,7 @@ toward about -14 LUFS), so the D15 -16 LUFS speech master stays.
   old site for about 3 minutes. Poll `gh api repos/OWNER/REPO/pages/builds/latest`
   until `built`, then fetch pages and assets with a cache-busting query and
   compare the media hashes with the committed files.
+- Final ASR, sync, and per-segment loudness QC run on staged deliverables.
 - Stage deliverables by copying them after the final build. A build that
   renames a new master into place leaves earlier hardlinks on the old encode,
   so check the staged hashes against the build output and the manifest.

@@ -242,6 +242,14 @@ class DesignContentTests(unittest.TestCase):
 class DesignQcTests(unittest.TestCase):
     qc = _load("ce_design_qc_test", QC)
 
+    def test_skin_matches_sources_within_two_lab_points(self):
+        white = self.qc.lab("#ffffff")
+        self.assertAlmostEqual(100.0, white[0], places=1)
+        self.assertLess(abs(white[1]) + abs(white[2]), 0.05)
+        self.assertEqual(0, self.run_qc("skin", "--pair", "c68c6c:c48a6b")[0])
+        code, payload = self.run_qc("skin", "--pair", "c68c6c:c48a6b", "--pair", "c68c6c:b07050")
+        self.assertEqual((1, [True, False]), (code, [r["ok"] for r in payload["results"]]))
+
     def test_layout_flags_misalignment_and_passes_a_measured_layout(self):
         good = {
             "elements": [
