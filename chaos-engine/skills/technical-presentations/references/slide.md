@@ -28,7 +28,7 @@
   contiguity: show the picture while you say it.
 - Speaker notes carry talking points, moved original text, and a source URL
   for every fact.
-- Builds: Appear or Fade only, on click, at most 5 per slide, for list items,
+- Builds: Appear or Fade only, 0.3 s, on click, at most 5 per slide, for list items,
   cards, or myth-to-fact pairs. Never animate titles, footers, logos, or
   charts. The fully built slide must read alone (PDF and print show it). One
   transition style deck-wide.

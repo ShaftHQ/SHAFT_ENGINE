@@ -770,6 +770,64 @@ def cmd_image(args: argparse.Namespace) -> int:
     return report("image", FAIL if problems else PASS, problems=problems)
 
 
+
+# ---------------------------------------------------------------- layout
+def layout_problems(data: dict, tol: float, clearance: float) -> list[str]:
+    """Measured alignment checks on element boxes {id: {x, y, w, h[, baseline, descender]}}."""
+    boxes = {str(item["id"]): item for item in data.get("elements", [])}
+
+    def box(name: str) -> dict:
+        if name not in boxes:
+            raise KeyError(f"unknown element {name}")
+        return boxes[name]
+
+    def right(b: dict) -> float:
+        return float(b["x"]) + float(b["w"])
+
+    def bottom(b: dict) -> float:
+        return float(b["y"]) + float(b["h"])
+    problems = []
+    for row in data.get("baselines", []):
+        values = [float(box(name).get("baseline", bottom(box(name)))) for name in row]
+        if max(values) - min(values) > tol:
+            problems.append(f"baselines {','.join(row)}: spread {max(values) - min(values):.1f}px")
+    for bracket in data.get("brackets", []):
+        b, spans = box(bracket["id"]), [box(name) for name in bracket["spans"]]
+        first, last = min(float(s["x"]) for s in spans), max(right(s) for s in spans)
+        if abs(float(b["x"]) - first) > tol or abs(right(b) - last) > tol:
+            problems.append(f"{bracket['id']}: spans {b['x']}-{right(b):.1f}, steps {first:.1f}-{last:.1f}")
+    for group in data.get("gutters", []):
+        items, axis = [box(name) for name in group["ids"]], group.get("axis", "x")
+        start, end = ("x", right) if axis == "x" else ("y", bottom)
+        ordered = sorted(items, key=lambda b: float(b[start]))
+        gaps = [float(n[start]) - end(p) for p, n in zip(ordered, ordered[1:])]
+        if gaps and max(gaps) - min(gaps) > tol:
+            problems.append(f"gutters {','.join(group['ids'])}: {[round(g, 1) for g in gaps]}")
+    for pair in data.get("clearance", []):
+        inner, outer = box(pair["text"]), box(pair["box"])
+        least = min(float(inner["x"]) - float(outer["x"]), right(outer) - right(inner),
+                    float(inner["y"]) - float(outer["y"]), bottom(outer) - bottom(inner))
+        if least < float(pair.get("min", clearance)) - 1e-6:
+            problems.append(f"{pair['text']} in {pair['box']}: clearance {least:.1f}px")
+    for item in data.get("centre", []):
+        inner, outer, axis = box(item["id"]), box(item["in"]), item.get("axis", "x")
+        if axis == "x":
+            offset = (float(inner["x"]) + float(inner["w"]) / 2) - (float(outer["x"]) + float(outer["w"]) / 2)
+        else:
+            ink = float(inner["h"]) - float(inner.get("descender", 0))
+            offset = (float(inner["y"]) + ink / 2) - (float(outer["y"]) + float(outer["h"]) / 2)
+        if abs(offset) > tol:
+            problems.append(f"{item['id']}: off-centre {offset:+.1f}px on {axis}")
+    return problems
+
+
+def cmd_layout(args: argparse.Namespace) -> int:
+    """Shared baselines, bracket spans, equal gutters, inner clearance, optical centring (safe zones: safezones)."""
+    data = json.loads(Path(args.boxes).read_text(encoding="utf-8"))
+    problems = layout_problems(data, args.tol, args.clearance)
+    return report("layout", FAIL if problems else PASS, elements=len(data.get("elements", [])), problems=problems)
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     tools = ["ffmpeg", "ffprobe", "node", "npx", "vhs", "ttyd", "manim", "whisper-cli", "tesseract", "pwsh",
              "realesrgan-ncnn-vulkan", "vmaf", "deep-filter"]
@@ -1471,6 +1529,10 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("file")
     p.add_argument("--size")
     p.add_argument("--max-bytes", type=int)
+    p = add("layout", cmd_layout, "measured alignment of a rendered layout")
+    p.add_argument("boxes", help="JSON: elements [{id,x,y,w,h}], baselines, brackets, gutters, clearance, centre")
+    p.add_argument("--tol", type=float, default=2.0, help="pixels")
+    p.add_argument("--clearance", type=float, default=20.0, help="minimum inner clearance in pixels")
     p = add("flatframes", cmd_flatframes, "solid frames at cuts")
     p.add_argument("file")
     p.add_argument("--edge", type=float, default=1.0, help="seconds exempt at head and tail")

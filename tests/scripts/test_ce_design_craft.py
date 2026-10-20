@@ -76,6 +76,16 @@ class CraftLintTests(unittest.TestCase):
             self.assertEqual(1, run_qc("safezones", str(bad))[0])
             self.assertEqual(0, run_qc("safezones", str(good))[0])
 
+    def test_story_safezones_keep_sticker_and_profile_bands_clear(self):  # story 1080x1920
+        with tempfile.TemporaryDirectory() as folder:
+            bad, good = Path(folder) / "bad.json", Path(folder) / "good.json"
+            sticker = {"id": "cta", "x": 0.1, "y": 0.75, "w": 0.8, "h": 0.1}  # bottom edge 0.85 > 0.82
+            bad.write_text(json.dumps({"boxes": [sticker]}), encoding="utf-8")
+            good.write_text(json.dumps({"boxes": [{**sticker, "y": 0.70}]}), encoding="utf-8")
+            self.assertEqual(1, run_qc("safezones", str(bad), "--format", "story")[0])
+            code, payload = run_qc("safezones", str(good), "--format", "story")
+            self.assertEqual((0, "story"), (code, payload["format"]))
+
 
 @unittest.skipUnless(HAS_FFMPEG, "ffmpeg not installed")
 class CraftMediaTests(unittest.TestCase):

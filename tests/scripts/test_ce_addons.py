@@ -26,7 +26,7 @@ CARDS = (
     "html-motion-graphics", "technical-animation", "screen-capture", "edit-assembly",
     "cutting-pacing", "color-grading", "audio-mix-loudness", "noise-removal", "voice-over-tts",
     "captions-subtitles", "video-restoration-upscaling", "delivery-qc", "explainer-arc",
-    "launch-video",
+    "launch-video", "social-post-visuals",
 )
 
 
@@ -216,7 +216,7 @@ class DesignContentTests(unittest.TestCase):
     def test_router_links_every_card_within_budget(self):
         router = (DESIGN / "SKILL.md").read_text(encoding="utf-8")
         self.assertLessEqual(len(router.encode("utf-8")), 4096)
-        self.assertEqual(22, len(CARDS))
+        self.assertEqual(23, len(CARDS))
         for name in CARDS:
             card = DESIGN / "references" / f"{name}.md"
             self.assertIn(f"references/{name}.md", router)
@@ -241,6 +241,37 @@ class DesignContentTests(unittest.TestCase):
 
 class DesignQcTests(unittest.TestCase):
     qc = _load("ce_design_qc_test", QC)
+
+    def test_layout_flags_misalignment_and_passes_a_measured_layout(self):
+        good = {
+            "elements": [
+                {"id": "c1", "x": 100, "y": 100, "w": 40, "h": 40, "baseline": 160},
+                {"id": "c2", "x": 180, "y": 100, "w": 40, "h": 40, "baseline": 160},
+                {"id": "c3", "x": 260, "y": 100, "w": 40, "h": 40, "baseline": 161},
+                {"id": "br", "x": 100, "y": 60, "w": 200, "h": 8},
+                {"id": "box", "x": 0, "y": 0, "w": 400, "h": 200},
+                {"id": "label", "x": 120, "y": 50, "w": 160, "h": 110, "descender": 10},
+            ],
+            "baselines": [["c1", "c2", "c3"]],
+            "brackets": [{"id": "br", "spans": ["c1", "c3"]}],
+            "gutters": [{"ids": ["c1", "c2", "c3"], "axis": "x"}],
+            "clearance": [{"text": "label", "box": "box"}],
+            "centre": [{"id": "label", "in": "box", "axis": "x"}, {"id": "label", "in": "box", "axis": "y"}],
+        }
+        self.assertEqual([], self.qc.layout_problems(good, 2.0, 20.0))
+        bad = json.loads(json.dumps(good))
+        boxes = {item["id"]: item for item in bad["elements"]}
+        boxes["c3"].update(x=270, baseline=166)
+        boxes["br"].update(x=104, w=192)
+        boxes["label"].update(x=380, y=150)
+        problems = self.qc.layout_problems(bad, 2.0, 20.0)
+        for needle in ("baselines", "br:", "gutters", "clearance", "off-centre"):
+            self.assertTrue(any(needle in p for p in problems), (needle, problems))
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "boxes.json"
+            path.write_text(json.dumps(bad), encoding="utf-8")
+            code, payload = self.run_qc("layout", str(path))
+        self.assertEqual((1, "fail"), (code, payload["status"]))
 
     def run_qc(self, *args: str) -> tuple[int, dict]:
         result = subprocess.run(  # nosec B603 - current interpreter, fixed script.

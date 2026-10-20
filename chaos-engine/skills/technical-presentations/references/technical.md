@@ -16,6 +16,9 @@
 - Declutter: no 3D, borders, or heavy grid; direct labels, not legends;
   context grey, the key series in the accent colour.
 - Pies only for 2-3 parts of a whole; otherwise a sorted bar chart.
+- Percentages are whole numbers that sum to 100 (largest-remainder
+  rounding). A long tail becomes one aggregate row ("Everyone else: N
+  groups of 1-2 each"), never named entries (hard rule 5).
 - Every number has a source and date in the notes. An unverifiable claim is
   replaced, or moved to the notes as "Unverified, not shown".
 

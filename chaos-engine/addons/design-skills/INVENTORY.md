@@ -7,6 +7,10 @@ card, then update the SHA and date here.
 
 Pinned: 2026-10-03.
 
+Cards: 23 step cards (D01-D23) and 12 craft cards. D23 draws on no
+upstream repository; its sources are platform and W3C documentation
+listed in the card.
+
 | Upstream | Commit | Licence | Use | Cards |
 | --- | --- | --- | --- | --- |
 | [anthropics/skills](https://github.com/anthropics/skills) | `8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4` | Apache-2.0 (per-skill `LICENSE.txt`) | re-expressed: frontend-design, canvas-design, algorithmic-art, brand-guidelines, theme-factory | D02, D03, D07 |
