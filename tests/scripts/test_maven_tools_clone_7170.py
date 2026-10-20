@@ -1,7 +1,6 @@
 """#7170: the Maven Tools clone must be diagnosable, long-path safe and retry transient failures."""
 
 import importlib.util
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,8 +10,10 @@ SPEC = importlib.util.spec_from_file_location(
     "chaos_engine_java_installer_7170", ROOT / "chaos-engine/packs/java/installer.py"
 )
 MODULE = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
+if SPEC.loader is None:
+    raise ImportError("java pack installer is not loadable")
 SPEC.loader.exec_module(MODULE)
+subprocess = MODULE.subprocess
 
 
 class MavenToolsCloneTest(unittest.TestCase):

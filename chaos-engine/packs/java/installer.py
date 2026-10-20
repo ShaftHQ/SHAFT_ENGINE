@@ -135,7 +135,8 @@ MAVEN_TOOLS_CLONE_ATTEMPTS = 3
 
 
 def clone_maven_tools_source(runner, git: str, tag: str, source: Path, *, sleep=time.sleep) -> None:
-    """Shallow-clone the pinned Maven Tools tag into ``source`` (#7170).
+    """
+    Shallow-clone the pinned Maven Tools tag into ``source`` (#7170).
 
     ``core.longpaths`` is set per command because Windows Git defaults it off
     (CI only passed because the workflow sets it globally). Transient failures
