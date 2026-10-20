@@ -44,8 +44,8 @@ def need(tool: str) -> str:
     return found
 
 
-def run(command: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, capture_output=True, text=True, check=False)  # nosec B603 - list argv, no shell.
+def run(command: list[str], timeout: float | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, capture_output=True, text=True, check=False, timeout=timeout)  # nosec B603 - list argv, no shell.
 
 
 def ffprobe(path: str) -> dict:
@@ -1467,12 +1467,278 @@ def step_key(step: dict) -> str:
     return digest.hexdigest()
 
 
+# ---------------------------------------------------------------- photo frames: sharpness, eyes, reflections, leak
+def parse_ppm(data: bytes, offset: int = 0) -> tuple[int, int, bytes, int]:
+    """One binary P6 PPM at `offset`: (width, height, rgb bytes, next offset)."""
+    fields, pos = [], offset
+    while len(fields) < 4:
+        while data[pos:pos + 1].isspace():
+            pos += 1
+        if data[pos:pos + 1] == b"#":
+            pos = data.index(b"\n", pos) + 1
+            continue
+        end = pos
+        while not data[end:end + 1].isspace():
+            end += 1
+        fields.append(data[pos:end])
+        pos = end
+    if fields[0] != b"P6" or int(fields[3]) != 255:
+        raise ValueError("expected an 8-bit P6 PPM")
+    width, height = int(fields[1]), int(fields[2])
+    pos += 1
+    return width, height, data[pos:pos + width * height * 3], pos + width * height * 3
+
+
+FRAME_TIMEOUT_S = 600  # bounded decode for the photo-frame checks
+MAX_FRAMES = 2000  # framescore sampling cap (memory: every frame is held as rgb24)
+
+
+def local_path(path: str) -> str:
+    """An absolute local path, so a name like "-y" or "concat:a|b" never reaches ffmpeg as an option or protocol."""
+    return os.path.abspath(path)
+
+
+def ppm_frames(command: list[str]) -> list[tuple[int, int, bytes]]:
+    result = subprocess.run(command + ["-f", "image2pipe", "-vcodec", "ppm", "-"],  # nosec B603 - list argv.
+                            capture_output=True, check=False, timeout=FRAME_TIMEOUT_S)
+    if result.returncode != 0:
+        raise ValueError(f"ffmpeg failed: {result.stderr.decode(errors='replace').strip()[-400:]}")
+    frames, pos, data = [], 0, result.stdout
+    while pos < len(data):
+        width, height, rgb, pos = parse_ppm(data, pos)
+        frames.append((width, height, rgb))
+    return frames
+
+
+def read_image(path: str) -> tuple[int, int, bytes]:
+    """Any image ffmpeg can read, as (width, height, rgb24 bytes)."""
+    return ppm_frames([need("ffmpeg"), "-v", "error", "-nostdin", "-i", local_path(path), "-frames:v", "1"])[0]
+
+
+def box_arg(text: str | None) -> tuple[int, int, int, int] | None:
+    if not text:
+        return None
+    values = [int(float(v)) for v in re.split(r"[,:x]", text)]
+    if len(values) != 4:
+        raise ValueError(f"box needs x,y,w,h: {text}")
+    return values[0], values[1], values[2], values[3]
+
+
+def clip_box(box: tuple[int, int, int, int], width: int, height: int) -> tuple[int, int, int, int]:
+    x0, y0 = max(0, box[0]), max(0, box[1])
+    x1, y1 = min(width, box[0] + box[2]), min(height, box[1] + box[3])
+    if x1 - x0 < 3 or y1 - y0 < 3:
+        raise ValueError(f"box {box} is outside the {width}x{height} image")
+    return x0, y0, x1 - x0, y1 - y0
+
+
+def sharpness(width: int, height: int, rgb: bytes, box: tuple[int, int, int, int]) -> float:
+    """Variance of the 4-neighbour Laplacian of luma inside box (higher is sharper)."""
+    x, y, w, h = clip_box(box, width, height)
+    luma = [[(299 * rgb[i] + 587 * rgb[i + 1] + 114 * rgb[i + 2]) / 1000.0
+             for i in range(((y + r) * width + x) * 3, ((y + r) * width + x + w) * 3, 3)] for r in range(h)]
+    total = square = 0.0
+    count = 0
+    for r in range(1, h - 1):
+        up, row, down = luma[r - 1], luma[r], luma[r + 1]
+        for c in range(1, w - 1):
+            value = 4 * row[c] - up[c] - down[c] - row[c - 1] - row[c + 1]
+            total += value
+            square += value * value
+            count += 1
+    mean = total / count
+    return square / count - mean * mean
+
+
+def lens_band(box: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+    """Glasses band of a face box: a little wider than the face, brow to mid-nose."""
+    x, y, w, h = box
+    return x - w // 10, y - h // 10, w + w // 5, h * 7 // 10
+
+
+def reflection_pixels(width: int, height: int, rgb: bytes, box: tuple[int, int, int, int]) -> int:
+    """Cyan/green ring-light highlight pixels: hue 85-212 deg, saturation > 0.16, value > 0.55."""
+    x, y, w, h = clip_box(box, width, height)
+    count = 0
+    for r in range(y, y + h):
+        base = r * width * 3
+        for c in range(x, x + w):
+            i = base + c * 3
+            red, green, blue = rgb[i], rgb[i + 1], rgb[i + 2]
+            high, low = max(red, green, blue), min(red, green, blue)
+            if high <= 140 or high == low or (high - low) * 255 <= 40 * high:
+                continue
+            if high == red:
+                hue = (60.0 * (green - blue) / (high - low)) % 360
+            elif high == green:
+                hue = 60.0 * (blue - red) / (high - low) + 120
+            else:
+                hue = 60.0 * (red - green) / (high - low) + 240
+            count += 84.7 < hue < 211.8
+    return count
+
+
+def opencv():
+    """(cv2, numpy) when opencv-python is installed, else None: face and eye scoring degrade."""
+    try:
+        import cv2  # type: ignore[import-not-found]
+        import numpy  # type: ignore[import-not-found]
+    except ImportError:
+        return None
+    return (cv2, numpy) if hasattr(cv2, "CascadeClassifier") else None
+
+
+def face_and_eyes(width: int, height: int, rgb: bytes, cv) -> tuple[tuple[int, int, int, int] | None, bool | None]:
+    cv2, numpy = cv
+    gray = cv2.cvtColor(numpy.frombuffer(rgb, numpy.uint8).reshape(height, width, 3), cv2.COLOR_RGB2GRAY)
+    data = cv2.data.haarcascades
+    faces = cv2.CascadeClassifier(data + "haarcascade_frontalface_default.xml").detectMultiScale(
+        gray, 1.1, 6, minSize=(max(24, height // 6),) * 2)
+    if len(faces) == 0:
+        return None, None
+    x, y, w, h = (int(v) for v in max(faces, key=lambda f: f[2]))
+    eyes = cv2.CascadeClassifier(data + "haarcascade_eye_tree_eyeglasses.xml").detectMultiScale(
+        gray[y:y + h // 2, x:x + w], 1.05, 5, minSize=(max(4, w // 10),) * 2)
+    return (x, y, w, h), len(eyes) >= 2
+
+
+def score_frame(width: int, height: int, rgb: bytes, face: tuple | None, cv) -> dict:
+    eyes = None
+    if cv is not None and face is None:
+        face, eyes = face_and_eyes(width, height, rgb, cv)
+        if face is None:
+            return {"face": None}
+    box = face or (0, 0, width, height)
+    return {"face": list(box), "sharpness": round(sharpness(width, height, rgb, box), 1), "eyes_open": eyes,
+            "reflections": reflection_pixels(width, height, rgb, lens_band(box))}
+
+
+def cmd_framescore(args: argparse.Namespace) -> int:
+    if args.fps <= 0 or args.width <= 0 or args.end <= args.start or args.start < 0:
+        raise ValueError("framescore needs 0 <= --start < --end, --fps > 0 and --width > 0")
+    if (args.end - args.start) * args.fps > MAX_FRAMES:
+        raise ValueError(f"framescore samples at most {MAX_FRAMES} frames: narrow --start/--end or lower --fps")
+    ffmpeg = need("ffmpeg")
+    chain = f"fps={args.fps},scale={args.width}:-2" + (f",{args.vf}" if args.vf else "")
+    frames = ppm_frames([ffmpeg, "-v", "error", "-nostdin", "-ss", f"{args.start}", "-t", f"{args.end - args.start}",
+                         "-i", local_path(args.video), "-vf", chain])
+    cv = opencv()
+    rows = []
+    for index, (width, height, rgb) in enumerate(frames):
+        row = {"index": index, "t": round(args.start + index / args.fps, 3),
+               **score_frame(width, height, rgb, box_arg(args.face_box), cv)}
+        row["ok"] = bool(row["face"]) and row["eyes_open"] is not False and row["reflections"] <= args.max_reflections
+        rows.append(row)
+    ranked = sorted((r for r in rows if r["ok"]), key=lambda r: -r["sharpness"])
+    Path(args.out).write_text(json.dumps({"video": args.video, "fps": args.fps, "width": args.width,
+                                          "frames": rows}, indent=1), encoding="utf-8")
+    return report("framescore", PASS if ranked else FAIL, frames=len(rows), usable=len(ranked), out=args.out,
+                  best=[{k: r[k] for k in ("t", "sharpness", "reflections", "eyes_open")} for r in ranked[:5]],
+                  eyes="scored" if cv else "unscored (install opencv-python for face and eye detection)",
+                  note="white lens highlights escape the colour test: inspect an eye close-up of the pick")
+
+
+def cmd_reflections(args: argparse.Namespace) -> int:
+    width, height, rgb = read_image(args.image)
+    face, eyes, cv = box_arg(args.face_box), None, None
+    if face is None:
+        cv = opencv()
+        if cv is None:
+            raise Skip("no --face-box and opencv-python is not installed for face detection")
+        face, eyes = face_and_eyes(width, height, rgb, cv)
+        if face is None:
+            return report("reflections", FAIL, problems=["no face found"])
+    band = clip_box(lens_band(face), width, height)
+    count = reflection_pixels(width, height, rgb, band)
+    if args.closeup:
+        x, y, w, h = band
+        result = run([need("ffmpeg"), "-v", "error", "-nostdin", "-y", "-i", local_path(args.image), "-vf",
+                      f"crop={w}:{h}:{x}:{y},scale={w * 2}:-2", "-frames:v", "1", local_path(args.closeup)],
+                     timeout=FRAME_TIMEOUT_S)
+        if result.returncode != 0:
+            raise ValueError(f"ffmpeg failed: {result.stderr.strip()[-400:]}")
+    return report("reflections", FAIL if count > args.max else PASS, reflections=count, max=args.max,
+                  band=list(band), eyes_open=eyes, closeup=args.closeup,
+                  note="white lens highlights escape the colour test: look at the close-up")
+
+
+def fresh_frame(args: argparse.Namespace, directory: str) -> tuple[int, int, bytes]:
+    ffmpeg = need("ffmpeg")
+    if args.grid:
+        start, fps = (float(v) for v in args.grid.split(":"))
+        index = round((args.t - start) * fps)
+        command = [ffmpeg, "-v", "error", "-nostdin", "-ss", f"{start}", "-i", local_path(args.source), "-vf",
+                   f"fps={fps},select=eq(n\\,{index})" + (f",{args.vf}" if args.vf else ""), "-frames:v", "1"]
+    else:
+        command = [ffmpeg, "-v", "error", "-nostdin", "-ss", f"{args.t}", "-i", local_path(args.source), "-frames:v", "1"]
+        command += ["-vf", args.vf] if args.vf else []
+    if not args.crop_cmd:
+        return ppm_frames(command)[0]
+    raw, cropped = os.path.join(directory, "fresh.png"), os.path.join(directory, "crop.png")
+    result = run(command + ["-y", raw], timeout=FRAME_TIMEOUT_S)
+    if result.returncode != 0:
+        raise ValueError(f"ffmpeg failed: {result.stderr.strip()[-400:]}")
+    result = run(crop_argv(args.crop_cmd, raw, cropped), timeout=FRAME_TIMEOUT_S)
+    if result.returncode != 0 or not os.path.exists(cropped):
+        raise ValueError(f"--crop-cmd failed: {result.stderr.strip()[-400:]}")
+    return read_image(cropped)
+
+
+def crop_argv(template: str, source: str, target: str) -> list[str]:
+    """The build's crop step as a fixed argv: shlex-split, no shell, {in} and {out} as whole arguments only."""
+    import shlex
+    parts = shlex.split(template)
+    if not parts or parts.count("{in}") != 1 or parts.count("{out}") != 1:
+        raise ValueError("--crop-cmd needs an argv with exactly one {in} and one {out} argument")
+    if any(("{in}" in p or "{out}" in p) and p not in ("{in}", "{out}") for p in parts):
+        raise ValueError("--crop-cmd placeholders must be whole arguments")
+    if "{in}" in parts[0] or "{out}" in parts[0]:
+        raise ValueError("--crop-cmd must start with a program")
+    program = shutil.which(parts[0])
+    if program is None:
+        raise ValueError(f"--crop-cmd program not found: {parts[0]}")
+    return [program, *(source if p == "{in}" else target if p == "{out}" else p for p in parts[1:])]
+
+
+def leak_diff(rendered: tuple[int, int, bytes], reference: tuple[int, int, bytes], offset: tuple[int, int],
+              region: tuple[int, int, int, int], tol: int) -> tuple[int, int]:
+    """(max channel difference, pixels above tol) of reference[region] vs rendered[region + offset]."""
+    rw, rh, rbytes = rendered
+    fw, fh, fbytes = reference
+    x, y, w, h = clip_box(region, fw, fh)
+    if offset[0] + x + w > rw or offset[1] + y + h > rh or min(offset) < 0:
+        raise ValueError("region plus offset falls outside the rendered image")
+    worst = over = 0
+    for r in range(h):
+        a = ((offset[1] + y + r) * rw + offset[0] + x) * 3
+        b = ((y + r) * fw + x) * 3
+        for c in range(0, w * 3, 3):
+            d = max(abs(rbytes[a + c + k] - fbytes[b + c + k]) for k in range(3))
+            worst = max(worst, d)
+            over += d > tol
+    return worst, over
+
+
+def cmd_leak(args: argparse.Namespace) -> int:
+    import tempfile
+    rendered = read_image(args.rendered)
+    with tempfile.TemporaryDirectory() as directory:
+        reference = fresh_frame(args, directory)
+    region = box_arg(args.region) or (0, 0, reference[0], reference[1])
+    offset = tuple(int(v) for v in args.offset.split(",")) if args.offset else (0, 0)
+    worst, over = leak_diff(rendered, reference, offset, region, args.tol)
+    return report("leak", FAIL if over > args.max_pixels else PASS, max_diff=worst, pixels_over_tol=over,
+                  tol=args.tol, region=list(region), offset=list(offset), reference_size=list(reference[:2]))
+
+
 def cmd_all(args: argparse.Namespace) -> int:
     plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
     cache_path = Path(args.cache) if args.cache else None
     cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path and cache_path.is_file() else {}
     worst, cached = PASS, 0
     for step in plan.get("checks", []):
+        if any(str(a).startswith("--crop-cmd") for a in step.get("args", [])):
+            raise ValueError("plans may not carry --crop-cmd (it runs a program); run leak directly")
         key = step_key(step) if cache_path else ""
         if key and cache.get(key) == "pass":
             cached += 1
@@ -1664,6 +1930,32 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--width", type=int, default=640)
     p.add_argument("--out", required=True)
     p.add_argument("--spectrum", help="also write a spectrum picture of each window")
+    p = add("framescore", cmd_framescore, "score sampled frames: sharpness, eyes open, lens reflections")
+    p.add_argument("video")
+    p.add_argument("--start", type=float, default=0.0)
+    p.add_argument("--end", type=float, required=True)
+    p.add_argument("--fps", type=float, default=4.0)
+    p.add_argument("--width", type=int, default=960, help="decode width; boxes are in these pixels")
+    p.add_argument("--vf", help="extra ffmpeg filters after scaling (for example the grade)")
+    p.add_argument("--face-box", help="x,y,w,h when opencv-python is absent or the framing is fixed")
+    p.add_argument("--max-reflections", type=int, default=15)
+    p.add_argument("--out", required=True, help="JSON with one row per frame")
+    p = add("reflections", cmd_reflections, "cyan/green lens highlights on the glasses band")
+    p.add_argument("image")
+    p.add_argument("--face-box", help="x,y,w,h (default: opencv face detection)")
+    p.add_argument("--max", type=int, default=15)
+    p.add_argument("--closeup", help="also write a 2x crop of the band for the visual check")
+    p = add("leak", cmd_leak, "rendered photo matches a fresh extraction of its source frame")
+    p.add_argument("rendered")
+    p.add_argument("--source", required=True, help="video the photo came from")
+    p.add_argument("--t", type=float, required=True, help="frame time in seconds")
+    p.add_argument("--grid", help="start:fps sampling used when the frame was scored (select by index)")
+    p.add_argument("--vf", help="ffmpeg filters the build applied (scale, grade, crop)")
+    p.add_argument("--crop-cmd", help="argv with {in} and {out}: the build's own crop/resize step")
+    p.add_argument("--offset", help="x,y where the reference sits in the rendered image")
+    p.add_argument("--region", help="x,y,w,h of the reference compared (unmasked area)")
+    p.add_argument("--tol", type=int, default=0, help="per-channel difference allowed")
+    p.add_argument("--max-pixels", type=int, default=0, help="pixels above tol allowed")
     add("doctor", cmd_doctor, "which tools are present")
     craft_qc().register(add, sys.modules[__name__])
     p = add("all", cmd_all, "run a JSON plan of checks")
@@ -1678,7 +1970,7 @@ def main(argv: list[str] | None = None) -> int:
         return args.func(args)
     except Skip as skip:
         return report(args.command, SKIPPED, reason=str(skip))
-    except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
+    except (OSError, ValueError, KeyError, json.JSONDecodeError, subprocess.TimeoutExpired) as error:
         return report(args.command, USAGE, error=str(error))
 
 

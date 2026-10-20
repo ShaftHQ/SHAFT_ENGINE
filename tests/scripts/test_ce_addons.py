@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import re
@@ -237,7 +239,8 @@ class DesignContentTests(unittest.TestCase):
     def test_cards_carry_thumbnail_identity_and_site_builder_rules(self):
         image = (DESIGN / "references" / "image-graphics.md").read_text(encoding="utf-8")
         for needle in ("168 x 94", "Short cover", "never a picked video", "Laplacian", "cyan/green",
-                       "close-up", "pixel-diff"):
+                       "close-up", "pixel-diff", "design_qc.py framescore", "design_qc.py reflections",
+                       "design_qc.py leak", "--grid"):
             self.assertIn(needle, image)
         brand = (DESIGN / "references" / "brand-system.md").read_text(encoding="utf-8")
         for needle in ("## Identity set", "92 %", "nested-table", "displayed size", "## Self-audit before delivery"):
@@ -380,6 +383,149 @@ class DesignQcTests(unittest.TestCase):
             self.assertEqual(0, self.run_qc("levels", str(clip))[0])
             self.assertEqual(0, self.run_qc("colortags", str(clip))[0])
             self.assertEqual(0, self.run_qc("flash", str(clip))[0])
+
+
+class PhotoFrameQcTests(unittest.TestCase):
+    """framescore, reflections and leak on small synthetic fixtures (no real footage)."""
+
+    qc = DesignQcTests.qc
+
+    def run_qc(self, *args: str) -> tuple[int, dict]:
+        return DesignQcTests.run_qc(self, *args)
+
+    @staticmethod
+    def ppm(width: int, height: int, pixel) -> bytes:
+        body = bytes(v for y in range(height) for x in range(width) for v in pixel(x, y))
+        return b"P6\n%d %d\n255\n" % (width, height) + body
+
+    def face(self, cyan: bool):
+        """Skin-toned 40x40 'face' on grey with a 2 px dark checker texture; optional cyan ring on a lens."""
+        def pixel(x, y):
+            if cyan and 18 <= x <= 22 and 14 <= y <= 16:
+                return (90, 230, 220)
+            if 10 <= x < 50 and 8 <= y < 48:
+                return (60, 40, 30) if (x // 2 + y // 2) % 2 else (200, 160, 130)
+            return (128, 128, 128)
+        return self.ppm(60, 56, pixel)
+
+    def test_ppm_parser_reads_consecutive_frames(self):
+        data = self.ppm(2, 1, lambda x, y: (x, 0, 9)) + self.ppm(1, 1, lambda x, y: (7, 7, 7))
+        width, height, rgb, pos = self.qc.parse_ppm(data)
+        self.assertEqual((2, 1, bytes([0, 0, 9, 1, 0, 9])), (width, height, rgb))
+        self.assertEqual((1, 1, bytes([7, 7, 7])), self.qc.parse_ppm(data, pos)[:3])
+
+    def test_sharpness_ranks_texture_above_flat(self):
+        textured = self.qc.parse_ppm(self.face(False))[:3]
+        flat = self.qc.parse_ppm(self.ppm(60, 56, lambda x, y: (200, 160, 130)))[:3]
+        box = (10, 8, 40, 40)
+        self.assertGreater(self.qc.sharpness(*textured, box), 100.0)
+        self.assertEqual(0.0, self.qc.sharpness(*flat, box))
+
+    def test_reflection_pixels_count_cyan_highlights_only(self):
+        clean = self.qc.parse_ppm(self.face(False))[:3]
+        ring = self.qc.parse_ppm(self.face(True))[:3]
+        band = self.qc.lens_band((10, 8, 40, 40))
+        self.assertEqual(0, self.qc.reflection_pixels(*clean, band))
+        self.assertEqual(15, self.qc.reflection_pixels(*ring, band))
+        white = self.qc.parse_ppm(self.ppm(4, 4, lambda x, y: (250, 250, 250)))[:3]
+        self.assertEqual(0, self.qc.reflection_pixels(*white, (0, 0, 4, 4)))  # white escapes: close-up needed
+
+    def test_leak_diff_finds_a_drawn_pixel_inside_the_region_only(self):
+        ref = self.qc.parse_ppm(self.face(False))[:3]
+        drawn = bytearray(ref[2])
+        drawn[(20 * 60 + 30) * 3] ^= 0xFF
+        self.assertEqual((0, 0), self.qc.leak_diff(ref, ref, (0, 0), (0, 0, 60, 56), 0))
+        self.assertEqual(1, self.qc.leak_diff((60, 56, bytes(drawn)), ref, (0, 0), (0, 0, 60, 56), 0)[1])
+        self.assertEqual(0, self.qc.leak_diff((60, 56, bytes(drawn)), ref, (0, 0), (0, 0, 60, 10), 0)[1])
+        with self.assertRaises(ValueError):
+            self.qc.leak_diff(ref, ref, (30, 0), (0, 0, 60, 56), 0)
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not installed")
+    def test_reflections_command_exit_codes_and_closeup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            clean, ring = Path(temporary) / "clean.ppm", Path(temporary) / "ring.ppm"
+            clean.write_bytes(self.face(False))
+            ring.write_bytes(self.face(True))
+            closeup = Path(temporary) / "eyes.png"
+            code, payload = self.run_qc("reflections", str(clean), "--face-box", "10,8,40,40",
+                                        "--closeup", str(closeup))
+            self.assertEqual((0, 0), (code, payload["reflections"]))
+            self.assertTrue(closeup.exists())
+            code, payload = self.run_qc("reflections", str(ring), "--face-box", "10,8,40,40", "--max", "5")
+            self.assertEqual((1, 15), (code, payload["reflections"]))
+            self.assertEqual(2, self.run_qc("reflections", str(ring), "--face-box", "1,2,3")[0])
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not installed")
+    def test_reflections_without_face_box_or_opencv_is_skipped_not_passed(self):
+        original = self.qc.opencv
+        self.qc.opencv = lambda: None
+        try:
+            with tempfile.TemporaryDirectory() as temporary:
+                image = Path(temporary) / "face.ppm"
+                image.write_bytes(self.face(False))
+                with contextlib.redirect_stdout(io.StringIO()) as output:
+                    code = self.qc.main(["reflections", str(image)])
+        finally:
+            self.qc.opencv = original
+        self.assertEqual((4, "skipped"), (code, json.loads(output.getvalue())["status"]))
+
+    def test_crop_cmd_is_a_fixed_argv_template(self):
+        argv = self.qc.crop_argv("python3 adapter.py thumb {in} {out}", "/t/in.png", "/t/out.png")
+        self.assertEqual(shutil.which("python3"), argv[0])
+        self.assertEqual(["adapter.py", "thumb", "/t/in.png", "/t/out.png"], argv[1:])
+        # shell metacharacters stay literal arguments; nothing is interpreted by a shell
+        self.assertIn("a;b|c", self.qc.crop_argv("python3 x.py 'a;b|c' {in} {out}", "i", "o"))
+        for bad in ("", "python3 x.py {in}", "python3 x.py {in} {in} {out}", "python3 --in={in} {out}",
+                    "{in} {out}", "no-such-program-xyz {in} {out}"):
+            with self.assertRaises(ValueError, msg=bad):
+                self.qc.crop_argv(bad, "i", "o")
+
+    def test_plans_refuse_crop_cmd_and_bad_framescore_ranges_are_usage_errors(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            plan = Path(temporary) / "plan.json"
+            plan.write_text(json.dumps({"checks": [{"check": "leak", "args": [
+                "r.png", "--source", "v.mp4", "--t", "0", "--crop-cmd", "touch {in} {out}"]}]}), encoding="utf-8")
+            self.assertEqual(2, self.run_qc("all", str(plan))[0])
+            out = str(Path(temporary) / "s.json")
+            self.assertEqual(2, self.run_qc("framescore", "v.mp4", "--start", "2", "--end", "1", "--out", out)[0])
+            self.assertEqual(2, self.run_qc("framescore", "v.mp4", "--end", "9999", "--fps", "4", "--out", out)[0])
+
+    def test_missing_ffmpeg_is_skipped_not_passed(self):
+        original = self.qc.shutil.which
+        self.qc.shutil.which = lambda tool, *a, **k: None if tool == "ffmpeg" else original(tool, *a, **k)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                code = self.qc.main(["reflections", "missing.png", "--face-box", "1,2,3,4"])
+        finally:
+            self.qc.shutil.which = original
+        self.assertEqual((4, "skipped"), (code, json.loads(output.getvalue())["status"]))
+
+    def test_dash_named_paths_never_reach_ffmpeg_as_options(self):
+        self.assertTrue(self.qc.local_path("-y").startswith(os.sep))
+        self.assertTrue(self.qc.local_path("concat:a|b").startswith(os.sep))
+
+    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not installed")
+    def test_framescore_and_leak_on_a_generated_clip(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            clip, out = Path(temporary) / "clip.mkv", Path(temporary) / "scores.json"
+            subprocess.run([  # nosec B603 - resolved ffmpeg path, fixed argv.
+                shutil.which("ffmpeg"), "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+                "testsrc=s=64x48:r=8:d=1,hue=s=0", "-c:v", "ffv1", str(clip)], check=True)
+            code, payload = self.run_qc("framescore", str(clip), "--end", "1", "--fps", "4", "--width", "64",
+                                        "--face-box", "8,8,40,30", "--out", str(out))
+            rows = json.loads(out.read_text(encoding="utf-8"))["frames"]
+            self.assertEqual((0, 4, 4), (code, len(rows), payload["usable"]))
+            self.assertTrue(all(r["sharpness"] > 0 and r["eyes_open"] is None for r in rows))
+            frame = Path(temporary) / "frame.png"
+            subprocess.run([shutil.which("ffmpeg"), "-v", "error", "-ss", "0.5", "-i", str(clip),  # nosec B603
+                            "-frames:v", "1", str(frame)], check=True)
+            self.assertEqual((0, 0), (lambda r: (r[0], r[1]["max_diff"]))(
+                self.run_qc("leak", str(frame), "--source", str(clip), "--t", "0.5")))
+            code, payload = self.run_qc("leak", str(frame), "--source", str(clip), "--t", "0.0")
+            self.assertEqual(1, code)  # a different (stale) frame is a leak
+            self.assertGreater(payload["pixels_over_tol"], 0)
+            grid = self.run_qc("leak", str(frame), "--source", str(clip), "--t", "0.5", "--grid", "0:4")
+            self.assertEqual(0, grid[0])
 
 
 class DesignLessonTests(unittest.TestCase):
