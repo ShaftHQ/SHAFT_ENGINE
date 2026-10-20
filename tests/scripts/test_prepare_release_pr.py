@@ -246,5 +246,24 @@ String allure3Version();
             MODULE.urlopen = original_urlopen
 
 
+
+class DryRunReleaseDateTest(unittest.TestCase):
+    """The dry run must pick a date newer than the current version (#7210)."""
+
+    def test_tomorrow_when_newer_than_current(self):
+        self.assertEqual(MODULE.dry_run_release_date("10.4.20261013", "2026-10-20"), "2026-10-20")
+
+    def test_day_after_current_when_release_pr_already_sets_tomorrow(self):
+        self.assertEqual(MODULE.dry_run_release_date("10.4.20261020", "2026-10-20"), "2026-10-21")
+
+    def test_after_current_flag_resolves_the_dry_run_date(self):
+        self.assertEqual(MODULE.resolve_release_date("2026-10-20", "10.4.20261020", after_current=True), "2026-10-21")
+        self.assertEqual(MODULE.resolve_release_date("2026-10-20", "10.4.20261020", after_current=False), "2026-10-20")
+
+    def test_dry_run_workflow_uses_after_current(self):
+        workflow = (ROOT / ".github/workflows/shaft-pilot-release.yml").read_text(encoding="utf-8")
+        line = next(l for l in workflow.splitlines() if "prepare_release_pr.py --release-date" in l)
+        self.assertIn("--after-current", line)
+
 if __name__ == "__main__":
     unittest.main()
