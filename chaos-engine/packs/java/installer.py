@@ -49,6 +49,10 @@ __all__ = (
     "MAVEN_TOOLS_REPOSITORY",
     "MAVEN_TOOLS_CLONE_ATTEMPTS",
     "clone_maven_tools_source",
+    "_maven_tools_docker_runtime",
+    "_await_maven_tools_cache",
+    "_maven_tools_build_java",
+    "_build_and_publish_maven_tools",
     "ensure_maven_tools",
     "maven_tools_repair_fix_next",
     "repair_maven_tools",
@@ -160,35 +164,26 @@ def clone_maven_tools_source(runner, git: str, tag: str, source: Path, *, sleep=
     )
 
 
-def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one transaction.
-    target: Path, specification: dict[str, object], *, runner=subprocess.run,
-    reporter=None, confirmer=None, opener=None, mode: str = "native",
-) -> tuple[Path, Path] | dict[str, str]:
-    hosts = load_installed_controller(target, "hosts")
-    dependencies = load_dependency_controller(target)
-    contract = specification["dependencies"]["maven-tools-mcp"]
-    resolver_options = {} if opener is None else {"opener": opener}
-    version = dependencies.resolve_stable_version(
-        "maven-tools-mcp", contract, **resolver_options
+def _maven_tools_docker_runtime(runner, version: str) -> dict[str, str]:
+    """Explicit Docker mode: verify a healthy daemon and name the pinned image."""
+    docker = shutil.which("docker")
+    if not docker:
+        raise ValueError("explicit Maven Tools Docker mode requires healthy Docker")
+    probe = runner(
+        [docker, "version", "--format", "{{.Server.Version}}"],
+        capture_output=True, text=True, check=False, timeout=30,
     )
-    if mode == "docker":
-        docker = shutil.which("docker")
-        if not docker:
-            raise ValueError("explicit Maven Tools Docker mode requires healthy Docker")
-        probe = runner(
-            [docker, "version", "--format", "{{.Server.Version}}"],
-            capture_output=True, text=True, check=False, timeout=30,
-        )
-        if probe.returncode != 0:
-            raise ValueError("explicit Maven Tools Docker mode requires healthy Docker")
-        return {
-            "mode": "docker",
-            "command": str(Path(docker).resolve()),
-            "image": f"arvindand/maven-tools-mcp:{version}",
-        }
-    if mode != "native":
-        raise ValueError("unsupported Maven Tools mode")
-    tag = f"v{version}"
+    if probe.returncode != 0:
+        raise ValueError("explicit Maven Tools Docker mode requires healthy Docker")
+    return {
+        "mode": "docker",
+        "command": str(Path(docker).resolve()),
+        "image": f"arvindand/maven-tools-mcp:{version}",
+    }
+
+
+def _await_maven_tools_cache(hosts, version: str, reporter):
+    """Reuse a healthy cache, wait out a busy one, discard an invalid one; None means build."""
     cache_deadline = time.monotonic() + MAVEN_TOOLS_CACHE_BUSY_WAIT_SECONDS
     busy_announced = False
     while True:
@@ -200,7 +195,7 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
                 # Healthy shared cache is reuse (action:reused); probe flakes must
                 # not force a rebuild that then hits "cache version already exists".
                 return existing
-            break
+            return None
         if status == "busy":
             remaining = cache_deadline - time.monotonic()
             if remaining <= 0:
@@ -225,7 +220,11 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
             if not callable(discard):
                 raise ValueError("Maven Tools MCP cache is invalid")
             discard(version)
-        break
+        return None
+
+
+def _maven_tools_build_java(hosts, specification, *, opener, reporter, confirmer) -> Path:
+    """Return a JDK (with javac) new enough to build Maven Tools, provisioning Temurin if needed."""
     java_minimum = "25.0.0"
     java_contract = specification.get("dependencies", {}).get("java") if isinstance(
         specification.get("dependencies"), dict
@@ -272,14 +271,11 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
             "Temurin JDK 25 with javac is required for Maven Tools MCP "
             "(JRE-only Java is not enough); install Temurin 25 JDK or set CHAOSENGINE_JAVA"
         )
-    # Ensure a Maven CLI exists for operators when ambient mvn is missing/too old.
-    # Upstream build still prefers mvnw below; managed Maven is provisioned into the
-    # CE tools cache during this dependencies phase rather than after a failure.
-    ensure_maven = getattr(hosts, "ensure_managed_maven", None)
-    if callable(ensure_maven):
-        ensure_maven(
-            specification, opener=opener, reporter=reporter, confirmer=confirmer,
-        )
+    return java
+
+
+def _build_and_publish_maven_tools(hosts, runner, java: Path, version: str, tag: str, *, confirmer, reporter) -> None:
+    """Clone the pinned tag, build it with the upstream wrapper and publish the JAR to the cache."""
     cache_root = hosts.maven_tools_cache_root()
     cache_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".maven-tools-source-") as source_name:
@@ -320,6 +316,41 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
             receipt = {"version": version, "commit": revision, "jar": jar.name, "sha256": file_sha256(jar)}
             (staging / hosts.MAVEN_TOOLS_MCP_RECEIPT).write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
             hosts.publish_maven_tools_cache(staging)
+
+
+def ensure_maven_tools(
+    target: Path, specification: dict[str, object], *, runner=subprocess.run,
+    reporter=None, confirmer=None, opener=None, mode: str = "native",
+) -> tuple[Path, Path] | dict[str, str]:
+    hosts = load_installed_controller(target, "hosts")
+    dependencies = load_dependency_controller(target)
+    contract = specification["dependencies"]["maven-tools-mcp"]
+    resolver_options = {} if opener is None else {"opener": opener}
+    version = dependencies.resolve_stable_version(
+        "maven-tools-mcp", contract, **resolver_options
+    )
+    if mode == "docker":
+        return _maven_tools_docker_runtime(runner, version)
+    if mode != "native":
+        raise ValueError("unsupported Maven Tools mode")
+    tag = f"v{version}"
+    existing = _await_maven_tools_cache(hosts, version, reporter)
+    if existing is not None:
+        return existing
+    java = _maven_tools_build_java(
+        hosts, specification, opener=opener, reporter=reporter, confirmer=confirmer,
+    )
+    # Ensure a Maven CLI exists for operators when ambient mvn is missing/too old.
+    # Upstream build still prefers mvnw below; managed Maven is provisioned into the
+    # CE tools cache during this dependencies phase rather than after a failure.
+    ensure_maven = getattr(hosts, "ensure_managed_maven", None)
+    if callable(ensure_maven):
+        ensure_maven(
+            specification, opener=opener, reporter=reporter, confirmer=confirmer,
+        )
+    _build_and_publish_maven_tools(
+        hosts, runner, java, version, tag, confirmer=confirmer, reporter=reporter,
+    )
     runtime = hosts.discover_maven_tools_runtime()
     if runtime is None or not hosts.probe_maven_tools_runtime(*runtime):
         raise ValueError("Maven Tools MCP publication probe failed")
