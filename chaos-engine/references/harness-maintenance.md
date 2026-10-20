@@ -12,6 +12,12 @@ Install, `maintain` recovery and harness-edit checks for bots that start from
   lists them). Expect a few minutes for the first store index.
 - Linked worktree: install in the primary checkout, then
   `python3 <primary>/.chaos-engine/worktree_overlay.py materialize --primary <primary> --session <worktree>`.
+- A clean source can also come from `git archive HEAD | tar -x -C ../ce-src`
+  (a disjoint tree at the same commit).
+- Never reinstall after `entry`: the session's cards are bound to that
+  install. Install once, before entry.
+- `gh pr create` run from a linked worktree may not see the pushed upstream.
+  Pass `--head BRANCH --base main`.
 
 ## Maintain
 
