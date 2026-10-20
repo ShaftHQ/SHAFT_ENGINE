@@ -234,6 +234,19 @@ class DesignContentTests(unittest.TestCase):
         for needle in ("## Rules for slides and decks", "<bdi>", "inline-flex", "<= 1 px", "pdffonts", "displayed size"):
             self.assertIn(needle, layout)
 
+    def test_cards_carry_thumbnail_identity_and_site_builder_rules(self):
+        image = (DESIGN / "references" / "image-graphics.md").read_text(encoding="utf-8")
+        for needle in ("168 x 94", "Short cover", "never a picked video", "Laplacian", "cyan/green",
+                       "close-up", "pixel-diff"):
+            self.assertIn(needle, image)
+        brand = (DESIGN / "references" / "brand-system.md").read_text(encoding="utf-8")
+        for needle in ("## Identity set", "92 %", "nested-table", "displayed size", "## Self-audit before delivery"):
+            self.assertIn(needle, brand)
+        web = (DESIGN / "references" / "craft" / "web-design.md").read_text(encoding="utf-8")
+        for needle in ("Squarespace 7.1", "unicode-bidi: plaintext", "four font categories", "One primary CTA",
+                       "placeholder"):
+            self.assertIn(needle, web)
+
     def test_relative_links_resolve(self):
         for path in DESIGN.rglob("*.md"):
             for target in re.findall(r"\]\(([^)#]+)(?:#[^)]*)?\)", path.read_text(encoding="utf-8")):

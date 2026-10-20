@@ -71,6 +71,18 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
   local gate green. On a landing page it caught a reduced-motion blocker and a
   PR gate that filtered out the new tests.
 
+## Hosted site builders (Squarespace 7.1)
+
+- No built-in RTL: two custom-CSS lines make Arabic-first text work,
+  `h1, h2, h3, h4, p { unicode-bidi: plaintext; }` plus a heading
+  `font-family` stack; buttons, nav and site title stay single-script.
+- Site Styles has four font categories (headings, paragraphs, buttons,
+  misc); plan the script coverage per category, upload OFL files if missing.
+- One primary CTA to one real channel (for example a Messenger link),
+  identical on every page.
+- Only verified numbers and claims; no visible placeholder, lorem, or
+  "coming soon" block on a live page.
+
 ## GitHub README surfaces
 
 - Render with the Markdown API `{"mode": "markdown"}`; `gfm` is comment mode
