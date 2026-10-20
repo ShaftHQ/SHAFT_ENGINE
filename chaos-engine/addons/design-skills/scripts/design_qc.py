@@ -102,7 +102,7 @@ def contrast_ratio(a: str, b: str) -> float:
 
 
 def lab(value: str) -> tuple[float, float, float]:
-    """sRGB hex to CIE L*a*b* (D65)."""
+    """Convert an sRGB hex colour to CIE L*a*b* (D65)."""
     def linear(c: float) -> float:
         return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
     r, g, b = (linear(c) for c in hex_rgb(value))
@@ -798,6 +798,91 @@ def cmd_image(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------- layout
+def _right(b: dict) -> float:
+    return float(b["x"]) + float(b["w"])
+
+
+def _bottom(b: dict) -> float:
+    return float(b["y"]) + float(b["h"])
+
+
+def _baseline(b: dict) -> float:
+    return float(b.get("baseline", _bottom(b)))
+
+
+def _spread(values: list[float]) -> float:
+    return max(values) - min(values) if values else 0.0
+
+
+def _check_baselines(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for row in data.get("baselines", []):
+        spread = _spread([_baseline(box(name)) for name in row])
+        if spread > tol:
+            out.append(f"baselines {','.join(row)}: spread {spread:.1f}px")
+    return out
+
+
+def _check_mixed(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for run in data.get("mixed", []):
+        ids = run["ids"] if isinstance(run, dict) else run
+        limit = float(run.get("max", 1.0)) if isinstance(run, dict) else 1.0
+        spread = _spread([_baseline(box(name)) for name in ids])
+        if spread > limit + 1e-6:
+            out.append(f"mixed-script {','.join(ids)}: baseline offset {spread:.1f}px > {limit:g}px")
+    return out
+
+
+def _check_brackets(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for bracket in data.get("brackets", []):
+        b, spans = box(bracket["id"]), [box(name) for name in bracket["spans"]]
+        first, last = min(float(s["x"]) for s in spans), max(_right(s) for s in spans)
+        if abs(float(b["x"]) - first) > tol or abs(_right(b) - last) > tol:
+            out.append(f"{bracket['id']}: spans {b['x']}-{_right(b):.1f}, steps {first:.1f}-{last:.1f}")
+    return out
+
+
+def _check_gutters(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for group in data.get("gutters", []):
+        start, end = ("x", _right) if group.get("axis", "x") == "x" else ("y", _bottom)
+        ordered = sorted((box(name) for name in group["ids"]), key=lambda b: float(b[start]))
+        gaps = [float(n[start]) - end(p) for p, n in zip(ordered, ordered[1:])]
+        if _spread(gaps) > tol:
+            out.append(f"gutters {','.join(group['ids'])}: {[round(g, 1) for g in gaps]}")
+    return out
+
+
+def _check_clearance(data: dict, box, clearance: float) -> list[str]:
+    out = []
+    for pair in data.get("clearance", []):
+        inner, outer = box(pair["text"]), box(pair["box"])
+        least = min(float(inner["x"]) - float(outer["x"]), _right(outer) - _right(inner),
+                    float(inner["y"]) - float(outer["y"]), _bottom(outer) - _bottom(inner))
+        if least < float(pair.get("min", clearance)) - 1e-6:
+            out.append(f"{pair['text']} in {pair['box']}: clearance {least:.1f}px")
+    return out
+
+
+def _centre_offset(inner: dict, outer: dict, axis: str) -> float:
+    if axis == "x":
+        return (float(inner["x"]) + float(inner["w"]) / 2) - (float(outer["x"]) + float(outer["w"]) / 2)
+    ink = float(inner["h"]) - float(inner.get("descender", 0))
+    return (float(inner["y"]) + ink / 2) - (float(outer["y"]) + float(outer["h"]) / 2)
+
+
+def _check_centre(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for item in data.get("centre", []):
+        axis = item.get("axis", "x")
+        offset = _centre_offset(box(item["id"]), box(item["in"]), axis)
+        if abs(offset) > tol:
+            out.append(f"{item['id']}: off-centre {offset:+.1f}px on {axis}")
+    return out
+
+
 def layout_problems(data: dict, tol: float, clearance: float) -> list[str]:
     """Measured alignment checks on element boxes {id: {x, y, w, h[, baseline, descender]}}."""
     boxes = {str(item["id"]): item for item in data.get("elements", [])}
@@ -806,51 +891,8 @@ def layout_problems(data: dict, tol: float, clearance: float) -> list[str]:
         if name not in boxes:
             raise KeyError(f"unknown element {name}")
         return boxes[name]
-
-    def right(b: dict) -> float:
-        return float(b["x"]) + float(b["w"])
-
-    def bottom(b: dict) -> float:
-        return float(b["y"]) + float(b["h"])
-    problems = []
-    for row in data.get("baselines", []):
-        values = [float(box(name).get("baseline", bottom(box(name)))) for name in row]
-        if max(values) - min(values) > tol:
-            problems.append(f"baselines {','.join(row)}: spread {max(values) - min(values):.1f}px")
-    for run in data.get("mixed", []):
-        ids = run["ids"] if isinstance(run, dict) else run
-        limit = float(run.get("max", 1.0)) if isinstance(run, dict) else 1.0
-        values = [float(box(name).get("baseline", bottom(box(name)))) for name in ids]
-        if max(values) - min(values) > limit + 1e-6:
-            problems.append(f"mixed-script {','.join(ids)}: baseline offset {max(values) - min(values):.1f}px > {limit:g}px")
-    for bracket in data.get("brackets", []):
-        b, spans = box(bracket["id"]), [box(name) for name in bracket["spans"]]
-        first, last = min(float(s["x"]) for s in spans), max(right(s) for s in spans)
-        if abs(float(b["x"]) - first) > tol or abs(right(b) - last) > tol:
-            problems.append(f"{bracket['id']}: spans {b['x']}-{right(b):.1f}, steps {first:.1f}-{last:.1f}")
-    for group in data.get("gutters", []):
-        items, axis = [box(name) for name in group["ids"]], group.get("axis", "x")
-        start, end = ("x", right) if axis == "x" else ("y", bottom)
-        ordered = sorted(items, key=lambda b: float(b[start]))
-        gaps = [float(n[start]) - end(p) for p, n in zip(ordered, ordered[1:])]
-        if gaps and max(gaps) - min(gaps) > tol:
-            problems.append(f"gutters {','.join(group['ids'])}: {[round(g, 1) for g in gaps]}")
-    for pair in data.get("clearance", []):
-        inner, outer = box(pair["text"]), box(pair["box"])
-        least = min(float(inner["x"]) - float(outer["x"]), right(outer) - right(inner),
-                    float(inner["y"]) - float(outer["y"]), bottom(outer) - bottom(inner))
-        if least < float(pair.get("min", clearance)) - 1e-6:
-            problems.append(f"{pair['text']} in {pair['box']}: clearance {least:.1f}px")
-    for item in data.get("centre", []):
-        inner, outer, axis = box(item["id"]), box(item["in"]), item.get("axis", "x")
-        if axis == "x":
-            offset = (float(inner["x"]) + float(inner["w"]) / 2) - (float(outer["x"]) + float(outer["w"]) / 2)
-        else:
-            ink = float(inner["h"]) - float(inner.get("descender", 0))
-            offset = (float(inner["y"]) + ink / 2) - (float(outer["y"]) + float(outer["h"]) / 2)
-        if abs(offset) > tol:
-            problems.append(f"{item['id']}: off-centre {offset:+.1f}px on {axis}")
-    return problems
+    return (_check_baselines(data, box, tol) + _check_mixed(data, box, tol) + _check_brackets(data, box, tol)
+            + _check_gutters(data, box, tol) + _check_clearance(data, box, clearance) + _check_centre(data, box, tol))
 
 
 def cmd_layout(args: argparse.Namespace) -> int:
