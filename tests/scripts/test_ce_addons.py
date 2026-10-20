@@ -469,6 +469,41 @@ class PhotoFrameQcTests(unittest.TestCase):
             self.qc.opencv = original
         self.assertEqual((4, "skipped"), (code, json.loads(output.getvalue())["status"]))
 
+    def test_crop_cmd_is_a_fixed_argv_template(self):
+        argv = self.qc.crop_argv("python3 adapter.py thumb {in} {out}", "/t/in.png", "/t/out.png")
+        self.assertEqual(shutil.which("python3"), argv[0])
+        self.assertEqual(["adapter.py", "thumb", "/t/in.png", "/t/out.png"], argv[1:])
+        # shell metacharacters stay literal arguments; nothing is interpreted by a shell
+        self.assertIn("a;b|c", self.qc.crop_argv("python3 x.py 'a;b|c' {in} {out}", "i", "o"))
+        for bad in ("", "python3 x.py {in}", "python3 x.py {in} {in} {out}", "python3 --in={in} {out}",
+                    "{in} {out}", "no-such-program-xyz {in} {out}"):
+            with self.assertRaises(ValueError, msg=bad):
+                self.qc.crop_argv(bad, "i", "o")
+
+    def test_plans_refuse_crop_cmd_and_bad_framescore_ranges_are_usage_errors(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            plan = Path(temporary) / "plan.json"
+            plan.write_text(json.dumps({"checks": [{"check": "leak", "args": [
+                "r.png", "--source", "v.mp4", "--t", "0", "--crop-cmd", "touch {in} {out}"]}]}), encoding="utf-8")
+            self.assertEqual(2, self.run_qc("all", str(plan))[0])
+            out = str(Path(temporary) / "s.json")
+            self.assertEqual(2, self.run_qc("framescore", "v.mp4", "--start", "2", "--end", "1", "--out", out)[0])
+            self.assertEqual(2, self.run_qc("framescore", "v.mp4", "--end", "9999", "--fps", "4", "--out", out)[0])
+
+    def test_missing_ffmpeg_is_skipped_not_passed(self):
+        original = self.qc.shutil.which
+        self.qc.shutil.which = lambda tool, *a, **k: None if tool == "ffmpeg" else original(tool, *a, **k)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                code = self.qc.main(["reflections", "missing.png", "--face-box", "1,2,3,4"])
+        finally:
+            self.qc.shutil.which = original
+        self.assertEqual((4, "skipped"), (code, json.loads(output.getvalue())["status"]))
+
+    def test_dash_named_paths_never_reach_ffmpeg_as_options(self):
+        self.assertTrue(self.qc.local_path("-y").startswith(os.sep))
+        self.assertTrue(self.qc.local_path("concat:a|b").startswith(os.sep))
+
     @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg not installed")
     def test_framescore_and_leak_on_a_generated_clip(self):
         with tempfile.TemporaryDirectory() as temporary:

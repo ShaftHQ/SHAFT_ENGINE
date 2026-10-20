@@ -44,8 +44,8 @@ def need(tool: str) -> str:
     return found
 
 
-def run(command: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, capture_output=True, text=True, check=False)  # nosec B603 - list argv, no shell.
+def run(command: list[str], timeout: float | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, capture_output=True, text=True, check=False, timeout=timeout)  # nosec B603 - list argv, no shell.
 
 
 def ffprobe(path: str) -> dict:
@@ -1489,9 +1489,18 @@ def parse_ppm(data: bytes, offset: int = 0) -> tuple[int, int, bytes, int]:
     return width, height, data[pos:pos + width * height * 3], pos + width * height * 3
 
 
+FRAME_TIMEOUT_S = 600  # bounded decode for the photo-frame checks
+MAX_FRAMES = 2000  # framescore sampling cap (memory: every frame is held as rgb24)
+
+
+def local_path(path: str) -> str:
+    """An absolute local path, so a name like "-y" or "concat:a|b" never reaches ffmpeg as an option or protocol."""
+    return os.path.abspath(path)
+
+
 def ppm_frames(command: list[str]) -> list[tuple[int, int, bytes]]:
     result = subprocess.run(command + ["-f", "image2pipe", "-vcodec", "ppm", "-"],  # nosec B603 - list argv.
-                            capture_output=True, check=False)
+                            capture_output=True, check=False, timeout=FRAME_TIMEOUT_S)
     if result.returncode != 0:
         raise ValueError(f"ffmpeg failed: {result.stderr.decode(errors='replace').strip()[-400:]}")
     frames, pos, data = [], 0, result.stdout
@@ -1503,7 +1512,7 @@ def ppm_frames(command: list[str]) -> list[tuple[int, int, bytes]]:
 
 def read_image(path: str) -> tuple[int, int, bytes]:
     """Any image ffmpeg can read, as (width, height, rgb24 bytes)."""
-    return ppm_frames([need("ffmpeg"), "-v", "error", "-nostdin", "-i", path, "-frames:v", "1"])[0]
+    return ppm_frames([need("ffmpeg"), "-v", "error", "-nostdin", "-i", local_path(path), "-frames:v", "1"])[0]
 
 
 def box_arg(text: str | None) -> tuple[int, int, int, int] | None:
@@ -1605,10 +1614,14 @@ def score_frame(width: int, height: int, rgb: bytes, face: tuple | None, cv) -> 
 
 
 def cmd_framescore(args: argparse.Namespace) -> int:
+    if args.fps <= 0 or args.width <= 0 or args.end <= args.start or args.start < 0:
+        raise ValueError("framescore needs 0 <= --start < --end, --fps > 0 and --width > 0")
+    if (args.end - args.start) * args.fps > MAX_FRAMES:
+        raise ValueError(f"framescore samples at most {MAX_FRAMES} frames: narrow --start/--end or lower --fps")
     ffmpeg = need("ffmpeg")
     chain = f"fps={args.fps},scale={args.width}:-2" + (f",{args.vf}" if args.vf else "")
     frames = ppm_frames([ffmpeg, "-v", "error", "-nostdin", "-ss", f"{args.start}", "-t", f"{args.end - args.start}",
-                         "-i", args.video, "-vf", chain])
+                         "-i", local_path(args.video), "-vf", chain])
     cv = opencv()
     rows = []
     for index, (width, height, rgb) in enumerate(frames):
@@ -1639,8 +1652,9 @@ def cmd_reflections(args: argparse.Namespace) -> int:
     count = reflection_pixels(width, height, rgb, band)
     if args.closeup:
         x, y, w, h = band
-        result = run([need("ffmpeg"), "-v", "error", "-y", "-i", args.image, "-vf",
-                      f"crop={w}:{h}:{x}:{y},scale={w * 2}:-2", "-frames:v", "1", args.closeup])
+        result = run([need("ffmpeg"), "-v", "error", "-nostdin", "-y", "-i", local_path(args.image), "-vf",
+                      f"crop={w}:{h}:{x}:{y},scale={w * 2}:-2", "-frames:v", "1", local_path(args.closeup)],
+                     timeout=FRAME_TIMEOUT_S)
         if result.returncode != 0:
             raise ValueError(f"ffmpeg failed: {result.stderr.strip()[-400:]}")
     return report("reflections", FAIL if count > args.max else PASS, reflections=count, max=args.max,
@@ -1653,23 +1667,37 @@ def fresh_frame(args: argparse.Namespace, directory: str) -> tuple[int, int, byt
     if args.grid:
         start, fps = (float(v) for v in args.grid.split(":"))
         index = round((args.t - start) * fps)
-        command = [ffmpeg, "-v", "error", "-nostdin", "-ss", f"{start}", "-i", args.source, "-vf",
+        command = [ffmpeg, "-v", "error", "-nostdin", "-ss", f"{start}", "-i", local_path(args.source), "-vf",
                    f"fps={fps},select=eq(n\\,{index})" + (f",{args.vf}" if args.vf else ""), "-frames:v", "1"]
     else:
-        command = [ffmpeg, "-v", "error", "-nostdin", "-ss", f"{args.t}", "-i", args.source, "-frames:v", "1"]
+        command = [ffmpeg, "-v", "error", "-nostdin", "-ss", f"{args.t}", "-i", local_path(args.source), "-frames:v", "1"]
         command += ["-vf", args.vf] if args.vf else []
     if not args.crop_cmd:
         return ppm_frames(command)[0]
     raw, cropped = os.path.join(directory, "fresh.png"), os.path.join(directory, "crop.png")
-    result = run(command + ["-y", raw])
+    result = run(command + ["-y", raw], timeout=FRAME_TIMEOUT_S)
     if result.returncode != 0:
         raise ValueError(f"ffmpeg failed: {result.stderr.strip()[-400:]}")
-    import shlex
-    argv = [part.replace("{in}", raw).replace("{out}", cropped) for part in shlex.split(args.crop_cmd)]
-    result = run(argv)
+    result = run(crop_argv(args.crop_cmd, raw, cropped), timeout=FRAME_TIMEOUT_S)
     if result.returncode != 0 or not os.path.exists(cropped):
         raise ValueError(f"--crop-cmd failed: {result.stderr.strip()[-400:]}")
     return read_image(cropped)
+
+
+def crop_argv(template: str, source: str, target: str) -> list[str]:
+    """The build's crop step as a fixed argv: shlex-split, no shell, {in} and {out} as whole arguments only."""
+    import shlex
+    parts = shlex.split(template)
+    if not parts or parts.count("{in}") != 1 or parts.count("{out}") != 1:
+        raise ValueError("--crop-cmd needs an argv with exactly one {in} and one {out} argument")
+    if any(("{in}" in p or "{out}" in p) and p not in ("{in}", "{out}") for p in parts):
+        raise ValueError("--crop-cmd placeholders must be whole arguments")
+    if "{in}" in parts[0] or "{out}" in parts[0]:
+        raise ValueError("--crop-cmd must start with a program")
+    program = shutil.which(parts[0])
+    if program is None:
+        raise ValueError(f"--crop-cmd program not found: {parts[0]}")
+    return [program, *(source if p == "{in}" else target if p == "{out}" else p for p in parts[1:])]
 
 
 def leak_diff(rendered: tuple[int, int, bytes], reference: tuple[int, int, bytes], offset: tuple[int, int],
@@ -1709,6 +1737,8 @@ def cmd_all(args: argparse.Namespace) -> int:
     cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path and cache_path.is_file() else {}
     worst, cached = PASS, 0
     for step in plan.get("checks", []):
+        if any(str(a).startswith("--crop-cmd") for a in step.get("args", [])):
+            raise ValueError("plans may not carry --crop-cmd (it runs a program); run leak directly")
         key = step_key(step) if cache_path else ""
         if key and cache.get(key) == "pass":
             cached += 1
@@ -1940,7 +1970,7 @@ def main(argv: list[str] | None = None) -> int:
         return args.func(args)
     except Skip as skip:
         return report(args.command, SKIPPED, reason=str(skip))
-    except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
+    except (OSError, ValueError, KeyError, json.JSONDecodeError, subprocess.TimeoutExpired) as error:
         return report(args.command, USAGE, error=str(error))
 
 

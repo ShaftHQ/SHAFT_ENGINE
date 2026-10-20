@@ -58,6 +58,8 @@ post, a poster, an icon, or an architecture diagram.
   --crop-cmd "BUILD {in} {out}" --offset X,Y --region x,y,w,h` pixel-diffs
   the render against a fresh extraction (max diff 0 where unmasked). `--grid`
   samples as scored; a direct seek can land on another frame.
+  `--crop-cmd` is an argv (no shell) with `{in}` and `{out}` as whole
+  arguments; `all` plans refuse it.
 
 ## Workflow
 
