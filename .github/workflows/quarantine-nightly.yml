@@ -54,7 +54,9 @@ jobs:
           import os, xml.etree.ElementTree as ET
           from pathlib import Path
           report = Path('shaft-engine/target/surefire-reports/testng-results.xml')
-          total = int(ET.parse(report).getroot().get('total', '0')) if report.exists() else 0
+          root = ET.parse(report).getroot() if report.exists() else None
+          # Executed verdicts only: TestNG's `total` also counts ignored methods.
+          total = sum(int(root.get(key, '0')) for key in ('passed', 'failed', 'skipped')) if root is not None else 0
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as out:
               out.write(f'total={total}\n')
           PY
