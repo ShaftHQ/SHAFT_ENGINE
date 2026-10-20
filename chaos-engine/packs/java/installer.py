@@ -46,6 +46,9 @@ __all__ = (
     "java_pack_enabled",
     "maven_coordinate_ids",
     "project_maven_ids",
+    "MAVEN_TOOLS_REPOSITORY",
+    "MAVEN_TOOLS_CLONE_ATTEMPTS",
+    "clone_maven_tools_source",
     "ensure_maven_tools",
     "maven_tools_repair_fix_next",
     "repair_maven_tools",
@@ -121,6 +124,40 @@ def project_maven_ids(project: Path) -> set[str]:
     if not pom.is_file():
         return set()
     return maven_coordinate_ids(pom)
+
+
+MAVEN_TOOLS_REPOSITORY = "https://github.com/arvindand/maven-tools-mcp.git"
+MAVEN_TOOLS_CLONE_ATTEMPTS = 3
+
+
+def clone_maven_tools_source(runner, git: str, tag: str, source: Path, *, sleep=time.sleep) -> None:
+    """Shallow-clone the pinned Maven Tools tag into ``source`` (#7170).
+
+    ``core.longpaths`` is set per command because Windows Git defaults it off
+    (CI only passed because the workflow sets it globally). Transient failures
+    are retried on a clean directory, and the final error carries git's stderr
+    so CE-INSTALL-FAILED reports say why git exited 128.
+    """
+    command = [
+        git, "-c", "core.longpaths=true", "clone", "--branch", tag, "--depth", "1",
+        MAVEN_TOOLS_REPOSITORY, str(source),
+    ]
+    last_error = ""
+    for attempt in range(1, MAVEN_TOOLS_CLONE_ATTEMPTS + 1):
+        shutil.rmtree(source, ignore_errors=True)
+        try:
+            runner(command, check=True, timeout=300, capture_output=True, text=True)
+            return
+        except subprocess.CalledProcessError as error:
+            detail = (error.stderr or error.stdout or "").strip().splitlines()
+            last_error = f"exit {error.returncode}: {' | '.join(detail[-3:]) or 'no git output'}"
+        except subprocess.TimeoutExpired:
+            last_error = "timed out after 300s"
+        if attempt < MAVEN_TOOLS_CLONE_ATTEMPTS:
+            sleep(2 ** attempt)
+    raise ValueError(
+        f"git clone of Maven Tools {tag} failed after {MAVEN_TOOLS_CLONE_ATTEMPTS} attempts ({last_error})"
+    )
 
 
 def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one transaction.
@@ -254,10 +291,7 @@ def ensure_maven_tools(  # noqa: MC0001 - cross-resource provisioning is one tra
             confirmer(f"Download Maven Tools {tag} source with git")
         if reporter is not None:
             reporter.start("Install Maven Tools", detail=tag)
-        runner([
-            git, "clone", "--branch", tag, "--depth", "1",
-            "https://github.com/arvindand/maven-tools-mcp.git", str(source),
-        ], check=True, timeout=300)
+        clone_maven_tools_source(runner, git, tag, source)
         revision = runner(
             [git, "-C", str(source), "rev-parse", "HEAD"], check=True,
             capture_output=True, text=True, timeout=30,

@@ -1408,7 +1408,7 @@ module.install_with_dependencies(project, source, "3" * 40)
                 MODULE.ensure_maven_tools(target, specification, runner=runner)
 
             self.assertIn(
-                [str(git), "clone", "--branch", "v3.2.1", "--depth", "1",
+                [str(git), "-c", "core.longpaths=true", "clone", "--branch", "v3.2.1", "--depth", "1",
                  "https://github.com/arvindand/maven-tools-mcp.git", calls[0][-1]],
                 calls,
             )
