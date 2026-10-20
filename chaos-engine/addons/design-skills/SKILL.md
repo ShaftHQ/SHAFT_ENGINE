@@ -5,8 +5,8 @@ description: Use when a task designs or edits a web surface, image, motion graph
 
 # Design skills (add-on)
 
-Optional add-on. Installed at `.chaos-engine/addons/design-skills/`
-only when a user passed `--with-design-skills`. Without it, use core
+Optional add-on at `.chaos-engine/addons/design-skills/`, installed
+only with `--with-design-skills`. Without it, use core
 [ui-delivery](../../references/ui-delivery.md) for UI work.
 
 ## Iron rules
@@ -14,14 +14,14 @@ only when a user passed `--with-design-skills`. Without it, use core
 1. Load **one** card for the current step, never the whole set. Return here
    for the next step.
 2. Web work loads core [ui-delivery](../../references/ui-delivery.md) first.
-   Cards add design judgment; they never replace red-then-green tests or the
+   Cards add judgment; they never replace red-then-green tests or the
    viewport x theme matrix.
 3. Every deliverable ends with its card's **Verify** list run through
    [design_qc.py](scripts/design_qc.py). `skipped` is not `pass`:
    install the tool or report it.
 4. Real evidence only: real captures, real command output, real product
-   facts. Mockups are labelled. No generated text inside images.
-5. Licences first: record every font, track, voice, model, and footage
+   facts. Mockups labelled. No generated text in images.
+5. Licences first: record every font, track, voice, model, footage
    source in the asset manifest before using it.
 6. Deliver after QC and an independent review pass; earlier files are DRAFT.
 7. A design document (brief, storyboard, visual direction) runs the core
@@ -31,20 +31,21 @@ only when a user passed `--with-design-skills`. Without it, use core
 
 | Step | Card | Use when |
 | --- | --- | --- |
-| Plan | [D01 brief and storyboard](references/design-brief-storyboard.md) | any video, ad, or visual campaign starts |
-| Story | [D21 explainer arc](references/explainer-arc.md) | an explainer needs hook, arc, audience versions |
-| Launch | [D22 launch video](references/launch-video.md) | short showcase, poster, share copy |
-| Brand | [D02 brand system](references/brand-system.md) | tokens, logo, voice are needed |
-| Web | [D03 visual direction](references/web-visual-direction.md) | a surface needs an aesthetic idea |
-| Landing | [Public landing](../../references/public-landing.md) | product landing page for humans, search, and agents |
-| Web | [D04 interface audit](references/web-interface-audit.md) | a UI needs a rule-by-rule audit |
+| Plan | [D01 brief and storyboard](references/design-brief-storyboard.md) | a video, ad, or campaign starts |
+| Story | [D21 explainer arc](references/explainer-arc.md) | explainer hook, arc, audience versions |
+| Launch | [D22 launch video](references/launch-video.md) | showcase, poster, share copy |
+| Brand | [D02 brand system](references/brand-system.md) | tokens, logo, voice |
+| Web | [D03 visual direction](references/web-visual-direction.md) | a surface needs an aesthetic |
+| Landing | [Public landing](../../references/public-landing.md) | landing page for humans, search, agents |
+| Web | [D04 interface audit](references/web-interface-audit.md) | rule-by-rule UI audit |
 | Type | [D05 typography and layout](references/typography-layout.md) | scale, measure, grid |
 | Color | [D06 color and contrast](references/color-contrast.md) | palettes, contrast, overlays |
 | Image | [D07 image graphics](references/image-graphics.md) | posters, OG cards, thumbnails, diagrams |
+| Post | [D23 social post visuals](references/social-post-visuals.md) | multi-size, RTL, CTA posts |
 | Motion | [D08 motion principles](references/motion-principles.md) | easing, timing, holds, flashes |
 | Motion | [D09 HTML motion graphics](references/html-motion-graphics.md) | lower thirds, kinetic type |
 | Motion | [D10 technical animation](references/technical-animation.md) | architecture or data flow |
-| Capture | [D11 screen capture](references/screen-capture.md) | real terminal or browser footage |
+| Capture | [D11 screen capture](references/screen-capture.md) | real terminal or browser |
 | Edit | [D12 edit assembly](references/edit-assembly.md) | EDL-driven ffmpeg edit |
 | Cut | [D13 cutting and pacing](references/cutting-pacing.md) | rhythm, dead air, J/L cuts |
 | Color | [D14 color grading](references/color-grading.md) | BT.709 conform and grade |

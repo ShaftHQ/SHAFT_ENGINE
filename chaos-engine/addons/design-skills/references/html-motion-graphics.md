@@ -64,6 +64,8 @@ Canvas (MIT) are documented alternatives, not defaults.
 - One still on screen at a time; never stack or fan out several captures.
 - Never pull back below reading size. To show "the whole file", scroll at
   reading size and state the size as a number (a line-count chip).
+- Count-ups show exactly one value per frame: step the number, never
+  cross-fade two values (ghosting).
 - 9:16: captures run near full-bleed (a side margin of 24 px plus the push-in growth keeps light
   captures off the frame edge, which `edgeclip` flags) with a tighter region
   than 16:9, and end above the D20 caption band.

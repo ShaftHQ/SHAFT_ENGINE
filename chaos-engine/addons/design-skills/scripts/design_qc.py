@@ -101,6 +101,32 @@ def contrast_ratio(a: str, b: str) -> float:
     return (la + 0.05) / (lb + 0.05)
 
 
+def lab(value: str) -> tuple[float, float, float]:
+    """Convert an sRGB hex colour to CIE L*a*b* (D65)."""
+    def linear(c: float) -> float:
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (linear(c) for c in hex_rgb(value))
+    xyz = (
+        (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047,
+        0.2126 * r + 0.7152 * g + 0.0722 * b,
+        (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883,
+    )
+    fx, fy, fz = (t ** (1 / 3) if t > 216 / 24389 else (24389 / 27 * t + 16) / 116 for t in xyz)
+    return 116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)
+
+
+def cmd_skin(args: argparse.Namespace) -> int:
+    """Skin patches sampled from two sources (a:b hex) differ by at most --max Lab points (CIE76)."""
+    results, failed = [], False
+    for pair in args.pair:
+        a, _, b = pair.partition(":")
+        delta = round(math.dist(lab(a), lab(b)), 2)
+        ok = delta <= args.max
+        failed |= not ok
+        results.append({"pair": pair, "delta_e": delta, "ok": ok})
+    return report("skin", FAIL if failed else PASS, max=args.max, results=results)
+
+
 def cmd_contrast(args: argparse.Namespace) -> int:
     """Pairs as fg:bg[:kind] where kind is text (4.5), large (3) or ui (3)."""
     minimum = {"text": 4.5, "large": 3.0, "ui": 3.0}
@@ -768,6 +794,112 @@ def cmd_image(args: argparse.Namespace) -> int:
     if args.file.endswith(".svg") and "<title" not in Path(args.file).read_text(encoding="utf-8"):
         problems.append("svg has no <title>")
     return report("image", FAIL if problems else PASS, problems=problems)
+
+
+
+# ---------------------------------------------------------------- layout
+def _right(b: dict) -> float:
+    return float(b["x"]) + float(b["w"])
+
+
+def _bottom(b: dict) -> float:
+    return float(b["y"]) + float(b["h"])
+
+
+def _baseline(b: dict) -> float:
+    return float(b.get("baseline", _bottom(b)))
+
+
+def _spread(values: list[float]) -> float:
+    return max(values) - min(values) if values else 0.0
+
+
+def _check_baselines(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for row in data.get("baselines", []):
+        spread = _spread([_baseline(box(name)) for name in row])
+        if spread > tol:
+            out.append(f"baselines {','.join(row)}: spread {spread:.1f}px")
+    return out
+
+
+def _check_mixed(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for run in data.get("mixed", []):
+        ids = run["ids"] if isinstance(run, dict) else run
+        limit = float(run.get("max", 1.0)) if isinstance(run, dict) else 1.0
+        spread = _spread([_baseline(box(name)) for name in ids])
+        if spread > limit + 1e-6:
+            out.append(f"mixed-script {','.join(ids)}: baseline offset {spread:.1f}px > {limit:g}px")
+    return out
+
+
+def _check_brackets(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for bracket in data.get("brackets", []):
+        b, spans = box(bracket["id"]), [box(name) for name in bracket["spans"]]
+        first, last = min(float(s["x"]) for s in spans), max(_right(s) for s in spans)
+        if abs(float(b["x"]) - first) > tol or abs(_right(b) - last) > tol:
+            out.append(f"{bracket['id']}: spans {b['x']}-{_right(b):.1f}, steps {first:.1f}-{last:.1f}")
+    return out
+
+
+def _check_gutters(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for group in data.get("gutters", []):
+        start, end = ("x", _right) if group.get("axis", "x") == "x" else ("y", _bottom)
+        ordered = sorted((box(name) for name in group["ids"]), key=lambda b: float(b[start]))
+        gaps = [float(n[start]) - end(p) for p, n in zip(ordered, ordered[1:])]
+        if _spread(gaps) > tol:
+            out.append(f"gutters {','.join(group['ids'])}: {[round(g, 1) for g in gaps]}")
+    return out
+
+
+def _check_clearance(data: dict, box, clearance: float) -> list[str]:
+    out = []
+    for pair in data.get("clearance", []):
+        inner, outer = box(pair["text"]), box(pair["box"])
+        least = min(float(inner["x"]) - float(outer["x"]), _right(outer) - _right(inner),
+                    float(inner["y"]) - float(outer["y"]), _bottom(outer) - _bottom(inner))
+        if least < float(pair.get("min", clearance)) - 1e-6:
+            out.append(f"{pair['text']} in {pair['box']}: clearance {least:.1f}px")
+    return out
+
+
+def _centre_offset(inner: dict, outer: dict, axis: str) -> float:
+    if axis == "x":
+        return (float(inner["x"]) + float(inner["w"]) / 2) - (float(outer["x"]) + float(outer["w"]) / 2)
+    ink = float(inner["h"]) - float(inner.get("descender", 0))
+    return (float(inner["y"]) + ink / 2) - (float(outer["y"]) + float(outer["h"]) / 2)
+
+
+def _check_centre(data: dict, box, tol: float) -> list[str]:
+    out = []
+    for item in data.get("centre", []):
+        axis = item.get("axis", "x")
+        offset = _centre_offset(box(item["id"]), box(item["in"]), axis)
+        if abs(offset) > tol:
+            out.append(f"{item['id']}: off-centre {offset:+.1f}px on {axis}")
+    return out
+
+
+def layout_problems(data: dict, tol: float, clearance: float) -> list[str]:
+    """Measured alignment checks on element boxes {id: {x, y, w, h[, baseline, descender]}}."""
+    boxes = {str(item["id"]): item for item in data.get("elements", [])}
+
+    def box(name: str) -> dict:
+        if name not in boxes:
+            raise KeyError(f"unknown element {name}")
+        return boxes[name]
+    return (_check_baselines(data, box, tol) + _check_mixed(data, box, tol) + _check_brackets(data, box, tol)
+            + _check_gutters(data, box, tol) + _check_clearance(data, box, clearance) + _check_centre(data, box, tol))
+
+
+def cmd_layout(args: argparse.Namespace) -> int:
+    """Shared baselines, bracket spans, equal gutters, inner clearance, optical centring (safe zones: safezones)."""
+    data = json.loads(Path(args.boxes).read_text(encoding="utf-8"))
+    problems = layout_problems(data, args.tol, args.clearance)
+    return report("layout", FAIL if problems else PASS, elements=len(data.get("elements", [])), problems=problems)
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -1471,6 +1603,13 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("file")
     p.add_argument("--size")
     p.add_argument("--max-bytes", type=int)
+    p = add("skin", cmd_skin, "skin tone match across sources (Lab delta E)")
+    p.add_argument("--pair", action="append", required=True, help="hexA:hexB sampled skin patches")
+    p.add_argument("--max", type=float, default=2.0)
+    p = add("layout", cmd_layout, "measured alignment of a rendered layout")
+    p.add_argument("boxes", help="JSON: elements [{id,x,y,w,h}], baselines, mixed, brackets, gutters, clearance, centre")
+    p.add_argument("--tol", type=float, default=2.0, help="pixels")
+    p.add_argument("--clearance", type=float, default=20.0, help="minimum inner clearance in pixels")
     p = add("flatframes", cmd_flatframes, "solid frames at cuts")
     p.add_argument("file")
     p.add_argument("--edge", type=float, default=1.0, help="seconds exempt at head and tail")

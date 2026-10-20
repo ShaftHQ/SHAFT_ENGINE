@@ -37,6 +37,9 @@ requirement, not an option.
   its narration or listed in a `description` that a described version
   speaks. Motion graphics carry meaning; captions alone do not cover it.
 - Caption the narration, not the terminal text the viewer can already read.
+- On a J cut, the cue starts at the picture cut, not with the leading audio.
+- Arabic (RTL) captions are Arabic-first: never wrap so a line starts with
+  a Latin term; move the break or keep the term with its Arabic words.
 - Burned-in vertical captions use brand tokens and the D06 scrim rule, stay
   inside the D20 safe zone, and never cover the terminal line being
   discussed.

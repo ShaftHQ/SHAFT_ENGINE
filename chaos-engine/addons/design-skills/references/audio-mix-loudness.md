@@ -35,6 +35,10 @@ Run after D16 (noise removal) and D17 (voice-over).
 - Synthetic narration masks easily: start the bed near -30 dB under the
   voice with a deeper duck (threshold about 0.012, ratio 12 to 14, release
   500 ms), then listen at phone volume.
+- Music is one continuous bed ducked about 16 dB under speech; never
+  hard-cut or restart it at a scene change.
+- Dialogue segments match within +/- 1 LU of each other (measure each
+  segment, not only the whole master); true peak -1 dBTP or lower.
 - Endings: the audio fades over the final pad, starting where narration
   ends (never cutting it); the picture fades in over about 0.4 s and out
   over about 1 s. Never end on a hard cut to silence.

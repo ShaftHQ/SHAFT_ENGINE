@@ -31,7 +31,8 @@ COPYSLOP = {
 OVERSHOOT = r"back\.(?:in|out|inout)|elastic|bounce|cubic-bezier\(\s*[\d.]+\s*,\s*(?:-|1\.\d*[1-9])[\d.]*|cubic-bezier\([^)]*,\s*(?:-[\d.]+|1\.\d*[1-9]\d*)\s*,\s*[\d.]+\s*\)"
 DURATION = re.compile(r"(?:transition|animation)[^;{}]*?(\d*\.?\d+)(ms|s)\b|duration\s*:\s*(\d*\.?\d+)", re.I)
 # Meta Reels ads guide: keep text out of the top 14%, bottom 35% and 6% each side.
-SAFE = {"9x16": (0.06, 0.14, 0.06, 0.35), "1x1": (0.05, 0.05, 0.05, 0.05), "16x9": (0.05, 0.05, 0.05, 0.10)}
+# story: 1080x1920 feed story, top ~250 px profile bar, bottom ~340 px link sticker.
+SAFE = {"9x16": (0.06, 0.14, 0.06, 0.35), "story": (0.06, 0.13, 0.06, 0.18), "1x1": (0.05, 0.05, 0.05, 0.05), "16x9": (0.05, 0.05, 0.05, 0.10)}
 
 
 def files_of(root: str, suffixes: set[str]) -> list[Path]:

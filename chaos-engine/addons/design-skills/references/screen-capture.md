@@ -39,6 +39,10 @@ Sleep 2s
 
 ## Rules
 
+- Mask source typos and glitch text (tearing, half-drawn frames) across
+  the whole drift range where they appear, then rebuild the segment cleanly;
+  never patch a single frame.
+
 - Clean environment for every take: throwaway HOME and project directory,
   a rootless container or VM where available, a neutral prompt and hostname.
 - Wait on real output (`Wait /regex/`), never on fixed sleeps.

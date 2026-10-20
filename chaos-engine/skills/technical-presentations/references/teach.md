@@ -5,11 +5,13 @@
 - Recall slide at the start of each chapter: 2-3 questions on the last one.
 - Checkpoint every 7-10 slides: one concept question, 3-4 options. Vote
   alone, discuss, vote again (peer instruction). Answer and explanation on
-  the next slide or in the notes. Low stakes, feedback always.
+  the next slide or in the notes; the answer slide mirrors the question
+  slide's geometry. Low stakes, feedback always.
 - Recap slide per section with a repeated visual stamp.
 - Between checkpoints, an interaction every 5-7 slides: poll, "your turn"
   prompt, or myth card. Count across part dividers and recaps; a recap is
-  not an interaction. Never invent a presenter story; leave a notes
+  not an interaction. Recount after every insert or renumber; never carry
+  an earlier "passes" verdict forward. Never invent a presenter story; leave a notes
   placeholder for the presenter's own.
 
 ## 11 Worked examples
