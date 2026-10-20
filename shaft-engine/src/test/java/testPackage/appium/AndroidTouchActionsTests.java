@@ -178,7 +178,9 @@ public class AndroidTouchActionsTests extends MobileTest {
                 .pinchToZoom(TouchActions.ZoomDirection.IN)
                 .pinchToZoom(TouchActions.ZoomDirection.OUT);
         driver.get().assertThat()
-                .element(By.className("android.webkit.WebView"))
+                // The WebView screen hosts more than one WebView after the zoom gestures;
+                // assert on the first so the check is not ambiguous (MultipleElementsFoundException).
+                .element(By.xpath("(//android.webkit.WebView)[1]"))
                 .exists()
                 .perform();
     }
