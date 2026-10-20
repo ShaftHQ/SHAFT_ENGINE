@@ -77,5 +77,25 @@ class PrepareUpstreamAdapterTest(unittest.TestCase):
                 self.assertEqual(str(executable), module.toolchain("javadoc"))
 
 
-if __name__ == "__main__":
-    unittest.main()
+
+class AdapterPomPhaseTest(unittest.TestCase):
+    """The adapter classes must exist for a reactor ``mvn compile``."""
+
+    def test_classes_are_staged_before_compile(self):
+        """`mvn compile` (SpotBugs nightly, CodeQL) stops before process-classes.
+
+        Staging must run no later than the compile phase, or shaft-engine
+        compiles against an empty adapter target/classes.
+        """
+        import re
+
+        pom = (SCRIPT.parent / "pom.xml").read_text(encoding="utf-8")
+        phases = re.findall(
+            r"<id>stage-upstream-adapter-classes</id>(?:\s|<!--.*?-->)*<phase>([^<]+)</phase>",
+            pom,
+            re.S,
+        )
+        self.assertEqual(len(phases), 1)
+        early = {"validate", "initialize", "generate-sources", "process-sources",
+                 "generate-resources", "process-resources", "compile"}
+        self.assertIn(phases[0], early)
