@@ -77,5 +77,27 @@ class PrepareUpstreamAdapterTest(unittest.TestCase):
                 self.assertEqual(str(executable), module.toolchain("javadoc"))
 
 
+
+class AdapterPomPhaseTest(unittest.TestCase):
+    def test_classes_are_staged_before_compile(self):
+        """`mvn compile` (SpotBugs nightly, CodeQL) stops before process-classes.
+
+        Staging must run no later than the compile phase, or shaft-engine
+        compiles against an empty adapter target/classes.
+        """
+        import xml.etree.ElementTree as ET
+
+        ns = {"m": "http://maven.apache.org/POM/4.0.0"}
+        root = ET.parse(SCRIPT.parent / "pom.xml").getroot()
+        phases = [
+            e.findtext("m:phase", namespaces=ns)
+            for e in root.iterfind(".//m:execution", ns)
+            if e.findtext("m:id", namespaces=ns) == "stage-upstream-adapter-classes"
+        ]
+        self.assertEqual(len(phases), 1)
+        early = {"validate", "initialize", "generate-sources", "process-sources",
+                 "generate-resources", "process-resources", "compile"}
+        self.assertIn(phases[0], early)
+
 if __name__ == "__main__":
     unittest.main()
