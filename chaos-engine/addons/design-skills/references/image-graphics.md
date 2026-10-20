@@ -48,14 +48,16 @@ post, a poster, an icon, or an architecture diagram.
 
 ## Photo frames
 
-- Sample candidates (4 fps) from every take; score sharpness (Laplacian
-  variance on the face box), open eyes, and face exposure; keep the top few.
-- Glasses: count cyan/green highlight pixels on the lens band and inspect a
-  close-up of the eyes; white ring-light arcs escape colour detection, so
-  the visual check is required.
-- Extract the chosen frame fresh and pixel-diff the photo crop and the
-  final render against it (max diff 0 where unmasked) so no debug overlay
-  or stale frame leaks; sample the same way the candidates were scored.
+- `design_qc.py framescore take.mp4 --start S --end E --fps 4 --vf GRADE
+  --out scores.json` scores each frame: Laplacian sharpness, eyes open (with
+  opencv-python; else `--face-box`), cyan/green lens reflections. Exit 1 when
+  no frame is usable.
+- `design_qc.py reflections pick.png --closeup eyes.png` re-checks the pick;
+  look at the close-up, since white ring-light arcs escape colour detection.
+- `design_qc.py leak final.png --source take.mp4 --t T --grid S:4 --vf GRADE
+  --crop-cmd "BUILD {in} {out}" --offset X,Y --region x,y,w,h` pixel-diffs
+  the render against a fresh extraction (max diff 0 where unmasked). `--grid`
+  samples as scored; a direct seek can land on another frame.
 
 ## Workflow
 
@@ -70,8 +72,8 @@ post, a poster, an icon, or an architecture diagram.
 - `design_qc.py contrast` passes for text and background colors used.
 - Thumbnail hook and face read at 168 x 94 (downscale and look; OCR with
   tesseract when installed).
-- Eye close-up shows open eyes and no lens highlights; the fresh-frame
-  pixel diff is 0.
+- `reflections` passes and its close-up shows open eyes, no highlights;
+  `leak` passes (max diff 0).
 - SVG passes `xmllint --noout` and `design_qc.py image file.svg`.
 
 ## Sources
