@@ -242,6 +242,14 @@ class DesignContentTests(unittest.TestCase):
 class DesignQcTests(unittest.TestCase):
     qc = _load("ce_design_qc_test", QC)
 
+    def test_layout_mixed_script_runs_share_a_baseline_within_one_pixel(self):
+        runs = {"elements": [{"id": "ar", "x": 0, "y": 0, "w": 80, "h": 40, "baseline": 30.0},
+                             {"id": "lat", "x": 84, "y": 0, "w": 60, "h": 40, "baseline": 32.5}],
+                "mixed": [{"ids": ["ar", "lat"]}]}
+        self.assertTrue(any("mixed-script" in p for p in self.qc.layout_problems(runs, 2.0, 20.0)))
+        runs["elements"][1]["baseline"] = 30.8
+        self.assertEqual([], self.qc.layout_problems(runs, 2.0, 20.0))
+
     def test_skin_matches_sources_within_two_lab_points(self):
         white = self.qc.lab("#ffffff")
         self.assertAlmostEqual(100.0, white[0], places=1)

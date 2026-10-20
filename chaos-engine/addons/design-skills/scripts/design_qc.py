@@ -817,6 +817,12 @@ def layout_problems(data: dict, tol: float, clearance: float) -> list[str]:
         values = [float(box(name).get("baseline", bottom(box(name)))) for name in row]
         if max(values) - min(values) > tol:
             problems.append(f"baselines {','.join(row)}: spread {max(values) - min(values):.1f}px")
+    for run in data.get("mixed", []):
+        ids = run["ids"] if isinstance(run, dict) else run
+        limit = float(run.get("max", 1.0)) if isinstance(run, dict) else 1.0
+        values = [float(box(name).get("baseline", bottom(box(name)))) for name in ids]
+        if max(values) - min(values) > limit + 1e-6:
+            problems.append(f"mixed-script {','.join(ids)}: baseline offset {max(values) - min(values):.1f}px > {limit:g}px")
     for bracket in data.get("brackets", []):
         b, spans = box(bracket["id"]), [box(name) for name in bracket["spans"]]
         first, last = min(float(s["x"]) for s in spans), max(right(s) for s in spans)
@@ -1559,7 +1565,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--pair", action="append", required=True, help="hexA:hexB sampled skin patches")
     p.add_argument("--max", type=float, default=2.0)
     p = add("layout", cmd_layout, "measured alignment of a rendered layout")
-    p.add_argument("boxes", help="JSON: elements [{id,x,y,w,h}], baselines, brackets, gutters, clearance, centre")
+    p.add_argument("boxes", help="JSON: elements [{id,x,y,w,h}], baselines, mixed, brackets, gutters, clearance, centre")
     p.add_argument("--tol", type=float, default=2.0, help="pixels")
     p.add_argument("--clearance", type=float, default=20.0, help="minimum inner clearance in pixels")
     p = add("flatframes", cmd_flatframes, "solid frames at cuts")

@@ -36,6 +36,10 @@ Sizes and the render rule come from [D07](image-graphics.md).
   font. Never split a brand term across lines (`white-space: nowrap`).
 - Step numbers and roadmaps run right to left; check reading order in the
   render, not the source.
+- Overlays mixing Arabic and Latin share one baseline and keep a real
+  space at every script boundary. Never put raise or offset classes on a
+  Latin `<bdi>` run inside Arabic text; fix the metrics (font size or
+  line-height) instead.
 - No colour emoji inside the visual: they bring off-palette colour. Use an
   outline icon set (Lucide SVG) recoloured by role.
 - In RTL post copy (the caption, not the image), an emoji goes at the end
@@ -60,7 +64,10 @@ Measure, do not eyeball. Have the template dump element boxes
 
 - Optical centring: a block is centred on its ink, with a small allowance
   for Arabic descenders and Latin low descenders.
-- Labels in one row share a baseline.
+- Labels in one row share a baseline; Arabic and Latin runs in one line
+  differ by 1 px or less at 1080p (`mixed`).
+- Zoom-crop every mixed-script pill and caption from the rendered frames
+  (PNG or video frame), never the HTML, and look.
 - A bracket spans exactly from the first to the last circle edge it groups.
 - Gutters between sibling blocks are equal within 2 px.
 - Every text keeps at least 20 px inner clearance from its box edge.
@@ -75,7 +82,7 @@ in the handoff.
 
 - `design_qc.py layout boxes.json` passes for every size. Shape:
   `{"elements": [{"id", "x", "y", "w", "h", "baseline"?, "descender"?}],
-  "baselines": [[ids]], "brackets": [{"id", "spans": [ids]}],
+  "baselines": [[ids]], "mixed": [{"ids", "max"}], "brackets": [{"id", "spans": [ids]}],
   "gutters": [{"ids", "axis"}], "clearance": [{"text", "box"}],
   "centre": [{"id", "in", "axis"}]}`.
 - `design_qc.py safezones story.json --format story` passes.
