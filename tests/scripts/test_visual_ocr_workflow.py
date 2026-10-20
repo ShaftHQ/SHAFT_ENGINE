@@ -267,3 +267,20 @@ class QuarantineNightlyEmptyTest(unittest.TestCase):
         report = next(step for step in steps if step.get("name") == "Post test report")
         self.assertIn("steps.count.outputs.total != '0'", report.get("if", ""))
         self.assertTrue(any(step.get("id") == "count" for step in steps))
+class WindowsLocalCommandLineTest(unittest.TestCase):
+    """cmd.exe caps a command line at 8191 chars; mvn.cmd under pwsh hits it."""
+
+    def test_windows_scope_runs_avoid_cmd_line_limit(self):
+        workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
+        scope = workflow["env"]["GLOBAL_TESTING_SCOPE"]
+        checked = 0
+        for name, job in workflow["jobs"].items():
+            if "windows" not in str(job.get("runs-on", "")).lower():
+                continue
+            for step in job.get("steps", []):
+                run = step.get("run", "")
+                if run.lstrip().startswith("mvn") and "GLOBAL_TESTING_SCOPE" in run:
+                    checked += 1
+                    if len(scope) + len(run) > 8000:
+                        self.assertEqual(step.get("shell"), "bash", f"{name}: {step.get('name')}")
+        self.assertGreater(checked, 0)
