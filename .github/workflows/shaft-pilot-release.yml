@@ -281,8 +281,8 @@ jobs:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
         run: python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet
-      - name: Prepare release metadata for tomorrow
-        run: python3 scripts/ci/prepare_release_pr.py --release-date "$(date -u -d tomorrow +%F)"
+      - name: Prepare release metadata for tomorrow (or the day after an already-bumped release PR)
+        run: python3 scripts/ci/prepare_release_pr.py --release-date "$(date -u -d tomorrow +%F)" --after-current
       - name: Check plugin changelog covers the prepared version
         run: python3 scripts/ci/check_plugin_changelog_version.py
       - name: Validate release contracts on the prepared tree

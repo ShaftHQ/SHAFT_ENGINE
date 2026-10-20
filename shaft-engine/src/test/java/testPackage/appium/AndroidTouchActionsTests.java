@@ -178,7 +178,9 @@ public class AndroidTouchActionsTests extends MobileTest {
                 .pinchToZoom(TouchActions.ZoomDirection.IN)
                 .pinchToZoom(TouchActions.ZoomDirection.OUT);
         driver.get().assertThat()
-                .element(By.className("android.webkit.WebView"))
+                // BrowserStack runs found more than one WebView node on this screen;
+                // assert on the first so the check is not ambiguous (MultipleElementsFoundException).
+                .element(By.xpath("(//android.webkit.WebView)[1]"))
                 .exists()
                 .perform();
     }

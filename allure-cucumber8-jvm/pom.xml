@@ -83,7 +83,8 @@
                 <executions>
                     <execution>
                         <id>stage-upstream-adapter-classes</id>
-                        <phase>process-classes</phase>
+                        <!-- compile, not process-classes: `mvn compile` (SpotBugs nightly, CodeQL) must see the classes -->
+                        <phase>compile</phase>
                         <goals>
                             <goal>exec</goal>
                         </goals>

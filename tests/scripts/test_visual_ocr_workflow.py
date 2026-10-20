@@ -256,3 +256,32 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertIn("Refusing WinAppDriver install URL that hits the GitHub Releases API", installer)
         self.assertIn("a76a8f4e44b29bad331acf6b6c248fcc65324f502f28826ad2acd5f3c80857fe", installer)
         self.assertIn("Get-FileHash -Algorithm SHA256", installer)
+
+
+class QuarantineNightlyEmptyTest(unittest.TestCase):
+    """An empty quarantine must not fail the nightly through the 0-test report gate."""
+
+    def test_post_test_report_skips_when_no_quarantined_tests(self):
+        path = ROOT / ".github" / "workflows" / "quarantine-nightly.yml"
+        steps = yaml.safe_load(path.read_text(encoding="utf-8"))["jobs"]["quarantine"]["steps"]
+        report = next(step for step in steps if step.get("name") == "Post test report")
+        run = next(step for step in steps if step.get("name") == "Run quarantined tests")
+        self.assertEqual(run.get("if"), "steps.find.outputs.any == 'true'")
+        self.assertEqual(report.get("if"), "always() && steps.find.outputs.any == 'true'")
+class WindowsLocalCommandLineTest(unittest.TestCase):
+    """cmd.exe caps a command line at 8191 chars; mvn.cmd under pwsh hits it."""
+
+    def test_windows_scope_runs_avoid_cmd_line_limit(self):
+        workflow = yaml.safe_load(LOCAL_WORKFLOW.read_text(encoding="utf-8"))
+        scope = workflow["env"]["GLOBAL_TESTING_SCOPE"]
+        checked = 0
+        for name, job in workflow["jobs"].items():
+            if "windows" not in str(job.get("runs-on", "")).lower():
+                continue
+            for step in job.get("steps", []):
+                run = step.get("run", "")
+                if run.lstrip().startswith("mvn") and "GLOBAL_TESTING_SCOPE" in run:
+                    checked += 1
+                    if len(scope) + len(run) > 8000:
+                        self.assertEqual(step.get("shell"), "bash", f"{name}: {step.get('name')}")
+        self.assertGreater(checked, 0)
