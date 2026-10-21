@@ -7,6 +7,8 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
+import os
 from pathlib import Path
 
 CE = Path(__file__).resolve().parents[2] / "chaos-engine"
@@ -33,6 +35,10 @@ class LoadStampTest(unittest.TestCase):
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(CE / relative, target)
         self.stamp = self.root / "runtime" / "entry-stamp"
+        # #7245: keep the task ledger in the temp dir, never the real state dir.
+        patcher = unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_TASKS_DIR": str(Path(self._tmp.name) / "tasks")})
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def run_tool(self, *args):
         return subprocess.run([sys.executable, str(self.root / "tool.py"), *args],  # nosec B603
@@ -63,10 +69,21 @@ class LoadStampTest(unittest.TestCase):
     def test_source_checkout_is_never_gated(self):
         self.assertTrue(self.tool.load_stamp_fresh(CE))
 
+    def test_refusal_names_reason_and_every_step(self):
+        """#7207: one refusal lists why the stamp is stale and the full order."""
+        missing = self.tool.load_stamp_refusal(self.root, "checkpoint")
+        self.assertIn("(no entry stamp)", missing)
+        for step in ("entry --full", "retrieve --store", "--start --spec PATH"):
+            self.assertIn(step, missing)
+        self.tool.entry_output(self.root, full=True)
+        parts = self.stamp.read_text(encoding="utf-8").split(" ", 1)
+        self.stamp.write_text("000000000000 " + parts[1], encoding="utf-8")
+        self.assertIn("bundle changed after entry", self.tool.load_stamp_refusal(self.root, "resume"))
+
     def test_real_block_then_real_pass(self):
         blocked = self.run_tool("resume", "t")
         self.assertEqual(2, blocked.returncode)
-        self.assertEqual("run entry --full\n", blocked.stderr)
+        self.assertTrue(blocked.stderr.startswith("run entry --full ("))
         self.assertEqual("", blocked.stdout)
         self.assertEqual(0, self.run_tool("entry", "--full").returncode)
         spec = Path(self._tmp.name) / "spec-t.md"

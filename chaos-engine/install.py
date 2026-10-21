@@ -6210,6 +6210,10 @@ def _repair_policy_overlay(project: Path, runner) -> dict[str, object]:
         removed = remove_nested_install_artifacts(overlay) if match.nested_overlay_drift(overlay) else []
         action = "removed-nested-overlay" if removed else "verified"
         return {"status": "repaired", "component": "policy-overlay", "action": action, "removed": removed}
+    refusal = linked_worktree_refusal(project)
+    if refusal:
+        # #7229: install refuses linked worktrees; give its exact fix instead of "reinstall failed".
+        raise ValueError("policy-overlay drift in a " + refusal)
     commit = subprocess.run(  # nosec B603 B607 - fixed git argv, no shell.
         ["git", "-C", str(project), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()

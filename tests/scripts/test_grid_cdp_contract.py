@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-GRID_TAG = "4.49.0-20260909"
+GRID_TAG = "4.51.0-20261010"
 
 
 class GridCdpContractTest(unittest.TestCase):

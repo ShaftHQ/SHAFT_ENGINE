@@ -34,7 +34,7 @@ class HookBotParityTest(unittest.TestCase):
                               env=self.env, input=payload, capture_output=True, text=True, timeout=60, check=False)
 
     def test_cli_session_start_satisfies_the_bot_load_stamp(self) -> None:
-        self.assertEqual("run entry --full\n", self.tool("resume", "t").stderr)
+        self.assertTrue(self.tool("resume", "t").stderr.startswith("run entry --full ("))
         self.assertEqual(0, self.hook({"hook_event_name": "SessionStart"}).returncode)
         self.assertNotEqual(2, self.tool("resume", "t").returncode)
 

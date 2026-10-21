@@ -154,6 +154,10 @@ python3 chaos-engine/bootstrap.py --repository ShaftHQ/SHAFT_ENGINE --lean-grok-
 python3 .chaos-engine/install.py install --project . --source … --commit … --lean-grok-skills
 ```
 
+Self-install from the SHAFT_ENGINE checkout itself: `--source` must not sit
+inside the project, so point it at a detached worktree of the same commit:
+`git worktree add -f --detach ../ce-src <sha> && python3 chaos-engine/install.py install --project . --source ../ce-src/chaos-engine --commit <sha>`.
+
 That merges:
 
 ```toml
