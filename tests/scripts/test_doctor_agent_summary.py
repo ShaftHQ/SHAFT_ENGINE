@@ -45,6 +45,21 @@ class DoctorAgentSummaryTest(unittest.TestCase):
         self.assertIn("hash: " + "ab" * 32, rendered)
         self.assertIn("drift: none", rendered)
 
+    def test_kept_addon_shows_stale_source_and_still_passes(self):
+        """#7250: an add-on kept from its installed copy gets an advisory row."""
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            INSTALL.record_kept_addons(project, ["automatest-coach"])
+            with mock.patch.object(INSTALL, "installed_project", return_value=project):
+                rendered = INSTALL.format_agent_summary(_document())
+            self.assertIn("addon automatest-coach: stale-source", rendered)
+            self.assertIn("doctor: pass", rendered)
+            self.assertLessEqual(len(rendered.splitlines()), INSTALL.AGENT_SUMMARY_MAX_LINES)
+            INSTALL.record_kept_addons(project, [])
+            self.assertEqual("", INSTALL.kept_addons_line(project))
+
     def test_policy_hash_drift_fails_closed(self):
         drifted = _document(
             status="recovery-required",
