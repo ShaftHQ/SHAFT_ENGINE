@@ -116,6 +116,7 @@ references > skills; deeper file wins on scope.
 ## Catalog
 
 On demand: [catalog](../../references/catalog.md),
+[harness map](../../references/harness-map.md),
 [router contract](../../references/router-contract.md),
 [context economy](../../references/context-economy.md),
 [retrieve-first](../../references/retrieve-first.md),

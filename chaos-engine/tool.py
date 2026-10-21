@@ -59,8 +59,8 @@ def entry_files(opt_out: str = "") -> tuple[str, ...]:
 
 
 ENTRY_RETRIEVE = (
-    "Next: run `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "
-    '"<q>"` before the first broad search, then record `retrieve: used` or '
+    "Run `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "
+    '"<q>"` before the first broad search; record `retrieve: used` or '
     "`skipped(<reason>)`.\n"
 )
 
@@ -72,6 +72,15 @@ def entry_bundle(installed_root: Path, opt_out: str = "") -> str:
         path = installed_root / relative
         if path.is_file():
             parts.append(f"<!-- {relative} -->\n{path.read_text(encoding='utf-8').strip()}\n")
+    map_path = installed_root / "harness_map.py"
+    if map_path.is_file():
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("_chaos_engine_harness_map", map_path)
+        if spec is not None and spec.loader is not None:
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            parts.append(module.entry_line(installed_root))
     parts.append(ENTRY_RETRIEVE)
     return "\n".join(parts)
 
