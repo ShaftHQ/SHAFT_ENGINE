@@ -92,3 +92,7 @@ ChaosEngine update; a stale copy is a stale harness.
 [harness-map.md](harness-map.md). An add-on may name one `persona` file (≤ 2 KiB)
 in `addon.json`; entry prints it and the receipt shows `persona=loaded`.
 Register rule and token tactics: [token tactics card](../companions/token-tactics.md).
+
+MemPalace privacy: [mempalace_privacy.py](../mempalace_privacy.py) scans mined drawers for
+emails, money amounts and the untracked `.chaos-engine-state/privacy-terms.txt` terms;
+it prints counts only and exits 1 on any hit.
