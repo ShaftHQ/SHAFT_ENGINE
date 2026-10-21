@@ -82,3 +82,12 @@ setup. Keep the rules here; the host slot holds only the pointer.
 Save `python3 .chaos-engine/tool.py entry > chaos-engine-entry.md` and load
 that file as the bot's instructions or knowledge. Regenerate it after every
 ChaosEngine update; a stale copy is a stale harness.
+
+## Token economy
+
+`tool.py entry` ends with one receipt line
+(`entry: caveman=… ponytail=… ethics=… persona=loaded|none index=N retrieve=…`), and
+`install.py doctor --agent-summary` prints `token-economy: pass|fail`. Both come from
+[token_economy.py](../token_economy.py); the lazy map is
+[harness-map.md](harness-map.md). An add-on may name one `persona` file (≤ 2 KiB)
+in `addon.json`; entry prints it and the receipt shows `persona=loaded`.
