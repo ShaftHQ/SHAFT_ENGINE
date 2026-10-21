@@ -6,7 +6,7 @@ import importlib.util
 import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - fixed git argv in temp fixtures.
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,7 +28,7 @@ GUARD = load("chaos_engine_delete_guard_7251", CORE / "delete_guard.py")
 
 
 def git(cwd: Path, *argv: str) -> None:
-    subprocess.run(
+    subprocess.run(  # nosec B603 - fixed git argv, temp fixture paths.
         [GIT, "-C", str(cwd), "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", *argv],
         check=True,
         capture_output=True,
@@ -65,7 +65,7 @@ class DeleteGuardTest(unittest.TestCase):
 
     def push(self) -> None:
         remote = self.base / "remote.git"
-        subprocess.run([GIT, "init", "-q", "--bare", str(remote)], check=True, capture_output=True)
+        subprocess.run([GIT, "init", "-q", "--bare", str(remote)], check=True, capture_output=True)  # nosec B603
         git(self.repo, "remote", "add", "origin", str(remote))
         git(self.repo, "push", "-q", "-u", "origin", "main")
 

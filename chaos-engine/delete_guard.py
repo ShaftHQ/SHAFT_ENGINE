@@ -1,4 +1,5 @@
-"""#7251: refuse deletes of work that exists nowhere else.
+"""
+#7251: refuse deletes of work that exists nowhere else.
 
 Used by the PreToolUse hook (hooks/guard.py) and by hookless bots through
 ``tool.py delete-check <paths>`` or ``tool.py delete-check --command "<cmd>"``.

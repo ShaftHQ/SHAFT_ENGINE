@@ -12,6 +12,7 @@ Learned in coalesce wave: babysit, process-owner, and parent turns burned tokens
 - [Merge queue and same-account pull requests](#merge-queue-and-same-account-pull-requests)
 - [A rerun replays the old event](#a-rerun-replays-the-old-event)
 - [Release watch](#release-watch)
+- [Gate and CI pitfalls](#gate-and-ci-pitfalls)
 - [Digest only](#digest-only)
 - [One status channel](#one-status-channel)
 - [Fingerprint-first failed logs](#fingerprint-first-failed-logs)
@@ -95,6 +96,35 @@ commit, or close and reopen the PR).
   failure. Never re-run a publish: versions are single-use.
 - A scanner vulnerability alert (for example Scorecard) is a blocker only
   after an OSV query over the resolved dependency list confirms it.
+
+## Gate and CI pitfalls
+
+- Before blaming your PR for a red check, check the same check on the default
+  branch: a red that is also on main is drift, not your change.
+- Wait only on your own queue's PRs; another stream's open PR is not a blocker.
+- Every human-format PR needs exactly one release-note classification as a
+  label (for example `skip-release-notes`); text in the body is not enough.
+  Add it at create time.
+- Run `scripts/ci/code_quality_preflight.py` before the first push. Touching a
+  function already over the complexity gate fails diff-scoped static analysis;
+  wrap it (a new caller or helper) instead of editing it.
+- Code-quality bots flag `import subprocess` (B404) without a `nosec` reason,
+  bare `assert` (B101), `xml.etree` parsing (use `re` on known text), partial
+  executable paths (B607: `shutil.which`), and D213 docstrings, in tests too.
+- `python3 -I -m unittest` cannot import the repo's `tests` package (`-I`
+  drops the cwd); run the test file by path with `python3 -I`, or set
+  `PYTHONPATH=.` where `-I` is not needed.
+- Join preflight and push with `&&` under `set -o pipefail`, never `;`: a
+  failed preflight must not push.
+- Verify a workflow fix with `workflow_dispatch` on the branch before merging;
+  a targeted dispatch (named jobs and tests) is minutes, not a nightly.
+- Windows `mvn` in pwsh is `mvn.cmd` through `cmd.exe` (8191-character command
+  line); long test selections need `shell: bash`.
+- A test report's `total` can count ignored methods; use
+  passed + failed + skipped to decide whether anything ran.
+- A single gate flake that a rerun clears is noise; file an issue if it recurs.
+- A dry run that computes "tomorrow" collides with a version already bumped
+  today; such gates must accept or move past the head version.
 
 ## Digest only
 

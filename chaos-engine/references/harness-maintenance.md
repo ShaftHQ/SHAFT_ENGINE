@@ -51,6 +51,33 @@ dirty or unpushed; the [delete guard](delete-guard.md) refuses it, and doctor's
 `backup-remote` row names workspaces to push or back up. Move, never remove,
 when unsure.
 
+## Harness edit pitfalls
+
+- New or renamed core files: `python3 chaos-engine/harness_map.py --write` (repo-only)
+  in the same commit, or doctor's `token-economy` row fails
+  "harness map stale". A new core module must also be linked from a reference,
+  or the entry-reachability check fails.
+- A new `tests/scripts` module must be selected in `scripts/ci/harness_pr_gate.py`
+  (repo-only) or the Agent Guidance Gate fails; prefer extending a gated module.
+- Check the always-loaded and host-file budgets before designing always-on
+  text; each new line usually needs an equal cut elsewhere.
+- A real official bootstrap into an empty directory catches what source-tree
+  tests miss: installs ship a subset of files, so doctor checks test
+  completeness, not byte equality.
+- The one-line bootstrap stages only core; external add-ons are kept from the
+  installed copy. After a harness merge, doctor can show `policy-overlay`
+  drift until `tool.py maintain` runs.
+- In a linked worktree, `repair --component policy-overlay` always fails; to
+  reproduce a worktree install, materialize from the primary, then
+  `repair --component hosts`.
+- Treat checkpoint exit 3 as stop, not error; a gap over 50 minutes is a new
+  session (rerun `entry --full`).
+- MemPalace: compile privacy terms into one alternation (a thousand separate
+  regexes over tens of thousands of drawers exceed two minutes), start mines
+  over ten minutes in the background, and list every installer artifact in
+  ChaosEngine-owned excludes, because MemPalace reads only `.gitignore`.
+  Re-mining is idempotent.
+
 ## Always-loaded budget
 
 Bytes a bot host loads every task (`tool.py entry --full`, bot entry,
