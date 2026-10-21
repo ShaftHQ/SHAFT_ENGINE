@@ -29,9 +29,9 @@ Builder-neutral; examples fit hosted builders such as
 
 ## Redirects and SEO
 
-- A URL-mapping 301 needs an absolute https target
-  (`/old -> https://www.example.com/ 301`); a relative or bare target can
-  land on http. Verify with `curl -sI`: status and the `location` scheme.
-- Page title format `%p | %s` (page | site) with a keyword-first home
-  title; descriptions use verified figures only. Re-scrape Open Graph and
+- A 301 redirect needs an absolute https target (Squarespace URL Mappings
+  example: `/old -> https://www.example.com/ 301`); a relative or bare
+  target can land on http. Verify with `curl -sI`: status and the `location` scheme.
+- Page title format "Page | Site" (Squarespace example: `%p | %s`) with a
+  keyword-first home title; descriptions use verified figures only. Re-scrape Open Graph and
   resubmit the sitemap after changes.
