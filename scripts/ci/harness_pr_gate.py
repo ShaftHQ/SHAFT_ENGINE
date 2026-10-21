@@ -408,6 +408,7 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_register_rule_7242",
             "tests.scripts.test_chaos_engine_retrieve_marker_7242",
             "tests.scripts.test_chaos_engine_mempalace_privacy_7242",
+            "tests.scripts.test_chaos_engine_fresh_install_receipt_7242",
             # #6236/#6237: MemPalace init on repair/account install, consumer mode.
             "tests.scripts.test_chaos_engine_mempalace_init_6236",
             "tests.scripts.test_chaos_engine_consumer_mode_6237",
@@ -667,6 +668,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_register_rule_7242.py",
         "tests/scripts/test_chaos_engine_retrieve_marker_7242.py",
         "tests/scripts/test_chaos_engine_mempalace_privacy_7242.py",
+        "tests/scripts/test_chaos_engine_fresh_install_receipt_7242.py",
         "chaos-engine/mempalace_privacy.py",
         "chaos-engine/consumer_mode.py",
         "tests/scripts/test_chaos_engine_mempalace_init_6236.py",
