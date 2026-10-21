@@ -3,7 +3,7 @@
 
 Generic patterns (emails, money amounts) plus workspace-private terms from
 `.chaos-engine-state/privacy-terms.txt` (one case-insensitive term per line; never
-tracked). Prints counts and drawer ids only, never the matched text. Stdlib only.
+tracked; matched as whole words). Prints counts and drawer ids only, never the matched text. Stdlib only.
 
     python3 .chaos-engine/mempalace_privacy.py --project .
 """
@@ -39,7 +39,7 @@ def _lines(path: Path) -> list[str]:
 def patterns(project: Path) -> dict[str, re.Pattern[str]]:
     found = dict(GENERIC)
     for number, term in enumerate(_lines(project / TERMS), 1):
-        found[f"term-{number}"] = re.compile(re.escape(term), re.IGNORECASE)
+        found[f"term-{number}"] = re.compile(rf"(?<!\w){re.escape(term)}(?!\w)", re.IGNORECASE)
     return found
 
 

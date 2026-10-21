@@ -61,7 +61,7 @@ class MempalacePrivacyTests(unittest.TestCase):
             (root / ".chaos-engine-state").mkdir()
             (root / ".chaos-engine-state/privacy-terms.txt").write_text("# clients\nAcmeCorp\n", encoding="utf-8")
             (root / ".chaos-engine-state/privacy-allow.txt").write_text("info@example.org\n", encoding="utf-8")
-            verdict, detail = self._status(root, ["worked with acmecorp", "contact info@example.org"])
+            verdict, detail = self._status(root, ["worked with acmecorp", "contact info@example.org", "notacmecorpish"])
         self.assertEqual(("fail", "term-1=1"), (verdict, detail))
 
     def test_output_never_echoes_the_matched_text(self):
