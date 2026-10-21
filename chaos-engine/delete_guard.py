@@ -381,9 +381,15 @@ def _workspaces(project: Path) -> list[Path]:
     return [path for path in dict.fromkeys(paths) if path.is_dir()]
 
 
+CONSUMER_MARKER = ".chaos-engine-state/consumer-mode"
+
+
 def backup_remote_issue(path: Path) -> str:
     if _git(path, "rev-parse", "--show-toplevel").returncode != 0:
         return "not in git"
+    # #7263: consumer mode (#6237) hides .memory/mempalace via info/exclude, so a clean status proves nothing.
+    if (path / CONSUMER_MARKER).is_file():
+        return "consumer mode hides harness state from git"
     if not _git(path, "remote").stdout.strip():
         return "no remote"
     if _git(path, "rev-parse", "--abbrev-ref", "@{u}").returncode != 0:

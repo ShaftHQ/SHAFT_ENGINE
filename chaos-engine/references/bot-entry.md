@@ -25,7 +25,9 @@ Install first: [harness maintenance](harness-maintenance.md#install).
    Agentic PRs carry `<!-- chaos-engine:agentic -->` (or the `agentic` label);
    CI then requires `## Plan` and `retrieve:` lines. Human PRs are exempt.
 4. Before any delete, run `tool.py delete-check <paths>`; stop on refusal
-   ([delete guard](delete-guard.md)).
+   ([delete guard](delete-guard.md)). Never route around a refusal (variable,
+   `xargs`, a script file): commit and push, or `cp -a` a backup and get the
+   owner's OK. `backup-remote: warn` means back the workspace up to a remote.
 
 Re-runs print one line while the harness is unchanged; `--full` reprints the
 cards. Run `--full` at the start of every conversation and after every

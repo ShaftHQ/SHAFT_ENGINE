@@ -44,5 +44,7 @@ An agent never runs `--issue-ack` or writes the ack store itself.
   exposes `delete-check`. A fail fails doctor.
 - `backup-remote: pass|warn`: advisory only. Lists workspaces (the project,
   `.chaos-engine-state/backup-workspaces.txt`, `CHAOS_BACKUP_WORKSPACES`)
-  that have no remote, no upstream, unpushed commits or uncommitted files.
-  Push them or back them up.
+  that have no remote, no upstream, unpushed commits or uncommitted files,
+  or run in consumer mode (its `info/exclude` block hides `.memory/`
+  and mempalace from git). Push them or back them up; a bot workspace whose
+  state must be backed up should not use `--consumer`.
