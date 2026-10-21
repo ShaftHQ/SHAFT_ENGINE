@@ -1,3 +1,8 @@
+---
+name: squarespace-7-1
+description: Use when styling a Squarespace 7.1 site with Custom CSS and Code blocks only (no Code Injection).
+---
+
 # Squarespace 7.1 without JavaScript
 
 Companion to [C01 web design](../craft/web-design.md). Applies when the plan
