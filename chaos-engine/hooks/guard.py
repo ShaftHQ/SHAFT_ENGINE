@@ -709,6 +709,10 @@ def delete_guard_reason(commands: tuple[str, ...], cwd: Path) -> str:
     return ""
 
 
+def session_independent_block(commands: tuple[str, ...], cwd: Path) -> str:
+    return linked_worktree_stash_reason(commands, cwd) or delete_guard_reason(commands, cwd)
+
+
 def linked_worktree_stash_reason(commands: tuple[str, ...], cwd: Path) -> str:
     for command in commands:
         for segment in re.split(r"&&|\|\||;|\||\r?\n", command):
@@ -1161,18 +1165,13 @@ def _run_event(event: dict, _host: str) -> int:
         else ""
     )
     if event_name == "PreToolUse":
-        # R8 is session-independent: enforce it before identity or ledger checks.
-        stash_block = linked_worktree_stash_reason(
+        # R8 and the delete guard (#7251) are session-independent: enforce before identity or ledger checks.
+        stash_block = session_independent_block(
             commands, Path(str(event.get("cwd") or Path.cwd()))
         )
         if stash_block:
             _record_denial_with_significance(event, event_name, tool_name)
             print(json.dumps({"decision": "block", "reason": stash_block}))
-            return 2
-        delete_block = delete_guard_reason(commands, Path(str(event.get("cwd") or Path.cwd())))
-        if delete_block:
-            _record_denial_with_significance(event, event_name, tool_name)
-            print(json.dumps({"decision": "block", "reason": delete_block}))
             return 2
     root_session_id = str(event.get("session_id") or event.get("sessionId") or "")
     session_id = reflection.scope_session_id(

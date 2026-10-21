@@ -5,12 +5,14 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
+GIT = shutil.which("git") or "git"
 ROOT = Path(__file__).resolve().parents[2]
 CORE = ROOT / "chaos-engine"
 
@@ -27,7 +29,7 @@ GUARD = load("chaos_engine_delete_guard_7251", CORE / "delete_guard.py")
 
 def git(cwd: Path, *argv: str) -> None:
     subprocess.run(
-        ["git", "-C", str(cwd), "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", *argv],
+        [GIT, "-C", str(cwd), "-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", *argv],
         check=True,
         capture_output=True,
     )
@@ -63,7 +65,7 @@ class DeleteGuardTest(unittest.TestCase):
 
     def push(self) -> None:
         remote = self.base / "remote.git"
-        subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True, capture_output=True)
+        subprocess.run([GIT, "init", "-q", "--bare", str(remote)], check=True, capture_output=True)
         git(self.repo, "remote", "add", "origin", str(remote))
         git(self.repo, "push", "-q", "-u", "origin", "main")
 

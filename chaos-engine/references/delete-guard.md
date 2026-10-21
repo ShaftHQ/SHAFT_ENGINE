@@ -1,7 +1,7 @@
-# Delete guard (#7251)
+# Delete guard
 
 Never delete work that exists nowhere else. CLI hosts run the check in the
-PreToolUse hook (`hooks/guard.py`); hookless bots run
+PreToolUse hook (`hooks/guard.py`, via [delete_guard.py](../delete_guard.py)); hookless bots run
 `python3 .chaos-engine/tool.py delete-check <paths>` or
 `tool.py delete-check --command "<shell command>"` before every delete and stop
 on a non-zero exit.
