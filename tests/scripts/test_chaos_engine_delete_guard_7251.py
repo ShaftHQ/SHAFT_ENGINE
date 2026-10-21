@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
+import unittest.mock
 
 GIT = shutil.which("git") or "git"
 ROOT = Path(__file__).resolve().parents[2]
@@ -43,8 +43,8 @@ class DeleteGuardTest(unittest.TestCase):
         home.mkdir()
         # The fixture lives under /tmp, which is allow-listed; drop defaults so the git rules are exercised.
         self.patches = [
-            mock.patch.object(GUARD, "DEFAULT_ALLOW", ()),
-            mock.patch.dict(os.environ, {"HOME": str(home), "XDG_STATE_HOME": str(home / "state")}),
+            unittest.mock.patch.object(GUARD, "DEFAULT_ALLOW", ()),
+            unittest.mock.patch.dict(os.environ, {"HOME": str(home), "XDG_STATE_HOME": str(home / "state")}),
         ]
         for patch in self.patches:
             patch.start()
@@ -130,7 +130,7 @@ class DeleteGuardTest(unittest.TestCase):
             "/w/bot/videos/ep1/out/final.mp4",
         )
         refused = ("/w/bot/video/src/a.mp4", "/w/bot/website", "/w/bot/video", "/w/app/src/target.py")
-        with mock.patch.object(GUARD, "DEFAULT_ALLOW", load("fresh_7251", CORE / "delete_guard.py").DEFAULT_ALLOW):
+        with unittest.mock.patch.object(GUARD, "DEFAULT_ALLOW", load("fresh_7251", CORE / "delete_guard.py").DEFAULT_ALLOW):
             for path in allowed:
                 self.assertTrue(GUARD.allow_listed(Path(path)), path)
             for path in refused:
@@ -152,7 +152,7 @@ class DeleteGuardTest(unittest.TestCase):
 
         store.write_text(json.dumps({hashlib.sha256(b"tok").hexdigest(): {"path": str(loose), "expires": time.time() + 60}}), encoding="utf-8")
         self.assertIn("outside git", self.reason(f"rm -rf {loose}"))
-        with mock.patch.dict(os.environ, {"CHAOS_DELETE_ACK": "tok"}):
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_DELETE_ACK": "tok"}):
             self.assertEqual("", self.reason(f"rm -rf {loose}"))
         self.assertIn(str(loose), store.with_name("delete-overrides.jsonl").read_text(encoding="utf-8"))
         with self.assertRaises(PermissionError):
@@ -161,11 +161,11 @@ class DeleteGuardTest(unittest.TestCase):
     def test_hook_blocks_and_doctor_row_passes(self):
         guard = load("chaos_engine_guard_hook_7251", CORE / "hooks" / "guard.py")
         (self.repo / "u.txt").write_text("u", encoding="utf-8")
-        with mock.patch.object(guard, "_delete_guard", return_value=GUARD):
+        with unittest.mock.patch.object(guard, "_delete_guard", return_value=GUARD):
             self.assertIn("Delete guard", guard.delete_guard_reason((f"rm -rf {self.repo}",), self.base))
         self.assertIsNotNone(guard._delete_guard())  # Real wiring: the hook finds the core module.
         event = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": f"rm -rf {self.repo}"}, "cwd": str(self.base)}
-        with mock.patch.object(guard, "_delete_guard", return_value=GUARD), mock.patch.object(guard, "_record_denial_with_significance"), mock.patch.object(guard, "_run_event", return_value=0) as rest:
+        with unittest.mock.patch.object(guard, "_delete_guard", return_value=GUARD), unittest.mock.patch.object(guard, "_record_denial_with_significance"), unittest.mock.patch.object(guard, "_run_event", return_value=0) as rest:
             self.assertEqual(2, guard._guarded_event(event, "claude"))
             rest.assert_not_called()
         self.assertIn("_guarded_event", (CORE / "hooks" / "guard.py").read_text(encoding="utf-8").split("def main()")[1])
