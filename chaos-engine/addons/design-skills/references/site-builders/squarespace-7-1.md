@@ -69,8 +69,8 @@ locks Code Injection, so only Custom CSS and Code blocks are available.
 
 - Paste source, never rendered DOM. Copies from the live page carry
   `.sqs-code-container` and `<style class="transform-vars">`; re-pasting
-  nests one wrapper per pass. Keep paste source (`NN-*.html`) apart from
-  rendered copies (`*.rendered.html`). After apply,
+  nests one wrapper per pass. Keep paste source apart from rendered
+  copies (e.g. `.rendered.html`). After apply,
   `.sqs-code-container .sqs-code-container` count must be 0.
 - Read the plan and the site-language list before planning SEO work. The
   Personal plan has no Code Injection or scripts: no JSON-LD, and the http

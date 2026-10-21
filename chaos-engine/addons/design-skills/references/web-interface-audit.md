@@ -64,10 +64,11 @@ is fixed in the same PR or filed as an issue; nothing stays only in chat.
 - Lighthouse: median of 3+ runs before calling a regression (mobile LCP is
   bimodal). A/B against a saved pre-change snapshot via request
   interception in one session; read LCP phases (TTFB, render delay, fonts).
-- PSI API without a key hits quota: run local `lighthouse@12` mobile and
-  `--preset=desktop`, save the JSON.
+- PSI API without a key hits quota: run the local Lighthouse CLI (pin the
+  major, e.g. `lighthouse@12`) mobile and `--preset=desktop`, save the JSON.
 - Semantic-only changes get a pixel diff: reduced motion,
-  `document.fonts.ready`, full-page screenshot; bbox diff must be None.
+  `document.fonts.ready`, full-page screenshot; the pixel diff (bbox diff) must be
+  empty (e.g. PIL `getbbox()` is None).
 
 ## Sources
 

@@ -180,5 +180,20 @@ class DeleteGuardTest(unittest.TestCase):
         self.assertEqual(("pass",), install.backup_remote_advisory(self.repo, CORE))
 
 
+    def test_backup_remote_warns_in_consumer_mode(self):
+        """#7263: consumer exclude hides .memory, so a pushed clean tree must still warn."""
+        self.push()
+        self.assertEqual(("pass", ""), GUARD.backup_remote_status(self.repo))
+        marker = self.repo / ".chaos-engine-state" / "consumer-mode"
+        marker.parent.mkdir()
+        marker.write_text("consumer\n", encoding="utf-8")
+        exclude = self.repo / ".git" / "info" / "exclude"
+        exclude.write_text("/.chaos-engine-state/\n/.memory/\n", encoding="utf-8")
+        (self.repo / ".memory").mkdir()
+        (self.repo / ".memory" / "m.md").write_text("only copy", encoding="utf-8")
+        status, reason = GUARD.backup_remote_status(self.repo)
+        self.assertEqual("warn", status)
+        self.assertIn("consumer mode hides harness state", reason)
+
 if __name__ == "__main__":
     unittest.main()

@@ -37,6 +37,8 @@ Only the owner mints a token, at an interactive terminal, by typing the path:
 1 h). The agent then runs the delete with `CHAOS_DELETE_ACK=<token>`. Each
 override is logged to `~/.local/state/chaos-engine/delete-overrides.jsonl`.
 An agent never runs `--issue-ack` or writes the ack store itself.
+Never route around a refusal (variable, `xargs`, a script file): commit and
+push, or `cp -a` a backup and get the owner's OK.
 
 ## Doctor
 
@@ -44,5 +46,7 @@ An agent never runs `--issue-ack` or writes the ack store itself.
   exposes `delete-check`. A fail fails doctor.
 - `backup-remote: pass|warn`: advisory only. Lists workspaces (the project,
   `.chaos-engine-state/backup-workspaces.txt`, `CHAOS_BACKUP_WORKSPACES`)
-  that have no remote, no upstream, unpushed commits or uncommitted files.
-  Push them or back them up.
+  that have no remote, no upstream, unpushed commits or uncommitted files,
+  or run in consumer mode (its `info/exclude` block hides `.memory/`
+  and mempalace from git). Push them or back them up; a bot workspace whose
+  state must be backed up should not use `--consumer`.
