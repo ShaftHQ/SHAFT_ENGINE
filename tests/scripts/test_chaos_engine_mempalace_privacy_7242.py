@@ -9,8 +9,8 @@ import os
 import sqlite3
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 CE = ROOT / "chaos-engine"
@@ -41,7 +41,7 @@ class MempalacePrivacyTests(unittest.TestCase):
 
     def _status(self, tmp: Path, documents: list[str]):
         palace = self._palace(tmp, documents)
-        with mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": str(palace)}):
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": str(palace)}):
             return self.privacy.status(tmp)
 
     def test_clean_palace_passes(self):
@@ -68,13 +68,13 @@ class MempalacePrivacyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             palace = self._palace(Path(tmp), ["secret.person@example.com"])
             out = io.StringIO()
-            with mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": str(palace)}), contextlib.redirect_stdout(out):
+            with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": str(palace)}), contextlib.redirect_stdout(out):
                 code = self.privacy.main(["--project", tmp])
         self.assertEqual(1, code)
         self.assertNotIn("secret.person", out.getvalue())
 
     def test_fresh_install_without_a_palace_is_none(self):
-        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(
+        with tempfile.TemporaryDirectory() as tmp, unittest.mock.patch.dict(
                 os.environ, {"CHAOS_ENGINE_MEMPALACE": str(Path(tmp) / "absent")}):
             self.assertEqual("none", self.privacy.status(Path(tmp))[0])
 
@@ -83,7 +83,7 @@ class MempalacePrivacyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             palace = self._palace(root, ["fee 100 USD"])
-            with mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": str(palace)}):
+            with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": str(palace)}):
                 self.assertEqual("", install.mempalace_privacy_line(root))
                 (root / ".chaos-engine-state").mkdir()
                 (root / ".chaos-engine-state/privacy-terms.txt").write_text("", encoding="utf-8")

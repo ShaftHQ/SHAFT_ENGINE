@@ -8,8 +8,8 @@ import os
 import shutil
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 CE = ROOT / "chaos-engine"
@@ -42,7 +42,7 @@ class TokenEconomyTests(unittest.TestCase):
             root = self._root(Path(tmp))
             env = {"CHAOS_ENGINE_MEMPALACE": str(Path(tmp) / "no-palace"),
                    "CHAOS_ENGINE_GRAPHIFY_OUT": str(Path(tmp) / "no-graph")}
-            with mock.patch.dict(os.environ, env):
+            with unittest.mock.patch.dict(os.environ, env):
                 line = self.economy.receipt(root, project=Path(tmp)).splitlines()[0]
         self.assertRegex(
             line,
