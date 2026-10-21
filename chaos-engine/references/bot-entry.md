@@ -24,6 +24,8 @@ Install first: [harness maintenance](harness-maintenance.md#install).
    [research receipt](research-receipt.md).
    Agentic PRs carry `<!-- chaos-engine:agentic -->` (or the `agentic` label);
    CI then requires `## Plan` and `retrieve:` lines. Human PRs are exempt.
+4. Before any delete, run `tool.py delete-check <paths>`; stop on refusal
+   ([delete guard](delete-guard.md)).
 
 Re-runs print one line while the harness is unchanged; `--full` reprints the
 cards. Run `--full` at the start of every conversation and after every
@@ -53,9 +55,6 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
   Never poll a child to keep it alive.
 
 ## Token economy
-
-Measured on 20 CI PRs: polling, preventable CI round trips and
-verbose reports were most of the waste.
 
 - One round trip per PR: `overlay_pre_push.py` also checks the open PR body
   and the README inventories, so fix what it reports before pushing, never after.

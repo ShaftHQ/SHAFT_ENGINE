@@ -379,7 +379,7 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
 
 def tool_help_text() -> str:
     """One usage text for every host. There is no per-host help."""
-    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume"}))
+    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume", "delete-check"}))
     return (
         "usage: tool.py <tool|retrieve> [args...]\n"
         "       tool.py --help\n"
@@ -703,6 +703,7 @@ SCRIPT_TOOLS = {
     "job": "jobs.py",
     "checkpoint": "task_ledger.py",
     "resume": "task_ledger.py",
+    "delete-check": "delete_guard.py",
 }
 
 

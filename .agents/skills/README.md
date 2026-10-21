@@ -179,6 +179,7 @@ sends you there; the rest by
 - [research receipt](../../chaos-engine/references/research-receipt.md)
 - [bot entry](../../chaos-engine/references/bot-entry.md): start path for bots without hooks (Grok Bot, GPTs)
 - [harness maintenance](../../chaos-engine/references/harness-maintenance.md): install, maintain-lock recovery, harness-edit checks for bot hosts
+- [delete guard](../../chaos-engine/references/delete-guard.md): refuse deletes of untracked, dirty or unpushed work; scratch allow-list, owner override
 - [harness files](../../chaos-engine/references/harness-files.md): source-repo index of every harness file off the task routes, so both entries reach it
 - [TDD](../../chaos-engine/references/tdd.md)
 - [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)

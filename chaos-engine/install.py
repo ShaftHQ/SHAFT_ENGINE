@@ -7104,7 +7104,7 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
     return lines
 
 
-AGENT_SUMMARY_MAX_LINES = 6
+AGENT_SUMMARY_MAX_LINES = 8
 
 
 def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
@@ -7150,11 +7150,50 @@ def format_agent_summary(document: dict[str, object]) -> str:
         f"hash: {policy}",
         f"drift: {drift}",
         "token-economy: " + " ".join(token_economy_status()),
+        "delete-guard: " + " ".join(delete_guard_status()),
+        "backup-remote: " + " ".join(backup_remote_advisory(installed_project())),
     ]
+    if delete_guard_status()[0] != "pass":
+        lines[0] = "doctor: fail"
     privacy = mempalace_privacy_line(installed_project())
     if privacy:
         lines.append(privacy)
     return "\n".join(lines[:AGENT_SUMMARY_MAX_LINES]) + "\n"
+
+
+def _delete_guard_module(root: Path | None = None):
+    path = (root or Path(__file__).resolve().parent) / "delete_guard.py"
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("_chaos_engine_delete_guard_doctor", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def delete_guard_status(root: Path | None = None) -> tuple[str, ...]:
+    """#7251: core doctor row; fails when the delete guard is missing or unwired."""
+    root = root or Path(__file__).resolve().parent
+    try:
+        module = _delete_guard_module(root)
+        if module is None:
+            return ("fail", "(delete_guard.py missing)")
+        status, reason = module.doctor_check(root)
+    except Exception as error:  # nosec B110 - doctor reports, never crashes
+        return ("fail", f"({type(error).__name__})")
+    return (status,) if status == "pass" else (status, f"({reason})")
+
+
+def backup_remote_advisory(project: Path | None, root: Path | None = None) -> tuple[str, ...]:
+    """#7251: advisory row; warns on workspaces with no pushed copy, never fails doctor."""
+    try:
+        module = _delete_guard_module(root)
+        if module is None or project is None:
+            return ("warn", "(unavailable)")
+        status, reason = module.backup_remote_status(Path(project))
+    except Exception as error:  # nosec B110 - advisory only
+        return ("warn", f"({type(error).__name__})")
+    return (status,) if status == "pass" else (status, f"({reason})")
 
 
 def token_economy_status(root: Path | None = None) -> tuple[str, ...]:
@@ -7211,6 +7250,8 @@ def agent_summary_exit_code(document: dict[str, object]) -> int:
     if re.fullmatch(r"[0-9a-f]{64}", policy) is None:
         return 1
     if _agent_summary_parts(document)[2] != "none":
+        return 1
+    if delete_guard_status()[0] != "pass":
         return 1
     if str(document.get("status") or "") != "healthy":
         return 1
