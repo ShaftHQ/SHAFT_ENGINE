@@ -119,7 +119,7 @@ class DeleteGuardTest(unittest.TestCase):
 
     def test_default_allow_list_covers_tmp_caches_and_video_renders(self):
         allowed = (
-            "/tmp/x",
+            str(Path(tempfile.gettempdir()).resolve() / "x"),
             str(Path.home() / ".cache/pip"),
             "/w/app/node_modules/.cache/babel",
             "/w/app/target/classes",
