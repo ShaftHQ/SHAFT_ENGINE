@@ -130,9 +130,10 @@ class CraftMediaTests(unittest.TestCase):
 class CraftCardTests(unittest.TestCase):
     CARDS = ("web-design", "graphic-design", "logo-identity", "video-editing", "color-grading-craft", "voice-over-craft",
              "motion-graphics-craft", "graphical-overlays", "transitions", "hooks", "social-video")
+    CAPPED = CARDS + ("training-decks",)  # C12 has no research file yet
 
-    def test_eleven_craft_cards_have_targets_and_an_anchored_rubric(self):
-        for name in self.CARDS:
+    def test_twelve_craft_cards_have_targets_and_an_anchored_rubric(self):
+        for name in self.CAPPED:
             text = (DESIGN / "references/craft" / f"{name}.md").read_text(encoding="utf-8")
             for heading in ("## Numeric targets", "## Rubric", "## Verify", "## References"):
                 self.assertIn(heading, text, name)

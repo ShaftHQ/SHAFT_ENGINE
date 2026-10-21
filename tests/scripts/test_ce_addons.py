@@ -257,6 +257,7 @@ class DesignContentTests(unittest.TestCase):
                                                  "margin-inline-start", "safe-area-inset-bottom", "data:", "NOINJ", "56.25%"),
             "site-builders/site-merge-redirects.md": ("scroll-margin-top", "absolute https", "Disable, don't delete"),
             "craft/training-decks.md": ("name: training-decks", "Source safety", "Chapter coherence", "Font pairing"),
+            "slides/deck-assets-and-import.md": ("name: deck-assets-and-import", "Logo walls", "--repair", "Font pairing"),
             "craft/web-design.md": ("Release gate", "no owner", "site-builders/squarespace-7-1.md"),
             "motion-principles.md": ("motion language uses scroll-drawn lines", "30% of entry", "Card reveals: transform only", "One motion focus"),
             "typography-layout.md": ("«الـ»", "0.15em", "accordion arrows do not mirror"),
