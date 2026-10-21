@@ -12,9 +12,9 @@ Install first: [harness maintenance](harness-maintenance.md#install).
 
 1. With a shell: run `python3 .chaos-engine/tool.py entry` and follow what it
    prints. It bundles `identity.md`, the core card
-   (`skills/chaos-engine/SKILL.md`), and both companion cards
+   (`skills/chaos-engine/SKILL.md`), and the ethics card, and both companion cards
    (`companions/caveman-ultra.md`, `companions/ponytail-ultra.md`).
-   Without a shell: read those four files directly.
+   Without a shell: read those five files directly.
    `checkpoint`/`resume` refuse once the cards are 40 min old (rerun
    `entry --full`); write `reload harness first` in summaries and checkpoints.
 2. Run one `python3 .chaos-engine/tool.py retrieve --store graphify|mempalace "<q>"`
@@ -104,23 +104,7 @@ publish, or final merge): run it yourself at once, per the
 Lock held, harness edits, or an older overlay:
 [harness maintenance](harness-maintenance.md#maintain).
 
-## Make it automatic
+## Host setup
 
-A bot only follows this page when something loads it every task. Put one
-always-loaded instruction in the host's persistent slot (Grok Bot shared user
-memory or a global skill, GPT instructions, Claude Project instructions):
-"In a checkout with `.chaos-engine/`, run `python3 .chaos-engine/tool.py entry`
-first and follow `.chaos-engine/references/bot-entry.md`." New agents on that
-host then inherit the entry, retrieve-first, and receipts with no per-agent
-setup. Keep the rules here; the host slot holds only the pointer.
-
-## Bots without repository access (GPTs)
-
-Save `python3 .chaos-engine/tool.py entry > chaos-engine-entry.md` and load
-that file as the bot's instructions or knowledge. Regenerate it after every
-ChaosEngine update; a stale copy is a stale harness.
-
-## Chat form
-
-Hosts whose chat demands full sentences keep them; caveman's content rules
-still apply: no filler, preamble, or narration, and each fact stated once.
+Make the entry automatic, or serve bots without repository access (GPTs):
+[harness maintenance](harness-maintenance.md#bot-host-setup).

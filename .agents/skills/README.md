@@ -188,6 +188,7 @@ sends you there; the rest by
 - [draft skill PRs](../../chaos-engine/references/draft-skill-pr.md) (opt-in; default OFF)
 - [script first](../../chaos-engine/references/script-first.md)
 - [catalog](../../chaos-engine/references/catalog.md)
+- [harness map](../../chaos-engine/references/harness-map.md)
 - [ci status economy](../../chaos-engine/references/ci-status-economy.md)
 - [codacy action required gate](../../chaos-engine/references/static-analysis-gate.md)
 - [codacy complexity gate](../../chaos-engine/references/complexity-gate.md)

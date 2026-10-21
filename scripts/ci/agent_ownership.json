@@ -8,7 +8,7 @@
     "router": {
       "owner": "chaos-engine/skills/chaos-engine/SKILL.md",
       "terms": ["Canonical provider-neutral skill router"],
-      "allowed": ["chaos-engine/harness_index.py", "chaos-engine/harness-index.json", "chaos-engine/references/catalog.md"]
+      "allowed": ["chaos-engine/harness_index.py", "chaos-engine/harness-index.json", "chaos-engine/references/catalog.md", "chaos-engine/references/harness-map.md"]
     },
     "router contract": {
       "owner": "chaos-engine/references/router-contract.md",

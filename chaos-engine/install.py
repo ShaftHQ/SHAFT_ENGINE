@@ -7057,7 +7057,7 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
     return lines
 
 
-AGENT_SUMMARY_MAX_LINES = 4
+AGENT_SUMMARY_MAX_LINES = 6
 
 
 def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
@@ -7102,8 +7102,28 @@ def format_agent_summary(document: dict[str, object]) -> str:
         f"component: {name} {status}",
         f"hash: {policy}",
         f"drift: {drift}",
+        "token-economy: " + " ".join(token_economy_status()),
     ]
+    privacy = mempalace_privacy_line(installed_project())
+    if privacy:
+        lines.append(privacy)
     return "\n".join(lines[:AGENT_SUMMARY_MAX_LINES]) + "\n"
+
+
+def token_economy_status(root: Path | None = None) -> tuple[str, ...]:
+    """#7242: core doctor row for every bot; never raises."""
+    root = root or Path(__file__).resolve().parent
+    path = root / "token_economy.py"
+    if not path.is_file():
+        return ("fail", "(token_economy.py missing)")
+    try:
+        spec = importlib.util.spec_from_file_location("_chaos_engine_token_economy_doctor", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        status, reason = module.doctor_check(root)
+    except Exception as error:  # nosec B110 - doctor reports, never crashes
+        return ("fail", f"({type(error).__name__})")
+    return (status,) if status == "pass" else (status, f"({reason})")
 
 
 DOCTOR_FAILING_STATUSES = frozenset({"recovery-required", "failed"})
@@ -7112,6 +7132,27 @@ DOCTOR_FAILING_STATUSES = frozenset({"recovery-required", "failed"})
 def doctor_exit_code(document: dict[str, object]) -> int:
     """Doctor exits non-zero when recovery is required, in every output mode."""
     return 1 if str(document.get("status") or "") in DOCTOR_FAILING_STATUSES else 0
+
+
+def installed_project() -> Path:
+    """The project an installed overlay serves: the parent of `.chaos-engine/`."""
+    return Path(__file__).resolve().parent.parent
+
+
+def mempalace_privacy_line(project: Path, root: Path | None = None) -> str:
+    """#7242: opt-in privacy row; only workspaces with an untracked privacy-terms file get it."""
+    root = root or Path(__file__).resolve().parent
+    path = root / "mempalace_privacy.py"
+    if not (project / ".chaos-engine-state" / "privacy-terms.txt").is_file() or not path.is_file():
+        return ""
+    try:
+        spec = importlib.util.spec_from_file_location("_chaos_engine_privacy_doctor", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        verdict, detail = module.status(project.resolve())
+    except Exception as error:  # nosec B110 - doctor reports, never crashes
+        return f"mempalace privacy: fail ({type(error).__name__})"
+    return f"mempalace privacy: {verdict} ({detail})"
 
 
 def agent_summary_exit_code(document: dict[str, object]) -> int:
@@ -7125,6 +7166,10 @@ def agent_summary_exit_code(document: dict[str, object]) -> int:
     if _agent_summary_parts(document)[2] != "none":
         return 1
     if str(document.get("status") or "") != "healthy":
+        return 1
+    if token_economy_status()[0] != "pass":
+        return 1
+    if mempalace_privacy_line(installed_project()).startswith("mempalace privacy: fail"):
         return 1
     return 0
 

@@ -64,3 +64,35 @@ rule on purpose; link instead only within one skill.
 Source repo only: every harness file not on a task route is indexed in
 [harness files](harness-files.md), enforced by
 `tests/scripts/test_agent_entry_reachability.py`.
+
+## Bot host setup
+
+### Make it automatic
+
+A bot only follows this page when something loads it every task. Put one
+always-loaded instruction in the host's persistent slot (Grok Bot shared user
+memory or a global skill, GPT instructions, Claude Project instructions):
+"In a checkout with `.chaos-engine/`, run `python3 .chaos-engine/tool.py entry`
+first and follow `.chaos-engine/references/bot-entry.md`." New agents on that
+host then inherit the entry, retrieve-first, and receipts with no per-agent
+setup. Keep the rules here; the host slot holds only the pointer.
+
+### Bots without repository access (GPTs)
+
+Save `python3 .chaos-engine/tool.py entry > chaos-engine-entry.md` and load
+that file as the bot's instructions or knowledge. Regenerate it after every
+ChaosEngine update; a stale copy is a stale harness.
+
+## Token economy
+
+`tool.py entry` ends with one receipt line
+(`entry: caveman=… ponytail=… ethics=… persona=loaded|none index=N retrieve=…`), and
+`install.py doctor --agent-summary` prints `token-economy: pass|fail`. Both come from
+[token_economy.py](../token_economy.py); the lazy map is
+[harness-map.md](harness-map.md). An add-on may name one `persona` file (≤ 2 KiB)
+in `addon.json`; entry prints it and the receipt shows `persona=loaded`.
+Register rule and token tactics: [token tactics card](../companions/token-tactics.md).
+
+MemPalace privacy: [mempalace_privacy.py](../mempalace_privacy.py) scans mined drawers for
+emails, money amounts and the untracked `.chaos-engine-state/privacy-terms.txt` terms;
+it prints counts only and exits 1 on any hit.
