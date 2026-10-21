@@ -27,6 +27,9 @@ from pathlib import Path, PurePosixPath
 MANIFEST = "addon.json"
 DIRECTORY = "addons"
 ENVIRONMENT = "CHAOS_ENGINE_ADDONS"
+# Extra directories of `<name>/addon.json` external add-ons (os.pathsep-separated);
+# the installer points it at kept copies of recorded add-ons a source lacks (#7248).
+PATHS_ENVIRONMENT = "CHAOS_ENGINE_ADDON_PATHS"
 EXTERNAL_GLOBS = ("*/ce-addons/*/addon.json", "*/ce-pack/addon.json")
 NAME = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)+")
 # Flags the installers already own; an add-on may never shadow one of them.
@@ -81,6 +84,9 @@ def discover(source: Path) -> dict[str, dict[str, object]]:
     candidates = [(path, True) for path in sorted((source / DIRECTORY).glob(f"*/{MANIFEST}"))]
     for pattern in EXTERNAL_GLOBS:
         candidates.extend((path, False) for path in sorted(source.parent.glob(pattern)))
+    for folder in os.environ.get(PATHS_ENVIRONMENT, "").split(os.pathsep):
+        if folder.strip():
+            candidates.extend((path, False) for path in sorted(Path(folder).glob(f"*/{MANIFEST}")))
     found: dict[str, dict[str, object]] = {}
     for path, internal in candidates:
         manifest = _load(path, internal)

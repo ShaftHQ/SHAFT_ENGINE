@@ -29,7 +29,10 @@ Prints each add-on as `name  state  flag  use-when`. Add `--json` for tools.
 Unknown names fail closed and list the valid ones. Requirements are added
 automatically; removing an add-on that another selected add-on requires is
 refused and names the dependent. A later upgrade without flags keeps the
-recorded set.
+recorded set. When the source lacks a recorded external add-on (the official
+one-liner downloads only the core tree), the installed copy is kept and the
+installer prints `addon kept: <name> (source not found)`. Extra add-on
+directories can be named in `CHAOS_ENGINE_ADDON_PATHS`.
 
 ## Private add-ons
 
