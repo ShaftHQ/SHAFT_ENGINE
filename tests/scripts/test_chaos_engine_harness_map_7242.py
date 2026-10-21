@@ -48,9 +48,10 @@ class HarnessMapTests(unittest.TestCase):
     def test_entry_prints_one_pointer_line_not_the_map(self):
         out = subprocess.run([sys.executable, str(CE / "tool.py"), "entry", "--full"],  # nosec B603
                              cwd=ROOT, capture_output=True, text=True, timeout=60, check=True).stdout
-        lines = [line for line in out.splitlines() if line.startswith("index: ")]
+        lines = [line for line in out.splitlines() if line.startswith("entry: ")]
         self.assertEqual(1, len(lines))
-        self.assertIn("references/harness-map.md", lines[0])
+        self.assertIn(f"index={len(self.map.mapped_files(CE))}", lines[0])
+        self.assertIn("references/harness-map.md", out)
         self.assertNotIn("# Harness map", out)
 
 

@@ -72,15 +72,18 @@ def entry_bundle(installed_root: Path, opt_out: str = "") -> str:
         path = installed_root / relative
         if path.is_file():
             parts.append(f"<!-- {relative} -->\n{path.read_text(encoding='utf-8').strip()}\n")
-    map_path = installed_root / "harness_map.py"
-    if map_path.is_file():
+    economy = installed_root / "token_economy.py"
+    if economy.is_file():
         import importlib.util
 
-        spec = importlib.util.spec_from_file_location("_chaos_engine_harness_map", map_path)
+        spec = importlib.util.spec_from_file_location("_chaos_engine_token_economy", economy)
         if spec is not None and spec.loader is not None:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            parts.append(module.entry_line(installed_root))
+            for persona in module.persona_files(installed_root):
+                parts.append(f"<!-- persona -->\n{persona.read_text(encoding='utf-8').strip()}\n")
+            parts.append(module.receipt(installed_root, stopped=stopped_companions(opt_out)))
+            return "\n".join(parts)
     parts.append(ENTRY_RETRIEVE)
     return "\n".join(parts)
 
