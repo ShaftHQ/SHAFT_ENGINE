@@ -111,15 +111,16 @@ commit, or close and reopen the PR).
 - Code-quality bots flag `import subprocess` (B404) without a `nosec` reason,
   bare `assert` (B101), `xml.etree` parsing (use `re` on known text), partial
   executable paths (B607: `shutil.which`), and D213 docstrings, in tests too.
-- `python3 -I -m unittest tests.scripts.x` cannot import `tests`; run
-  `python3 -I tests/scripts/x.py`, or `PYTHONPATH=.` where `-I` is not needed.
+- `python3 -I -m unittest` cannot import the repo's `tests` package (`-I`
+  drops the cwd); run the test file by path with `python3 -I`, or set
+  `PYTHONPATH=.` where `-I` is not needed.
 - Join preflight and push with `&&` under `set -o pipefail`, never `;`: a
   failed preflight must not push.
 - Verify a workflow fix with `workflow_dispatch` on the branch before merging;
   a targeted dispatch (named jobs and tests) is minutes, not a nightly.
 - Windows `mvn` in pwsh is `mvn.cmd` through `cmd.exe` (8191-character command
   line); long test selections need `shell: bash`.
-- TestNG `testng-results.xml` `total` counts ignored methods; use
+- A test report's `total` can count ignored methods; use
   passed + failed + skipped to decide whether anything ran.
 - A single gate flake that a rerun clears is noise; file an issue if it recurs.
 - A dry run that computes "tomorrow" collides with a version already bumped

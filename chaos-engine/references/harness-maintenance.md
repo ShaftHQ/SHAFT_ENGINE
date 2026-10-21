@@ -52,8 +52,8 @@ dirty or unpushed; the [delete guard](delete-guard.md) refuses it, and doctor's
 when unsure.
 ## Harness edit pitfalls
 
-- New or renamed core files: run `python3 chaos-engine/harness_map.py --write`
-  (repo-only) in the same commit, or doctor's `token-economy` row fails
+- New or renamed core files: `python3 chaos-engine/harness_map.py --write` (repo-only)
+  in the same commit, or doctor's `token-economy` row fails
   "harness map stale". A new core module must also be linked from a reference,
   or the entry-reachability check fails.
 - A new `tests/scripts` module must be selected in `scripts/ci/harness_pr_gate.py`
