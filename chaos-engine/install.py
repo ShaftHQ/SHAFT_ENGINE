@@ -7131,6 +7131,22 @@ def doctor_exit_code(document: dict[str, object]) -> int:
     return 1 if str(document.get("status") or "") in DOCTOR_FAILING_STATUSES else 0
 
 
+def mempalace_privacy_line(project: Path, root: Path | None = None) -> str:
+    """#7242: opt-in privacy row; only workspaces with an untracked privacy-terms file get it."""
+    root = root or Path(__file__).resolve().parent
+    path = root / "mempalace_privacy.py"
+    if not (project / ".chaos-engine-state" / "privacy-terms.txt").is_file() or not path.is_file():
+        return ""
+    try:
+        spec = importlib.util.spec_from_file_location("_chaos_engine_privacy_doctor", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        verdict, detail = module.status(project.resolve())
+    except Exception as error:  # nosec B110 - doctor reports, never crashes
+        return f"mempalace privacy: fail ({type(error).__name__})"
+    return f"mempalace privacy: {verdict} ({detail})"
+
+
 def agent_summary_exit_code(document: dict[str, object]) -> int:
     """Fail closed when policy hash drifted or the summary cannot stay bounded."""
     rendered = format_agent_summary(document)
@@ -7610,7 +7626,11 @@ def main() -> int:
             raise TypeError("doctor/status result must be an object")
         if getattr(args, "agent_summary", False):
             print(format_agent_summary(result), end="")
-            return agent_summary_exit_code(result)
+            privacy = mempalace_privacy_line(Path(getattr(args, "project", None) or "."))
+            if privacy:
+                print(privacy)
+            code = agent_summary_exit_code(result)
+            return code or (1 if privacy.startswith("mempalace privacy: fail") else 0)
         if getattr(args, "digest", False):
             print(load_source_controller("hosts").doctor_digest(result))
             return agent_summary_exit_code(result)

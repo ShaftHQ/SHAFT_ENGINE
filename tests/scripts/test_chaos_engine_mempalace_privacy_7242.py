@@ -78,6 +78,17 @@ class MempalacePrivacyTests(unittest.TestCase):
                 os.environ, {"CHAOS_ENGINE_MEMPALACE": str(Path(tmp) / "absent")}):
             self.assertEqual("none", self.privacy.status(Path(tmp))[0])
 
+    def test_doctor_row_is_opt_in_and_reports_counts(self):
+        install = load(CE / "install.py", "ce_install_privacy_7242")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            palace = self._palace(root, ["fee 100 USD"])
+            with mock.patch.dict(os.environ, {"CHAOS_ENGINE_MEMPALACE": str(palace)}):
+                self.assertEqual("", install.mempalace_privacy_line(root))
+                (root / ".chaos-engine-state").mkdir()
+                (root / ".chaos-engine-state/privacy-terms.txt").write_text("", encoding="utf-8")
+                self.assertEqual("mempalace privacy: fail (money=1)", install.mempalace_privacy_line(root))
+
 
 if __name__ == "__main__":
     unittest.main()
