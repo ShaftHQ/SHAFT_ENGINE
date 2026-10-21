@@ -87,6 +87,9 @@ def doctor_check(root: Path = HERE) -> tuple[str, str]:
         current = (root / harness_map.MAP).read_text(encoding="utf-8")
     except Exception:
         return "fail", "harness map missing"
-    if current != harness_map.render(root):
-        return "fail", "harness map stale"
+    # Installs ship a subset of the source tree, so the map may list absent files;
+    # every installed harness file must still be listed (completeness).
+    unlisted = [rel for _, rel in harness_map.mapped_files(root) if f"`{rel}`:" not in current]
+    if unlisted:
+        return "fail", f"harness map stale ({len(unlisted)} unlisted)"
     return "pass", "core cards and lazy map present"

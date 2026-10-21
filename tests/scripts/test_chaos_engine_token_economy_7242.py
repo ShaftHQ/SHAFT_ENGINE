@@ -75,6 +75,16 @@ class TokenEconomyTests(unittest.TestCase):
             self.assertEqual("fail", self.economy.doctor_check(root)[0])
             self.assertEqual("fail", self.install.token_economy_status(root)[0])
 
+    def test_doctor_row_tolerates_repo_only_files_but_not_unlisted_ones(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._root(Path(tmp))
+            (root / "references").mkdir(exist_ok=True)
+            (root / "references/harness-map.md").write_text(
+                (CE / "references/harness-map.md").read_text(encoding="utf-8"), encoding="utf-8")
+            self.assertEqual("pass", self.economy.doctor_check(root)[0])
+            (root / "references/new-unlisted.md").write_text("# New\n", encoding="utf-8")
+            self.assertEqual("fail", self.economy.doctor_check(root)[0])
+
     def test_agent_summary_prints_the_token_economy_line(self):
         document = {"status": "healthy", "policySha256": "a" * 64,
                     "components": {"core": {"status": "healthy"}}}
