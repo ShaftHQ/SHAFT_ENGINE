@@ -39,6 +39,12 @@ scenes, or kinetic type. D09 and D10 consume the tokens defined here.
 - Check stills mid-transition, not only settled frames. A crossfade between
   two busy layouts is a muddy double exposure: stagger it (old out, then new
   in) or dip through the background.
+- House style for marketing sites: scroll-drawn lines and count-ups.
+  Animate `transform` or `stroke` only; scroll-linked opacity freezes
+  part-faded. The end state is fully visible, and reduced motion shows it.
+- A count-up runs once on load (a scroll-driven one freezes on a false
+  number); screen readers get the real number as text.
+- One motion focus per viewport: no muted video loop beside an animated hero.
 
 ## Workflow
 

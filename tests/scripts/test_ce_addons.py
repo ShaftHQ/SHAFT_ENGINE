@@ -250,6 +250,25 @@ class DesignContentTests(unittest.TestCase):
                        "placeholder"):
             self.assertIn(needle, web)
 
+    def test_cards_carry_site_builder_rtl_motion_and_qc_lessons(self):
+        refs = DESIGN / "references"
+        expected = {
+            "site-builders/squarespace-7-1.md": ("LESS 1.3.3", ".sqs-block-website-component", "srcdoc",
+                                                 "margin-inline-start", "safe-area-inset-bottom", "data:"),
+            "craft/web-design.md": ("Release gate", "no owner", "site-builders/squarespace-7-1.md"),
+            "motion-principles.md": ("scroll-drawn lines", "count-up runs once", "One motion focus"),
+            "typography-layout.md": ("«الـ»", "0.15em", "accordion arrows do not mirror"),
+            "brand-system.md": ("override", "pixel-identical", "owner sign-off"),
+            "web-interface-audit.md": ("1440 and 390", "mid-animation", "real viewport height"),
+            "launch-video.md": ("1 fps", "several ASR models"),
+            "image-graphics.md": ("no AI face edits", "200 KB", "native HTML/CSS"),
+            "pipelines/runbook.md": ("provably yours",),
+        }
+        for name, needles in expected.items():
+            text = (refs / name).read_text(encoding="utf-8")
+            for needle in needles:
+                self.assertIn(needle, text, name)
+
     def test_relative_links_resolve(self):
         for path in DESIGN.rglob("*.md"):
             for target in re.findall(r"\]\(([^)#]+)(?:#[^)]*)?\)", path.read_text(encoding="utf-8")):

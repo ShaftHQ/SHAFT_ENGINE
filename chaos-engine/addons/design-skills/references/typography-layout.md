@@ -59,6 +59,11 @@ page, poster, slide, or video frame.
 
 - CJK text: measure counts characters, target 30 to 40 per line.
 - RTL: mirror layout with logical properties, never hard-coded left/right.
+- Arabic with Latin: a no-break space joins «الـ» to the next Latin word so
+  it never ends a line alone; re-check every re-pasted block. Wrap Latin in
+  `<bdi>`; on zoom crops at every width the baseline offset is <= 1 px and
+  the script-boundary gap >= 0.15em.
+- RTL accordion arrows do not mirror: down when closed, up when open.
 - Code blocks are exempt from the measure rule but must scroll inside their
   own box, never the page.
 

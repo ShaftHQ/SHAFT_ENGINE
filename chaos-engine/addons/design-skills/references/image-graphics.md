@@ -45,6 +45,12 @@ post, a poster, an icon, or an architecture diagram.
   hook cap height at least 12 % of the frame, small brand mark and badge.
 - A vertical cover is designed in the same system, never a picked video
   frame: mid-speech frames blink, carry captions, and ignore safe zones.
+- Headshots: prefer the owner's chosen profile photo over video frames;
+  light cleanup only, no AI face edits, at most 2x the display size, under
+  200 KB.
+- Raster brand art rebuilt as native HTML/CSS is sharper, accessible,
+  lighter and animatable: drop text that repeats nearby copy, keep colours
+  and layout recognisable.
 
 ## Photo frames
 

@@ -44,6 +44,9 @@ format (16:9, 9:16, 1:1), duration, and one feature or version to focus on.
   cards, slides). Freeform direction overrides a preset.
 - Music and effects are one mix: effects in key, under the music
   ([D15](audio-mix-loudness.md)).
+- Price and PII check: OCR every frame at 1 fps and grep every ASR pass for
+  price, currency and date terms. Music lowers ASR confidence: use the clean
+  narration track or several ASR models.
 
 ## Workflow
 
