@@ -42,8 +42,19 @@ scenes, or kinetic type. D09 and D10 consume the tokens defined here.
 - When the brand's motion language uses scroll-drawn lines or count-ups:
   animate `transform` or `stroke` only; scroll-linked opacity freezes
   part-faded. The end state is fully visible, and reduced motion shows it.
-- A count-up runs once on load (a scroll-driven one freezes on a false
-  number); screen readers get the real number as text.
+- Count-ups: on load is fine above the fold. Below a tall hero an on-load
+  count-up finishes off-screen, so use a scroll-linked one
+  (`animation-timeline: view()`, an `@property` integer counter) that
+  completes by about 30% of entry, so the number is final wherever it is
+  readable. The real number stays in the DOM as text for screen readers,
+  browsers without support and reduced motion.
+- Card reveals: transform only (translateY about 18 px plus scale 0.97,
+  stagger 0/5/10%), done by about 25-35% of the entry range so cards settle
+  in the lower viewport. No opacity in the scroll range. Reduced motion is
+  static.
+- Probe scroll motion at three points (enter, mid, done) per breakpoint and
+  record transform and counter values as JSON. Pass means identity
+  transform and final numbers at done.
 - One motion focus per viewport: no muted video loop beside an animated hero.
 
 ## Workflow

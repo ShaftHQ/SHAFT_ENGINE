@@ -18,6 +18,13 @@ locks Code Injection, so only Custom CSS and Code blocks are available.
   keeps `1fr`). Verify by injecting the source CSS over the live page, not
   the locally compiled output.
 - `@property` is rejected; put it in the Code block's `<style>`.
+- Grid tracks in %: 3 across 32% with 2% gaps, 2 across 49%, 1 column
+  100%, so no compiler can mangle `1fr`. A collapse seen only in a locally
+  compiled test is not a live bug: re-check with the source CSS injected
+  and the live CSS removed (NOINJ) before fixing it.
+- Patch-on-top build: ship `custom-vN.css` = previous full CSS plus
+  `vN-patch.css`, keep a patch-only file for append, compile the full file
+  with LESS 1.3.3 and confirm no `__TOKEN__` placeholders remain.
 
 ## Selectors and sections
 
@@ -46,7 +53,21 @@ locks Code Injection, so only Custom CSS and Code blocks are available.
 - Video without JS: an iframe `srcdoc` facade (`youtube-nocookie`, autoplay
   only after the click, `loading=lazy`, 0 requests before the click). No
   muted loop next to an animated hero: one motion focus per viewport.
+- Facade box: `aspect-ratio: 16/9` plus a `padding-top: 56.25%` fallback
+  wrapper; verify a 1.778 ratio at every width and no horizontal scroll.
+- The editor's "iframe embeds are a premium feature" warning can still
+  reach logged-out visitors. Verify with `curl` of the public page (srcdoc
+  markup present, no upgrade notice), not the editor view.
+- Headless Chrome does not prove autoplay. Report it unverified and ask for
+  one real-device tap.
 - The live CSP blocks `data:` images. In previews serve local assets through
   an intercepted same-origin URL.
 - Motion rules: [D08](../motion-principles.md). RTL text:
   [D05](../typography-layout.md).
+
+## Recovery from live
+
+Rebuild lost source from the served Custom CSS URL (in the page HTML) and
+each Code block's HTML (`.sqs-block-content` holding your snippet classes),
+plus a README of what is live. Diff it against the last build to catch
+drift. Page merges and redirects: [site merge](site-merge-redirects.md).
