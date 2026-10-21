@@ -7,6 +7,7 @@ On demand; every bot and host. Measured waste first: polling, CI round trips, lo
   the full reasoning. Humans get short plain full sentences under Caveman content
   rules (no filler, preamble or narration; each fact once), not telegraphic style.
 - Retrieve once (graphify or mempalace) before broad search; scope `rg` to hits.
+  Bots: `tool.py checkpoint` refuses a work step until a retrieve is recorded since entry.
 - Open bodies from the [harness map](../references/harness-map.md) only when a line matches.
 - Script first; one search; read ≤ 80-line excerpts; filter logs to the verdict.
 - Delegate large reads; their content stays in the delegate's context.
