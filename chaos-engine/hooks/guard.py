@@ -709,10 +709,6 @@ def delete_guard_reason(commands: tuple[str, ...], cwd: Path) -> str:
     return ""
 
 
-def session_independent_block(commands: tuple[str, ...], cwd: Path) -> str:
-    return linked_worktree_stash_reason(commands, cwd) or delete_guard_reason(commands, cwd)
-
-
 def linked_worktree_stash_reason(commands: tuple[str, ...], cwd: Path) -> str:
     for command in commands:
         for segment in re.split(r"&&|\|\||;|\||\r?\n", command):
@@ -1165,8 +1161,8 @@ def _run_event(event: dict, _host: str) -> int:
         else ""
     )
     if event_name == "PreToolUse":
-        # R8 and the delete guard (#7251) are session-independent: enforce before identity or ledger checks.
-        stash_block = session_independent_block(
+        # R8 is session-independent: enforce it before identity or ledger checks.
+        stash_block = linked_worktree_stash_reason(
             commands, Path(str(event.get("cwd") or Path.cwd()))
         )
         if stash_block:
@@ -1293,8 +1289,21 @@ def _run_event(event: dict, _host: str) -> int:
     return 0
 
 
+def _guarded_event(event: dict, host: str) -> int:
+    """#7251: the delete guard runs first on PreToolUse, session-independent like R8."""
+    if isinstance(event, dict) and str(event.get("hook_event_name") or event.get("hookEventName") or "") == "PreToolUse":
+        tool_input = event.get("tool_input", {})
+        commands = _event_commands(str(event.get("tool_name", "")), tool_input)
+        reason = delete_guard_reason(commands, Path(str(event.get("cwd") or Path.cwd())))
+        if reason:
+            _record_denial_with_significance(event, "PreToolUse", str(event.get("tool_name", "")))
+            print(json.dumps({"decision": "block", "reason": reason}))
+            return 2
+    return _run_event(event, host)
+
+
 def main() -> int:
-    callbacks = {event: _run_event for event in _lifecycle.LIFECYCLE_EVENTS}
+    callbacks = {event: _guarded_event for event in _lifecycle.LIFECYCLE_EVENTS}
     return _lifecycle.run_hook_protocol(
         sys.stdin.read(),
         callbacks,

@@ -164,6 +164,11 @@ class DeleteGuardTest(unittest.TestCase):
         with mock.patch.object(guard, "_delete_guard", return_value=GUARD):
             self.assertIn("Delete guard", guard.delete_guard_reason((f"rm -rf {self.repo}",), self.base))
         self.assertIsNotNone(guard._delete_guard())  # Real wiring: the hook finds the core module.
+        event = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": f"rm -rf {self.repo}"}, "cwd": str(self.base)}
+        with mock.patch.object(guard, "_delete_guard", return_value=GUARD), mock.patch.object(guard, "_record_denial_with_significance"), mock.patch.object(guard, "_run_event", return_value=0) as rest:
+            self.assertEqual(2, guard._guarded_event(event, "claude"))
+            rest.assert_not_called()
+        self.assertIn("_guarded_event", (CORE / "hooks" / "guard.py").read_text(encoding="utf-8").split("def main()")[1])
         self.assertEqual(("pass", ""), GUARD.doctor_check(CORE))
         install = load("chaos_engine_install_7251", CORE / "install.py")
         self.assertEqual(("pass",), install.delete_guard_status(CORE))
