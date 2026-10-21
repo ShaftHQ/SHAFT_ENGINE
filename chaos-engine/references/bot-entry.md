@@ -108,8 +108,3 @@ Lock held, harness edits, or an older overlay:
 
 Make the entry automatic, or serve bots without repository access (GPTs):
 [harness maintenance](harness-maintenance.md#bot-host-setup).
-
-## Chat form
-
-Hosts whose chat demands full sentences keep them; caveman's content rules
-still apply: no filler, preamble, or narration, and each fact stated once.

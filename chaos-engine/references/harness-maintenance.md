@@ -91,3 +91,4 @@ ChaosEngine update; a stale copy is a stale harness.
 [token_economy.py](../token_economy.py); the lazy map is
 [harness-map.md](harness-map.md). An add-on may name one `persona` file (≤ 2 KiB)
 in `addon.json`; entry prints it and the receipt shows `persona=loaded`.
+Register rule and token tactics: [token tactics card](../companions/token-tactics.md).
