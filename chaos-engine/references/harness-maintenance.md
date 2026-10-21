@@ -50,6 +50,7 @@ on a shared box, cause unknown). Never delete what is untracked,
 dirty or unpushed; the [delete guard](delete-guard.md) refuses it, and doctor's
 `backup-remote` row names workspaces to push or back up. Move, never remove,
 when unsure.
+
 ## Harness edit pitfalls
 
 - New or renamed core files: `python3 chaos-engine/harness_map.py --write` (repo-only)
