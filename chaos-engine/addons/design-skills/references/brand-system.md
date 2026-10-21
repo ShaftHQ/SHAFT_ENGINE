@@ -79,6 +79,11 @@ per rule, PASS or FAIL with the measurement and the evidence file. Then
 re-review your own renders at full size and at the smallest display size;
 fix and report anything that contradicts an earlier claim.
 
+Push back with reasons, then accept an owner override cleanly. Social
+surfaces show the exact master mark and cover, pixel-identical, from the
+same files. Never invent copy, numbers or titles: verify against owner
+sources and mark new copy (for example FAQ questions) for owner sign-off.
+
 ## Workflow
 
 1. Look for existing brand sources (the brand card first); do not invent a brand when one exists.

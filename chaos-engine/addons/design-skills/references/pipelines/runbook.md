@@ -122,6 +122,9 @@ cap), with the QC report and review log beside the files. A file sent
 earlier is named and labelled DRAFT with its open failures; superseded
 drafts move to an archive folder.
 
+Shared-box hygiene: clean up only what is provably yours (your git remotes,
+notes, clean and pushed state). List anything ambiguous instead of deleting it.
+
 ## 6. Learning Session
 
 Learning Session after every final delivery: when the owner approves the cut,

@@ -82,6 +82,9 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
   identical on every page.
 - Only verified numbers and claims; no visible placeholder, lorem, or
   "coming soon" block on a live page.
+- Release gate: when the owner delegates the site, a change goes live once
+  both the design reviewer and the content reviewer approve; no owner
+  preview. Details without JS: [Squarespace 7.1](../site-builders/squarespace-7-1.md).
 
 ## GitHub README surfaces
 

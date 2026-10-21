@@ -39,6 +39,9 @@ is fixed in the same PR or filed as an issue; nothing stays only in chat.
 - Locale: dates, numbers, and plurals through `Intl`; no text in images.
 - Performance: no layout shift on load; fonts with `font-display: swap`.
 - Theming: every state readable in every theme.
+- Coverage: every touched page at 1440 and 390 px and under reduced motion,
+  with mid-animation and end-state screenshots. Full-page headless captures
+  exaggerate viewport-scaled spacing; confirm gaps at a real viewport height.
 
 ## Workflow
 
