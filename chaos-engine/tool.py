@@ -27,7 +27,7 @@ HELP_FLAGS = frozenset({"--help", "-h", "help"})
 _CAPTURE_STORES = frozenset({"mempalace", "graphify"})
 
 
-CORE_ENTRY_FILES = ("identity.md", "skills/chaos-engine/SKILL.md")
+CORE_ENTRY_FILES = ("identity.md", "companions/ethics-card.md", "skills/chaos-engine/SKILL.md")
 
 
 _LIFECYCLE: list = []

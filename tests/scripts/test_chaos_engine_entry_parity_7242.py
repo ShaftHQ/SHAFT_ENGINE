@@ -56,6 +56,15 @@ class EntryParityTests(unittest.TestCase):
                    "Follow `AGENTS.md` as the canonical repository policy."}
         self.assertEqual([], [line for line in extra if line not in allowed])
 
+    def test_ethics_card_is_in_bot_entry_and_linked_from_core_card(self):
+        tool = load(ROOT / "chaos-engine/tool.py", "ce_tool_7242")
+        self.assertIn("companions/ethics-card.md", tool.CORE_ENTRY_FILES)
+        card = ROOT / "chaos-engine/companions/ethics-card.md"
+        self.assertLessEqual(len(card.read_bytes()), 600)
+        self.assertIn("references/ethical-conduct.md", card.read_text(encoding="utf-8"))
+        core = (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("companions/ethics-card.md", core)
+
 
 if __name__ == "__main__":
     unittest.main()

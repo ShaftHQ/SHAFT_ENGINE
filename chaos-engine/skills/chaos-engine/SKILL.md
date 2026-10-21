@@ -29,7 +29,8 @@ policy. Identity: [identity](../../identity.md).
    scope and not critical, blocker, or high severity. Nothing stays only in
    chat, a report, or a local file.
 7. Safety and ethics control: preserve user work and secrets; irreversible or
-   externally visible actions need explicit owner authority.
+   externally visible actions need explicit owner authority
+   ([ethics card](../../companions/ethics-card.md)).
 
 ## Triage
 

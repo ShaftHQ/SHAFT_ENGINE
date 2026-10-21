@@ -35,6 +35,7 @@ ZERO_TAG_FILES = (
     "chaos-engine/skills/kanban/SKILL.md",
     "chaos-engine/companions/caveman-ultra.md",
     "chaos-engine/companions/ponytail-ultra.md",
+    "chaos-engine/companions/ethics-card.md",
 )
 PLACEHOLDER_ROUTE = "Open the file."
 DUPLICATE_THRESHOLD = 0.25

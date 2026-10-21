@@ -64,3 +64,21 @@ rule on purpose; link instead only within one skill.
 Source repo only: every harness file not on a task route is indexed in
 [harness files](harness-files.md), enforced by
 `tests/scripts/test_agent_entry_reachability.py`.
+
+## Bot host setup
+
+### Make it automatic
+
+A bot only follows this page when something loads it every task. Put one
+always-loaded instruction in the host's persistent slot (Grok Bot shared user
+memory or a global skill, GPT instructions, Claude Project instructions):
+"In a checkout with `.chaos-engine/`, run `python3 .chaos-engine/tool.py entry`
+first and follow `.chaos-engine/references/bot-entry.md`." New agents on that
+host then inherit the entry, retrieve-first, and receipts with no per-agent
+setup. Keep the rules here; the host slot holds only the pointer.
+
+### Bots without repository access (GPTs)
+
+Save `python3 .chaos-engine/tool.py entry > chaos-engine-entry.md` and load
+that file as the bot's instructions or knowledge. Regenerate it after every
+ChaosEngine update; a stale copy is a stale harness.
