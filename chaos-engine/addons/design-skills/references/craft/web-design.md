@@ -21,6 +21,13 @@ A page, landing, or docs surface needs senior-level layout, type, and interactio
 - Show code beside its result above the fold.
 - Use one accent colour with one meaning (action).
 - Design the empty, loading, and error states first.
+- Numbers are not headings: demote stat H2s to a styled `div`, copy the
+  computed h2 styles per breakpoint, keep count-up classes, prove computed
+  styles and screenshots identical.
+- Add a keyword to the lead `<p>`, not the H1, when a longer H1 would wrap
+  in the hero at 390.
+- Trim headings that wrap to 3 lines at 390; cards in one row share a line
+  count (lines = height / line-height). Cut the qualifier first.
 
 ## Don't
 

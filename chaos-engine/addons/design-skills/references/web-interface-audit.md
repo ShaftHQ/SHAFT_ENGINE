@@ -59,6 +59,15 @@ is fixed in the same PR or filed as an issue; nothing stays only in chat.
 - Under reduced motion, collapsing a `<details>` leaves `open === false`.
 - Report header records the rule-set SHA; a newer upstream SHA is noted as
   drift, not silently adopted.
+- Alt audit: list `img[alt=""]`; write alt for meaningful images (wordmark,
+  video posters, facade thumbnails); keep decorative `alt="" aria-hidden`.
+- Lighthouse: median of 3+ runs before calling a regression (mobile LCP is
+  bimodal). A/B against a saved pre-change snapshot via request
+  interception in one session; read LCP phases (TTFB, render delay, fonts).
+- PSI API without a key hits quota: run local `lighthouse@12` mobile and
+  `--preset=desktop`, save the JSON.
+- Semantic-only changes get a pixel diff: reduced motion,
+  `document.fonts.ready`, full-page screenshot; bbox diff must be None.
 
 ## Sources
 
