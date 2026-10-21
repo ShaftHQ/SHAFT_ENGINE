@@ -39,6 +39,15 @@ class OwnedExcludesTest(unittest.TestCase):
         for pattern in (".chaos-engine/**", "plugins/chaos-engine/**", "**/skills/chaos-engine/**"):
             self.assertIn(pattern, owned)
 
+    def test_list_covers_installer_artifacts_mempalace_cannot_see_as_ignored(self):
+        # Consumer installs hide these via .git/info/exclude, which MemPalace's
+        # .gitignore-only matcher does not read (#7246 measured 5,464 backup and
+        # 4,117 host-receipt drawers in one consumer palace).
+        owned = self.dependencies.MEMPALACE_OWNED_EXCLUDES
+        for pattern in (".chaos-engine.backup/**", ".chaos-engine.backup.*/**",
+                        ".chaos-engine-*.json", ".chaos-engine.*"):
+            self.assertIn(pattern, owned)
+
     def test_installer_created_config_gets_valid_owned_excludes(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
