@@ -134,3 +134,16 @@ Diff the STATUS log, review log and failures against these cards. File one spec
 issue for what is new, then open ONE PR (`skip-release-notes`, auto-merge
 MERGE) and babysit it to merged. When nothing is new, write one report line
 naming the card that already holds each lesson.
+
+## Backup and recovery
+
+- Delete a working directory only if `git status` is clean and
+  `git ls-remote` shows the local HEAD on the remote. Otherwise keep it. A
+  cleanup request ("free space") never overrides this.
+- Every working directory gets a private remote: a repository in place, or
+  an external `GIT_DIR` with `info/exclude` for mixed directories. Bundle
+  (`git bundle --all`) any nested repository without a remote; skip files
+  over 50 MB and list them.
+- Attributing a deletion needs a command plus timestamp from transcripts or
+  history. If the trail predates the event (for example after a machine
+  restore), say "unattributable", not a guess.

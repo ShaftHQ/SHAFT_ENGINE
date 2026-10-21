@@ -16,7 +16,9 @@ targets, an anchored rubric, and 20 verified references.
 | [C09](transitions.md) | Transitions | [research/transitions.md](../research/transitions.md) |
 | [C10](hooks.md) | Hooks, thumbnails and posters | [research/hooks.md](../research/hooks.md) |
 | [C11](social-video.md) | Social media videos | [research/social-video.md](../research/social-video.md) |
+| [C12](training-decks.md) | Training and course decks | none |
 | [Squarespace 7.1](../site-builders/squarespace-7-1.md) | Web builder without JS (companion to C01) | none |
+| [Site merge and redirects](../site-builders/site-merge-redirects.md) | Page merge, anchors, 301s, SEO titles | none |
 
 - Ideas for the three-direction stage: [innovation bank](innovation-bank.md).
 - Reference index and motion study: [research/index.md](../research/index.md),

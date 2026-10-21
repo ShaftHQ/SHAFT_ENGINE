@@ -7,7 +7,7 @@ card, then update the SHA and date here.
 
 Pinned: 2026-10-03.
 
-Cards: 23 step cards (D01-D23) and 12 craft cards. D23 draws on no
+Cards: 23 step cards (D01-D23) and 13 craft cards. D23 draws on no
 upstream repository; its sources are platform and W3C documentation
 listed in the card.
 

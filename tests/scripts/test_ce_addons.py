@@ -254,15 +254,17 @@ class DesignContentTests(unittest.TestCase):
         refs = DESIGN / "references"
         expected = {
             "site-builders/squarespace-7-1.md": ("name: squarespace-7-1", "LESS 1.3.3", ".sqs-block-website-component", "srcdoc",
-                                                 "margin-inline-start", "safe-area-inset-bottom", "data:"),
+                                                 "margin-inline-start", "safe-area-inset-bottom", "data:", "NOINJ", "56.25%"),
+            "site-builders/site-merge-redirects.md": ("scroll-margin-top", "absolute https", "Disable, don't delete"),
+            "craft/training-decks.md": ("name: training-decks", "Source safety", "Chapter coherence", "Font pairing"),
             "craft/web-design.md": ("Release gate", "no owner", "site-builders/squarespace-7-1.md"),
-            "motion-principles.md": ("motion language uses scroll-drawn lines", "count-up runs once", "One motion focus"),
+            "motion-principles.md": ("motion language uses scroll-drawn lines", "30% of entry", "Card reveals: transform only", "One motion focus"),
             "typography-layout.md": ("«الـ»", "0.15em", "accordion arrows do not mirror"),
             "brand-system.md": ("override", "pixel-identical", "owner sign-off"),
             "web-interface-audit.md": ("1440 and 390", "mid-animation", "real viewport height"),
             "launch-video.md": ("1 fps", "several ASR models"),
             "image-graphics.md": ("no AI face edits", "200 KB", "native HTML/CSS"),
-            "pipelines/runbook.md": ("provably yours",),
+            "pipelines/runbook.md": ("provably yours", "git ls-remote", "unattributable"),
         }
         for name, needles in expected.items():
             text = (refs / name).read_text(encoding="utf-8")
