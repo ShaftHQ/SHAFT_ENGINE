@@ -163,6 +163,22 @@ def load_stamp_fresh(installed_root: Path, now: float | None = None) -> bool:
     return 0 <= age <= LOAD_STAMP_MAX_AGE and digest == current
 
 
+def load_stamp_refusal(installed_root: Path, tool: str) -> str:
+    """#7207: say why the stamp is stale and list every step, in order."""
+    try:
+        digest, stamped, *phrase = (installed_root / "runtime" / "entry-stamp").read_text(encoding="utf-8").split(" ", 2)
+        current = hashlib.sha256(entry_bundle(installed_root, " ".join(phrase).strip()).encode("utf-8")).hexdigest()[:12]
+        why = "bundle changed after entry (reinstall?)" if digest != current else "stamp older than 40 min"
+    except (OSError, ValueError):
+        why = "no entry stamp"
+    steps = ["install/repair if doctor is not pass", "`tool.py entry --full`"]
+    if tool == "checkpoint":
+        steps += [RETRIEVE_REFUSAL.removesuffix(" first"), "`tool.py checkpoint <task> <step> --start --spec PATH`"]
+    else:
+        steps += [f"`tool.py {tool} <task>`"]
+    return f"{LOAD_STAMP_REFUSAL} ({why}). Order: " + "; then ".join(steps)
+
+
 MAINTAIN_STASH = "chaos-engine-maintain"
 MAINTAIN_RELOAD = (
     "Reload now: re-read `.chaos-engine/skills/chaos-engine/SKILL.md` and both companion "
@@ -709,7 +725,7 @@ SCRIPT_TOOLS = {
 
 def script_tool(installed_root: Path, tool: str, arguments: list[str]) -> int:
     if tool in LOAD_STAMP_GATED and not load_stamp_fresh(installed_root):
-        print(LOAD_STAMP_REFUSAL, file=sys.stderr)
+        print(load_stamp_refusal(installed_root, tool), file=sys.stderr)
         return 2
     if tool == "checkpoint" and retrieve_owed(installed_root, arguments):
         print(RETRIEVE_REFUSAL, file=sys.stderr)

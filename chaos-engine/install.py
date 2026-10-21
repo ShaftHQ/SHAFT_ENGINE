@@ -623,6 +623,31 @@ def keep_installed_addons(project: Path, source: Path) -> list[str]:
     return kept
 
 
+KEPT_ADDONS_FILE = ".chaos-engine-state/addons-kept.txt"
+
+
+def record_kept_addons(project: Path, kept: list[str]) -> None:
+    """#7250: remember add-ons kept from an installed copy so doctor can flag them."""
+    path = Path(project) / KEPT_ADDONS_FILE
+    if not kept and not path.is_file():
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(f"{name}\n" for name in kept), encoding="utf-8")
+
+
+def kept_addons_line(project: Path | None) -> str:
+    """Advisory doctor row; empty when no add-on is frozen at an installed copy."""
+    path = Path(project) / KEPT_ADDONS_FILE if project is not None else None
+    try:
+        names = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()] if path else []
+    except OSError:
+        return ""
+    if not names:
+        return ""
+    return (f"addon {', '.join(names)}: stale-source (installed copy kept; "
+            "reinstall with its source or CHAOS_ENGINE_ADDON_PATHS)")
+
+
 def plan_install(
     project: Path,
     source: Path,
@@ -634,7 +659,7 @@ def plan_install(
 
     No add-on is ever selected because of what the project contains.
     """
-    keep_installed_addons(project, source)
+    record_kept_addons(project, keep_installed_addons(project, source))
     catalog = addon_catalog()
     found = catalog.discover(source)
     files, current = installed_record(project)
@@ -6210,6 +6235,10 @@ def _repair_policy_overlay(project: Path, runner) -> dict[str, object]:
         removed = remove_nested_install_artifacts(overlay) if match.nested_overlay_drift(overlay) else []
         action = "removed-nested-overlay" if removed else "verified"
         return {"status": "repaired", "component": "policy-overlay", "action": action, "removed": removed}
+    refusal = linked_worktree_refusal(project)
+    if refusal:
+        # #7229: install refuses linked worktrees; give its exact fix instead of "reinstall failed".
+        raise ValueError("policy-overlay drift in a " + refusal)
     commit = subprocess.run(  # nosec B603 B607 - fixed git argv, no shell.
         ["git", "-C", str(project), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()
@@ -7104,7 +7133,7 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
     return lines
 
 
-AGENT_SUMMARY_MAX_LINES = 8
+AGENT_SUMMARY_MAX_LINES = 9
 
 
 def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
@@ -7155,6 +7184,9 @@ def format_agent_summary(document: dict[str, object]) -> str:
     ]
     if delete_guard_status()[0] != "pass":
         lines[0] = "doctor: fail"
+    kept = kept_addons_line(installed_project())
+    if kept:
+        lines.append(kept)
     privacy = mempalace_privacy_line(installed_project())
     if privacy:
         lines.append(privacy)

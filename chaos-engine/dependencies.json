@@ -305,7 +305,7 @@
       ]
     },
     "graphify": {
-      "package": "graphifyy==0.9.88",
+      "package": "graphifyy==0.9.93",
       "with": [
         "tree-sitter-sql==0.3.11"
       ],

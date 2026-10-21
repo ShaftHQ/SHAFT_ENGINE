@@ -18,7 +18,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-DISJOINT_MESSAGE = "ChaosEngine source and project trees must be disjoint"
+DISJOINT_MESSAGE = (
+    "ChaosEngine source and project trees must be disjoint; self-install from a detached worktree: "
+    "git worktree add -f --detach ../ce-src <sha> && install --source ../ce-src/chaos-engine --commit <sha>"
+)
 
 STORE_BUDGET_BYTES = {
     "memory": 1200,
