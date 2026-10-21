@@ -37,6 +37,8 @@ Only the owner mints a token, at an interactive terminal, by typing the path:
 1 h). The agent then runs the delete with `CHAOS_DELETE_ACK=<token>`. Each
 override is logged to `~/.local/state/chaos-engine/delete-overrides.jsonl`.
 An agent never runs `--issue-ack` or writes the ack store itself.
+Never route around a refusal (variable, `xargs`, a script file): commit and
+push, or `cp -a` a backup and get the owner's OK.
 
 ## Doctor
 
