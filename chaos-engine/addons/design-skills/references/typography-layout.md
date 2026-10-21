@@ -63,6 +63,9 @@ page, poster, slide, or video frame.
   it never ends a line alone; re-check every re-pasted block. Wrap Latin in
   `<bdi>`; on zoom crops at every width the baseline offset is <= 1 px and
   the script-boundary gap >= 0.15em.
+- Platform lacks the site language: put `lang="ar" dir="rtl"` (or the
+  target pair) on every block root and `lang="en"` on every Latin `<bdi>`.
+  Prove the render pixel-identical to the no-attribute version.
 - RTL accordion arrows do not mirror: down when closed, up when open.
 - Code blocks are exempt from the measure rule but must scroll inside their
   own box, never the page.

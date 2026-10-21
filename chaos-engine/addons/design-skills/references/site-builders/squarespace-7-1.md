@@ -65,6 +65,19 @@ locks Code Injection, so only Custom CSS and Code blocks are available.
 - Motion rules: [D08](../motion-principles.md). RTL text:
   [D05](../typography-layout.md).
 
+## Source vs rendered, plan limits
+
+- Paste source, never rendered DOM. Copies from the live page carry
+  `.sqs-code-container` and `<style class="transform-vars">`; re-pasting
+  nests one wrapper per pass. Keep paste source (`NN-*.html`) apart from
+  rendered copies (`*.rendered.html`). After apply,
+  `.sqs-code-container .sqs-code-container` count must be 0.
+- Read the plan and the site-language list before planning SEO work. The
+  Personal plan has no Code Injection or scripts: no JSON-LD, and the http
+  `og:image`/`twitter:image` emitted for static1 URLs cannot be overridden.
+  A missing site language keeps `<html lang>` fixed; set language per block
+  ([D05](../typography-layout.md)). Drop impossible items early.
+
 ## Recovery from live
 
 Rebuild lost source from the served Custom CSS URL (in the page HTML) and
