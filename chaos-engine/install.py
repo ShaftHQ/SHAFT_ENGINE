@@ -7057,7 +7057,7 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
     return lines
 
 
-AGENT_SUMMARY_MAX_LINES = 5
+AGENT_SUMMARY_MAX_LINES = 6
 
 
 def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
@@ -7104,6 +7104,9 @@ def format_agent_summary(document: dict[str, object]) -> str:
         f"drift: {drift}",
         "token-economy: " + " ".join(token_economy_status()),
     ]
+    privacy = mempalace_privacy_line(installed_project())
+    if privacy:
+        lines.append(privacy)
     return "\n".join(lines[:AGENT_SUMMARY_MAX_LINES]) + "\n"
 
 
@@ -7129,6 +7132,11 @@ DOCTOR_FAILING_STATUSES = frozenset({"recovery-required", "failed"})
 def doctor_exit_code(document: dict[str, object]) -> int:
     """Doctor exits non-zero when recovery is required, in every output mode."""
     return 1 if str(document.get("status") or "") in DOCTOR_FAILING_STATUSES else 0
+
+
+def installed_project() -> Path:
+    """The project an installed overlay serves: the parent of `.chaos-engine/`."""
+    return Path(__file__).resolve().parent.parent
 
 
 def mempalace_privacy_line(project: Path, root: Path | None = None) -> str:
@@ -7160,6 +7168,8 @@ def agent_summary_exit_code(document: dict[str, object]) -> int:
     if str(document.get("status") or "") != "healthy":
         return 1
     if token_economy_status()[0] != "pass":
+        return 1
+    if mempalace_privacy_line(installed_project()).startswith("mempalace privacy: fail"):
         return 1
     return 0
 
@@ -7626,11 +7636,7 @@ def main() -> int:
             raise TypeError("doctor/status result must be an object")
         if getattr(args, "agent_summary", False):
             print(format_agent_summary(result), end="")
-            privacy = mempalace_privacy_line(Path(getattr(args, "project", None) or "."))
-            if privacy:
-                print(privacy)
-            code = agent_summary_exit_code(result)
-            return code or (1 if privacy.startswith("mempalace privacy: fail") else 0)
+            return agent_summary_exit_code(result)
         if getattr(args, "digest", False):
             print(load_source_controller("hosts").doctor_digest(result))
             return agent_summary_exit_code(result)
