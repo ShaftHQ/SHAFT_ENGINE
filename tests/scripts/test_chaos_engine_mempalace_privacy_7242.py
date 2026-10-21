@@ -62,7 +62,7 @@ class MempalacePrivacyTests(unittest.TestCase):
             (root / ".chaos-engine-state/privacy-terms.txt").write_text("# clients\nAcmeCorp\n", encoding="utf-8")
             (root / ".chaos-engine-state/privacy-allow.txt").write_text("info@example.org\n", encoding="utf-8")
             verdict, detail = self._status(root, ["worked with acmecorp", "contact info@example.org", "notacmecorpish"])
-        self.assertEqual(("fail", "term-1=1"), (verdict, detail))
+        self.assertEqual(("fail", "terms=1"), (verdict, detail))
 
     def test_output_never_echoes_the_matched_text(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -88,6 +88,17 @@ class MempalacePrivacyTests(unittest.TestCase):
                 (root / ".chaos-engine-state").mkdir()
                 (root / ".chaos-engine-state/privacy-terms.txt").write_text("", encoding="utf-8")
                 self.assertEqual("mempalace privacy: fail (money=1)", install.mempalace_privacy_line(root))
+
+    def test_a_thousand_terms_compile_to_one_pattern(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".chaos-engine-state").mkdir()
+            (root / ".chaos-engine-state/privacy-terms.txt").write_text(
+                "\n".join(f"Person{i}" for i in range(1000)), encoding="utf-8")
+            compiled = self.privacy.patterns(root)
+            self.assertEqual({"email", "money", "terms"}, set(compiled))
+            self.assertTrue(compiled["terms"].search("met person999 today"))
+            self.assertIsNone(compiled["terms"].search("person9999"))
 
 
 if __name__ == "__main__":

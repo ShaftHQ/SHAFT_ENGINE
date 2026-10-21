@@ -37,15 +37,18 @@ def _lines(path: Path) -> list[str]:
 
 
 def patterns(project: Path) -> dict[str, re.Pattern[str]]:
+    """Generic patterns plus ONE combined whole-word alternation for all private terms."""
     found = dict(GENERIC)
-    for number, term in enumerate(_lines(project / TERMS), 1):
-        found[f"term-{number}"] = re.compile(rf"(?<!\w){re.escape(term)}(?!\w)", re.IGNORECASE)
+    terms = sorted(set(_lines(project / TERMS)), key=len, reverse=True)
+    if terms:
+        alternation = "|".join(re.escape(term) for term in terms)
+        found["terms"] = re.compile(rf"(?<!\w)(?:{alternation})(?!\w)", re.IGNORECASE)
     return found
 
 
 def scan(database: Path, project: Path) -> dict[str, list[str]]:
     """Return {pattern name: [drawer ids]} for every hit not on the allow list."""
-    allow = [item.casefold() for item in _lines(project / ALLOW)]
+    allow = {item.casefold() for item in _lines(project / ALLOW)}
     compiled = patterns(project)
     hits: dict[str, list[str]] = {}
     connection = sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
@@ -53,10 +56,8 @@ def scan(database: Path, project: Path) -> dict[str, list[str]]:
         for drawer, text in connection.execute("select id, document from documents"):
             text = str(text or "")
             for name, pattern in compiled.items():
-                for match in pattern.finditer(text):
-                    if match.group(0).casefold() not in allow:
-                        hits.setdefault(name, []).append(str(drawer))
-                        break
+                if any(match.group(0).casefold() not in allow for match in pattern.finditer(text)):
+                    hits.setdefault(name, []).append(str(drawer))
     finally:
         connection.close()
     return hits
