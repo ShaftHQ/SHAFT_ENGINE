@@ -24,6 +24,9 @@ Install first: [harness maintenance](harness-maintenance.md#install).
    [research receipt](research-receipt.md).
    Agentic PRs carry `<!-- chaos-engine:agentic -->` (or the `agentic` label);
    CI then requires `## Plan` and `retrieve:` lines. Human PRs are exempt.
+4. Before any delete (`rm`, `git clean`, `find -delete`, `rmtree`), run
+   `python3 .chaos-engine/tool.py delete-check <paths>` (or `--command "<cmd>"`)
+   and stop on refusal: [delete guard](delete-guard.md).
 
 Re-runs print one line while the harness is unchanged; `--full` reprints the
 cards. Run `--full` at the start of every conversation and after every

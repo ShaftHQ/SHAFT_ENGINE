@@ -43,6 +43,14 @@ owner/repository" after the fast-forward. Reinstall once with
 `python3 .chaos-engine/bootstrap.py --project . --repository OWNER/REPO --branch BRANCH --distribution portable`;
 newer overlays recover on their own.
 
+## Deletes
+
+A bot workspace with no pushed copy is one `rm` from total loss (#7251: about
+85 GB lost on a shared box, cause unknown). Never delete what is untracked,
+dirty or unpushed; the [delete guard](delete-guard.md) refuses it, and doctor's
+`backup-remote` row names workspaces to push or back up. Move, never remove,
+when unsure.
+
 ## Always-loaded budget
 
 Bytes a bot host loads every task (`tool.py entry --full`, bot entry,

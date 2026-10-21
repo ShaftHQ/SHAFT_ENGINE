@@ -405,6 +405,8 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_entry_parity_7242",
             "tests.scripts.test_chaos_engine_harness_map_7242",
             "tests.scripts.test_chaos_engine_token_economy_7242",
+            # #7251: delete guard hook, delete-check tool and doctor rows.
+            "tests.scripts.test_chaos_engine_delete_guard_7251",
             "tests.scripts.test_chaos_engine_register_rule_7242",
             "tests.scripts.test_chaos_engine_retrieve_marker_7242",
             "tests.scripts.test_chaos_engine_mempalace_privacy_7242",
@@ -665,6 +667,8 @@ SURFACE_PATTERNS = {
         "chaos-engine/harness_map.py",
         "tests/scripts/test_chaos_engine_token_economy_7242.py",
         "chaos-engine/token_economy.py",
+        "tests/scripts/test_chaos_engine_delete_guard_7251.py",
+        "chaos-engine/delete_guard.py",
         "tests/scripts/test_chaos_engine_register_rule_7242.py",
         "tests/scripts/test_chaos_engine_retrieve_marker_7242.py",
         "tests/scripts/test_chaos_engine_mempalace_privacy_7242.py",

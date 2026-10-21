@@ -684,6 +684,31 @@ def shares_git_directory(cwd: Path) -> bool:
     return False
 
 
+def _delete_guard():
+    """#7251: core module one level up (installed `.chaos-engine/` and source `chaos-engine/`)."""
+    path = Path(__file__).resolve().parents[1] / "delete_guard.py"
+    if not path.is_file():
+        return None
+    specification = importlib.util.spec_from_file_location("chaos_engine_delete_guard", path)
+    if specification is None or specification.loader is None:
+        return None
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    return module
+
+
+def delete_guard_reason(commands: tuple[str, ...], cwd: Path) -> str:
+    """Refuse deletes of untracked, dirty, or unpushed work (#7251); unsure parse refuses."""
+    guard = _delete_guard()
+    if guard is None:
+        return ""
+    for command in commands:
+        reason = guard.block_reason(command, cwd, cwd)
+        if reason:
+            return reason
+    return ""
+
+
 def linked_worktree_stash_reason(commands: tuple[str, ...], cwd: Path) -> str:
     for command in commands:
         for segment in re.split(r"&&|\|\||;|\||\r?\n", command):
@@ -1143,6 +1168,11 @@ def _run_event(event: dict, _host: str) -> int:
         if stash_block:
             _record_denial_with_significance(event, event_name, tool_name)
             print(json.dumps({"decision": "block", "reason": stash_block}))
+            return 2
+        delete_block = delete_guard_reason(commands, Path(str(event.get("cwd") or Path.cwd())))
+        if delete_block:
+            _record_denial_with_significance(event, event_name, tool_name)
+            print(json.dumps({"decision": "block", "reason": delete_block}))
             return 2
     root_session_id = str(event.get("session_id") or event.get("sessionId") or "")
     session_id = reflection.scope_session_id(
