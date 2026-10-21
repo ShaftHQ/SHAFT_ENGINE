@@ -7,6 +7,7 @@ import importlib.util
 import inspect
 
 import argparse
+import atexit
 import base64
 import contextlib
 from contextlib import contextmanager, nullcontext
@@ -577,6 +578,51 @@ def provision_account_dependencies(
     return account_receipt
 
 
+def keep_installed_addons(project: Path, source: Path) -> list[str]:
+    """Stage installed copies of recorded external add-ons the source lacks (#7248).
+
+    The official one-liner downloads only the core tree, so a sibling-repository
+    add-on is missing from ``source``; keep the project's installed copy instead
+    of silently dropping it, and say so.
+    """
+    catalog = addon_catalog()
+    found = catalog.discover(source)
+    files, current = installed_record(project)
+    missing = sorted(catalog.installed(found, files, current) - set(found))
+    if not missing:
+        return []
+    staging = Path(tempfile.mkdtemp(prefix="chaos-engine-kept-addons-"))
+    atexit.register(shutil.rmtree, staging, True)
+    kept: list[str] = []
+    for name in missing:
+        root = Path(project) / INSTALL_DIRECTORY / catalog.DIRECTORY / name
+        try:
+            if is_link_or_reparse(root) or not (root / catalog.MANIFEST).is_file():
+                raise ValueError(name)
+            manifest = catalog._load(root / catalog.MANIFEST, False)
+            if manifest.get("name") != name or manifest.get("distribution"):
+                raise ValueError(name)
+        except ValueError:
+            print(f"addon dropped: {name} (source and installed copy not found)", file=sys.stderr)
+            continue
+        target = staging / name
+        for path in sorted(root.rglob("*")):
+            if is_link_or_reparse(path) or not path.is_file() or "__pycache__" in path.parts:
+                continue
+            destination = target / path.relative_to(root)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(path, destination)
+        # Includes were already materialized into the installed copy.
+        manifest.pop("include", None)
+        (target / catalog.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        kept.append(name)
+        print(f"addon kept: {name} (source not found)", file=sys.stderr)
+    if kept:
+        current_paths = os.environ.get(catalog.PATHS_ENVIRONMENT, "")
+        os.environ[catalog.PATHS_ENVIRONMENT] = os.pathsep.join(filter(None, (current_paths, str(staging))))
+    return kept
+
+
 def plan_install(
     project: Path,
     source: Path,
@@ -588,6 +634,7 @@ def plan_install(
 
     No add-on is ever selected because of what the project contains.
     """
+    keep_installed_addons(project, source)
     catalog = addon_catalog()
     found = catalog.discover(source)
     files, current = installed_record(project)

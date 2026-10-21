@@ -1066,3 +1066,37 @@ class DesignRound4Tests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KeptExternalAddonTests_7248(unittest.TestCase):
+    """#7248: an upgrade whose source lacks a recorded external add-on keeps the installed copy."""
+
+    def test_recorded_external_addon_survives_a_source_without_it(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            installed = project / install.INSTALL_DIRECTORY / "addons" / "ext-coach"
+            (installed / "skills").mkdir(parents=True)
+            (installed / "addon.json").write_text(json.dumps({
+                "schemaVersion": 1, "kind": "addon", "name": "ext-coach", "requires": [],
+                "description": "d", "useWhen": "u", "persona": "skills/card.md",
+                "include": [{"from": "../..", "globs": ["brand/**/*"]}],
+            }), encoding="utf-8")
+            (installed / "skills" / "card.md").write_text("persona", encoding="utf-8")
+            (project / install.INSTALL_DIRECTORY / install.MANIFEST_NAME).write_text(json.dumps({
+                "files": {"addons/ext-coach/addon.json": "x", "addons/ext-coach/skills/card.md": "y"},
+            }), encoding="utf-8")
+            stderr = io.StringIO()
+            with mock.patch.dict(os.environ, {}, clear=False), contextlib.redirect_stderr(stderr):
+                os.environ.pop(catalog.PATHS_ENVIRONMENT, None)
+                _, addons = install.plan_install(project, CE, set(), set(), environ={})
+                self.assertIn("ext-coach", addons)
+                self.assertIn("addon kept: ext-coach (source not found)", stderr.getvalue())
+                relatives = {
+                    install.payload_relative(CE, path).as_posix()
+                    for path in install.addon_source_files(CE, "portable", ("ext-coach",))
+                }
+            self.assertEqual({"addons/ext-coach/addon.json", "addons/ext-coach/skills/card.md"}, relatives)
+            # An explicit removal still wins over the kept copy.
+            with mock.patch.dict(os.environ, {}, clear=False), contextlib.redirect_stderr(io.StringIO()):
+                os.environ.pop(catalog.PATHS_ENVIRONMENT, None)
+                self.assertNotIn("ext-coach", install.plan_install(project, CE, set(), {"ext-coach"}, environ={})[1])
