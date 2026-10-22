@@ -9,6 +9,7 @@ Learned in coalesce wave: babysit, process-owner, and parent turns burned tokens
 - [A green check can hide failing tests](#a-green-check-can-hide-failing-tests)
 - [A late label can leave a cancelled required check](#a-late-label-can-leave-a-cancelled-required-check)
 - [A registry 404 for a published artifact is infrastructure first](#a-registry-404-for-a-published-artifact-is-infrastructure-first)
+- [An upstream "latest" lists a version before its platform asset](#an-upstream-latest-lists-a-version-before-its-platform-asset)
 - [Merge queue and same-account pull requests](#merge-queue-and-same-account-pull-requests)
 - [A rerun replays the old event](#a-rerun-replays-the-old-event)
 - [Release watch](#release-watch)
@@ -68,6 +69,14 @@ When a job fails with "could not find artifact" for a release that should exist:
 2. Reproduce with an empty local cache (`-Dmaven.repo.local`-style override). A pass confirms it.
 3. Fix by retrying in a fresh process (the repo's retry helper under `scripts/ci/`), never by editing versions.
 4. If `gh run view --log-failed` omits a failed job, read it with `gh api repos/<owner>/<repo>/actions/jobs/<job-id>/logs`.
+
+## An upstream "latest" lists a version before its platform asset
+
+A vendor channel can list a new GA while one OS's download still returns 404
+(Temurin: Linux 200, Windows 404). Fix forward in the resolver: on HTTP 404 only,
+fall back to the pinned version from the dependency spec, with a test. A frozen
+acceptance base that resolves "latest" gets a narrow skip (exact base SHA, exact
+command, 404 mark); the candidate install still runs.
 
 ## Merge queue and same-account pull requests
 

@@ -78,6 +78,16 @@ when unsure.
   ChaosEngine-owned excludes, because MemPalace reads only `.gitignore`.
   Re-mining is idempotent.
 
+- A repo can keep its git dir elsewhere (`.git` file, `git init --separate-git-dir`).
+  The parent of `--git-common-dir` is the worktree only when that dir is named
+  `.git`; `git worktree list` then names the git dir itself. Resolve with
+  `--show-toplevel`, and test path code with a separate-git-dir repo.
+
+- Core `chaos-engine/` files ship portable: no repository or owner names
+  (installer test) and no ecosystem terms (`ECOSYSTEM_TERMS` in
+  `scripts/ci/ce_lean_lint.py`; it scans references too). Put ecosystem data in `packs/<lang>/` and project data in an
+  add-on's JSON, and have core code read it.
+
 ## Always-loaded budget
 
 Bytes a bot host loads every task (`tool.py entry --full`, bot entry,
