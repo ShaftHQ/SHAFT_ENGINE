@@ -43,6 +43,7 @@ import tempfile
 import unittest
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.ci.validate_agent_guidance import expand_reported_globs, require_glob_list
 from scripts.ci.validate_skills import validate_repository, validate_skill
 

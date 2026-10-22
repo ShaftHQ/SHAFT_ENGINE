@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.ci.overlay_in_temp import session_overlay
 
 

@@ -2,12 +2,17 @@
 // ponytail — UserPromptSubmit hook to track which ponytail mode is active
 // Inspects user input for /ponytail commands and writes mode to flag file
 
-const { getDefaultMode, isDeactivationCommand, writeDefaultMode } = require('./ponytail-config');
+const fs = require('fs');
+const path = require('path');
+const { spawn } = require('child_process');
+const { getClaudeDir, getDefaultMode, isDeactivationCommand, writeDefaultMode } = require('./ponytail-config');
 const {
   clearMode,
   cursorRuleNotice,
   cursorRulePath,
+  isCodeBuddy,
   isCodex,
+  isCopilot,
   isCursor,
   isQoder,
   readMode,
@@ -42,6 +47,7 @@ function finish() {
     // Match /ponytail commands
     let modeSwitched = false;
     let deactivated = false;
+    let defaultNotice = '';
     if (/^[/@$]ponytail/.test(prompt)) {
       const parts = prompt.split(/\s+/);
       const cmd = parts[0].replace(/^[@$]/, '/');
@@ -62,9 +68,39 @@ function finish() {
           const dmode = parts[2];
           if (dmode === 'off' || dmode === 'lite' || dmode === 'full' || dmode === 'ultra') {
             writeDefaultMode(dmode);
-            writeHookOutput('UserPromptSubmit', dmode, 'PONYTAIL DEFAULT SET — new sessions start in ' + dmode + '.');
+            defaultNotice = 'PONYTAIL DEFAULT SET — new sessions start in ' + dmode + '.';
+            if (!isQoder) writeHookOutput('UserPromptSubmit', dmode, defaultNotice);
           }
-          return; // don't fall through to the session-mode switch
+          // Qoder still needs this turn's ruleset: the block below folds the
+          // notice into it. mode stays null, so the session level is untouched.
+          if (!isQoder) return; // don't fall through to the session-mode switch
+        }
+        // `/ponytail band [on|off]` shows or hides the band above the Claude Code
+        // prompt (hooks/band reads this flag). It outlives the session; absent = shown.
+        // Other hosts have no band, so there the word stays an unknown argument.
+        if (arg === 'band' && !isCopilot && !isCodex && !isQoder && !isCodeBuddy && !isCursor) {
+          // `/ponytail band import`: past sessions into the board, in the background, so the prompt
+          // is answered right away while the transcripts are read. Detached, it outlives this hook's
+          // process.exit below.
+          if (parts[2] === 'import') {
+            spawn(process.execPath, [path.join(__dirname, 'ponytail-band-import.js')], { detached: true, stdio: 'ignore' });
+            writeHookOutput('UserPromptSubmit', readMode() || 'off', 'PONYTAIL BAND IMPORT: past Claude Code sessions (cost, agent time, tokens) are being added to the board in the background. Open the board in a minute. Confirm in one short line.');
+            return;
+          }
+          const flag = path.join(getClaudeDir(), '.ponytail-band');
+          let hidden = false;
+          try { hidden = fs.readFileSync(flag, 'utf8').trim() === 'off'; } catch (e) {}
+          const show = parts[2] === 'on' ? true : parts[2] === 'off' ? false : hidden;
+          if (show) {
+            try { fs.unlinkSync(flag); } catch (e) {}
+          } else {
+            fs.mkdirSync(path.dirname(flag), { recursive: true });
+            fs.writeFileSync(flag, 'off');
+          }
+          writeHookOutput('UserPromptSubmit', readMode() || 'off', show
+            ? 'PONYTAIL BAND ON: the band shows above the prompt again. The ponytail level is unchanged. Confirm in one short line.'
+            : 'PONYTAIL BAND OFF: the band above the prompt is hidden, `/ponytail band` brings it back. The ponytail level is unchanged. Confirm in one short line.');
+          return;
         }
         if (arg === 'lite') mode = 'lite';
         else if (arg === 'full') mode = 'full';
@@ -146,10 +182,12 @@ function finish() {
       if (currentMode && currentMode !== 'off') {
         // ponytail: one JSON per invocation — mode-switch confirmation is
         // folded into the ruleset header so Qoder gets both in one write.
-        const header = modeSwitched
+        const header = (defaultNotice ? defaultNotice + '\n\n' : '') + (modeSwitched
           ? 'PONYTAIL MODE CHANGED — level: ' + currentMode + '\n\n'
-          : '';
+          : '');
         writeHookOutput('UserPromptSubmit', currentMode, header + getPonytailInstructions(currentMode));
+      } else if (defaultNotice) {
+        writeHookOutput('UserPromptSubmit', currentMode, defaultNotice);
       }
     }
   } catch (e) {

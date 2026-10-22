@@ -597,6 +597,34 @@ def _consumer_fingerprint(
     return package, version, tuple(digests), texts
 
 
+def _changed_strings(before: Any, after: Any) -> list[tuple[str, str]]:
+    if isinstance(before, str) and isinstance(after, str):
+        return [] if before == after else [(before, after)]
+    if isinstance(before, dict) and isinstance(after, dict) and before.keys() == after.keys():
+        return [pair for key in before for pair in _changed_strings(before[key], after[key])]
+    if isinstance(before, list) and isinstance(after, list) and len(before) == len(after):
+        return [pair for old, new in zip(before, after) for pair in _changed_strings(old, new)]
+    if before == after:
+        return []
+    raise ValueError("structural change")
+
+
+def preserve_format(text: str, before: Any, after: Any) -> str:
+    """#7205: edit only the changed pin strings, keeping the file's layout; else pretty-print."""
+    try:
+        rewritten = text
+        for old, new in dict.fromkeys(_changed_strings(before, after)):
+            quoted = json.dumps(old)
+            if quoted not in rewritten:
+                raise ValueError(old)
+            rewritten = rewritten.replace(quoted, json.dumps(new))
+        if json.loads(rewritten) == after:
+            return rewritten
+    except ValueError:
+        pass
+    return json.dumps(after, indent=2) + "\n"
+
+
 def apply_release_files(root: Path, release: Mapping[str, Any]) -> None:
     """Rewrite the linked pin files under ``root`` or reject a one-sided result."""
     spec_path = root / "chaos-engine" / "dependencies.json"
@@ -618,7 +646,7 @@ def apply_release_files(root: Path, release: Mapping[str, Any]) -> None:
         updated, rewritten, component
     ):
         return
-    spec_path.write_text(json.dumps(updated, indent=2) + "\n", encoding="utf-8")
+    spec_path.write_text(preserve_format(spec_path.read_text(encoding="utf-8"), spec, updated), encoding="utf-8")
     for label, path in wrapper_paths.items():
         path.write_text(rewritten[label], encoding="utf-8")
 

@@ -2,6 +2,7 @@ import subprocess  # nosec B404 - test uses mocked subprocess, never running ext
 import unittest.mock
 from pathlib import Path
 
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 import scripts.ci.verify_shaft_mcp_installer_release as verify
 
 run_installer = verify.run_installer

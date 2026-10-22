@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Durable jobs: long work that outlives the agent session (#6524).
 
-Hosts kill an agent session at a hard limit (about 50 minutes has been seen).
+Hosts kill an agent session at a hard limit (session cap: references/bot-entry.md).
 A durable job runs detached from the session under a supervisor. The supervisor
 keeps a lease (PID, process group, command, heartbeat) and a step checkpoint
 log, so any later session or watchdog can tell live from stale without a doc

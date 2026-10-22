@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Portable SHAFT lifecycle and PreToolUse guard for Claude, Codex, and Grok."""
+"""Portable SHAFT lifecycle and PreToolUse guard for Claude, Codex, and Grok.
+
+Canonical for SHAFT_ENGINE repository policy (R1-R9 below). ChaosEngine's
+portable core guard is chaos-engine/hooks/guard.py; it ships to every
+install and must not import this file. They share no code by design.
+"""
 # Stdlib only. Input is normalized before evaluation; policy below is shared.
 # Rules:
 #

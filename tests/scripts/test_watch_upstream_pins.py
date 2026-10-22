@@ -10,6 +10,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.ci.validate_quality_configuration import validate_workflow_readme_inventory
 from scripts.ci.watch_upstream_pins import (
     CAVEMAN_OVERLAY,
@@ -574,3 +575,42 @@ class LinkedPinSyncTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PreserveFormatTest(unittest.TestCase):
+    """#7205: a one-pin bump edits one line, keeping compact entries compact."""
+
+    def test_one_pin_bump_keeps_layout(self):
+        from scripts.ci.watch_upstream_pins import preserve_format, apply_release_files  # noqa: F401
+        text = '{\n  "a": {"package": "x==1.0", "with": ["y==2"]},\n  "b": {"package": "z==3"}\n}\n'
+        before = json.loads(text)
+        after = json.loads(text)
+        after["a"]["package"] = "x==1.1"
+        rewritten = preserve_format(text, before, after)
+        self.assertEqual(text.replace("x==1.0", "x==1.1"), rewritten)
+        self.assertEqual(after, json.loads(rewritten))
+
+    def test_structural_change_falls_back_to_pretty_print(self):
+        from scripts.ci.watch_upstream_pins import preserve_format
+        before = {"a": "1"}
+        after = {"a": "1", "b": "2"}
+        self.assertEqual(json.dumps(after, indent=2) + "\n", preserve_format('{"a": "1"}', before, after))
+
+    def test_workflow_refreshes_readme_inventory(self):
+        workflow = (Path(__file__).resolve().parents[2] / ".github/workflows/upstream-watch.yml").read_text(encoding="utf-8")
+        self.assertIn("validate_chaos_engine_readme.py --write", workflow)
+        self.assertIn("chaos-engine/README.md", workflow)
+
+
+class MavenToolsWindowsNightlyTest(unittest.TestCase):
+    """#7217: Windows Maven Tools install runs nightly without a global longpaths override."""
+
+    def test_job_unsets_global_longpaths_and_uses_maven_tools(self):
+        root = Path(__file__).resolve().parents[2]
+        text = (root / ".github/workflows/live-tools-nightly.yml").read_text(encoding="utf-8")
+        job = text.split("chaos-maven-tools-windows:", 1)[1].split("\n  notify:", 1)[0]
+        self.assertIn("windows-2025", job)
+        self.assertIn("--unset-all core.longpaths", job)
+        self.assertIn("--with-maven-tools", job)
+        self.assertLess(job.index("--unset-all core.longpaths"), job.index("--with-maven-tools"))
+        self.assertNotIn("chaos-maven-tools-windows", (root / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8"))

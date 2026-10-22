@@ -46,7 +46,7 @@ Use the first option the host supports:
 Forbidden:
 
 - An LLM worker, executor, or subagent whose job is to poll CI. That spends tokens on every check.
-- Foreground poll loops that keep a turn alive while waiting. Long-lived turns get killed by hosts (about 50 minutes has been observed), and the work dies with them.
+- Foreground poll loops that keep a turn alive while waiting. Long-lived turns get killed by hosts ([session cap](bot-entry.md#session-cap-grok-bot-default)), and the work dies with them.
 
 A zero-token waiter (option 1 or 2) is the only exception to [single thread](delegation.md). Real work stays on the one thread. When the wake fires, merge on green or fix on red, then continue the queue without asking the owner whether to proceed.
 

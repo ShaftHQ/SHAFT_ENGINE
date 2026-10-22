@@ -4,15 +4,15 @@ description: Use when work runs longer than a few minutes and must survive the a
 
 # Durable jobs
 
-Hosts kill agent sessions at a hard limit; about 50 minutes has been
-observed (see [CI status economy](ci-status-economy.md)). A durable job runs
+Hosts kill agent sessions at a hard limit; see the
+[session cap](bot-entry.md#session-cap-grok-bot-default). A durable job runs
 detached from the session under a supervisor that keeps a **lease** (PID,
 process group, command, heartbeat) and a **checkpoint log**. Any later
 session or watchdog reads the lease instead of guessing.
 
 ## Session-budget rules
 
-- Assume any session can die at about 45-50 min, at any point in a turn.
+- Stop and checkpoint by 35 min; assume any session can die at any point in a turn.
 - Anything longer than a few minutes runs as a durable job:
   `python3 .chaos-engine/tool.py job start <name> -- <command>`. Never as a
   foreground command, and never as a bare `nohup ... &`.

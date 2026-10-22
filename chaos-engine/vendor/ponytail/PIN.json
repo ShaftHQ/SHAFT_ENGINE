@@ -1,16 +1,16 @@
 {
   "repository": "DietrichGebert/ponytail",
-  "commit": "2961b52fc1fe6a5a87c7a959a79512e5c2f3ffe5",
+  "commit": "09c434ab73ca43761c5d8b0c5d341926c2fba710",
   "license": "MIT",
   "files": {
     "LICENSE": "fb1bc6909ac3ef82d5c22106e32ef682b0cff66788fa915fb9b53b15c9d2f3ab",
-    "skills/ponytail/SKILL.md": "ba68ff26239c3c3b05b2a9a47ee0d9a6b93a69639a2555ec87a5d44bffaf2f0c",
-    "hooks/ponytail-activate.js": "1ebc3af449da55df6183bcbf7b6799d01cf632834540a88ab66d13b1e62c8375",
+    "skills/ponytail/SKILL.md": "9badd22a32e19cb884e46dfa8d3aae82bb81dfa5484105b8b4f0262df823a509",
+    "hooks/ponytail-activate.js": "6e492e997aa3e01560046daaed288b1cf68c596cc2b227744ec8b9fbdb5a230a",
     "hooks/ponytail-config.js": "89c6ad7932d5dc053f5a822cb81b3bdf835bf3bc163b988a87515e6a8e8bef1e",
     "hooks/ponytail-instructions.js": "36521752b3444ef8daa823edaa996170e6af2cd45c82193644acb3a42f3395f4",
-    "hooks/ponytail-mode-tracker.js": "3f54606cfca65828a8389169b432a5338eec58676a4f044d0693319f657b14ea",
+    "hooks/ponytail-mode-tracker.js": "ab2a7d89a71fdbecd5ea4d12ffe980c2213b80fe112d623ca13ceac0258307e7",
     "hooks/ponytail-runtime.js": "52d8e66d542d49217a9eb721942e7bd9f4ee46a56615fb3f53430276cfe3a592",
     "hooks/ponytail-subagent.js": "8da045eb96b5b919655bf4c12abfc7e5163af29b62b97ccaf633b75099390315",
-    "hooks/claude-codex-hooks.json": "626dec3a375f21b4d1d4e8499e576f7653923326efbaaf5fcedaad9c73ce905e"
+    "hooks/claude-codex-hooks.json": "3320ac7fae9bdded7fab83b62017db55c01b25af3f5896a518a5cf911072f54a"
   }
 }

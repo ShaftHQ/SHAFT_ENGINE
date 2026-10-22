@@ -94,6 +94,7 @@ const clearSessionPrev = cfg.clearSessionPrev || (() => removeFlag(prevPath));
 // hook to exactly its pre-#975 behavior — the one-line reminder, nothing more.
 const rulesetBanner = cfg.rulesetBanner || ((m) => 'CAVEMAN MODE ACTIVE — mode: ' + m);
 const loadRuleset = cfg.loadRuleset || (() => null);
+const fallbackRuleset = cfg.fallbackRuleset || (() => null);
 const thesisLine = cfg.thesisLine
   || (() => 'Respond terse like smart caveman. All technical substance stay. Only fluff die.');
 const { parseModeChange, INDEPENDENT_MODES } = requireSibling('caveman-parse', (m) =>
@@ -220,7 +221,10 @@ function handle(raw) {
         // entire budget means the host kills the hook before the child's own
         // timeout can fire and produce the fallback message. Windows process
         // spawn is ~10x macOS before antivirus (#819), so the margin is real.
-        block = execFileSync(process.execPath, argv, { encoding: 'utf8', timeout: 2500 }).trim();
+        // windowsHide: Claude Code Desktop has no console of its own, so Windows
+        // would give this child a NEW console window on every prompt (#1214).
+        // Ignored on other platforms.
+        block = execFileSync(process.execPath, argv, { encoding: 'utf8', timeout: 2500, windowsHide: true }).trim();
       } catch (e) {
         block = 'caveman-stats: could not run stats script.\nTry manually: node ' + statsPath;
       }
@@ -379,12 +383,11 @@ function handle(raw) {
     // `reinforce` is the gate as well as the reminder: it already encodes both
     // "caveman is active and not an independent mode" and the #634 repo
     // opt-out, so a project with defaultMode "off" gets neither line.
-    // A SKILL.md that cannot be read degrades to the reminder alone — the
-    // standalone hook install with no skills dir, the case activate.js covers
-    // with its hardcoded fallback.
+    // A SKILL.md that cannot be read — the standalone hook install has no
+    // skills dir — gets the same fallback ruleset activate.js injects there.
     let ruleset = null;
     if (switchedToMode && reinforce) {
-      const body = loadRuleset(switchedToMode, __dirname);
+      const body = loadRuleset(switchedToMode, __dirname) || fallbackRuleset(switchedToMode, __dirname);
       if (body) ruleset = rulesetBanner(switchedToMode) + '\n\n' + body.trimEnd();
     }
 
@@ -412,10 +415,15 @@ function handle(raw) {
 // replacement char by `'' + buffer`. Matters more now that the payload is
 // parsed per chunk rather than once at EOF.
 process.stdin.setEncoding('utf8');
+// A host that sends no complete payload and holds the pipe open would keep the
+// prompt waiting for the whole hook timeout. Give up, as the SessionStart hook
+// does (PAYLOAD_WATCHDOG_MS there).
+const watchdog = setTimeout(() => process.exit(0), 2000);
 process.stdin.on('data', chunk => {
   input += chunk;
   // A partial payload throws here and we simply wait for more bytes.
   try { JSON.parse(input); } catch (e) { return; }
+  clearTimeout(watchdog);
   handle(input);
   // pause() stops the flow but the 'data' listener has REFERENCED the stdin
   // handle, so the event loop stays alive until the host closes the write end.
@@ -437,4 +445,4 @@ process.stdin.on('error', () => process.exit(0));
 for (const stream of [process.stdout, process.stderr]) {
   stream.on('error', () => process.exit(0));
 }
-process.stdin.on('end', () => handle(input));
+process.stdin.on('end', () => { clearTimeout(watchdog); handle(input); });
