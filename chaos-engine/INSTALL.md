@@ -846,3 +846,15 @@ so every supported host shares the same outcomes.
 CI (`tests/scripts/test_ce_h2_gates.py`) fails when a per-turn command exceeds its budget:
 `tool.py entry` under 1 s, `retrieve --store graphify` under 5 s, `install.py doctor --json`
 under 10 s on a fixture project.
+
+## Host prerequisites (#7220)
+
+After a successful install, ChaosEngine checks git (git folders), mvn (Maven projects),
+gh (github.com remotes), and Node.js; on Windows also winget and PowerShell 7, with
+Chocolatey only as a fallback when winget stays unavailable. An interactive, non-CI run
+installs what is missing or outdated (Windows: winget; macOS: Homebrew). CI, no TTY, or
+Linux only reports the official command. Present tools at the latest known version are
+skipped; the latest-version lookup is cached for 24 h and offline counts as current.
+Selected add-ons may ship `post-install.json` to run a framework's agentic installer and
+offer its upgrader (default No, 10 s timeout, never in CI).
+Set `CHAOS_ENGINE_PREREQUISITES=off|report|install` or pass `--skip-prerequisites`.

@@ -3694,6 +3694,26 @@ def initialize_account_project_palace(project: Path, controller, host_controller
     return True
 
 
+def _prerequisites_module():
+    """#7220: host prerequisites helper shipped next to this installer, or None."""
+    path = Path(__file__).resolve().with_name("prerequisites.py")
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("ce_prerequisites_installer", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    except Exception:  # noqa: BLE001 - a broken helper never fails the install.
+        return None
+    finally:
+        sys.dont_write_bytecode = previous
+    return module
+
+
 def _consumer_mode_module():
     """#6237: consumer-mode helper shipped next to this installer, or None."""
     path = Path(__file__).resolve().with_name("consumer_mode.py")
@@ -6523,6 +6543,11 @@ def parser() -> argparse.ArgumentParser:
     )
     install_command.add_argument("--with-maven-tools", action="store_true")
     install_command.add_argument(
+        "--skip-prerequisites",
+        action="store_true",
+        help="Do not check or provision git, mvn, gh, Node.js, winget, PowerShell 7 (#7220).",
+    )
+    install_command.add_argument(
         "--consumer",
         action="store_true",
         help=(
@@ -7573,6 +7598,10 @@ def main() -> int:
                 if ".graphifyignore" not in untouched:
                     seed_graphify_ignore(args.project)
             _install_store_schedule(args.project)
+            if not args.skip_tools and not getattr(args, "skip_prerequisites", False):
+                prerequisites = _prerequisites_module()
+                if prerequisites is not None:
+                    result["prerequisites"] = prerequisites.run(args.project, install_ok=True)
         elif args.command == "repair":
             result = repair_component(args.project, args.component)
         elif args.command == "addons":

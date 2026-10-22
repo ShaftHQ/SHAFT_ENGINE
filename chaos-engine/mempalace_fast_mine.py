@@ -12,6 +12,8 @@ MemPalace 3.8 rewrites each drawer's full-text row with ``DELETE FROM docs_fts W
 2. An expression index on ``source_file`` serves ``file_already_mined`` and per-file deletes.
 
 Anything unexpected (another MemPalace version, a changed method) runs MemPalace unpatched.
+The shim also retires itself when the installed ``_replace_fts`` already deletes by rowid
+(upstream MemPalace/mempalace#2727, commit f0a23f0 on develop; unreleased as of 3.11.0, #6912).
 """
 
 from __future__ import annotations
@@ -73,6 +75,17 @@ def replace_fts(original):
     return _replace_fts
 
 
+def upstream_deletes_by_rowid(method) -> bool:
+    """True when MemPalace's own ``_replace_fts`` already uses the rowid delete (#6912)."""
+    import inspect
+
+    try:
+        source = inspect.getsource(method)
+    except (OSError, TypeError):
+        return False
+    return "DELETE FROM docs_fts WHERE rowid" in source
+
+
 def install() -> bool:
     """Patch MemPalace in this process; False (unpatched) for any unexpected shape."""
     try:
@@ -83,6 +96,8 @@ def install() -> bool:
     collection = getattr(sqlite_exact, "SQLiteExactCollection", None)
     original = getattr(collection, "_replace_fts", None)
     if getattr(mempalace, "__version__", None) not in SUPPORTED_VERSIONS or original is None:
+        return False
+    if upstream_deletes_by_rowid(original):
         return False
     collection._replace_fts = replace_fts(original)
     return True
