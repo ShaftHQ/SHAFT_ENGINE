@@ -621,6 +621,7 @@ def preserve_format(text: str, before: Any, after: Any) -> str:
         if json.loads(rewritten) == after:
             return rewritten
     except ValueError:
+        # In-place rewrite impossible; fall back to a full reformat below.
         pass
     return json.dumps(after, indent=2) + "\n"
 
