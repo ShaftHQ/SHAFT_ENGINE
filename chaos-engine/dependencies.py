@@ -1967,9 +1967,8 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             managed_python = str(candidate)
         managed_java = None
         if prerequisite_actions["java"] != "reused":
-            managed_java = install_latest_or_pinned_java(
+            managed_java = install_exact_java(
                 str(actions["java"].get("resolvedVersion") or ""),
-                specification,
                 system=selected_system,
                 opener=opener,
             )
@@ -2510,8 +2509,17 @@ def _ensure_node_siblings(root: Path, system: str) -> None:
         launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR)
 
 
-def install_latest_or_pinned_java(
-    version: str, specification: dict, *, system: str, opener=urllib.request.urlopen
+def _pinned_temurin_version() -> str:
+    path = Path(__file__).resolve().with_name("dependencies.json")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    return str(data.get("runtimes", {}).get("temurin", {}).get("version") or "")
+
+
+def install_exact_java(
+    version: str, *, system: str, opener=urllib.request.urlopen
 ) -> str:
     """Latest Temurin first; pinned runtime when its binary is not yet published here.
 
@@ -2519,15 +2527,15 @@ def install_latest_or_pinned_java(
     (25.0.5+8: linux 200, windows 404 on Oct 22 2026). Only a 404 falls back.
     """
     try:
-        return install_exact_java(version, system=system, opener=opener)
+        return _install_temurin_release(version, system=system, opener=opener)
     except urllib.error.HTTPError as error:
-        pinned = str(specification.get("runtimes", {}).get("temurin", {}).get("version") or "")
+        pinned = _pinned_temurin_version()
         if error.code != 404 or not pinned or pinned == version:
             raise
-        return install_exact_java(pinned, system=system, opener=opener)
+        return _install_temurin_release(pinned, system=system, opener=opener)
 
 
-def install_exact_java(
+def _install_temurin_release(
     version: str, *, system: str, opener=urllib.request.urlopen
 ) -> str:
     """Install one checksum-verified official Temurin 25 release for this account."""

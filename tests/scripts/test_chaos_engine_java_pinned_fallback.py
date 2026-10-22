@@ -16,7 +16,6 @@ def load():
     return module
 
 
-SPEC = {"runtimes": {"temurin": {"version": "25.0.4+7"}}}
 
 
 def http(code):
@@ -24,6 +23,9 @@ def http(code):
 
 
 class JavaPinnedFallbackTest(TestCase):
+    def setUp(self):
+        self.assertRegex(load()._pinned_temurin_version(), r"^25\.\d+\.\d+\+\d+$")
+
     def test_404_on_latest_falls_back_to_pinned(self):
         module = load()
         calls = []
@@ -34,16 +36,16 @@ class JavaPinnedFallbackTest(TestCase):
                 raise http(404)
             return "/java"
 
-        with mock.patch.object(module, "install_exact_java", side_effect=fake):
-            self.assertEqual("/java", module.install_latest_or_pinned_java("25.0.5+8", SPEC, system="windows"))
+        with mock.patch.object(module, "_install_temurin_release", side_effect=fake):
+            self.assertEqual("/java", module.install_exact_java("25.0.5+8", system="windows"))
         self.assertEqual(["25.0.5+8", "25.0.4+7"], calls)
 
     def test_other_errors_and_pinned_itself_still_raise(self):
         module = load()
-        with mock.patch.object(module, "install_exact_java", side_effect=http(403)):
+        with mock.patch.object(module, "_install_temurin_release", side_effect=http(403)):
             with self.assertRaises(urllib.error.HTTPError):
-                module.install_latest_or_pinned_java("25.0.5+8", SPEC, system="windows")
-        with mock.patch.object(module, "install_exact_java", side_effect=http(404)) as fake:
+                module.install_exact_java("25.0.5+8", system="windows")
+        with mock.patch.object(module, "_install_temurin_release", side_effect=http(404)) as fake:
             with self.assertRaises(urllib.error.HTTPError):
-                module.install_latest_or_pinned_java("25.0.4+7", SPEC, system="windows")
+                module.install_exact_java("25.0.4+7", system="windows")
             self.assertEqual(1, fake.call_count)
