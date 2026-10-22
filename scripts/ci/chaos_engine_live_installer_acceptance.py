@@ -443,6 +443,26 @@ def base_python_channel_blocked(error: Exception) -> bool:
     return BASE_PYTHON_CHANNEL_BLOCKED_MARK in str(error)
 
 
+# Frozen base 1dec809c on Windows: a pinned download it provisions now returns
+# HTTP 404 (run 39771855994, Oct 22 2026). Upstream artifact gone, not a
+# candidate regression; the candidate install still runs and must pass.
+BASE_DOWNLOAD_GONE = "base-upstream-download-gone"
+BASE_DOWNLOAD_GONE_MARK = (
+    "CE-INSTALL-FAILED: HTTP Error 404: Not Found; "
+    "failed phase: Provision dependencies"
+)
+
+
+def base_download_gone(error: Exception, base_sha: str, *, windows: bool) -> bool:
+    """Only the exact frozen-base public wrapper failing with a 404 during provisioning."""
+    return (
+        isinstance(error, AcceptanceCommandFailure)
+        and base_sha == KNOWN_BASE_SHA
+        and tuple(error.command) == tuple(public_wrapper_command(base_sha, windows=windows))
+        and BASE_DOWNLOAD_GONE_MARK in str(error)
+    )
+
+
 def upstream_python_abi_wheels(error: Exception) -> str | None:
     """#6780: name the CPython ABI tag when the frozen base cannot resolve native wheels.
 
@@ -1786,6 +1806,12 @@ def run_acceptance(
                         "status": "skipped",
                         "reason": BASE_PYTHON_CHANNEL_BLOCKED,
                         "requestedPython": "blocked",
+                    }
+                if base_download_gone(error, base_sha, windows=os.name == "nt"):
+                    return {
+                        "status": "skipped",
+                        "reason": BASE_DOWNLOAD_GONE,
+                        "requestedPython": "n/a",
                     }
                 transition = exact_base_compatibility_transition(
                     error, base_sha, windows=os.name == "nt"

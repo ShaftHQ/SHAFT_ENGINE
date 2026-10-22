@@ -1361,6 +1361,31 @@ class BasePythonChannelBlocked7116Test(TestCase):
         self.assertEqual([candidate, candidate], installs[1:])
 
 
+DOWNLOAD_GONE_DETAIL = (
+    "CE-INSTALL-FAILED: HTTP Error 404: Not Found; "
+    "failed phase: Provision dependencies; unhealthy: not reported"
+)
+
+
+class BaseDownloadGoneTest(TestCase):
+    """Frozen-base 404 during provisioning skips only the base chain; candidate must still pass."""
+
+    def test_404_on_frozen_base_wrapper_is_recognized_narrowly(self):
+        module = load_acceptance()
+        base = module.KNOWN_BASE_SHA
+        for windows in (True, False):
+            command = module.public_wrapper_command(base, windows=windows)
+            failure = module.AcceptanceCommandFailure(command, 1, DOWNLOAD_GONE_DETAIL)
+            self.assertTrue(module.base_download_gone(failure, base, windows=windows))
+            self.assertFalse(module.base_download_gone(failure, "e" * 40, windows=windows))
+            self.assertFalse(module.base_download_gone(RuntimeError(DOWNLOAD_GONE_DETAIL), base, windows=windows))
+            other = module.AcceptanceCommandFailure(command, 1, PYTHON_CHANNEL_DETAIL)
+            self.assertFalse(module.base_download_gone(other, base, windows=windows))
+        candidate_cmd = module.public_wrapper_command("d" * 40, windows=False)
+        self.assertFalse(module.base_download_gone(
+            module.AcceptanceCommandFailure(candidate_cmd, 1, DOWNLOAD_GONE_DETAIL), base, windows=False))
+
+
 ABI_FILLER = "wheel " * 400
 ABI_DETAIL = (
     "CE-INSTALL-FAILED: dependency command failed: uv: error: No solution found when "
