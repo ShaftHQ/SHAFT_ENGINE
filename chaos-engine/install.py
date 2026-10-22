@@ -7606,7 +7606,7 @@ def _run_install_command(args, requested, removed) -> object:
 
 
 def _cache_result(args) -> object:
-    """`cache status|purge` for downloads or the Maven Tools MCP."""
+    """`cache status|purge` for the downloads or maven-tools-mcp component."""
     if args.component == "downloads":
         controller = load_source_controller("dependencies")
         result = (

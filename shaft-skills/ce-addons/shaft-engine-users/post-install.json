@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "framework": "SHAFT_ENGINE",
-  "detect": {"pomGroupId": "io.github.shafthq"},
+  "detect": {"manifest": "pom.xml", "groupId": "io.github.shafthq"},
   "agenticInstall": {
     "posix": "curl -fsSL \"https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install.sh\" | sh",
     "nt": "irm \"https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/scripts/mcp/install.ps1\" | iex"

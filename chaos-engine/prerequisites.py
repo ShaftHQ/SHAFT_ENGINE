@@ -12,8 +12,9 @@ Design decisions (settled in #7220's batch-3 PR):
 * Package source per OS: Windows uses winget with vendor package ids. macOS
   uses Homebrew when present (no sudo). Linux is report-only: the vendor
   command is printed because every route needs sudo.
-* Maven and Node.js have no vendor winget/brew-free route everywhere; Maven on
-  Windows is report-only and points at ChaosEngine's own Maven runtime.
+* Ecosystem tools (for example the build tool of a language pack) come from
+  ``packs/*/prerequisites.json``: a marker file, package ids, and a report-only
+  fallback when no vendor route exists on that OS.
 * "Latest" lookup: one HTTPS call per present tool, cached 24 h under
   ``.chaos-engine-state/prerequisites-latest.json``; offline means "present
   counts as current", never a failure. Report mode makes no network calls.
@@ -43,8 +44,6 @@ RELEASES = "https://api.github.com/repos/{}/releases/latest"
 TOOLS: dict[str, dict[str, object]] = {
     "git": {"exe": "git", "repo": "git-for-windows/git",
             "winget": "Git.Git", "brew": "git", "linux": "sudo apt-get install -y git  # or dnf install git"},
-    "mvn": {"exe": "mvn", "repo": None, "winget": None, "brew": "maven",
-            "linux": "sudo apt-get install -y maven  # or use ChaosEngine's Maven runtime"},
     "gh": {"exe": "gh", "repo": "cli/cli", "winget": "GitHub.cli", "brew": "gh",
            "linux": "see https://github.com/cli/cli/blob/trunk/docs/install_linux.md"},
     "node": {"exe": "node", "repo": None, "winget": "OpenJS.NodeJS.LTS", "brew": "node",
@@ -100,6 +99,22 @@ def github_remote(project: Path) -> bool:
         return False
 
 
+def pack_tools() -> dict[str, dict[str, object]]:
+    """Ecosystem tools declared by language packs next to this file; also merged into TOOLS."""
+    found: dict[str, dict[str, object]] = {}
+    for path in sorted(Path(__file__).resolve().parent.glob("packs/*/prerequisites.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for name, spec in (data.get("tools") or {}).items():
+            if isinstance(spec, dict):
+                found[str(name)] = spec
+    for name, spec in found.items():
+        TOOLS.setdefault(name, spec)
+    return found
+
+
 def required(project: Path, *, windows: bool) -> list[str]:
     """Tools this project needs, in provisioning order (winget first on Windows)."""
     tools: list[str] = []
@@ -107,8 +122,10 @@ def required(project: Path, *, windows: bool) -> list[str]:
         tools += ["winget", "pwsh"]
     if (project / ".git").exists():
         tools.append("git")
-    if (project / "pom.xml").is_file():
-        tools.append("mvn")
+    for name, spec in pack_tools().items():
+        marker = spec.get("marker")
+        if marker and (project / str(marker)).is_file():
+            tools.append(name)
     if github_remote(project):
         tools.append("gh")
     tools.append("node")
@@ -177,8 +194,8 @@ def install_command(tool: str, *, windows: bool, have_winget: bool, have_brew: b
         if spec["winget"] and have_winget:
             return ["winget", "install", "--id", str(spec["winget"]), "--exact", "--silent",
                     "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity"]
-        if tool == "mvn":
-            return "use ChaosEngine's Maven runtime (install.py provisions it) or https://maven.apache.org/install.html"
+        if spec.get("fallback"):
+            return str(spec["fallback"])
         return None
     if sys.platform == "darwin" and spec["brew"] and have_brew:
         return ["brew", "install", str(spec["brew"])]
@@ -254,10 +271,10 @@ def framework_hooks(project: Path) -> list[dict[str, object]]:
     return hooks
 
 
-def framework_version(project: Path, group_id: str) -> str | None:
-    """Version of the first dependency or parent with ``group_id`` in pom.xml, if any."""
+def framework_version(project: Path, group_id: str, manifest: str) -> str | None:
+    """Version of the first dependency or parent with ``group_id`` in the hook's manifest file."""
     try:
-        pom = (project / "pom.xml").read_text(encoding="utf-8", errors="replace")
+        pom = (project / manifest).read_text(encoding="utf-8", errors="replace")
     except OSError:
         return None
     for block in re.findall(r"<(?:dependency|parent)>(.*?)</(?:dependency|parent)>", pom, re.S):
@@ -301,7 +318,8 @@ def framework_steps(project: Path, hook: dict[str, object], *, install_ok: bool,
                     ask=ask_yes_no) -> dict[str, object]:
     """Run an add-on's agentic installer, then offer its upgrader when the project is outdated."""
     name = str(hook.get("framework", "framework"))
-    local = framework_version(project, str((hook.get("detect") or {}).get("pomGroupId", "")))
+    detect = hook.get("detect") or {}
+    local = framework_version(project, str(detect.get("groupId", "")), str(detect.get("manifest", "")))
     if local is None:
         return {"framework": name, "detected": False}
     current = mode(env)
