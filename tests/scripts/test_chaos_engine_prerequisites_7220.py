@@ -6,9 +6,9 @@ import importlib.util
 import json
 import tempfile
 import unittest
+import unittest.mock as mock
 from pathlib import Path
 from types import SimpleNamespace
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -51,7 +51,7 @@ class Prerequisites7220Test(unittest.TestCase):
         with mock.patch.object(self.m.shutil, "which", return_value="/bin/x"):
             rows = self.m.plan(self.project, windows=False, current_mode="install", cache_file=cache,
                                version_of=lambda exe: (2, 50, 0),
-                               latest_of=lambda tool, _c: (2, 50, 0) if tool == "git" else ())
+                               latest_of=lambda tool, _c: (2, 50, 0))
             self.assertEqual({"git": "skip", "node": "skip"}, {r["tool"]: r["action"] for r in rows})
             rows = self.m.plan(self.project, windows=False, current_mode="install", cache_file=cache,
                                version_of=lambda exe: (2, 40, 0), latest_of=lambda tool, _c: (2, 50, 0))
