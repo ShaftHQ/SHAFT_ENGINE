@@ -1967,8 +1967,9 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
             managed_python = str(candidate)
         managed_java = None
         if prerequisite_actions["java"] != "reused":
-            managed_java = install_exact_java(
+            managed_java = install_latest_or_pinned_java(
                 str(actions["java"].get("resolvedVersion") or ""),
+                specification,
                 system=selected_system,
                 opener=opener,
             )
@@ -2507,6 +2508,23 @@ def _ensure_node_siblings(root: Path, system: str) -> None:
             encoding="utf-8",
         )
         launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR)
+
+
+def install_latest_or_pinned_java(
+    version: str, specification: dict, *, system: str, opener=urllib.request.urlopen
+) -> str:
+    """Latest Temurin first; pinned runtime when its binary is not yet published here.
+
+    Adoptium's API lists a GA release before every platform binary is uploaded
+    (25.0.5+8: linux 200, windows 404 on Oct 22 2026). Only a 404 falls back.
+    """
+    try:
+        return install_exact_java(version, system=system, opener=opener)
+    except urllib.error.HTTPError as error:
+        pinned = str(specification.get("runtimes", {}).get("temurin", {}).get("version") or "")
+        if error.code != 404 or not pinned or pinned == version:
+            raise
+        return install_exact_java(pinned, system=system, opener=opener)
 
 
 def install_exact_java(
