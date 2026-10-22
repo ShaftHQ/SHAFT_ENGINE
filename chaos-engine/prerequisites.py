@@ -156,7 +156,7 @@ def latest_version(tool: str, cache_file: Path, fetch=None, now=None) -> tuple[i
         cache_file.parent.mkdir(parents=True, exist_ok=True)
         cache_file.write_text(json.dumps(cache, indent=2) + "\n", encoding="utf-8")
     except OSError:
-        pass
+        pass  # A read-only state dir only loses the cache; the lookup result still stands.
     return version
 
 

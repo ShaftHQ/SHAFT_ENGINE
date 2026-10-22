@@ -123,7 +123,7 @@ class Prerequisites7220Test(unittest.TestCase):
         self.assertFalse(self.m.ask_yes_no("q", reader=lambda t: "\n"))
         self.assertTrue(self.m.ask_yes_no("q", reader=lambda t: "y\n"))
         seen = []
-        self.m.ask_yes_no("q", reader=lambda t: seen.append(t))
+        self.m.ask_yes_no("q", reader=seen.append)
         self.assertEqual([10], seen)
         self.assertFalse(self.m.ask_yes_no("q", env={"CI": "1"}))  # No TTY / CI: never asks.
 

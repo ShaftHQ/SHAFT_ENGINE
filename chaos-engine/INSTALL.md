@@ -847,7 +847,7 @@ CI (`tests/scripts/test_ce_h2_gates.py`) fails when a per-turn command exceeds i
 `tool.py entry` under 1 s, `retrieve --store graphify` under 5 s, `install.py doctor --json`
 under 10 s on a fixture project.
 
-## Host prerequisites (#7220)
+## Host prerequisites
 
 After a successful install, ChaosEngine checks git (git folders), mvn (Maven projects),
 gh (github.com remotes), and Node.js; on Windows also winget and PowerShell 7, with
