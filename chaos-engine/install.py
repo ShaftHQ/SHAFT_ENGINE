@@ -3694,6 +3694,35 @@ def initialize_account_project_palace(project: Path, controller, host_controller
     return True
 
 
+def _prerequisites_module():
+    """#7220: host prerequisites helper shipped next to this installer, or None."""
+    path = Path(__file__).resolve().with_name("prerequisites.py")
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("ce_prerequisites_installer", path)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    except Exception:  # noqa: BLE001 - a broken helper never fails the install.
+        return None
+    finally:
+        sys.dont_write_bytecode = previous
+    return module
+
+
+def _attach_prerequisites(args, result: dict[str, object]) -> None:
+    """#7220: report or provision host prerequisites after a successful install."""
+    if args.skip_tools or getattr(args, "skip_prerequisites", False):
+        return
+    prerequisites = _prerequisites_module()
+    if prerequisites is not None:
+        result["prerequisites"] = prerequisites.run(args.project, install_ok=True)
+
+
 def _consumer_mode_module():
     """#6237: consumer-mode helper shipped next to this installer, or None."""
     path = Path(__file__).resolve().with_name("consumer_mode.py")
@@ -6523,6 +6552,11 @@ def parser() -> argparse.ArgumentParser:
     )
     install_command.add_argument("--with-maven-tools", action="store_true")
     install_command.add_argument(
+        "--skip-prerequisites",
+        action="store_true",
+        help="Do not check or provision git, mvn, gh, Node.js, winget, PowerShell 7 (#7220).",
+    )
+    install_command.add_argument(
         "--consumer",
         action="store_true",
         help=(
@@ -7492,256 +7526,280 @@ def python_floor_message(version: tuple[int, ...] | None = None) -> str:
             "Rerun the install one-liner, which provisions a supported Python through uv.\n")
 
 
-def main() -> int:
-    if sys.version_info < MINIMUM_PYTHON:
-        sys.stderr.write(python_floor_message())
-        return 2
-    args, extra = parser().parse_known_args()
-    try:
-        requested, removed, unknown = addon_catalog().split_flags(extra)
-        if unknown or ((requested or removed) and args.command != "install"):
-            parser().parse_args()  # argparse reports the unrecognized arguments and exits
-        validate_install_options(args)
-        if args.command == "install":
-            if args.from_bundle is not None:
-                args.source, args.commit = extract_bundle(
-                    args.from_bundle, Path(tempfile.mkdtemp(prefix="chaos-engine-bundle-")) / "chaos-engine"
-                )
-            elif args.source is None or args.commit is None:
-                raise ValueError("install needs --source and --commit, or --from-bundle")
-            refusal = linked_worktree_refusal(args.project)
-            if refusal:
-                raise RuntimeError(refusal)
-            planned, addons = plan_install(args.project, args.source, requested, removed)
-            args.distribution = args.distribution or planned
-            if getattr(args, "if_changed", False) and overlay_unchanged(
-                args.source, args.project / INSTALL_DIRECTORY, args.distribution, addons
-            ):
-                print(json.dumps({"status": "unchanged", "root": str(args.project / INSTALL_DIRECTORY)}))
-                return 0
-            legacy_packs = legacy_profile_layout(args.project / INSTALL_DIRECTORY)
-            bundle = bundle_from_install_args(args)
-            write_bundle_options(args.project, bundle)
-            record_mcp_opt_in(args.project, args)
-            if getattr(args, "consumer", False):
-                os.environ["CHAOS_ENGINE_CONSUMER"] = "1"
-            target = (
-                install(
-                    args.project,
-                    args.source,
-                    args.commit,
-                    distribution=args.distribution,
-                    addons=addons,
-                )
-                if args.skip_tools
-                else install_with_dependencies(
-                    args.project,
-                    args.source,
-                    args.commit,
-                    distribution=args.distribution,
-                    with_maven_tools=args.with_maven_tools,
-                    maven_tools_mode=args.maven_tools_mode,
-                    bundle_options=bundle,
-                    addons=addons,
-                )
+_HANDLED = object()
+
+
+def _run_install_command(args, requested, removed) -> object:
+    """The `install` subcommand: the JSON result, or ``_HANDLED`` for an unchanged no-op."""
+    if args.from_bundle is not None:
+        args.source, args.commit = extract_bundle(
+            args.from_bundle, Path(tempfile.mkdtemp(prefix="chaos-engine-bundle-")) / "chaos-engine"
+        )
+    elif args.source is None or args.commit is None:
+        raise ValueError("install needs --source and --commit, or --from-bundle")
+    refusal = linked_worktree_refusal(args.project)
+    if refusal:
+        raise RuntimeError(refusal)
+    planned, addons = plan_install(args.project, args.source, requested, removed)
+    args.distribution = args.distribution or planned
+    if getattr(args, "if_changed", False) and overlay_unchanged(
+        args.source, args.project / INSTALL_DIRECTORY, args.distribution, addons
+    ):
+        print(json.dumps({"status": "unchanged", "root": str(args.project / INSTALL_DIRECTORY)}))
+        return _HANDLED
+    legacy_packs = legacy_profile_layout(args.project / INSTALL_DIRECTORY)
+    bundle = bundle_from_install_args(args)
+    write_bundle_options(args.project, bundle)
+    record_mcp_opt_in(args.project, args)
+    if getattr(args, "consumer", False):
+        os.environ["CHAOS_ENGINE_CONSUMER"] = "1"
+    target = (
+        install(
+            args.project,
+            args.source,
+            args.commit,
+            distribution=args.distribution,
+            addons=addons,
+        )
+        if args.skip_tools
+        else install_with_dependencies(
+            args.project,
+            args.source,
+            args.commit,
+            distribution=args.distribution,
+            with_maven_tools=args.with_maven_tools,
+            maven_tools_mode=args.maven_tools_mode,
+            bundle_options=bundle,
+            addons=addons,
+        )
+    )
+    result: object = {
+        "status": "installed", "root": str(target), "bundle": bundle, "addons": list(addons)
+    }
+    tips = suggest_addons(args.project, args.source, addons)
+    if tips:
+        print(addon_tip(tips), file=sys.stderr)
+    if legacy_packs:
+        # CE-10 hard cut: the old profiles/<name> layout is replaced, never shimmed.
+        notice = hard_cut_message(legacy_packs, replaced=not legacy_profile_layout(target))
+        result["migration"] = {"hardCut": notice}
+        print(notice, file=sys.stderr)
+    consumer = _consumer_mode_module()
+    if consumer is not None and consumer.enabled(args.project):
+        consumer.record(args.project)
+        consumer.write_exclude(args.project, load_source_controller("hosts").managed_paths())
+    untouched = consumer_untouched_files(args.project)
+    if untouched:
+        # #6237 FR-2: name every tracked file consumer mode left alone.
+        result["consumerMode"] = {"untouchedTrackedFiles": untouched}
+        print(
+            "ChaosEngine consumer mode left tracked files untouched: "
+            + ", ".join(untouched),
+            file=sys.stderr,
+        )
+    with contextlib.suppress(OSError):
+        if ".graphifyignore" not in untouched:
+            seed_graphify_ignore(args.project)
+    _install_store_schedule(args.project)
+    _attach_prerequisites(args, result)
+    return result
+
+
+def _cache_result(args) -> object:
+    """`cache status|purge` for the downloads or maven-tools-mcp component."""
+    if args.component == "downloads":
+        controller = load_source_controller("dependencies")
+        result = (
+            controller.download_cache_status()
+            if args.cache_command == "status"
+            else controller.purge_download_cache()
+        )
+    else:
+        if args.cache_command == "purge" and not args.version:
+            raise ValueError("cache purge --component maven-tools-mcp needs --version")
+        controller = load_source_controller("hosts")
+        result = (
+            controller.selected_maven_tools_cache_status()
+            if args.cache_command == "status"
+            else controller.purge_maven_tools_cache(args.version)
+        )
+    return result
+
+
+def _command_result(args, extra) -> object:
+    """Dispatch one subcommand; ``_HANDLED`` when it already printed its own output."""
+    requested, removed, unknown = addon_catalog().split_flags(extra)
+    if unknown or ((requested or removed) and args.command != "install"):
+        parser().parse_args()  # argparse reports the unrecognized arguments and exits
+    validate_install_options(args)
+    if args.command == "install":
+        return _run_install_command(args, requested, removed)
+    if args.command == "repair":
+        result = repair_component(args.project, args.component)
+    elif args.command == "addons":
+        catalog = addon_catalog()
+        found = catalog.discover(args.source)
+        files, current = installed_record(args.project)
+        selected = sorted(catalog.installed(found, files, current))
+        if not args.json:
+            print("\n".join(catalog.index_rows(found, selected)) or "no add-ons available")
+            return _HANDLED
+        result = {"installed": selected, "available": sorted(set(found) - set(selected))}
+    elif args.command == "bundle":
+        result = {"status": "bundled", "bundle": str(build_bundle(args.source, args.commit, args.output))}
+    elif args.command == "cache":
+        result = _cache_result(args)
+    elif args.command == "status":
+        result = status_json(args.project)
+    elif args.command == "doctor":
+        result = status_json(args.project, active_probes=True)
+        followups = Path(__file__).resolve().with_name("harness_mindset.py")
+        followup_spec = importlib.util.spec_from_file_location(
+            "chaos_engine_harness_mindset_doctor", followups
+        )
+        if followup_spec is not None and followup_spec.loader is not None:
+            followup_module = importlib.util.module_from_spec(followup_spec)
+            followup_spec.loader.exec_module(followup_module)
+            result.update(followup_module.doctor_followups(args.project))
+        legacy_packs = legacy_profile_layout(args.project / INSTALL_DIRECTORY)
+        if legacy_packs:
+            result["migration"] = {"hardCut": hard_cut_message(legacy_packs)}
+    elif args.command == "explain":
+        result = explain_json(
+            args.project,
+            args.event,
+            host=args.host,
+            session_id=args.session,
+            phase=args.phase,
+            target_phase=args.target_phase,
+            cancelled=args.cancelled,
+            timed_out=args.timeout,
+        )
+    elif args.command == "rollback":
+        result = {"status": "rolled-back", "root": str(rollback(args.project))}
+    else:
+        uninstall_with_dependencies(args.project)
+        result = {"status": "uninstalled"}
+    return result
+
+
+def _blocked_diagnostic_code(args, error: BaseException) -> tuple[str, str]:
+    message = str(error)
+    diagnostic_code = "CE_DIAGNOSTIC_UNAVAILABLE"
+    project_arg = getattr(args, "project", None)
+    if "manifest is missing or invalid" in message or (
+        project_arg is not None
+        and missing_core_with_installed_hosts(Path(project_arg))
+    ):
+        diagnostic_code = "CE_CORE_MISSING"
+    elif project_arg is not None and orphan_core_without_hosts_receipt(
+        Path(project_arg)
+    ):
+        diagnostic_code = "CE_HOSTS_RECEIPT_MISSING"
+    elif project_arg is not None and upgrade_host_receipt_drift_needed(
+        Path(project_arg)
+    ):
+        diagnostic_code = "CE_HOST_ADAPTER_DRIFT"
+    elif project_arg is not None and (
+        wiped_runtime_recovery_needed(Path(project_arg))
+        or "host receipt does not match the installed core" in message
+        or "receipt integrity drift" in message
+        or "host adapter drift" in message
+    ) and account_dependency_receipt_missing(Path(project_arg)):
+        diagnostic_code = "CE_WIPED_RUNTIME"
+    elif (
+        "host adapter drift" in message
+        or "host receipt does not match the installed core" in message
+        or "receipt integrity drift" in message
+    ):
+        diagnostic_code = "CE_HOST_ADAPTER_DRIFT"
+    return message, diagnostic_code
+
+
+def _report_blocked(args, error: BaseException) -> int:
+    message, diagnostic_code = _blocked_diagnostic_code(args, error)
+    if getattr(args, "json", False):
+        print(
+            json.dumps(
+                {
+                    "schemaVersion": DIAGNOSTIC_SCHEMA_VERSION,
+                    "identity": CANONICAL_IDENTITY,
+                    "kind": args.command,
+                    "status": "Blocked",
+                    "diagnosticCode": diagnostic_code,
+                    "terminalReason": "blocked",
+                    "reason": message,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
             )
-            result: object = {
-                "status": "installed", "root": str(target), "bundle": bundle, "addons": list(addons)
-            }
-            tips = suggest_addons(args.project, args.source, addons)
-            if tips:
-                print(addon_tip(tips), file=sys.stderr)
-            if legacy_packs:
-                # CE-10 hard cut: the old profiles/<name> layout is replaced, never shimmed.
-                notice = hard_cut_message(legacy_packs, replaced=not legacy_profile_layout(target))
-                result["migration"] = {"hardCut": notice}
-                print(notice, file=sys.stderr)
-            consumer = _consumer_mode_module()
-            if consumer is not None and consumer.enabled(args.project):
-                consumer.record(args.project)
-                consumer.write_exclude(args.project, load_source_controller("hosts").managed_paths())
-            untouched = consumer_untouched_files(args.project)
-            if untouched:
-                # #6237 FR-2: name every tracked file consumer mode left alone.
-                result["consumerMode"] = {"untouchedTrackedFiles": untouched}
-                print(
-                    "ChaosEngine consumer mode left tracked files untouched: "
-                    + ", ".join(untouched),
-                    file=sys.stderr,
-                )
-            with contextlib.suppress(OSError):
-                if ".graphifyignore" not in untouched:
-                    seed_graphify_ignore(args.project)
-            _install_store_schedule(args.project)
-        elif args.command == "repair":
-            result = repair_component(args.project, args.component)
-        elif args.command == "addons":
-            catalog = addon_catalog()
-            found = catalog.discover(args.source)
-            files, current = installed_record(args.project)
-            selected = sorted(catalog.installed(found, files, current))
-            if not args.json:
-                print("\n".join(catalog.index_rows(found, selected)) or "no add-ons available")
-                return 0
-            result = {"installed": selected, "available": sorted(set(found) - set(selected))}
-        elif args.command == "bundle":
-            result = {"status": "bundled", "bundle": str(build_bundle(args.source, args.commit, args.output))}
-        elif args.command == "cache" and args.component == "downloads":
-            controller = load_source_controller("dependencies")
-            result = (
-                controller.download_cache_status()
-                if args.cache_command == "status"
-                else controller.purge_download_cache()
-            )
-        elif args.command == "cache":
-            if args.cache_command == "purge" and not args.version:
-                raise ValueError("cache purge --component maven-tools-mcp needs --version")
-            controller = load_source_controller("hosts")
-            result = (
-                controller.selected_maven_tools_cache_status()
-                if args.cache_command == "status"
-                else controller.purge_maven_tools_cache(args.version)
-            )
-        elif args.command == "status":
-            result = status_json(args.project)
-        elif args.command == "doctor":
-            result = status_json(args.project, active_probes=True)
-            followups = Path(__file__).resolve().with_name("harness_mindset.py")
-            followup_spec = importlib.util.spec_from_file_location(
-                "chaos_engine_harness_mindset_doctor", followups
-            )
-            if followup_spec is not None and followup_spec.loader is not None:
-                followup_module = importlib.util.module_from_spec(followup_spec)
-                followup_spec.loader.exec_module(followup_module)
-                result.update(followup_module.doctor_followups(args.project))
-            legacy_packs = legacy_profile_layout(args.project / INSTALL_DIRECTORY)
-            if legacy_packs:
-                result["migration"] = {"hardCut": hard_cut_message(legacy_packs)}
-        elif args.command == "explain":
-            result = explain_json(
-                args.project,
-                args.event,
-                host=args.host,
-                session_id=args.session,
-                phase=args.phase,
-                target_phase=args.target_phase,
-                cancelled=args.cancelled,
-                timed_out=args.timeout,
-            )
-        elif args.command == "rollback":
-            result = {"status": "rolled-back", "root": str(rollback(args.project))}
-        else:
-            uninstall_with_dependencies(args.project)
-            result = {"status": "uninstalled"}
-    except (OSError, RuntimeError, ValueError) as error:
-        message = str(error)
-        diagnostic_code = "CE_DIAGNOSTIC_UNAVAILABLE"
-        project_arg = getattr(args, "project", None)
-        if "manifest is missing or invalid" in message or (
-            project_arg is not None
-            and missing_core_with_installed_hosts(Path(project_arg))
-        ):
-            diagnostic_code = "CE_CORE_MISSING"
-        elif project_arg is not None and orphan_core_without_hosts_receipt(
-            Path(project_arg)
-        ):
-            diagnostic_code = "CE_HOSTS_RECEIPT_MISSING"
-        elif project_arg is not None and upgrade_host_receipt_drift_needed(
-            Path(project_arg)
-        ):
-            diagnostic_code = "CE_HOST_ADAPTER_DRIFT"
-        elif project_arg is not None and (
-            wiped_runtime_recovery_needed(Path(project_arg))
-            or "host receipt does not match the installed core" in message
-            or "receipt integrity drift" in message
-            or "host adapter drift" in message
-        ) and account_dependency_receipt_missing(Path(project_arg)):
-            diagnostic_code = "CE_WIPED_RUNTIME"
-        elif (
-            "host adapter drift" in message
-            or "host receipt does not match the installed core" in message
-            or "receipt integrity drift" in message
-        ):
-            diagnostic_code = "CE_HOST_ADAPTER_DRIFT"
-        if getattr(args, "json", False):
+        )
+    else:
+        print(f"ChaosEngine {args.command}: Blocked", file=sys.stderr)
+        print(f"reason: {message}", file=sys.stderr)
+        if diagnostic_code == "CE_CORE_MISSING":
             print(
-                json.dumps(
+                "fix-next: "
+                + component_fix_next(
+                    "core",
                     {
-                        "schemaVersion": DIAGNOSTIC_SCHEMA_VERSION,
-                        "identity": CANONICAL_IDENTITY,
-                        "kind": args.command,
-                        "status": "Blocked",
-                        "diagnosticCode": diagnostic_code,
-                        "terminalReason": "blocked",
-                        "reason": message,
+                        "status": "recovery-required",
+                        "code": "CE_CORE_MISSING",
+                        "taskImpact": "required",
                     },
-                    sort_keys=True,
-                    separators=(",", ":"),
-                )
+                ),
+                file=sys.stderr,
             )
-        else:
-            print(f"ChaosEngine {args.command}: Blocked", file=sys.stderr)
-            print(f"reason: {message}", file=sys.stderr)
-            if diagnostic_code == "CE_CORE_MISSING":
-                print(
-                    "fix-next: "
-                    + component_fix_next(
-                        "core",
-                        {
-                            "status": "recovery-required",
-                            "code": "CE_CORE_MISSING",
-                            "taskImpact": "required",
-                        },
-                    ),
-                    file=sys.stderr,
-                )
-            elif diagnostic_code == "CE_WIPED_RUNTIME":
-                print(
-                    "fix-next: "
-                    + component_fix_next(
-                        "hosts",
-                        {
-                            "status": "recovery-required",
-                            "code": "CE_WIPED_RUNTIME",
-                            "taskImpact": "required",
-                        },
-                    ),
-                    file=sys.stderr,
-                )
-            elif diagnostic_code == "CE_HOST_ADAPTER_DRIFT":
-                print(
-                    "fix-next: "
-                    + component_fix_next(
-                        "hosts",
-                        {
-                            "status": "recovery-required",
-                            "code": "CE_HOST_ADAPTER_DRIFT",
-                            "taskImpact": "required",
-                        },
-                    ),
-                    file=sys.stderr,
-                )
-            elif diagnostic_code == "CE_HOSTS_RECEIPT_MISSING":
-                print(
-                    "fix-next: "
-                    + component_fix_next(
-                        "hosts",
-                        {
-                            "status": "recovery-required",
-                            "code": "CE_HOSTS_RECEIPT_MISSING",
-                            "taskImpact": "required",
-                        },
-                    ),
-                    file=sys.stderr,
-                )
-            elif args.command in {"status", "doctor"}:
-                cli = _doctor_python_cli()
-                print(
-                    f"fix-next: repair the install, then rerun "
-                    f"`{cli} .chaos-engine/install.py {args.command} --project .`.",
-                    file=sys.stderr,
-                )
-        return 1
+        elif diagnostic_code == "CE_WIPED_RUNTIME":
+            print(
+                "fix-next: "
+                + component_fix_next(
+                    "hosts",
+                    {
+                        "status": "recovery-required",
+                        "code": "CE_WIPED_RUNTIME",
+                        "taskImpact": "required",
+                    },
+                ),
+                file=sys.stderr,
+            )
+        elif diagnostic_code == "CE_HOST_ADAPTER_DRIFT":
+            print(
+                "fix-next: "
+                + component_fix_next(
+                    "hosts",
+                    {
+                        "status": "recovery-required",
+                        "code": "CE_HOST_ADAPTER_DRIFT",
+                        "taskImpact": "required",
+                    },
+                ),
+                file=sys.stderr,
+            )
+        elif diagnostic_code == "CE_HOSTS_RECEIPT_MISSING":
+            print(
+                "fix-next: "
+                + component_fix_next(
+                    "hosts",
+                    {
+                        "status": "recovery-required",
+                        "code": "CE_HOSTS_RECEIPT_MISSING",
+                        "taskImpact": "required",
+                    },
+                ),
+                file=sys.stderr,
+            )
+        elif args.command in {"status", "doctor"}:
+            cli = _doctor_python_cli()
+            print(
+                f"fix-next: repair the install, then rerun "
+                f"`{cli} .chaos-engine/install.py {args.command} --project .`.",
+                file=sys.stderr,
+            )
+    return 1
+
+
+def _emit_result(args, result) -> int:
     if args.command == "repair" and not getattr(args, "json", False):
         if not isinstance(result, dict):
             raise TypeError("repair result must be an object")
@@ -7780,6 +7838,20 @@ def main() -> int:
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
     return doctor_exit_code(result) if args.command == "doctor" else 0
 
+
+
+def main() -> int:
+    if sys.version_info < MINIMUM_PYTHON:
+        sys.stderr.write(python_floor_message())
+        return 2
+    args, extra = parser().parse_known_args()
+    try:
+        result = _command_result(args, extra)
+    except (OSError, RuntimeError, ValueError) as error:
+        return _report_blocked(args, error)
+    if result is _HANDLED:
+        return 0
+    return _emit_result(args, result)
 
 if __name__ == "__main__":
     raise SystemExit(main())

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "tools": {
+    "mvn": {
+      "exe": "mvn",
+      "marker": "pom.xml",
+      "repo": null,
+      "winget": null,
+      "brew": "maven",
+      "linux": "sudo apt-get install -y maven  # or use ChaosEngine's Maven runtime",
+      "fallback": "use ChaosEngine's Maven runtime (install.py provisions it) or https://maven.apache.org/install.html"
+    }
+  }
+}

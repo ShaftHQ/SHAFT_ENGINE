@@ -55,6 +55,18 @@ class FastMineTest(unittest.TestCase):
         self.replace(collection, self.db.cursor(), 1, "a", "fixed a")
         self.assertEqual([("a", "fixed a"), ("b", "old b")], self.rows())
 
+    def test_shim_retires_when_upstream_deletes_by_rowid(self) -> None:
+        """#6912: an upstream _replace_fts with the rowid delete is never wrapped."""
+        def upstream(self, cur, collection_id, doc_id, document):
+            cur.execute("DELETE FROM docs_fts WHERE rowid = ?", (1,))
+
+        def legacy(self, cur, collection_id, doc_id, document):
+            cur.execute("DELETE FROM docs_fts WHERE collection_id = ? AND doc_id = ?", (collection_id, doc_id))
+
+        self.assertTrue(self.shim.upstream_deletes_by_rowid(upstream))
+        self.assertFalse(self.shim.upstream_deletes_by_rowid(legacy))
+        self.assertFalse(self.shim.upstream_deletes_by_rowid(len))
+
     def test_unsupported_mempalace_is_left_unpatched(self) -> None:
         self.assertNotIn("9.9.9", self.shim.SUPPORTED_VERSIONS)
         self.assertIn(self.shim.install(), {True, False})

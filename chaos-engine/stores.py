@@ -92,12 +92,33 @@ def resolve_common_dir(cwd: Path) -> Path | None:
     return common.resolve()
 
 
+def _main_worktree(cwd: Path, common: Path) -> Path:
+    """Main worktree for ``common``; a separate git dir is not inside it (#7278)."""
+    if common.name == ".git":
+        return common.parent.resolve()
+    try:
+        listing = _git(cwd, "worktree", "list", "--porcelain")
+    except RuntimeError:
+        listing = ""
+    first = listing.split("\n\n", 1)[0].splitlines() if listing else []
+    if first and first[0].startswith("worktree ") and "bare" not in first:
+        listed = Path(first[0][len("worktree "):]).resolve()
+        # `git init --separate-git-dir` records no main worktree; git then lists the git dir itself.
+        if listed != common.resolve():
+            return listed
+    try:
+        top = _git(cwd, "rev-parse", "--show-toplevel")
+    except RuntimeError:
+        top = ""
+    return Path(top).resolve() if top else cwd.resolve()
+
+
 def resolve_primary_root(cwd: Path) -> Path:
     """Return the main worktree that owns shared store files."""
     common = resolve_common_dir(cwd)
     if common is None:
         return cwd.resolve()
-    return common.parent.resolve()
+    return _main_worktree(cwd, common)
 
 
 def resolve_palace(cwd: Path) -> Path:
@@ -141,7 +162,7 @@ def resolve_graph_out(cwd: Path) -> Path:
         return configured
     common = resolve_common_dir(cwd)
     if common is not None:
-        return common.parent / "graphify-out"
+        return _main_worktree(cwd, common) / "graphify-out"
     return cwd.resolve() / "graphify-out"
 
 

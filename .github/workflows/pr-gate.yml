@@ -111,6 +111,8 @@ jobs:
               - 'tests/scripts/test_chaos_engine_same_commit_payload_heal_5839.py'
               - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
               - 'chaos-engine/consumer_mode.py'
+              - 'chaos-engine/prerequisites.py'
+              - 'tests/scripts/test_chaos_engine_prerequisites_7220.py'
               - 'tests/scripts/test_chaos_engine_mempalace_init_6236.py'
               - 'tests/scripts/test_chaos_engine_consumer_mode_6237.py'
               - 'tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py'
@@ -254,6 +256,7 @@ jobs:
               - 'tests/scripts/test_chaos_engine_overlay_only_host_pointers.py'
               - 'tests/scripts/test_chaos_engine_mempalace_init_6236.py'
               - 'tests/scripts/test_chaos_engine_consumer_mode_6237.py'
+              - 'tests/scripts/test_chaos_engine_prerequisites_7220.py'
               - 'tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py'
               - 'tests/scripts/test_mempalace_background_index.py'
               # #6239: repo-state guard for the script suites.
