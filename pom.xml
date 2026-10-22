@@ -80,7 +80,7 @@
         <jackson.version>3.2.3</jackson.version>
         <jackson.legacy.version>2.22.4</jackson.legacy.version>
         <jackson.annotations.version>2.22</jackson.annotations.version>
-        <tools.jackson.core.version>3.2.3</tools.jackson.core.version>
+        <tools.jackson.core.version>3.2.4</tools.jackson.core.version>
         <selenium.version>4.51.0</selenium.version>
         <!-- Selenium 4.51.0 resolves org.jetbrains:annotations 26.1.0. Kotlin stdlib
              (ReportPortal -> OkHttp) still requests 13.0. One managed version keeps
