@@ -408,6 +408,7 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_token_economy_7242",
             # #7251: delete guard hook, delete-check tool and doctor rows.
             "tests.scripts.test_chaos_engine_delete_guard_7251",
+            "tests.scripts.test_chaos_engine_separate_git_dir_7278",
             "tests.scripts.test_chaos_engine_register_rule_7242",
             "tests.scripts.test_chaos_engine_retrieve_marker_7242",
             "tests.scripts.test_chaos_engine_mempalace_privacy_7242",
