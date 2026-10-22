@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+GIT = shutil.which("git") or "git"
 
 
 def load():
@@ -19,7 +21,7 @@ def load():
 
 
 def git(cwd: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+    subprocess.run([GIT, *args], cwd=cwd, check=True, capture_output=True)
 
 
 class SeparateGitDir7278Test(unittest.TestCase):

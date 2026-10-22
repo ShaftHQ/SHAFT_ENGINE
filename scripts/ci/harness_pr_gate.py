@@ -679,6 +679,7 @@ SURFACE_PATTERNS = {
         "chaos-engine/consumer_mode.py",
         "chaos-engine/prerequisites.py",
         "tests/scripts/test_chaos_engine_prerequisites_7220.py",
+        "tests/scripts/test_chaos_engine_separate_git_dir_7278.py",
         "tests/scripts/test_chaos_engine_mempalace_init_6236.py",
         "tests/scripts/test_chaos_engine_consumer_mode_6237.py",
         "tests/scripts/test_chaos_engine_maven_tools_reinstall_6336.py",

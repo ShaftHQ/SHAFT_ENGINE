@@ -22,6 +22,7 @@ core installer and doctor stay language-neutral.
 ## Code
 
 - [pack.json](pack.json) declares the pack and its `maven-tools-mcp` component.
+- [prerequisites.json](prerequisites.json) declares the build tool the host-prerequisites step checks when a project has the marker file.
 - [maven_tools.py](maven_tools.py) holds the managed JDK, managed Maven, Maven
   Tools cache, and runtime probe; [installer.py](installer.py) holds POM
   artifact detection, provisioning, and `repair --component maven-tools-mcp`.
