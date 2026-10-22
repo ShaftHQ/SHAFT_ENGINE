@@ -1,14 +1,14 @@
 {
   "repository": "JuliusBrussee/caveman",
-  "commit": "e20f07e8152a0c0360f58c09e79d30ac94329991",
+  "commit": "bad48a0e1df55e05e3f52249afa35ecc1909ee76",
   "license": "MIT",
   "files": {
     "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
     "skills/caveman/SKILL.md": "415d43518f2b1a9498c15a445d4657117b129ee5e81b19454ce348439cc6672b",
     "skills/ultracave/SKILL.md": "a8da5b0b3501b853e1b98f2ae09fe8dc9c0edf481b1d3fa9529f8557011c1ef8",
-    "src/hooks/caveman-activate.js": "a13da422b434c104f8168f8342efaa183af2cdd79810019763c2a83eead5f0c9",
-    "src/hooks/caveman-config.js": "4142ed9a417e91442d7456db863bb5002277cb6549fceac73b95f46861f26092",
-    "src/hooks/caveman-mode-tracker.js": "f396a9025576decc5be2751f871c88838cdff6e9c20249ff915108cd604eff71",
+    "src/hooks/caveman-activate.js": "68488c54e3d7051126ebd0824f48c9dc6587bc26f8ad2401b77ae2721745676e",
+    "src/hooks/caveman-config.js": "83524e9f1a3fae3293ea1046f7f8142d3ec8884b9a5fb36507160de2eecc5b3a",
+    "src/hooks/caveman-mode-tracker.js": "354e273df2ee4308bf35dc3ac11c0d80eb60da60d099b32e0d921cc2f0882d99",
     "src/hooks/caveman-parse.js": "595d7bbb4634c7533cf16705314d8e58b7c8409ab0426f2b076a1b85d821ecce",
     "src/hooks/package.json": "8005a3491db7d92f36ac66369861589f9c47123d3a7c71e643fc2c06168cd45a"
   }

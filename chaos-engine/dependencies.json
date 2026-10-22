@@ -295,7 +295,7 @@
       "package": "uv==0.13.1"
     },
     "mempalace": {
-      "package": "mempalace==3.10.0",
+      "package": "mempalace==3.11.0",
       "with": [
         "chromadb==1.5.9"
       ],

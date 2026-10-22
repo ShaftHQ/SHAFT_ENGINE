@@ -37,6 +37,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.agents.guard import is_linked_worktree, run_pretooluse
 from tests.scripts.ce_host_files import host_file_text  # noqa: E402  (#6197)
 

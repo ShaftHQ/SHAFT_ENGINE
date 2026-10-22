@@ -46,7 +46,8 @@ jobs:
           git diff --quiet && exit 0
           branch="chore/upstream-pin-sync-${GITHUB_RUN_ID}"
           git checkout -b "$branch"
-          git add chaos-engine/dependencies.json chaos-engine/install.ps1 chaos-engine/install.sh
+          python3 scripts/ci/validate_chaos_engine_readme.py --write
+          git add chaos-engine/dependencies.json chaos-engine/install.ps1 chaos-engine/install.sh chaos-engine/README.md
           git -c user.email="actions@users.noreply.github.com" -c user.name="ChaosEngine pin sync" commit -m "Synchronize linked ChaosEngine pins to the published stable release."
           git push --set-upstream origin "$branch"
           gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" --title "Synchronize linked ChaosEngine pins" --body "A published stable release moved every linked ChaosEngine consumer and the installer provisioning pin together."

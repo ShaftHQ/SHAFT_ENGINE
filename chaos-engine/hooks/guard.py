@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Activate ChaosEngine and reject catastrophic shell scope."""
+"""Activate ChaosEngine and reject catastrophic shell scope.
+
+Canonical portable core guard (ships to every install). A project's own
+repository guard stays outside the core and shares no code with it.
+"""
 
 from __future__ import annotations
 

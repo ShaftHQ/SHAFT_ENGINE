@@ -2,6 +2,7 @@
 
 import unittest
 
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.agents.pr_audit import audit_snapshot, collect_pr_snapshot
 
 

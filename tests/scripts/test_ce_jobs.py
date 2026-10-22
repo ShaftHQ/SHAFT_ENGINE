@@ -306,7 +306,7 @@ class DurableJobContractTests(unittest.TestCase):
         index = json.loads((CE / "harness-index.json").read_text(encoding="utf-8"))
         self.assertIn("references/durable-jobs.md", card)
         self.assertIn("references/durable-jobs.md", {entry.get("path") for entry in index["entries"]})
-        for rule in ("45-50 min", "checkpoint before every long step", "never hold work only in the session",
+        for rule in ("by 35 min", "checkpoint before every long step", "never hold work only in the session",
                      "tool.py job status", "tool.py job resume", "never a liveness signal"):
             self.assertIn(rule, reference.casefold() if rule.islower() else reference)
 

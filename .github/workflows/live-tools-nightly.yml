@@ -308,9 +308,43 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # Issue #7217: the PR-gate Windows installer job sets a global
+  # core.longpaths and skips Maven Tools, so it cannot catch #7170-class
+  # failures. This nightly job installs with --with-maven-tools after
+  # unsetting the global override (checkout still needs it). Nightly and
+  # non-required on purpose: zero added PR review time (#6990).
+  chaos-maven-tools-windows:
+    name: ChaosEngine Maven Tools install (windows, no global longpaths)
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - name: Enable long paths for checkout only
+        run: git config --global core.longpaths true
+      - name: Checkout Code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Drop the global long-paths override
+        shell: bash
+        run: |
+          git config --global --unset-all core.longpaths || true
+          test -z "$(git config --global --get core.longpaths || true)"
+      - name: Set up Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install ChaosEngine with Maven Tools into a fresh project
+        shell: bash
+        run: |
+          set -euo pipefail
+          project="$RUNNER_TEMP/ce-maven-tools"
+          mkdir -p "$project" && git -C "$project" init -q
+          python chaos-engine/install.py install --project "$project" --source chaos-engine --commit "$GITHUB_SHA" --with-maven-tools
+          python "$project/.chaos-engine/install.py" doctor --project "$project" --json > "$RUNNER_TEMP/doctor.json"
+          python -c "import json,sys; d=json.load(open(sys.argv[1])); s=d['components']['maven-tools-mcp']['status']; print('maven-tools-mcp', s); sys.exit(s != 'healthy')" "$RUNNER_TEMP/doctor.json"
+
   notify:
     name: Notify on nightly failure
     needs:
+      - chaos-maven-tools-windows
       - cli-live
       - intellij-tools-core
       - intellij-tools-diagnostics

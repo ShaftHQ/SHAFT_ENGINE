@@ -860,9 +860,35 @@ def _resolve_stable_version_or_error(
 ) -> tuple[str | None, str | None]:
     """Resolve the stable version, or return the lookup error type after network retries."""
     try:
-        return resolve_stable_version(name, contract, opener=opener), None
+        version = resolve_stable_version(name, contract, opener=opener)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         return None, type(error).__name__
+    if name == "java":
+        version = _published_temurin_or_pinned(version, opener=opener)
+    return version, None
+
+
+def _current_system() -> str:
+    return "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
+
+
+def _published_temurin_or_pinned(version: str, *, opener=urllib.request.urlopen) -> str:
+    """Resolve to the pinned Temurin when the latest GA has no binary for this platform yet.
+
+    Keeps resolve and install in agreement, so a healthy rerun reuses the pinned JDK
+    instead of planning an upgrade it cannot download (Temurin 25.0.5+8, Oct 22 2026).
+    """
+    pinned = _pinned_temurin_version()
+    if not pinned or pinned == version:
+        return version
+    try:
+        url = _temurin_url(version, _current_system())
+        with _open_with_retry(opener, f"{url}.sha256.txt", timeout=30):
+            return version
+    except urllib.error.HTTPError as error:
+        return pinned if error.code == 404 else version
+    except (OSError, ValueError):
+        return version
 
 
 def describe_blocked_dependencies(actions: dict[str, dict[str, object]]) -> str:
@@ -2509,10 +2535,34 @@ def _ensure_node_siblings(root: Path, system: str) -> None:
         launcher.chmod(launcher.stat().st_mode | stat.S_IXUSR)
 
 
+def _pinned_temurin_version() -> str:
+    path = Path(__file__).resolve().with_name("dependencies.json")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    return str(data.get("runtimes", {}).get("temurin", {}).get("version") or "")
+
+
 def install_exact_java(
     version: str, *, system: str, opener=urllib.request.urlopen
 ) -> str:
-    """Install one checksum-verified official Temurin 25 release for this account."""
+    """Latest Temurin first; pinned runtime when its binary is not yet published here.
+
+    Adoptium's API lists a GA release before every platform binary is uploaded
+    (25.0.5+8: linux 200, windows 404 on Oct 22 2026). Only a 404 falls back.
+    """
+    try:
+        return _install_temurin_release(version, system=system, opener=opener)
+    except urllib.error.HTTPError as error:
+        pinned = _pinned_temurin_version()
+        if error.code != 404 or not pinned or pinned == version:
+            raise
+        return _install_temurin_release(pinned, system=system, opener=opener)
+
+
+def _temurin_url(version: str, system: str) -> str:
+    """Official Temurin 25 archive URL for this platform."""
     match = re.fullmatch(r"(25\.\d+\.\d+)\+(\d+)", version)
     if match is None:
         raise ValueError("Temurin release version is invalid")
@@ -2534,6 +2584,16 @@ def install_exact_java(
         "https://github.com/adoptium/temurin25-binaries/releases/download/"
         f"{tag}/{filename}"
     )
+    return url
+
+
+def _install_temurin_release(
+    version: str, *, system: str, opener=urllib.request.urlopen
+) -> str:
+    """Install one checksum-verified official Temurin 25 release for this account."""
+    url = _temurin_url(version, system)
+    feature, build = version.split("+", 1)
+    suffix = ".zip" if system == "windows" else ".tar.gz"
     with _open_with_retry(opener, f"{url}.sha256.txt", timeout=30) as response:
         checksum = response.read(MAX_CONTROL_BYTES + 1)
     if len(checksum) > MAX_CONTROL_BYTES:
