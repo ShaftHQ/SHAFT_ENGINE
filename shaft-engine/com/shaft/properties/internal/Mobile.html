@@ -62,6 +62,9 @@
 <li><a href="#bundleId()" tabindex="0">bundleId()</a></li>
 <li><a href="#language()" tabindex="0">language()</a></li>
 <li><a href="#locale()" tabindex="0">locale()</a></li>
+<li><a href="#preflight()" tabindex="0">preflight()</a></li>
+<li><a href="#preflightResolveHosts()" tabindex="0">preflightResolveHosts()</a></li>
+<li><a href="#verifyRunningLocale()" tabindex="0">verifyRunningLocale()</a></li>
 <li><a href="#flutterElementWaitTimeout()" tabindex="0">flutterElementWaitTimeout()</a></li>
 <li><a href="#flutterServerLaunchTimeout()" tabindex="0">flutterServerLaunchTimeout()</a></li>
 <li><a href="#flutterSystemPort()" tabindex="0">flutterSystemPort()</a></li>
@@ -214,6 +217,19 @@ capability.</div>
 <div class="block">You can add any property from the List of Appium Capabilities directly to your .property files
 or via CLI arguments, just make sure to add mobile_ as a prefix.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#preflight()" class="member-name-link">preflight</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Runs a cheap preflight before each new native mobile session endpoint: Appium <code>/status</code>
+is ready and, for a local Appium with <code>adb</code>, the device finished booting and resolves every
+host in <a href="#preflightResolveHosts()"><code>preflightResolveHosts()</code></a>.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#preflightResolveHosts()" class="member-name-link">preflightResolveHosts</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Comma-separated host names the device must resolve before the first mobile session, checked with
+<code>adb shell ping</code> by its <code>PING host (ip)</code> header.</div>
+</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code>default <a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5"><code><a href="#set()" class="member-name-link">set</a>()</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab5">
@@ -223,6 +239,12 @@ or via CLI arguments, just make sure to add mobile_ as a prefix.</div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#udid()" class="member-name-link">udid</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Unique device identifier of the connected physical device (leave empty if not applicable).</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#verifyRunningLocale()" class="member-name-link">verifyRunningLocale</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">After an Android session starts with <a href="#language()"><code>language()</code></a> set, reads the running locale from
+<code>mobile: deviceInfo</code> and fails fast when the device still runs another language.</div>
 </div>
 </div>
 </div>
@@ -474,6 +496,57 @@ capability. Use together with <a href="#language()"><code>language()</code></a>.
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the configured value of <code>mobile_locale</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="preflight()">
+<h3>preflight</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("mobile_preflight")
+@DefaultValue("true")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">preflight</span>()</div>
+<div class="block">Runs a cheap preflight before each new native mobile session endpoint: Appium <code>/status</code>
+is ready and, for a local Appium with <code>adb</code>, the device finished booting and resolves every
+host in <a href="#preflightResolveHosts()"><code>preflightResolveHosts()</code></a>. Fails fast with one <code>Preflight:</code> message.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>mobile_preflight</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="preflightResolveHosts()">
+<h3>preflightResolveHosts</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("mobile_preflightResolveHosts")
+@DefaultValue("")
+</span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">preflightResolveHosts</span>()</div>
+<div class="block">Comma-separated host names the device must resolve before the first mobile session, checked with
+<code>adb shell ping</code> by its <code>PING host (ip)</code> header. Empty skips the DNS check.
+
+<p>Possible values: example: api.example.com,auth.example.com.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>mobile_preflightResolveHosts</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="verifyRunningLocale()">
+<h3>verifyRunningLocale</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("mobile_verifyRunningLocale")
+@DefaultValue("true")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">verifyRunningLocale</span>()</div>
+<div class="block">After an Android session starts with <a href="#language()"><code>language()</code></a> set, reads the running locale from
+<code>mobile: deviceInfo</code> and fails fast when the device still runs another language.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the configured value of <code>mobile_verifyRunningLocale</code></dd>
 </dl>
 </div>
 </section>

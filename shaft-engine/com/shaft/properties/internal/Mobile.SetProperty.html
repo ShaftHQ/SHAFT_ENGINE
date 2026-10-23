@@ -70,6 +70,9 @@
 <li><a href="#bundleId(java.lang.String)" tabindex="0">bundleId(String)</a></li>
 <li><a href="#language(java.lang.String)" tabindex="0">language(String)</a></li>
 <li><a href="#locale(java.lang.String)" tabindex="0">locale(String)</a></li>
+<li><a href="#preflight(boolean)" tabindex="0">preflight(boolean)</a></li>
+<li><a href="#preflightResolveHosts(java.lang.String)" tabindex="0">preflightResolveHosts(String)</a></li>
+<li><a href="#verifyRunningLocale(boolean)" tabindex="0">verifyRunningLocale(boolean)</a></li>
 <li><a href="#flutterElementWaitTimeout(int)" tabindex="0">flutterElementWaitTimeout(int)</a></li>
 <li><a href="#flutterServerLaunchTimeout(int)" tabindex="0">flutterServerLaunchTimeout(int)</a></li>
 <li><a href="#flutterSystemPort(int)" tabindex="0">flutterSystemPort(int)</a></li>
@@ -210,6 +213,16 @@ capability.</div>
 <div class="block">Overrides the <code>mobile_platformVersion</code> property at runtime.</div>
 </div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#preflight(boolean)" class="member-name-link">preflight</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>mobile_preflight</code> property at runtime.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#preflightResolveHosts(java.lang.String)" class="member-name-link">preflightResolveHosts</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>mobile_preflightResolveHosts</code> property at runtime.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#selfManaged(boolean)" class="member-name-link">selfManaged</a><wbr>(boolean&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>selfManaged</code> property at runtime.</div>
@@ -223,6 +236,11 @@ capability.</div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#udid(java.lang.String)" class="member-name-link">udid</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>mobile_udid</code> property at runtime.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#verifyRunningLocale(boolean)" class="member-name-link">verifyRunningLocale</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>mobile_verifyRunningLocale</code> property at runtime.</div>
 </div>
 </div>
 </div>
@@ -495,6 +513,51 @@ capability. Set it before the driver starts.</div>
 <dd><code>value</code> - the new value of <code>mobile_locale</code>, example: EG</dd>
 <dt>Returns:</dt>
 <dd>this <a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal"><code>Mobile.SetProperty</code></a> instance for chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="preflight(boolean)">
+<h3>preflight</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></span>&nbsp;<span class="element-name">preflight</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Overrides the <code>mobile_preflight</code> property at runtime.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - <code>true</code> to run the mobile preflight before new sessions</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to continue setting more properties</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="preflightResolveHosts(java.lang.String)">
+<h3>preflightResolveHosts</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></span>&nbsp;<span class="element-name">preflightResolveHosts</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>mobile_preflightResolveHosts</code> property at runtime.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - comma-separated host names the device must resolve</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to continue setting more properties</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="verifyRunningLocale(boolean)">
+<h3>verifyRunningLocale</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Mobile.SetProperty.html" title="class in com.shaft.properties.internal">Mobile.SetProperty</a></span>&nbsp;<span class="element-name">verifyRunningLocale</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Overrides the <code>mobile_verifyRunningLocale</code> property at runtime.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - <code>true</code> to verify the running Android locale after session start</dd>
+<dt>Returns:</dt>
+<dd>a self-reference to be used to continue setting more properties</dd>
 </dl>
 </div>
 </section>
