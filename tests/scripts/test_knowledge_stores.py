@@ -9,6 +9,8 @@ import unittest
 from unittest import mock
 from pathlib import Path
 
+GIT = shutil.which("git") or "git"
+
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts/agents/knowledge_stores.py"
@@ -274,7 +276,7 @@ class GraphifyNoCommitRowTest(unittest.TestCase):
         stores = runpy.run_path(str(Path(__file__).resolve().parents[2] / "chaos-engine/stores.py"))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
-            subprocess.run(["git", "init", "-q", str(project)], check=True)
+            subprocess.run([GIT, "init", "-q", str(project)], check=True)
             (project / "graphify-out").mkdir()
             (project / "graphify-out/graph.json").write_text("{}", encoding="utf-8")
             (project / "graphify-out/manifest.json").write_text("{}", encoding="utf-8")
@@ -282,9 +284,9 @@ class GraphifyNoCommitRowTest(unittest.TestCase):
             self.assertEqual("absent", row["status"])
             self.assertIn("commit once", row["fixNext"])
             (project / "a.txt").write_text("a", encoding="utf-8")
-            subprocess.run(["git", "-C", str(project), "add", "a.txt"], check=True)
+            subprocess.run([GIT, "-C", str(project), "add", "a.txt"], check=True)
             subprocess.run(
-                ["git", "-C", str(project), "-c", "user.email=a@b", "-c", "user.name=a",
+                [GIT, "-C", str(project), "-c", "user.email=a@b", "-c", "user.name=a",
                  "commit", "-qm", "init"], check=True)
             row = stores["graphify_doctor_row"](project)
             self.assertEqual("degraded", row["status"])
