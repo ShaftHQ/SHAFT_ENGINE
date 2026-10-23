@@ -1763,6 +1763,31 @@ def craft_qc():
     return module
 
 
+ODD_SPACES = re.compile("[\u00a0\u2000-\u200b\u202f\u205f\u3000\ufeff]")
+
+
+def cmd_codeparse(args: argparse.Namespace) -> int:
+    """Code extracted from a render or export: no odd-space indents, and it parses."""
+    text = Path(args.file).read_text(encoding="utf-8")
+    odd = [n for n, line in enumerate(text.splitlines(), 1) if ODD_SPACES.search(line)]
+    if odd:
+        return report("code-parse", FAIL, error="non-ASCII space (NBSP/em-space) in code", lines=odd[:20])
+    try:
+        if args.lang == "json":
+            json.loads(text)
+        elif args.lang == "python":
+            compile(text, args.file, "exec", dont_inherit=True)
+        else:
+            if importlib.util.find_spec("yaml") is None:
+                return report("code-parse", SKIPPED, error="PyYAML not installed")
+            import yaml  # noqa: PLC0415 - optional dependency, checked above.
+
+            list(yaml.safe_load_all(text))
+    except Exception as error:  # noqa: BLE001 - any parser error is the finding.
+        return report("code-parse", FAIL, lang=args.lang, error=str(error).splitlines()[0][:200])
+    return report("code-parse", PASS, lang=args.lang)
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = root.add_subparsers(dest="command", required=True)
@@ -1772,6 +1797,9 @@ def parser() -> argparse.ArgumentParser:
         command.set_defaults(func=func)
         return command
 
+    p = add("code-parse", cmd_codeparse, "extracted code: no odd-space indents, parses")
+    p.add_argument("file")
+    p.add_argument("--lang", choices=("yaml", "json", "python"), default="yaml")
     p = add("contrast", cmd_contrast, "WCAG contrast of color pairs")
     p.add_argument("--pair", action="append", default=[], help="fg:bg[:text|large|ui]")
     p.add_argument("--tokens", help="theme.json with contrastPairs")

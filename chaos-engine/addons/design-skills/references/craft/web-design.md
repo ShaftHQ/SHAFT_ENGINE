@@ -48,6 +48,12 @@ A page, landing, or docs surface needs senior-level layout, type, and interactio
 | README CTAs | both in the first screen at 1280x800 and 390x844 | GitHub README fold | render matrix |
 | UI transition | 150-300 ms; enter decelerates | Material 3 motion | `motiondur`, `easing` |
 
+- RTL pages: grids and legends follow reading direction (`dir=rtl` on the
+  grid, `dir=ltr` inside each Latin chip) and match the scale they label
+  (first step at top-right).
+- Chips and labels >= 14 px. At <= 480 px: one column, equal card heights,
+  no orphan last row.
+
 ## Anti-patterns
 
 - Hero with no product in it.

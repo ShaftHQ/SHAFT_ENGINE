@@ -43,6 +43,16 @@ their own files.
   feature. No hype words the evidence cannot back.
 - Fonts need a recorded licence (OFL or owned) before use in renders.
 
+### Exceptions and imports
+
+- Semantic exception: an off-brand hue is allowed only for one named
+  semantic use (for example test-fail red and test-pass green), recorded in
+  the palette with that use and contrast-checked like any token.
+- Imported material gets a documented off-palette -> palette remap table
+  before it ships.
+- Logo on dark: white single-colour logo; the colour logo only on a white
+  card.
+
 ## Brand card
 
 When a brand already has guidelines, keep a one-page brand card: a short,
