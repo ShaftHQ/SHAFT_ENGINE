@@ -35,7 +35,7 @@ class TaskLedgerTest(unittest.TestCase):
         self.ledger = load()
         specs = Path(self.tmp.name) / "specs"
         specs.mkdir()
-        for task in ("cli", "all-open"):
+        for task in ("cli", "all-open", "ra", "nonext"):
             (specs / f"spec-{task}.md").write_text("# Spec\n", encoding="utf-8")
 
     def run_main(self, args, command="checkpoint"):
@@ -50,7 +50,7 @@ class TaskLedgerTest(unittest.TestCase):
         text = self.ledger.brief("t1")
         self.assertIn("last step 'pushed'", text)
         self.assertIn("branch b; pr 12", text)
-        self.assertTrue(text.endswith("next: wait CI on #12"))
+        self.assertTrue(text.startswith("Resume at: wait CI on #12\n"))
         self.assertEqual(2, len(text.splitlines()))
 
     def test_budget_exit_codes(self):
@@ -106,12 +106,22 @@ class TaskLedgerTest(unittest.TestCase):
         with unittest.mock.patch("sys.stderr", io.StringIO()):
             self.assertEqual(2, self.run_main(["../escape", "step"])[0])
 
+    def test_resume_brief_leads_with_exactly_one_resume_at_line_7293(self):
+        self.run_main(["ra", "plan", "--start", "--next", "write the failing test"])
+        self.run_main(["ra", "built"])
+        code, brief = self.run_main(["ra"], "resume")
+        self.assertEqual(0, code)
+        self.assertEqual("Resume at: write the failing test", brief.splitlines()[0])
+        self.assertEqual(1, brief.count("Resume at: "))
+        self.run_main(["nonext", "plan", "--start"])
+        self.assertTrue(self.run_main(["nonext"], "resume")[1].startswith("Resume at: (missing"))
+
     def test_tool_cli_routes_checkpoint_and_resume(self):
         env = {**os.environ, "CHAOS_ENGINE_TASKS_DIR": self.tmp.name}
         tool = [sys.executable, str(CE / "tool.py")]
         subprocess.run([*tool, "checkpoint", "cli", "implement", "--next", "push"], check=True, env=env)  # nosec B603
         result = subprocess.run([*tool, "resume", "cli"], capture_output=True, text=True, env=env, check=True)  # nosec B603
-        self.assertIn("next: push", result.stdout)
+        self.assertIn("Resume at: push", result.stdout)
 
 
 class DeliveryLedgerTest(TaskLedgerTest):
@@ -129,7 +139,7 @@ class DeliveryLedgerTest(TaskLedgerTest):
         self.assertEqual(0, code)
         self.assertIn("| #6978 | G1 | merged |", brief)
         self.assertNotIn("pr #6979", brief)
-        self.assertIn("next:", brief)
+        self.assertIn("Resume at:", brief)
         self.assertEqual(["#6978", "#4307"], list(self.ledger.items("all-open")))
 
     def test_blocked_needs_reason_and_status_is_validated(self):
