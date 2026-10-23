@@ -295,6 +295,7 @@ CHECKS = {
             "tests.scripts.test_ce_addons",
             "tests.scripts.test_policy_overlay_repair",
             "tests.scripts.test_ce_design_craft",
+            "tests.scripts.test_ce_design_lessons",
             "tests.scripts.test_learning_session_readme_7117",
             "tests.scripts.test_chaos_engine_dependencies",
             "tests.scripts.test_chaos_engine_java_pinned_fallback",
