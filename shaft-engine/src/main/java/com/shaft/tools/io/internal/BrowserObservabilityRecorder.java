@@ -614,7 +614,7 @@ public final class BrowserObservabilityRecorder {
                     "entries": %s
                   }
                 }
-                """.formatted(networkJson == null || networkJson.isBlank() ? "[]" : networkJson);
+                """.replace("%s", networkJson == null || networkJson.isBlank() ? "[]" : networkJson);
     }
 
     private static boolean isConsoleEnabled() {

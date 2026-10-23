@@ -128,7 +128,6 @@ public final class FailureTraceReporter {
             TraceArchiveBundle bundle = convergeTraceArchive(completedArchive, json, CURRENT_NETWORK_JSON.get(),
                     screenshots, CURRENT_ARTIFACT_MANIFEST.get(), maxBytes, Math.multiplyExact((long) maxBytes, 4L),
                     aggregateOmissionMarker(), omitted);
-            json = bundle.json();
             String html = bundle.html();
             omitted = bundle.omitted();
             attach("html", "shaft-trace.html", html.getBytes(StandardCharsets.UTF_8), traceViewerLabel(info, attempt));

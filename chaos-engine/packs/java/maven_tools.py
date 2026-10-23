@@ -1073,16 +1073,33 @@ def probe_maven_tools_runtime(
         if process.stdin is None or process.stdout is None:
             return False
 
+        lines: queue.Queue[str] = queue.Queue()
+
+        def pump() -> None:
+            for line in process.stdout:
+                lines.put(line)
+            lines.put("")
+
+        threading.Thread(target=pump, daemon=True).start()
+
         def exchange(requests: list[dict[str, object]]) -> dict[str, object]:
+            # Skip log lines and notifications on stdout until the reply with the
+            # expected id arrives (#7300: a startup log line read as the reply).
+            expected = next((r.get("id") for r in requests if "id" in r), None)
             for request in requests:
                 process.stdin.write(json.dumps(request, separators=(",", ":")) + "\n")
             process.stdin.flush()
-            received: queue.Queue[str] = queue.Queue(maxsize=1)
-            threading.Thread(
-                target=lambda: received.put(process.stdout.readline()), daemon=True
-            ).start()
-            response = json.loads(received.get(timeout=timeout))
-            return response if isinstance(response, dict) else {}
+            deadline = time.monotonic() + timeout
+            while True:
+                line = lines.get(timeout=max(0.0, deadline - time.monotonic()))
+                if not line:
+                    return {}
+                try:
+                    response = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(response, dict) and response.get("id") == expected:
+                    return response
 
         initialized = exchange([{
             "jsonrpc": "2.0", "id": 1, "method": "initialize",

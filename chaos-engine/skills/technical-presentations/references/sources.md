@@ -1,7 +1,7 @@
 # Sources
 
 Learning science: Mayer, *Multimedia Learning* and the
-[Cambridge Handbook ch. 12](https://core-prod.cambridgecore.org/core/books/abs/cambridge-handbook-of-multimedia-learning/principles-for-reducing-extraneous-processing-in-multimedia-learning-coherence-signaling-redundancy-spatial-contiguity-and-temporal-contiguity-principles/CD5B7AE1279A9AB81F8EEBB53DBEC86E),
+[Cambridge Handbook ch. 12](https://www.cambridge.org/core/books/abs/cambridge-handbook-of-multimedia-learning/principles-for-reducing-extraneous-processing-in-multimedia-learning-coherence-signaling-redundancy-spatial-contiguity-and-temporal-contiguity-principles/CD5B7AE1279A9AB81F8EEBB53DBEC86E),
 [NYU 12 principles](https://www.nyu.edu/content/dam/nyu/facultyResources/documents/ESMITS/12PrinciplesofMultimedia.pdf),
 [cognitive load and slides](https://my.chartered.college/impact_article/using-cognitive-load-theory-to-improve-slideshow-presentations/).
 
@@ -13,7 +13,7 @@ Design and story: [Duarte glance test](https://www.duarte.com/resources/guides-t
 [Duarte slidedocs](https://1619981.fs1.hubspotusercontent-na1.net/hubfs/1619981/Duarte_Slidedocs_Ebook.pdf),
 [Resonate sparkline](https://www.oreilly.com/library/view/resonate-present-visual/9780470632017/ch06.html),
 [Presentation Zen](https://www.garrreynolds.com/design-tips),
-[ABT framework](https://abtframework.com/),
+ABT framework (abtframework.com, certificate expired; cited by name),
 [MIT scientific storytelling](https://mitcommlab.mit.edu/cee/commkit/scientific-storytelling/).
 
 Technical content: [code on slides](http://chapeau.freevariable.com/2023/03/code-on-slides.html),

@@ -4,7 +4,7 @@ Craft card: [../craft/hooks.md](../craft/hooks.md). Each line: link, why it is g
 transferable techniques. Ideas are re-expressed; no media is copied.
 
 1. [YouTube Creator Academy / Help: thumbnails](https://support.google.com/youtube/answer/72431): official thumbnail specs. Techniques: 1280x720, readable at small size.
-2. [MrBeast production guide (public document)](https://www.scribd.com/document/772778966/How-to-Succeed-in-MrBeast-Production): hook-first production culture. Techniques: front-load the promise.
+2. MrBeast production guide ("How to Succeed in MrBeast Production", public document, removed from Scribd): hook-first production culture. Techniques: front-load the promise.
 3. [Paddy Galloway (site)](https://www.paddygalloway.com/): YouTube strategy breakdowns. Techniques: curiosity-gap packaging.
 4. [Colin and Samir](https://www.youtube.com/@ColinandSamir): creator economy interviews. Techniques: hook packaging.
 5. [1of10](https://1of10.com/): outlier-video research. Techniques: packaging patterns.

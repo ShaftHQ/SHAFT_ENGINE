@@ -56,7 +56,7 @@ final class PlaywrightTraceOfflineAdapter {
                 <title>Playwright snapshot (offline)</title></head><body>
                 <iframe id="playwright-snapshot" title="Playwright DOM snapshot" sandbox=""
                         src="data:text/html;charset=utf-8;base64,%s"></iframe></body></html>
-                """.formatted(encoded);
+                """.replace("%s", encoded);
     }
 
     static String snapshotDocument(PlaywrightTraceArchiveLoader.LoadedArchive archive, String snapshotName) {
