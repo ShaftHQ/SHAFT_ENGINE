@@ -47,6 +47,10 @@ the [multi-agent PDCA loop](multi-agent-pdca.md), which defines each round.
 - [ ] Exactly one item in progress for this pair?
 - [ ] DoD written before work started, and owner self-reviewed against it?
 - [ ] Every reviewer comment specific and testable, or an explicit sign-off?
+- [ ] Owner and reviewer each ran the [pre-done self-review](../skills/pre-done-self-review/SKILL.md):
+      rules reconciled, every Blocked/Skipped row cites `rule:` + `alt:`,
+      views match the table, `## What's missing` answered, and
+      `tool.py pre-done <report.md>` exits 0?
 - [ ] Both sign-offs, and the item shipped or scheduled?
 - [ ] Each lesson logged as failure → root cause → preventive rule?
 - [ ] Preventive rule applied to the next item's plan, template, or checks?

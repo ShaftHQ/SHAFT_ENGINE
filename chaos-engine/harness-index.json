@@ -109,6 +109,24 @@
       "path": "skills/technical-presentations/SKILL.md"
     },
     {
+      "description": "Use before claiming Done, signing off, or handing off: reconcile every item with all standing rules, cite rule and alternative for each gap, check views. On demand only.",
+      "family": "on-demand",
+      "hosts": {
+        "antigravity": "catalog",
+        "claude": "plugin",
+        "codex": "plugin",
+        "copilot": "catalog",
+        "cursor": "catalog",
+        "gemini": "catalog",
+        "grok": "catalog",
+        "grok-bot": "catalog",
+        "opencode": "catalog"
+      },
+      "kind": "portable",
+      "name": "pre-done-self-review",
+      "path": "skills/pre-done-self-review/SKILL.md"
+    },
+    {
       "description": "Use when a git worktree is dirty or another local branch or worktree exists. Ask before cleanup unless the session is unattended.",
       "family": "delivery",
       "hosts": {

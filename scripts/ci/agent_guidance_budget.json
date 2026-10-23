@@ -133,6 +133,7 @@
       "local-openai-compat",
       "local-runtimes",
       "omniroute",
+      "pre-done-self-review",
       "self-improve",
       "technical-presentations",
       "work-item"

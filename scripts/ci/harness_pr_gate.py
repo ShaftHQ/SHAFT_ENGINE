@@ -496,6 +496,7 @@ CHECKS = {
         (
             "tests.scripts.test_process_owner_scrum_master",
             "tests.scripts.test_multi_agent_pdca",
+            "tests.scripts.test_pre_done_review",
         ),
     ),
     "ce-h2-gates-contract": Check(
@@ -1051,6 +1052,9 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_process_owner_scrum_master.py",
         "chaos-engine/references/multi-agent-pdca.md",
         "chaos-engine/references/iterative-flow.md",
+        "chaos-engine/pre_done_review.py",
+        "chaos-engine/skills/pre-done-self-review/SKILL.md",
+        "tests/scripts/test_pre_done_review.py",
         "chaos-engine/references/bot-entry.md",
         "tests/scripts/test_multi_agent_pdca.py",
     ),

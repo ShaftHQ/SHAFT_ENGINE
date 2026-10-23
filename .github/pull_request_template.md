@@ -14,6 +14,8 @@
 retrieve:
 
 
+> Agentic Done/handoff: run `python3 .chaos-engine/tool.py pre-done <status.md>` (pre-done self-review) when the PR tracks items with a status table.
+
 ## Riskiest assumption
 
 > Required. Name the assumption and one targeted test in backticks, or write N/A.

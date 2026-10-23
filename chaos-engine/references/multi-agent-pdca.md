@@ -20,6 +20,8 @@ Done = both sign-offs and shipped, lessons become preventive rules.
 2. Do: smallest change that meets the spec.
 3. Check: orchestrator self-check, then the reviewer's independent check for
    logical and visual issues.
+   Both run the [pre-done self-review](../skills/pre-done-self-review/SKILL.md)
+   (`tool.py pre-done <report.md>` exits 0) before any sign-off.
 4. Act: fix every finding, then return to Check.
 
 Repeat until neither agent finds a logical or visual issue. Both sign-offs

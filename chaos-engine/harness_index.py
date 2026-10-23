@@ -75,6 +75,10 @@ SKILLS = (
     ("technical-presentations", "portable", "skills/technical-presentations/SKILL.md",
      "Use when planning, building, refactoring, or reviewing technical talks or training decks: "
      "story arc, claim titles, visual evidence, code slides, checkpoints. On demand only.", "on-demand"),
+    # On demand only: linked from bot-entry, iterative-flow and multi-agent-pdca done/handoff paths.
+    ("pre-done-self-review", "portable", "skills/pre-done-self-review/SKILL.md",
+     "Use before claiming Done, signing off, or handing off: reconcile every item with all standing "
+     "rules, cite rule and alternative for each gap, check views. On demand only.", "on-demand"),
     ("git-cleanup", "portable", "skills/git-cleanup/SKILL.md",
      "Use when a git worktree is dirty or another local branch or worktree exists. "
      "Ask before cleanup unless the session is unattended.", "delivery"),

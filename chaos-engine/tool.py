@@ -395,7 +395,7 @@ def maintain(installed_root: Path, *, runner=subprocess.run) -> int:
 
 def tool_help_text() -> str:
     """One usage text for every host. There is no per-host help."""
-    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume", "delete-check"}))
+    names = ", ".join(sorted(TOOLS | {"retrieve", "entry", "maintain", "job", "checkpoint", "resume", "delete-check", "pre-done"}))
     return (
         "usage: tool.py <tool|retrieve> [args...]\n"
         "       tool.py --help\n"
@@ -712,7 +712,7 @@ def resolve_maven_tools_command(installed_root: Path) -> list[str]:
     return [str(java), "-jar", str(jar)]
 
 
-# In-process stdlib scripts: dod, usage, #6525 durable jobs, #6854 task ledger.
+# In-process stdlib scripts: dod, usage, #6525 durable jobs, #6854 task ledger, #7325 pre-done.
 SCRIPT_TOOLS = {
     "dod": "dod.py",
     "usage": "session_token_usage.py",
@@ -720,6 +720,7 @@ SCRIPT_TOOLS = {
     "checkpoint": "task_ledger.py",
     "resume": "task_ledger.py",
     "delete-check": "delete_guard.py",
+    "pre-done": "pre_done_review.py",
 }
 
 
