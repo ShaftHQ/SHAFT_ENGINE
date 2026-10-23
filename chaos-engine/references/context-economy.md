@@ -26,6 +26,13 @@ the next decision. Stop exploring when that decision is supported.
 - Locally run only the red test and directly affected modules; CI runs the rest.
 - Doctor reloads use `--agent-summary` (four lines). Keep full `--json` for humans and contract tests.
 
+Always-loaded host instruction files (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`,
+`.github/copilot-instructions.md`) stay at or under 150 lines each, in this repo
+and in every project ChaosEngine works in. Doctor's `token-economy` row warns
+with the file and its line count; move detail into on-demand references.
+Progress resumes from one line: `tool.py resume TASK` prints `Resume at: <next>`
+first; pass `--next` on every checkpoint step.
+
 ## Spill large tool output
 
 When a tool result is larger than the decision needs:

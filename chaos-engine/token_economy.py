@@ -77,6 +77,24 @@ def receipt(root: Path = HERE, project: Path | None = None, stopped: frozenset[s
     )
 
 
+INSTRUCTION_FILES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md", ".github/copilot-instructions.md")
+INSTRUCTION_MAX_LINES = 150
+
+
+def instruction_overflow(project: Path, limit: int = INSTRUCTION_MAX_LINES) -> list[str]:
+    """Always-loaded host instruction files over `limit` lines; detail belongs on demand."""
+    over = []
+    for rel in INSTRUCTION_FILES:
+        path = project / rel
+        try:
+            lines = len(path.read_text(encoding="utf-8", errors="replace").splitlines()) if path.is_file() else 0
+        except OSError:
+            continue
+        if lines > limit:
+            over.append(f"{rel} {lines}>{limit} lines")
+    return over
+
+
 def doctor_check(root: Path = HERE) -> tuple[str, str]:
     """Return (`pass`|`fail`, reason)."""
     for name, rel in CORE_CARDS.items():
@@ -92,4 +110,7 @@ def doctor_check(root: Path = HERE) -> tuple[str, str]:
     unlisted = [rel for _, rel in harness_map.mapped_files(root) if f"`{rel}`:" not in current]
     if unlisted:
         return "fail", f"harness map stale ({len(unlisted)} unlisted)"
+    over = instruction_overflow(root.parent)
+    if over:
+        return "warn", "move detail to on-demand references: " + ", ".join(over)
     return "pass", "core cards and lazy map present"

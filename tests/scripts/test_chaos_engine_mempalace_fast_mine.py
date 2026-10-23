@@ -97,5 +97,22 @@ class FastMinePrefixTest(unittest.TestCase):
             self.assertEqual(["/missing/mempalace"], stores.fast_mine_prefix("/missing/mempalace"))
 
 
+class ShimRetirementTripwire6912Test(unittest.TestCase):
+    """#6912: a MemPalace pin bump must re-decide the shim, never silently orphan it."""
+
+    def test_pinned_mempalace_is_a_version_the_shim_knows(self):
+        import json
+        import re
+
+        deps = json.loads((ROOT / "chaos-engine/dependencies.json").read_text(encoding="utf-8"))
+        pins = set(re.findall(r"mempalace==([0-9][0-9.]*)", json.dumps(deps)))
+        self.assertTrue(pins, "mempalace pin not found")
+        shim = _load("mempalace_fast_mine")
+        self.assertLessEqual(
+            pins, set(shim.SUPPORTED_VERSIONS),
+            "MemPalace pin bumped: if the release deletes FTS rows by rowid (upstream #2727, f0a23f0), "
+            "delete mempalace_fast_mine.py and its wiring; otherwise add the version to SUPPORTED_VERSIONS",
+        )
+
 if __name__ == "__main__":
     unittest.main()

@@ -93,5 +93,24 @@ class TokenEconomyTests(unittest.TestCase):
         self.assertLessEqual(len(rendered.splitlines()), self.install.AGENT_SUMMARY_MAX_LINES)
 
 
+class InstructionBudget7293Test(unittest.TestCase):
+    """#7293: always-loaded host instructions over 150 lines warn, never fail."""
+
+    def test_overflow_names_the_file_and_doctor_warns(self):
+        economy = _load_economy_7293()
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            (project / "CLAUDE.md").write_text("x\n" * 150, encoding="utf-8")
+            self.assertEqual([], economy.instruction_overflow(project))
+            (project / "CLAUDE.md").write_text("x\n" * 671, encoding="utf-8")
+            self.assertEqual(["CLAUDE.md 671>150 lines"], economy.instruction_overflow(project))
+
+
+def _load_economy_7293():
+    spec = importlib.util.spec_from_file_location("ce_economy_7293", CE / "token_economy.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
 if __name__ == "__main__":
     unittest.main()
