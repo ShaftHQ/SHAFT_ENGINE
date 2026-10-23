@@ -198,8 +198,18 @@ def seed_graphify_ignore(project: Path) -> Path:
     path = project / ".graphifyignore"
     existing = path.read_text(encoding="utf-8").splitlines() if path.is_file() else []
     missing = [entry for entry in GRAPHIFY_IGNORE_DEFAULTS if entry not in existing]
-    if missing or not path.is_file():
-        lines = [*existing, *(["# ChaosEngine harness and generated trees"] if missing else []), *missing]
+    try:
+        nested = _load_stores_module()["nested_repository_roots"](project)
+    except (OSError, KeyError, RuntimeError):  # nested detection is best effort.
+        nested = []
+    nested_missing = [f"{entry}/" for entry in nested if f"{entry}/" not in existing]
+    if nested_missing:
+        print(f"chaos-engine: graphify skips {len(nested_missing)} nested repositories: "
+              + ", ".join(nested), file=sys.stderr)
+    if missing or nested_missing or not path.is_file():
+        lines = [*existing, *(["# ChaosEngine harness and generated trees"] if missing else []), *missing,
+                 *(["# ChaosEngine nested repositories and worktrees"] if nested_missing else []),
+                 *nested_missing]
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
 
