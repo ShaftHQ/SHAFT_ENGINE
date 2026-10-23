@@ -138,6 +138,15 @@ MEMPALACE_OWNED_EXCLUDES = (
     ".codex/agents/chaos-engine-*",
 )
 MEMPALACE_INDEX_SUBCOMMAND = "mempalace-index"
+# Full re-index only on: no index, unreadable index, schema or embedder change,
+# or an explicit request (CHAOS_ENGINE_MEMPALACE_FULL=1). Otherwise MemPalace
+# mines incrementally (it skips files whose mtime is already recorded).
+MEMPALACE_FULL_ENV = "CHAOS_ENGINE_MEMPALACE_FULL"
+MEMPALACE_INDEX_SCHEMA = 1
+# Beside (never inside) the palace: doctor quarantines unknown palace files.
+MEMPALACE_INDEX_META_NAME = "mempalace-index-meta.json"
+_LAST_MINE_EMBEDDER: dict[str, str] = {}
+MEMPALACE_NESTED_MARKER = "  # chaos-engine: nested repositories (managed)"
 MEMPALACE_INDEX_STATUS_NAME = "mempalace-index.json"
 MEMPALACE_INDEX_LOG_NAME = "mempalace-index.log"
 TRANSIENT_MEMPALACE_TLS_EOF = "[SSL: UNEXPECTED_EOF_WHILE_READING]"
@@ -1134,6 +1143,8 @@ def project_setup_plan(project: Path, commands: dict[str, str]) -> list[list[str
     mempalace = commands.get("mempalace")
     if mempalace:
         configured = mempalace_project_configuration_exists(project)
+        if configured:
+            adopt_relocated_mempalace_palace(project)
         index = mempalace_index_status(project) if configured else None
         resume = index is not None and index["status"] in {"failed", "interrupted"}
         if configured and (resume or not mempalace_project_setup_complete(project)):
@@ -1369,10 +1380,170 @@ def missing_owned_mempalace_excludes(project: Path) -> list[str]:
     ]
 
 
-def mark_mempalace_project_setup(project: Path) -> None:
+def _stores_namespace(run_name: str = "_chaos_engine_stores_index") -> dict:
+    import runpy
+
+    return runpy.run_path(str(Path(__file__).resolve().with_name("stores.py")), run_name=run_name)
+
+
+def mempalace_embedder_version(executable: str | None) -> str:
+    """MemPalace distribution version beside ``executable``; empty when unknown."""
+    if not executable:
+        return ""
+    try:
+        base = Path(executable).resolve().parent.parent
+    except OSError:
+        return ""
+    for pattern in ("lib/python*/site-packages/mempalace-*.dist-info", "Lib/site-packages/mempalace-*.dist-info"):
+        for match in sorted(base.glob(pattern)):
+            return match.name[len("mempalace-"):-len(".dist-info")]
+    return ""
+
+
+def read_mempalace_index_meta(palace: Path) -> dict | None:
+    """Recorded schema/embedder of the last completed mine; None for legacy markers."""
+    try:
+        text = (palace.parent / MEMPALACE_INDEX_META_NAME).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    try:
+        meta = json.loads(text)
+    except ValueError:
+        return None
+    return meta if isinstance(meta, dict) else None
+
+
+def adopt_relocated_mempalace_palace(project: Path) -> Path | None:
+    """Reuse a populated palace left at the other state location; copy, never move."""
+    stores = _stores_namespace("_chaos_engine_stores_relocate")
+    target = mempalace_project_palace(project)
+    if stores["palace_drawer_count"](target):
+        return None
+    for candidate in stores["palace_candidates"](project):
+        try:
+            if candidate.resolve() == target.resolve() or is_link_or_reparse(candidate):
+                continue
+        except OSError:
+            continue
+        if not stores["palace_drawer_count"](candidate):
+            continue
+        target.mkdir(parents=True, exist_ok=True)
+        for name in ("sqlite_exact.sqlite3", "sqlite_exact.sqlite3-wal", "sqlite_exact.sqlite3-shm", ".mined"):
+            source = candidate / name
+            if source.is_file() and not is_link_or_reparse(source):
+                shutil.copy2(source, target / name)
+        meta = candidate.parent / MEMPALACE_INDEX_META_NAME
+        if meta.is_file() and not is_link_or_reparse(meta):
+            shutil.copy2(meta, target.parent / MEMPALACE_INDEX_META_NAME)
+        print(f"chaos-engine: MemPalace index reused from {candidate} (state location moved)",
+              file=sys.stderr)
+        return candidate
+    return None
+
+
+def mempalace_mine_decision(project: Path, command: list[str] | None = None,
+                            environ=None) -> tuple[str, str]:
+    """Return (``full``|``incremental``, reason) for the next project mine."""
+    environ = os.environ if environ is None else environ
+    if str(environ.get(MEMPALACE_FULL_ENV, "")).strip().lower() in {"1", "true", "yes", "full"}:
+        return "full", f"explicit request ({MEMPALACE_FULL_ENV})"
+    palace = mempalace_project_palace(project)
+    if not (palace / "sqlite_exact.sqlite3").is_file():
+        return "full", "index missing"
+    count = _stores_namespace("_chaos_engine_stores_decision")["palace_drawer_count"](palace)
+    if count is None:
+        return "full", "index unreadable or corrupt"
+    if count == 0:
+        return "full", "index empty"
+    meta = read_mempalace_index_meta(palace)
+    if meta is not None:
+        if meta.get("schema") != MEMPALACE_INDEX_SCHEMA:
+            return "full", f"index schema changed ({meta.get('schema')} -> {MEMPALACE_INDEX_SCHEMA})"
+        embedder = mempalace_embedder_version(command[0] if command else None)
+        if embedder and meta.get("embedder") and meta["embedder"] != embedder:
+            return "full", f"embedder changed ({meta['embedder']} -> {embedder})"
+    return "incremental", f"reusing index with {count} drawers; only changed files are mined"
+
+
+def set_aside_mempalace_index(project: Path) -> Path | None:
+    """Before a full mine, keep the old index beside the palace (never delete it)."""
+    palace = mempalace_project_palace(project)
+    present = [palace / name for name in ("sqlite_exact.sqlite3", "sqlite_exact.sqlite3-wal",
+                                          "sqlite_exact.sqlite3-shm", ".mined")
+               if (palace / name).is_file()]
+    if not present:
+        return None
+    aside = palace.with_name(f"{palace.name}.previous-{time.strftime('%Y%m%d%H%M%S')}")
+    aside.mkdir(parents=True, exist_ok=False)
+    for path in present:
+        path.replace(aside / path.name)
+    return aside
+
+
+def apply_nested_repository_excludes(project: Path) -> list[str]:
+    """Keep nested repositories/worktrees out of the mine (installer-owned config only)."""
+    nested = _stores_namespace("_chaos_engine_stores_nested")["nested_repository_roots"](project)
+    configuration = project.resolve() / "mempalace.yaml"
+    if is_link_or_reparse(configuration) or not configuration.is_file():
+        return nested
+    text = configuration.read_text(encoding="utf-8")
+    owned = not missing_owned_mempalace_excludes(project)
+    if not owned:
+        if nested:
+            print("chaos-engine: mempalace.yaml is yours; add exclude_patterns for nested "
+                  "repositories to keep them out of the index: "
+                  + ", ".join(f"{path}/**" for path in nested), file=sys.stderr)
+        return nested
+    lines = text.splitlines()
+    if MEMPALACE_NESTED_MARKER in lines:
+        start = lines.index(MEMPALACE_NESTED_MARKER)
+        end = start + 1
+        while end < len(lines) and lines[end].startswith("  - "):
+            end += 1
+        del lines[start:end]
+    else:
+        start = None
+    if nested:
+        block = [MEMPALACE_NESTED_MARKER, *(f"  - '{path}/**'" for path in nested)]
+        if start is None:
+            last = max(i for i, line in enumerate(lines)
+                       if line.startswith("  - ") and any(
+                           line.strip("- '\"") == pattern for pattern in MEMPALACE_OWNED_EXCLUDES))
+            start = last + 1
+            while start < len(lines) and lines[start].startswith("  - "):
+                start += 1
+        lines[start:start] = block
+    updated = "\n".join(lines) + "\n"
+    if updated != text:
+        configuration.write_text(updated, encoding="utf-8")
+    return nested
+
+
+def prepare_mempalace_mine(project: Path, command: list[str]) -> tuple[str, str]:
+    """Skip nested repos, pick full vs incremental, and log the mode and reason."""
+    nested = apply_nested_repository_excludes(project)
+    _LAST_MINE_EMBEDDER[str(project.resolve())] = mempalace_embedder_version(command[0] if command else None)
+    mode, reason = mempalace_mine_decision(project, command)
+    if mode == "full":
+        aside = set_aside_mempalace_index(project)
+        if aside is not None:
+            reason += f"; previous index kept at {aside}"
+    print(f"chaos-engine: MemPalace index mode={mode} reason={reason}", file=sys.stderr)
+    if nested:
+        print(f"chaos-engine: MemPalace skips {len(nested)} nested repositories: "
+              + ", ".join(nested), file=sys.stderr)
+    return mode, reason
+
+
+def mark_mempalace_project_setup(project: Path, embedder: str | None = None) -> None:
     """Mark only a successful sqlite_exact project setup as mined."""
     palace = prepare_mempalace_project_target(project)
     (palace / ".mined").write_bytes(b"current\n")
+    if embedder is None:
+        embedder = _LAST_MINE_EMBEDDER.get(str(project.resolve()), "")
+    meta = {"schema": MEMPALACE_INDEX_SCHEMA, "embedder": embedder}
+    (palace.parent / MEMPALACE_INDEX_META_NAME).write_text(json.dumps(meta, sort_keys=True) + "\n",
+                                                    encoding="utf-8")
 
 
 def mempalace_index_paths(project: Path) -> tuple[Path, Path]:
@@ -1483,6 +1654,7 @@ def start_background_mempalace_mine(
     spawner=subprocess.Popen,
 ) -> None:
     """Prepare the exact palace, then detach the incremental mine from install."""
+    prepare_mempalace_mine(project, command)
     prepare_mempalace_project_target(project)
     _status_path, log_path = mempalace_index_paths(project)
     _write_index_status(project, _index_document("running", command, log=str(log_path)))
@@ -1500,6 +1672,8 @@ def start_background_mempalace_mine(
         options["start_new_session"] = True
     with open(log_path, "ab") as log:
         spawner(argv, stdout=log, **options)  # nosec B603 - fixed list-form argv.
+    print(f"chaos-engine: MemPalace index running in the background; progress: {log_path}",
+          file=sys.stderr)
 
 
 def run_mempalace_index(project: Path, command: list[str], *, runner=subprocess.run) -> int:
@@ -1509,8 +1683,12 @@ def run_mempalace_index(project: Path, command: list[str], *, runner=subprocess.
         project, _index_document("running", command, pid=os.getpid(), log=str(log_path))
     )
     try:
-        _run_transient_mempalace_mine(command, project, runner=runner)
-        mark_mempalace_project_setup(project)
+        started = time.monotonic()
+        print(f"chaos-engine: MemPalace index started: {' '.join(command)}", flush=True)
+        _run_transient_mempalace_mine(command, project, runner=runner, announce=False)
+        mark_mempalace_project_setup(project, mempalace_embedder_version(command[0]))
+        print(f"chaos-engine: MemPalace index complete in {time.monotonic() - started:.0f}s",
+              flush=True)
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
         _write_index_status(project, _index_document("failed", command, detail=str(error)[:400]))
         return 1
@@ -1759,8 +1937,11 @@ def _run_transient_mempalace_mine(
     command: list[str], project: Path, *, runner=subprocess.run,
     extra_environment: dict[str, str] | None = None,
     budget: float = float("inf"),
+    announce: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     """Mine with no wall-clock cap (stall watchdog, #6377); retry a transient TLS EOF."""
+    if announce:
+        prepare_mempalace_mine(project, command)
     if runner is subprocess.run:
         runner = run_until_stalled
     elif getattr(runner, "inner", None) is subprocess.run and callable(getattr(runner, "rewrap", None)):

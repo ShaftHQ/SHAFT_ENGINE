@@ -132,6 +132,50 @@ def resolve_palace(cwd: Path) -> Path:
     return cwd.resolve() / ".chaos-engine-state" / "mempalace"
 
 
+NESTED_REPOSITORY_PRUNE = frozenset({".git", "node_modules", ".chaos-engine", ".chaos-engine-state",
+                                      ".chaos-engine-runtime", "graphify-out", ".memory", "target"})
+
+
+def nested_repository_roots(project: Path) -> list[str]:
+    """Relative POSIX paths of Git repositories or worktrees below ``project``.
+
+    A directory holding a ``.git`` directory or file (worktree, submodule) is a
+    nested repository; it is reported once and never descended into. The root
+    itself is not reported. Symlinked directories are not followed.
+    """
+    root = project.resolve()
+    found: list[str] = []
+    for current, directories, _files in os.walk(root, followlinks=False):
+        here = Path(current)
+        kept = []
+        for name in sorted(directories):
+            if name in NESTED_REPOSITORY_PRUNE:
+                continue
+            child = here / name
+            if child.is_symlink():
+                continue
+            marker = child / ".git"
+            if marker.is_dir() or marker.is_file():
+                found.append(child.relative_to(root).as_posix())
+                continue
+            kept.append(name)
+        directories[:] = kept
+    return found
+
+
+def palace_candidates(cwd: Path) -> list[Path]:
+    """Every location a palace for this project may live in (#state relocation)."""
+    project = cwd.resolve()
+    candidates = [project / ".chaos-engine-state" / "mempalace"]
+    common = resolve_common_dir(cwd)
+    if common is not None:
+        candidates.append(common / "chaos-engine" / "mempalace")
+    in_tree = project / ".git" / "chaos-engine" / "mempalace"
+    if in_tree not in candidates:
+        candidates.append(in_tree)
+    return candidates
+
+
 def legacy_palace(cwd: Path) -> Path:
     """Project-local palace written by older host MCP args. Do not delete it."""
     return cwd.resolve() / ".chaos-engine-state" / "mempalace"
