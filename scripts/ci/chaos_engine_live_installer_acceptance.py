@@ -1117,6 +1117,22 @@ def run_offline_rerun(
     )
 
 
+def _wrapper_result_summary(payload: dict) -> str:
+    """Bounded status plus unhealthy doctor components for a non-installed result."""
+    doctor = payload.get("doctor") if isinstance(payload.get("doctor"), dict) else {}
+    components = doctor.get("components") if isinstance(doctor.get("components"), dict) else {}
+    unhealthy = {
+        name: {key: value.get(key) for key in ("status", "detail", "taskImpact")}
+        for name, value in components.items()
+        if isinstance(value, dict) and value.get("status") not in {"healthy", "absent"}
+    }
+    for key in ("kernel", "hosts", "dependencies"):
+        item = doctor.get(key)
+        if isinstance(item, dict) and item.get("status") not in {None, "healthy", "absent"}:
+            unhealthy[key] = {"status": item.get("status"), "detail": str(item.get("detail"))[:300]}
+    return json.dumps({"status": payload.get("status"), "unhealthy": unhealthy}, sort_keys=True)[:2000]
+
+
 def run_public_wrapper(
     commit: str, project: Path, *, require_current_action: bool = True,
     environment: dict[str, str] | None = None,
@@ -1134,7 +1150,10 @@ def run_public_wrapper(
         raise RuntimeError("candidate wrapper omitted installer progress")
     payload = json.loads(result.stdout)
     if payload.get("status") != "installed":
-        raise RuntimeError("public wrapper did not return an installed result")
+        raise RuntimeError(
+            "public wrapper did not return an installed result: "
+            + _wrapper_result_summary(payload)
+        )
     if not isinstance(payload.get("clients"), dict):
         raise RuntimeError("public wrapper did not report detected client activation")
 
