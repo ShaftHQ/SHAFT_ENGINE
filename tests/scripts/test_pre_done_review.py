@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
-import subprocess  # nosec B404 - fixed argv only.
 import sys
 import tempfile
 import unittest
@@ -80,12 +81,15 @@ class PreDoneReviewTest(unittest.TestCase):
             good, bad = Path(tmp, "good.md"), Path(tmp, "bad.md")
             good.write_text(GOOD, encoding="utf-8")
             bad.write_text(GOOD.replace("S2[Blocked]", "S2[Passed]"), encoding="utf-8")
-            script = str(CE / "pre_done_review.py")
-            self.assertEqual(0, subprocess.run([sys.executable, script, str(good)], capture_output=True).returncode)
-            out = subprocess.run([sys.executable, script, str(bad), "--json"], capture_output=True, text=True)
-            self.assertEqual(1, out.returncode)
-            self.assertEqual("fail", json.loads(out.stdout)["status"])
-            self.assertEqual(2, subprocess.run([sys.executable, script], capture_output=True).returncode)
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, gate.main([str(good)]))
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(1, gate.main([str(bad), "--json"]))
+            self.assertEqual("fail", json.loads(out.getvalue())["status"])
+            with contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(2, gate.main([]))
+                self.assertEqual(2, gate.main([str(Path(tmp, "absent.md"))]))
 
     def test_tool_exposes_pre_done(self) -> None:
         self.assertIn('"pre-done": "pre_done_review.py"', (CE / "tool.py").read_text(encoding="utf-8"))

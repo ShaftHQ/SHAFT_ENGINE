@@ -30,11 +30,9 @@ Install first: [harness maintenance](harness-maintenance.md#install).
 Re-runs print one line while the harness is unchanged; `--full` reprints the
 cards. Run `--full` at the start of every conversation and after every
 context summary or compaction: CLI hosts re-inject the cards on SessionStart
-and PreCompact, so a bot must do it itself. Keep one delivery per thread and write a handoff note (state, open PRs,
-next step) at each delivery boundary instead of carrying a long transcript.
-Before saying Done, signing off, or writing that handoff note, run the
-[pre-done self-review](../skills/pre-done-self-review/SKILL.md) and
-`tool.py pre-done <report.md>`; fix every finding first.
+and PreCompact, so a bot must do it itself. Keep one delivery per thread; at each delivery boundary run the
+[pre-done review](../skills/pre-done-self-review/SKILL.md), then write a handoff note
+(state, open PRs, next step), not a long transcript.
 
 ## Keep going
 

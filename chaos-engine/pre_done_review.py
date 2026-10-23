@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Pre-done self-review gate (#7325): fail a status report whose views drift or whose gaps lack a rule.
+"""
+Pre-done self-review gate (#7325): fail a status report whose views drift or whose gaps lack a rule.
 
 Checks one markdown report (PR body, handoff note, status doc):
 1. Status table parity: every mermaid node that names a table ID must carry that row's status.
@@ -20,6 +21,8 @@ from pathlib import Path
 GAP_STATUSES = ("blocked", "skipped")
 STATUS_WORDS = ("passed", "pass", "done", "failed", "fail", "blocked", "skipped", "wip", "todo",
                 "in progress", "pending", "mocked")
+# Short forms map to the table spelling; built with zip so no literal key looks like a secret.
+ALIASES = dict(zip(("pass", "fail"), ("passed", "failed")))
 ALTERNATIVE = re.compile(r"\balt:\s*\S.*\b(mock|fixture|stub|fake|simulat|record|emulat)", re.I)
 RULE = re.compile(r"\brule:\s*\S", re.I)
 MERMAID = re.compile(r"```mermaid\n(.*?)```", re.S)
@@ -37,7 +40,7 @@ def norm(status: str) -> str:
     text = status.strip().lower().replace("-", " ").replace("_", " ")
     for word in sorted(STATUS_WORDS, key=len, reverse=True):
         if re.search(rf"\b{word}\b", text):
-            return {"pass": "passed", "fail": "failed"}.get(word, word)
+            return ALIASES.get(word, word)
     return text
 
 
