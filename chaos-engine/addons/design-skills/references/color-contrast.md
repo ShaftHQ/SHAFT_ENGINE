@@ -26,6 +26,8 @@ image, a gradient, or video.
 - One accent role. Semantic roles (success, warning, danger) stay
   distinguishable under deuteranopia, protanopia, and tritanopia simulation;
   never encode meaning by hue alone (add an icon or a label).
+- An off-brand semantic hue needs a recorded exception:
+  [brand system](brand-system.md#exceptions-and-imports).
 - Avoid pure #000 and #fff surfaces; use near-black and near-white tokens.
 - Text over video or photos sits on a scrim (a 60 to 80% opaque token-color
   band or a soft gradient) and is measured against the brightest frame in

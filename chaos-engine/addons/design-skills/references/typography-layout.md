@@ -55,6 +55,14 @@ page, poster, slide, or video frame.
   glyph), give each tracker label its own placeholder, and run
   `office validate --repair` before upload.
 
+- Size floors: deck body >= 18 pt, tracker and chip labels >= 14 pt.
+- Spacing: body line spacing 1.15, titles and code 1.0, paragraph space
+  before and after 0.
+- Code: a no-ligature mono (for example Roboto Mono) so `=>`, `!=`, and
+  `<!--` render literally. Indent with normal spaces, never NBSP or
+  em-space (copy-paste breaks and YAML parsers reject it); prove it with
+  `design_qc.py code-parse` on text extracted from the export.
+
 ## Script and language notes
 
 - CJK text: measure counts characters, target 30 to 40 per line.
@@ -66,6 +74,13 @@ page, poster, slide, or video frame.
 - Platform lacks the site language: put `lang="ar" dir="rtl"` (or the
   target pair) on every block root and `lang="en"` on every Latin `<bdi>`.
   Prove the render pixel-identical to the no-attribute version.
+- Before ruling on a mixed-script glyph defect, verify the cause (shape vs
+  font fallback) and let a native reader decide. Example: in some Arabic
+  bold faces an isolated «و» beside Latin words reads as Latin `g`, and a
+  space does not fix it. In headings and card titles join Latin-term lists
+  with the Arabic comma «،»; body text keeps «و».
+- Bilingual lines: an RTL paragraph plus a separate LTR paragraph in the
+  same style; never mix both directions in one paragraph.
 - RTL accordion arrows do not mirror: down when closed, up when open.
 - Code blocks are exempt from the measure rule but must scroll inside their
   own box, never the page.
