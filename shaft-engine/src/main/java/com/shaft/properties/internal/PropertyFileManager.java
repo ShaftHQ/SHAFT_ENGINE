@@ -59,7 +59,21 @@ public final class PropertyFileManager {
             }
         }
         maybeInferMissingAndroidAppIdentifiers(appiumDesiredCapabilities);
+        maybeRemoveStaleApkSignature(appiumDesiredCapabilities.get("mobile_app"));
         return appiumDesiredCapabilities;
+    }
+
+    /**
+     * Deletes a stale {@code <apk>.idsig} next to a local {@code mobile_app} APK (#7321) so the install
+     * does not fail with {@code INSTALL_PARSE_FAILED_NO_CERTIFICATES} after the APK was replaced in place.
+     */
+    private static void maybeRemoveStaleApkSignature(String appPath) {
+        if (appPath == null || appPath.isBlank() || isRemoteAppUrl(appPath)) {
+            return;
+        }
+        com.shaft.tools.internal.support.StaleApkSignatureCleaner.removeStaleSignature(new File(appPath))
+                .ifPresent(signature -> ReportManager.logDiscrete("Deleted stale APK signature " + signature
+                        + " (older than the APK); it would make the install fail with INSTALL_PARSE_FAILED_NO_CERTIFICATES."));
     }
 
     /**

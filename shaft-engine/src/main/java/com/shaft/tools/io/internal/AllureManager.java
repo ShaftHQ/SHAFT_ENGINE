@@ -756,6 +756,17 @@ public class AllureManager {
     }
 
     /**
+     * Loads SHAFT properties when no test listener did (#7320), for example when a report is rebuilt
+     * from a standalone {@code main}; without this every {@code SHAFT.Properties.*} read throws a
+     * {@link NullPointerException}.
+     */
+    public static void ensurePropertiesLoaded() {
+        if (!com.shaft.properties.internal.Properties.isInitialized()) {
+            com.shaft.properties.internal.PropertiesHelper.initialize();
+        }
+    }
+
+    /**
      * Rebuilds SHAFT's Allure report from an existing results directory without running tests (#7174),
      * for example a folder that merges several runs.
      *
@@ -780,6 +791,7 @@ public class AllureManager {
         if (!Files.isDirectory(results)) {
             throw new IllegalArgumentException("Allure results directory does not exist: " + results);
         }
+        ensurePropertiesLoaded();
         String previousResultsFolderPath = allureResultsFolderPath;
         String previousOutputDirectory = allureOutPutDirectory;
         allureResultsFolderPath = results + File.separator;
