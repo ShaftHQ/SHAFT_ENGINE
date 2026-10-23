@@ -8,10 +8,10 @@ import os
 import sqlite3
 import tempfile
 import unittest
+import unittest.mock
 from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTROLLER = ROOT / "chaos-engine/dependencies.py"
@@ -40,7 +40,7 @@ class NoGitEnvironment(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.project = Path(self.temporary.name).resolve()
-        patcher = mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(self.project.parent)})
+        patcher = unittest.mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(self.project.parent)})
         patcher.start()
         self.addCleanup(patcher.stop)
         os.environ.pop("CHAOS_ENGINE_MEMPALACE", None)
@@ -120,9 +120,9 @@ class MineDecisionTest(NoGitEnvironment):
         (self.palace().parent / "mempalace-index-meta.json").write_text(
             json.dumps({"schema": self.module.MEMPALACE_INDEX_SCHEMA, "embedder": "3.10.0"}),
             encoding="utf-8")
-        with mock.patch.object(self.module, "mempalace_embedder_version", return_value="3.11.0"):
+        with unittest.mock.patch.object(self.module, "mempalace_embedder_version", return_value="3.11.0"):
             self.assertEqual("full", self.module.mempalace_mine_decision(self.project, ["mp"])[0])
-        with mock.patch.object(self.module, "mempalace_embedder_version", return_value="3.10.0"):
+        with unittest.mock.patch.object(self.module, "mempalace_embedder_version", return_value="3.10.0"):
             self.assertEqual("incremental", self.module.mempalace_mine_decision(self.project, ["mp"])[0])
 
     def test_legacy_marker_stays_incremental(self):
@@ -153,7 +153,7 @@ class RelocationReuseTest(NoGitEnvironment):
         (self.project / ".git").mkdir()
         target = self.project / ".git/chaos-engine/mempalace"
         stores = self.module._stores_namespace()
-        with mock.patch.object(self.module, "mempalace_project_palace", return_value=target):
+        with unittest.mock.patch.object(self.module, "mempalace_project_palace", return_value=target):
             with redirect_stderr(StringIO()):
                 self.assertEqual(legacy, self.module.adopt_relocated_mempalace_palace(self.project))
             self.assertEqual(3, stores["palace_drawer_count"](target))
