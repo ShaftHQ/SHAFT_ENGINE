@@ -1040,6 +1040,31 @@ module.install_with_dependencies(project, source, "3" * 40)
             )
             self.assertEqual(b"preserve\n", sentinel.read_bytes())
 
+    def test_journal_recovery_keeps_live_rewritten_mempalace_files(self):
+        # Designer wedge 2026-10-23: interrupted step-4 mine rewrote sqlite/WAL in place.
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            palace = project / ".chaos-engine-state/mempalace"
+            palace.mkdir(parents=True)
+            base = {"sqlite_exact.sqlite3": b"base", "sqlite_exact.sqlite3-wal": b"wal0"}
+            for name, data in base.items():
+                palace.joinpath(name).write_bytes(data)
+            image = {
+                "exists": True,
+                "files": {n: hashlib.sha256(d).hexdigest() for n, d in base.items()},
+            }
+            pending = {"priorMempalaceState": {"before": image, "after": image}}
+            palace.joinpath("sqlite_exact.sqlite3").write_bytes(b"live rewrite")
+            palace.joinpath("sqlite_exact.sqlite3-wal").write_bytes(b"wal1")
+            palace.joinpath("candidate.tmp").write_bytes(b"candidate")
+            MODULE._restore_account_mempalace_from_journal(project, pending)
+            self.assertEqual(b"live rewrite", palace.joinpath("sqlite_exact.sqlite3").read_bytes())
+            self.assertEqual(b"wal1", palace.joinpath("sqlite_exact.sqlite3-wal").read_bytes())
+            self.assertFalse(palace.joinpath("candidate.tmp").exists())
+            palace.joinpath("sqlite_exact.sqlite3-wal").unlink()
+            with self.assertRaisesRegex(ValueError, "candidate MemPalace state changed"):
+                MODULE._restore_account_mempalace_from_journal(project, pending)
+
     def test_account_rollback_refuses_changed_candidate_mempalace_state(self):
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary) / "consumer"

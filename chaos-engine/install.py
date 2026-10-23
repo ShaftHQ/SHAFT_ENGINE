@@ -2280,12 +2280,27 @@ def _restore_account_receipt_from_journal(project: Path, controller, before: byt
 
 
 def _restore_account_mempalace_from_journal(project: Path, pending: dict[str, object]) -> None:
-    before = pending["priorMempalaceState"]
+    """Undo only candidate-created palace files after an interrupted upgrade.
+
+    The journal stores digests, not bytes, for the pre-upgrade palace. A live
+    MemPalace (an interrupted step-4 mine, or later sessions) rewrites the
+    pre-existing SQLite/WAL/SHM files in place. Those bytes cannot be restored
+    from a digest, so demanding the old digest wedged every repair forever
+    ("candidate MemPalace state changed before rollback"). Pre-existing files
+    that still exist keep their current bytes (live data wins); a pre-existing
+    file that vanished still fails closed.
+    """
+    before = pending["priorMempalaceState"]["before"]  # type: ignore[index]
     current = project_setup_output_files(project, MEMPALACE_STATE_OUTPUT)
+    before_files = dict(before["files"])  # type: ignore[index]
+    for relative in before_files:
+        live = current[1].get(relative)
+        if live is not None:
+            before_files[relative] = live
     restore_candidate_mempalace_state(
         project,
         {
-            "before": before["before"],  # type: ignore[index]
+            "before": {"exists": before["exists"], "files": before_files},  # type: ignore[index]
             "after": {"exists": current[0], "files": current[1]},
         },
     )
