@@ -189,6 +189,39 @@ public interface Mobile extends EngineProperties<Mobile> {
     @DefaultValue("")
     String locale();
 
+    /**
+     * Runs a cheap preflight before each new native mobile session endpoint: Appium {@code /status}
+     * is ready and, for a local Appium with {@code adb}, the device finished booting and resolves every
+     * host in {@link #preflightResolveHosts()}. Fails fast with one {@code Preflight:} message.
+     *
+     * @return the configured value of {@code mobile_preflight}
+     */
+    @Key("mobile_preflight")
+    @DefaultValue("true")
+    boolean preflight();
+
+    /**
+     * Comma-separated host names the device must resolve before the first mobile session, checked with
+     * {@code adb shell ping} by its {@code PING host (ip)} header. Empty skips the DNS check.
+     *
+     * <p>Possible values: example: api.example.com,auth.example.com.
+     *
+     * @return the configured value of {@code mobile_preflightResolveHosts}
+     */
+    @Key("mobile_preflightResolveHosts")
+    @DefaultValue("")
+    String preflightResolveHosts();
+
+    /**
+     * After an Android session starts with {@link #language()} set, reads the running locale from
+     * {@code mobile: deviceInfo} and fails fast when the device still runs another language.
+     *
+     * @return the configured value of {@code mobile_verifyRunningLocale}
+     */
+    @Key("mobile_verifyRunningLocale")
+    @DefaultValue("true")
+    boolean verifyRunningLocale();
+
     /** Maximum time in seconds to wait for a Flutter element. Zero keeps the default wait behavior. */
     @Key("mobile_flutterElementWaitTimeout")
     @DefaultValue("60")
@@ -396,6 +429,39 @@ public interface Mobile extends EngineProperties<Mobile> {
          */
         public SetProperty locale(String value) {
             setProperty("mobile_locale", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code mobile_preflight} property at runtime.
+         *
+         * @param value {@code true} to run the mobile preflight before new sessions
+         * @return a self-reference to be used to continue setting more properties
+         */
+        public SetProperty preflight(boolean value) {
+            setProperty("mobile_preflight", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code mobile_preflightResolveHosts} property at runtime.
+         *
+         * @param value comma-separated host names the device must resolve
+         * @return a self-reference to be used to continue setting more properties
+         */
+        public SetProperty preflightResolveHosts(String value) {
+            setProperty("mobile_preflightResolveHosts", value);
+            return this;
+        }
+
+        /**
+         * Overrides the {@code mobile_verifyRunningLocale} property at runtime.
+         *
+         * @param value {@code true} to verify the running Android locale after session start
+         * @return a self-reference to be used to continue setting more properties
+         */
+        public SetProperty verifyRunningLocale(boolean value) {
+            setProperty("mobile_verifyRunningLocale", String.valueOf(value));
             return this;
         }
 
