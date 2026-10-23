@@ -62,12 +62,17 @@ final class MobilePreflight {
         if (endpoint.isEmpty()) {
             return;
         }
-        String redacted = DriverFactoryHelper.redactUriCredentials(endpoint);
         URI statusUri = URI.create(endpoint.replaceAll("/+$", "") + "/status");
+        checkAppiumStatus(statusUri, DriverFactoryHelper.redactUriCredentials(endpoint), fetcher);
+        if (isLocal(statusUri)) {
+            checkLocalDevice(udid, resolveHosts, runner);
+        }
+    }
+
+    private static void checkAppiumStatus(URI statusUri, String redacted, StatusFetcher fetcher) {
         try {
             Response response = fetcher.fetch(statusUri);
-            if (response.statusCode() == 200 && READY_FALSE.matcher(response.body()).find()
-                    && !READY_TRUE.matcher(response.body()).find()) {
+            if (reportsNotReady(response)) {
                 throw fail("Appium is not ready at " + redacted + " (/status reports ready=false).");
             }
         } catch (ConnectException e) {
@@ -75,11 +80,17 @@ final class MobilePreflight {
         } catch (IOException | IllegalArgumentException e) {
             ReportManagerHelper.logDiscrete("Mobile preflight could not read Appium /status: " + e.getMessage(), Level.DEBUG);
         }
-        if (!isLocal(statusUri)) {
-            return;
-        }
+    }
+
+    private static boolean reportsNotReady(Response response) {
+        return response.statusCode() == 200 && READY_FALSE.matcher(response.body()).find()
+                && !READY_TRUE.matcher(response.body()).find();
+    }
+
+    private static void checkLocalDevice(String udid, String resolveHosts, CommandRunner runner) {
+        boolean hasUdid = udid != null && !udid.isBlank();
         List<String> adb = new ArrayList<>(List.of("adb"));
-        if (udid != null && !udid.isBlank()) {
+        if (hasUdid) {
             adb.addAll(List.of("-s", udid.trim()));
         }
         String boot = runner.run(with(adb, "shell", "getprop", "sys.boot_completed"));
@@ -87,16 +98,20 @@ final class MobilePreflight {
             return; // no adb (iOS or a remote device): nothing more to check locally
         }
         if (!"1".equals(boot.trim())) {
-            throw fail("device " + (udid == null || udid.isBlank() ? "(default)" : udid.trim())
+            throw fail("device " + (hasUdid ? udid.trim() : "(default)")
                     + " has not finished booting (sys.boot_completed=" + boot.trim() + ").");
         }
         for (String host : hosts(resolveHosts)) {
-            String ping = runner.run(with(adb, "shell", "ping -c1 -W1 " + host));
-            // #7284: the PING header proves DNS resolution; the exit code does not (ICMP replies can drop).
-            if (ping == null || !resolved(ping, host)) {
-                throw fail("the device cannot resolve " + host + ". On an emulator, restart it with "
-                        + "-dns-server <gateway> (see broken DNSSEC on validating resolvers).");
-            }
+            checkResolves(adb, host, runner);
+        }
+    }
+
+    private static void checkResolves(List<String> adb, String host, CommandRunner runner) {
+        String ping = runner.run(with(adb, "shell", "ping -c1 -W1 " + host));
+        // #7284: the PING header proves DNS resolution; the exit code does not (ICMP replies can drop).
+        if (ping == null || !resolved(ping, host)) {
+            throw fail("the device cannot resolve " + host + ". On an emulator, restart it with "
+                    + "-dns-server <gateway> (see broken DNSSEC on validating resolvers).");
         }
     }
 

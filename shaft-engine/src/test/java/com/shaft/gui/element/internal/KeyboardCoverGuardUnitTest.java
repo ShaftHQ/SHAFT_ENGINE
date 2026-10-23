@@ -29,7 +29,7 @@ public class KeyboardCoverGuardUnitTest {
         when(android.manage().window().getSize()).thenReturn(new Dimension(1080, 2400));
         WebElement low = mock(WebElement.class);
         when(low.getRect()).thenReturn(new Rectangle(0, 1900, 200, 120));
-        KeyboardCoverGuard.hideIfCovering(android, low);
+        KeyboardCoverGuard.hideIfCovering(android, low, true);
         verify(android).hideKeyboard();
 
         AndroidDriver other = mock(AndroidDriver.class, RETURNS_DEEP_STUBS);
@@ -37,12 +37,13 @@ public class KeyboardCoverGuardUnitTest {
         when(other.manage().window().getSize()).thenReturn(new Dimension(1080, 2400));
         WebElement high = mock(WebElement.class);
         when(high.getRect()).thenReturn(new Rectangle(0, 300, 200, 120));
-        KeyboardCoverGuard.hideIfCovering(other, high);
+        KeyboardCoverGuard.hideIfCovering(other, high, true);
         verify(other, never()).hideKeyboard();
     }
 
     @Test
     public void nonAndroidDriversAreIgnored() {
-        KeyboardCoverGuard.hideIfCovering(mock(WebDriver.class), mock(WebElement.class));
+        KeyboardCoverGuard.hideIfCovering(mock(WebDriver.class), mock(WebElement.class), true);
+        KeyboardCoverGuard.hideIfCovering(mock(AndroidDriver.class), mock(WebElement.class), false);
     }
 }

@@ -24,8 +24,8 @@ final class KeyboardCoverGuard {
         return windowHeight > 0 && target.getY() + target.getHeight() / 2.0 > windowHeight * KEYBOARD_TOP;
     }
 
-    static void hideIfCovering(WebDriver driver, WebElement target) {
-        if (!(driver instanceof AndroidDriver android)) {
+    static void hideIfCovering(WebDriver driver, WebElement target, boolean nativeExecution) {
+        if (!nativeExecution || !(driver instanceof AndroidDriver android)) {
             return;
         }
         try {
