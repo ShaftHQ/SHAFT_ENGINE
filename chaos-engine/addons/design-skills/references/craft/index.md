@@ -20,6 +20,8 @@ targets, an anchored rubric, and 20 verified references.
 | [Squarespace 7.1](../site-builders/squarespace-7-1.md) | Web builder without JS (companion to C01) | none |
 | [Site merge and redirects](../site-builders/site-merge-redirects.md) | Page merge, anchors, 301s, SEO titles | none |
 
+- Field lessons (hooks over speech, mixed-script captions, talk edits,
+  signed-output release, cross-surface takeaways): [lesson cards](../lessons/index.md).
 - Ideas for the three-direction stage: [innovation bank](innovation-bank.md).
 - Reference index and motion study: [research/index.md](../research/index.md),
   [motionmaxxing map](../research/motionmaxxing-map.md).

@@ -58,6 +58,8 @@ Give up the lower ones first.
 2. Apply removals and J/L cuts as EDL changes (D12); keep the diff.
 3. Re-watch at full speed; compare shot lengths to the targets.
 
+Talk and Q&A tightening, cut points and overlay crossfades: [L03](lessons/talk-edit-and-layers.md).
+
 ## Verify
 
 - `design_qc.py silence master.mp4 --allow <holds>` passes (no unmarked

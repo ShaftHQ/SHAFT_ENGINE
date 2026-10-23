@@ -53,6 +53,8 @@ requirement, not an option.
 3. For the vertical cut, render styled captions (ASS or an HTML overlay).
 4. Export chapters from the EDL for the description and the player.
 
+Mixed RTL and Latin captions: [L02](lessons/mixed-script-captions.md); hook cards over speech: [L01](lessons/hook-speech-match.md).
+
 ## Verify
 
 - `design_qc.py captions captions.srt --script script.txt --fps 30` passes

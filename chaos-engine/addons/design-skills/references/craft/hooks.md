@@ -52,6 +52,8 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
 - **3 (competent):** Clear promise and quick change; generic.
 - **5 (expert):** A first frame people would screenshot, a promise kept, curiosity that pulls the next 3 s.
 
+Hook card over speech (verbatim, ends with the speech, script-aware gate): [L01](../lessons/hook-speech-match.md).
+
 ## Verify
 
 - `design_qc.py hook|contrast <film|thumb>`
