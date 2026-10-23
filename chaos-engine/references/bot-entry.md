@@ -61,9 +61,8 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
   Before `gh pr create`, validate the body file:
   `PR_TITLE="$T" PR_BODY="$(cat body.md)" python3 scripts/ci/validate_pr_closing_keywords.py` (repo-only).
   SHA-pin every new `uses:` and run changed contract tests with `python3 -I`
-  (stdlib only, as on the runner). Never pipe pre-push output:
-  `overlay_pre_push.py | tail && git push` pushes on a failed check because
-  the pipeline reports `tail`'s status; the guard's R32 blocks it. Add the
+  (stdlib only, as on the runner). Never pipe pre-push output
+  (a pipe masks its failure; guard R32). Add the
   release-note label at create time (REST labels API when `gh pr edit` errors).
 - Filter test and CI logs to the verdict:
   `2>&1 | grep -E "^(OK|FAILED|FAIL:|AssertionError)" | cut -c1-300`.
