@@ -424,6 +424,8 @@ CHECKS = {
             "tests.scripts.test_mempalace_background_index",
             "tests.scripts.test_chaos_engine_mempalace_owned_excludes_6540",
             "tests.scripts.test_chaos_engine_index_reuse",
+            # #7314: install resilience, MemPalace prune, consumer committed core.
+            "tests.scripts.test_chaos_engine_install_resilience_7314",
             # #6377: retrieve companions, empty-palace detection, maintain.
             "tests.scripts.test_chaos_engine_retrieve_companions_6377",
         ),
@@ -692,6 +694,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_mempalace_background_index.py",
         "tests/scripts/test_chaos_engine_mempalace_owned_excludes_6540.py",
         "tests/scripts/test_chaos_engine_index_reuse.py",
+        "tests/scripts/test_chaos_engine_install_resilience_7314.py",
         "tests/scripts/test_chaos_engine_retrieve_companions_6377.py",
     ),
     "upstream-watch": (
