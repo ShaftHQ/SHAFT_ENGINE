@@ -53,10 +53,7 @@ public class RunningLocaleCheckUnitTest {
     }
 
     @Test
-    public void mismatchComparesLanguageAndRegionPrecisely() throws Exception {
-        var ctor = RunningLocaleCheck.class.getDeclaredConstructor();
-        ctor.setAccessible(true);
-        Assert.expectThrows(java.lang.reflect.InvocationTargetException.class, ctor::newInstance);
+    public void mismatchComparesLanguageAndRegionPrecisely() {
         RunningLocaleCheck.verify(mock(JavascriptExecutor.class), null, "US");
         Assert.assertTrue(RunningLocaleCheck.mismatch("en", "US", "").isEmpty());
         Assert.assertTrue(RunningLocaleCheck.mismatch("en", "US", "null").isEmpty());

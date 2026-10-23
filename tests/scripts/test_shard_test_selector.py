@@ -27,7 +27,55 @@ def workflow_selector() -> str:
     return match.group(1)
 
 
+UNIT_TEST_ROOT = ROOT / "shaft-engine/src/test/java"
+
+
+def unselected_unit_test_classes(selector: str, test_root: Path = UNIT_TEST_ROOT) -> list[str]:
+    """Return *UnitTest classes no PR Gate shard runs (#7310).
+
+    Classes under ``testPackage/unitTests`` ride the shard-1 glob; any other
+    ``*UnitTest`` class runs only when the selector names it.
+    """
+    named = {entry.strip() for entry in selector.removeprefix("-Dtest=").split(",")}
+    missing = []
+    for path in sorted(test_root.rglob("*UnitTest.java")):
+        relative = path.relative_to(test_root).as_posix()
+        if relative.startswith("testPackage/unitTests/") or path.stem in named:
+            continue
+        missing.append(relative)
+    return missing
+
+
 class ShardSelectorTest(unittest.TestCase):
+    def test_every_unit_test_class_is_in_a_shard_selector(self) -> None:
+        missing = unselected_unit_test_classes(workflow_selector())
+        self.assertEqual(
+            missing,
+            [],
+            "These *UnitTest classes run in no PR Gate shard, so codecov never counts them. "
+            "Add each class name to the -Dtest selector of 'Run shaft-engine unit tests' in "
+            ".github/workflows/pr-gate.yml and a matching !%regex[.*Name.*] exclusion to "
+            "e2eTests.yml and e2eLocalTests.yml.",
+        )
+
+    def test_unselected_unit_test_detection(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for relative in (
+                "testPackage/unitTests/GlobbedUnitTest.java",
+                "com/x/NamedUnitTest.java",
+                "com/x/ForgottenUnitTest.java",
+                "com/x/BrowserE2eTest.java",
+            ):
+                (root / relative).parent.mkdir(parents=True, exist_ok=True)
+                (root / relative).write_text("class X {}", encoding="utf-8")
+            self.assertEqual(
+                unselected_unit_test_classes("-Dtest=testPackage/unitTests/*, NamedUnitTest", root),
+                ["com/x/ForgottenUnitTest.java"],
+            )
+
     def test_union_of_shards_is_exactly_the_selector(self) -> None:
         selector = workflow_selector()
         original = entries(selector)
