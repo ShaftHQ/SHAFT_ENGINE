@@ -6,6 +6,7 @@ import subprocess  # nosec B404 - tests run fixed local Git and Python commands.
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 
@@ -289,6 +290,20 @@ class GraphifyNoCommitRowTest(unittest.TestCase):
             self.assertEqual("degraded", row["status"])
             self.assertIn("repair --project . --component graphify", row["fixNext"])
 
+
+    def test_non_git_project_is_absent_not_degraded_7301(self):
+        import os
+        import runpy
+        stores = runpy.run_path(str(Path(__file__).resolve().parents[2] / "chaos-engine/stores.py"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "graphify-out").mkdir()
+            (project / "graphify-out/graph.json").write_text("{}", encoding="utf-8")
+            (project / "graphify-out/manifest.json").write_text("{}", encoding="utf-8")
+            with unittest.mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(project.parent)}):
+                row = stores["graphify_doctor_row"](project)
+            self.assertEqual("absent", row["status"])
+            self.assertIn("not a git repository", row["detail"])
 
 if __name__ == "__main__":
     unittest.main()
