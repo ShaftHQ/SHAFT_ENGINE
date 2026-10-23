@@ -8,7 +8,7 @@ import java.util.Set;
 public final class LighthouseSetupPlanner {
     public static final String LIGHTHOUSE_VERSION = "13.5.0";
     public static final String LIGHTHOUSE_LOCK_SHA256 =
-            "f82003256f3e7c7167a8ac0b1727938d9485cabd7bf6c168dfaad5a69a36946b";
+            "3208377764c7cc67cb6c0a0708b3e5784b7288076ac803c73e57a0b0a3bb4adf";
     static final String LIGHTHOUSE_SHA256 =
             "4be86876145663e10e8bb3178ebe27b2613a1debd4c04b4e0ec92a0487a4e6e2";
 
