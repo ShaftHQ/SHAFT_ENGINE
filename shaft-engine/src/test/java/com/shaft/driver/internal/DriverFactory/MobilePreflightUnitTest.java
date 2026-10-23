@@ -117,7 +117,7 @@ public class MobilePreflightUnitTest {
         MobilePreflight.check("http://[::1]:4723", null, "", uri -> new MobilePreflight.Response(200, "{}"), cmd -> Optional.empty());
         java.util.List<java.util.List<String>> commands = new java.util.ArrayList<>();
         var e = Assert.expectThrows(SessionNotCreatedException.class, () -> MobilePreflight.check(LOCAL, "emulator-5556 ", " , api.example.gov,", uri -> new MobilePreflight.Response(200, "{}"),
-                cmd -> { commands.add(cmd); return cmd.get(cmd.size() - 1).startsWith("ping") ? Optional.empty() : Optional.of("1"); }));
+                cmd -> { commands.add(java.util.List.of(cmd)); return cmd[cmd.length - 1].startsWith("ping") ? Optional.empty() : Optional.of("1"); }));
         Assert.assertTrue(e.getMessage().contains("cannot resolve api.example.gov"), e.getMessage());
         Assert.assertEquals(commands.get(0).subList(0, 3), java.util.List.of("adb", "-s", "emulator-5556"));
         var booting = Assert.expectThrows(SessionNotCreatedException.class, () -> MobilePreflight.check(LOCAL, "emulator-5556", "", uri -> new MobilePreflight.Response(200, "{}"), cmd -> Optional.of("0")));
