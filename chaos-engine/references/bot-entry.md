@@ -91,7 +91,7 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
 Several tasks, issues, or PRs: first record each with `tool.py checkpoint
 TASK --item ID --group G --status todo`, show the table, and update it at
 each milestone (`pr #N`, `merged`, `blocked: reason`). `resume` prints it.
-Every task: [flow](iterative-flow.md), [PDCA](multi-agent-pdca.md); WIP 1:
+Every task: [flow](iterative-flow.md), [PDCA](multi-agent-pdca.md); WIP limit 1:
 babysit PR to merged, then next.
 Need parallel? Stack PRs on the previous branch.
 
