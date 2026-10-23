@@ -33,7 +33,8 @@ import java.util.function.Supplier;
  * secret value or a JWT-shaped token) is registered for the current thread. Every evidence capture
  * then hides that element's text while the element is on the page: on the web its text is made
  * transparent for the capture and restored afterwards; on native mobile the element's rectangle is
- * painted black; in Playwright the locator is passed as a screenshot mask. When hiding fails while
+ * painted black, and the capture is dropped when the field is scrollable or its text can wrap outside
+ * that rectangle (#7282); in Playwright the locator is passed as a screenshot mask. When hiding fails while
  * a secret element is still live, the capture is dropped rather than published.
  */
 public final class SecretScreenMask {
@@ -245,6 +246,11 @@ public final class SecretScreenMask {
             return image;
         }
         try {
+            for (WebElement element : elements) {
+                if (mayDrawOutsideRect(element)) {
+                    return dropped(new IllegalStateException("multi-line or scrollable secret field"));
+                }
+            }
             BufferedImage picture = ImageIO.read(new ByteArrayInputStream(image));
             Dimension window = driver.manage().window().getSize();
             double scale = window.getWidth() > 0 ? (double) picture.getWidth() / window.getWidth() : 1.0;
@@ -262,6 +268,26 @@ public final class SecretScreenMask {
         } catch (IOException | RuntimeException e) {
             return dropped(e);
         }
+    }
+
+    /** Text longer than this may wrap or scroll past the rectangle a native driver reports (#7282). */
+    static final int MAX_SINGLE_LINE_SECRET = 64;
+
+    /**
+     * Tells whether a native secret field may draw its text outside its reported rectangle: it is
+     * scrollable, multi-line, or holds text long enough to wrap. Such captures fail closed (#7282).
+     */
+    static boolean mayDrawOutsideRect(WebElement element) {
+        String scrollable = Objects.toString(element.getAttribute("scrollable"), "");
+        String text = Objects.toString(element.getText(), "");
+        return mayDrawOutsideRect(scrollable, text);
+    }
+
+    static boolean mayDrawOutsideRect(String scrollable, String text) {
+        if ("true".equalsIgnoreCase(scrollable)) {
+            return true;
+        }
+        return (text.indexOf('\n') >= 0 || text.length() > MAX_SINGLE_LINE_SECRET);
     }
 
     private static byte[] dropped(Exception cause) {

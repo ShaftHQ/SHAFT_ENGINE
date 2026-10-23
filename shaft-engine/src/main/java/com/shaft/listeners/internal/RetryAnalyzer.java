@@ -32,6 +32,11 @@ public class RetryAnalyzer implements IRetryAnalyzer {
     @Override
     public boolean retry(ITestResult iTestResult) {
         try {
+            if (InfraFailureGuard.isInfra(iTestResult.getThrowable())) {
+                ReportManager.logDiscrete("Not retrying " + iTestResult.getMethod().getMethodName()
+                        + ": infrastructure setup failure (" + iTestResult.getThrowable().getClass().getSimpleName() + ").");
+                return false;
+            }
             int maxRetryCount = retryMaximumNumberOfAttempts();
             if (counter < maxRetryCount) {
                 counter++;

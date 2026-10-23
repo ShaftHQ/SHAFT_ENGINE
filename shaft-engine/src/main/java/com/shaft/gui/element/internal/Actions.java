@@ -629,6 +629,7 @@ public class Actions extends ElementActions {
                         WebElement targetElement = isMobileNativeExecution
                                 ? chooseBestEffortDisplayedElement(foundElements.get())
                                 : foundElements.get().getFirst();
+                        KeyboardCoverGuard.hideIfCovering(d, targetElement, isMobileNativeExecution);
                         screenshot.set(0, takeActionScreenshot(targetElement));
                         // Wave B (#5732): native → scroll/stabilize retry → flagged JS; preserve exception when JS off.
                         // Wave D: mobile native uses W3C touch tap when WebDriver click flakes (web defaults unchanged).

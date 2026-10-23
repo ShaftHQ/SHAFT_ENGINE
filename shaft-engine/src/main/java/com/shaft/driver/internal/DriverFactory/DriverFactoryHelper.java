@@ -1328,6 +1328,7 @@ public class DriverFactoryHelper {
         long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(SHAFT.Properties.timeouts.remoteServerInstanceCreationTimeout());
         ReportManager.logDiscrete("Creating the remote WebDriver session. Timeout: " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minute(s).");
         var remoteCreationStart = System.currentTimeMillis();
+        runMobilePreflight();
         var preflightPermit = RemoteGridPreflight.SessionPermit.noop();
         try (ProgressBarLogger pblogger = new ProgressBarLogger("Instantiating...", (int) remoteServerInstanceCreationTimeout)) {
             preflightPermit = RemoteGridPreflight.beforeSession(getTargetHubUrl(), capabilities);
@@ -1348,6 +1349,7 @@ public class DriverFactoryHelper {
                 appiumDriver.setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
                 appiumDriver.setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
                 appiumDriver.setSetting("mjpegBilinearFiltering", true);
+                verifyRunningLocale(appiumDriver);
                 // appiumDriver.setSetting("limitXPathContextScope", false);
 //                appiumDriver.setSetting("disableIdLocatorAutocompletion", true);
 //        https://github.com/appium/appium-uiautomator2-driver#mobile-deeplink
@@ -1381,6 +1383,19 @@ public class DriverFactoryHelper {
                     getTargetHubUrl()));
         } finally {
             preflightPermit.close();
+        }
+    }
+
+    private void runMobilePreflight() {
+        if (isMobileNativeExecution() && SHAFT.Properties.mobile.preflight()) {
+            MobilePreflight.beforeSession(getTargetHubUrl(), SHAFT.Properties.mobile.udid(),
+                    SHAFT.Properties.mobile.preflightResolveHosts());
+        }
+    }
+
+    private static void verifyRunningLocale(AppiumDriver appiumDriver) {
+        if (SHAFT.Properties.mobile.verifyRunningLocale()) {
+            RunningLocaleCheck.verify(appiumDriver, SHAFT.Properties.mobile.language(), SHAFT.Properties.mobile.locale());
         }
     }
 

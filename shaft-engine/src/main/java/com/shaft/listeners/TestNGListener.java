@@ -191,6 +191,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onConfigurationFailure(ITestResult testResult) {
         try {
+            InfraFailureGuard.onConfigurationFailure(testResult.getThrowable());
             if (testResult.getThrowable() != null && canSuppressFollowingTest(testResult.getMethod())) {
                 TestNGListenerHelper.setPendingConfigFailure(testResult.getThrowable());
             }
@@ -215,6 +216,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onConfigurationSuccess(ITestResult testResult) {
         try {
+            InfraFailureGuard.onConfigurationSuccess();
             if (this.isReportPortalEnabledForListener) this.reportPortalTestNGService.finishTestMethod(ItemStatus.PASSED, testResult);
         } finally {
             ReportContext.clearPreservingSensitiveEvidence();
@@ -327,6 +329,10 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             throw new SkipException("Skipping method as the test suite has exceeded the defined timeout of " + SHAFT.Properties.testNG.testSuiteTimeout() + " minutes.");
         }
         if (method.isTestMethod()) {
+            var infraStopReason = InfraFailureGuard.stopReason();
+            if (infraStopReason.isPresent()) {
+                throw new SkipException(infraStopReason.get());
+            }
             RetryAnalyzer.activateSupportingEvidenceCaptureForRetryAttempt();
         }
         // Clear per-thread property overrides when a new test class begins on a pooled
