@@ -4,6 +4,8 @@ Standing owner rule: whenever two or more bots or agents work together and one
 holds the orchestrator role, they deliver through this loop. It complements the
 single-session phase order in [TDD/PDCA](tdd.md#workflow) and the
 [orchestrator follow-through](orchestrator-follow-through.md) cadence.
+Across items, the [iterative flow](iterative-flow.md) rule applies: WIP 1,
+Done = both sign-offs and shipped, lessons become preventive rules.
 
 ## Roles
 

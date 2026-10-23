@@ -90,12 +90,12 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
 Several tasks, issues, or PRs: first record each with `tool.py checkpoint
 TASK --item ID --group G --status todo`, show the table, and update it at
 each milestone (`pr #N`, `merged`, `blocked: reason`). `resume` prints it.
-WIP limit: open PR 1, babysit it to merged, then start the next item.
+Every task: [flow](iterative-flow.md), [PDCA](multi-agent-pdca.md); WIP 1:
+babysit PR to merged, then next.
 Need parallel? Stack PRs on the previous branch.
 
 ## After each delivery
 
-Multi-agent: [PDCA loop](multi-agent-pdca.md).
 Learning Session after every final delivery (owner approval, completed
 publish, or final merge): run it yourself at once, per the
 [router contract](router-contract.md#learning-session). Then run

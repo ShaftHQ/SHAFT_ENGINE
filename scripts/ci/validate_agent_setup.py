@@ -1020,6 +1020,21 @@ def validate_pre_push_pipe_rule(root: Path) -> list[dict[str, str]]:
     return errors
 
 
+FLOW_RULE_DOC = "chaos-engine/references/iterative-flow.md"
+FLOW_RULE_LINK = "(iterative-flow.md)"
+
+
+def validate_iterative_flow_rule(root: Path) -> list[dict[str, str]]:
+    """#7318: when the iterative flow rule exists, the always-loaded entry links it."""
+    if not (root / FLOW_RULE_DOC).is_file():
+        return []
+    entry = root / PRE_PUSH_RULE_DOC
+    if entry.is_file() and FLOW_RULE_LINK in entry.read_text(encoding="utf-8"):
+        return []
+    return [issue("iterative-flow-rule", PRE_PUSH_RULE_DOC,
+                  f"does not load the always-on rule {FLOW_RULE_DOC}")]
+
+
 def validate_repository(
     root: Path = ROOT, *, run_external: bool = True
 ) -> tuple[list[dict[str, str]], dict]:
@@ -1049,6 +1064,7 @@ def validate_repository(
         *validate_skill_inventory(overlay_root if overlay_root != root else root),
         *validate_harness_reachability(root),
         *validate_pre_push_pipe_rule(root),
+        *validate_iterative_flow_rule(root),
     ]
     finally:
         if overlay_root != root:
