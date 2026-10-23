@@ -1,5 +1,7 @@
 package com.shaft.driver.internal.DriverFactory;
 
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.SessionNotCreatedException;
 
@@ -10,7 +12,8 @@ import java.util.Optional;
 /**
  * Verifies the locale an Android device is actually running after session start (#7209): Appium's
  * {@code language}/{@code locale} capabilities can succeed while the running configuration keeps the
- * previous locale, because appium-adb only compares {@code persist.sys.locale}.
+ * previous locale, because appium-adb only compares {@code persist.sys.locale}. Called for Android only;
+ * an unknown or unavailable locale is a warning, and only a proven mismatch fails the session.
  */
 final class RunningLocaleCheck {
     private RunningLocaleCheck() {
@@ -25,9 +28,15 @@ final class RunningLocaleCheck {
         try {
             info = driver.executeScript("mobile: deviceInfo", Map.of());
         } catch (RuntimeException unsupported) {
-            return; // driver without mobile: deviceInfo; nothing to verify
+            ReportManagerHelper.logDiscrete("Skipped the running-locale check: mobile: deviceInfo is unavailable ("
+                    + unsupported.getClass().getSimpleName() + ").", Level.WARN);
+            return;
         }
         String running = info instanceof Map<?, ?> map ? String.valueOf(map.get("locale")) : "";
+        if (running.isBlank() || "null".equals(running)) {
+            ReportManagerHelper.logDiscrete("Skipped the running-locale check: the device did not report its locale.", Level.WARN);
+            return;
+        }
         Optional<String> reason = mismatch(language, locale, running);
         if (reason.isPresent()) {
             throw new SessionNotCreatedException("Preflight: " + reason.get());

@@ -19,6 +19,8 @@ public final class InfraFailureGuard {
     /** System property holding the consecutive infrastructure setup failure limit; 0 disables the stop. */
     public static final String LIMIT_PROPERTY = "infraSetupFailureLimit";
     private static final AtomicInteger STREAK = new AtomicInteger();
+    private static final String[] TRANSIENT_HINTS = {"timeout", "timed out", "queue", "capacity", "quota",
+        "exhausted", "max session", "parallel", "try again", "temporarily", "rate limit", "too many"};
 
     private InfraFailureGuard() {
     }
@@ -32,13 +34,31 @@ public final class InfraFailureGuard {
     public static boolean isInfra(Throwable throwable) {
         int hops = 0;
         for (Throwable t = throwable; t != null && hops < 20; t = t.getCause(), hops++) {
-            if (t instanceof SessionNotCreatedException || t instanceof UnknownHostException
-                    || t instanceof ConnectException) {
+            String message = String.valueOf(t.getMessage()).toLowerCase(Locale.ROOT);
+            if (t instanceof SessionNotCreatedException) {
+                // a cloud grid's queue timeout or capacity limit is transient: keep retrying those
+                return message.contains("preflight:") || !isTransient(message);
+            }
+            if (t instanceof UnknownHostException || t instanceof ConnectException) {
                 return true;
             }
-            String message = String.valueOf(t.getMessage()).toLowerCase(Locale.ROOT);
             if (message.contains("device offline") || message.startsWith("preflight:")
                     || message.contains(" preflight: ")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Tells whether a session-creation message names a transient cloud-grid condition.
+     *
+     * @param message the lower-case failure message
+     * @return {@code true} for timeouts, queue waits, capacity, quota and parallel-session limits
+     */
+    static boolean isTransient(String message) {
+        for (String hint : TRANSIENT_HINTS) {
+            if (message.contains(hint)) {
                 return true;
             }
         }

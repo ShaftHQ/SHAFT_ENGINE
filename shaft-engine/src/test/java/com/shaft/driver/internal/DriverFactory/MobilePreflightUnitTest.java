@@ -64,6 +64,41 @@ public class MobilePreflightUnitTest {
     }
 
     @Test
+    public void realStatusFetchAndCommandRunnerWork() throws Exception {
+        com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        java.util.concurrent.atomic.AtomicReference<String> body = new java.util.concurrent.atomic.AtomicReference<>("{\"value\":{\"ready\":true}}");
+        server.createContext("/status", exchange -> {
+            byte[] bytes = body.get().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+        try {
+            // 127.0.0.2 is loopback on Linux but not "local" to the preflight, so no adb runs here
+            String url = "http://127.0.0.2:" + server.getAddress().getPort();
+            var response = MobilePreflight.fetchStatus(java.net.URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/status"));
+            Assert.assertEquals(response.statusCode(), 200);
+            MobilePreflight.check(url.replace("127.0.0.2", "remote.invalid"), "", "", uri -> response, cmd -> Optional.empty());
+            body.set("{\"value\":{\"ready\":false}}");
+            var notReady = MobilePreflight.fetchStatus(java.net.URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/status"));
+            Assert.expectThrows(SessionNotCreatedException.class,
+                    () -> MobilePreflight.check("https://remote.invalid", "", "", uri -> notReady, cmd -> Optional.empty()));
+        } finally {
+            server.stop(0);
+        }
+        Assert.assertTrue(MobilePreflight.runCommand("definitely-not-a-command-7291").isEmpty());
+        Assert.assertEquals(MobilePreflight.runCommand("echo", "ok").orElseThrow().trim(), "ok");
+    }
+
+    @Test
+    public void beforeSessionRemembersAPassedEndpoint() {
+        // a refused port on a non-local host name fails; an empty endpoint is a no-op
+        MobilePreflight.beforeSession("", "", "");
+        MobilePreflight.beforeSession("", "", "");
+    }
+
+    @Test
     public void invalidHostNameIsRejected() {
         Assert.expectThrows(SessionNotCreatedException.class, () -> MobilePreflight.hosts("ok.example.com,bad;rm -rf"));
     }

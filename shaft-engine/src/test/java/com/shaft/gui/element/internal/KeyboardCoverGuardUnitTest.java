@@ -42,6 +42,17 @@ public class KeyboardCoverGuardUnitTest {
     }
 
     @Test
+    public void keyboardCheckErrorsNeverBreakTheClick() {
+        AndroidDriver android = mock(AndroidDriver.class);
+        when(android.isKeyboardShown()).thenThrow(new org.openqa.selenium.WebDriverException("no ime"));
+        KeyboardCoverGuard.hideIfCovering(android, mock(WebElement.class), true);
+        AndroidDriver hidden = mock(AndroidDriver.class);
+        when(hidden.isKeyboardShown()).thenReturn(false);
+        KeyboardCoverGuard.hideIfCovering(hidden, mock(WebElement.class), true);
+        verify(hidden, never()).hideKeyboard();
+    }
+
+    @Test
     public void nonAndroidDriversAreIgnored() {
         KeyboardCoverGuard.hideIfCovering(mock(WebDriver.class), mock(WebElement.class), true);
         KeyboardCoverGuard.hideIfCovering(mock(AndroidDriver.class), mock(WebElement.class), false);

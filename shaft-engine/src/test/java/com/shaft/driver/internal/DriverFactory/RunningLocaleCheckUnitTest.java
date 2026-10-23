@@ -37,6 +37,15 @@ public class RunningLocaleCheckUnitTest {
     }
 
     @Test
+    public void unknownRunningLocaleWarnsInsteadOfFailing() {
+        JavascriptExecutor driver = mock(JavascriptExecutor.class);
+        when(driver.executeScript(eq("mobile: deviceInfo"), any())).thenReturn(Map.of("model", "iPhone"));
+        RunningLocaleCheck.verify(driver, "en", "US");
+        when(driver.executeScript(eq("mobile: deviceInfo"), any())).thenReturn("not a map");
+        RunningLocaleCheck.verify(driver, "en", "US");
+    }
+
+    @Test
     public void driverWithoutDeviceInfoIsSkipped() {
         JavascriptExecutor driver = mock(JavascriptExecutor.class);
         when(driver.executeScript(eq("mobile: deviceInfo"), any())).thenThrow(new UnsupportedOperationException("no"));

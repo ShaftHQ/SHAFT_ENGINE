@@ -156,7 +156,7 @@ final class MobilePreflight {
         return new SessionNotCreatedException(message);
     }
 
-    private static Response fetchStatus(URI uri) throws IOException {
+    static Response fetchStatus(URI uri) throws IOException {
         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
         try {
             HttpResponse<String> response = client.send(HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(10)).GET().build(),
@@ -168,7 +168,7 @@ final class MobilePreflight {
         }
     }
 
-    private static Optional<String> runCommand(String... command) {
+    static Optional<String> runCommand(String... command) {
         try {
             Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
             if (!process.waitFor(15, TimeUnit.SECONDS)) {

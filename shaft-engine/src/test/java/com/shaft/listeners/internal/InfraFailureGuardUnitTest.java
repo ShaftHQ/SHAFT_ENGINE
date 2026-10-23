@@ -25,6 +25,22 @@ public class InfraFailureGuardUnitTest {
     }
 
     @Test
+    public void transientCloudGridSessionFailuresStayRetryable() {
+        Assert.assertFalse(InfraFailureGuard.isInfra(new SessionNotCreatedException("Could not start a new session. Session request timed out in queue")));
+        Assert.assertFalse(InfraFailureGuard.isInfra(new SessionNotCreatedException("All parallel tests are currently in use; quota exhausted")));
+        Assert.assertTrue(InfraFailureGuard.isInfra(new SessionNotCreatedException("Preflight: Appium is not ready at http://localhost:4723 (timeout)")));
+        Assert.assertTrue(InfraFailureGuard.isInfra(new SessionNotCreatedException("Could not start a new session. Response code 500")));
+    }
+
+    @Test
+    public void retryAnalyzerDoesNotRetryInfraFailures() {
+        org.testng.ITestResult result = org.mockito.Mockito.mock(org.testng.ITestResult.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
+        org.mockito.Mockito.when(result.getThrowable()).thenReturn(new SessionNotCreatedException("Preflight: device offline"));
+        org.mockito.Mockito.when(result.getMethod().getMethodName()).thenReturn("login");
+        Assert.assertFalse(new RetryAnalyzer().retry(result));
+    }
+
+    @Test
     public void stopsAfterTwoInfraSetupFailuresInARowAndSuccessResets() {
         Assert.assertTrue(InfraFailureGuard.stopReason().isEmpty());
         InfraFailureGuard.onConfigurationFailure(new SessionNotCreatedException("down"));
