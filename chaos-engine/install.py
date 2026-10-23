@@ -4591,6 +4591,8 @@ def _refresh_shared_store(project: Path, component: str) -> str:
         return "skipped-test"
     try:
         stores = _load_stores_module()
+        if component == "graphify" and not stores["is_git_work_tree"](project):
+            return "skipped: not a git repository (Graphify freshness needs a git revision)"
         stores["refresh"](project, if_stale=True, components=frozenset({component}))
     except (OSError, RuntimeError, ValueError) as error:
         return f"skipped: {error}"
@@ -6701,6 +6703,8 @@ def _component_severity(item: dict[str, object]) -> str:
     impact = str(item.get("taskImpact") or "required")
     if status == "healthy":
         return "ok"
+    if str(item.get("detail") or "").startswith("n/a - not a git repository"):
+        return "warning"  # #7303: nothing to repair in a non-git project.
     if status == "absent" and impact == "optional":
         return "ok"
     if status == "compatible-legacy":
@@ -7823,6 +7827,9 @@ def _emit_result(args, result) -> int:
             f"component={result.get('component')} "
             f"action={result.get('action')}"
         )
+        refresh = result.get("storeRefresh")
+        if isinstance(refresh, str) and refresh.startswith("skipped"):
+            print(f"store refresh: {refresh}")
         return 0
     if args.command in {"status", "doctor"} and not getattr(args, "json", False):
         if not isinstance(result, dict):
