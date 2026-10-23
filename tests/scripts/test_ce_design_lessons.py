@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DESIGN = ROOT / "chaos-engine/addons/design-skills"
 LESSONS = DESIGN / "references/lessons"
 CARDS = {
-    "hook-speech-match": ("visible from\n   0 s", "Hooks-first planning", "verbatim", "per-item end time", "monotonic", "repro that must fail", "Muted test"),
+    "hook-speech-match": ("visible at 0 s", "visible from 0 s", "Hooks-first planning", "verbatim", "per-item end time", "monotonic", "repro that must fail", "Muted test"),
     "mixed-script-captions": ("«،»", "trailing filler", "bound prefix", "فلان/كذا", "Atkinson Hyperlegible", "LRI ... PDI", "`؟`", "before any wrapping markup", "2 lines at most",
                               "by rendering them", "WJ + thin space + WJ", "smallest size", "file that ships"),
     "talk-edit-and-layers": ("never mid-word", "30 ms crossfade", "after the content span", "0.3 s", "Per-frame fade check", "0.8 s", "No mid-sentence jump cuts", "pre-cut time", "RMS dip", "2 or more models",
