@@ -507,6 +507,12 @@ CHECKS = {
         "ce-h2-gates",
         ("tests.scripts.test_ce_h2_gates",),
     ),
+    # #7333: design-skills add-on cards (lesson cards, craft index, inventory).
+    "design-skills-contract": Check(
+        "design-skills-contract",
+        "design-skills",
+        ("tests.scripts.test_ce_design_lessons", "tests.scripts.test_ce_addons", "tests.scripts.test_ce_design_craft"),
+    ),
     "durable-jobs-contract": Check(
         "durable-jobs-contract",
         "durable-jobs",
@@ -622,6 +628,7 @@ SURFACE_CHECKS = {
     "installer-checkout-shim": ("installer-checkout-shim-contract",),
     "omniroute-calibration": ("omniroute-calibration-contract",),
     "process-owner": ("process-owner-contract",),
+    "design-skills": ("design-skills-contract",),
     "visual-ocr-workflow": ("visual-ocr-workflow-contract",),
     "ce-h2-gates": ("ce-h2-gates-contract",),
     "harness-eval": ("harness-eval-suite-contract",),
@@ -1076,6 +1083,10 @@ SURFACE_PATTERNS = {
         "scripts/ci/decision_quality_gate.py",
         "tests/fixtures/ce_dod/*",
         "tests/scripts/test_ce_h2_gates.py",
+    ),
+    "design-skills": (
+        "chaos-engine/addons/design-skills/*",
+        "tests/scripts/test_ce_design_lessons.py",
     ),
     # #6524-#6529: durable jobs outlive agent-session kills; one worker per job.
     "durable-jobs": (
