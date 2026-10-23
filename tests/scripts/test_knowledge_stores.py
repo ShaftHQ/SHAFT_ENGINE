@@ -6,6 +6,7 @@ import subprocess  # nosec B404 - tests run fixed local Git and Python commands.
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -289,6 +290,25 @@ class GraphifyNoCommitRowTest(unittest.TestCase):
             self.assertEqual("degraded", row["status"])
             self.assertIn("repair --project . --component graphify", row["fixNext"])
 
+
+    def test_non_git_project_row_is_na_warning_7303(self):
+        import runpy
+        root = Path(__file__).resolve().parents[2] / "chaos-engine"
+        stores = runpy.run_path(str(root / "stores.py"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "graphify-out").mkdir()
+            (project / "graphify-out/graph.json").write_text("{}", encoding="utf-8")
+            (project / "graphify-out/manifest.json").write_text("{}", encoding="utf-8")
+            with mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(project.parent)}):
+                self.assertFalse(stores["is_git_work_tree"](project))
+                row = stores["graphify_doctor_row"](project)
+        self.assertEqual("degraded", row["status"])
+        self.assertTrue(row["detail"].startswith("n/a - not a git repository"))
+        installer = runpy.run_path(str(root / "install.py"))
+        severity = installer["_component_severity"]
+        self.assertEqual("warning", severity({**row, "taskImpact": "required-when-indexed"}))
+        self.assertEqual("error", severity({"status": "degraded", "detail": "stale", "taskImpact": "required-when-indexed"}))
 
 if __name__ == "__main__":
     unittest.main()
