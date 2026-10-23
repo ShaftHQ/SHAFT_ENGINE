@@ -59,7 +59,10 @@ public final class PropertyFileManager {
             }
         }
         maybeInferMissingAndroidAppIdentifiers(appiumDesiredCapabilities);
-        maybeRemoveStaleApkSignature(appiumDesiredCapabilities.get("mobile_app"));
+        String mobileApp = appiumDesiredCapabilities.get("mobile_app");
+        if (mobileApp != null) {
+            maybeRemoveStaleApkSignature(mobileApp);
+        }
         return appiumDesiredCapabilities;
     }
 
@@ -68,7 +71,7 @@ public final class PropertyFileManager {
      * does not fail with {@code INSTALL_PARSE_FAILED_NO_CERTIFICATES} after the APK was replaced in place.
      */
     private static void maybeRemoveStaleApkSignature(String appPath) {
-        if (appPath == null || appPath.isBlank() || isRemoteAppUrl(appPath)) {
+        if (appPath.isBlank() || isRemoteAppUrl(appPath)) {
             return;
         }
         com.shaft.tools.internal.support.StaleApkSignatureCleaner.removeStaleSignature(new File(appPath))
