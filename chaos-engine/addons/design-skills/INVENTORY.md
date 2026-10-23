@@ -7,7 +7,7 @@ card, then update the SHA and date here.
 
 Pinned: 2026-10-03.
 
-Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 5 lesson
+Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 4 web-craft cards (W01-W04, references/web-craft), 5 lesson
 cards (L01-L05, no upstream code; sources listed per card), the
 innovation bank, 2 site-builder cards and 1 slides card. D23 draws on no
 upstream repository; its sources are platform and W3C documentation
@@ -43,6 +43,8 @@ Evaluated 2026-10-24, reference only and not vendored: UI UX Pro Max
 
 ## Not used
 
+- The impeccable CLI and detector (remote API, telemetry) and the transitions.dev
+  library (no redistribution). Only the W01/W02 rules are re-expressed.
 - getdesign.md catalog entries (third-party brand trade dress, no reuse licence).
 - Piper voices with non-commercial dataset licences (for example lessac).
 - RNNoise community model files without a licence.
