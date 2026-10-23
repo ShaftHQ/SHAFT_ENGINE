@@ -101,8 +101,21 @@ def filter_content(
     changed = [rel for rel in filtered if filtered[rel] != before.get(rel)]
     untouched = sorted(tracked(project, changed))
     for relative in untouched:
-        filtered[relative] = before.get(relative)
+        filtered[relative] = _live_bytes(project, relative, before.get(relative))
     return filtered, untouched
+
+
+def _live_bytes(project: Path, relative: str, fallback: bytes | None) -> bytes | None:
+    """#7312: a tracked file keeps the bytes on disk, not the receipt baseline.
+
+    On upgrade ``before`` is the host receipt baseline, which is absent for files
+    ChaosEngine created; once committed, keeping that baseline deletes them.
+    """
+    path = project / relative
+    try:
+        return path.read_bytes() if path.is_file() and not path.is_symlink() else fallback
+    except OSError:
+        return fallback
 
 
 def exclude_block(managed) -> str:
