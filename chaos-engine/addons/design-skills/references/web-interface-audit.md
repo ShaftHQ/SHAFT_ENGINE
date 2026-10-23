@@ -51,6 +51,9 @@ is fixed in the same PR or filed as an issue; nothing stays only in chat.
    emulation.
 4. Write findings in the output format; fix or file each.
 
+For generic tells and final polish, see [W01](web-craft/anti-generic-lint.md)
+and [W04](web-craft/micro-polish.md).
+
 ## Verify
 
 - axe-core: 0 violations in every theme.

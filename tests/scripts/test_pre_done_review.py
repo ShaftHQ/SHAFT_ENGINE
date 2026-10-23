@@ -10,6 +10,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.scripts.ce_neutral_terms import private_terms
+
 ROOT = Path(__file__).resolve().parents[2]
 CE = ROOT / "chaos-engine"
 sys.path.insert(0, str(CE))
@@ -107,7 +109,7 @@ class PreDoneReviewTest(unittest.TestCase):
 
     def test_skill_is_generic(self) -> None:
         text = (ROOT / SKILL).read_text(encoding="utf-8").lower()
-        for name in ("hrsd", "mohab", "shaft"):
+        for name in ("mohab", "shaft", *private_terms()):
             self.assertNotIn(name, text)
 
 

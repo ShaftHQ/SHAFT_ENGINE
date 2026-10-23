@@ -63,6 +63,9 @@ scenes, or kinetic type. D09 and D10 consume the tokens defined here.
 2. Block the animation as key poses with holds; add easing last.
 3. Review at full speed and at 25% speed; fix pops and drifting motion.
 
+For UI motion tokens and GSAP, see [W02](web-craft/motion-tokens.md) and
+[W03](web-craft/gsap-web-motion.md).
+
 ## Verify
 
 - `design_qc.py easing <src>` reports 0 linear or inline curves outside

@@ -511,7 +511,12 @@ CHECKS = {
     "design-skills-contract": Check(
         "design-skills-contract",
         "design-skills",
-        ("tests.scripts.test_ce_design_lessons", "tests.scripts.test_ce_addons", "tests.scripts.test_ce_design_craft"),
+        (
+            "tests.scripts.test_ce_design_lessons",
+            "tests.scripts.test_ce_design_web_craft",
+            "tests.scripts.test_ce_addons",
+            "tests.scripts.test_ce_design_craft",
+        ),
     ),
     "durable-jobs-contract": Check(
         "durable-jobs-contract",
@@ -1087,6 +1092,7 @@ SURFACE_PATTERNS = {
     "design-skills": (
         "chaos-engine/addons/design-skills/*",
         "tests/scripts/test_ce_design_lessons.py",
+        "tests/scripts/test_ce_design_web_craft.py",
     ),
     # #6524-#6529: durable jobs outlive agent-session kills; one worker per job.
     "durable-jobs": (
