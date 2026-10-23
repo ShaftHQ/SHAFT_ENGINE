@@ -54,6 +54,13 @@ image, a gradient, or video.
 - Color-vision simulation screenshots attached; semantic roles remain
   distinguishable.
 
+## Check before you choose
+
+Run the contrast check before naming an accent, on the exact background it
+sits on. A brand primary often fails on a dark brand background (for
+example a mid blue on navy measured about 2:1). Fix a failure with another
+on-palette colour that passes, never with an off-palette tint.
+
 ## Sources
 
 WCAG 2.2 success criteria 1.4.3, 1.4.6, and 1.4.11; CSS Color Module

@@ -37,6 +37,23 @@ One system across every chapter of a course:
 - After a branded document conversion, check every header: conversions
   can drop header images.
 
+## Section trackers on dividers
+
+- One tracker per part or chapter level; drop sub-topic trackers inside a
+  part.
+- Labels stay on one line at one size: shorten the label, never shrink the
+  type. Same x, y and width on every divider, equal segments, and the
+  active index equals the part number.
+- The active marker (bar) matches the active label's own text box: same x
+  and width, centre offset under 0.02 in. Assert this by script on every
+  divider, not by eye.
+- Choose the active and inactive colours with a contrast check on the real
+  background first (see `color-contrast.md`).
+- Decorative image bleed at the slide edge is fine if it stays clear of
+  the tracker, title and footer bands.
+- Evidence must match the claim: re-render after every fix and cite a
+  capture of the exact slide and state; never reuse an old capture.
+
 ## Review order
 
 When an orchestrator and a reviewer agent deliver together, follow the
