@@ -31,7 +31,7 @@ Re-runs print one line while the harness is unchanged; `--full` reprints the
 cards. Run `--full` at the start of every conversation and after every
 context summary or compaction: CLI hosts re-inject the cards on SessionStart
 and PreCompact, so a bot must do it itself. One delivery per thread; at each boundary pass
-[pre-done](../skills/pre-done-self-review/SKILL.md), then write a handoff note
+[pre-done](../skills/pre-done-self-review/SKILL.md), then a handoff note
 (state, PRs, next step), not a transcript.
 
 ## Keep going
