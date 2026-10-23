@@ -30,6 +30,7 @@ sorted. Each row is a name, ≤2-line Use-when, and a path — no workflow dumps
 | ICM Architect | Design/restructure ICM workspaces (advisory companion) | [`icm-architect.md`](icm-architect.md) |
 | Design loop | Write-review-revise a design doc until reviewer reports 0 open issues | [`design-loop.md`](design-loop.md) |
 | Technical presentations | Plan, build, refactor, or review a technical talk or training deck; never remove slide content | [`../skills/technical-presentations/SKILL.md`](../skills/technical-presentations/SKILL.md) |
+| Pre-done self-review | Before Done, sign-off, or handoff: rules reconciled, gaps cite rule + alternative, views match the table | [`../skills/pre-done-self-review/SKILL.md`](../skills/pre-done-self-review/SKILL.md) |
 | Deep research | Plan, parallel research, independent verify, cited report | [`deep-research.md`](deep-research.md) |
 | UI delivery | User-visible UI change: red-then-green e2e, measured geometry, viewport x theme matrix, CI coverage gap | [`ui-delivery.md`](ui-delivery.md) |
 | Public landing | Calling card or product landing page for humans, search, and agents; not a second policy | [`public-landing.md`](public-landing.md) |

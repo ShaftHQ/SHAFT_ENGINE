@@ -1564,6 +1564,40 @@
         "chaos-engine/skills/technical-presentations/SKILL.md"
       ],
       "note": "Technical-presentation cards: one source, on demand via the level-1 catalog (no always-loaded route row); Copilot IntelliJ reaches it through .github/copilot-instructions.md."
+    },
+    {
+      "id": "pre_done_self_review_skill",
+      "owner": "chaos-engine/skills/pre-done-self-review/SKILL.md",
+      "check": "tests/scripts/test_pre_done_review.py::test_every_host_reaches_the_skill",
+      "mode": "shared",
+      "claude": [
+        "chaos-engine/skills/pre-done-self-review/SKILL.md"
+      ],
+      "codex": [
+        "chaos-engine/skills/pre-done-self-review/SKILL.md"
+      ],
+      "copilot": [
+        "chaos-engine/skills/pre-done-self-review/SKILL.md"
+      ],
+      "gemini": [
+        "chaos-engine/skills/pre-done-self-review/SKILL.md"
+      ],
+      "grok": [
+        "chaos-engine/skills/pre-done-self-review/SKILL.md"
+      ],
+      "opencode": [
+        "chaos-engine/skills/pre-done-self-review/SKILL.md"
+      ],
+      "cursor": [
+        "chaos-engine/skills/pre-done-self-review/SKILL.md"
+      ],
+      "grok-bot": [
+        "chaos-engine/skills/pre-done-self-review/SKILL.md"
+      ],
+      "antigravity": [
+        "chaos-engine/skills/pre-done-self-review/SKILL.md"
+      ],
+      "note": "Pre-done self-review: one source, on demand via the level-1 catalog and the done/handoff path."
     }
   ]
 }
