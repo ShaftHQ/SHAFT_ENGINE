@@ -183,6 +183,58 @@ class MemPalacePrune(Temp):
         self.assertFalse(DEPS._exclude_regex(".chaos-engine-*").match(".chaos-engine-a/b"))
 
 
+class ReuseInstallPrune7316(Temp):
+    def test_reuse_install_drops_excluded_drawers(self):
+        project = self.root
+        (project / "keep.py").write_text("x")
+        (project / "SHAFT_ENGINE").mkdir()
+        (project / "SHAFT_ENGINE/a.java").write_text("x")
+        (project / "mempalace.yaml").write_text("exclude_patterns:\n  - 'SHAFT_ENGINE/**'\n")
+        database = self.root / "palace/sqlite_exact.sqlite3"
+        make_exact_palace(database, [str(project / "keep.py"), str(project / "SHAFT_ENGINE/a.java")])
+        with unittest.mock.patch.object(DEPS, "mempalace_project_palace", return_value=database.parent), \
+                unittest.mock.patch.object(INSTALL, "load_source_controller", return_value=DEPS), \
+                unittest.mock.patch.object(INSTALL, "reap_stale_project_setup_snapshots") as reap, \
+                redirect_stderr(StringIO()) as err:
+            INSTALL.post_install_housekeeping(project)
+        reap.assert_called_once_with()
+        connection = sqlite3.connect(database)
+        count = connection.execute("select count(*) from documents").fetchone()[0]
+        connection.close()
+        self.assertEqual(count, 1)
+        self.assertIn("pruned 1 drawers", err.getvalue())
+
+    def test_full_mine_pending_is_not_pruned(self):
+        with unittest.mock.patch.object(DEPS, "mempalace_mine_decision", return_value=("full", "x")), \
+                unittest.mock.patch.object(DEPS, "_prune_before_incremental_mine") as prune:
+            DEPS.prune_after_install(self.root)
+        prune.assert_not_called()
+
+
+class SnapshotRoots7316(Temp):
+    def test_scan_roots_cover_tmpdir_tmp_and_var_tmp(self):
+        with unittest.mock.patch.dict(os.environ, {"TMPDIR": str(self.root)}), \
+                unittest.mock.patch.object(INSTALL.tempfile, "gettempdir", return_value=str(self.root)):
+            roots = INSTALL.snapshot_scan_roots()
+        self.assertEqual(roots[0], self.root)
+        for system in ("/tmp", "/var/tmp"):
+            if Path(system).is_dir():
+                self.assertIn(Path(system).resolve(), roots)
+        self.assertEqual(len(roots), len(set(roots)))
+
+    def test_stale_snapshots_reaped_in_every_root(self):
+        dead = subprocess.Popen([sys.executable, "-c", "pass"])  # nosec B603
+        dead.wait()
+        roots = [self.root / name for name in ("tmpdir", "tmp", "var-tmp")]
+        for root in roots:
+            (root / f"{INSTALL.SNAPSHOT_PREFIX}{dead.pid}-x").mkdir(parents=True)
+        with unittest.mock.patch.object(INSTALL, "snapshot_scan_roots", return_value=roots), \
+                redirect_stderr(StringIO()):
+            reaped = INSTALL.reap_stale_project_setup_snapshots()
+        self.assertEqual(len(reaped), 3)
+        self.assertTrue(all(not any(root.iterdir()) for root in roots))
+
+
 class ConsumerTrackedCore(Temp):
     def test_committed_core_reports_adopter_mode(self):
         git = [GIT, "-C", str(self.root)]

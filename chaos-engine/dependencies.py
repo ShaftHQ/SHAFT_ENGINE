@@ -1624,6 +1624,12 @@ def _prune_before_incremental_mine(project: Path) -> None:
               "deleted or excluded sources", file=sys.stderr)
 
 
+def prune_after_install(project: Path) -> None:
+    """#7316: prune on a reuse install too, once an index exists (never mid full mine)."""
+    if mempalace_mine_decision(project)[0] == "incremental":
+        _prune_before_incremental_mine(project)
+
+
 def prepare_mempalace_mine(project: Path, command: list[str]) -> tuple[str, str]:
     """Skip nested repos, pick full vs incremental, and log the mode and reason."""
     nested = apply_nested_repository_excludes(project)

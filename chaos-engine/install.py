@@ -1507,24 +1507,43 @@ def _snapshot_owner(name: str) -> int | None:
     return int(head) if head.isdigit() and "-" in name[len(SNAPSHOT_PREFIX):] else None
 
 
+def snapshot_scan_roots() -> list[Path]:
+    """TMPDIR plus the system temp dirs: a run under another TMPDIR leaks there (#7316)."""
+    roots: list[Path] = []
+    system = [] if os.name == "nt" else [Path("/", "tmp"), Path("/", "var", "tmp")]
+    for candidate in (tempfile.gettempdir(), os.environ.get("TMPDIR"), *system):
+        if not candidate:
+            continue
+        with contextlib.suppress(OSError):
+            path = Path(candidate).resolve()
+            if path.is_dir() and path not in roots:
+                roots.append(path)
+    return roots
+
+
+def _stale_snapshot(entry: Path) -> bool:
+    if not entry.name.startswith(SNAPSHOT_PREFIX) or entry.is_symlink() or not entry.is_dir():
+        return False
+    owner = _snapshot_owner(entry.name)
+    if owner is not None:
+        return owner != os.getpid() and not _pid_alive(owner)
+    return time.time() - entry.stat().st_mtime >= LEGACY_SNAPSHOT_STALE_SECONDS
+
+
 def reap_stale_project_setup_snapshots(root: Path | None = None) -> list[Path]:
     """Remove snapshots a killed install left behind (#7314): owner pid dead.
 
     Legacy snapshots without an owner pid are reaped only after six hours.
+    Without ``root`` every ``snapshot_scan_roots`` directory is scanned.
     """
-    base = Path(root or tempfile.gettempdir())
     reaped: list[Path] = []
-    with contextlib.suppress(OSError):
-        for entry in base.iterdir():
-            if not entry.name.startswith(SNAPSHOT_PREFIX) or entry.is_symlink() or not entry.is_dir():
-                continue
-            owner = _snapshot_owner(entry.name)
-            if owner is not None and (owner == os.getpid() or _pid_alive(owner)):
-                continue
-            if owner is None and time.time() - entry.stat().st_mtime < LEGACY_SNAPSHOT_STALE_SECONDS:
-                continue
-            shutil.rmtree(entry, ignore_errors=True)
-            reaped.append(entry)
+    for base in ([Path(root)] if root else snapshot_scan_roots()):
+        with contextlib.suppress(OSError):
+            for entry in base.iterdir():
+                with contextlib.suppress(OSError):
+                    if _stale_snapshot(entry):
+                        shutil.rmtree(entry, ignore_errors=True)
+                        reaped.append(entry)
     if reaped:
         print(f"chaos-engine: removed {len(reaped)} stale install snapshot(s) from killed runs: "
               + ", ".join(str(item) for item in reaped), file=sys.stderr)
@@ -3898,6 +3917,18 @@ def _consumer_mode_module():
     finally:
         sys.dont_write_bytecode = previous
     return module
+
+
+def post_install_housekeeping(project: Path) -> None:
+    """#7316: every install, including a store-reuse one that mines nothing,
+    prunes excluded/deleted MemPalace drawers and reaps leaked snapshots."""
+    reap_stale_project_setup_snapshots()
+    try:
+        prune = getattr(load_source_controller("dependencies"), "prune_after_install", None)
+    except (ImportError, OSError, RuntimeError, ValueError):
+        return
+    if prune is not None:
+        prune(project)
 
 
 def report_consumer_tracked_core(project: Path, result: dict) -> list[str]:
@@ -7773,6 +7804,7 @@ def _run_install_command(args, requested, removed) -> object:
             file=sys.stderr,
         )
     report_consumer_tracked_core(args.project, result)
+    post_install_housekeeping(args.project)
     with contextlib.suppress(OSError):
         if ".graphifyignore" not in untouched:
             seed_graphify_ignore(args.project)
