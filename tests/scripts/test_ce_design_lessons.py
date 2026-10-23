@@ -6,6 +6,8 @@ import re
 import unittest
 from pathlib import Path
 
+from tests.scripts.ce_neutral_terms import private_terms
+
 ROOT = Path(__file__).resolve().parents[2]
 DESIGN = ROOT / "chaos-engine/addons/design-skills"
 LESSONS = DESIGN / "references/lessons"
@@ -65,7 +67,8 @@ class LessonCardsTest(unittest.TestCase):
             self.assertFalse(any(vendored in n for n in names), vendored)
 
     def test_lessons_are_project_neutral(self) -> None:
-        banned = re.compile(r"automatest|shaft|mohab|hrsd|stc\b|#00335c|#ffb547|price|budget talk", re.I)
+        terms = ("automatest", "shaft", "mohab", "price", "budget talk", *private_terms())
+        banned = re.compile("|".join(re.escape(t) for t in terms), re.I)
         for path in [*LESSONS.glob("*.md"), DESIGN / "references/research/design-resources-2026-10.md"]:
             with self.subTest(path=path.name):
                 self.assertIsNone(banned.search(path.read_text(encoding="utf-8")))

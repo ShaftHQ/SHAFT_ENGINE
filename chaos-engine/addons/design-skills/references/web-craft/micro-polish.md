@@ -17,6 +17,8 @@ with [D04 web interface audit](../web-interface-audit.md) and
    corners share one centre.
 2. Optical alignment beats geometric alignment: nudge play triangles,
    icon-plus-label buttons and asymmetric glyphs until they look centred.
+   Optical alignment mirrors in RTL: directional icons (arrows, play,
+   chevrons) flip; non-directional icons do not.
 3. Layered shadows for elevation: two or more soft, transparent shadows
    rather than one hard shadow or a depth-only border. Keep borders for
    structure and state.
@@ -31,7 +33,8 @@ with [D04 web interface audit](../web-interface-audit.md) and
 ## Verify
 
 - [ ] For each nested rounded element, inner = outer - padding.
-- [ ] Crops of icon buttons look centred at 2x zoom.
+- [ ] Crops of icon buttons look centred at 2x zoom, in LTR and RTL, and
+      only directional icons are flipped.
 - [ ] Every control measures >= 44px on touch, with no overlapping hit
       areas.
 - [ ] Tabbing through the page shows a focus ring on every control.

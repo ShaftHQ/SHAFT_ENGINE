@@ -15,7 +15,9 @@ extends [D03 web visual direction](../web-visual-direction.md) and
 
 1. Lint for the generic tells. Each one is a finding unless the brief
    explicitly earns it:
-   - Inter (or a system face) as the default face for everything;
+   - one default face for everything, every script (for example Inter or
+     a system face for Latin and Arabic alike). A deliberate Latin face
+     paired with a proper Arabic or other-script face is not a finding;
    - a purple-to-blue gradient, including gradient text;
    - card-in-card (nested cards), or same-size icon cards as the whole
      layout;

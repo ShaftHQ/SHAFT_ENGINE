@@ -19,8 +19,10 @@ A web UI needs transitions. It extends
    remove movement and keep at most a short opacity change. State changes
    must not depend on motion.
 3. Open and close are origin-aware: a popover or menu grows from the
-   control that opened it (set `transform-origin` to the trigger side)
-   and closes back towards it. Close faster than open.
+   control that opened it and closes back towards it. Close faster than
+   open. The origin mirrors in `dir="rtl"`: derive it from logical sides
+   (inline-start/inline-end), never a hard-coded left/right
+   `transform-origin`.
 4. Reference only: this card records patterns. Copy no text, snippets or
    assets from the source library.
 
@@ -29,7 +31,8 @@ A web UI needs transitions. It extends
 - [ ] Grep finds no hard-coded transition durations outside the tokens.
 - [ ] With reduced motion emulated in the browser, nothing translates or
       scales.
-- [ ] A frame capture of each popover shows it scaling from its trigger.
+- [ ] A frame capture of each popover shows it scaling from its trigger,
+      in both `dir="ltr"` and `dir="rtl"`.
 
 ## Sources
 
