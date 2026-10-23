@@ -29,6 +29,9 @@ extends [C10 hooks](../craft/hooks.md) and [D13 cutting](../cutting-pacing.md).
    line times.
 7. Muted test: with sound off, frame 1 must stop a scroll (the card plus a
    moving face).
+8. Q&A labels: the label prefix ("Question" / "Speaker") is visible from
+   0 s, and the card holds the spoken question verbatim.
+9. Hooks-first planning: scan sources for hooks before picking clips.
 
 ## Verify
 
@@ -36,6 +39,7 @@ extends [C10 hooks](../craft/hooks.md) and [D13 cutting](../cutting-pacing.md).
       fails as expected.
 - [ ] The card's end time is within one frame of the end of the last
       hook word.
+- [ ] On Q&A clips the label prefix is visible at 0 s.
 - [ ] Frame 1 is read muted: the card is legible and a face is visible.
 
 ## Sources

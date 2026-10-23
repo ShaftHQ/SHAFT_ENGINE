@@ -13,8 +13,8 @@ It extends [D13 cutting](../cutting-pacing.md) and
 
 ## Rules
 
-1. Pause tightening for talk: cut dead air longer than 0.8 s, with at most
-   2 splices per Short. Keep 0.2 s margins and start the card on a whole
+1. Pause tightening for talk: cut dead air longer than 0.8 s, with max 2 cuts, at pauses, never mid-word, 30 ms crossfade
+   (an audio crossfade at each splice). Keep 0.2 s margins and start the card on a whole
    frame. Keep the 200-300 ms rule for fast edits only.
 2. No mid-sentence jump cuts: cut only at pauses between thoughts.
 3. Captions and word timestamps stay in pre-cut time and the renderer
@@ -30,15 +30,20 @@ It extends [D13 cutting](../cutting-pacing.md) and
    only what changes.
 7. Burned-in source banners: mask (blur) the rows rather than re-cropping
    the frame.
+8. End card: append it after the content span; it never overlaps speech.
+   Fade the span audio out over 0.3 s and hold the panel through the fade.
 
 ## Verify
 
 - [ ] Every splice falls on a pause of more than 0.8 s, between sentences;
-      there are no more than 2 per Short.
+      there are no more than 2 per Short, none mid-word,
+      each with a 30 ms audio crossfade.
 - [ ] The last frame plays after the last word, on an RMS dip; checked by
       ear.
 - [ ] A frame at the midpoint of each overlay crossfade shows no
       see-through panel.
+- [ ] Per-frame fade check: the end card starts after the last word, the
+      audio fades over 0.3 s, and the panel is held on every fade frame.
 
 ## Sources
 

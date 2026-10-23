@@ -28,13 +28,16 @@ visual or gate change is coming. It pairs with
 5. Read pinned inputs with `git show <sha>:<path>`. Scripts are
    all-or-nothing, and rewrites preserve file conventions (for example
    CRLF).
-6. Never run headless-Chrome renders in parallel on one shared profile.
+6. On an audio-only relock, re-gate only the cues that changed. A
+   transcript-diff waiver needs 0 SRT errors.
+7. Never run headless-Chrome renders in parallel on one shared profile.
 
 ## Verify
 
 - [ ] With flags off, the three md5 checks match a signed output.
 - [ ] Every signed item was audited with the new gates, and none was
       re-rendered.
+- [ ] A relock re-gated the changed cues; any waiver shows 0 SRT errors.
 - [ ] Each fix links its red repro, its proof render and its before/after
       crop.
 
