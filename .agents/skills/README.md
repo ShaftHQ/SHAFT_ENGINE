@@ -148,6 +148,7 @@ sends you there; the rest by
 - [orchestrator bootstrap](../../chaos-engine/references/orchestrator-bootstrap.md)
 - [orchestrator follow-through](../../chaos-engine/references/orchestrator-follow-through.md)
 - [multi-agent PDCA loop](../../chaos-engine/references/multi-agent-pdca.md)
+- [iterative flow rule](../../chaos-engine/references/iterative-flow.md)
 - [process-owner / Scrum-master](../../chaos-engine/references/process-owner-scrum-master.md)
 - [decision-quality baseline](../../chaos-engine/decision-quality-baseline.md)
 - [decision-quality rubric](../../chaos-engine/decision-quality-rubric.md)

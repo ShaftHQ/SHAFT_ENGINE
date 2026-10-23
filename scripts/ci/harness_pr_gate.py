@@ -1049,6 +1049,7 @@ SURFACE_PATTERNS = {
         "chaos-engine/references/execution-workflows.md",
         "tests/scripts/test_process_owner_scrum_master.py",
         "chaos-engine/references/multi-agent-pdca.md",
+        "chaos-engine/references/iterative-flow.md",
         "chaos-engine/references/bot-entry.md",
         "tests/scripts/test_multi_agent_pdca.py",
     ),

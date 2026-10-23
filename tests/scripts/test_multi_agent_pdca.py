@@ -33,5 +33,45 @@ class MultiAgentPdcaTest(unittest.TestCase):
             self.assertNotIn(term, text)
 
 
+class IterativeFlowRuleTest(unittest.TestCase):
+    """#7318: the always-on iterative flow rule is generic, sourced, and loaded."""
+
+    FLOW = REFS / "iterative-flow.md"
+
+    def test_rule_states_wip_done_and_generic_roles(self):
+        text = self.FLOW.read_text(encoding="utf-8")
+        for needle in (
+            "every task", "WIP limit: 1 item", "both sign-offs AND the item is shipped",
+            "failure → root cause → preventive rule", "Design owner",
+            "Acceptance reviewer", "Engineering advisor", "(multi-agent-pdca.md#loop)",
+            "https://kanbanguides.org/english/", "https://deming.org/explore/pdsa/",
+        ):
+            self.assertIn(needle, text)
+        self.assertIn("(iterative-flow.md)", DOC.read_text(encoding="utf-8"))
+
+    def test_rule_has_no_bot_or_org_names(self):
+        text = self.FLOW.read_text(encoding="utf-8").lower()
+        for term in ("carl", "coach", "chaos does", "mohab", "automatest", "grok", "shaft"):
+            self.assertNotIn(term, text)
+
+    def test_validator_requires_entry_to_load_rule(self):
+        import shutil
+        import tempfile
+        from scripts.ci import validate_agent_setup as setup
+
+        self.assertEqual(setup.validate_iterative_flow_rule(ROOT), [])
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            refs = root / "chaos-engine/references"
+            refs.mkdir(parents=True)
+            self.assertEqual(setup.validate_iterative_flow_rule(root), [])
+            shutil.copy(self.FLOW, refs / "iterative-flow.md")
+            (refs / "bot-entry.md").write_text("no link\n", encoding="utf-8")
+            codes = [e["code"] for e in setup.validate_iterative_flow_rule(root)]
+            self.assertEqual(codes, ["iterative-flow-rule"])
+            (refs / "bot-entry.md").write_text("[f](iterative-flow.md)\n", encoding="utf-8")
+            self.assertEqual(setup.validate_iterative_flow_rule(root), [])
+
+
 if __name__ == "__main__":
     unittest.main()
