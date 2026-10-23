@@ -243,8 +243,7 @@ public class BrowserStackHelper {
         SHAFT.Properties.mobile.set().platformVersion(osVersion);
         SHAFT.Properties.mobile.set().app(appUrl);
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
-        HashMap<String, Object> browserstackOptions = new HashMap<>();
-        browserstackOptions = PropertyFileManager.getCustomBrowserstackCapabilities();
+        HashMap<String, Object> browserstackOptions = PropertyFileManager.getCustomBrowserstackCapabilities();
         browserstackOptions.put("appiumVersion", SHAFT.Properties.browserStack.appiumVersion());
         browserstackOptions.put("acceptInsecureCerts", SHAFT.Properties.browserStack.acceptInsecureCerts());
         browserstackOptions.put("debug", SHAFT.Properties.browserStack.debug());

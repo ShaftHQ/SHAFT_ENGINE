@@ -5,7 +5,7 @@ source text. Source IDs keep citations terse and make review deterministic.
 
 | ID | Authority and URL | Used for |
 | --- | --- | --- |
-| `SHAFT-GUIDE` | [SHAFT User Guide](https://shafthq.github.io/docs/) | Current SHAFT concepts, test surfaces, configuration, and official usage |
+| `SHAFT-GUIDE` | [SHAFT User Guide](https://shafthq.github.io/) | Current SHAFT concepts, test surfaces, configuration, and official usage |
 | `SHAFT-MCP` | [SHAFT MCP guide](https://shafthq.github.io/docs/agentic/mcp) | MCP operating boundaries and canonical-catalog discovery |
 | `SHAFT-REPORTING` | [SHAFT reporting and evidence](https://shafthq.github.io/docs/features/reporting) | Structured evidence, traces, diagnostics, flake profiles, and redaction |
 | `ISTQB-CTFL` | [ISTQB Certified Tester Foundation Level syllabus v4.0.1](https://istqb.org/wp-content/uploads/2024/11/ISTQB_CTFL_Syllabus_v4.0.1.pdf) | Test process, analysis, design, implementation, execution, monitoring, defects, and completion |

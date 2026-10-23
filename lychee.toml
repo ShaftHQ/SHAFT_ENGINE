@@ -1,6 +1,13 @@
 # #7008: link check config shared by the PR (offline) and weekly (external) runs.
 exclude_path = ["node_modules", "target", "\\.memory/"]
 # Generated at install time by the ChaosEngine installer; not tracked in git.
-exclude = ["/\\.chaos-engine/", "^https?://localhost", "^https?://127\\.0\\.0\\.1", "^mailto:"]
+exclude = ["/\\.chaos-engine/", "^https?://localhost", "^https?://127\\.0\\.0\\.1", "^mailto:",
+    # Sites that answer automated clients only with a redirect loop or 403 challenge (#7171).
+    "^https://www\\.edgestudio\\.com/", "^https://console\\.mistral\\.ai/", "^https://www\\.oreilly\\.com/", "^https://www\\.scribd\\.com/"]
 max_concurrency = 16
-accept = [200, 206, 429]
+# 202 is the bot-challenge reply from WAF fronts (AWS WAF, Cloudflare) that serve
+# the page to browsers (#7171).
+accept = [200, 202, 206, 429]
+max_retries = 3
+retry_wait_time = 5
+timeout = 30

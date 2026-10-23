@@ -1040,6 +1040,49 @@ public class DriverFactoryHelper {
         }
     }
 
+    /** Chromium "DevToolsActivePort" retry fallback: switch to --remote-debugging-pipe. */
+    private void applyRemoteDebuggingPipeFallback(DriverType driverType) {
+        switch (driverType) {
+            case DriverType.CHROME -> {
+                var chOptions = optionsManager.getChOptions();
+                chOptions.addArguments("--remote-debugging-pipe");
+                optionsManager.setChOptions(chOptions);
+            }
+            case DriverType.EDGE -> {
+                var edOptions = optionsManager.getEdOptions();
+                edOptions.addArguments("--remote-debugging-pipe");
+                optionsManager.setEdOptions(edOptions);
+            }
+            default -> {
+                // no fallback adjustment needed for other driver types
+            }
+        }
+    }
+
+    /** "Failed to initialize BiDi Mapper" retry fallback: propagate the disabled webSocketUrl capability. */
+    private void applyBiDiDisabledFallback(DriverType driverType) {
+        switch (driverType) {
+            case DriverType.FIREFOX -> {
+                var ffOptions = optionsManager.getFfOptions();
+                ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                optionsManager.setFfOptions(ffOptions);
+            }
+            case DriverType.CHROME -> {
+                var chOptions = optionsManager.getChOptions();
+                chOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                optionsManager.setChOptions(chOptions);
+            }
+            case DriverType.EDGE -> {
+                var edOptions = optionsManager.getEdOptions();
+                edOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
+                optionsManager.setEdOptions(edOptions);
+            }
+            default -> {
+                // no fallback adjustment needed for other driver types
+            }
+        }
+    }
+
     private void createNewLocalDriverInstance(DriverType driverType, int retryAttempts) {
         String targetPlatform = Properties.platform.targetPlatform().toLowerCase();
         String initialLog = "Starting local WebDriver session: \"" + targetPlatform + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
@@ -1094,39 +1137,12 @@ public class DriverFactoryHelper {
                 } else if (message != null && message.contains("DevToolsActivePort file doesn't exist")) {
                     // this exception was observed with `Windows_Edge_Local` pipeline to happen randomly
                     // suggested fix as per titus fortner: https://bugs.chromium.org/p/chromedriver/issues/detail?id=4403#c35
-                    switch (driverType) {
-                        case DriverType.CHROME -> {
-                            var chOptions = optionsManager.getChOptions();
-                            chOptions.addArguments("--remote-debugging-pipe");
-                            optionsManager.setChOptions(chOptions);
-                        }
-                        case DriverType.EDGE -> {
-                            var edOptions = optionsManager.getEdOptions();
-                            edOptions.addArguments("--remote-debugging-pipe");
-                            optionsManager.setEdOptions(edOptions);
-                        }
-                    }
+                    applyRemoteDebuggingPipeFallback(driverType);
                 } else if (message != null && message.contains("Failed to initialize BiDi Mapper")) {
                     // this exception happens in some corner cases where the capabilities are not compatible with BiDi mode
                     // should force disable BiDi and try again
                     SHAFT.Properties.platform.set().enableBiDi(false);
-                    switch (driverType) {
-                        case DriverType.FIREFOX -> {
-                            var ffOptions = optionsManager.getFfOptions();
-                            ffOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
-                            optionsManager.setFfOptions(ffOptions);
-                        }
-                        case DriverType.CHROME -> {
-                            var chOptions = optionsManager.getChOptions();
-                            chOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
-                            optionsManager.setChOptions(chOptions);
-                        }
-                        case DriverType.EDGE -> {
-                            var edOptions = optionsManager.getEdOptions();
-                            edOptions.setCapability("webSocketUrl", SHAFT.Properties.platform.enableBiDi());
-                            optionsManager.setEdOptions(edOptions);
-                        }
-                    }
+                    applyBiDiDisabledFallback(driverType);
                 } else if (message != null && message.contains("The Safari instance is already paired")) {
                     // Local Safari/macOS. safaridriver allows one session system-wide.
                     // Current safaridriver says "already paired with a different session";

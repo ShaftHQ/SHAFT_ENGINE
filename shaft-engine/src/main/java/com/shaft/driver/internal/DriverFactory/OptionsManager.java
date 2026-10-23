@@ -32,7 +32,8 @@ import org.openqa.selenium.safari.SafariOptions;
 
 import java.io.File;
 import java.time.Duration;
-import java.util.Arrays;
+
+import java.util.Set;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -305,13 +306,7 @@ public class OptionsManager {
                         }
                         return;
                     }
-                    if (Arrays.asList("true", "false").contains(value.trim().toLowerCase())) {
-                        appiumCapabilities.setCapability(appiumCapabilityName, Boolean.valueOf(value));
-                    } else if (StringUtils.isStrictlyNumeric(value.trim())) {
-                        appiumCapabilities.setCapability(appiumCapabilityName, Integer.valueOf(value));
-                    } else {
-                        appiumCapabilities.setCapability(appiumCapabilityName, value);
-                    }
+                    appiumCapabilities.setCapability(appiumCapabilityName, coerceAppiumCapabilityValue(appiumCapabilityName, value));
                 }
             });
             // Avoid UiAutomator2 stalling when the first resumed activity is not the declared appActivity (splash, etc.)
@@ -661,5 +656,40 @@ public class OptionsManager {
             directory = directory.substring(0, directory.length() - 1);
         }
         return directory;
+    }
+
+    /**
+     * Appium capabilities that the W3C/Appium schemas type as strings. Values such as {@code 16} must stay
+     * JSON strings for these, or UiAutomator2 rejects the session (#7143).
+     */
+    private static final Set<String> STRING_TYPED_APPIUM_CAPABILITIES = Set.of(
+            "appium:platformVersion", "appium:udid", "appium:deviceName", "appium:avd",
+            "appium:appPackage", "appium:appActivity", "appium:appWaitActivity", "appium:appWaitPackage",
+            "appium:bundleId", "appium:automationName", "appium:browserVersion", "appium:chromedriverExecutable",
+            "appium:language", "appium:locale", "appium:orientation");
+
+    /**
+     * Converts a SHAFT mobile property value into the JSON type Appium expects for that capability.
+     *
+     * @param appiumCapabilityName the {@code appium:}-prefixed capability name
+     * @param value the raw property value
+     * @return a Boolean, an Integer, or the original string
+     */
+    public static Object coerceAppiumCapabilityValue(String appiumCapabilityName, String value) {
+        String trimmed = value.trim();
+        if (STRING_TYPED_APPIUM_CAPABILITIES.contains(appiumCapabilityName)) {
+            return trimmed;
+        }
+        if ("true".equalsIgnoreCase(trimmed) || "false".equalsIgnoreCase(trimmed)) {
+            return Boolean.valueOf(trimmed);
+        }
+        if (StringUtils.isStrictlyNumeric(trimmed)) {
+            try {
+                return Integer.valueOf(trimmed);
+            } catch (NumberFormatException overflow) {
+                return trimmed;
+            }
+        }
+        return value;
     }
 }

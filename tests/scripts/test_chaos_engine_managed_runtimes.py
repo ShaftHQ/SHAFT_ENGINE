@@ -501,6 +501,30 @@ class ManagedRuntimeCliTest(TestCase):
         process.wait.return_value = 0
         self.assertFalse(HOSTS.probe_maven_tools_runtime(Path("/java"), Path("/tools.jar"), popen=lambda *_args, **_kwargs: process))
 
+    def test_maven_tools_probe_skips_log_lines_before_each_reply(self):
+        # #7300: a startup log line on stdout was parsed as the initialize reply.
+        process = mock.Mock()
+        process.stdin = io.StringIO()
+        process.stdout = io.StringIO(
+            "2026-10-23T08:43:45.800Z DEBUG --- [main] MavenCentralService : POM fetch failed\n"
+            '{"jsonrpc":"2.0","id":1,"result":{"serverInfo":{"name":"maven-tools-mcp"}}}\n'
+            '{"jsonrpc":"2.0","method":"notifications/message","params":{}}\n'
+            '{"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"latest-version"}]}}\n'
+        )
+        process.stderr = io.StringIO()
+        process.poll.return_value = None
+        process.wait.return_value = 0
+        self.assertTrue(HOSTS.probe_maven_tools_runtime(Path("/java"), Path("/tools.jar"), popen=lambda *_args, **_kwargs: process))
+
+    def test_maven_tools_probe_fails_when_stdout_closes_without_reply(self):
+        process = mock.Mock()
+        process.stdin = io.StringIO()
+        process.stdout = io.StringIO("not json\n")
+        process.stderr = io.StringIO()
+        process.poll.return_value = None
+        process.wait.return_value = 0
+        self.assertFalse(HOSTS.probe_maven_tools_runtime(Path("/java"), Path("/tools.jar"), popen=lambda *_args, **_kwargs: process))
+
     def test_maven_tools_native_build_uses_system_java_and_publishes(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
