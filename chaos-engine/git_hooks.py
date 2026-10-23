@@ -23,6 +23,16 @@ from pathlib import Path
 HOOKS_DIRECTORY = "chaos-engine-hooks"
 CHAIN_KEY = "chaosengine.chainedHooksPath"
 GUARDED = ("pre-commit", "pre-push")
+# #7323: only git's own hook names get shims; helper files in a chained dir (a copied
+# secret_guard.py, __init__.py, README) must never overwrite what we install.
+GIT_HOOK_NAMES = frozenset({
+    "applypatch-msg", "pre-applypatch", "post-applypatch", "pre-commit", "pre-merge-commit",
+    "prepare-commit-msg", "commit-msg", "post-commit", "pre-rebase", "post-checkout", "post-merge",
+    "pre-push", "pre-receive", "update", "proc-receive", "post-receive", "post-update",
+    "reference-transaction", "push-to-checkout", "pre-auto-gc", "post-rewrite", "sendemail-validate",
+    "fsmonitor-watchman", "p4-changelist", "p4-prepare-changelist", "p4-post-changelist", "p4-pre-submit",
+    "post-index-change",
+})
 _PREAMBLE = """#!/bin/sh
 # ChaosEngine secret guard (#7177). Written by install.py; re-run the install to update it.
 chained=$(git config --get {key})
@@ -112,7 +122,10 @@ def install_secret_guard(project: Path, guard_source: Path) -> dict[str, object]
     shutil.copyfile(guard_source, target / "secret_guard.py")
     for name in GUARDED:
         _write_executable(target / name, hook_text(name))
-    shims = [name for name in _real_hooks(_absolute(project, chained)) if name not in GUARDED] if chained else []
+    shims = [
+        name for name in _real_hooks(_absolute(project, chained))
+        if name in GIT_HOOK_NAMES and name not in GUARDED
+    ] if chained else []
     for name in shims:
         _write_executable(target / name, hook_text(name))
     if chained:
@@ -120,4 +133,25 @@ def install_secret_guard(project: Path, guard_source: Path) -> dict[str, object]
     elif _git(project, "config", "--get", CHAIN_KEY):
         _git(project, "config", "--unset", CHAIN_KEY)
     _git(project, "config", "core.hooksPath", str(target))
+    status, reason = guard_health(project)
+    if status != "pass":
+        raise RuntimeError(f"installed secret guard is broken: {reason}")
     return {"status": "installed", "hooksPath": str(target), "chained": chained or None, "shims": shims}
+
+
+def guard_health(project: Path) -> tuple[str, str]:
+    """#7323: doctor row. ``fail`` when hooks point at a guard that does not compile (every commit fails)."""
+    current = _git(project, "config", "--get", "core.hooksPath", missing_ok=True)
+    if not current:
+        return "pass", "not installed"
+    target = _absolute(project, current)
+    if target.name != HOOKS_DIRECTORY:
+        return "pass", "not installed"
+    guard = target / "secret_guard.py"
+    try:
+        compile(guard.read_text(encoding="utf-8"), str(guard), "exec")
+    except (OSError, UnicodeDecodeError) as error:
+        return "fail", f"{guard.name} unreadable: {type(error).__name__}"
+    except SyntaxError as error:
+        return "fail", f"{guard.name} line {error.lineno}: {error.msg}"
+    return "pass", ""
