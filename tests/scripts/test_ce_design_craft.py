@@ -39,6 +39,10 @@ class CraftLintTests(unittest.TestCase):
             code, payload = run_qc(name, str(good_file), *extra)
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
+    def test_codeparse_flags_odd_space_indents_and_parse_errors(self):  # #7294 code
+        self.check("code-parse", "{\n\u00a0\u00a0\"a\": 1\n}\n", '{\n  "a": 1\n}\n', ".json", "--lang", "json")
+        self.check("code-parse", "def f(:\n  pass\n", "def f():\n    return 1\n", ".py", "--lang", "python")
+
     def test_chrome_flags_hud_counters_timecodes_and_tracked_caps(self):  # #7105 G5
         self.check("chrome", '<div class="corner">02 / SPEAK</div><i>00:00:12</i>\n'
                    '<b style="letter-spacing: 0.3em; text-transform: uppercase">Scene</b>',

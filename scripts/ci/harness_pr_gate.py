@@ -489,7 +489,10 @@ CHECKS = {
     "process-owner-contract": Check(
         "process-owner-contract",
         "process-owner",
-        ("tests.scripts.test_process_owner_scrum_master",),
+        (
+            "tests.scripts.test_process_owner_scrum_master",
+            "tests.scripts.test_multi_agent_pdca",
+        ),
     ),
     "ce-h2-gates-contract": Check(
         "ce-h2-gates-contract",
@@ -1040,6 +1043,9 @@ SURFACE_PATTERNS = {
         "chaos-engine/references/orchestrator-follow-through.md",
         "chaos-engine/references/execution-workflows.md",
         "tests/scripts/test_process_owner_scrum_master.py",
+        "chaos-engine/references/multi-agent-pdca.md",
+        "chaos-engine/references/bot-entry.md",
+        "tests/scripts/test_multi_agent_pdca.py",
     ),
     # #6411-#6414: decision-quality gate, dod, latency budgets, usage table.
     "ce-h2-gates": (

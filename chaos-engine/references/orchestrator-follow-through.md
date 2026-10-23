@@ -27,6 +27,11 @@ ambiguity, and remove blockers within granted authority. Then keep, re-spec,
 upgrade, or kill. Never send a heartbeat. Validate errors and progress before
 the next handoff; bound retries and escalate instead of waiting indefinitely.
 
+## Review loop
+
+With a reviewer agent, deliver through the
+[multi-agent PDCA loop](multi-agent-pdca.md).
+
 ## Delivery ledger
 
 For a multi-item ask, the orchestrator owns the

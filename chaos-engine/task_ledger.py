@@ -21,6 +21,9 @@ show the table, and update the item at each milestone (todo, in-progress,
 PR #N, merged, blocked: reason). ``resume`` prints the table, so a resumed
 session or the parent sees what is left without the transcript.
 
+Resume at (#7293): the brief's first line is exactly one ``Resume at: <next>``;
+a step without ``--next`` warns and keeps the last one.
+
 State: ``$CHAOS_ENGINE_TASKS_DIR`` or ``~/.local/state/chaos-engine/tasks``,
 one ``TASK.jsonl`` per task, outside any worktree so it survives cleanup.
 Stdlib only.
@@ -40,6 +43,7 @@ NAME_RE = re.compile(r"^[A-Za-z0-9_.-]{1,96}$")
 DEFAULT_BUDGET_MINUTES = 35
 BUDGET_WARN_MINUTES = 5
 HOST_CAP_MINUTES = 50
+MISSING_NEXT = "(missing: rerun checkpoint with --next \"<exact next step>\")"
 STOP_NOW = "stop: push WIP, checkpoint --next, end turn"
 DONE = "done"
 
@@ -166,9 +170,10 @@ def brief(name: str) -> str | None:
     text = "; ".join(parts)
     if merged["step"] == DONE:
         text += "\nstatus: done; nothing to resume"
-    else:
-        text += f"\nnext: {merged.get('next', 'reread the PR/branch state, then continue')}"
-    return text + ("\n" + table if table else "")
+        return text + ("\n" + table if table else "")
+    # #7293: exactly one exact next step, first, so a resumed session never rereads history.
+    resume_at = merged.get("next") or MISSING_NEXT
+    return f"Resume at: {resume_at}\n{text}" + ("\n" + table if table else "")
 
 
 SPEC_REFUSAL = (
@@ -212,6 +217,9 @@ def checkpoint_step(ns: argparse.Namespace) -> int:
         return 4
     record(ns.task, ns.step, branch=ns.branch, pr=ns.pr, next_action=ns.next_action, start=ns.start,
            spec=str(spec) if ns.spec and spec else "")
+    if ns.step != DONE and not ns.next_action:
+        print(f"{ns.task}: no --next; 'Resume at' keeps the last one. Pass --next \"<exact next step>\"",
+              file=sys.stderr)
     return session_gate(ns.task, ns.budget or ns.minutes) if ns.step != DONE else 0
 
 

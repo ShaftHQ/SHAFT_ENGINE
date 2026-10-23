@@ -70,6 +70,8 @@ platform's own render, not the local one.
 - Palette from the logo, Font pairing, proof mocks, icons, images, humour
   and pptx import traps: [deck assets and import](../slides/deck-assets-and-import.md).
 
+Multi-chapter system and review order: [deck system](../slides/deck-system.md).
+
 ## Source safety
 
 - In the owner's files: hide, don't delete; note "Original: skipped slide N".
