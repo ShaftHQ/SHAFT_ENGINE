@@ -7373,7 +7373,7 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
     return lines
 
 
-AGENT_SUMMARY_MAX_LINES = 9
+AGENT_SUMMARY_MAX_LINES = 10
 
 
 def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
@@ -7421,8 +7421,9 @@ def format_agent_summary(document: dict[str, object]) -> str:
         "token-economy: " + " ".join(token_economy_status()),
         "delete-guard: " + " ".join(delete_guard_status()),
         "backup-remote: " + " ".join(backup_remote_advisory(installed_project())),
+        "secret-guard: " + " ".join(secret_guard_status(installed_project())),
     ]
-    if delete_guard_status()[0] != "pass":
+    if delete_guard_status()[0] != "pass" or lines[-1].startswith("secret-guard: fail"):
         lines[0] = "doctor: fail"
     kept = kept_addons_line(installed_project())
     if kept:
@@ -7466,6 +7467,21 @@ def backup_remote_advisory(project: Path | None, root: Path | None = None) -> tu
     except Exception as error:  # nosec B110 - advisory only
         return ("warn", f"({type(error).__name__})")
     return (status,) if status == "pass" else (status, f"({reason})")
+
+
+def secret_guard_status(project: Path | None, root: Path | None = None) -> tuple[str, ...]:
+    """#7323: fail when core.hooksPath runs a secret_guard.py that does not compile."""
+    path = (root or Path(__file__).resolve().parent) / "git_hooks.py"
+    if project is None or not path.is_file():
+        return ("pass", "(unavailable)")
+    try:
+        spec = importlib.util.spec_from_file_location("ce_git_hooks_doctor", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        status, reason = module.guard_health(Path(project))
+    except Exception as error:  # nosec B110 - a broken helper must not crash doctor
+        return ("warn", f"({type(error).__name__})")
+    return (status,) if not reason else (status, f"({reason})")
 
 
 def token_economy_status(root: Path | None = None) -> tuple[str, ...]:
