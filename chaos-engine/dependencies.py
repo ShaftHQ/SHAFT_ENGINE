@@ -143,7 +143,8 @@ MEMPALACE_INDEX_SUBCOMMAND = "mempalace-index"
 # mines incrementally (it skips files whose mtime is already recorded).
 MEMPALACE_FULL_ENV = "CHAOS_ENGINE_MEMPALACE_FULL"
 MEMPALACE_INDEX_SCHEMA = 1
-MEMPALACE_INDEX_META_NAME = ".index-meta.json"
+# Beside (never inside) the palace: doctor quarantines unknown palace files.
+MEMPALACE_INDEX_META_NAME = "mempalace-index-meta.json"
 _LAST_MINE_EMBEDDER: dict[str, str] = {}
 MEMPALACE_NESTED_MARKER = "  # chaos-engine: nested repositories (managed)"
 MEMPALACE_INDEX_STATUS_NAME = "mempalace-index.json"
@@ -1314,7 +1315,7 @@ def _project_palace_accepts_home_adopt(palace: Path) -> bool:
     if is_link_or_reparse(palace) or not palace.is_dir():
         return False
     names = {child.name for child in palace.iterdir()}
-    return names <= {".mined", ".mempalace", MEMPALACE_INDEX_META_NAME}
+    return names <= {".mined", ".mempalace"}
 
 
 def adopt_mempalace_default_palace(project: Path) -> None:
@@ -1402,7 +1403,7 @@ def mempalace_embedder_version(executable: str | None) -> str:
 def read_mempalace_index_meta(palace: Path) -> dict | None:
     """Recorded schema/embedder of the last completed mine; None for legacy markers."""
     try:
-        text = (palace / MEMPALACE_INDEX_META_NAME).read_text(encoding="utf-8")
+        text = (palace.parent / MEMPALACE_INDEX_META_NAME).read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return None
     try:
@@ -1427,11 +1428,13 @@ def adopt_relocated_mempalace_palace(project: Path) -> Path | None:
         if not stores["palace_drawer_count"](candidate):
             continue
         target.mkdir(parents=True, exist_ok=True)
-        for name in ("sqlite_exact.sqlite3", "sqlite_exact.sqlite3-wal", "sqlite_exact.sqlite3-shm", ".mined",
-                     MEMPALACE_INDEX_META_NAME):
+        for name in ("sqlite_exact.sqlite3", "sqlite_exact.sqlite3-wal", "sqlite_exact.sqlite3-shm", ".mined"):
             source = candidate / name
             if source.is_file() and not is_link_or_reparse(source):
                 shutil.copy2(source, target / name)
+        meta = candidate.parent / MEMPALACE_INDEX_META_NAME
+        if meta.is_file() and not is_link_or_reparse(meta):
+            shutil.copy2(meta, target.parent / MEMPALACE_INDEX_META_NAME)
         print(f"chaos-engine: MemPalace index reused from {candidate} (state location moved)",
               file=sys.stderr)
         return candidate
@@ -1466,8 +1469,7 @@ def set_aside_mempalace_index(project: Path) -> Path | None:
     """Before a full mine, keep the old index beside the palace (never delete it)."""
     palace = mempalace_project_palace(project)
     present = [palace / name for name in ("sqlite_exact.sqlite3", "sqlite_exact.sqlite3-wal",
-                                          "sqlite_exact.sqlite3-shm", ".mined",
-                                          MEMPALACE_INDEX_META_NAME)
+                                          "sqlite_exact.sqlite3-shm", ".mined")
                if (palace / name).is_file()]
     if not present:
         return None
@@ -1540,7 +1542,7 @@ def mark_mempalace_project_setup(project: Path, embedder: str | None = None) -> 
     if embedder is None:
         embedder = _LAST_MINE_EMBEDDER.get(str(project.resolve()), "")
     meta = {"schema": MEMPALACE_INDEX_SCHEMA, "embedder": embedder}
-    (palace / MEMPALACE_INDEX_META_NAME).write_text(json.dumps(meta, sort_keys=True) + "\n",
+    (palace.parent / MEMPALACE_INDEX_META_NAME).write_text(json.dumps(meta, sort_keys=True) + "\n",
                                                     encoding="utf-8")
 
 

@@ -112,12 +112,12 @@ class MineDecisionTest(NoGitEnvironment):
 
     def test_schema_change_is_full(self):
         make_palace(self.palace())
-        (self.palace() / ".index-meta.json").write_text(json.dumps({"schema": 0}), encoding="utf-8")
+        (self.palace().parent / "mempalace-index-meta.json").write_text(json.dumps({"schema": 0}), encoding="utf-8")
         self.assertIn("schema", self.module.mempalace_mine_decision(self.project)[1])
 
     def test_embedder_change_is_full_and_same_is_incremental(self):
         make_palace(self.palace())
-        (self.palace() / ".index-meta.json").write_text(
+        (self.palace().parent / "mempalace-index-meta.json").write_text(
             json.dumps({"schema": self.module.MEMPALACE_INDEX_SCHEMA, "embedder": "3.10.0"}),
             encoding="utf-8")
         with mock.patch.object(self.module, "mempalace_embedder_version", return_value="3.11.0"):
@@ -135,6 +135,15 @@ class MineDecisionTest(NoGitEnvironment):
         aside = self.module.set_aside_mempalace_index(self.project)
         self.assertTrue((aside / "sqlite_exact.sqlite3").is_file())
         self.assertFalse((self.palace() / "sqlite_exact.sqlite3").exists())
+
+
+class PalaceContentsTest(NoGitEnvironment):
+    def test_index_meta_lives_beside_the_palace_not_inside(self):
+        self.module.mark_mempalace_project_setup(self.project, "3.11.0")
+        names = {child.name for child in self.palace().iterdir()}
+        self.assertNotIn("mempalace-index-meta.json", names)
+        meta = json.loads((self.palace().parent / "mempalace-index-meta.json").read_text(encoding="utf-8"))
+        self.assertEqual("3.11.0", meta["embedder"])
 
 
 class RelocationReuseTest(NoGitEnvironment):
