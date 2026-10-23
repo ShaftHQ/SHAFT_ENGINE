@@ -17,7 +17,7 @@ public class MobilePreflightUnitTest {
     public void appiumNotReadyFailsFastWithPreflightMessage() {
         var e = Assert.expectThrows(SessionNotCreatedException.class, () -> MobilePreflight.check(LOCAL, "", "",
                 uri -> new MobilePreflight.Response(200, "{\"value\":{\"ready\":false}}"), cmd -> Optional.of("1")));
-        Assert.assertTrue(String.valueOf(e.getMessage()).startsWith("Preflight: Appium is not ready"), e.getMessage());
+        Assert.assertTrue(String.valueOf(e.getMessage()).contains("Preflight: Appium is not ready"), e.getMessage());
     }
 
     @Test

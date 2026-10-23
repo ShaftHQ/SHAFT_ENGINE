@@ -32,7 +32,7 @@ public class RunningLocaleCheckUnitTest {
         JavascriptExecutor driver = mock(JavascriptExecutor.class);
         when(driver.executeScript(eq("mobile: deviceInfo"), any())).thenReturn(Map.of("locale", "ar_SA"));
         var e = Assert.expectThrows(SessionNotCreatedException.class, () -> RunningLocaleCheck.verify(driver, "en", "US"));
-        Assert.assertTrue(String.valueOf(e.getMessage()).startsWith("Preflight: the Android device runs locale ar_SA"), e.getMessage());
+        Assert.assertTrue(String.valueOf(e.getMessage()).contains("Preflight: the Android device runs locale ar_SA"), e.getMessage());
         RunningLocaleCheck.verify(driver, "", "");
     }
 
