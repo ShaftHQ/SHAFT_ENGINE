@@ -289,6 +289,8 @@ CHECKS = {
             "tests.scripts.test_chaos_engine_bootstrap",
             "tests.scripts.test_secret_guard_7177",
             "tests.scripts.test_secret_guard_chained_7323",
+            "tests.scripts.test_doctor_gh_timeout_7322",
+            "tests.scripts.test_allure_compose_7178",
             "tests.scripts.test_ce_packs",
             "tests.scripts.test_ce_addons",
             "tests.scripts.test_policy_overlay_repair",
