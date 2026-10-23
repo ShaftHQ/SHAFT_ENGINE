@@ -997,6 +997,29 @@ def collect_worktree_metrics(root: Path = ROOT, *, run_external: bool = True) ->
     }
 
 
+PRE_PUSH_RULE = "Never pipe pre-push output"
+PRE_PUSH_RULE_DOC = "chaos-engine/references/bot-entry.md"
+_PIPED_PRE_PUSH_EXAMPLE = re.compile(r"overlay_pre_push\.py(?:[^\n;&|`]|&(?!&))*\|(?!\|)")
+
+
+def validate_pre_push_pipe_rule(root: Path) -> list[dict[str, str]]:
+    """#7314: bot entry states the no-pipe pre-push rule and never shows a piped run."""
+    path = root / PRE_PUSH_RULE_DOC
+    if not path.is_file():
+        return []
+    text = " ".join(path.read_text(encoding="utf-8").split())
+    errors = []
+    if PRE_PUSH_RULE not in text:
+        errors.append(issue("pre-push-pipe", PRE_PUSH_RULE_DOC,
+                            f"missing the rule '{PRE_PUSH_RULE}'"))
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if _PIPED_PRE_PUSH_EXAMPLE.search(line) and "never" not in line.casefold() \
+                and "pushes on a failed check" not in line:
+            errors.append(issue("pre-push-pipe", PRE_PUSH_RULE_DOC,
+                                f"pipes pre-push output: {line.strip()[:120]}"))
+    return errors
+
+
 def validate_repository(
     root: Path = ROOT, *, run_external: bool = True
 ) -> tuple[list[dict[str, str]], dict]:
@@ -1025,6 +1048,7 @@ def validate_repository(
         *validate_skill_hygiene(root),
         *validate_skill_inventory(overlay_root if overlay_root != root else root),
         *validate_harness_reachability(root),
+        *validate_pre_push_pipe_rule(root),
     ]
     finally:
         if overlay_root != root:

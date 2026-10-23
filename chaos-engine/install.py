@@ -18,6 +18,7 @@ import re
 import runpy
 import secrets
 import shutil
+import signal
 import subprocess  # nosec B404 - fixed list-form tool commands.
 import sys
 import tempfile
@@ -204,8 +205,9 @@ def seed_graphify_ignore(project: Path) -> Path:
         nested = []
     nested_missing = [f"{entry}/" for entry in nested if f"{entry}/" not in existing]
     if nested_missing:
-        print(f"chaos-engine: graphify skips {len(nested_missing)} nested repositories: "
-              + ", ".join(nested), file=sys.stderr)
+        # #7314: the count names every skipped repository, not just the new ones.
+        print(f"chaos-engine: graphify skips {len(nested)} nested repositories "
+              f"({len(nested_missing)} newly ignored): " + ", ".join(nested), file=sys.stderr)
     if missing or nested_missing or not path.is_file():
         lines = [*existing, *(["# ChaosEngine harness and generated trees"] if missing else []), *missing,
                  *(["# ChaosEngine nested repositories and worktrees"] if nested_missing else []),
@@ -1478,6 +1480,103 @@ def project_setup_output_files(project: Path, relative: str) -> tuple[bool, dict
     return True, files
 
 
+SNAPSHOT_PREFIX = "chaos-engine-project-setup-"
+SNAPSHOT_DISK_MARGIN = 512 * 1024 * 1024
+LEGACY_SNAPSHOT_STALE_SECONDS = 6 * 3600
+_LIVE_SNAPSHOTS: set[Path] = set()
+
+
+def _pid_alive(pid: int) -> bool:
+    """Probe a pid without signalling it."""
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        return True  # never reap on a probe Windows cannot answer safely.
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _snapshot_owner(name: str) -> int | None:
+    """Owner pid encoded in a snapshot dir name, None for the legacy unnamed form."""
+    head = name[len(SNAPSHOT_PREFIX):].split("-", 1)[0]
+    return int(head) if head.isdigit() and "-" in name[len(SNAPSHOT_PREFIX):] else None
+
+
+def reap_stale_project_setup_snapshots(root: Path | None = None) -> list[Path]:
+    """Remove snapshots a killed install left behind (#7314): owner pid dead.
+
+    Legacy snapshots without an owner pid are reaped only after six hours.
+    """
+    base = Path(root or tempfile.gettempdir())
+    reaped: list[Path] = []
+    with contextlib.suppress(OSError):
+        for entry in base.iterdir():
+            if not entry.name.startswith(SNAPSHOT_PREFIX) or entry.is_symlink() or not entry.is_dir():
+                continue
+            owner = _snapshot_owner(entry.name)
+            if owner is not None and (owner == os.getpid() or _pid_alive(owner)):
+                continue
+            if owner is None and time.time() - entry.stat().st_mtime < LEGACY_SNAPSHOT_STALE_SECONDS:
+                continue
+            shutil.rmtree(entry, ignore_errors=True)
+            reaped.append(entry)
+    if reaped:
+        print(f"chaos-engine: removed {len(reaped)} stale install snapshot(s) from killed runs: "
+              + ", ".join(str(item) for item in reaped), file=sys.stderr)
+    return reaped
+
+
+def _tree_bytes(path: Path) -> int:
+    total = 0
+    for current, _dirs, files in os.walk(path):
+        for name in files:
+            with contextlib.suppress(OSError):
+                total += os.lstat(os.path.join(current, name)).st_size
+    return total
+
+
+def require_snapshot_disk_space(project: Path, *, free: int | None = None) -> None:
+    """Refuse before copying when the temp volume cannot hold the snapshot (#7314)."""
+    need = sum(_tree_bytes(project / relative) for relative in PROJECT_SETUP_OUTPUTS
+               if (project / relative).is_dir())
+    base = tempfile.gettempdir()
+    available = shutil.disk_usage(base).free if free is None else free
+    margin = max(SNAPSHOT_DISK_MARGIN, need // 10)
+    if available < need + margin:
+        mib = 1024 * 1024
+        raise ValueError(
+            f"not enough free disk space for the install snapshot: need {(need + margin) // mib} MiB "
+            f"({need // mib} MiB snapshot + {margin // mib} MiB margin), {available // mib} MiB free "
+            f"in {base}; free space or point TMPDIR at a larger volume, then rerun"
+        )
+
+
+def _cleanup_live_snapshots() -> None:
+    """Exit trap: never leave a snapshot behind on exit, SIGTERM or SIGHUP."""
+    for snapshot in list(_LIVE_SNAPSHOTS):
+        shutil.rmtree(snapshot, ignore_errors=True)
+        _LIVE_SNAPSHOTS.discard(snapshot)
+
+
+def _exit_on_signal(signum, _frame) -> None:
+    raise SystemExit(128 + signum)
+
+
+def install_snapshot_trap() -> None:
+    """Register the exit trap and turn SIGTERM/SIGHUP into a clean SystemExit."""
+    atexit.register(_cleanup_live_snapshots)
+    for name in ("SIGTERM", "SIGHUP"):
+        number = getattr(signal, name, None)
+        if number is not None and signal.getsignal(number) in (signal.SIG_DFL, None):
+            with contextlib.suppress(ValueError, OSError):
+                signal.signal(number, _exit_on_signal)
+
+
 def snapshot_project_setup_outputs(
     project: Path,
     *,
@@ -1489,7 +1588,11 @@ def snapshot_project_setup_outputs(
     an add-on-only rerun reuses the account stores, and only provisioning or a
     store refresh writes that tree, so copying hundreds of MB is waste.
     """
-    snapshot = Path(tempfile.mkdtemp(prefix="chaos-engine-project-setup-"))
+    reap_stale_project_setup_snapshots()
+    if copy_graphify_output:
+        require_snapshot_disk_space(project)
+    snapshot = Path(tempfile.mkdtemp(prefix=f"{SNAPSHOT_PREFIX}{os.getpid()}-"))
+    _LIVE_SNAPSHOTS.add(snapshot)
     before: dict[str, tuple[bool, dict[str, str]]] = {}
     try:
         for relative in PROJECT_SETUP_OUTPUTS:
@@ -2051,6 +2154,35 @@ def dependency_runtime_lock(runtime: Path):
             stream.close()
 
 
+def quarantine_stale_journal_scratch(project: Path, temporary: Path) -> Path | None:
+    """Move an empty or invalid leftover journal scratch aside, never delete it (#7314).
+
+    Callers hold the project lock, so no live installer owns the scratch; only an
+    empty or unparseable file (a killed writer) is stale. A valid journal-shaped
+    scratch stays a collision.
+    """
+    try:
+        if temporary.is_symlink() or not temporary.is_file():
+            return None
+        data = temporary.read_bytes()
+    except OSError:
+        return None
+    if data.strip():
+        try:
+            json.loads(data)
+        except ValueError:
+            pass  # unparseable: a killed writer's torn scratch, quarantined below.
+        else:
+            return None
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    target = project / ".chaos-engine-state" / "quarantine" / f"{temporary.name}.{stamp}.{os.getpid()}"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(temporary, target)
+    print(f"chaos-engine: quarantined stale transaction journal scratch "
+          f"({len(data)} bytes, no live owner) to {target}", file=sys.stderr)
+    return target
+
+
 def write_journal(project: Path, operation: str, commit: str) -> Path:
     journal = project / JOURNAL_NAME
     temporary = journal.with_suffix(journal.suffix + ".tmp")
@@ -2063,7 +2195,9 @@ def write_journal(project: Path, operation: str, commit: str) -> Path:
     try:
         descriptor = os.open(temporary, flags, 0o600)
     except FileExistsError as error:
-        raise ValueError(f"transaction journal scratch path collision: {temporary}") from error
+        if not quarantine_stale_journal_scratch(project, temporary):
+            raise ValueError(f"transaction journal scratch path collision: {temporary}") from error
+        descriptor = os.open(temporary, flags, 0o600)
     with os.fdopen(descriptor, "wb") as handle:
         handle.write(payload)
         handle.flush()
@@ -3764,6 +3898,18 @@ def _consumer_mode_module():
     finally:
         sys.dont_write_bytecode = previous
     return module
+
+
+def report_consumer_tracked_core(project: Path, result: dict) -> list[str]:
+    """#7314: a committed core means adopter mode; say so instead of a silent diff."""
+    consumer = _consumer_mode_module()
+    if consumer is None or not consumer.enabled(project):
+        return []
+    core = consumer.tracked_core(project)
+    if core:
+        result.setdefault("consumerMode", {})["trackedCore"] = len(core)
+        print(consumer.tracked_core_advice(len(core)), file=sys.stderr)
+    return core
 
 
 def consumer_untouched_files(project: Path) -> list[str]:
@@ -7626,6 +7772,7 @@ def _run_install_command(args, requested, removed) -> object:
             + ", ".join(untouched),
             file=sys.stderr,
         )
+    report_consumer_tracked_core(args.project, result)
     with contextlib.suppress(OSError):
         if ".graphifyignore" not in untouched:
             seed_graphify_ignore(args.project)
@@ -7877,6 +8024,7 @@ def main() -> int:
         sys.stderr.write(python_floor_message())
         return 2
     args, extra = parser().parse_known_args()
+    install_snapshot_trap()
     try:
         result = _command_result(args, extra)
     except (OSError, RuntimeError, ValueError) as error:

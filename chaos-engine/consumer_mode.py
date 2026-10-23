@@ -7,6 +7,12 @@ mode ChaosEngine never edits a tracked file (an exclude cannot hide a tracked
 change) and never writes ``.gitignore``; it writes one marked block to the
 repository's ``info/exclude`` instead. Uninstall removes only that block.
 Adopter repositories keep the default tracked-overlay behavior.
+
+#7314: a repository that commits the ``.chaos-engine/`` core is an adopter
+(maintainer-mode) layout, whatever the marker says. An upgrade must rewrite the
+core, so consumer mode cannot keep those files clean; the installer still
+upgrades the core, reports ``consumerMode.trackedCore`` and names the two ways
+out: commit the upgrade (adopter) or untrack the core (true consumer).
 """
 
 from __future__ import annotations
@@ -84,6 +90,23 @@ def tracked(project: Path, relatives) -> set[str]:
         return set()
     listed = _git(project, "ls-files", "-z", "--", *names)
     return {item for item in (listed or "").split("\0") if item}
+
+
+def tracked_core(project: Path) -> list[str]:
+    """Tracked files under ``.chaos-engine/`` (a committed core, #7314)."""
+    listed = _git(project, "ls-files", "-z", "--", ".chaos-engine")
+    return sorted(item for item in (listed or "").split("\0") if item)
+
+
+def tracked_core_advice(count: int) -> str:
+    """One-line advisory for a consumer install over a committed core."""
+    return (
+        f"ChaosEngine consumer mode: .chaos-engine/ is committed ({count} tracked files), "
+        "so this upgrade changed tracked files. Committing the core is adopter "
+        "(maintainer) mode: commit the upgraded .chaos-engine/ to stay an adopter, or "
+        "run `git rm -r --cached .chaos-engine` and commit to become a true consumer "
+        "(the info/exclude block then hides it)."
+    )
 
 
 def filter_content(

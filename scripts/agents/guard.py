@@ -1361,6 +1361,23 @@ def check_r26_catastrophic_command(command: str) -> str | None:
     return None
 
 
+# R32 (#7314): a pipe after the pre-push gate hands `&&` the pipe's last
+# status (`tail`'s 0), so a failed gate still pushes. Never pipe it.
+_PIPED_PRE_PUSH = re.compile(r"overlay_pre_push\.py(?:[^\n;&|]|&(?!&))*\|(?!\|)")
+
+
+def check_r32_piped_pre_push(command: str) -> str | None:
+    """Return a block reason when overlay pre-push output is piped, or None."""
+    if not _PIPED_PRE_PUSH.search(command):
+        return None
+    return (
+        "R32 (piped pre-push): piping `overlay_pre_push.py` output (for example "
+        "to `tail`) makes the pipeline report the last command's status, so a "
+        "failed pre-push still lets `&& git push` run. Run it unpiped: "
+        "`python3 scripts/ci/overlay_pre_push.py && git push`."
+    )
+
+
 _CHECKS = (
     check_r1_maven,
     check_r2_allure,
@@ -1368,6 +1385,7 @@ _CHECKS = (
     check_r26_catastrophic_command,
     check_r8_git_stash,
     check_r23_shell_multiline_text,
+    check_r32_piped_pre_push,
 )
 
 
@@ -5966,6 +5984,9 @@ _SELF_TEST_CASES: list[tuple[str, str, bool]] = [
     ("git commit allowed without repository context", 'git commit -m "message"', False),
     ("git commit -am allowed without repository context", 'git commit -am "message"', False),
     ("git stage allowed without repository context", "git stage src/Example.java", False),
+    # --- R32: piped pre-push hides a failed gate (#7314). ---
+    ("piped pre-push blocked", "python3 scripts/ci/overlay_pre_push.py | tail -3 && git push", True),
+    ("unpiped pre-push allowed", "python3 scripts/ci/overlay_pre_push.py && git push", False),
 ]
 
 
@@ -5985,6 +6006,7 @@ _SELF_TEST_COVERAGE: dict[str, str] = {
     "check_r3_gui_open": "command cases",
     "check_r26_catastrophic_command": "command cases",
     "check_r8_git_stash": "command cases",
+    "check_r32_piped_pre_push": "command cases",
     "check_r23_shell_multiline_text": "command cases",
     "check_r9_worktree_add": "run_r9_worktree_self_test",
     "check_r10_nul_corruption": "run_r10_nul_corruption_self_test",

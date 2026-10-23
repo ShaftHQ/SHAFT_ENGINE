@@ -311,6 +311,11 @@ MEMPALACE_OWNED_EXCLUDES = (
     "**/skills/chaos-engine/**",
     ".claude/agents/chaos-engine-*",
     ".codex/agents/chaos-engine-*",
+    ".chaos-engine-account-rollback/**",
+    "**/*.min.js",
+    "**/*.min.css",
+    "**/*.bundle.js",
+    "**/*-embedded.html",
 )
 
 

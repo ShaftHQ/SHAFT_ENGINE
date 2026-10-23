@@ -136,6 +136,13 @@ MEMPALACE_OWNED_EXCLUDES = (
     "**/skills/chaos-engine/**",
     ".claude/agents/chaos-engine-*",
     ".codex/agents/chaos-engine-*",
+    # #7314: rollback journals and generated minified/embedded bundles are
+    # huge single files that dominate mining time and carry no project knowledge.
+    ".chaos-engine-account-rollback/**",
+    "**/*.min.js",
+    "**/*.min.css",
+    "**/*.bundle.js",
+    "**/*-embedded.html",
 )
 MEMPALACE_INDEX_SUBCOMMAND = "mempalace-index"
 # Full re-index only on: no index, unreadable index, schema or embedder change,
@@ -1519,6 +1526,104 @@ def apply_nested_repository_excludes(project: Path) -> list[str]:
     return nested
 
 
+def mempalace_exclude_patterns(project: Path) -> list[str]:
+    """Return the ``exclude_patterns`` list items of the project's mempalace.yaml."""
+    try:
+        text = (project.resolve() / "mempalace.yaml").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+    block = re.search(r"(?ms)^exclude_patterns\s*:\s*\n((?:[ \t]+.*\n?|\s*\n)*)", text)
+    if block is None:
+        return []
+    items = re.findall(r"(?m)^\s*-\s*['\"]?([^'\"#\n]+?)['\"]?\s*$", block.group(1))
+    return [item for item in items if item]
+
+
+def _exclude_regex(pattern: str) -> re.Pattern[str]:
+    """Translate a MemPalace glob (``**``, ``*``, ``?``) into an anchored regex."""
+    out, index = [], 0
+    while index < len(pattern):
+        if pattern.startswith("**/", index):
+            out.append("(?:.*/)?")
+            index += 3
+        elif pattern.startswith("**", index):
+            out.append(".*")
+            index += 2
+        else:
+            char = pattern[index]
+            out.append("[^/]*" if char == "*" else "[^/]" if char == "?" else re.escape(char))
+            index += 1
+    return re.compile("".join(out) + r"\Z")
+
+
+def _prunable_source(project: Path, source: str, patterns: list[re.Pattern[str]]) -> bool:
+    """True when a drawer source under ``project`` is deleted or now excluded."""
+    try:
+        relative = Path(source).resolve().relative_to(project).as_posix()
+    except (ValueError, OSError):
+        return False  # outside this project: not ours to judge.
+    if not Path(source).exists():
+        return True
+    return any(pattern.match(relative) for pattern in patterns)
+
+
+def prune_mempalace_drawers(project: Path) -> tuple[int, int]:
+    """Drop drawers whose source is deleted or now excluded, without a reindex (#7314).
+
+    ``mempalace sync`` ignores ``exclude_patterns``, and its per-id
+    ``DELETE FROM docs_fts WHERE doc_id=?`` scans the whole FTS table per row.
+    One transaction joins the doomed ids against ``docs_fts`` by rowid instead.
+    Returns ``(sources, drawers)`` removed.
+    """
+    project = project.resolve()
+    database = mempalace_project_palace(project) / "sqlite_exact.sqlite3"
+    if not database.is_file():
+        return 0, 0
+    patterns = [_exclude_regex(item) for item in mempalace_exclude_patterns(project)]
+    connection = sqlite3.connect(database, timeout=30)
+    try:
+        rows = connection.execute(
+            "SELECT DISTINCT json_extract(metadata_json, '$.source_file') FROM documents"
+        ).fetchall()
+        doomed = [row[0] for row in rows if row[0] and _prunable_source(project, row[0], patterns)]
+        if not doomed:
+            return 0, 0
+        with connection:
+            connection.execute("CREATE TEMP TABLE IF NOT EXISTS ce_prune_sources(source TEXT PRIMARY KEY)")
+            connection.execute("DELETE FROM ce_prune_sources")
+            connection.executemany("INSERT OR IGNORE INTO ce_prune_sources VALUES (?)",
+                                   [(item,) for item in doomed])
+            connection.execute(
+                "CREATE TEMP TABLE ce_prune_ids AS SELECT d.collection_id AS cid, d.id AS id "
+                "FROM documents d JOIN ce_prune_sources s "
+                "ON json_extract(d.metadata_json, '$.source_file') = s.source"
+            )
+            connection.execute("CREATE INDEX temp.ce_prune_ids_key ON ce_prune_ids(id, cid)")
+            connection.execute(
+                "DELETE FROM docs_fts WHERE rowid IN (SELECT f.rowid FROM docs_fts f "
+                "JOIN ce_prune_ids g ON f.doc_id = g.id AND f.collection_id = g.cid)"
+            )
+            removed = connection.execute(
+                "DELETE FROM documents WHERE (collection_id, id) IN (SELECT cid, id FROM ce_prune_ids)"
+            ).rowcount
+            connection.execute("DROP TABLE ce_prune_ids")
+        return len(doomed), removed
+    finally:
+        connection.close()
+
+
+def _prune_before_incremental_mine(project: Path) -> None:
+    """Best-effort prune so an incremental mine never keeps excluded drawers."""
+    try:
+        sources, drawers = prune_mempalace_drawers(project)
+    except (sqlite3.Error, OSError) as error:
+        print(f"chaos-engine: MemPalace prune skipped: {error}", file=sys.stderr)
+        return
+    if drawers:
+        print(f"chaos-engine: MemPalace pruned {drawers} drawers from {sources} "
+              "deleted or excluded sources", file=sys.stderr)
+
+
 def prepare_mempalace_mine(project: Path, command: list[str]) -> tuple[str, str]:
     """Skip nested repos, pick full vs incremental, and log the mode and reason."""
     nested = apply_nested_repository_excludes(project)
@@ -1528,6 +1633,8 @@ def prepare_mempalace_mine(project: Path, command: list[str]) -> tuple[str, str]
         aside = set_aside_mempalace_index(project)
         if aside is not None:
             reason += f"; previous index kept at {aside}"
+    else:
+        _prune_before_incremental_mine(project)
     print(f"chaos-engine: MemPalace index mode={mode} reason={reason}", file=sys.stderr)
     if nested:
         print(f"chaos-engine: MemPalace skips {len(nested)} nested repositories: "
