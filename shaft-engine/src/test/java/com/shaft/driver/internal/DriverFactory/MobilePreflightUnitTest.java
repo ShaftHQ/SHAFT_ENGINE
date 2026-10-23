@@ -102,4 +102,27 @@ public class MobilePreflightUnitTest {
     public void invalidHostNameIsRejected() {
         Assert.expectThrows(SessionNotCreatedException.class, () -> MobilePreflight.hosts("ok.example.com,bad;rm -rf"));
     }
+
+    @Test
+    public void edgeBranchesAreHandled() throws Exception {
+        var ctor = MobilePreflight.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        Assert.expectThrows(java.lang.reflect.InvocationTargetException.class, ctor::newInstance);
+        MobilePreflight.check(null, null, null, uri -> { throw new AssertionError("no fetch"); }, cmd -> Optional.empty());
+        // unreadable /status only logs; a broken pipe is not a "not reachable" verdict
+        MobilePreflight.check("https://remote.invalid", "", "", uri -> { throw new java.io.IOException("reset"); }, cmd -> Optional.empty());
+        // non-200 or ready:true alongside ready:false is not a "not ready" verdict
+        MobilePreflight.check("https://remote.invalid", "", "", uri -> new MobilePreflight.Response(503, "{\"ready\":false}"), cmd -> Optional.empty());
+        MobilePreflight.check("http://127.0.0.1:4723/", "  ", null, uri -> new MobilePreflight.Response(200, "{\"ready\":true}"), cmd -> Optional.of("1"));
+        MobilePreflight.check("http://[::1]:4723", null, "", uri -> new MobilePreflight.Response(200, "{}"), cmd -> Optional.empty());
+        java.util.List<java.util.List<String>> commands = new java.util.ArrayList<>();
+        var e = Assert.expectThrows(SessionNotCreatedException.class, () -> MobilePreflight.check(LOCAL, "emulator-5556 ", " , api.example.gov,", uri -> new MobilePreflight.Response(200, "{}"),
+                cmd -> { commands.add(cmd); return cmd.get(cmd.size() - 1).startsWith("ping") ? Optional.empty() : Optional.of("1"); }));
+        Assert.assertTrue(e.getMessage().contains("cannot resolve api.example.gov"), e.getMessage());
+        Assert.assertEquals(commands.get(0).subList(0, 3), java.util.List.of("adb", "-s", "emulator-5556"));
+        var booting = Assert.expectThrows(SessionNotCreatedException.class, () -> MobilePreflight.check(LOCAL, "emulator-5556", "", uri -> new MobilePreflight.Response(200, "{}"), cmd -> Optional.of("0")));
+        Assert.assertTrue(booting.getMessage().contains("device emulator-5556 has not"), booting.getMessage());
+        Assert.assertTrue(MobilePreflight.hosts(null).isEmpty());
+        Assert.assertEquals(MobilePreflight.hosts(" a.example , ,b.example"), java.util.List.of("a.example", "b.example"));
+    }
 }

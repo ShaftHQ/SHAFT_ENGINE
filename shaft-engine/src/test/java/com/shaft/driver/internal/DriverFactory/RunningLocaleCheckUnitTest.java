@@ -51,4 +51,22 @@ public class RunningLocaleCheckUnitTest {
         when(driver.executeScript(eq("mobile: deviceInfo"), any())).thenThrow(new UnsupportedOperationException("no"));
         RunningLocaleCheck.verify(driver, "en", "US");
     }
+
+    @Test
+    public void mismatchComparesLanguageAndRegionPrecisely() throws Exception {
+        var ctor = RunningLocaleCheck.class.getDeclaredConstructor();
+        ctor.setAccessible(true);
+        Assert.expectThrows(java.lang.reflect.InvocationTargetException.class, ctor::newInstance);
+        RunningLocaleCheck.verify(mock(JavascriptExecutor.class), null, "US");
+        Assert.assertTrue(RunningLocaleCheck.mismatch("en", "US", "").isEmpty());
+        Assert.assertTrue(RunningLocaleCheck.mismatch("en", "US", "null").isEmpty());
+        Assert.assertTrue(RunningLocaleCheck.mismatch("EN", "us", "en-US").isEmpty());
+        Assert.assertTrue(RunningLocaleCheck.mismatch("en", "", "en_GB").isEmpty());
+        Assert.assertTrue(RunningLocaleCheck.mismatch("en", "US", "en").isEmpty());
+        Assert.assertTrue(RunningLocaleCheck.mismatch("en", "US", "en_GB").orElseThrow().contains("asked for en_US"));
+        Assert.assertTrue(RunningLocaleCheck.mismatch("en", "", "ar").orElseThrow().contains("asked for en."));
+        JavascriptExecutor match = mock(JavascriptExecutor.class);
+        when(match.executeScript(eq("mobile: deviceInfo"), any())).thenReturn(Map.of("locale", "en_US"));
+        RunningLocaleCheck.verify(match, "en", "US");
+    }
 }
