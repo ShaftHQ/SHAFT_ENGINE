@@ -76,8 +76,8 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
   set auto-merge; confirm `autoMergeRequest`. Before it merges, read
   non-blocking analysis and coverage reporters and fix them.
 - Bound each tool call to 60 s; run longer ones in the background.
-- Trust a green gate: no local re-verification after CI passes.
-- Reports are deltas only (merged, next, blockers), at most 15 lines.
+- Trust a green gate: no local re-check after CI passes.
+- Reports: deltas only (merged, next, blockers), <= 15 lines.
 - One worktree per worker on a shared box: `git worktree add "$WT"
   origin/HEAD -b "$BRANCH"`; never branch, stage, or install in another
   worker's clone. Empty `/workspace` or logged-out `gh` at start means the
@@ -95,7 +95,7 @@ Need parallel? Stack PRs on the previous branch.
 
 ## After each delivery
 
-Several agents, one orchestrator: [multi-agent PDCA](multi-agent-pdca.md).
+Multi-agent: [PDCA loop](multi-agent-pdca.md).
 Learning Session after every final delivery (owner approval, completed
 publish, or final merge): run it yourself at once, per the
 [router contract](router-contract.md#learning-session). Then run
