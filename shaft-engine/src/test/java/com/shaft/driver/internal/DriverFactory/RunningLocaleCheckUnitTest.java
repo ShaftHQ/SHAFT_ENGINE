@@ -15,17 +15,16 @@ import static org.mockito.Mockito.when;
 public class RunningLocaleCheckUnitTest {
     @Test
     public void halfSwitchedLocaleIsReported() {
-        String reason = RunningLocaleCheck.mismatch("en", "US", "ar_SA");
-        Assert.assertNotNull(reason);
+        String reason = RunningLocaleCheck.mismatch("en", "US", "ar_SA").orElseThrow();
         Assert.assertTrue(reason.contains("runs locale ar_SA") && reason.contains("asked for en_US"), reason);
     }
 
     @Test
     public void matchingOrUnknownLocalePasses() {
-        Assert.assertNull(RunningLocaleCheck.mismatch("en", "US", "en_US"));
-        Assert.assertNull(RunningLocaleCheck.mismatch("ar", "", "ar_EG"));
-        Assert.assertNull(RunningLocaleCheck.mismatch("en", "US", "en-US"));
-        Assert.assertNull(RunningLocaleCheck.mismatch("en", "US", null));
+        Assert.assertTrue(RunningLocaleCheck.mismatch("en", "US", "en_US").isEmpty());
+        Assert.assertTrue(RunningLocaleCheck.mismatch("ar", "", "ar_EG").isEmpty());
+        Assert.assertTrue(RunningLocaleCheck.mismatch("en", "US", "en-US").isEmpty());
+        Assert.assertTrue(RunningLocaleCheck.mismatch("en", "US", "").isEmpty());
     }
 
     @Test
@@ -33,7 +32,7 @@ public class RunningLocaleCheckUnitTest {
         JavascriptExecutor driver = mock(JavascriptExecutor.class);
         when(driver.executeScript(eq("mobile: deviceInfo"), any())).thenReturn(Map.of("locale", "ar_SA"));
         var e = Assert.expectThrows(SessionNotCreatedException.class, () -> RunningLocaleCheck.verify(driver, "en", "US"));
-        Assert.assertTrue(e.getMessage().startsWith("Preflight: the Android device runs locale ar_SA"), e.getMessage());
+        Assert.assertTrue(String.valueOf(e.getMessage()).startsWith("Preflight: the Android device runs locale ar_SA"), e.getMessage());
         RunningLocaleCheck.verify(driver, "", "");
     }
 

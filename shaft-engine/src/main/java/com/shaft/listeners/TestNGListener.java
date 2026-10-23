@@ -329,9 +329,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
             throw new SkipException("Skipping method as the test suite has exceeded the defined timeout of " + SHAFT.Properties.testNG.testSuiteTimeout() + " minutes.");
         }
         if (method.isTestMethod()) {
-            String infraStopReason = InfraFailureGuard.stopReason();
-            if (infraStopReason != null) {
-                throw new SkipException(infraStopReason);
+            var infraStopReason = InfraFailureGuard.stopReason();
+            if (infraStopReason.isPresent()) {
+                throw new SkipException(infraStopReason.get());
             }
             RetryAnalyzer.activateSupportingEvidenceCaptureForRetryAttempt();
         }

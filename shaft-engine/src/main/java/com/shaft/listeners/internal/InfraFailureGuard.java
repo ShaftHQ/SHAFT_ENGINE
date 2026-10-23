@@ -7,6 +7,7 @@ import org.openqa.selenium.SessionNotCreatedException;
 import java.net.ConnectException;
 import java.net.UnknownHostException;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -63,17 +64,17 @@ public final class InfraFailureGuard {
     }
 
     /**
-     * Returns the reason to skip the next test, or {@code null} when tests may run.
+     * Returns the reason to skip the next test, or empty when tests may run.
      *
      * @return the skip reason when the infrastructure failure limit is reached
      */
-    public static String stopReason() {
+    public static Optional<String> stopReason() {
         int limit = limit();
         if (limit > 0 && STREAK.get() >= limit) {
-            return "Stopped: " + STREAK.get() + " infrastructure setup failures in a row (limit "
-                    + LIMIT_PROPERTY + "=" + limit + "). Fix the device, Appium or network, then rerun.";
+            return Optional.of("Stopped: " + STREAK.get() + " infrastructure setup failures in a row (limit "
+                    + LIMIT_PROPERTY + "=" + limit + "). Fix the device, Appium or network, then rerun.");
         }
-        return null;
+        return Optional.empty();
     }
 
     static int limit() {

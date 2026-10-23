@@ -278,8 +278,8 @@ public final class SecretScreenMask {
      * scrollable, multi-line, or holds text long enough to wrap. Such captures fail closed (#7282).
      */
     static boolean mayDrawOutsideRect(WebElement element) {
-        String scrollable = element.getAttribute("scrollable");
-        String text = element.getText();
+        String scrollable = Objects.toString(element.getAttribute("scrollable"), "");
+        String text = Objects.toString(element.getText(), "");
         return mayDrawOutsideRect(scrollable, text);
     }
 
@@ -287,7 +287,7 @@ public final class SecretScreenMask {
         if ("true".equalsIgnoreCase(scrollable)) {
             return true;
         }
-        return text != null && (text.indexOf('\n') >= 0 || text.length() > MAX_SINGLE_LINE_SECRET);
+        return (text.indexOf('\n') >= 0 || text.length() > MAX_SINGLE_LINE_SECRET);
     }
 
     private static byte[] dropped(Exception cause) {

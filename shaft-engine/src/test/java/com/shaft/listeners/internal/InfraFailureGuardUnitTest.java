@@ -26,15 +26,15 @@ public class InfraFailureGuardUnitTest {
 
     @Test
     public void stopsAfterTwoInfraSetupFailuresInARowAndSuccessResets() {
-        Assert.assertNull(InfraFailureGuard.stopReason());
+        Assert.assertTrue(InfraFailureGuard.stopReason().isEmpty());
         InfraFailureGuard.onConfigurationFailure(new SessionNotCreatedException("down"));
-        Assert.assertNull(InfraFailureGuard.stopReason());
+        Assert.assertTrue(InfraFailureGuard.stopReason().isEmpty());
         InfraFailureGuard.onConfigurationFailure(new AssertionError("product bug"));
-        Assert.assertNull(InfraFailureGuard.stopReason(), "a product failure does not count");
+        Assert.assertTrue(InfraFailureGuard.stopReason().isEmpty(), "a product failure does not count");
         InfraFailureGuard.onConfigurationFailure(new SessionNotCreatedException("down"));
-        Assert.assertTrue(InfraFailureGuard.stopReason().startsWith("Stopped: 2 infrastructure setup failures in a row"));
+        Assert.assertTrue(InfraFailureGuard.stopReason().orElseThrow().startsWith("Stopped: 2 infrastructure setup failures in a row"));
         InfraFailureGuard.onConfigurationSuccess();
-        Assert.assertNull(InfraFailureGuard.stopReason());
+        Assert.assertTrue(InfraFailureGuard.stopReason().isEmpty());
     }
 
     @Test
@@ -42,6 +42,6 @@ public class InfraFailureGuardUnitTest {
         System.setProperty(InfraFailureGuard.LIMIT_PROPERTY, "0");
         InfraFailureGuard.onConfigurationFailure(new SessionNotCreatedException("down"));
         InfraFailureGuard.onConfigurationFailure(new SessionNotCreatedException("down"));
-        Assert.assertNull(InfraFailureGuard.stopReason());
+        Assert.assertTrue(InfraFailureGuard.stopReason().isEmpty());
     }
 }

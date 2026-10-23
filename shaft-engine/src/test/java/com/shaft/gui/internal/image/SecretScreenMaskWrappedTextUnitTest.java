@@ -53,7 +53,7 @@ public class SecretScreenMaskWrappedTextUnitTest {
         Assert.assertTrue(SecretScreenMask.mayDrawOutsideRect("true", "short"));
         Assert.assertTrue(SecretScreenMask.mayDrawOutsideRect("false", "line1\nline2"));
         Assert.assertFalse(SecretScreenMask.mayDrawOutsideRect("false", "p4ssw0rd"));
-        Assert.assertFalse(SecretScreenMask.mayDrawOutsideRect(null, null));
+        Assert.assertFalse(SecretScreenMask.mayDrawOutsideRect("", ""));
     }
 
     private static byte[] whitePng(int width, int height) {

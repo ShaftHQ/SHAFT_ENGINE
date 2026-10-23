@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -29,9 +30,9 @@ final class MobilePreflight {
     private static final Pattern READY_FALSE = Pattern.compile("\"ready\"\\s*:\\s*false");
     private static final Pattern SAFE_HOST = Pattern.compile("[A-Za-z0-9.-]{1,253}");
 
-    /** Runs a command and returns its combined output, or {@code null} when it cannot run. */
+    /** Runs a command and returns its combined output, or empty when it cannot run. */
     interface CommandRunner {
-        String run(String... command);
+        Optional<String> run(String... command);
     }
 
     /** Fetches a URL and returns the status code and body. */
@@ -93,10 +94,11 @@ final class MobilePreflight {
         if (hasUdid) {
             adb.addAll(List.of("-s", udid.trim()));
         }
-        String boot = runner.run(with(adb, "shell", "getprop", "sys.boot_completed"));
-        if (boot == null) {
+        Optional<String> bootOutput = runner.run(with(adb, "shell", "getprop", "sys.boot_completed"));
+        if (bootOutput.isEmpty()) {
             return; // no adb (iOS or a remote device): nothing more to check locally
         }
+        String boot = bootOutput.get();
         if (!"1".equals(boot.trim())) {
             throw fail("device " + (hasUdid ? udid.trim() : "(default)")
                     + " has not finished booting (sys.boot_completed=" + boot.trim() + ").");
@@ -107,9 +109,9 @@ final class MobilePreflight {
     }
 
     private static void checkResolves(List<String> adb, String host, CommandRunner runner) {
-        String ping = runner.run(with(adb, "shell", "ping -c1 -W1 " + host));
+        Optional<String> ping = runner.run(with(adb, "shell", "ping -c1 -W1 " + host));
         // #7284: the PING header proves DNS resolution; the exit code does not (ICMP replies can drop).
-        if (ping == null || !resolved(ping, host)) {
+        if (ping.isEmpty() || !resolved(ping.get(), host)) {
             throw fail("the device cannot resolve " + host + ". On an emulator, restart it with "
                     + "-dns-server <gateway> (see broken DNSSEC on validating resolvers).");
         }
@@ -124,7 +126,7 @@ final class MobilePreflight {
         if (resolveHosts == null) {
             return hosts;
         }
-        for (String host : resolveHosts.split(",")) {
+        for (String host : resolveHosts.split(",", -1)) {
             String trimmed = host.trim();
             if (trimmed.isEmpty()) {
                 continue;
@@ -166,19 +168,19 @@ final class MobilePreflight {
         }
     }
 
-    private static String runCommand(String... command) {
+    private static Optional<String> runCommand(String... command) {
         try {
             Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
             if (!process.waitFor(15, TimeUnit.SECONDS)) {
                 process.destroyForcibly();
-                return "";
+                return Optional.of("");
             }
-            return new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            return Optional.of(new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
         } catch (IOException e) {
-            return null;
+            return Optional.empty();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return null;
+            return Optional.empty();
         }
     }
 }

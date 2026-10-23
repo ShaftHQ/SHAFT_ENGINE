@@ -7,6 +7,7 @@ import org.testng.annotations.Test;
 import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class MobilePreflightUnitTest {
     private static final String LOCAL = "http://localhost:4723";
@@ -15,29 +16,29 @@ public class MobilePreflightUnitTest {
     @Test
     public void appiumNotReadyFailsFastWithPreflightMessage() {
         var e = Assert.expectThrows(SessionNotCreatedException.class, () -> MobilePreflight.check(LOCAL, "", "",
-                uri -> new MobilePreflight.Response(200, "{\"value\":{\"ready\":false}}"), cmd -> "1"));
-        Assert.assertTrue(e.getMessage().startsWith("Preflight: Appium is not ready"), e.getMessage());
+                uri -> new MobilePreflight.Response(200, "{\"value\":{\"ready\":false}}"), cmd -> Optional.of("1")));
+        Assert.assertTrue(String.valueOf(e.getMessage()).startsWith("Preflight: Appium is not ready"), e.getMessage());
     }
 
     @Test
     public void appiumUnreachableFailsFast() {
         var e = Assert.expectThrows(SessionNotCreatedException.class, () -> MobilePreflight.check(LOCAL, "", "",
-                uri -> { throw new ConnectException("refused"); }, cmd -> "1"));
-        Assert.assertTrue(e.getMessage().contains("not reachable"), e.getMessage());
+                uri -> { throw new ConnectException("refused"); }, cmd -> Optional.of("1")));
+        Assert.assertTrue(String.valueOf(e.getMessage()).contains("not reachable"), e.getMessage());
     }
 
     @Test
     public void deviceNotBootedFailsFast() {
         var e = Assert.expectThrows(SessionNotCreatedException.class,
-                () -> MobilePreflight.check(LOCAL, "emulator-5554", "", READY, cmd -> "0\n"));
-        Assert.assertTrue(e.getMessage().contains("emulator-5554 has not finished booting"), e.getMessage());
+                () -> MobilePreflight.check(LOCAL, "emulator-5554", "", READY, cmd -> Optional.of("0\n")));
+        Assert.assertTrue(String.valueOf(e.getMessage()).contains("emulator-5554 has not finished booting"), e.getMessage());
     }
 
     @Test
     public void unresolvedHostFailsByPingHeaderNotExitCode() {
         var e = Assert.expectThrows(SessionNotCreatedException.class, () -> MobilePreflight.check(LOCAL, "", "api.example.gov", READY,
-                cmd -> cmd[cmd.length - 1].startsWith("ping") ? "ping: unknown host api.example.gov" : "1"));
-        Assert.assertTrue(e.getMessage().contains("cannot resolve api.example.gov"), e.getMessage());
+                cmd -> Optional.of(cmd[cmd.length - 1].startsWith("ping") ? "ping: unknown host api.example.gov" : "1")));
+        Assert.assertTrue(String.valueOf(e.getMessage()).contains("cannot resolve api.example.gov"), e.getMessage());
     }
 
     @Test
@@ -45,8 +46,8 @@ public class MobilePreflightUnitTest {
         List<String> commands = new ArrayList<>();
         MobilePreflight.check(LOCAL, "emulator-5554", "api.example.gov", READY, cmd -> {
             commands.add(String.join(" ", cmd));
-            return cmd[cmd.length - 1].startsWith("ping")
-                    ? "PING api.example.gov (10.0.0.5) 56(84) bytes of data.\n1 packets transmitted, 0 received" : "1";
+            return Optional.of(cmd[cmd.length - 1].startsWith("ping")
+                    ? "PING api.example.gov (10.0.0.5) 56(84) bytes of data.\n1 packets transmitted, 0 received" : "1");
         });
         Assert.assertEquals(commands.getFirst(), "adb -s emulator-5554 shell getprop sys.boot_completed");
     }
@@ -59,7 +60,7 @@ public class MobilePreflightUnitTest {
 
     @Test
     public void noAdbOnPathSkipsDeviceChecks() {
-        MobilePreflight.check(LOCAL, "", "api.example.gov", READY, cmd -> null);
+        MobilePreflight.check(LOCAL, "", "api.example.gov", READY, cmd -> Optional.empty());
     }
 
     @Test
