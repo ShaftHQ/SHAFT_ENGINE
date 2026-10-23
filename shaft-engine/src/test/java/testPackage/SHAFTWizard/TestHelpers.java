@@ -1,9 +1,13 @@
 package testPackage.SHAFTWizard;
 
+/**
+ * Hermetic test fixtures. The registration form renders its submitted data locally
+ * instead of posting to an external site, so E2E runs do not depend on third-party availability.
+ */
 public class TestHelpers {
     public static String registrationForm = """
             data:text/html,<html>
-            <form action="https://www.w3schools.com/action_page.php?">
+            <form onsubmit="event.preventDefault(); var data = Array.from(new FormData(this)).map(function (entry) { return entry[0] + '=' + entry[1]; }).join('&'); var header = document.createElement('h2'); header.textContent = 'Submitted Form Data'; var result = document.createElement('div'); result.textContent = data; document.body.replaceChildren(header, result);">
               <div class="container">
                 <h1>Register</h1>
                 <p>Please fill in this form to create an account.</p>
