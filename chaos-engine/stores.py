@@ -317,17 +317,6 @@ def write_marker(graph_out: Path, revision: str) -> Path:
     return marker
 
 
-def _is_git_work_tree(cwd: Path) -> bool:
-    """False only when git positively says cwd is outside any work tree."""
-    try:
-        _git(cwd, "rev-parse", "--git-dir")
-    except RuntimeError:
-        return False
-    except OSError:
-        return True
-    return True
-
-
 def _has_commit(cwd: Path) -> bool:
     """True when HEAD resolves; unknown git state counts as having one."""
     try:
@@ -351,17 +340,6 @@ def graphify_doctor_row(cwd: Path) -> dict[str, str] | None:
     fresh, message = graph_freshness(cwd)
     if fresh:
         return {"status": "healthy", "detail": message}
-    if not _is_git_work_tree(cwd):
-        # #7301: a non-git project has no revision to bind; repair can never
-        # make it fresh, so an error row would loop on a no-op fix-next.
-        return {
-            "status": "absent",
-            "detail": "not a git repository - Graphify freshness binds to a git revision",
-            "fixNext": (
-                "git init && git add -A && git commit -m init, then "
-                "python3 .chaos-engine/install.py repair --project . --component graphify"
-            ),
-        }
     if not _has_commit(cwd):
         # #6499: repair cannot index a repository with no commits; say so.
         return {
