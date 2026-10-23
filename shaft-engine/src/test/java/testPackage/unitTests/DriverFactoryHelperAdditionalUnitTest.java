@@ -33,6 +33,7 @@ import org.openqa.selenium.safari.SafariDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.mockito.MockedConstruction;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.Field;
@@ -60,8 +61,16 @@ public class DriverFactoryHelperAdditionalUnitTest {
     private final String savedMobileAutomationName = SHAFT.Properties.mobile.automationName();
     private final boolean savedCaptureWebDriverLogs = SHAFT.Properties.reporting.captureWebDriverLogs();
 
+    @BeforeMethod(alwaysRun = true)
+    public void disableLiveMobilePreflight() {
+        // These tests mock driver construction; no real Appium listens on localhost:4723 here, so the
+        // live mobile preflight (#7291) is off, like remotePreflightEnabled for the grid paths.
+        SHAFT.Properties.mobile.set().preflight(false);
+    }
+
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
+        SHAFT.Properties.mobile.set().preflight(true);
         setKillSwitch(false);
         SHAFT.Properties.reporting.set().captureWebDriverLogs(savedCaptureWebDriverLogs);
         SHAFT.Properties.mobile.set()
