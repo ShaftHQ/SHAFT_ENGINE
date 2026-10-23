@@ -8,8 +8,9 @@ import subprocess  # nosec B404 - runs the probe against a fake gh only
 import tempfile
 import time
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -41,7 +42,7 @@ class GhProbeTimeoutTest(unittest.TestCase):
             fake.write_text("#!/bin/sh\nsleep 30\n", encoding="utf-8")
             fake.chmod(fake.stat().st_mode | stat.S_IXUSR)
             env = dict(os.environ, PATH=f"{temp}{os.pathsep}{os.environ.get('PATH', '')}")
-            with mock.patch.dict(os.environ, env), mock.patch.object(self.policy, "GH_PROBE_TIMEOUT_SECONDS", 1):
+            with unittest.mock.patch.dict(os.environ, env), unittest.mock.patch.object(self.policy, "GH_PROBE_TIMEOUT_SECONDS", 1):
                 started = time.monotonic()
                 self.assertFalse(self.policy.gh_is_configured())
                 self.assertLess(time.monotonic() - started, 10)
