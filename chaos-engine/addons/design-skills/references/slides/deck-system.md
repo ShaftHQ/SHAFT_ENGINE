@@ -24,6 +24,19 @@ One system across every chapter of a course:
 - At least one visual per part and at most two text-only slides in a row;
   keep a layout-per-slide-type map so each type always uses one layout.
 
+## Slide craft
+
+- Connectors: one arrow style per deck (2.25 pt, medium triangle heads),
+  at least 0.5 in long; shift or scale the row, never shorten an arrow.
+- Text in shapes: one inset set per deck; bullet-less paragraphs indent 0
+  so text aligns to the shape edge.
+- Footer lines start with a label (`Reference:`, `Next:`, `Note:`); a Note
+  fits on one line. Never cite your own slides or chapters as a source.
+- Activities match the delivery medium: online decks use reactions, polls,
+  chat, raised hands; no physical-room actions in slides or notes.
+- After a branded document conversion, check every header: conversions
+  can drop header images.
+
 ## Review order
 
 When an orchestrator and a reviewer agent deliver together, follow the

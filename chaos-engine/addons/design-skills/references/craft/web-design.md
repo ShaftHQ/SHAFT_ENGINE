@@ -84,6 +84,11 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
   local gate green. On a landing page it caught a reduced-motion blocker and a
   PR gate that filtered out the new tests.
 
+- Renaming a locked name ships on every surface in one release (decks,
+  docs, site chips, aria labels); grep for the old name before sign-off.
+  Review renders come from the exact candidate code, not the live base;
+  re-verify earlier fixes on the live page after deploy.
+
 ## Hosted site builders (Squarespace 7.1)
 
 - No built-in RTL: two custom-CSS lines make Arabic-first text work,

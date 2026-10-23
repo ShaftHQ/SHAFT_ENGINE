@@ -167,6 +167,17 @@ class CommandLineTest(SecretGuardTestCase):
         self.assertIn("evidence.txt", blocked.stderr)
 
 
+    def test_force_push_over_an_unfetched_remote_tip_scans_instead_of_crashing_7298(self):
+        (self.repo / "evidence.txt").write_text(report_with(LEAK_VALUE), encoding="utf-8")
+        run(self.repo, "add", "evidence.txt")
+        run(self.repo, "commit", "-q", "-m", "leak")
+        head = run(self.repo, "rev-parse", "HEAD").stdout.strip()
+        unfetched = "9b61a0e77bb666f52c486dfb6b0f9c89254167d2"
+        blocked = self.guard_cli("--push", stdin=f"refs/heads/dep {head} refs/heads/dep {unfetched}\n")
+        self.assertEqual(1, blocked.returncode)
+        self.assertIn("evidence.txt", blocked.stderr)
+        self.assertNotIn("Traceback", blocked.stderr)
+
 class HookInstallTest(SecretGuardTestCase):
     def setUp(self):
         super().setUp()

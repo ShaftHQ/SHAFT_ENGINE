@@ -186,10 +186,22 @@ def pushed_revisions(refs: str) -> list[str]:
     return [*args, "--not", "--remotes"] if args else args
 
 
+def _known(sha: str) -> bool:
+    """True when the object exists locally."""
+    try:
+        git("cat-file", "-e", sha + "^{commit}")
+    except subprocess.CalledProcessError:
+        return False
+    return True
+
+
 def revisions(args: list[str]) -> Iterator[tuple[str, bytes]]:
     """Blobs reachable from the given rev-list arguments, each once."""
     if not args:
         return
+    # A force-push target whose old tip was never fetched is an unknown revision;
+    # drop that exclusion (still bounded by --not --remotes) instead of crashing (#7298).
+    args = [arg for arg in args if not arg.startswith("^") or _known(arg[1:])]
     objects = []
     for line in git("rev-list", "--objects", *args).decode().splitlines():
         sha, _, path = line.partition(" ")
