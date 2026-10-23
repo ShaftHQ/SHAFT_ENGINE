@@ -449,6 +449,10 @@ jobs:
         uses: ./.github/actions/setup-test-env
         with:
           node-version: '20'
+      - name: Cache Playwright host dependency packages
+        uses: ./.github/actions/apt-package-cache
+        with:
+          browser: msedge
       - name: Install Playwright Edge
         shell: bash
         run: >-
@@ -493,6 +497,10 @@ jobs:
           mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Install reviewed managed Playwright browsers
         run: bash scripts/ci/install_managed_playwright.sh
+      - name: Cache Playwright host dependency packages
+        uses: ./.github/actions/apt-package-cache
+        with:
+          browser: webkit
       - name: Install Playwright WebKit host dependencies
         shell: bash
         run: >-
@@ -615,6 +623,10 @@ jobs:
           mvn --batch-mode -pl shaft-cli -am package -DskipTests '-Dallure.automaticallyOpen=false' -Dgpg.skip
       - name: Install reviewed managed Playwright browsers
         run: bash scripts/ci/install_managed_playwright.sh
+      - name: Cache Playwright host dependency packages
+        uses: ./.github/actions/apt-package-cache
+        with:
+          browser: webkit
       - name: Install Playwright WebKit host dependencies
         shell: bash
         run: >-
