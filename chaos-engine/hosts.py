@@ -6118,6 +6118,23 @@ def desired_content(
     return after
 
 
+def keep_tracked_live_bytes(
+    project: Path, wanted: dict[str, bytes | None], current: dict[str, bytes | None]
+) -> None:
+    """#7312: consumer mode keeps every tracked file at its live bytes.
+
+    ``desired_content`` filters against the receipt baseline, which is "absent"
+    for files ChaosEngine created; once a user commits them, that baseline would
+    delete tracked files. The live snapshot is the bytes the user tracks.
+    """
+    consumer = consumer_mode_module()
+    if consumer is None or not consumer.enabled(project):
+        return
+    for relative in consumer.tracked(project, wanted):
+        if relative in current:
+            wanted[relative] = current[relative]
+
+
 def consumer_mode_module():
     """#6237: optional consumer-mode helper next to this controller."""
     path = Path(__file__).resolve().with_name("consumer_mode.py")
@@ -7116,6 +7133,7 @@ def install(
             )
             for relative in LIVE_PERSISTENT_PATHS:
                 wanted[relative] = current[relative]
+            keep_tracked_live_bytes(project, wanted, current)
             receipt_before = dict(migration_before)
             receipt_after = dict(wanted)
             for relative in LIVE_PERSISTENT_PATHS:

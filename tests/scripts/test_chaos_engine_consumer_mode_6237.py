@@ -129,6 +129,23 @@ class ConsumerModeInstallTest(ConsumerFixture):
         self.assertEqual(original, hooks.read_bytes())
         self.assertEqual("", self.status())
 
+    def test_consumer_upgrade_keeps_committed_harness_files_it_first_created(self):
+        """#7312: an adopter that committed the overlay, then switches to consumer mode.
+
+        The host receipt baseline is "absent" for files ChaosEngine created, so the
+        consumer filter must keep the live tracked bytes, not delete them.
+        """
+        self.install(consumer=False)
+        git(self.project, "add", "-A")
+        git(self.project, "commit", "-qm", "commit the overlay")
+        manifest = self.project / "plugins/chaos-engine/.codex-plugin/plugin.json"
+        committed = manifest.read_bytes()
+        with mock.patch.dict(os.environ, {"CHAOS_ENGINE_CONSUMER": "1"}):
+            MODULE.install_with_dependencies(self.project, SOURCE, "2" * 40)
+        self.assertTrue(manifest.is_file())
+        self.assertEqual(committed, manifest.read_bytes())
+        self.assertNotIn(" D ", self.status())
+
     def test_mode_persists_so_reinstall_keeps_one_block_and_a_clean_status(self):
         self.install()
         self.install(consumer=False)
