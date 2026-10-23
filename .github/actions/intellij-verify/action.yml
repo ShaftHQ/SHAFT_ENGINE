@@ -36,6 +36,8 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Validate the Gradle wrapper jar
+      uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6
     - name: Reject an unknown verify mode
       if: inputs.verify != 'true' && inputs.verify != 'false' && inputs.verify != 'build' && inputs.verify != 'plugin'
       shell: bash
