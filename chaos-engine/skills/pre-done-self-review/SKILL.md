@@ -31,7 +31,7 @@ body, handoff note, or status doc). Run
 4. **Adversarial pass.** Write a `## What's missing` section that answers
    the user's next question, "are we missing any?": items not tracked,
    rules not checked, and evidence not opened this turn.
-5. **Machine check.** Run the gate, fix every finding, then re-run it:
+5. **Machine check.** Run the gate ([`pre_done_review.py`](../../pre_done_review.py)), fix every finding, then re-run it:
 
    ```bash
    python3 .chaos-engine/tool.py pre-done report.md          # 0 pass, 1 findings, 2 usage
