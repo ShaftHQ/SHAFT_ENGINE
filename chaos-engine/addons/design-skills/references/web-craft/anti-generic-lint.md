@@ -54,7 +54,10 @@ extends [D03 web visual direction](../web-visual-direction.md) and
 - [ ] Lint report: each of the 7 tells is listed as absent or as earned
       by the brief, with the brief line quoted.
 - [ ] Every finding has a tier; no Floor finding is open; every Reflex
-      overrule quotes its reason.
+      overrule quotes its reason: `design_qc.py floor <review.md>` passes
+      (a Floor row marked open fails; a Reflex overrule needs `reason:`).
+      Review rows use the English keywords `Floor`, `Reflex`, `open` and
+      `reason:` even when the finding is written in Arabic or another script.
 - [ ] Each fact on the surface maps to a brief source line.
 - [ ] The page's last section holds its primary action.
 - [ ] The review names its verb, and every change it lists matches it.

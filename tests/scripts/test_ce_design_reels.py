@@ -16,21 +16,21 @@ GROUPS = {
         "**Floor** blocks delivery", "Invented facts are Floor on all surfaces", "**Reflex**",
         "overrule with a reason on record", "**Finish**: advise, never block", "Built from the job",
         "the page ends on it", "eyebrow label over every heading", "tracked all-caps labels",
-        "caseless scripts", "each of the 7 tells", "Credit openly licensed photos", "Nutlope/hallmark", "MIT"),
+        "caseless scripts", "each of the 7 tells", "design_qc.py floor", "use the English keywords `Floor`, `Reflex`, `open` and `reason:` even when the finding is written in Arabic", "Credit openly licensed photos", "Nutlope/hallmark", "MIT"),
     "web-craft/motion-tokens.md": (
         "Should it animate?", "high-frequency actions", "Never animate from `scale(0)`", "`scale(0.9)`-`scale(0.97)`",
         "interruptible", "`transform` and `opacity` only", "blur masks a rough swap",
-        "subsequent peers open instantly", "springs", "`@media (hover: hover)`", "emilkowalski/skills", "MIT",
-        "Rules 1-3 are reference only from transitions.dev", "Rules 4-11 are adapted"),
+        "subsequent peers open instantly", "springs", "`@media (hover: hover)`", "`(any-hover: hover)` is not a gate", "emilkowalski/skills", "MIT",
+        "Rules 1-3 are reference only from transitions.dev", "Rules 4-11 are adapted", "design_qc.py uimotion", "design_qc.py hovergate"),
     "web-craft/micro-polish.md": (
         "Decorative only", "pixel-registered", "50% overlay", "pointer CSS vars", "`--x`, `--y`",
         "commercial and unbranded", "rAF-throttled", "`(hover: none)`", "never tap-gated",
-        "not focusable", "`:focus-visible`", "mirrors in RTL", "reference only"),
+        "not focusable", "`:focus-visible`", "mirrors in RTL", "reference only", "design_qc.py hovergate"),
     "web-craft/diagram-design.md": (
         "A table would do?", "one distinct idea", "co-travel", "Every edge carries information",
         "at most 2 focal", "r8 rounded elbows", ">= 12px", "fan out", "<= 14 characters", "6-10px mask gap",
         "Complexity budget", "overview plus detail", "Removal pass", "`role=\"img\"`", "flow direction mirrors",
-        "cathrynlavery/diagram-design", "MIT"),
+        "cathrynlavery/diagram-design", "MIT", "design_qc.py svga11y"),
     "slides/deck-system.md": ("rendered previews", "never pick from adjectives", "zarazhangrui/frontend-slides", "MIT"),
     "web-visual-direction.md": (
         "from the subject", "two lines or fewer at every width", "five seconds", "Equal outer margins",
