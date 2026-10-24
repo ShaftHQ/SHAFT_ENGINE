@@ -168,6 +168,125 @@ class Batch3StaticChecksTest(unittest.TestCase):
             self.assertTrue(payload["warnings"])
 
 
+class Batch3SurfaceChecksTest(unittest.TestCase):
+    def pair(self, name: str, bad: str, good: str, suffix: str, *extra: str) -> dict:
+        with tempfile.TemporaryDirectory() as folder:
+            b, g = Path(folder) / f"bad{suffix}", Path(folder) / f"good{suffix}"
+            b.write_text(bad, encoding="utf-8")
+            g.write_text(good, encoding="utf-8")
+            code, payload = run_qc(name, str(b), *extra)
+            self.assertEqual(1, code, payload)
+            code, payload = run_qc(name, str(g), *extra)
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+            return payload
+
+    def test_help_renders(self) -> None:
+        result = subprocess.run([sys.executable, str(QC), "--help"], capture_output=True, text=True, check=False)  # nosec B603
+        self.assertEqual(0, result.returncode, result.stderr[-300:])
+
+    def test_spacing_scale(self) -> None:
+        self.pair("spacing", ".card { padding: 20px; gap: 12px; }", ".card { padding: 24px 16px; gap: 8px; margin: 0; }", ".css")
+
+    def test_tokens_tier(self) -> None:
+        self.pair("tokens", '.btn { background: var(--blue-600); }\n<div class="bg-blue-600">', ".btn { background: var(--accent); }", ".css")
+
+    def test_a11yscan(self) -> None:
+        for bad in ('<meta name="viewport" content="width=device-width, maximum-scale=1">', '<a tabindex="2">x</a>',
+                    ".m { transition: all 200ms; }", ".m { transition: opacity 200ms ease-in; }", ".m { transition: transform 450ms ease-out; }"):
+            with self.subTest(bad=bad):
+                self.pair("a11yscan", bad, '<a tabindex="0">x</a>\n.m { transition: transform 200ms ease-out, opacity 150ms ease-in-out; }', ".html")
+
+    def test_p3fallback(self) -> None:
+        self.pair("p3fallback", ".hero { color: color(display-p3 1 0 0); }",
+                  ".hero { color: #e00; color: color(display-p3 1 0 0); }\n@media (color-gamut: p3) { .x { color: color(display-p3 0 1 0); } }", ".css")
+
+    def test_oklch_ramp_and_hue_gap(self) -> None:
+        good = {"ramps": {"blue": ["oklch(0.97 0.02 250)", "oklch(0.6 0.15 255)", "oklch(0.4 0.12 258)"]},
+                "accent": "oklch(0.6 0.15 255)", "status": {"error": "oklch(0.6 0.2 25)"},
+                "pairs": [["oklch(0.3 0.02 250)", "oklch(0.97 0.01 250)"]]}
+        for key, value in (("ramps", {"blue": ["oklch(0.97 0.05 230)", "oklch(0.5 0.15 260)"]}),
+                           ("status", {"info": "oklch(0.6 0.15 245)"}),
+                           ("pairs", [["oklch(0.6 0.1 250)", "oklch(0.95 0.01 250)"]])):
+            with self.subTest(key=key):
+                self.pair("oklch", json.dumps({**good, key: value}), json.dumps(good), ".json")
+
+    def test_sidecar(self) -> None:
+        good = "WEBVTT\n\n00:00.000 --> 00:02.000\nShort line\n\n00:02.500 --> 00:04.000\nمرحبا بكم\n"
+        for bad in ("00:00.000 --> 00:02.000\nno header\n",
+                    "WEBVTT\n\n00:02.000 --> 00:01.000\nbackwards\n",
+                    "WEBVTT\n\n00:00.000 --> 00:04.000\none\ntwo\nthree\n",
+                    "WEBVTT\n\n00:00.000 --> 00:06.000\n" + "x" * 43 + "\n"):
+            with self.subTest(bad=bad[:30]):
+                payload = self.pair("sidecar", bad, good, ".vtt")
+        self.assertEqual([], payload["warnings"])
+        with tempfile.TemporaryDirectory() as folder:
+            fast = Path(folder) / "fast.srt"
+            fast.write_text("1\n00:00:00,000 --> 00:00:01,000\nthirty characters right here!!\n", encoding="utf-8")
+            code, payload = run_qc("sidecar", str(fast))
+            self.assertEqual(0, code)
+            self.assertTrue(payload["warnings"])
+
+    def test_thumb(self) -> None:
+        good = {"frame": "1280x720", "headline": "Tests fail silently", "subject": {"x": 600, "y": 80, "w": 640, "h": 640}, "people": 1}
+        for key, value in (("headline", "One"), ("headline", "a very long five word"), ("subject", {"x": 0, "y": 0, "w": 300, "h": 300}),
+                           ("people", 5), ("headline_baked", True)):
+            with self.subTest(key=key):
+                self.pair("thumb", json.dumps({**good, key: value}), json.dumps(good), ".json")
+
+    def test_pptxlint_source_and_deck(self) -> None:
+        good = 'slide.addText([{ text: "Point", options: { bullet: true, color: "1F2937" } }]);\nslide.addShape("rect", { shadow: { offset: 2 } });'
+        for bad in ('slide.addText("x", { color: "#1F2937" });', 'slide.addText("x", { color: "1F2937CC" });',
+                    'slide.addText("\u2022 Point");', 'slide.addShape("rect", { shadow: { offset: -2 } });'):
+            with self.subTest(bad=bad):
+                self.pair("pptxlint", bad, good, ".js")
+        with tempfile.TemporaryDirectory() as folder:
+            def deck(name: str, off: str) -> str:
+                path = Path(folder) / name
+                with zipfile.ZipFile(path, "w") as z:
+                    z.writestr("ppt/presentation.xml", '<p:presentation><p:sldSz cx="9144000" cy="5143500"/></p:presentation>')
+                    z.writestr("ppt/slides/slide1.xml", f'<p:sld><a:off x="{off}" y="0"/><a:ext cx="4000000" cy="1000000"/><a:p><a:r><a:t>Point</a:t></a:r></a:p></p:sld>')
+                return str(path)
+            self.assertEqual(1, run_qc("pptxlint", deck("off.pptx", "6000000"))[0])
+            self.assertEqual(0, run_qc("pptxlint", deck("ok.pptx", "1000000"))[0])
+
+    def test_arabiccss_and_rtl_pass(self) -> None:
+        good = ':lang(ar) p { line-height: 1.7; letter-spacing: normal; font-style: normal; }\n<p dir="rtl">مرحبا بكم</p>'
+        for bad in (":lang(ar) em { font-style: italic; }", "[dir=rtl] p { line-height: 1.1; }",
+                    "[lang=ar] .box { direction: ltr; }", '<p dir="ltr">مرحبا بكم</p>'):
+            with self.subTest(bad=bad):
+                self.pair("arabiccss", bad, good, ".html")
+
+    def test_alprefix(self) -> None:
+        self.pair("alprefix", "تعلم الـPython اليوم\nاكتب بالـ API", "تعلم لغة Python اليوم\nاكتب عبر واجهة API", ".txt")
+
+    def test_ogimage(self) -> None:
+        def png(path: Path, width: int, height: int) -> str:
+            import struct
+            import zlib
+            def chunk(kind: bytes, data: bytes) -> bytes:
+                return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+            raw = b"".join(b"\x00" + b"\x00" * width for _ in range(height))
+            path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0))
+                             + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+            return str(path)
+        with tempfile.TemporaryDirectory() as folder:
+            d = Path(folder)
+            ok, wrong = png(d / "ok.png", 1200, 630), png(d / "wrong.png", 1200, 600)
+            good = {"headline": "Learn test automation", "size": 64, "fg": "#FFFFFF", "bg": "#111827", "brand_mark": True}
+            spec = d / "spec.json"
+            spec.write_text(json.dumps(good), encoding="utf-8")
+            self.assertEqual(0, run_qc("ogimage", ok, "--spec", str(spec))[0])
+            self.assertEqual(1, run_qc("ogimage", wrong)[0])
+            self.assertEqual(1, run_qc("ogimage", str(d / "missing.png"))[0])
+            for key, value in (("headline", "one two three four five six seven"), ("size", 14), ("fg", "#374151"),
+                               ("bg", "#E5E7EB"), ("brand_mark", False)):
+                with self.subTest(key=key):
+                    spec.write_text(json.dumps({**good, key: value}), encoding="utf-8")
+                    self.assertEqual(1, run_qc("ogimage", ok, "--spec", str(spec))[0])
+            spec.write_text(json.dumps({**good, "headline": "تعلم أتمتة الاختبار"}, ensure_ascii=False), encoding="utf-8")
+            self.assertEqual(0, run_qc("ogimage", ok, "--spec", str(spec))[0])
+
+
 @unittest.skipUnless(HAS_FFMPEG, "ffmpeg not installed")
 class Batch3MediaChecksTest(unittest.TestCase):
     @classmethod
@@ -203,6 +322,13 @@ class Batch3MediaChecksTest(unittest.TestCase):
     def test_mediaclamp(self) -> None:
         self.assertEqual(0, run_qc("mediaclamp", str(self.ok_cues), str(self.busy))[0])
         self.assertEqual(1, run_qc("mediaclamp", str(self.bad_cues), str(self.busy))[0])
+
+    def test_loudness_profile(self) -> None:
+        tone = Path(self.tmp.name) / "tone.wav"
+        ffmpeg("-f", "lavfi", "-i", "sine=f=1000:d=6", "-af", "volume=-2dB", str(tone))
+        code, payload = run_qc("loudness", str(tone), "--profile", "r128")
+        self.assertEqual(0, code, payload)
+        self.assertEqual(1, run_qc("loudness", str(tone), "--profile", "spotify")[0])
 
     def test_capluma_blend_and_scrim(self) -> None:
         code, payload = run_qc("capluma", str(self.white), "--cues", str(self.ok_cues), "--box", "20,200,140,40", "--plain")

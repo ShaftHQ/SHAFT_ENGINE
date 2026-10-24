@@ -638,7 +638,7 @@ def register(add, qc) -> None:
     p.add_argument("--noise", type=float, default=-35.0)
     p.add_argument("--fps", type=float, default=10.0)
     p.add_argument("--thresh", type=float, default=6.0)
-    p = add("textfloor", bind(cmd_textfloor), "text under 2.6% of the short side (28 px on portrait)")
+    p = add("textfloor", bind(cmd_textfloor), "text under 2.6%% of the short side (28 px on portrait)")
     p.add_argument("file")
     p.add_argument("--frame", default="1080x1920")
     p.add_argument("--ratio", type=float, default=0.026)
