@@ -17,7 +17,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import unquote, urlparse
 
-import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402 - self-locating under python3 -I (#7197)
 from tests.scripts.test_chaos_engine_install_wrappers import (
     has_implicit_string_concat,
     source_segment_for_function,
