@@ -10,4 +10,5 @@ one web-craft card. The licence verdicts are in
 | [W01 anti-generic lint](anti-generic-lint.md) | any visual surface risks looking template-made; naming a review pass |
 | [W02 motion tokens](motion-tokens.md) | defining UI transitions, open/close motion, or reduced-motion fallbacks |
 | [W03 web motion with GSAP](gsap-web-motion.md) | scroll-linked or timeline motion on a web page |
-| [W04 micro-polish](micro-polish.md) | a web UI, slide or still is done but "feels off" |
+| [W04 micro-polish](micro-polish.md) | a web UI, slide or still is done but "feels off"; image hover-reveal |
+| [W05 diagram design](diagram-design.md) | a diagram for a still, slide, page or video frame |

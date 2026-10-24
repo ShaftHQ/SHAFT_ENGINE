@@ -33,6 +33,7 @@ post, a poster, an icon, or an architecture diagram.
   ground contrast, no clutter in the bottom-right timestamp area.
 - Diagrams: source committed (SVG, D2, or Mermaid), consistent stroke width,
   token colors, a `<title>` and `<desc>` in SVG, alt text where embedded.
+  Layout rules: [W05](web-craft/diagram-design.md).
 - Third-party logos only with permission or under their published usage
   rules.
 - Long titles fail closed: rewrite the copy instead of shrinking below the
