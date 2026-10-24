@@ -175,7 +175,7 @@ class DeleteGuardTest(unittest.TestCase):
         self.assertFalse(hasattr(GUARD, "issue_ack"))  # TTY-only override is gone.
 
     def test_never_touch_list_no_code_unlocks(self):
-        for name in ("wt-relblock", "wt-ls", "ce-src-abc", "yt", "designer-ws.git.retired", "ROG-x"):
+        for name in ("yt", "designer-ws.git.retired", "ROG-x"):
             target = self._loose(name)
             with self.assertRaises(PermissionError):
                 GUARD.request_code([target])
@@ -186,6 +186,29 @@ class DeleteGuardTest(unittest.TestCase):
         self.assertIn("never-touch", self.reason(f"rm -rf {profile}/Default"))
         self.assertIn("browser profile", self.reason(f"rm -rf {self.base / 'h'}"))
         self.assertEqual(2, GUARD.main(["--request-code", str(profile)]))
+
+    def test_unlocked_names_need_a_code(self):
+        for name in ("wt-relblock", "wt-ls", "ce-src-abc"):
+            target = self._loose(name)
+            self.assertEqual("", GUARD.never_touch(target))
+            self.assertIn("outside git", self.reason(f"rm -rf {target}"))
+            code = GUARD.request_code([target])
+            self.assertEqual("", GUARD.check(f"rm -rf {target}", self.base, self.base, code)[0])
+
+    def test_yt_old_renders_need_a_code_rest_refused(self):
+        yt = self.base / "yt"
+        (yt / "meta").mkdir(parents=True)
+        for name in ("ep1.r3.mp4", "ep1.mp4", "meta/ep1.r3.mp4", "meta/notes.json"):
+            (yt / name).write_text("x", encoding="utf-8")
+        old = yt / "ep1.r3.mp4"
+        self.assertEqual("", GUARD.never_touch(old))
+        self.assertIn("outside git", self.reason(f"rm -f {old}"))
+        code = GUARD.request_code([old])
+        self.assertEqual("", GUARD.check(f"rm -f {old}", self.base, self.base, code)[0])
+        for kept in (yt, yt / "meta", yt / "ep1.mp4", yt / "meta" / "ep1.r3.mp4", yt / "meta" / "notes.json"):
+            self.assertIn("never-touch", self.reason(f"rm -rf {kept}"))
+            with self.assertRaises(PermissionError):
+                GUARD.request_code([kept])
 
     def test_cli_request_and_verify(self):
         loose = self._loose()

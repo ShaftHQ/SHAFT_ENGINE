@@ -52,11 +52,16 @@ backup and get the owner's code.
 
 ## Never-touch
 
-No code unlocks a path with a segment named `ROG*`, `wt-relblock`, `wt-ls`,
-`ce-src-*`, `yt` or `designer-ws.git.retired`, a Chrome/Chromium profile
+No code unlocks a path with a segment named `ROG*`, `yt` or
+`designer-ws.git.retired`, a Chrome/Chromium profile
 (`.config/google-chrome*`, `.config/chromium`, `*chrome*-profile*`), or a dir
 that directly contains one. Add names or `/` patterns, one per line, to
 `~/.config/chaos-engine/never-delete.txt`.
+
+Inside `yt/`, an old render named `*.rN.mp4` (N digits) is not never-touch:
+it needs the owner's code like any other refusal. `yt/` itself, `yt/meta/`
+and final mp4s stay never-touch. `wt-relblock`, `wt-ls` and `ce-src-*` use
+the owner-code flow too.
 
 ## Doctor
 
