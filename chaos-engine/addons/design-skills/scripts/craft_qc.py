@@ -175,7 +175,7 @@ GATED = re.compile(r":hover[^,{]*(?:\s|>)(?:a|button|p|span|h[1-6]|\.[\w-]*(?:ct
 
 def css_rules(text: str):
     """Yield (selector, body, inside_hover_media, line) for each flat rule; nested @media tracked."""
-    stack, i, sel_start = [], 0, 0
+    stack, sel_start = [], 0
     for m in re.finditer(r"[{}]", text):
         if m.group() == "{":
             head = text[sel_start:m.start()].strip()
