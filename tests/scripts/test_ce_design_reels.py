@@ -16,7 +16,7 @@ GROUPS = {
         "**Floor** blocks delivery", "Invented facts are Floor on all surfaces", "**Reflex**",
         "overrule with a reason on record", "**Finish**: advise, never block", "Built from the job",
         "the page ends on it", "eyebrow label over every heading", "tracked all-caps labels",
-        "caseless scripts", "each of the 7 tells", "design_qc.py floor", "Credit openly licensed photos", "Nutlope/hallmark", "MIT"),
+        "caseless scripts", "each of the 7 tells", "design_qc.py floor", "use the English keywords `Floor`, `Reflex`, `open` and `reason:` even when the finding is written in Arabic", "Credit openly licensed photos", "Nutlope/hallmark", "MIT"),
     "web-craft/motion-tokens.md": (
         "Should it animate?", "high-frequency actions", "Never animate from `scale(0)`", "`scale(0.9)`-`scale(0.97)`",
         "interruptible", "`transform` and `opacity` only", "blur masks a rough swap",
