@@ -7,8 +7,8 @@ card, then update the SHA and date here.
 
 Pinned: 2026-10-03.
 
-Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 5 web-craft cards (W01-W05, references/web-craft), 5 lesson
-cards (L01-L05, no upstream code; sources listed per card), the
+Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 5 web-craft cards (W01-W05, references/web-craft), 6 lesson
+cards (L01-L06, no upstream code; sources listed per card), the
 innovation bank, 2 site-builder cards and 1 slides card. D23 draws on no
 upstream repository; its sources are platform and W3C documentation
 listed in the card.
