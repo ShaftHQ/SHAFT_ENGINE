@@ -163,6 +163,86 @@ def cmd_cutrhythm(qc, args) -> int:
     longest = max(shots)
     return qc.report("cutrhythm", qc.FAIL if longest > args.max_shot else qc.PASS, shots=shots, max_shot=args.max_shot)
 
+# W02/W04/W05/W01 card rules (#7347). Re-expressed from the cards' own Sources.
+LAYOUT_PROPS = r"(?:(?:min-|max-)?(?:width|height)|top|left|right|bottom|margin[\w-]*|padding[\w-]*|inset[\w-]*)"
+UIMOTION = {
+    "scale-zero": r"scale(?:3d|X|Y)?\(\s*0(?:\.0+)?\s*(?:[,)])|\bscale\s*:\s*0(?:\.0+)?\s*(?:[,;}]|$)",
+    "layout-transition": r"transition(?:-property)?\s*:[^;{}]*\b" + LAYOUT_PROPS + r"\b(?![\w-])",
+}
+REVEAL = re.compile(r"\b(?:opacity\s*:\s*1\b|visibility\s*:\s*visible|display\s*:\s*(?!none)\w)", re.I)
+GATED = re.compile(r":hover[^,{]*(?:\s|>)(?:a|button|p|span|h[1-6]|\.[\w-]*(?:cta|link|text|label)[\w-]*)\b", re.I)
+
+
+def css_rules(text: str):
+    """Yield (selector, body, inside_hover_media, line) for each flat rule; nested @media tracked."""
+    stack, i, sel_start = [], 0, 0
+    for m in re.finditer(r"[{}]", text):
+        if m.group() == "{":
+            head = text[sel_start:m.start()].strip()
+            stack.append((head, m.end()))
+        elif stack:
+            head, start = stack.pop()
+            if not head.startswith("@"):
+                media = any(re.search(r"\(\s*hover\s*:\s*hover\s*\)", h) for h, _ in stack if h.startswith("@media"))
+                yield head, text[start:m.start()], media, text.count("\n", 0, start) + 1
+        sel_start = m.end()
+
+
+def cmd_hovergate(qc, args) -> int:
+    hits, files = [], files_of(args.path, {".css", ".scss", ".html", ".htm", ".vue", ".svelte"})
+    for file in files:
+        text = file.read_text(encoding="utf-8", errors="replace")
+        for selector, body, media, line in css_rules(text):
+            if ":hover" not in selector or "design-qc: allow" in body:
+                continue
+            if GATED.search(selector) and REVEAL.search(body):
+                hits.append(f"{file}:{line} hover-gated-content")
+            elif not media:
+                hits.append(f"{file}:{line} ungated-hover")
+    return qc.report("hovergate", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits)
+
+
+def cmd_uimotion(qc, args) -> int:
+    hits, files = [], files_of(args.path, TEXT_SUFFIXES)
+    for file in files:
+        text = file.read_text(encoding="utf-8", errors="replace")
+        for number, line in enumerate(text.splitlines(), 1):
+            if "design-qc: allow" not in line:
+                hits += [f"{file}:{number} {rule}" for rule, pat in UIMOTION.items() if re.search(pat, line)]
+        for m in re.finditer(r"@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*[^{}]*)\}", text):
+            if re.search(r"(?:^|[;{\s])" + LAYOUT_PROPS + r"\s*:", m.group(2)) and "design-qc: allow" not in m.group(0):
+                hits.append(f"{file}:{text.count(chr(10), 0, m.start()) + 1} layout-keyframe {m.group(1)}")
+    return qc.report("uimotion", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits)
+
+
+def cmd_svga11y(qc, args) -> int:
+    hits, files = [], files_of(args.path, {".svg", ".html", ".htm", ".vue", ".svelte", ".jsx", ".tsx", ".mdx"})
+    for file in files:
+        text = file.read_text(encoding="utf-8", errors="replace")
+        for m in re.finditer(r"<svg\b([^>]*)>(.*?)</svg>", text, re.I | re.S):
+            tag, inner = m.group(1), m.group(2)
+            if re.search(r"aria-hidden\s*=\s*[\"']?true", tag, re.I) or "design-qc: allow" in tag:
+                continue
+            missing = [n for n, ok in (("role-img", re.search(r"role\s*=\s*[\"']img", tag, re.I)),
+                                       ("title", re.search(r"<title\b", inner, re.I)),
+                                       ("desc", re.search(r"<desc\b", inner, re.I))) if not ok]
+            if missing:
+                hits.append(f"{file}:{text.count(chr(10), 0, m.start()) + 1} missing {'+'.join(missing)}")
+    return qc.report("svga11y", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits)
+
+
+CLOSED = re.compile(r"\b(?:fixed|closed|done|resolved|pass(?:ed)?)\b", re.I)
+
+
+def cmd_floor(qc, args) -> int:
+    hits = []
+    for number, line in enumerate(Path(args.file).read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+        if re.search(r"\bFloor\b", line) and re.search(r"\bopen\b", line, re.I) and not CLOSED.search(line):
+            hits.append(f"{number} open-floor")
+        if re.search(r"\bReflex\b", line) and re.search(r"overrul", line, re.I) and not re.search(r"reason\s*:\s*\S", line, re.I):
+            hits.append(f"{number} reflex-overrule-without-reason")
+    return qc.report("floor", qc.FAIL if hits else qc.PASS, hits=hits)
+
 
 def register(add, qc) -> None:
     """Add the craft subcommands to design_qc's parser."""
@@ -174,6 +254,14 @@ def register(add, qc) -> None:
         p = add(name, (lambda r, n, c: lambda args: scan(qc, n, args.path, r, args.allow, c))(rules, name, case), text)
         p.add_argument("path")
         p.add_argument("--allow", action="append", default=[])
+    p = add("uimotion", bind(cmd_uimotion), "scale(0) or layout-property animation")
+    p.add_argument("path")
+    p = add("hovergate", bind(cmd_hovergate), ":hover outside (hover: hover) or hover-gated content")
+    p.add_argument("path")
+    p = add("svga11y", bind(cmd_svga11y), "svg role=img, title and desc")
+    p.add_argument("path")
+    p = add("floor", bind(cmd_floor), "open Floor finding or unreasoned Reflex overrule in a review")
+    p.add_argument("file")
     p = add("fadeonly", bind(cmd_fadeonly), "opacity-only keyframe entries")
     p.add_argument("path")
     p = add("springs", bind(cmd_springs), "visible springs or overshoots per film")

@@ -54,7 +54,7 @@ A hero image that reveals a second state under the pointer.
 
 - [ ] Hover-reveal: 50% overlay shows no drift; the page works with the
       reveal removed; captures under `(hover: none)`, reduced motion and
-      `dir="rtl"`.
+      `dir="rtl"`; `design_qc.py hovergate <src>` passes.
 
 - [ ] For each nested rounded element, inner = outer - padding.
 - [ ] Crops of icon buttons look centred at 2x zoom, in LTR and RTL, and

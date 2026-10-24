@@ -50,7 +50,8 @@ A web UI needs transitions. It extends
       scales.
 - [ ] A frame capture of each popover shows it scaling from its trigger,
       in both `dir="ltr"` and `dir="rtl"`.
-- [ ] No `scale(0)` and no animated layout property in the diff.
+- [ ] No `scale(0)` and no animated layout property: `design_qc.py uimotion <src>`
+      passes; `design_qc.py hovergate <src>` passes.
 - [ ] High-frequency actions change state with no transition.
 
 ## Sources

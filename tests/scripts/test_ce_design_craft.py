@@ -90,6 +90,26 @@ class CraftLintTests(unittest.TestCase):
             code, payload = run_qc("safezones", str(good), "--format", "story")
             self.assertEqual((0, "story"), (code, payload["format"]))
 
+    def test_uimotion_flags_scale_zero_and_layout_animation(self) -> None:  # #7347
+        self.check("uimotion", ".a{transform:scale(0)}", ".a{transform:scale(.95);transition:transform .2s,opacity .2s}", ".css")
+        self.check("uimotion", ".b{transition: width .2s}", ".b{transition: opacity .2s; margin-inline-start: 4px}", ".css")
+        self.check("uimotion", "@keyframes grow {\n from { height: 0 }\n to { height: 9px }\n}",
+                   "@keyframes rise {\n from { opacity: 0; transform: translateY(4px) }\n}", ".css")
+        self.check("uimotion", "gsap.from(el, { scale: 0 })", "gsap.from(el, { scale: 0.95 })", ".js")
+
+    def test_hovergate_flags_ungated_hover_and_hover_gated_content(self) -> None:  # #7347
+        self.check("hovergate", ".x:hover{color:red}", "@media (hover: hover){.x:hover{color:red}}", ".css")
+        self.check("hovergate", "@media (hover: hover){.card:hover .cta{opacity:1}}",
+                   "@media (hover: hover){.card:hover img{opacity:1}}", ".css")
+
+    def test_svga11y_requires_role_title_desc_unless_decorative(self) -> None:  # #7347
+        self.check("svga11y", '<svg role="img"><title>t</title></svg>',
+                   '<svg role="img"><title>t</title><desc>d</desc></svg><svg aria-hidden="true"></svg>', ".svg")
+
+    def test_floor_fails_open_floor_and_unreasoned_reflex_overrule(self) -> None:  # #7347
+        self.check("floor", "| F1 | Floor | contrast | open |", "| F1 | Floor | contrast | fixed |", ".md")
+        self.check("floor", "| R1 | Reflex | eyebrow | overruled |", "| R1 | Reflex | eyebrow | overruled, reason: brief line 4 |", ".md")
+
 
 @unittest.skipUnless(HAS_FFMPEG, "ffmpeg not installed")
 class CraftMediaTests(unittest.TestCase):

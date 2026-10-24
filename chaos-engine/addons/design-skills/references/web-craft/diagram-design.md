@@ -32,7 +32,7 @@ A diagram is drawn for any surface. It extends the diagram rule in
 - [ ] The node list has no co-travelling pair; every edge has a label or
       a stated meaning.
 - [ ] At most 2 accent-coloured elements.
-- [ ] The SVG passes a check for `role="img"`, `<title>` and `<desc>`.
+- [ ] `design_qc.py svga11y <svg>` passes (`role="img"`, `<title>`, `<desc>`).
 - [ ] The RTL version flows from the right.
 
 ## Sources
