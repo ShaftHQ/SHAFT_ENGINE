@@ -54,6 +54,10 @@
 <li><a href="#accumulateReports()" tabindex="0">accumulateReports()</a></li>
 <li><a href="#automaticRunLabels()" tabindex="0">automaticRunLabels()</a></li>
 <li><a href="#cleanResultsDirectory()" tabindex="0">cleanResultsDirectory()</a></li>
+<li><a href="#incrementalStore()" tabindex="0">incrementalStore()</a></li>
+<li><a href="#incrementalStoreMerge()" tabindex="0">incrementalStoreMerge()</a></li>
+<li><a href="#incrementalStoreJourney()" tabindex="0">incrementalStoreJourney()</a></li>
+<li><a href="#incrementalStoreHashGlobs()" tabindex="0">incrementalStoreHashGlobs()</a></li>
 <li><a href="#generateArchive()" tabindex="0">generateArchive()</a></li>
 <li><a href="#generateReport()" tabindex="0">generateReport()</a></li>
 <li><a href="#customLogo()" tabindex="0">customLogo()</a></li>
@@ -189,6 +193,30 @@ after the test run.</div>
 <div class="block">Controls the Allure 3 awesome plugin <code>groupBy</code> values written to <code>allurerc.yaml</code>.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#incrementalStore()" class="member-name-link">incrementalStore</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Opt-in incremental per-test pass store (#7335): after each run, passed results (with attachments and
+fixture containers) are copied to <code>target/passed-results/&lt;journey&gt;/&lt;testId&gt;/</code> with a validity
+manifest (git SHA, app sha256, files-hash, SHAFT version); failures are appended to <code>failures.jsonl</code>.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#incrementalStoreHashGlobs()" class="member-name-link">incrementalStoreHashGlobs</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Comma-separated globs (relative to the project root) of shared sources hashed into every stored pass's
+files-hash, in addition to the test class source.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#incrementalStoreJourney()" class="member-name-link">incrementalStoreJourney</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Journey (sub-folder) name used by the incremental pass store.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#incrementalStoreMerge()" class="member-name-link">incrementalStoreMerge</a>()</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Merge the still-valid stored passes into the results folder before the report is generated (#7335);
+stale and flagged passes are logged and left out.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code>boolean</code></div>
 <div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#open()" class="member-name-link">open</a>()</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Controls the Allure 3 awesome plugin <code>open</code> option written to <code>allurerc.yaml</code>.</div>
@@ -313,6 +341,74 @@ Disable this when you want to merge results from multiple partial runs.
 <dl class="notes">
 <dt>Returns:</dt>
 <dd><code>true</code> to delete the results directory before execution; <code>false</code> to preserve it</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="incrementalStore()">
+<h3>incrementalStore</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("allure.incrementalStore")
+@DefaultValue("false")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">incrementalStore</span>()</div>
+<div class="block">Opt-in incremental per-test pass store (#7335): after each run, passed results (with attachments and
+fixture containers) are copied to <code>target/passed-results/&lt;journey&gt;/&lt;testId&gt;/</code> with a validity
+manifest (git SHA, app sha256, files-hash, SHAFT version); failures are appended to <code>failures.jsonl</code>.
+<p>Property key: <code>allure.incrementalStore</code> — default: <code>false</code></div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd><code>true</code> to record passes into the incremental store</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="incrementalStoreMerge()">
+<h3>incrementalStoreMerge</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("allure.incrementalStoreMerge")
+@DefaultValue("false")
+</span><span class="return-type">boolean</span>&nbsp;<span class="element-name">incrementalStoreMerge</span>()</div>
+<div class="block">Merge the still-valid stored passes into the results folder before the report is generated (#7335);
+stale and flagged passes are logged and left out.
+<p>Property key: <code>allure.incrementalStoreMerge</code> — default: <code>false</code></div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd><code>true</code> to build the report from the incremental store</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="incrementalStoreJourney()">
+<h3>incrementalStoreJourney</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("allure.incrementalStoreJourney")
+@DefaultValue("default")
+</span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">incrementalStoreJourney</span>()</div>
+<div class="block">Journey (sub-folder) name used by the incremental pass store.
+<p>Property key: <code>allure.incrementalStoreJourney</code> — default: <code>default</code></div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the journey name</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="incrementalStoreHashGlobs()">
+<h3>incrementalStoreHashGlobs</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("allure.incrementalStoreHashGlobs")
+@DefaultValue("pom.xml,src/main/java/**,src/test/java/**/base/**,src/test/resources/**")
+</span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">incrementalStoreHashGlobs</span>()</div>
+<div class="block">Comma-separated globs (relative to the project root) of shared sources hashed into every stored pass's
+files-hash, in addition to the test class source.
+<p>Property key: <code>allure.incrementalStoreHashGlobs</code></div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the glob list</dd>
 </dl>
 </div>
 </section>

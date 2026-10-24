@@ -60,6 +60,9 @@
 <li><a href="#accumulateReports(boolean)" tabindex="0">accumulateReports(boolean)</a></li>
 <li><a href="#automaticRunLabels(boolean)" tabindex="0">automaticRunLabels(boolean)</a></li>
 <li><a href="#cleanResultsDirectory(boolean)" tabindex="0">cleanResultsDirectory(boolean)</a></li>
+<li><a href="#incrementalStore(boolean)" tabindex="0">incrementalStore(boolean)</a></li>
+<li><a href="#incrementalStoreMerge(boolean)" tabindex="0">incrementalStoreMerge(boolean)</a></li>
+<li><a href="#incrementalStoreJourney(java.lang.String)" tabindex="0">incrementalStoreJourney(String)</a></li>
 <li><a href="#generateArchive(boolean)" tabindex="0">generateArchive(boolean)</a></li>
 <li><a href="#generateReport(boolean)" tabindex="0">generateReport(boolean)</a></li>
 <li><a href="#customLogo(java.lang.String)" tabindex="0">customLogo(String)</a></li>
@@ -192,28 +195,43 @@ All setter methods return <code>this</code> to support method chaining.
 <div class="block">Overrides the <code>allure.groupBy</code> property at runtime.</div>
 </div>
 <div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#open(boolean)" class="member-name-link">open</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#incrementalStore(boolean)" class="member-name-link">incrementalStore</a><wbr>(boolean&nbsp;value)</code></div>
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>allure.incrementalStore</code> property at runtime.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#incrementalStoreJourney(java.lang.String)" class="member-name-link">incrementalStoreJourney</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>allure.incrementalStoreJourney</code> property at runtime.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#incrementalStoreMerge(boolean)" class="member-name-link">incrementalStoreMerge</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the <code>allure.incrementalStoreMerge</code> property at runtime.</div>
+</div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#open(boolean)" class="member-name-link">open</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>allure.open</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#realtimeMonitoring(boolean)" class="member-name-link">realtimeMonitoring</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#realtimeMonitoring(boolean)" class="member-name-link">realtimeMonitoring</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>allure.realtimeMonitoring</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportLanguage(java.lang.String)" class="member-name-link">reportLanguage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#reportLanguage(java.lang.String)" class="member-name-link">reportLanguage</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>allure.reportLanguage</code> property at runtime.</div>
 </div>
-<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#singleFile(boolean)" class="member-name-link">singleFile</a><wbr>(boolean&nbsp;value)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#singleFile(boolean)" class="member-name-link">singleFile</a><wbr>(boolean&nbsp;value)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>allure.singleFile</code> property at runtime.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#theme(java.lang.String)" class="member-name-link">theme</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#theme(java.lang.String)" class="member-name-link">theme</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>allure.theme</code> property at runtime.</div>
 </div>
 </div>
@@ -322,6 +340,51 @@ All setter methods return <code>this</code> to support method chaining.
 <dl class="notes">
 <dt>Parameters:</dt>
 <dd><code>value</code> - <code>true</code> to clean the Allure results directory before execution</dd>
+<dt>Returns:</dt>
+<dd>this <a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal"><code>Allure.SetProperty</code></a> instance for chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="incrementalStore(boolean)">
+<h3>incrementalStore</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></span>&nbsp;<span class="element-name">incrementalStore</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Overrides the <code>allure.incrementalStore</code> property at runtime.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - <code>true</code> to record passes into the incremental store</dd>
+<dt>Returns:</dt>
+<dd>this <a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal"><code>Allure.SetProperty</code></a> instance for chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="incrementalStoreMerge(boolean)">
+<h3>incrementalStoreMerge</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></span>&nbsp;<span class="element-name">incrementalStoreMerge</span><wbr><span class="parameters">(boolean&nbsp;value)</span></div>
+<div class="block">Overrides the <code>allure.incrementalStoreMerge</code> property at runtime.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - <code>true</code> to merge valid stored passes before reporting</dd>
+<dt>Returns:</dt>
+<dd>this <a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal"><code>Allure.SetProperty</code></a> instance for chaining</dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="incrementalStoreJourney(java.lang.String)">
+<h3>incrementalStoreJourney</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal">Allure.SetProperty</a></span>&nbsp;<span class="element-name">incrementalStoreJourney</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the <code>allure.incrementalStoreJourney</code> property at runtime.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - journey name</dd>
 <dt>Returns:</dt>
 <dd>this <a href="Allure.SetProperty.html" title="class in com.shaft.properties.internal"><code>Allure.SetProperty</code></a> instance for chaining</dd>
 </dl>
