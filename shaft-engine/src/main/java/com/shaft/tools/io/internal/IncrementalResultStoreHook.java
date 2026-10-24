@@ -55,9 +55,10 @@ public final class IncrementalResultStoreHook {
         private final Path root;
         private final String globs;
         private final Map<String, IncrementalResultStore.ValidityKey> cache = new HashMap<>();
-        private Set<Path> shared;
-        private String gitSha;
-        private String appSha;
+        private Set<Path> shared = Set.of();
+        private String gitSha = "";
+        private String appSha = "";
+        private boolean sharedComputed;
 
         KeyFactory(Path root, String globs) {
             this.root = root;
@@ -70,7 +71,8 @@ public final class IncrementalResultStoreHook {
 
         private IncrementalResultStore.ValidityKey compute(String testClass) {
             try {
-                if (shared == null) {
+                if (!sharedComputed) {
+                    sharedComputed = true;
                     shared = IncrementalResultStore.filesMatching(root, globs);
                     gitSha = gitSha(root);
                     appSha = appSha();
@@ -101,7 +103,7 @@ public final class IncrementalResultStoreHook {
             try {
                 Process process = new ProcessBuilder("git", "rev-parse", "HEAD").directory(root.toFile())
                         .redirectErrorStream(true).start();
-                String out = new String(process.getInputStream().readAllBytes()).trim();
+                String out = new String(process.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).trim();
                 return process.waitFor(10, TimeUnit.SECONDS) && process.exitValue() == 0 ? out : "";
             } catch (IOException e) {
                 return "";

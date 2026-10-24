@@ -78,7 +78,11 @@ public final class IncrementalResultStore {
             flagged = List.copyOf(flagged);
         }
 
-        /** @return {@link #MERGE_FLAGGED}, {@link #MERGE_STALE} or {@link #MERGE_OK} */
+        /**
+         * Exit code of the merge, mirroring the reference store.
+         *
+         * @return {@link #MERGE_FLAGGED}, {@link #MERGE_STALE} or {@link #MERGE_OK}
+         */
         public int exitCode() {
             return !flagged.isEmpty() ? MERGE_FLAGGED : !stale.isEmpty() ? MERGE_STALE : MERGE_OK;
         }
@@ -185,7 +189,7 @@ public final class IncrementalResultStore {
      */
     public static Set<Path> filesMatching(Path root, String globs) throws IOException {
         List<PathMatcher> matchers = new ArrayList<>();
-        for (String glob : globs.split(",")) {
+        for (String glob : globs.split(",", -1)) {
             if (!glob.isBlank()) {
                 matchers.add(FileSystems.getDefault().getPathMatcher("glob:" + glob.trim()));
             }
@@ -204,6 +208,8 @@ public final class IncrementalResultStore {
     }
 
     /**
+     * Hashes one file.
+     *
      * @param file file to hash
      * @return hex sha256 of the file content
      * @throws IOException when the file cannot be read

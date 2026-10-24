@@ -107,4 +107,17 @@ public class IncrementalResultStoreUnitTest {
                     .incrementalStoreJourney("default");
         }
     }
+
+    @Test
+    public void hookRecordsAndMergesWithoutFailingTheRun() {
+        var allure = com.shaft.driver.SHAFT.Properties.allure;
+        com.shaft.tools.io.internal.IncrementalResultStoreHook.afterExecution(0);
+        allure.set().incrementalStore(true).incrementalStoreMerge(true).incrementalStoreJourney("unit-hook");
+        try {
+            com.shaft.tools.io.internal.IncrementalResultStoreHook.afterExecution(System.currentTimeMillis());
+            Assert.assertFalse(allure.incrementalStoreJourney().isEmpty());
+        } finally {
+            allure.set().incrementalStore(false).incrementalStoreMerge(false).incrementalStoreJourney("default");
+        }
+    }
 }
