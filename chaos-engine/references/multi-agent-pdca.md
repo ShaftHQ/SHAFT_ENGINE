@@ -32,6 +32,8 @@ only the final Done, with evidence.
 
 - Sign-offs never authorize a destructive, external-send, or out-of-scope
   action the user did not already ask for; those still need the user.
+- A sign-off names the full head SHA it reviewed. Before merging, check it
+  equals the PR head; on a mismatch or no SHA, ask for a re-sign-off.
 - Cap: 5 rounds without convergence. Stop and escalate to the user with the
   open findings and each agent's position.
 

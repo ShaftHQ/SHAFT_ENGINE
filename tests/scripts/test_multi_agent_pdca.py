@@ -20,6 +20,8 @@ class MultiAgentPdcaTest(unittest.TestCase):
             "5 rounds without convergence",
             "destructive, external-send, or out-of-scope",
             "lessons pass and a parity",
+            "names the full head SHA it reviewed",
+            "ask for a re-sign-off",
         ):
             self.assertIn(needle, text)
 
