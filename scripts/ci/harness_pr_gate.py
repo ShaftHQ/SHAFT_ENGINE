@@ -318,6 +318,7 @@ CHECKS = {
         "token-waste",
         (
             "tests.scripts.test_chaos_engine_token_waste_6161",
+            "tests.scripts.test_ci_status_economy_lessons_7341",
             "tests.scripts.test_watch_pr_checks",
             "tests.scripts.test_overlay_pre_push",
             "tests.scripts.test_workflow_template_sync",
@@ -868,6 +869,7 @@ SURFACE_PATTERNS = {
         "shaft-upgrader/upgrade_to_modular_shaft.py",
         "chaos-engine/references/installer-program.md",
         "tests/scripts/test_chaos_engine_token_waste_6161.py",
+        "tests/scripts/test_ci_status_economy_lessons_7341.py",
         "tests/scripts/test_overlay_pre_push.py",
         "tests/scripts/test_workflow_template_sync.py",
         "tests/scripts/test_validation_manifest_imports.py",
