@@ -256,6 +256,11 @@ class Batch3SurfaceChecksTest(unittest.TestCase):
             with self.subTest(key=key):
                 self.pair("oklch", json.dumps({**good, key: value}), json.dumps(good), ".json")
 
+    def test_oklch_css_input(self) -> None:
+        good = ":root { --blue-100: oklch(0.97 0.02 250); --blue-600: oklch(0.6 0.15 255); --accent: oklch(0.6 0.15 255); --error: oklch(0.6 0.2 25); }"
+        self.pair("oklch", good.replace("oklch(0.6 0.2 25)", "oklch(0.6 0.15 248)"), good, ".css")
+        self.pair("oklch", good.replace("oklch(0.6 0.15 255); --accent", "oklch(0.6 0.15 280); --accent"), good, ".css")
+
     def test_sidecar(self) -> None:
         good = "WEBVTT\n\n00:00.000 --> 00:02.000\nShort line\n\n00:02.500 --> 00:04.000\nمرحبا بكم\n"
         for bad in ("00:00.000 --> 00:02.000\nno header\n",
@@ -304,6 +309,8 @@ class Batch3SurfaceChecksTest(unittest.TestCase):
 
     def test_alprefix(self) -> None:
         self.pair("alprefix", "تعلم الـPython اليوم\nاكتب بالـ API", "تعلم لغة Python اليوم\nاكتب عبر واجهة API", ".txt")
+        caption = f"1\n00:00:00,500 --> 00:00:02,000\nشغّل الـ {LRI}API{PDI} الآن\n"
+        self.pair("alprefix", "1\n00:00:00,500 --> 00:00:02,000\nشغّل الـAPI الآن\n", caption, ".srt")
 
     def test_ogimage(self) -> None:
         def png(path: Path, width: int, height: int) -> str:
@@ -364,6 +371,16 @@ class Batch3MediaChecksTest(unittest.TestCase):
         self.assertIn("dead_stretch", payload["hits"][0])
         code, payload = run_qc("deadair", str(self.mute))
         self.assertTrue(any("film_silent" in hit for hit in payload["hits"]))
+
+    def test_deadair_final_hold_warns(self) -> None:
+        held = Path(self.tmp.name) / "held.mp4"
+        ffmpeg("-f", "lavfi", "-i", "testsrc2=s=180x320:r=30:d=3", "-f", "lavfi", "-i", "color=c=navy:s=180x320:r=30:d=4",
+               "-f", "lavfi", "-i", "sine=f=440:d=3", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=mono:d=4",
+               "-filter_complex", "[0:v][2:a][1:v][3:a]concat=n=2:v=1:a=1[v][a]", "-map", "[v]", "-map", "[a]",
+               "-pix_fmt", "yuv420p", str(held))
+        code, payload = run_qc("deadair", str(held))
+        self.assertEqual(0, code, payload)
+        self.assertTrue(any("final_hold" in w for w in payload["warnings"]), payload)
 
     def test_mediaclamp(self) -> None:
         self.assertEqual(0, run_qc("mediaclamp", str(self.ok_cues), str(self.busy))[0])

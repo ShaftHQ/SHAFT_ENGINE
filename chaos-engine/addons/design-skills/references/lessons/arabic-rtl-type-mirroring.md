@@ -23,8 +23,10 @@ mirrored for RTL. Extends [L02](mixed-script-captions.md) and
    clocks do not.
 5. **No italic on Arabic;** load an explicit Arabic font stack with the
    weights used (400 and 700 at least).
-6. **No article on a Latin word:** never put الـ, بالـ or للـ straight
-   before a Latin word; rephrase. A floating ? or ، means a Latin token
+6. **No article on a Latin word (web and UI copy):** never put الـ, بالـ
+   or للـ straight before a Latin word; rephrase. Burned captions keep
+   the [L02](mixed-script-captions.md) form «الـ X» (tatweel, then a space, then the isolated Latin
+   run); only an article glued to the Latin letters fails there. A floating ? or ، means a Latin token
    straddles the line: isolate it (captions and HTML, [L02](mixed-script-captions.md)).
 7. **Line-height:** display 1.3 or more, body 1.5-1.7; on 1080 px social
    stills body 36-40 px or more, display weight 600-800.

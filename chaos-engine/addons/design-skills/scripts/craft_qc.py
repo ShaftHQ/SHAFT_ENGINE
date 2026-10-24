@@ -475,11 +475,17 @@ def cmd_deadair(qc, args) -> int:
     raw = qc.decode_raw(args.file, ["-an", "-vf", f"fps={args.fps},{grid}", "-f", "rawvideo"])
     frames = [raw[i:i + 576] for i in range(0, len(raw) - 575, 576)]
     spans, _ = qc.static_spans(frames, args.fps, args.thresh, args.max, [])
+    warnings = []
     for span in spans:
         overlap = max((min(span["end"], b) - max(span["start"], a) for a, b in quiet), default=0.0)
         if overlap > args.max:
-            hits.append(f"dead_stretch {span['start']:.2f}-{span['end']:.2f}s: static picture and silent audio")
-    return qc.report("deadair", qc.FAIL if hits else qc.PASS, duration=round(duration, 2), hits=hits)
+            text = f"{span['start']:.2f}-{span['end']:.2f}s: static picture and silent audio"
+            # A held end card (list or CTA card, V07 rule 14) is the last span after real content: warn only.
+            if span["start"] > 0 and span["end"] >= duration - 2 / args.fps:
+                warnings.append(f"final_hold {text}")
+            else:
+                hits.append(f"dead_stretch {text}")
+    return qc.report("deadair", qc.FAIL if hits else qc.PASS, duration=round(duration, 2), hits=hits, warnings=warnings)
 
 
 def cmd_textfloor(qc, args) -> int:

@@ -20,6 +20,8 @@ HUES = ("red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|vi
         "slate|gray|grey|zinc|neutral|stone")
 PRIMITIVE_USE = re.compile(rf"var\(\s*--(?:{HUES})-\d{{2,3}}\b|\b(?:bg|text|border|ring|fill|stroke|from|to|via)-(?:{HUES})-\d{{2,3}}\b")
 AL_LATIN = re.compile(r"(?:^|[\s(«\"])(?:وبال|فبال|بال|كال|فال|وال|لل|ال)ـ?\s?[A-Za-z]")
+# Caption form from L01/L02: tatweel then a space before the Latin word («الـ X») is accepted in .srt/.vtt.
+AL_ATTACHED = re.compile(r"(?:^|[\s(«\"])(?:وبال|فبال|بال|كال|فال|وال|لل|ال)(?:ـ)?[A-Za-z]")
 
 
 def files_of(root: str, suffixes: set[str]) -> list[Path]:
@@ -125,8 +127,23 @@ def hue_gap(a: float, b: float) -> float:
     return min(gap, 360 - gap)
 
 
+def oklch_css(text: str) -> dict:
+    """Read --name-step: oklch(...) custom properties into ramps, accent and status (pairs need JSON)."""
+    spec: dict = {"ramps": {}, "status": {}}
+    for name, value in re.findall(r"--([\w-]+)\s*:\s*(oklch\([^)]*\))", text):
+        step = re.fullmatch(r"(.+?)-(\d{2,3})", name)
+        if name == "accent":
+            spec["accent"] = value
+        elif re.fullmatch(r"(?:status-)?(?:error|danger|warning|success|info)", name):
+            spec["status"][name] = value
+        elif step:
+            spec["ramps"].setdefault(step.group(1), []).append(value)
+    return spec
+
+
 def cmd_oklch(qc, args) -> int:
-    spec = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    text = Path(args.file).read_text(encoding="utf-8")
+    spec = oklch_css(text) if Path(args.file).suffix in CSS_LIKE else json.loads(text)
     hits = []
     for name, steps in spec.get("ramps", {}).items():
         hues = [oklch(s)[2] for s in steps if oklch(s)[1] >= 0.02]
@@ -246,8 +263,9 @@ def cmd_arabiccss(qc, args) -> int:
 def cmd_alprefix(qc, args) -> int:
     hits = []
     for file in files_of(args.path, {".srt", ".vtt", ".txt", ".md", ".html", ".htm", ".json"}):
+        pattern = AL_ATTACHED if file.suffix in {".srt", ".vtt"} else AL_LATIN
         for number, line in enumerate(file.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
-            if AL_LATIN.search(line):
+            if pattern.search(line):
                 hits.append(f"{file}:{number} Arabic article bound to a Latin word")
     return qc.report("alprefix", qc.FAIL if hits else qc.PASS, hits=hits)
 
@@ -297,7 +315,7 @@ def register(add, qc) -> None:
     p.add_argument("--max-ms", type=float, default=300.0)
     p = add("p3fallback", bind(cmd_p3fallback), "display-p3 colour without an sRGB value first")
     p.add_argument("path")
-    p = add("oklch", bind(cmd_oklch), "OKLCH ramp hue drift, status-vs-accent hue gap, lightness pairs")
+    p = add("oklch", bind(cmd_oklch), "OKLCH ramps, status-vs-accent hue gap, lightness pairs; CSS custom properties or JSON")
     p.add_argument("file")
     p.add_argument("--drift", type=float, default=10.0)
     p.add_argument("--sep", type=float, default=15.0)
@@ -313,7 +331,7 @@ def register(add, qc) -> None:
     p = add("arabiccss", bind(cmd_arabiccss), "Arabic CSS: no italic, line-height floor, no ltr block")
     p.add_argument("path")
     p.add_argument("--min-line-height", type=float, default=1.3)
-    p = add("alprefix", bind(cmd_alprefix), "Arabic article (al-, bil-, lil-) bound to a Latin word")
+    p = add("alprefix", bind(cmd_alprefix), "Arabic article (al-, bil-, lil-) bound to a Latin word in web/UI copy; captions accept the L02 form")
     p.add_argument("path")
     p = add("ogimage", bind(cmd_ogimage), "OG image exists at 1200x630; headline words, size and contrast")
     p.add_argument("file")

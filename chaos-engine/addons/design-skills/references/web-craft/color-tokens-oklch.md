@@ -34,7 +34,8 @@ stay in [D06 colour and contrast](../color-contrast.md).
 ## Verify
 
 - [ ] `design_qc.py tokens src/` (no primitive tokens in components)
-- [ ] `design_qc.py oklch palette.json` (ramps, status vs accent, pairs)
+- [ ] `design_qc.py oklch tokens.css` (reads `--blue-600: oklch(...)`,
+      `--accent`, `--error`) or `oklch palette.json` (adds fg/bg pairs)
 - [ ] `design_qc.py p3fallback src/` and `design_qc.py contrast --tokens theme.json`
 - [ ] Alpha text measured from a rendered screenshot.
 
