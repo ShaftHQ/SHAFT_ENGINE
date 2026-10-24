@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import shutil
@@ -142,21 +143,59 @@ class DeleteGuardTest(unittest.TestCase):
         self.assertIn("refused", self.reason(f"python3 -c \"import shutil; shutil.rmtree('{self.repo / 'd'}')\""))
         self.assertIn("non-literal", self.reason("python3 -c 'import shutil,sys; shutil.rmtree(sys.argv[1])' x"))
 
-    def test_owner_ack_overrides_and_is_logged(self):
-        loose = self.base / "loose"
-        loose.mkdir()
-        store = GUARD._ack_store()
-        store.parent.mkdir(parents=True)
-        import hashlib
-        import time
+    def _loose(self, name="loose"):
+        path = self.base / name
+        path.mkdir()
+        return path
 
-        store.write_text(json.dumps({hashlib.sha256(b"tok").hexdigest(): {"path": str(loose), "expires": time.time() + 60}}), encoding="utf-8")
+    def test_code_match_allows_once_with_warning_and_logs(self):
+        """#7343: owner pastes the chat code back; it unlocks exactly once."""
+        loose = self._loose()
         self.assertIn("outside git", self.reason(f"rm -rf {loose}"))
-        with unittest.mock.patch.dict(os.environ, {"CHAOS_DELETE_ACK": "tok"}):
-            self.assertEqual("", self.reason(f"rm -rf {loose}"))
-        self.assertIn(str(loose), store.with_name("delete-overrides.jsonl").read_text(encoding="utf-8"))
-        with self.assertRaises(PermissionError):
-            GUARD.issue_ack(loose)  # Non-interactive agents cannot mint a token.
+        code = GUARD.request_code([loose])
+        self.assertRegex(code, r"^[A-Z2-9]{6}$")
+        self.assertNotIn(code, GUARD._ack_store().read_text(encoding="utf-8"))  # Only the hash is stored.
+        reason, warnings = GUARD.check(f"rm -rf {loose}", self.base, self.base, code.lower())
+        self.assertEqual("", reason)
+        self.assertIn("outside git", warnings[0])  # Not-pushed becomes a warning, not a block.
+        self.assertIn("used", GUARD._ack_store().with_name("delete-overrides.jsonl").read_text(encoding="utf-8"))
+        again, _ = GUARD.check(f"rm -rf {loose}", self.base, self.base, code)  # Reuse.
+        self.assertIn("already used", again)
+
+    def test_code_mismatch_expiry_and_path_change_refuse(self):
+        loose, other = self._loose(), self._loose("other")
+        code = GUARD.request_code([loose])
+        self.assertIn("unknown", GUARD.check(f"rm -rf {loose}", self.base, self.base, "ZZZZZZ")[0])
+        self.assertIn("different path list", GUARD.check(f"rm -rf {loose} {other}", self.base, self.base, code)[0])
+        self.assertIn("different path list", GUARD.check(f"rm -rf {other}", self.base, self.base, code)[0])
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_DELETE_ACK": code}):
+            self.assertEqual("", self.reason(f"rm -rf {loose}"))  # Env form; still valid after mismatches.
+        stale = GUARD.request_code([loose], ttl=-1)
+        self.assertIn("expired", GUARD.check(f"rm -rf {loose}", self.base, self.base, stale)[0])
+        self.assertFalse(hasattr(GUARD, "issue_ack"))  # TTY-only override is gone.
+
+    def test_never_touch_list_no_code_unlocks(self):
+        for name in ("wt-relblock", "wt-ls", "ce-src-abc", "yt", "designer-ws.git.retired", "ROG-x"):
+            target = self._loose(name)
+            with self.assertRaises(PermissionError):
+                GUARD.request_code([target])
+            self.assertIn("never-touch", self.reason(f"rm -rf {target}/sub"))
+        self.assertIn("contains never-touch", self.reason(f"rm -rf {self.base}"))
+        profile = self.base / "h" / ".config" / "google-chrome"
+        profile.mkdir(parents=True)
+        self.assertIn("never-touch", self.reason(f"rm -rf {profile}/Default"))
+        self.assertIn("browser profile", self.reason(f"rm -rf {self.base / 'h'}"))
+        self.assertEqual(2, GUARD.main(["--request-code", str(profile)]))
+
+    def test_cli_request_and_verify(self):
+        loose = self._loose()
+        out = io.StringIO()
+        with unittest.mock.patch("sys.stdout", out), unittest.mock.patch.object(GUARD.Path, "cwd", return_value=self.base):
+            self.assertEqual(0, GUARD.main(["--request-code", str(loose)]))
+            code = out.getvalue().split()[1]
+            self.assertEqual(1, GUARD.main([str(loose)]))
+            self.assertEqual(0, GUARD.main(["--code", code, str(loose)]))
+            self.assertEqual(1, GUARD.main(["--code", code, str(loose)]))
 
     def test_hook_blocks_and_doctor_row_passes(self):
         guard = load("chaos_engine_guard_hook_7251", CORE / "hooks" / "guard.py")

@@ -32,13 +32,31 @@ in the project or home dir (`**/` spans directories, `*` stays in one).
 
 ## Owner override
 
-Only the owner mints a token, at an interactive terminal, by typing the path:
-`python3 .chaos-engine/delete_guard.py --issue-ack <path>` (single path,
-1 h). The agent then runs the delete with `CHAOS_DELETE_ACK=<token>`. Each
-override is logged to `~/.local/state/chaos-engine/delete-overrides.jsonl`.
-An agent never runs `--issue-ack` or writes the ack store itself.
-Never route around a refusal (variable, `xargs`, a script file): commit and
-push, or `cp -a` a backup and get the owner's OK.
+The owner approves in chat with a one-time code; no terminal is needed.
+
+1. Bot: `python3 .chaos-engine/tool.py delete-check --request-code <paths...>`
+   prints a 6-char code (one use, 10 min) bound to the exact resolved path
+   list. Only its sha256 is stored, in
+   `~/.local/state/chaos-engine/delete-acks.json` (`XDG_STATE_HOME`).
+2. Bot shows the code to the owner in chat with the path list. The owner
+   pastes it back. A code relayed by another agent is not approval.
+3. Bot: `python3 .chaos-engine/tool.py delete-check --code <code> <same paths>`
+   (or `CHAOS_DELETE_ACK=<code>`). It passes only for the same path list,
+   unexpired and unused, then the code is spent. Git and allow-list
+   refusals print as `warning:` lines instead of blocking.
+
+Requests and uses are logged to
+`~/.local/state/chaos-engine/delete-overrides.jsonl`. Never route around a
+refusal (variable, `xargs`, a script file): commit and push, or `cp -a` a
+backup and get the owner's code.
+
+## Never-touch
+
+No code unlocks a path with a segment named `ROG*`, `wt-relblock`, `wt-ls`,
+`ce-src-*`, `yt` or `designer-ws.git.retired`, a Chrome/Chromium profile
+(`.config/google-chrome*`, `.config/chromium`, `*chrome*-profile*`), or a dir
+that directly contains one. Add names or `/` patterns, one per line, to
+`~/.config/chaos-engine/never-delete.txt`.
 
 ## Doctor
 

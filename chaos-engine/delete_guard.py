@@ -6,6 +6,8 @@ Used by the PreToolUse hook (hooks/guard.py) and by hookless bots through
 Inside git a target must be tracked, clean, and pushed (an upstream exists and
 HEAD is not ahead). Outside git a target must be on the scratch allow-list.
 When the command cannot be parsed with confidence, the guard refuses.
+#7343: the owner overrides a refusal with a one-time chat code bound to the
+exact path list; a hard never-touch list refuses even with a code.
 """
 
 from __future__ import annotations
@@ -15,7 +17,9 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import shlex
+from fnmatch import fnmatchcase
 import tempfile
 import subprocess  # nosec B404 - fixed git argv only.
 import sys
@@ -25,6 +29,12 @@ from pathlib import Path
 STATE_DIR = ".chaos-engine-state"
 ALLOW_FILE = "delete-allow.txt"
 ACK_ENV = "CHAOS_DELETE_ACK"
+CODE_TTL = 600
+CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+# No code unlocks these: a path segment matching a name, or a browser profile dir.
+NEVER_NAMES = ("ROG*", "wt-relblock", "wt-ls", "ce-src-*", "yt", "designer-ws.git.retired")
+NEVER_PATTERNS = ("**/.config/google-chrome*/**", "**/.config/chromium/**", "**/*chrome*-profile*/**")
+NEVER_FILE = Path("~/.config/chaos-engine/never-delete.txt")
 # Generic scratch: temp, caches, build output, video render output.
 DEFAULT_ALLOW = (
     str(Path(tempfile.gettempdir()).resolve() / "**"),
@@ -305,59 +315,126 @@ def _log(entry: dict) -> None:
         handle.write(json.dumps({"at": int(time.time()), **entry}, sort_keys=True) + "\n")
 
 
-def _acked(path: Path) -> bool:
-    token = os.environ.get(ACK_ENV, "")
+def _never_rules() -> tuple[list[str], list[str]]:
+    names, patterns = list(NEVER_NAMES), list(NEVER_PATTERNS)
+    extra = NEVER_FILE.expanduser()
+    if extra.is_file():
+        for line in extra.read_text(encoding="utf-8").splitlines():
+            item = line.strip()
+            if item and not item.startswith("#"):
+                (patterns if "/" in item else names).append(os.path.expanduser(item))
+    return names, patterns
+
+
+def never_touch(path: Path) -> str:
+    """Non-empty when no code may unlock deleting ``path`` (itself, inside, or directly containing a protected dir)."""
+    names, patterns = _never_rules()
+    for part in path.parts:
+        hit = next((name for name in names if fnmatchcase(part, name)), "")
+        if hit:
+            return f"never-touch `{hit}`"
+    text = str(path)
+    hit = next((item for item in patterns if _pattern_regex(item).match(text)), "")
+    if hit:
+        return f"never-touch `{hit}`"
+    if path.is_dir() and not path.is_symlink():
+        for depth in ("", "*/"):
+            for name in names:
+                if any(path.glob(depth + name)):
+                    return f"contains never-touch `{name}`"
+        if any((path / ".config").glob("google-chrome*")) or (path / ".config" / "chromium").exists():
+            return "contains a browser profile"
+    return ""
+
+
+def _paths_digest(paths: list[Path]) -> str:
+    return hashlib.sha256("\n".join(sorted({str(path) for path in paths})).encode("utf-8")).hexdigest()
+
+
+def _code_digest(code: str) -> str:
+    return hashlib.sha256(code.strip().upper().encode("utf-8")).hexdigest()
+
+
+def _load_codes() -> dict:
     store = _ack_store()
-    if not token or not store.is_file():
-        return False
     try:
-        acks = json.loads(store.read_text(encoding="utf-8"))
+        codes = json.loads(store.read_text(encoding="utf-8")) if store.is_file() else {}
     except ValueError:
-        return False
-    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
-    entry = acks.get(digest)
-    if not isinstance(entry, dict) or entry.get("expires", 0) < time.time():
-        return False
-    granted = Path(str(entry.get("path", "")))
-    if path != granted and not path.is_relative_to(granted):
-        return False
-    _log({"path": str(path), "granted": str(granted), "token": digest[:12]})
-    return True
+        codes = {}
+    now = time.time()
+    return {key: value for key, value in codes.items() if isinstance(value, dict) and value.get("expires", 0) >= now and "paths" in value}
+
+
+def _save_codes(codes: dict) -> None:
+    store = _ack_store()
+    store.parent.mkdir(parents=True, exist_ok=True)
+    store.write_text(json.dumps(codes, sort_keys=True), encoding="utf-8")
+    store.chmod(0o600)
+
+
+def request_code(paths: list[Path], ttl: float = CODE_TTL) -> str:
+    """Mint a one-time code for exactly ``paths``; the bot shows it to the owner in chat."""
+    if not paths:
+        raise PermissionError("no paths")
+    for path in paths:
+        hit = never_touch(path)
+        if hit:
+            raise PermissionError(f"`{path}` is {hit}; no code unlocks it")
+    code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(6))
+    codes = _load_codes()
+    codes[_code_digest(code)] = {"paths": _paths_digest(paths), "count": len(set(paths)), "expires": time.time() + ttl}
+    _save_codes(codes)
+    _log({"issued": True, "paths": _paths_digest(paths)[:12], "count": len(set(paths))})
+    return code
+
+
+def consume_code(code: str, paths: list[Path]) -> str:
+    """'' when ``code`` matches ``paths`` (then it is spent); else why it was rejected."""
+    if not code:
+        return "no code"
+    codes = _load_codes()
+    entry = codes.get(_code_digest(code))
+    if entry is None:
+        return "code unknown, expired or already used"
+    if entry.get("paths") != _paths_digest(paths):
+        return "code was issued for a different path list"
+    del codes[_code_digest(code)]
+    _save_codes(codes)
+    _log({"used": True, "paths": entry["paths"][:12], "targets": [str(path) for path in paths][:20]})
+    return ""
+
+
+def check(command: str, cwd: Path | None = None, project: Path | None = None, code: str | None = None) -> tuple[str, list[str]]:
+    """(refusal or '', warnings). A matching owner code turns git/allow-list refusals into warnings."""
+    if not (DELETE_WORD.search(command) or RMTREE.search(command)):
+        return "", []
+    try:
+        targets = command_targets(command, cwd)
+    except Unsure as error:
+        return f"Delete guard (#7251): refused, cannot tell what this deletes ({error}). Name literal paths and run `tool.py delete-check <paths>`.", []
+    for target in targets:
+        hit = never_touch(target)
+        if hit:
+            return f"Delete guard (#7343): refused `{target}`: {hit}. No code unlocks it.", []
+    reasons = [(target, reason) for target in targets for reason in [path_reason(target, project)] if reason]
+    if not reasons:
+        return "", []
+    code = code if code is not None else os.environ.get(ACK_ENV, "")
+    rejected = consume_code(code, targets) if code else "no code"
+    if not rejected:
+        return "", [f"`{target}`: {reason} (owner code accepted)" for target, reason in reasons]
+    target, reason = reasons[0]
+    hint = f"owner code rejected: {rejected}. " if code else ""
+    return (
+        f"Delete guard (#7251): refused `{target}`: {reason}. {hint}Commit and push it, back it up, "
+        f"add a scratch pattern to {STATE_DIR}/{ALLOW_FILE}, or run `tool.py delete-check --request-code <same paths>` "
+        f"and ask the owner to paste the code back in chat."
+    ), []
 
 
 def block_reason(command: str, cwd: Path | None = None, project: Path | None = None) -> str:
     """Hook entry point: '' to allow, else a refusal message."""
-    if not (DELETE_WORD.search(command) or RMTREE.search(command)):
-        return ""
-    try:
-        targets = command_targets(command, cwd)
-    except Unsure as error:
-        return f"Delete guard (#7251): refused, cannot tell what this deletes ({error}). Name literal paths and run `tool.py delete-check <paths>`."
-    for target in targets:
-        reason = path_reason(target, project)
-        if reason and not _acked(target):
-            return (
-                f"Delete guard (#7251): refused `{target}`: {reason}. Commit and push it, back it up, "
-                f"add a scratch pattern to {STATE_DIR}/{ALLOW_FILE}, or ask the owner for a {ACK_ENV} token."
-            )
-    return ""
-
-
-def issue_ack(path: Path, hours: float = 1.0) -> str:
-    """Owner-only: needs an interactive terminal and the typed path. Agents never call this."""
-    if not (sys.stdin.isatty() and sys.stdout.isatty()):
-        raise PermissionError("delete-ack needs the owner at an interactive terminal")
-    typed = input(f"Type the full path to allow deleting {path}: ").strip()
-    if Path(typed).expanduser().resolve() != path:
-        raise PermissionError("typed path does not match")
-    token = os.urandom(16).hex()
-    store = _ack_store()
-    store.parent.mkdir(parents=True, exist_ok=True)
-    acks = json.loads(store.read_text(encoding="utf-8")) if store.is_file() else {}
-    acks[hashlib.sha256(token.encode()).hexdigest()] = {"path": str(path), "expires": time.time() + hours * 3600}
-    store.write_text(json.dumps(acks, sort_keys=True), encoding="utf-8")
-    _log({"path": str(path), "issued": True})
-    return token
+    return check(command, cwd, project)[0]
 
 
 def doctor_check(root: Path) -> tuple[str, str]:
@@ -413,24 +490,36 @@ def backup_remote_status(project: Path) -> tuple[str, str]:
     return "warn", "; ".join(issues[:3]) + (f" (+{len(issues) - 3})" if len(issues) > 3 else "") + "; push or back up"
 
 
+def _rm(paths: list[str]) -> str:
+    return "rm -rf -- " + " ".join(shlex.quote(item) for item in paths)
+
+
 def main(arguments: list[str]) -> int:
-    if arguments[:1] == ["--command"] and len(arguments) == 2:
-        reason = block_reason(arguments[1], Path.cwd(), Path.cwd())
-    elif arguments[:1] == ["--issue-ack"] and len(arguments) == 2:
+    code = None
+    if arguments[:1] == ["--code"] and len(arguments) >= 2:
+        code, arguments = arguments[1], arguments[2:]
+    if arguments[:1] == ["--request-code"] and len(arguments) >= 2 and code is None:
         try:
-            print(issue_ack(Path(arguments[1]).expanduser().resolve()))
-            return 0
-        except PermissionError as error:
-            print(f"delete-ack: {error}", file=sys.stderr)
+            paths = list(dict.fromkeys(command_targets(_rm(arguments[1:]), Path.cwd())))
+            code = request_code(paths)
+        except (PermissionError, Unsure) as error:
+            print(f"delete-code: refused: {error}", file=sys.stderr)
             return 2
-    elif arguments:
-        reason = block_reason("rm -rf -- " + " ".join(shlex.quote(item) for item in arguments), Path.cwd(), Path.cwd())
+        print(f"delete-code: {code} (one use, {CODE_TTL // 60} min, {len(paths)} path(s)). Show it to the owner; "
+              f"after they paste it back run: tool.py delete-check --code <code> <same paths>")
+        return 0
+    if arguments[:1] == ["--command"] and len(arguments) == 2:
+        reason, warnings = check(arguments[1], Path.cwd(), Path.cwd(), code)
+    elif arguments and not arguments[0].startswith("--"):
+        reason, warnings = check(_rm(arguments), Path.cwd(), Path.cwd(), code)
     else:
-        print("usage: tool.py delete-check <paths...> | --command '<shell command>'", file=sys.stderr)
+        print("usage: tool.py delete-check [--code CODE] <paths...> | [--code CODE] --command '<cmd>' | --request-code <paths...>", file=sys.stderr)
         return 2
     if reason:
         print(reason, file=sys.stderr)
         return 1
+    for warning in warnings:
+        print(f"delete-check: warning: {warning}", file=sys.stderr)
     print("delete-check: allowed")
     return 0
 
