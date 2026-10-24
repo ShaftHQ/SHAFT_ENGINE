@@ -7,15 +7,15 @@ card, then update the SHA and date here.
 
 Pinned: 2026-10-03.
 
-Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 5 web-craft cards (W01-W05, references/web-craft), 6 lesson
-cards (L01-L06, no upstream code; sources listed per card), the
-innovation bank, 2 site-builder cards and 1 slides card. D23 draws on no
+Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 6 web-craft cards (W01-W06, references/web-craft), 2 video-craft cards (V07-V08, references/video-craft), 7 lesson
+cards (L01-L07, sources listed per card), the
+innovation bank, 2 site-builder cards and 1 slides card plus S03 native RTL (references/slides). D23 draws on no
 upstream repository; its sources are platform and W3C documentation
 listed in the card.
 
 | Upstream | Commit | Licence | Use | Cards |
 | --- | --- | --- | --- | --- |
-| [anthropics/skills](https://github.com/anthropics/skills) | `8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4` | Apache-2.0 (per-skill `LICENSE.txt`) | re-expressed: frontend-design, canvas-design, algorithmic-art, brand-guidelines, theme-factory | D02, D03, D07 |
+| [anthropics/skills](https://github.com/anthropics/skills) | `dbd4588f9e1033efb41dad4bef2f7947c8993d44` | Apache-2.0 (per-skill `LICENSE.txt`; `pptx` is proprietary and not used) | re-expressed: frontend-design, canvas-design, algorithmic-art, brand-guidelines, theme-factory | D02, D03, D07 |
 | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) | `e103efe779e2dd01274dabae83531fef00bf2563` | Apache-2.0 (NOTICE) | re-expressed anti-pattern rules | D03 |
 | [leonxlnx/taste-skill](https://github.com/leonxlnx/taste-skill) | `6010f91a9935f1c167dfc500fb1a475681892e6b` | MIT | re-expressed taste rules (v2 checks 2026-10-24) | D03, D07 |
 | [vercel-labs/web-interface-guidelines](https://github.com/vercel-labs/web-interface-guidelines) | `434b7f91364665f2f733b310ec54809bf8f37937` | MIT | audit rule set, referenced by pin | D04 |
@@ -23,7 +23,11 @@ listed in the card.
 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | `2d228630ba1446365f614a108cb8252f1feda202` | MIT | UI motion rules re-expressed | W02, D08 |
 | [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) | `0b9b10cab3dbf695642fa1a6c4b4f60df9083689` | MIT | diagram rules re-expressed | W05 |
 | [zarazhangrui/frontend-slides](https://github.com/zarazhangrui/frontend-slides) | `9906a34d640d2111f724544cbc50f7f130569ae1` | MIT | rendered style previews | slides deck-system |
-| [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes) | `b7343e3a95791bdc3448eddd6f00b4e73128b345` | Apache-2.0 | renderer and skill notes, referenced | D01, D09 |
+| [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes) | `1a238171ec55896a9cb8452c33e4e0fe1063a60c` | Apache-2.0 | renderer and skill notes, referenced; vertical, captions, overlays, review and sound rules adapted | D01, D09, V07, V08 |
+| [jakubkrehel/skills](https://github.com/jakubkrehel/skills) | `019ab7c199154f4509b55f12d84a4f5b578dc606` | MIT | better-typography rules adapted | W06 |
+| [almubarmij/arabic-ai-skills](https://github.com/almubarmij/arabic-ai-skills) | `08d3b9d14c2d1719c0b96f703bced8dccfe2076a` | MIT | cite only (low trust), Arabic type and mirroring | L07 |
+| [sultanalsafran/agent-skills](https://github.com/sultanalsafran/agent-skills) | `fc05be36316e5e5ea2ee0b5ec51519b411d54665` | MIT | arabic-presentations rules re-expressed; script not fetched or run | S03 |
+| [greensock/gsap-skills](https://github.com/greensock/gsap-skills) | `aed9cfd3277740755f6bfc1155c7aa645403b760` | MIT | referenced by pin | W03 |
 | [haidrrrry/claude-remotion-skill](https://github.com/haidrrrry/claude-remotion-skill) | `1dcbe5e3fc6cf970bd10d3cc05f0a8a5d19d0383` | MIT | engine-neutral motion rules re-expressed | D08 |
 | [bryanwhl/ffmpeg-video-editor](https://github.com/bryanwhl/ffmpeg-video-editor) | `d5c3ee6e9896fdabccd4e8b5d68149252bbb682c` | MIT | ffmpeg recipes re-expressed | D12 |
 | [naveedharri/video-editor](https://github.com/naveedharri/video-editor) | `9386307a9604c4a315bd56877d94d5a410b27648` | MIT | QA-before-preview idea | D12 |
@@ -51,8 +55,15 @@ Evaluated 2026-10-24, reference only and not vendored: UI UX Pro Max
   library (no redistribution). Only the W01/W02 rules are re-expressed.
 - Unicorn Studio (proprietary; free tier is branded) and its script (no
   licence): hover-reveal studied as reference only. Also reference only:
-  jakubkrehel/skills, archify, scroll-world. Skipped: stitch-skills and
-  website cloners (third-party trade dress).
+  archify, scroll-world (jakubkrehel/skills better-typography is adapted
+  in W06 since batch 3). Skipped: stitch-skills and website cloners
+  (third-party trade dress).
+- Batch 3 skips: nextlevelbuilder/ui-ux-pro-max (search scripts, CSV style
+  catalogs, CLI installer); the superpowers ai-video-generation forks
+  (cloned forks, inflated install counts, paid generation APIs);
+  remotion-dev/skills (company licence; we render with ffmpeg); the
+  hyperframes media-use and remove-background parts (sign-in, model
+  download); the arabic-presentations repair script.
 - getdesign.md catalog entries (third-party brand trade dress, no reuse licence).
 - Piper voices with non-commercial dataset licences (for example lessac).
 - RNNoise community model files without a licence.

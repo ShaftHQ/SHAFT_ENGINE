@@ -12,3 +12,4 @@ one web-craft card. The licence verdicts are in
 | [W03 web motion with GSAP](gsap-web-motion.md) | scroll-linked or timeline motion on a web page |
 | [W04 micro-polish](micro-polish.md) | a web UI, slide or still is done but "feels off"; image hover-reveal |
 | [W05 diagram design](diagram-design.md) | a diagram for a still, slide, page or video frame |
+| [W06 measured web type](web-typography-measured.md) | setting or reviewing line-height, weights, tracking, wrapping, numerals and type floors |

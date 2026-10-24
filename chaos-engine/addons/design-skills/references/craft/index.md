@@ -22,8 +22,10 @@ targets, an anchored rubric, and 20 verified references.
 
 - Field lessons (hooks over speech, mixed-script captions, talk edits,
   signed-output release, cross-surface takeaways): [lesson cards](../lessons/index.md).
-- Web craft (anti-generic lint, motion tokens, GSAP motion, micro-polish):
-  [web-craft cards](../web-craft/index.md).
+- Web craft (anti-generic lint, motion tokens, GSAP motion, micro-polish,
+  measured type): [web-craft cards](../web-craft/index.md).
+- Video craft (Shorts safe area and caption groups, film review and sound):
+  [video-craft cards](../video-craft/index.md).
 - Ideas for the three-direction stage: [innovation bank](innovation-bank.md).
 - Reference index and motion study: [research/index.md](../research/index.md),
   [motionmaxxing map](../research/motionmaxxing-map.md).

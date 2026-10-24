@@ -70,9 +70,9 @@ class DesignReelLessonsTest(unittest.TestCase):
             self.assertNotIn(old, inventory)
         self.assertIn("Unicorn Studio (proprietary", inventory)
 
-    def test_addon_description_counts_five_web_craft_cards(self) -> None:
+    def test_addon_description_counts_web_craft_cards(self) -> None:
         desc = (DESIGN / "addon.json").read_text(encoding="utf-8")
-        self.assertIn("five web-craft cards", desc)
+        self.assertIn("six web-craft cards", desc)
         self.assertIn("diagram design", desc)
         self.assertNotIn("four web-craft", desc)
 
