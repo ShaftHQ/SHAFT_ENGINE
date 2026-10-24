@@ -109,15 +109,43 @@ public class IncrementalResultStoreUnitTest {
     }
 
     @Test
-    public void hookRecordsAndMergesWithoutFailingTheRun() {
+    public void hookRecordsAndMergesWithoutFailingTheRun() throws IOException {
         var allure = com.shaft.driver.SHAFT.Properties.allure;
         com.shaft.tools.io.internal.IncrementalResultStoreHook.afterExecution(0);
+        Path results = Path.of(com.shaft.driver.SHAFT.Properties.paths.allureResults());
+        String uuid = "irs-hook-" + System.nanoTime();
+        long start = System.currentTimeMillis();
+        result(results, uuid, uuid, "passed", start + 1);
         allure.set().incrementalStore(true).incrementalStoreMerge(true).incrementalStoreJourney("unit-hook");
         try {
-            com.shaft.tools.io.internal.IncrementalResultStoreHook.afterExecution(System.currentTimeMillis());
-            Assert.assertFalse(allure.incrementalStoreJourney().isEmpty());
+            com.shaft.tools.io.internal.IncrementalResultStoreHook.afterExecution(start);
+            Path stored = Path.of("target", "passed-results", "unit-hook", uuid);
+            Assert.assertTrue(Files.exists(stored.resolve("manifest.json")));
+            Assert.assertTrue(Files.readString(stored.resolve("manifest.json")).contains("filesHash"));
         } finally {
             allure.set().incrementalStore(false).incrementalStoreMerge(false).incrementalStoreJourney("default");
+            for (String name : new String[]{uuid + "-result.json", uuid + "-attachment.png", "c" + uuid + "-container.json"}) {
+                Files.deleteIfExists(results.resolve(name));
+            }
         }
+    }
+
+    @Test
+    public void edgeCasesAreHandled() throws IOException {
+        Path tmp = Files.createTempDirectory("irs");
+        Assert.assertEquals(IncrementalResultStore.merge(tmp.resolve("none"), tmp.resolve("out"), c -> KEY).exitCode(),
+                IncrementalResultStore.MERGE_OK);
+        Assert.assertEquals(IncrementalResultStore.record(tmp.resolve("none"), tmp.resolve("store"), 0, c -> KEY), 0);
+        Assert.assertTrue(IncrementalResultStore.filesMatching(tmp, " , ").isEmpty());
+        Assert.assertTrue(IncrementalResultStore.filesMatching(tmp.resolve("none"), "**").isEmpty());
+        Files.createDirectories(tmp.resolve("store").resolve("no-manifest"));
+        Assert.assertTrue(IncrementalResultStore.merge(tmp.resolve("store"), tmp.resolve("out"), c -> KEY).merged().isEmpty());
+        result(tmp.resolve("results"), "u1", "h1", "broken", 100);
+        IncrementalResultStore.record(tmp.resolve("results"), tmp.resolve("store"), 0, c -> KEY);
+        result(tmp.resolve("results2"), "u2", "h1", "passed", 50);
+        IncrementalResultStore.record(tmp.resolve("results2"), tmp.resolve("store"), 0, c -> KEY);
+        Assert.assertTrue(Files.exists(tmp.resolve("store").resolve("h1").resolve("failures.jsonl")));
+        Assert.assertEquals(IncrementalResultStore.merge(tmp.resolve("store"), tmp.resolve("out"), c -> KEY).flagged(),
+                java.util.List.of("h1"));
     }
 }
