@@ -51,7 +51,7 @@ extends [D03 web visual direction](../web-visual-direction.md) and
 
 ## Verify
 
-- [ ] Lint report: each of the 5 tells is listed as absent or as earned
+- [ ] Lint report: each of the 7 tells is listed as absent or as earned
       by the brief, with the brief line quoted.
 - [ ] Every finding has a tier; no Floor finding is open; every Reflex
       overrule quotes its reason.

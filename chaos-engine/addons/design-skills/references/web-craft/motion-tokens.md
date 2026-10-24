@@ -39,8 +39,9 @@ A web UI needs transitions. It extends
 11. No hover effects on touch: gate them with `@media (hover: hover)`.
 12. Image hover-reveal motion: see [W04 micro-polish](micro-polish.md);
     it reads these tokens and the reduced-motion rule above.
-13. Reference only: this card records patterns. Copy no text, snippets or
-   assets from the source library.
+13. Rules 1-3 are reference only from transitions.dev. Copy no text,
+   snippets or assets from that library. Rules 4-11 are adapted from
+   emilkowalski/skills with attribution.
 
 ## Verify
 

@@ -3,7 +3,7 @@
   "kind": "addon",
   "name": "design-skills",
   "title": "Design skills",
-  "description": "Twenty-three verified design cards for web, image, social post visuals, motion graphics, video editing, cutting, color, audio, noise removal, restoration, captions, and delivery, plus twelve craft cards, five lesson cards (hook speech match, mixed-script captions, talk edit and layers, signed-output release, cross-surface takeaways), four web-craft cards (anti-generic lint, motion tokens, GSAP web motion, micro-polish) and a zero-LLM QC script.",
+  "description": "Twenty-three verified design cards for web, image, social post visuals, motion graphics, video editing, cutting, color, audio, noise removal, restoration, captions, and delivery, plus twelve craft cards, five lesson cards (hook speech match, mixed-script captions, talk edit and layers, signed-output release, cross-surface takeaways), five web-craft cards (anti-generic lint, motion tokens, GSAP web motion, micro-polish, diagram design) and a zero-LLM QC script.",
   "useWhen": "designing a web surface, image, motion graphic, or video, or checking one against objective quality gates",
   "requires": [],
   "router": "SKILL.md"

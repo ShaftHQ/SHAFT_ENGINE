@@ -16,11 +16,12 @@ GROUPS = {
         "**Floor** blocks delivery", "Invented facts are Floor on all surfaces", "**Reflex**",
         "overrule with a reason on record", "**Finish**: advise, never block", "Built from the job",
         "the page ends on it", "eyebrow label over every heading", "tracked all-caps labels",
-        "caseless scripts", "Credit openly licensed photos", "Nutlope/hallmark", "MIT"),
+        "caseless scripts", "each of the 7 tells", "Credit openly licensed photos", "Nutlope/hallmark", "MIT"),
     "web-craft/motion-tokens.md": (
         "Should it animate?", "high-frequency actions", "Never animate from `scale(0)`", "`scale(0.9)`-`scale(0.97)`",
         "interruptible", "`transform` and `opacity` only", "blur masks a rough swap",
-        "subsequent peers open instantly", "springs", "`@media (hover: hover)`", "emilkowalski/skills", "MIT"),
+        "subsequent peers open instantly", "springs", "`@media (hover: hover)`", "emilkowalski/skills", "MIT",
+        "Rules 1-3 are reference only from transitions.dev", "Rules 4-11 are adapted"),
     "web-craft/micro-polish.md": (
         "Decorative only", "pixel-registered", "50% overlay", "pointer CSS vars", "`--x`, `--y`",
         "commercial and unbranded", "rAF-throttled", "`(hover: none)`", "never tap-gated",
@@ -68,6 +69,12 @@ class DesignReelLessonsTest(unittest.TestCase):
         for old in ("ce26fc25c0e5", "e3d624baaf29"):
             self.assertNotIn(old, inventory)
         self.assertIn("Unicorn Studio (proprietary", inventory)
+
+    def test_addon_description_counts_five_web_craft_cards(self) -> None:
+        desc = (DESIGN / "addon.json").read_text(encoding="utf-8")
+        self.assertIn("five web-craft cards", desc)
+        self.assertIn("diagram design", desc)
+        self.assertNotIn("four web-craft", desc)
 
     def test_new_cards_are_project_neutral(self) -> None:
         banned = ("automatest", "shaft", "mohab", "price", *private_terms())
