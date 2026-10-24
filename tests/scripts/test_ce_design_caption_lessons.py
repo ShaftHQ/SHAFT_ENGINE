@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import subprocess  # nosec B404 - fixed list-form argv in tests, never a shell.
 import sys
 import tempfile
