@@ -180,6 +180,7 @@ public final class ExecutionLifecycleHelper {
         Thread.ofVirtual().start(GoogleTink::encrypt);
         Thread.ofVirtual().start(() -> FirestoreRestClient.sendTelemetry(
                 executionStartTime, executionEndTime, counts.passed(), counts.failed(), counts.skipped(), counts.flaky()));
+        com.shaft.tools.io.internal.IncrementalResultStoreHook.afterExecution(executionStartTime);
         ReportManagerHelper.logEngineClosure();
         AllureManager.openAllureReportAfterExecution();
         AllureManager.generateAllureReportArchive();

@@ -79,6 +79,50 @@ public interface Allure extends EngineProperties<Allure> {
     boolean cleanResultsDirectory();
 
     /**
+     * Opt-in incremental per-test pass store (#7335): after each run, passed results (with attachments and
+     * fixture containers) are copied to {@code target/passed-results/<journey>/<testId>/} with a validity
+     * manifest (git SHA, app sha256, files-hash, SHAFT version); failures are appended to {@code failures.jsonl}.
+     * <p>Property key: {@code allure.incrementalStore} — default: {@code false}
+     *
+     * @return {@code true} to record passes into the incremental store
+     */
+    @Key("allure.incrementalStore")
+    @DefaultValue("false")
+    boolean incrementalStore();
+
+    /**
+     * Merge the still-valid stored passes into the results folder before the report is generated (#7335);
+     * stale and flagged passes are logged and left out.
+     * <p>Property key: {@code allure.incrementalStoreMerge} — default: {@code false}
+     *
+     * @return {@code true} to build the report from the incremental store
+     */
+    @Key("allure.incrementalStoreMerge")
+    @DefaultValue("false")
+    boolean incrementalStoreMerge();
+
+    /**
+     * Journey (sub-folder) name used by the incremental pass store.
+     * <p>Property key: {@code allure.incrementalStoreJourney} — default: {@code default}
+     *
+     * @return the journey name
+     */
+    @Key("allure.incrementalStoreJourney")
+    @DefaultValue("default")
+    String incrementalStoreJourney();
+
+    /**
+     * Comma-separated globs (relative to the project root) of shared sources hashed into every stored pass's
+     * files-hash, in addition to the test class source.
+     * <p>Property key: {@code allure.incrementalStoreHashGlobs}
+     *
+     * @return the glob list
+     */
+    @Key("allure.incrementalStoreHashGlobs")
+    @DefaultValue("pom.xml,src/main/java/**,src/test/java/**/base/**,src/test/resources/**")
+    String incrementalStoreHashGlobs();
+
+    /**
      * Whether a self-contained ZIP archive of the generated Allure report should be created
      * after the test run. Useful for sharing or archiving reports in CI pipelines.
      * <p>Property key: {@code allure.generateArchive} — default: {@code false}
@@ -306,6 +350,39 @@ public interface Allure extends EngineProperties<Allure> {
          */
         public SetProperty cleanResultsDirectory(boolean value) {
             setProperty("allure.cleanResultsDirectory", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.incrementalStore} property at runtime.
+         *
+         * @param value {@code true} to record passes into the incremental store
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty incrementalStore(boolean value) {
+            setProperty("allure.incrementalStore", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.incrementalStoreMerge} property at runtime.
+         *
+         * @param value {@code true} to merge valid stored passes before reporting
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty incrementalStoreMerge(boolean value) {
+            setProperty("allure.incrementalStoreMerge", String.valueOf(value));
+            return this;
+        }
+
+        /**
+         * Overrides the {@code allure.incrementalStoreJourney} property at runtime.
+         *
+         * @param value journey name
+         * @return this {@link SetProperty} instance for chaining
+         */
+        public SetProperty incrementalStoreJourney(String value) {
+            setProperty("allure.incrementalStoreJourney", value);
             return this;
         }
 
