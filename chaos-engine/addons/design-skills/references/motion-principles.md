@@ -77,6 +77,9 @@ For UI motion tokens and GSAP, see [W02](web-craft/motion-tokens.md) and
   ([C07](craft/motion-graphics-craft.md)).
 - An e2e test or screenshot shows the reduced-motion variant.
 
+Web UI checks (should-it-animate, no `scale(0)`, interruptible
+transitions): [W02](web-craft/motion-tokens.md).
+
 ## Sources
 
 Thomas and Johnston, *The Illusion of Life* (twelve principles, paraphrased);

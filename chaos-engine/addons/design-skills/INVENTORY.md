@@ -7,7 +7,7 @@ card, then update the SHA and date here.
 
 Pinned: 2026-10-03.
 
-Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 4 web-craft cards (W01-W04, references/web-craft), 5 lesson
+Cards: 23 step cards (D01-D23), 12 craft cards (C01-C12), 5 web-craft cards (W01-W05, references/web-craft), 5 lesson
 cards (L01-L05, no upstream code; sources listed per card), the
 innovation bank, 2 site-builder cards and 1 slides card. D23 draws on no
 upstream repository; its sources are platform and W3C documentation
@@ -17,8 +17,12 @@ listed in the card.
 | --- | --- | --- | --- | --- |
 | [anthropics/skills](https://github.com/anthropics/skills) | `8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4` | Apache-2.0 (per-skill `LICENSE.txt`) | re-expressed: frontend-design, canvas-design, algorithmic-art, brand-guidelines, theme-factory | D02, D03, D07 |
 | [pbakaus/impeccable](https://github.com/pbakaus/impeccable) | `e103efe779e2dd01274dabae83531fef00bf2563` | Apache-2.0 (NOTICE) | re-expressed anti-pattern rules | D03 |
-| [leonxlnx/taste-skill](https://github.com/leonxlnx/taste-skill) | `ce26fc25c0e5e8cab638f883de62d9a86ee5e45b` | MIT | re-expressed taste rules | D03, D07 |
-| [vercel-labs/web-interface-guidelines](https://github.com/vercel-labs/web-interface-guidelines) | `e3d624baaf29dc1fc645aff3e38f03e564d2d6b1` | MIT | audit rule set, referenced by pin | D04 |
+| [leonxlnx/taste-skill](https://github.com/leonxlnx/taste-skill) | `6010f91a9935f1c167dfc500fb1a475681892e6b` | MIT | re-expressed taste rules (v2 checks 2026-10-24) | D03, D07 |
+| [vercel-labs/web-interface-guidelines](https://github.com/vercel-labs/web-interface-guidelines) | `434b7f91364665f2f733b310ec54809bf8f37937` | MIT | audit rule set, referenced by pin | D04 |
+| [Nutlope/hallmark](https://github.com/Nutlope/hallmark) | `7ec868225c6caa040558c321ee0fefa0e73f83a8` | MIT | gate tiers, built-from-the-job, label tells re-expressed (theme catalog not used) | W01 |
+| [emilkowalski/skills](https://github.com/emilkowalski/skills) | `2d228630ba1446365f614a108cb8252f1feda202` | MIT | UI motion rules re-expressed | W02, D08 |
+| [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design) | `0b9b10cab3dbf695642fa1a6c4b4f60df9083689` | MIT | diagram rules re-expressed | W05 |
+| [zarazhangrui/frontend-slides](https://github.com/zarazhangrui/frontend-slides) | `9906a34d640d2111f724544cbc50f7f130569ae1` | MIT | rendered style previews | slides deck-system |
 | [heygen-com/hyperframes](https://github.com/heygen-com/hyperframes) | `b7343e3a95791bdc3448eddd6f00b4e73128b345` | Apache-2.0 | renderer and skill notes, referenced | D01, D09 |
 | [haidrrrry/claude-remotion-skill](https://github.com/haidrrrry/claude-remotion-skill) | `1dcbe5e3fc6cf970bd10d3cc05f0a8a5d19d0383` | MIT | engine-neutral motion rules re-expressed | D08 |
 | [bryanwhl/ffmpeg-video-editor](https://github.com/bryanwhl/ffmpeg-video-editor) | `d5c3ee6e9896fdabccd4e8b5d68149252bbb682c` | MIT | ffmpeg recipes re-expressed | D12 |
@@ -45,6 +49,10 @@ Evaluated 2026-10-24, reference only and not vendored: UI UX Pro Max
 
 - The impeccable CLI and detector (remote API, telemetry) and the transitions.dev
   library (no redistribution). Only the W01/W02 rules are re-expressed.
+- Unicorn Studio (proprietary; free tier is branded) and its script (no
+  licence): hover-reveal studied as reference only. Also reference only:
+  jakubkrehel/skills, archify, scroll-world. Skipped: stitch-skills and
+  website cloners (third-party trade dress).
 - getdesign.md catalog entries (third-party brand trade dress, no reuse licence).
 - Piper voices with non-commercial dataset licences (for example lessac).
 - RNNoise community model files without a licence.

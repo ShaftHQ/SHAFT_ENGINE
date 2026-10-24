@@ -7,7 +7,7 @@ requires.
 
 | Resource | Licence | Maintenance (last push) | Overlap | Verdict | Reason |
 | --- | --- | --- | --- | --- | --- |
-| [Taste Skill](https://github.com/Leonxlnx/taste-skill) @ `6010f91` | MIT | active (2026-10-20) | already re-expressed in D03/D07 at pin `ce26fc2` | **reference** (keep the pin) | Its brief → art direction → 3-width self-screenshot loop matches the D04 audit and L04 self-review. Refresh the pin only after reading the upstream diff. |
+| [Taste Skill](https://github.com/Leonxlnx/taste-skill) @ `6010f91` | MIT | active (2026-10-20) | D03/D07 (pin was `ce26fc2`) | **adopt** (pin bumped to `6010f91`) | v2 checks (two-line headlines, five-second first screen, equal margins, one signature move, 1440/768/390 screenshot gate) re-expressed in D03 after reading the upstream SKILL.md. |
 | [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) @ `d14efff` | MIT | very active (2026-10-23) | D05 type, D06 colour, D04 audit | **reference** | A searchable palette, font-pair and UX-rule database is useful for picking options. It is large and changes fast, so link it by pin and don't copy it. Picks still pass D05/D06 contrast and size checks. |
 | [design-motion-principles](https://github.com/kylezantos/design-motion-principles) @ `4a9ca87` | MIT | slow (2026-05-30) | D08 motion, C07 | **reference** (candidate to adapt) | Its audit mode (motion-gap analysis, an anti-slop motion checklist, mandatory reduced motion) is a good lens for card fades and CTA motion. Adapt items into D08 only one rule at a time, with attribution and a red-then-green check. |
 | [getdesign.md](https://getdesign.md) | catalog: no clear licence; the spec it follows, [google-labs-code/design.md](https://github.com/google-labs-code/design.md) @ `6e5da53`, is Apache-2.0 | catalog active; spec active (2026-10-16) | D02 brand tokens | **skip the catalog, reference the spec** | Catalog entries describe third-party brands' trade dress and carry no licence to reuse. The DESIGN.md spec and its `lint` give a portable token-and-rationale format and a contrast lint for D02. |
@@ -21,6 +21,11 @@ requires.
 | [transitions.dev](https://github.com/Jakubantalik/transitions.dev) | custom: use and modify allowed; no redistribution of the library | active (2026-10-23) | D08 | **reference only** (W02) | Patterns only: motion tokens as CSS vars, a reduced-motion fallback, origin-aware open/close. No text or code is copied. |
 | [gsap-skills](https://github.com/greensock/gsap-skills) @ `aed9cfd` | MIT | active (2026-07-29) | D08, D09 | **reference** (W03 pointer) | The official ScrollTrigger and core skills are linked by pin. Reduced motion via `gsap.matchMedia()` is mandatory. |
 | [make-interfaces-feel-better](https://github.com/jakubkrehel/make-interfaces-feel-better) @ `35545ea` | MIT | active (2026-08-29) | D04 | **adapt** with attribution (W04) | A micro-polish checklist, applied to web, slides and stills. |
+| [hallmark](https://github.com/Nutlope/hallmark) @ `7ec8682` | MIT | active (2026-10-22) | W01, D04 | **adopt** | Floor/Reflex/Finish gate tiers, built-from-the-job and two label tells re-expressed in W01; theme catalog skipped. |
+| [emilkowalski/skills](https://github.com/emilkowalski/skills) @ `2d22863` | MIT | active (2026-10-11) | W02, D08 | **adopt** | Should-it-animate, no `scale(0)`, interruptible transitions, springs for drag, no hover on touch re-expressed in W02. |
+| [diagram-design](https://github.com/cathrynlavery/diagram-design) @ `0b9b10c` | MIT | active (2026-10-24) | image-graphics | **adopt** | Node, edge, accent, label and removal rules re-expressed in W05. |
+| [frontend-slides](https://github.com/zarazhangrui/frontend-slides) @ `9906a34` | MIT | 2026-06-23 | slides deck-system | **adopt** | Pick a style from rendered previews, not adjectives. |
+| [Unicorn Studio](https://www.unicorn.studio/) | proprietary (free tier branded) | n/a | W04 hover-reveal | **reference** only | Cursor-mask hover-reveal studied; rebuilt natively with CSS masks. |
 
 Suggested order when a brand task needs them: DESIGN.md spec (plus the
 extractor on your own site), then a motion audit lens, then font and palette

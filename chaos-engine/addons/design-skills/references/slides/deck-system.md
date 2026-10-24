@@ -37,6 +37,11 @@ One system across every chapter of a course:
 - After a branded document conversion, check every header: conversions
   can drop header images.
 
+- Picking a style: show rendered previews of 2-3 candidate styles (one
+  real slide each) and let the owner pick; never pick from adjectives.
+  Adapted from [frontend-slides](https://github.com/zarazhangrui/frontend-slides)
+  @9906a34 by Zara Zhang, MIT.
+
 ## Section trackers on dividers
 
 - One tracker per part or chapter level; drop sub-topic trackers inside a

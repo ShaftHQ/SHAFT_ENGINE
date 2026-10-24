@@ -26,6 +26,17 @@ design-system components, and screenshots of the current state.
 - One signature element tied to the product (a real terminal transcript, a
   live status badge, a diagram), not decoration.
 
+## Taste checks
+
+- Derive the idea and image prompts from the subject, not a style list.
+- Every headline fits in two lines or fewer at every width.
+- The first screen answers the visitor's first question, big: a stranger
+  reading it for five seconds can say what this is and what to do.
+- Equal outer margins at every width; asymmetry lives inside the grid.
+- One signature move, done well.
+- Screenshot gate at 1440, 768 and 390 px, then fix and re-shoot until
+  clean.
+
 ## Unslop list
 
 Avoid unless the brief justifies it in writing:
@@ -56,4 +67,4 @@ Avoid unless the brief justifies it in writing:
 ## Sources
 
 Re-expressed with attribution from Anthropic `frontend-design` (Apache-2.0),
-pbakaus/impeccable (Apache-2.0, NOTICE kept), and leonxlnx/taste-skill (MIT).
+pbakaus/impeccable (Apache-2.0, NOTICE kept), and leonxlnx/taste-skill (MIT, pin in INVENTORY).
