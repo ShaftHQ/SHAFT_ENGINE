@@ -51,6 +51,8 @@ and [L03](talk-edit-and-layers.md).
 - [ ] `design_qc.py cuegaps cues.srt --join <t>` passes for every splice.
 - [ ] `design_qc.py asrhall words.json` passes, or each hit is logged and
       dropped.
+      Words files use `word|w`, `start|s`, `end|e`; phrases match across
+      consecutive words.
 - [ ] `design_qc.py boundprefix cues.srt` passes after every cue edit.
 - [ ] `design_qc.py fadetail --words words.json --end <s> --fade <s>`
       passes.

@@ -94,6 +94,33 @@ class CaptionChecksTest(unittest.TestCase):
         self.pair("asrhall", "كلام مفيد\nشكرا للمشاهدة\n", "كلام مفيد\n", ".txt")
         self.pair("asrhall", json.dumps([{"word": "Bye", "start": 9, "end": 9.4}]), json.dumps([{"word": "maybe", "start": 9, "end": 9.4}]), ".json")
 
+    def test_asrhall_joins_consecutive_words(self) -> None:
+        def words(*tokens: str) -> str:
+            return json.dumps([{"word": w, "start": i, "end": i + 0.4} for i, w in enumerate(tokens)])
+        self.pair("asrhall", words("كلام", "اشتركوا", "في", "القناة"), words("اشتركوا", "معنا", "في", "القناة"), ".json")
+        self.pair("asrhall", json.dumps({"segments": [{"words": [{"w": "شكرا", "s": 1, "e": 1.3}, {"w": "للمشاهدة", "s": 1.3, "e": 2}]}]}),
+                  json.dumps({"segments": [{"words": [{"w": "شكرا", "s": 1, "e": 1.3}, {"w": "لكم", "s": 1.3, "e": 2}]}]}), ".json")
+
+    def test_short_word_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            words = Path(folder) / "w.json"
+            words.write_text(json.dumps([{"w": "a", "s": 0, "e": 2.0}]), encoding="utf-8")
+            code, payload = run_qc("fadetail", "--words", str(words), "--end", "2.3", "--fade", "0.12")
+            self.assertEqual((0, 2.0), (code, payload["last_word"]))
+            self.assertEqual(1, run_qc("fadetail", "--words", str(words), "--end", "2.1", "--fade", "0.3")[0])
+        self.pair("asrhall", json.dumps({"words": [{"w": "Thanks", "s": 1, "e": 1.2}, {"w": "for", "s": 1.2, "e": 1.3}, {"w": "watching", "s": 1.3, "e": 2}]}),
+                  json.dumps({"words": [{"w": "Thanks", "s": 1, "e": 1.2}, {"w": "for", "s": 1.2, "e": 1.3}, {"w": "coming", "s": 1.3, "e": 2}]}), ".json")
+
+    def test_bidi_reports_real_srt_line_and_cue(self) -> None:
+        cues = [(i * 2, i * 2 + 1.5, "مرحبا بكم") for i in range(25)] + [(50, 52, "اكتب command --help الآن")]
+        with tempfile.TemporaryDirectory() as folder:
+            file = Path(folder) / "c.srt"
+            file.write_text(srt(*cues), encoding="utf-8")
+            line = next(n for n, text in enumerate(file.read_text(encoding="utf-8").splitlines(), 1) if "--help" in text)
+            code, payload = run_qc("bidi", str(file))
+        self.assertEqual((1, 103), (code, line))
+        self.assertEqual([f"{file}:103 (cue 26) dash-at-latin-edge"], payload["hits"])
+
     def test_boundprefix_after_cue_edit(self) -> None:
         self.pair("boundprefix", srt((0, 2, "اذهب إلى البيت و\nثم ارجع")), srt((0, 2, "اذهب إلى البيت\nوثم ارجع")))
 

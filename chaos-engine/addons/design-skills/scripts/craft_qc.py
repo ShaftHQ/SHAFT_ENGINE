@@ -260,40 +260,78 @@ HALLUCINATIONS = ("اشتركوا في القناة", "شكرا للمشاهدة
 BOUND = re.compile(r"(?:^|\s)(?:[وبلكف]|[\u0600-\u06FF]{1,2}\u0640)\s*$")
 
 
-def strings_of(file: Path) -> list[str]:
-    """Text lines to check: JSON string values (hook/label specs), else file lines minus SRT timing."""
+WORD_KEYS, START_KEYS, END_KEYS = ("word", "w", "text"), ("start", "s"), ("end", "e")
+
+
+def _key(item: dict, keys: tuple[str, ...]):
+    return next((item[k] for k in keys if k in item), None)
+
+
+def words_of(data) -> list[dict]:
+    """Word-level ASR entries in any common shape: {word|w, start|s, end|e}, top-level or under words/segments."""
+    found: list[dict] = []
+
+    def walk(node):
+        if isinstance(node, list):
+            for value in node:
+                walk(value)
+        elif isinstance(node, dict):
+            word = _key(node, WORD_KEYS[:2])
+            if isinstance(word, str):
+                start, end = _key(node, START_KEYS), _key(node, END_KEYS)
+                found.append({"word": word.strip(), "start": None if start is None else float(start),
+                              "end": None if end is None else float(end)})
+                return
+            for value in node.values():
+                walk(value)
+    walk(data)
+    return found
+
+
+def strings_of(file: Path) -> list[tuple[str, str]]:
+    """(location, text) pairs: JSON string values (hook/label specs), else real file lines; SRT adds the cue number."""
     text = file.read_text(encoding="utf-8", errors="replace")
     if file.suffix == ".json":
-        out: list[str] = []
+        out: list[tuple[str, str]] = []
 
-        def walk(node):
+        def walk(node, path):
             if isinstance(node, str):
-                out.extend(node.splitlines())
+                out.extend((f"{path or '$'}", line) for line in node.splitlines())
             elif isinstance(node, dict):
-                for value in node.values():
-                    walk(value)
+                for key, value in node.items():
+                    walk(value, f"{path}.{key}")
             elif isinstance(node, list):
-                for value in node:
-                    walk(value)
-        walk(json.loads(text))
+                for index, value in enumerate(node):
+                    walk(value, f"{path}[{index}]")
+        walk(json.loads(text), "")
         return out
     if file.suffix in {".html", ".htm"}:
-        text = re.sub(r"<bdi\b[^>]*>.*?</bdi>", "", text, flags=re.S | re.I)
+        text = re.sub(r"<bdi\b[^>]*>.*?</bdi>", lambda m: "\n" * m.group(0).count("\n"), text, flags=re.S | re.I)
         text = re.sub(r"<[^>]+>", " ", text)
-    return [line for line in text.splitlines() if "-->" not in line and not line.strip().isdigit()]
+    lines = text.splitlines()
+    out, cue = [], 0
+    for number, line in enumerate(lines, 1):
+        if "-->" in line:
+            cue += 1
+            continue
+        if line.strip().isdigit() and number < len(lines) and "-->" in lines[number]:
+            continue
+        where = f"{number}" + (f" (cue {cue})" if file.suffix in {".srt", ".vtt"} and cue else "")
+        out.append((where, line))
+    return out
 
 
 def cmd_bidi(qc, args) -> int:
     hits, warnings = [], []
     files = files_of(args.path, {".srt", ".vtt", ".txt", ".json", ".html", ".htm", ".md"})
     for file in files:
-        for number, line in enumerate(strings_of(file), 1):
+        for where, line in strings_of(file):
             if not RTL.search(line) or "design-qc: allow" in line:
                 continue
             bare = ISOLATE.sub(" ", line)
-            hits += [f"{file}:{number} {rule}" for rule, pat in BIDI.items() if re.search(pat, bare)]
+            hits += [f"{file}:{where} {rule}" for rule, pat in BIDI.items() if re.search(pat, bare)]
             if PERCENT.search(line):
-                warnings.append(f"{file}:{number} percent-in-rtl (normal RTL order, warn only)")
+                warnings.append(f"{file}:{where} percent-in-rtl (normal RTL order, warn only)")
     return qc.report("bidi", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits, warnings=warnings)
 
 
@@ -310,12 +348,19 @@ def cmd_cuegaps(qc, args) -> int:
 def cmd_asrhall(qc, args) -> int:
     file = Path(args.file)
     phrases = [p.lower() for p in (*HALLUCINATIONS, *args.phrase)]
+    texts = [(where, line) for where, line in strings_of(file) if "design-qc: allow" not in line]
+    if file.suffix == ".json":
+        words = words_of(json.loads(file.read_text(encoding="utf-8")))
+        if words:  # match phrases across consecutive words, not word by word
+            texts = []
+            for index in range(len(words)):
+                run = " ".join(w["word"] for w in words[index:index + 6])
+                texts.append((f"word {index + 1} @{words[index]['start']}s", run))
     hits = []
-    for number, line in enumerate(strings_of(file), 1):
-        if "design-qc: allow" in line:
-            continue
-        low = line.lower()
-        hits += [f"{number} {p}" for p in phrases if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", low)]
+    for where, line in texts:
+        low = re.sub(r"\s+", " ", line.lower())
+        anchor = "^" if where.startswith("word ") else r"(?<!\w)"  # word runs: phrase starts at this word
+        hits += [f"{where} {p}" for p in phrases if re.search(anchor + re.escape(p) + r"(?!\w)", low)]
     return qc.report("asrhall", qc.FAIL if hits else qc.PASS, hits=hits)
 
 
@@ -328,8 +373,10 @@ def cmd_boundprefix(qc, args) -> int:
 
 def cmd_fadetail(qc, args) -> int:
     data = json.loads(Path(args.words).read_text(encoding="utf-8"))
-    items = data.get("words", data) if isinstance(data, dict) else data
-    last = max(float(w["end"]) for w in items)
+    ends = [w["end"] for w in words_of(data) if w["end"] is not None]
+    if not ends:
+        return qc.report("fadetail", qc.FAIL, hits=["no word end times (keys end|e) in words file"])
+    last = max(ends)
     hits = []
     if args.end < last + args.pause - 1e-6:
         hits.append(f"span end {args.end:.3f}s before last word {last:.3f}s + pause {args.pause}s")
