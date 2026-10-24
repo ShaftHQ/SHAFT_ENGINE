@@ -32,7 +32,9 @@ ACK_ENV = "CHAOS_DELETE_ACK"
 CODE_TTL = 600
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 # No code unlocks these: a path segment matching a name, or a browser profile dir.
-NEVER_NAMES = ("ROG*", "wt-relblock", "wt-ls", "ce-src-*", "yt", "designer-ws.git.retired")
+NEVER_NAMES = ("ROG*", "yt", "designer-ws.git.retired")
+# Old renders inside yt/ (not yt/meta/) such as clip.r3.mp4 go through the owner-code flow.
+YT_RENDER = re.compile(r".+\.r\d+\.mp4")
 NEVER_PATTERNS = ("**/.config/google-chrome*/**", "**/.config/chromium/**", "**/*chrome*-profile*/**")
 NEVER_FILE = Path("~/.config/chaos-engine/never-delete.txt")
 # Generic scratch: temp, caches, build output, video render output.
@@ -326,11 +328,19 @@ def _never_rules() -> tuple[list[str], list[str]]:
     return names, patterns
 
 
+def _yt_render(path: Path, part: str) -> bool:
+    """An old ``*.rN.mp4`` render under yt/ but outside yt/meta/."""
+    after = path.parts[path.parts.index(part) + 1 :]
+    return bool(after) and "meta" not in after and YT_RENDER.fullmatch(path.name) is not None
+
+
 def never_touch(path: Path) -> str:
     """Non-empty when no code may unlock deleting ``path`` (itself, inside, or directly containing a protected dir)."""
     names, patterns = _never_rules()
     for part in path.parts:
         hit = next((name for name in names if fnmatchcase(part, name)), "")
+        if hit == "yt" and _yt_render(path, part):
+            continue
         if hit:
             return f"never-touch `{hit}`"
     text = str(path)
