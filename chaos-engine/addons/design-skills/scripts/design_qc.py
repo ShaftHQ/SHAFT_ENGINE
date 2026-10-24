@@ -464,6 +464,9 @@ def cmd_loudness(args: argparse.Namespace) -> int:
         if not match:
             raise ValueError(f"no {label} in ebur128 summary")
         return float(match.group(1))
+    if getattr(args, "profile", None):
+        args.target, args.tolerance, args.max_peak = {"r128": (-23.0, 1.0, -1.0), "atsc": (-24.0, 2.0, -2.0),
+                                                      "podcast": (-16.0, 1.0, -1.0), "spotify": (-14.0, 1.0, -1.0)}[args.profile]
     integrated, lra, peak = value(r"I"), value(r"LRA"), value(r"Peak")
     problems = []
     if abs(integrated - args.target) > args.tolerance:
@@ -1755,9 +1758,9 @@ def cmd_all(args: argparse.Namespace) -> int:
     return report("all", worst, steps=len(plan.get("checks", [])), cached=cached)
 
 
-def craft_qc():
-    """Load the sibling craft checks (motion grammar, copy, layout, rhythm)."""
-    spec = importlib.util.spec_from_file_location("design_craft_qc", Path(__file__).with_name("craft_qc.py"))
+def craft_qc(name: str = "craft_qc"):
+    """Load a sibling check module (craft: motion, copy, layout, rhythm; surface: tokens, a11y, decks, OG)."""
+    spec = importlib.util.spec_from_file_location(f"design_{name}", Path(__file__).with_name(f"{name}.py"))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -1858,6 +1861,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--tolerance", type=float, default=1.0)
     p.add_argument("--max-peak", type=float, default=-1.0)
     p.add_argument("--max-lra", type=float, default=11.0)
+    p.add_argument("--profile", choices=("r128", "atsc", "podcast", "spotify"),
+                   help="delivery loudness map; sets target, tolerance and max peak")
     for name, func, text in (("colortags", cmd_colortags, "BT.709 tags"), ("levels", cmd_levels, "legal luma range"),
                              ("flash", cmd_flash, "flash rate")):
         p = add(name, func, text)
@@ -1986,6 +1991,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--max-pixels", type=int, default=0, help="pixels above tol allowed")
     add("doctor", cmd_doctor, "which tools are present")
     craft_qc().register(add, sys.modules[__name__])
+    craft_qc("surface_qc").register(add, sys.modules[__name__])
     p = add("all", cmd_all, "run a JSON plan of checks")
     p.add_argument("plan")
     p.add_argument("--cache", help="JSON cache: skip steps whose inputs match a cached pass")

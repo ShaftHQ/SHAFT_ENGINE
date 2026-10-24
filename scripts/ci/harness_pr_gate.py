@@ -517,6 +517,7 @@ CHECKS = {
             "tests.scripts.test_ce_design_web_craft",
             "tests.scripts.test_ce_design_reels",
             "tests.scripts.test_ce_design_caption_lessons",
+            "tests.scripts.test_ce_design_batch3",
             "tests.scripts.test_ce_addons",
             "tests.scripts.test_ce_design_craft",
         ),
@@ -1099,6 +1100,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_ce_design_web_craft.py",
         "tests/scripts/test_ce_design_reels.py",
         "tests/scripts/test_ce_design_caption_lessons.py",
+        "tests/scripts/test_ce_design_batch3.py",
     ),
     # #6524-#6529: durable jobs outlive agent-session kills; one worker per job.
     "durable-jobs": (

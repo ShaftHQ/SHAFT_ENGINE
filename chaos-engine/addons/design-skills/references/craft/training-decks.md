@@ -71,6 +71,8 @@ platform's own render, not the local one.
   and pptx import traps: [deck assets and import](../slides/deck-assets-and-import.md).
 
 Multi-chapter system and review order: [deck system](../slides/deck-system.md).
+Arabic or bilingual PPTX (native RTL, no bidi controls): [S03](../slides/arabic-pptx-native-bidi.md).
+Generated decks (pptxgenjs, template slots, notes): [S04](../slides/pptxgenjs-gotchas-notes.md).
 
 ## Source safety
 

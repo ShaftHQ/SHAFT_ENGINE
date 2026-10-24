@@ -95,3 +95,5 @@ in the handoff.
 Lessons from a multi-size RTL post series; platform story safe-zone
 guidance (Meta stories specs); W3C "Inline markup and bidirectional text in
 HTML" for `<bdi>`.
+
+Post-type slots and thumbnails: [I01](stills/thumbnails-generated-stills.md); link previews: [W14](web-craft/og-image.md).

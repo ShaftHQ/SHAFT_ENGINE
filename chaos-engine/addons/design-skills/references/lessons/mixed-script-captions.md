@@ -44,7 +44,8 @@ Burned-in captions, hook lines or labels mix RTL and Latin. It extends
    in an RTL line reorder it («It’s» shows as «s'It», «--help» as
    «help--»). Use ASCII ' inside a word, or wrap the whole run, neutrals
    included, in LRI U+2066 ... PDI U+2069. The rule covers hook and
-   label text, not only SRT.
+   label text, not only SRT. Scope: isolates are for burned captions and
+   HTML only, never PPTX; decks use native `rtl="1"` ([S03](../slides/arabic-pptx-native-bidi.md)).
 10. «70%» showing as «%70» in an Arabic line is normal RTL order: warn,
     never fail.
 

@@ -34,6 +34,11 @@ DURATION = re.compile(r"(?:transition|animation)[^;{}]*?(\d*\.?\d+)(ms|s)\b|dura
 # story: 1080x1920 feed story, top ~250 px profile bar, bottom ~340 px link sticker.
 SAFE = {"9x16": (0.06, 0.14, 0.06, 0.35), "story": (0.06, 0.13, 0.06, 0.18), "1x1": (0.05, 0.05, 0.05, 0.05), "16x9": (0.05, 0.05, 0.05, 0.10)}
 
+# 1080x1920 app UI map (px): words only inside the band; below it decoration only.
+PX_MAP = {"9x16": (168, 1330, 1080)}
+BIDI_CONTROLS = re.compile("[\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069]")
+ARABIC = re.compile("[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]")
+
 
 def files_of(root: str, suffixes: set[str]) -> list[Path]:
     base = Path(root)
@@ -102,8 +107,14 @@ def cmd_typescale(qc, args) -> int:
 
 
 def cmd_safezones(qc, args) -> int:
-    left, top, right, bottom = SAFE[args.format]
     boxes = json.loads(Path(args.file).read_text(encoding="utf-8"))["boxes"]
+    if args.px_map:
+        top, floor, width = PX_MAP[args.px_map]
+        hits = [b.get("id", "?") for b in boxes if b.get("kind", "text") != "decoration"
+                and (b["y"] < top or b["y"] + b["h"] > floor or (args.rail and b["x"] + b["w"] > width - args.rail))]
+        return qc.report("safezones", qc.FAIL if hits else qc.PASS, hits=hits, px_map=args.px_map,
+                         band=[top, floor], rail=args.rail)
+    left, top, right, bottom = SAFE[args.format]
     hits = [b.get("id", "?") for b in boxes
             if b["x"] < left or b["y"] < top or b["x"] + b["w"] > 1 - right or b["y"] + b["h"] > 1 - bottom]
     return qc.report("safezones", qc.FAIL if hits else qc.PASS, hits=hits, format=args.format)
@@ -402,6 +413,143 @@ def cmd_cuemids(qc, args) -> int:
     return qc.report("cuemids", qc.PASS if cues else qc.FAIL, midpoints=mids, probes=snapped, notes=problems)
 
 
+def cue_list(qc, path: str) -> list[dict]:
+    return qc.parse_cues(Path(path).read_text(encoding="utf-8"))
+
+
+def gray_at(qc, path: str, at: float, crop: str | None = None) -> bytes:
+    """One grayscale frame at `at` seconds (optionally cropped), scaled to 64 px wide."""
+    chain = [f"select=gte(t\\,{at:.3f})"] if at > 0 else []
+    chain += [f"crop={crop}"] if crop else []
+    chain.append("scale=64:-2:flags=area,format=gray")
+    return qc.decode_raw(path, ["-an", "-vf", ",".join(chain), "-frames:v", "1", "-f", "rawvideo"])
+
+
+def cmd_capluma(qc, args) -> int:
+    """Brightness behind each cue's text box picks the blend; plain subtitles over 60 need a text-sized scrim."""
+    x, y, w, h = (int(v) for v in args.box.split(","))
+    rows = []
+    for index, cue in enumerate(cue_list(qc, args.cues), 1):
+        frame = gray_at(qc, args.file, (cue["start"] + cue["end"]) / 2, f"{w}:{h}:{x}:{y}")
+        if not frame:
+            continue
+        luma = round(sum(frame) / len(frame), 1)
+        blend = "screen" if luma < 60 else "overlay" if luma <= 180 else "normal+opaque"
+        rows.append({"cue": index, "luma": luma, "blend": blend})
+    hits = [f"cue {r['cue']}: luma {r['luma']} behind plain subtitles needs a 30-40% text-sized scrim"
+            for r in rows if args.plain and r["luma"] > 60]
+    return qc.report("capluma", qc.FAIL if hits else qc.PASS, cues=rows, hits=hits)
+
+
+def cmd_firstframe(qc, args) -> int:
+    """Frame 0 is the thumbnail: not black, not flat; captions start 0.1-0.3 s in."""
+    frame = gray_at(qc, args.file, 0)
+    mean = sum(frame) / len(frame)
+    spread = statistics.pstdev(frame)
+    hits = []
+    if mean < args.black or spread < args.flat:
+        hits.append(f"empty first frame (mean {mean:.1f}, spread {spread:.1f})")
+    if args.cues:
+        cues = cue_list(qc, args.cues)
+        if cues and cues[0]["start"] < 0.1:
+            hits.append(f"first cue at {cues[0]['start']:.2f}s looks pre-existing; start 0.1-0.3 s in")
+    return qc.report("firstframe", qc.FAIL if hits else qc.PASS, mean=round(mean, 1), spread=round(spread, 1), hits=hits)
+
+
+def cmd_deadair(qc, args) -> int:
+    """Over max seconds with a static picture and silent audio; a film over 15 s with no sound."""
+    probe = qc.ffprobe(args.file)
+    duration = float(probe.get("format", {}).get("duration", 0) or 0)
+    has_audio = any(s.get("codec_type") == "audio" for s in probe.get("streams", []))
+    hits = []
+    if not has_audio:
+        if duration > args.silent_film:
+            hits.append(f"film_silent: {duration:.1f}s with no audio stream")
+        quiet = [(0.0, duration)]
+    else:
+        log = qc.ffmpeg_filter_log(args.file, f"silencedetect=n={args.noise}dB:d={args.max}", audio=True)
+        starts = [float(v) for v in re.findall(r"silence_start: (-?[\d.]+)", log)]
+        ends = [float(v) for v in re.findall(r"silence_end: ([\d.]+)", log)] + [duration]
+        quiet = list(zip(starts, ends))
+    grid = "scale='if(gt(iw,ih),32,18)':'if(gt(iw,ih),18,32)':flags=area,format=gray"
+    raw = qc.decode_raw(args.file, ["-an", "-vf", f"fps={args.fps},{grid}", "-f", "rawvideo"])
+    frames = [raw[i:i + 576] for i in range(0, len(raw) - 575, 576)]
+    spans, _ = qc.static_spans(frames, args.fps, args.thresh, args.max, [])
+    warnings = []
+    for span in spans:
+        overlap = max((min(span["end"], b) - max(span["start"], a) for a, b in quiet), default=0.0)
+        if overlap > args.max:
+            text = f"{span['start']:.2f}-{span['end']:.2f}s: static picture and silent audio"
+            # A held end card (list or CTA card, V07 rule 14) is the last span after real content: warn only.
+            if span["start"] > 0 and span["end"] >= duration - 2 / args.fps:
+                warnings.append(f"final_hold {text}")
+            else:
+                hits.append(f"dead_stretch {text}")
+    return qc.report("deadair", qc.FAIL if hits else qc.PASS, duration=round(duration, 2), hits=hits, warnings=warnings)
+
+
+def cmd_textfloor(qc, args) -> int:
+    """Text under 2.6% of the frame's short side; nothing read under 28 px on portrait."""
+    spec = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    width, height = (int(v) for v in str(spec.get("frame", args.frame)).lower().split("x"))
+    floor = max(args.ratio * min(width, height), args.portrait_px if height > width else 0)
+    hits = [f"{b.get('id', '?')}: {b['size']}px under {floor:.1f}px" for b in spec["boxes"]
+            if b.get("kind", "text") != "decoration" and float(b["size"]) < floor - 1e-6]
+    return qc.report("textfloor", qc.FAIL if hits else qc.PASS, floor_px=round(floor, 1), hits=hits)
+
+
+def cmd_mediaclamp(qc, args) -> int:
+    """Last cue or card ends after the media: the render ends in black."""
+    duration = float(qc.ffprobe(args.media).get("format", {}).get("duration", 0) or 0)
+    cues = cue_list(qc, args.cues)
+    hits = [f"cue {i} ends {c['end']:.3f}s after media {duration:.3f}s" for i, c in enumerate(cues, 1)
+            if c["end"] > duration + args.tolerance]
+    return qc.report("mediaclamp", qc.FAIL if hits else qc.PASS, media_s=round(duration, 3), hits=hits)
+
+
+def cmd_artrack(qc, args) -> int:
+    """Letter-spacing on Arabic text breaks the joins: it stays normal."""
+    hits = []
+    spaced = re.compile(r"letter-spacing\s*:(?!\s*(?:normal|0(?:\.0+)?(?:em|px|rem)?\s*(?:[;}\"']|$)))\s*[^;}\"'\s][^;}\"']*", re.I)
+    for file in files_of(args.path, {".css", ".html", ".htm", ".svg", ".json"}):
+        text = file.read_text(encoding="utf-8", errors="replace")
+        for selector, body, _hover, _line in css_rules(text):
+            if re.search(r":lang\(ar|\[lang=['\"]?ar|\[dir=['\"]?rtl|arab", selector, re.I) and spaced.search(body):
+                hits.append(f"{file}: {selector.strip()[:60]} letter-spacing on Arabic")
+        for match in re.finditer(r"<[^>]*style=['\"]([^'\"]*)['\"][^>]*>([^<]*)", text):
+            if spaced.search(match.group(1) + ";") and ARABIC.search(match.group(2)):
+                hits.append(f"{file}:{text.count(chr(10), 0, match.start()) + 1} inline letter-spacing on Arabic")
+        if file.suffix == ".json":
+            for node in re.finditer(r"\{[^{}]*\}", text):
+                block = node.group(0)
+                if ARABIC.search(block) and re.search(r"\"(letter_?spacing|letterSpacing|tracking)\"\s*:\s*(-?[1-9]|-?0?\.\d*[1-9])", block):
+                    hits.append(f"{file}:{text.count(chr(10), 0, node.start()) + 1} tracking on Arabic text")
+    return qc.report("artrack", qc.FAIL if hits else qc.PASS, hits=hits)
+
+
+def cmd_pptxbidi(qc, args) -> int:
+    """PPTX Arabic: native rtl="1" per paragraph, no Unicode bidi controls in text."""
+    import zipfile
+    hits, warnings = [], []
+    with zipfile.ZipFile(args.file) as deck:
+        names = sorted(n for n in deck.namelist() if re.match(r"ppt/(slides|notesSlides|slideLayouts)/[^/]+\.xml$", n))
+        for name in names:
+            xml = deck.read(name).decode("utf-8", errors="replace")
+            for number, para in enumerate(re.findall(r"<a:p>.*?</a:p>|<a:p .*?</a:p>", xml, re.S), 1):
+                text = "".join(re.findall(r"<a:t>([^<]*)</a:t>", para))
+                if BIDI_CONTROLS.search(text):
+                    hits.append(f"{name} p{number}: Unicode bidi control in PPTX text (use native rtl)")
+                if not ARABIC.search(text):
+                    continue
+                if not re.search(r"<a:pPr\b[^>]*\brtl=\"1\"", para):
+                    hits.append(f"{name} p{number}: Arabic paragraph without <a:pPr rtl=\"1\">")
+                if re.match(r"\s*[\u2022\u25cf\-\*]\s", text):
+                    hits.append(f"{name} p{number}: typed bullet; use native bullets")
+                if 'lang="ar' not in para:
+                    warnings.append(f"{name} p{number}: Arabic runs without lang ar-*")
+    return qc.report("pptxbidi", qc.FAIL if hits else qc.PASS, slides=len(names), hits=hits, warnings=warnings)
+
+
 def register(add, qc) -> None:
     """Add the craft subcommands to design_qc's parser."""
     def bind(func):
@@ -458,6 +606,8 @@ def register(add, qc) -> None:
     p = add("safezones", bind(cmd_safezones), "text boxes inside platform safe zones")
     p.add_argument("file")
     p.add_argument("--format", choices=sorted(SAFE), default="9x16")
+    p.add_argument("--px-map", choices=sorted(PX_MAP), help="px boxes on 1080x1920: words inside 168-1330")
+    p.add_argument("--rail", type=int, default=0, help="right action-rail width in px for the platform (0 = off)")
     p = add("endhold", bind(cmd_endhold), "frozen end-card hold length")
     p.add_argument("file")
     p.add_argument("--max", type=float, default=1.4)
@@ -477,3 +627,33 @@ def register(add, qc) -> None:
     p.add_argument("file")
     p.add_argument("--max-shot", type=float, default=4.0)
     p.add_argument("--cut", type=float, default=3.0)
+    p = add("capluma", bind(cmd_capluma), "luma behind caption box picks blend; plain subtitles over 60 need a scrim")
+    p.add_argument("file")
+    p.add_argument("--cues", required=True)
+    p.add_argument("--box", required=True, help="x,y,w,h in px of the caption box")
+    p.add_argument("--plain", action="store_true", help="plain subtitles with no scrim")
+    p = add("firstframe", bind(cmd_firstframe), "empty first frame; first cue before 0.1 s")
+    p.add_argument("file")
+    p.add_argument("--cues")
+    p.add_argument("--black", type=float, default=16.0)
+    p.add_argument("--flat", type=float, default=4.0)
+    p = add("deadair", bind(cmd_deadair), "static picture with silent audio over max s; silent film over 15 s")
+    p.add_argument("file")
+    p.add_argument("--max", type=float, default=3.0)
+    p.add_argument("--silent-film", type=float, default=15.0)
+    p.add_argument("--noise", type=float, default=-35.0)
+    p.add_argument("--fps", type=float, default=10.0)
+    p.add_argument("--thresh", type=float, default=6.0)
+    p = add("textfloor", bind(cmd_textfloor), "text under 2.6%% of the short side (28 px on portrait)")
+    p.add_argument("file")
+    p.add_argument("--frame", default="1080x1920")
+    p.add_argument("--ratio", type=float, default=0.026)
+    p.add_argument("--portrait-px", type=float, default=28.0)
+    p = add("mediaclamp", bind(cmd_mediaclamp), "cue or card ends past the media's ffprobe length")
+    p.add_argument("cues")
+    p.add_argument("media")
+    p.add_argument("--tolerance", type=float, default=0.001)
+    p = add("artrack", bind(cmd_artrack), "letter-spacing on Arabic text")
+    p.add_argument("path")
+    p = add("pptxbidi", bind(cmd_pptxbidi), "Arabic PPTX paragraphs: native rtl, no bidi controls, native bullets")
+    p.add_argument("file")

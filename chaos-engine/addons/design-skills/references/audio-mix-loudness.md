@@ -72,3 +72,5 @@ Run after D16 (noise removal) and D17 (voice-over).
 
 EBU R128 with Tech 3341 and 3342; ITU-R BS.1770; AES TD1008 streaming
 loudness recommendations.
+
+Platform loudness map: [V09](video-craft/grade-and-loudness-map.md).
