@@ -40,6 +40,13 @@ Burned-in captions, hook lines or labels mix RTL and Latin. It extends
    trailing filler word. Don't end a line on a bound prefix
    (و/ب/ل/ك/ف/الـ), not just a stranded article. Keep a narrow
    placeholder whitelist (فلان/كذا) so the lint does not flag them.
+9. Neutral characters break isolates: ’ ‘ " - -- : touching a Latin run
+   in an RTL line reorder it («It’s» shows as «s'It», «--help» as
+   «help--»). Use ASCII ' inside a word, or wrap the whole run, neutrals
+   included, in LRI U+2066 ... PDI U+2069. The rule covers hook and
+   label text, not only SRT.
+10. «70%» showing as «%70» in an Arabic line is normal RTL order: warn,
+    never fail.
 
 ## Verify
 
@@ -52,6 +59,8 @@ Burned-in captions, hook lines or labels mix RTL and Latin. It extends
 - [ ] Lint passes: «،» between Latin terms, no cue ending on a filler,
       no line ending on a bound prefix, only whitelisted placeholders.
 - [ ] The shipped SRT, not only the render, carries the fixes.
+- [ ] `design_qc.py bidi <captions|hooks.json|labels>` passes (percent
+      warnings allowed); rendered frames show no tofu.
 
 ## Sources
 

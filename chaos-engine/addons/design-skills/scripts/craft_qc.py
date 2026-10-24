@@ -243,6 +243,117 @@ def cmd_floor(qc, args) -> int:
             hits.append(f"{number} reflex-overrule-without-reason")
     return qc.report("floor", qc.FAIL if hits else qc.PASS, hits=hits)
 
+# Caption and video lessons, batch b (#7351): L02 bidi, L06 caption/video QC.
+RTL = re.compile(r"[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]")
+ISOLATE = re.compile(r"[\u2066\u2067\u2068].*?\u2069", re.S)
+EDGE = r"(?=$|[\s\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF.,،؛؟!?])"
+LEAD = r"(?:^|(?<=[\s\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]))"
+BIDI = {
+    "curly-quote-in-latin": r"[A-Za-z][\u2018\u2019]|[\u2018\u2019][A-Za-z]",
+    "double-quote-at-latin": r"[A-Za-z0-9]\"|\"[A-Za-z]",
+    "dash-at-latin-edge": LEAD + r"-{1,2}[A-Za-z]|[A-Za-z0-9]-{1,2}" + EDGE,
+    "colon-at-latin-edge": r"[A-Za-z0-9]:" + EDGE,
+}
+PERCENT = re.compile(r"\d\s?[%\u066A]|[%\u066A]\s?\d")
+HALLUCINATIONS = ("اشتركوا في القناة", "شكرا للمشاهدة", "شكرا على المشاهدة", "thanks for watching",
+                  "thank you for watching", "please subscribe", "bye")
+BOUND = re.compile(r"(?:^|\s)(?:[وبلكف]|[\u0600-\u06FF]{1,2}\u0640)\s*$")
+
+
+def strings_of(file: Path) -> list[str]:
+    """Text lines to check: JSON string values (hook/label specs), else file lines minus SRT timing."""
+    text = file.read_text(encoding="utf-8", errors="replace")
+    if file.suffix == ".json":
+        out: list[str] = []
+
+        def walk(node):
+            if isinstance(node, str):
+                out.extend(node.splitlines())
+            elif isinstance(node, dict):
+                for value in node.values():
+                    walk(value)
+            elif isinstance(node, list):
+                for value in node:
+                    walk(value)
+        walk(json.loads(text))
+        return out
+    if file.suffix in {".html", ".htm"}:
+        text = re.sub(r"<bdi\b[^>]*>.*?</bdi>", "", text, flags=re.S | re.I)
+        text = re.sub(r"<[^>]+>", " ", text)
+    return [line for line in text.splitlines() if "-->" not in line and not line.strip().isdigit()]
+
+
+def cmd_bidi(qc, args) -> int:
+    hits, warnings = [], []
+    files = files_of(args.path, {".srt", ".vtt", ".txt", ".json", ".html", ".htm", ".md"})
+    for file in files:
+        for number, line in enumerate(strings_of(file), 1):
+            if not RTL.search(line) or "design-qc: allow" in line:
+                continue
+            bare = ISOLATE.sub(" ", line)
+            hits += [f"{file}:{number} {rule}" for rule, pat in BIDI.items() if re.search(pat, bare)]
+            if PERCENT.search(line):
+                warnings.append(f"{file}:{number} percent-in-rtl (normal RTL order, warn only)")
+    return qc.report("bidi", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits, warnings=warnings)
+
+
+def cmd_cuegaps(qc, args) -> int:
+    cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    eps = 1e-3
+    def covered(at: float) -> bool:
+        return any(c["start"] - eps <= at <= c["end"] + eps for c in cues)
+    hits = [f"join {join:.3f}s has no caption" for join in args.join
+            if not all(covered(at) for at in (join - args.frame, join, join + args.frame))]
+    return qc.report("cuegaps", qc.FAIL if hits else qc.PASS, joins=len(args.join), hits=hits)
+
+
+def cmd_asrhall(qc, args) -> int:
+    file = Path(args.file)
+    phrases = [p.lower() for p in (*HALLUCINATIONS, *args.phrase)]
+    hits = []
+    for number, line in enumerate(strings_of(file), 1):
+        if "design-qc: allow" in line:
+            continue
+        low = line.lower()
+        hits += [f"{number} {p}" for p in phrases if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", low)]
+    return qc.report("asrhall", qc.FAIL if hits else qc.PASS, hits=hits)
+
+
+def cmd_boundprefix(qc, args) -> int:
+    cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    hits = [f"cue {i}: line ends on a bound prefix" for i, cue in enumerate(cues, 1)
+            for line in cue["lines"] if BOUND.search(ISOLATE.sub("", line).rstrip())]
+    return qc.report("boundprefix", qc.FAIL if hits else qc.PASS, cues=len(cues), hits=hits)
+
+
+def cmd_fadetail(qc, args) -> int:
+    data = json.loads(Path(args.words).read_text(encoding="utf-8"))
+    items = data.get("words", data) if isinstance(data, dict) else data
+    last = max(float(w["end"]) for w in items)
+    hits = []
+    if args.end < last + args.pause - 1e-6:
+        hits.append(f"span end {args.end:.3f}s before last word {last:.3f}s + pause {args.pause}s")
+    if args.fade > 0.15 + 1e-6:
+        hits.append(f"tail fade {args.fade}s over 0.15s dims the last word")
+    if args.end - args.fade < last - 1e-6:
+        hits.append("fade starts before the last word ends")
+    return qc.report("fadetail", qc.FAIL if hits else qc.PASS, last_word=last, hits=hits)
+
+
+def cmd_cuemids(qc, args) -> int:
+    cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    mids = [round((c["start"] + c["end"]) / 2, 3) for c in cues]
+    snapped, problems = [], []
+    for probe in args.probe:
+        cue = min(cues, key=lambda c: 0 if c["start"] <= probe <= c["end"] else min(abs(probe - c["start"]), abs(probe - c["end"])))
+        lo, hi = cue["start"] + 0.25, cue["end"] - 0.25
+        if lo > hi:
+            problems.append(f"probe {probe}: cue shorter than 0.5 s, use its midpoint")
+            snapped.append(round((cue["start"] + cue["end"]) / 2, 3))
+        else:
+            snapped.append(round(min(max(probe, lo), hi), 3))
+    return qc.report("cuemids", qc.PASS if cues else qc.FAIL, midpoints=mids, probes=snapped, notes=problems)
+
 
 def register(add, qc) -> None:
     """Add the craft subcommands to design_qc's parser."""
@@ -262,6 +373,25 @@ def register(add, qc) -> None:
     p.add_argument("path")
     p = add("floor", bind(cmd_floor), "open Floor finding or unreasoned Reflex overrule in a review")
     p.add_argument("file")
+    p = add("bidi", bind(cmd_bidi), "Latin runs with neutral chars outside an isolate in RTL text (captions, hooks, labels)")
+    p.add_argument("path")
+    p = add("cuegaps", bind(cmd_cuegaps), "captionless frames at splice joins")
+    p.add_argument("file")
+    p.add_argument("--join", type=float, action="append", default=[])
+    p.add_argument("--frame", type=float, default=1 / 30)
+    p = add("asrhall", bind(cmd_asrhall), "ASR pause hallucinations in a transcript")
+    p.add_argument("file")
+    p.add_argument("--phrase", action="append", default=[])
+    p = add("boundprefix", bind(cmd_boundprefix), "caption line ending on a bound prefix")
+    p.add_argument("file")
+    p = add("fadetail", bind(cmd_fadetail), "tail fade clears the last spoken word")
+    p.add_argument("--words", required=True)
+    p.add_argument("--end", type=float, required=True)
+    p.add_argument("--fade", type=float, required=True)
+    p.add_argument("--pause", type=float, default=0.2)
+    p = add("cuemids", bind(cmd_cuemids), "cue midpoints and snapped probe times for contact sheets")
+    p.add_argument("file")
+    p.add_argument("--probe", type=float, action="append", default=[])
     p = add("fadeonly", bind(cmd_fadeonly), "opacity-only keyframe entries")
     p.add_argument("path")
     p = add("springs", bind(cmd_springs), "visible springs or overshoots per film")
