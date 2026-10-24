@@ -518,6 +518,8 @@ CHECKS = {
             "tests.scripts.test_ce_design_reels",
             "tests.scripts.test_ce_design_caption_lessons",
             "tests.scripts.test_ce_design_batch3",
+            "tests.scripts.test_harness_isolated_imports",
+            "tests.scripts.test_guard_split",
             "tests.scripts.test_ce_addons",
             "tests.scripts.test_ce_design_craft",
         ),

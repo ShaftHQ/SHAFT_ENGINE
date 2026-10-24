@@ -87,12 +87,20 @@ command, 404 mark); the candidate install still runs.
   bot pushes as the owner's account, don't retry the approval. Rely on the
   required checks and the merge queue, and say in the report that no
   approval was given.
+- If GitHub suspends a bot machine account, keep working: commit locally
+  with the bot identity, and the owner's account pushes and opens the PR.
+  This is current practice; don't create a replacement bot account to get
+  around the suspension.
 
 ## A rerun replays the old event
 
 `gh run rerun` replays the original event payload, so it never sees an edited
 PR body or title. To re-evaluate a body gate, trigger a new event (push a
 commit, or close and reopen the PR).
+
+`gh run rerun` on a run that is still in progress fails with a message that
+reads as if the workflow file were broken. The workflow is fine: wait for the
+run to finish (or `gh run cancel <run-id>`), then rerun.
 
 ## Release watch
 

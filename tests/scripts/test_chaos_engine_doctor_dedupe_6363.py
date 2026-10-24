@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from tests.scripts.test_chaos_engine_installer import MODULE
 
 GAP = "GAP-EXIT2: verify host trust."

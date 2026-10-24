@@ -29,8 +29,9 @@ work. Five stages, in order; one CPU-heavy job at a time.
 - Launch every render as a core [durable job](../../../../references/durable-jobs.md),
   never inside one long agent turn and never as a bare background command:
   `python3 .chaos-engine/tool.py job start build --part-dir cache --part-dir out -- nice -n 19 python build.py --only master`.
-  A second worker is refused while the lease is live. Sessions die at about
-  45-50 min, and the job keeps running.
+  A second worker is refused while the lease is live. Stop the session at
+  35 minutes ([session cap](../../../../references/bot-entry.md#session-cap-grok-bot-default));
+  the job keeps running.
 - The build records each finished step with
   `python3 .chaos-engine/tool.py job checkpoint build <step>` and skips a step
   that `job checkpoint build <step> --check` (or its cached output) already
