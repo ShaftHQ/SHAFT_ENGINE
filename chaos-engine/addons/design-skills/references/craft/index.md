@@ -26,6 +26,8 @@ targets, an anchored rubric, and 20 verified references.
   measured type): [web-craft cards](../web-craft/index.md).
 - Video craft (Shorts safe area and caption groups, film review and sound):
   [video-craft cards](../video-craft/index.md).
+- Thumbnails, generated stills and post-type slots: [I01](../stills/thumbnails-generated-stills.md).
+- Charts, figures and print: [G01](../dataviz/dataviz-integrity-print.md).
 - Ideas for the three-direction stage: [innovation bank](innovation-bank.md).
 - Reference index and motion study: [research/index.md](../research/index.md),
   [motionmaxxing map](../research/motionmaxxing-map.md).

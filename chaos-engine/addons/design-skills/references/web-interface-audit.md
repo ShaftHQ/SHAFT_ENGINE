@@ -80,3 +80,5 @@ and [W04](web-craft/micro-polish.md).
 
 vercel-labs/web-interface-guidelines (MIT, referenced by pin); WCAG 2.2;
 NN/g usability heuristics.
+
+WCAG 2.2 measured: [W09](web-craft/a11y-wcag22-measured.md); colour tokens: [W08](web-craft/color-tokens-oklch.md).

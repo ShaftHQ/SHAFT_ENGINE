@@ -64,3 +64,5 @@ or a master shows wrong levels, washed-out blacks, or shifted brand colors.
 
 ITU-R BT.709; FFmpeg `zscale`, `colorspace`, `lut3d`, and scope filters;
 ACES and DaVinci Resolve documentation (concepts only).
+
+Grade order and AI clips: [V09](video-craft/grade-and-loudness-map.md).

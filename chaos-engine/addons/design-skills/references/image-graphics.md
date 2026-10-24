@@ -90,3 +90,5 @@ post, a poster, an icon, or an architecture diagram.
 Re-expressed with attribution from Anthropic `canvas-design` and
 `algorithmic-art` (Apache-2.0) and leonxlnx/taste-skill (MIT); platform
 thumbnail guidance.
+
+Thumbnails and generated stills: [I01](stills/thumbnails-generated-stills.md); charts: [G01](dataviz/dataviz-integrity-print.md).

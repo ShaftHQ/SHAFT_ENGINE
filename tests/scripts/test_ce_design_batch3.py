@@ -21,7 +21,13 @@ HAS_FFMPEG = bool(shutil.which("ffmpeg") and shutil.which("ffprobe"))
 HYPERFRAMES = "1a238171ec55896a9cb8452c33e4e0fe1063a60c"
 PINS = (HYPERFRAMES, "019ab7c199154f4509b55f12d84a4f5b578dc606", "08d3b9d14c2d1719c0b96f703bced8dccfe2076a",
         "fc05be36316e5e5ea2ee0b5ec51519b411d54665", "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
-        "aed9cfd3277740755f6bfc1155c7aa645403b760")
+        "aed9cfd3277740755f6bfc1155c7aa645403b760", "c172996495bed0fcd26896a9416b2093fd7073f0",
+        "9a6930cf84a822eb458624bd11c61aac5bbdf224", "0e81f040e16d48fcc61d3e1b7ea548542371321f",
+        "afa8da942115f2961fdbfa80807ea0b232ff6c00", "0e181866f095b5f06d005133876e926515390d95",
+        "8c85352d5d75d4dcbe58480bd138e37b9742bab1", "f83af0bc1d937c8119099a11f8ebbf5e6fb99819",
+        "1567581c26ec29f4216c6e6835415bf30343b0e3", "fd1629067909ff55b36b905476de4e5f26062a1f",
+        "33d3dea41a341b341d4f5da2e8801ae0c89be2b8", "593377bb048752abb0152deab9fbb1083a6087df",
+        "ca8c888abeffa8616b611032510c631d43a263ef", "412f6318084d33b4946f31f06849a34bbb49051a")
 NEEDLES = {
     "video-craft/shorts-safe-area-captions.md": (
         "top 168 px", "y 168-1330", "right action rail", "never black, never a logo", "0.1-0.3 s in", "28 px",
@@ -43,13 +49,44 @@ NEEDLES = {
         "`text-box: trim-both cap alphabetic`", "`from-font`", "code keeps straight quotes", "L02 rule 9 wins",
         "320 px width or 200% zoom", "**Floor**", "MIT", "design_qc.py artrack"),
     "lessons/arabic-rtl-type-mirroring.md": (
-        "Letter-spacing stays normal on Arabic", "about 1.7", "one step", "Mirror the visual result, not the code",
+        "Letter-spacing stays normal on Arabic", "body 1.5-1.7", "one step", "No italic on Arabic", "الـ, بالـ or للـ",
+        "No `direction: ltr` ancestor", "(ص/م)", "no licence: cite only", "design_qc.py arabiccss", "design_qc.py alprefix", "Mirror the visual result, not the code",
         "Directional icons follow reading direction", "Sentinel first", "Cite only", "design_qc.py artrack"),
     "slides/arabic-pptx-native-bidi.md": (
         "No Unicode bidi controls in PPTX text", '`<a:pPr rtl="1">`', '`<a:bodyPr rtlCol="1">`', "`ar-SA`",
         "`<a:cs>`", "One base direction per paragraph", "separate LTR text boxes", "Native bullets only",
         "semantic reading order is Arabic", "not the authority", "PASS or NOT RUN", "never fetched or run",
         "never PPTX", "design_qc.py pptxbidi"),
+    "web-craft/ui-spacing-grid-score.md": ("4, 8, 16, 24, 32, 48, 64 px", "not `#000`", "375 / 768 / 1024 / 1440",
+                                           "`round(pass / 8 × 10)`", "DESIGN.md", "design_qc.py spacing"),
+    "web-craft/color-tokens-oklch.md": ("primitives (`--blue-600`)", "within 15°", "10° hue spread", "fg L under 0.45",
+                                        "APCA |Lc| 60", "rendered composite", "`@media (color-gamut: p3)`", "`#121212`",
+                                        "did not measure", "design_qc.py tokens", "design_qc.py oklch", "design_qc.py p3fallback"),
+    "web-craft/a11y-wcag22-measured.md": ("3:1", "(2.4.11)", "`scroll-margin-top`", "24×24 CSS px", "(2.5.7)", "(2.2.2)",
+                                          "`document.title`", "HIGH only", "design_qc.py a11yscan"),
+    "web-craft/ui-motion-review.md": ("100+ times", "300 ms or less", "never `ease-in`", "`scale(0)`", "0.9-0.97",
+                                      "30-80 ms", "gentler, not zero", "10 px", "live on-screen value", "design_qc.py a11yscan"),
+    "web-craft/threejs-post-inspire.md": ("`composer.setSize`", "glow only", "Inspiration only"),
+    "web-craft/social-proof-patterns.md": ("decision points", "Credibility ladder", "about 9 quotes", "Authority vs impact",
+                                           "3-6 one-line reactions", "challenge → solution → measurable result",
+                                           "personal data blurred", "never invent", "cite only"),
+    "web-craft/nav-and-pricing-patterns.md": ("mega menu", "announcement bar", "comparison table below", "one highlighted tier",
+                                              "never state amounts", "cite only"),
+    "web-craft/og-image.md": ("1200×630", "6 words or fewer", "4.5:1", "2.6%", "600 px wide", "design_qc.py ogimage"),
+    "video-craft/grade-and-loudness-map.md": ("conform and tag", "luma and contrast before hue", "display-referred",
+                                              "`00:12-00:17 what · change · protect`", "20 dB", "-23 LUFS ±1",
+                                              "-24 LKFS ±2", "-27 LKFS dialogue-gated", "-16 LUFS ±1", "-14 LUFS",
+                                              "--profile r128"),
+    "video-craft/sidecar-captions-titles.md": ("Prefer a sidecar file", "42 characters", "20 characters a second", "`WEBVTT`",
+                                               "3 a second", "never auto-wrapped", "design_qc.py sidecar"),
+    "stills/thumbnails-generated-stills.md": ("at least 5 truthful concepts", "40-60% of the frame", "0-3", "2-4 words",
+                                              "never baked", "regenerate", "90%", "away from faces", "Post-type slots",
+                                              "design_qc.py thumb"),
+    "slides/pptxgenjs-gotchas-notes.md": ("10 × 5.625 in", "never 8-digit", "options object", "`bullet: true`", "`addNotes`",
+                                          "delete the whole unused", "60-70%", "150-300 words", "design_qc.py pptxlint"),
+    "dataviz/dataviz-integrity-print.md": ("sorted horizontal bar", "Never 3D", "under 6 categories", "area, not radius",
+                                           "Type 42", "89 mm", "force SVG mode"),
+    "web-craft/diagram-design.md": ("more than 9 nodes",),
     "lessons/mixed-script-captions.md": ("burned captions and HTML only, never PPTX", "arabic-pptx-native-bidi.md"),
 }
 LRI, PDI = "\u2066", "\u2069"
@@ -91,8 +128,16 @@ class Batch3CardsTest(unittest.TestCase):
         self.assertIn("(arabic-rtl-type-mirroring.md)", read("lessons/index.md"))
         self.assertIn("slides/arabic-pptx-native-bidi.md", read("craft/training-decks.md"))
         self.assertIn("video-craft/shorts-safe-area-captions.md", read("captions-subtitles.md"))
+        self.assertIn("../stills/thumbnails-generated-stills.md", read("craft/index.md"))
+        self.assertIn("../dataviz/dataviz-integrity-print.md", read("craft/index.md"))
+        self.assertIn("slides/pptxgenjs-gotchas-notes.md", read("craft/training-decks.md"))
+        for card in ("grade-and-loudness-map", "sidecar-captions-titles"):
+            self.assertIn(f"({card}.md)", read("video-craft/index.md"))
+        for card in ("ui-spacing-grid-score", "color-tokens-oklch", "a11y-wcag22-measured", "ui-motion-review",
+                     "threejs-post-inspire", "social-proof-patterns", "nav-and-pricing-patterns", "og-image"):
+            self.assertIn(f"({card}.md)", read("web-craft/index.md"))
         router = (DESIGN / "SKILL.md").read_text(encoding="utf-8")
-        for name in ("video-craft", "web-typography-measured", "arabic-rtl-type-mirroring", "arabic-pptx-native-bidi"):
+        for name in ("video-craft", "stills/", "dataviz/", "web-typography-measured", "og-image", "arabic-pptx-native-bidi"):
             self.assertNotIn(name, router)
 
     def test_pins_licences_and_skips(self) -> None:
@@ -103,10 +148,11 @@ class Batch3CardsTest(unittest.TestCase):
             self.assertNotIn(old, inventory)
         flat = " ".join(inventory.split())
         for needle in ("`pptx` is proprietary and not used", "cite only (low trust)", "script not fetched or run",
-                       "ui-ux-pro-max", "superpowers ai-video-generation", "7 lesson cards (L01-L07"):
+                       "ui-ux-pro-max", "superpowers ai-video-generation", "7 lesson cards (L01-L07",
+                       "land-book.com is human browsing only", "not connected (note only)", "14 web-craft cards (W01-W14"):
             self.assertIn(needle, flat)
         desc = (DESIGN / "addon.json").read_text(encoding="utf-8")
-        self.assertIn("two video-craft cards", desc)
+        self.assertIn("four video-craft cards", desc)
         self.assertIn("seven lesson cards", desc)
 
     def test_cards_are_project_neutral(self) -> None:
