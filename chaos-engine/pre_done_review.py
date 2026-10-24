@@ -5,9 +5,12 @@ Pre-done self-review gate (#7325): fail a status report whose views drift or who
 Checks one markdown report (PR body, handoff note, status doc):
 1. Status table parity: every mermaid node that names a table ID must carry that row's status.
 2. Every Blocked/Skipped row cites a permitting rule (``rule:``) and an alternative tried (``alt:``
-   naming a mock, fixture, stub, fake, simulator or recording).
+   naming a mock, fixture, stub, fake, simulator or recording) that points at an existing covering
+   test file (``path`` or ``path::name``; the name must appear in the file); negations such as
+   "no", "not yet", "candidate", "TODO" or "pending" fail (#7360 gap).
 3. Declared counts (``Blocked: 3``) match the table.
-4. A non-empty ``## What's missing`` section answers "are we missing any?".
+4. A non-empty ``## What's missing`` section answers "are we missing any?"; a bare "nothing"/"none"
+   needs a ``verified: <how>`` note.
 Exit 0 pass, 1 findings, 2 usage error. Stdlib only.
 """
 
@@ -24,6 +27,11 @@ STATUS_WORDS = ("passed", "pass", "done", "failed", "fail", "blocked", "skipped"
 # Short forms map to the table spelling; built with zip so no literal key looks like a secret.
 ALIASES = dict(zip(("pass", "fail"), ("passed", "failed")))
 ALTERNATIVE = re.compile(r"\balt:\s*\S.*\b(mock|fixture|stub|fake|simulat|record|emulat)", re.I)
+ALT_TEXT = re.compile(r"\balt:\s*(.*)", re.I)
+NEGATION = re.compile(r"\b(no|not|never|none|candidate|todo|tbd|pending|planned|later|missing|without)\b", re.I)
+PATH_TOKEN = re.compile(r"`?([\w./-]+\.\w+)(?:(?:::|#)([\w.-]+))?`?")
+NOTHING = re.compile(r"^[-*\s]*(nothing|none|n/?a|nil)\.?\s*$", re.I)
+VERIFIED = re.compile(r"\bverified:\s*\S", re.I)
 RULE = re.compile(r"\brule:\s*\S", re.I)
 MERMAID = re.compile(r"```mermaid\n(.*?)```", re.S)
 NODE = re.compile(r"\b([A-Za-z][\w-]*)\s*(?:\[\[?|\(\(?|\{\{?|>)\s*\"?([^\]\)\}\"]*)")
@@ -79,7 +87,39 @@ def mermaid_statuses(text: str, ids: set[str]) -> dict[str, list[str]]:
     return found
 
 
-def review(text: str) -> list[str]:
+def _covering_file(alt: str, roots: list[Path]) -> bool:
+    for path, name in PATH_TOKEN.findall(alt):
+        for root in roots:
+            target = root / path
+            if target.is_file():
+                if not name or name in target.read_text(encoding="utf-8", errors="ignore"):
+                    return True
+    return False
+
+
+def alternative_problem(line: str, roots: list[Path]) -> str | None:
+    match = ALT_TEXT.search(line)
+    if not match or not ALTERNATIVE.search(line):
+        return "with no 'alt:' mock/fixture/stub tried"
+    alt = match.group(1).split("|")[0]
+    if NEGATION.search(alt):
+        return "with an 'alt:' that is not done yet (negation/candidate/TODO/pending)"
+    if not _covering_file(alt, roots):
+        return "with an 'alt:' naming no existing covering test file (`path` or `path::name`)"
+    return None
+
+
+def _missing_problem(body: str) -> str | None:
+    lines = [line for line in body.strip().splitlines() if line.strip()]
+    if not lines:
+        return "no adversarial pass: add a non-empty '## What's missing' section"
+    if any(NOTHING.match(line) for line in lines) and not VERIFIED.search(body):
+        return "unverified adversarial pass: a 'nothing' item needs 'verified: <how>'"
+    return None
+
+
+def review(text: str, roots: list[Path] | None = None) -> list[str]:
+    roots = roots or [Path.cwd()]
     rows = parse_table(text)
     if not rows:
         return ["no status table: add a markdown table with ID and Status columns"]
@@ -93,8 +133,9 @@ def review(text: str) -> list[str]:
         if row["status"] in GAP_STATUSES:
             if not RULE.search(row["line"]):
                 findings.append(f"uncited gap: {row['id']} is {row['status']} with no 'rule:' citing the rule that permits it")
-            if not ALTERNATIVE.search(row["line"]):
-                findings.append(f"no alternative: {row['id']} is {row['status']} with no 'alt:' mock/fixture/stub tried")
+            problem = alternative_problem(row["line"], roots)
+            if problem:
+                findings.append(f"no alternative: {row['id']} is {row['status']} {problem}")
     outside = MERMAID.sub("", text)
     table_lines = {row["line"] for row in rows}
     prose = "\n".join(line for line in outside.splitlines() if line not in table_lines)
@@ -104,8 +145,9 @@ def review(text: str) -> list[str]:
         if int(number) != actual:
             findings.append(f"count drift: '{word}: {number}' but the table has {actual} {status}")
     section = MISSING.search(text)
-    if not section or not section.group(1).strip():
-        findings.append("no adversarial pass: add a non-empty '## What's missing' section")
+    problem = _missing_problem(section.group(1) if section else "")
+    if problem:
+        findings.append(problem)
     return findings
 
 
@@ -118,7 +160,9 @@ def main(argv: list[str]) -> int:
     if not path.is_file():
         print(f"pre-done: {path} not found", file=sys.stderr)
         return 2
-    findings = review(path.read_text(encoding="utf-8"))
+    roots = [path.resolve().parent, Path.cwd()]
+    roots += [parent for parent in path.resolve().parents if (parent / ".git").exists()][:1]
+    findings = review(path.read_text(encoding="utf-8"), roots)
     if "--json" in argv:
         print(json.dumps({"status": "fail" if findings else "pass", "findings": findings}))
     else:

@@ -45,6 +45,9 @@ body, handoff note, or status doc). Run
 - Mermaid drift: a node `ID[status]` or `class ID status` that disagrees with
   the row's status fails.
 - Blocked/Skipped rows without `rule:` or without `alt:` naming a substitute fail.
+- `alt:` must point at an existing covering test file (`path` or `path::name`); "no", "not yet",
+  "candidate", "TODO" or "pending" in it fail.
+- A "nothing"/"none" item under `## What's missing` fails without a `verified: <how>` note.
 - Declared counts in prose (`Blocked: 3`) that differ from the table fail.
 - A missing or empty `## What's missing` section fails.
 
