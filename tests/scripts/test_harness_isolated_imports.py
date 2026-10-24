@@ -26,8 +26,9 @@ class IsolatedImportsTest(unittest.TestCase):
         self.assertGreater(len(modules), 50)
         broken = []
         for path in modules:
-            run = subprocess.run([sys.executable, "-I", "-c", PROBE, str(path)], cwd="/", capture_output=True,
-                                 text=True, timeout=180, check=False)
+            run = subprocess.run(  # nosec B603 - fixed argv: this interpreter and a repo test path.
+                [sys.executable, "-I", "-c", PROBE, str(path)], cwd="/", capture_output=True,
+                text=True, timeout=180, check=False)
             last = (run.stderr.strip().splitlines() or [""])[-1]
             if run.returncode and "ModuleNotFoundError" in last and not THIRD_PARTY.search(last):
                 broken.append(f"{path.relative_to(ROOT)}: {last}")

@@ -1,4 +1,5 @@
-"""Two guards, one owner each: the portable core guard and the SHAFT repository guard.
+"""
+Two guards, one owner each: the portable core guard and the SHAFT repository guard.
 
 ``chaos-engine/hooks/guard.py`` is canonical for the portable core (every install).
 ``scripts/agents/guard.py`` is canonical for SHAFT repository policy (R1-R10, R26).
