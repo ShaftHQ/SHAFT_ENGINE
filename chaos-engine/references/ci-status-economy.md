@@ -96,6 +96,9 @@ commit, or close and reopen the PR).
 
 ## Release watch
 
+- A release-prep PR opened by the workflow gets no PR Gate checks
+  (`GITHUB_TOKEN` events start no workflows). If it shows no PR Gate checks,
+  close and reopen it as the owner to start them.
 - A release-prep PR only bumps versions. Merging it is the publish: the
   delivery workflow releases from the default branch when the version
   changes. Before you merge, check that no release blockers are open.
@@ -204,3 +207,12 @@ red: python3 -m unittest <module> -v
 
 - `scripts/agents/watch_pr_checks.py` (repo-only), `scripts/agents/status_lease.py` (repo-only), [`executor_brief.py`](../skills/local-agency/scripts/executor_brief.py)
 - [Tip-churn preflight](tip-churn-preflight.md) · [Static-analysis ACTION_REQUIRED gate](static-analysis-gate.md)
+
+## Local gates CI ratchets
+
+- Before pushing new or changed code in a module with an Error Prone profile, run `mvn -Perrorprone -pl <module> -am compile`
+  and fix every new warning; the Error Prone / NullAway ratchet counts
+  warnings that `code_quality_preflight.py` and SpotBugs do not see.
+- A bot-blocked link in a research reference stays linked: add the host to
+  `lychee.toml` `exclude` instead of unlinking it, since link-count contract
+  tests count linked references.
