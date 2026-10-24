@@ -37,6 +37,8 @@ A web UI needs transitions. It extends
 9. Tooltips: delay the first; subsequent peers open instantly.
 10. Drag and gesture-driven motion uses springs, not fixed durations.
 11. No hover effects on touch: gate them with `@media (hover: hover)`.
+    `(any-hover: hover)` is not a gate: on a hybrid device the primary
+    input may be touch.
 12. Image hover-reveal motion: see [W04 micro-polish](micro-polish.md);
     it reads these tokens and the reduced-motion rule above.
 13. Rules 1-3 are reference only from transitions.dev. Copy no text,

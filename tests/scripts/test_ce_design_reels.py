@@ -20,7 +20,7 @@ GROUPS = {
     "web-craft/motion-tokens.md": (
         "Should it animate?", "high-frequency actions", "Never animate from `scale(0)`", "`scale(0.9)`-`scale(0.97)`",
         "interruptible", "`transform` and `opacity` only", "blur masks a rough swap",
-        "subsequent peers open instantly", "springs", "`@media (hover: hover)`", "emilkowalski/skills", "MIT",
+        "subsequent peers open instantly", "springs", "`@media (hover: hover)`", "`(any-hover: hover)` is not a gate", "emilkowalski/skills", "MIT",
         "Rules 1-3 are reference only from transitions.dev", "Rules 4-11 are adapted", "design_qc.py uimotion", "design_qc.py hovergate"),
     "web-craft/micro-polish.md": (
         "Decorative only", "pixel-registered", "50% overlay", "pointer CSS vars", "`--x`, `--y`",

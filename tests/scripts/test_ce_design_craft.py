@@ -109,6 +109,26 @@ class CraftLintTests(unittest.TestCase):
     def test_floor_fails_open_floor_and_unreasoned_reflex_overrule(self) -> None:  # #7347
         self.check("floor", "| F1 | Floor | contrast | open |", "| F1 | Floor | contrast | fixed |", ".md")
         self.check("floor", "| R1 | Reflex | eyebrow | overruled |", "| R1 | Reflex | eyebrow | overruled, reason: brief line 4 |", ".md")
+    def test_hovergate_does_not_accept_any_hover_as_a_gate(self) -> None:  # #7347 review: W02 rule 11
+        self.check("hovergate", "@media (any-hover: hover){.x:hover{color:red}}",
+                   "@media (hover: hover){.x:hover{color:red}}", ".css")
+
+    def test_rtl_pages_pass_uimotion_svga11y_and_floor(self) -> None:  # #7347 review: RTL pass fixtures
+        with tempfile.TemporaryDirectory() as folder:
+            page = Path(folder) / "rtl.html"
+            page.write_text('<html dir="rtl" lang="ar"><style>.c{margin-inline-start:16px;'
+                            'transition: transform .2s, opacity .2s}</style><p class="c">نص تجريبي</p></html>',
+                            encoding="utf-8")
+            svg = Path(folder) / "rtl.svg"
+            svg.write_text('<svg role="img" direction="rtl"><title>مخطط تدفق</title>'
+                           '<desc>ثلاث خطوات من اليمين إلى اليسار</desc></svg>', encoding="utf-8")
+            review = Path(folder) / "review.md"
+            review.write_text("| F1 | Floor | تباين الألوان | fixed |\n"
+                              "| R1 | Reflex | عنوان علوي فوق كل عنوان | overruled, reason: سطر الموجز 4 |\n",
+                              encoding="utf-8")
+            for name, path in (("uimotion", page), ("svga11y", svg), ("floor", review)):
+                code, payload = run_qc(name, str(path))
+                self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
 
 @unittest.skipUnless(HAS_FFMPEG, "ffmpeg not installed")
