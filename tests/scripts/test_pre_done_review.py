@@ -82,6 +82,32 @@ class PreDoneReviewTest(unittest.TestCase):
         self.assertIn("unverified adversarial pass", " ".join(gate.review(base + "- nothing\n", [ROOT])))
         self.assertEqual([], gate.review(base + "- nothing\n\nverified: rescanned rule list and table\n", [ROOT]))
 
+    def _row(self, notes: str) -> list[str]:
+        return gate.review(GOOD.replace(
+            "rule: blocked-on-data needs mocks; alt: mock gateway fixture `tests/scripts/test_pre_done_review.py::PreDoneReviewTest`",
+            notes), [ROOT])
+
+    def test_none_possible_for_non_data_block(self) -> None:
+        ok = "rule: G12 needs human national-ID approval; alt: none-possible (human-only step) verified: asked owner, no sandbox"
+        self.assertEqual([], self._row(ok))
+        for bad in ("rule: G12 needs human approval; alt: none-possible () verified: asked owner",
+                    "rule: G12 needs human approval; alt: none-possible (human-only step)",
+                    "rule: G12 needs human approval; alt: none-possible (human-only step) verified:"):
+            with self.subTest(bad=bad):
+                self.assertTrue(any(f.startswith("no alternative: S2") for f in self._row(bad)))
+
+    def test_none_possible_rejected_for_data_block(self) -> None:
+        for rule in ("rule: G51 no test data", "rule: needs seeded account", "rule: fixture unavailable"):
+            with self.subTest(rule=rule):
+                findings = self._row(f"{rule}; alt: none-possible (no data) verified: asked owner")
+                self.assertTrue(any("data-blocked" in f for f in findings), findings)
+
+    def test_negation_after_path_is_allowed(self) -> None:
+        ok = "rule: blocked-on-data; alt: mock `tests/scripts/test_pre_done_review.py::PreDoneReviewTest` returns no records"
+        self.assertEqual([], self._row(ok))
+        bad = "rule: blocked-on-data; alt: no mock yet `tests/scripts/test_pre_done_review.py::PreDoneReviewTest`"
+        self.assertTrue(any("not done yet" in f for f in self._row(bad)))
+
     def test_hrsd_repro_fails(self) -> None:
         repro = ("| ID | Status | Notes |\n|---|---|---|\n"
                  "| S1 | Blocked | rule: G51 no test data. alt: no mock written yet |\n"

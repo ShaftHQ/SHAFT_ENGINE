@@ -46,7 +46,10 @@ body, handoff note, or status doc). Run
   the row's status fails.
 - Blocked/Skipped rows without `rule:` or without `alt:` naming a substitute fail.
 - `alt:` must point at an existing covering test file (`path` or `path::name`); "no", "not yet",
-  "candidate", "TODO" or "pending" in it fail.
+  "candidate", "TODO" or "pending" before the first path fail.
+- Non-data blocks (human-only step, platform-only, feature disabled) may write
+  `alt: none-possible (<reason>) verified: <how>`; data-blocked rows (test data, fixture, mock,
+  seed, account) still need an existing covering test.
 - A "nothing"/"none" item under `## What's missing` fails without a `verified: <how>` note.
 - Declared counts in prose (`Blocked: 3`) that differ from the table fail.
 - A missing or empty `## What's missing` section fails.

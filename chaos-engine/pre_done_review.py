@@ -7,7 +7,9 @@ Checks one markdown report (PR body, handoff note, status doc):
 2. Every Blocked/Skipped row cites a permitting rule (``rule:``) and an alternative tried (``alt:``
    naming a mock, fixture, stub, fake, simulator or recording) that points at an existing covering
    test file (``path`` or ``path::name``; the name must appear in the file); negations such as
-   "no", "not yet", "candidate", "TODO" or "pending" fail (#7360 gap).
+   "no", "not yet", "candidate", "TODO" or "pending" before the first path fail (#7360 gap). A
+   non-data block (human step, platform-only, feature off) may use
+   ``alt: none-possible (<reason>) verified: <how>``; data-blocked rows may not.
 3. Declared counts (``Blocked: 3``) match the table.
 4. A non-empty ``## What's missing`` section answers "are we missing any?"; a bare "nothing"/"none"
    needs a ``verified: <how>`` note.
@@ -30,6 +32,8 @@ ALTERNATIVE = re.compile(r"\balt:\s*\S.*\b(mock|fixture|stub|fake|simulat|record
 ALT_TEXT = re.compile(r"\balt:\s*(.*)", re.I)
 NEGATION = re.compile(r"\b(no|not|never|none|candidate|todo|tbd|pending|planned|later|missing|without)\b", re.I)
 PATH_TOKEN = re.compile(r"`?([\w./-]+\.\w+)(?:(?:::|#)([\w.-]+))?`?")
+NONE_POSSIBLE = re.compile(r"none-possible\s*\(\s*[^)\s][^)]*\)\s*verified:\s*\S", re.I)
+DATA_WORDS = re.compile(r"\b(data|dataset|fixtures?|mocks?|seed\w*|accounts?|credentials?|stubs?|records?|users?|tokens?)\b", re.I)
 NOTHING = re.compile(r"^[-*\s]*(nothing|none|n/?a|nil)\.?\s*$", re.I)
 VERIFIED = re.compile(r"\bverified:\s*\S", re.I)
 RULE = re.compile(r"\brule:\s*\S", re.I)
@@ -99,10 +103,19 @@ def _covering_file(alt: str, roots: list[Path]) -> bool:
 
 def alternative_problem(line: str, roots: list[Path]) -> str | None:
     match = ALT_TEXT.search(line)
-    if not match or not ALTERNATIVE.search(line):
+    if not match:
         return "with no 'alt:' mock/fixture/stub tried"
     alt = match.group(1).split("|")[0]
-    if NEGATION.search(alt):
+    if alt.strip().lower().startswith("none-possible"):
+        if DATA_WORDS.search(line[:match.start()] + line[match.end():]):
+            return "is data-blocked: 'alt: none-possible' is not allowed; cite an existing covering test"
+        if not NONE_POSSIBLE.match(alt.strip()):
+            return "with 'alt: none-possible' lacking '(<reason>) verified: <how>'"
+        return None
+    if not ALTERNATIVE.search(line):
+        return "with no 'alt:' mock/fixture/stub tried"
+    first_path = PATH_TOKEN.search(alt)
+    if NEGATION.search(alt[:first_path.start()] if first_path else alt):
         return "with an 'alt:' that is not done yet (negation/candidate/TODO/pending)"
     if not _covering_file(alt, roots):
         return "with an 'alt:' naming no existing covering test file (`path` or `path::name`)"
