@@ -31,5 +31,5 @@ targets, an anchored rubric, and 20 verified references.
 - Ideas for the three-direction stage: [innovation bank](innovation-bank.md).
 - Reference index and motion study: [research/index.md](../research/index.md),
   [motionmaxxing map](../research/motionmaxxing-map.md).
-- Checks: [craft_qc.py](../../scripts/craft_qc.py) (loaded by design_qc.py);
+- Checks: [craft_qc.py](../../scripts/craft_qc.py) and [surface_qc.py](../../scripts/surface_qc.py) (loaded by design_qc.py);
   links: [linkcheck.py](../../scripts/linkcheck.py) (network, run locally).
