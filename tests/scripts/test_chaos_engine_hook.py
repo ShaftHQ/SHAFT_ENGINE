@@ -1349,7 +1349,7 @@ process.stderr.write(result.stderr || '');
                     "cwd": str(root),
                     "tool_name": "Bash",
                     "tool_input": {
-                        "command": f"python3 scripts/agents/watch_pr_checks.py --pr 1 --until-merged"
+                        "command": "python3 scripts/agents/watch_pr_checks.py --pr 1 --until-merged"
                     },
                     "tool_response": {"status": "success", "exit_code": 0, "stdout": "MERGED\n"},
                     "session_id": "obs-mismatch",

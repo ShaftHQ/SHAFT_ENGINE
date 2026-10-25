@@ -1037,6 +1037,8 @@ def _command_guard_state(
     functions_source: str, functions_direct: str, session_id: str,
 ) -> tuple[bool, bool, str]:
     receipt_command = any(reflection_recovery(candidate) for candidate in commands)
+    if event_name == "PostToolUse" and not receipt_command:
+        _record_observed_pull_request_merge(event, commands, session_id)
     mutation = (
         tool_name in {"Write", "Edit", "apply_patch"}
         or bool(re.search(r"\btools\.(?:apply_patch|store)\s*\(", functions_source))
@@ -1340,7 +1342,6 @@ def _run_event(event: dict, _host: str) -> int:
         print(json.dumps({"decision": "block", "reason": guard_reason}))
         return 2
     if event_name == "PostToolUse" and not receipt_command:
-        _record_observed_pull_request_merge(event, commands, session_id)
         if any(learning_session_finalize_command(candidate) for candidate in commands):
             if learning_completion_artifact(session_id) is not None:
                 reflection.record_activity(session_id, "learning-session-complete")

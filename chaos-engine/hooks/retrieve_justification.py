@@ -1056,71 +1056,94 @@ def _pipeline_parts(command: str) -> list[str]:
     return parts
 
 
+def _long_option_operand(arguments: list[str], index: int) -> tuple[str | None, str, int]:
+    """Return inline value, flag name, and the index of the next argument."""
+    token = arguments[index]
+    if token.startswith("--") and "=" in token:
+        name, inline = token.split("=", 1)
+        return inline, name, index + 1
+    return None, token, index + 1
+
+
+def _sed_filter_files(arguments: list[str]) -> list[str]:
+    """Sed file operands. A script from -e, -f, or the first program is not a path."""
+    files: list[str] = []
+    index = 0
+    saw_script = False
+    while index < len(arguments):
+        inline, name, nxt = _long_option_operand(arguments, index)
+        if name in {"-f", "--file"}:
+            saw_script = True
+            operand = inline if inline is not None else (arguments[nxt] if nxt < len(arguments) else "")
+            if operand:
+                files.append(_read_operand(operand) or operand)
+            index = nxt + (0 if inline is not None or nxt >= len(arguments) else 1)
+            continue
+        if name in {"-e", "--expression"}:
+            saw_script = True
+            index = nxt + (0 if inline is not None or nxt >= len(arguments) else 1)
+            continue
+        if name.startswith("-"):
+            index = nxt
+            continue
+        text = _read_operand(name) or ""
+        program = (
+            not saw_script
+            and bool(text)
+            and (_SED_PROGRAM.match(text) is not None or text.startswith("/") or text[:1].isdigit())
+        )
+        if program:
+            saw_script = True
+        elif _operand_has_path_chars(name):
+            files.append(text)
+        index = nxt
+    return files
+
+
+def _awk_filter_files(arguments: list[str]) -> list[str]:
+    """Awk file operands. The program and -F/-v values are not checkout paths."""
+    files: list[str] = []
+    index = 0
+    saw_script = False
+    seen_positional = False
+    while index < len(arguments):
+        inline, name, nxt = _long_option_operand(arguments, index)
+        if name in {"-f", "--file"}:
+            saw_script = True
+            operand = inline if inline is not None else (arguments[nxt] if nxt < len(arguments) else "")
+            if operand:
+                files.append(_read_operand(operand) or operand)
+            index = nxt + (0 if inline is not None or nxt >= len(arguments) else 1)
+            continue
+        if name in {"-F", "-v", "--field-separator", "--assign"}:
+            index = nxt + (0 if inline is not None or nxt >= len(arguments) else 1)
+            continue
+        if name.startswith("-"):
+            index = nxt
+            continue
+        if not saw_script and not seen_positional:
+            index = nxt
+            seen_positional = True
+            continue
+        if _operand_has_path_chars(name):
+            files.append(_read_operand(name) or name)
+        index = nxt
+    return files
+
+
 def _stdin_filter_files(head: str, arguments: list[str]) -> list[str]:
     """File operands of a stdin filter. Programs and flags are not checkout paths."""
     if head in {"tr", "cut"}:
         return []
-    files: list[str] = []
-    index = 0
-    saw_awk_script = False
-    saw_sed_script = False
-    seen_positional = False
-    while index < len(arguments):
-        token = arguments[index]
-        inline = token.split("=", 1)[1] if token.startswith("--") and "=" in token else None
-        name = token.split("=", 1)[0] if inline is not None else token
-        if head == "sed" and name in {"-f", "--file"}:
-            saw_sed_script = True
-            operand = inline if inline is not None else (arguments[index + 1] if index + 1 < len(arguments) else "")
-            if operand:
-                files.append(_read_operand(operand) or operand)
-            index += 1 if inline is not None or index + 1 >= len(arguments) else 2
-            continue
-        if head == "sed" and name in {"-e", "--expression"}:
-            saw_sed_script = True
-            index += 1 if inline is not None or index + 1 >= len(arguments) else 2
-            continue
-        if head == "awk" and name in {"-f", "--file"}:
-            saw_awk_script = True
-            operand = inline if inline is not None else (arguments[index + 1] if index + 1 < len(arguments) else "")
-            if operand:
-                files.append(_read_operand(operand) or operand)
-            index += 1 if inline is not None or index + 1 >= len(arguments) else 2
-            continue
-        if head == "awk" and name in {"-F", "-v", "--field-separator", "--assign"}:
-            index += 1 if inline is not None or index + 1 >= len(arguments) else 2
-            continue
-        if token.startswith("-"):
-            index += 1
-            continue
-        text = _read_operand(token) or ""
-        if head == "sed":
-            program = (
-                not saw_sed_script
-                and bool(text)
-                and (_SED_PROGRAM.match(text) is not None or text.startswith("/") or text[:1].isdigit())
-            )
-            if program:
-                saw_sed_script = True
-            seen_positional = True
-            if not program and _operand_has_path_chars(token):
-                files.append(text)
-            index += 1
-            continue
-        if head == "awk":
-            if not saw_awk_script and not seen_positional:
-                seen_positional = True
-                index += 1
-                continue
-            seen_positional = True
-            if _operand_has_path_chars(token):
-                files.append(text)
-            index += 1
-            continue
-        if _operand_has_path_chars(token):
-            files.append(text)
-        index += 1
-    return files
+    if head == "sed":
+        return _sed_filter_files(arguments)
+    if head == "awk":
+        return _awk_filter_files(arguments)
+    return [
+        _read_operand(token) or token
+        for token in arguments
+        if _operand_has_path_chars(token)
+    ]
 
 
 def _read_segment_block(project: Path, segment: str) -> bool:
