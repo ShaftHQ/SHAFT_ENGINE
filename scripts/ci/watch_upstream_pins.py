@@ -73,17 +73,22 @@ class Verdict:
     overlay: str = ""
 
 
-def _version_key(version: str) -> tuple[int, ...]:
-    """Numeric version, keeping a numeric ``+build`` so Temurin 25.0.4+7 is behind 25.0.4+8."""
+def _version_key(version: str) -> tuple[tuple[int, ...], int]:
+    """Dotted version first, then a numeric ``+build``.
+
+    The build stays out of the dotted tuple so ``25+36`` cannot sort ahead of
+    ``25.0.5+8``, while ``25.0.4+7`` is still behind ``25.0.4+8``.
+    """
     core, separator, build = version.partition("+")
     if not _STABLE_VERSION.fullmatch(core):
         raise ValueError(f"not a stable version: {version}")
-    numbers = [int(part) for part in core.split(".")]
+    numbers = tuple(int(part) for part in core.split("."))
+    build_number = 0
     if separator:
         token = build.split("-", 1)[0]
         if token.isdigit():
-            numbers.append(int(token))
-    return tuple(numbers)
+            build_number = int(token)
+    return numbers, build_number
 
 
 def newest_stable_version(payload: Mapping[str, Any]) -> str:

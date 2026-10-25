@@ -261,19 +261,29 @@ class WatchUpstreamPinsTest(unittest.TestCase):
     def test_adoptium_build_only_bump_is_behind(self) -> None:
         payload = {
             "versions": [
+                {"major": 25, "openjdk_version": "25+36"},
                 {"major": 25, "openjdk_version": "25.0.4+7-LTS"},
+                {"major": 25, "openjdk_version": "25.0.4.1+1"},
                 {"major": 25, "openjdk_version": "25.0.4+8-LTS"},
+                {"major": 25, "openjdk_version": "25.0.5+8-LTS"},
             ]
         }
         channel = "https://api.adoptium.net/v3/info/release_versions?feature_version=25&release_type=ga"
         latest = newest_adoptium_version(payload, feature=25)
         current = compare_pin(Pin("java", "adoptium", "25.0.4+7", channel), Stable(version="25.0.4+7"))
+        build_only = compare_pin(Pin("java", "adoptium", "25.0.4+7", channel), Stable(version="25.0.4+8"))
+        short_ga = compare_pin(Pin("java", "adoptium", "25.0.4+7", channel), Stable(version="25+36"))
+        rebuild = compare_pin(Pin("java", "adoptium", "25.0.4+7", channel), Stable(version="25.0.4.1+1"))
         behind = compare_pin(Pin("java", "adoptium", "25.0.4+7", channel), Stable(version=latest))
 
-        self.assertEqual("25.0.4+8", latest)
+        self.assertEqual("25.0.5+8", latest)
         self.assertFalse(current.behind)
+        self.assertTrue(build_only.behind)
+        self.assertFalse(short_ga.behind)
+        self.assertTrue(rebuild.behind)
         self.assertTrue(behind.behind)
-        self.assertEqual("25.0.4+8", behind.latest)
+        self.assertEqual("25.0.5+8", behind.latest)
+        self.assertNotEqual("25+36", behind.latest)
 
     def test_node_index_uses_the_lts_line_not_current(self) -> None:
         latest = newest_node_version([
