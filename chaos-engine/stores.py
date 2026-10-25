@@ -422,6 +422,14 @@ def graphify_doctor_row(cwd: Path) -> dict[str, str] | None:
                 "python3 .chaos-engine/install.py repair --project . --component graphify"
             ),
         }
+    if _readable_tip_lag(message, graph_out):
+        # A readable graph behind the tip is still a lead. Stale stays on the
+        # retrieve receipt (#6409). Doctor must not call that degraded.
+        return {
+            "status": "sync-advisory",
+            "detail": message,
+            "fixNext": "python3 .chaos-engine/tool.py stores refresh --if-stale",
+        }
     return {
         "status": "degraded",
         "detail": message,
@@ -429,6 +437,12 @@ def graphify_doctor_row(cwd: Path) -> dict[str, str] | None:
             "python3 .chaos-engine/install.py repair --project . --component graphify"
         ),
     }
+
+
+def _readable_tip_lag(message: str, graph_out: Path) -> bool:
+    """True only when the graph is readable and the sole gap is the branch tip."""
+    graph = graph_out / "graph.json"
+    return message.startswith("stale - indexed=") and graph.is_file() and graph.stat().st_size > 2
 
 
 def home_palace_note() -> str:
@@ -1032,6 +1046,48 @@ def _apply_documentation_index(source: Path, *destinations: Path) -> dict:
     return indexed
 
 
+def _indexed_revision(graph_out: Path) -> str | None:
+    marker = _read_marker(graph_out)
+    indexed = marker.get("indexed_revision") if isinstance(marker, dict) else None
+    if isinstance(indexed, str) and len(indexed) == 40:
+        return indexed
+    return None
+
+
+def _ancestor_revision(snapshot: Path, previous: str | None, revision: str) -> bool:
+    """True when ``previous`` is an ancestor of ``revision``. Rewritten history is not."""
+    if not previous or previous == revision:
+        return False
+    try:
+        _git(snapshot, "merge-base", "--is-ancestor", previous, revision)
+    except RuntimeError:
+        return False
+    return True
+
+
+def _seed_existing_graph(existing: Path, produced: Path) -> bool:
+    """Copy the last checkpoint so Graphify's own incremental extract can run."""
+    graph = existing / "graph.json"
+    manifest = existing / "manifest.json"
+    if not graph.is_file() or graph.stat().st_size <= 2 or not manifest.is_file():
+        return False
+    produced.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(graph, produced / "graph.json")
+    shutil.copy2(manifest, produced / "manifest.json")
+    cache = existing / "cache"
+    if cache.is_dir():
+        shutil.copytree(cache, produced / "cache", dirs_exist_ok=True)
+    return True
+
+
+def _seed_incremental_graph(snapshot: Path, existing: Path, produced: Path, revision: str) -> bool:
+    if not existing.exists():
+        return False
+    if not _ancestor_revision(snapshot, _indexed_revision(existing), revision):
+        return False
+    return _seed_existing_graph(existing, produced)
+
+
 def _refresh_graphify(
     cwd: Path,
     *,
@@ -1045,6 +1101,13 @@ def _refresh_graphify(
     if graphify is None:
         raise RuntimeError("graphify is not on PATH")
     staging = scratch / "graph-out"
+    produced = staging / "graphify-out"
+    incremental = _seed_incremental_graph(snapshot, resolve_graph_out(cwd), produced, revision)
+    print(
+        f"stores: graphify {'incremental' if incremental else 'full'} extract",
+        file=sys.stderr,
+        flush=True,
+    )
     _run(
         invoke,
         [
@@ -1300,8 +1363,18 @@ def refresh(
     except RefreshBusy:
         if not if_stale:
             raise
+        # The attempt never started. Drop the stamp so the next commit can retry.
+        (common / "chaos-engine" / ATTEMPT_STAMP).unlink(missing_ok=True)
         print("stores: refresh already running in another process; skipped", file=sys.stderr)
     return 0
+
+
+def _refresh_already_running(common: Path) -> bool:
+    try:
+        with refresh_lock(common):
+            return False
+    except RefreshBusy:
+        return True
 
 
 def _spawn_enabled() -> bool:
@@ -1340,6 +1413,8 @@ def maybe_spawn_refresh(cwd: Path, *, popen: Callable[..., object] = subprocess.
     try:
         if stamp.is_file() and stamp.read_text(encoding="utf-8").strip() == requested:
             return "cooldown"
+        if _refresh_already_running(common):
+            return "running"
         stamp.parent.mkdir(parents=True, exist_ok=True)
         stamp.write_text(requested + "\n", encoding="utf-8")
     except OSError:
