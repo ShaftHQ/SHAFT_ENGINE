@@ -22,6 +22,8 @@ from scripts.ci.watch_upstream_pins import (
     compare_pin,
     load_pins,
     main,
+    newest_adoptium_version,
+    newest_node_version,
     newest_stable_version,
     unlinked_pin_error,
     uv_release_from_github_payload,
@@ -109,7 +111,7 @@ class WatchUpstreamPinsTest(unittest.TestCase):
     def fetch_graphify_behind(self, pin: Pin) -> Stable:
         if pin.name == "graphify":
             return Stable(version="0.9.88")
-        if pin.kind == "pypi":
+        if pin.kind in {"pypi", "npm", "github-tag", "node-index", "adoptium"}:
             return Stable(version=pin.current)
         return Stable(release_commit=pin.current)
 
@@ -156,7 +158,7 @@ class WatchUpstreamPinsTest(unittest.TestCase):
         root = self.write_repo()
 
         def fetch(pin: Pin) -> Stable:
-            if pin.kind == "pypi":
+            if pin.kind in {"pypi", "npm", "github-tag", "node-index", "adoptium"}:
                 return Stable(version=pin.current)
             return Stable(release_commit=pin.current)
 
@@ -177,7 +179,7 @@ class WatchUpstreamPinsTest(unittest.TestCase):
         def fetch(pin: Pin) -> Stable:
             if pin.name == "graphify":
                 return Stable(version="9.9.9", unreleased_version="9.9.10")
-            if pin.kind == "pypi":
+            if pin.kind in {"pypi", "npm", "github-tag", "node-index", "adoptium"}:
                 return Stable(version=pin.current)
             return Stable(release_commit=pin.current)
 
@@ -186,11 +188,16 @@ class WatchUpstreamPinsTest(unittest.TestCase):
             code = main(["--root", str(root)], fetch=fetch, store_factory=RefusingStore)
 
         self.assertEqual(0, code)
-        graphify = next(row for row in json.loads(buffer.getvalue()) if row["name"] == "graphify")
+        rows = json.loads(buffer.getvalue())
+        graphify = next(row for row in rows if row["name"] == "graphify")
         self.assertEqual("0.9.43", graphify["current"])
         self.assertEqual("9.9.9", graphify["latest"])
         self.assertNotEqual("9.9.9", graphify["current"])
-        self.assertNotIn("memory", {row["name"] for row in json.loads(buffer.getvalue())})
+        memory = next(row for row in rows if row["name"] == "memory")
+        self.assertEqual("0.2.1", memory["current"])
+        self.assertEqual("0.2.1", memory["latest"])
+        self.assertNotEqual("9.9.9", memory["current"])
+        self.assertNotEqual("9.9.9", memory["latest"])
 
     def test_mempalace_published_release_is_current_when_head_is_newer(self) -> None:
         pin = Pin("mempalace", "pypi", "3.10.0", MEMPALACE_URL)
@@ -225,6 +232,45 @@ class WatchUpstreamPinsTest(unittest.TestCase):
         )
 
         self.assertEqual("3.10.0", latest)
+        self.assertFalse(verdict.behind)
+
+    def test_adoptium_feature_line_ignores_a_newer_major_on_the_same_page(self) -> None:
+        payload = {
+            "versions": [
+                {"major": 27, "openjdk_version": "27.0.1+0"},
+                {"major": 25, "openjdk_version": "25.0.5+8-LTS"},
+                {"major": 25, "openjdk_version": "25.0.4+7-LTS"},
+            ]
+        }
+
+        latest = newest_adoptium_version(payload, feature=25)
+        verdict = compare_pin(
+            Pin(
+                "java",
+                "adoptium",
+                "25.0.4+7",
+                "https://api.adoptium.net/v3/info/release_versions?feature_version=25&release_type=ga",
+            ),
+            Stable(version=latest),
+        )
+
+        self.assertEqual("25.0.5+8", latest)
+        self.assertTrue(verdict.behind)
+        self.assertNotEqual("27.0.1+0", verdict.latest)
+
+    def test_node_index_uses_the_lts_line_not_current(self) -> None:
+        latest = newest_node_version([
+            {"version": "v26.12.1", "lts": False},
+            {"version": "v24.19.0", "lts": "Krypton"},
+            {"version": "v24.18.0", "lts": "Krypton"},
+            {"version": "v22.22.0", "lts": "Jod"},
+        ])
+        verdict = compare_pin(
+            Pin("node", "node-index", "24.19.0", "https://nodejs.org/dist/index.json"),
+            Stable(version=latest),
+        )
+
+        self.assertEqual("24.19.0", latest)
         self.assertFalse(verdict.behind)
 
     def test_git_latest_is_the_release_commit_not_a_newer_head(self) -> None:
@@ -268,7 +314,7 @@ class WatchUpstreamPinsTest(unittest.TestCase):
         pins = load_pins(root)
         upstream = {}
         for pin in pins:
-            if pin.kind == "pypi":
+            if pin.kind in {"pypi", "npm", "github-tag", "node-index", "adoptium"}:
                 upstream[pin.name] = Stable(version=pin.current)
             elif pin.name == "caveman":
                 upstream[pin.name] = Stable(release_commit="d" * 40, head_commit="e" * 40)
@@ -322,9 +368,11 @@ class WatchUpstreamPinsTest(unittest.TestCase):
         pins = {pin.name: pin for pin in load_pins(root)}
 
         self.assertEqual(
-            {"mempalace", "graphify", "caveman", "icm-architect", "ponytail", "extra"},
+            {"mempalace", "graphify", "memory", "caveman", "icm-architect", "ponytail", "extra"},
             set(pins),
         )
+        self.assertEqual("npm", pins["memory"].kind)
+        self.assertEqual("0.2.1", pins["memory"].current)
         self.assertEqual(CAVEMAN_OVERLAY, pins["caveman"].overlay)
         self.assertEqual("", pins["ponytail"].overlay)
         self.assertEqual("", pins["extra"].overlay)
@@ -502,7 +550,7 @@ class LinkedPinSyncTest(unittest.TestCase):
         (chaos / "dependencies.json").write_text(json.dumps(spec), encoding="utf-8")
 
         def fetch(pin: Pin) -> Stable:
-            if pin.kind == "pypi":
+            if pin.kind in {"pypi", "npm", "github-tag", "node-index", "adoptium"}:
                 return Stable(version=pin.current)
             return Stable(release_commit=pin.current)
 

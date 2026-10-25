@@ -1308,14 +1308,46 @@ def expected_checksum(url: str) -> tuple[str, str]:
     fail(f"No SHA-256 or SHA-1 checksum was found for {url}.", 4)
 
 
+def matching_local_checksum(target: Path) -> tuple[str, str] | None:
+    """Return a sidecar digest that already matches ``target``. No network."""
+    if not target.is_file():
+        return None
+    for algorithm, pattern in (("sha256", r"[0-9a-f]{64}"), ("sha1", r"[0-9a-f]{40}")):
+        sidecar = Path(f"{target}.{algorithm}")
+        if not sidecar.is_file():
+            continue
+        token = sidecar.read_text(encoding="utf-8", errors="replace").strip().split()
+        if not token or re.fullmatch(pattern, token[0].lower()) is None:
+            continue
+        digest = token[0].lower()
+        if file_digest(target, algorithm) == digest:
+            return algorithm, digest
+    return None
+
+
+def remember_checksum(target: Path, algorithm: str, digest: str) -> None:
+    """Write the verified digest beside the file so the next run skips the network."""
+    try:
+        Path(f"{target}.{algorithm}").write_text(digest + "\n", encoding="utf-8")
+    except OSError:
+        return
+
+
+def remembered_sha256(path: Path) -> str | None:
+    remembered = matching_local_checksum(path)
+    if remembered is not None and remembered[0] == "sha256":
+        return remembered[1]
+    return None
+
+
 def install_shaft_mcp_jar(version: str, repository: str, root: Path) -> Path:
     version_path = f"{ARTIFACT_PATH}/{version}"
     filename = f"shaft-mcp-{version}.jar"
     url = f"{repository}/{version_path}/{filename}"
-    expected = expected_sha256(url)
     target_dir = application_data_root() / "versions" / version
     target = target_dir / "shaft-mcp.jar"
     maven_target = maven_local_repository() / version_path / filename
+    expected = remembered_sha256(target) or remembered_sha256(maven_target) or expected_sha256(url)
     target_current = target.is_file() and file_sha256(target) == expected
     maven_current = maven_target.is_file() and file_sha256(maven_target) == expected
     if target_current and maven_current:
@@ -1334,8 +1366,10 @@ def install_shaft_mcp_jar(version: str, repository: str, root: Path) -> Path:
 
     if not target_current:
         copy_verified(source, target, expected, "Installed shaft-mcp JAR")
+        remember_checksum(target, "sha256", expected)
     if not maven_current:
         copy_verified(source, maven_target, expected, "Local Maven repository shaft-mcp JAR")
+        remember_checksum(maven_target, "sha256", expected)
     return target.resolve()
 
 
@@ -1348,9 +1382,9 @@ def install_shaft_cli_jar(version: str, repository: str, root: Path) -> Path:
     version_path = f"{SHAFT_CLI_ARTIFACT_PATH}/{version}"
     filename = f"shaft-cli-{version}.jar"
     url = f"{repository}/{version_path}/{filename}"
-    expected = expected_sha256(url)
     target_dir = shaft_cli_application_data_root() / "versions" / version
     target = target_dir / "shaft-cli.jar"
+    expected = remembered_sha256(target) or expected_sha256(url)
     if target.is_file() and file_sha256(target) == expected:
         log(f"shaft-cli {version} is already installed and up to date (download skipped).")
         return target.resolve()
@@ -1361,6 +1395,7 @@ def install_shaft_cli_jar(version: str, repository: str, root: Path) -> Path:
         fail(f"Checksum verification failed for {source}.", 4)
 
     copy_verified(source, target, expected, "Installed shaft-cli JAR")
+    remember_checksum(target, "sha256", expected)
     return target.resolve()
 
 
@@ -1430,9 +1465,14 @@ def install_repository_file(url: str, target: Path, label: str, announce: bool =
 
     Returns the resolved path and whether a download actually happened, so
     callers can report how much work an already-provisioned machine skipped.
+    A sibling ``.sha256`` or ``.sha1`` that matches the file is enough; the
+    checksum is not fetched again.
     """
+    if matching_local_checksum(target) is not None:
+        return target.resolve(), False
     algorithm, expected = expected_checksum(url)
     if target.is_file() and file_digest(target, algorithm) == expected:
+        remember_checksum(target, algorithm, expected)
         return target.resolve(), False
 
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -1449,6 +1489,8 @@ def install_repository_file(url: str, target: Path, label: str, announce: bool =
         log(f"WARNING: kept the existing local {label} at {target} because the file is in use "
             "and could not be replaced. If shaft-mcp later fails to start, close running Java/IDE "
             "processes and re-run this installer.")
+        return target.resolve(), True
+    remember_checksum(target, algorithm, expected)
     return target.resolve(), True
 
 
@@ -1576,12 +1618,35 @@ def remote_shaft_skill_files() -> tuple[str, ...]:
 
 
 def local_shaft_skills_source() -> Path | None:
-    script = Path(__file__).resolve()
-    for parent in script.parents:
-        candidate = parent / SHAFT_SKILLS_DIRECTORY
-        if is_shaft_skills_source(candidate):
-            return candidate.resolve()
+    """Find ``shaft-skills/`` from this script or from the process working directory.
+
+    Bootstrap runs a temporary copy of this file. That copy's parents do not
+    contain the checkout, so the working directory is searched as well.
+    """
+    seen: set[Path] = set()
+    for root in (Path(__file__).resolve(), Path.cwd().resolve()):
+        for parent in (root, *root.parents):
+            if parent in seen:
+                continue
+            seen.add(parent)
+            candidate = parent / SHAFT_SKILLS_DIRECTORY
+            if is_shaft_skills_source(candidate):
+                return candidate.resolve()
     return None
+
+
+def _skip_skill_copy(source_file: Path, destination: Path, relative: str) -> bool:
+    """Skip a byte-identical file, and never replace the host skills map."""
+    if not destination.is_file() or destination.is_symlink():
+        return False
+    if relative == "README.md":
+        try:
+            head = destination.read_text(encoding="utf-8")[:40]
+        except (OSError, UnicodeDecodeError):
+            head = ""
+        if head.startswith("# Agent skills map"):
+            return True
+    return filecmp.cmp(source_file, destination, shallow=False)
 
 
 def copy_shaft_skills(source: Path, target: Path) -> Path:
@@ -1592,8 +1657,11 @@ def copy_shaft_skills(source: Path, target: Path) -> Path:
     target.mkdir(parents=True, exist_ok=True)
     for relative in shaft_skill_files(source):
         destination = target / relative
+        source_file = source / relative
+        if _skip_skill_copy(source_file, destination, relative):
+            continue
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source / relative, destination)
+        shutil.copy2(source_file, destination)
     return target
 
 
@@ -1618,6 +1686,13 @@ def download_shaft_skills_files(target: Path) -> Path:
         destination = (target / relative).resolve()
         if target != destination and target not in destination.parents:
             fail(f"SHAFT skills manifest contains an unsafe path: {relative}", 4)
+        if (
+            not os.environ.get("SHAFT_MCP_INSTALLER_REFRESH")
+            and destination.is_file()
+            and not destination.is_symlink()
+            and destination.stat().st_size > 0
+        ):
+            continue
         download_file(
             shaft_skills_raw_file_url(relative),
             destination,

@@ -360,6 +360,112 @@ class SharedStoreTest(unittest.TestCase):
         self.assertIn("stale", row["detail"])
         self.assertIn("repair --project . --component graphify", row["fixNext"])
 
+    def test_tip_lag_is_sync_advisory_and_ancestor_refresh_is_incremental(self):
+        revision = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
+        self._fresh_graph(revision)
+        (self.primary / "graphify-out" / "graph.json").write_text(
+            '{"nodes":[{"id":"keep"}]}\n', encoding="utf-8"
+        )
+        self.stores.write_marker(
+            self.primary / "graphify-out", revision
+        )
+        (self.primary / "other.py").write_text("print('other')\n", encoding="utf-8")
+        self.git("add", "other.py", cwd=self.primary)
+        self.git("commit", "-m", "other file", cwd=self.primary)
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD", cwd=self.primary)
+        moved = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
+        row = self.stores.graphify_doctor_row(self.primary)
+        self.assertEqual("sync-advisory", row["status"])
+        self.assertIn(f"indexed={revision}", row["detail"])
+        self.assertIn("stores refresh --if-stale", row["fixNext"])
+
+        palace = self._palace_with_one_row()
+        self.stores.write_palace_marker(palace, revision)
+        seen = {"seeded": "", "mine": []}
+
+        def runner(command, cwd):
+            if "extract" in command:
+                produced = Path(command[command.index("--out") + 1]) / "graphify-out"
+                seen["seeded"] = (produced / "graph.json").read_text(encoding="utf-8")
+                produced.mkdir(parents=True, exist_ok=True)
+                (produced / "graph.json").write_text('{"nodes":[]}\n', encoding="utf-8")
+                (produced / "manifest.json").write_text("{}\n", encoding="utf-8")
+            if "mine" in command:
+                seen["mine"].append(Path(cwd) / ".gitignore")
+            return 0
+
+        original_which = self.stores.shutil.which
+
+        def which(name, *args, **kwargs):
+            if name in {"graphify", "mempalace"}:
+                return name
+            return original_which(name, *args, **kwargs)
+
+        with unittest.mock.patch.object(self.stores.shutil, "which", side_effect=which), \
+                contextlib.redirect_stderr(io.StringIO()) as log:
+            self.assertEqual(0, self.stores.refresh(self.primary, runner=runner))
+        self.assertIn('{"id":"keep"}', seen["seeded"])
+        self.assertIn("stores: graphify incremental extract", log.getvalue())
+        self.assertIn("mempalace mine (incremental, 1 changed file(s))", log.getvalue())
+        self.assertEqual(
+            ["other.py"],
+            self.stores.incremental_mine_paths(
+                self.stores.store_snapshot_path(self.stores.resolve_common_dir(self.primary)),
+                revision,
+                moved,
+            ),
+        )
+
+        self._fresh_graph("f" * 40)
+        (self.primary / "graphify-out" / "graph.json").write_text(
+            '{"nodes":[{"id":"foreign"}]}\n', encoding="utf-8"
+        )
+        self.stores.write_marker(self.primary / "graphify-out", "f" * 40)
+        (palace / self.stores.GENERIC_MARKER).unlink()
+
+        def full_runner(command, cwd):
+            if "extract" in command:
+                produced = Path(command[command.index("--out") + 1]) / "graphify-out"
+                self.assertFalse((produced / "graph.json").exists())
+                produced.mkdir(parents=True, exist_ok=True)
+                (produced / "graph.json").write_text('{"nodes":[]}\n', encoding="utf-8")
+                (produced / "manifest.json").write_text("{}\n", encoding="utf-8")
+            return 0
+
+        with unittest.mock.patch.object(self.stores.shutil, "which", side_effect=which), \
+                contextlib.redirect_stderr(io.StringIO()) as full_log:
+            self.assertEqual(0, self.stores.refresh(self.primary, runner=full_runner))
+        self.assertIn("stores: graphify full extract", full_log.getvalue())
+        self.assertIn("mempalace mine (full tree)", full_log.getvalue())
+
+        current = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
+        self._fresh_graph(current)
+        self.stores.write_palace_marker(palace, current)
+        calls = []
+        with unittest.mock.patch.object(self.stores.shutil, "which", side_effect=which):
+            self.assertEqual(
+                0,
+                self.stores.refresh(self.primary, runner=lambda command, cwd: calls.append(command)),
+            )
+        self.assertEqual([], calls)
+
+    def test_busy_if_stale_refresh_drops_the_attempt_stamp(self):
+        common = self.stores.resolve_common_dir(self.primary)
+        stamp = common / "chaos-engine" / self.stores.ATTEMPT_STAMP
+        stamp.parent.mkdir(parents=True, exist_ok=True)
+        stamp.write_text(("a" * 40) + "\n", encoding="utf-8")
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_STORE_REFRESH": "1"}):
+            with self.stores.refresh_lock(common):
+                self.assertEqual(0, self.stores.refresh(self.primary, if_stale=True, runner=lambda command, cwd: 0))
+                self.assertEqual(
+                    "running",
+                    self.stores.maybe_spawn_refresh(
+                        self.primary,
+                        popen=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("spawned")),
+                    ),
+                )
+        self.assertFalse(stamp.exists())
+
     def test_session_start_spawns_once_and_does_not_wait(self):
         spawned = []
 

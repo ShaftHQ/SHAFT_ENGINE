@@ -1,10 +1,11 @@
 name: Upstream pin watch
 
-# Compares repository pins for MemPalace, Graphify, and vendored companion
-# skills with the latest stable upstream. Opens or updates one issue when a
-# pin is behind. When a published uv release is newer, rewrites every linked
-# consumer and the installer provisioning pin to that release and opens a PR.
-# Does not install tools, and does not merge the PR.
+# Compares repository pins for MemPalace, Graphify, other versioned
+# third-party downloads, and vendored companion skills with the latest stable
+# upstream. Opens or updates one issue when a pin is behind. When a published
+# uv release is newer, rewrites every linked consumer and the installer
+# provisioning pin to that release and opens a PR. Does not install tools,
+# and does not merge the PR.
 
 on:
   schedule:

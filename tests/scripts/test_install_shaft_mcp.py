@@ -1237,6 +1237,87 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertEqual([target.name], [path.name for path in target.parent.iterdir()])
             self.assertIn("kept the existing local", stderr.getvalue())
 
+    def test_matching_local_checksum_skips_the_download(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir) / "runtime-1.0.0.jar"
+            target.write_bytes(b"already-here")
+            digest = hashlib.sha256(b"already-here").hexdigest()
+            Path(f"{target}.sha256").write_text(digest + "\n", encoding="utf-8")
+
+            def refuse(*_args, **_kwargs):
+                raise AssertionError("download was not required")
+
+            with mock.patch.object(MODULE, "download_file", side_effect=refuse), \
+                    mock.patch.object(MODULE, "url_text_or_none", side_effect=refuse):
+                resolved, downloaded = MODULE.install_repository_file(
+                    "https://example.invalid/runtime-1.0.0.jar", target, "org.example:runtime:1.0.0")
+
+            self.assertFalse(downloaded)
+            self.assertEqual(target.resolve(), resolved)
+            self.assertEqual(b"already-here", target.read_bytes())
+
+    def test_sha1_sidecar_skips_and_a_mismatch_downloads_once(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "m2" / "runtime-1.0.0.jar"
+            target.parent.mkdir()
+            target.write_bytes(b"local")
+            Path(f"{target}.sha1").write_text(hashlib.sha1(b"local").hexdigest() + "\n", encoding="utf-8")
+            calls = []
+
+            def refuse(*_args, **_kwargs):
+                raise AssertionError("sha1 match must not download")
+
+            with mock.patch.object(MODULE, "download_file", side_effect=refuse), \
+                    mock.patch.object(MODULE, "url_text_or_none", side_effect=refuse):
+                _resolved, downloaded = MODULE.install_repository_file(
+                    "https://example.invalid/runtime-1.0.0.jar", target, "org.example:runtime:1.0.0")
+            self.assertFalse(downloaded)
+
+            target.write_bytes(b"different")
+            remote = root / "remote.jar"
+            remote.write_bytes(b"fresh")
+            Path(f"{remote}.sha256").write_text(hashlib.sha256(b"fresh").hexdigest() + "\n", encoding="utf-8")
+
+            def download(url, destination, _label, show_progress=False, announce=True):
+                calls.append(url)
+                destination.write_bytes(remote.read_bytes())
+
+            with mock.patch.object(MODULE, "download_file", side_effect=download), \
+                    mock.patch.object(MODULE, "url_text_or_none", return_value=hashlib.sha256(b"fresh").hexdigest()):
+                _resolved, downloaded = MODULE.install_repository_file(
+                    remote.as_uri(), target, "org.example:runtime:1.0.0", announce=False)
+            self.assertTrue(downloaded)
+            self.assertEqual([remote.as_uri()], calls)
+            self.assertEqual(b"fresh", target.read_bytes())
+            self.assertEqual(
+                hashlib.sha256(b"fresh").hexdigest(),
+                Path(f"{target}.sha256").read_text(encoding="utf-8").strip(),
+            )
+            with mock.patch.object(MODULE, "download_file", side_effect=refuse), \
+                    mock.patch.object(MODULE, "url_text_or_none", side_effect=refuse):
+                _resolved, again = MODULE.install_repository_file(
+                    remote.as_uri(), target, "org.example:runtime:1.0.0", announce=False)
+            self.assertFalse(again)
+
+    def test_skills_copy_keeps_the_agent_skills_map_and_skips_identical_files(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "shaft-skills"
+            skill = source / "shaft-developer"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("---\nname: shaft-developer\n---\n", encoding="utf-8")
+            (source / "README.md").write_text("published pack\n", encoding="utf-8")
+            target = root / "dest"
+            target.mkdir()
+            (target / "README.md").write_text("# Agent skills map\nlocal\n", encoding="utf-8")
+            copied = MODULE.copy_shaft_skills(source, target)
+            self.assertEqual("# Agent skills map\nlocal\n", (copied / "README.md").read_text(encoding="utf-8"))
+            self.assertTrue((copied / "shaft-developer" / "SKILL.md").is_file())
+            before = (copied / "shaft-developer" / "SKILL.md").stat().st_mtime_ns
+            MODULE.copy_shaft_skills(source, target)
+            self.assertEqual(before, (copied / "shaft-developer" / "SKILL.md").stat().st_mtime_ns)
+
     def test_replace_with_retry_recovers_after_transient_denial(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import io
 import importlib.util
 import json
@@ -2792,6 +2793,127 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
         self.assertEqual(["missing"], [item["kind"] for item in posix_probes])
         self.assertEqual("missing", module.executable_probe_kind(None))
         self.assertEqual("missing", module.executable_probe_kind(""))
+
+    def test_python_command_is_recorded_as_python3_without_replacing_a_real_python3(self):
+        module = load_controller()
+        specification = self.specification()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            python = root / "python.exe"
+            python.write_text("python", encoding="utf-8")
+            real = root / "python3"
+            real.write_text("python3", encoding="utf-8")
+            calls = []
+
+            def runner(command, **_kwargs):
+                calls.append(list(command))
+                return SimpleNamespace(returncode=0, stdout="Python 3.14.2", stderr="")
+
+            def which_python_only(name, path=None):
+                if name == "python":
+                    return str(python)
+                return None
+
+            with mock.patch.dict(os.environ, {
+                "CHAOS_ENGINE_USER_PATHS": "1",
+                "CHAOS_ENGINE_USER_DIR": str(root / "user"),
+            }):
+                _local, commands = module.discover_account_commands(
+                    specification, which=which_python_only, runner=runner
+                )
+                properties = (root / "user" / "user.properties").read_text(encoding="utf-8")
+                shim = root / "user" / "bin" / "python3.cmd"
+                self.assertEqual(str(python.resolve()), commands["python3"])
+                self.assertNotIn("python", commands)
+                recorded = root / "user" / "bin" / ("python3.cmd" if os.name == "nt" else "python3")
+                self.assertIn(f"python3={recorded}", properties)
+                self.assertIn(str(python), shim.read_text(encoding="utf-8"))
+                self.assertIn([str(python), "--version"], calls)
+
+                kept = {"python3": str(real), "uv": str(root / "uv")}
+                written = module.publish_user_tool_paths(dict(kept))
+                text = written.read_text(encoding="utf-8")
+                self.assertIn(f"python3={real}", text)
+                self.assertIn(f"uv={root / 'uv'}", text)
+                self.assertEqual(str(real), kept["python3"])
+
+    def test_py_launcher_is_recorded_as_python3_with_the_version_switch(self):
+        module = load_controller()
+        specification = self.specification()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            launcher = root / "py.exe"
+            launcher.write_text("py", encoding="utf-8")
+            calls = []
+
+            def runner(command, **_kwargs):
+                calls.append(list(command))
+                return SimpleNamespace(returncode=0, stdout="Python 3.14.2", stderr="")
+
+            def which_py_only(name, path=None):
+                if name == "py":
+                    return str(launcher)
+                return None
+
+            with mock.patch.dict(os.environ, {
+                "CHAOS_ENGINE_USER_PATHS": "1",
+                "CHAOS_ENGINE_USER_DIR": str(root / "user"),
+            }):
+                _local, commands = module.discover_account_commands(
+                    specification, which=which_py_only, runner=runner
+                )
+            properties = (root / "user" / "user.properties").read_text(encoding="utf-8")
+            cmd = (root / "user" / "bin" / "python3.cmd").read_text(encoding="utf-8")
+            wrapper = root / "user" / "bin" / "python3"
+            recorded = wrapper if os.name != "nt" else root / "user" / "bin" / "python3.cmd"
+            self.assertEqual(str(launcher.resolve()), commands["python3"])
+            self.assertNotIn("python", commands)
+            self.assertIn(f"python3={recorded}", properties)
+            self.assertIn(str(launcher.resolve()), cmd)
+            self.assertIn("-3", cmd)
+            self.assertIn([str(launcher), "-3", "--version"], calls)
+            if wrapper.exists():
+                self.assertIn("-3", wrapper.read_text(encoding="utf-8"))
+
+    def test_download_cache_hit_is_not_fetched_again(self):
+        module = load_controller()
+        payload = b"runtime-bytes"
+        expected = hashlib.sha256(payload).hexdigest()
+        calls = []
+
+        class Response(io.BytesIO):
+            headers: dict = {}
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                self.close()
+
+        def opener(url, timeout=None):
+            calls.append(url)
+            return Response(payload)
+
+        class Reporter:
+            def __init__(self):
+                self.traces = []
+
+            def trace(self, message):
+                self.traces.append(message)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            cache = Path(temporary) / "cache"
+            destination = Path(temporary) / "runtime.zip"
+            with mock.patch.dict(os.environ, {"CHAOS_ENGINE_CACHE_DIR": str(cache)}):
+                module._download_artifact("https://example.invalid/runtime.zip", destination, expected, opener)
+                reporter = Reporter()
+                second = Path(temporary) / "again.zip"
+                module._download_artifact(
+                    "https://example.invalid/runtime.zip", second, expected, opener, reporter=reporter
+                )
+            self.assertEqual(payload, second.read_bytes())
+            self.assertEqual(1, len(calls))
+            self.assertTrue(any(trace.startswith("cache hit ") for trace in reporter.traces))
 
     def host_probes_from_which(self, module, which):
         """Probes produced by discover, not a hand-built kind list."""

@@ -239,6 +239,173 @@ def dependency_action(
     )
 
 
+def _user_path_publish_enabled() -> bool:
+    """Publish during a real install. Unit tests opt in with CHAOS_ENGINE_USER_PATHS=1."""
+    flag = os.environ.get("CHAOS_ENGINE_USER_PATHS", "").strip().casefold()
+    if flag in {"0", "false", "no", "off"}:
+        return False
+    argv = " ".join(sys.argv)
+    under_test = any(token in argv for token in ("unittest", "pytest", "tests/scripts"))
+    if under_test:
+        return flag in {"1", "true", "yes", "on"}
+    return True
+
+
+def user_data_dir() -> Path:
+    """Per-user ChaosEngine directory. Not the project checkout and not a secret store."""
+    override = os.environ.get("CHAOS_ENGINE_USER_DIR", "").strip()
+    if override:
+        return Path(override)
+    if os.name == "nt":
+        base = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData/Local")
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library/Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
+    return base / "chaos-engine"
+
+
+def _prints_python3(executable: str, runner, prefix: tuple[str, ...]) -> bool:
+    try:
+        result = runner(
+            [executable, *prefix, "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+    except (OSError, TypeError, subprocess.SubprocessError):
+        return False
+    output = f"{getattr(result, 'stdout', '') or ''}\n{getattr(result, 'stderr', '') or ''}"
+    return "Python 3" in output
+
+
+def _python3_from_python(which, search_path: str, runner) -> str | None:
+    """Use ``python`` or the ``py -3`` launcher when ``python3`` is not a command."""
+    for command, prefix in (
+        ("python", ()),
+        ("python.exe", ()),
+        ("py", ("-3",)),
+        ("py.exe", ("-3",)),
+    ):
+        found = which(command, path=search_path)
+        if isinstance(found, str) and found.strip() and _prints_python3(found, runner, prefix):
+            return found
+    return None
+
+
+def _which_account_command(command: str, *, which, search_path: str, runner) -> str | None:
+    found = which(command, path=search_path)
+    if found or command != "python3":
+        return found
+    return _python3_from_python(which, search_path, runner)
+
+
+def _shim_arguments(target: Path) -> tuple[str, ...]:
+    """The Windows ``py`` launcher selects Python 3 only with ``-3``."""
+    if target.name.lower() in {"py", "py.exe"}:
+        return ("-3",)
+    return ()
+
+
+def _write_python3_shim(directory: Path, target: Path) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    arguments = _shim_arguments(target)
+    extra = " ".join(arguments)
+    tail = f"{extra} %*".strip()
+    cmd = directory / "python3.cmd"
+    cmd.write_text(f'@echo off\r\n"{target}" {tail}\r\n', encoding="utf-8")
+    if os.name == "nt":
+        return cmd
+    shim = directory / "python3"
+    if shim.exists() or shim.is_symlink():
+        shim.unlink()
+    if arguments:
+        shim.write_text(
+            f'#!/bin/sh\nexec "{target}" {" ".join(arguments)} "$@"\n',
+            encoding="utf-8",
+        )
+        shim.chmod(0o755)
+        return shim
+    shim.symlink_to(target)
+    return shim
+
+
+def _prepend_process_path(directories: list[str]) -> None:
+    current = os.environ.get("PATH", "")
+    parts = [part for part in current.split(os.pathsep) if part]
+    for directory in reversed(directories):
+        if directory not in parts:
+            parts.insert(0, directory)
+    os.environ["PATH"] = os.pathsep.join(parts)
+
+
+def _persist_windows_user_path(directories: list[str]) -> None:
+    """Prepend tool directories to the user PATH. The process PATH is not copied in."""
+    if os.name != "nt":
+        return
+    try:
+        import winreg
+    except ImportError:
+        return
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_READ | winreg.KEY_SET_VALUE
+        ) as key:
+            try:
+                current, _kind = winreg.QueryValueEx(key, "Path")
+            except FileNotFoundError:
+                current = ""
+            existing = [part for part in str(current).split(os.pathsep) if part]
+            prepend = [directory for directory in directories if directory not in existing]
+            if not prepend:
+                return
+            winreg.SetValueEx(
+                key, "Path", 0, winreg.REG_EXPAND_SZ, os.pathsep.join([*prepend, *existing])
+            )
+    except OSError:
+        return
+
+
+def publish_user_tool_paths(commands: dict[str, str]) -> Path | None:
+    """Record tool paths and make ``python3`` resolvable when only ``python`` exists.
+
+    Writes ``user.properties`` under the ChaosEngine user directory. On Windows
+    the user PATH gains the shim directory. A unit test does not write unless
+    ``CHAOS_ENGINE_USER_PATHS=1``.
+    """
+    if not _user_path_publish_enabled():
+        return None
+    root = user_data_dir()
+    root.mkdir(parents=True, exist_ok=True)
+    bindir = root / "bin"
+    # The install receipt keeps the discovered executables. The shim is only
+    # the user-facing python3 command and must not add keys to that receipt.
+    recorded = {
+        name: value for name, value in commands.items() if isinstance(value, str) and value
+    }
+    python_path = recorded.get("python") or recorded.get("python3")
+    python3 = recorded.get("python3")
+    if python_path and python3 and Path(python3).name.lower() not in {"python3", "python3.exe", "python3.cmd"}:
+        shim = _write_python3_shim(bindir, Path(python3))
+        recorded["python3"] = str(shim)
+        recorded.setdefault("python", python_path)
+    elif python_path and not python3:
+        shim = _write_python3_shim(bindir, Path(python_path))
+        recorded["python3"] = str(shim)
+        recorded.setdefault("python", python_path)
+    recorded = dict(sorted(recorded.items()))
+    destination = root / "user.properties"
+    destination.write_text(
+        "".join(f"{name}={value}\n" for name, value in recorded.items()),
+        encoding="utf-8",
+    )
+    if bindir.is_dir() and any(bindir.iterdir()):
+        _prepend_process_path([str(bindir)])
+        _persist_windows_user_path([str(bindir)])
+    return destination
+
+
 def discover_executables(names: list[str], *, which=shutil.which) -> dict[str, dict[str, str]]:
     """Resolve every required sibling independently from the invoking user's PATH."""
     result: dict[str, dict[str, str]] = {}
@@ -697,7 +864,7 @@ def probe_account_dependency(
     probe = contract.get("probe")
     if not isinstance(probe, list) or not all(isinstance(item, str) for item in probe):
         raise ValueError(f"dependency probe contract is invalid: {name}")
-    command = [executable_path, *probe[1:]]
+    command = [executable_path, *_shim_arguments(Path(executable_path)), *probe[1:]]
     if os.name == "nt" and executable_path.lower().endswith((".cmd", ".bat")):
         command = ["cmd", "/c", *command]
     environment = {
@@ -819,7 +986,9 @@ def discover_account_commands(
                 unusable, command, preferred if isinstance(preferred, str) else None
             )
             if not selected or not Path(selected).is_file():
-                found = which(command, path=search_path)
+                found = _which_account_command(
+                    command, which=which, search_path=search_path, runner=runner
+                )
                 selected = _remember_unusable(
                     unusable, command, found if isinstance(found, str) else None
                 )
@@ -868,6 +1037,7 @@ def discover_account_commands(
             "executable": sibling_paths[primary],
             "siblings": sibling_paths,
         }
+    publish_user_tool_paths(commands)
     return components, commands
 
 

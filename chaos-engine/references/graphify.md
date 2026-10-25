@@ -52,9 +52,16 @@ python3 .chaos-engine/install.py repair --project . --component graphify
 A second refresh exits while the repository lock is held. Session start spawns
 one detached `--if-stale` refresh when the indexed revision is not the local
 default-branch tip, then does not read its output. The same tip does not spawn
-again. The daily user timer calls the same command. An ordinary task must not
+again. A busy skip does not keep that stamp, so a later attempt can run.
+The daily user timer calls the same command. An ordinary task must not
 refresh, retry-loop, clear the lock, or alter a checkout to manufacture
-freshness. When the default-branch commit is not local, refresh stops with
+freshness. Stale is a trust signal. A readable graph whose indexed commit
+is behind the tip is still usable; doctor reports that as sync-advisory.
+A missing graph, a bad marker, or a manifest digest mismatch stays degraded.
+Full extract runs when the graph or manifest is missing, or when the indexed
+commit is not an ancestor of the tip. Otherwise refresh copies that checkpoint
+into the extract directory so Graphify updates only what changed.
+When the default-branch commit is not local, refresh stops with
 `fix-next: git fetch`. A GitHub Action cannot refresh this machine's cache.
 
 Queries still run through `tool.py`, which binds `--graph` to the shared

@@ -4,11 +4,13 @@
 Reads ``chaos-engine/dependencies.json`` and every ``chaos-engine/vendor/*/PIN.json``.
 The machine receipt ``.chaos-engine-dependencies.json`` is not a pin.
 
-Latest for MemPalace and Graphify is the newest non-yanked stable PyPI release.
-Unreleased history (a newer default-branch commit, a changelog version that is
-not published) is not latest. Latest for a vendored repository is the commit of
-its newest GitHub release, or default-branch HEAD when that repository has no
-stable release.
+Latest for a PyPI or npm package is the newest non-yanked stable release.
+Latest for uv, Node, and Temurin is the newest stable version on that
+dependency's stable channel. Latest for a commit pin is the commit of the
+newest GitHub release, or default-branch HEAD when that repository has no
+stable release. Unreleased history is not latest. The Python generation pin
+and the project-runtime series are not one bump and are not watched here.
+deja stays on its pinned release tag.
 
 Report-only unless ``--write``. ``--write`` opens or updates one issue titled
 ``Upstream pin drift`` and does not merge or install anything.
@@ -33,7 +35,6 @@ from typing import Any, Callable, Mapping, Sequence
 
 SUGGESTION_TITLE = "Upstream pin drift"
 CAVEMAN_OVERLAY = "chaos-engine/vendor/caveman/INVENTORY.md"
-WATCHED_PYPI = ("mempalace", "graphify")
 _STABLE_VERSION = re.compile(r"^\d+(?:\.\d+)*$")
 _USER_AGENT = "shaft-engine-upstream-watch"
 
@@ -103,7 +104,7 @@ def newest_stable_version(payload: Mapping[str, Any]) -> str:
 
 def _stable_identity(pin: Pin, stable: Stable) -> str:
     """Newest published stable release. Unreleased history is not a target."""
-    if pin.kind == "pypi":
+    if pin.kind in _VERSION_KINDS:
         latest = stable.version
     elif stable.release_commit:
         latest = stable.release_commit
@@ -114,11 +115,15 @@ def _stable_identity(pin: Pin, stable: Stable) -> str:
     return latest
 
 
+_VERSION_KINDS = frozenset({"pypi", "npm", "github-tag", "node-index", "adoptium"})
+_COMMIT_KINDS = frozenset({"git", "release"})
+
+
 def compare_pin(pin: Pin, stable: Stable) -> Verdict:
     latest = _stable_identity(pin, stable)
-    if pin.kind == "pypi":
+    if pin.kind in _VERSION_KINDS:
         behind = _version_key(pin.current) < _version_key(latest)
-    elif pin.kind == "git":
+    elif pin.kind in _COMMIT_KINDS:
         behind = pin.current != latest
     else:
         raise ValueError(f"unknown pin kind for {pin.name}")
@@ -136,21 +141,14 @@ def load_pins(root: Path) -> tuple[Pin, ...]:
     """Repository pins only. Does not read ``.chaos-engine-dependencies.json``."""
     spec_path = root / "chaos-engine" / "dependencies.json"
     spec = json.loads(spec_path.read_text(encoding="utf-8"))
-    tools = spec["tools"]
     dependencies = spec["dependencies"]
     pins: list[Pin] = []
-    for name in WATCHED_PYPI:
-        package = str(tools[name]["package"])
-        if "==" not in package:
-            raise ValueError(f"{name} package pin must be name==version")
-        pins.append(
-            Pin(
-                name=name,
-                kind="pypi",
-                current=package.split("==", 1)[1],
-                upstream_url=str(dependencies[name]["stableChannel"]),
-            )
-        )
+    if not isinstance(dependencies, dict):
+        raise ValueError("dependencies.json has no dependencies object")
+    for name, contract in dependencies.items():
+        pin = _dependency_pin(spec, str(name), contract)
+        if pin is not None:
+            pins.append(pin)
     vendor_root = root / "chaos-engine" / "vendor"
     for pin_path in sorted(vendor_root.glob("*/PIN.json")):
         payload = json.loads(pin_path.read_text(encoding="utf-8"))
@@ -295,6 +293,84 @@ def fetch_uv_release() -> dict[str, Any]:
     return uv_release_from_github_payload(payload)
 
 
+_RUNTIME_KEYS = {"java": "temurin", "maven-tools-mcp": "maven-tools-source"}
+_SKIP_DEPENDENCIES = frozenset({"python", "deja"})
+
+
+def _package_version(package: str) -> str | None:
+    if "==" in package:
+        return package.split("==", 1)[1]
+    if "@" in package:
+        return package.rsplit("@", 1)[1]
+    return None
+
+
+def _pin_current(spec: Mapping[str, Any], name: str) -> str | None:
+    tools = spec.get("tools") if isinstance(spec.get("tools"), dict) else {}
+    tool = tools.get(name) if isinstance(tools, dict) else None
+    package = tool.get("package") if isinstance(tool, dict) else None
+    if isinstance(package, str):
+        version = _package_version(package)
+        if version:
+            return version
+    runtimes = spec.get("runtimes") if isinstance(spec.get("runtimes"), dict) else {}
+    runtime = runtimes.get(_RUNTIME_KEYS.get(name, name)) if isinstance(runtimes, dict) else None
+    version = runtime.get("version") if isinstance(runtime, dict) else None
+    if isinstance(version, str) and version:
+        return version
+    return None
+
+
+def _github_repository(url: str) -> str:
+    marker = "api.github.com/repos/"
+    if marker not in url:
+        return ""
+    parts = url.split(marker, 1)[1].split("/")
+    if len(parts) < 2:
+        return ""
+    return f"{parts[0]}/{parts[1]}"
+
+
+def _channel_kind(url: str, current: str) -> str | None:
+    if len(current) == 40 and all(character in "0123456789abcdef" for character in current):
+        return "release"
+    if "pypi.org" in url:
+        return "pypi"
+    if "registry.npmjs.org" in url:
+        return "npm"
+    if "nodejs.org" in url:
+        return "node-index"
+    if "adoptium.net" in url:
+        return "adoptium"
+    if "api.github.com" in url and "/releases/latest" in url:
+        return "github-tag"
+    return None
+
+
+def _dependency_pin(spec: Mapping[str, Any], name: str, contract: object) -> Pin | None:
+    """One watched pin, or None when this dependency is not a published version pin."""
+    if name in _SKIP_DEPENDENCIES or not isinstance(contract, dict):
+        return None
+    url = str(contract.get("stableChannel") or "")
+    if not url or "/releases/tags/" in url:
+        return None
+    current = _pin_current(spec, name)
+    if not current:
+        return None
+    kind = _channel_kind(url, current)
+    if kind is None:
+        return None
+    if kind in _VERSION_KINDS and _STABLE_VERSION.fullmatch(current.split("+", 1)[0]) is None:
+        return None
+    return Pin(
+        name=name,
+        kind=kind,
+        current=current,
+        upstream_url=url,
+        repository=_github_repository(url) if kind == "release" else "",
+    )
+
+
 def fetch_pypi(url: str) -> Stable:
     status, payload = _request_json(url, github=False)
     if status != 200 or not isinstance(payload, dict):
@@ -325,10 +401,109 @@ def fetch_git(repository: str) -> Stable:
     raise UpstreamError(f"{repository} releases/latest returned HTTP {status}")
 
 
+def _stable_version_payload(url: str, version: str) -> Stable:
+    cleaned = version.strip().lstrip("v")
+    if _STABLE_VERSION.fullmatch(cleaned.split("+", 1)[0]) is None:
+        raise UpstreamError(f"{url} has no stable version")
+    return Stable(version=cleaned)
+
+
+def fetch_npm(url: str) -> Stable:
+    status, payload = _request_json(url, github=False)
+    if status != 200 or not isinstance(payload, dict):
+        raise UpstreamError(f"{url} returned HTTP {status}")
+    return _stable_version_payload(url, str(payload.get("version") or ""))
+
+
+def fetch_github_tag(url: str) -> Stable:
+    status, payload = _request_json(url, github=True)
+    if status != 200 or not isinstance(payload, dict):
+        raise UpstreamError(f"{url} returned HTTP {status}")
+    return _stable_version_payload(url, str(payload.get("tag_name") or ""))
+
+
+def newest_node_version(payload: object) -> str:
+    """Newest Node LTS. A Current (non-LTS) line is not the installer pin."""
+    if not isinstance(payload, list):
+        raise UpstreamError("node index is not a list")
+    versions = [
+        str(item.get("version") or "").lstrip("v")
+        for item in payload
+        if isinstance(item, dict)
+        and item.get("lts") not in (False, None, "")
+        and _STABLE_VERSION.fullmatch(str(item.get("version") or "").lstrip("v"))
+    ]
+    if not versions:
+        raise UpstreamError("node index has no stable LTS version")
+    return max(versions, key=_version_key)
+
+
+def fetch_node_index(url: str) -> Stable:
+    status, payload = _request_json(url, github=False)
+    if status != 200:
+        raise UpstreamError(f"{url} returned HTTP {status}")
+    try:
+        version = newest_node_version(payload)
+    except UpstreamError as error:
+        raise UpstreamError(f"{url} has no stable Node version") from error
+    return Stable(version=version)
+
+
+def _adoptium_feature(url: str) -> int | None:
+    """The feature line named in the channel, such as ``feature_version=25``."""
+    raw = urllib.parse.parse_qs(urllib.parse.urlparse(url).query).get("feature_version", [""])[0]
+    return int(raw) if str(raw).isdigit() else None
+
+
+def _adoptium_version(item: Mapping[str, Any]) -> str | None:
+    raw = str(item.get("openjdk_version") or item.get("semver") or "").strip().lstrip("v")
+    if raw.endswith("-LTS"):
+        raw = raw[: -len("-LTS")]
+    if _STABLE_VERSION.fullmatch(raw.split("+", 1)[0]) is None:
+        return None
+    return raw
+
+
+def newest_adoptium_version(payload: Mapping[str, Any], *, feature: int | None) -> str:
+    """Newest GA on the requested feature line. A mixed page must not jump lines."""
+    found: list[str] = []
+    for item in payload.get("versions") or []:
+        if not isinstance(item, dict):
+            continue
+        version = _adoptium_version(item)
+        if version is None:
+            continue
+        if feature is not None and item.get("major") != feature:
+            continue
+        found.append(version)
+    if not found:
+        raise UpstreamError("adoptium payload has no stable Temurin version")
+    return max(found, key=_version_key)
+
+
+def fetch_adoptium(url: str) -> Stable:
+    status, payload = _request_json(url, github=False)
+    if status != 200 or not isinstance(payload, dict):
+        raise UpstreamError(f"{url} returned HTTP {status}")
+    try:
+        version = newest_adoptium_version(payload, feature=_adoptium_feature(url))
+    except UpstreamError as error:
+        raise UpstreamError(f"{url} has no stable Temurin version") from error
+    return Stable(version=version)
+
+
 def fetch_stable(pin: Pin) -> Stable:
     if pin.kind == "pypi":
         return fetch_pypi(pin.upstream_url)
-    if pin.kind == "git":
+    if pin.kind == "npm":
+        return fetch_npm(pin.upstream_url)
+    if pin.kind == "github-tag":
+        return fetch_github_tag(pin.upstream_url)
+    if pin.kind == "node-index":
+        return fetch_node_index(pin.upstream_url)
+    if pin.kind == "adoptium":
+        return fetch_adoptium(pin.upstream_url)
+    if pin.kind in _COMMIT_KINDS:
         return fetch_git(pin.repository)
     raise UpstreamError(f"unknown pin kind for {pin.name}")
 
