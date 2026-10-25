@@ -180,6 +180,17 @@ class ChaosEngineKernelTest(TestCase):
                     ),
                 )
 
+    def test_grok_session_start_copies_additional_context_into_system_message(self):
+        payload = {"additionalContext": "locator"}
+        grok = self.kernel.adapt_hook_output(payload, "SessionStart", "grok")
+        self.assertEqual(
+            {"additionalContext": "locator", "systemMessage": "locator"},
+            grok,
+        )
+        claude = self.kernel.adapt_hook_output({"additionalContext": "locator"}, "SessionStart", "claude")
+        self.assertEqual({"additionalContext": "locator"}, claude)
+        self.assertNotIn("systemMessage", claude)
+
     def test_stop_denials_use_each_host_native_output_contract(self):
         for event in ("Stop", "SubagentStop"):
             expected = {}

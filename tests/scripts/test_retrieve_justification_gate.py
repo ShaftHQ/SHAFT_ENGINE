@@ -932,6 +932,47 @@ NODE install [src=chaos-engine/install.py loc=L12]
             )
             self.assertEqual(_OWED_RETRIEVE, gate.session_retrieve_gap(project, "early"))
 
+    def test_filter_programs_are_not_checkout_paths(self):
+        gate = load("chaos-engine/hooks/retrieve_justification.py", "gate_filter_programs")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "src" / "hooks.bak").mkdir(parents=True)
+            allowed = (
+                "git log --oneline origin/main..HEAD | sed 's/^/  /'",
+                "sed 's/foo.txt/bar.txt/'",
+                "printf a | tr '/' '_'",
+                "awk '/src/hooks.bak/ { print }'",
+            )
+            for command in allowed:
+                self.assertIsNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                        session_id="filter-program",
+                    ),
+                    command,
+                )
+            denied = (
+                "sed 's/^/  /' src/hooks.bak",
+                "cat src/hooks.bak",
+                'python3 -c \'print(open("src/hooks.bak").read())\'',
+            )
+            for command in denied:
+                self.assertIsNotNone(
+                    gate.file_read_block_reason(
+                        project=project,
+                        event_name="PreToolUse",
+                        tool_name="Bash",
+                        tool_input={},
+                        commands=(command,),
+                        session_id="filter-still-denied",
+                    ),
+                    command,
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -257,6 +257,47 @@ class HookInstallTest(SecretGuardTestCase):
         self.assertEqual("not the root of its git repository",
                          self.hooks.install_secret_guard(nested, GUARD)["reason"])
 
+    def test_app_key_values_stay_secrets_and_installed_guard_must_match_canonical(self):
+        app_value = "appvalue123456"  # nosec B105 - synthetic, not a credential
+        properties = self.repo / "src/main/resources/properties/secrets.properties"
+        properties.write_text(
+            properties.read_text(encoding="utf-8") + f"browserstack.app={app_value}\n",
+            encoding="utf-8",
+        )
+        names = [self.guard.DEFAULT_GUARDED_FILES.split(",")[0]]
+        values = self.guard.secret_values(self.repo, names)
+        self.assertIn(app_value.encode(), values)
+
+        def skip_keys_ending_with_app(text: str) -> set[bytes]:
+            found: set[bytes] = set()
+            for line in text.splitlines():
+                match = self.guard.SECRET_LINE.match(line)
+                if not match or "=" not in line:
+                    continue
+                key = line.split("=", 1)[0].strip()
+                if key.casefold().endswith("app"):
+                    continue
+                found.add(match.group(1).strip("\"'").encode())
+            return found
+
+        skipped = skip_keys_ending_with_app(properties.read_text(encoding="utf-8"))
+        self.assertNotIn(app_value.encode(), skipped)
+        self.assertIn(LEAK_VALUE.encode(), skipped)
+        self.assertNotEqual(values, skipped)
+        found = self.guard.findings("notes.txt", app_value.encode(), values, [])
+        self.assertEqual(["known secret value"], found)
+        self.assertNotIn(app_value, " ".join(found))
+
+        result = self.hooks.install_secret_guard(self.repo, GUARD)
+        installed = Path(result["hooksPath"]) / "secret_guard.py"
+        self.assertEqual(GUARD.read_bytes(), installed.read_bytes())
+        self.assertEqual(("pass", ""), self.hooks.guard_health(self.repo))
+        installed.write_text("value = 1\n", encoding="utf-8")
+        status, reason = self.hooks.guard_health(self.repo)
+        self.assertEqual("fail", status)
+        self.assertEqual("secret_guard.py differs from the canonical guard", reason)
+        self.assertNotIn(app_value, reason)
+
 
 class TemplateParityTest(unittest.TestCase):
     def test_shaft_template_ships_the_same_guard_and_hooks(self):

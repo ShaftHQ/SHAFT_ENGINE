@@ -790,6 +790,109 @@ def clear_open_pull_request(cwd: Path) -> None:
         return
 
 
+def _marked_pull_request_number(cwd: Path) -> int | None:
+    path = _open_pull_request_state_path(cwd)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    number = payload.get("pullRequest")
+    if isinstance(number, bool) or not isinstance(number, int):
+        return None
+    return number
+
+
+def _result_stdout(result: dict) -> str:
+    chunks = (result.get("stdout"), result.get("output"))
+    for item in chunks:
+        if isinstance(item, str) and item.strip():
+            return item
+    for item in chunks:
+        if isinstance(item, str):
+            return item
+    return ""
+
+
+def _integer_argument(text: str) -> int | None:
+    return int(text) if text.isdigit() else None
+
+
+def _flag_number(arguments: list[str], flag: str) -> int | None:
+    for index, arg in enumerate(arguments):
+        if arg == flag and index + 1 < len(arguments):
+            return _integer_argument(arguments[index + 1])
+        if arg.startswith(flag + "="):
+            return _integer_argument(arg.split("=", 1)[1])
+    return None
+
+
+def _positional_number(arguments: list[str]) -> int | None:
+    for arg in arguments:
+        number = _integer_argument(arg)
+        if number is not None:
+            return number
+    return None
+
+
+def _json_state_merged(stdout: str) -> bool:
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(payload, dict) and str(payload.get("state") or "").casefold() == "merged"
+
+
+def _observed_merge(command: str, stdout: str) -> tuple[int | None] | None:
+    """A verified MERGED from watch --until-merged or gh pr view, not gh pr merge --auto.
+
+    The tuple is the PR number in the command, or None when the command names none.
+    A missing return means this command did not observe a merge.
+    """
+    parsed = shell_tokens(command)
+    if not parsed or any(item in {";", "&&", "||", "|", "&"} for item in parsed):
+        return None
+    head, arguments = command_head(parsed)
+    if head in {"py", "python", "python3"}:
+        script = any(
+            item.replace("\\", "/").casefold().endswith("watch_pr_checks.py") for item in arguments
+        )
+        merged_line = any(line.strip() == "MERGED" for line in stdout.splitlines())
+        if script and "--until-merged" in arguments and merged_line:
+            return (_flag_number(arguments, "--pr"),)
+        return None
+    if head == "gh" and arguments[:2] == ["pr", "view"] and _json_state_merged(stdout):
+        return (_positional_number(arguments[2:]),)
+    return None
+
+
+def _record_observed_pull_request_merge(
+    event: dict, commands: tuple[str, ...], session_id: str
+) -> None:
+    """#7370: watch or gh pr view reporting MERGED clears the open-PR Stop block."""
+    result = event.get("tool_response")
+    if result is None:
+        result = event.get("toolResponse")
+    if _tool_result_failed("PostToolUse", result) or not isinstance(result, dict):
+        return
+    stdout = _result_stdout(result)
+    seen: tuple[int | None] | None = None
+    for command in commands:
+        seen = _observed_merge(command, stdout)
+        if seen is not None:
+            break
+    if seen is None:
+        return
+    cwd = Path(str(event.get("cwd") or Path.cwd()))
+    marked = _marked_pull_request_number(cwd)
+    observed = seen[0]
+    if marked is not None and observed is not None and marked != observed:
+        return
+    reflection.record_activity(session_id, "pull-request-merged")
+    clear_open_pull_request(cwd)
+
+
 def delivery_goal_open_pull_request(event: dict) -> bool:
     """True when this checkout still has a pull request opened by gh pr create.
 
@@ -1236,6 +1339,7 @@ def _run_event(event: dict, _host: str) -> int:
         print(json.dumps({"decision": "block", "reason": guard_reason}))
         return 2
     if event_name == "PostToolUse" and not receipt_command:
+        _record_observed_pull_request_merge(event, commands, session_id)
         if any(learning_session_finalize_command(candidate) for candidate in commands):
             if learning_completion_artifact(session_id) is not None:
                 reflection.record_activity(session_id, "learning-session-complete")

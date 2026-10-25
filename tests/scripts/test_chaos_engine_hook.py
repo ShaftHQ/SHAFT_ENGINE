@@ -1304,6 +1304,109 @@ process.stderr.write(result.stderr || '');
             self.assertNotIn("until merged", (cleared.stdout + cleared.stderr).casefold())
             self.assertFalse((root / ".chaos-engine-state" / "open-pull-request.json").exists())
 
+    def test_observed_merge_clears_the_open_pull_request_mark(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary, "CHAOS_ENGINE_HOST": "claude"}
+            mark = root / ".chaos-engine-state" / "open-pull-request.json"
+            number = 6401
+
+            def open_mark(session: str) -> None:
+                created = self.run_hook(
+                    {
+                        "hook_event_name": "PostToolUse",
+                        "cwd": str(root),
+                        "tool_name": "Bash",
+                        "tool_input": {"command": "gh pr create --base main --title x --body y"},
+                        "tool_response": {
+                            "status": "success",
+                            "exit_code": 0,
+                            "stdout": f"https://github.com/ShaftHQ/SHAFT_ENGINE/pull/{number}\n",
+                        },
+                        "session_id": session,
+                    },
+                    environment,
+                )
+                self.assertEqual(0, created.returncode)
+                self.assertEqual(number, json.loads(mark.read_text(encoding="utf-8"))["pullRequest"])
+
+            def stop_text(session: str) -> str:
+                stopped = self.run_hook(
+                    {
+                        "hook_event_name": "Stop",
+                        "cwd": str(root),
+                        "session_id": session,
+                        "stop_hook_active": True,
+                    },
+                    environment,
+                )
+                return (stopped.stdout + stopped.stderr).casefold()
+
+            open_mark("obs-create")
+            other = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": f"python3 scripts/agents/watch_pr_checks.py --pr 1 --until-merged"
+                    },
+                    "tool_response": {"status": "success", "exit_code": 0, "stdout": "MERGED\n"},
+                    "session_id": "obs-mismatch",
+                },
+                environment,
+            )
+            self.assertEqual(0, other.returncode)
+            self.assertTrue(mark.is_file())
+            watched = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": f"python3 scripts/agents/watch_pr_checks.py --pr {number} --until-merged"
+                    },
+                    "tool_response": {"status": "success", "exit_code": 0, "stdout": "MERGED\n"},
+                    "session_id": "obs-watch",
+                },
+                environment,
+            )
+            self.assertEqual(0, watched.returncode)
+            self.assertNotIn("until merged", stop_text("obs-watch"))
+            self.assertFalse(mark.exists())
+
+            open_mark("obs-create-view")
+            viewed = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {"command": f"gh pr view {number} --json state"},
+                    "tool_response": {"status": "success", "exit_code": 0, "stdout": '{"state":"MERGED"}'},
+                    "session_id": "obs-view",
+                },
+                environment,
+            )
+            self.assertEqual(0, viewed.returncode)
+            self.assertNotIn("until merged", stop_text("obs-view"))
+            self.assertFalse(mark.exists())
+
+            open_mark("obs-create-auto")
+            armed = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {"command": f"gh pr merge {number} --merge --auto"},
+                    "tool_response": {"status": "success", "exit_code": 0},
+                    "session_id": "obs-auto",
+                },
+                environment,
+            )
+            self.assertEqual(0, armed.returncode)
+            self.assertTrue(mark.is_file())
+            self.assertIn("until merged", stop_text("obs-auto-stop"))
+
     def test_reflection_receipt_alone_does_not_clear_stop_after_delivery(self):
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}

@@ -454,6 +454,11 @@ def adapt_hook_output(
             if host == "copilot":
                 adapted["permissionDecision"] = "deny"
                 adapted["permissionDecisionReason"] = reason
+    # Grok surfaces SessionStart on systemMessage. Keep additionalContext too.
+    if host == "grok" and event_name == "SessionStart" and "additionalContext" in adapted:
+        context = adapted.get("additionalContext")
+        if isinstance(context, str):
+            adapted["systemMessage"] = context
     return adapted
 
 

@@ -1056,10 +1056,74 @@ def _pipeline_parts(command: str) -> list[str]:
     return parts
 
 
+def _stdin_filter_files(head: str, arguments: list[str]) -> list[str]:
+    """File operands of a stdin filter. Programs and flags are not checkout paths."""
+    if head in {"tr", "cut"}:
+        return []
+    files: list[str] = []
+    index = 0
+    saw_awk_script = False
+    seen_positional = False
+    while index < len(arguments):
+        token = arguments[index]
+        inline = token.split("=", 1)[1] if token.startswith("--") and "=" in token else None
+        name = token.split("=", 1)[0] if inline is not None else token
+        if head == "sed" and name in {"-f", "--file"}:
+            operand = inline if inline is not None else (arguments[index + 1] if index + 1 < len(arguments) else "")
+            if operand:
+                files.append(_read_operand(operand) or operand)
+            index += 1 if inline is not None or index + 1 >= len(arguments) else 2
+            continue
+        if head == "sed" and name in {"-e", "--expression"}:
+            index += 1 if inline is not None or index + 1 >= len(arguments) else 2
+            continue
+        if head == "awk" and name in {"-f", "--file"}:
+            saw_awk_script = True
+            operand = inline if inline is not None else (arguments[index + 1] if index + 1 < len(arguments) else "")
+            if operand:
+                files.append(_read_operand(operand) or operand)
+            index += 1 if inline is not None or index + 1 >= len(arguments) else 2
+            continue
+        if head == "awk" and name in {"-F", "-v", "--field-separator", "--assign"}:
+            index += 1 if inline is not None or index + 1 >= len(arguments) else 2
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        text = _read_operand(token) or ""
+        if head == "sed":
+            program = (
+                not seen_positional
+                and bool(text)
+                and (_SED_PROGRAM.match(text) is not None or text.startswith("/") or text[:1].isdigit())
+            )
+            seen_positional = True
+            if not program and _filter_token_is_file(token):
+                files.append(text)
+            index += 1
+            continue
+        if head == "awk":
+            if not saw_awk_script and not seen_positional:
+                seen_positional = True
+                index += 1
+                continue
+            seen_positional = True
+            if _filter_token_is_file(token):
+                files.append(text)
+            index += 1
+            continue
+        if _filter_token_is_file(token):
+            files.append(text)
+        index += 1
+    return files
+
+
 def _read_segment_block(project: Path, segment: str) -> bool:
-    head, _arguments = _command_head(_tokens(segment))
+    head, arguments = _command_head(_tokens(segment))
     if head in _PY or not head:
         paths = _shell_read_paths(segment)
+    elif head in _STDIN_FILTERS:
+        paths = _stdin_filter_files(head, arguments)
     else:
         paths = _paths_in_segment(segment)
     if _cheap_named_files(project, paths) and not _FIND_OPEN.search(segment):

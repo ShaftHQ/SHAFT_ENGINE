@@ -72,6 +72,37 @@ def _drain_significance(session_id: str) -> list[dict]:
     return drained if isinstance(drained, list) else []
 
 
+def _significance_receipt_notes(items: list) -> tuple[list[dict[str, str]], int]:
+    """Privacy-safe notes from a drain. A rejected note is counted, never copied."""
+    try:
+        significance = _load_sibling("significance.py")
+    except RuntimeError:
+        return [], len(items)
+    notes: list[dict[str, str]] = []
+    dropped = 0
+    for item in items:
+        if not isinstance(item, dict):
+            dropped += 1
+            continue
+        raw = item.get("note")
+        if not isinstance(raw, str):
+            dropped += 1
+            continue
+        try:
+            note = significance._sanitize_note(raw)
+        except ValueError:
+            dropped += 1
+            continue
+        kind = item.get("kind")
+        signature = item.get("signature")
+        notes.append({
+            "kind": kind if isinstance(kind, str) else "",
+            "signature": signature if isinstance(signature, str) else "",
+            "note": note,
+        })
+    return notes, dropped
+
+
 
 
 
@@ -242,6 +273,10 @@ def finalize(
                 if isinstance(item, dict) and item.get("kind")
             }
         )
+        notes, dropped = _significance_receipt_notes(significance_drained)
+        receipt["significanceNotes"] = notes
+        if dropped:
+            receipt["significanceNotesDropped"] = dropped
     receipt["activityRetrospective"] = _activity_retrospective(session_id.strip())
     token_summary = _token_usage_summary(session_id.strip())
     if isinstance(token_summary, dict):
