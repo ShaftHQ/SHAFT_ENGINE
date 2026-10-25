@@ -16,9 +16,10 @@ Style-only edits break in the cascade, not in the rule you changed.
    second override rule.
 3. **Shorthand clobbers longhand:** a later `border-color` or `border`
    resets an earlier `border-top` colour. Keep accent edges out of grouped
-   colour resets, or set them after.
-4. **Masks:** pair `-webkit-mask-image` with `mask-image` in the same rule
-   (older Safari needs the prefix).
+   colour resets, or re-declare the accent edge after
+   the reset, or use the rule 2 variable.
+4. **Masks:** pair `-webkit-mask` with `mask` and `-webkit-mask-image`
+   with `mask-image` in the same rule (older Safari needs the prefix).
 
 ## Checks
 

@@ -204,10 +204,15 @@ def cmd_maskprefix(qc, args) -> int:
     for file in files:
         text = file.read_text(encoding="utf-8", errors="replace")
         for _selector, body, _media, line in css_rules(text):
-            plain = re.search(r"(?<![-\w])mask-image\s*:", body)
-            webkit = re.search(r"-webkit-mask-image\s*:", body)
-            if (plain or webkit) and not (plain and webkit) and "design-qc: allow" not in body:
-                hits.append(f"{file}:{line} {'missing -webkit-mask-image' if plain else 'missing mask-image'}")
+            if "design-qc: allow" in body:
+                continue
+            for prop in ("mask", "mask-image"):
+                plain = re.search(rf"(?<![-\w]){prop}\s*:", body)
+                webkit = re.search(rf"-webkit-{prop}\s*:", body)
+                if plain and not webkit:
+                    hits.append(f"{file}:{line} missing -webkit-{prop}")
+                elif webkit and not plain:
+                    hits.append(f"{file}:{line} missing {prop}")
     return qc.report("maskprefix", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits)
 
 
