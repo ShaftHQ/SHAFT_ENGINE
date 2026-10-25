@@ -957,12 +957,18 @@ NODE install [src=chaos-engine/install.py loc=L12]
                 )
             (project / "s").mkdir()
             (project / "s" / "hooks.bak").mkdir()
+            (project / "script.sed").write_text("s/^/x/\n", encoding="utf-8")
             denied = (
                 "sed 's/^/  /' src/hooks.bak",
                 "sed -n '1,20p' s/hooks.bak",
+                "sed -e 's/^/  /' s/hooks.bak",
+                "sed --expression='s/^/  /' s/hooks.bak",
+                "sed -f script.sed s/hooks.bak",
                 "cat src/hooks.bak",
                 "cat s/hooks.bak",
                 "head s/hooks.bak",
+                "gh api repos/ShaftHQ/SHAFT_ENGINE/actions/jobs/1/logs && cat s/hooks.bak",
+                "gh run view 36635681551 --log | cat s/hooks.bak",
                 'python3 -c \'print(open("src/hooks.bak").read())\'',
             )
             for command in denied:

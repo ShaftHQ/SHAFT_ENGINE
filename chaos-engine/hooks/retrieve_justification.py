@@ -1063,18 +1063,21 @@ def _stdin_filter_files(head: str, arguments: list[str]) -> list[str]:
     files: list[str] = []
     index = 0
     saw_awk_script = False
+    saw_sed_script = False
     seen_positional = False
     while index < len(arguments):
         token = arguments[index]
         inline = token.split("=", 1)[1] if token.startswith("--") and "=" in token else None
         name = token.split("=", 1)[0] if inline is not None else token
         if head == "sed" and name in {"-f", "--file"}:
+            saw_sed_script = True
             operand = inline if inline is not None else (arguments[index + 1] if index + 1 < len(arguments) else "")
             if operand:
                 files.append(_read_operand(operand) or operand)
             index += 1 if inline is not None or index + 1 >= len(arguments) else 2
             continue
         if head == "sed" and name in {"-e", "--expression"}:
+            saw_sed_script = True
             index += 1 if inline is not None or index + 1 >= len(arguments) else 2
             continue
         if head == "awk" and name in {"-f", "--file"}:
@@ -1093,10 +1096,12 @@ def _stdin_filter_files(head: str, arguments: list[str]) -> list[str]:
         text = _read_operand(token) or ""
         if head == "sed":
             program = (
-                not seen_positional
+                not saw_sed_script
                 and bool(text)
                 and (_SED_PROGRAM.match(text) is not None or text.startswith("/") or text[:1].isdigit())
             )
+            if program:
+                saw_sed_script = True
             seen_positional = True
             if not program and _operand_has_path_chars(token):
                 files.append(text)
@@ -1330,8 +1335,10 @@ def _segment_reads_project(project: Path, segment: str) -> bool:
         return False
     head, arguments = _command_head(_tokens(segment))
     if head in _STDIN_FILTERS:
-        files = [item for item in arguments if _filter_token_is_file(item)]
-        return any(exploratory_project_path(project, item) for item in files)
+        return any(
+            exploratory_project_path(project, item)
+            for item in _stdin_filter_files(head, arguments)
+        )
     if head in _PY or not head:
         paths = _shell_read_paths(segment)
     else:
