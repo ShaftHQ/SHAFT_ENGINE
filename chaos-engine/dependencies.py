@@ -379,19 +379,22 @@ def publish_user_tool_paths(commands: dict[str, str]) -> Path | None:
     root = user_data_dir()
     root.mkdir(parents=True, exist_ok=True)
     bindir = root / "bin"
-    python_path = commands.get("python") or commands.get("python3")
-    python3 = commands.get("python3")
+    # The install receipt keeps the discovered executables. The shim is only
+    # the user-facing python3 command and must not add keys to that receipt.
+    recorded = {
+        name: value for name, value in commands.items() if isinstance(value, str) and value
+    }
+    python_path = recorded.get("python") or recorded.get("python3")
+    python3 = recorded.get("python3")
     if python_path and python3 and Path(python3).name.lower() not in {"python3", "python3.exe", "python3.cmd"}:
         shim = _write_python3_shim(bindir, Path(python3))
-        commands["python3"] = str(shim)
-        commands.setdefault("python", python_path)
+        recorded["python3"] = str(shim)
+        recorded.setdefault("python", python_path)
     elif python_path and not python3:
         shim = _write_python3_shim(bindir, Path(python_path))
-        commands["python3"] = str(shim)
-        commands.setdefault("python", python_path)
-    recorded = {
-        name: value for name, value in sorted(commands.items()) if isinstance(value, str) and value
-    }
+        recorded["python3"] = str(shim)
+        recorded.setdefault("python", python_path)
+    recorded = dict(sorted(recorded.items()))
     destination = root / "user.properties"
     destination.write_text(
         "".join(f"{name}={value}\n" for name, value in recorded.items()),

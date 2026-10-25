@@ -2823,14 +2823,12 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
                 )
                 properties = (root / "user" / "user.properties").read_text(encoding="utf-8")
                 shim = root / "user" / "bin" / "python3.cmd"
-                self.assertIn(f"python3={commands['python3']}", properties)
+                self.assertEqual(str(python.resolve()), commands["python3"])
+                self.assertNotIn("python", commands)
+                recorded = root / "user" / "bin" / ("python3.cmd" if os.name == "nt" else "python3")
+                self.assertIn(f"python3={recorded}", properties)
                 self.assertIn(str(python), shim.read_text(encoding="utf-8"))
                 self.assertIn([str(python), "--version"], calls)
-
-                def which_real(name, path=None):
-                    if name == "python3":
-                        return str(real)
-                    return None
 
                 kept = {"python3": str(real), "uv": str(root / "uv")}
                 written = module.publish_user_tool_paths(dict(kept))
@@ -2867,7 +2865,10 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
             properties = (root / "user" / "user.properties").read_text(encoding="utf-8")
             cmd = (root / "user" / "bin" / "python3.cmd").read_text(encoding="utf-8")
             wrapper = root / "user" / "bin" / "python3"
-            self.assertIn(f"python3={commands['python3']}", properties)
+            recorded = wrapper if os.name != "nt" else root / "user" / "bin" / "python3.cmd"
+            self.assertEqual(str(launcher.resolve()), commands["python3"])
+            self.assertNotIn("python", commands)
+            self.assertIn(f"python3={recorded}", properties)
             self.assertIn(str(launcher.resolve()), cmd)
             self.assertIn("-3", cmd)
             self.assertIn([str(launcher), "-3", "--version"], calls)
