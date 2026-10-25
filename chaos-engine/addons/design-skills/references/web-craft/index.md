@@ -21,3 +21,4 @@ one web-craft card. The licence verdicts are in
 | [W12 social proof](social-proof-patterns.md) | testimonials, logos, metrics, case studies on any surface |
 | [W13 navigation and pricing layout](nav-and-pricing-patterns.md) | nav bar type, plans page layout |
 | [W14 OG image](og-image.md) | link-preview image per page |
+| [W15 CSS cascade safety](css-cascade-safety.md) | editing grouped rules, borders, masks or theme overrides |

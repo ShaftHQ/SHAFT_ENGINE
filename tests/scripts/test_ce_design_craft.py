@@ -109,6 +109,20 @@ class CraftLintTests(unittest.TestCase):
     def test_floor_fails_open_floor_and_unreasoned_reflex_overrule(self) -> None:  # #7347
         self.check("floor", "| F1 | Floor | contrast | open |", "| F1 | Floor | contrast | fixed |", ".md")
         self.check("floor", "| R1 | Reflex | eyebrow | overruled |", "| R1 | Reflex | eyebrow | overruled, reason: brief line 4 |", ".md")
+
+    def test_maskprefix_requires_both_mask_declarations(self) -> None:  # #7364
+        self.check("maskprefix", ".g{mask-image:linear-gradient(#000,transparent)}",
+                   ".g{-webkit-mask-image:linear-gradient(#000,transparent);mask-image:linear-gradient(#000,transparent)}",
+                   ".css")
+        self.check("maskprefix", ".g{-webkit-mask-image:url(a.svg)}",
+                   "@media (min-width:40em){.g{-webkit-mask-image:none;mask-image:none}}", ".css")
+
+    def test_maskprefix_pairs_shorthand_strictly(self) -> None:  # #7364 review F1
+        self.check("maskprefix", ".d{mask:url(a.svg)}", ".d{-webkit-mask:url(a.svg);mask:url(a.svg)}", ".css")
+        self.check("maskprefix", ".d{-webkit-mask:url(a.svg)}", ".d{mask:none;-webkit-mask:none}", ".css")
+        self.check("maskprefix", ".d{-webkit-mask-image:url(a.svg);mask:url(a.svg)}",
+                   ".d{-webkit-mask-image:url(a.svg);mask-image:url(a.svg)}", ".css")
+
     def test_hovergate_does_not_accept_any_hover_as_a_gate(self) -> None:  # #7347 review: W02 rule 11
         self.check("hovergate", "@media (any-hover: hover){.x:hover{color:red}}",
                    "@media (hover: hover){.x:hover{color:red}}", ".css")

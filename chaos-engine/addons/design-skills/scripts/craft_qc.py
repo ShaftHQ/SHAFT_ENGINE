@@ -199,6 +199,23 @@ def css_rules(text: str):
         sel_start = m.end()
 
 
+def cmd_maskprefix(qc, args) -> int:
+    hits, files = [], files_of(args.path, {".css", ".scss", ".html", ".htm", ".vue", ".svelte"})
+    for file in files:
+        text = file.read_text(encoding="utf-8", errors="replace")
+        for _selector, body, _media, line in css_rules(text):
+            if "design-qc: allow" in body:
+                continue
+            for prop in ("mask", "mask-image"):
+                plain = re.search(rf"(?<![-\w]){prop}\s*:", body)
+                webkit = re.search(rf"-webkit-{prop}\s*:", body)
+                if plain and not webkit:
+                    hits.append(f"{file}:{line} missing -webkit-{prop}")
+                elif webkit and not plain:
+                    hits.append(f"{file}:{line} missing {prop}")
+    return qc.report("maskprefix", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits)
+
+
 def cmd_hovergate(qc, args) -> int:
     hits, files = [], files_of(args.path, {".css", ".scss", ".html", ".htm", ".vue", ".svelte"})
     for file in files:
@@ -563,6 +580,8 @@ def register(add, qc) -> None:
     p = add("uimotion", bind(cmd_uimotion), "scale(0) or layout-property animation")
     p.add_argument("path")
     p = add("hovergate", bind(cmd_hovergate), ":hover outside (hover: hover) or hover-gated content")
+    p.add_argument("path")
+    p = add("maskprefix", bind(cmd_maskprefix), "mask-image without -webkit-mask-image in the same rule, or vice versa")
     p.add_argument("path")
     p = add("svga11y", bind(cmd_svga11y), "svg role=img, title and desc")
     p.add_argument("path")

@@ -78,6 +78,8 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
 - Fold and line-count tests also run with a forced wide fallback font
   (`font-family: "DejaVu Sans"`): CI runners render `system-ui` as DejaVu Sans,
   about 18% wider than Noto Sans, so a 2-line H1 passes locally and wraps in CI.
+- Splitting an H1 into styled spans breaks string tests: run the repo's
+  homepage specs before handoff and update them with the text unchanged.
 - Install from the repository's lockfile: `yarn.lock` means
   `yarn install --frozen-lockfile`; `npm ci` needs `package-lock.json`.
 - Before merge, a second bot reviews as a developer, one round, even with every

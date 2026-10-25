@@ -25,6 +25,9 @@ stay in [D06 colour and contrast](../color-contrast.md).
 6. **Alpha text:** text over alpha colour (`/50`, `rgba`, `color-mix`
    with transparent) is measured on the rendered composite. White on a
    500 fill usually fails; use 600.
+   Over glows, grids or gradients, make the text transparent, screenshot
+   its box per theme and breakpoint, and report the minimum ratio over the
+   pixels: a 7.5:1 token pair measured 5.5:1 at its worst point.
 7. **P3:** declare the sRGB value first, the vivid value inside
    `@media (color-gamut: p3)`.
 8. **Dark mode:** 4 elevation surfaces from about `#121212` up, primaries
