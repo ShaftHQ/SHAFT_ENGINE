@@ -945,7 +945,7 @@ class InstallShaftMcpTest(unittest.TestCase):
             calls = []
             original_local_source = MODULE.local_shaft_skills_source
             original_download_file = MODULE.download_file
-            original_discovery = MODULE.remote_shaft_skill_files
+            original_discovery = MODULE.remote_shaft_skill_entries
 
             def no_local_source():
                 return None
@@ -968,14 +968,14 @@ class InstallShaftMcpTest(unittest.TestCase):
 
             MODULE.local_shaft_skills_source = no_local_source
             MODULE.download_file = fake_download
-            MODULE.remote_shaft_skill_files = lambda: remote_files
+            MODULE.remote_shaft_skill_entries = lambda: tuple((relative, "") for relative in remote_files)
             try:
                 installed = MODULE.install_shaft_skills(
                     root / "project", root / "bootstrap", "claude")
             finally:
                 MODULE.local_shaft_skills_source = original_local_source
                 MODULE.download_file = original_download_file
-                MODULE.remote_shaft_skill_files = original_discovery
+                MODULE.remote_shaft_skill_entries = original_discovery
 
             self.assertEqual(len(remote_files), len(calls))
             self.assertEqual([(root / "project" / ".claude" / "skills").resolve()], installed)
@@ -983,6 +983,48 @@ class InstallShaftMcpTest(unittest.TestCase):
             self.assertTrue((installed[0] / "shaft-mcp" / "agents" / "openai.yaml").is_file())
             self.assertTrue((installed[0] / "references" / "shaft-mcp-tools.md").is_file())
             self.assertTrue((installed[0] / "references" / "shaft-cli-commands.md").is_file())
+
+    def test_stale_skill_file_is_downloaded_once_and_a_matching_blob_is_kept(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            target = root / "skills"
+            relative = "shaft-developer/SKILL.md"
+            kept = "shaft-developer/agents/openai.yaml"
+            destination = target / relative
+            kept_destination = target / kept
+            destination.parent.mkdir(parents=True)
+            destination.write_text("stale skill\n", encoding="utf-8")
+            wanted = root / "wanted.md"
+            wanted.write_text("current skill\n", encoding="utf-8")
+            needed = MODULE._git_blob_sha1(wanted)
+            kept_destination.parent.mkdir(parents=True, exist_ok=True)
+            kept_destination.write_bytes(b"already current\n")
+            kept_sha = MODULE._git_blob_sha1(kept_destination)
+            calls = []
+            original_entries = MODULE.remote_shaft_skill_entries
+            original_download = MODULE.download_file
+
+            def entries():
+                return ((relative, needed), (kept, kept_sha))
+
+            def fake_download(_url, output, _label, **_kwargs):
+                calls.append(output.name)
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_bytes(wanted.read_bytes())
+
+            MODULE.remote_shaft_skill_entries = entries
+            MODULE.download_file = fake_download
+            try:
+                with temporary_environment(SHAFT_MCP_INSTALLER_REFRESH=""):
+                    MODULE.download_shaft_skills_files(target)
+                    MODULE.download_shaft_skills_files(target)
+            finally:
+                MODULE.remote_shaft_skill_entries = original_entries
+                MODULE.download_file = original_download
+
+            self.assertEqual(["SKILL.md"], calls)
+            self.assertEqual(wanted.read_bytes(), destination.read_bytes())
+            self.assertEqual(b"already current\n", kept_destination.read_bytes())
 
     def test_remote_manifest_discovery_filters_to_complete_skill_pack(self):
         tree = {"truncated": False, "tree": [

@@ -1584,8 +1584,8 @@ def shaft_skill_files(source: Path) -> tuple[str, ...]:
     return tuple(sorted(path.relative_to(source).as_posix() for path in files))
 
 
-def remote_shaft_skill_files() -> tuple[str, ...]:
-    """Discover the current portable pack from GitHub's recursive tree."""
+def remote_shaft_skill_entries() -> tuple[tuple[str, str], ...]:
+    """Discover the portable pack and each file's Git blob id. No file bodies."""
     ref = os.environ.get("SHAFT_MCP_INSTALLER_REF", "main").strip() or "main"
     quoted_ref = urllib.parse.quote(ref, safe="")
     url = f"https://api.github.com/repos/ShaftHQ/SHAFT_ENGINE/git/trees/{quoted_ref}?recursive=1"
@@ -1596,25 +1596,64 @@ def remote_shaft_skill_files() -> tuple[str, ...]:
     if payload.get("truncated"):
         fail("SHAFT skills manifest discovery was truncated by GitHub.", 4)
     tree_paths = tuple(sorted(
-        entry["path"] for entry in payload.get("tree", ())
-        if entry.get("type") == "blob" and entry.get("path", "").startswith("shaft-skills/")
+        (str(entry.get("path") or ""), str(entry.get("sha") or ""))
+        for entry in payload.get("tree", ())
+        if entry.get("type") == "blob" and str(entry.get("path") or "").startswith("shaft-skills/")
     ))
     skill_directories = {
         path.split("/", 2)[1]
-        for path in tree_paths
+        for path, _sha in tree_paths
         if path.count("/") == 2 and path.endswith("/SKILL.md")
     }
     files = tuple(
-        path.removeprefix("shaft-skills/")
-        for path in tree_paths
+        (relative, sha)
+        for path, sha in tree_paths
         if (relative := path.removeprefix("shaft-skills/"))
         and ("/" not in relative
              or relative.startswith("references/")
              or relative.split("/", 1)[0] in skill_directories)
     )
-    if f"{SHAFT_SKILLS_ROUTER}/SKILL.md" not in files:
+    if f"{SHAFT_SKILLS_ROUTER}/SKILL.md" not in {relative for relative, _sha in files}:
         fail("SHAFT skills manifest did not contain the shaft-developer router.", 4)
     return files
+
+
+def remote_shaft_skill_files() -> tuple[str, ...]:
+    """Discover the current portable pack from GitHub's recursive tree."""
+    return tuple(relative for relative, _sha in remote_shaft_skill_entries())
+
+
+def _git_blob_sha1(path: Path) -> str | None:
+    """Git blob id of a regular file. This is the identity the tree API publishes."""
+    try:
+        if not path.is_file() or path.is_symlink():
+            return None
+        payload = path.read_bytes()
+    except OSError:
+        return None
+    digest = sha1()
+    digest.update(f"blob {len(payload)}\0".encode("ascii"))
+    digest.update(payload)
+    return digest.hexdigest()
+
+
+def _keep_installed_skill_file(destination: Path, relative: str, blob_sha: str) -> bool:
+    """Keep a file only when it is the needed blob, or the host skills map."""
+    if os.environ.get("SHAFT_MCP_INSTALLER_REFRESH"):
+        return False
+    if not destination.is_file() or destination.is_symlink():
+        return False
+    if relative == "README.md":
+        try:
+            head = destination.read_text(encoding="utf-8")[:40]
+        except (OSError, UnicodeDecodeError):
+            head = ""
+        if head.startswith("# Agent skills map"):
+            return True
+    identity = blob_sha.strip().lower()
+    if re.fullmatch(r"[0-9a-f]{40}", identity) is None:
+        return False
+    return _git_blob_sha1(destination) == identity
 
 
 def local_shaft_skills_source() -> Path | None:
@@ -1682,16 +1721,11 @@ def shaft_agent_validation_raw_file_url(relative: str) -> str:
 def download_shaft_skills_files(target: Path) -> Path:
     target = target.resolve()
     target.mkdir(parents=True, exist_ok=True)
-    for relative in remote_shaft_skill_files():
+    for relative, blob_sha in remote_shaft_skill_entries():
         destination = (target / relative).resolve()
         if target != destination and target not in destination.parents:
             fail(f"SHAFT skills manifest contains an unsafe path: {relative}", 4)
-        if (
-            not os.environ.get("SHAFT_MCP_INSTALLER_REFRESH")
-            and destination.is_file()
-            and not destination.is_symlink()
-            and destination.stat().st_size > 0
-        ):
+        if _keep_installed_skill_file(destination, relative, blob_sha):
             continue
         download_file(
             shaft_skills_raw_file_url(relative),
