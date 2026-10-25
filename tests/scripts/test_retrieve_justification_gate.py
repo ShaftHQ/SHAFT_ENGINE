@@ -955,9 +955,14 @@ NODE install [src=chaos-engine/install.py loc=L12]
                     ),
                     command,
                 )
+            (project / "s").mkdir()
+            (project / "s" / "hooks.bak").mkdir()
             denied = (
                 "sed 's/^/  /' src/hooks.bak",
+                "sed -n '1,20p' s/hooks.bak",
                 "cat src/hooks.bak",
+                "cat s/hooks.bak",
+                "head s/hooks.bak",
                 'python3 -c \'print(open("src/hooks.bak").read())\'',
             )
             for command in denied:

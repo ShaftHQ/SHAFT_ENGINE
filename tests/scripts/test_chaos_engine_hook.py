@@ -1391,6 +1391,44 @@ process.stderr.write(result.stderr || '');
             self.assertNotIn("until merged", stop_text("obs-view"))
             self.assertFalse(mark.exists())
 
+            open_mark("obs-create-unnamed")
+            unnamed = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": "python3 scripts/agents/watch_pr_checks.py --until-merged"
+                    },
+                    "tool_response": {"status": "success", "exit_code": 0, "stdout": "MERGED\n"},
+                    "session_id": "obs-unnamed",
+                },
+                environment,
+            )
+            self.assertEqual(0, unnamed.returncode)
+            self.assertTrue(mark.is_file())
+            self.assertIn("until merged", stop_text("obs-unnamed-stop"))
+
+            mark.write_text(
+                json.dumps({"active": True, "state": "open"}, sort_keys=True),
+                encoding="utf-8",
+            )
+            numberless = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": "python3 scripts/agents/watch_pr_checks.py --pr 6401 --until-merged"
+                    },
+                    "tool_response": {"status": "success", "exit_code": 0, "stdout": "MERGED\n"},
+                    "session_id": "obs-numberless",
+                },
+                environment,
+            )
+            self.assertEqual(0, numberless.returncode)
+            self.assertFalse(mark.exists())
+
             open_mark("obs-create-auto")
             armed = self.run_hook(
                 {

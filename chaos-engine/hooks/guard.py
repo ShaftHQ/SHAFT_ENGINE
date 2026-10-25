@@ -887,7 +887,8 @@ def _record_observed_pull_request_merge(
     cwd = Path(str(event.get("cwd") or Path.cwd()))
     marked = _marked_pull_request_number(cwd)
     observed = seen[0]
-    if marked is not None and observed is not None and marked != observed:
+    # A numbered mark clears only when this command names that same pull request.
+    if marked is not None and (observed is None or marked != observed):
         return
     reflection.record_activity(session_id, "pull-request-merged")
     clear_open_pull_request(cwd)

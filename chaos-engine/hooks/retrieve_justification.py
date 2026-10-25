@@ -1098,7 +1098,7 @@ def _stdin_filter_files(head: str, arguments: list[str]) -> list[str]:
                 and (_SED_PROGRAM.match(text) is not None or text.startswith("/") or text[:1].isdigit())
             )
             seen_positional = True
-            if not program and _filter_token_is_file(token):
+            if not program and _operand_has_path_chars(token):
                 files.append(text)
             index += 1
             continue
@@ -1108,11 +1108,11 @@ def _stdin_filter_files(head: str, arguments: list[str]) -> list[str]:
                 index += 1
                 continue
             seen_positional = True
-            if _filter_token_is_file(token):
+            if _operand_has_path_chars(token):
                 files.append(text)
             index += 1
             continue
-        if _filter_token_is_file(token):
+        if _operand_has_path_chars(token):
             files.append(text)
         index += 1
     return files
@@ -1306,6 +1306,14 @@ def _retrieve_attempt(segment: str) -> bool:
 def downloads_job_log(command: str) -> bool:
     """True when the command downloads a GitHub Actions job log, not a checkout file."""
     return _JOB_LOG_DOWNLOAD.search(command or "") is not None
+
+
+def _operand_has_path_chars(token: str) -> bool:
+    """True when a filter operand has path characters. Sed programs are decided separately."""
+    text = _read_operand(token)
+    if not text or text.startswith("-"):
+        return False
+    return "/" in text or "." in text
 
 
 def _filter_token_is_file(token: str) -> bool:
