@@ -1056,10 +1056,102 @@ def _pipeline_parts(command: str) -> list[str]:
     return parts
 
 
+def _long_option_operand(arguments: list[str], index: int) -> tuple[str | None, str, int]:
+    """Return inline value, flag name, and the index of the next argument."""
+    token = arguments[index]
+    if token.startswith("--") and "=" in token:
+        name, inline = token.split("=", 1)
+        return inline, name, index + 1
+    return None, token, index + 1
+
+
+def _sed_filter_files(arguments: list[str]) -> list[str]:
+    """Sed file operands. A script from -e, -f, or the first program is not a path."""
+    files: list[str] = []
+    index = 0
+    saw_script = False
+    while index < len(arguments):
+        inline, name, nxt = _long_option_operand(arguments, index)
+        if name in {"-f", "--file"}:
+            saw_script = True
+            operand = inline if inline is not None else (arguments[nxt] if nxt < len(arguments) else "")
+            if operand:
+                files.append(_read_operand(operand) or operand)
+            index = nxt + (0 if inline is not None or nxt >= len(arguments) else 1)
+            continue
+        if name in {"-e", "--expression"}:
+            saw_script = True
+            index = nxt + (0 if inline is not None or nxt >= len(arguments) else 1)
+            continue
+        if name.startswith("-"):
+            index = nxt
+            continue
+        text = _read_operand(name) or ""
+        program = (
+            not saw_script
+            and bool(text)
+            and (_SED_PROGRAM.match(text) is not None or text.startswith("/") or text[:1].isdigit())
+        )
+        if program:
+            saw_script = True
+        elif _operand_has_path_chars(name):
+            files.append(text)
+        index = nxt
+    return files
+
+
+def _awk_filter_files(arguments: list[str]) -> list[str]:
+    """Awk file operands. The program and -F/-v values are not checkout paths."""
+    files: list[str] = []
+    index = 0
+    saw_script = False
+    seen_positional = False
+    while index < len(arguments):
+        inline, name, nxt = _long_option_operand(arguments, index)
+        if name in {"-f", "--file"}:
+            saw_script = True
+            operand = inline if inline is not None else (arguments[nxt] if nxt < len(arguments) else "")
+            if operand:
+                files.append(_read_operand(operand) or operand)
+            index = nxt + (0 if inline is not None or nxt >= len(arguments) else 1)
+            continue
+        if name in {"-F", "-v", "--field-separator", "--assign"}:
+            index = nxt + (0 if inline is not None or nxt >= len(arguments) else 1)
+            continue
+        if name.startswith("-"):
+            index = nxt
+            continue
+        if not saw_script and not seen_positional:
+            index = nxt
+            seen_positional = True
+            continue
+        if _operand_has_path_chars(name):
+            files.append(_read_operand(name) or name)
+        index = nxt
+    return files
+
+
+def _stdin_filter_files(head: str, arguments: list[str]) -> list[str]:
+    """File operands of a stdin filter. Programs and flags are not checkout paths."""
+    if head in {"tr", "cut"}:
+        return []
+    if head == "sed":
+        return _sed_filter_files(arguments)
+    if head == "awk":
+        return _awk_filter_files(arguments)
+    return [
+        _read_operand(token) or token
+        for token in arguments
+        if _operand_has_path_chars(token)
+    ]
+
+
 def _read_segment_block(project: Path, segment: str) -> bool:
-    head, _arguments = _command_head(_tokens(segment))
+    head, arguments = _command_head(_tokens(segment))
     if head in _PY or not head:
         paths = _shell_read_paths(segment)
+    elif head in _STDIN_FILTERS:
+        paths = _stdin_filter_files(head, arguments)
     else:
         paths = _paths_in_segment(segment)
     if _cheap_named_files(project, paths) and not _FIND_OPEN.search(segment):
@@ -1244,6 +1336,14 @@ def downloads_job_log(command: str) -> bool:
     return _JOB_LOG_DOWNLOAD.search(command or "") is not None
 
 
+def _operand_has_path_chars(token: str) -> bool:
+    """True when a filter operand has path characters. Sed programs are decided separately."""
+    text = _read_operand(token)
+    if not text or text.startswith("-"):
+        return False
+    return "/" in text or "." in text
+
+
 def _filter_token_is_file(token: str) -> bool:
     """False for flags, sed programs, and output redirects. Those are not checkout paths."""
     text = _read_operand(token)
@@ -1258,8 +1358,10 @@ def _segment_reads_project(project: Path, segment: str) -> bool:
         return False
     head, arguments = _command_head(_tokens(segment))
     if head in _STDIN_FILTERS:
-        files = [item for item in arguments if _filter_token_is_file(item)]
-        return any(exploratory_project_path(project, item) for item in files)
+        return any(
+            exploratory_project_path(project, item)
+            for item in _stdin_filter_files(head, arguments)
+        )
     if head in _PY or not head:
         paths = _shell_read_paths(segment)
     else:

@@ -154,4 +154,13 @@ def guard_health(project: Path) -> tuple[str, str]:
         return "fail", f"{guard.name} unreadable: {type(error).__name__}"
     except SyntaxError as error:
         return "fail", f"{guard.name} line {error.lineno}: {error.msg}"
+    canonical = Path(__file__).resolve().with_name("secret_guard.py")
+    if canonical.is_file():
+        try:
+            installed = guard.read_bytes()
+            expected = canonical.read_bytes()
+        except OSError as error:
+            return "fail", f"{guard.name} unreadable: {type(error).__name__}"
+        if installed != expected:
+            return "fail", "secret_guard.py differs from the canonical guard"
     return "pass", ""

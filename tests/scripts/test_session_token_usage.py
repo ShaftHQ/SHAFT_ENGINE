@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -213,6 +215,60 @@ class SessionTokenUsageTest(unittest.TestCase):
             self.assertIn("log-ingest", note)
             self.assertIn("do not mean the work was free", receipt["tokenUsage"]["retrospective"])
             self.assertNotIn(temporary, note)
+
+    def test_finalize_keeps_privacy_safe_significance_notes(self) -> None:
+        learn_path = ROOT / "chaos-engine/learning_session.py"
+        significance_path = ROOT / "chaos-engine/significance.py"
+        learn_spec = importlib.util.spec_from_file_location("learning_session_notes", learn_path)
+        significance_spec = importlib.util.spec_from_file_location("significance_notes", significance_path)
+        assert learn_spec and learn_spec.loader and significance_spec and significance_spec.loader
+        learn = importlib.util.module_from_spec(learn_spec)
+        significance = importlib.util.module_from_spec(significance_spec)
+        learn_spec.loader.exec_module(learn)
+        significance_spec.loader.exec_module(significance)
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            previous = Path.cwd()
+            try:
+                os.chdir(project)
+                first = significance.record_mark(
+                    "denial", "gate blocked the shell", signature="deny-shell"
+                )
+                second = significance.record_mark(
+                    "denial", "second denial stayed local", signature="deny-local"
+                )
+                self.assertIsNotNone(first)
+                self.assertIsNotNone(second)
+                self.assertIsNone(significance.record_mark("denial", "bad `note`", signature="bad"))
+                document = significance.load_marks()
+                document["items"].append(
+                    {
+                        "id": "planted-bad",
+                        "kind": "denial",
+                        "note": "bad `note`",
+                        "signature": "bad-note",
+                        "sessionId": "",
+                        "source": "manual",
+                        "createdAt": 1,
+                    }
+                )
+                significance.save_marks(document)
+                receipt = learn.finalize(
+                    "notes-sess", disposition="no-durable", extract_heuristics=False
+                )
+                rendered = json.dumps(receipt)
+                texts = {item["note"] for item in receipt["significanceNotes"]}
+                self.assertEqual({"gate blocked the shell", "second denial stayed local"}, texts)
+                self.assertEqual(1, receipt["significanceNotesDropped"])
+                self.assertNotIn("bad `note`", rendered)
+                self.assertEqual([], significance.list_marks())
+                buffer = io.StringIO()
+                with redirect_stdout(buffer):
+                    code = significance.main(["list"])
+                self.assertEqual(0, code)
+                self.assertEqual([], json.loads(buffer.getvalue())["items"])
+            finally:
+                os.chdir(previous)
 
 
 if __name__ == "__main__":
