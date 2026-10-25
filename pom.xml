@@ -88,7 +88,7 @@
         <jetbrains.annotations.version>26.1.0</jetbrains.annotations.version>
         <playwright.version>1.63.0</playwright.version>
         <slf4j.version>2.0.20</slf4j.version>
-        <grpc.version>1.85.0</grpc.version>
+        <grpc.version>1.85.1</grpc.version>
         <protobuf.version>4.36.2</protobuf.version>
         <google.auth.library.version>1.54.0</google.auth.library.version>
         <kotlin.version>2.4.21</kotlin.version>
