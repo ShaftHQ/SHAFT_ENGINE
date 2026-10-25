@@ -74,10 +74,16 @@ class Verdict:
 
 
 def _version_key(version: str) -> tuple[int, ...]:
-    core = version.split("+", 1)[0]
+    """Numeric version, keeping a numeric ``+build`` so Temurin 25.0.4+7 is behind 25.0.4+8."""
+    core, separator, build = version.partition("+")
     if not _STABLE_VERSION.fullmatch(core):
         raise ValueError(f"not a stable version: {version}")
-    return tuple(int(part) for part in core.split("."))
+    numbers = [int(part) for part in core.split(".")]
+    if separator:
+        token = build.split("-", 1)[0]
+        if token.isdigit():
+            numbers.append(int(token))
+    return tuple(numbers)
 
 
 def newest_stable_version(payload: Mapping[str, Any]) -> str:
