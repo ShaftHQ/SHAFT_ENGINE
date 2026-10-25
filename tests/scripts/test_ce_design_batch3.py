@@ -11,6 +11,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402 - self-locating under python3 -I (#7197)
 from tests.scripts.ce_neutral_terms import private_terms
 
 ROOT = Path(__file__).resolve().parents[2]
