@@ -99,6 +99,7 @@ ALLOWED_GLOBS = (
     # Grok always scans this directory into the model prompt. It is host
     # project rules, not a public product guide.
     ".grok/rules/*.md",
+    ".grok/skills/**/*.md",
     ".github/codex/prompts/*.md",
     ".github/instructions/*.instructions.md",
     ".github/ISSUE_TEMPLATE/*.md",

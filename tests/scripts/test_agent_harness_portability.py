@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
@@ -575,7 +576,69 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             capture_output=True,
             text=True,
         )
-        self.assertEqual(grok_tracked.stdout.strip(), "")
+        tracked = [line for line in grok_tracked.stdout.splitlines() if line]
+        rules = {
+            ".grok/rules/companions.md",
+            ".grok/rules/identity.md",
+            ".grok/rules/entrypoint.md",
+        }
+        skill_copies = {
+            line for line in tracked if line.startswith(".grok/skills/") and line.endswith("/SKILL.md")
+        }
+        # Grok puts rules in the model prompt and discovers .grok/skills.
+        # SessionStart stdout is not model context. These copies are the load.
+        self.assertEqual(set(tracked) - skill_copies, rules)
+        self.assertEqual(
+            (ROOT / ".grok/rules/identity.md").read_bytes(),
+            (ROOT / "chaos-engine/identity.md").read_bytes(),
+        )
+        self.assertEqual(
+            (ROOT / ".grok/rules/entrypoint.md").read_bytes(),
+            (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_bytes(),
+        )
+        companions = (ROOT / ".grok/rules/companions.md").read_text(encoding="utf-8")
+        self.assertNotIn("## Iron laws", companions)
+        for relative in skill_copies:
+            name = PurePosixPath(relative).parts[2]
+            self.assertEqual(
+                (ROOT / relative).read_bytes(),
+                (ROOT / "chaos-engine/skills" / name / "SKILL.md").read_bytes(),
+                relative,
+            )
+
+    def test_grok_model_load_copies_identity_entrypoint_and_skills(self):
+        path = ROOT / "chaos-engine/grok_model_load.py"
+        spec = importlib.util.spec_from_file_location("grok_model_load_portability", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            source = project / "chaos-engine"
+            (source / "skills/kanban").mkdir(parents=True)
+            (source / "identity.md").write_bytes(b"identity-bytes\n")
+            (source / "skills/chaos-engine").mkdir(parents=True)
+            (source / "skills/chaos-engine/SKILL.md").write_bytes(b"entry-bytes\n")
+            (source / "skills/kanban/SKILL.md").write_bytes(b"kanban-bytes\n")
+            written = module.publish(project)
+            self.assertEqual(
+                (project / ".grok/rules/identity.md").read_bytes(),
+                b"identity-bytes\n",
+            )
+            self.assertEqual(
+                (project / ".grok/rules/entrypoint.md").read_bytes(),
+                b"entry-bytes\n",
+            )
+            self.assertEqual(
+                (project / ".grok/skills/kanban/SKILL.md").read_bytes(),
+                b"kanban-bytes\n",
+            )
+            self.assertEqual(
+                (project / ".grok/skills/chaos-engine/SKILL.md").read_bytes(),
+                b"entry-bytes\n",
+            )
+            self.assertIn("python3 .chaos-engine/tool.py entry", (project / ".grok/rules/companions.md").read_text(encoding="utf-8"))
+            self.assertEqual([], module.publish(project))
+            self.assertTrue(written)
 
     def test_active_guidance_has_no_personal_or_absolute_operational_paths(self):
         self.assertEqual(absolute_guidance_path_offenders(ROOT), [])

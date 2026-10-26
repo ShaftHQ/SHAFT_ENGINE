@@ -1,0 +1,142 @@
+---
+name: local-agency
+description: >-
+  Use when the adopter asks to delegate to local OSS agents (OpenCode) on a
+  READY local runtime.
+license: MIT
+---
+
+# Local agency (OpenCode)
+
+Optional **local coding agency** path. Not a workflow owner; select the
+canonical workflow in [execution workflows](../../references/execution-workflows.md)
+first.
+
+**Local agency vs session agents**
+
+| Path | When | Owner |
+| --- | --- | --- |
+| Session subagents / Task | Default orchestrator labor on the host | Host adapter + [delegation](../../references/delegation.md) |
+| Local agency (this skill) | Adopter asked for OpenCode / local OSS agency against local weights | This skill + READY runtime |
+
+## Hard rails (never regress)
+
+- Prefer a **READY** local runtime: FreeToken (`:1919`), then Ollama / LM Studio /
+  llamacpp via [local-openai-compat](../local-runtimes/references/local-openai-compat.md), then Colibri (`:8000`)
+  via [colibri](../local-runtimes/references/colibri.md) (frontier MoE; prefer FreeToken for coding agency).
+- Configure OpenCode with **ephemeral** `OPENCODE_CONFIG` /
+  `OPENCODE_CONFIG_CONTENT` that sets `enabled_providers` to the READY local
+  provider. OpenCode merges global config; the allowlist keeps other providers
+  out of that process. `--pure` only disables external plugins.
+- **Never** write into durable `~/.config/opencode` (helper refuses those paths),
+  **never** `ft launch` / `ft serve`, **never** start local servers from CE.
+- Do **not** silently fall back to cloud OmniRoute. Missing local runtime:
+  tell the operator; continue with session agents / `SOLO` / OmniRoute only when
+  the adopter explicitly asked for that path.
+- Do **not** install OpenCode from this skill. Operator install stays on vendor
+  docs (README third-party table).
+- Installer / doctor / status must **not** fail because OpenCode or a local
+  runtime is missing.
+- Never bind or probe a non-loopback URL from ChaosEngine.
+- **ROG FreeToken bind:** Task/box writers must **not** claim FreeToken.
+  `dispatch.py resolve --prefer freetoken` and
+  [`require_rog_freetoken.py`](scripts/require_rog_freetoken.py) fail closed unless
+  the hostname looks like ROG, cwd is the operator ROG checkout (see
+  local-agency guide (repo-only `chaos-engine/guides/local-agency.md`)), or
+  `CE_ALLOW_BOX_LOCAL_AGENCY=1`. Process-owner Shell with `machineId` on ROG is **mandatory** for ROG
+  FreeToken/OpenCode writers. Do **not** dispatch those writers via
+  Task until Grok Bot exposes `machineId` to Task/executor Shell. Diagnostic:
+  [`assert_parent_rog_shell.py`](scripts/assert_parent_rog_shell.py). Clear error when FreeToken
+  is not READY on this host.
+
+## Probe → resolve → ephemeral OpenCode
+
+Helper:
+[`chaos-engine/skills/local-agency/scripts/dispatch.py`](scripts/dispatch.py). ROG gate: [`require_rog_freetoken.py`](scripts/require_rog_freetoken.py).
+
+```text
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py resolve
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --prefer freetoken config
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py argv --prompt '…' --workdir '<worktree>'
+```
+
+`resolve` ranks FreeToken, then OpenAI-compat peers, then Colibri. Use `--prefer colibri` when the adopter asked for Colibri. On `READY`, `config` /
+`argv` emit ephemeral OpenCode material (`OPENCODE_CONFIG` path). Run OpenCode
+yourself with that env; do not persist the config into the durable user file.
+`argv` defaults include `--pure` and `--variant` (`medium`; use `low` or
+`medium` for tool loops). `--no-pure` exists for callers that already isolate
+plugins. `--pure` still only disables plugins.
+
+## Design-turn brief and OpenCode preflight
+
+On demand: [brief and preflight](references/brief-and-preflight.md).
+
+## Dispatch modes
+
+`--mode mechanical` (**default** for small local coding models / 7B tool loops): treat the
+prompt as one bounded apply command; do not auto-attach CE brief (still allowed via
+`--with-ce-brief`).
+
+`--mode design`: attach the locator-only CE brief (same as `--with-ce-brief`) for richer
+design/spec turns. Prefer this only when the host coach wants a design draft, not for
+mechanical apply.sh loops.
+
+Design/spec turns must follow [design-turn-contract.md](references/design-turn-contract.md)
+(verbatim `CE_BRIEF_LOCATORS:` closing line; host reject gates).
+
+
+Parent parser uses `allow_abbrev=False` so `--mode` cannot abbreviate to `--model`
+. Keep that guard when adding short overlapping flags.
+
+```text
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --mode mechanical argv --prompt 'bash <abs-dir>/apply.sh'
+python3 .chaos-engine/skills/local-agency/scripts/dispatch.py --mode design argv --prompt '…' --project .
+```
+
+## Mechanical dispatch
+
+A READY local coder is a mechanical runner. Procedure:
+[mechanical-dispatch.md](references/mechanical-dispatch.md). The OpenCode bash
+timeout is **120s**: after a timeout kill of an apply script, re-run the same
+idempotent script from the orchestrator so product files are not left
+half-applied.
+
+## Session token usage
+
+When `dispatch.py chat` returns OpenAI-compat `usage` and `--session-id` is set, dispatch records
+`session_token_usage.py` with `--channel local` and a coarse `--runtime-class`
+(`freetoken` / `openai-compat` / `colibri`). Never write model or provider ids into the ledger.
+`brief` / `config` / `argv` do not call the model, so they do not record usage.
+
+## When to use local
+
+Implementers write code directly; this skill is optional. Use local only when the
+handoff cost is well below generation cost (bulk mechanical edits, spec or ticket
+drafting, log summarization, offline or private work). See
+[when-to-use-local.md](references/when-to-use-local.md).
+
+## Coach loop (when local is chosen)
+
+A chosen local writer needs an active coach: verify every artifact, give
+grounded feedback, and never let it finish unsupervised. Playbook:
+[coach-loop.md](references/coach-loop.md).
+
+## Folded: local-coding-delegate
+
+[local-coding-delegate](../local-runtimes/references/local-coding-delegate.md) is a **compat shim**:
+hardware probe stays there; local OpenCode / agency routing lives here. Prefer
+this skill when the adopter names OpenCode or “local agents”.
+
+## Related
+
+- Guide: local-agency.md (repo-only `chaos-engine/guides/local-agency.md`)
+- FreeToken: [freetoken](../local-runtimes/references/freetoken.md)
+- Local OpenAI-compat: [local-openai-compat](../local-runtimes/references/local-openai-compat.md)
+- OmniRoute (explicit cloud only): [omniroute](../local-runtimes/references/omniroute.md)
+- Identity push-back: [identity-push-back.md](../../references/identity-push-back.md)
+- Coach loop: [coach-loop.md](references/coach-loop.md)
+- When to use local: [when-to-use-local.md](references/when-to-use-local.md)
+- Design-turn contract: [design-turn-contract.md](references/design-turn-contract.md)
+- Design-turn gate: [`design_turn_gate.py`](scripts/design_turn_gate.py)
+- Parent ROG Shell playbook: [parent-rog-shell.md](references/parent-rog-shell.md)
+- Parent ROG Shell assert smoke: [test_assert_parent_rog_shell.py](scripts/tests/test_assert_parent_rog_shell.py)

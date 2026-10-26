@@ -130,6 +130,7 @@ jobs:
             # the harness suites were local-only, so drift only surfaced when
             # someone ran them by hand.
             agent_guidance:
+              - '.grok/**'
               - 'AGENTS.md'
               - 'CLAUDE.md'
               - '.agents/**'

@@ -391,6 +391,11 @@ CHECKS = {
         "self-improve",
         ("tests.scripts.test_chaos_engine_s3_self_improve",),
     ),
+    "upstream-ticket-contract": Check(
+        "upstream-ticket-contract",
+        "self-improve",
+        ("tests.scripts.test_upstream_ticket_consent",),
+    ),
     "graphify-maintenance-contract": Check(
         "graphify-maintenance-contract",
         "retrieval",
@@ -609,7 +614,7 @@ SURFACE_CHECKS = {
     "plugin-assembly": ("plugin-assembly-contract",),
     "research": ("research-matrix-contract",),
     "intellij-skill": ("intellij-skill-contract",),
-    "self-improve": ("self-improve-overlay-contract",),
+    "self-improve": ("self-improve-overlay-contract", "upstream-ticket-contract"),
     "ci": ("ci-contract", "setup-aggregator-contract"),
     "installer": (
         "protected-installer-acceptance",
@@ -978,6 +983,9 @@ SURFACE_PATTERNS = {
         "chaos-engine/references/router-contract.md",
         "chaos-engine/skills/chaos-engine/SKILL.md",
         "chaos-engine/skills/self-improve/*",
+        "chaos-engine/learning_session.py",
+        "scripts/ci/chaos-engine-upstream.txt",
+        "tests/scripts/test_upstream_ticket_consent.py",
         "shaft-skills/ce-pack/references/product-track.md",
         "shaft-skills/ce-pack/references/routing.md",
         "tests/scripts/test_chaos_engine_s3_self_improve.py",

@@ -1078,6 +1078,8 @@ class WeeklyOnlyModulesOnPrGateTest(unittest.TestCase):
             ("chaos-engine/references/context-firewall.md", "self-improve-overlay-contract"),
             ("chaos-engine/skills/self-improve/SKILL.md", "self-improve-overlay-contract"),
             ("AGENTS.md", "self-improve-overlay-contract"),
+            ("chaos-engine/learning_session.py", "upstream-ticket-contract"),
+            ("tests/scripts/test_upstream_ticket_consent.py", "upstream-ticket-contract"),
         ):
             with self.subTest(path=path):
                 self.assertIn(check_id, {check.id for check in classify_paths([path]).checks})

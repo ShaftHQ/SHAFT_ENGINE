@@ -1402,6 +1402,19 @@ def _stop_block(event: dict, event_name: str, tool_name: str, session_id: str) -
     return None
 
 
+def _publish_grok_load(start: Path) -> None:
+    """Refresh the files Grok reads. Failures stay out of the hook result."""
+    path = Path(__file__).resolve().parents[1] / "grok_model_load.py"
+    if not path.is_file():
+        return
+    spec = importlib.util.spec_from_file_location("chaos_engine_grok_model_load", path)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.publish_from(start)
+
+
 def _session_start_output(event: dict, event_name: str, session_id: str, token) -> int | None:
     if event_name in {"SessionStart", "PreCompact"}:
         module = _unattended_delivery()
@@ -1411,6 +1424,8 @@ def _session_start_output(event: dict, event_name: str, session_id: str, token) 
             return 0
     if event_name != "SessionStart":
         return None
+    with contextlib.suppress(OSError, ValueError):
+        _publish_grok_load(Path(str(event.get("cwd") or Path.cwd())))
     _schedule_store_refresh(Path(str(event.get("cwd") or Path.cwd())))
     context = _lifecycle.session_start_context(token, ACTIVATION, session_id=session_id)
     drift = reflection.reflection_controller_drift(Path(str(event.get("cwd") or Path.cwd())))
