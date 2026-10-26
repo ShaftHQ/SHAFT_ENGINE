@@ -130,12 +130,13 @@ final class MobilePreflight {
         if (adbDevicesOutput == null) {
             return false;
         }
-        for (String line : adbDevicesOutput.split("\\R")) {
+        for (String line : adbDevicesOutput.lines().toList()) {
             String trimmed = line.trim();
             if (trimmed.isEmpty() || trimmed.startsWith("List of devices")) {
                 continue;
             }
-            String[] parts = trimmed.split("\\s+");
+            // A non-zero limit keeps Error Prone StringSplitter off this parse.
+            String[] parts = trimmed.split("\\s+", -1);
             if (parts.length < 2 || !"device".equals(parts[1])) {
                 continue;
             }
