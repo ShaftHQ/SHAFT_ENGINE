@@ -113,6 +113,11 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
+    def test_allows_grok_project_rules(self):
+        self.write(".grok/rules/companions.md", "# Companions\n")
+
+        self.assertEqual(validate_repository(self.root), [])
+
     def test_allows_canonical_project_skill(self):
         self.write(".agents/skills/act-as-mohab/SKILL.md", "# Act as Mohab\n")
 
