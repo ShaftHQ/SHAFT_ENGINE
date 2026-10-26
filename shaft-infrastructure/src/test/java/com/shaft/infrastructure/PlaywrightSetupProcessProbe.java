@@ -60,13 +60,13 @@ final class PlaywrightSetupProcessProbe {
     }
 
     private static void createReadyLayout(Path root) throws java.io.IOException {
-        for (String relative : List.of("chromium-1243/INSTALLATION_COMPLETE",
-                "chromium-1243/chrome-win64/chrome.exe",
-                "chromium_headless_shell-1243/INSTALLATION_COMPLETE",
-                "chromium_headless_shell-1243/chrome-headless-shell-win64/chrome-headless-shell.exe",
-                "firefox-1543/INSTALLATION_COMPLETE", "firefox-1543/firefox/firefox.exe",
-                "webkit-2359/INSTALLATION_COMPLETE", "webkit-2359/Playwright.exe",
-                "ffmpeg-1011/INSTALLATION_COMPLETE", "ffmpeg-1011/ffmpeg-win64.exe",
+        for (String relative : List.of("chromium-1248/INSTALLATION_COMPLETE",
+                "chromium-1248/chrome-win64/chrome.exe",
+                "chromium_headless_shell-1248/INSTALLATION_COMPLETE",
+                "chromium_headless_shell-1248/chrome-headless-shell-win64/chrome-headless-shell.exe",
+                "firefox-1555/INSTALLATION_COMPLETE", "firefox-1555/firefox/firefox.exe",
+                "webkit-2370/INSTALLATION_COMPLETE", "webkit-2370/Playwright.exe",
+                "ffmpeg-1013/INSTALLATION_COMPLETE", "ffmpeg-1013/ffmpeg-win64.exe",
                 "winldd-1007/INSTALLATION_COMPLETE", "winldd-1007/PrintDeps.exe")) {
             Path file = root.resolve(relative);
             Files.createDirectories(file.getParent());
