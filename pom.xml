@@ -86,7 +86,7 @@
              (ReportPortal -> OkHttp) still requests 13.0. One managed version keeps
              dependencyConvergence on. -->
         <jetbrains.annotations.version>26.1.0</jetbrains.annotations.version>
-        <playwright.version>1.63.0</playwright.version>
+        <playwright.version>1.64.0</playwright.version>
         <slf4j.version>2.0.20</slf4j.version>
         <grpc.version>1.85.1</grpc.version>
         <protobuf.version>4.36.2</protobuf.version>

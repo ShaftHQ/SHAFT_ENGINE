@@ -10,11 +10,11 @@ import java.util.Set;
 
 /** Release-coupled planner for the managed Playwright browser payloads. */
 public final class PlaywrightSetupPlanner {
-    public static final String PLAYWRIGHT_VERSION = "1.63.0";
-    public static final String CHROMIUM_REVISION = "1243";
-    public static final String FIREFOX_REVISION = "1543";
-    public static final String WEBKIT_REVISION = "2359";
-    public static final String FFMPEG_REVISION = "1011";
+    public static final String PLAYWRIGHT_VERSION = "1.64.0";
+    public static final String CHROMIUM_REVISION = "1248";
+    public static final String FIREFOX_REVISION = "1555";
+    public static final String WEBKIT_REVISION = "2370";
+    public static final String FFMPEG_REVISION = "1013";
 
     private PlaywrightSetupPlanner() { }
 

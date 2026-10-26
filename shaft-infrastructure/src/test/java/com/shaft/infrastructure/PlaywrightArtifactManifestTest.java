@@ -15,7 +15,7 @@ class PlaywrightArtifactManifestTest {
         PlaywrightArtifactManifest manifest = PlaywrightArtifactManifest.load();
         List<PlaywrightArtifactManifest.Artifact> artifacts = manifest.requirePlatform("win64");
 
-        assertEquals("1.63.0", manifest.playwrightVersion());
+        assertEquals("1.64.0", manifest.playwrightVersion());
         assertEquals(List.of("chromium", "chromium-headless-shell", "firefox", "webkit", "ffmpeg", "winldd"),
                 artifacts.stream().map(PlaywrightArtifactManifest.Artifact::name).toList());
         assertTrue(artifacts.stream().allMatch(artifact -> artifact.source().getScheme().equals("https")));
@@ -30,10 +30,10 @@ class PlaywrightArtifactManifestTest {
 
         assertEquals(List.of("chromium", "chromium-headless-shell", "firefox", "webkit", "ffmpeg"),
                 artifacts.stream().map(PlaywrightArtifactManifest.Artifact::name).toList());
-        assertEquals("sha256:b0905e84427cc162b9a6e4392be14e5e54e0ade911c83639962c8078b273565e",
+        assertEquals("sha256:564f74fa3c46cb83c6252145cf1569c95236c8c404d6a5a80cc736cf32265f0c",
                 artifacts.stream().filter(artifact -> artifact.name().equals("firefox")).findFirst().orElseThrow()
                         .checksum());
-        assertEquals("sha256:8c129d989a1c48d826ca11b45acbba919039de811623dc3819ccbd95b69eeb62",
+        assertEquals("sha256:63b31a5d68d908d9aee2e445b88edc4c1e1d1eba488f5bd7e35668f91315b968",
                 artifacts.stream().filter(artifact -> artifact.name().equals("webkit")).findFirst().orElseThrow()
                         .checksum());
     }
@@ -66,6 +66,6 @@ class PlaywrightArtifactManifestTest {
                         "https://cdn.playwright.dev/", "https://example.invalid/")));
         assertThrows(IllegalArgumentException.class,
                 () -> PlaywrightArtifactManifest.parse(canonical.replaceFirst(
-                        "415968b02065d4a9e2c10b85f0ae9f489b8fba500e94d9d0a7b7c4852a7234c1", "bad")));
+                        "220021ecfdad08c116fc71a153e65e3861ba841c531afc4f7acc7bd5d44b41db", "bad")));
     }
 }

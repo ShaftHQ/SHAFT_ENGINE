@@ -24,10 +24,10 @@ class PlaywrightSetupPlannerTest {
         SetupPlan plan = PlaywrightSetupPlanner.plan(SetupPlatform.WINDOWS, SetupArchitecture.X64,
                 SetupMode.MANAGED);
 
-        assertEquals("1.63.0", PlaywrightSetupPlanner.PLAYWRIGHT_VERSION);
+        assertEquals("1.64.0", PlaywrightSetupPlanner.PLAYWRIGHT_VERSION);
         assertTrue(canonical.contains("\"hostPlatform\": \"win64\""));
         assertTrue(canonical.contains("\"name\": \"chromium-headless-shell\""));
-        assertTrue(canonical.contains("7aec872f3090e639c4237467624ea863c20fe2878914c93a6556bdbb52aa6c4c"));
+        assertTrue(canonical.contains("5af4c82cf4b351ec4bad4c71dcf938af14fccea8a0eb0d5c2a7b49ccc922698c"));
         assertTrue(canonical.contains("\"name\": \"winldd\""));
         assertTrue(canonical.contains("0069f0d11d4ad6df068a068c003d22fe7dbec192a47bba64b2e115e9c8ce41d8"));
         assertTrue(plan.actions().stream().skip(1)
