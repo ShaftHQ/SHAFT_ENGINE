@@ -26,7 +26,7 @@ import urllib.error
 import urllib.request
 import zipfile
 from datetime import datetime, timedelta, timezone
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 
 RECEIPT_SCHEMA = 1
@@ -301,7 +301,18 @@ def _which_account_command(command: str, *, which, search_path: str, runner) -> 
     return _python3_from_python(which, search_path, runner)
 
 
-def _shim_arguments(target: Path) -> tuple[str, ...]:
+def _probe_path(executable_path: str):
+    """Pure path for a probe file name.
+
+    ``pathlib.Path`` on Python 3.11 follows ``os.name`` and refuses to construct
+    ``WindowsPath`` on POSIX. The ``.cmd`` probe sets ``os.name`` to ``nt`` there.
+    """
+    if os.name == "nt":
+        return PureWindowsPath(executable_path)
+    return PurePosixPath(executable_path)
+
+
+def _shim_arguments(target: Path | PurePosixPath | PureWindowsPath) -> tuple[str, ...]:
     """The Windows ``py`` launcher selects Python 3 only with ``-3``."""
     if target.name.lower() in {"py", "py.exe"}:
         return ("-3",)
@@ -864,7 +875,7 @@ def probe_account_dependency(
     probe = contract.get("probe")
     if not isinstance(probe, list) or not all(isinstance(item, str) for item in probe):
         raise ValueError(f"dependency probe contract is invalid: {name}")
-    command = [executable_path, *_shim_arguments(Path(executable_path)), *probe[1:]]
+    command = [executable_path, *_shim_arguments(_probe_path(executable_path)), *probe[1:]]
     if os.name == "nt" and executable_path.lower().endswith((".cmd", ".bat")):
         command = ["cmd", "/c", *command]
     environment = {
