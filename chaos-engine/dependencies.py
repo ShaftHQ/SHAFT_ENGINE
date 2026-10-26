@@ -1726,22 +1726,6 @@ def _exclude_regex(pattern: str) -> re.Pattern[str]:
     return re.compile("".join(out) + r"\Z")
 
 
-def _stores_namespace() -> dict[str, object]:
-    """Load stores.py once. A missing module leaves foreign paths alone."""
-    import runpy
-
-    cached = getattr(_stores_namespace, "namespace", None)
-    if isinstance(cached, dict):
-        return cached
-    path = Path(__file__).resolve().with_name("stores.py")
-    if not path.is_file():
-        _stores_namespace.namespace = {}
-        return {}
-    namespace = runpy.run_path(str(path), run_name="_chaos_engine_stores_shared")
-    _stores_namespace.namespace = namespace
-    return namespace
-
-
 def _foreign_repository_relative(project: Path, source: str) -> str | None:
     """Map another checkout's absolute ``source_file`` onto this one, or None."""
     namespace = _stores_namespace()

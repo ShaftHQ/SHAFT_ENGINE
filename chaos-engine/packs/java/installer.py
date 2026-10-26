@@ -353,8 +353,15 @@ def ensure_maven_tools(
         hosts, runner, java, version, tag, confirmer=confirmer, reporter=reporter,
     )
     runtime = hosts.discover_maven_tools_runtime()
-    if runtime is None or not hosts.probe_maven_tools_runtime(*runtime):
-        raise ValueError("Maven Tools MCP publication probe failed")
+    probe = hosts.probe_maven_tools_runtime
+    if runtime is None or not probe(*runtime):
+        detail = "" if runtime is None else str(getattr(probe, "last_failure", "") or "")
+        reason = "Maven Tools MCP publication probe failed"
+        if runtime is None:
+            reason += ": no verified Java 17+ runtime and jar"
+        elif detail:
+            reason += ": " + detail
+        raise ValueError(reason)
     return runtime
 
 
