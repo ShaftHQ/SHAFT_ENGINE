@@ -130,8 +130,8 @@ stop doing, start doing, and one next action. File every actionable line
 before the note. A ChaosEngine change is a GitHub issue on the configured
 upstream repository. A change only for the project that uses ChaosEngine is a
 GitHub issue on that project's repository. Cite each issue URL. Write
-`nothing actionable` only when no line needs an issue. Do not estimate tokens,
-model price, or currency in that note. A host session meter and an empty local
+`nothing actionable` only when no line needs an issue. Do not estimate tokens, model
+price, or currency in that note. A host session meter and an empty local
 ledger are different numbers, and a zero ledger is not a cost.
 `session_token_usage.py` remains the meter for deja measurements and local
 dispatch records. Learning Session finalize does not attach it.

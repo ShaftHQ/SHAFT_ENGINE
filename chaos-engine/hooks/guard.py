@@ -743,9 +743,10 @@ def _terminal_reflection_reason(event: dict, session_id: str) -> str:
     if not missing and tracked:
         reflection.accept_terminal_reflection(session_id)
         return ""
-    # A host sets stop_hook_active on the retry of a blocked stop. Demanding
-    # again there loops. The session still asks on a later stop that is not a retry.
-    if bool(event.get("stop_hook_active") or event.get("stopHookActive")):
+    # A host retry that has not written the retrospective must not loop.
+    # A note that already names the six lines is the retrospective, so an
+    # untracked one still blocks. stop_hook_active does not bypass that note.
+    if missing and bool(event.get("stop_hook_active") or event.get("stopHookActive")):
         return ""
     parts = ["Terminal reflection required once this session."]
     if missing:
