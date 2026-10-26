@@ -26,6 +26,14 @@ class CiEventWakeRuleTest(unittest.TestCase):
         maintenance = (ROOT / "harness-maintenance.md").read_text(encoding="utf-8")
         for needle in ("Never reinstall after `entry`", "git archive HEAD", "--head BRANCH --base main"):
             self.assertIn(needle, maintenance)
+        # #7405: this module is on the token-economy gate for references/*.md.
+        maintain = maintenance.split("## Maintain", 1)[1].split("## Deletes", 1)[0]
+        recovery = [line for line in maintain.splitlines() if "bootstrap.py" in line]
+        self.assertEqual(
+            ["`python3 .chaos-engine/bootstrap.py --project . --repository OWNER/REPO --branch BRANCH`;"],
+            recovery,
+        )
+        self.assertNotIn("--distribution portable", maintenance)
         self.assertIn("## Private add-ons", (ROOT / "addons.md").read_text(encoding="utf-8"))
 
 

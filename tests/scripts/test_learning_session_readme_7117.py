@@ -27,13 +27,6 @@ class LearningSessionReadme7117Test(unittest.TestCase):
         self.assertIn("invalid choice", text)
         self.assertIn("reinstall", text)
 
-    def test_maintain_recovery_does_not_force_portable_distribution(self):
-        text = read("references/harness-maintenance.md")
-        maintain = text.split("## Maintain", 1)[1].split("## Deletes", 1)[0]
-        recovery = [line for line in maintain.splitlines() if "bootstrap.py" in line]
-        self.assertEqual(["`python3 .chaos-engine/bootstrap.py --project . --repository OWNER/REPO --branch BRANCH`;"], recovery)
-        self.assertNotIn("--distribution portable", text)
-
     def test_web_design_card_covers_readme_rendering_traps(self):
         text = read("addons/design-skills/references/craft/web-design.md")
         self.assertIn('"mode": "markdown"', text)
