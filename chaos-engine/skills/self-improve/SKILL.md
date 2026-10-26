@@ -55,7 +55,7 @@ Research/explore isolation (harness): [../../references/context-firewall.md](../
 3. File a harness lesson as a GitHub issue. Queue only a product lesson
    through `learning.py --track product`.
 4. Never auto-install skill patches; stage proposals for human/CI review.
-5. "Nothing durable" is a valid outcome.
+5. "Nothing durable" is a valid outcome only when no actionable retrospective line remains. File that line remotely first. The chat note is not the record.
 6. A lessons pull request lands only when it states the concrete outcome the
    lesson would have changed: time, a defect, or a failure avoided. The body
    has a `## Outcome changed` section with that statement. A title starting
@@ -123,9 +123,23 @@ with one next action.
 - continue doing
 - stop doing
 - start doing
-- next action: one change, or nothing durable
+- next action: one change, or nothing actionable
 
-Do not estimate tokens, model price, or currency in this note. A host meter
-and an empty local ledger are not the same number. `session_token_usage.py`
-stays the ledger for deja measurements and local dispatch records. Finalize
-does not attach it.
+An actionable line would change a later session and is not already shipped on
+the default branch or already an open issue. File it with `gh` before the note,
+then cite the issue URL on that line. Cite an existing issue instead of opening
+a duplicate.
+
+- **Upstream:** a ChaosEngine change (skills, hooks, installer, roles, identity,
+  companions, or overlay references). File it on the configured upstream
+  repository (`scripts/ci/chaos-engine-upstream.txt` or
+  `CHAOS_ENGINE_UPSTREAM_REPO`).
+- **Private:** a change only for the project that uses ChaosEngine (product
+  code, project rules, or adopter workflow). File it on that project's
+  repository.
+
+`nothing actionable` is the only close with no URL. Local memory, a lesson
+note, and this chat note are not tracking. Do not estimate tokens, model
+price, or currency in this note. A host meter and an empty local ledger are
+not the same number. `session_token_usage.py` stays the ledger for deja
+measurements and local dispatch records. Finalize does not attach it.

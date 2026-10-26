@@ -457,7 +457,7 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             reflection.record_receipt(session, receipt, token)
             payload["last_assistant_message"] = "\n".join(
                 f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
-            )
+            ) + "\nnothing actionable"
             output = io.StringIO()
             with redirect_stdout(output):
                 guard.run_stop(payload)
@@ -490,12 +490,26 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
             self.assertNotIn("token consumption optimization", demanded)
             self.assertIn("continue doing", demanded)
             self.assertIn("what happened", demanded)
-            complete = "\n".join(
+            labels_only = "\n".join(
                 f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
             )
+            untracked = guard._terminal_reflection_reason(
+                {"session_id": session, "last_assistant_message": labels_only}
+            )
+            self.assertIn("configured upstream repository", untracked)
+            self.assertIn("this project's repository", untracked)
+            self.assertIn("nothing actionable", untracked)
+            complete = labels_only + "\nnothing actionable"
             self.assertIsNone(
                 guard._terminal_reflection_reason(
                     {"session_id": session, "last_assistant_message": complete}
+                )
+            )
+            reflection.record_session_start("url-session", "2020-01-01T00:00:00+00:00")
+            cited = labels_only + "\nhttps://github.com/Owner/Private/issues/9"
+            self.assertIsNone(
+                guard._terminal_reflection_reason(
+                    {"session_id": "url-session", "last_assistant_message": cited}
                 )
             )
             self.assertTrue(reflection.has_valid_terminal_receipt(session))

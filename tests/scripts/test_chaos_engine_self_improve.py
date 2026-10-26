@@ -33,6 +33,23 @@ class SelfImproveSkillTests(unittest.TestCase):
         cls.lifecycle = load(ROOT / "chaos-engine/hooks/lifecycle.py", "ce_lifecycle_si")
         cls.learning = load(LEARNING, "ce_learning_si")
 
+    def test_retrospective_files_actionable_items_remotely(self):
+        skill = SKILL.read_text(encoding="utf-8")
+        activation = ACTIVATION.read_text(encoding="utf-8")
+        checkpoints = (
+            ROOT / "chaos-engine/references/reflection-checkpoints.md"
+        ).read_text(encoding="utf-8")
+        owner = (
+            ROOT / "chaos-engine/references/process-owner-scrum-master.md"
+        ).read_text(encoding="utf-8")
+        for text in (skill, activation, checkpoints, owner):
+            flat = " ".join(text.split())
+            self.assertIn("configured upstream", flat)
+            self.assertIn("project that uses ChaosEngine", flat)
+            self.assertIn("nothing actionable", flat)
+        self.assertIn("CHAOS_ENGINE_UPSTREAM_REPO", skill)
+        self.assertNotIn("next action: one change, or nothing durable", skill)
+
     def test_skill_surface_and_attribution(self):
         for path in (SKILL, RESEARCH, TAXONOMY, ACTIVATION, UPSTREAM, LICENSE):
             self.assertTrue(path.is_file(), path)

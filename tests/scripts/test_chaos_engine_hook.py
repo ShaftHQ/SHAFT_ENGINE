@@ -906,6 +906,61 @@ process.stderr.write(result.stderr || '');
         self.assertEqual(0, repeated.returncode)
         self.assertNotEqual("block", json.loads(repeated.stdout).get("decision"))
 
+    def test_portable_retry_blocks_an_untracked_retrospective(self):
+        labels = (
+            "what happened: recorded\n"
+            "why it happened: recorded\n"
+            "continue doing: recorded\n"
+            "stop doing: recorded\n"
+            "start doing: recorded\n"
+            "next action: recorded"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            env = {
+                **isolated_session_environment(),
+                "TMPDIR": temporary,
+                "TEMP": temporary,
+                "TMP": temporary,
+            }
+            started = subprocess.run(  # nosec B603 - fixed interpreter and reflection module.
+                [
+                    sys.executable,
+                    "-c",
+                    "import importlib.util, sys; "
+                    "spec = importlib.util.spec_from_file_location('ce_reflection', sys.argv[1]); "
+                    "module = importlib.util.module_from_spec(spec); "
+                    "spec.loader.exec_module(module); "
+                    "module.record_session_start('portable-track', '2020-01-01T00:00:00+00:00')",
+                    str(ROOT / "chaos-engine/hooks/reflection.py"),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+                env=env,
+            )
+            self.assertEqual(0, started.returncode, started.stderr)
+            blocked = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "portable-track",
+                    "stop_hook_active": True,
+                    "last_assistant_message": labels,
+                },
+                env,
+            )
+            accepted = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "session_id": "portable-track",
+                    "stop_hook_active": True,
+                    "last_assistant_message": labels + "\nnothing actionable",
+                },
+                env,
+            )
+        self.assertEqual("block", json.loads(blocked.stdout).get("decision"))
+        self.assertIn("configured upstream repository", blocked.stdout)
+        self.assertNotEqual("block", json.loads(accepted.stdout).get("decision"))
+
     def test_portable_subagent_stop_never_inherits_root_learning_session(self):
         with tempfile.TemporaryDirectory() as temporary:
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}

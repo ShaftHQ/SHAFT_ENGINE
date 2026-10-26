@@ -5634,6 +5634,17 @@ _TERMINAL_REFLECTION_LABELS = (
     "start doing",
     "next action",
 )
+# An actionable retrospective line is a GitHub issue. The attestation is the
+# only close that carries no URL. Upstream is the ChaosEngine repository.
+# Private is the repository of the project using ChaosEngine.
+_TRACKING_ATTESTATION = "nothing actionable"
+_ISSUE_URL = re.compile(r"https://github\.com/[^\s)]+/issues/[1-9][0-9]*", re.IGNORECASE)
+_TRACKING_DEMAND = (
+    "Track every actionable item remotely before this note: "
+    "a ChaosEngine change is an issue on the configured upstream repository; "
+    "a project-only change is an issue on this project's repository. "
+    "Put each issue URL in the note. If nothing is actionable, write nothing actionable."
+)
 
 
 def _terminal_reflection_reason(hook_input: dict) -> str | None:
@@ -5645,14 +5656,17 @@ def _terminal_reflection_reason(hook_input: dict) -> str | None:
         return None
     message = str(hook_input.get("last_assistant_message") or "").casefold()
     missing = [label for label in _TERMINAL_REFLECTION_LABELS if label not in message]
-    if not missing:
+    tracked = _TRACKING_ATTESTATION in message or _ISSUE_URL.search(message) is not None
+    if not missing and tracked:
         _reflection.accept_terminal_reflection(session_id)
         return None
-    return (
-        "Terminal reflection required once this session. Include "
-        + ", ".join(missing)
-        + ". Do not repeat it after later tool calls."
-    )
+    parts = ["Terminal reflection required once this session."]
+    if missing:
+        parts.append("Include " + ", ".join(missing) + ".")
+    if not tracked:
+        parts.append(_TRACKING_DEMAND)
+    parts.append("Do not repeat it after later tool calls.")
+    return " ".join(parts)
 
 
 @lru_cache(maxsize=1)

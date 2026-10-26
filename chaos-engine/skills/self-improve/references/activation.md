@@ -45,5 +45,9 @@ Activate the full protocol:
 7. Do not report harness lesson text. Product counts may be `product queued N`
    or `nothing durable`.
 8. Close with one retrospective: what happened, why it happened, continue
-   doing, stop doing, start doing, and one next action. Do not add a token
-   or cost estimate.
+   doing, stop doing, start doing, and one next action. File every actionable
+   line before the note. A ChaosEngine change is a GitHub issue on the
+   configured upstream repository. A project-only change is a GitHub issue
+   on the repository of the project that uses ChaosEngine. Cite each issue
+   URL. Write `nothing actionable` only when no line needs an issue. Do not
+   add a token or cost estimate.
