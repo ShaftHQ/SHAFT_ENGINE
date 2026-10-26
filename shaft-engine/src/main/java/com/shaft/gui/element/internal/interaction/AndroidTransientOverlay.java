@@ -55,15 +55,12 @@ public final class AndroidTransientOverlay {
      * Returns the first present result.
      */
     public static <T> Optional<T> recheck(Supplier<Optional<T>> ready, Supplier<List<WebElement>> finder) {
-        for (int attempt = 0; attempt <= MAX_DISMISSALS; attempt++) {
-            Optional<T> found = ready.get();
-            if (found.isPresent()) {
-                return found;
-            }
-            if (attempt == MAX_DISMISSALS || dismissOnce(finder) == 0) {
-                return Optional.empty();
-            }
+        Optional<T> found = ready.get();
+        int attempt = 0;
+        while (found.isEmpty() && attempt < MAX_DISMISSALS && dismissOnce(finder) > 0) {
+            attempt++;
+            found = ready.get();
         }
-        return Optional.empty();
+        return found;
     }
 }
