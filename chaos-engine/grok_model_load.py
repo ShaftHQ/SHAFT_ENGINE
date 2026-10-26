@@ -3,14 +3,20 @@
 
 Grok puts `.grok/rules/*.md` in the model prompt. SessionStart stdout is not
 model context, and the session-start locator is capped at 600 bytes, so those
-two bodies live here. Each copy stays byte-identical to the canonical file.
-Skill bodies stay one source at `chaos-engine/skills/<name>/SKILL.md`. The
-entrypoint, which this publisher puts in the prompt, routes them.
+two bodies live here. Relative links are retargeted so they resolve from
+`.grok/rules`. Skill bodies stay one source at
+`chaos-engine/skills/<name>/SKILL.md`. The entrypoint, which this publisher
+puts in the prompt, routes them.
 """
 
 from __future__ import annotations
 
+import os
+import re
 from pathlib import Path
+
+_LINK = re.compile(r"(!?)\[([^]]*)\]\(([^)]*)\)")
+_SCHEME = re.compile(r"^[a-z][a-z0-9+.-]*:", re.IGNORECASE)
 
 COMPANIONS = """\
 # ChaosEngine load
@@ -33,6 +39,49 @@ def _canonical_root(project: Path) -> Path | None:
         if (root / "skills" / "chaos-engine" / "SKILL.md").is_file():
             return root
     return None
+
+
+def _split_link_target(raw: str) -> tuple[str, str] | None:
+    """Return the path and any title suffix, or None when the target stays."""
+    text = raw.strip()
+    if not text or text.startswith("#"):
+        return None
+    suffix = ""
+    if text.startswith("<") and ">" in text:
+        path, _, after = text[1:].partition(">")
+        if after.strip():
+            suffix = " " + after.strip()
+    else:
+        path, separator, title = text.partition(" ")
+        if separator:
+            suffix = separator + title
+    if not path or path.startswith("#") or _SCHEME.match(path):
+        return None
+    return path, suffix
+
+
+def _retarget(source: Path, destination: Path, raw: str) -> str:
+    """Point one link at the same file from the rules directory."""
+    parts = _split_link_target(raw)
+    if parts is None:
+        return raw
+    path, suffix = parts
+    file_path, hash_sep, fragment = path.partition("#")
+    if not file_path:
+        return raw
+    resolved = (source.parent / file_path).resolve()
+    relative = Path(os.path.relpath(resolved, destination.parent.resolve())).as_posix()
+    fragment_text = f"{hash_sep}{fragment}" if hash_sep else ""
+    return f"{relative}{fragment_text}{suffix}"
+
+
+def _linked_bytes(source: Path, destination: Path) -> bytes:
+    text = source.read_text(encoding="utf-8")
+
+    def replace(match: re.Match[str]) -> str:
+        return f"{match.group(1)}[{match.group(2)}]({_retarget(source, destination, match.group(3))})"
+
+    return _LINK.sub(replace, text).encode("utf-8")
 
 
 def _write_same(destination: Path, payload: bytes) -> str | None:
@@ -65,11 +114,11 @@ def publish(project: Path) -> list[str]:
     identity = root / "identity.md"
     entry = root / "skills" / "chaos-engine" / "SKILL.md"
     if identity.is_file():
-        changed = _write_same(rules / "identity.md", identity.read_bytes())
+        changed = _write_same(rules / "identity.md", _linked_bytes(identity, rules / "identity.md"))
         if changed:
             written.append(changed)
     if entry.is_file():
-        changed = _write_same(rules / "entrypoint.md", entry.read_bytes())
+        changed = _write_same(rules / "entrypoint.md", _linked_bytes(entry, rules / "entrypoint.md"))
         if changed:
             written.append(changed)
     changed = _write_same(rules / "companions.md", COMPANIONS.encode("utf-8"))

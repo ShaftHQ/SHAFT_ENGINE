@@ -584,15 +584,17 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         }
         # Grok puts these rules in the model prompt. SessionStart stdout is not
         # model context. Skill bodies stay the canonical files the entrypoint routes.
+        # Links are retargeted so a copy under .grok/rules still resolves.
         self.assertEqual(set(tracked), rules)
-        self.assertEqual(
-            (ROOT / ".grok/rules/identity.md").read_bytes(),
-            (ROOT / "chaos-engine/identity.md").read_bytes(),
-        )
-        self.assertEqual(
-            (ROOT / ".grok/rules/entrypoint.md").read_bytes(),
-            (ROOT / "chaos-engine/skills/chaos-engine/SKILL.md").read_bytes(),
-        )
+        identity = (ROOT / ".grok/rules/identity.md").read_text(encoding="utf-8")
+        entrypoint = (ROOT / ".grok/rules/entrypoint.md").read_text(encoding="utf-8")
+        self.assertIn("Speak unabridged truth", identity)
+        self.assertIn("../../chaos-engine/references/identity-push-back.md", identity)
+        self.assertIn("## Iron laws", entrypoint)
+        self.assertIn("../../chaos-engine/skills/kanban/SKILL.md", entrypoint)
+        self.assertTrue((ROOT / ".grok/rules/identity.md").parent.joinpath(
+            "../../chaos-engine/references/identity-push-back.md"
+        ).resolve().is_file())
         companions = (ROOT / ".grok/rules/companions.md").read_text(encoding="utf-8")
         self.assertNotIn("## Iron laws", companions)
         self.assertIn("chaos-engine/skills/<name>/SKILL.md", companions)
@@ -624,6 +626,22 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             companions = (project / ".grok/rules/companions.md").read_text(encoding="utf-8")
             self.assertIn("python3 .chaos-engine/tool.py entry", companions)
             self.assertIn("chaos-engine/skills/<name>/SKILL.md", companions)
+            (source / "references").mkdir()
+            (source / "references/card.md").write_text("card\n", encoding="utf-8")
+            (source / "identity.md").write_text("See [why](references/card.md).\n", encoding="utf-8")
+            (source / "skills/chaos-engine/SKILL.md").write_text(
+                "See [card](../../references/card.md#part).\n",
+                encoding="utf-8",
+            )
+            module.publish(project)
+            self.assertIn(
+                "../../chaos-engine/references/card.md#part",
+                (project / ".grok/rules/entrypoint.md").read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                "../../chaos-engine/references/card.md",
+                (project / ".grok/rules/identity.md").read_text(encoding="utf-8"),
+            )
             self.assertEqual([], module.publish(project))
             self.assertTrue(written)
 
