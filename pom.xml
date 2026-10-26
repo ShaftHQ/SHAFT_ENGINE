@@ -126,7 +126,7 @@
         <rest.assured.version>6.2.0</rest.assured.version>
         <!-- REST Assured 6.2.0 brings json-schema-validator 2.0.8. openapi-request-validator 3.0.0
              still requests 2.0.1. One managed version keeps dependencyConvergence on. -->
-        <json.schema.validator.version>2.0.8</json.schema.validator.version>
+        <json.schema.validator.version>3.0.8</json.schema.validator.version>
         <openapi.request.validator.version>3.0.0</openapi.request.validator.version>
         <json.path.version>3.0.0</json.path.version>
         <javassist.version>3.33.0-GA</javassist.version>
