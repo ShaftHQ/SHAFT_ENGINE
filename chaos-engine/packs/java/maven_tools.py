@@ -1013,7 +1013,10 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
         # Only a reparse that is not a file is unusable (#7300).
         if is_link_or_reparse(resolved) and not resolved.is_file():
             continue
-        if (java_major(resolved) or 0) >= 17:
+        # The published jar is class-file 25. JAVA_HOME on the Windows runner
+        # is often 17 or 21 and used to win this loop, then the probe died
+        # with UnsupportedClassVersionError (#7300).
+        if (java_major(resolved) or 0) >= 25:
             return resolved, jar
     return None
 
