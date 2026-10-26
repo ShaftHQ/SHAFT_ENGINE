@@ -223,6 +223,10 @@ class SessionStartLocatorParityTests(unittest.TestCase):
         self.assertIn("Speak unabridged truth", identity)
         self.assertIn("## Iron laws", entrypoint)
         self.assertIn("chaos-engine/skills/<name>/SKILL.md", rules)
+        self.assertIn("chaos-engine/references/roles.md", rules)
+        self.assertIn("chaos-engine/references/execution-workflows.md", rules)
+        self.assertIn("SOLO", rules)
+        self.assertIn("headed", rules)
         self.assertFalse((ROOT / ".grok/skills/kanban/SKILL.md").exists())
 
     def test_matrix_sessionstart_row_is_green(self):
