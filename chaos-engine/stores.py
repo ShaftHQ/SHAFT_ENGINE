@@ -2,9 +2,10 @@
 """Shared MemPalace and Graphify locations for every ChaosEngine checkout.
 
 One Git repository has one palace and one graphify-out. Linked worktrees and
-other branches resolve those same paths. Refresh reuses one detached snapshot of
-the default-branch tip and does not reset a checkout. ``~/.mempalace`` is never
-read or migrated.
+other branches resolve those same paths. A second clone of the same origin
+reuses those paths when they already hold a palace database or ``graph.json``.
+Refresh reuses one detached snapshot of the default-branch tip and does not
+reset a checkout. ``~/.mempalace`` is never read or migrated.
 """
 
 from __future__ import annotations
@@ -121,15 +122,19 @@ def resolve_primary_root(cwd: Path) -> Path:
     return _main_worktree(cwd, common)
 
 
+def _local_palace(cwd: Path) -> Path:
+    common = resolve_common_dir(cwd)
+    if common is not None:
+        return common / "chaos-engine" / "mempalace"
+    return cwd.resolve() / ".chaos-engine-state" / "mempalace"
+
+
 def resolve_palace(cwd: Path) -> Path:
     """Return the one sqlite_exact palace for this repository."""
     configured = _override(("CHAOS_ENGINE_MEMPALACE", "SHA" + "FT_MEMPALACE"))
     if configured is not None:
         return configured
-    common = resolve_common_dir(cwd)
-    if common is not None:
-        return common / "chaos-engine" / "mempalace"
-    return cwd.resolve() / ".chaos-engine-state" / "mempalace"
+    return _shared_or_local(cwd, _local_palace(cwd), "palace")
 
 
 NESTED_REPOSITORY_PRUNE = frozenset({".git", "node_modules", ".chaos-engine", ".chaos-engine-state",
@@ -199,15 +204,217 @@ def palace_migration_hint(cwd: Path) -> str | None:
     )
 
 
+def _local_graph_out(cwd: Path) -> Path:
+    common = resolve_common_dir(cwd)
+    if common is not None:
+        return _main_worktree(cwd, common) / "graphify-out"
+    return cwd.resolve() / "graphify-out"
+
+
 def resolve_graph_out(cwd: Path) -> Path:
     """Return the one graphify-out directory for this repository."""
     configured = _override(("CHAOS_ENGINE_GRAPHIFY_OUT", "SHA" + "FT_GRAPHIFY_OUT"))
     if configured is not None:
         return configured
-    common = resolve_common_dir(cwd)
-    if common is not None:
-        return _main_worktree(cwd, common) / "graphify-out"
-    return cwd.resolve() / "graphify-out"
+    return _shared_or_local(cwd, _local_graph_out(cwd), "graph")
+
+
+ACCOUNT_RECEIPT_NAME = ".chaos-engine-dependencies.json"
+
+
+def _origin_url(cwd: Path) -> str | None:
+    try:
+        raw = _git(cwd, "remote", "get-url", "origin")
+    except RuntimeError:
+        return None
+    return raw.strip() or None
+
+
+def _registry_dir() -> Path:
+    """User registry of populated stores, keyed by origin URL.
+
+    ``CHAOS_ENGINE_STORE_REGISTRY`` isolates tests from the real home directory.
+    """
+    override = os.environ.get("CHAOS_ENGINE_STORE_REGISTRY", "").strip()
+    if override:
+        path = Path(override).expanduser()
+        if not path.is_absolute():
+            raise RuntimeError("CHAOS_ENGINE_STORE_REGISTRY must be absolute")
+        return path
+    xdg = os.environ.get("XDG_DATA_HOME", "").strip()
+    base = Path(xdg).expanduser() if xdg else Path.home() / ".local" / "share"
+    return (base / "chaos-engine" / "store-registry").resolve()
+
+
+def _registry_path(origin: str) -> Path:
+    digest = hashlib.sha256(origin.encode("utf-8")).hexdigest()[:16]
+    return _registry_dir() / f"{digest}.json"
+
+
+def _read_record(origin: str) -> dict[str, Any]:
+    path = _registry_path(origin)
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return document if isinstance(document, dict) else {}
+
+
+def _write_record(origin: str, record: dict[str, Any]) -> None:
+    path = _registry_path(origin)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(4)}.tmp")
+    temporary.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def _store_populated(kind: str, path: Path) -> bool:
+    name = "sqlite_exact.sqlite3" if kind == "palace" else "graph.json"
+    candidate = path / name
+    return candidate.is_file() and not candidate.is_symlink()
+
+
+def _remember_receipt(cwd: Path, record: dict[str, Any], origin: str) -> None:
+    source = cwd.resolve() / ACCOUNT_RECEIPT_NAME
+    if source.is_symlink() or not source.is_file():
+        return
+    destination = _registry_path(origin).with_name(_registry_path(origin).stem + "-receipt.json")
+    temporary = destination.with_name(f".{destination.name}.{secrets.token_hex(4)}.tmp")
+    shutil.copyfile(source, temporary)
+    temporary.replace(destination)
+    record["receipt"] = str(destination)
+
+
+def _remember(cwd: Path, origin: str, kind: str, location: Path) -> None:
+    record = _read_record(origin)
+    record["origin"] = origin
+    record[kind] = str(location)
+    roots = [item for item in record.get("roots", []) if isinstance(item, str)]
+    root = str(cwd.resolve())
+    if root not in roots:
+        roots.append(root)
+    record["roots"] = roots
+    _remember_receipt(cwd, record, origin)
+    _write_record(origin, record)
+
+
+def _registered_path(origin: str, kind: str) -> Path | None:
+    raw = _read_record(origin).get(kind)
+    if not isinstance(raw, str) or not raw:
+        return None
+    path = Path(raw)
+    if not _store_populated(kind, path):
+        return None
+    return path
+
+
+def _shared_or_local(cwd: Path, local: Path, kind: str) -> Path:
+    """Prefer this checkout's populated store, else the one already mined for its origin."""
+    origin = _origin_url(cwd)
+    if origin is None:
+        return local
+    try:
+        if _store_populated(kind, local):
+            _remember(cwd, origin, kind, local)
+            return local
+        shared = _registered_path(origin, kind)
+        if shared is not None:
+            _remember(cwd, origin, kind, shared)
+            return shared
+    except OSError:
+        return local
+    return local
+
+
+def registered_roots(cwd: Path) -> list[Path]:
+    """Checkout roots that share this origin, including ``cwd``."""
+    roots: list[Path] = []
+    origin = _origin_url(cwd)
+    if origin is not None:
+        for item in _read_record(origin).get("roots", []):
+            if isinstance(item, str) and item:
+                roots.append(Path(item))
+    current = cwd.resolve()
+    if current not in roots:
+        roots.append(current)
+    return roots
+
+
+def registered_account_receipt(cwd: Path) -> Path | None:
+    """User-scoped account receipt copied from a checkout of this origin."""
+    origin = _origin_url(cwd)
+    if origin is None:
+        return None
+    raw = _read_record(origin).get("receipt")
+    if not isinstance(raw, str) or not raw:
+        return None
+    path = Path(raw)
+    if path.is_symlink() or not path.is_file():
+        return None
+    return path
+
+
+def repository_relative(source: str, roots: list[Path]) -> str | None:
+    """Repository-relative POSIX path for a drawer ``source_file`` under one of ``roots``."""
+    text = str(source).strip()
+    if not text:
+        return None
+    path = Path(text)
+    if not path.is_absolute():
+        if any(part == ".." for part in path.parts):
+            return None
+        return path.as_posix()
+    for root in roots:
+        try:
+            relative = path.resolve().relative_to(Path(root).resolve())
+        except (ValueError, OSError):
+            continue
+        return relative.as_posix()
+    return None
+
+
+def equivalent_source_files(source: str, roots: list[Path]) -> list[str]:
+    """Other ``source_file`` strings that name the same repository-relative file."""
+    relative = repository_relative(source, roots)
+    if relative is None:
+        return []
+    values: list[str] = []
+    if relative != source:
+        values.append(relative)
+    for root in roots:
+        try:
+            absolute = str((Path(root) / relative).resolve())
+        except OSError:
+            continue
+        if absolute != source and absolute not in values:
+            values.append(absolute)
+    return values
+
+
+def palace_records_source(cwd: Path, relative: str) -> bool:
+    """True when the shared palace already has a drawer for this repository-relative file."""
+    database = resolve_palace(cwd) / "sqlite_exact.sqlite3"
+    if not database.is_file() or database.is_symlink():
+        return False
+    roots = registered_roots(cwd)
+    wanted = Path(relative).as_posix()
+    try:
+        connection = sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return False
+    try:
+        try:
+            rows = connection.execute(
+                "SELECT json_extract(metadata_json, '$.source_file') FROM documents"
+            ).fetchall()
+        except sqlite3.Error:
+            return False
+    finally:
+        connection.close()
+    return any(
+        isinstance(stored, str) and repository_relative(stored, roots) == wanted
+        for (stored,) in rows
+    )
 
 
 def inject_mempalace_arguments(arguments: list[str], palace: Path) -> list[str]:

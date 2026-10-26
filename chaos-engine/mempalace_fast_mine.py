@@ -18,7 +18,9 @@ The shim also retires itself when the installed ``_replace_fts`` already deletes
 
 from __future__ import annotations
 
+import importlib.util
 import sys
+from pathlib import Path
 
 SUPPORTED_VERSIONS = frozenset({"3.8.0", "3.10.0", "3.11.0"})
 SOURCE_FILE_INDEX = (
@@ -86,19 +88,78 @@ def upstream_deletes_by_rowid(method) -> bool:
     return "DELETE FROM docs_fts WHERE rowid" in source
 
 
+def _stores():
+    path = Path(__file__).resolve().with_name("stores.py")
+    spec = importlib.util.spec_from_file_location("_chaos_engine_fast_mine_stores", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def wrap_file_already_mined(original):
+    """Treat another checkout's absolute ``source_file`` as the same repository file."""
+
+    def file_already_mined(collection, source_file, check_mtime=False, *args, **kwargs):
+        if original(collection, source_file, check_mtime=check_mtime, *args, **kwargs):
+            return True
+        try:
+            stores = _stores()
+            start = Path(source_file) if Path(str(source_file)).is_absolute() else Path.cwd()
+            roots = stores.registered_roots(start if start.is_dir() else start.parent)
+            alternates = stores.equivalent_source_files(str(source_file), roots)
+        except (OSError, RuntimeError, TypeError, ValueError):
+            return False
+        for alternate in alternates:
+            try:
+                if original(collection, alternate, check_mtime=False):
+                    return True
+            except (OSError, RuntimeError, TypeError, ValueError):
+                continue
+        return False
+
+    file_already_mined.chaos_engine_source_alias = True
+    file_already_mined.chaos_engine_original = original
+    return file_already_mined
+
+
+def _install_source_alias() -> bool:
+    """Patch ``file_already_mined`` when MemPalace is installed. Never required to import."""
+    import importlib
+
+    patched = False
+    for module_name in ("mempalace.miner", "mempalace.palace"):
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+        original = getattr(module, "file_already_mined", None)
+        if not callable(original) or getattr(original, "chaos_engine_source_alias", False):
+            continue
+        setattr(module, "file_already_mined", wrap_file_already_mined(original))
+        patched = True
+    return patched
+
+
 def install() -> bool:
     """Patch MemPalace in this process; False (unpatched) for any unexpected shape."""
+    aliased = False
+    try:
+        aliased = _install_source_alias()
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError):
+        aliased = False
     try:
         import mempalace
         from mempalace.backends import sqlite_exact
     except ImportError:
-        return False
+        return aliased
     collection = getattr(sqlite_exact, "SQLiteExactCollection", None)
     original = getattr(collection, "_replace_fts", None)
     if getattr(mempalace, "__version__", None) not in SUPPORTED_VERSIONS or original is None:
-        return False
+        return aliased
     if upstream_deletes_by_rowid(original):
-        return False
+        return aliased
     collection._replace_fts = replace_fts(original)
     return True
 

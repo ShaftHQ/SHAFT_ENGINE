@@ -3652,6 +3652,48 @@ class ChaosEngineHostsTest(unittest.TestCase):
             finally:
                 globals_["java_major"] = prior
 
+    def test_native_maven_tools_runtime_accepts_a_reparse_java_file(self):
+        # #7300: Windows marks the JDK that just built Maven Tools as a reparse
+        # point. Discovery must still return that file so the publication probe runs.
+        module = load(HOSTS, "chaos_engine_hosts_native_maven_java_reparse")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            java = root / "jdk-25/bin/java.exe"
+            jar = root / "maven-tools-mcp-3.2.3.jar"
+            java.parent.mkdir(parents=True)
+            java.write_bytes(b"java")
+            jar.write_bytes(b"jar")
+            jar.with_name("install-receipt.json").write_text(
+                json.dumps(
+                    {
+                        "version": "3.2.3",
+                        "commit": "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36",
+                        "jar": jar.name,
+                        "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            globals_ = module.discover_maven_tools_runtime.__globals__
+            prior_major = globals_["java_major"]
+            prior_link = globals_["is_link_or_reparse"]
+            resolved_java = java.resolve()
+            globals_["java_major"] = lambda candidate: 25 if candidate == resolved_java else None
+            globals_["is_link_or_reparse"] = lambda path: Path(path) == resolved_java
+            try:
+                with mock.patch.dict(
+                    os.environ,
+                    {"CHAOSENGINE_JAVA": str(java), "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR": str(jar)},
+                    clear=True,
+                ):
+                    self.assertEqual(
+                        (java.resolve(), jar.resolve()),
+                        module.discover_maven_tools_runtime(),
+                    )
+            finally:
+                globals_["java_major"] = prior_major
+                globals_["is_link_or_reparse"] = prior_link
+
     def test_legacy_docker_maven_server_is_removed_during_host_rendering(self):
         module = load(HOSTS, "chaos_engine_hosts_legacy_maven")
         legacy_json = json.dumps(

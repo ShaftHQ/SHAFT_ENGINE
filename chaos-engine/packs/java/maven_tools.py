@@ -1008,7 +1008,10 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
             resolved = candidate.resolve(strict=True)
         except OSError:
             continue
-        if is_link_or_reparse(resolved):
+        # A Windows toolcache JDK or App Execution Alias can still report a
+        # reparse point after resolve. The build already ran this java.exe.
+        # Only a reparse that is not a file is unusable (#7300).
+        if is_link_or_reparse(resolved) and not resolved.is_file():
             continue
         if (java_major(resolved) or 0) >= 17:
             return resolved, jar

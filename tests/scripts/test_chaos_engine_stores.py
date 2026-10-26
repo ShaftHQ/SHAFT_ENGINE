@@ -96,6 +96,87 @@ class SharedStoreTest(unittest.TestCase):
         self.assertEqual(primary_graph, linked_graph)
         self.assertEqual(self.primary / "graphify-out", primary_graph)
 
+    def test_second_clone_of_the_same_origin_reuses_populated_stores(self):
+        registry = self.sandbox / "registry"
+        registry.mkdir()
+        origin = "https://example.invalid/org/repo.git"
+        self.git("remote", "add", "origin", origin, cwd=self.primary)
+        clone = self.sandbox / "clone"
+        clone.mkdir()
+        self.git("init", cwd=clone)
+        self.git("config", "user.email", "stores@example.invalid", cwd=clone)
+        self.git("config", "user.name", "Stores Test", cwd=clone)
+        (clone / "keep.py").write_text("print('clone')\n", encoding="utf-8")
+        self.git("add", "keep.py", cwd=clone)
+        self.git("commit", "-m", "clone source", cwd=clone)
+        self.git("remote", "add", "origin", origin, cwd=clone)
+        palace = self.primary / ".git" / "chaos-engine" / "mempalace"
+        palace.mkdir(parents=True)
+        database = palace / "sqlite_exact.sqlite3"
+        connection = sqlite3.connect(database)
+        connection.execute(
+            "create table documents (collection_id integer, id text, metadata_json text)"
+        )
+        connection.execute(
+            "insert into documents values (1, 'd1', ?)",
+            (json.dumps({"source_file": str(self.primary / "source.py")}),),
+        )
+        connection.commit()
+        connection.close()
+        graph = self.primary / "graphify-out"
+        graph.mkdir()
+        (graph / "graph.json").write_text("{}\n", encoding="utf-8")
+        tool = self.sandbox / "mempalace"
+        tool.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        tool.chmod(0o755)
+        receipt = {
+            "schemaVersion": 2,
+            "scope": "user",
+            "components": {"mempalace": {"action": "reuse"}},
+            "commands": {"mempalace": str(tool)},
+        }
+        (self.primary / ".chaos-engine-dependencies.json").write_text(
+            json.dumps(receipt), encoding="utf-8"
+        )
+        (self.primary / "source.py").write_text("print('indexed')\n", encoding="utf-8")
+        (clone / "source.py").write_text("print('indexed')\n", encoding="utf-8")
+
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_STORE_REGISTRY": str(registry)}):
+            self.assertEqual(palace, self.stores.resolve_palace(self.primary))
+            self.assertEqual(graph, self.stores.resolve_graph_out(self.primary))
+            self.assertEqual(palace, self.stores.resolve_palace(clone))
+            self.assertEqual(graph, self.stores.resolve_graph_out(clone))
+            self.assertTrue(self.stores.palace_records_source(clone, "source.py"))
+            self.assertFalse((clone / ".git" / "chaos-engine" / "mempalace").exists())
+            self.assertFalse((clone / "graphify-out").exists())
+
+            import importlib.util
+
+            dependencies_path = ROOT / "chaos-engine" / "dependencies.py"
+            spec = importlib.util.spec_from_file_location(
+                "chaos_engine_dependencies_stores", dependencies_path
+            )
+            dependencies = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(dependencies)
+            self.assertEqual(
+                [str(tool.resolve()), "--version"],
+                dependencies.active_dispatch(clone, "mempalace", ["--version"]),
+            )
+
+            shim_path = ROOT / "chaos-engine" / "mempalace_fast_mine.py"
+            shim_spec = importlib.util.spec_from_file_location(
+                "chaos_engine_fast_mine_stores", shim_path
+            )
+            shim = importlib.util.module_from_spec(shim_spec)
+            shim_spec.loader.exec_module(shim)
+
+            def original(_collection, source_file, check_mtime=False):
+                return source_file == str((self.primary / "source.py").resolve())
+
+            wrapped = shim.wrap_file_already_mined(original)
+            self.assertTrue(wrapped(None, str((clone / "source.py").resolve()), check_mtime=True))
+            self.assertFalse(wrapped(None, str((clone / "missing.py").resolve())))
+
     def test_tool_search_binds_the_shared_palace_before_the_subcommand(self):
         tool = load_tool()
         palace = self.stores.resolve_palace(self.linked)
