@@ -33,6 +33,8 @@ BACKEND_MISMATCH_FIX = (
 
 _GRAPHIFY_HINT = re.compile(r"\b(call(s|er|ees?)?|depend|graph|import|edge)\b", re.I)
 _MEMPALACE_HINT = re.compile(r"\b(history|palace|session|timeline|before)\b", re.I)
+# Native memory answers only a gotcha question. It is not a justifying store (#7407).
+_MEMORY_HINT = re.compile(r"\b(gotcha|bitten|constraint)\b", re.I)
 
 
 
@@ -93,7 +95,9 @@ def pick_store(query: str, store: str | None = None) -> str:
         return "graphify"
     if _MEMPALACE_HINT.search(query):
         return "mempalace"
-    return "memory"
+    if _MEMORY_HINT.search(query):
+        return "memory"
+    return "graphify"
 
 
 def _justification(project: Path):
