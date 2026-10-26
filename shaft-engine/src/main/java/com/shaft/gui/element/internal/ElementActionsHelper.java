@@ -519,11 +519,16 @@ public class ElementActionsHelper {
                 // timeoutException so the reported failure is unchanged from before this fix.
             }
         }
-        java.util.Optional<List<Object>> recoveredAfterOverlay =
+        java.util.Optional<List<Object>> recoveredAfterOverlay = java.util.Optional.empty();
+        if (driver instanceof AppiumDriver) {
+            recoveredAfterOverlay =
                 com.shaft.gui.element.internal.interaction.AndroidTransientOverlay.recheck(
                 () -> {
                     try {
-                        return java.util.Optional.of(attemptLocate.apply(driver));
+                        List<Object> located = attemptLocate.apply(driver);
+                        return resolvedElementCount(located) > 0
+                                ? java.util.Optional.of(located)
+                                : java.util.Optional.empty();
                     } catch (RuntimeException stillMissing) {
                         return java.util.Optional.empty();
                     }
@@ -536,6 +541,7 @@ public class ElementActionsHelper {
                         return java.util.List.of();
                     }
                 });
+        }
         if (recoveredAfterOverlay.isPresent()) {
             List<Object> locatedElement = recoveredAfterOverlay.get();
             recordLocatorHealthLookup(
