@@ -101,21 +101,20 @@ python3 -c "from pathlib import Path; assert Path('chaos-engine/skills/self-impr
 ```
 
 
-## Token retrospective
+## Retrospective
 
-Helper: [`session_token_usage.py`](../../session_token_usage.py).
+One closing note. Derby and Larsen: gather what happened, say why, then decide.
+Start-Stop-Continue is the decision: each line is a behavior, and the note ends
+with one next action.
 
-During the session, record coarse usage (no model/provider ids, prompts, or paths):
+- what happened, with the external proof
+- why it happened
+- continue doing
+- stop doing
+- start doing
+- next action: one change, or nothing durable
 
-```bash
-python3 .chaos-engine/session_token_usage.py record \
-  --session-id "$SESSION_ID" --channel local --runtime-class freetoken \
-  --prompt-tokens 1200 --completion-tokens 400
-python3 .chaos-engine/session_token_usage.py record \
-  --session-id "$SESSION_ID" --channel cloud --runtime-class host-session \
-  --prompt-tokens 8000 --completion-tokens 1500
-```
-
-`learning_session.py finalize` attaches a privacy-safe local vs cloud token
-summary with a ballpark USD estimate. Include that retrospective in the
-user-facing Learning Session closing notes.
+Do not estimate tokens, model price, or currency in this note. A host meter
+and an empty local ledger are not the same number. `session_token_usage.py`
+stays the ledger for deja measurements and local dispatch records. Finalize
+does not attach it.

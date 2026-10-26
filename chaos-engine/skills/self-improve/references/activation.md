@@ -44,9 +44,6 @@ Activate the full protocol:
 6. Do **not** auto-edit skills/hooks. Propose a harness change as a GitHub issue.
 7. Do not report harness lesson text. Product counts may be `product queued N`
    or `nothing durable`.
-8. The reflection and this learning action include all ten elements: intended
-   versus actual result, cause of the result, what to repeat, what to change,
-   external proof, lesson for the next attempt, bounded retry, committed next
-   action, durable carry-forward, and token consumption optimization. Token
-   consumption optimization names the least-token path for the same kind of
-   task next time and one further cut so consumption keeps falling.
+8. Close with one retrospective: what happened, why it happened, continue
+   doing, stop doing, start doing, and one next action. Do not add a token
+   or cost estimate.

@@ -124,20 +124,13 @@ means a one-row status table (status is always tabular); the full format above i
 the owner asks. The [status lease](ci-status-economy.md) replaces fixed
 schedules.
 
-**Final completion report:** when the program or owned delivery closes and
-a local inference channel was used (or the owner asks), the report includes
-actual cost in **USD and EGP**, inferred from tokens ×
-cost-per-token for the current agent/model/effort. Do not omit currency
-conversion when EGP is the owner's reporting currency.
-
-Report **avoided cloud spend** only when a local inference channel was actually used
-(loopback OpenAI-compat runtime, optional MoE companion, or peer local
-runtime); otherwise omit the line and do not meter. The estimate is local tokens × the would-have-used cloud
-model's published per-1M rates (input/output), converted to EGP with the same
-FX used for actual cost. Meter with `session_token_usage.py record --channel
-local` during the session so Learning Session finalize can attach the
-retrospective. If no cloud tokens were spent, actual cost is **$0 / 0 EGP**
-and the avoided line is the savings estimate.
+**Final completion report:** when the program or owned delivery closes, the
+note is one retrospective: what happened, why it happened, continue doing,
+stop doing, start doing, and one next action. Do not estimate tokens, model
+price, or currency in that note. A host session meter and an empty local
+ledger are different numbers, and a zero ledger is not a cost.
+`session_token_usage.py` remains the meter for deja measurements and local
+dispatch records. Learning Session finalize does not attach it.
 
 Evidence still binds every claim. Publish on ask, on follow-through inspection,
 or when an **adaptive follow-up** fires with material change (see below).

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Session token usage ledger for Learning Session retrospectives (#5981).
+"""Session token usage ledger for deja measurements and local dispatch (#5981).
 
 Stdlib only. Records coarse local vs cloud token counts and a ballpark USD
 estimate. Never stores model ids, provider names, routes, prompts, or paths.

@@ -5627,16 +5627,12 @@ def check_r24_foreign_worktree_left_behind(hook_input: dict, report: dict | None
 
 
 _TERMINAL_REFLECTION_LABELS = (
-    "intended versus actual result",
-    "cause of the result",
-    "what to repeat",
-    "what to change",
-    "external proof",
-    "lesson for the next attempt",
-    "bounded retry",
-    "committed next action",
-    "durable carry-forward",
-    "token consumption optimization",
+    "what happened",
+    "why it happened",
+    "continue doing",
+    "stop doing",
+    "start doing",
+    "next action",
 )
 
 
