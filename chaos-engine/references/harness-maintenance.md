@@ -40,8 +40,9 @@ only locally.
 An older overlay can record a git-digest source without a repository; its
 `maintain` then stops at "repository must be an explicit GitHub
 owner/repository" after the fast-forward. Reinstall once with
-`python3 .chaos-engine/bootstrap.py --project . --repository OWNER/REPO --branch BRANCH --distribution portable`;
-newer overlays recover on their own.
+`python3 .chaos-engine/bootstrap.py --project . --repository OWNER/REPO --branch BRANCH`;
+leave distribution unset so detection keeps the installed one. Newer overlays
+recover on their own.
 
 ## Deletes
 
