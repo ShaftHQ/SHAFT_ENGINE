@@ -519,6 +519,34 @@ public class ElementActionsHelper {
                 // timeoutException so the reported failure is unchanged from before this fix.
             }
         }
+        java.util.Optional<List<Object>> recoveredAfterOverlay =
+                com.shaft.gui.element.internal.interaction.AndroidTransientOverlay.recheck(
+                () -> {
+                    try {
+                        return java.util.Optional.of(attemptLocate.apply(driver));
+                    } catch (RuntimeException stillMissing) {
+                        return java.util.Optional.empty();
+                    }
+                },
+                () -> {
+                    try {
+                        return driver.findElements(
+                                com.shaft.gui.element.internal.interaction.AndroidTransientOverlay.APP_CRASH_CLOSE);
+                    } catch (RuntimeException ignored) {
+                        return java.util.List.of();
+                    }
+                });
+        if (recoveredAfterOverlay.isPresent()) {
+            List<Object> locatedElement = recoveredAfterOverlay.get();
+            recordLocatorHealthLookup(
+                    elementLocator,
+                    locatorHealth.start,
+                    locatorHealth.polls,
+                    resolvedElementCount(locatedElement),
+                    false,
+                    locatorHealth.staleRetries);
+            return locatedElement;
+        }
         recordLocatorHealthLookup(
                 elementLocator,
                 locatorHealth.start,

@@ -96,6 +96,11 @@ public final class ClickStrategies {
     }
 
     private static void retryMobileNativeClick(WebDriver driver, WebElement element) {
+        for (int attempt = 0; attempt < AndroidTransientOverlay.MAX_DISMISSALS; attempt++) {
+            if (AndroidTransientOverlay.dismissOnce(driver) == 0) {
+                break;
+            }
+        }
         stabilizeMobile(driver, element);
         try {
             element.click();
