@@ -1,8 +1,15 @@
 package com.shaft.gui.element.internal.interaction;
 
+import io.appium.java_client.AppiumDriver;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
@@ -62,5 +69,27 @@ public class AndroidTransientOverlayTest {
         Optional<String> found = AndroidTransientOverlay.recheck(Optional::empty, () -> List.of(button));
         Assert.assertTrue(found.isEmpty());
         Assert.assertEquals(clicks.get(), AndroidTransientOverlay.MAX_DISMISSALS);
+    }
+
+    @Test
+    public void aNonAppiumDriverAndAFailedLookupHaveNoDialog() {
+        WebDriver desktop = mock(WebDriver.class);
+        Assert.assertEquals(AndroidTransientOverlay.dismissOnce(desktop), 0);
+        Assert.assertEquals(AndroidTransientOverlay.dismissOnce(() -> {
+            throw new IllegalStateException("down");
+        }), 0);
+        Assert.assertEquals(AndroidTransientOverlay.dismissOnce(() -> null), 0);
+    }
+
+    @Test
+    public void anAppiumSessionClicksTheCrashButtonAndSurvivesAFailedLookup() {
+        AppiumDriver driver = mock(AppiumDriver.class);
+        WebElement button = mock(WebElement.class);
+        when(driver.findElements(AndroidTransientOverlay.APP_CRASH_CLOSE)).thenReturn(List.of(button));
+        Assert.assertEquals(AndroidTransientOverlay.dismissOnce(driver), 1);
+        verify(button).click();
+        when(driver.findElements(AndroidTransientOverlay.APP_CRASH_CLOSE))
+                .thenThrow(new NoSuchElementException("gone"));
+        Assert.assertEquals(AndroidTransientOverlay.dismissOnce(driver), 0);
     }
 }

@@ -165,6 +165,14 @@ public class MobilePreflightUnitTest {
         Assert.assertTrue(MobilePreflight.hosts(null).isEmpty());
         Assert.assertTrue(MobilePreflight.connectedDevice("List of devices attached\nemulator-5554\tdevice\n", "emulator-5554"));
         Assert.assertFalse(MobilePreflight.connectedDevice("List of devices attached\nemulator-5554\tdevice\n", "emulator-5556"));
+        Assert.assertFalse(MobilePreflight.connectedDevice(null, "emulator-5554"));
+        Assert.assertFalse(MobilePreflight.connectedDevice("\n \nonlyone\n", ""));
+        MobilePreflight.check(LOCAL, "", "", READY, cmd -> {
+            if ("devices".equals(cmd[cmd.length - 1])) {
+                return Optional.of("List of devices attached\nemulator-5554\tdevice extra\n");
+            }
+            return Optional.empty();
+        });
         Assert.assertEquals(MobilePreflight.hosts(" a.example , ,b.example"), List.of("a.example", "b.example"));
     }
 }

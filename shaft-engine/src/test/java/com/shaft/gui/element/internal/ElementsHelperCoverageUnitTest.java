@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.DriverFactory.SynchronizationManager;
 import com.shaft.gui.browser.internal.BrowserActionsHelper;
+import com.shaft.gui.element.internal.interaction.AndroidTransientOverlay;
 import com.shaft.gui.internal.image.ScreenshotManager;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -11,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.InvalidSelectorException;
 import org.openqa.selenium.JavascriptExecutor;
@@ -153,6 +155,47 @@ public class ElementsHelperCoverageUnitTest {
         try (MockedStatic<DriverFactoryHelper> ignoredDriverFactoryHelper = mockDesktopExecution();
              MockedConstruction<SynchronizationManager> ignored = mockSynchronizationManagerThrowing(timeoutException)) {
             List<Object> information = helper.waitForElementPresence(driver, locator, true);
+
+            Assert.assertEquals(information.get(0), 0);
+            Assert.assertNull(information.get(1));
+            Assert.assertSame(information.get(2), timeoutException);
+        }
+    }
+
+    @Test
+    public void waitForElementPresenceShouldRecoverAfterAnAndroidCrashDialog() {
+        AppiumDriver appium = mock(AppiumDriver.class, Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        WebElement crashClose = mock(WebElement.class);
+        java.util.concurrent.atomic.AtomicInteger looks = new java.util.concurrent.atomic.AtomicInteger();
+        when(appium.findElements(locator)).thenAnswer(invocation -> {
+            if (looks.incrementAndGet() == 1) {
+                throw new NoSuchElementException("covered");
+            }
+            return List.of(element);
+        });
+        when(appium.findElements(AndroidTransientOverlay.APP_CRASH_CLOSE)).thenReturn(List.of(crashClose));
+        when(((JavascriptExecutor) appium).executeScript(any(String.class), any())).thenReturn(null);
+        TimeoutException timeoutException = new TimeoutException("timed out");
+
+        try (MockedStatic<DriverFactoryHelper> ignoredDriverFactoryHelper = mockDesktopExecution();
+             MockedConstruction<SynchronizationManager> ignored = mockSynchronizationManagerThrowing(timeoutException)) {
+            List<Object> information = helper.waitForElementPresence(appium, locator, true);
+
+            Assert.assertEquals(information.get(0), 1);
+            Assert.assertSame(information.get(1), element);
+            verify(crashClose).click();
+        }
+    }
+
+    @Test
+    public void waitForElementPresenceShouldStayMissingWhenTheCrashDialogCannotBeRead() {
+        AppiumDriver appium = mock(AppiumDriver.class);
+        when(appium.findElements(any(By.class))).thenThrow(new NoSuchElementException("down"));
+        TimeoutException timeoutException = new TimeoutException("timed out");
+
+        try (MockedStatic<DriverFactoryHelper> ignoredDriverFactoryHelper = mockDesktopExecution();
+             MockedConstruction<SynchronizationManager> ignored = mockSynchronizationManagerThrowing(timeoutException)) {
+            List<Object> information = helper.waitForElementPresence(appium, locator, true);
 
             Assert.assertEquals(information.get(0), 0);
             Assert.assertNull(information.get(1));
