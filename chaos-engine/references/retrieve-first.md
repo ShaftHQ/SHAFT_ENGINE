@@ -88,6 +88,10 @@ python3 .chaos-engine/tool.py retrieve --store graphify "what calls Foo?"
 python3 .chaos-engine/retrieve.py --dry-run "probe"
 ```
 
+With no `--store`, call or dependency words select graphify, history words
+select mempalace, and gotcha or constraint words select memory. Any other
+question selects graphify, so a bare retrieve does not stop on memory.
+
 Owner-curated wake pack (≤~120 tokens) lives at
 `.chaos-engine-state/wake-pack.md`. MemPalace may write
 `wake-pack.mempalace-draft.md` only — never silent overwrite. SessionStart

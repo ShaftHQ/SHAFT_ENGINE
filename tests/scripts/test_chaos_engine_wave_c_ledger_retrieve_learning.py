@@ -143,6 +143,15 @@ class WaveCLedgerRetrieveLearningTests(unittest.TestCase):
         self.assertEqual("memory", receipt["store"])
         graph = self.retrieve.retrieve("what calls FooBar?", dry_run=True)
         self.assertEqual("graphify", graph["store"])
+        # #7407: a bare task query must consult Graphify or MemPalace, not stop on memory.
+        implicit = self.retrieve.retrieve("deliver the open work item", dry_run=True)
+        self.assertIn(implicit["store"], {"graphify", "mempalace"})
+        self.assertEqual("graphify", self.retrieve.pick_store("deliver the open work item"))
+        self.assertEqual("memory", self.retrieve.pick_store("has this constraint bitten us?"))
+        self.assertEqual("mempalace", self.retrieve.pick_store("what happened before this session"))
+        self.assertEqual(
+            "memory", self.retrieve.pick_store("deliver the open work item", store="memory")
+        )
         completed = subprocess.run(  # nosec B603
             [sys.executable, str(TOOL), "retrieve", "--dry-run", "has this bitten us?"],
             cwd=ROOT,
@@ -242,6 +251,7 @@ class WaveCLedgerRetrieveLearningTests(unittest.TestCase):
         retrieve = RETRIEVE_DOC.read_text(encoding="utf-8")
         self.assertIn("tool.py retrieve", retrieve)
         self.assertIn("wake-pack.md", retrieve)
+        self.assertIn("Any other\nquestion selects graphify, so a bare retrieve does not stop on memory.", retrieve)
 
 
 if __name__ == "__main__":
