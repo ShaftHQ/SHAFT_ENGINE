@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -74,5 +75,45 @@ class PlaywrightSetupPlannerTest {
                 .endsWith("webkit-mac-15-arm64.zip")));
         assertTrue(x64.actions().stream().map(SetupAction::checksum).noneMatch(
                 arm64.actions().stream().map(SetupAction::checksum).toList()::contains));
+    }
+
+    @Test
+    void everyHostPublishesThePinnedPayloadDirectories() {
+        assertEquals(List.of("chromium-1248/INSTALLATION_COMPLETE", "chromium-1248/chrome-win64/chrome.exe",
+                        "chromium_headless_shell-1248/INSTALLATION_COMPLETE",
+                        "chromium_headless_shell-1248/chrome-headless-shell-win64/chrome-headless-shell.exe",
+                        "winldd-1007/INSTALLATION_COMPLETE", "winldd-1007/PrintDeps.exe"),
+                PlaywrightHostPlatform.WIN64.requiredPaths(SetupTarget.PLAYWRIGHT_CHROMIUM));
+        assertEquals(List.of("firefox-1555/INSTALLATION_COMPLETE", "firefox-1555/firefox/firefox.exe"),
+                PlaywrightHostPlatform.WIN64.requiredPaths(SetupTarget.PLAYWRIGHT_FIREFOX));
+        assertEquals(List.of("webkit-2370/INSTALLATION_COMPLETE", "webkit-2370/Playwright.exe"),
+                PlaywrightHostPlatform.WIN64.requiredPaths(SetupTarget.PLAYWRIGHT_WEBKIT));
+        assertEquals(List.of("ffmpeg-1013/INSTALLATION_COMPLETE", "ffmpeg-1013/ffmpeg-win64.exe"),
+                PlaywrightHostPlatform.WIN64.requiredPaths(SetupTarget.FFMPEG));
+
+        assertEquals(List.of("chromium-1248/INSTALLATION_COMPLETE", "chromium-1248/chrome-linux64/chrome",
+                        "chromium_headless_shell-1248/INSTALLATION_COMPLETE",
+                        "chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell"),
+                PlaywrightHostPlatform.UBUNTU_24_04_X64.requiredPaths(SetupTarget.PLAYWRIGHT_CHROMIUM));
+        assertEquals(List.of("firefox-1555/INSTALLATION_COMPLETE", "firefox-1555/firefox/firefox"),
+                PlaywrightHostPlatform.UBUNTU_24_04_X64.requiredPaths(SetupTarget.PLAYWRIGHT_FIREFOX));
+        assertEquals(List.of("webkit-2370/INSTALLATION_COMPLETE", "webkit-2370/pw_run.sh"),
+                PlaywrightHostPlatform.UBUNTU_24_04_X64.requiredPaths(SetupTarget.PLAYWRIGHT_WEBKIT));
+        assertEquals(List.of("ffmpeg-1013/INSTALLATION_COMPLETE", "ffmpeg-1013/ffmpeg-linux"),
+                PlaywrightHostPlatform.UBUNTU_24_04_X64.requiredPaths(SetupTarget.FFMPEG));
+
+        assertTrue(PlaywrightHostPlatform.MAC15.requiredPaths(SetupTarget.PLAYWRIGHT_CHROMIUM).contains(
+                "chromium-1248/chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"));
+        assertTrue(PlaywrightHostPlatform.MAC15_ARM64.requiredPaths(SetupTarget.PLAYWRIGHT_CHROMIUM).contains(
+                "chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"));
+        assertEquals(List.of("firefox-1555/INSTALLATION_COMPLETE",
+                        "firefox-1555/firefox/Nightly.app/Contents/MacOS/firefox"),
+                PlaywrightHostPlatform.MAC15.requiredPaths(SetupTarget.PLAYWRIGHT_FIREFOX));
+        assertEquals(List.of("webkit-2370/INSTALLATION_COMPLETE", "webkit-2370/pw_run.sh"),
+                PlaywrightHostPlatform.MAC15.requiredPaths(SetupTarget.PLAYWRIGHT_WEBKIT));
+        assertEquals(List.of("ffmpeg-1013/INSTALLATION_COMPLETE", "ffmpeg-1013/ffmpeg-mac"),
+                PlaywrightHostPlatform.MAC15.requiredPaths(SetupTarget.FFMPEG));
+        assertEquals(PlaywrightHostPlatform.MAC15.requiredPaths(SetupTarget.PLAYWRIGHT_WEBKIT),
+                PlaywrightHostPlatform.MAC15_ARM64.requiredPaths(SetupTarget.PLAYWRIGHT_WEBKIT));
     }
 }
