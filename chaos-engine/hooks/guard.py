@@ -117,6 +117,17 @@ TERMINAL_LABELS = (
     "start doing",
     "next action",
 )
+# An actionable retrospective line is a GitHub issue. The attestation is the
+# only close that carries no URL. Upstream is the ChaosEngine repository.
+# Private is the repository of the project using ChaosEngine.
+_TRACKING_ATTESTATION = "nothing actionable"
+_ISSUE_URL = re.compile(r"https://github\.com/[^\s)]+/issues/[1-9][0-9]*", re.IGNORECASE)
+_TRACKING_DEMAND = (
+    "Track every actionable item remotely before this note: "
+    "a ChaosEngine change is an issue on the configured upstream repository; "
+    "a project-only change is an issue on this project's repository. "
+    "Put each issue URL in the note. If nothing is actionable, write nothing actionable."
+)
 
 
 
@@ -728,18 +739,21 @@ def _terminal_reflection_reason(event: dict, session_id: str) -> str:
         return ""
     message = str(event.get("last_assistant_message") or event.get("lastAssistantMessage") or "").casefold()
     missing = [label for label in TERMINAL_LABELS if label not in message]
-    if not missing:
+    tracked = _TRACKING_ATTESTATION in message or _ISSUE_URL.search(message) is not None
+    if not missing and tracked:
         reflection.accept_terminal_reflection(session_id)
         return ""
     # A host sets stop_hook_active on the retry of a blocked stop. Demanding
     # again there loops. The session still asks on a later stop that is not a retry.
     if bool(event.get("stop_hook_active") or event.get("stopHookActive")):
         return ""
-    return (
-        "Terminal reflection required once this session. Include "
-        + ", ".join(missing)
-        + ". Do not repeat it after later tool calls."
-    )
+    parts = ["Terminal reflection required once this session."]
+    if missing:
+        parts.append("Include " + ", ".join(missing) + ".")
+    if not tracked:
+        parts.append(_TRACKING_DEMAND)
+    parts.append("Do not repeat it after later tool calls.")
+    return " ".join(parts)
 
 
 _PULL_REQUEST_URL = re.compile(r"/pull/(\d+)\b")

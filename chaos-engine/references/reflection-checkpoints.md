@@ -76,10 +76,18 @@ with `--`. The regression is
 For a terminal receipt, the final user-facing summary is one retrospective:
 what happened, why it happened, continue doing, stop doing, start doing, and
 one next action. That is the Start-Stop-Continue close (gather the facts,
-name the cause, decide the behaviors, commit one action). Do not estimate
-tokens or cost there. [`session_token_usage.py`](../session_token_usage.py)
-records deja measurements and local dispatch usage. Finalize does not copy
-that ledger into the summary.
+name the cause, decide the behaviors, commit one action). An actionable line
+would change a later session and is not already shipped or already open.
+File it with `gh` before the note. A ChaosEngine change (skills, hooks,
+installer, roles, identity, companions, or overlay references) is an issue on
+the configured upstream repository (`scripts/ci/chaos-engine-upstream.txt` or
+`CHAOS_ENGINE_UPSTREAM_REPO`). A project-only change is an issue on the
+repository of the project that uses ChaosEngine. Cite each issue URL on
+its line. `nothing actionable` is the only close with no URL. Local memory
+and the chat note are not tracking. Do not estimate tokens or cost there.
+[`session_token_usage.py`](../session_token_usage.py) records deja
+measurements and local dispatch usage. Finalize does not copy that ledger
+into the summary.
 
 Leftover risks and out-of-scope items must not remain only in chat. Search for
 duplicates, then open GitHub issues with `gh` (never GitHub MCP). Put those
