@@ -20,6 +20,6 @@ transferable techniques. Ideas are re-expressed; no media is copied.
 15. [Descript](https://www.descript.com/): text-based audio editing. Techniques: edit by transcript.
 16. [iZotope RX learn](https://www.izotope.com/en/learn.html): dialogue repair craft. Techniques: de-click, de-noise, de-reverb.
 17. [Audacity manual](https://manual.audacityteam.org/): open audio editor. Techniques: noise profile reduction.
-18. [Ann Handley, Everybody Writes](https://annhandley.com/everybody-writes/): writing that sounds human. Techniques: cut half; write for the ear.
+18. [Ann Handley, Everybody Writes](https://annhandley.com/everybodywrites/): writing that sounds human. Techniques: cut half; write for the ear.
 19. [Plain Language guidelines](https://www.plainlanguage.gov/guidelines/): writing for clarity. Techniques: short words, active voice.
 20. [BBC News style guide](https://www.bbc.co.uk/newsstyleguide): writing for the ear. Techniques: plain words, one idea per sentence.
