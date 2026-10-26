@@ -469,16 +469,27 @@ class ReflectionCheckpointContractTest(unittest.TestCase):
         ):
             session = "once"
             reflection.record_session_start(session, "2020-01-01T00:00:00+00:00")
-            self.assertIn("token consumption optimization", guard._TERMINAL_REFLECTION_LABELS)
-            self.assertEqual(10, len(guard._TERMINAL_REFLECTION_LABELS))
+            self.assertNotIn("token consumption optimization", guard._TERMINAL_REFLECTION_LABELS)
+            self.assertEqual(
+                (
+                    "what happened",
+                    "why it happened",
+                    "continue doing",
+                    "stop doing",
+                    "start doing",
+                    "next action",
+                ),
+                guard._TERMINAL_REFLECTION_LABELS,
+            )
             portable_guard = (
                 Path(__file__).resolve().parents[2] / "chaos-engine/hooks/guard.py"
             ).read_text(encoding="utf-8")
             for label in guard._TERMINAL_REFLECTION_LABELS:
                 self.assertIn(f'"{label}"', portable_guard)
             demanded = guard._terminal_reflection_reason({"session_id": session})
-            self.assertIn("token consumption optimization", demanded)
-            self.assertIn("intended versus actual result", demanded)
+            self.assertNotIn("token consumption optimization", demanded)
+            self.assertIn("continue doing", demanded)
+            self.assertIn("what happened", demanded)
             complete = "\n".join(
                 f"{label}: recorded" for label in guard._TERMINAL_REFLECTION_LABELS
             )

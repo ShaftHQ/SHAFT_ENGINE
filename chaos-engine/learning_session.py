@@ -167,18 +167,6 @@ def _activity_retrospective(session_id: str) -> dict[str, object]:
     }
 
 
-def _token_usage_summary(session_id: str) -> dict[str, object] | None:
-    """Attach privacy-safe local vs cloud token retrospective (#5981)."""
-    try:
-        usage = _load_sibling("session_token_usage.py")
-    except RuntimeError:
-        return None
-    try:
-        return usage.summarize(session_id)
-    except (OSError, ValueError):
-        return None
-
-
 def protect_identity_truth_if_present(project, before: bytes | None, after: bytes) -> bytes:
     """Preserve identity.md Truth markers across Learning proposals (#5807)."""
     import importlib.util as _ilu
@@ -278,21 +266,6 @@ def finalize(
         if dropped:
             receipt["significanceNotesDropped"] = dropped
     receipt["activityRetrospective"] = _activity_retrospective(session_id.strip())
-    token_summary = _token_usage_summary(session_id.strip())
-    if isinstance(token_summary, dict):
-        retrospective = None
-        try:
-            usage = _load_sibling("session_token_usage.py")
-            retrospective = usage.format_retrospective(token_summary)
-        except (RuntimeError, OSError, ValueError, TypeError):
-            retrospective = None
-        receipt["tokenUsage"] = {
-            "totals": token_summary.get("totals"),
-            "cost": token_summary.get("cost"),
-            "eventCount": token_summary.get("eventCount"),
-            "runtimeClasses": token_summary.get("runtimeClasses"),
-            "retrospective": retrospective,
-        }
 
     chosen_host = (host or os.environ.get("CHAOS_ENGINE_HOST") or "").strip().casefold()
     if chosen_host in INSTRUCTION_ONLY_HOSTS:

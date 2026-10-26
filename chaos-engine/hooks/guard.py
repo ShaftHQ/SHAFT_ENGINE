@@ -110,16 +110,12 @@ ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 SHELLS = {"bash", "sh", "zsh"}
 DOWNLOADERS = {"curl", "fetch", "wget"}
 TERMINAL_LABELS = (
-    "intended versus actual result",
-    "cause of the result",
-    "what to repeat",
-    "what to change",
-    "external proof",
-    "lesson for the next attempt",
-    "bounded retry",
-    "committed next action",
-    "durable carry-forward",
-    "token consumption optimization",
+    "what happened",
+    "why it happened",
+    "continue doing",
+    "stop doing",
+    "start doing",
+    "next action",
 )
 
 
@@ -726,7 +722,7 @@ def linked_worktree_stash_reason(commands: tuple[str, ...], cwd: Path) -> str:
 
 
 def _terminal_reflection_reason(event: dict, session_id: str) -> str:
-    """Ask once for the ten-part reflection, then record acceptance and stay quiet."""
+    """Ask once for a Start-Stop-Continue retrospective, then stay quiet."""
     elapsed = reflection.session_elapsed_seconds(session_id)
     if elapsed is None or elapsed <= 3600 or reflection.has_valid_terminal_receipt(session_id):
         return ""

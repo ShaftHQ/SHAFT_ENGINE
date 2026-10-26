@@ -148,7 +148,7 @@ class SessionTokenUsageTest(unittest.TestCase):
         self.assertEqual(3, len(table["tasks"]))
         self.assertEqual(15, table["control"]["runs"])
 
-    def test_finalize_attaches_token_usage(self) -> None:
+    def test_finalize_omits_the_token_estimate(self) -> None:
         learn_path = ROOT / "chaos-engine/learning_session.py"
         spec = importlib.util.spec_from_file_location("learning_session", learn_path)
         assert spec and spec.loader
@@ -175,9 +175,7 @@ class SessionTokenUsageTest(unittest.TestCase):
                 receipt = learn.finalize("learn-sess", disposition="no-durable", extract_heuristics=False)
             finally:
                 os.chdir(previous)
-            self.assertIn("tokenUsage", receipt)
-            self.assertEqual(receipt["tokenUsage"]["totals"]["localPromptTokens"], 10)
-            self.assertIn("retrospective", receipt["tokenUsage"])
+            self.assertNotIn("tokenUsage", receipt)
             self.assertIn("activityRetrospective", receipt)
 
     def test_finalize_names_wait_and_log_ingest_without_usage_events(self) -> None:
@@ -213,7 +211,7 @@ class SessionTokenUsageTest(unittest.TestCase):
             note = json.dumps(receipt["activityRetrospective"])
             self.assertIn("wait", note)
             self.assertIn("log-ingest", note)
-            self.assertIn("do not mean the work was free", receipt["tokenUsage"]["retrospective"])
+            self.assertNotIn("tokenUsage", receipt)
             self.assertNotIn(temporary, note)
 
     def test_finalize_keeps_privacy_safe_significance_notes(self) -> None:

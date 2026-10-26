@@ -73,13 +73,13 @@ with `--`. The regression is
 `test_cli_json_receipt_accepts_session_token_that_looks_like_a_flag` in
 `tests/scripts/test_guard_lifecycle.py`. Do not reimplement that parser.
 
-For a terminal receipt, the final user-facing summary must include all ten
-elements: intended versus actual result, cause of the result, what to repeat,
-what to change, external proof, lesson for the next attempt, bounded retry,
-committed next action, durable carry-forward, and token consumption
-optimization. Token consumption optimization means the least tokens that still
-complete the same kind of task next time, plus one further cut so later
-sessions keep using fewer tokens. Include the local vs cloud token retrospective from [`session_token_usage.py`](../session_token_usage.py) / finalize `tokenUsage` when events were recorded.
+For a terminal receipt, the final user-facing summary is one retrospective:
+what happened, why it happened, continue doing, stop doing, start doing, and
+one next action. That is the Start-Stop-Continue close (gather the facts,
+name the cause, decide the behaviors, commit one action). Do not estimate
+tokens or cost there. [`session_token_usage.py`](../session_token_usage.py)
+records deja measurements and local dispatch usage. Finalize does not copy
+that ledger into the summary.
 
 Leftover risks and out-of-scope items must not remain only in chat. Search for
 duplicates, then open GitHub issues with `gh` (never GitHub MCP). Put those
@@ -88,7 +88,7 @@ when nothing was deferred and no residual risk remains. The hook never creates
 issues; a terminal receipt without tracking URLs or that attestation fails.
 The terminal root reflection consumes the root session receipt and receipts from
 every delegate created during the runtime. Delegate termination does not discard
-its failures, recoveries, blockers, token costs, dead ends, or improvement ideas;
+its failures, recoveries, blockers, dead ends, or improvement ideas;
 the root deduplicates them before the one Learning Session. Persist only the
 minimal privacy-safe evidence and never persist provider, model, private route,
 credential, transcript, or machine-local path data.

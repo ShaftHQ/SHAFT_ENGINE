@@ -265,7 +265,9 @@ class OverlayCleanupTest(unittest.TestCase):
         text = (SOURCE / "references/process-owner-scrum-master.md").read_text(encoding="utf-8")
         self.assertIn("Delta-only status", text)
         self.assertIn("nothing changed means no message", text)
-        self.assertIn("only when a local inference channel was actually used", text)
+        self.assertIn("Do not estimate tokens, model", text)
+        self.assertIn("price, or currency in that note", text)
+        self.assertNotIn("Learning Session finalize can attach", text)
 
     def test_permanent_rules_live_in_ce(self):
         text = (SOURCE / "references/permanent-rules.md").read_text(encoding="utf-8")
