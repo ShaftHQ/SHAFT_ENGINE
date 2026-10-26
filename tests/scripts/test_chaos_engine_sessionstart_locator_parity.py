@@ -206,15 +206,18 @@ class SessionStartLocatorParityTests(unittest.TestCase):
             self.assertIn("caveman=ultra", unwrap_context(json.loads(first.stdout)))
             self.assertNotIn("caveman=ultra", second.stdout)
 
-    def test_instruction_block_carries_the_companion_load(self):
+    def test_grok_rules_carry_the_companion_load_outside_agents(self):
         hosts = load_module("ce_hosts_entry_rule", "chaos-engine/hosts.py")
         block = hosts.instruction_block()
-        self.assertIn("caveman=ultra", block)
-        self.assertIn("ponytail=ultra", block)
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
-        copilot = (ROOT / ".github/copilot-instructions.md").read_text(encoding="utf-8")
-        self.assertIn("caveman=ultra; ponytail=ultra", agents)
-        self.assertIn("caveman=ultra; ponytail=ultra", copilot)
+        rules = (ROOT / ".grok/rules/companions.md").read_text(encoding="utf-8")
+        self.assertNotIn("caveman=ultra", block)
+        self.assertNotIn("caveman=ultra", agents)
+        self.assertIn("caveman=ultra", rules)
+        self.assertIn("ponytail=ultra", rules)
+        self.assertIn("iterative-flow.md", rules)
+        self.assertIn("python3 .chaos-engine/tool.py entry", rules)
+        self.assertIn("python3 .chaos-engine/tool.py retrieve", rules)
 
     def test_matrix_sessionstart_row_is_green(self):
         text = MATRIX.read_text(encoding="utf-8")

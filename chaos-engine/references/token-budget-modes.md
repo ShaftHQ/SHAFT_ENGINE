@@ -48,3 +48,10 @@ When `CHAOS_ENGINE_TOKEN_BUDGET` is **unset**, pick the default from triage
 Machine map: `hooks/lifecycle.py` → `TRIAGE_TO_TOKEN_BUDGET` /
 `triage_token_budget()`.
 
+## Default writer
+
+Sole implementer is the default. A same-model delegate loads a second system
+prompt, tool list, and the files it reads. Caveman ultra shortens bot-to-bot
+wording only. Delegate when a measured receipt shows the reads the parent
+would otherwise keep cost more than that second context.
+

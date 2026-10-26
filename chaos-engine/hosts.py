@@ -2742,9 +2742,7 @@ def instruction_block(tree: str = INSTALLED_TREE) -> str:
         f"Use `{tool}` for the project-local Memory, MemPalace, and Graphify tools. "
         "Prefer gh for GitHub when gh exists and is configured. "
         "CLI over MCP when both exist. "
-        "Default MCP catalog never includes GitHub MCP. "
-        "Companions are already on (caveman=ultra; ponytail=ultra; "
-        "off only: stop caveman, stop ponytail, normal mode).\n"
+        "Default MCP catalog never includes GitHub MCP.\n"
         f"{END}\n"
     )
 
