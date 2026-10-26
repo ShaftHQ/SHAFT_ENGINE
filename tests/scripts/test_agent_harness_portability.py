@@ -626,6 +626,8 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             companions = (project / ".grok/rules/companions.md").read_text(encoding="utf-8")
             self.assertIn("python3 .chaos-engine/tool.py entry", companions)
             self.assertIn("chaos-engine/skills/<name>/SKILL.md", companions)
+            self.assertIn("chaos-engine/references/roles.md", companions)
+            self.assertIn("SOLO", companions)
             (source / "references").mkdir()
             (source / "references/card.md").write_text("card\n", encoding="utf-8")
             (source / "identity.md").write_text("See [why](references/card.md).\n", encoding="utf-8")
