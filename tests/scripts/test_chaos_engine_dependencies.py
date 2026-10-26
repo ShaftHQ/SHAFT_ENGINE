@@ -2827,8 +2827,10 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
                 self.assertNotIn("python", commands)
                 recorded = root / "user" / "bin" / ("python3.cmd" if os.name == "nt" else "python3")
                 self.assertIn(f"python3={recorded}", properties)
-                self.assertIn(str(python), shim.read_text(encoding="utf-8"))
-                self.assertIn([str(python), "--version"], calls)
+                # Windows CI temp paths are often 8.3 short names. The shim and
+                # the version probe both use the resolved interpreter.
+                self.assertIn(commands["python3"], shim.read_text(encoding="utf-8"))
+                self.assertIn([commands["python3"], "--version"], calls)
 
                 kept = {"python3": str(real), "uv": str(root / "uv")}
                 written = module.publish_user_tool_paths(dict(kept))

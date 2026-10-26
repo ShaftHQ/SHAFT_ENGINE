@@ -49,7 +49,13 @@ class PlaywrightSetupWorkflowTest(unittest.TestCase):
             test_index = next(index for index, step in enumerate(steps)
                               if "-Dinfrastructure.profile=PLAYWRIGHT" in step.get("run", ""))
 
-            self.assertEqual([managed_index + 1], dependency_indexes, job_name)
+            cache_indexes = [index for index, step in enumerate(steps)
+                             if str(step.get("uses", "")).endswith("apt-package-cache")]
+            # #7290: cache the apt archives, then install host dependencies.
+            self.assertEqual(1, len(dependency_indexes), job_name)
+            self.assertEqual(1, len(cache_indexes), job_name)
+            self.assertLess(managed_index, cache_indexes[0], job_name)
+            self.assertEqual(cache_indexes[0] + 1, dependency_indexes[0], job_name)
             self.assertLess(dependency_indexes[0], test_index, job_name)
 
 
