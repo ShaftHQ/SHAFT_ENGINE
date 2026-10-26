@@ -520,10 +520,20 @@ class ManagedRuntimeCliTest(TestCase):
         process = mock.Mock()
         process.stdin = io.StringIO()
         process.stdout = io.StringIO("not json\n")
-        process.stderr = io.StringIO()
+        process.stderr = io.StringIO("Error: Unable to access jarfile\n")
         process.poll.return_value = None
         process.wait.return_value = 0
-        self.assertFalse(HOSTS.probe_maven_tools_runtime(Path("/java"), Path("/tools.jar"), popen=lambda *_args, **_kwargs: process))
+        seen = []
+
+        def popen(argv, **_kwargs):
+            seen.append(argv)
+            return process
+
+        java = Path("\\\\?\\C:\\Java\\java.exe")
+        jar = Path("\\\\?\\C:\\tools.jar")
+        self.assertFalse(HOSTS.probe_maven_tools_runtime(java, jar, popen=popen))
+        self.assertEqual(["C:\\Java\\java.exe", "-jar", "C:\\tools.jar"], seen[0])
+        self.assertIn("Unable to access jarfile", HOSTS.probe_maven_tools_runtime.last_failure)
 
     def test_maven_tools_native_build_uses_system_java_and_publishes(self):
         with tempfile.TemporaryDirectory() as temporary:

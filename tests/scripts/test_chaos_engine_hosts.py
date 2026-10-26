@@ -3652,6 +3652,96 @@ class ChaosEngineHostsTest(unittest.TestCase):
             finally:
                 globals_["java_major"] = prior
 
+    def test_native_maven_tools_runtime_accepts_a_reparse_java_file(self):
+        # #7300: Windows marks the JDK that just built Maven Tools as a reparse
+        # point. Discovery must still return that file so the publication probe runs.
+        module = load(HOSTS, "chaos_engine_hosts_native_maven_java_reparse")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            java = root / "jdk-25/bin/java.exe"
+            jar = root / "maven-tools-mcp-3.2.3.jar"
+            java.parent.mkdir(parents=True)
+            java.write_bytes(b"java")
+            jar.write_bytes(b"jar")
+            jar.with_name("install-receipt.json").write_text(
+                json.dumps(
+                    {
+                        "version": "3.2.3",
+                        "commit": "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36",
+                        "jar": jar.name,
+                        "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            globals_ = module.discover_maven_tools_runtime.__globals__
+            prior_major = globals_["java_major"]
+            prior_link = globals_["is_link_or_reparse"]
+            resolved_java = java.resolve()
+            globals_["java_major"] = lambda candidate: 25 if candidate == resolved_java else None
+            globals_["is_link_or_reparse"] = lambda path: Path(path) == resolved_java
+            try:
+                with mock.patch.dict(
+                    os.environ,
+                    {"CHAOSENGINE_JAVA": str(java), "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR": str(jar)},
+                    clear=True,
+                ):
+                    self.assertEqual(
+                        (java.resolve(), jar.resolve()),
+                        module.discover_maven_tools_runtime(),
+                    )
+            finally:
+                globals_["java_major"] = prior_major
+                globals_["is_link_or_reparse"] = prior_link
+
+    def test_native_maven_tools_runtime_skips_an_older_java_home(self):
+        # #7300: the Windows image keeps Java 17 in JAVA_HOME while PATH java is 25.
+        module = load(HOSTS, "chaos_engine_hosts_native_maven_java_floor")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            binary = "java.exe" if os.name == "nt" else "java"
+            java17 = root / "jdk-17/bin" / binary
+            java25 = root / "jdk-25/bin" / binary
+            jar = root / "maven-tools-mcp-3.2.3.jar"
+            java17.parent.mkdir(parents=True)
+            java25.parent.mkdir(parents=True)
+            java17.write_bytes(b"java17")
+            java25.write_bytes(b"java25")
+            jar.write_bytes(b"jar")
+            jar.with_name("install-receipt.json").write_text(
+                json.dumps(
+                    {
+                        "version": "3.2.3",
+                        "commit": "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36",
+                        "jar": jar.name,
+                        "sha256": hashlib.sha256(jar.read_bytes()).hexdigest(),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved17 = java17.resolve()
+            resolved25 = java25.resolve()
+            globals_ = module.discover_maven_tools_runtime.__globals__
+            prior_major = globals_["java_major"]
+            globals_["java_major"] = lambda candidate: (
+                17 if candidate == resolved17 else 25 if candidate == resolved25 else None
+            )
+            try:
+                with mock.patch.dict(
+                    os.environ,
+                    {
+                        "JAVA_HOME": str(java17.parent.parent),
+                        "CHAOSENGINE_MAVEN_TOOLS_MCP_JAR": str(jar),
+                    },
+                    clear=True,
+                ), mock.patch.object(module.shutil, "which", return_value=str(java25)):
+                    self.assertEqual(
+                        (resolved25, jar.resolve()),
+                        module.discover_maven_tools_runtime(),
+                    )
+            finally:
+                globals_["java_major"] = prior_major
+
     def test_legacy_docker_maven_server_is_removed_during_host_rendering(self):
         module = load(HOSTS, "chaos_engine_hosts_legacy_maven")
         legacy_json = json.dumps(

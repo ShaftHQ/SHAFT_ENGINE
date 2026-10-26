@@ -1154,8 +1154,8 @@ def resolve_account_actions(
     return resolved
 
 
-def read_account_receipt(project: Path) -> dict[str, object]:
-    path = project.resolve() / ACCOUNT_RECEIPT_NAME
+def read_account_receipt(project: Path, *, path: Path | None = None) -> dict[str, object]:
+    path = project.resolve() / ACCOUNT_RECEIPT_NAME if path is None else path
     try:
         receipt = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
@@ -1726,12 +1726,28 @@ def _exclude_regex(pattern: str) -> re.Pattern[str]:
     return re.compile("".join(out) + r"\Z")
 
 
+def _foreign_repository_relative(project: Path, source: str) -> str | None:
+    """Map another checkout's absolute ``source_file`` onto this one, or None."""
+    namespace = _stores_namespace()
+    relative_fn = namespace.get("repository_relative")
+    roots_fn = namespace.get("registered_roots")
+    if not callable(relative_fn) or not callable(roots_fn):
+        return None
+    relative = relative_fn(source, roots_fn(project))
+    return relative if isinstance(relative, str) else None
+
+
 def _prunable_source(project: Path, source: str, patterns: list[re.Pattern[str]]) -> bool:
     """True when a drawer source under ``project`` is deleted or now excluded."""
     try:
         relative = Path(source).resolve().relative_to(project).as_posix()
     except (ValueError, OSError):
-        return False  # outside this project: not ours to judge.
+        relative = _foreign_repository_relative(project, source)
+        if relative is None:
+            return False  # outside this repository: not ours to judge.
+        if not (project / relative).exists():
+            return True
+        return any(pattern.match(relative) for pattern in patterns)
     if not Path(source).exists():
         return True
     return any(pattern.match(relative) for pattern in patterns)
@@ -4072,12 +4088,24 @@ def dependency_heal_fix_next() -> str:
     )
 
 
+def _shared_account_receipt(project: Path) -> Path | None:
+    """Receipt recorded for this origin by another checkout. Missing stores stay local."""
+    finder = _stores_namespace().get("registered_account_receipt")
+    if not callable(finder):
+        return None
+    found = finder(project)
+    return found if isinstance(found, Path) else None
+
+
 def active_dispatch(project: Path, tool: str, arguments: list[str]) -> list[str]:
     """Resolve one account command, falling back to authenticated legacy generations."""
     project = project.absolute()
     account_path = project / ACCOUNT_RECEIPT_NAME
-    if account_path.is_file() and not is_link_or_reparse(account_path):
-        receipt = read_account_receipt(project)
+    shared = None
+    if not (account_path.is_file() and not is_link_or_reparse(account_path)):
+        shared = _shared_account_receipt(project)
+    if (account_path.is_file() and not is_link_or_reparse(account_path)) or shared is not None:
+        receipt = read_account_receipt(project) if shared is None else read_account_receipt(project, path=shared)
         commands = receipt["commands"]
         command = commands.get(tool) if isinstance(commands, dict) else None
         if not isinstance(command, str) or not Path(command).is_absolute():

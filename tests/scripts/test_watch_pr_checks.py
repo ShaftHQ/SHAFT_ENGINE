@@ -651,6 +651,38 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         self.assertEqual([{"name": "gate", "runUrl": "https://checks/red"}], payload["failingJobs"])
         self.assertEqual(set(payload), {"failingJobs"})
 
+    def test_first_failed_required_check_does_not_poll_again(self):
+        stdout = io.StringIO()
+        poll = unittest.mock.Mock(
+            return_value=[{"name": "gate", "state": "FAILURE", "link": "https://checks/red"}]
+        )
+        sleep = unittest.mock.Mock()
+        with (
+            unittest.mock.patch.object(
+                sys,
+                "argv",
+                [
+                    "watch_pr_checks.py",
+                    "--pr",
+                    "https://github.com/owner/project/pull/9",
+                    "--max-polls",
+                    "4",
+                    "--interval",
+                    "30",
+                ],
+            ),
+            unittest.mock.patch.object(watch_pr_checks, "resolve_gh", return_value="gh"),
+            unittest.mock.patch.object(watch_pr_checks, "poll_once", poll),
+            unittest.mock.patch.object(watch_pr_checks.time, "sleep", sleep),
+            unittest.mock.patch("sys.stdout", stdout),
+            unittest.mock.patch("sys.stderr", io.StringIO()),
+        ):
+            self.assertEqual(1, watch_pr_checks.main())
+        self.assertEqual(1, poll.call_count)
+        sleep.assert_not_called()
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual([{"name": "gate", "runUrl": "https://checks/red"}], payload["failingJobs"])
+
     def test_scripts_do_not_force_merge(self):
         root = Path(__file__).resolve().parents[2]
         offenders: list[str] = []

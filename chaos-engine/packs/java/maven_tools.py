@@ -1008,9 +1008,15 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
             resolved = candidate.resolve(strict=True)
         except OSError:
             continue
-        if is_link_or_reparse(resolved):
+        # A Windows toolcache JDK or App Execution Alias can still report a
+        # reparse point after resolve. The build already ran this java.exe.
+        # Only a reparse that is not a file is unusable (#7300).
+        if is_link_or_reparse(resolved) and not resolved.is_file():
             continue
-        if (java_major(resolved) or 0) >= 17:
+        # The published jar is class-file 25. JAVA_HOME on the Windows runner
+        # is often 17 or 21 and used to win this loop, then the probe died
+        # with UnsupportedClassVersionError (#7300).
+        if (java_major(resolved) or 0) >= 25:
             return resolved, jar
     return None
 
@@ -1060,18 +1066,45 @@ def probe_maven_tools_runtime(
     timeout: float = 30.0,
 ) -> bool:
     """Require a real MCP initialize and non-empty tools/list exchange."""
+
+    def argv_path(path: Path) -> str:
+        # A Windows extended-length prefix is not a jar path the JVM accepts.
+        text = str(path)
+        if text.startswith("\\\\?\\UNC\\"):
+            return "\\\\" + text[8:]
+        prefix = "\\\\?\\"
+        return text[len(prefix):] if text.startswith(prefix) else text
+
+    def failure_text(captured: list[str]) -> str:
+        return " ".join(line.strip() for line in captured if line.strip())[:180]
+
     process = None
+    stderr_lines: list[str] = []
+    stderr_thread = None
+    succeeded = False
     try:
         process = popen(  # nosec B603 - both executables are receipt-verified owned paths.
-            [str(java), "-jar", str(jar)],
+            [argv_path(java), "-jar", argv_path(jar)],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             encoding="utf-8",
+            errors="replace",
         )
         if process.stdin is None or process.stdout is None:
             return False
+
+        def pump_stderr() -> None:
+            if process.stderr is None:
+                return
+            for line in process.stderr:
+                stderr_lines.append(line)
+                if sum(len(item) for item in stderr_lines) > 4000:
+                    break
+
+        stderr_thread = threading.Thread(target=pump_stderr, daemon=True)
+        stderr_thread.start()
 
         lines: queue.Queue[str] = queue.Queue()
 
@@ -1113,10 +1146,14 @@ def probe_maven_tools_runtime(
             {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
         ])
         result = listed.get("result")
-        return listed.get("id") == 2 and isinstance(result, dict) and bool(result.get("tools"))
+        succeeded = listed.get("id") == 2 and isinstance(result, dict) and bool(result.get("tools"))
+        return succeeded
     except (OSError, ValueError, json.JSONDecodeError, queue.Empty):
         return False
     finally:
+        if stderr_thread is not None:
+            stderr_thread.join(timeout=1)
+        probe_maven_tools_runtime.last_failure = "" if succeeded else failure_text(stderr_lines)
         if process is not None and process.poll() is None:
             process.terminate()
             try:
