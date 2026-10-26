@@ -22,6 +22,17 @@ If `assess` refuses `novel_success` under the one-incident rule, still
 finalize: file or update the durable lesson tickets, then complete finalize
 without inventing a second incident for the same success signal.
 
+## Adopter instructions and upstream tickets
+
+A project lesson updates that adopter's specialized instructions (pack,
+profile, or project rules) for token use, accuracy, or performance in the
+learning change. A harness lesson is redacted and filed on the configured
+upstream (`scripts/ci/chaos-engine-upstream.txt` or
+`CHAOS_ENGINE_UPSTREAM_REPO`) with the user's `gh` account only after machine
+consent. `python3 .chaos-engine/learning_session.py consent allow` records
+the standing approval. `consent deny` stops it. Unknown consent asks once,
+records pending, and does not file again until the user answers.
+
 ## Dual track
 
 1. **Harness** — skills, hooks, MemPalace, Graphify, installer/doctor. GitHub

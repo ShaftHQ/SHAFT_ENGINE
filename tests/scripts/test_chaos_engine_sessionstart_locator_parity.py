@@ -6,9 +6,11 @@ import importlib.util
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
@@ -127,6 +129,101 @@ class SessionStartLocatorParityTests(unittest.TestCase):
         # Progressive disclosure contract: every host gets the same locators.
         unique = set(contexts.values())
         self.assertEqual(1, len(unique), msg=contexts)
+
+    def test_subagent_start_uses_the_session_start_channel(self):
+        def callback(event, _host):
+            self.assertEqual("SessionStart", event["hook_event_name"])
+            print(json.dumps({"additionalContext": "caveman=ultra; ponytail=ultra"}))
+            return 0
+
+        cases = (
+            ("grok", "SubagentStart"),
+            ("claude", "SubagentStart"),
+            ("codex", "SubagentStart"),
+            ("gemini", "SubagentStart"),
+            ("copilot", "subagentStart"),
+        )
+        for host, native in cases:
+            stdout = io.StringIO()
+            previous = os.environ.get("CHAOS_ENGINE_HOST")
+            os.environ["CHAOS_ENGINE_HOST"] = host
+            try:
+                with redirect_stdout(stdout):
+                    code = self.lifecycle.run_hook_protocol(
+                        json.dumps({"hook_event_name": native, "session_id": f"sub-{host}"}),
+                        {"SessionStart": callback},
+                        normalize=self.kernel.normalize_hook_input,
+                        host_for_input=lambda _raw, selected=host: selected,
+                        adapt_output=self.kernel.adapt_hook_output,
+                    )
+            finally:
+                if previous is None:
+                    os.environ.pop("CHAOS_ENGINE_HOST", None)
+                else:
+                    os.environ["CHAOS_ENGINE_HOST"] = previous
+            self.assertEqual(0, code, host)
+            payload = json.loads(stdout.getvalue().strip().splitlines()[-1])
+            context = unwrap_context(payload)
+            self.assertIn("caveman=ultra; ponytail=ultra", context)
+            if host == "grok":
+                self.assertEqual(payload["systemMessage"], context)
+
+    def test_guard_injects_entry_for_a_grok_subagent_and_once_for_prompt_hosts(self):
+        guard = ROOT / "chaos-engine/hooks/guard.py"
+
+        def run(host, payload):
+            env = dict(os.environ)
+            env["CHAOS_ENGINE_HOST"] = host
+            return subprocess.run(
+                [sys.executable, str(guard)],
+                input=json.dumps(payload),
+                text=True,
+                capture_output=True,
+                env=env,
+                cwd=ROOT,
+                check=False,
+            )
+
+        grok = run("grok", {
+            "hook_event_name": "SubagentStart",
+            "session_id": f"entry-probe-grok-{uuid.uuid4().hex}",
+            "agent_id": "delegate",
+        })
+        self.assertEqual(0, grok.returncode, grok.stderr)
+        grok_payload = json.loads(grok.stdout)
+        self.assertIn("caveman=ultra", grok_payload["systemMessage"])
+        self.assertIn("ponytail=ultra", grok_payload["systemMessage"])
+
+        for host, event in (("gemini", "BeforeAgent"), ("copilot", "userPromptSubmitted")):
+            payload = {
+                "hook_event_name": event,
+                "session_id": f"entry-probe-{host}-{uuid.uuid4().hex}",
+                "prompt": "go",
+            }
+            first = run(host, payload)
+            second = run(host, payload)
+            self.assertEqual(0, first.returncode, first.stderr)
+            self.assertIn("caveman=ultra", unwrap_context(json.loads(first.stdout)))
+            self.assertNotIn("caveman=ultra", second.stdout)
+
+    def test_grok_rules_carry_the_companion_load_outside_agents(self):
+        hosts = load_module("ce_hosts_entry_rule", "chaos-engine/hosts.py")
+        block = hosts.instruction_block()
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        rules = (ROOT / ".grok/rules/companions.md").read_text(encoding="utf-8")
+        self.assertNotIn("caveman=ultra", block)
+        self.assertNotIn("caveman=ultra", agents)
+        self.assertIn("caveman=ultra", rules)
+        self.assertIn("ponytail=ultra", rules)
+        self.assertIn("iterative-flow.md", rules)
+        self.assertIn("python3 .chaos-engine/tool.py entry", rules)
+        self.assertIn("python3 .chaos-engine/tool.py retrieve", rules)
+        identity = (ROOT / ".grok/rules/identity.md").read_text(encoding="utf-8")
+        entrypoint = (ROOT / ".grok/rules/entrypoint.md").read_text(encoding="utf-8")
+        self.assertIn("Speak unabridged truth", identity)
+        self.assertIn("## Iron laws", entrypoint)
+        self.assertIn("chaos-engine/skills/<name>/SKILL.md", rules)
+        self.assertFalse((ROOT / ".grok/skills/kanban/SKILL.md").exists())
 
     def test_matrix_sessionstart_row_is_green(self):
         text = MATRIX.read_text(encoding="utf-8")

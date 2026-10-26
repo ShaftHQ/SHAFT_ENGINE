@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
@@ -575,7 +576,74 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             capture_output=True,
             text=True,
         )
-        self.assertEqual(grok_tracked.stdout.strip(), "")
+        tracked = [line for line in grok_tracked.stdout.splitlines() if line]
+        rules = {
+            ".grok/rules/companions.md",
+            ".grok/rules/identity.md",
+            ".grok/rules/entrypoint.md",
+        }
+        # Grok puts these rules in the model prompt. SessionStart stdout is not
+        # model context. Skill bodies stay the canonical files the entrypoint routes.
+        # Links are retargeted so a copy under .grok/rules still resolves.
+        self.assertEqual(set(tracked), rules)
+        identity = (ROOT / ".grok/rules/identity.md").read_text(encoding="utf-8")
+        entrypoint = (ROOT / ".grok/rules/entrypoint.md").read_text(encoding="utf-8")
+        self.assertIn("Speak unabridged truth", identity)
+        self.assertIn("../../chaos-engine/references/identity-push-back.md", identity)
+        self.assertIn("## Iron laws", entrypoint)
+        self.assertIn("../../chaos-engine/skills/kanban/SKILL.md", entrypoint)
+        self.assertTrue((ROOT / ".grok/rules/identity.md").parent.joinpath(
+            "../../chaos-engine/references/identity-push-back.md"
+        ).resolve().is_file())
+        companions = (ROOT / ".grok/rules/companions.md").read_text(encoding="utf-8")
+        self.assertNotIn("## Iron laws", companions)
+        self.assertIn("chaos-engine/skills/<name>/SKILL.md", companions)
+        self.assertNotIn(".grok/skills/", companions)
+
+    def test_grok_model_load_copies_identity_and_entrypoint_not_skills(self):
+        path = ROOT / "chaos-engine/grok_model_load.py"
+        spec = importlib.util.spec_from_file_location("grok_model_load_portability", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            source = project / "chaos-engine"
+            (source / "skills/kanban").mkdir(parents=True)
+            (source / "identity.md").write_bytes(b"identity-bytes\n")
+            (source / "skills/chaos-engine").mkdir(parents=True)
+            (source / "skills/chaos-engine/SKILL.md").write_bytes(b"entry-bytes\n")
+            (source / "skills/kanban/SKILL.md").write_bytes(b"kanban-bytes\n")
+            written = module.publish(project)
+            self.assertEqual(
+                (project / ".grok/rules/identity.md").read_bytes(),
+                b"identity-bytes\n",
+            )
+            self.assertEqual(
+                (project / ".grok/rules/entrypoint.md").read_bytes(),
+                b"entry-bytes\n",
+            )
+            self.assertFalse((project / ".grok/skills").exists())
+            companions = (project / ".grok/rules/companions.md").read_text(encoding="utf-8")
+            self.assertIn("python3 .chaos-engine/tool.py entry", companions)
+            self.assertIn("chaos-engine/skills/<name>/SKILL.md", companions)
+            (source / "references").mkdir()
+            (source / "references/card.md").write_text("card\n", encoding="utf-8")
+            (source / "identity.md").write_text("See [why](references/card.md).\n", encoding="utf-8")
+            (source / "skills/chaos-engine/SKILL.md").write_text(
+                "See [card](../../references/card.md#part).\n",
+                encoding="utf-8",
+            )
+            module.publish(project)
+            self.assertIn(
+                "../../chaos-engine/references/card.md#part",
+                (project / ".grok/rules/entrypoint.md").read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                "../../chaos-engine/references/card.md",
+                (project / ".grok/rules/identity.md").read_text(encoding="utf-8"),
+            )
+            self.assertEqual([], module.publish(project))
+            self.assertTrue(written)
 
     def test_active_guidance_has_no_personal_or_absolute_operational_paths(self):
         self.assertEqual(absolute_guidance_path_offenders(ROOT), [])
@@ -672,6 +740,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             "PostToolUse",
             "PostToolUseFailure",
             "SessionStart",
+            "SubagentStart",
             "SessionEnd",
             "Stop",
             "SubagentStop",

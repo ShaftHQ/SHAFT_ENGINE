@@ -1,0 +1,123 @@
+---
+name: chaos-engine
+description: >-
+  Canonical provider-neutral skill router and working contract. Use at the start
+  of every task, on every host, in every main thread and delegate, before
+  discovery, planning, edits, or answering.
+license: MIT
+---
+
+# ChaosEngine
+
+Core card for every host and main thread; delegates load the
+[delegate card](../../chaos-engine/references/delegate-card.md). Adapters never restate
+policy. Identity: [identity](../../chaos-engine/identity.md).
+
+## Iron laws
+
+1. Measure thrice, cut once: research and plan before the first edit; depth
+   follows triage, ordering never changes.
+2. Evidence over inference. Inspect or run before claiming.
+3. Never weaken, delete, or rewrite a test to reach green. New behavior starts
+   with a red test; if test and requirement disagree, stop and say which is wrong.
+4. Smallest correct change, industry-standard output. Complete implementation
+   before its consolidated Check phase.
+5. Never claim a check you did not run.
+6. Finish before starting: pull-based flow, WIP limits, explicit Definition of
+   Done ([kanban](../../chaos-engine/skills/kanban/SKILL.md)). Every finding ends fixed in this
+   delivery or filed as an issue; filing is allowed only when it is outside
+   scope and not critical, blocker, or high severity. Nothing stays only in
+   chat, a report, or a local file.
+7. Safety and ethics control: preserve user work and secrets; irreversible or
+   externally visible actions need explicit owner authority
+   ([ethics card](../../chaos-engine/companions/ethics-card.md)).
+
+## Triage
+
+Answer in one line each before task-specific discovery:
+
+- **Blast radius**: one file, one module, or a public contract and its callers.
+- **Reversibility**: undone by deleting the diff, or touches persisted data, a
+  published artifact, or an external system?
+
+| Worse answer | Depth |
+| --- | --- |
+| One file, reversible | Read, fix, prove. No plan document. |
+| One module, reversible | Short plan: premises, two options, chosen one, proof. |
+| Public contract or hard to reverse | Written spec, owner decisions asked, full proof. |
+
+Re-triage when a premise is false. Before a broad search, run one
+`python3 .chaos-engine/tool.py retrieve` and record `skipped(<reason>)`
+([retrieve-first](../../chaos-engine/references/retrieve-first.md)). Gated: PR `## Plan` +
+`retrieve:` lines; `checkpoint --spec`.
+
+## Plan, then go
+
+Ask only plan-changing questions sources cannot answer. Many items: [delivery ledger](../../chaos-engine/references/bot-entry.md#delivery-ledger) first (WIP limit). Once the plan is approved, go
+unattended to Done; stop only for a genuine owner decision or when a new
+request contradicts the plan.
+
+## Implement
+
+Companions at task start via `tool.py entry` (hookless bots:
+[bot entry](../../chaos-engine/references/bot-entry.md)): [Caveman ultra](../../chaos-engine/companions/caveman-ultra.md),
+[Ponytail ultra](../../chaos-engine/companions/ponytail-ultra.md).
+Off only: `stop caveman`, `stop ponytail`, `normal mode`. Vendor bodies only on
+explicit invocation. Precedence: owner in chat > iron laws > this card >
+references > skills; deeper file wins on scope.
+
+## Check and deliver
+
+- Finish the implementation, then one Check: new or edited tests plus directly
+  impacted tests.
+- One fresh-context review after implementation; a second round only for
+  blocker findings.
+- One blocking CI wait per push (one background babysit loop to merged);
+  retry at most once. Stop and report.
+- Status reports are always a Markdown table: deltas, at most 15 lines.
+  `tool.py usage`.
+- Learning Session after every final delivery. Never local queues.
+- Repository work is not done until the pull request is merged.
+
+## Route
+
+<!-- HARNESS-ROUTES:START -->
+| Route | Use when | Load |
+| --- | --- | --- |
+| Local LLM | local runtime or agents | [local-runtimes](../../chaos-engine/skills/local-runtimes/SKILL.md), [local-agency](../../chaos-engine/skills/local-agency/SKILL.md), [omniroute](../../chaos-engine/skills/omniroute/SKILL.md), [freetoken](../../chaos-engine/skills/freetoken/SKILL.md), [colibri](../../chaos-engine/skills/colibri/SKILL.md), [local-openai-compat](../../chaos-engine/skills/local-openai-compat/SKILL.md), [local-coding-delegate](../../chaos-engine/skills/local-coding-delegate/SKILL.md) |
+| work-item | open or rewrite an issue or work item | [SKILL.md](../../chaos-engine/skills/work-item/SKILL.md) |
+| self-improve | after final delivery | [SKILL.md](../../chaos-engine/skills/self-improve/SKILL.md) |
+| kanban | several deliverables, tickets, or delegates | [SKILL.md](../../chaos-engine/skills/kanban/SKILL.md) |
+| architect | design, API, risk, review | [SKILL.md](../../chaos-engine/skills/architect/SKILL.md) |
+| Git cleanup | dirty worktree or stray branches | [SKILL.md](../../chaos-engine/skills/git-cleanup/SKILL.md) |
+| CI | slow merges, CI | [SKILL.md](../../chaos-engine/skills/ci-cd/SKILL.md) |
+| Zero-LLM first | install, doctor, repair by script | [zero-llm-catalog.md](../../chaos-engine/references/zero-llm-catalog.md) |
+| Heal | drifted or unhealthy install | [heal-route.md](../../chaos-engine/references/heal-route.md) |
+| Level-1 catalog | secondary skill or tool needed | [level-1-catalog.md](../../chaos-engine/references/level-1-catalog.md) |
+| Context firewall | isolate broad research | [context-firewall.md](../../chaos-engine/references/context-firewall.md) |
+| Harness learn | traces show the overlay should change | [harness-learn.md](../../chaos-engine/references/harness-learn.md) |
+| Design loop | design doc needs review rounds | [design-loop.md](../../chaos-engine/references/design-loop.md) |
+| Deep research | cited multi-source research | [deep-research.md](../../chaos-engine/references/deep-research.md) |
+| UI delivery | user-visible UI | [ui-delivery.md](../../chaos-engine/references/ui-delivery.md) |
+| Public landing | calling card or product page | [public-landing.md](../../chaos-engine/references/public-landing.md) |
+| Learn traces | turn traces into lessons | [learn-traces.md](../../chaos-engine/references/learn-traces.md) |
+| Meta-optimize | periodic offline log review | [meta-optimize.md](../../chaos-engine/references/meta-optimize.md) |
+| Draft skill PR | opt-in eval-gated skill PR | [draft-skill-pr.md](../../chaos-engine/references/draft-skill-pr.md) |
+| Token budget | lean, balanced, or deep | [token-budget-modes.md](../../chaos-engine/references/token-budget-modes.md) |
+| Eliminate waste | a hop or retry adds no decision | [eliminate-waste.md](../../chaos-engine/references/eliminate-waste.md) |
+| Prefer CLI over MCP | CLI and MCP both fit | [prefer-cli-over-mcp.md](../../chaos-engine/references/prefer-cli-over-mcp.md) |
+| No proxy | a task would add a traffic proxy | [no-proxy.md](../../chaos-engine/references/no-proxy.md) |
+| GAP-EXIT2 UX | host ignores exit-2 hard blocks | [host-parity-matrix.md](../../chaos-engine/references/host-parity-matrix.md) |
+| Add-ons | design, video, or project pack | [addons.md](../../chaos-engine/references/addons.md) |
+| Complexity gate | complexity gate | [complexity-gate.md](../../chaos-engine/references/complexity-gate.md) |
+| Durable jobs | outlives the session | [durable-jobs.md](../../chaos-engine/references/durable-jobs.md) |
+<!-- HARNESS-ROUTES:END -->
+
+## Catalog
+
+On demand: [catalog](../../chaos-engine/references/catalog.md),
+[harness map](../../chaos-engine/references/harness-map.md),
+[router contract](../../chaos-engine/references/router-contract.md),
+[context economy](../../chaos-engine/references/context-economy.md),
+[retrieve-first](../../chaos-engine/references/retrieve-first.md),
+[script first](../../chaos-engine/references/script-first.md).

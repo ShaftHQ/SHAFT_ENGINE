@@ -223,12 +223,202 @@ def retrieve_receipt_check(project: Path) -> dict[str, str]:
     }
 
 
+_HARNESS_MARKERS = ("chaos-engine", "caveman", "ponytail", "mempalace", "graphify", "hook", "token")
+_CONSENT_QUESTION = (
+    "May ChaosEngine file anonymized generalized enhancement issues to the "
+    "configured upstream repository with your GitHub account? Reply allow or "
+    "deny once for this machine. allow stands until you run "
+    "`python3 .chaos-engine/learning_session.py consent deny`."
+)
+
+
+def _consent_path() -> Path:
+    override = os.environ.get("CHAOS_ENGINE_CONSENT_PATH", "").strip()
+    if override:
+        return Path(override)
+    xdg = os.environ.get("XDG_CONFIG_HOME", "").strip()
+    root = Path(xdg) if xdg else Path.home() / ".config"
+    return root / "chaos-engine" / "upstream-ticket-consent.json"
+
+
+def _load_consent(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {"schema": 1, "decision": "unknown", "filed": []}
+    if not isinstance(data, dict):
+        return {"schema": 1, "decision": "unknown", "filed": []}
+    if not isinstance(data.get("filed"), list):
+        data["filed"] = []
+    return data
+
+
+def _read_consent(path: Path) -> str:
+    decision = _load_consent(path).get("decision")
+    if decision in {"allow", "deny", "pending"}:
+        return str(decision)
+    return "unknown"
+
+
+def _write_consent(path: Path, decision: str) -> None:
+    if decision not in {"allow", "deny", "pending"}:
+        raise ValueError("consent decision is invalid")
+    document = _load_consent(path)
+    document["schema"] = 1
+    document["decision"] = decision
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _redact_token(token: str) -> str:
+    if "@" in token or token.startswith(("/", "\\", "ghp_", "github_pat_", "sk-", "AKIA")) or ":\\" in token:
+        return "[redacted]"
+    return token
+
+
+def _redact(text: str) -> str:
+    return " ".join(_redact_token(token) for token in text.split())
+
+
+def _recent_lessons(project: Path, limit: int = 3) -> list[str]:
+    path = project / ".chaos-engine-state" / "learning" / "queue.json"
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return []
+    items = document.get("items") if isinstance(document, dict) else None
+    if not isinstance(items, list):
+        return []
+    lessons: list[str] = []
+    for item in reversed(items):
+        if not isinstance(item, dict):
+            continue
+        raw = item.get("lesson") if isinstance(item.get("lesson"), str) else item.get("title")
+        if isinstance(raw, str) and raw.strip():
+            lessons.append(raw.strip())
+        if len(lessons) >= limit:
+            break
+    return lessons
+
+
+def _upstream_plan(lessons: list[str], consent: str) -> dict[str, object]:
+    project_notes: list[dict[str, str]] = []
+    bodies: list[str] = []
+    for lesson in lessons:
+        cleaned = _redact(lesson)
+        if not cleaned:
+            continue
+        folded = lesson.casefold()
+        if any(marker in folded for marker in _HARNESS_MARKERS):
+            bodies.append(
+                "## Problem\n" + cleaned + "\n\n## Acceptance\n"
+                "- Applies to any ChaosEngine adopter.\n"
+                "- Improves token use, accuracy, or performance.\n"
+                "- One focused test proves the change.\n\n"
+                "## Privacy\nAnonymized from a Learning Session.\n"
+            )
+        else:
+            project_notes.append({
+                "track": "project",
+                "lesson": cleaned,
+                "instruction": (
+                    "Update this project's specialized ChaosEngine instructions "
+                    "for token use, accuracy, or performance."
+                ),
+            })
+    action = "none"
+    question = ""
+    if bodies and consent == "allow":
+        action = "file"
+    elif bodies and consent == "deny":
+        action = "skipped-denied"
+    elif bodies and consent == "pending":
+        action = "already-asked"
+    elif bodies:
+        action = "ask-once"
+        question = _CONSENT_QUESTION
+    return {"action": action, "question": question, "project": project_notes, "bodies": bodies}
+
+
+def _repo_name_ok(value: str) -> bool:
+    owner, separator, name = value.partition("/")
+    return bool(separator and owner and name and " " not in value and ".." not in value)
+
+
+def _upstream_repo(project: Path) -> str:
+    env = os.environ.get("CHAOS_ENGINE_UPSTREAM_REPO", "").strip()
+    if _repo_name_ok(env):
+        return env
+    path = project / "scripts" / "ci" / "chaos-engine-upstream.txt"
+    try:
+        line = path.read_text(encoding="utf-8").strip().splitlines()[0].strip()
+    except (OSError, UnicodeDecodeError, IndexError):
+        return ""
+    return line if _repo_name_ok(line) else ""
+
+
+def _create_issue(repo: str, body: str) -> str:
+    import subprocess
+
+    argv = [
+        "gh", "issue", "create", "--repo", repo,
+        "--title", "ce: generalized adopter improvement", "--body", body,
+    ]
+    try:
+        completed = subprocess.run(argv, capture_output=True, text=True, check=False)
+    except OSError:
+        return ""
+    if completed.returncode != 0:
+        return ""
+    lines = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+    return lines[-1] if lines else ""
+
+
+def _apply_upstream(receipt: dict) -> None:
+    """File only from the CLI path. Tests call finalize without this."""
+    action = receipt.get("upstreamTickets")
+    path = _consent_path()
+    if action == "ask-once" and _read_consent(path) == "unknown":
+        _write_consent(path, "pending")
+        return
+    if action != "file":
+        return
+    if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
+        receipt["upstreamTickets"] = "skipped-ci"
+        return
+    document = _load_consent(path)
+    filed = [item for item in document.get("filed", []) if isinstance(item, str)]
+    urls: list[str] = []
+    repo = _upstream_repo(Path.cwd())
+    if not repo:
+        receipt["upstreamTickets"] = "no-upstream"
+        return
+    for body in receipt.get("upstreamBodies") or []:
+        if not isinstance(body, str):
+            continue
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()[:16]
+        if digest in filed:
+            continue
+        url = _create_issue(repo, body)
+        if not url:
+            continue
+        urls.append(url)
+        filed.append(digest)
+    document["filed"] = filed[-200:]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if urls:
+        existing = receipt.get("upstreamIssueUrls")
+        receipt["upstreamIssueUrls"] = (existing if isinstance(existing, list) else []) + urls
+
+
 def finalize(
     session_id: str,
     *,
     disposition: str = "issues-first",
     extract_heuristics: bool = True,
     host: str | None = None,
+    apply_upstream: bool = False,
 ) -> dict[str, object]:
     """Record a portable completion receipt. Never auto-opens draft PRs."""
     if not isinstance(session_id, str) or not session_id.strip():
@@ -266,6 +456,16 @@ def finalize(
         if dropped:
             receipt["significanceNotesDropped"] = dropped
     receipt["activityRetrospective"] = _activity_retrospective(session_id.strip())
+    plan = _upstream_plan(_recent_lessons(Path.cwd()), _read_consent(_consent_path()))
+    receipt["upstreamTickets"] = plan["action"]
+    if plan["question"]:
+        receipt["upstreamQuestion"] = plan["question"]
+    if plan["project"]:
+        receipt["projectInstructionCandidates"] = plan["project"]
+    if plan["bodies"]:
+        receipt["upstreamBodies"] = plan["bodies"]
+    if apply_upstream:
+        _apply_upstream(receipt)
 
     chosen_host = (host or os.environ.get("CHAOS_ENGINE_HOST") or "").strip().casefold()
     if chosen_host in INSTRUCTION_ONLY_HOSTS:
@@ -322,13 +522,25 @@ def main(argv: list[str] | None = None) -> int:
     runtime.add_argument("--silent", action="store_true")
     runtime.add_argument("--no-heuristics", action="store_true")
     runtime.add_argument("--host", default=None)
+    consent = sub.add_parser("consent")
+    consent.add_argument("decision", choices=("allow", "deny", "revoke", "status"))
     args = parser.parse_args(argv)
+    if args.command == "consent":
+        decision = "deny" if args.decision == "revoke" else args.decision
+        path = _consent_path()
+        if decision == "status":
+            print(_read_consent(path))
+            return 0
+        _write_consent(path, decision)
+        print(decision)
+        return 0
     try:
         result = finalize(
             args.session_id,
             disposition=args.disposition,
             extract_heuristics=not args.no_heuristics,
             host=args.host,
+            apply_upstream=True,
         )
     except (OSError, RuntimeError, ValueError) as error:
         if getattr(args, "silent", False):

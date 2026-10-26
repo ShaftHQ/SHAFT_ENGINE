@@ -4385,6 +4385,7 @@ def hook_content(before: bytes | None, rendered: bytes, label: str) -> bytes:
 
 REQUIRED_HOOK_EVENTS = (
     "SessionStart",
+    "SubagentStart",
     "UserPromptSubmit",
     "PreToolUse",
     "PostToolUse",
@@ -7365,7 +7366,7 @@ def grok_runtime_status(
         if "guard.py" in str(item.get("target") or "")
     } if isinstance(hooks, list) else set()
     required = {
-        "session_start", "user_prompt_submit", "pre_tool_use", "post_tool_use",
+        "session_start", "subagent_start", "user_prompt_submit", "pre_tool_use", "post_tool_use",
         "post_tool_use_failure", "stop", "subagent_stop", "session_end",
     }
     if not required.issubset(loaded):

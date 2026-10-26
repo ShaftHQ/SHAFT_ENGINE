@@ -96,6 +96,9 @@ ALLOWED_GLOBS = (
     "scripts/agents/user-harness/*.md",
     ".gemini/skills/**/*.md",
     ".codex/**/*.md",
+    # Grok always scans this directory into the model prompt. It is host
+    # project rules, not a public product guide.
+    ".grok/rules/*.md",
     ".github/codex/prompts/*.md",
     ".github/instructions/*.instructions.md",
     ".github/ISSUE_TEMPLATE/*.md",

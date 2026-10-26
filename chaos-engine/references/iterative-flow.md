@@ -29,7 +29,12 @@ the [multi-agent PDCA loop](multi-agent-pdca.md), which defines each round.
     automated or checklist check that would have caught it.
 12. Route lessons: generic design, editing, and process skills go to
     ChaosEngine; project-specific lessons go to the project's own repo or
-    skills. The engineering advisor opens those PRs.
+    skills. The engineering advisor opens those PRs. A project lesson also
+    updates that project's specialized instructions for token use, accuracy,
+    or performance. A harness lesson is generalized (no paths, secrets,
+    emails, or project names) and filed with the user's GitHub account only
+    after one machine-local consent (`learning_session.py consent allow`).
+    That question is asked once. `allow` stands until `consent deny`.
 13. Batch engine updates: merge lesson PRs as they come, but reinstall or
     reload ChaosEngine once, at the end of the work batch.
 14. Roles:
@@ -41,6 +46,20 @@ the [multi-agent PDCA loop](multi-agent-pdca.md), which defines each round.
       work.
 15. Blocked: flag it at once and swarm on the current item. Never start a
     new item to stay busy.
+
+## Unstructured request
+
+Rephrase an unstructured ask as a testable requirement, write the smallest
+spec, then plan, do, check, and act. One writer. A same-model delegate only
+when a measured receipt shows the child costs less than continuing: companion
+shorthand shortens the handoff and does not remove the child's second context.
+
+## Session close
+
+Before ending, list every user ask from the session. Mark a finished ask `✓`
+and a missed ask `✗` with the blocker beside it. Run one more plan-do-check-act
+pass on every `✗`. Stop when each row is `✓`, or the blocker is proved and
+written on that row.
 
 ## Per-iteration checklist
 

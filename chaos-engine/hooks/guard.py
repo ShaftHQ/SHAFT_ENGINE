@@ -1255,133 +1255,190 @@ def classifier_complexity_gate_hint(
     return None
 
 
-def _run_event(event: dict, _host: str) -> int:
+def _entry_injected(session_id: str) -> bool:
+    return any(item.get("kind") == "entry-injected" for item in reflection.entries(session_id))
+
+
+def _mark_entry_injected(session_id: str) -> None:
+    if not session_id:
+        return
+    reflection.append_entry(
+        session_id,
+        {"schemaVersion": reflection.SCHEMA_VERSION, "kind": "entry-injected"},
+    )
+
+
+def _parse_hook_event(event: dict) -> tuple:
     tool_input = event.get("tool_input", {}) if isinstance(event, dict) else {}
     tool_name = str(event.get("tool_name", "")) if isinstance(event, dict) else ""
-    functions_source = functions_exec_source(tool_input)
-    functions_direct = functions_exec_direct_command(tool_input)
-    commands = _event_commands(tool_name, tool_input)
     event_name = (
         str(event.get("hook_event_name") or event.get("hookEventName") or "")
         if isinstance(event, dict)
         else ""
     )
-    if event_name == "PreToolUse":
-        # R8 is session-independent: enforce it before identity or ledger checks.
-        stash_block = linked_worktree_stash_reason(
-            commands, Path(str(event.get("cwd") or Path.cwd()))
-        )
-        if stash_block:
-            _record_denial_with_significance(event, event_name, tool_name)
-            print(json.dumps({"decision": "block", "reason": stash_block}))
-            return 2
-    root_session_id = str(event.get("session_id") or event.get("sessionId") or "")
-    session_id = reflection.scope_session_id(
-        root_session_id, event.get("agent_id") or event.get("agentId")
+    return (
+        tool_input,
+        tool_name,
+        functions_exec_source(tool_input),
+        functions_exec_direct_command(tool_input),
+        _event_commands(tool_name, tool_input),
+        event_name,
     )
+
+
+def _deny(event: dict, event_name: str, tool_name: str, reason: str) -> int:
+    _record_denial_with_significance(event, event_name, tool_name)
+    print(json.dumps({"decision": "block", "reason": reason}))
+    return 2
+
+
+def _stash_block(event: dict, event_name: str, tool_name: str, commands: tuple) -> int | None:
+    if event_name != "PreToolUse":
+        return None
+    # R8 is session-independent: enforce it before identity or ledger checks.
+    reason = linked_worktree_stash_reason(commands, Path(str(event.get("cwd") or Path.cwd())))
+    if reason:
+        return _deny(event, event_name, tool_name, reason)
+    return None
+
+
+def _scope_session(event: dict) -> str:
+    root_session_id = str(event.get("session_id") or event.get("sessionId") or "")
+    return reflection.scope_session_id(root_session_id, event.get("agent_id") or event.get("agentId"))
+
+
+def _kernel_block(event: dict, event_name: str, tool_name: str, tool_input: object, commands: tuple, session_id: str, host: str):
     kernel_event = dict(event)
     kernel_event["session_id"] = session_id
     kernel_event["agent_id"] = ""
-    normalized_kernel_event = _kernel.normalize_event(kernel_event, _host)
-    if event_name in {"PostToolUse", "PostToolUseFailure"} and not normalized_kernel_event.target_phase:
-        kernel_report = _kernel.evaluate(normalized_kernel_event)
+    normalized = _kernel.normalize_event(kernel_event, host)
+    if event_name in {"PostToolUse", "PostToolUseFailure"} and not normalized.target_phase:
+        report = _kernel.evaluate(normalized)
     else:
-        kernel_journal = _kernel.EffectJournal(
-            reflection.ledger_path(session_id).with_suffix(".kernel-v3.jsonl")
-        )
-        kernel_report = _kernel.evaluate_session(normalized_kernel_event, kernel_journal)
-    if kernel_report.decision == "deny":
-        _record_denial_with_significance(event, event_name, tool_name)
-        print(json.dumps({"decision": "block", "reason": kernel_report.reason}))
-        return 2
+        journal = _kernel.EffectJournal(reflection.ledger_path(session_id).with_suffix(".kernel-v3.jsonl"))
+        report = _kernel.evaluate_session(normalized, journal)
+    if report.decision == "deny":
+        return _deny(event, event_name, tool_name, report.reason), normalized
     if justification is not None:
         read_reason = justification.file_read_block_reason(
             project=justification.project_root(Path(str(event.get("cwd") or Path.cwd()))),
-            event_name=str(normalized_kernel_event.name or event_name),
-            tool_name=str(normalized_kernel_event.tool_name or tool_name),
+            event_name=str(normalized.name or event_name),
+            tool_name=str(normalized.tool_name or tool_name),
             tool_input=tool_input if isinstance(tool_input, dict) else {},
             commands=commands,
             session_id=session_id,
         )
         if read_reason:
-            _record_denial_with_significance(event, event_name, tool_name)
-            print(json.dumps({"decision": "block", "reason": read_reason}))
-            return 2
+            return _deny(event, event_name, tool_name, read_reason), normalized
     research_reason = _research_before_mutation_reason(
-        event_name,
-        bool(normalized_kernel_event.stateful_mutation),
-        session_id,
+        event_name, bool(normalized.stateful_mutation), session_id
     )
     if research_reason:
-        _record_denial_with_significance(event, event_name, tool_name)
-        print(json.dumps({"decision": "block", "reason": research_reason}))
-        return 2
+        return _deny(event, event_name, tool_name, research_reason), normalized
+    return None, normalized
+
+
+def _session_token(event_name: str, session_id: str):
     if event_name == "SessionStart":
-        token = reflection.record_session_start(session_id)
-    else:
-        if event_name not in {"SubagentStop", "SessionEnd"}:
-            reflection.record_session_start(session_id, estimated=True)
-        token = None
-    if event_name == "UserPromptSubmit":
-        prompt = event.get("prompt") or event.get("user_prompt") or ""
-        if isinstance(prompt, str):
-            _lifecycle.record_companion_opt_out(session_id, prompt)
-        if learning_requested(event):
-            reflection.record_activity(session_id, "learning-requested")
-    if _record_failed_result(event, event_name, commands, tool_name, session_id):
-        return 0
-    receipt_command, mutation, guard_reason = _command_guard_state(
-        event, event_name, commands, tool_name, tool_input, functions_source, functions_direct, session_id
+        return reflection.record_session_start(session_id)
+    if event_name not in {"SubagentStop", "SessionEnd"}:
+        reflection.record_session_start(session_id, estimated=True)
+    return None
+
+
+def _prompt_entry(event: dict, event_name: str, session_id: str, host: str) -> int | None:
+    if event_name != "UserPromptSubmit":
+        return None
+    prompt = event.get("prompt") or event.get("user_prompt") or ""
+    if isinstance(prompt, str):
+        _lifecycle.record_companion_opt_out(session_id, prompt)
+    if learning_requested(event):
+        reflection.record_activity(session_id, "learning-requested")
+    # Grok discards UserPromptSubmit context. Gemini and Copilot have no
+    # subagent-start event; Claude and Codex use this only when SubagentStart
+    # did not already inject for this agent scope.
+    if host == "grok" or not session_id or _entry_injected(session_id):
+        return None
+    _mark_entry_injected(session_id)
+    context = _lifecycle.session_start_context(
+        reflection.record_session_start(session_id), ACTIVATION, session_id=session_id
     )
-    if guard_reason:
-        _record_denial_with_significance(event, event_name, tool_name)
-        print(json.dumps({"decision": "block", "reason": guard_reason}))
-        return 2
-    if event_name == "PostToolUse" and not receipt_command:
-        if any(learning_session_finalize_command(candidate) for candidate in commands):
-            if learning_completion_artifact(session_id) is not None:
-                reflection.record_activity(session_id, "learning-session-complete")
-        elif any(confirmed_delivery_command(candidate) for candidate in commands):
-            reflection.record_activity(session_id, "delivery-complete")
-            if any(pull_request_merged_command(candidate) for candidate in commands):
-                reflection.record_activity(session_id, "pull-request-merged")
-                clear_open_pull_request(Path(str(event.get("cwd") or Path.cwd())))
-        elif mutation or any(delivery_command(candidate) for candidate in commands):
-            reflection.record_activity(session_id, "mutation")
-            if any(git_commit_command(candidate) for candidate in commands):
-                reflection.record_activity(session_id, "fix-commit")
-            if any(pull_request_open_command(candidate) for candidate in commands):
-                reflection.record_activity(session_id, "pull-request-open")
-                remember_open_pull_request(
-                    Path(str(event.get("cwd") or Path.cwd())),
-                    _pull_request_number(event, commands),
-                )
-    if event_name in {"Stop", "SubagentStop"}:
-        stop_reason = _stop_block_reason(event, session_id)
-        if stop_reason:
-            _record_denial_with_significance(event, event_name, tool_name)
-            print(json.dumps({"decision": "block", "reason": stop_reason}))
-            return 2
+    print(json.dumps({"additionalContext": context}))
+    return 0
+
+
+def _post_tool_activity(event: dict, event_name: str, commands: tuple, session_id: str, receipt_command: bool, mutation: bool) -> None:
+    if event_name != "PostToolUse" or receipt_command:
+        return
+    if any(learning_session_finalize_command(candidate) for candidate in commands):
+        if learning_completion_artifact(session_id) is not None:
+            reflection.record_activity(session_id, "learning-session-complete")
+        return
+    if any(confirmed_delivery_command(candidate) for candidate in commands):
+        reflection.record_activity(session_id, "delivery-complete")
+        if any(pull_request_merged_command(candidate) for candidate in commands):
+            reflection.record_activity(session_id, "pull-request-merged")
+            clear_open_pull_request(Path(str(event.get("cwd") or Path.cwd())))
+        return
+    if not mutation and not any(delivery_command(candidate) for candidate in commands):
+        return
+    reflection.record_activity(session_id, "mutation")
+    if any(git_commit_command(candidate) for candidate in commands):
+        reflection.record_activity(session_id, "fix-commit")
+    if any(pull_request_open_command(candidate) for candidate in commands):
+        reflection.record_activity(session_id, "pull-request-open")
+        remember_open_pull_request(
+            Path(str(event.get("cwd") or Path.cwd())),
+            _pull_request_number(event, commands),
+        )
+
+
+def _stop_block(event: dict, event_name: str, tool_name: str, session_id: str) -> int | None:
+    if event_name not in {"Stop", "SubagentStop"}:
+        return None
+    reason = _stop_block_reason(event, session_id)
+    if reason:
+        return _deny(event, event_name, tool_name, reason)
+    return None
+
+
+def _publish_grok_load(start: Path) -> None:
+    """Refresh the files Grok reads. Failures stay out of the hook result."""
+    path = Path(__file__).resolve().parents[1] / "grok_model_load.py"
+    if not path.is_file():
+        return
+    spec = importlib.util.spec_from_file_location("chaos_engine_grok_model_load", path)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.publish_from(start)
+
+
+def _session_start_output(event: dict, event_name: str, session_id: str, token) -> int | None:
     if event_name in {"SessionStart", "PreCompact"}:
         module = _unattended_delivery()
         checkpoint = module.checkpoint_from_event(event) if module is not None else None
         if checkpoint is not None:
             print(json.dumps({"additionalContext": module.resume_prompt(checkpoint)}))
             return 0
-    if event_name == "SessionStart":
-        _schedule_store_refresh(Path(str(event.get("cwd") or Path.cwd())))
-        context = _lifecycle.session_start_context(token, ACTIVATION, session_id=session_id)
-        drift = reflection.reflection_controller_drift(Path(str(event.get("cwd") or Path.cwd())))
-        if drift:
-            context = f"{context}\n\n{drift}"
-        print(json.dumps({"additionalContext": context}))
-        return 0
+    if event_name != "SessionStart":
+        return None
+    with contextlib.suppress(OSError, ValueError):
+        _publish_grok_load(Path(str(event.get("cwd") or Path.cwd())))
+    _schedule_store_refresh(Path(str(event.get("cwd") or Path.cwd())))
+    context = _lifecycle.session_start_context(token, ACTIVATION, session_id=session_id)
+    drift = reflection.reflection_controller_drift(Path(str(event.get("cwd") or Path.cwd())))
+    if drift:
+        context = f"{context}\n\n{drift}"
+    print(json.dumps({"additionalContext": context}))
+    _mark_entry_injected(session_id)
+    return 0
+
+
+def _emit_notes(event: dict, event_name: str, session_id: str, mutation: bool, tool_name: str, tool_input: object, commands: tuple) -> None:
     complexity_hint = classifier_complexity_gate_hint(
-        event_name,
-        mutation=mutation,
-        tool_name=tool_name,
-        tool_input=tool_input,
-        commands=commands,
+        event_name, mutation=mutation, tool_name=tool_name, tool_input=tool_input, commands=commands
     )
     retrieve_note = None
     if justification is not None and event_name == "PreToolUse":
@@ -1392,6 +1449,38 @@ def _run_event(event: dict, _host: str) -> int:
     notes = [item for item in (retrieve_note, complexity_hint) if item]
     if notes:
         print(json.dumps({"additionalContext": "\n".join(notes)}))
+
+
+def _run_event(event: dict, _host: str) -> int:
+    tool_input, tool_name, functions_source, functions_direct, commands, event_name = _parse_hook_event(event)
+    blocked = _stash_block(event, event_name, tool_name, commands)
+    if blocked is not None:
+        return blocked
+    session_id = _scope_session(event)
+    kernel_blocked, _normalized = _kernel_block(
+        event, event_name, tool_name, tool_input, commands, session_id, _host
+    )
+    if kernel_blocked is not None:
+        return kernel_blocked
+    token = _session_token(event_name, session_id)
+    injected = _prompt_entry(event, event_name, session_id, _host)
+    if injected is not None:
+        return injected
+    if _record_failed_result(event, event_name, commands, tool_name, session_id):
+        return 0
+    receipt_command, mutation, guard_reason = _command_guard_state(
+        event, event_name, commands, tool_name, tool_input, functions_source, functions_direct, session_id
+    )
+    if guard_reason:
+        return _deny(event, event_name, tool_name, guard_reason)
+    _post_tool_activity(event, event_name, commands, session_id, receipt_command, mutation)
+    stopped = _stop_block(event, event_name, tool_name, session_id)
+    if stopped is not None:
+        return stopped
+    started = _session_start_output(event, event_name, session_id, token)
+    if started is not None:
+        return started
+    _emit_notes(event, event_name, session_id, mutation, tool_name, tool_input, commands)
     return 0
 
 
