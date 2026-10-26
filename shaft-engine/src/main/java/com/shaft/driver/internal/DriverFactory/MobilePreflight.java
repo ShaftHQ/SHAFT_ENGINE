@@ -94,9 +94,17 @@ final class MobilePreflight {
         if (hasUdid) {
             adb.addAll(List.of("-s", udid.trim()));
         }
+        Optional<String> devices = runner.run(with(adb, "devices"));
+        if (devices.isEmpty()) {
+            return; // no adb (iOS or a remote device): nothing more to check locally
+        }
+        if (!connectedDevice(devices.get(), udid)) {
+            throw fail("Appium /status is ready but no Android device is connected"
+                    + (hasUdid ? " for " + udid.trim() : "") + ".");
+        }
         Optional<String> bootOutput = runner.run(with(adb, "shell", "getprop", "sys.boot_completed"));
         if (bootOutput.isEmpty()) {
-            return; // no adb (iOS or a remote device): nothing more to check locally
+            return;
         }
         String boot = bootOutput.get();
         if (!"1".equals(boot.trim())) {
@@ -115,6 +123,28 @@ final class MobilePreflight {
             throw fail("the device cannot resolve " + host + ". On an emulator, restart it with "
                     + "-dns-server <gateway> (see broken DNSSEC on validating resolvers).");
         }
+    }
+
+    static boolean connectedDevice(String adbDevicesOutput, String udid) {
+        String wanted = udid == null ? "" : udid.trim();
+        if (adbDevicesOutput == null) {
+            return false;
+        }
+        for (String line : adbDevicesOutput.lines().toList()) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty() || trimmed.startsWith("List of devices")) {
+                continue;
+            }
+            // A non-zero limit keeps Error Prone StringSplitter off this parse.
+            String[] parts = trimmed.split("\\s+", -1);
+            if (parts.length < 2 || !"device".equals(parts[1])) {
+                continue;
+            }
+            if (wanted.isEmpty() || parts[0].equals(wanted)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static boolean resolved(String pingOutput, String host) {

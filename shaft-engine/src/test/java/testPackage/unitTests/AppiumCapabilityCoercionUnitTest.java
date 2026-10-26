@@ -15,6 +15,14 @@ public class AppiumCapabilityCoercionUnitTest {
     }
 
     @Test
+    public void integerLookingPlatformVersionIsAJsonStringInTheSessionPayload() {
+        String json = OptionsManager.appiumSessionCapabilityJson("appium:platformVersion", "16").replaceAll("\\s+", "");
+        Assert.assertTrue(json.contains("\"appium:platformVersion\":\"16\""), json);
+        String timeout = OptionsManager.appiumSessionCapabilityJson("appium:newCommandTimeout", "600").replaceAll("\\s+", "");
+        Assert.assertTrue(timeout.contains("\"appium:newCommandTimeout\":600"), timeout);
+    }
+
+    @Test
     public void numericUdidStaysAString() {
         Assert.assertEquals(OptionsManager.coerceAppiumCapabilityValue("appium:udid", " 12345 "), "12345");
     }

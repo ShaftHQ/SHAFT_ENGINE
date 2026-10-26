@@ -25,6 +25,7 @@ import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.ie.InternetExplorerOptions;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
+import org.openqa.selenium.json.Json;
 import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
@@ -691,5 +692,14 @@ public class OptionsManager {
             }
         }
         return value;
+    }
+
+    /**
+     * JSON object for one coerced capability, using the same encoder the WebDriver
+     * client uses for a new session (#7155).
+     */
+    public static String appiumSessionCapabilityJson(String appiumCapabilityName, String value) {
+        Object coerced = coerceAppiumCapabilityValue(appiumCapabilityName, value);
+        return new Json().toJson(Map.of(appiumCapabilityName, coerced));
     }
 }
