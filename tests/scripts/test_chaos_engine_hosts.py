@@ -147,7 +147,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
     def test_grok_runtime_requires_trust_and_complete_loaded_lifecycle(self):
         module = load(HOSTS, "chaos_engine_grok_runtime")
         events = (
-            "session_start", "user_prompt_submit", "pre_tool_use", "post_tool_use",
+            "session_start", "subagent_start", "user_prompt_submit", "pre_tool_use", "post_tool_use",
             "post_tool_use_failure", "stop", "subagent_stop", "session_end",
         )
         healthy = {"projectTrusted": True, "hooks": [
@@ -905,6 +905,7 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
             required_events = {
                 "SessionStart",
+                "SubagentStart",
                 "UserPromptSubmit",
                 "PreToolUse",
                 "PostToolUse",

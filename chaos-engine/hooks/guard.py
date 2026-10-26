@@ -1255,6 +1255,19 @@ def classifier_complexity_gate_hint(
     return None
 
 
+def _entry_injected(session_id: str) -> bool:
+    return any(item.get("kind") == "entry-injected" for item in reflection.entries(session_id))
+
+
+def _mark_entry_injected(session_id: str) -> None:
+    if not session_id:
+        return
+    reflection.append_entry(
+        session_id,
+        {"schemaVersion": reflection.SCHEMA_VERSION, "kind": "entry-injected"},
+    )
+
+
 def _run_event(event: dict, _host: str) -> int:
     tool_input = event.get("tool_input", {}) if isinstance(event, dict) else {}
     tool_name = str(event.get("tool_name", "")) if isinstance(event, dict) else ""
@@ -1328,6 +1341,18 @@ def _run_event(event: dict, _host: str) -> int:
             _lifecycle.record_companion_opt_out(session_id, prompt)
         if learning_requested(event):
             reflection.record_activity(session_id, "learning-requested")
+        # Grok discards UserPromptSubmit context. Gemini and Copilot have no
+        # subagent-start event; Claude and Codex use this only when SubagentStart
+        # did not already inject for this agent scope.
+        if _host != "grok" and session_id and not _entry_injected(session_id):
+            _mark_entry_injected(session_id)
+            context = _lifecycle.session_start_context(
+                reflection.record_session_start(session_id),
+                ACTIVATION,
+                session_id=session_id,
+            )
+            print(json.dumps({"additionalContext": context}))
+            return 0
     if _record_failed_result(event, event_name, commands, tool_name, session_id):
         return 0
     receipt_command, mutation, guard_reason = _command_guard_state(
@@ -1375,6 +1400,7 @@ def _run_event(event: dict, _host: str) -> int:
         if drift:
             context = f"{context}\n\n{drift}"
         print(json.dumps({"additionalContext": context}))
+        _mark_entry_injected(session_id)
         return 0
     complexity_hint = classifier_complexity_gate_hint(
         event_name,

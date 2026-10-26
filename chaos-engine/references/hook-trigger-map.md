@@ -2,13 +2,13 @@
 
 Each ChaosEngine lifecycle event fires only at its logical point. Must-hold
 rules are PreToolUse deny. PostToolUse stays silent unless the text changes the
-next decision. SessionStart is guide-only context (Grok ignores SessionStart
-stdout); standing instructions live in the project router, not SessionStart.
+next decision. SessionStart is guide-only context (Grok ignores SessionStart stdout); standing instructions live in the project router, not SessionStart.
 
 | Event | Hosts | Mode | Next-decision effect |
 | --- | --- | --- | --- |
-| `SessionStart` | Claude, Codex, Gemini, Grok, Copilot | guide | Inject compact locators and session identity. Not enforcement. Grok ignores SessionStart stdout — compensate via entrypoint load. |
-| `UserPromptSubmit` | Claude, Codex, Gemini, Grok, Copilot | guide | Companion mode tracking only when the host supports it. |
+| `SessionStart` | Claude, Codex, Gemini, Grok, Copilot | guide | Inject compact locators and session identity. Not enforcement. Grok reads `systemMessage`, not bare stdout. |
+| `SubagentStart` | Claude, Codex, Grok | guide | Same locator injection as SessionStart. Grok does not fire SessionStart for a subagent. |
+| `UserPromptSubmit` | Claude, Codex, Gemini, Grok, Copilot | guide | Companion mode tracking. Gemini and Copilot, which have no subagent-start event, inject the same locators once per agent scope when SessionStart has not. Claude and Codex do that only for a scope SubagentStart missed. Grok discards this event's context. |
 | `PreToolUse` | Claude, Codex, Gemini, Grok, Copilot | enforce | Deny catastrophic or out-of-contract tool use; hold work that owes a reflection receipt; deny primary-checkout mutations when a session worktree exists. |
 | `PostToolUse` | Claude, Codex, Gemini, Grok, Copilot | guide | Record mutation/delivery for reflection. Stay silent unless stdout changes the next decision. |
 | `PostToolUseFailure` | Claude, Codex, Grok, Copilot | guide | Record failure and inject a pending reflection checkpoint only when one is owed. |

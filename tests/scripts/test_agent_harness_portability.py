@@ -672,6 +672,7 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             "PostToolUse",
             "PostToolUseFailure",
             "SessionStart",
+            "SubagentStart",
             "SessionEnd",
             "Stop",
             "SubagentStop",

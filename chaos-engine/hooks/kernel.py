@@ -132,6 +132,14 @@ def gap_exit2_sentence() -> str:
 
 GAP_EXIT2_SENTENCE = gap_exit2_sentence()
 
+# A subagent is a new session on Claude, Codex, and Grok. Those hosts do not
+# fire SessionStart for it. The same locator injection handles the native name.
+_SUBAGENT_ENTRY_ALIASES = {
+    "SubagentStart": "SessionStart",
+    "subagentStart": "SessionStart",
+    "subagent_start": "SessionStart",
+}
+
 
 def _aliases(supported: tuple[str, ...], **values: str) -> Mapping[str, str]:
     base = {event: event for event in supported}
@@ -148,6 +156,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             postToolUse="PostToolUse",
             agentStop="Stop",
             sessionEnd="SessionEnd",
+            **_SUBAGENT_ENTRY_ALIASES,
         ),
         CODEX_EVENTS,
         hard_block_mechanism="permission_decision",
@@ -156,7 +165,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
     ),
     "claude": HostCapability(
         ("CLAUDE.md", ".claude/skills/chaos-engine/SKILL.md"),
-        _aliases(CLAUDE_EVENTS),
+        _aliases(CLAUDE_EVENTS, **_SUBAGENT_ENTRY_ALIASES),
         CLAUDE_EVENTS,
         hard_block_mechanism="exit_2",
         deny_exit_code=2,
@@ -171,6 +180,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             BeforeAgent="UserPromptSubmit",
             AfterAgent="Stop",
             PreCompress="PreCompact",
+            **_SUBAGENT_ENTRY_ALIASES,
         ),
         GEMINI_EVENTS,
         hard_block_mechanism="decision_json",
@@ -193,6 +203,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             stop="Stop",
             subagent_stop="SubagentStop",
             session_end="SessionEnd",
+            **_SUBAGENT_ENTRY_ALIASES,
         ),
         GROK_EVENTS,
         hard_block_mechanism="decision_json",
@@ -214,6 +225,7 @@ HOST_CAPABILITIES: Mapping[str, HostCapability] = {
             subagentStop="SubagentStop",
             preCompact="PreCompact",
             sessionEnd="SessionEnd",
+            **_SUBAGENT_ENTRY_ALIASES,
         ),
         COPILOT_EVENTS,
         static_surfaces=("cloud", "ide"),
