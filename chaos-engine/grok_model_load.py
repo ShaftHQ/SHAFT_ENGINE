@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
-"""Copy the entrypoint, identity, and skills into the directories Grok reads.
+"""Copy the entrypoint and identity into the rules directory Grok reads.
 
-Grok puts `.grok/rules/*.md` in the model prompt and discovers
-`.grok/skills/*/SKILL.md`. SessionStart stdout is not model context, and the
-session-start locator is capped at 600 bytes, so the bodies live here.
-Each copy stays byte-identical to the canonical file.
+Grok puts `.grok/rules/*.md` in the model prompt. SessionStart stdout is not
+model context, and the session-start locator is capped at 600 bytes, so those
+two bodies live here. Each copy stays byte-identical to the canonical file.
+Skill bodies stay one source at `chaos-engine/skills/<name>/SKILL.md`. The
+entrypoint, which this publisher puts in the prompt, routes them.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-COMPANIONS = """# ChaosEngine load
+COMPANIONS = """\
+# ChaosEngine load
 
-`.grok/rules/entrypoint.md` is the ChaosEngine core card and is already in this session.
-`.grok/rules/identity.md` is the identity and is already in this session.
-Every skill is `.grok/skills/<name>/SKILL.md`, the same bytes as `chaos-engine/skills/<name>/SKILL.md`. Follow the skill whose description matches the task.
+`.grok/rules/entrypoint.md` is the ChaosEngine core card and is already in this session. Follow it.
+`.grok/rules/identity.md` is the identity and is already in this session. Follow it.
+Skills are one source at `chaos-engine/skills/<name>/SKILL.md`. The entrypoint routes them. Read that file when its description matches the task.
 Companions are already on (caveman=ultra; ponytail=ultra; off only: stop caveman, stop ponytail, normal mode).
 Before work, run `python3 .chaos-engine/tool.py entry`, then `python3 .chaos-engine/tool.py retrieve`.
 Follow chaos-engine/references/iterative-flow.md, including its session-close checklist.
@@ -53,7 +55,7 @@ def publish_from(start: Path) -> list[str]:
 
 
 def publish(project: Path) -> list[str]:
-    """Write Grok rules and skill copies. Return the paths that changed."""
+    """Write the Grok rules Grok actually reads. Return the paths that changed."""
     project = Path(project)
     root = _canonical_root(project)
     if root is None:
@@ -73,13 +75,4 @@ def publish(project: Path) -> list[str]:
     changed = _write_same(rules / "companions.md", COMPANIONS.encode("utf-8"))
     if changed:
         written.append(changed)
-    skills = root / "skills"
-    if skills.is_dir():
-        for skill in sorted(skills.glob("*/SKILL.md")):
-            if not skill.is_file() or skill.is_symlink():
-                continue
-            destination = project / ".grok" / "skills" / skill.parent.name / "SKILL.md"
-            changed = _write_same(destination, skill.read_bytes())
-            if changed:
-                written.append(changed)
     return written

@@ -222,7 +222,8 @@ class SessionStartLocatorParityTests(unittest.TestCase):
         entrypoint = (ROOT / ".grok/rules/entrypoint.md").read_text(encoding="utf-8")
         self.assertIn("Speak unabridged truth", identity)
         self.assertIn("## Iron laws", entrypoint)
-        self.assertTrue((ROOT / ".grok/skills/kanban/SKILL.md").is_file())
+        self.assertIn("chaos-engine/skills/<name>/SKILL.md", rules)
+        self.assertFalse((ROOT / ".grok/skills/kanban/SKILL.md").exists())
 
     def test_matrix_sessionstart_row_is_green(self):
         text = MATRIX.read_text(encoding="utf-8")

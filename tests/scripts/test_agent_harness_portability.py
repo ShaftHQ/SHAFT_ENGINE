@@ -582,12 +582,9 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
             ".grok/rules/identity.md",
             ".grok/rules/entrypoint.md",
         }
-        skill_copies = {
-            line for line in tracked if line.startswith(".grok/skills/") and line.endswith("/SKILL.md")
-        }
-        # Grok puts rules in the model prompt and discovers .grok/skills.
-        # SessionStart stdout is not model context. These copies are the load.
-        self.assertEqual(set(tracked) - skill_copies, rules)
+        # Grok puts these rules in the model prompt. SessionStart stdout is not
+        # model context. Skill bodies stay the canonical files the entrypoint routes.
+        self.assertEqual(set(tracked), rules)
         self.assertEqual(
             (ROOT / ".grok/rules/identity.md").read_bytes(),
             (ROOT / "chaos-engine/identity.md").read_bytes(),
@@ -598,15 +595,10 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         )
         companions = (ROOT / ".grok/rules/companions.md").read_text(encoding="utf-8")
         self.assertNotIn("## Iron laws", companions)
-        for relative in skill_copies:
-            name = PurePosixPath(relative).parts[2]
-            self.assertEqual(
-                (ROOT / relative).read_bytes(),
-                (ROOT / "chaos-engine/skills" / name / "SKILL.md").read_bytes(),
-                relative,
-            )
+        self.assertIn("chaos-engine/skills/<name>/SKILL.md", companions)
+        self.assertNotIn(".grok/skills/", companions)
 
-    def test_grok_model_load_copies_identity_entrypoint_and_skills(self):
+    def test_grok_model_load_copies_identity_and_entrypoint_not_skills(self):
         path = ROOT / "chaos-engine/grok_model_load.py"
         spec = importlib.util.spec_from_file_location("grok_model_load_portability", path)
         module = importlib.util.module_from_spec(spec)
@@ -628,15 +620,10 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
                 (project / ".grok/rules/entrypoint.md").read_bytes(),
                 b"entry-bytes\n",
             )
-            self.assertEqual(
-                (project / ".grok/skills/kanban/SKILL.md").read_bytes(),
-                b"kanban-bytes\n",
-            )
-            self.assertEqual(
-                (project / ".grok/skills/chaos-engine/SKILL.md").read_bytes(),
-                b"entry-bytes\n",
-            )
-            self.assertIn("python3 .chaos-engine/tool.py entry", (project / ".grok/rules/companions.md").read_text(encoding="utf-8"))
+            self.assertFalse((project / ".grok/skills").exists())
+            companions = (project / ".grok/rules/companions.md").read_text(encoding="utf-8")
+            self.assertIn("python3 .chaos-engine/tool.py entry", companions)
+            self.assertIn("chaos-engine/skills/<name>/SKILL.md", companions)
             self.assertEqual([], module.publish(project))
             self.assertTrue(written)
 
