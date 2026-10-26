@@ -206,6 +206,16 @@ class SessionStartLocatorParityTests(unittest.TestCase):
             self.assertIn("caveman=ultra", unwrap_context(json.loads(first.stdout)))
             self.assertNotIn("caveman=ultra", second.stdout)
 
+    def test_instruction_block_carries_the_companion_load(self):
+        hosts = load_module("ce_hosts_entry_rule", "chaos-engine/hosts.py")
+        block = hosts.instruction_block()
+        self.assertIn("caveman=ultra", block)
+        self.assertIn("ponytail=ultra", block)
+        agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        copilot = (ROOT / ".github/copilot-instructions.md").read_text(encoding="utf-8")
+        self.assertIn("caveman=ultra; ponytail=ultra", agents)
+        self.assertIn("caveman=ultra; ponytail=ultra", copilot)
+
     def test_matrix_sessionstart_row_is_green(self):
         text = MATRIX.read_text(encoding="utf-8")
         self.assertIn(
