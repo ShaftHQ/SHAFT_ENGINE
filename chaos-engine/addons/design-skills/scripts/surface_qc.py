@@ -1,7 +1,7 @@
 """Surface checks for design_qc.py: web tokens, a11y, colour, captions, stills, decks, Arabic and OG images.
 
 Sources: the batch-3 cards W07-W14, V10, I01, S04 and L07 (re-expressed rules, pins in INVENTORY.md).
-Each check is red-then-green tested in tests/scripts/test_ce_design_batch3.py.
+Each check is red-then-green tested in tests/scripts/test_ce_design_batch3.py (deck review checks: test_ce_design_decks.py).
 """
 
 from __future__ import annotations
@@ -300,6 +300,178 @@ def cmd_ogimage(qc, args) -> int:
     return qc.report("ogimage", qc.FAIL if hits else qc.PASS, size=f"{width}x{height}", hits=hits)
 
 
+# ---------------------------------------------------------------- deck review checks (#7418)
+EMU_PT = 12700.0
+DECK_SLIDE = re.compile(r"ppt/slides/slide(\d+)\.xml$")
+
+
+def _attr(tag: str, name: str) -> str | None:
+    found = re.search(rf'(?<![\w:-]){name}="([^"]*)"', tag)
+    return found.group(1) if found else None
+
+
+def _deck_slides(deck: zipfile.ZipFile) -> list[tuple[int, str]]:
+    found = [(int(m.group(1)), n) for n in deck.namelist() if (m := DECK_SLIDE.match(n))]
+    return sorted(found)
+
+
+def cmd_cxnglue(qc, args) -> int:
+    """Connectors are glued at both ends (stCxn and endCxn) and not shorter than --min-length pt."""
+    hits = []
+    with zipfile.ZipFile(args.file) as deck:
+        slides = _deck_slides(deck)
+        for number, name in slides:
+            xml = deck.read(name).decode("utf-8", errors="replace")
+            for index, block in enumerate(re.findall(r"<p:cxnSp\b.*?</p:cxnSp>", xml, re.S), 1):
+                label = _attr(block, "name") or f"connector {index}"
+                for end, tag in (("start", "a:stCxn"), ("end", "a:endCxn")):
+                    if not re.search(rf"<{tag}\b", block):
+                        hits.append(f"slide {number} {label}: {end} not glued ({tag} missing)")
+                ext = re.search(r"<a:ext\b([^>]*)/?>", block)
+                if ext and args.min_length:
+                    cx, cy = float(_attr(ext.group(1), "cx") or 0), float(_attr(ext.group(1), "cy") or 0)
+                    length = max(cx, cy) / EMU_PT
+                    if length < args.min_length:
+                        hits.append(f"slide {number} {label}: {length:.1f} pt long (min {args.min_length:g})")
+    return qc.report("cxnglue", qc.FAIL if hits else qc.PASS, slides=len(slides), hits=hits)
+
+
+def _deck_facts(path: str) -> dict:
+    """Per-slide notes text and external hyperlink targets, plus the typefaces used, from a .pptx."""
+    facts: dict = {"notes": {}, "links": {}, "fonts": set()}
+    with zipfile.ZipFile(path) as deck:
+        slides = _deck_slides(deck)
+        names = set(deck.namelist())
+        for position, (number, name) in enumerate(slides, 1):
+            xml = deck.read(name).decode("utf-8", errors="replace")
+            facts["fonts"].update(re.findall(r'<a:(?:latin|ea|cs)\b[^>]*typeface="([^"]+)"', xml))
+            rels_name = f"ppt/slides/_rels/slide{number}.xml.rels"
+            rels = deck.read(rels_name).decode("utf-8", errors="replace") if rels_name in names else ""
+            links, notes = [], ""
+            for tag in re.findall(r"<Relationship\b[^>]*>", rels):
+                target, kind = _attr(tag, "Target") or "", _attr(tag, "Type") or ""
+                if kind.endswith("/hyperlink") and _attr(tag, "TargetMode") == "External":
+                    links.append(target)
+                elif kind.endswith("/notesSlide"):
+                    notes_name = "ppt/notesSlides/" + target.rsplit("/", 1)[-1]
+                    if notes_name in names:
+                        notes = _notes_text(deck.read(notes_name).decode("utf-8", errors="replace"))
+            facts["notes"][position], facts["links"][position] = notes, sorted(links)
+    return facts
+
+
+def _notes_text(xml: str) -> str:
+    """Body-placeholder text of a notes slide (slide image and number fields are not notes)."""
+    parts = []
+    for shape in re.findall(r"<p:sp\b.*?</p:sp>", xml, re.S):
+        if re.search(r'<p:ph\b[^>]*type="body"', shape):
+            parts.append("".join(re.findall(r"<a:t>([^<]*)</a:t>", shape)))
+    return re.sub(r"\s+", " ", " ".join(parts)).strip()
+
+
+def cmd_pptxparity(qc, args) -> int:
+    """After a re-upload or export: size under the cap, and (with --before) notes, links and fonts unchanged."""
+    hits, size = [], Path(args.file).stat().st_size
+    limit = args.max_bytes * (1 - args.headroom)
+    if size > limit:
+        hits.append(f"size {size} bytes above {limit:.0f} ({args.headroom:.0%} headroom under {args.max_bytes})")
+    slides = None
+    if args.before:
+        old, new = _deck_facts(args.before), _deck_facts(args.file)
+        slides = len(new["notes"])
+        if len(old["notes"]) != slides:
+            hits.append(f"slide count {len(old['notes'])} -> {slides}")
+        for position in sorted(set(old["notes"]) & set(new["notes"])):
+            if position not in args.allow and old["notes"][position] != new["notes"][position]:
+                hits.append(f"slide {position}: speaker notes changed")
+            if position not in args.allow and old["links"][position] != new["links"][position]:
+                hits.append(f"slide {position}: hyperlinks changed {old['links'][position]} -> {new['links'][position]}")
+        hits += [f"typeface removed: {f}" for f in sorted(old["fonts"] - new["fonts"])]
+        hits += [f"typeface added: {f}" for f in sorted(new["fonts"] - old["fonts"])]
+    return qc.report("pptxparity", qc.FAIL if hits else qc.PASS, size=size, slides=slides, hits=hits)
+
+
+def _box(item: dict) -> tuple[float, float, float, float]:
+    return float(item["x"]), float(item["y"]), float(item["w"]), float(item["h"])
+
+
+def _pad_rows(entry: dict, default: dict, sym: float | None) -> tuple[list[str], dict]:
+    ox, oy, ow, oh = _box(entry["outer"])
+    ix, iy, iw, ih = _box(entry["inner"])
+    got = {"l": ix - ox, "r": (ox + ow) - (ix + iw), "t": iy - oy, "b": (oy + oh) - (iy + ih)}
+    floor = {**default, **entry.get("min", {})}
+    hits = [f"{entry['id']}: padding {side} {got[side]:.1f} below {floor[side]:g}" for side in "lrtb" if got[side] < floor[side]]
+    tol = entry.get("sym", sym)
+    if tol is not None:
+        hits += [f"{entry['id']}: padding {a}/{b} {got[a]:.1f} vs {got[b]:.1f} not within {tol:g}"
+                 for a, b in ("lr", "tb") if abs(got[a] - got[b]) > tol]
+    return hits, {k: round(v, 1) for k, v in got.items()}
+
+
+def cmd_deckgap(qc, args) -> int:
+    """Spacing contracts on measured (rendered ink) boxes: container padding, gaps, whole gap chains."""
+    data = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    default = dict(zip("lrtb", (float(v) for v in args.pad.split(","))))
+    hits, table = [], []
+    for entry in data.get("pads", []):
+        found, got = _pad_rows(entry, default, args.sym)
+        hits += found
+        table.append({"id": entry["id"], "padding": got})
+    for entry in data.get("gaps", []):
+        hits += _gap_rows(entry, entry["a"], entry["b"], entry.get("min", args.min_gap), table, entry["id"])
+    for chain in data.get("chains", []):
+        boxes = chain["boxes"]
+        for before, after in zip(boxes, boxes[1:]):
+            hits += _gap_rows(chain, before, after, chain.get("min", args.min_gap), table, f"{chain['id']}:{before['id']}>{after['id']}")
+    if not table:
+        raise qc.Skip("no pads, gaps or chains in the measurement file")
+    return qc.report("deckgap", qc.FAIL if hits else qc.PASS, hits=hits, table=table)
+
+
+def _gap_rows(entry: dict, first: dict, second: dict, floor: float, table: list, label: str) -> list[str]:
+    axis = entry.get("axis", "y")
+    ax, ay, aw, ah = _box(first)
+    bx, by, bw, bh = _box(second)
+    gap = (by - (ay + ah)) if axis == "y" else (bx - (ax + aw))
+    table.append({"id": label, "gap": round(gap, 1)})
+    return [f"{label}: gap {gap:.1f} below {floor:g}"] if gap < floor else []
+
+
+def _pixels(qc, path: str) -> tuple[int, int, bytes]:
+    stream = qc.video_stream(qc.ffprobe(path))
+    width, height = int(stream["width"]), int(stream["height"])
+    return width, height, qc.decode_raw(path, ["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24"])
+
+
+def _changed_share(a: bytes, b: bytes, width: int, chan: int) -> float:
+    row, over = width * 3, 0
+    for start in range(0, len(a), row):
+        left, right = a[start:start + row], b[start:start + row]
+        if left == right:
+            continue
+        for i in range(0, row, 3):
+            if abs(left[i] - right[i]) + abs(left[i + 1] - right[i + 1]) + abs(left[i + 2] - right[i + 2]) > chan:
+                over += 1
+    return 100.0 * over / (len(a) // 3)
+
+
+def cmd_slidediff(qc, args) -> int:
+    """Per-slide PNG diff between two rounds: only the slides listed in --expect may change."""
+    before, after = {p.name: p for p in Path(args.before).glob("*.png")}, {p.name: p for p in Path(args.after).glob("*.png")}
+    hits, changed = [f"{n}: missing from {side}" for side, a, b in (("after", before, after), ("before", after, before))
+                     for n in sorted(set(a) - set(b))], {}
+    for name in sorted(set(before) & set(after)):
+        w1, h1, a = _pixels(qc, str(before[name]))
+        w2, h2, b = _pixels(qc, str(after[name]))
+        share = 100.0 if (w1, h1) != (w2, h2) else _changed_share(a, b, w1, args.chan)
+        if share > args.min_pct:
+            changed[name] = round(share, 3)
+    expect = {e if e.endswith(".png") else f"{e}.png" for e in args.expect}
+    hits += [f"{n}: changed {share}% of pixels, not expected" for n, share in changed.items() if n not in expect]
+    hits += [f"{n}: expected to change but did not" for n in sorted(expect - set(changed)) if n in after]
+    return qc.report("slidediff", qc.FAIL if hits else qc.PASS, compared=len(set(before) & set(after)), changed=changed, hits=hits)
+
+
 def register(add, qc) -> None:
     """Add the surface subcommands to design_qc's parser."""
     def bind(func):
@@ -339,3 +511,23 @@ def register(add, qc) -> None:
     p.add_argument("--max-words", type=int, default=6)
     p.add_argument("--ratio", type=float, default=0.026)
     p.add_argument("--contrast", type=float, default=4.5)
+    p = add("cxnglue", bind(cmd_cxnglue), ".pptx connectors glued at both ends (stCxn, endCxn) and long enough")
+    p.add_argument("file")
+    p.add_argument("--min-length", type=float, default=36.0, help="shortest connector in pt (0 disables)")
+    p = add("pptxparity", bind(cmd_pptxparity), ".pptx export size under the cap; with --before: notes, links, typefaces unchanged")
+    p.add_argument("file")
+    p.add_argument("--before", help="the previous round's .pptx")
+    p.add_argument("--max-bytes", type=int, default=10 * 1024 * 1024)
+    p.add_argument("--headroom", type=float, default=0.05)
+    p.add_argument("--allow", type=int, action="append", default=[], help="slide number whose notes or links may change")
+    p = add("deckgap", bind(cmd_deckgap), "measured boxes JSON: container padding, gaps and gap chains")
+    p.add_argument("file")
+    p.add_argument("--pad", default="12,12,7,7", help="minimum padding l,r,t,b in pt")
+    p.add_argument("--sym", type=float, default=None, help="opposite paddings may differ by at most this")
+    p.add_argument("--min-gap", type=float, default=6.0)
+    p = add("slidediff", bind(cmd_slidediff), "per-slide PNG diff between rounds; unexpected changes fail")
+    p.add_argument("before")
+    p.add_argument("after")
+    p.add_argument("--expect", action="append", default=[], help="slide file (stem or name) that must change")
+    p.add_argument("--chan", type=int, default=30, help="summed RGB difference that counts as a changed pixel")
+    p.add_argument("--min-pct", type=float, default=0.02, help="percent of changed pixels that counts as a changed slide")

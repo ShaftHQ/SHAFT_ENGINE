@@ -34,6 +34,13 @@ only the final Done, with evidence.
   action the user did not already ask for; those still need the user.
 - A sign-off names the full head SHA it reviewed. Before merging, check it
   equals the PR head; on a mismatch or no SHA, ask for a re-sign-off.
+- Reviewer evidence: re-run every check on a fresh copy of the artifact; the
+  implementer's own tool output is never evidence. A reject names the
+  location, the measured value and the expected value.
+- A sign-off on an artifact outside git (document, deck, design file) names
+  the version it reviewed (revision id, modified time or hash). Before
+  accepting it, compare with the current version; if the artifact changed
+  after the review copy was taken, re-review.
 - Cap: 5 rounds without convergence. Stop and escalate to the user with the
   open findings and each agent's position.
 

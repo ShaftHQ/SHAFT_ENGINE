@@ -63,8 +63,9 @@ One system across every chapter of a course:
 
 When an orchestrator and a reviewer agent deliver together, follow the
 multi-agent PDCA loop in the harness references (`multi-agent-pdca.md`).
-Reviewer replies are either an issue list per output and slide/page number,
-or `SIGN-OFF`. Review order, cheapest first:
+Reviewer replies are either an issue list per output and slide/page number
+(each with the measured and the expected value, see
+[S05](deck-qc-measurable.md)), or `SIGN-OFF`. Review order, cheapest first:
 
 1. Automated: `pdffonts` (off-brand fonts, including empty runs), a
    stale-figure grep, footer and slide-number counts, `design_qc.py
