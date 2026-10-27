@@ -793,10 +793,8 @@ class HarnessReachabilityTest(unittest.TestCase):
         self.assertEqual(
             report["stale_named_paths"],
             [
-                "scripts/*.py (named in .agents/skills/act-as-mohab/SKILL.md) "
-                "matches no tracked path",
-                "scripts/missing.py (named in .agents/skills/act-as-mohab/SKILL.md) "
-                "matches no tracked path",
+                "scripts/*.py (named in .agents/skills/act-as-mohab/SKILL.md) matches no tracked path",
+                "scripts/missing.py (named in .agents/skills/act-as-mohab/SKILL.md) matches no tracked path",
             ],
         )
 
