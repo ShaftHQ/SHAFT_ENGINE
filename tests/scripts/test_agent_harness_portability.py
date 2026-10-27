@@ -1042,11 +1042,16 @@ class AgentHarnessPortabilityTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             deployed = Path(temporary_directory) / "chaos-engine"
             shutil.copytree(canonical, deployed)
+            from tests.scripts.test_ce_guard_reachability import ignored_starter_target
+
             broken = []
             for path in deployed.rglob("*.md"):
                 for raw in re.findall(r"(?<!!)\[[^]]*\]\(([^)]+)\)", path.read_text(encoding="utf-8")):
                     target = raw.strip().strip("<>").split("#", 1)[0]
                     if not target or re.match(r"^[a-z][a-z0-9+.-]*:", target, re.I):
+                        continue
+                    source = path.relative_to(deployed).as_posix()
+                    if ignored_starter_target(source, target, lambda item: (deployed / item).is_file()):
                         continue
                     resolved = (path.parent / target).resolve()
                     try:

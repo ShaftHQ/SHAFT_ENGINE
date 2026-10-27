@@ -136,6 +136,12 @@ def link_walk(root: Path, entrypoint: str) -> tuple[set[str], list[str]]:
         path = root / current
         if path.suffix != ".md" or not path.is_file():
             continue
+        # Copied starters name paths in the workspace they are copied into.
+        # Incoming links still have to reach the file. Outgoing links do not
+        # count, or a `{slug}` slot fails a faithful vendor pin. A file that
+        # only a template links stays an orphan.
+        if "templates" in Path(current).parts:
+            continue
         for raw in MARKDOWN_LINK.findall(path.read_text(encoding="utf-8")):
             target = raw.strip().strip("<>").split("#", 1)[0]
             if not target or URI_SCHEME.match(target):
@@ -212,6 +218,30 @@ def entry_gap(element: str, deployable: str, entries: dict[str, set[str]]) -> st
         return ""
     missing = sorted(name for name, seen in entries.items() if element not in seen)
     return f"{element} (not linked from the {'/'.join(missing)} entry)" if missing else ""
+
+
+def named_token_has_ancestor_file(root: Path, token: str, source: str, nodes: set[str]) -> bool:
+    """True when an ancestor of `source` holds `token` as a tracked file.
+
+    Skill prose names `scripts/quotes.py` from the skill root. That token is
+    not a repository-root path, and the file is still tracked. Searching the
+    whole tree would let a decoy hide a rename, so only ancestors count. A
+    wildcard stays on the glob check: ancestor matching must not make it pass.
+    """
+    if "*" in token or not token or token.startswith("/") or ".." in Path(token).parts:
+        return False
+    current = (root / source).parent
+    while True:
+        candidate = current / token
+        try:
+            relative = candidate.relative_to(root).as_posix()
+        except ValueError:
+            return False
+        if relative in nodes and candidate.is_file():
+            return True
+        if current == root:
+            return False
+        current = current.parent
 
 
 def path_tokens(root: Path, reached: set[str], roots: set[str]) -> dict[str, str]:
@@ -304,6 +334,7 @@ def harness_report(root: Path) -> dict[str, list[str]]:
         f"{token} (named in {source}) matches no tracked path"
         for token, source in tokens.items()
         if not any(token_matchers[token].match(node) for node in nodes)
+        and not named_token_has_ancestor_file(root, token, source, nodes)
     )
 
     # Which elements the config would have missed. Reported rather than

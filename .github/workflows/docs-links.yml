@@ -51,7 +51,14 @@ jobs:
           set -o pipefail
           mode=(--offline)
           [ "$EXTERNAL" = "true" ] && mode=(--github-token "$GH_TOKEN")
-          git ls-files -z '*.md' | xargs -0 "$RUNNER_TEMP/lychee-bin" --config lychee.toml --no-progress \
+          # .memory/** is tracked markdown. lychee.toml exclude_path drops it,
+          # but the first xargs chunk is only those files, lychee exits 123,
+          # and pipefail stops before any other markdown is checked.
+          # ICM templates are copied into a workspace. Their {slug} links are
+          # not repository files. Other vendor markdown stays in the check.
+          git ls-files -z -- '*.md' ':!.memory' \
+            ':!chaos-engine/vendor/icm-architect/skills/icm-architect/assets/templates' \
+            | xargs -0 "$RUNNER_TEMP/lychee-bin" --config lychee.toml --no-progress \
             --root-dir "$GITHUB_WORKSPACE" "${mode[@]}" --format markdown --output lychee-report.md
       - name: Summary
         if: always()

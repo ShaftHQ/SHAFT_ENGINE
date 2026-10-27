@@ -6,8 +6,8 @@ ai-level: L0   # L0 manual · L1 copy-paste · L2 structured · L3 integrated
 frequency: {daily|weekly|monthly|ad-hoc}
 value: 3       # 1–5, to the business
 pain: 3        # 1–5, to the people doing it
-consumes: ["[[data-{input-asset}]]"]
-produces: ["[[data-{output-asset}]]"]
+consumes: ["../data/data-{input-asset}.md"]    # [[wikilinks]] only if the schema declares an Obsidian vault
+produces: ["../data/data-{output-asset}.md"]
 governance: internal   # internal · sensitive · external
 ---
 

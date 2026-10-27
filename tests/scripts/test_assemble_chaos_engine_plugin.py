@@ -255,9 +255,14 @@ class AssembleActAsMohabPluginTest(unittest.TestCase):
     def test_assembly_keeps_every_relative_markdown_link_inside_the_package(self):
         assemble(ROOT, self.package_root)
 
+        from tests.scripts.test_ce_guard_reachability import ignored_starter_target
+
         for document in self.package_root.rglob("*.md"):
+            source = document.relative_to(self.package_root).as_posix()
             for target in MARKDOWN_LINK.findall(document.read_text(encoding="utf-8")):
                 if "://" in target or target.startswith("mailto:"):
+                    continue
+                if ignored_starter_target(source, target, lambda item: (self.package_root / item).is_file()):
                     continue
                 resolved = (document.parent / target).resolve()
                 self.assertTrue(resolved.is_relative_to(self.package_root.resolve()), (document, target))

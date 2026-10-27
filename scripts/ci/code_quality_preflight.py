@@ -17,6 +17,9 @@ and, on the Java methods a branch changes:
 - npath: a method whose PMD NPath exceeds the gate (Codacy NPathComplexity),
   estimated by ``scripts/ci/java_npath.py``
 
+``chaos-engine/vendor/`` is an upstream copy. It is not checked. Scripts we
+own, including this directory, still are.
+
 Usage: ``python3 scripts/ci/code_quality_preflight.py [--base REF] [paths...]``
 """
 
@@ -246,6 +249,10 @@ def preflight_findings(root: Path, changed: dict[str, set[int]] | None = None,
     merge_base = (_git(root, "merge-base", base, "HEAD") or "").strip() if diffed else ""
     findings: list[str] = []
     for name in sorted(changed):
+        # Upstream companion blobs must keep matching upstream. Restyling them
+        # to satisfy this gate would fork the pin.
+        if name.replace("\\", "/").startswith("chaos-engine/vendor/"):
+            continue
         path = root / name
         if not path.is_file():
             continue

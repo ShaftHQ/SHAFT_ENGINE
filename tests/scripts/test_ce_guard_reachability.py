@@ -40,6 +40,25 @@ def markdown_files() -> list[str]:
     return sorted(path for path in installed_layout() if path.endswith(".md"))
 
 
+def ignored_starter_target(source: str, target: str, exists) -> bool:
+    """True when `target` is not a file in this repository.
+
+    `{slug}`, `{name}` and `{file}` are fill-ins in a copied starter. A path
+    with no brace is still checked. A template may also name the workspace
+    path a sibling starter is copied to (`setup/questionnaire.md` beside
+    `questionnaire.md`). A missing basename is not that case.
+    """
+    if "{" in target or "}" in target:
+        return True
+    parts = source.split("/")
+    if "assets" not in parts or "templates" not in parts:
+        return False
+    parent = posixpath.dirname(source)
+    sibling = posixpath.normpath(posixpath.join(parent, posixpath.basename(target)))
+    resolved = posixpath.normpath(posixpath.join(parent, target))
+    return sibling != resolved and bool(exists(sibling))
+
+
 def broken_installed_links() -> list[tuple[str, int, str]]:
     layout = installed_layout()
     directories = {posixpath.dirname(path) for path in layout}
@@ -49,6 +68,8 @@ def broken_installed_links() -> list[tuple[str, int, str]]:
         for number, line in enumerate(text.splitlines(), 1):
             for target in LINK.findall(line):
                 if "://" in target or target.startswith("mailto:"):
+                    continue
+                if ignored_starter_target(relative, target, layout.__contains__):
                     continue
                 resolved = posixpath.normpath(posixpath.join(posixpath.dirname(relative), target))
                 if resolved not in layout and resolved.rstrip("/") not in directories:
@@ -190,6 +211,27 @@ class GuardReachabilityTest(unittest.TestCase):
 
     def test_installed_overlay_has_no_broken_relative_links(self):
         self.assertEqual([], broken_installed_links())
+
+
+class StarterLinkTest(unittest.TestCase):
+    """A brace slot is not a missing file. A path with no brace still is."""
+
+    def test_brace_placeholder_is_ignored_and_a_real_miss_is_not(self):
+        present = {
+            "assets/templates/questionnaire.md",
+            "assets/templates/entry.md",
+        }
+
+        def exists(path: str) -> bool:
+            return path in present
+
+        self.assertTrue(ignored_starter_target("assets/templates/claim.md", "../concepts/{slug}.md", exists))
+        self.assertTrue(ignored_starter_target("assets/templates/entry.md", "stages/01_{name}/CONTEXT.md", exists))
+        self.assertTrue(ignored_starter_target("assets/templates/source.md", "raw/{file}", exists))
+        self.assertTrue(ignored_starter_target("assets/templates/entry.md", "setup/questionnaire.md", exists))
+        self.assertFalse(ignored_starter_target("assets/templates/entry.md", "setup/missing.md", exists))
+        self.assertFalse(ignored_starter_target("references/guide.md", "missing.md", exists))
+        self.assertFalse(ignored_starter_target("references/guide.md", "setup/questionnaire.md", exists))
 
     def test_stale_prefer_openai_compat_is_gone(self):
         for relative in markdown_files():

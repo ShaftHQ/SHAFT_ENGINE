@@ -95,7 +95,8 @@ def copy_tree(source: Path, destination: Path, allowed_files: set[Path]) -> None
     source = require_contained(source.parent, source, "canonical reference directory")
     for path in sorted(path for path in allowed_files if path.is_relative_to(source)):
         path = require_contained(source, path, "canonical reference")
-        if path.suffix not in PORTABLE_SOURCE_SUFFIXES and path.name != "LICENSE":
+        # keep-out.txt is the ICM template INVENTORY links. .txt is not otherwise portable.
+        if path.suffix not in PORTABLE_SOURCE_SUFFIXES and path.name not in {"LICENSE", "keep-out.txt"}:
             continue
         target = destination / path.relative_to(source)
         target.parent.mkdir(parents=True, exist_ok=True)

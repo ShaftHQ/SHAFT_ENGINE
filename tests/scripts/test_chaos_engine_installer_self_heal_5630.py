@@ -216,7 +216,7 @@ class InstallerSelfHeal5630Test(unittest.TestCase):
             jre_java.write_bytes(b"java")
             self.assertFalse(hosts.java_compiler_present(jre_java))
 
-            jdk_root = root / "temurin" / "25.0.4+7" / "linux-x64"
+            jdk_root = root / "temurin" / "25.0.5+8" / "linux-x64"
             jdk_java = jdk_root / "bin" / "java"
             jdk_javac = jdk_root / "bin" / "javac"
             jdk_java.parent.mkdir(parents=True)
@@ -227,7 +227,7 @@ class InstallerSelfHeal5630Test(unittest.TestCase):
                     {
                         "schemaVersion": 1,
                         "runtime": "temurin",
-                        "version": "25.0.4+7",
+                        "version": "25.0.5+8",
                         "hostPlatform": "linux-x64",
                         "artifactArchitecture": "x64",
                         "emulated": False,

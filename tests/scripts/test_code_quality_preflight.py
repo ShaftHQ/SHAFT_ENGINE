@@ -49,6 +49,29 @@ class CodeQualityPreflightTest(unittest.TestCase):
         explained = "try:\n    x = 1\nexcept OSError:\n    pass  # best effort: cleanup may race\n"
         self.assertEqual(findings(explained), [])
 
+    def test_vendor_empty_except_is_not_a_finding_and_ours_still_is(self):
+        """Upstream companions are not ours to restyle. Our scripts stay gated."""
+        source = "try:\n    x = 1\nexcept OSError:\n    pass\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            vendor = root / "chaos-engine/vendor/icm-architect/skills/icm-architect/scripts"
+            own = root / "scripts/ci"
+            vendor.mkdir(parents=True)
+            own.mkdir(parents=True)
+            (vendor / "index.py").write_text(source, encoding="utf-8")
+            (own / "checked.py").write_text(source, encoding="utf-8")
+            found = MODULE.preflight_findings(
+                root,
+                {
+                    "chaos-engine/vendor/icm-architect/skills/icm-architect/scripts/index.py": {0},
+                    "scripts/ci/checked.py": {0},
+                },
+            )
+        self.assertEqual(len(found), 1)
+        self.assertIn("scripts/ci/checked.py", found[0])
+        self.assertIn("empty-except", found[0])
+        self.assertNotIn("chaos-engine/vendor", "\n".join(found))
+
     def test_unnecessary_lambda(self):
         self.assertIn("unnecessary-lambda", findings("key = lambda item: str(item)\n")[0])
         self.assertEqual(findings("key = lambda item: item.name(item)\n"), [])
