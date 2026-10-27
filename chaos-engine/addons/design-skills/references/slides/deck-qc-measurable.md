@@ -26,7 +26,8 @@ Companion to [C12 training decks](../craft/training-decks.md) and
 4. **Spacing contracts**: padding inside containers on rendered text
    (example: L/R >= 12, T/B >= 7), content to note/reference gap, text to
    image gap >= 6, opposite sides within +-2. Chips and pills get their own
-   smaller numbers; say so in the table.
+   smaller numbers; say so in the table. State the trio as rows: gap >= 6,
+   padding >= 12, and the note and reference clearances.
 5. **Cross-deck sameness**: the same component renders the same pixels in
    every deck. Diff a reference crop of one deck against every instance
    (art region diff = 0.00 %).
@@ -86,8 +87,13 @@ inside a fixed container pushes it into its neighbours.
 
 ## Checks
 
-- `design_qc.py cxnglue deck.pptx [--min-length PT]`: connectors glued at
-  both ends and long enough.
+- `design_qc.py cxnglue deck.pptx [--min-leg 10] [--min-length PT]
+  [--min-straight PT]`: glued at both ends; every elbow leg (from ext and
+  adj*, rot/flips ignored) >= 10 pt; `--min-length` (e.g. 36) is an opt-in
+  floor on the elbow final leg, straights opt-in. Waiver: accepted short
+  finals and 23-34 pt straight spokes pass the defaults.
+- Arrow colour, width and head are a whitelist of spec tokens (example: one
+  neutral grey token); any other value fails.
 - `design_qc.py deckgap measured.json [--pad l,r,t,b] [--sym PT]`: padding,
   gaps and gap chains over measured boxes; prints the whole gap table.
 - `design_qc.py slidediff round1/ round2/ [--expect s12 ...]`: per-slide PNG

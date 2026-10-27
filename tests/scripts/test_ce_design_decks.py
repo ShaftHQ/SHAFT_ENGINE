@@ -22,9 +22,11 @@ QC = DESIGN / "scripts/design_qc.py"
 HAS_FFMPEG = bool(shutil.which("ffmpeg") and shutil.which("ffprobe"))
 CARDS = {
     "deck-qc-measurable.md": ("name: deck-qc-measurable", "zero rows", "rendered spans", "padding", "Ghost layout art", "pixel",
-                              "design_qc.py cxnglue", "design_qc.py deckgap", "design_qc.py slidediff", "Waivers"),
+                              "design_qc.py cxnglue", "design_qc.py deckgap", "design_qc.py slidediff", "Waivers", "--min-leg 10", "whitelist", "padding >= 12"),
     "deck-roundtrip-review.md": ("name: deck-roundtrip-review", "modified time", "speaker notes", "10 MB",
-                                 "design_qc.py pptxparity", "reject", "delta", "re-check external state"),
+                                 "design_qc.py pptxparity", "reject", "delta", "re-check external state",
+                                 "application/vnd.google-apps.presentation", "redraw", "re-resolve", "never from a cached file",
+                                 "never body text", "no client names"),
 }
 
 
@@ -44,11 +46,21 @@ def png(path: Path, width: int, height: int, paint) -> Path:
     return path
 
 
-def deck(path: Path, slides: list[dict]) -> Path:
-    """slides: {connectors: [xml], notes: [text runs], links: [urls], font: name}."""
+def text_shape(kind: str | None, text: str) -> str:
+    ph = f'<p:ph type="{kind}"/>' if kind else ""
+    return f"<p:sp><p:nvSpPr><p:nvPr>{ph}</p:nvPr></p:nvSpPr><p:txBody><a:p><a:r><a:t>{text}</a:t></a:r></a:p></p:txBody></p:sp>"
+
+
+def deck(path: Path, slides: list[dict], order: list[int] | None = None) -> Path:
+    """slides: {connectors: [xml], body: [(ph type|None, text)], notes: [runs], links: [urls], font}; order: sldIdLst."""
     with zipfile.ZipFile(path, "w") as z:
+        if order:
+            z.writestr("ppt/presentation.xml", '<p:presentation xmlns:p="p" xmlns:r="r"><p:sldIdLst>'
+                       + "".join(f'<p:sldId id="{255 + n}" r:id="rId{n}"/>' for n in order) + "</p:sldIdLst></p:presentation>")
+            z.writestr("ppt/_rels/presentation.xml.rels", "<Relationships>" + "".join(
+                f'<Relationship Id="rId{n}" Type="http://x/slide" Target="slides/slide{n}.xml"/>' for n in order) + "</Relationships>")
         for number, slide in enumerate(slides, 1):
-            body = "".join(slide.get("connectors", []))
+            body = "".join(slide.get("connectors", [])) + "".join(text_shape(k, t) for k, t in slide.get("body", []))
             z.writestr(f"ppt/slides/slide{number}.xml",
                        f'<p:sld xmlns:a="a" xmlns:p="p"><a:r><a:latin typeface="{slide.get("font", "Lato")}"/></a:r>{body}</p:sld>')
             rels = "".join(f'<Relationship Id="l{i}" Type="http://x/hyperlink" Target="{u}" TargetMode="External"/>'
@@ -107,6 +119,12 @@ class PdcaRulesTest(unittest.TestCase):
             self.assertNotIn(term, text.lower())
 
 
+ELBOW_D1S7 = ('<p:cxnSp><p:nvCxnSpPr><p:cNvPr id="6" name="Elbow 6"/><p:cNvCxnSpPr><a:stCxn id="2" idx="2"/>'
+              '<a:endCxn id="3" idx="0"/></p:cNvCxnSpPr></p:nvCxnSpPr><p:spPr><a:xfrm flipH="1" rot="-5400000">'
+              '<a:off x="2596185" y="2852750"/><a:ext cx="142800" cy="507900"/></a:xfrm><a:prstGeom prst="bentConnector3">'
+              '<a:avLst><a:gd fmla="val 50000" name="adj1"/></a:avLst></a:prstGeom></p:spPr></p:cxnSp>')
+
+
 class CxnGlueTest(unittest.TestCase):
     def check(self, slide_xml: list[str], code: int, *extra: str) -> dict:
         with tempfile.TemporaryDirectory() as folder:
@@ -122,11 +140,32 @@ class CxnGlueTest(unittest.TestCase):
 
     def test_flags_tiny_connectors_unless_disabled(self) -> None:
         tiny = connector((True, True), cx=76200, cy=0)  # 6 pt
-        self.check([tiny], 1)
-        self.check([tiny], 0, "--min-length", "0")
+        self.check([tiny], 0)  # straights are opt-in: accepted 23-34 pt spokes stay green
+        self.check([tiny], 1, "--min-straight", "12")
+        self.check([connector((True, True), cx=381000)], 0)  # 30 pt straight, default gates
 
     def test_long_rotated_elbow_uses_longer_extent(self) -> None:
         self.check([connector((True, True), cx=0, cy=914400)], 0)  # vertical, 72 pt
+
+    def test_rotated_flipped_elbow_short_final_leg_fails(self) -> None:  # review-r1 d1 s7 regression, minimal XML
+        payload = self.check([ELBOW_D1S7], 1)
+        self.assertTrue(any("elbow leg 3 5.6 pt (min 10)" in h for h in payload["hits"]), payload)
+        payload = self.check([ELBOW_D1S7], 1, "--min-length", "36")
+        self.assertTrue(any("final leg 5.6 pt (min 36)" in h for h in payload["hits"]), payload)
+        accepted = ELBOW_D1S7.replace('cx="142800" cy="507900"', 'cx="584200" cy="507900"')  # 23 pt final leg
+        self.check([accepted], 0)
+        self.check([accepted], 1, "--min-length", "36")
+        ok = ELBOW_D1S7.replace('cx="142800" cy="507900"', 'cx="1016000" cy="507900"')  # 80 pt wide: legs 40/40
+        self.check([ok], 0)
+        self.check([ELBOW_D1S7], 1, "--min-length", "0")  # min-leg alone still catches it
+        self.check([ELBOW_D1S7], 0, "--min-length", "0", "--min-leg", "0")
+
+    def test_slides_follow_sldidlst_order(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            path = deck(Path(folder) / "d.pptx", [{"connectors": [connector((True, True))]},
+                                                  {"connectors": [connector((True, False))]}], order=[2, 1])
+            _code, payload = run_qc("cxnglue", str(path))
+            self.assertEqual(["slide 1 Arrow 9: end not glued (a:endCxn missing)"], payload["hits"])
 
 
 class PptxParityTest(unittest.TestCase):
@@ -149,6 +188,24 @@ class PptxParityTest(unittest.TestCase):
         code, payload = self.run_pair([base], [{**base, "font": "Arial"}])
         self.assertEqual(1, code)
         self.assertEqual({"typeface added: Arial", "typeface removed: Lato"}, set(payload["hits"]))
+
+    def test_entities_and_paragraphs_decode_once(self) -> None:  # d2 s36: &quot; vs literal quote
+        self.assertEqual(0, self.run_pair([{"notes": ['Say &quot;ACE&quot;']}], [{"notes": ['Say "ACE"']}])[0])
+        self.assertEqual(0, self.run_pair([{"notes": ["A &amp; B"]}], [{"notes": ["A &#38; B"]}])[0])
+        self.assertEqual(1, self.run_pair([{"notes": ['Say "ACE"']}], [{"notes": ["Say 'ACE'"]}])[0])
+
+    def test_body_renumber_caught_footer_ignored(self) -> None:
+        old = {"body": [("title", "Quiz"), (None, "Question 17"), ("sldNum", "5")], "notes": ["n"]}
+        self.assertEqual(0, self.run_pair([old], [{**old, "body": [("title", "Quiz"), (None, "Question 17"), ("sldNum", "6")]}])[0])
+        code, payload = self.run_pair([old], [{**old, "body": [("title", "Quiz"), (None, "Question 18"), ("sldNum", "5")]}])
+        self.assertEqual(1, code)
+        self.assertIn("slide 1: body text changed", payload["hits"])
+
+    def test_inserted_slide_matches_by_signature(self) -> None:
+        a, b, c = ({"body": [(None, t)], "notes": [t]} for t in ("Alpha", "Beta", "Gamma"))
+        code, payload = self.run_pair([a, b, c], [a, {"body": [(None, "Divider")], "notes": []}, b, c])
+        self.assertEqual(1, code)
+        self.assertEqual(["slide count 3 -> 4", "new slide 2: no match in old deck"], payload["hits"])
 
     def test_allow_lists_a_slide_that_may_change(self) -> None:
         base = {"notes": ["x"]}

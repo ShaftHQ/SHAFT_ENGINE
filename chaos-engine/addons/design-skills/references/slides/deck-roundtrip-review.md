@@ -18,14 +18,24 @@ rules are in the harness reference `multi-agent-pdca.md`.
   notes (text diff per slide against the previous export), hyperlinks
   (count and target per slide), fonts (PDF embedded fonts and pptx
   typefaces), text frames, folder contents, "Next:" and breadcrumb strings.
-  `design_qc.py pptxparity new.pptx --before old.pptx` covers notes, links,
-  typefaces, slide count and the size cap.
+  `design_qc.py pptxparity new.pptx --before old.pptx` covers notes, body
+  text, links, typefaces, slide count and the size cap.
 - **Export size cap**: the tool's pptx export has a cap (10 MB). A deck at
   1 % under it loses its export on the next image. Track the size per
   round, keep a headroom (default 5 %), compress before adding images.
 - **Race with the implementer**: an export can predate a later edit.
   Compare the file's modified time with your export time and re-list
-  before signing; if newer, re-export.
+  before signing; if newer, re-export. Re-export from the cloud copy,
+  never from a cached file.
+- Upload with an explicit target mimeType
+  (`application/vnd.google-apps.presentation`) or the file stays a pptx.
+- **API edit traps**: moving a line by API detaches or diagonalises the
+  connector; delete and redraw it glued. Images cannot be resized by API;
+  re-insert at size. A slide re-import gives new slide and object IDs:
+  re-resolve every ID, re-check notes and links on that slide.
+- **Renumbering** (quiz 17 -> 18) touches footers and numbers only, never
+  body text; `pptxparity` diffs body text (footer and slide-number fields
+  ignored) and matches slides by content when counts differ.
 - Prefer editing in place (same ID, partial slide re-import) over a full
   re-upload; the changelog names exactly which slides changed.
 
@@ -41,6 +51,7 @@ rules are in the harness reference `multi-agent-pdca.md`.
   to the changed slides, then read those slides at full size.
 - The implementer's changelog is a list of claims; verify each with data. A
   claimed padding fix is where regressions hide ([S05](deck-qc-measurable.md)).
+- Review artefacts carry no client names, learner records or prices.
 - Commit explicit paths only (no `git add -A`, no caches); report a blocked
   or failed push instead of working around it.
 

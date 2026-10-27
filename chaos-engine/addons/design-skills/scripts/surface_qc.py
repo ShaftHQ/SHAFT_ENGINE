@@ -6,6 +6,7 @@ Each check is red-then-green tested in tests/scripts/test_ce_design_batch3.py (d
 
 from __future__ import annotations
 
+import html
 import json
 import math
 import re
@@ -217,7 +218,7 @@ def cmd_pptxlint(qc, args) -> int:
             for name in sorted(n for n in deck.namelist() if re.match(r"ppt/slides/slide\d+\.xml$", n)):
                 xml = deck.read(name).decode("utf-8", errors="replace")
                 for para in re.findall(r"<a:p>.*?</a:p>|<a:p .*?</a:p>", xml, re.S):
-                    if re.match(r"\s*[\u2022\u25cf\u25aa]", "".join(re.findall(r"<a:t>([^<]*)</a:t>", para))):
+                    if re.match(r"\s*[\u2022\u25cf\u25aa]", html.unescape("".join(re.findall(r"<a:t>([^<]*)</a:t>", para)))):
                         hits.append(f"{name}: typed bullet; use native bullets")
                 if size:
                     cx, cy = int(size.group(1)), int(size.group(2))
@@ -311,34 +312,124 @@ def _attr(tag: str, name: str) -> str | None:
 
 
 def _deck_slides(deck: zipfile.ZipFile) -> list[tuple[int, str]]:
-    found = [(int(m.group(1)), n) for n in deck.namelist() if (m := DECK_SLIDE.match(n))]
-    return sorted(found)
+    """Slides in show order (presentation.xml sldIdLst via its rels), else by slideN.xml number."""
+    names = set(deck.namelist())
+    found = sorted((int(m.group(1)), n) for n in names if (m := DECK_SLIDE.match(n)))
+    if not {"ppt/presentation.xml", "ppt/_rels/presentation.xml.rels"} <= names:
+        return found
+    rels = deck.read("ppt/_rels/presentation.xml.rels").decode("utf-8", errors="replace")
+    target = {_attr(t, "Id"): "ppt/" + (_attr(t, "Target") or "").lstrip("/").removeprefix("ppt/")
+              for t in re.findall(r"<Relationship\b[^>]*>", rels)}
+    pres = deck.read("ppt/presentation.xml").decode("utf-8", errors="replace")
+    ordered = [target.get(r) for r in re.findall(r'<p:sldId\b[^>]*\br:id="([^"]+)"', pres)]
+    number = dict((n, k) for k, n in found)
+    ordered = [(number[n], n) for n in ordered if n in number]
+    return ordered or found
+
+
+ELBOW_LEGS = {  # leg lengths of the preset path as (w, h, adj1, adj2, adj3) -> legs, start to arrow end
+    "bentConnector2": lambda w, h, a1, a2, a3: [w, h],
+    "bentConnector3": lambda w, h, a1, a2, a3: [w * a1, h, w * (1 - a1)],
+    "bentConnector4": lambda w, h, a1, a2, a3: [w * a1, h * a2, w * (1 - a1), h * (1 - a2)],
+    "bentConnector5": lambda w, h, a1, a2, a3: [w * a1, h * a2, abs(w * (a3 - a1)), h * (1 - a2), w * (1 - a3)],
+}
+
+
+def _connector_legs(block: str) -> tuple[str, list[float]]:
+    """('straight'|'elbow'|preset, legs in pt). Legs come from ext and adj*; rot and flips move the
+    path but never change a leg's length, so a 90/270 rotation only swaps which axis it runs on."""
+    ext = re.search(r"<a:ext\b([^>]*)/?>", block)
+    w = float(_attr(ext.group(1), "cx") or 0) / EMU_PT if ext else 0.0
+    h = float(_attr(ext.group(1), "cy") or 0) / EMU_PT if ext else 0.0
+    geom = re.search(r'<a:prstGeom\b[^>]*prst="([^"]+)"', block)
+    prst = geom.group(1) if geom else "line"
+    if prst in ELBOW_LEGS:
+        adj = {n: 0.5 for n in ("adj1", "adj2", "adj3")}
+        for name, val in re.findall(r'<a:gd\b[^>]*name="(adj\d)"[^>]*fmla="val (-?\d+)"', block):
+            adj[name] = int(val) / 100000
+        for val, name in re.findall(r'<a:gd\b[^>]*fmla="val (-?\d+)"[^>]*name="(adj\d)"', block):
+            adj[name] = int(val) / 100000
+        return "elbow", [abs(v) for v in ELBOW_LEGS[prst](w, h, adj["adj1"], adj["adj2"], adj["adj3"])]
+    return "straight", [math.hypot(w, h)]
 
 
 def cmd_cxnglue(qc, args) -> int:
-    """Connectors are glued at both ends (stCxn and endCxn) and not shorter than --min-length pt."""
+    """Connectors glued at both ends; elbow legs >= --min-leg, elbow final leg >= --min-length,
+    straights >= --min-straight (opt-in)."""
     hits = []
     with zipfile.ZipFile(args.file) as deck:
         slides = _deck_slides(deck)
-        for number, name in slides:
+        for position, (_number, name) in enumerate(slides, 1):
             xml = deck.read(name).decode("utf-8", errors="replace")
             for index, block in enumerate(re.findall(r"<p:cxnSp\b.*?</p:cxnSp>", xml, re.S), 1):
-                label = _attr(block, "name") or f"connector {index}"
+                label = html.unescape(_attr(block, "name") or f"connector {index}")
+                where = f"slide {position} {label}"
                 for end, tag in (("start", "a:stCxn"), ("end", "a:endCxn")):
                     if not re.search(rf"<{tag}\b", block):
-                        hits.append(f"slide {number} {label}: {end} not glued ({tag} missing)")
-                ext = re.search(r"<a:ext\b([^>]*)/?>", block)
-                if ext and args.min_length:
-                    cx, cy = float(_attr(ext.group(1), "cx") or 0), float(_attr(ext.group(1), "cy") or 0)
-                    length = max(cx, cy) / EMU_PT
-                    if length < args.min_length:
-                        hits.append(f"slide {number} {label}: {length:.1f} pt long (min {args.min_length:g})")
+                        hits.append(f"{where}: {end} not glued ({tag} missing)")
+                kind, legs = _connector_legs(block)
+                if kind == "elbow":
+                    hits += [f"{where}: elbow leg {i} {leg:.1f} pt (min {args.min_leg:g})"
+                             for i, leg in enumerate(legs, 1) if args.min_leg and leg < args.min_leg]
+                    if args.min_length and legs[-1] < args.min_length:
+                        hits.append(f"{where}: elbow final leg {legs[-1]:.1f} pt (min {args.min_length:g})")
+                elif args.min_straight and legs[0] < args.min_straight:
+                    hits.append(f"{where}: {legs[0]:.1f} pt long (min {args.min_straight:g})")
     return qc.report("cxnglue", qc.FAIL if hits else qc.PASS, slides=len(slides), hits=hits)
 
 
+SKIP_PH = {"sldNum", "ftr", "dt", "sldImg"}
+
+
+def _local(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
+def _shape_text(shape) -> str:
+    """Paragraph texts of one shape joined by newlines (entities decoded by the XML parser)."""
+    paras = []
+    for para in shape.iter():
+        if _local(para.tag) == "p":
+            paras.append("".join(t.text or "" for t in para.iter() if _local(t.tag) == "t"))
+    return "\n".join(re.sub(r"[ \t\u00a0]+", " ", p).strip() for p in paras if p.strip())
+
+
+def _shapes(xml: str) -> list[tuple[str | None, str]]:
+    """(placeholder type or None, text) for every p:sp; falls back to a regex read on broken XML."""
+    import xml.etree.ElementTree as ET  # nosec B405 - local .pptx parts, no entity expansion beyond XML builtins
+    try:
+        root = ET.fromstring(xml)  # nosec B314
+    except ET.ParseError:
+        out = []
+        for shape in re.findall(r"<p:sp\b.*?</p:sp>", xml, re.S):
+            ph = re.search(r"<p:ph\b([^>]*)", shape)
+            kind = None if ph is None else (_attr(ph.group(1), "type") or "body")
+            paras = re.findall(r"<a:p\b.*?</a:p>", shape, re.S)
+            out.append((kind, "\n".join(html.unescape("".join(re.findall(r"<a:t>([^<]*)</a:t>", x))).strip() for x in paras).strip()))
+        return out
+    out = []
+    for shape in root.iter():
+        if _local(shape.tag) != "sp":
+            continue
+        ph = next((e for e in shape.iter() if _local(e.tag) == "ph"), None)
+        kind = None if ph is None else ph.get("type", "body")
+        out.append((kind, _shape_text(shape)))
+    return out
+
+
+def _notes_text(xml: str) -> str:
+    """Body-placeholder text of a notes slide, entities decoded, one line per paragraph."""
+    return "\n".join(t for kind, t in _shapes(xml) if kind == "body" and t).strip()
+
+
+def _body_text(xml: str) -> str:
+    """Slide text without footer, date, slide-number placeholders."""
+    return "\n".join(t for kind, t in _shapes(xml) if kind not in SKIP_PH and t).strip()
+
+
 def _deck_facts(path: str) -> dict:
-    """Per-slide notes text and external hyperlink targets, plus the typefaces used, from a .pptx."""
-    facts: dict = {"notes": {}, "links": {}, "fonts": set()}
+    """Per-slide (show order) notes, body text, external links, plus the typefaces used, from a .pptx."""
+    facts: dict = {"notes": {}, "links": {}, "body": {}, "fonts": set()}
     with zipfile.ZipFile(path) as deck:
         slides = _deck_slides(deck)
         names = set(deck.namelist())
@@ -349,7 +440,7 @@ def _deck_facts(path: str) -> dict:
             rels = deck.read(rels_name).decode("utf-8", errors="replace") if rels_name in names else ""
             links, notes = [], ""
             for tag in re.findall(r"<Relationship\b[^>]*>", rels):
-                target, kind = _attr(tag, "Target") or "", _attr(tag, "Type") or ""
+                target, kind = html.unescape(_attr(tag, "Target") or ""), _attr(tag, "Type") or ""
                 if kind.endswith("/hyperlink") and _attr(tag, "TargetMode") == "External":
                     links.append(target)
                 elif kind.endswith("/notesSlide"):
@@ -357,20 +448,30 @@ def _deck_facts(path: str) -> dict:
                     if notes_name in names:
                         notes = _notes_text(deck.read(notes_name).decode("utf-8", errors="replace"))
             facts["notes"][position], facts["links"][position] = notes, sorted(links)
+            facts["body"][position] = _body_text(xml)
     return facts
 
 
-def _notes_text(xml: str) -> str:
-    """Body-placeholder text of a notes slide (slide image and number fields are not notes)."""
-    parts = []
-    for shape in re.findall(r"<p:sp\b.*?</p:sp>", xml, re.S):
-        if re.search(r'<p:ph\b[^>]*type="body"', shape):
-            parts.append("".join(re.findall(r"<a:t>([^<]*)</a:t>", shape)))
-    return re.sub(r"\s+", " ", " ".join(parts)).strip()
+def _signature(facts: dict, position: int) -> str:
+    """Slide identity that survives renumbering: body and notes text with digits removed."""
+    return re.sub(r"\d+", "#", facts["body"][position] + "\x00" + facts["notes"][position])
+
+
+def _slide_pairs(old: dict, new: dict) -> list[tuple[int, int]]:
+    """(old, new) positions; by position when counts match, else aligned by signature."""
+    a, b = sorted(old["notes"]), sorted(new["notes"])
+    if len(a) == len(b):
+        return list(zip(a, b))
+    import difflib
+    sa, sb = [_signature(old, p) for p in a], [_signature(new, p) for p in b]
+    pairs = []
+    for block in difflib.SequenceMatcher(None, sa, sb, autojunk=False).get_matching_blocks():
+        pairs += [(a[block.a + i], b[block.b + i]) for i in range(block.size)]
+    return pairs
 
 
 def cmd_pptxparity(qc, args) -> int:
-    """After a re-upload or export: size under the cap, and (with --before) notes, links and fonts unchanged."""
+    """After a re-upload or export: size under the cap, and (with --before) notes, body text, links and fonts unchanged."""
     hits, size = [], Path(args.file).stat().st_size
     limit = args.max_bytes * (1 - args.headroom)
     if size > limit:
@@ -381,11 +482,20 @@ def cmd_pptxparity(qc, args) -> int:
         slides = len(new["notes"])
         if len(old["notes"]) != slides:
             hits.append(f"slide count {len(old['notes'])} -> {slides}")
-        for position in sorted(set(old["notes"]) & set(new["notes"])):
-            if position not in args.allow and old["notes"][position] != new["notes"][position]:
-                hits.append(f"slide {position}: speaker notes changed")
-            if position not in args.allow and old["links"][position] != new["links"][position]:
-                hits.append(f"slide {position}: hyperlinks changed {old['links'][position]} -> {new['links'][position]}")
+        pairs = _slide_pairs(old, new)
+        if len(old["notes"]) != slides:
+            hits += [f"old slide {p}: no match in new deck" for p in sorted(set(old["notes"]) - {o for o, _ in pairs})]
+            hits += [f"new slide {p}: no match in old deck" for p in sorted(set(new["notes"]) - {n for _, n in pairs})]
+        for was, now in pairs:
+            if now in args.allow:
+                continue
+            tag = f"slide {now}" if was == now else f"slide {now} (was {was})"
+            if old["notes"][was] != new["notes"][now]:
+                hits.append(f"{tag}: speaker notes changed")
+            if old["body"][was] != new["body"][now]:
+                hits.append(f"{tag}: body text changed")
+            if old["links"][was] != new["links"][now]:
+                hits.append(f"{tag}: hyperlinks changed {old['links'][was]} -> {new['links'][now]}")
         hits += [f"typeface removed: {f}" for f in sorted(old["fonts"] - new["fonts"])]
         hits += [f"typeface added: {f}" for f in sorted(new["fonts"] - old["fonts"])]
     return qc.report("pptxparity", qc.FAIL if hits else qc.PASS, size=size, slides=slides, hits=hits)
@@ -513,13 +623,15 @@ def register(add, qc) -> None:
     p.add_argument("--contrast", type=float, default=4.5)
     p = add("cxnglue", bind(cmd_cxnglue), ".pptx connectors glued at both ends (stCxn, endCxn) and long enough")
     p.add_argument("file")
-    p.add_argument("--min-length", type=float, default=36.0, help="shortest connector in pt (0 disables)")
+    p.add_argument("--min-length", type=float, default=0.0, help="stricter floor for the elbow final (arrow) leg in pt, e.g. 36 (opt-in)")
+    p.add_argument("--min-leg", type=float, default=10.0, help="shortest elbow leg of any kind in pt (0 disables)")
+    p.add_argument("--min-straight", type=float, default=0.0, help="shortest straight connector in pt (opt-in)")
     p = add("pptxparity", bind(cmd_pptxparity), ".pptx export size under the cap; with --before: notes, links, typefaces unchanged")
     p.add_argument("file")
     p.add_argument("--before", help="the previous round's .pptx")
     p.add_argument("--max-bytes", type=int, default=10 * 1024 * 1024)
     p.add_argument("--headroom", type=float, default=0.05)
-    p.add_argument("--allow", type=int, action="append", default=[], help="slide number whose notes or links may change")
+    p.add_argument("--allow", type=int, action="append", default=[], help="new slide number whose notes, body text or links may change")
     p = add("deckgap", bind(cmd_deckgap), "measured boxes JSON: container padding, gaps and gap chains")
     p.add_argument("file")
     p.add_argument("--pad", default="12,12,7,7", help="minimum padding l,r,t,b in pt")
