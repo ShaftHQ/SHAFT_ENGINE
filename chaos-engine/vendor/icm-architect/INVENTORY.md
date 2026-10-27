@@ -3,9 +3,10 @@
 Owned inventory for the pinned RinDig/icm-architect companion. Skill,
 references, templates, and the optional workspace scripts track upstream.
 ChaosEngine nests the upstream skill root under `skills/icm-architect/` so
-host plugins discover it the same way as Caveman and Ponytail. No ChaosEngine
-overlay is applied to upstream bodies. `README.md` stays upstream-only and is
-not part of this pin.
+host plugins discover it the same way as Caveman and Ponytail. One overlay:
+`SKILL.md` marks the illustrative `_tools/count_rows.py` command repo-only.
+That file is not in the upstream tree. Re-apply the mark after a pin refresh.
+`README.md` stays upstream-only and is not part of this pin.
 
 - Pin: [PIN.json](PIN.json)
 - License: [LICENSE](LICENSE)

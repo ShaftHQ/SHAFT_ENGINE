@@ -109,7 +109,7 @@ Then run the form's own checks, in its reference. If a step fails, fix the struc
 ## Guardrails
 
 - **Don't over-structure.** The ladder runs: chat, then a saved prompt or skill, then folders and one agent. Only climb when the rung below is genuinely automated and repeating. A workspace for a thing done twice is scaffolding, not architecture.
-- **Let it harden.** A step that is code names its command, run from the workspace root, e.g. `` 3. Run `python _tools/count_rows.py stages/03_tally/output/rows.csv` ``: the command is the step. A stage may keep `examples/`, one real input and one good output from a run you liked, listed under Inputs. In a working ICM, fold a stage nobody edits, script a check that never fails, and split a contract that keeps growing.
+- **Let it harden.** A step that is code names its command, run from the workspace root, e.g. `` 3. Run `python _tools/count_rows.py stages/03_tally/output/rows.csv` `` (repo-only): the command is the step. A stage may keep `examples/`, one real input and one good output from a run you liked, listed under Inputs. In a working ICM, fold a stage nobody edits, script a check that never fails, and split a contract that keeps growing.
 - **Know where ICM loses.** Real-time multi-agent collaboration, high-concurrency multi-user serving, and automated mid-pipeline branching genuinely need framework code. ICM is for sequential, checked, repeatable work: most knowledge work, but not all of it.
 
 ## References
