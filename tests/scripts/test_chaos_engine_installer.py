@@ -5001,6 +5001,7 @@ class ReceiptShimWiring6230Test(unittest.TestCase):
         attributes = (ROOT / ".gitattributes").read_bytes()
         self.assertEqual(gitignore, hosts.gitignore_content(gitignore))
         self.assertEqual(attributes, hosts.gitattributes_content(attributes))
+        self.assertIn(b"/.grok/rules/** text eol=lf\n", attributes)
         self.assertIn("plugins/icm-architect/", hosts.ORIGIN_OVERLAY_PATTERNS)
 
 

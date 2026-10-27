@@ -5314,6 +5314,7 @@ def gitattributes_content(before: bytes | None) -> bytes:
         f"{repository_root_anchor}.claude/** text eol=lf\n"
         f"{repository_root_anchor}.codex/** text eol=lf\n"
         f"{repository_root_anchor}.grok/hooks/** text eol=lf\n"
+        f"{repository_root_anchor}.grok/rules/** text eol=lf\n"
         f"{repository_root_anchor}.gemini/** text eol=lf\n"
         f"{repository_root_anchor}.github/hooks/** text eol=lf\n"
         f"{repository_root_anchor}.github/copilot-instructions.md text eol=lf\n"
