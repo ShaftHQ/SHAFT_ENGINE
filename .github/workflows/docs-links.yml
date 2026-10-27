@@ -51,7 +51,10 @@ jobs:
           set -o pipefail
           mode=(--offline)
           [ "$EXTERNAL" = "true" ] && mode=(--github-token "$GH_TOKEN")
-          git ls-files -z '*.md' | xargs -0 "$RUNNER_TEMP/lychee-bin" --config lychee.toml --no-progress \
+          # .memory/** is tracked markdown. lychee.toml exclude_path drops it,
+          # but the first xargs chunk is only those files, lychee exits 123,
+          # and pipefail stops before any other markdown is checked.
+          git ls-files -z -- '*.md' ':!.memory' | xargs -0 "$RUNNER_TEMP/lychee-bin" --config lychee.toml --no-progress \
             --root-dir "$GITHUB_WORKSPACE" "${mode[@]}" --format markdown --output lychee-report.md
       - name: Summary
         if: always()
