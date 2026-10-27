@@ -7,7 +7,7 @@ The closed set of note types, the labels they carry, and the naming they follow.
 | `type:` | Lives at | Carries |
 |---|---|---|
 | team | `teams/<slug>/{Team Name}.md` | In / Movement / Out / Edges |
-| process | `teams/<slug>/processes/<slug>.md` | full scoring frontmatter (see node template) |
+| process | `teams/<slug>/processes/<slug>.md` | full scoring frontmatter (see `context-map-node.md`) |
 | job | `teams/<slug>/jobs/<slug>.md` | the outcome, who owns it |
 | data-asset | `teams/<slug>/data/data-<thing>.md` | source of truth, shape, sensitivity |
 | governance | `teams/<slug>/governance.md` | what may not be automated, and why |
@@ -15,7 +15,7 @@ The closed set of note types, the labels they carry, and the naming they follow.
 
 ## Labels that make it queryable
 
-`type`, `team`, `owner`, `ai-level` (L0–L3), `value` (1–5), `pain` (1–5), `governance` (internal / sensitive / external). `consumes:` and `produces:` are wikilinks to data assets — the links draw the map on their own. value + pain ≥ 8 flags a pilot candidate.
+`type`, `team`, `owner`, `ai-level` (L0–L3), `value` (1–5), `pain` (1–5), `governance` (internal / sensitive / external). `consumes:` and `produces:` link to data assets, and the links draw the map on their own. They are wikilinks only if this map is an Obsidian vault; say so here. value + pain ≥ 8 flags a pilot candidate.
 
 ## Naming
 

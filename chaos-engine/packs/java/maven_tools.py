@@ -114,7 +114,7 @@ MAVEN_TOOLS_JAR_SUFFIX = "ChaosEngine/tools/maven-tools-mcp/3.2.0/maven-tools-mc
 MAVEN_TOOLS_MCP_VERSION = "3.2.0"
 
 
-MAVEN_TOOLS_MCP_COMMIT = "4475ff6c61f23ea9a93cb6d5665a63235ef2ef36"
+MAVEN_TOOLS_MCP_COMMIT = "41c786b6a7440dec09d7c70f294e22533b88faa4"
 
 
 MAVEN_TOOLS_MCP_RECEIPT = "install-receipt.json"
@@ -171,7 +171,7 @@ def java_compiler_present(java: Path) -> bool:
     return javac.is_file() and not is_link_or_reparse(javac)
 
 
-def managed_temurin_root(version: str = "25.0.4+7") -> Path:
+def managed_temurin_root(version: str = "25.0.5+8") -> Path:
     system, architecture, _host = _tools_host_platform()
     return (
         maven_tools_cache_root().parent
@@ -409,7 +409,7 @@ def ensure_managed_temurin_jdk(
     version = (
         str(temurin["version"])
         if isinstance(temurin, dict) and isinstance(temurin.get("version"), str)
-        else "25.0.4+7"
+        else "25.0.5+8"
     )
     root = managed_temurin_root(version)
     java = root / _temurin_java_relative()
@@ -1022,7 +1022,7 @@ def discover_maven_tools_runtime() -> tuple[Path, Path] | None:
 
 
 def verified_managed_temurin(
-    candidate: Path, host_platform: str, *, version: str = "25.0.4+7"
+    candidate: Path, host_platform: str, *, version: str = "25.0.5+8"
 ) -> Path | None:
     if not candidate.is_file() or is_link_or_reparse(candidate):
         return None

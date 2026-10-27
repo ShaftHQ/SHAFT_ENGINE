@@ -686,6 +686,120 @@ class HarnessReachabilityTest(unittest.TestCase):
             found = path_tokens(root, {".agents/page.md"}, roots)
         self.assertEqual(sorted(found), ["AGENTS.md", "scripts/ci/thing.py"])
 
+    def test_copied_template_links_are_workspace_examples_not_harness_links(self):
+        """A starter under `templates/` is reached. Its own links are not.
+
+        ICM copies those files into a workspace and the links name files that
+        workspace will grow (`setup/questionnaire.md`, `{slug}` slots). Treating
+        them as repository links fails a faithful vendor pin. Skipping the
+        outgoing walk must not let a template smuggle a harness file in: a
+        file that only the template links stays an orphan, and a broken link
+        outside `templates/` still fails.
+        """
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            skill = root / ".agents/skills/act-as-mohab"
+            (skill / "templates").mkdir(parents=True)
+            (skill / "references").mkdir()
+            (skill / "SKILL.md").write_text(
+                "# Entry\n\n"
+                "[starter](templates/starter.md)\n"
+                "[real](references/real.md)\n",
+                encoding="utf-8",
+            )
+            (skill / "templates/starter.md").write_text(
+                "[questionnaire](setup/questionnaire.md)\n"
+                "[slot](../concepts/{slug}.md)\n"
+                "[hidden](only-from-template.md)\n",
+                encoding="utf-8",
+            )
+            (skill / "templates/only-from-template.md").write_text("# Hidden\n", encoding="utf-8")
+            (skill / "references/real.md").write_text(
+                "[gone](missing.md)\n",
+                encoding="utf-8",
+            )
+            (root / "scripts/ci").mkdir(parents=True)
+            (root / "scripts/ci/agent_guidance_budget.json").write_text(
+                json.dumps(
+                    {
+                        "harness_reachability": {
+                            "entrypoint": ".agents/skills/act-as-mohab/SKILL.md",
+                            "deployable_root": ".agents/skills",
+                            "element_globs": [".agents/skills/**"],
+                            "exemptions": [],
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            for command in (["git", "init", "-q"], ["git", "add", "-A"]):
+                subprocess.run(  # nosec B603 B607 - fixed local git commands.
+                    command, cwd=root, capture_output=True, text=True, check=True
+                )
+            report = harness_report(root)
+        self.assertEqual(
+            report["broken_links"],
+            [".agents/skills/act-as-mohab/references/real.md -> missing.md"],
+        )
+        self.assertEqual(
+            report["orphans"],
+            [
+                ".agents/skills/act-as-mohab/templates/only-from-template.md "
+                "(no markdown link reaches it)"
+            ],
+        )
+        self.assertIn(".agents/skills/act-as-mohab/templates/starter.md", report["reached"])
+
+    def test_a_path_token_resolves_under_an_ancestor_of_the_file_that_names_it(self):
+        """Skill prose says `scripts/quotes.py` from the skill root, not the repo root.
+
+        Accepting every same-named file in the tree would hide a rename: a
+        decoy outside the naming file's ancestors must stay stale, and so must
+        a token that exists nowhere. A wildcard does not use this rule.
+        """
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            skill = root / ".agents/skills/act-as-mohab"
+            skill.mkdir(parents=True)
+            (skill / "scripts").mkdir()
+            (skill / "SKILL.md").write_text(
+                "Copy `scripts/quotes.py` and `scripts/missing.py`.\n"
+                "Also `scripts/*.py`.\n",
+                encoding="utf-8",
+            )
+            (skill / "scripts/quotes.py").write_text("x\n", encoding="utf-8")
+            decoy = root / "decoy/scripts"
+            decoy.mkdir(parents=True)
+            (decoy / "missing.py").write_text("x\n", encoding="utf-8")
+            (root / "scripts/ci").mkdir(parents=True)
+            (root / "scripts/ci/agent_guidance_budget.json").write_text(
+                json.dumps(
+                    {
+                        "harness_reachability": {
+                            "entrypoint": ".agents/skills/act-as-mohab/SKILL.md",
+                            "deployable_root": ".agents/skills",
+                            "element_globs": [".agents/skills/**", "scripts/quotes.py"],
+                            "exemptions": [],
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            for command in (["git", "init", "-q"], ["git", "add", "-A"]):
+                subprocess.run(  # nosec B603 B607 - fixed local git commands.
+                    command, cwd=root, capture_output=True, text=True, check=True
+                )
+            report = harness_report(root)
+        self.assertEqual(
+            report["stale_named_paths"],
+            [
+                "scripts/*.py (named in .agents/skills/act-as-mohab/SKILL.md) "
+                "matches no tracked path",
+                "scripts/missing.py (named in .agents/skills/act-as-mohab/SKILL.md) "
+                "matches no tracked path",
+            ],
+        )
+
     def test_the_glob_matcher_stops_a_star_at_a_path_separator(self):
         """`fnmatch` would let one glob swallow a whole subtree.
 

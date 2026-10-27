@@ -1,5 +1,5 @@
 ---
-type: process   # System map verb card. The Context map process node is node.md.
+type: process   # System map verb card. The Context map process node is context-map-node.md.
 status: stub
 consumes: []
 produces: []

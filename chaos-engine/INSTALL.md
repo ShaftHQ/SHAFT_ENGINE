@@ -790,7 +790,7 @@ An installing agent can use this PowerShell sequence after the source build:
 
 ```powershell
 $version = '3.2.0'
-$commit = '4475ff6c61f23ea9a93cb6d5665a63235ef2ef36'
+$commit = '41c786b6a7440dec09d7c70f294e22533b88faa4'
 $cacheRoot = Join-Path $env:LOCALAPPDATA "ChaosEngine\tools\maven-tools-mcp"
 $staging = Join-Path $cacheRoot (".staging-" + [guid]::NewGuid().ToString('N'))
 $jar = Join-Path $staging "maven-tools-mcp-$version.jar"
@@ -811,7 +811,7 @@ The equivalent POSIX installation is:
 
 ```sh
 version=3.2.0
-commit=4475ff6c61f23ea9a93cb6d5665a63235ef2ef36
+commit=41c786b6a7440dec09d7c70f294e22533b88faa4
 data_root=${XDG_DATA_HOME:-"$HOME/.local/share"}
 cache_root="$data_root/ChaosEngine/tools/maven-tools-mcp"
 mkdir -p "$cache_root"
