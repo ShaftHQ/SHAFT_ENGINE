@@ -8,9 +8,9 @@ import java.util.Set;
 /** Release-coupled planner for the reporting profile's portable Node and Allure tools. */
 public final class ReportingSetupPlanner {
     public static final String NODE_VERSION = "24.19.0";
-    public static final String ALLURE_VERSION = "3.21.0";
-    private static final String ALLURE_SHA256 = "b14246200e54a798ed7b8d318c2ba373769001a2d0ecb1992cfcf8f85d700402";
-    public static final String ALLURE_LOCK_SHA256 = "e7e39701ded3e2e81420e3705157a03c8626d599364c707745e1e57ac0beaf67";
+    public static final String ALLURE_VERSION = "3.22.1";
+    private static final String ALLURE_SHA256 = "2c795a9e9e2f0f90cca94e50e8ac061e797a1918733846fde27de9b990b2957f";
+    public static final String ALLURE_LOCK_SHA256 = "c68b852fae36d64088b5785bcb531cb0b4c52a2f295800e70c9719e55df7b33e";
     private static final Map<String, String> NODE_SHA256 = Map.of(
             "darwin-arm64.tar.gz", "8294b7aa9b03997481c06babf1e8b270c859358f27da57a11509afe537ac381d",
             "darwin-x64.tar.gz", "d1b5e999db158c62fe8f7267a4476b035d8bd93b1a605bac24a3f0dd166e3316",
