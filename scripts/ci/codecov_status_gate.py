@@ -3,8 +3,9 @@
 
 Codecov statuses cannot be ruleset-required: Codecov does not report on
 merge_group, so a required Codecov context would hang the merge queue. The
-required ``PR Gate Summary`` runs this on pull_request only; merge_group skips
-it. Polling is bounded: an absent status (no upload) or one still pending at
+required ``codecov-gate`` job (needed by ``PR Gate Summary``) runs this on
+pull_request only; merge_group skips it so it does not sit on the summary
+critical-path tail (#7184). Polling is bounded: an absent status (no upload) or one still pending at
 the deadline fails when the PR changes Java main sources and passes with a
 warning otherwise; the poll is bounded, so the gate never hangs. Codecov
 re-notifies per upload, so a state must settle before it counts.

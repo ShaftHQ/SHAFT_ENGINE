@@ -55,11 +55,16 @@ class CodecovStatusGateTest(unittest.TestCase):
         self.assertFalse(gate.is_java_main("src/test/java/a/BTest.java"))
         self.assertFalse(gate.is_java_main("scripts/ci/x.py"))
 
-    def test_summary_runs_gate_on_pull_request_only(self) -> None:
+    def test_parallel_codecov_gate_on_pull_request_only(self) -> None:
         workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        self.assertIn("codecov-gate:", workflow)
         self.assertIn("scripts/ci/codecov_status_gate.py", workflow)
-        self.assertIn("if: github.event_name == 'pull_request'", workflow)
+        self.assertIn("github.event_name == 'pull_request'", workflow)
         self.assertIn('--pr "$PR_NUMBER"', workflow)
+        self.assertIn("codecov-gate", workflow.split("summary:", 1)[1].split("main-red-reaction:", 1)[0])
+        # Summary no longer runs the poll inline (critical-path cut #7184).
+        summary = workflow.split("summary:", 1)[1].split("main-red-reaction:", 1)[0]
+        self.assertNotIn("Enforce Codecov patch/project", summary)
         config = (ROOT / "codecov.yml").read_text(encoding="utf-8")
         self.assertIn("wait_for_ci: false", config)
 
