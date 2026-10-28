@@ -358,6 +358,9 @@ def cmd_bidi(qc, args) -> int:
                 continue
             bare = ISOLATE.sub(" ", line)
             hits += [f"{file}:{where} {rule}" for rule, pat in BIDI.items() if re.search(pat, bare)]
+            # G8: trailing Latin .!? must sit inside LRI…PDI (outside paints as leading under dir=rtl).
+            if re.search(r"\u2069[.!?]", line) or re.search(r"[A-Za-z0-9][.!?]", ISOLATE.sub("", line)):
+                hits.append(f"{file}:{where} trailing-latin-punct-outside-isolate")
             if PERCENT.search(line):
                 warnings.append(f"{file}:{where} percent-in-rtl (normal RTL order, warn only)")
     return qc.report("bidi", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits, warnings=warnings)
@@ -567,6 +570,128 @@ def cmd_deadair(qc, args) -> int:
     return qc.report("deadair", qc.FAIL if hits else qc.PASS, duration=round(duration, 2), hits=hits, warnings=warnings)
 
 
+
+def cmd_silencegap(qc, args) -> int:
+    """RMS mid-answer silence gaps on the final render (post-denoise/loudnorm).
+
+    silencedetect alone understated a ~1.25 s gap as 0.69 s. Gate: FAIL if any
+    mid-answer gap (after hook_end, before content_end) exceeds --max (0.6 s).
+    """
+    import math
+    import struct
+    import subprocess
+    import tempfile
+    import wave
+
+    src = Path(args.file)
+    with tempfile.TemporaryDirectory() as folder:
+        wav = Path(folder) / "mono.wav"
+        if src.suffix.lower() == ".wav":
+            wav = src
+        else:
+            subprocess.run(  # nosec B603 - fixed argv
+                ["ffmpeg", "-v", "error", "-y", "-i", str(src), "-ac", "1", "-ar", "48000", str(wav)],
+                check=True, capture_output=True)
+        with wave.open(str(wav), "rb") as handle:
+            if handle.getnchannels() != 1 or handle.getsampwidth() != 2:
+                raise qc.Skip("need mono 16-bit PCM after decode")
+            rate = handle.getframerate()
+            frames = handle.readframes(handle.getnframes())
+    samples = struct.unpack("<" + "h" * (len(frames) // 2), frames)
+    if not samples:
+        raise qc.Skip("empty audio")
+    duration = len(samples) / rate
+    hop = max(1, int(round(args.hop * rate)))
+    n = len(samples) // hop
+    silent = []
+    for i in range(n):
+        chunk = samples[i * hop:(i + 1) * hop]
+        mean_sq = sum(s * s for s in chunk) / len(chunk) + 1e-20
+        db = 20 * math.log10(math.sqrt(mean_sq) / 32768.0)
+        silent.append(db <= args.thr)
+    gaps = []
+    i = 0
+    while i < n:
+        if not silent[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and silent[j]:
+            j += 1
+        gaps.append((i * args.hop, j * args.hop, (j - i) * args.hop))
+        i = j
+    content_end = args.content_end if args.content_end is not None else max(0.0, duration - 0.3)
+    mid, fail = [], []
+    for start, end, _ in gaps:
+        clipped_s, clipped_e = max(start, args.hook_end), min(end, content_end)
+        length = clipped_e - clipped_s
+        if length >= args.min_gap:
+            item = {"s": round(clipped_s, 3), "e": round(clipped_e, 3), "d": round(length, 3)}
+            mid.append(item)
+            if length > args.max + 1e-9:
+                fail.append(item)
+    max_mid = max((g["d"] for g in mid), default=0.0)
+    return qc.report(
+        "silencegap", qc.FAIL if fail else qc.PASS,
+        max_gap=args.max, hook_end=args.hook_end, content_end=round(content_end, 3),
+        duration=round(duration, 3), max_mid_answer_gap=round(max_mid, 3),
+        mid_answer_gaps=mid, fail_gaps=fail)
+
+
+TXDIFF_PUNCT = re.compile(r"[.,!?;:؟،؛\"\'()\\[\\]{}…—–\\-]+")
+
+
+def _txdiff_tokens(text: str) -> list[str]:
+    cleaned = TXDIFF_PUNCT.sub(" ", text.replace("\u00a0", " ").replace("\u0640", ""))
+    return [w for w in cleaned.split() if w and not w.endswith("ـ")]
+
+
+def _txdiff_fold(word: str) -> str:
+    """Exact-raw fold: Latin .lower(); Arabic unchanged. No alias, no fuzzy."""
+    return word.lower() if re.search(r"[A-Za-z]", word) else word
+
+
+def cmd_txdiff(qc, args) -> int:
+    """SRT ↔ words.json exact-raw + fuzzy side-by-side (G9). Gate on exact-raw only."""
+    import difflib
+
+    cues = qc.parse_cues(Path(args.srt).read_text(encoding="utf-8"))
+    words = words_of(json.loads(Path(args.words).read_text(encoding="utf-8")))
+    tokens, miss_exact, miss_fuzzy = [], [], []
+    for cue in cues:
+        pool = [TXDIFF_PUNCT.sub("", w["word"]) for w in words
+                if w["end"] is not None and w["start"] is not None
+                and w["end"] > cue["start"] - 0.4 and w["start"] < cue["end"] + 0.4]
+        pool_exact = [_txdiff_fold(x) for x in pool]
+        for token in _txdiff_tokens(" ".join(cue["lines"])):
+            tokens.append(token)
+            folded = _txdiff_fold(token)
+            if folded not in pool_exact:
+                miss_exact.append(token)
+            if not any(difflib.SequenceMatcher(None, folded, p).ratio() >= 0.72 for p in pool_exact):
+                miss_fuzzy.append(token)
+    n = max(1, len(tokens))
+    diff_exact = len(miss_exact) / n
+    diff_fuzzy = len(miss_fuzzy) / n
+    problems = []
+    if diff_exact > args.max:
+        problems.append(f"exact-raw {diff_exact:.2%} above {args.max:.0%}")
+    return qc.report(
+        "txdiff", qc.FAIL if problems else qc.PASS,
+        mode="exact-raw+fuzzy",
+        diff_exact_raw=round(diff_exact, 4),
+        diff_fuzzy=round(diff_fuzzy, 4),
+        unmatched_exact_raw=len(miss_exact),
+        unmatched_fuzzy=len(miss_fuzzy),
+        miss_exact_raw=miss_exact[:20],
+        miss_fuzzy=miss_fuzzy[:20],
+        srt_words=len(tokens),
+        max=args.max,
+        problems=problems,
+        note="gate on exact-raw (no alias, no fuzzy); fuzzy is companion only",
+    )
+
+
 def cmd_textfloor(qc, args) -> int:
     """Text under 2.6% of the frame's short side; nothing read under 28 px on portrait."""
     spec = json.loads(Path(args.file).read_text(encoding="utf-8"))
@@ -730,6 +855,20 @@ def register(add, qc) -> None:
     p.add_argument("--noise", type=float, default=-35.0)
     p.add_argument("--fps", type=float, default=10.0)
     p.add_argument("--thresh", type=float, default=6.0)
+    p = add("silencegap", bind(cmd_silencegap),
+            "RMS mid-answer silence gap on the final render (FAIL if any gap > max s)")
+    p.add_argument("file")
+    p.add_argument("--hook-end", type=float, default=0.0)
+    p.add_argument("--content-end", type=float, default=None)
+    p.add_argument("--thr", type=float, default=-40.0, help="RMS dBFS threshold")
+    p.add_argument("--hop", type=float, default=0.01)
+    p.add_argument("--min-gap", type=float, default=0.08)
+    p.add_argument("--max", type=float, default=0.6)
+    p = add("txdiff", bind(cmd_txdiff),
+            "SRT vs words.json exact-raw + fuzzy; gate on exact-raw only (G9)")
+    p.add_argument("srt")
+    p.add_argument("words")
+    p.add_argument("--max", type=float, default=0.12)
     p = add("textfloor", bind(cmd_textfloor), "text under 2.6%% of the short side (28 px on portrait)")
     p.add_argument("file")
     p.add_argument("--frame", default="1080x1920")

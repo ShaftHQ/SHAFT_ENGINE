@@ -384,6 +384,22 @@ class Batch3MediaChecksTest(unittest.TestCase):
         self.assertEqual(0, code, payload)
         self.assertTrue(any("final_hold" in w for w in payload["warnings"]), payload)
 
+    def test_silencegap_mid_answer(self) -> None:
+        """U4 G8: RMS mid-answer gap >0.6 s fails; continuous tone passes."""
+        d = Path(self.tmp.name)
+        gap = d / "gap.wav"
+        # 0.5 s tone + 0.9 s silence + 0.5 s tone = mid-answer gap > 0.6 s
+        ffmpeg("-f", "lavfi", "-i", "sine=f=440:d=0.5", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono:d=0.9",
+               "-f", "lavfi", "-i", "sine=f=440:d=0.5",
+               "-filter_complex", "[0:a][1:a][2:a]concat=n=3:v=0:a=1[a]", "-map", "[a]", str(gap))
+        code, payload = run_qc("silencegap", str(gap), "--hook-end", "0", "--max", "0.6")
+        self.assertEqual(1, code, payload)
+        self.assertTrue(payload.get("fail_gaps"), payload)
+        ok = d / "ok_tone.wav"
+        ffmpeg("-f", "lavfi", "-i", "sine=f=440:d=2", str(ok))
+        code, payload = run_qc("silencegap", str(ok), "--hook-end", "0", "--max", "0.6")
+        self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
     def test_mediaclamp(self) -> None:
         self.assertEqual(0, run_qc("mediaclamp", str(self.ok_cues), str(self.busy))[0])
         self.assertEqual(1, run_qc("mediaclamp", str(self.bad_cues), str(self.busy))[0])

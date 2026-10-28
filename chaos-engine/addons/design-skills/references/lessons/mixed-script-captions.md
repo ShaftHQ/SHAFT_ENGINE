@@ -13,10 +13,11 @@ Burned-in captions, hook lines or labels mix RTL and Latin. It extends
 
 ## Rules
 
-1. Isolate every Latin run (LRI ... PDI, or `<bdi>` in HTML), with the
-   punctuation outside the isolate. Latin punctuation next to Arabic text
-   outside an isolate is a fail. Match question marks to the script:
-   Latin `?`, Arabic `؟`.
+1. Isolate every Latin run (LRI ... PDI, or `<bdi>` in HTML). Keep Latin
+   trailing `.` `!` `?` **inside** the isolate (outside paints as a leading
+   `.` under `dir=rtl`, e.g. `.AI`). Arabic `، ؟` stay outside. Other Latin
+   punctuation next to Arabic outside an isolate is a fail. Match question
+   marks to the script: Latin `?`, Arabic `؟`.
 2. Apply no-break glue (article plus word, Latin runs of 36 characters or
    fewer) before any wrapping markup such as highlight spans. If the markup
    goes in first, it silently breaks the glue and strands the article at
@@ -68,10 +69,17 @@ Burned-in captions, hook lines or labels mix RTL and Latin. It extends
     placeholder lexicon with `--term AR=LATIN` when a new miss appears —
     do not waive by tagging alone.
 
+14. Trailing Latin sentence punct (`.!?`) belongs inside the LTR isolate
+    with the Latin run. Gate: `design_qc.py bidi` flags
+    `trailing-latin-punct-outside-isolate` (PDI then `.!?`, or Latin+`.!?`
+    with no isolate). Prove on hook crops: period after the last Latin
+    glyph, never a leading `.AI`.
+
 ## Verify
 
-- [ ] Script check: every Latin run is isolated, punctuation sits outside
-      it, and question marks match their script.
+- [ ] Script check: every Latin run is isolated; Latin trailing `.!?` sits
+      inside the isolate; Arabic `، ؟` stay outside; question marks match
+      their script.
 - [ ] Zoom-crop each mixed line from rendered frames (not the HTML): no
       stranded article, no 0 px gap, no scrambled run; article right of
       its Latin noun when RTL.
