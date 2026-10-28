@@ -92,9 +92,8 @@ jobs:
             echo "::error title=BOT_TOKEN missing::The org BOT_TOKEN secret is empty, so the lock-pin refresh cannot push. ${fallback}"
             exit 1
           fi
-          push=$(curl -fsS -H "Authorization: Bearer ${BOT_TOKEN}" "https://api.github.com/repos/${REPO}" \
-            | python3 -c 'import json,sys; print(json.load(sys.stdin).get("permissions",{}).get("push",False))') || push=error
-          if [ "${push}" != "True" ]; then
+          push=$(GH_TOKEN="${BOT_TOKEN}" gh api "repos/${REPO}" --jq '.permissions.push') || push=error
+          if [ "${push}" != "true" ]; then
             echo "::error title=BOT_TOKEN expired or lacks push::BOT_TOKEN could not authenticate with push access (got: ${push}). Renew the org BOT_TOKEN PAT. ${fallback}"
             exit 1
           fi

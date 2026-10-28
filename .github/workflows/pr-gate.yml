@@ -536,7 +536,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
-        run: python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet
+        run: python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
       - name: Run ChaosGauge contracts
         run: >-
           python3 -m unittest
@@ -577,7 +577,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
-        run: python -m pip install --no-deps --requirement requirements-ci.txt --quiet
+        run: python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
       - name: Fetch immutable pull-request review records
         shell: bash
         env:
@@ -1056,7 +1056,7 @@ jobs:
           curl -sSfL -o /tmp/al.tgz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
           echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  /tmp/al.tgz" | sha256sum -c -
           tar -xzf /tmp/al.tgz -C /tmp actionlint
-          python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet
+          python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
       - name: Gate
         run: python3 scripts/ci/workflow_security_gate.py --actionlint /tmp/actionlint
       - name: zizmor SARIF
@@ -1236,7 +1236,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
-        run: python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet
+        run: python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
       # #6990 lesson: Codecov silently ignores an invalid codecov.yml.
       - name: Validate codecov.yml with Codecov
         run: python3 scripts/ci/validate_codecov_yml.py

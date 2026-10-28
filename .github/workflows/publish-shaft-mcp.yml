@@ -86,7 +86,7 @@ jobs:
           path.write_text(rendered, encoding="utf-8")
           json.loads(rendered)
           PY
-          python3 -m pip install --no-deps --requirement ../requirements-ci.txt --quiet
+          python3 -m pip install --no-deps --require-hashes --requirement ../requirements-ci.txt --quiet
           python3 - <<'PY'
           import json
           import urllib.request

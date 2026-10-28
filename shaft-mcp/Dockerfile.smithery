@@ -1,4 +1,4 @@
-FROM maven:3.9.11-eclipse-temurin-25 AS builder
+FROM maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c AS builder
 
 # allure-cucumber8-jvm stages its adapter with python3. The Maven base image does not ship it.
 # The contract is that python3 exists before Maven. An apt revision pin would fail the
@@ -15,7 +15,7 @@ RUN mvn --batch-mode --no-transfer-progress -pl shaft-mcp -am install -DskipTest
         ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
         -exec cp {} /build/shaft-mcp.jar \; -quit
 
-FROM eclipse-temurin:25-jre
+FROM eclipse-temurin:25-jre@sha256:78f1f183913482ef390c2722f46c3f0ce76ada341d69590e7c482ec943ee72d5
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates gnupg wget \

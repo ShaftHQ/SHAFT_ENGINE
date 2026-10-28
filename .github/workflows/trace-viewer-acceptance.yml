@@ -102,8 +102,9 @@ jobs:
           allure3="$HOME/.m2/repository/allure/allure-cli/${ALLURE3_CLI_VERSION}"
           if [ ! -f "$allure3/node_modules/allure/cli.js" ]; then
             mkdir -p "$allure3"
-            printf '%s\n' '{"name":"shaft-allure-cli-runtime","private":true}' > "$allure3/package.json"
-            npm --prefix "$allure3" install --no-package-lock --no-save --ignore-scripts "allure@${ALLURE3_CLI_VERSION}"
+            cp "scripts/ci/npm-pins/allure-${ALLURE3_CLI_VERSION}/package.json" "$allure3/package.json"
+            cp "scripts/ci/npm-pins/allure-${ALLURE3_CLI_VERSION}/package-lock.json" "$allure3/package-lock.json"
+            npm ci --prefix "$allure3" --ignore-scripts
           fi
           allure2="$HOME/.m2/repository/allure/allure2-cli/${ALLURE2_CLI_VERSION}"
           if [ ! -x "$allure2/allure-${ALLURE2_CLI_VERSION}/bin/allure" ]; then

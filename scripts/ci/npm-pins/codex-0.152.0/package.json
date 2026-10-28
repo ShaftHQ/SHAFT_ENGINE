@@ -1,0 +1,7 @@
+{
+  "name": "shaft-npm-pin",
+  "private": true,
+  "dependencies": {
+    "@openai/codex": "0.152.0"
+  }
+}

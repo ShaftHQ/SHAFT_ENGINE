@@ -38,7 +38,9 @@ adb start-server
 adb version
 
 if ! command -v appium >/dev/null 2>&1; then
-  npm install -g appium@3.5.2
+  pin="$(cd "$(dirname "$0")/npm-pins/appium-3.5.2" && pwd)"
+  npm ci --prefix "$pin"
+  export PATH="$pin/node_modules/.bin:$PATH"
 fi
 appium driver install --source npm appium-flutter-integration-driver
 
