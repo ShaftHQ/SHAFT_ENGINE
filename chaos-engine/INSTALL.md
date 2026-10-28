@@ -158,6 +158,17 @@ Self-install from the SHAFT_ENGINE checkout itself: `--source` must not sit
 inside the project, so point it at a detached worktree of the same commit:
 `git worktree add -f --detach ../ce-src <sha> && python3 chaos-engine/install.py install --project . --source ../ce-src/chaos-engine --commit <sha>`.
 
+Local-source installs always need `--source <dir>` (or `--from-bundle <zip>`) plus
+the full 40-hex `--commit`. A bare `--commit` alone fails. When an add-on lives
+beside the core, prefer an explicit pack via `CHAOS_ENGINE_ADDON_PATHS` so a
+sibling scan of other worktrees cannot block the install:
+
+```bash
+CHAOS_ENGINE_ADDON_PATHS=../addons-pack/ce-addons \
+  python3 .chaos-engine/install.py install --project . --consumer \
+  --source ../ce-src/chaos-engine --commit <40-hex-sha>
+```
+
 That merges:
 
 ```toml
