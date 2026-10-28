@@ -57,7 +57,12 @@ def is_bot(pr: dict) -> bool:
 def minutes_between(start: str | None, end: str | None) -> float | None:
     if not start or not end:
         return None
-    return (_ts(end) - _ts(start)).total_seconds() / 60
+    minutes = (_ts(end) - _ts(start)).total_seconds() / 60
+    # Clock skew / bad GraphQL timestamps can yield negatives; exclude them so
+    # they cannot pull the median down (#7184 Coach).
+    if minutes < 0:
+        return None
+    return minutes
 
 
 def minutes_to_merge(prs: list[dict]) -> list[float]:

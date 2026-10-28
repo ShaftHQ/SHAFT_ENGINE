@@ -25,13 +25,60 @@ class AssertBranchUptodateTest(unittest.TestCase):
             git.return_value = mock.Mock(returncode=1)
             self.assertFalse(mod.is_uptodate("origin/main", "HEAD"))
 
+    def test_fetch_base_uses_origin_refspec(self) -> None:
+        with mock.patch.object(mod, "_git") as git:
+            git.return_value = mock.Mock(returncode=0, stdout="", stderr="")
+            mod.fetch_base("origin/main")
+            git.assert_called_once_with(
+                ["fetch", "--no-tags", "--depth", "1", "origin", "+refs/heads/main:refs/remotes/origin/main"]
+            )
+
+    def test_fetch_base_uses_fetch_url_for_forks(self) -> None:
+        with mock.patch.object(mod, "_git") as git:
+            git.return_value = mock.Mock(returncode=0, stdout="", stderr="")
+            mod.fetch_base("origin/main", "https://github.com/ShaftHQ/SHAFT_ENGINE.git")
+            git.assert_called_once_with(
+                [
+                    "fetch",
+                    "--no-tags",
+                    "--depth",
+                    "1",
+                    "https://github.com/ShaftHQ/SHAFT_ENGINE.git",
+                    "+refs/heads/main:refs/remotes/origin/main",
+                ]
+            )
+
+    def test_main_fetches_then_checks(self) -> None:
+        with mock.patch.object(mod, "fetch_base") as fetch, mock.patch.object(
+            mod, "is_uptodate", return_value=True
+        ) as probe:
+            self.assertEqual(0, mod.main(["--base", "origin/main", "--fetch-url", "https://example.test/r.git"]))
+            fetch.assert_called_once_with("origin/main", "https://example.test/r.git")
+            probe.assert_called_once_with("origin/main", "HEAD")
+
     def test_main_exits_1_when_behind(self) -> None:
-        with mock.patch.object(mod, "is_uptodate", return_value=False):
+        with mock.patch.object(mod, "fetch_base"), mock.patch.object(mod, "is_uptodate", return_value=False):
             self.assertEqual(1, mod.main(["--base", "origin/main"]))
 
     def test_main_exits_0_when_uptodate(self) -> None:
-        with mock.patch.object(mod, "is_uptodate", return_value=True):
+        with mock.patch.object(mod, "fetch_base"), mock.patch.object(mod, "is_uptodate", return_value=True):
             self.assertEqual(0, mod.main([]))
+
+    def test_skip_fetch_bypasses_network(self) -> None:
+        with mock.patch.object(mod, "fetch_base") as fetch, mock.patch.object(
+            mod, "is_uptodate", return_value=True
+        ):
+            self.assertEqual(0, mod.main(["--skip-fetch"]))
+            fetch.assert_not_called()
+
+    def test_workflow_wires_branch_uptodate_job(self) -> None:
+        workflow = (ROOT / ".github/workflows/pr-gate.yml").read_text(encoding="utf-8")
+        self.assertIn("branch-uptodate:", workflow)
+        self.assertIn("scripts/ci/assert_branch_uptodate.py", workflow)
+        self.assertIn("--fetch-url", workflow)
+        # Required by summary so it cannot be bypassed.
+        summary = workflow.split("summary:", 1)[1].split("main-red-reaction:", 1)[0]
+        self.assertIn("branch-uptodate", summary)
 
 
 if __name__ == "__main__":

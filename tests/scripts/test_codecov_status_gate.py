@@ -65,6 +65,12 @@ class CodecovStatusGateTest(unittest.TestCase):
         # Summary no longer runs the poll inline (critical-path cut #7184).
         summary = workflow.split("summary:", 1)[1].split("main-red-reaction:", 1)[0]
         self.assertNotIn("Enforce Codecov patch/project", summary)
+        # Coach: poll only after coverage-producing legs finish (no early false green).
+        gate = workflow.split("codecov-gate:", 1)[1].split("branch-uptodate:", 1)[0]
+        self.assertIn("unit-tests", gate)
+        self.assertIn("needs.unit-tests.result", gate)
+        self.assertIn("intellij-build", gate)
+        self.assertIn("cli", gate)
         config = (ROOT / "codecov.yml").read_text(encoding="utf-8")
         self.assertIn("wait_for_ci: false", config)
 

@@ -66,7 +66,27 @@ class TimeToMergeTest(unittest.TestCase):
             ]
         )
 
+    def test_negative_durations_are_excluded(self) -> None:
+        # last_commit after merge → negative; must not skew the median.
+        summary = ttm.summarize(
+            [
+                pr(10, last=0, number=1),
+                {
+                    "number": 2,
+                    "created_at": "2026-10-15T10:00:00Z",
+                    "merged_at": "2026-10-15T10:10:00Z",
+                    "last_commit_at": "2026-10-15T10:20:00Z",  # after merge
+                    "user": {"login": "human"},
+                },
+                pr(20, last=0, number=3),
+            ]
+        )
+        self.assertEqual(2, summary["count"])
+        self.assertEqual(15.0, summary["median_minutes"])
+        self.assertIsNone(ttm.minutes_between("2026-10-15T10:20:00Z", "2026-10-15T10:10:00Z"))
+
     def test_avg_pr_gate_runs(self) -> None:
+
         summary = ttm.summarize(
             [pr(8, last=0, number=1), pr(9, last=0, number=2)],
             gate_runs={1: 2, 2: 4},
