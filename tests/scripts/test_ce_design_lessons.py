@@ -14,17 +14,19 @@ ROOT = Path(__file__).resolve().parents[2]
 DESIGN = ROOT / "chaos-engine/addons/design-skills"
 LESSONS = DESIGN / "references/lessons"
 CARDS = {
-    "hook-speech-match": ("visible at 0 s", "visible from 0 s", "Hooks-first planning", "verbatim", "per-item end time", "monotonic", "repro that must fail", "Muted test", "shared lower-third", "~0.55 s", "~0.8 / 1.5 / 1.7 s", "Hook preserves modality", "design_qc.py hookmodality", "answer beat", "hookbleed"),
+    "hook-speech-match": ("visible at 0 s", "visible from 0 s", "Hooks-first planning", "verbatim", "per-item end time", "monotonic", "repro that must fail", "Muted test", "shared lower-third", "~0.55 s", "~0.8 / 1.5 / 1.7 s", "Hook preserves modality", "design_qc.py hookmodality", "answer beat", "hookbleed",
+                              "G14 pre-render", "design_qc.py qaanswer", "drop/skip"),
     "mixed-script-captions": ("«،»", "trailing filler", "bound prefix", "فلان/كذا", "Atkinson Hyperlegible", "LRI ... PDI", "`؟`", "before any wrapping markup", "2 lines at most",
                               "by rendering them", "WJ + thin space + WJ", "smallest size", "file that ships",
                               "unicode-bidi: isolate", "leading RLM", "Article **right** of Latin", "SRT must carry it",
-                              "Tech-term lexicon", "design_qc.py termlexicon"),
+                              "Tech/loan lexicon", "design_qc.py termlexicon", "فري", "free"),
     "talk-edit-and-layers": ("never mid-word", "30 ms crossfade", "after the content span", "0.3 s", "Per-frame fade check", "0.8 s", "No mid-sentence jump cuts", "pre-cut time", "RMS dip", "2 or more models",
                              "opaque base", "mask (blur)", "soft transition", "design_qc.py softjump", "Antecedent check"),
     "signed-output-release": ("re-gate only the cues that changed", "0 SRT errors", "one opt-in flag", "byte-identical", "`framemd5`", "never re-render",
                               "failed before the fix", "10 fps", "CRLF", "shared profile",
                               "One Short active", "native schedule", "hand-fixed SRTs",
-                              "≤0.45 s soft target", "silencegap --target 0.45"),
+                              "≤0.45 s soft target", "silencegap --target 0.45",
+                              "self-flagged", "design_qc.py opendoubt"),
     "cross-surface-takeaways": ("at most 1 brand-colour key word", "1.05", "Explicit CTA end card",
                                 "big cursor", "Masked speaker", "Pattern interrupt", "verb first", "reduced motion"),
 }

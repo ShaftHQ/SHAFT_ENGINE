@@ -26,7 +26,10 @@ visual or gate change is coming. It pairs with
    contact sheet, and the hook-end, video-end and first-cue-after-card
    frames. Mid-answer silence must meet the **≤0.45 s soft target**
    (`silencegap --target 0.45` with no soft warnings) before handoff —
-   do not send a near-limit 0.57–0.60 s gap for review.
+   do not send a near-limit 0.57–0.60 s gap for review. Any **self-flagged
+   doubt** (script form vs Latin, lexicon gap, modality risk) must be
+   **fixed before handoff** — do not ask the reviewer to decide. Gate:
+   `design_qc.py opendoubt SELF-REVIEW.md`.
 5. Read pinned inputs with `git show <sha>:<path>`. Scripts are
    all-or-nothing, and rewrites preserve file conventions (for example
    CRLF).
@@ -49,6 +52,8 @@ visual or gate change is coming. It pairs with
       profile renders.
 - [ ] `silencegap --target 0.45` shows no soft warnings before handoff
       (hard >0.6 s already FAIL).
+- [ ] `design_qc.py opendoubt SELF-REVIEW.md` passes (no open self-flagged
+      doubts).
 
 ## Sources
 

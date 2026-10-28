@@ -408,6 +408,8 @@ def cmd_boundprefix(qc, args) -> int:
 TERM_WORDS = {
     "داتايز": "database", "داتابيز": "database", "داتابيس": "database", "داتابايز": "database",
     "تست": "test", "تستنج": "testing", "فريمورك": "framework", "باكند": "backend", "فرونتند": "frontend",
+    # Common English loanwords (U9 G15) — generic placeholders only, never brand names.
+    "فري": "free", "سولو": "solo", "فاوندر": "founder",
 }
 TERM_PHRASES = (("فريم ورك", "framework"), ("تست كيس", "test case"), ("تست كيسز", "test cases"))
 TERM_PREF = ("وال", "فال", "بال", "لل", "ال", "و", "ف", "ب", "ك")
@@ -431,7 +433,7 @@ def _term_lexicon_maps(extra: list[str]) -> tuple[dict[str, str], list[tuple[str
 
 
 def term_lexicon_hits(text: str, words: dict[str, str], phrases: list[tuple[str, str]]) -> list[str]:
-    """Flag leftover Arabic-script forms of known tech terms (optional bound prefixes)."""
+    """Flag leftover Arabic-script forms of known tech/loan terms (optional bound prefixes)."""
     hits: list[str] = []
     joined = text.replace(" ", " ")
     for ar, lat in phrases:
@@ -717,8 +719,123 @@ def _is_question(text: str) -> bool:
     return bool(QUESTION_MARK.search(text) or QUESTION_LEAD.search(text.strip()))
 
 
+
+# Dodge / next-question / topic-pivot tails are not an answer beat (U9 G14).
+ANSWER_DODGE = re.compile(
+    r"(?i)مش\s*عارف|معرفش|ما\s*عرفش|مانيش\s*عارف|مش\s*متأكد|مش\s*فاهم|"
+    r"الله\s*أعلم|مفيش\s*فكرة|ما\s*عنديش\s*(?:إجابة|اجابه|فكرة)|"
+    r"I\s*don'?t\s*know|I\s*have\s*no\s*idea|no\s*idea|dunno|not\s*sure|"
+    r"beats\s*me|can'?t\s*say|no\s*comment"
+)
+# Next-question / move-on + soft topic-pivot leads (after a dodge these kill the beat).
+ANSWER_PIVOT = re.compile(
+    r"(?i)السؤال\s+اللي\s+بعدي[هة]?|السؤال\s+التالي|السؤال\s+الجاي|"
+    r"خلينا\s+(?:نعدي|ننتقل|نروح|نتكلم\s+عن)|طب\s+(?:نروح|نعدي|ننتقل)|"
+    r"let'?s\s+move\s+(?:on|to\s+the\s+next)|(?:move|moving)\s+on\b|"
+    r"next\s+question|another\s+question|"
+    r"بس\s+بالنسب[ةه]\b|بالنسبة\s+(?:ل|لل)|speaking\s+of\b|anyway\b|"
+    r"by\s+the\s+way\b|على\s+فكرة\b"
+)
+
+OPEN_DOUBT = re.compile(
+    r"(?i)(?:\bopen\s+doubts?\b(?!\s*[:：]?\s*(?:none|n/?a|—|-)\b))"
+    r"|(?:\bself-?flag(?:ged)?\s+doubt\b)"
+    r"|(?:\bask\s+(?:the\s+)?coach\b)"
+    r"|(?:\bneeds?\s+coach\s+(?:to\s+)?(?:decide|decision|call)\b)"
+    r"|(?:\bnot\s+sure\s+(?:if|whether|about)\b)"
+    r"|(?:\bdoubt:\s*\S)"
+    r"|(?:\bunresolved\s+doubt\b)"
+    r"|(?:محتاج\s*(?:رأي|الكوتش|coach))"
+)
+
+
+def _answer_beat_problems(text: str, min_chars: int = 40) -> list[str]:
+    """Return FAIL reasons when post-question text has no real answer beat.
+
+    Length-after-strip alone is too weak (U9 row9: dodge + gov/OpenAI pivot +
+    «السؤال اللي بعديه» still looked long). Fail when:
+    - a dodge appears and the post-dodge tail is a topic/next-question pivot, or
+    - after stripping dodge + pivot markers, too little remains.
+    """
+    problems: list[str] = []
+    dodge = ANSWER_DODGE.search(text)
+    if dodge:
+        after_dodge = text[dodge.end():]
+        if ANSWER_PIVOT.search(after_dodge) or ANSWER_PIVOT.search(text):
+            problems.append(
+                "dodge plus topic/next-question pivot after the question — "
+                "no answer beat; drop/skip the row; do not render"
+            )
+            return problems
+    cleaned = ANSWER_DODGE.sub(" ", text)
+    cleaned = ANSWER_PIVOT.sub(" ", cleaned)
+    core = re.sub(r"\s+", " ", cleaned).strip(" \n\t.,;:!?؟،-")
+    if len(core) < min_chars:
+        problems.append(
+            "no answer beat after question (dodge/pivot only or empty) — "
+            "drop/skip the row; do not render"
+        )
+    return problems
+
+
+def cmd_qaanswer(qc, args) -> int:
+    """Pre-render G14: type=qa must show a real answer beat in the transcript; else drop."""
+    problems: list[str] = []
+    if args.after:
+        problems.extend(_answer_beat_problems(
+            Path(args.after).read_text(encoding="utf-8"), min_chars=args.min_chars
+        ))
+    if args.span:
+        span = json.loads(Path(args.span).read_text(encoding="utf-8"))
+        beat = span.get("answer_beat", span.get("answer_beat_s", span.get("answerBeat")))
+        if beat is None or beat == "" or beat is False:
+            problems.append(
+                "span/BRIEF missing answer_beat timestamp/note — record it before render "
+                "(or drop the row)"
+            )
+    if not args.after and not args.span:
+        raise qc.Skip("pass --after and/or --span")
+    return qc.report(
+        "qaanswer", qc.FAIL if problems else qc.PASS,
+        problems=problems,
+        note="G14 pre-flight: confirm answer beat in transcript before render; else drop",
+    )
+
+
+def cmd_opendoubt(qc, args) -> int:
+    """G15: self-flagged doubts in SELF-REVIEW must be fixed before Coach handoff."""
+    text = Path(args.file).read_text(encoding="utf-8")
+    hits = []
+    for m in OPEN_DOUBT.finditer(text):
+        # Allow explicit cleared lines like "Open doubts: none"
+        line = text[max(0, m.start() - 40): m.end() + 40]
+        if re.search(r"(?i)open\s+doubts?\s*[:：]?\s*(?:none|n/?a|—|-)\b", line):
+            continue
+        if re.search(r"(?i)no\s+(?:open\s+)?doubts?\b", line):
+            continue
+        hits.append(f"self-flagged doubt still open near: {m.group(0)!r} — fix before handoff")
+    # ## Open doubts section with real content
+    sec = re.search(
+        r"(?im)^##\s+open\s+doubts?\s*\n(.*?)(?=^##\s|\Z)", text, re.S
+    )
+    if sec:
+        body = sec.group(1).strip()
+        if body and not re.fullmatch(r"(?i)(?:none|n/?a|—|-|\*\*none\*\*)\.?", body):
+            if not re.search(r"(?i)\bnone\b", body) or len(body) > 40:
+                hits.append("## Open doubts still lists items — fix before handoff")
+    return qc.report(
+        "opendoubt", qc.FAIL if hits else qc.PASS,
+        hits=hits,
+        note="G15: do not hand a self-flagged script/lexicon doubt to Coach to decide",
+    )
+
+
 def cmd_hookmodality(qc, args) -> int:
-    """Hook card must keep the speaker's modality (question ≠ claim) for every hook type."""
+    """Hook card must keep the speaker's modality (question ≠ claim) for every hook type.
+
+    U9 G14: with --type qa (or auto when spoken is a question) and --after, also require
+    a real answer beat in the post-question transcript before render.
+    """
     hook = Path(args.hook).read_text(encoding="utf-8").strip()
     spoken = Path(args.spoken).read_text(encoding="utf-8").strip()
     hook_q, spoken_q = _is_question(hook), _is_question(spoken)
@@ -727,10 +844,21 @@ def cmd_hookmodality(qc, args) -> int:
         problems.append("spoken is a question but hook reads as a claim (add ؟/? / interrogative)")
     if hook_q and not spoken_q:
         problems.append("hook is a question but spoken is a claim (drop ؟/? or match claim modality)")
+    want_answer = args.type == "qa" or (args.type == "auto" and spoken_q)
+    if want_answer:
+        if args.after:
+            problems.extend(_answer_beat_problems(
+                Path(args.after).read_text(encoding="utf-8"), min_chars=args.min_chars
+            ))
+        elif args.type == "qa":
+            problems.append(
+                "type=qa requires --after post-question transcript (G14 pre-render answer beat)"
+            )
     return qc.report(
         "hookmodality", qc.FAIL if problems else qc.PASS,
-        hook_question=hook_q, spoken_question=spoken_q, problems=problems,
-        note="modality match is never N/A — viral claim↔claim and qa question↔؟ both apply",
+        hook_question=hook_q, spoken_question=spoken_q, type=args.type, problems=problems,
+        note="modality match is never N/A — viral claim↔claim and qa question↔؟; "
+             "type=qa also gates answer beat via --after",
     )
 
 
@@ -890,7 +1018,7 @@ def register(add, qc) -> None:
     p = add("boundprefix", bind(cmd_boundprefix), "caption line ending on a bound prefix")
     p.add_argument("file")
     p = add("termlexicon", bind(cmd_termlexicon),
-            "ASR Arabic-script tech transliterations left in captions (prefer Latin)")
+            "ASR Arabic-script tech/loan transliterations left in captions (prefer Latin)")
     p.add_argument("file")
     p.add_argument("--term", action="append", default=[], metavar="AR=LATIN",
                    help="extend placeholder lexicon (multiword AR allowed before =)")
@@ -982,6 +1110,19 @@ def register(add, qc) -> None:
             "hook card keeps speaker modality (question ≠ claim) for every hook type")
     p.add_argument("--hook", required=True, help="hook card text file")
     p.add_argument("--spoken", required=True, help="spoken hook / under-card transcript file")
+    p.add_argument("--type", choices=("auto", "qa", "claim"), default="auto",
+                   help="qa also requires --after answer-beat check (G14)")
+    p.add_argument("--after", help="post-question transcript for G14 answer-beat pre-flight")
+    p.add_argument("--min-chars", type=int, default=40,
+                   help="min non-dodge chars after question to count as an answer beat")
+    p = add("qaanswer", bind(cmd_qaanswer),
+            "pre-render: qa rows need an answer beat in transcript / span (else drop)")
+    p.add_argument("--after", help="post-question transcript text")
+    p.add_argument("--span", help="BRIEF/span.json that must carry answer_beat")
+    p.add_argument("--min-chars", type=int, default=40)
+    p = add("opendoubt", bind(cmd_opendoubt),
+            "SELF-REVIEW must not leave self-flagged doubts open before handoff (G15)")
+    p.add_argument("file", help="SELF-REVIEW markdown (or handoff note)")
     p = add("hookbleed", bind(cmd_hookbleed),
             "OUT SRT must not straddle hook_end with under-hook speech")
     p.add_argument("srt")
