@@ -9,6 +9,7 @@ import com.shaft.tools.io.internal.AllureManager;
 import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.lang3.SystemUtils;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -1420,5 +1421,77 @@ public class AllureManagerUnitTest {
                 .object(AllureManager.unpackAllureCliZip(slipZip.toFile(), destination.toFile()))
                 .isEqualTo(false)
                 .perform();
+    }
+
+    @Test(description = "allureCliCacheRoot keeps a separator and ignores a blank override")
+    public void allureCliCacheRootHonorsBlankOverrideAndSeparator() {
+        String separator = File.separator;
+        String expectedDefault = System.getProperty("user.home")
+                + separator + ".m2" + separator + "repository"
+                + separator + "allure" + separator + "allure-cli" + separator;
+        System.clearProperty("allure.cli.cacheRoot");
+        Assert.assertEquals(AllureManager.allureCliCacheRoot(), expectedDefault);
+
+        System.setProperty("allure.cli.cacheRoot", " \t ");
+        Assert.assertEquals(AllureManager.allureCliCacheRoot(), expectedDefault);
+
+        String withoutSeparator = Path.of("target", "custom-allure-root").toString();
+        System.setProperty("allure.cli.cacheRoot", withoutSeparator);
+        Assert.assertEquals(AllureManager.allureCliCacheRoot(), withoutSeparator + separator);
+
+        String withSeparator = withoutSeparator + separator;
+        System.setProperty("allure.cli.cacheRoot", withSeparator);
+        Assert.assertEquals(AllureManager.allureCliCacheRoot(), withSeparator);
+    }
+
+    @Test(description = "getAllureCliMavenZipPath ignores a blank allure.cli.mavenZip override")
+    public void getAllureCliMavenZipPathIgnoresBlankOverride() {
+        String version = "3.17.0";
+        String expected = System.getProperty("user.home")
+                + File.separator + ".m2" + File.separator + "repository"
+                + File.separator + "io" + File.separator + "github" + File.separator + "shafthq"
+                + File.separator + AllureManager.ALLURE_CLI_MAVEN_ARTIFACT_ID
+                + File.separator + version
+                + File.separator + AllureManager.ALLURE_CLI_MAVEN_ARTIFACT_ID + "-" + version + ".zip";
+        System.clearProperty("allure.cli.mavenZip");
+        Assert.assertEquals(AllureManager.getAllureCliMavenZipPath(version), expected);
+        System.setProperty("allure.cli.mavenZip", "  ");
+        Assert.assertEquals(AllureManager.getAllureCliMavenZipPath(version), expected);
+    }
+
+    @Test(description = "tryProvisionAllureCli rejects an unpinned version before the present-cli shortcut")
+    public void tryProvisionAllureCliRejectsUnpinnedVersionEvenWhenCliJsExists() throws Exception {
+        Path cacheRoot = createFakeProvisionedAllureCli("not-a-version");
+        try {
+            Assert.assertFalse(AllureManager.tryProvisionAllureCli("not-a-version"));
+            Assert.assertTrue(Files.isRegularFile(cacheRoot.resolve("not-a-version")
+                    .resolve("node_modules").resolve("allure").resolve("cli.js")));
+        } finally {
+            deleteRecursively(cacheRoot);
+        }
+    }
+
+    @Test(description = "tryProvisionAllureCli returns true for an already provisioned CLI even when skip is set")
+    public void tryProvisionAllureCliReturnsTrueWhenCliAlreadyPresentDespiteSkip() throws Exception {
+        Path cacheRoot = createFakeProvisionedAllureCli("3.17.0");
+        try {
+            Assert.assertTrue(AllureManager.tryProvisionAllureCli("3.17.0"));
+        } finally {
+            deleteRecursively(cacheRoot);
+        }
+    }
+
+    @Test(description = "tryProvisionAllureCli does not create a cache home when provision is skipped")
+    public void tryProvisionAllureCliSkipsWhenProvisionIsDisabled() throws Exception {
+        Path cacheRoot = Files.createTempDirectory("shaft-allure-cli-skip");
+        System.setProperty("allure.cli.cacheRoot", cacheRoot.toString());
+        System.setProperty("allure.cli.skipProvision", "true");
+        System.setProperty("allure.cli.mavenZip", cacheRoot.resolve("missing.zip").toString());
+        try {
+            Assert.assertFalse(AllureManager.tryProvisionAllureCli("3.4.0"));
+            Assert.assertFalse(Files.exists(cacheRoot.resolve("3.4.0")));
+        } finally {
+            deleteRecursively(cacheRoot);
+        }
     }
 }

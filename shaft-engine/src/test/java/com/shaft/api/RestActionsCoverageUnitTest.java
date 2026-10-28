@@ -96,6 +96,8 @@ public class RestActionsCoverageUnitTest {
                 .isEqualTo("http://localhost/users?a=1").perform();
         Validations.assertThat().object(actions.prepareRequestURL("http://localhost/", "", "users"))
                 .isEqualTo("http://localhost/users").perform();
+        Validations.assertThat().object(actions.prepareRequestURL("http://localhost/", null, "users"))
+                .isEqualTo("http://localhost/users").perform();
     }
 
     @Test
@@ -697,5 +699,128 @@ public class RestActionsCoverageUnitTest {
     public void apiConstructorWithStorageStatePathThrowsForMissingFile() {
         Assert.assertThrows(IllegalStateException.class,
                 () -> new SHAFT.API("https://api.example.com/", "does-not-exist/storage-state.json"));
+    }
+
+    @Test
+    public void importCookiesFromStorageStateSkipsBlankNamesAndRejectsUnreadableFiles() throws Exception {
+        Path storageStateFile = Files.createTempFile("shaft-storage-state-import", ".json");
+        try {
+            Files.writeString(storageStateFile, """
+                    {
+                      "cookies": [
+                        {"name":"session","value":"secret","domain":".example.com","path":"/app","expiry":4102444800000,"secure":true,"httpOnly":true,"sameSite":"Strict"},
+                        {"name":"plain","value":null},
+                        {"name":"   ","value":"skip-blank"},
+                        {"name":null,"value":"skip-null"}
+                      ]
+                    }
+                    """);
+            RestActions actions = new RestActions("https://api.example.com/");
+            Assert.assertSame(actions, actions.importCookiesFromStorageState(storageStateFile.toString()));
+            Map<String, Cookie> cookies = actions.getCookies();
+            Assert.assertEquals(cookies.keySet(), Set.of("session", "plain"));
+            Cookie imported = cookies.get("session");
+            Assert.assertEquals(imported.getValue(), "secret");
+            Assert.assertEquals(imported.getDomain(), ".example.com");
+            Assert.assertEquals(imported.getPath(), "/app");
+            Assert.assertEquals(imported.getExpiryDate(), new java.util.Date(4102444800000L));
+            Assert.assertTrue(imported.isSecured());
+            Assert.assertTrue(imported.isHttpOnly());
+            Assert.assertEquals(imported.getSameSite(), "Strict");
+            Cookie plain = cookies.get("plain");
+            Assert.assertEquals(plain.getValue(), "");
+            Assert.assertFalse(plain.hasDomain());
+            Assert.assertFalse(plain.hasPath());
+        } finally {
+            Files.deleteIfExists(storageStateFile);
+        }
+
+        Path nullCookies = Files.createTempFile("shaft-storage-state-null", ".json");
+        try {
+            Files.writeString(nullCookies, "{\"cookies\":null}");
+            RestActions actions = new RestActions("https://api.example.com/");
+            Assert.assertSame(actions, actions.importCookiesFromStorageState(nullCookies.toString()));
+            Assert.assertTrue(actions.getCookies().isEmpty());
+        } finally {
+            Files.deleteIfExists(nullCookies);
+        }
+
+        Path missing = Path.of("does-not-exist", "storage-state.json").toAbsolutePath();
+        IllegalStateException missingFile = Assert.expectThrows(IllegalStateException.class,
+                () -> new RestActions("https://api.example.com/").importCookiesFromStorageState(missing.toString()));
+        Assert.assertEquals(missingFile.getMessage(),
+                "Could not read browser storage state from `" + missing.toFile().getAbsolutePath() + "`.");
+
+        Path broken = Files.createTempFile("shaft-storage-state-broken", ".json");
+        try {
+            Files.writeString(broken, "{");
+            IllegalStateException brokenJson = Assert.expectThrows(IllegalStateException.class,
+                    () -> new RestActions("https://api.example.com/").importCookiesFromStorageState(broken.toString()));
+            Assert.assertEquals(brokenJson.getMessage(),
+                    "Could not read browser storage state from `" + broken.toFile().getAbsolutePath() + "`.");
+            Assert.assertNotNull(brokenJson.getCause());
+        } finally {
+            Files.deleteIfExists(broken);
+        }
+
+        NullPointerException nullPath = Assert.expectThrows(NullPointerException.class,
+                () -> new RestActions("https://api.example.com/").importCookiesFromStorageState(null));
+        Assert.assertEquals(nullPath.getMessage(), "storageStatePath");
+    }
+
+    @Test
+    public void getCookiesSynthesizesAnEmptyValueAndSkipsANullName() {
+        RestActions actions = new RestActions("http://localhost/");
+        actions.addCookieVariable("session", null);
+        actions.addCookieVariable(null, "ignored");
+
+        Cookie cookie = actions.getCookies().get("session");
+        Assert.assertNotNull(cookie);
+        Assert.assertEquals(cookie.getValue(), "");
+        Assert.assertFalse(actions.getCookies().containsKey(null));
+    }
+
+    @Test
+    public void prepareRequestSpecsTreatsAFormFileAsMultipart() throws Exception {
+        RestActions actions = new RestActions("http://localhost/");
+        Path tempFile = Files.createTempFile("shaft-rest-form", ".txt");
+        try {
+            Files.writeString(tempFile, "payload");
+            Map<String, Object> formParams = new LinkedHashMap<>();
+            formParams.put("file", tempFile.toFile());
+            RequestSpecification spec = actions.prepareRequestSpecs(
+                    formParams, RestActions.ParametersType.FORM, null, ContentType.ANY,
+                    Map.of(), Map.of(), RestAssuredConfig.config(), true, true);
+            Assert.assertTrue(((FilterableRequestSpecification) spec).getContentType().contains("multipart/form-data"));
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
+    @Test
+    public void getResponseAsRejectsANullContentTypeWithTheExactMessage() {
+        Response response = Mockito.mock(Response.class);
+        Mockito.when(response.getContentType()).thenReturn(null);
+        Mockito.when(response.asString()).thenReturn("{\"id\":1,\"name\":\"shaft\"}");
+
+        IllegalStateException error = Assert.expectThrows(IllegalStateException.class,
+                () -> RestActions.getResponseAs(response, ApiUser.class));
+        Assert.assertEquals(error.getMessage(),
+                "Cannot map response body to " + ApiUser.class.getName()
+                        + " because response Content-Type is not JSON: null.");
+    }
+
+    @Test
+    public void prepareRequestSpecsRejectsEnabledSwaggerValidationWithoutASpecUrl() {
+        SHAFT.Properties.api.set().swaggerValidationEnabled(true).swaggerValidationUrl(" \t ");
+        RestActions actions = new RestActions("http://localhost/");
+
+        IllegalArgumentException error = Assert.expectThrows(IllegalArgumentException.class,
+                () -> actions.prepareRequestSpecs(
+                        null, null, null, ContentType.JSON, Map.of(), Map.of(),
+                        RestAssuredConfig.config(), true, true));
+        Assert.assertEquals(error.getMessage(),
+                com.shaft.api.internal.ApiSettings.missingSpecUrlMessage(
+                        com.shaft.api.internal.ApiSettings.SWAGGER_ENABLED_KEY));
     }
 }

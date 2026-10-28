@@ -4,6 +4,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 import com.shaft.capture.CaptureFixtures;
 import com.shaft.capture.format.CaptureJsonCodec;
+import com.shaft.capture.model.BrowserMetadata;
 import com.shaft.capture.model.CaptureEvent;
 import com.shaft.capture.model.CaptureReadiness;
 import com.shaft.capture.model.CaptureSession;
@@ -12,6 +13,7 @@ import com.shaft.capture.model.ElementSnapshot;
 import com.shaft.capture.model.EventContext;
 import com.shaft.capture.model.ExternalTestDataReference;
 import com.shaft.capture.model.LocatorCandidate;
+import com.shaft.capture.model.network.HttpRequestRecord;
 import com.shaft.pilot.ai.AiResponse;
 import com.shaft.pilot.ai.AiUsage;
 import com.shaft.pilot.ai.ApprovalPolicy;
@@ -26,6 +28,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -2959,5 +2962,285 @@ class CaptureGeneratorTest {
         assertFalse(source.contains("from playwright"), source);
         assertFalse(source.contains("import pytest"), source);
         assertFalse(source.contains("using Microsoft.Playwright"), source);
+    }
+
+    @Test
+    void skippedCompilationNamesTheReasonAndMixedCaseEdgeUsesTheEdgeDriver() throws Exception {
+        Path session = session(navigationSession(edgeBrowser(), CaptureSession.SessionStatus.COMPLETED));
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(withoutValidation(session, temp.resolve("edge")));
+
+        assertEquals(CaptureGenerationReport.Status.UNCONFIRMED, result.report().status());
+        assertEquals(List.of("Compilation was not requested."), result.report().compilation().diagnostics());
+        assertEquals(List.of("Replay was not requested."), result.report().replay().diagnostics());
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("DriverFactory.DriverType.EDGE"), source);
+        assertFalse(source.contains("DriverFactory.DriverType.CHROME"), source);
+    }
+
+    @Test
+    void playwrightEdgeBrowserIsEmittedAsChromium() throws Exception {
+        Path session = session(navigationSession(edgeBrowser(), CaptureSession.SessionStatus.COMPLETED));
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(
+                withoutValidation(session, temp.resolve("playwright-edge")),
+                CaptureGenerator.CodegenBackend.PLAYWRIGHT);
+
+        String source = Files.readString(result.sourcePath());
+        assertTrue(source.contains("browserName(\"chromium\")"), source);
+        assertFalse(source.contains("browserName(\"edge\")"), source);
+        assertFalse(source.contains("browserName(\"Edge\")"), source);
+    }
+
+    @Test
+    void replayIsSkippedWhenCompilationFails() throws Exception {
+        Path session = session(navigationSession(CaptureFixtures.browser(), CaptureSession.SessionStatus.COMPLETED));
+        AtomicBoolean replayInvoked = new AtomicBoolean();
+        GeneratedTestValidator validator = new GeneratedTestValidator() {
+            @Override
+            public CaptureGenerationReport.Validation compile(Path source, Path classesDirectory) {
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.FAILED,
+                        List.of("forced compile failure"),
+                        0);
+            }
+
+            @Override
+            public CaptureGenerationReport.Validation replay(
+                    String fullyQualifiedClassName,
+                    Path classesDirectory,
+                    Path resourcesDirectory,
+                    Path workDirectory,
+                    Duration timeout) {
+                replayInvoked.set(true);
+                return new CaptureGenerationReport.Validation(
+                        CaptureGenerationReport.Validation.ValidationStatus.PASSED, List.of(), 1);
+            }
+        };
+
+        CaptureGenerationResult result = new CaptureGenerator(
+                new CaptureJsonCodec(), new LocatorRanker(), validator, new CaptureEnrichmentService())
+                .generate(new CaptureGenerationRequest(
+                        session, temp.resolve("replay-skip"), "generated.capture", "", false,
+                        true, true, Duration.ofMinutes(1),
+                        CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                        ApprovalPolicy.denyAll()));
+
+        assertEquals(CaptureGenerationReport.Status.FAILED, result.report().status());
+        assertEquals(List.of("forced compile failure"), result.report().compilation().diagnostics());
+        assertEquals(CaptureGenerationReport.Validation.ValidationStatus.SKIPPED, result.report().replay().status());
+        assertEquals(List.of("Replay was skipped because compilation failed."),
+                result.report().replay().diagnostics());
+        assertFalse(replayInvoked.get());
+        assertFalse(Files.exists(result.sourcePath()));
+    }
+
+    @Test
+    void invalidPackageAndClassNamesFailBeforeCompilation() throws Exception {
+        Path session = session(navigationSession(CaptureFixtures.browser(), CaptureSession.SessionStatus.COMPLETED));
+        CaptureGenerator generator = new CaptureGenerator();
+
+        CaptureGenerationResult invalidPackage = generator.generate(new CaptureGenerationRequest(
+                session, temp.resolve("bad-package"), "not a package", "", false,
+                false, false, Duration.ofMinutes(1),
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                ApprovalPolicy.denyAll()));
+
+        assertEquals(CaptureGenerationReport.Status.FAILED, invalidPackage.report().status());
+        assertEquals(List.of("Generation failed while validating generation request inputs: "
+                        + "Generated package name is invalid."),
+                invalidPackage.report().unsupportedEvents());
+        assertEquals(List.of("Generation failed before compilation."),
+                invalidPackage.report().compilation().diagnostics());
+        assertEquals(List.of("Generation failed before replay."),
+                invalidPackage.report().replay().diagnostics());
+
+        CaptureGenerationResult invalidClass = generator.generate(new CaptureGenerationRequest(
+                session, temp.resolve("bad-class"), "generated.capture", "123Bad", false,
+                false, false, Duration.ofMinutes(1),
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                ApprovalPolicy.denyAll()));
+
+        assertEquals(List.of("Generation failed while validating generation request inputs: "
+                        + "Generated class name is not a valid Java identifier."),
+                invalidClass.report().unsupportedEvents());
+    }
+
+    @Test
+    void incompleteEmptySessionWarnsWithTheExactRecordingMessages() throws Exception {
+        Path session = session(new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "empty-incomplete",
+                CaptureSession.SessionStatus.INCOMPLETE,
+                CaptureFixtures.STARTED,
+                null,
+                CaptureFixtures.browser(),
+                List.of(),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of()));
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(
+                withoutValidation(session, temp.resolve("empty-incomplete")));
+
+        assertEquals(List.of(
+                "The source Capture session contains no events.",
+                "The source Capture session is INCOMPLETE: the recording ended unexpectedly "
+                        + "(it was never stopped cleanly), so the generated test may be missing the end of "
+                        + "the journey. Re-record the flow and confirm the recording reports COMPLETED "
+                        + "before generating code from it."),
+                result.report().warnings());
+    }
+
+    @Test
+    void unsupportedResidualEventsNameTheExactBlocker() throws Exception {
+        ExternalTestDataReference secret = CaptureFixtures.secret();
+        ExternalTestDataReference sensitive = new ExternalTestDataReference(
+                "data.token",
+                "token",
+                ExternalTestDataReference.DataSource.ENVIRONMENT,
+                "",
+                "",
+                ExternalTestDataReference.DataClassification.SENSITIVE);
+        CaptureSession captureSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "residual-blockers",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(9),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.ClickEvent(CaptureFixtures.context(2), CaptureFixtures.target(),
+                                CaptureEvent.MouseButton.PRIMARY, 3),
+                        new CaptureEvent.SelectEvent(CaptureFixtures.context(3), CaptureFixtures.target(),
+                                CaptureEvent.SelectMode.INDEX, CaptureFixtures.ordinary()),
+                        new CaptureEvent.SelectEvent(CaptureFixtures.context(4), CaptureFixtures.target(),
+                                CaptureEvent.SelectMode.VISIBLE_TEXT, secret),
+                        new CaptureEvent.WindowEvent(CaptureFixtures.context(5),
+                                CaptureEvent.WindowAction.SWITCH, "window-9"),
+                        new CaptureEvent.WaitEvent(CaptureFixtures.context(6),
+                                CaptureEvent.WaitCondition.URL_CONTAINS, Duration.ofSeconds(1), null, null),
+                        new CaptureEvent.WaitEvent(CaptureFixtures.context(7),
+                                CaptureEvent.WaitCondition.TITLE_CONTAINS, Duration.ofSeconds(1), null, sensitive),
+                        new CaptureEvent.AlertEvent(CaptureFixtures.context(8),
+                                CaptureEvent.AlertAction.VERIFY_TEXT, secret),
+                        new CaptureEvent.NetworkEvent(CaptureFixtures.context(9), "txn-1",
+                                null, new HttpRequestRecord("GET", "https://example.test/api", Map.of(), null),
+                                null, null, "", "https://example.test/form", null)),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(
+                request(session(captureSession), temp.resolve("residual-blockers")));
+
+        assertEquals(List.of(
+                "event-2: click counts above two are unsupported.",
+                "event-3: index-based selection is volatile. Record value or visible text.",
+                "event-4: secret select values are not generated because selection diagnostics could expose them.",
+                "event-5: logical window window-9 was not opened earlier in the session.",
+                "event-6: URL/title wait requires an expected data reference.",
+                "event-7: secret URL/title wait values are not generated because wait diagnostics could expose them.",
+                "event-8: secret alert text cannot be asserted without exposing it in reports.",
+                "event-9: network capture requires ApiCaptureGenerator (P2 feature)."),
+                result.report().unsupportedEvents());
+    }
+
+    @Test
+    void playwrightFrameSwitchIsUnsupportedAndTopIsNot() throws Exception {
+        CaptureSession captureSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "playwright-frame",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(3),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                                CaptureEvent.NavigationAction.OPEN, "https://example.test/form"),
+                        new CaptureEvent.FrameEvent(CaptureFixtures.context(2),
+                                CaptureEvent.FrameAction.TOP, "", null),
+                        new CaptureEvent.FrameEvent(CaptureFixtures.context(3),
+                                CaptureEvent.FrameAction.ENTER, "payment-frame", CaptureFixtures.target())),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(
+                request(session(captureSession), temp.resolve("playwright-frame")),
+                CaptureGenerator.CodegenBackend.PLAYWRIGHT);
+
+        assertEquals(List.of("event-3: Playwright codegen cannot replay WebDriver frame switching yet."),
+                result.report().unsupportedEvents());
+    }
+
+    @Test
+    void nonScalarJsonTestDataIsRejectedAndAMissingValueStaysRequired() throws Exception {
+        ExternalTestDataReference blob = new ExternalTestDataReference(
+                "data.blob", "blob", ExternalTestDataReference.DataSource.JSON,
+                "capture-data.json", "/values/data.blob", ExternalTestDataReference.DataClassification.ORDINARY);
+        ExternalTestDataReference missing = new ExternalTestDataReference(
+                "data.missing", "missing", ExternalTestDataReference.DataSource.JSON,
+                "capture-data.json", "/values/data.missing", ExternalTestDataReference.DataClassification.ORDINARY);
+        ObjectNode root = JSON.createObjectNode();
+        root.put("schemaVersion", "1.0");
+        root.putObject("values").putObject("data.blob").put("nested", true);
+        Files.writeString(temp.resolve("capture-data.json"),
+                JSON.writerWithDefaultPrettyPrinter().writeValueAsString(root), StandardCharsets.UTF_8);
+        CaptureSession captureSession = new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "scalar-data",
+                CaptureSession.SessionStatus.COMPLETED,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(2),
+                CaptureFixtures.browser(),
+                List.of(
+                        new CaptureEvent.TypeEvent(CaptureFixtures.context(1), CaptureFixtures.target(), blob),
+                        new CaptureEvent.TypeEvent(CaptureFixtures.context(2), CaptureFixtures.target(), missing)),
+                List.of(),
+                List.of(blob, missing),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
+
+        CaptureGenerationResult result = new CaptureGenerator().generate(
+                request(session(captureSession), temp.resolve("scalar-data")));
+
+        assertEquals(List.of("data.blob: generated test data values must be scalar."),
+                result.report().unsupportedEvents());
+        assertEquals(List.of("data.missing: provide JSON test data for missing."),
+                result.report().requiredUserInputs());
+    }
+
+    private CaptureGenerationRequest withoutValidation(Path session, Path output) {
+        return new CaptureGenerationRequest(
+                session, output, "generated.capture", "", false,
+                false, false, Duration.ofMinutes(1),
+                CaptureGenerationRequest.EnrichmentMode.NONE, null, false,
+                ApprovalPolicy.denyAll());
+    }
+
+    private static BrowserMetadata edgeBrowser() {
+        return new BrowserMetadata("Edge", "137", "Windows 11", "browser-1", Map.of("browserName", "Edge"));
+    }
+
+    private static CaptureSession navigationSession(BrowserMetadata browser, CaptureSession.SessionStatus status) {
+        return new CaptureSession(
+                CaptureSession.CURRENT_SCHEMA_VERSION,
+                "navigation-session",
+                status,
+                CaptureFixtures.STARTED,
+                CaptureFixtures.STARTED.plusSeconds(1),
+                browser,
+                List.of(new CaptureEvent.NavigationEvent(CaptureFixtures.context(1),
+                        CaptureEvent.NavigationAction.OPEN, "https://example.test/form")),
+                List.of(),
+                List.of(),
+                com.shaft.capture.model.RedactionSummary.empty(),
+                Map.of());
     }
 }
