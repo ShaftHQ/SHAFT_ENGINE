@@ -60,16 +60,16 @@ public class BrowserStackHelper {
                 helper.initializeDriver(browserStackOptions);
             } else {
                 // this is the new native app scenario
-                browserStackOptions = setupNativeAppExecution(SHAFT.Properties.browserStack.userName(), SHAFT.Properties.browserStack.accessKey(),
-                        SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), SHAFT.Properties.browserStack.appRelativeFilePath(), SHAFT.Properties.browserStack.appName()).merge(browserStackOptions);
+                browserStackOptions = withNativeLocal(setupNativeAppExecution(SHAFT.Properties.browserStack.userName(), SHAFT.Properties.browserStack.accessKey(),
+                        SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), SHAFT.Properties.browserStack.appRelativeFilePath(), SHAFT.Properties.browserStack.appName()).merge(browserStackOptions));
                 // Generate browserstack.yml after app upload updates app capability property
                 BrowserStackSdkHelper.generateBrowserStackYml();
                 helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
             }
         } else {
             // this is the existing version from a native app scenario
-            browserStackOptions = setupNativeAppExecution(SHAFT.Properties.browserStack.userName(), SHAFT.Properties.browserStack.accessKey(),
-                    SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), appUrl).merge(browserStackOptions);
+            browserStackOptions = withNativeLocal(setupNativeAppExecution(SHAFT.Properties.browserStack.userName(), SHAFT.Properties.browserStack.accessKey(),
+                    SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), appUrl).merge(browserStackOptions));
             // Generate browserstack.yml from the final resolved SHAFT properties for SDK integration
             BrowserStackSdkHelper.generateBrowserStackYml();
             helper.initializeDriver(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
@@ -252,9 +252,27 @@ public class BrowserStackHelper {
 
         browserstackOptions.put("projectName", BrowserStackSdkHelper.resolveProjectName());
         browserstackOptions.put("buildName", BrowserStackSdkHelper.resolveBuildName());
+        // A custom browserStack.* map can omit local. The tunnel flag still has to be attached.
+        browserstackOptions.put("local", SHAFT.Properties.browserStack.local());
 
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
         return browserStackCapabilities;
+    }
+
+    /**
+     * Puts {@code browserStack.local} back after a caller replaces {@code bstack:options} as a whole.
+     * Web paths already set {@code local} themselves and are left unchanged.
+     */
+    private static MutableCapabilities withNativeLocal(MutableCapabilities capabilities) {
+        Object raw = capabilities.getCapability("bstack:options");
+        if (!(raw instanceof Map<?, ?> existing)) {
+            return capabilities;
+        }
+        Map<String, Object> options = new LinkedHashMap<>();
+        existing.forEach((key, value) -> options.put(String.valueOf(key), value));
+        options.put("local", SHAFT.Properties.browserStack.local());
+        capabilities.setCapability("bstack:options", options);
+        return capabilities;
     }
 
     private static void passAction(String testData) {

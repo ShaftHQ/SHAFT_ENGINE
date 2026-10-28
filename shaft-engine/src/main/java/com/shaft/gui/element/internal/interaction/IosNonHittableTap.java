@@ -1,6 +1,7 @@
 package com.shaft.gui.element.internal.interaction;
 
 import io.appium.java_client.ios.IOSDriver;
+import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -14,8 +15,9 @@ import java.util.Map;
  * and the control does not run. Both {@code driver.element().click(locator)} and
  * {@code driver.touch().tap(locator)} call this after that reported click.
  *
- * <p>The recovery is an element-anchored {@code mobile: tap} (element id only).
- * Viewport coordinates are never the success path. When the page source does not change,
+ * <p>The recovery is an element-anchored {@code mobile: tap} with the element id and
+ * element-relative centre coordinates ({@code width/2}, {@code height/2}).
+ * Screen coordinates are not used. When the page source does not change,
  * the action fails instead of returning success.
  */
 public final class IosNonHittableTap {
@@ -73,23 +75,27 @@ public final class IosNonHittableTap {
     }
 
     /**
-     * @return true when {@code mobile: tap} was issued with the element id and no coordinates
+     * @return true when {@code mobile: tap} was issued with the element id and element-relative centre x,y
      */
     static boolean elementAnchoredTap(WebDriver driver, WebElement element) {
         if (!(driver instanceof JavascriptExecutor executor) || !(element instanceof RemoteWebElement remote)) {
             return false;
         }
         String elementId;
+        Dimension size;
         try {
             elementId = remote.getId();
+            size = element.getSize();
         } catch (RuntimeException ignored) {
             return false;
         }
-        if (elementId == null || elementId.isBlank()) {
+        if (elementId == null || elementId.isBlank() || size == null) {
             return false;
         }
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("elementId", elementId);
+        params.put("x", size.getWidth() / 2.0);
+        params.put("y", size.getHeight() / 2.0);
         try {
             executor.executeScript("mobile: tap", params);
             return true;
