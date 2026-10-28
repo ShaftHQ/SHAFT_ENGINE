@@ -293,24 +293,35 @@ class GraphifyNoCommitRowTest(unittest.TestCase):
             self.assertIn("repair --project . --component graphify", row["fixNext"])
 
 
-    def test_non_git_project_row_is_na_warning_7303(self):
+    def test_non_git_graphify_fingerprint_fresh_is_healthy(self):
+        """#7487: non-git freshness binds to content fingerprint, not git init."""
         import runpy
         root = Path(__file__).resolve().parents[2] / "chaos-engine"
         stores = runpy.run_path(str(root / "stores.py"))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
-            (project / "graphify-out").mkdir()
-            (project / "graphify-out/graph.json").write_text("{}", encoding="utf-8")
-            (project / "graphify-out/manifest.json").write_text("{}", encoding="utf-8")
+            (project / "src").mkdir()
+            (project / "src" / "a.py").write_text("print(1)\n", encoding="utf-8")
+            graph = project / "graphify-out"
+            graph.mkdir()
+            (graph / "graph.json").write_text("{\"nodes\":[]}", encoding="utf-8")
+            (graph / "manifest.json").write_text("{\"ok\":true}", encoding="utf-8")
             with mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(project.parent)}):
                 self.assertFalse(stores["is_git_work_tree"](project))
+                fingerprint = stores["project_content_revision"](project)
+                stores["write_marker"](graph, fingerprint)
                 row = stores["graphify_doctor_row"](project)
-        self.assertEqual("degraded", row["status"])
-        self.assertTrue(row["detail"].startswith("n/a - not a git repository"))
-        installer = runpy.run_path(str(root / "install.py"))
-        severity = installer["_component_severity"]
-        self.assertEqual("warning", severity({**row, "taskImpact": "required-when-indexed"}))
-        self.assertEqual("error", severity({"status": "degraded", "detail": "stale", "taskImpact": "required-when-indexed"}))
+                self.assertEqual("healthy", row["status"], row)
+                # Touch a source file → stale, still repairable without git init.
+                (project / "src" / "a.py").write_text("print(2)\n", encoding="utf-8")
+                # Ensure mtime moves even on coarse filesystems.
+                import time
+                time.sleep(0.05)
+                (project / "src" / "a.py").write_text("print(3)\n", encoding="utf-8")
+                stale = stores["graphify_doctor_row"](project)
+                self.assertEqual("degraded", stale["status"], stale)
+                self.assertNotIn("git init", stale.get("fixNext", ""))
+                self.assertIn("repair --project . --component graphify", stale["fixNext"])
 
 if __name__ == "__main__":
     unittest.main()

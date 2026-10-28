@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import re
 from pathlib import Path, PurePosixPath
 
@@ -78,31 +79,115 @@ def _load(path: Path, internal: bool) -> dict[str, object]:
     return manifest
 
 
-def discover(source: Path) -> dict[str, dict[str, object]]:
-    """Every add-on shipped with ``source``, keyed by name (validated, acyclic)."""
-    source = Path(source).resolve()
-    candidates = [(path, True) for path in sorted((source / DIRECTORY).glob(f"*/{MANIFEST}"))]
+_ORIGIN_RANK = {"internal": 0, "paths": 1, "sibling": 2}
+
+
+def _explicit_addon_roots() -> list[Path]:
+    return [
+        Path(folder).resolve()
+        for folder in os.environ.get(PATHS_ENVIRONMENT, "").split(os.pathsep)
+        if folder.strip()
+    ]
+
+
+def _addon_candidates(source: Path, explicit_roots: list[Path]) -> list[tuple[Path, bool, str]]:
+    """Internal, sibling-scan, then CHAOS_ENGINE_ADDON_PATHS manifests."""
+    candidates: list[tuple[Path, bool, str]] = [
+        (path, True, "internal")
+        for path in sorted((source / DIRECTORY).glob(f"*/{MANIFEST}"))
+    ]
     for pattern in EXTERNAL_GLOBS:
-        candidates.extend((path, False) for path in sorted(source.parent.glob(pattern)))
-    for folder in os.environ.get(PATHS_ENVIRONMENT, "").split(os.pathsep):
-        if folder.strip():
-            candidates.extend((path, False) for path in sorted(Path(folder).glob(f"*/{MANIFEST}")))
-    found: dict[str, dict[str, object]] = {}
-    for path, internal in candidates:
-        manifest = _load(path, internal)
-        name = str(manifest["name"])
-        if name in found:
-            raise ValueError(f"duplicate ChaosEngine add-on: {name}")
-        found[name] = {"manifest": manifest, "root": path.parent, "internal": internal}
-    # A partial source tree (an older download, a trimmed fixture) may lack a required
-    # add-on; the dependent is then unavailable rather than breaking every install.
+        candidates.extend((path, False, "sibling") for path in sorted(source.parent.glob(pattern)))
+    for folder in explicit_roots:
+        candidates.extend((path, False, "paths") for path in sorted(folder.glob(f"*/{MANIFEST}")))
+    return candidates
+
+
+def _warn_addon_choice(name: str, message: str) -> None:
+    print(f"chaos-engine: {message}", file=sys.stderr)
+
+
+def _record_addon(
+    found: dict[str, dict[str, object]],
+    name: str,
+    entry: dict[str, object],
+) -> None:
+    """Keep one root per name; PATHS conflicts fail; sibling dups warn (#7487)."""
+    prior = found.get(name)
+    if prior is None:
+        found[name] = entry
+        return
+    origin = str(entry["origin"])
+    prior_origin = str(prior.get("origin") or "sibling")
+    if prior_origin == "paths" and origin == "paths":
+        raise ValueError(f"duplicate ChaosEngine add-on: {name}")
+    prior_rank = _ORIGIN_RANK.get(prior_origin, 9)
+    new_rank = _ORIGIN_RANK.get(origin, 9)
+    if new_rank < prior_rank:
+        if "sibling" in (prior_origin, origin):
+            _warn_addon_choice(
+                name,
+                f"add-on {name}: preferring {origin} ({entry['root']}) "
+                f"over {prior_origin} ({prior['root']})",
+            )
+        found[name] = entry
+        return
+    if new_rank > prior_rank:
+        if "sibling" in (prior_origin, origin):
+            _warn_addon_choice(
+                name,
+                f"add-on {name}: keeping {prior_origin} ({prior['root']}); "
+                f"ignoring {origin} ({entry['root']})",
+            )
+        return
+    prior_root = Path(prior["root"])  # type: ignore[arg-type]
+    new_root = Path(entry["root"])  # type: ignore[arg-type]
+    if new_root == prior_root:
+        return
+    winner, loser = min(prior_root, new_root), max(prior_root, new_root)
+    _warn_addon_choice(
+        name,
+        f"duplicate add-on {name} in sibling scan; using {winner} (ignored {loser})",
+    )
+    if new_root < prior_root:
+        found[name] = entry
+
+
+def _drop_unsatisfied(found: dict[str, dict[str, object]]) -> None:
+    """Remove dependents whose required add-ons are missing from this source tree."""
     changed = True
     while changed:
         changed = False
         for name in list(found):
-            if any(required not in found for required in found[name]["manifest"].get("requires", [])):  # type: ignore[union-attr]
+            requires = found[name]["manifest"].get("requires", [])  # type: ignore[union-attr]
+            if any(required not in found for required in requires):
                 del found[name]
                 changed = True
+
+
+def discover(source: Path) -> dict[str, dict[str, object]]:
+    """Every add-on shipped with ``source``, keyed by name (validated, acyclic).
+
+    #7487: a sibling-scan name collision warns and picks the lexicographically first
+    root. ``CHAOS_ENGINE_ADDON_PATHS`` beats a sibling. Two PATHS entries with the
+    same name still fail. Internal trees beat both.
+    """
+    source = Path(source).resolve()
+    found: dict[str, dict[str, object]] = {}
+    for path, internal, origin in _addon_candidates(source, _explicit_addon_roots()):
+        manifest = _load(path, internal)
+        name = str(manifest["name"])
+        _record_addon(
+            found,
+            name,
+            {
+                "manifest": manifest,
+                "root": path.parent.resolve(),
+                "internal": internal,
+                "origin": origin,
+            },
+        )
+    _drop_unsatisfied(found)
     for name in found:
         _closure(found, {name})
     return found
