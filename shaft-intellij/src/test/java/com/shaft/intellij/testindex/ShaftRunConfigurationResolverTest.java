@@ -10,6 +10,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -44,6 +45,11 @@ class ShaftRunConfigurationResolverTest {
         assertFalse(ShaftRunConfigurationResolver.looksFullyQualified(null));
     }
 
+    @Test
+    void looksFullyQualifiedIsFalseForAnEmptyString() {
+        assertFalse(ShaftRunConfigurationResolver.looksFullyQualified(""));
+    }
+
     // ------------------------------------------------------------------
     // findByName (RunManager-free core)
     // ------------------------------------------------------------------
@@ -70,6 +76,18 @@ class ShaftRunConfigurationResolverTest {
     @Test
     void findByNameReturnsEmptyForAnEmptyList() {
         assertTrue(ShaftRunConfigurationResolver.findByName(List.of(), "CheckoutTest").isEmpty());
+    }
+
+    @Test
+    void findByNameReturnsTheFirstDuplicate() {
+        RunnerAndConfigurationSettings first = fakeSettings("SignInTest", "first-sign-in");
+        RunnerAndConfigurationSettings second = fakeSettings("SignInTest", "second-sign-in");
+
+        RunnerAndConfigurationSettings found = ShaftRunConfigurationResolver.findByName(
+                List.of(first, second), "SignInTest").orElseThrow();
+
+        assertSame(first, found);
+        assertEquals("first-sign-in", found.getUniqueID());
     }
 
     // ------------------------------------------------------------------
@@ -128,6 +146,15 @@ class ShaftRunConfigurationResolverTest {
         assertTrue(ShaftRunConfigurationResolver.detectFrameworkKind(List.of()).isEmpty());
     }
 
+    @Test
+    void detectFrameworkKindIgnoresANullMethodAnnotationList() {
+        assertTrue(ShaftRunConfigurationResolver.detectFrameworkKind(
+                java.util.Arrays.asList((List<String>) null)).isEmpty());
+        assertEquals(Optional.of(ShaftRunConfigurationResolver.FrameworkKind.JUNIT),
+                ShaftRunConfigurationResolver.detectFrameworkKind(java.util.Arrays.asList(
+                        null, List.of(ShaftTestMethodAnnotations.JUNIT4_TEST))));
+    }
+
     // ------------------------------------------------------------------
     // resolvePsiClass -- only its null/blank short-circuit is reachable without a real Project
     // ------------------------------------------------------------------
@@ -149,12 +176,15 @@ class ShaftRunConfigurationResolverTest {
     // ------------------------------------------------------------------
 
     /**
-     * A minimal {@link RunnerAndConfigurationSettings} fake: {@code getName()} returns the given
-     * name, every other member throws. Built with a dynamic proxy rather than a hand-implemented
-     * class because the interface declares ~25 abstract members and {@code findByName} only ever
-     * calls {@code getName()}.
+     * A minimal {@link RunnerAndConfigurationSettings} fake. {@code findByName} calls
+     * {@code getName()} only. {@code getUniqueID()} exists so two settings that share a name can
+     * still be told apart. Every other member throws.
      */
     private static RunnerAndConfigurationSettings fakeSettings(String name) {
+        return fakeSettings(name, name);
+    }
+
+    private static RunnerAndConfigurationSettings fakeSettings(String name, String uniqueId) {
         return (RunnerAndConfigurationSettings) Proxy.newProxyInstance(
                 ShaftRunConfigurationResolverTest.class.getClassLoader(),
                 new Class<?>[]{RunnerAndConfigurationSettings.class},
@@ -162,8 +192,11 @@ class ShaftRunConfigurationResolverTest {
                     if ("getName".equals(method.getName())) {
                         return name;
                     }
+                    if ("getUniqueID".equals(method.getName())) {
+                        return uniqueId;
+                    }
                     throw new UnsupportedOperationException(
-                            "fakeSettings only implements getName(), not " + method.getName());
+                            "fakeSettings only implements getName() and getUniqueID(), not " + method.getName());
                 });
     }
 }

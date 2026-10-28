@@ -155,9 +155,12 @@ final class DefaultBrowserStackLocalToolchainOperations implements BrowserStackL
 
     @Override
     public void awaitReady(Duration timeout) throws IOException {
+        awaitReady(URI.create("http://127.0.0.1:45691/"), timeout);
+    }
+
+    void awaitReady(URI probe, Duration timeout) throws IOException {
         Instant deadline = Instant.now().plus(timeout);
         IOException last = new IOException("BrowserStack Local did not become ready.");
-        URI probe = URI.create("http://127.0.0.1:45691/");
         while (Instant.now().isBefore(deadline)) {
             try {
                 HttpURLConnection connection = (HttpURLConnection) probe.toURL().openConnection();

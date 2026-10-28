@@ -69,6 +69,17 @@ class ShaftTestWatchServiceTest {
                 "C:/dev/shop-tests/target/test-classes/SignInTest.class", PROJECT_ROOT));
     }
 
+    @Test
+    void ignoresTheProjectRootItself() {
+        assertFalse(ShaftTestWatchService.isTestSourceChange(PROJECT_ROOT, PROJECT_ROOT));
+    }
+
+    @Test
+    void recognizesResourcesUnderSrcTest() {
+        assertTrue(ShaftTestWatchService.isTestSourceChange(
+                PROJECT_ROOT + "/src/test/resources/data.json", PROJECT_ROOT));
+    }
+
     // ------------------------------------------------------------------
     // simpleName
     // ------------------------------------------------------------------
@@ -81,6 +92,11 @@ class ShaftTestWatchServiceTest {
     @Test
     void simpleNameReturnsTheWholeStringWhenThereIsNoPackage() {
         assertEquals("SignInTest", ShaftTestWatchService.simpleName("SignInTest"));
+    }
+
+    @Test
+    void simpleNameKeepsTheSuffixAfterALeadingDot() {
+        assertEquals("Hidden", ShaftTestWatchService.simpleName(".Hidden"));
     }
 
     // ------------------------------------------------------------------
