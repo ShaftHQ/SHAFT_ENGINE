@@ -79,7 +79,6 @@ changing that token silently breaks both distribution publishers.
 | `pr-title-lint.yml` | PR | Advisory conventional `type(scope): subject` title check with a suggested fix; never fails (#7010). |
 | `spotbugs-nightly.yml` | nightly, manual | Full-reactor SpotBugs + FindSecBugs (`-Pspotbugs`) with SARIF to code scanning; a per-module count above `.github/spotbugs-baseline.json` opens or updates one `ci-spotbugs` issue, closed when clean (#6999). |
 | `quarantine-nightly.yml` | nightly, manual | Runs shaft-engine tests tagged `quarantine` (known-flaky, excluded from the PR gate via `surefire.excludedGroups`) so they keep running without blocking PRs (#7005). |
-| `scorecard.yml` | push to `main`, weekly, manual | OpenSSF Scorecard supply-chain checks; SARIF to code scanning and published to the Scorecard API (README badge); the weekly quality report tracks the score (#7001). |
 
 The quality validator fails when an active `*.yml` file is missing from this
 table. Remove a row only in the same change that deletes its workflow.

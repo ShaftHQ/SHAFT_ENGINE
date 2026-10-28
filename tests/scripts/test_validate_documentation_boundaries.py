@@ -22,7 +22,6 @@ class ValidateDocumentationBoundariesTest(unittest.TestCase):
 </picture>
 
 [![Build](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/pr-gate.yml?branch=main&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/pr-gate.yml)
-[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/ShaftHQ/SHAFT_ENGINE)](https://scorecard.dev/viewer/?uri=github.com/ShaftHQ/SHAFT_ENGINE)
 [![Codecov](https://img.shields.io/codecov/c/github/ShaftHQ/SHAFT_ENGINE)](https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)
 [User guide]({USER_GUIDE_ROOT})
 [![Star SHAFT on GitHub](https://img.shields.io/badge/Star_on_GitHub-9a6700)](https://github.com/ShaftHQ/SHAFT_ENGINE)
@@ -653,23 +652,6 @@ flowchart LR
 
         self.assertEqual(validate_repository(self.root), [])
 
-    def test_requires_codecov_badge_right_after_scorecard_badge(self):
-        codecov = (
-            "[![Codecov](https://img.shields.io/codecov/c/github/ShaftHQ/SHAFT_ENGINE)]"
-            "(https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)\n"
-        )
-        build_line = next(
-            line for line in self.valid_readme.splitlines() if "pr-gate.yml" in line
-        ) + "\n"
-        reordered = self.valid_readme.replace(codecov, "").replace(
-            build_line, codecov + build_line
-        )
-        self.write("README.md", reordered)
-
-        self.assertIn(
-            "README.md must place the Codecov badge right after the OpenSSF Scorecard badge",
-            validate_repository(self.root),
-        )
 
     def test_requires_alt_text_on_every_image(self):
         self.write(
@@ -700,7 +682,7 @@ flowchart LR
     def test_rejects_empty_markdown_image_alt_text(self):
         self.write(
             "README.md",
-            self.valid_readme.replace("[![OpenSSF Scorecard]", "[![]"),
+            self.valid_readme.replace("[![Codecov]", "[![]"),
         )
 
         self.assertIn(

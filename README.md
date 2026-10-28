@@ -16,7 +16,6 @@ Drivers, waits, and evidence are handled. Every run ends in an Allure report.
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/shaft-engine?label=maven%20central&color=0969da)](https://central.sonatype.com/artifact/io.github.shafthq/shaft-engine)
 [![Build](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/pr-gate.yml?branch=main&label=build)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/pr-gate.yml)
-[![OpenSSF Scorecard](https://img.shields.io/ossf-scorecard/github.com/ShaftHQ/SHAFT_ENGINE?label=openssf%20scorecard)](https://scorecard.dev/viewer/?uri=github.com/ShaftHQ/SHAFT_ENGINE)
 [![Codecov](https://img.shields.io/codecov/c/github/ShaftHQ/SHAFT_ENGINE?label=coverage&logo=codecov)](https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)
 
 <a href="https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-hero-video-20261017/shaft-hero-16x9.mp4">
@@ -37,7 +36,7 @@ Drivers, waits, and evidence are handled. Every run ends in an Allure report.
 - **One fluent API.** Web, mobile, REST/GraphQL, database, CLI, and desktop in the same test.
 - **Evidence by default.** Steps, screenshots, and logs land in an Allure report on every run.
 - **Scale by configuration.** Local, Grid, BrowserStack, or LambdaTest; TestNG, JUnit, or Cucumber.
-- **Open and trusted.** MIT licensed, on Maven Central, with an OpenSSF Scorecard and public coverage.
+- **Open and trusted.** MIT licensed, on Maven Central, with public coverage.
 
 ## How it works
 
