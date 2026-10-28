@@ -44,6 +44,11 @@ class ShaftRunConfigurationResolverTest {
         assertFalse(ShaftRunConfigurationResolver.looksFullyQualified(null));
     }
 
+    @Test
+    void looksFullyQualifiedIsFalseForAnEmptyString() {
+        assertFalse(ShaftRunConfigurationResolver.looksFullyQualified(""));
+    }
+
     // ------------------------------------------------------------------
     // findByName (RunManager-free core)
     // ------------------------------------------------------------------
@@ -70,6 +75,15 @@ class ShaftRunConfigurationResolverTest {
     @Test
     void findByNameReturnsEmptyForAnEmptyList() {
         assertTrue(ShaftRunConfigurationResolver.findByName(List.of(), "CheckoutTest").isEmpty());
+    }
+
+    @Test
+    void findByNameReturnsTheFirstDuplicate() {
+        List<RunnerAndConfigurationSettings> allSettings =
+                List.of(fakeSettings("SignInTest"), fakeSettings("SignInTest"));
+
+        assertEquals("SignInTest",
+                ShaftRunConfigurationResolver.findByName(allSettings, "SignInTest").orElseThrow().getName());
     }
 
     // ------------------------------------------------------------------
@@ -126,6 +140,15 @@ class ShaftRunConfigurationResolverTest {
     void detectFrameworkKindReturnsEmptyForNullOrEmptyInput() {
         assertTrue(ShaftRunConfigurationResolver.detectFrameworkKind(null).isEmpty());
         assertTrue(ShaftRunConfigurationResolver.detectFrameworkKind(List.of()).isEmpty());
+    }
+
+    @Test
+    void detectFrameworkKindIgnoresANullMethodAnnotationList() {
+        assertTrue(ShaftRunConfigurationResolver.detectFrameworkKind(
+                java.util.Arrays.asList((List<String>) null)).isEmpty());
+        assertEquals(Optional.of(ShaftRunConfigurationResolver.FrameworkKind.JUNIT),
+                ShaftRunConfigurationResolver.detectFrameworkKind(java.util.Arrays.asList(
+                        null, List.of(ShaftTestMethodAnnotations.JUNIT4_TEST))));
     }
 
     // ------------------------------------------------------------------

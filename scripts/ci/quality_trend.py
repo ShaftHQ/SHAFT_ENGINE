@@ -101,7 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True)
     parser.add_argument("--limit", type=int, default=30)
-    parser.add_argument("--coverage-floor", type=float, default=61.4)
+    parser.add_argument("--coverage-floor", type=float, default=72.9)
     # Raise to the first published score once it exists; a drop then opens ci-quality.
     parser.add_argument("--scorecard-floor", type=float, default=SCORECARD_FLOOR)
     args = parser.parse_args(argv)

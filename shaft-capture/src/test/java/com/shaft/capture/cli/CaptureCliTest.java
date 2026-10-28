@@ -1,6 +1,9 @@
 package com.shaft.capture.cli;
 
+import com.shaft.capture.control.CaptureControlFiles;
+import com.shaft.capture.runtime.CaptureBrowser;
 import com.shaft.capture.runtime.CaptureStartOptions;
+import com.shaft.capture.runtime.CaptureStartRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -361,6 +364,94 @@ class CaptureCliTest {
         assertTrue(
                 cause.getMessage() != null && cause.getMessage().contains("fail closed"),
                 () -> "expected fail-closed message, got: " + cause);
+    }
+
+    @Test
+    void commandDispatchCoversStatusStopFeaturesAndClosedFailures() throws Exception {
+        Path runtime = temp.resolve("runtime");
+        assertEquals(1, CaptureCli.run(null, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {}, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {"nope"}, List.of("java")));
+        assertEquals(0, CaptureCli.run(new String[] {"features"}, List.of("java")));
+        assertEquals(0, CaptureCli.run(new String[] {"status", "--runtime-dir", runtime.toString()}, List.of("java")));
+        assertEquals(0, CaptureCli.run(new String[] {"stop", "--runtime-dir", runtime.toString()}, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "checkpoint", "--runtime-dir", runtime.toString(), "--kind", "NOT_A_KIND", "--description", "marker"
+        }, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "checkpoint", "--runtime-dir", runtime.toString(), "--description", "marker"
+        }, List.of("java")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "start", "--url", "https://example.test/", "--runtime-dir", runtime.toString(), "--browser", "firefox"
+        }, List.of("/bin/true")));
+        assertFalse(Files.isRegularFile(runtime.resolve("status.json")));
+    }
+
+    @Test
+    void startFailsClosedWhenTheDaemonExitsBeforeItBecomesActive() throws Exception {
+        Path runtime = temp.resolve("daemon-runtime");
+        Path profile = temp.resolve("profile");
+        int exit = CaptureCli.run(new String[] {
+                "start",
+                "--url", "https://example.test/path",
+                "--runtime-dir", runtime.toString(),
+                "--browser", "chromium",
+                "--output", temp.resolve("capture.json").toString(),
+                "--headless",
+                "--viewport-size", "800,600",
+                "--device", "Pixel 7",
+                "--color-scheme", "dark",
+                "--geolocation", "1,2",
+                "--timezone", "UTC",
+                "--block-service-workers",
+                "--save-storage", temp.resolve("state.json").toString(),
+                "--save-har", temp.resolve("out.har").toString(),
+                "--save-har-glob", "**/*.json",
+                "--test-id-attribute", "data-test",
+                "--user-agent", "shaft-test",
+                "--user-data-dir", profile.toString(),
+                "--session-goal", "sign in",
+                "--target", "java",
+                "--lang", "en-US",
+                "--proxy-server", "http://127.0.0.1:9",
+                "--proxy-bypass", "localhost",
+                "--ignore-https-errors",
+                "--timeout", "1000",
+                "--channel", "chrome"
+        }, List.of("/bin/true"));
+
+        assertEquals(1, exit);
+        assertTrue(Files.isRegularFile(runtime.resolve("status.json")));
+        assertTrue(Files.readString(runtime.resolve("status.json")).contains("STARTING"));
+        assertTrue(Files.isRegularFile(runtime.resolve("daemon.log")));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "start", "--url", "https://example.test/", "--runtime-dir", temp.resolve("empty-prefix").toString()
+        }, List.of()));
+    }
+
+    @Test
+    void daemonRejectsALaunchRequestForADifferentRuntime() throws Exception {
+        Path runtime = temp.resolve("control-runtime");
+        Path other = temp.resolve("other-runtime");
+        CaptureControlFiles files = new CaptureControlFiles(runtime);
+        Path requestFile = files.writeLaunchRequest(new CaptureStartRequest(
+                "https://example.test/",
+                CaptureBrowser.CHROME,
+                temp.resolve("out.json"),
+                other,
+                true));
+
+        int exit = CaptureCli.run(new String[] {
+                "daemon",
+                "--runtime-dir", runtime.toString(),
+                "--request-file", requestFile.toString()
+        }, List.of("java"));
+
+        assertEquals(1, exit);
+        assertFalse(Files.exists(requestFile));
+        assertEquals(1, CaptureCli.run(new String[] {
+                "daemon", "--runtime-dir", runtime.toString(), "--request-file", temp.resolve("outside.json").toString()
+        }, List.of("java")));
     }
 
     @Test
