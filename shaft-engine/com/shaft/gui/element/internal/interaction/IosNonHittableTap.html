@@ -71,8 +71,9 @@
 and the control does not run. Both <code>driver.element().click(locator)</code> and
 <code>driver.touch().tap(locator)</code> call this after that reported click.
 
-<p>The recovery is an element-anchored <code>mobile: tap</code> (element id only).
-Viewport coordinates are never the success path. When the page source does not change,
+<p>The recovery is an element-anchored <code>mobile: tap</code> with the element id and
+element-relative centre coordinates (<code>width/2</code>, <code>height/2</code>).
+Screen coordinates are not used. When the page source does not change,
 the action fails instead of returning success.</div>
 </div>
 </section>

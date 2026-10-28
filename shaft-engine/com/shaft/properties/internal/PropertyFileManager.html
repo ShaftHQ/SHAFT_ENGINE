@@ -255,7 +255,10 @@ and falling back to the bundled default file when the custom file has not been c
 <h3>getCustomBrowserstackCapabilities</h3>
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/HashMap.html" title="class or interface in java.util" class="external-link">HashMap</a>&lt;<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a>&gt;</span>&nbsp;<span class="element-name">getCustomBrowserstackCapabilities</span>()</div>
-<div class="block">Collects the non-blank <code>browserStack.</code> prefixed properties as BrowserStack options.</div>
+<div class="block">Collects the non-blank <code>browserStack.</code> prefixed properties as BrowserStack options.
+<code>appName</code>, <code>appUrl</code>, and <code>appRelativeFilePath</code> are not session capabilities.
+<code>forceLocal</code> is excluded: <code>--force-local</code> belongs on the BrowserStackLocal binary,
+not on <code>bstack:options</code>.</div>
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the BrowserStack option names mapped to their values</dd>
