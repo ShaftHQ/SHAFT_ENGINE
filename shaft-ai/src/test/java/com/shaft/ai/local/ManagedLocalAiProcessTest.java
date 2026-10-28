@@ -1374,7 +1374,6 @@ class ManagedLocalAiProcessTest {
 
         raw[0] = 9;
         assertEquals(1, copies[0][0]);
-        assertEquals(1, copies[1][0]);
         copies[0][0] = 4;
         assertEquals(1, copies[1][0]);
         assertEquals(3, copies[0].length);

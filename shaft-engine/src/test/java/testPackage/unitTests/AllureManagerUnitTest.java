@@ -1484,14 +1484,30 @@ public class AllureManagerUnitTest {
     @Test(description = "tryProvisionAllureCli does not create a cache home when provision is skipped")
     public void tryProvisionAllureCliSkipsWhenProvisionIsDisabled() throws Exception {
         Path cacheRoot = Files.createTempDirectory("shaft-allure-cli-skip");
+        Path zipPath = cacheRoot.resolve("allure-cli-3.4.0.zip");
+        createMinimalAllureCliZip(zipPath);
+        String previousCacheRoot = System.getProperty("allure.cli.cacheRoot");
+        String previousSkipProvision = System.getProperty("allure.cli.skipProvision");
+        String previousMavenZip = System.getProperty("allure.cli.mavenZip");
         System.setProperty("allure.cli.cacheRoot", cacheRoot.toString());
         System.setProperty("allure.cli.skipProvision", "true");
-        System.setProperty("allure.cli.mavenZip", cacheRoot.resolve("missing.zip").toString());
+        System.setProperty("allure.cli.mavenZip", zipPath.toString());
         try {
             Assert.assertFalse(AllureManager.tryProvisionAllureCli("3.4.0"));
             Assert.assertFalse(Files.exists(cacheRoot.resolve("3.4.0")));
         } finally {
+            restoreSystemProperty("allure.cli.cacheRoot", previousCacheRoot);
+            restoreSystemProperty("allure.cli.skipProvision", previousSkipProvision);
+            restoreSystemProperty("allure.cli.mavenZip", previousMavenZip);
             deleteRecursively(cacheRoot);
+        }
+    }
+
+    private static void restoreSystemProperty(String key, String previous) {
+        if (previous == null) {
+            System.clearProperty(key);
+        } else {
+            System.setProperty(key, previous);
         }
     }
 }
