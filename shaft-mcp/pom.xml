@@ -144,15 +144,6 @@
                 <artifactId>jackson-databind</artifactId>
                 <version>${tools.jackson.core.version}</version>
             </dependency>
-            <!-- MCP jackson3 calls Schema.validate(tools.jackson.databind.JsonNode).
-                 That method exists on networknt 3.0.0. The parent pin 2.0.8 keeps
-                 REST Assured convergence and removes the method, so the stdio
-                 server exits 1. This entry outranks the parent for shaft-mcp. -->
-            <dependency>
-                <groupId>com.networknt</groupId>
-                <artifactId>json-schema-validator</artifactId>
-                <version>3.0.8</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -194,10 +185,6 @@
                 <exclusion>
                     <groupId>org.slf4j</groupId>
                     <artifactId>jcl-over-slf4j</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>com.networknt</groupId>
-                    <artifactId>json-schema-validator</artifactId>
                 </exclusion>
                 <exclusion>
                     <groupId>org.apache.logging.log4j</groupId>

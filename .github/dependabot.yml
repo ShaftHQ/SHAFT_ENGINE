@@ -89,10 +89,6 @@ updates:
       timezone: "Africa/Cairo"
     labels:
       - "dependencies"
-    ignore:
-      # REST Assured 6.3.0 and openapi-request-validator 3.0.0 still call the Jackson 2 SchemaRegistry.getSchema overload that networknt 3 removed.
-      - dependency-name: "com.networknt:json-schema-validator"
-        update-types: ["version-update:semver-major"]
     groups:
       # Google API / gRPC / protobuf artifacts pin each other's upper bounds, so a
       # lone bump fails RequireUpperBoundDeps (e.g. kms-v1 needing common-protos).
