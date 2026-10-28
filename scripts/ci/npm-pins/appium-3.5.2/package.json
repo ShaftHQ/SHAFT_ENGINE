@@ -3,5 +3,8 @@
   "private": true,
   "dependencies": {
     "appium": "3.5.2"
+  },
+  "overrides": {
+    "shell-quote": "1.11.0"
   }
 }

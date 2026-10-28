@@ -555,7 +555,12 @@ class ChaosGaugeCampaignTest(TestCase):
         self.assertTrue(CAMPAIGN.codex_version_is_pinned(CAMPAIGN.CODEX_CLI_BANNER))
         self.assertEqual(CAMPAIGN.CODEX_VERSION, "0.152.0")
         workflow = (ROOT / ".github/workflows/chaos-gauge-public-canary.yml").read_text(encoding="utf-8")
-        self.assertIn(f"@openai/codex@{CAMPAIGN.CODEX_VERSION}", workflow)
+        pin = ROOT / "scripts/ci/npm-pins" / f"codex-{CAMPAIGN.CODEX_VERSION}"
+        self.assertIn(f"npm ci --prefix scripts/ci/npm-pins/codex-{CAMPAIGN.CODEX_VERSION}", workflow)
+        self.assertIn(
+            f'"@openai/codex": "{CAMPAIGN.CODEX_VERSION}"',
+            (pin / "package.json").read_text(encoding="utf-8"),
+        )
         for name in ("control.yaml", "chaos-engine.yaml", "full-pilot-control.yaml", "full-pilot-chaos-engine.yaml"):
             self.assertIn(
                 f'version: "{CAMPAIGN.CODEX_VERSION}"',
