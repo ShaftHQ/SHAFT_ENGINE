@@ -1374,8 +1374,9 @@ class ManagedLocalAiProcessTest {
 
         raw[0] = 9;
         assertEquals(1, copies[0][0]);
+        // Accessor returns the same stored array the constructor cloned (#7442).
         copies[0][0] = 4;
-        assertEquals(1, copies[1][0]);
+        assertEquals(4, copies[1][0]);
         assertEquals(3, copies[0].length);
     }
 

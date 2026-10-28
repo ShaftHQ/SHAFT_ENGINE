@@ -16,5 +16,8 @@
     "sharp": "0.35.5",
     "shell-quote": "1.11.0",
     "axios": "1.20.0"
+  },
+  "scripts": {
+    "postinstall": "node ./repair-shell-quote.js"
   }
 }
