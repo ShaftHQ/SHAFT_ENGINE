@@ -17,7 +17,9 @@ rules are in the harness reference `multi-agent-pdca.md`.
 - After every re-upload check: native slide type, slide count, speaker
   notes (text diff per slide against the previous export), hyperlinks
   (count and target per slide), fonts (PDF embedded fonts and pptx
-  typefaces), text frames, folder contents, "Next:" and breadcrumb strings.
+  typefaces; on a polish, every visible run carries explicit typeface,
+  size and colour copied from the base render), text frames, folder
+  contents, "Next:" and breadcrumb strings.
   `design_qc.py pptxparity new.pptx --before old.pptx` covers notes, body
   text, links, typefaces, slide count and the size cap.
 - **Export size cap**: the tool's pptx export has a cap (10 MB). A deck at
@@ -37,7 +39,10 @@ rules are in the harness reference `multi-agent-pdca.md`.
   body text; `pptxparity` diffs body text (footer and slide-number fields
   ignored) and matches slides by content when counts differ.
 - Prefer editing in place (same ID, partial slide re-import) over a full
-  re-upload; the changelog names exactly which slides changed.
+  re-upload; the changelog names exactly which slides changed. When the
+  API can move but not resize, import the fixed slides into the same deck
+  ID from a named helper, delete the old pages, re-check notes and links
+  on the new object IDs, then trash the helper.
 
 ## Review process
 
@@ -49,6 +54,9 @@ rules are in the harness reference `multi-agent-pdca.md`.
 - Review the delta each round: re-run everything on fresh exports, pixel-diff
   against the previous round (`design_qc.py slidediff`) to bound the review
   to the changed slides, then read those slides at full size.
+- Round N+1 patches the exact round-N final build. Regenerating from the
+  original base with evolved fix scripts reintroduces drift and undoes
+  signed work; the pixel diff must show only the named slides.
 - The implementer's changelog is a list of claims; verify each with data. A
   claimed padding fix is where regressions hide ([S05](deck-qc-measurable.md)).
 - Review artefacts carry no client names, learner records or prices.
@@ -72,3 +80,7 @@ files, not memory.
   listing, branch and HEAD against the last pushed commit.
 - Decode large tool results through a script saved to disk so the step
   survives a resume.
+- Some viewers cache by absolute path: copy each PNG to a unique path under
+  the review folder for that pass before judging it.
+- Name intermediate Drive helpers with a work or round tag (never like a
+  final); list them in the ids file and trash them after finalize.

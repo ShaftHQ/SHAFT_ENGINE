@@ -23,6 +23,10 @@ One system across every chapter of a course:
   body font at 14 pt.
 - At least one visual per part and at most two text-only slides in a row;
   keep a layout-per-slide-type map so each type always uses one layout.
+  Title, course-map, agenda, recap and checkpoint slides follow the same
+  grid, footer, type-floor and inset rules as body slides; they are not
+  exempt. Quiz and cream-header checkpoints use a single-panel content
+  layout so no ghost panel sits under the header band.
 
 ## Slide craft
 
@@ -55,7 +59,9 @@ One system across every chapter of a course:
 - Choose the active and inactive colours with a contrast check on the real
   background first (see `color-contrast.md`).
 - Decorative image bleed at the slide edge is fine if it stays clear of
-  the tracker, title and footer bands.
+  the tracker, title and footer bands. Divider art itself is one shared
+  slide-level construction across decks, not layout-driven art; prove with
+  art-region pixel diff = 0.00 % vs the reference divider.
 - Evidence must match the claim: re-render after every fix and cite a
   capture of the exact slide and state; never reuse an old capture.
 

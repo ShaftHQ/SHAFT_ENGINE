@@ -18,6 +18,10 @@ card is binding, and a stock or teammate template is never a brand source.
 2. Proof before build: mocks pass before builders start.
 3. The owner's sources are never edited; revisions are new files.
 4. Every chapter reads as one deck.
+5. Refresh doctrine: a deck refresh is pure visual polish on a copy of the
+   approved base. Never rewrite teaching content, invent lines to clear a
+   QC flag, or restyle for novelty. Every change must improve a named Spec
+   row, gap or pixel diff; drop unmeasurable changes.
 
 ## Numeric targets
 
@@ -84,7 +88,9 @@ Re-upload risks and two-agent review rounds: [S06](../slides/deck-roundtrip-revi
   replacement stay.
 - Private data (names, employers, past cohort answers) never reaches new
   slides. Rewording a claim about the presenter needs the owner's OK, and
-  the original wording stays in the notes.
+  the original wording stays in the notes. A missing closer, claim or line
+  absent from the approved base stays as a written waiver; do not author
+  new wording to make a detector go green.
 - Every visible fact has a source in the notes (URL plus checked date), or
   moves to the notes as "Unverified, not shown".
 - Everything stays human-editable: real text boxes, native charts and
@@ -111,7 +117,9 @@ Score each deliverable against these anchors; quote the evidence (render, check 
 - Mixed-script lines measured on the rendered output, per
   [typography and layout](../typography-layout.md).
 - Export the converted deck to PDF: `pdffonts` shows no stray default
-  fonts; check every slide at full size for overflow.
+  fonts; check every slide at full size for overflow. On a polish, set
+  typeface, size and colour explicitly on every visible run from the base
+  render so theme inheritance cannot drift.
 - Grid-view glance test plus one projected run-through.
 - Every number sourced and confirmed by the owner.
 
