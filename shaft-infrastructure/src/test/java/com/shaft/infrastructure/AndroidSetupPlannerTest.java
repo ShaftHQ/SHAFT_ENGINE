@@ -8,6 +8,7 @@ import java.util.HexFormat;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -143,15 +144,24 @@ class AndroidSetupPlannerTest {
         assertTrue(packageJson.contains("\"sharp\": \"0.35.5\""), packageResource);
         assertTrue(packageJson.contains("\"shell-quote\": \"1.11.0\""), packageResource);
         assertTrue(packageJson.contains("\"morgan\": \"1.12.1\""), packageResource);
-        assertTrue(packageJson.contains("\"fast-uri\": \"3.1.8\""), packageResource);
+        assertTrue(packageJson.contains("\"body-parser\": \"2.4.0\""), packageResource);
+        assertTrue(packageJson.contains("\"fast-uri\": \"3.1.9\""), packageResource);
+        assertTrue(packageJson.contains("\"qs\": \"6.16.1\""), packageResource);
         assertTrue(lock.matches("(?s).*\"node_modules/sharp\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"0\\.35\\.5\".*"),
                 lockResource);
         assertTrue(lock.matches("(?s).*\"node_modules/shell-quote\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"1\\.11\\.0\".*"),
                 lockResource);
         assertTrue(lock.matches("(?s).*\"node_modules/morgan\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"1\\.12\\.1\".*"),
                 lockResource);
-        assertTrue(lock.matches("(?s).*\"node_modules/fast-uri\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"3\\.1\\.8\".*"),
+        assertTrue(lock.matches("(?s).*\"node_modules/body-parser\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"2\\.4\\.0\".*"),
                 lockResource);
+        assertTrue(lock.matches("(?s).*\"node_modules/fast-uri\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"3\\.1\\.9\".*"),
+                lockResource);
+        assertTrue(lock.matches("(?s).*\"node_modules/qs\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"6\\.16\\.1\".*"),
+                lockResource);
+        assertFalse(lock.contains("body-parser-2.3.0.tgz"), lockResource);
+        assertFalse(lock.contains("fast-uri-3.1.8.tgz"), lockResource);
+        assertFalse(lock.contains("qs-6.16.0.tgz"), lockResource);
     }
 
     private static void assertSdkArchive(SetupPlatform platform, SetupArchitecture architecture,
