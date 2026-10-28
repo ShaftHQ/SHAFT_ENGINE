@@ -49,11 +49,12 @@ extends [C10 hooks](../craft/hooks.md) and [D13 cutting](../cutting-pacing.md).
     at/after `hook_end` with post-hook text only. Gate:
     `design_qc.py hookbleed cues.srt --hook-end <s>`.
 14. **G14 pre-render:** for `type=qa`, skim the transcript **after** the
-    question **before** render. Confirm a real answer beat (not only
-    «مش عارف» / dodge + topic pivot). If none → **drop/skip** the row;
-    do not render. Gate: `design_qc.py qaanswer --after post.txt` and/or
-    `hookmodality --type qa --after post.txt`; note `answer_beat` in
-    BRIEF/span.json (`qaanswer --span`).
+    question **before** render. Confirm a real answer beat — not a dodge
+    («مش عارف» / I don't know) plus topic or next-question pivot
+    (gov/OpenAI aside, «السؤال اللي بعديه», let's move on). If none →
+    **drop/skip** the row; do not render. Gate: `design_qc.py qaanswer
+    --after post.txt` / `hookmodality --type qa --after`; note
+    `answer_beat` in BRIEF/span.json (`qaanswer --span`).
 
 ## Verify
 

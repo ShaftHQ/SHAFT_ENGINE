@@ -233,6 +233,46 @@ class CaptionChecksTest(unittest.TestCase):
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
             self.assertEqual(1, run_qc("qaanswer", "--span", str(span_bad))[0])
 
+
+    def test_qaanswer_fails_real_u9_row9_dodge_pivot(self) -> None:
+        """U9 G14 Carl: real OcgL ~2078.758–2108 post-Q (unit-9 DROPPED) must FAIL.
+
+        Transcript excerpt is the public talk span cited in unit-9 DROPPED.md
+        (dodge «مش عارف» → gov/OpenAI pivot → «السؤال اللي بعديه»), not a private path.
+        U8 qa answer beat must still PASS.
+        """
+        # Post-question only (after «هتعمل ايه»); abs ~2084.4–2108.76
+        row9_after = (
+            "هل انت خلاص فهتحتاجراب\n"
+            "مش عارف بس بالنسبه\n"
+            "لما الشركات تبقى مش قادره تجيب من\n"
+            "الحكومه الامريكيه انها تكيب اللي هم فيها\n"
+            "دي دلوقتي\n"
+            "دي اوبن اي تمام\n"
+            "واسالوا يعني تعرفوا اوبن بتعمل ايه طيب\n"
+            "السؤال اللي بعديه\n"
+        )
+        # unit-8 work/7.srt answer beat (after the automation/AI question)
+        u8_after = (
+            "لا، حضرتك انت محتاج الاتنين\n"
+            "لما الناس كانوا بيخشوا خناقة مثلًا، ما\n"
+            "كانوا بيخشوا خناقة كده إيه؟ بالإيد، إيد في\n"
+            "إيد، بعدين اكتشفوا السيف\n"
+            "بعدين اكتشفوا الدرع. فحضرتك لا\n"
+            "اتعلمت تستخدم السيف ولا اتعلمت تستخدم\n"
+            "الدرع\n"
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "row9_after.txt"
+            good = Path(folder) / "u8_after.txt"
+            bad.write_text(row9_after, encoding="utf-8")
+            good.write_text(u8_after, encoding="utf-8")
+            code_bad, payload_bad = run_qc("qaanswer", "--after", str(bad))
+            self.assertEqual(1, code_bad, payload_bad)
+            self.assertTrue(payload_bad.get("problems"), payload_bad)
+            code_good, payload_good = run_qc("qaanswer", "--after", str(good))
+            self.assertEqual((0, "pass"), (code_good, payload_good["status"]), payload_good)
+
     def test_hookmodality_type_qa_requires_answer_beat(self) -> None:
         """U9 G14: hookmodality --type qa fails without answer beat in --after."""
         with tempfile.TemporaryDirectory() as folder:

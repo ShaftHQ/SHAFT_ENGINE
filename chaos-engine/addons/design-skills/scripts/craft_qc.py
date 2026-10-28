@@ -720,11 +720,23 @@ def _is_question(text: str) -> bool:
 
 
 
-# Dodge-only / pivot-only tails are not an answer beat (U9 G14 / DROPPED row 9).
+# Dodge / next-question / topic-pivot tails are not an answer beat (U9 G14).
 ANSWER_DODGE = re.compile(
-    r"(?i)مش\s*عارف|معرفش|ما\s*عرفش|مش\s*متأكد|مش\s*فاهم|"
-    r"I\s*don'?t\s*know|no\s*idea|dunno|not\s*sure"
+    r"(?i)مش\s*عارف|معرفش|ما\s*عرفش|مانيش\s*عارف|مش\s*متأكد|مش\s*فاهم|"
+    r"الله\s*أعلم|مفيش\s*فكرة|ما\s*عنديش\s*(?:إجابة|اجابه|فكرة)|"
+    r"I\s*don'?t\s*know|I\s*have\s*no\s*idea|no\s*idea|dunno|not\s*sure|"
+    r"beats\s*me|can'?t\s*say|no\s*comment"
 )
+# Next-question / move-on + soft topic-pivot leads (after a dodge these kill the beat).
+ANSWER_PIVOT = re.compile(
+    r"(?i)السؤال\s+اللي\s+بعدي[هة]?|السؤال\s+التالي|السؤال\s+الجاي|"
+    r"خلينا\s+(?:نعدي|ننتقل|نروح|نتكلم\s+عن)|طب\s+(?:نروح|نعدي|ننتقل)|"
+    r"let'?s\s+move\s+(?:on|to\s+the\s+next)|(?:move|moving)\s+on\b|"
+    r"next\s+question|another\s+question|"
+    r"بس\s+بالنسب[ةه]\b|بالنسبة\s+(?:ل|لل)|speaking\s+of\b|anyway\b|"
+    r"by\s+the\s+way\b|على\s+فكرة\b"
+)
+
 OPEN_DOUBT = re.compile(
     r"(?i)(?:\bopen\s+doubts?\b(?!\s*[:：]?\s*(?:none|n/?a|—|-)\b))"
     r"|(?:\bself-?flag(?:ged)?\s+doubt\b)"
@@ -738,15 +750,32 @@ OPEN_DOUBT = re.compile(
 
 
 def _answer_beat_problems(text: str, min_chars: int = 40) -> list[str]:
-    """Return FAIL reasons when post-question text has no real answer beat."""
+    """Return FAIL reasons when post-question text has no real answer beat.
+
+    Length-after-strip alone is too weak (U9 row9: dodge + gov/OpenAI pivot +
+    «السؤال اللي بعديه» still looked long). Fail when:
+    - a dodge appears and the post-dodge tail is a topic/next-question pivot, or
+    - after stripping dodge + pivot markers, too little remains.
+    """
+    problems: list[str] = []
+    dodge = ANSWER_DODGE.search(text)
+    if dodge:
+        after_dodge = text[dodge.end():]
+        if ANSWER_PIVOT.search(after_dodge) or ANSWER_PIVOT.search(text):
+            problems.append(
+                "dodge plus topic/next-question pivot after the question — "
+                "no answer beat; drop/skip the row; do not render"
+            )
+            return problems
     cleaned = ANSWER_DODGE.sub(" ", text)
+    cleaned = ANSWER_PIVOT.sub(" ", cleaned)
     core = re.sub(r"\s+", " ", cleaned).strip(" \n\t.,;:!?؟،-")
     if len(core) < min_chars:
-        return [
+        problems.append(
             "no answer beat after question (dodge/pivot only or empty) — "
             "drop/skip the row; do not render"
-        ]
-    return []
+        )
+    return problems
 
 
 def cmd_qaanswer(qc, args) -> int:
