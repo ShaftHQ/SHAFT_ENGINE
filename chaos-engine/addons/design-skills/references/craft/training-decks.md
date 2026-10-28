@@ -17,7 +17,7 @@ card is binding, and a stock or teammate template is never a brand source.
 1. Continuity beats novelty: keep what the existing masters already do well.
 2. Proof before build: mocks pass before builders start.
 3. The owner's sources are never edited; revisions are new files.
-4. Every chapter reads as one deck. Refresh doctrine: polish a copy of the approved base only; never invent lines to clear a QC flag (S05/S06).
+4. Every chapter reads as one deck. Refresh doctrine: polish a copy of the approved base; each change must measurably improve a Spec row, gap or pixel diff, else drop it; never invent lines to clear QC (S05/S06).
 
 ## Numeric targets
 
