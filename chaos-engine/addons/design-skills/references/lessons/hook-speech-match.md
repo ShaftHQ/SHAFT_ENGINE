@@ -55,6 +55,11 @@ extends [C10 hooks](../craft/hooks.md) and [D13 cutting](../cutting-pacing.md).
     **drop/skip** the row; do not render. Gate: `design_qc.py qaanswer
     --after post.txt` / `hookmodality --type qa --after`; note
     `answer_beat` in BRIEF/span.json (`qaanswer --span`).
+15. **G18 overlay verbatim:** every on-screen string (hook parts, short /
+    footer / label, every SRT cue) must be spoken — exact or fuzzy ≥0.72
+    against `words.json`. Invented tokens fail. Gate:
+    `design_qc.py overlayverbatim words.json --srt cues.srt --hook "…"
+    --short "…"`.
 
 ## Verify
 
@@ -72,6 +77,8 @@ extends [C10 hooks](../craft/hooks.md) and [D13 cutting](../cutting-pacing.md).
 - [ ] `design_qc.py hookbleed cues.srt --hook-end <s>` passes.
 - [ ] `design_qc.py qaanswer --after` (or `hookmodality --type qa --after`)
       passes before render; dropped rows are not rendered.
+- [ ] `design_qc.py overlayverbatim words.json --srt … --hook … --short …`
+      passes (G18; no invented overlay tokens).
 
 ## Sources
 

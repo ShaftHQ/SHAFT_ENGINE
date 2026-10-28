@@ -429,5 +429,74 @@ class CaptionChecksTest(unittest.TestCase):
 
 
 
+    def test_antecedent_splice_land_needs_prior_binder(self) -> None:
+        """U11 G17: land opening on هو with binder only inside the cut fails; binder in prior passes."""
+        # pre-cut timeline: cue A (binder), cut removes middle, land opens with هو + Latin
+        bad = srt(
+            (0.0, 1.5, "مقدمة قصيرة"),
+            (1.5, 5.0, "التقرير جاهز"),  # binder inside cut 1.5-6.0 — NOT kept prior
+            (6.0, 8.0, "هو risk report بعد القطع"),
+        )
+        good = srt(
+            (0.0, 1.5, "التقرير جاهز قبل القطع"),
+            (1.5, 5.0, "جملة جوه القطع تتشال"),
+            (6.0, 8.0, "هو risk report بعد القطع"),
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            bad_p = Path(folder) / "bad.srt"
+            good_p = Path(folder) / "good.srt"
+            bad_p.write_text(bad, encoding="utf-8")
+            good_p.write_text(good, encoding="utf-8")
+            self.assertEqual(
+                1,
+                run_qc(
+                    "antecedent", str(bad_p),
+                    "--splice", "1.5-6.0",
+                    "--noun", "التقرير",
+                )[0],
+            )
+            code, payload = run_qc(
+                "antecedent", str(good_p),
+                "--splice", "1.5-6.0",
+                "--noun", "التقرير",
+            )
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+            self.assertEqual(payload.get("gate"), "G17")
+
+    def test_overlayverbatim_rejects_invented_token(self) -> None:
+        """U11 G18: short/footer inventing a never-spoken token fails; verbatim passes."""
+        words = {"words": [
+            {"w": "دي", "s": 0.0, "e": 0.2},
+            {"w": "مش", "s": 0.2, "e": 0.4},
+            {"w": "skill", "s": 0.4, "e": 0.7},
+            {"w": "انت", "s": 0.7, "e": 0.9},
+            {"w": "بتضيفها", "s": 0.9, "e": 1.3},
+        ]}
+        cues = srt((0.0, 1.4, "دي مش skill انت بتضيفها"))
+        with tempfile.TemporaryDirectory() as folder:
+            w = Path(folder) / "words.json"
+            s = Path(folder) / "cues.srt"
+            w.write_text(json.dumps(words), encoding="utf-8")
+            s.write_text(cues, encoding="utf-8")
+            self.assertEqual(
+                1,
+                run_qc(
+                    "overlayverbatim", str(w),
+                    "--srt", str(s),
+                    "--hook", "دي مش skill|انت بتضيفها",
+                    "--short", "مش skill زيادة",
+                )[0],
+            )
+            code, payload = run_qc(
+                "overlayverbatim", str(w),
+                "--srt", str(s),
+                "--hook", "دي مش skill|انت بتضيفها",
+                "--short", "دي مش skill",
+            )
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+            self.assertEqual(payload.get("gate"), "G18")
+
+
+
 if __name__ == "__main__":
     unittest.main()

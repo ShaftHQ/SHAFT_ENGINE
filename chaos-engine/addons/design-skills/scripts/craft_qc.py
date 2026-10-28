@@ -959,18 +959,78 @@ def cmd_softjump(qc, args) -> int:
     )
 
 
+# Arabic binder pronouns / demonstratives that open a land cue weakly (G17).
+# Project-specific binder nouns stay on --noun (Automatest lists live in brain).
+WEAK_OPEN = frozenset({"هو", "هي", "هم", "هن", "ده", "دي", "دا", "دول", "هذا", "هذه"})
+
+
+def _norm_tok(word: str) -> str:
+    word = re.sub("[\u064b-\u0652\u0640]", "", word)
+    word = word.translate(str.maketrans("أإآىة", "ااايه"))
+    return word.strip(".,!?;:\"'()[]")
+
+
+def _toks(text: str) -> list[str]:
+    return [t for t in (_norm_tok(x) for x in text.split()) if t]
+
+
+def _parse_splices(spec: str) -> list[tuple[float, float]]:
+    cuts = []
+    for part in spec.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        a, _, b = part.partition("-")
+        cuts.append((float(a), float(b)))
+    return sorted(cuts)
+
+
 def cmd_antecedent(qc, args) -> int:
-    """Kept caption/script text: epithets/pronouns need a referent noun still in the span."""
-    text = Path(args.file).read_text(encoding="utf-8")
+    """G13 kept-span epithets, or G17 per-splice land openers that need a prior binder noun."""
     nouns = [n.strip() for n in (args.noun or []) if n.strip()]
+    if getattr(args, "splice", None):
+        # G17: pre-cut SRT + splice list; land cue opener must bind in kept-prior speech.
+        if not nouns:
+            raise qc.Skip("pass --noun at least once (binder nouns for splice lands)")
+        cues = cue_list(qc, args.file)
+        cuts = _parse_splices(args.splice)
+        hits, lands = [], []
+        noun_norms = {_norm_tok(n) for n in nouns}
+        for start, end in cuts:
+            land = next((c for c in cues if c["start"] >= end - 0.05), None)
+            if land is None:
+                hits.append(f"splice {start}-{end}: no land cue")
+                continue
+            land_text = " ".join(land["lines"])
+            opener = (_toks(land_text) or [""])[0]
+            prior = " ".join(" ".join(c["lines"]) for c in cues if c["end"] <= start + 1e-6)
+            prior_set = set(_toks(prior))
+            if opener not in WEAK_OPEN:
+                lands.append({"cut": [start, end], "opener": opener, "bind": "not-weak-opener", "ok": True})
+                continue
+            ok = bool(prior_set & noun_norms)
+            why = "binder-in-prior" if ok else "no-binder-in-prior"
+            lands.append({"cut": [start, end], "opener": opener, "bind": why, "ok": ok,
+                          "land_cue": land_text, "prior": prior})
+            if not ok:
+                hits.append(
+                    f"splice {start}-{end}: land opens with dangling «{opener}» — {why} "
+                    f"(cue {land['start']:.2f}-{land['end']:.2f}: {land_text!r})"
+                )
+        return qc.report(
+            "antecedent", qc.FAIL if hits else qc.PASS,
+            gate="G17", nouns=nouns, hits=hits, lands=lands,
+            note="per-splice land opener; binders via --noun (prior cues only; same-cue Latin does not bind)",
+        )
+    # G13: whole kept span
+    text = Path(args.file).read_text(encoding="utf-8")
     epithets = [e.strip() for e in (args.epithet or []) if e.strip()]
     if not epithets:
-        raise qc.Skip("pass --epithet at least once")
+        raise qc.Skip("pass --epithet at least once (or --splice for G17)")
     hits = []
     for epi in epithets:
         if epi not in text:
             continue
-        # Referent must appear before the first epithet occurrence (or anywhere if --anywhere).
         pos = text.find(epi)
         window = text if args.anywhere else text[: pos + len(epi)]
         if not any(noun in window for noun in nouns):
@@ -979,6 +1039,91 @@ def cmd_antecedent(qc, args) -> int:
     return qc.report(
         "antecedent", qc.FAIL if hits else qc.PASS,
         epithets=epithets, nouns=nouns, hits=hits,
+    )
+
+
+# Generic Arabic / Latin fillers skipped by overlay verbatim (G18).
+OVERLAY_FILLER = frozenset("يعني طيب تمام اه آه ايوه أيوه يا فندم بقى و ف ب ل".split())
+
+
+def _overlay_norm(word: str) -> str:
+    word = re.sub("[\u064b-\u0652\u0640\u2066-\u2069]", "", word)
+    word = word.translate(str.maketrans("أإآىة", "ااايه"))
+    word = re.sub(r"^[^\w]+|[^\w]+$", "", word, flags=re.UNICODE)
+    word = word.lower()
+    if len(word) > 3:
+        word = re.sub(r"^(و|ف|ب|ك)?(ال|لل)", "", word)
+    return word
+
+
+def _overlay_tokens(text: str) -> list[tuple[str, str]]:
+    out = []
+    for raw in text.replace("|", " ").split():
+        raw = raw.strip()
+        if not raw:
+            continue
+        n = _overlay_norm(raw)
+        if n and n not in OVERLAY_FILLER:
+            out.append((raw, n))
+    return out
+
+
+def _spoken_bag(payload) -> list[str]:
+    """Normalize words.json (list / {words:[{w|word}]} / words_of shapes) to overlay norms."""
+    bag: list[str] = []
+    entries = words_of(payload)
+    if entries:
+        for w in entries:
+            n = _overlay_norm(w["word"])
+            if n:
+                bag.append(n)
+        return bag
+    if isinstance(payload, list):
+        for item in payload:
+            tok = item.get("w", item.get("word", item)) if isinstance(item, dict) else item
+            n = _overlay_norm(str(tok))
+            if n:
+                bag.append(n)
+    elif isinstance(payload, dict):
+        for item in payload.get("words", payload.get("tokens", [])):
+            tok = item.get("w", item.get("word", item)) if isinstance(item, dict) else item
+            n = _overlay_norm(str(tok))
+            if n:
+                bag.append(n)
+    return bag
+
+
+def cmd_overlayverbatim(qc, args) -> int:
+    """G18: every on-screen overlay string must be verbatim-spoken (words.json bag)."""
+    import difflib
+
+    payload = json.loads(Path(args.words).read_text(encoding="utf-8"))
+    bag = _spoken_bag(payload)
+    surfaces: list[tuple[str, str]] = []
+    if (args.short or "").strip():
+        surfaces.append(("short", args.short.strip()))
+    for i, part in enumerate([p.strip() for p in (args.hook or "").split("|") if p.strip()], 1):
+        surfaces.append((f"hook[{i}]", part))
+    for i, cue in enumerate(cue_list(qc, args.srt), 1):
+        surfaces.append((f"srt[{i}]", " ".join(cue["lines"])))
+
+    need = float(args.threshold)
+    errors, checked = [], []
+    for label, text in surfaces:
+        miss = []
+        for raw, n in _overlay_tokens(text):
+            hit = n in bag or max(
+                (difflib.SequenceMatcher(None, n, s).ratio() for s in bag), default=0.0
+            ) >= need
+            if not hit:
+                miss.append(raw)
+        checked.append({"surface": label, "text": text, "miss": miss})
+        if miss:
+            errors.append(f"{label}: invented/not-spoken {miss} ← {text!r}")
+    return qc.report(
+        "overlayverbatim", qc.FAIL if errors else qc.PASS,
+        gate="G18", errors=errors, checked=checked, spoken_n=len(bag),
+        note="hook/short/SRT tokens must match spoken words (exact or fuzzy ≥ threshold)",
     )
 
 
@@ -1200,14 +1345,24 @@ def register(add, qc) -> None:
     p.add_argument("--min-removed", type=float, default=2.0,
                    help="removed bridge seconds that require a soft mask")
     p = add("antecedent", bind(cmd_antecedent),
-            "kept span: epithets/pronouns need an antecedent noun still present")
-    p.add_argument("file", help="kept SRT or script text")
+            "G13 kept-span epithets, or G17 per-splice land openers (--splice)")
+    p.add_argument("file", help="kept SRT (G17) or script/text (G13)")
     p.add_argument("--epithet", action="append", default=[],
-                   help="pronoun/descriptor that needs a referent (repeatable)")
+                   help="pronoun/descriptor that needs a referent (repeatable; G13)")
     p.add_argument("--noun", action="append", default=[],
-                   help="antecedent noun/setup that must remain (repeatable)")
+                   help="antecedent / binder noun that must remain (repeatable)")
     p.add_argument("--anywhere", action="store_true",
-                   help="allow noun anywhere in the file, not only before the epithet")
+                   help="allow noun anywhere in the file, not only before the epithet (G13)")
+    p.add_argument("--splice", default=None,
+                   help="G17: pre-cut splice list a-b,c-d; land opener binds via --noun in prior cues")
+    p = add("overlayverbatim", bind(cmd_overlayverbatim),
+            "G18: hook/short/SRT overlay tokens must be spoken verbatim in words.json")
+    p.add_argument("words", help="words.json (spoken word bag)")
+    p.add_argument("--srt", required=True, help="caption SRT (every cue checked)")
+    p.add_argument("--hook", default="", help="hook card text; | splits parts")
+    p.add_argument("--short", default="", help="short/footer/label overlay text")
+    p.add_argument("--threshold", type=float, default=0.72,
+                   help="fuzzy match ratio against spoken bag (default 0.72)")
     p = add("textfloor", bind(cmd_textfloor), "text under 2.6%% of the short side (28 px on portrait)")
     p.add_argument("file")
     p.add_argument("--frame", default="1080x1920")
