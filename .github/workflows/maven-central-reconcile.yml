@@ -44,6 +44,9 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: write
+      # SLSA build provenance for jars produced by this reconcile. Additive.
+      id-token: write
+      attestations: write
     env:
       MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
       MAVEN_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
@@ -127,3 +130,29 @@ jobs:
             --gpg-keyname "${{ secrets.GPG_KEYNAME }}" \
             --gpg-passphrase "${{ secrets.GPG_PASSPHRASE }}" \
             "${args[@]}"
+      # Signed-Releases counts *.intoto.jsonl assets. Attest only what this job
+      # built; never invent a bundle, and never fail reconcile if attest fails.
+      - name: Attest build provenance (jars + SBOM)
+        id: attest
+        if: inputs.dry_run != true
+        continue-on-error: true
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            */target/*.jar
+            target/bom.json
+      - name: Attach provenance bundle to the GitHub Release
+        if: inputs.dry_run != true && steps.attest.outcome == 'success'
+        continue-on-error: true
+        env:
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+          RECONCILE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p target
+          cp "${BUNDLE_PATH}" target/attest-bundle.intoto.jsonl
+          args=(--bundle target/attest-bundle.intoto.jsonl)
+          if [ -n "${RECONCILE_VERSION}" ]; then
+            args+=(--version "${RECONCILE_VERSION}")
+          fi
+          python3 scripts/ci/attach_release_provenance.py "${args[@]}"
