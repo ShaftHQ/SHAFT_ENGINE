@@ -1398,9 +1398,6 @@ public class Actions extends ElementActions {
     }
 
     private static boolean xcuiStaleText(String message) {
-        if (message == null) {
-            return false;
-        }
         String lower = message.toLowerCase(Locale.ROOT);
         return lower.contains("previously found element") || lower.contains("fb_uid");
     }

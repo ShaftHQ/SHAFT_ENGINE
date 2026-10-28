@@ -2,6 +2,7 @@ package com.shaft.gui.element.internal;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.element.internal.interaction.IosXcuiAttributeNames;
 import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.properties.internal.Properties;
@@ -97,6 +98,33 @@ public class IosElementReadTest {
         }
         verify(element).getAttribute("class");
         verify(element, org.mockito.Mockito.never()).getAttribute("type");
+    }
+
+    @Test(description = "#7455: a null attribute name is issued as empty")
+    public void nullAttributeNameIsIssuedEmpty() {
+        Assert.assertEquals(IosXcuiAttributeNames.issued(null), "");
+    }
+
+    @Test(description = "#7455: iOS mobile web keeps class")
+    public void iosMobileWebKeepsClass() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("Safari");
+        Assert.assertEquals(IosXcuiAttributeNames.issued("class"), "class");
+    }
+
+    @Test(description = "#7456: a wrapped stale cause drops the cached element and re-finds inside the wait")
+    public void wrappedStaleCauseRefindsDisplayed() {
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        assertRefound(driver -> {
+            WebElement stale = element();
+            WebElement fresh = element();
+            when(stale.isDisplayed()).thenThrow(new WebDriverException("other",
+                    new StaleElementReferenceException("previously found element")));
+            when(fresh.isDisplayed()).thenReturn(true);
+            when(driver.findElements(LOCATOR)).thenReturn(List.of(stale), List.of(fresh));
+            return new Actions(driver, true).get().isDisplayed(LOCATOR);
+        }, true);
     }
 
     @Test(description = "#7456: stale XCUI text drops the cached element and re-finds inside the wait")

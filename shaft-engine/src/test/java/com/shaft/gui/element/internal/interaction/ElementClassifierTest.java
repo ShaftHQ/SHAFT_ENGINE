@@ -239,6 +239,22 @@ public class ElementClassifierTest {
         }
     }
 
+    @Test(description = "Web classify reads class from getAttribute when getDomAttribute throws")
+    public void webClassifyReadsClassFromGetAttributeWhenDomAttributeThrows() {
+        String originalPlatform = com.shaft.driver.SHAFT.Properties.platform.targetPlatform();
+        com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform("LINUX");
+        try {
+            WebElement element = mock(WebElement.class);
+            when(element.getTagName()).thenReturn(null);
+            when(element.getDomAttribute(anyString())).thenThrow(new RuntimeException("dom attribute unsupported"));
+            when(element.getAttribute("class")).thenReturn("android.widget.Button");
+            Assert.assertEquals(ElementClassifier.classify(element), ElementKind.BUTTON);
+            org.mockito.Mockito.verify(element).getAttribute("class");
+        } finally {
+            com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform(originalPlatform);
+        }
+    }
+
     @Test(description = "Issue #6833: a failed native attribute read is not retried through getAttribute")
     public void nativeAttributeFailureIsNotRetried() {
         String originalPlatform = com.shaft.driver.SHAFT.Properties.platform.targetPlatform();
