@@ -12,6 +12,7 @@ import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.interaction.ClickStrategies;
 import com.shaft.gui.element.internal.interaction.ElementClassifier;
 import com.shaft.gui.element.internal.interaction.ElementKind;
+import com.shaft.gui.element.internal.interaction.IosXcuiAttributeNames;
 import com.shaft.gui.element.internal.interaction.TypeStrategies;
 import com.shaft.gui.internal.exceptions.MultipleElementsFoundException;
 import com.shaft.gui.internal.healing.HealingManager;
@@ -63,6 +64,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -72,6 +74,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Provides a fluent API for performing low-level UI interactions on web and mobile elements.
@@ -875,14 +878,19 @@ public class Actions extends ElementActions {
                         // Use upload input field to send the file location for upload
                         input.sendKeys(absoluteFilePath);
                     }
-                    case GET_ATTRIBUTE -> output.set(foundElements.get().getFirst().getAttribute((String) data));
-                    case GET_DOM_ATTRIBUTE -> output.set(foundElements.get().getFirst().getDomAttribute((String) data));
+                    case GET_ATTRIBUTE -> output.set(readOrDropStale(foundElements, () ->
+                            foundElements.get().getFirst().getAttribute(IosXcuiAttributeNames.issued(String.valueOf(data)))));
+                    case GET_DOM_ATTRIBUTE -> output.set(readOrDropStale(foundElements, () ->
+                            foundElements.get().getFirst().getDomAttribute(IosXcuiAttributeNames.issued(String.valueOf(data)))));
                     case GET_DOM_PROPERTY -> output.set(foundElements.get().getFirst().getDomProperty((String) data));
                     case GET_CSS_VALUE -> output.set(foundElements.get().getFirst().getCssValue((String) data));
                     case GET_NAME -> output.set(foundElements.get().getFirst().getAccessibleName());
-                    case GET_IS_DISPLAYED -> output.set(String.valueOf(foundElements.get().getFirst().isDisplayed()));
-                    case GET_IS_ENABLED -> output.set(String.valueOf(foundElements.get().getFirst().isEnabled()));
-                    case GET_IS_SELECTED -> output.set(String.valueOf(foundElements.get().getFirst().isSelected()));
+                    case GET_IS_DISPLAYED -> output.set(String.valueOf(readOrDropStale(foundElements, () ->
+                            foundElements.get().getFirst().isDisplayed())));
+                    case GET_IS_ENABLED -> output.set(String.valueOf(readOrDropStale(foundElements, () ->
+                            foundElements.get().getFirst().isEnabled())));
+                    case GET_IS_SELECTED -> output.set(String.valueOf(readOrDropStale(foundElements, () ->
+                            foundElements.get().getFirst().isSelected())));
                     case GET_TEXT -> {
                         output.set(foundElements.get().getFirst().getText());
                         if ((output.get() == null || output.get().isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
@@ -1342,6 +1350,54 @@ public class Actions extends ElementActions {
         if (text != null && !text.isEmpty())
             return text;
         return "";
+    }
+
+    /**
+     * Drops the cached element and rethrows a stale reference so the existing element wait
+     * re-finds by the original locator. XCUITest often reports that state as a plain
+     * {@link WebDriverException} whose text contains {@code previously found element} or {@code fb_uid}.
+     * Other exceptions propagate immediately.
+     */
+    private static <T> T readOrDropStale(AtomicReference<List<WebElement>> foundElements, Supplier<T> read) {
+        try {
+            return read.get();
+        } catch (RuntimeException exception) {
+            if (!isRetryableStale(exception)) {
+                throw exception;
+            }
+            foundElements.set(List.of());
+            if (exception instanceof StaleElementReferenceException stale) {
+                throw stale;
+            }
+            String message = exception.getMessage();
+            throw new StaleElementReferenceException(
+                    message == null || message.isBlank() ? "stale element reference" : message,
+                    exception);
+        }
+    }
+
+    private static boolean isRetryableStale(Throwable exception) {
+        Throwable current = exception;
+        int depth = 0;
+        while (current != null && depth < 5) {
+            if (current instanceof StaleElementReferenceException) {
+                return true;
+            }
+            if (current instanceof WebDriverException && xcuiStaleText(current.getMessage())) {
+                return true;
+            }
+            current = current.getCause();
+            depth++;
+        }
+        return false;
+    }
+
+    private static boolean xcuiStaleText(String message) {
+        if (message == null) {
+            return false;
+        }
+        String lower = message.toLowerCase(Locale.ROOT);
+        return lower.contains("previously found element") || lower.contains("fb_uid");
     }
 
     private String safeDomProperty(WebElement element, String propertyName) {

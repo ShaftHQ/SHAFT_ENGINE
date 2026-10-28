@@ -8,6 +8,7 @@ import com.shaft.gui.element.internal.interaction.IosNonHittableTap.IosTapHadNoE
 import io.appium.java_client.ios.IOSDriver;
 import org.mockito.ArgumentCaptor;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Dimension;
 import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebElement;
 import org.testng.annotations.AfterMethod;
@@ -78,6 +79,7 @@ public class IosNonHittableTapTest {
         driver = mock(IOSDriver.class);
         RemoteWebElement element = mock(RemoteWebElement.class);
         when(element.getId()).thenReturn("login_iam_loginButton");
+        when(element.getSize()).thenReturn(new Dimension(120, 44));
         when(element.getTagName()).thenReturn("XCUIElementTypeButton");
         when(element.isDisplayed()).thenReturn(true);
         when(element.isEnabled()).thenReturn(true);
@@ -96,7 +98,7 @@ public class IosNonHittableTapTest {
 
         assertNoEffect(clickFailure);
         assertNoEffect(tapFailure);
-        assertAnchoredTapWithoutCoordinates();
+        assertAnchoredTapAtElementCentre();
     }
 
     @Test
@@ -104,6 +106,7 @@ public class IosNonHittableTapTest {
         IOSDriver localDriver = mock(IOSDriver.class);
         RemoteWebElement localElement = mock(RemoteWebElement.class);
         when(localElement.getId()).thenReturn("login_iam_loginButton");
+        when(localElement.getSize()).thenReturn(new Dimension(120, 44));
         when(localElement.getDomAttribute(anyString())).thenReturn("false");
         when(localElement.getAttribute(anyString())).thenReturn("false");
         when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE, (String) null);
@@ -136,15 +139,15 @@ public class IosNonHittableTapTest {
         };
     }
 
-    private void assertAnchoredTapWithoutCoordinates() {
+    private void assertAnchoredTapAtElementCentre() {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
         verify(driver, org.mockito.Mockito.atLeast(2)).executeScript(eq("mobile: tap"), params.capture());
         assertFalse(params.getAllValues().isEmpty());
         for (Map<String, Object> tap : params.getAllValues()) {
             assertEquals(tap.get("elementId"), "login_iam_loginButton");
-            assertFalse(tap.containsKey("x"), "coordinate tap key x was sent: " + tap);
-            assertFalse(tap.containsKey("y"), "coordinate tap key y was sent: " + tap);
+            assertEquals(((Number) tap.get("x")).doubleValue(), 60.0, "element-relative centre x: " + tap);
+            assertEquals(((Number) tap.get("y")).doubleValue(), 22.0, "element-relative centre y: " + tap);
         }
         verify(driver, never()).perform(anyCollection());
     }

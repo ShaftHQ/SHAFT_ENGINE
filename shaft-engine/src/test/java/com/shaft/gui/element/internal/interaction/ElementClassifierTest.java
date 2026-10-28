@@ -216,6 +216,29 @@ public class ElementClassifierTest {
         }
     }
 
+    @Test(description = "#7455: iOS XCUITest reads the widget type, not class or className")
+    public void iosXcuiReadsTypeInsteadOfClass() {
+        String originalPlatform = com.shaft.driver.SHAFT.Properties.platform.targetPlatform();
+        String originalBrowser = com.shaft.driver.SHAFT.Properties.mobile.browserName();
+        String originalAutomation = com.shaft.driver.SHAFT.Properties.mobile.automationName();
+        com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform("iOS");
+        com.shaft.driver.SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        try {
+            WebElement button = mock(WebElement.class);
+            when(button.getTagName()).thenReturn("XCUIElementTypeButton");
+            when(button.getDomAttribute("type")).thenReturn("XCUIElementTypeButton");
+            when(button.getDomAttribute("enabled")).thenReturn("true");
+            Assert.assertEquals(ElementClassifier.classify(button), ElementKind.BUTTON);
+            org.mockito.Mockito.verify(button, org.mockito.Mockito.times(1)).getDomAttribute("type");
+            org.mockito.Mockito.verify(button, org.mockito.Mockito.never()).getDomAttribute("class");
+            org.mockito.Mockito.verify(button, org.mockito.Mockito.never()).getDomAttribute("className");
+            org.mockito.Mockito.verify(button, org.mockito.Mockito.never()).getAttribute(anyString());
+        } finally {
+            com.shaft.driver.SHAFT.Properties.platform.set().targetPlatform(originalPlatform);
+            com.shaft.driver.SHAFT.Properties.mobile.set().browserName(originalBrowser).automationName(originalAutomation);
+        }
+    }
+
     @Test(description = "Issue #6833: a failed native attribute read is not retried through getAttribute")
     public void nativeAttributeFailureIsNotRetried() {
         String originalPlatform = com.shaft.driver.SHAFT.Properties.platform.targetPlatform();

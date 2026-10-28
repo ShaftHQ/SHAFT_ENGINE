@@ -1,5 +1,6 @@
 package com.shaft.gui.internal.aria;
 
+import com.shaft.driver.SHAFT;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -42,6 +43,27 @@ public class MobileAccessibilityTreeConverterUnitTest {
                 new AriaNode("button", "Sign in", List.of()),
                 new AriaNode("edittext", "", List.of())
         ));
+    }
+
+    @Test(description = "#7455: an iOS XCUI tree without a class attribute uses type")
+    public void iosTreeReadsTypeWhenClassIsAbsent() {
+        String platform = SHAFT.Properties.platform.targetPlatform();
+        String browser = SHAFT.Properties.mobile.browserName();
+        String automation = SHAFT.Properties.mobile.automationName();
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        try {
+            String xml = """
+                    <XCUIElementTypeOther type="XCUIElementTypeOther" name="shell">
+                      <Other type="XCUIElementTypeButton" name="Go"/>
+                    </XCUIElementTypeOther>
+                    """;
+            Assert.assertEquals(MobileAccessibilityTreeConverter.convert(xml), List.of(
+                    new AriaNode("other", "shell", List.of(new AriaNode("button", "Go", List.of())))));
+        } finally {
+            SHAFT.Properties.platform.set().targetPlatform(platform);
+            SHAFT.Properties.mobile.set().browserName(browser).automationName(automation);
+        }
     }
 
     @Test(description = "convert should derive iOS roles by stripping the XCUIElementType prefix and hoist nameless XCUIElementTypeOther containers")

@@ -20,7 +20,10 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import com.shaft.properties.internal.PropertyFileManager;
+
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.Map;
 
 public class BrowserStackHelperUnitTest {
@@ -72,6 +75,7 @@ public class BrowserStackHelperUnitTest {
         Map<String, Object> options = (Map<String, Object>) desktopCapabilities.getCapability("bstack:options");
         Assert.assertEquals(options.get("os"), "OS X");
         Assert.assertEquals(options.get("osVersion"), "Sonoma");
+        Assert.assertEquals(options.get("local"), true);
         Assert.assertEquals(options.get("geoLocation"), "EG");
         Assert.assertTrue(options.containsKey("buildName"));
         Assert.assertTrue(options.containsKey("projectName"));
@@ -102,6 +106,7 @@ public class BrowserStackHelperUnitTest {
         Map<String, Object> options = (Map<String, Object>) capabilities.getCapability("bstack:options");
         Assert.assertEquals(options.get("osVersion"), "13.0");
         Assert.assertEquals(options.get("deviceName"), "Google Pixel 7");
+        Assert.assertEquals(options.get("local"), true);
         Assert.assertEquals(options.get("appiumVersion"), "2.0.0");
         Assert.assertEquals(options.get("seleniumVersion"), "4.25.0");
     }
@@ -122,6 +127,7 @@ public class BrowserStackHelperUnitTest {
         Assert.assertEquals(options.get("networkLogs"), true);
         Assert.assertEquals(options.get("sessionName"), "native-session");
         Assert.assertEquals(options.get("enableBiometric"), "true");
+        Assert.assertEquals(options.get("local"), false);
 
         String passMessage = (String) invokePrivate("reportActionResult",
                 new Class[]{String.class, String.class, Boolean.class, Throwable[].class},
@@ -131,6 +137,41 @@ public class BrowserStackHelperUnitTest {
                 new Class[]{String.class, String.class, Boolean.class, Throwable[].class},
                 "setup", "data", false, new Throwable[]{new RuntimeException("boom")});
         Assert.assertTrue(failMessage.contains("failed"));
+    }
+
+    @Test(description = "#7458: forceLocal is not a bstack capability; native apps still attach local")
+    public void forceLocalIsExcludedAndNativeLocalSurvivesCustomOptions() throws Exception {
+        ThreadLocalPropertiesManager.setProperty("browserStack.forceLocal", "true");
+        ThreadLocalPropertiesManager.setProperty("browserStack.sessionName", "kept");
+        Map<String, Object> custom = PropertyFileManager.getCustomBrowserstackCapabilities();
+        Assert.assertFalse(custom.containsKey("forceLocal"), custom.toString());
+        Assert.assertEquals(custom.get("sessionName"), "kept");
+
+        SHAFT.Properties.browserStack.set().userName("user").accessKey("key").osVersion("17")
+                .deviceName("iPhone 15").appUrl("bs://existing-app").appRelativeFilePath("")
+                .local(true).appiumVersion("2.0.0");
+        SHAFT.Properties.platform.set().targetPlatform("iOS");
+        SHAFT.Properties.mobile.set().browserName("");
+        Map<String, Object> replacement = new HashMap<>();
+        replacement.put("projectName", "demo");
+        replacement.put("buildName", "demo");
+        MutableCapabilities input = new MutableCapabilities();
+        input.setCapability("bstack:options", replacement);
+
+        try (MockedConstruction<DriverFactoryHelper> helperConstruction = Mockito.mockConstruction(DriverFactoryHelper.class);
+             MockedStatic<BrowserStackSdkHelper> sdkHelperMock = Mockito.mockStatic(BrowserStackSdkHelper.class)) {
+            sdkHelperMock.when(BrowserStackSdkHelper::generateBrowserStackYml).thenReturn("browserstack.yml");
+            BrowserStackHelper.getBrowserStackDriver(input);
+            DriverFactoryHelper constructed = helperConstruction.constructed().getFirst();
+            ArgumentCaptor<MutableCapabilities> captor = ArgumentCaptor.forClass(MutableCapabilities.class);
+            Mockito.verify(constructed).initializeDriver(Mockito.eq(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE), captor.capture());
+            @SuppressWarnings("unchecked")
+            Map<String, Object> options = (Map<String, Object>) captor.getValue().getCapability("bstack:options");
+            Assert.assertEquals(options.get("projectName"), "demo");
+            Assert.assertEquals(options.get("buildName"), "demo");
+            Assert.assertEquals(options.get("local"), true);
+            Assert.assertFalse(options.containsKey("forceLocal"), options.toString());
+        }
     }
 
     @Test

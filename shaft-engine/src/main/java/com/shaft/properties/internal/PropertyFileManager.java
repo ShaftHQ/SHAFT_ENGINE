@@ -278,6 +278,9 @@ public final class PropertyFileManager {
 
     /**
      * Collects the non-blank {@code browserStack.} prefixed properties as BrowserStack options.
+     * {@code appName}, {@code appUrl}, and {@code appRelativeFilePath} are not session capabilities.
+     * {@code forceLocal} is excluded: {@code --force-local} belongs on the BrowserStackLocal binary,
+     * not on {@code bstack:options}.
      *
      * @return the BrowserStack option names mapped to their values
      */
@@ -289,7 +292,8 @@ public final class PropertyFileManager {
                 Set<String> excludedKeys = Set.of(
                         "appName",
                         "appUrl",
-                        "appRelativeFilePath"
+                        "appRelativeFilePath",
+                        "forceLocal"
                 );
                 var parsedKey = String.valueOf(key).split("browserStack.")[1];
                 if (!excludedKeys.contains(parsedKey))

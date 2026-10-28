@@ -482,9 +482,9 @@ public final class TypeStrategies {
     private static String composeFlutterHint(WebElement element) {
         try {
             String tag = element.getTagName();
-            String className = element.getDomAttribute("class");
+            String className = element.getDomAttribute(IosXcuiAttributeNames.issued("class"));
             if (className == null) {
-                className = element.getAttribute("class");
+                className = element.getAttribute(IosXcuiAttributeNames.issued("class"));
             }
             String blob = ((tag == null ? "" : tag) + " " + (className == null ? "" : className))
                     .toLowerCase(Locale.ROOT);

@@ -1,5 +1,6 @@
 package com.shaft.gui.internal.aria;
 
+import com.shaft.gui.element.internal.interaction.IosXcuiAttributeNames;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -118,14 +119,21 @@ public final class MobileAccessibilityTreeConverter {
     private static String deriveRole(Element element) {
         String tagName = element.getTagName();
         if (tagName.startsWith(XCUI_ELEMENT_TYPE_PREFIX)) {
-            String stripped = tagName.substring(XCUI_ELEMENT_TYPE_PREFIX.length());
-            return stripped.isBlank() ? tagName.toLowerCase(Locale.ROOT) : stripped.toLowerCase(Locale.ROOT);
+            return stripXcui(tagName);
         }
         String classAttribute = attribute(element, "class");
         String source = classAttribute.isBlank() ? tagName : classAttribute;
+        if (source.startsWith(XCUI_ELEMENT_TYPE_PREFIX)) {
+            return stripXcui(source);
+        }
         int lastDot = source.lastIndexOf('.');
         String role = lastDot >= 0 ? source.substring(lastDot + 1) : source;
         return role.toLowerCase(Locale.ROOT);
+    }
+
+    private static String stripXcui(String source) {
+        String stripped = source.substring(XCUI_ELEMENT_TYPE_PREFIX.length());
+        return (stripped.isBlank() ? source : stripped).toLowerCase(Locale.ROOT);
     }
 
     private static String deriveName(Element element) {
@@ -139,6 +147,10 @@ public final class MobileAccessibilityTreeConverter {
     }
 
     private static String attribute(Element element, String name) {
+        String issued = IosXcuiAttributeNames.issued(name);
+        if (issued != null && !issued.equals(name) && element.hasAttribute(issued)) {
+            return element.getAttribute(issued).trim();
+        }
         return element.hasAttribute(name) ? element.getAttribute(name).trim() : "";
     }
 

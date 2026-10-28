@@ -349,7 +349,7 @@ public final class ElementClassifier {
 
     private static String safeNativeAttribute(WebElement element, String name) {
         try {
-            return element.getDomAttribute(name);
+            return element.getDomAttribute(IosXcuiAttributeNames.issued(name));
         } catch (RuntimeException ignored) {
             return null;
         }
@@ -528,11 +528,12 @@ public final class ElementClassifier {
     }
 
     private static String safeDom(WebElement element, String name) {
+        String issued = IosXcuiAttributeNames.issued(name);
         try {
-            return element.getDomAttribute(name);
+            return element.getDomAttribute(issued);
         } catch (RuntimeException ignored) {
             try {
-                return element.getAttribute(name);
+                return element.getAttribute(issued);
             } catch (RuntimeException ignoredAgain) {
                 return null;
             }
