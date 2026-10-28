@@ -1250,6 +1250,7 @@ jobs:
           tests.scripts.test_pit_diff_scope
           tests.scripts.test_flaky_report
           tests.scripts.test_consumer_transitive_pins
+          tests.scripts.test_validate_npm_lock_advisories
           tests.scripts.test_pr_title_lint
           tests.scripts.test_jmh_compare
           tests.scripts.test_assert_intellij_marketplace_receipt

@@ -1491,7 +1491,8 @@ final class ManagedLocalAiProcess {
 
         @Override
         public byte[] captured() {
-            return captured.clone();
+            // Single defensive copy lives in the compact constructor (#7442).
+            return captured;
         }
     }
     static final class DeadlineExceededException extends IOException {
