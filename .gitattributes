@@ -16,6 +16,7 @@ chaos-engine/** text eol=lf
 /.claude/** text eol=lf
 /.codex/** text eol=lf
 /.grok/hooks/** text eol=lf
+/.grok/rules/** text eol=lf
 /.gemini/** text eol=lf
 /.github/hooks/** text eol=lf
 /.github/copilot-instructions.md text eol=lf
