@@ -147,7 +147,10 @@
             <!-- MCP jackson3 calls Schema.validate(tools.jackson.databind.JsonNode).
                  That method exists on networknt 3.0.0. The parent pin 2.0.8 keeps
                  REST Assured convergence and removes the method, so the stdio
-                 server exits 1. This entry outranks the parent for shaft-mcp. -->
+                 server exits 1. This entry outranks the parent for shaft-mcp.
+                 Latent risk: engine still brings openapi-request-validator + REST Assured
+                 jsv (Jackson 2 getSchema); enabling swaggerValidation or matchesJsonSchema
+                 on this classpath yields NoSuchMethodError — tracked in #7483. -->
             <dependency>
                 <groupId>com.networknt</groupId>
                 <artifactId>json-schema-validator</artifactId>
@@ -195,6 +198,8 @@
                     <groupId>org.slf4j</groupId>
                     <artifactId>jcl-over-slf4j</artifactId>
                 </exclusion>
+                <!-- Excludes engine's 2.0.8 only. openapi-request-validator and REST Assured
+                     jsv still arrive from shaft-engine; see #7483. -->
                 <exclusion>
                     <groupId>com.networknt</groupId>
                     <artifactId>json-schema-validator</artifactId>
