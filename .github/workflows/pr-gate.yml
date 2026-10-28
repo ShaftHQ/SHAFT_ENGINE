@@ -462,6 +462,8 @@ jobs:
               - 'tests/scripts/test_merge_group_same_tree.py'
               - 'scripts/ci/pr_time_to_merge.py'
               - 'tests/scripts/test_pr_time_to_merge_report.py'
+              - 'tests/scripts/test_assert_branch_uptodate.py'
+              - 'scripts/ci/assert_branch_uptodate.py'
               - 'scripts/ci/quality_trend.py'
               - 'tests/scripts/test_quality_layers_6990.py'
               - 'tests/scripts/test_dangerous_workflow_7035.py'
@@ -1299,6 +1301,7 @@ jobs:
           tests.scripts.test_pr_gate_time_to_merge
           tests.scripts.test_merge_group_same_tree
           tests.scripts.test_pr_time_to_merge_report
+          tests.scripts.test_assert_branch_uptodate
           tests.scripts.test_quality_layers_6990
           tests.scripts.test_shard_test_selector
           tests.scripts.test_validate_quality_configuration
@@ -1620,6 +1623,81 @@ jobs:
           tests.scripts.test_copilot_cli_hook.PowerShellLauncherTest
           tests.scripts.test_copilot_cli_hook.CopilotRepositoryHookTest -v
 
+
+  # #7184 / #6990: Codecov poll runs in parallel with the heavy legs so it is
+  # not stuck on the summary critical-path tail. Still pull_request only
+  # (Codecov does not report on merge_group). Summary requires success|skipped.
+  # #7184 Coach: wait for coverage-producing legs so uploads land before the
+  # poll; success|skipped keeps path-filtered skips from blocking without
+  # weakening the gate (failures skip the poll; summary still fails the leg).
+  codecov-gate:
+    name: Codecov patch/project
+    needs:
+      - changes
+      - unit-tests
+      - intellij-build
+      - cli
+      - capture-e2e
+      - template-coupling
+    if: >
+      always() &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.same_tree != 'true' &&
+      github.event_name == 'pull_request' &&
+      (needs.unit-tests.result == 'success' || needs.unit-tests.result == 'skipped') &&
+      (needs.intellij-build.result == 'success' || needs.intellij-build.result == 'skipped') &&
+      (needs.cli.result == 'success' || needs.cli.result == 'skipped') &&
+      (needs.capture-e2e.result == 'success' || needs.capture-e2e.result == 'skipped') &&
+      (needs.template-coupling.result == 'success' || needs.template-coupling.result == 'skipped')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      checks: read
+      statuses: read
+      pull-requests: read
+    steps:
+      - name: Checkout coverage gate script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/ci/codecov_status_gate.py
+          sparse-checkout-cone-mode: false
+      - name: Enforce Codecov patch/project
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 scripts/ci/codecov_status_gate.py --sha "$HEAD_SHA" --pr "$PR_NUMBER" --timeout 360
+
+  # #7184 / #7439: required uptodate check (fetch base tip; fork-safe via
+  # base.repo.clone_url) so agents cannot bypass assert_branch_uptodate.py.
+  branch-uptodate:
+    name: Branch contains base tip
+    needs: changes
+    if: needs.changes.outputs.same_tree != 'true' && github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout PR head (full history)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # PR head (not the ephemeral merge ref) + full history so
+          # merge-base --is-ancestor cannot false-fail on a depth=1 clone.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          sparse-checkout: scripts/ci/assert_branch_uptodate.py
+          sparse-checkout-cone-mode: false
+      - name: Fetch base tip and assert HEAD contains it
+        env:
+          BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+          BASE_CLONE_URL: ${{ github.event.pull_request.base.repo.clone_url }}
+        run: |
+          python3 scripts/ci/assert_branch_uptodate.py \
+            --base "$BASE_REF" \
+            --fetch-url "$BASE_CLONE_URL"
+
   summary:
     name: PR Gate Summary
     needs:
@@ -1647,6 +1725,8 @@ jobs:
       - dependency-review
       - chaos-installer-acceptance
       - chaos-installer-contracts
+      - codecov-gate
+      - branch-uptodate
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 10
@@ -1681,6 +1761,8 @@ jobs:
           DEPENDENCY_REVIEW_RESULT: ${{ needs.dependency-review.result }}
           CHAOS_INSTALLER_RESULT: ${{ needs.chaos-installer-acceptance.result }}
           CHAOS_INSTALLER_CONTRACTS_RESULT: ${{ needs.chaos-installer-contracts.result }}
+          CODECOV_GATE_RESULT: ${{ needs.codecov-gate.result }}
+          BRANCH_UPTODATE_RESULT: ${{ needs.branch-uptodate.result }}
         run: |
           set -uo pipefail
 
@@ -1711,6 +1793,8 @@ jobs:
             echo "| dependency-review | ${DEPENDENCY_REVIEW_RESULT} |"
             echo "| chaos-installer-acceptance | ${CHAOS_INSTALLER_RESULT} |"
             echo "| chaos-installer-contracts | ${CHAOS_INSTALLER_CONTRACTS_RESULT} |"
+            echo "| codecov-gate | ${CODECOV_GATE_RESULT} |"
+            echo "| branch-uptodate | ${BRANCH_UPTODATE_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "${CHANGES_RESULT}" != "success" ]; then
@@ -1719,7 +1803,7 @@ jobs:
           fi
 
           status=0
-            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${API_COMPAT_RESULT}" "${BUG_ANALYSIS_RESULT}" "${WORKFLOW_SECURITY_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${STATIC_ANALYSIS_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}"; do
+            for result in "${DOCS_RESULT}" "${CHAOS_GAUGE_RESULT}" "${AGENT_GUIDANCE_RESULT}" "${INTELLIJ_VERIFY_RESULT}" "${INTELLIJ_BUILD_RESULT}" "${INTELLIJ_VERIFY_PLUGIN_RESULT}" "${CLI_RESULT}" "${CAPTURE_RESULT}" "${UNIT_TESTS_RESULT}" "${TEMPLATES_RESULT}" "${WORKFLOW_TIMEOUTS_RESULT}" "${API_COMPAT_RESULT}" "${BUG_ANALYSIS_RESULT}" "${WORKFLOW_SECURITY_RESULT}" "${MODULE_BOUNDARY_RESULT}" "${JAVADOC_COVERAGE_RESULT}" "${ORPHANED_SUITE_FILES_RESULT}" "${STATIC_ANALYSIS_RESULT}" "${PR_BODY_AUTOCLOSE_GUARD_RESULT}" "${DEPENDENCY_CHANGES_RESULT}" "${DEPENDENCY_REVIEW_RESULT}" "${CHAOS_INSTALLER_RESULT}" "${CHAOS_INSTALLER_CONTRACTS_RESULT}" "${CODECOV_GATE_RESULT}" "${BRANCH_UPTODATE_RESULT}"; do
             case "$result" in
               success|skipped) ;;
               *)
@@ -1730,23 +1814,6 @@ jobs:
           done
 
           exit "$status"
-
-      # #6990: Codecov patch/project are enforced here, not in the ruleset,
-      # because Codecov does not report on merge_group (a required Codecov
-      # context would hang the queue). pull_request only; bounded poll.
-      - name: Checkout coverage gate script
-        if: github.event_name == 'pull_request'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          sparse-checkout: scripts/ci/codecov_status_gate.py
-          sparse-checkout-cone-mode: false
-      - name: Enforce Codecov patch/project
-        if: github.event_name == 'pull_request'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: python3 scripts/ci/codecov_status_gate.py --sha "$HEAD_SHA" --pr "$PR_NUMBER" --timeout 360
 
   # Issue #6185: a red post-merge `main` run used to go unnoticed. This job
   # files or updates one rolling `ci-main-red` issue per failing leg (assigned
