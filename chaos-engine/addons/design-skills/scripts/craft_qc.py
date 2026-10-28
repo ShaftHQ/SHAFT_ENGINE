@@ -640,7 +640,7 @@ def cmd_silencegap(qc, args) -> int:
         mid_answer_gaps=mid, fail_gaps=fail)
 
 
-TXDIFF_PUNCT = re.compile(r"[.,!?;:؟،؛\"\'()\\[\\]{}…—–\\-]+")
+TXDIFF_PUNCT = re.compile(r"[.,!?;:؟،؛\"'()\[\]{}…—–-]+")
 
 
 def _txdiff_tokens(text: str) -> list[str]:
