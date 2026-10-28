@@ -51,7 +51,7 @@ class ReleaseProvenanceTest(unittest.TestCase):
         attest = next(step for step in job["steps"] if str(step.get("uses", "")).startswith(pin))
         self.assertEqual(pin, attest["uses"].split()[0])
         self.assertTrue(attest.get("continue-on-error"))
-        self.assertIn("inputs.dry_run", attest["if"])
+        self.assertIn("inputs.dry_run != true", attest["if"])
         self.assertEqual("*/target/*.jar", attest["with"]["subject-path"])
         self.assertNotIn("bom.json", attest["with"]["subject-path"])
         reconcile = next(
@@ -63,7 +63,7 @@ class ReleaseProvenanceTest(unittest.TestCase):
         self.assertGreater(job["steps"].index(attest), job["steps"].index(reconcile))
         self.assertGreater(job["steps"].index(attach), job["steps"].index(attest))
         self.assertTrue(attach.get("continue-on-error"))
-        self.assertIn("inputs.dry_run", attach["if"])
+        self.assertIn("inputs.dry_run != true", attach["if"])
         self.assertIn("steps.attest.outcome == 'success'", attach["if"])
         self.assertIn("attach_release_provenance.py", text)
         self.assertIn(pin, text)
