@@ -1076,6 +1076,77 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertIn(module.LAUNCH_GUARD_UNAVAILABLE, rendered)
         self.assertNotEqual({}, payload)
 
+    def test_lifecycle_hook_waits_then_runs_when_guard_reappears_during_install(self):
+        """#7425: install journal present → wait for guard.py instead of permanent deny."""
+        module = load(HOSTS, "chaos_engine_hook_guard_wait")
+        command = module.chaos_guard_locator_command(windows=os.name == "nt", host="codex")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / ".chaos-engine.transaction.json").write_text(
+                '{"operation":"update","commit":"abc"}\n', encoding="utf-8"
+            )
+            guard = root / ".chaos-engine" / "hooks" / "guard.py"
+            planter_src = (
+                "import pathlib, time\n"
+                f"root = pathlib.Path({str(root)!r})\n"
+                "time.sleep(0.35)\n"
+                "destination = root / '.chaos-engine' / 'hooks'\n"
+                "destination.mkdir(parents=True, exist_ok=True)\n"
+                "(destination / 'guard.py').write_text('print(\\'{}\\')\\n', encoding='utf-8')\n"
+            )
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "3000"}
+            planter = subprocess.Popen(  # nosec B603 - local interpreter planter.
+                [os.sys.executable, "-c", planter_src],
+                env=env,
+            )
+            try:
+                completed = subprocess.run(  # nosec B602 - generated fixed hook command.
+                    command,
+                    shell=True,
+                    cwd=temporary,
+                    input=json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash"}),
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    env=env,
+                    timeout=10,
+                )
+            finally:
+                planter.wait(timeout=5)
+            rendered = completed.stdout + completed.stderr
+            self.assertNotIn(module.LAUNCH_GUARD_UNAVAILABLE, rendered, rendered)
+            self.assertNotIn(module.LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE, rendered, rendered)
+            self.assertEqual(0, completed.returncode, rendered)
+            self.assertTrue(guard.is_file())
+
+    def test_lifecycle_hook_temp_denies_after_wait_when_install_marker_stays(self):
+        """#7425: timeout with journal still present → temporary retryable deny."""
+        module = load(HOSTS, "chaos_engine_hook_guard_temp")
+        command = module.chaos_guard_locator_command(windows=os.name == "nt", host="codex")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / ".chaos-engine.transaction.json").write_text(
+                '{"operation":"update","commit":"abc"}\n', encoding="utf-8"
+            )
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "400"}
+            completed = subprocess.run(  # nosec B602 - generated fixed hook command.
+                command,
+                shell=True,
+                cwd=temporary,
+                input=json.dumps({"hook_event_name": "PreToolUse"}),
+                capture_output=True,
+                text=True,
+                check=False,
+                env=env,
+                timeout=10,
+            )
+        rendered = completed.stdout + completed.stderr
+        self.assertNotEqual(0, completed.returncode, rendered)
+        payload = json.loads(completed.stdout)
+        self.assertIn("block", {payload.get("decision"), payload.get("permissionDecision")})
+        self.assertIn(module.LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE, rendered)
+        self.assertNotIn("repair the original installation", rendered)
+
     def test_inline_launch_reports_missing_cwd_without_private_paths(self):
         module = load(HOSTS, "chaos_engine_hook_missing_cwd")
         command = module.chaos_guard_locator_command(windows=os.name == "nt", host="codex")
