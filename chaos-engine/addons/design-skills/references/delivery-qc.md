@@ -118,6 +118,9 @@ shows it.
 - 9:16: the lowest source line and caption pixel sit above y 1536 on
   sampled frames.
 - Review notes list no blocker for each delivered output.
+- Visual-first ([L08](lessons/visual-first-approach.md)): handoff includes
+  human/visual evidence; numeric gates alone never mark ready. AV lag
+  fixes cite a delay-sweep table, not a guessed sign.
 
 ## Sources
 

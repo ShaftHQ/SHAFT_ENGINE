@@ -1,6 +1,6 @@
 # Lesson cards (talk video, captions, release)
 
-Field lessons from a finished batch of talk Shorts. These are rules
+Field lessons from talk Shorts and visual/media pipeline retros. These are rules
 with checks, not taste. Load the matching D-card or craft card first, then
 one lesson card.
 
@@ -15,3 +15,5 @@ one lesson card.
 | [L07 Arabic text and mirroring](arabic-rtl-type-mirroring.md) | Arabic text on any surface; mirroring layout, icons and arrows for RTL |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).
+| [L08 visual-first approach](visual-first-approach.md) | choosing or iterating a visual/media approach before multi-pass; visual gate before metrics |
+

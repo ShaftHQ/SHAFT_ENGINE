@@ -18,6 +18,10 @@ spec.
 - The orchestrator coordinates only. A writer subagent authors the document. A
   reviewer subagent authors findings. The orchestrator does not write the doc
   or invent review issues.
+- **Media generation** (video, avatar / lip-sync, stills, voice renders, QC
+  pipelines) is owned by the design-capable implementer (Designer in multi-bot
+  teams). The orchestrator plans, delegates, and accepts or rejects; it does
+  not generate those artifacts itself or via its own executors.
 - Loop until the reviewer reports **0 open issues**. Nits count. There is no
   iteration cap, but a writer `wontfix` that the reviewer reopens is a
   stalemate: escalate to the owner once.

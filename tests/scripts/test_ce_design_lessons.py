@@ -32,6 +32,8 @@ CARDS = {
                               "G16 Shorts description", "design_qc.py metadatadesc"),
     "cross-surface-takeaways": ("at most 1 brand-colour key word", "1.05", "Explicit CTA end card",
                                 "big cursor", "Masked speaker", "Pattern interrupt", "verb first", "reduced motion"),
+    "visual-first-approach": ("owner glance", "Visual / human gate first", "secondary",
+                              "delay sweep", "PROGRESS.md", "Resume at:", "numeric-only"),
 }
 RESOURCES = ("taste-skill", "ui-ux-pro-max-skill", "design-motion-principles", "getdesign.md", "design-md-chrome")
 
@@ -62,6 +64,8 @@ class LessonCardsTest(unittest.TestCase):
                       (DESIGN / "references/captions-subtitles.md").read_text(encoding="utf-8"))
         self.assertIn("lessons/talk-edit-and-layers.md",
                       (DESIGN / "references/cutting-pacing.md").read_text(encoding="utf-8"))
+        self.assertIn("lessons/visual-first-approach.md",
+                      (DESIGN / "references/delivery-qc.md").read_text(encoding="utf-8"))
         router = (DESIGN / "SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn("lessons/", router)  # on demand via craft index; router budget untouched
 
