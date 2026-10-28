@@ -830,6 +830,64 @@ def cmd_opendoubt(qc, args) -> int:
     )
 
 
+
+META_TITLE_RE = re.compile(
+    r"^## Title[^\n]*\n\n(?P<title>.+)\n",
+    re.MULTILINE,
+)
+META_DESC_RE = re.compile(
+    r"^## Description[^\n]*\n\n(?P<body>(?:.+\n){3}.+)$",
+    re.MULTILINE,
+)
+META_LINE1_PREFIX = "مقطع من الـ Q&A: "
+META_LINE2_RE = re.compile(
+    r"^الإجابة كاملة: https://www\.youtube\.com/watch\?v=[A-Za-z0-9_-]+&t=\d+(?:\.\d+)?s$"
+)
+
+
+def cmd_metadatadesc(qc, args) -> int:
+    """G16: METADATA description is exactly 4 lines matching the Shorts template.
+
+    Project site URL and hashtag line are passed in (--site / --tags); never
+    hard-coded here (generic placeholders only).
+    """
+    text = Path(args.file).read_text(encoding="utf-8")
+    tm = META_TITLE_RE.search(text)
+    dm = META_DESC_RE.search(text)
+    errors: list[str] = []
+    title = tm.group("title").strip() if tm else ""
+    if not tm:
+        errors.append("title_block_missing")
+    if not dm:
+        errors.append("desc_block_missing")
+        return qc.report(
+            "metadatadesc", qc.FAIL, errors=errors, title=title, lines=[], gate="G16"
+        )
+    body_lines = [ln.rstrip() for ln in dm.group("body").splitlines() if ln.strip()]
+    if len(body_lines) != 4:
+        errors.append(f"desc_line_count={len(body_lines)} want 4")
+    lines = (body_lines + [""] * 4)[:4]
+    if not lines[0].startswith(META_LINE1_PREFIX):
+        errors.append("line1_prefix")
+    elif title and lines[0] != META_LINE1_PREFIX + title:
+        errors.append("line1_title_mismatch")
+    if not META_LINE2_RE.match(lines[1]):
+        errors.append("line2_watch_url")
+    if lines[2] != args.site:
+        errors.append("line3_site")
+    if lines[3] != args.tags:
+        errors.append("line4_hashtags")
+    return qc.report(
+        "metadatadesc",
+        qc.FAIL if errors else qc.PASS,
+        errors=errors,
+        title=title,
+        lines=lines,
+        gate="G16",
+        note="4-line desc template; pass --site and --tags for project fill-ins",
+    )
+
+
 def cmd_hookmodality(qc, args) -> int:
     """Hook card must keep the speaker's modality (question ≠ claim) for every hook type.
 
@@ -1123,6 +1181,13 @@ def register(add, qc) -> None:
     p = add("opendoubt", bind(cmd_opendoubt),
             "SELF-REVIEW must not leave self-flagged doubts open before handoff (G15)")
     p.add_argument("file", help="SELF-REVIEW markdown (or handoff note)")
+    p = add("metadatadesc", bind(cmd_metadatadesc),
+            "METADATA.md description is exact 4-line Shorts template (G16)")
+    p.add_argument("file", help="METADATA.md with ## Title and ## Description")
+    p.add_argument("--site", required=True,
+                   help="exact line-3 site URL (project fill-in; no default)")
+    p.add_argument("--tags", required=True,
+                   help="exact line-4 hashtag string (project fill-in; no default)")
     p = add("hookbleed", bind(cmd_hookbleed),
             "OUT SRT must not straddle hook_end with under-hook speech")
     p.add_argument("srt")
