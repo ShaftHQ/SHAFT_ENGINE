@@ -40,7 +40,11 @@ and [L03](talk-edit-and-layers.md).
    hook card ends when that speech ends.
 9. Rendered-mix transcript diffs are noisy over music and end cards. Gate
    on cross-source agreement plus tagged misses; keep the rendered diff as
-   evidence and waive only with a recorded reason.
+   evidence and waive only with a recorded reason. For SRT↔`words.json`,
+   always report **exact-raw** and fuzzy side-by-side (`design_qc.py
+   txdiff`): exact-raw = Latin `.lower()` only, no alias, no
+   SequenceMatcher. Gate and headline = exact-raw; never label fuzzy
+   “raw”.
 10. A span starts on a shot cut and a clean sentence onset, never
     mid-phrase or on a cutaway.
 11. Every cue edit re-runs the caption checks: removing a word can
@@ -48,6 +52,13 @@ and [L03](talk-edit-and-layers.md).
     word timestamps instead.
 12. Run heavy ASR models one at a time, detached. Parallel large models
     can be killed for memory without an error.
+13. Silence-gap on the **final** render (post-denoise/loudnorm): measure
+    RMS dBFS with a short hop (≤10 ms). Do not trust `silencedetect`
+    alone for mid-answer dead air. Gate: FAIL if any mid-answer gap
+    (after `hook_end`, before end-card) **>0.6 s** —
+    `design_qc.py silencegap`. Always pass `--content-end` (time before
+    the end card / last speech); the default `duration−0.3` is **not**
+    safe when end-card silence is long.
 
 ## Verify
 
@@ -61,6 +72,10 @@ and [L03](talk-edit-and-layers.md).
 - [ ] `design_qc.py fadetail --words words.json --end <s> --fade <s>`
       passes.
 - [ ] `design_qc.py bidi` passes on the captions and the hook/label text.
+- [ ] `design_qc.py silencegap final.mp4 --hook-end <s> --content-end <s>`
+      passes (no mid-answer gap >0.6 s; `--content-end` = before end-card).
+- [ ] `design_qc.py txdiff cues.srt words.json` reports exact-raw + fuzzy;
+      gate on exact-raw.
 - [ ] Notes record the scene-cut scan, the reframe tile check and the
       shot-cut onset.
 

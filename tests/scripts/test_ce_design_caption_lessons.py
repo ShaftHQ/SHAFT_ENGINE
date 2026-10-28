@@ -24,6 +24,8 @@ NEEDLES = {
         "ear-checked word timestamps", "Pad end-card silence",
         "ASR hallucinates on pauses", "2 or more models", "Hook = spoken words", "cross-source agreement",
         "shot cut and a clean sentence onset", "re-runs the caption checks", "one at a time, detached",
+        "Silence-gap on the **final** render", "design_qc.py silencegap", "--content-end",
+        "exact-raw", "design_qc.py txdiff",
         "design_qc.py cuemids", "design_qc.py cuegaps", "design_qc.py asrhall", "design_qc.py boundprefix",
         "design_qc.py fadetail", "design_qc.py bidi"),
     "mixed-script-captions.md": (
@@ -31,7 +33,8 @@ NEEDLES = {
         "hook and label text", "normal RTL order: warn", "design_qc.py bidi",
         "unicode-bidi: plaintext", "unicode-bidi: isolate", "direction: rtl", "leading RLM",
         "author hard newlines", "cue midpoints", "Article **right** of Latin", "SRT must carry it",
-        "Tech-term lexicon", "design_qc.py termlexicon", "--term AR=LATIN"),
+        "Tech-term lexicon", "design_qc.py termlexicon", "--term AR=LATIN",
+        "Trailing Latin sentence punct", "trailing-latin-punct-outside-isolate", ".AI"),
 }
 
 
@@ -160,6 +163,40 @@ class CaptionChecksTest(unittest.TestCase):
             good.write_text(srt((0, 2, "شغل الـ foobar الآن")), encoding="utf-8")
             code, payload = run_qc("termlexicon", str(good), "--term", "فوبار=foobar")
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
+
+    def test_bidi_trailing_latin_punct_inside_isolate(self) -> None:
+        """U4 G8: trailing Latin .!? outside LRI…PDI fails under RTL."""
+        self.pair(
+            "bidi",
+            srt((0, 2, f"تعلم {LRI}AI{PDI}. الآن")),
+            srt((0, 2, f"تعلم {LRI}AI.{PDI} الآن")),
+        )
+
+    def test_txdiff_gates_on_exact_raw_not_fuzzy(self) -> None:
+        """U4 G9: exact-raw miss fails even when fuzzy@0.72 would match."""
+        with tempfile.TemporaryDirectory() as folder:
+            srt_path = Path(folder) / "cues.srt"
+            words_path = Path(folder) / "words.json"
+            # إحنا vs احنا: SequenceMatcher ratio ~0.75 >= 0.72 but not exact-raw equal
+            srt_path.write_text(srt((0, 2, "إحنا نستخدم")), encoding="utf-8")
+            words_path.write_text(json.dumps([
+                {"w": "احنا", "s": 0.0, "e": 0.8},
+                {"w": "نستخدم", "s": 0.9, "e": 1.8},
+            ], ensure_ascii=False), encoding="utf-8")
+            code, payload = run_qc("txdiff", str(srt_path), str(words_path), "--max", "0.0")
+            self.assertEqual(1, code, payload)
+            self.assertGreater(payload["diff_exact_raw"], 0)
+            self.assertEqual(payload["diff_fuzzy"], 0.0)
+            # exact match passes
+            words_path.write_text(json.dumps([
+                {"w": "إحنا", "s": 0.0, "e": 0.8},
+                {"w": "نستخدم", "s": 0.9, "e": 1.8},
+            ], ensure_ascii=False), encoding="utf-8")
+            code, payload = run_qc("txdiff", str(srt_path), str(words_path), "--max", "0.0")
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+            self.assertEqual(payload["diff_exact_raw"], 0.0)
+
 
 
 if __name__ == "__main__":
