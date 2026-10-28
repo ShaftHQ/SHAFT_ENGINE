@@ -19,6 +19,7 @@ Zero LLM, stdlib only.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -103,8 +104,30 @@ def _addon_candidates(source: Path, explicit_roots: list[Path]) -> list[tuple[Pa
     return candidates
 
 
-def _warn_addon_choice(name: str, message: str) -> None:
+def _warn_addon_choice(message: str) -> None:
     print(f"chaos-engine: {message}", file=sys.stderr)
+
+
+def _addon_root_digest(root: Path) -> str:
+    """blake2b-160 of sorted relative paths + file bytes under an add-on root."""
+    root = Path(root).resolve()
+    digest = hashlib.blake2b(digest_size=20)
+    files: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(name for name in dirnames if name != "__pycache__")
+        for name in sorted(filenames):
+            if name.endswith(".pyc"):
+                continue
+            path = Path(dirpath) / name
+            if path.is_file() and not path.is_symlink():
+                files.append(path)
+    for path in files:
+        rel = path.relative_to(root).as_posix().encode("utf-8")
+        digest.update(rel)
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\n")
+    return digest.hexdigest()
 
 
 def _record_addon(
@@ -112,7 +135,7 @@ def _record_addon(
     name: str,
     entry: dict[str, object],
 ) -> None:
-    """Keep one root per name; PATHS conflicts fail; sibling dups warn (#7487)."""
+    """Keep one root per name. Sibling dups fail unless content-identical or PATHS wins."""
     prior = found.get(name)
     if prior is None:
         found[name] = entry
@@ -124,33 +147,35 @@ def _record_addon(
     prior_rank = _ORIGIN_RANK.get(prior_origin, 9)
     new_rank = _ORIGIN_RANK.get(origin, 9)
     if new_rank < prior_rank:
+        # PATHS (or internal) beats sibling — even when content diverges.
         if "sibling" in (prior_origin, origin):
             _warn_addon_choice(
-                name,
                 f"add-on {name}: preferring {origin} ({entry['root']}) "
-                f"over {prior_origin} ({prior['root']})",
+                f"over {prior_origin} ({prior['root']})"
             )
         found[name] = entry
         return
     if new_rank > prior_rank:
         if "sibling" in (prior_origin, origin):
             _warn_addon_choice(
-                name,
                 f"add-on {name}: keeping {prior_origin} ({prior['root']}); "
-                f"ignoring {origin} ({entry['root']})",
+                f"ignoring {origin} ({entry['root']})"
             )
         return
     prior_root = Path(prior["root"])  # type: ignore[arg-type]
     new_root = Path(entry["root"])  # type: ignore[arg-type]
     if new_root == prior_root:
         return
-    winner, loser = min(prior_root, new_root), max(prior_root, new_root)
-    _warn_addon_choice(
-        name,
-        f"duplicate add-on {name} in sibling scan; using {winner} (ignored {loser})",
-    )
-    if new_root < prior_root:
-        found[name] = entry
+    # Same tier: only identical sibling trees may collapse; never lex-pick divergent.
+    if prior_origin == "sibling" and origin == "sibling":
+        if _addon_root_digest(prior_root) == _addon_root_digest(new_root):
+            _warn_addon_choice(
+                f"duplicate add-on {name} in sibling scan with identical content; "
+                f"keeping {prior_root}"
+            )
+            return
+        raise ValueError(f"duplicate ChaosEngine add-on: {name}")
+    raise ValueError(f"duplicate ChaosEngine add-on: {name}")
 
 
 def _drop_unsatisfied(found: dict[str, dict[str, object]]) -> None:
@@ -168,9 +193,9 @@ def _drop_unsatisfied(found: dict[str, dict[str, object]]) -> None:
 def discover(source: Path) -> dict[str, dict[str, object]]:
     """Every add-on shipped with ``source``, keyed by name (validated, acyclic).
 
-    #7487: a sibling-scan name collision warns and picks the lexicographically first
-    root. ``CHAOS_ENGINE_ADDON_PATHS`` beats a sibling. Two PATHS entries with the
-    same name still fail. Internal trees beat both.
+    #7487: sibling-scan name collisions fail-closed unless the add-on roots have
+    identical content or ``CHAOS_ENGINE_ADDON_PATHS`` wins. Two PATHS entries with
+    the same name still fail. Internal trees beat both.
     """
     source = Path(source).resolve()
     found: dict[str, dict[str, object]] = {}

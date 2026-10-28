@@ -114,7 +114,7 @@ class LocalSourceInstallMessageTests(unittest.TestCase):
 
 
 class SiblingScanDuplicateTests(unittest.TestCase):
-    """#7487: sibling-scan dups warn+pick; PATHS wins; two PATHS collide fail."""
+    """#7487/#7489: sibling dups fail-closed unless PATHS set or content-identical."""
 
     def _manifest(self, folder: Path, name: str) -> None:
         folder.mkdir(parents=True, exist_ok=True)
@@ -123,25 +123,38 @@ class SiblingScanDuplicateTests(unittest.TestCase):
             "description": "d", "useWhen": "u",
         }), encoding="utf-8")
 
-    def test_sibling_scan_duplicate_picks_deterministically_with_warning(self):
+    def test_divergent_sibling_roots_fail_closed_not_lex_pick(self):
+        """aaa-old vs zzz-new with different markers must fail (never pick stale)."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = root / "chaos-engine"
             source.mkdir()
             (source / "addons").mkdir()
-            a = root / "brain-a" / "ce-addons" / "demo-coach"
-            b = root / "brain-b" / "ce-addons" / "demo-coach"
+            stale = root / "aaa-old" / "ce-addons" / "demo-coach"
+            fresh = root / "zzz-new" / "ce-addons" / "demo-coach"
+            self._manifest(stale, "demo-coach")
+            self._manifest(fresh, "demo-coach")
+            (stale / "marker.txt").write_text("stale", encoding="utf-8")
+            (fresh / "marker.txt").write_text("fresh", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, r"duplicate ChaosEngine add-on: demo-coach"):
+                catalog.discover(source)
+
+    def test_identical_sibling_roots_are_accepted(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "chaos-engine"
+            source.mkdir()
+            (source / "addons").mkdir()
+            a = root / "aaa-old" / "ce-addons" / "demo-coach"
+            b = root / "zzz-new" / "ce-addons" / "demo-coach"
             self._manifest(a, "demo-coach")
             self._manifest(b, "demo-coach")
-            (a / "marker.txt").write_text("a", encoding="utf-8")
-            (b / "marker.txt").write_text("b", encoding="utf-8")
-            with contextlib.redirect_stderr(io.StringIO()) as err:
+            (a / "marker.txt").write_text("same", encoding="utf-8")
+            (b / "marker.txt").write_text("same", encoding="utf-8")
+            with contextlib.redirect_stderr(io.StringIO()):
                 found = catalog.discover(source)
             self.assertIn("demo-coach", found)
-            # Deterministic: lexicographically first root path wins.
-            expected = min(a.resolve(), b.resolve())
-            self.assertEqual(Path(found["demo-coach"]["root"]), expected)
-            self.assertRegex(err.getvalue(), r"duplicate.*demo-coach|sibling.*demo-coach")
+            self.assertEqual(Path(found["demo-coach"]["root"]).name, "demo-coach")
 
     def test_explicit_paths_beats_sibling_scan(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -174,6 +187,7 @@ class SiblingScanDuplicateTests(unittest.TestCase):
             with mock.patch.dict(os.environ, env):
                 with self.assertRaisesRegex(ValueError, r"duplicate ChaosEngine add-on: demo-coach"):
                     catalog.discover(source)
+
 
 
 class PayloadTests(unittest.TestCase):

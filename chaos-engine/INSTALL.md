@@ -160,8 +160,9 @@ inside the project, so point it at a detached worktree of the same commit:
 
 Local-source installs always need `--source <dir>` (or `--from-bundle <zip>`) plus
 the full 40-hex `--commit`. A bare `--commit` alone fails. When an add-on lives
-beside the core, prefer an explicit pack via `CHAOS_ENGINE_ADDON_PATHS` so a
-sibling scan of other worktrees cannot block the install:
+beside the core, set `CHAOS_ENGINE_ADDON_PATHS` to the intended pack so the
+correct root is chosen (sibling trees with the same add-on name and divergent
+content fail closed):
 
 ```bash
 CHAOS_ENGINE_ADDON_PATHS=../addons-pack/ce-addons \

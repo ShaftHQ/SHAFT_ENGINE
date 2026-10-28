@@ -573,7 +573,7 @@ def write_marker(graph_out: Path, revision: str) -> Path:
     return marker
 
 
-# Legacy doctor detail (#7303). Severity still maps this prefix to a warning.
+# #7303/#7487: emitted for never-indexed non-git graphs; severity maps to warning.
 NON_GIT_GRAPHIFY_DETAIL = (
     "n/a - not a git repository; Graphify freshness binds to a git revision"
 )
@@ -597,10 +597,10 @@ _FINGERPRINT_SKIP = frozenset({
 
 
 def project_content_revision(cwd: Path) -> str:
-    """40-hex fingerprint of a non-git tree (path + size + mtime_ns). #7487"""
+    """40-hex blake2b of sorted relative paths + file bytes for a non-git tree. #7487"""
     root = Path(cwd).resolve()
-    digest = hashlib.sha1()
-    files: list[tuple[str, int, int]] = []
+    digest = hashlib.blake2b(digest_size=20)
+    files: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = sorted(
             name for name in dirnames
@@ -615,21 +615,21 @@ def project_content_revision(cwd: Path) -> str:
                 continue
             path = Path(dirpath) / name
             try:
-                stat = path.stat()
+                if not path.is_file() or path.is_symlink():
+                    continue
             except OSError:
                 continue
-            if not path.is_file():
-                continue
-            rel = path.resolve().relative_to(root).as_posix()
-            files.append((rel, int(stat.st_size), int(stat.st_mtime_ns)))
-    for rel, size, mtime_ns in files:
-        digest.update(rel.encode("utf-8"))
+            files.append(path)
+    for path in files:
+        rel = path.resolve().relative_to(root).as_posix().encode("utf-8")
+        digest.update(rel)
         digest.update(b"\0")
-        digest.update(str(size).encode("ascii"))
-        digest.update(b"\0")
-        digest.update(str(mtime_ns).encode("ascii"))
+        try:
+            digest.update(path.read_bytes())
+        except OSError:
+            digest.update(b"?")
         digest.update(b"\n")
-    return digest.hexdigest()  # sha1 → 40 hex
+    return digest.hexdigest()
 
 
 def _has_commit(cwd: Path) -> bool:
@@ -656,14 +656,16 @@ def graphify_doctor_row(cwd: Path) -> dict[str, str] | None:
     if fresh:
         return {"status": "healthy", "detail": message}
     if not is_git_work_tree(cwd):
-        # #7487: bind freshness to a content fingerprint so non-git projects
-        # can reach healthy without git init (git add -A may be banned).
+        # #7487: fingerprint-stale → repair. Never-indexed keeps #7303 warning detail.
+        fix = (
+            "python3 .chaos-engine/install.py repair --project . --component graphify"
+        )
+        if "non-git fingerprint" in message:
+            return {"status": "degraded", "detail": message, "fixNext": fix}
         return {
             "status": "degraded",
-            "detail": message,
-            "fixNext": (
-                "python3 .chaos-engine/install.py repair --project . --component graphify"
-            ),
+            "detail": NON_GIT_GRAPHIFY_DETAIL,
+            "fixNext": fix,
         }
     if not _has_commit(cwd):
         # #6499: repair cannot index a repository with no commits; say so.

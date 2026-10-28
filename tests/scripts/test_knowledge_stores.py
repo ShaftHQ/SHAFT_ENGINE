@@ -294,14 +294,16 @@ class GraphifyNoCommitRowTest(unittest.TestCase):
 
 
     def test_non_git_graphify_fingerprint_fresh_is_healthy(self):
-        """#7487: non-git freshness binds to content fingerprint, not git init."""
+        """#7487: non-git freshness binds to blake2 file bytes, not git init."""
+        import os
         import runpy
         root = Path(__file__).resolve().parents[2] / "chaos-engine"
         stores = runpy.run_path(str(root / "stores.py"))
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             (project / "src").mkdir()
-            (project / "src" / "a.py").write_text("print(1)\n", encoding="utf-8")
+            target = project / "src" / "a.py"
+            target.write_text("print(1)\n", encoding="utf-8")
             graph = project / "graphify-out"
             graph.mkdir()
             (graph / "graph.json").write_text("{\"nodes\":[]}", encoding="utf-8")
@@ -312,16 +314,41 @@ class GraphifyNoCommitRowTest(unittest.TestCase):
                 stores["write_marker"](graph, fingerprint)
                 row = stores["graphify_doctor_row"](project)
                 self.assertEqual("healthy", row["status"], row)
-                # Touch a source file → stale, still repairable without git init.
-                (project / "src" / "a.py").write_text("print(2)\n", encoding="utf-8")
-                # Ensure mtime moves even on coarse filesystems.
-                import time
-                time.sleep(0.05)
-                (project / "src" / "a.py").write_text("print(3)\n", encoding="utf-8")
+                # Same size + forced same mtime, different bytes → must go stale.
+                prior = target.stat()
+                target.write_text("print(2)\n", encoding="utf-8")
+                os.utime(target, ns=(prior.st_atime_ns, prior.st_mtime_ns))
+                self.assertEqual(prior.st_size, target.stat().st_size)
+                self.assertEqual(prior.st_mtime_ns, target.stat().st_mtime_ns)
                 stale = stores["graphify_doctor_row"](project)
                 self.assertEqual("degraded", stale["status"], stale)
                 self.assertNotIn("git init", stale.get("fixNext", ""))
                 self.assertIn("repair --project . --component graphify", stale["fixNext"])
+
+    def test_non_git_never_indexed_keeps_7303_warning_severity(self):
+        """#7303 severity: n/a non-git detail stays a warning; live constant."""
+        import runpy
+        root = Path(__file__).resolve().parents[2] / "chaos-engine"
+        stores = runpy.run_path(str(root / "stores.py"))
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "graphify-out").mkdir()
+            (project / "graphify-out/graph.json").write_text("{}", encoding="utf-8")
+            (project / "graphify-out/manifest.json").write_text("{}", encoding="utf-8")
+            with mock.patch.dict(os.environ, {"GIT_CEILING_DIRECTORIES": str(project.parent)}):
+                self.assertFalse(stores["is_git_work_tree"](project))
+                row = stores["graphify_doctor_row"](project)
+        self.assertEqual("degraded", row["status"])
+        self.assertEqual(stores["NON_GIT_GRAPHIFY_DETAIL"], row["detail"])
+        self.assertNotIn("git init", row.get("fixNext", ""))
+        installer = runpy.run_path(str(root / "install.py"))
+        severity = installer["_component_severity"]
+        self.assertEqual("warning", severity({**row, "taskImpact": "required-when-indexed"}))
+        self.assertEqual(
+            "error",
+            severity({"status": "degraded", "detail": "stale", "taskImpact": "required-when-indexed"}),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
