@@ -75,16 +75,16 @@ class NestedRepositoryTest(NoGitEnvironment):
         self.module.apply_nested_repository_excludes(self.project)
         self.assertNotIn("'site/**'", configuration.read_text(encoding="utf-8"))
 
-    def test_user_config_is_untouched_and_advised(self):
+    def test_user_config_keeps_entries_and_gains_owned_then_nested(self):
+        """#7465: partial exclude_patterns merges owned excludes, then nested roots."""
         (self.project / "site/.git").mkdir(parents=True)
         configuration = self.project / "mempalace.yaml"
         configuration.write_text("wing: x\nexclude_patterns:\n  - 'mine/**'\n", encoding="utf-8")
-        before = configuration.read_text(encoding="utf-8")
-        errors = StringIO()
-        with redirect_stderr(errors):
-            self.module.apply_nested_repository_excludes(self.project)
-        self.assertEqual(before, configuration.read_text(encoding="utf-8"))
-        self.assertIn("site/**", errors.getvalue())
+        self.module.apply_nested_repository_excludes(self.project)
+        text = configuration.read_text(encoding="utf-8")
+        self.assertIn("mine/**", text)
+        self.assertEqual([], self.module.missing_owned_mempalace_excludes(self.project))
+        self.assertIn("'site/**'", text)
 
 
 class MineDecisionTest(NoGitEnvironment):

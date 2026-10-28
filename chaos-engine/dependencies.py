@@ -1540,19 +1540,47 @@ def prepare_mempalace_project_target(project: Path) -> Path:
 
 
 def apply_owned_mempalace_excludes(project: Path) -> bool:
-    """Append owned excludes to an installer-created config; never touch a user's (#6540)."""
+    """Ensure every owned exclude is listed; append missing ones, keep user entries (#7465).
+
+    Installer-created configs and user/consumer configs are both merged. Existing
+    ``exclude_patterns`` entries are preserved; only absent owned patterns are added.
+    """
     configuration = project.resolve() / "mempalace.yaml"
     if is_link_or_reparse(configuration) or not configuration.is_file():
         return False
     text = configuration.read_text(encoding="utf-8")
-    if re.search(r"(?m)^exclude_patterns\s*:", text):
+    missing = missing_owned_mempalace_excludes(project)
+    if not missing:
         return False
-    block = "exclude_patterns:\n" + "".join(
-        f"  - '{pattern}'\n" for pattern in MEMPALACE_OWNED_EXCLUDES
-    )
-    separator = "" if not text or text.endswith("\n") else "\n"
-    configuration.write_text(text + separator + block, encoding="utf-8")
+    addition = "".join(f"  - '{pattern}'\n" for pattern in missing)
+    if not re.search(r"(?m)^exclude_patterns\s*:", text):
+        block = "exclude_patterns:\n" + "".join(
+            f"  - '{pattern}'\n" for pattern in MEMPALACE_OWNED_EXCLUDES
+        )
+        separator = "" if not text or text.endswith("\n") else "\n"
+        configuration.write_text(text + separator + block, encoding="utf-8")
+        return True
+    # Flow-style list on one line: expand to a block, keep prior items, then owned.
+    flow = re.search(r"(?m)^(exclude_patterns\s*:\s*)\[([^\]]*)\]\s*$", text)
+    if flow is not None:
+        prior = [item.strip().strip("'\"") for item in flow.group(2).split(",") if item.strip()]
+        seen = set(prior)
+        ordered = list(prior)
+        for pattern in MEMPALACE_OWNED_EXCLUDES:
+            if pattern not in seen:
+                ordered.append(pattern)
+                seen.add(pattern)
+        block = "exclude_patterns:\n" + "".join(f"  - '{pattern}'\n" for pattern in ordered)
+        configuration.write_text(text[: flow.start()] + block + text[flow.end() :].lstrip("\n"), encoding="utf-8")
+        return True
+    # Block-style: insert missing entries just before the next top-level key (or EOF).
+    match = re.search(r"(?ms)^exclude_patterns\s*:\s*\n((?:[ \t]+.*\n?|\s*\n)*)", text)
+    if match is None:
+        return False
+    body_end = match.end()
+    configuration.write_text(text[:body_end] + addition + text[body_end:], encoding="utf-8")
     return True
+
 
 
 def missing_owned_mempalace_excludes(project: Path) -> list[str]:
@@ -1675,11 +1703,13 @@ def apply_nested_repository_excludes(project: Path) -> list[str]:
     if is_link_or_reparse(configuration) or not configuration.is_file():
         return nested
     text = configuration.read_text(encoding="utf-8")
-    owned = not missing_owned_mempalace_excludes(project)
-    if not owned:
+    # #7465: merge owned excludes first so nested marker updates can run on a complete list.
+    apply_owned_mempalace_excludes(project)
+    text = configuration.read_text(encoding="utf-8")
+    if missing_owned_mempalace_excludes(project):
         if nested:
-            print("chaos-engine: mempalace.yaml is yours; add exclude_patterns for nested "
-                  "repositories to keep them out of the index: "
+            print("chaos-engine: mempalace.yaml still lacks owned exclude_patterns after merge; "
+                  "add exclude_patterns for nested repositories to keep them out of the index: "
                   + ", ".join(f"{path}/**" for path in nested), file=sys.stderr)
         return nested
     lines = text.splitlines()
@@ -2394,6 +2424,262 @@ def _run_project_setup_command(
             return version
 
 
+
+
+def _run_account_mempalace_setup(
+    project: Path,
+    commands: dict[str, str],
+    *,
+    runner,
+    local: dict[str, dict[str, object]],
+    background_mine: bool,
+    mine_spawner,
+) -> None:
+    """Init/mine project palace; merge owned excludes (#7465)."""
+    user_configuration = mempalace_project_configuration_exists(project)
+    for command in project_setup_plan(project, commands):
+        environment = mempalace_project_setup_environment(project, command)
+        if command[0] == commands.get("memory") and command[1:2] == ["init"]:
+            environment.update(memory_init_environment(project))
+        action = mempalace_project_setup_action(command)
+        # MemPalace init prompts to mine unless --auto-mine; decline via EOF.
+        stdin = subprocess.DEVNULL if action == "init" else None
+        if action == "mine" and background_mine:
+            if apply_owned_mempalace_excludes(project):
+                print(
+                    "chaos-engine: merged missing MemPalace owned exclude_patterns into mempalace.yaml",
+                    file=sys.stderr,
+                )
+            start_background_mempalace_mine(
+                command, project, extra_environment=environment,
+                spawner=mine_spawner or subprocess.Popen,
+            )
+            continue
+        if action == "mine":
+            if apply_owned_mempalace_excludes(project):
+                print(
+                    "chaos-engine: merged missing MemPalace owned exclude_patterns into mempalace.yaml",
+                    file=sys.stderr,
+                )
+            _run_transient_mempalace_mine(
+                command, project, runner=runner, extra_environment=environment
+            )
+        else:
+            _run_project_setup_command(
+                command,
+                project,
+                runner=runner,
+                extra_environment=environment,
+                stdin=stdin,
+                host_probes=account_host_probes(local),
+            )
+        if action in {"init", "mine"}:
+            if apply_owned_mempalace_excludes(project):
+                print(
+                    "chaos-engine: merged missing MemPalace owned exclude_patterns into mempalace.yaml",
+                    file=sys.stderr,
+                )
+            mark_mempalace_project_setup(project)
+
+
+def _reprobe_managed_account_runtimes(
+    project: Path,
+    specification: dict[str, object],
+    actions: dict[str, dict[str, object]],
+    commands: dict[str, str],
+    local: dict[str, dict[str, object]],
+    prerequisite_actions: dict[str, str],
+    selected_system: str,
+    *,
+    runner,
+    opener,
+) -> tuple[dict[str, dict[str, object]], dict[str, str]]:
+    """Install exact java/node and re-probe after non-reused prerequisite installs."""
+    managed_python = None
+    if prerequisite_actions["python"] != "reused":
+        uv_command = commands.get("uv", "uv")
+        found = _run_account_command(
+            [uv_command, "python", "find", str(actions["python"]["resolvedVersion"])],
+            project,
+            runner=runner,
+        )
+        candidate = Path((found.stdout or "").strip()).resolve()
+        if not candidate.is_file():
+            raise RuntimeError("latest stable Python executable was not found after installation")
+        managed_python = str(candidate)
+    managed_java = None
+    if prerequisite_actions["java"] != "reused":
+        managed_java = install_exact_java(
+            str(actions["java"].get("resolvedVersion") or ""),
+            system=selected_system,
+            opener=opener,
+        )
+    managed_node = None
+    if prerequisite_actions["node"] != "reused":
+        managed_node = install_exact_node(
+            str(actions["node"].get("resolvedVersion") or ""),
+            system=selected_system,
+            opener=opener,
+        )
+        commands.pop("node", None)
+    local, commands = discover_account_commands(
+        specification, preferred_commands=commands, which=which, runner=runner
+    )
+    if managed_python is not None:
+        python_contract = specification["dependencies"]["python"]  # type: ignore[index]
+        probed = probe_account_dependency(
+            "python", managed_python, python_contract, runner=runner  # type: ignore[arg-type]
+        )
+        local["python"] = {
+            "status": "healthy" if probed["healthy"] else "broken",
+            **probed,
+            "executable": managed_python,
+            "siblings": {"python3": managed_python},
+        }
+        commands["python3"] = managed_python
+    if managed_java is not None:
+        java_contract = specification["dependencies"]["java"]  # type: ignore[index]
+        probed = probe_account_dependency(
+            "java", managed_java, java_contract, runner=runner  # type: ignore[arg-type]
+        )
+        local["java"] = {
+            "status": "healthy" if probed["healthy"] else "broken",
+            **probed,
+            "executable": managed_java,
+            "siblings": {"java": managed_java},
+        }
+        commands["java"] = managed_java
+    if managed_node is not None:
+        node_root = Path(managed_node).parent if selected_system == "windows" else Path(managed_node).parent.parent
+        managed_npm = node_root / ("npm.cmd" if selected_system == "windows" else "bin/npm")
+        managed_npx = node_root / ("npx.cmd" if selected_system == "windows" else "bin/npx")
+        if not managed_npm.is_file() or not managed_npx.is_file():
+            raise RuntimeError("latest stable Node sibling executables are incomplete")
+        node_contract = specification["dependencies"]["node"]  # type: ignore[index]
+        probed = probe_account_dependency(
+            "node", managed_node, node_contract, runner=runner  # type: ignore[arg-type]
+        )
+        local["node"] = {
+            "status": "healthy" if probed["healthy"] else "broken",
+            **probed,
+            "executable": managed_node,
+            "siblings": {
+                "node": managed_node,
+                "npm": str(managed_npm.resolve()),
+                "npx": str(managed_npx.resolve()),
+            },
+        }
+        commands.update(
+            node=managed_node,
+            npm=str(managed_npm.resolve()),
+            npx=str(managed_npx.resolve()),
+        )
+    missing = [
+        name for name in ("uv", "python", "node", "java")
+        if local.get(name, {}).get("healthy") is not True
+    ]
+    if missing:
+        raise RuntimeError(
+            "dependency prerequisite verification failed: " + ", ".join(missing)
+        )
+
+    return local, commands
+
+def _install_non_reused_account_prerequisites(
+    project: Path,
+    specification: dict[str, object],
+    actions: dict[str, dict[str, object]],
+    commands: dict[str, str],
+    local: dict[str, dict[str, object]],
+    prerequisite_actions: dict[str, str],
+    selected_system: str,
+    *,
+    runner,
+    which,
+    opener,
+    provider: str | None,
+) -> tuple[dict[str, dict[str, object]], dict[str, str]]:
+    """Download and bind uv/python/node/java when account actions require it."""
+    selected_provider = provider or ""
+    prerequisite_commands = prerequisite_command_plan(
+        selected_system,
+        selected_provider,
+        prerequisite_actions,
+        node_major=int(str(actions["node"].get("resolvedVersion") or "22").split(".", 1)[0]),
+        node_version=str(actions["node"].get("resolvedVersion") or ""),
+        python_version=str(actions["python"].get("resolvedVersion") or ""),
+        uv_version=str(actions["uv"].get("resolvedVersion") or ""),
+        which=which,
+    )
+    for name in ("uv", "python", "node", "java"):
+        if name == "python" and prerequisite_actions["python"] != "reused":
+            prerequisite_actions["python"], prerequisite_commands["python"] = (
+                plan_downloadable_python(
+                    actions["python"], specification, commands.get("uv", "uv"),
+                    project, runner=runner,
+                )
+            )
+        for command in prerequisite_commands[name]:
+            if command[0] == "uv" and commands.get("uv"):
+                command = [commands["uv"], *command[1:]]
+            _run_account_command(command, project, runner=runner)
+        if name == "uv" and prerequisite_actions["uv"] != "reused":
+            selected_uv = which("uv", path=_account_search_path())
+            if not selected_uv:
+                raise RuntimeError("latest stable uv executable was not found after installation")
+            commands["uv"] = str(Path(selected_uv).resolve())
+    return _reprobe_managed_account_runtimes(
+        project,
+        specification,
+        actions,
+        commands,
+        local,
+        prerequisite_actions,
+        selected_system,
+        runner=runner,
+        opener=opener,
+    )
+
+
+
+def _ensure_account_prerequisites(
+    project: Path,
+    specification: dict[str, object],
+    actions: dict[str, dict[str, object]],
+    commands: dict[str, str],
+    local: dict[str, dict[str, object]],
+    *,
+    runner,
+    which,
+    opener,
+    system: str | None,
+    provider: str | None,
+) -> tuple[dict[str, dict[str, object]], dict[str, str]]:
+    """Install uv/python/node/java when the account action is not reused."""
+    selected_system = system or (
+        "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
+    )
+    prerequisite_actions = {
+        name: str(actions[name]["action"])
+        for name in ("uv", "python", "node", "java")
+    }
+    if any(value != "reused" for value in prerequisite_actions.values()):
+        local, commands = _install_non_reused_account_prerequisites(
+            project,
+            specification,
+            actions,
+            commands,
+            local,
+            prerequisite_actions,
+            selected_system,
+            runner=runner,
+            which=which,
+            opener=opener,
+            provider=provider,
+        )
+    return local, commands
+
+
 def install_account_dependencies(  # noqa: MC0001 - preflight then ordered account mutation.
     project: Path,
     specification: dict[str, object],
@@ -2423,7 +2709,7 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
                 if isinstance(name, str) and isinstance(command, str)
             }
     except ValueError:
-        pass
+        pass  # no usable account receipt yet; discover commands from the environment
     local, commands = discover_account_commands(
         specification, preferred_commands=prior_commands, which=which, runner=runner
     )
@@ -2434,129 +2720,18 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
     if blocked:
         raise RuntimeError("dependency setup blocked: " + blocked)
 
-    selected_system = system or (
-        "windows" if os.name == "nt" else "macos" if sys.platform == "darwin" else "linux"
+    local, commands = _ensure_account_prerequisites(
+        project,
+        specification,
+        actions,
+        commands,
+        local,
+        runner=runner,
+        which=which,
+        opener=opener,
+        system=system,
+        provider=provider,
     )
-    prerequisite_actions = {
-        name: str(actions[name]["action"])
-        for name in ("uv", "python", "node", "java")
-    }
-    if any(value != "reused" for value in prerequisite_actions.values()):
-        selected_provider = provider or ""
-        prerequisite_commands = prerequisite_command_plan(
-            selected_system,
-            selected_provider,
-            prerequisite_actions,
-            node_major=int(str(actions["node"].get("resolvedVersion") or "22").split(".", 1)[0]),
-            node_version=str(actions["node"].get("resolvedVersion") or ""),
-            python_version=str(actions["python"].get("resolvedVersion") or ""),
-            uv_version=str(actions["uv"].get("resolvedVersion") or ""),
-            which=which,
-        )
-        for name in ("uv", "python", "node", "java"):
-            if name == "python" and prerequisite_actions["python"] != "reused":
-                prerequisite_actions["python"], prerequisite_commands["python"] = (
-                    plan_downloadable_python(
-                        actions["python"], specification, commands.get("uv", "uv"),
-                        project, runner=runner,
-                    )
-                )
-            for command in prerequisite_commands[name]:
-                if command[0] == "uv" and commands.get("uv"):
-                    command = [commands["uv"], *command[1:]]
-                _run_account_command(command, project, runner=runner)
-            if name == "uv" and prerequisite_actions["uv"] != "reused":
-                selected_uv = which("uv", path=_account_search_path())
-                if not selected_uv:
-                    raise RuntimeError("latest stable uv executable was not found after installation")
-                commands["uv"] = str(Path(selected_uv).resolve())
-        managed_python = None
-        if prerequisite_actions["python"] != "reused":
-            uv_command = commands.get("uv", "uv")
-            found = _run_account_command(
-                [uv_command, "python", "find", str(actions["python"]["resolvedVersion"])],
-                project,
-                runner=runner,
-            )
-            candidate = Path((found.stdout or "").strip()).resolve()
-            if not candidate.is_file():
-                raise RuntimeError("latest stable Python executable was not found after installation")
-            managed_python = str(candidate)
-        managed_java = None
-        if prerequisite_actions["java"] != "reused":
-            managed_java = install_exact_java(
-                str(actions["java"].get("resolvedVersion") or ""),
-                system=selected_system,
-                opener=opener,
-            )
-        managed_node = None
-        if prerequisite_actions["node"] != "reused":
-            managed_node = install_exact_node(
-                str(actions["node"].get("resolvedVersion") or ""),
-                system=selected_system,
-                opener=opener,
-            )
-            commands.pop("node", None)
-        local, commands = discover_account_commands(
-            specification, preferred_commands=commands, which=which, runner=runner
-        )
-        if managed_python is not None:
-            python_contract = specification["dependencies"]["python"]  # type: ignore[index]
-            probed = probe_account_dependency(
-                "python", managed_python, python_contract, runner=runner  # type: ignore[arg-type]
-            )
-            local["python"] = {
-                "status": "healthy" if probed["healthy"] else "broken",
-                **probed,
-                "executable": managed_python,
-                "siblings": {"python3": managed_python},
-            }
-            commands["python3"] = managed_python
-        if managed_java is not None:
-            java_contract = specification["dependencies"]["java"]  # type: ignore[index]
-            probed = probe_account_dependency(
-                "java", managed_java, java_contract, runner=runner  # type: ignore[arg-type]
-            )
-            local["java"] = {
-                "status": "healthy" if probed["healthy"] else "broken",
-                **probed,
-                "executable": managed_java,
-                "siblings": {"java": managed_java},
-            }
-            commands["java"] = managed_java
-        if managed_node is not None:
-            node_root = Path(managed_node).parent if selected_system == "windows" else Path(managed_node).parent.parent
-            managed_npm = node_root / ("npm.cmd" if selected_system == "windows" else "bin/npm")
-            managed_npx = node_root / ("npx.cmd" if selected_system == "windows" else "bin/npx")
-            if not managed_npm.is_file() or not managed_npx.is_file():
-                raise RuntimeError("latest stable Node sibling executables are incomplete")
-            node_contract = specification["dependencies"]["node"]  # type: ignore[index]
-            probed = probe_account_dependency(
-                "node", managed_node, node_contract, runner=runner  # type: ignore[arg-type]
-            )
-            local["node"] = {
-                "status": "healthy" if probed["healthy"] else "broken",
-                **probed,
-                "executable": managed_node,
-                "siblings": {
-                    "node": managed_node,
-                    "npm": str(managed_npm.resolve()),
-                    "npx": str(managed_npx.resolve()),
-                },
-            }
-            commands.update(
-                node=managed_node,
-                npm=str(managed_npm.resolve()),
-                npx=str(managed_npx.resolve()),
-            )
-        missing = [
-            name for name in ("uv", "python", "node", "java")
-            if local.get(name, {}).get("healthy") is not True
-        ]
-        if missing:
-            raise RuntimeError(
-                "dependency prerequisite verification failed: " + ", ".join(missing)
-            )
 
     tool_actions = {
         name: str(actions[name]["action"])
@@ -2600,46 +2775,14 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         or runner is subprocess.run
         or getattr(runner, "inner", None) is subprocess.run
     )
-    user_configuration = mempalace_project_configuration_exists(project)
-    for command in project_setup_plan(project, commands):
-        environment = mempalace_project_setup_environment(project, command)
-        if command[0] == commands.get("memory") and command[1:2] == ["init"]:
-            environment.update(memory_init_environment(project))
-        action = mempalace_project_setup_action(command)
-        # MemPalace init prompts to mine unless --auto-mine; decline via EOF.
-        stdin = subprocess.DEVNULL if action == "init" else None
-        if action == "mine" and user_configuration:
-            missing = missing_owned_mempalace_excludes(project)
-            if missing:
-                print(
-                    "chaos-engine: mempalace.yaml is yours, so it is left as is; add these "
-                    "exclude_patterns to skip mining installed harness copies: "
-                    + ", ".join(missing),
-                    file=sys.stderr,
-                )
-        if action == "mine" and background_mine:
-            start_background_mempalace_mine(
-                command, project, extra_environment=environment,
-                spawner=mine_spawner or subprocess.Popen,
-            )
-            continue
-        if action == "mine":
-            _run_transient_mempalace_mine(
-                command, project, runner=runner, extra_environment=environment
-            )
-        else:
-            _run_project_setup_command(
-                command,
-                project,
-                runner=runner,
-                extra_environment=environment,
-                stdin=stdin,
-                host_probes=account_host_probes(local),
-            )
-        if action == "init" and not user_configuration:
-            apply_owned_mempalace_excludes(project)
-        if action in {"init", "mine"}:
-            mark_mempalace_project_setup(project)
+    _run_account_mempalace_setup(
+        project,
+        commands,
+        runner=runner,
+        local=local,
+        background_mine=background_mine,
+        mine_spawner=mine_spawner,
+    )
 
     final_components = select_account_receipt_components(project, actions, local)
     return write_account_receipt(

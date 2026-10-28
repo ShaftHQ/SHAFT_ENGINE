@@ -319,6 +319,65 @@ MEMPALACE_OWNED_EXCLUDES = (
 )
 
 
+def merge_owned_mempalace_excludes_bytes(content: bytes) -> bytes:
+    """Append missing owned exclude_patterns; preserve every existing entry (#7465)."""
+    text = content.decode("utf-8")
+    present: set[str] = set()
+    block = re.search(r"(?ms)^exclude_patterns\s*:\s*\n((?:[ \t]+.*\n?|\s*\n)*)", text)
+    if block is not None:
+        for match in re.finditer(
+            r"(?m)^[ \t]+-[ \t]+(?P<q>[\'\"])(?P<body>.*?)(?P=q)",
+            block.group(1),
+        ):
+            present.add(match.group("body"))
+    else:
+        flow = re.search(r"(?m)^exclude_patterns\s*:\s*\[([^\]]*)\]\s*$", text)
+        if flow is not None:
+            for item in flow.group(1).split(","):
+                item = item.strip().strip("\'\"")
+                if item:
+                    present.add(item)
+    missing = [pattern for pattern in MEMPALACE_OWNED_EXCLUDES if pattern not in present]
+    if not missing:
+        return content
+    addition = "".join(f"  - '{pattern}'\n" for pattern in missing)
+    if not re.search(r"(?m)^exclude_patterns\s*:", text):
+        separator = "" if not text or text.endswith("\n") else "\n"
+        block_text = "exclude_patterns:\n" + "".join(
+            f"  - '{pattern}'\n" for pattern in MEMPALACE_OWNED_EXCLUDES
+        )
+        return (text + separator + block_text).encode()
+    flow = re.search(r"(?m)^(exclude_patterns\s*:\s*)\[([^\]]*)\]\s*$", text)
+    if flow is not None:
+        prior = [item.strip().strip("'\"") for item in flow.group(2).split(",") if item.strip()]
+        seen = set(prior)
+        ordered = list(prior)
+        for pattern in MEMPALACE_OWNED_EXCLUDES:
+            if pattern not in seen:
+                ordered.append(pattern)
+                seen.add(pattern)
+        rebuilt = "exclude_patterns:\n" + "".join(
+            f"  - '{pattern}'\n" for pattern in ordered
+        )
+        return (text[: flow.start()] + rebuilt + text[flow.end() :].lstrip("\n")).encode()
+    if block is None:
+        return content
+    return (text[: block.end()] + addition + text[block.end() :]).encode()
+
+
+def ensure_owned_mempalace_excludes(project: Path) -> bool:
+    """Merge missing owned excludes on disk (#7465). Safe for consumer tracked yaml."""
+    configuration = Path(project).resolve() / "mempalace.yaml"
+    if is_link_or_reparse(configuration) or not configuration.is_file():
+        return False
+    before = configuration.read_bytes()
+    after = merge_owned_mempalace_excludes_bytes(before)
+    if after == before:
+        return False
+    configuration.write_bytes(after)
+    return True
+
+
 def validate_mempalace_config(content: bytes) -> None:
     try:
         text = content.decode("utf-8")
@@ -1282,6 +1341,8 @@ def _cleanup_failed_mempalace_initialization(
 def initialize_mempalace_runtime(project: Path) -> None:
     """Create only a fresh empty sqlite_exact collection; never migrate user state."""
     project = project.resolve()
+    # #7465: merge owned excludes whenever runtime init is consulted (healthy or not).
+    ensure_owned_mempalace_excludes(project)
     state_root = project / ".chaos-engine-state"
     palace = state_root / "mempalace"
     status = mempalace_runtime_status(project)["status"]

@@ -1390,21 +1390,28 @@ def ensure_store_snapshot(cwd: Path, common: Path, revision: str) -> Path:
 
 
 # A project mine checks every file against the palace one query at a time; on a large palace
-# that full pass takes hours. Mine only what changed since the stamped revision.
-INCREMENTAL_MINE_LIMIT = 400
+# that full pass takes hours. Mine only what changed since the stamped revision (#7465).
+# A large change set stays incremental: never force a full remine solely because many
+# files changed. Full remine only when the stamped revision is missing or not an ancestor.
 
 
 def incremental_mine_paths(snapshot: Path, previous: str | None, revision: str) -> list[str] | None:
-    """Files added or modified since ``previous``, or None when a full mine is required."""
-    if previous is None or previous == revision:
-        return None if previous is None else []
+    """Files added or modified since ``previous``, or None when a full mine is required.
+
+    Full mine only when there is no stamped revision or it is not an ancestor of
+    ``revision`` (missing index stamp / rewritten history). Corrupt or format-changed
+    indexes are decided by ``mempalace_mine_decision`` on the project-mine path.
+    """
+    if previous is None:
+        return None
+    if previous == revision:
+        return []
     try:
         _git(snapshot, "merge-base", "--is-ancestor", previous, revision)
         changed = _git(snapshot, "diff", "--name-only", "--diff-filter=AMR", previous, revision)
     except RuntimeError:
         return None
-    paths = [line for line in changed.splitlines() if line.strip()]
-    return None if len(paths) > INCREMENTAL_MINE_LIMIT else paths
+    return [line for line in changed.splitlines() if line.strip()]
 
 
 def confine_rules(paths: list[str]) -> list[str]:

@@ -619,6 +619,41 @@ def apply_mempalace_backend_doctor(
             ),
         }
 
+    apply_mempalace_owned_excludes_doctor(result, project)
+
+
+def apply_mempalace_owned_excludes_doctor(result: dict[str, object], project: Path) -> None:
+    """Flag project mempalace.yaml that is missing owned exclude_patterns (#7465)."""
+    components = result.get("components")
+    if not isinstance(components, dict):
+        return
+    import importlib.util
+
+    path = Path(__file__).resolve().with_name("dependencies.py")
+    if not path.is_file():
+        return
+    spec = importlib.util.spec_from_file_location("ce_deps_owned_excludes_doctor", path)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+        missing = module.missing_owned_mempalace_excludes(project)
+    except (OSError, TypeError, ValueError, ImportError, AttributeError):
+        return
+    if not missing:
+        return
+    components["mempalace-owned-excludes"] = {
+        "status": "degraded",
+        "taskImpact": "advisory",
+        "reason": "owned-excludes-missing",
+        "missingCount": len(missing),
+        "fixNext": (
+            "python3 .chaos-engine/install.py repair --project . --component retrieval-config "
+            "(merges missing owned exclude_patterns into mempalace.yaml; user entries stay)"
+        ),
+    }
+
 
 def _probe_degraded_retrieves(project: Path) -> list[dict[str, object]]:
     """One attempt per store. Never migrates a palace and never refreshes indexes."""
