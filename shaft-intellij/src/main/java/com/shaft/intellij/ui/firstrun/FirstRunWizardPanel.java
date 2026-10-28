@@ -634,15 +634,11 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
         notNow.setVisible(false);
     }
 
-    private void fileReport() {
+    void fileReport() {
         String stepId = "install";
-        IllegalStateException failure = new IllegalStateException(WizardMessages.get("wizard.failure.cause"));
-        String frame = "com.shaft.intellij.ui.firstrun.FirstRunWizardPanel.runCheck";
-        String raw = WizardMessages.format("wizard.report.body", pluginVersion(), ideBuild(),
-                System.getProperty("os.name", ""), stepId, failure.getClass().getSimpleName(), frame,
-                WizardMessages.get("wizard.failure.cause"));
-        String body = SetupFailureReport.redact(raw);
-        SetupFailureReport.fileDefault(settings.reportSetupFailures, SetupFailureReport.fingerprint(failure, stepId),
+        String body = SetupFailureReport.attentionBody(pluginVersion(), ideBuild(),
+                System.getProperty("os.name", ""), stepId);
+        SetupFailureReport.fileDefault(settings.reportSetupFailures, SetupFailureReport.fingerprint(stepId),
                 WizardMessages.get("wizard.failure.cause"), body);
     }
 

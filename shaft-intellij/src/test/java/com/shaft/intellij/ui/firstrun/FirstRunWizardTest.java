@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -157,6 +158,17 @@ class FirstRunWizardTest {
         assertEquals("", settings.mcpCommand);
         assertEquals("Needs attention", text(wizard, "Install check state"));
         assertFalse(cause.toLowerCase().contains("exit"));
+    }
+
+    @Test
+    void attentionReportCallReturnsWhenReportsAreOff() {
+        ShaftSettingsState.Settings settings = new ShaftSettingsState.Settings();
+        settings.reportSetupFailures = false;
+        FirstRunWizardPanel wizard = wizard(null, settings, () -> { },
+                (client, runtime) -> ShaftMcpToolResult.failure("no"),
+                new PrerequisitePlan.Snapshot(true, "3.9.8", true));
+
+        assertDoesNotThrow(wizard::fileReport);
     }
 
     @Test
