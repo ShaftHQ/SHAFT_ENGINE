@@ -20,14 +20,17 @@ LRI, PDI = "\u2066", "\u2069"
 NEEDLES = {
     "caption-video-qc.md": (
         "sample cue midpoints", "at least 0.25 s", "every cue midpoint plus the hook", "no caption gap",
-        "Cutaway-in-crop", "frame-exact boundaries", "`select=between(n,a,b)`", "0.1-0.15 s",
+        "Cutaway-in-crop", "frame-exact boundaries", "`select=between(n,a,b)`", "150–250 ms",
+        "ear-checked word timestamps", "Pad end-card silence",
         "ASR hallucinates on pauses", "2 or more models", "Hook = spoken words", "cross-source agreement",
         "shot cut and a clean sentence onset", "re-runs the caption checks", "one at a time, detached",
         "design_qc.py cuemids", "design_qc.py cuegaps", "design_qc.py asrhall", "design_qc.py boundprefix",
         "design_qc.py fadetail", "design_qc.py bidi"),
     "mixed-script-captions.md": (
         "Neutral characters break isolates", "ASCII ' inside a word", "LRI U+2066 ... PDI U+2069",
-        "hook and label text", "normal RTL order: warn", "design_qc.py bidi"),
+        "hook and label text", "normal RTL order: warn", "design_qc.py bidi",
+        "unicode-bidi: plaintext", "unicode-bidi: isolate", "direction: rtl", "leading RLM",
+        "author hard newlines", "cue midpoints", "Article **right** of Latin", "SRT must carry it"),
 }
 
 

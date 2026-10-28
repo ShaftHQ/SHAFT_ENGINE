@@ -31,6 +31,9 @@ visual or gate change is coming. It pairs with
 6. On an audio-only relock, re-gate only the cues that changed. A
    transcript-diff waiver needs 0 SRT errors.
 7. Never run headless-Chrome renders in parallel on one shared profile.
+   One Short active at a time: build → self-review → accept → native
+   schedule before starting the next clip. Parallel renders on a shared
+   Chrome profile lose hand-fixed SRTs.
 
 ## Verify
 
@@ -40,6 +43,8 @@ visual or gate change is coming. It pairs with
 - [ ] A relock re-gated the changed cues; any waiver shows 0 SRT errors.
 - [ ] Each fix links its red repro, its proof render and its before/after
       crop.
+- [ ] Only one Short is in flight through schedule; no parallel Chrome
+      profile renders.
 
 ## Sources
 

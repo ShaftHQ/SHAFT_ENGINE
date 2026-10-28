@@ -20,7 +20,8 @@ Burned-in captions, hook lines or labels mix RTL and Latin. It extends
 2. Apply no-break glue (article plus word, Latin runs of 36 characters or
    fewer) before any wrapping markup such as highlight spans. If the markup
    goes in first, it silently breaks the glue and strands the article at
-   the end of a line.
+   the end of a line. Bind a bound article plus its following Latin into
+   one RTL isolate so the article paints at the **right** of its noun.
 3. Hook lines are layout units: one line each, `nowrap`, shrink-to-fit,
    2 lines at most. Refuse a third.
 4. Test invisible characters by rendering them, never by reading the spec.
@@ -34,7 +35,9 @@ Burned-in captions, hook lines or labels mix RTL and Latin. It extends
    Latin run with the prefix outside it, and never leave a Latin function
    word dangling before RTL text.
 7. Fix the source text (SRT or VTT), not only the render, and assert on the
-   file that ships.
+   file that ships. If speech includes a bound article (`الـ` / `و`+…),
+   the SRT must carry it; a missing article fails meaning even when the
+   Latin noun is present.
 8. Caption lint: put an Arabic comma «،», not a bare «و», between two
    Latin terms, especially in bold headings. Don't end a cue on a
    trailing filler word. Don't end a line on a bound prefix
@@ -48,18 +51,32 @@ Burned-in captions, hook lines or labels mix RTL and Latin. It extends
    HTML only, never PPTX; decks use native `rtl="1"` ([S03](../slides/arabic-pptx-native-bidi.md)).
 10. «70%» showing as «%70» in an Arabic line is normal RTL order: warn,
     never fail.
+11. Render CSS: `unicode-bidi: plaintext` **ignores** `dir=rtl` and takes
+    base direction from the first strong character (Latin-leading lines
+    go LTR). Use `unicode-bidi: isolate` + explicit `direction: rtl` + a
+    leading RLM on every caption line. Line-breakers must honor author
+    hard newlines; rejoining with `' '.join(t.split())` undoes wraps and
+    can put verb+article+noun on one line (visual middle-article).
+12. Gate bidi on cropped rendered frames at cue midpoints, never from the
+    SRT string alone. False positive: reading LTR visual order of a
+    correct RTL paint as “wrong.” Article **right** of Latin = correct
+    RTL (read the article first).
 
 ## Verify
 
 - [ ] Script check: every Latin run is isolated, punctuation sits outside
       it, and question marks match their script.
 - [ ] Zoom-crop each mixed line from rendered frames (not the HTML): no
-      stranded article, no 0 px gap, no scrambled run.
+      stranded article, no 0 px gap, no scrambled run; article right of
+      its Latin noun when RTL.
 - [ ] No hook has more than 2 lines; the smallest label passes the I/l/1
       check.
 - [ ] Lint passes: «،» between Latin terms, no cue ending on a filler,
       no line ending on a bound prefix, only whitelisted placeholders.
-- [ ] The shipped SRT, not only the render, carries the fixes.
+- [ ] The shipped SRT, not only the render, carries the fixes (including
+      spoken bound articles).
+- [ ] Caption CSS is `isolate` + `direction: rtl` + leading RLM; no
+      `plaintext`; author newlines preserved.
 - [ ] `design_qc.py bidi <captions|hooks.json|labels>` passes (percent
       warnings allowed); rendered frames show no tofu.
 

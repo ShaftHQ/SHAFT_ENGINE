@@ -37,7 +37,8 @@ NEEDLES = {
         "by position, not text", "multilingual model", "burned-in subtitles", "30-55% covered", "80% covered",
         "dies after about 8 s", "one card per 6-8 s", "ffprobe media length", "`-g <fps>`", HYPERFRAMES, "Apache-2.0",
         "design_qc.py safezones", "design_qc.py textfloor", "design_qc.py firstframe", "design_qc.py capluma",
-        "design_qc.py mediaclamp"),
+        "design_qc.py mediaclamp", "contrast_gate.json", "Frame-measured contrast", "Shorts burned-caption",
+        "Hook→caption chrome family", "~0.8 / 1.5 / 1.7 s"),
     "video-craft/film-review-sound.md": (
         "`t=4.2s · where · problem -> exact change · what stays`", "P0/P1/P2", "never a score out of 10",
         "shorter than its read time", "3 s with nothing changing", "2.6%", "empty first frame", "over 15 s with no sound",
