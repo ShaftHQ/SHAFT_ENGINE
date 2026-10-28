@@ -1,4 +1,4 @@
-FROM ghcr.io/shafthq/shaft-engine-mcp:latest
+FROM ghcr.io/shafthq/shaft-engine-mcp:latest@sha256:e22dfc30ae41e7a77ac02f3c23c3cb306e290fa5bcefe18c266db10c48aa9f71
 
 # Let the server run as a non-root user. SHAFT writes its properties and
 # reports under the working directory, and the MCP runtime falls back to

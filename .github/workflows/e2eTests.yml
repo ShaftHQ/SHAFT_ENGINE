@@ -136,7 +136,7 @@ jobs:
       - name: Connect to PostgreSQL
         run: |
             cd shaft-engine/src/main/resources/docker-compose/postgres/
-            npm install pg
+            npm ci
             node client.js
         env:
           POSTGRES_HOST: localhost

@@ -1,0 +1,8 @@
+{
+  "name": "shaft-npm-pin",
+  "private": true,
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.223",
+    "@openai/codex": "0.146.0"
+  }
+}

@@ -22,23 +22,23 @@ EXPECTED_PINS = {
 }
 EXPECTED_INSTALLS = {
     ".github/workflows/agent-plugin-acceptance.yml": (
-        "python -m pip install --no-deps --requirement requirements-ci.txt --quiet",
-        "python -m pip install --no-deps --requirement requirements-ci.txt --quiet",
+        "python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
+        "python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
     ),
     ".github/workflows/mavenCentral_cd.yml": (
-        "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
+        "python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
     ),
     ".github/workflows/pr-gate.yml": (
-        "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
-        "python -m pip install --no-deps --requirement requirements-ci.txt --quiet",
-        "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
-        "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
+        "python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
+        "python -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
+        "python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
+        "python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
     ),
     ".github/workflows/publish-shaft-mcp.yml": (
-        "python3 -m pip install --no-deps --requirement ../requirements-ci.txt --quiet",
+        "python3 -m pip install --no-deps --require-hashes --requirement ../requirements-ci.txt --quiet",
     ),
     ".github/workflows/shaft-pilot-release.yml": (
-        "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
+        "python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
     ),
     ".github/workflows/chaos-gauge-public-canary.yml": (
         "pip install --system --require-hashes --requirement scripts/ci/chaos_gauge/requirements.lock",
@@ -66,17 +66,30 @@ def version_key(version: str) -> tuple[int, ...]:
 class CiPythonDependenciesTest(unittest.TestCase):
     def test_workflow_dependencies_are_exact_centralized_and_automated(self):
         self.assertTrue(REQUIREMENTS.is_file(), "requirements-ci.txt must own CI Python versions")
-        entries = [
-            line.strip()
-            for line in REQUIREMENTS.read_text(encoding="utf-8").splitlines()
-            if line.strip() and not line.lstrip().startswith("#")
-        ]
+        entries = []
         parsed: dict[str, str] = {}
-        for entry in entries:
-            self.assertEqual(entry.count("=="), 1, f"CI dependency must use one exact pin: {entry}")
-            name, version = entry.split("==", 1)
-            self.assertTrue(name and version and not re.search(r"\s", entry), entry)
-            parsed[name.lower()] = version
+        hashed: set[str] = set()
+        current = None
+        for raw in REQUIREMENTS.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("--hash="):
+                self.assertIsNotNone(current, "hash line before a package pin")
+                body = line.removesuffix("\\").strip()
+                self.assertRegex(body, r"^--hash=sha256:[0-9a-f]{64}$", body)
+                hashed.add(current)
+                continue
+            self.assertTrue(line.endswith("\\"), f"hash-locked pin must continue: {line}")
+            pin = line[:-1].strip()
+            self.assertEqual(pin.count("=="), 1, f"CI dependency must use one exact pin: {pin}")
+            self.assertFalse(re.search(r"\s", pin), pin)
+            name, version = pin.split("==", 1)
+            self.assertTrue(name and version, pin)
+            current = name.lower()
+            parsed[current] = version
+            entries.append(pin)
+        self.assertSetEqual(hashed, set(parsed), "every CI dependency needs at least one hash")
         self.assertEqual(len(parsed), len(entries), "CI dependency pins must not be duplicated")
         self.assertSetEqual(set(parsed), set(EXPECTED_PINS), "CI dependency list must cover the required minimum pins")
         for name, minimum_version in EXPECTED_PINS.items():

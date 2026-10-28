@@ -280,7 +280,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install managed CI Python dependencies
-        run: python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet
+        run: python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet
       - name: Prepare release metadata for tomorrow (or the day after an already-bumped release PR)
         run: python3 scripts/ci/prepare_release_pr.py --release-date "$(date -u -d tomorrow +%F)" --after-current
       - name: Check plugin changelog covers the prepared version

@@ -1,0 +1,7 @@
+{
+  "name": "shaft-npm-pin",
+  "private": true,
+  "dependencies": {
+    "allure": "3.20.1"
+  }
+}

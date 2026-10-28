@@ -70,7 +70,8 @@ jobs:
         run: |
           uv pip install --system --require-hashes --requirement scripts/ci/chaos_gauge/requirements.lock
           python3 scripts/ci/chaos_gauge/validate_harbor_network_policy.py
-          npm install --global @openai/codex@0.152.0
+          npm ci --prefix scripts/ci/npm-pins/codex-0.152.0
+          echo "$PWD/scripts/ci/npm-pins/codex-0.152.0/node_modules/.bin" >> "$GITHUB_PATH"
           docker version --format '{{.Server.Version}}'
       - id: docker-baseline
         name: Capture Docker baseline

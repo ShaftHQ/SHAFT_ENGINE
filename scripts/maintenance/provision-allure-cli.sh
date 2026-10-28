@@ -35,6 +35,11 @@ else
   echo "Maven zip not found at ${MAVEN_ZIP}; falling back to npm"
 fi
 
-printf '%s\n' '{' '  "name": "shaft-allure-cli-runtime",' '  "private": true' '}' > "${CACHE_HOME}/package.json"
-echo "Provisioning Allure CLI via npm into ${CACHE_HOME}"
-npm --prefix "${CACHE_HOME}" install --no-package-lock --no-save --ignore-scripts "allure@${ALLURE_VERSION}"
+pin="$(cd "$(dirname "$0")/../ci/npm-pins/allure-${ALLURE_VERSION}" && pwd)"
+if [[ ! -f "${pin}/package-lock.json" ]]; then
+  echo "No npm ci pin for allure@${ALLURE_VERSION}. Add scripts/ci/npm-pins/allure-${ALLURE_VERSION}." >&2
+  exit 1
+fi
+echo "Provisioning Allure CLI via npm ci into ${CACHE_HOME}"
+cp "${pin}/package.json" "${pin}/package-lock.json" "${CACHE_HOME}/"
+npm ci --prefix "${CACHE_HOME}" --ignore-scripts

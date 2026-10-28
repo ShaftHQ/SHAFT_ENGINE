@@ -158,7 +158,7 @@ class AgentPluginReleaseTest(unittest.TestCase):
         deploy_index, _ = steps_by_name["Deploy to Maven Central"]
         self.assertEqual(
             install_step["run"],
-            "python3 -m pip install --no-deps --requirement requirements-ci.txt --quiet",
+            "python3 -m pip install --no-deps --require-hashes --requirement requirements-ci.txt --quiet",
         )
         self.assertEqual(
             build_step["run"],
