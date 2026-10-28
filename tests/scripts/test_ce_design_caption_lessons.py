@@ -30,7 +30,8 @@ NEEDLES = {
         "Neutral characters break isolates", "ASCII ' inside a word", "LRI U+2066 ... PDI U+2069",
         "hook and label text", "normal RTL order: warn", "design_qc.py bidi",
         "unicode-bidi: plaintext", "unicode-bidi: isolate", "direction: rtl", "leading RLM",
-        "author hard newlines", "cue midpoints", "Article **right** of Latin", "SRT must carry it"),
+        "author hard newlines", "cue midpoints", "Article **right** of Latin", "SRT must carry it",
+        "Tech-term lexicon", "design_qc.py termlexicon", "--term AR=LATIN"),
 }
 
 
@@ -141,6 +142,24 @@ class CaptionChecksTest(unittest.TestCase):
             cues.write_text(srt((0, 1.8, "أ"), (2, 4, "ب")), encoding="utf-8")
             code, payload = run_qc("cuemids", str(cues), "--probe", "1.9", "--probe", "0.1")
             self.assertEqual((0, [0.9, 3.0], [1.55, 0.25]), (code, payload["midpoints"], payload["probes"]))
+
+
+    def test_termlexicon_flags_arabic_script_tech_terms(self) -> None:
+        """U2 G7: leftover Arabic-script tech transliterations fail until restored to Latin."""
+        self.pair(
+            "termlexicon",
+            srt((0, 2, "افتح والداتايز الآن")),
+            srt((0, 2, "افتح والـ database الآن")),
+        )
+        # --term extends the placeholder lexicon (project terms stay out of the default map)
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "bad.srt"
+            bad.write_text(srt((0, 2, "شغل الفوبار الآن")), encoding="utf-8")
+            self.assertEqual(1, run_qc("termlexicon", str(bad), "--term", "فوبار=foobar")[0])
+            good = Path(folder) / "good.srt"
+            good.write_text(srt((0, 2, "شغل الـ foobar الآن")), encoding="utf-8")
+            code, payload = run_qc("termlexicon", str(good), "--term", "فوبار=foobar")
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
 
 if __name__ == "__main__":
