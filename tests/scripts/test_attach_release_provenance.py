@@ -5,9 +5,9 @@ import json
 import subprocess  # nosec B404 - tests monkeypatch subprocess, never running external commands.
 import tempfile
 import unittest
+import unittest.mock
 from io import StringIO
 from pathlib import Path
-from unittest import mock
 
 import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 import scripts.ci.attach_release_provenance as attach
@@ -32,9 +32,9 @@ class AttachReleaseProvenanceTest(unittest.TestCase):
 
         stdout = StringIO()
         with (
-            mock.patch.object(attach.shutil, "which", return_value="gh"),
-            mock.patch.object(attach.subprocess, "run", side_effect=fake_run),
-            mock.patch("sys.stdout", stdout),
+            unittest.mock.patch.object(attach.shutil, "which", return_value="gh"),
+            unittest.mock.patch.object(attach.subprocess, "run", side_effect=fake_run),
+            unittest.mock.patch("sys.stdout", stdout),
         ):
             code = attach.main(argv)
         return code, stdout.getvalue(), commands
@@ -89,9 +89,9 @@ class AttachReleaseProvenanceTest(unittest.TestCase):
             bundle.write_bytes(payload)
             stdout = StringIO()
             with (
-                mock.patch.object(attach.shutil, "which", return_value="gh"),
-                mock.patch.object(attach.subprocess, "run", side_effect=fake_run),
-                mock.patch("sys.stdout", stdout),
+                unittest.mock.patch.object(attach.shutil, "which", return_value="gh"),
+                unittest.mock.patch.object(attach.subprocess, "run", side_effect=fake_run),
+                unittest.mock.patch("sys.stdout", stdout),
             ):
                 code = attach.main(["--version", VERSION, "--bundle", str(bundle)])
 
