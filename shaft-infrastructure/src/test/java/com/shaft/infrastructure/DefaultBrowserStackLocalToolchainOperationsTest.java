@@ -168,8 +168,10 @@ class DefaultBrowserStackLocalToolchainOperationsTest {
             operations.awaitReady(Duration.ofSeconds(3));
             return;
         }
+        AtomicInteger hits = new AtomicInteger();
         HttpServer listener = HttpServer.create(new InetSocketAddress("127.0.0.1", 45691), 0);
         listener.createContext("/", exchange -> {
+            hits.incrementAndGet();
             exchange.sendResponseHeaders(200, -1);
             exchange.close();
         });
@@ -179,6 +181,7 @@ class DefaultBrowserStackLocalToolchainOperationsTest {
         } finally {
             listener.stop(0);
         }
+        assertTrue(hits.get() > 0);
     }
 
     private static String sha256(Path file) throws Exception {
