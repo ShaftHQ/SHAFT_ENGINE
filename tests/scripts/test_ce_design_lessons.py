@@ -64,8 +64,8 @@ class LessonCardsTest(unittest.TestCase):
                       (DESIGN / "references/captions-subtitles.md").read_text(encoding="utf-8"))
         self.assertIn("lessons/talk-edit-and-layers.md",
                       (DESIGN / "references/cutting-pacing.md").read_text(encoding="utf-8"))
-        self.assertIn("lessons/visual-first-approach.md",
-                      (DESIGN / "references/delivery-qc.md").read_text(encoding="utf-8"))
+        self.assertIn("visual-first-approach",
+                      (DESIGN / "references/craft/index.md").read_text(encoding="utf-8"))
         router = (DESIGN / "SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn("lessons/", router)  # on demand via craft index; router budget untouched
 

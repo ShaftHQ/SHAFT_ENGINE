@@ -118,8 +118,6 @@ shows it.
 - 9:16: the lowest source line and caption pixel sit above y 1536 on
   sampled frames.
 - Review notes list no blocker for each delivered output.
-- Visual-first ([L08](lessons/visual-first-approach.md)): visual evidence
-  required; lag fixes cite a delay sweep.
 
 ## Sources
 
