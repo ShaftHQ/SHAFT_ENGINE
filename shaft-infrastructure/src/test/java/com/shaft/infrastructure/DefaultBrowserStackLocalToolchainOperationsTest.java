@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -158,6 +160,14 @@ class DefaultBrowserStackLocalToolchainOperationsTest {
 
     @Test
     void publicAwaitReadyUsesTheFixedLocalProbe(@TempDir Path temp) throws Exception {
+        DefaultBrowserStackLocalToolchainOperations operations =
+                new DefaultBrowserStackLocalToolchainOperations(paths(temp), plan(), true);
+        try (ServerSocket probe = new ServerSocket()) {
+            probe.bind(new InetSocketAddress("127.0.0.1", 45691));
+        } catch (BindException occupied) {
+            operations.awaitReady(Duration.ofSeconds(3));
+            return;
+        }
         HttpServer listener = HttpServer.create(new InetSocketAddress("127.0.0.1", 45691), 0);
         listener.createContext("/", exchange -> {
             exchange.sendResponseHeaders(200, -1);
@@ -165,8 +175,7 @@ class DefaultBrowserStackLocalToolchainOperationsTest {
         });
         try {
             listener.start();
-            new DefaultBrowserStackLocalToolchainOperations(paths(temp), plan(), true)
-                    .awaitReady(Duration.ofSeconds(2));
+            operations.awaitReady(Duration.ofSeconds(3));
         } finally {
             listener.stop(0);
         }
