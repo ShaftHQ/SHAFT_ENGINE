@@ -156,6 +156,22 @@ class DefaultBrowserStackLocalToolchainOperationsTest {
         assertTrue(readinessHits.get() > 0);
     }
 
+    @Test
+    void publicAwaitReadyUsesTheFixedLocalProbe(@TempDir Path temp) throws Exception {
+        HttpServer listener = HttpServer.create(new InetSocketAddress("127.0.0.1", 45691), 0);
+        listener.createContext("/", exchange -> {
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        try {
+            listener.start();
+            new DefaultBrowserStackLocalToolchainOperations(paths(temp), plan(), true)
+                    .awaitReady(Duration.ofSeconds(2));
+        } finally {
+            listener.stop(0);
+        }
+    }
+
     private static String sha256(Path file) throws Exception {
         return java.util.HexFormat.of().formatHex(
                 java.security.MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
