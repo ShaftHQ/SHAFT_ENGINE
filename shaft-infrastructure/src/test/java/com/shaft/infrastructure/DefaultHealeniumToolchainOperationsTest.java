@@ -143,6 +143,27 @@ class DefaultHealeniumToolchainOperationsTest {
                 URI.create("http://127.0.0.1:9/backend"),
                 URI.create("http://127.0.0.1:9/imitate"),
                 Duration.ofMillis(200)));
+
+        HttpServer imitatorDown = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        imitatorDown.createContext("/backend", exchange -> {
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
+        imitatorDown.createContext("/imitate", exchange -> {
+            exchange.sendResponseHeaders(500, -1);
+            exchange.close();
+        });
+        imitatorDown.start();
+        try {
+            int port = imitatorDown.getAddress().getPort();
+            java.io.IOException imitator = assertThrows(java.io.IOException.class, () -> operations.awaitReady(
+                    URI.create("http://127.0.0.1:" + port + "/backend"),
+                    URI.create("http://127.0.0.1:" + port + "/imitate"),
+                    Duration.ofMillis(400)));
+            assertEquals("Healenium selector imitator status returned HTTP 500.", imitator.getMessage());
+        } finally {
+            imitatorDown.stop(0);
+        }
     }
 
     private static SetupAction action(SetupPlan plan, SetupTarget target) {

@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -388,10 +389,10 @@ class CaptureCliTest {
     }
 
     @Test
-    void startFailsClosedWhenTheDaemonExitsBeforeItBecomesActive() throws Exception {
+    void startReturnsIncompleteWhenTheDaemonExitsBeforeControlIsActive() throws Exception {
         Path runtime = temp.resolve("daemon-runtime");
         Path profile = temp.resolve("profile");
-        int exit = CaptureCli.run(new String[] {
+        CapturedCli captured = runCli(List.of("/bin/true"), new String[] {
                 "start",
                 "--url", "https://example.test/path",
                 "--runtime-dir", runtime.toString(),
@@ -418,9 +419,12 @@ class CaptureCliTest {
                 "--ignore-https-errors",
                 "--timeout", "1000",
                 "--channel", "chrome"
-        }, List.of("/bin/true"));
+        });
 
-        assertEquals(1, exit);
+        assertEquals(1, captured.exit(), captured.stdout() + captured.stderr());
+        assertTrue(captured.stdout().contains("\"INCOMPLETE\""), captured.stdout());
+        assertTrue(captured.stdout().contains("The recorder process is no longer reachable."), captured.stdout());
+        assertFalse(captured.stdout().contains("Managed browser startup timed out."), captured.stdout());
         assertTrue(Files.isRegularFile(runtime.resolve("status.json")));
         assertTrue(Files.readString(runtime.resolve("status.json")).contains("STARTING"));
         assertTrue(Files.isRegularFile(runtime.resolve("daemon.log")));
@@ -441,13 +445,17 @@ class CaptureCliTest {
                 other,
                 true));
 
-        int exit = CaptureCli.run(new String[] {
+        CapturedCli captured = runCli(List.of("java"), new String[] {
                 "daemon",
                 "--runtime-dir", runtime.toString(),
                 "--request-file", requestFile.toString()
-        }, List.of("java"));
+        });
 
-        assertEquals(1, exit);
+        assertEquals(1, captured.exit(), captured.stderr());
+        assertTrue(captured.stderr().contains(
+                "SHAFT Capture command failed: Capture launch request runtime directory does not match."),
+                captured.stderr());
+        assertFalse(captured.stderr().contains("Managed browser startup failed."), captured.stderr());
         assertFalse(Files.exists(requestFile));
         assertEquals(1, CaptureCli.run(new String[] {
                 "daemon", "--runtime-dir", runtime.toString(), "--request-file", temp.resolve("outside.json").toString()
@@ -458,6 +466,62 @@ class CaptureCliTest {
     void loadStorageBlankPathIsAllowed() throws Exception {
         invokeStatic("requireLoadStorageExists", new Class<?>[] {String.class}, "");
         invokeStatic("requireLoadStorageExists", new Class<?>[] {String.class}, (Object) null);
+    }
+
+    /**
+     * Capture writes branch messages through {@code FileDescriptor}, so a child process is the
+     * way to read the exact line without replacing {@code java.io} streams.
+     */
+    public static void main(String[] args) {
+        if (args.length == 0 || !"--capture-cli-test".equals(args[0])) {
+            return;
+        }
+        int count = Integer.parseInt(args[1]);
+        List<String> prefix = List.of(Arrays.copyOfRange(args, 2, 2 + count));
+        if (!"--".equals(args[2 + count])) {
+            throw new IllegalArgumentException("Capture CLI test child arguments are missing a separator.");
+        }
+        String[] captureArgs = Arrays.copyOfRange(args, 3 + count, args.length);
+        System.exit(CaptureCli.run(captureArgs, prefix));
+    }
+
+    private CapturedCli runCli(List<String> launchPrefix, String[] args) throws Exception {
+        Path argFile = temp.resolve("cli-" + System.nanoTime() + ".args");
+        Path stdout = temp.resolve("cli-" + System.nanoTime() + ".out");
+        Path stderr = temp.resolve("cli-" + System.nanoTime() + ".err");
+        StringBuilder body = new StringBuilder();
+        body.append("-cp").append(System.lineSeparator());
+        body.append(argFileQuote(System.getProperty("java.class.path"))).append(System.lineSeparator());
+        body.append(CaptureCliTest.class.getName()).append(System.lineSeparator());
+        body.append(argFileQuote("--capture-cli-test")).append(System.lineSeparator());
+        body.append(argFileQuote(Integer.toString(launchPrefix.size()))).append(System.lineSeparator());
+        for (String part : launchPrefix) {
+            body.append(argFileQuote(part)).append(System.lineSeparator());
+        }
+        body.append(argFileQuote("--")).append(System.lineSeparator());
+        for (String arg : args) {
+            body.append(argFileQuote(arg)).append(System.lineSeparator());
+        }
+        Files.writeString(argFile, body);
+        Process process = new ProcessBuilder(
+                Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "@" + argFile.toAbsolutePath())
+                .redirectOutput(stdout.toFile())
+                .redirectError(stderr.toFile())
+                .start();
+        if (!process.waitFor(45, TimeUnit.SECONDS)) {
+            process.destroyForcibly();
+            throw new AssertionError("capture CLI child did not exit\n"
+                    + Files.readString(stdout) + "\n" + Files.readString(stderr));
+        }
+        return new CapturedCli(process.exitValue(), Files.readString(stdout), Files.readString(stderr));
+    }
+
+    private static String argFileQuote(String value) {
+        return '"' + value.replace("\\", "\\\\").replace("\"", "\\\"") + '"';
+    }
+
+    private record CapturedCli(int exit, String stdout, String stderr) {
     }
 
 }

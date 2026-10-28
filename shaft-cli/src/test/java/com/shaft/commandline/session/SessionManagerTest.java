@@ -77,7 +77,8 @@ class SessionManagerTest {
 
     @Test
     void startBecomesReadyThenStopClearsTheLiveProcess() throws Exception {
-        Path classes = compileReadyServer();
+        Path hits = temp.resolve("ready-hits.txt");
+        Path classes = compileReadyServer(hits);
         Path jar = temp.resolve("shaft-mcp.jar");
         Files.writeString(jar, "placeholder");
         Files.writeString(jar.resolveSibling("shaft-mcp.args"),
@@ -92,6 +93,7 @@ class SessionManagerTest {
         SessionInfo started = null;
         try {
             started = manager.start();
+            assertTrue(Files.readString(hits).length() > 0);
             assertTrue(started.port() > 0);
             assertEquals(jar.toString(), started.jarPath());
             assertTrue(manager.status().running());
@@ -125,13 +127,17 @@ class SessionManagerTest {
                 Map.of("SHAFT_MCP_JAR", jar.toString()), temp.resolve("no-versions"), temp.resolve("no-dev"));
     }
 
-    private Path compileReadyServer() throws Exception {
+    private Path compileReadyServer(Path hits) throws Exception {
         Path source = temp.resolve("src/com/shaft/mcp/ShaftMcpApplication.java");
         Files.createDirectories(source.getParent());
+        String hitPath = hits.toAbsolutePath().normalize().toString().replace("\\", "/");
         Files.writeString(source, """
                 package com.shaft.mcp;
                 import com.sun.net.httpserver.HttpServer;
                 import java.net.InetSocketAddress;
+                import java.nio.file.Files;
+                import java.nio.file.Path;
+                import java.nio.file.StandardOpenOption;
                 public final class ShaftMcpApplication {
                     public static void main(String[] args) throws Exception {
                         int port = -1;
@@ -143,6 +149,8 @@ class SessionManagerTest {
                         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
                         server.createContext("/mcp", exchange -> {
                             exchange.getRequestBody().readAllBytes();
+                            Files.writeString(Path.of("%s"), "1",
+                                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
                             exchange.sendResponseHeaders(200, -1);
                             exchange.close();
                         });
@@ -150,7 +158,7 @@ class SessionManagerTest {
                         Thread.currentThread().join();
                     }
                 }
-                """);
+                """.formatted(hitPath));
         Path classes = temp.resolve("classes");
         Files.createDirectories(classes);
         Process compile = new ProcessBuilder(

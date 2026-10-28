@@ -10,6 +10,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -79,11 +80,14 @@ class ShaftRunConfigurationResolverTest {
 
     @Test
     void findByNameReturnsTheFirstDuplicate() {
-        List<RunnerAndConfigurationSettings> allSettings =
-                List.of(fakeSettings("SignInTest"), fakeSettings("SignInTest"));
+        RunnerAndConfigurationSettings first = fakeSettings("SignInTest", "first-sign-in");
+        RunnerAndConfigurationSettings second = fakeSettings("SignInTest", "second-sign-in");
 
-        assertEquals("SignInTest",
-                ShaftRunConfigurationResolver.findByName(allSettings, "SignInTest").orElseThrow().getName());
+        RunnerAndConfigurationSettings found = ShaftRunConfigurationResolver.findByName(
+                List.of(first, second), "SignInTest").orElseThrow();
+
+        assertSame(first, found);
+        assertEquals("first-sign-in", found.getUniqueID());
     }
 
     // ------------------------------------------------------------------
@@ -172,12 +176,15 @@ class ShaftRunConfigurationResolverTest {
     // ------------------------------------------------------------------
 
     /**
-     * A minimal {@link RunnerAndConfigurationSettings} fake: {@code getName()} returns the given
-     * name, every other member throws. Built with a dynamic proxy rather than a hand-implemented
-     * class because the interface declares ~25 abstract members and {@code findByName} only ever
-     * calls {@code getName()}.
+     * A minimal {@link RunnerAndConfigurationSettings} fake. {@code findByName} calls
+     * {@code getName()} only. {@code getUniqueID()} exists so two settings that share a name can
+     * still be told apart. Every other member throws.
      */
     private static RunnerAndConfigurationSettings fakeSettings(String name) {
+        return fakeSettings(name, name);
+    }
+
+    private static RunnerAndConfigurationSettings fakeSettings(String name, String uniqueId) {
         return (RunnerAndConfigurationSettings) Proxy.newProxyInstance(
                 ShaftRunConfigurationResolverTest.class.getClassLoader(),
                 new Class<?>[]{RunnerAndConfigurationSettings.class},
@@ -185,8 +192,11 @@ class ShaftRunConfigurationResolverTest {
                     if ("getName".equals(method.getName())) {
                         return name;
                     }
+                    if ("getUniqueID".equals(method.getName())) {
+                        return uniqueId;
+                    }
                     throw new UnsupportedOperationException(
-                            "fakeSettings only implements getName(), not " + method.getName());
+                            "fakeSettings only implements getName() and getUniqueID(), not " + method.getName());
                 });
     }
 }

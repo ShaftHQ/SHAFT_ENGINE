@@ -1,14 +1,18 @@
 package com.shaft.infrastructure;
 
+import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -135,22 +139,21 @@ class DefaultBrowserStackLocalToolchainOperationsTest {
         }
         assertFalse(ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false));
 
-        if (loopbackAccepts(45691)) {
-            operations.awaitReady(Duration.ofSeconds(2));
-        } else {
-            IOException unreadiness = assertThrows(IOException.class,
-                    () -> operations.awaitReady(Duration.ofMillis(400)));
-            assertTrue(unreadiness.getMessage() != null && !unreadiness.getMessage().isBlank());
+        AtomicInteger readinessHits = new AtomicInteger();
+        HttpServer listener = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        listener.createContext("/", exchange -> {
+            readinessHits.incrementAndGet();
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
+        listener.start();
+        try {
+            operations.awaitReady(URI.create("http://127.0.0.1:" + listener.getAddress().getPort() + "/"),
+                    Duration.ofSeconds(2));
+        } finally {
+            listener.stop(0);
         }
-    }
-
-    private static boolean loopbackAccepts(int port) {
-        try (java.net.Socket socket = new java.net.Socket()) {
-            socket.connect(new java.net.InetSocketAddress("127.0.0.1", port), 200);
-            return true;
-        } catch (IOException exception) {
-            return false;
-        }
+        assertTrue(readinessHits.get() > 0);
     }
 
     private static String sha256(Path file) throws Exception {
