@@ -25,9 +25,13 @@ and [L03](talk-edit-and-layers.md).
 5. Text or graphic B-roll is reframed to fit, on frame-exact boundaries.
    Verify with frame-number tiles (`select=between(n,a,b)`); seek grabs
    are imprecise.
-6. Fade vs last word: the span ends after the last spoken word plus a
-   pause, with a short tail fade (0.1-0.15 s) so the last word is not
-   dimmed. Check every fade frame.
+6. Sentence-boundary end + short audio fade: end the last cue on a
+   finished clause from ear-checked word timestamps (last word `e`), not
+   a fragment mid-token. Start `--fade_out` only after that `e`
+   (150–250 ms, default 200 ms) so the last word is not dimmed and the
+   sample does not click into the end card. Pad end-card silence
+   **after** loudnorm so span LUFS stay on target. Check every fade
+   frame.
 7. ASR hallucinates on pauses and noise (outro phrases such as
    «شكرا للمشاهدة» or "thanks for watching"). Drop them from the words
    file, log them in the notes, and cross-check with 2 or more models plus

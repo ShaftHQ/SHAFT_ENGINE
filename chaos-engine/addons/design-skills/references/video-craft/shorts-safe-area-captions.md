@@ -51,6 +51,15 @@ and [L06](../lessons/caption-video-qc.md).
     the render ends in black.
 13. **Sparse keyframes** (over 1 s apart) freeze on seek: re-encode with
     `-g <fps>` before editing.
+14. **Frame-measured contrast gate:** CSS stroke intent ≠ WCAG on light
+    wardrobe/walls. Measure white-on-(pill∘local-bg) per cue (mid +
+    ~150 ms after in). Floor ≥ **4.5** WCAG; Shorts burned-caption
+    target ≥ **7** (pilot-raised after navy pill + stroke cleared easily;
+    stroke alone is not enough on collars). Persist `contrast_gate.json`.
+    Scrim/box moves the ratio.
+15. **Hook→caption chrome family:** keep the same lower-third
+    stroke/scrim under the hook card and post-hook captions; prove the
+    handoff with frames at ~0.8 / 1.5 / 1.7 s (see [L01](../lessons/hook-speech-match.md)).
 
 ## Verify
 
@@ -61,6 +70,8 @@ and [L06](../lessons/caption-video-qc.md).
 - [ ] `design_qc.py capluma short.mp4 --cues cues.srt --box x,y,w,h [--plain]`
 - [ ] `design_qc.py mediaclamp cues.srt short.mp4`
 - [ ] Notes record the subtitle scan, the occlusion check and the group sizes.
+- [ ] `contrast_gate.json` exists; every post-hook cue ≥ 4.5 (Shorts target ≥ 7).
+- [ ] Hook→caption frames at ~0.8 / 1.5 / 1.7 s share chrome family.
 
 ## Sources
 

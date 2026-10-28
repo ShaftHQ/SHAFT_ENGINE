@@ -32,6 +32,11 @@ extends [C10 hooks](../craft/hooks.md) and [D13 cutting](../cutting-pacing.md).
 8. Q&A labels: the label prefix ("Question" / "Speaker") is visible from
    0 s, and the card holds the spoken question verbatim.
 9. Hooks-first planning: scan sources for hooks before picking clips.
+10. Hook → caption transition: a hard cut from the hook card to a
+    different caption chrome reads as a jump. Keep a shared lower-third
+    family under the hook; lengthen the hook crossfade (~0.55 s); land
+    captions in the same stroke/scrim system. Prove with frames at
+    ~0.8 / 1.5 / 1.7 s, not only hookcheck scores.
 
 ## Verify
 
@@ -41,6 +46,8 @@ extends [C10 hooks](../craft/hooks.md) and [D13 cutting](../cutting-pacing.md).
       hook word.
 - [ ] On Q&A clips the label prefix is visible at 0 s.
 - [ ] Frame 1 is read muted: the card is legible and a face is visible.
+- [ ] Frames at ~0.8 / 1.5 / 1.7 s show shared lower-third chrome across
+      the hook→caption crossfade (no chrome jump).
 
 ## Sources
 
