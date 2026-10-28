@@ -96,6 +96,25 @@ class SharedStoreTest(unittest.TestCase):
         self.assertEqual(primary_graph, linked_graph)
         self.assertEqual(self.primary / "graphify-out", primary_graph)
 
+    def test_incremental_mine_paths_stays_incremental_for_large_change_sets(self):
+        """#7465: a tip delta above the old 400-file limit must not force a full mine."""
+        previous = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
+        for index in range(450):
+            relative = self.primary / f"bulk_{index:04d}.py"
+            relative.write_text(f"print({index})\n", encoding="utf-8")
+        self.git("add", ".", cwd=self.primary)
+        self.git("commit", "-m", "bulk change set", cwd=self.primary)
+        tip = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
+        # Use the primary checkout as the snapshot stand-in for path listing.
+        snapshot = self.primary
+        paths = self.stores.incremental_mine_paths(snapshot, previous, tip)
+        self.assertIsNotNone(paths)
+        self.assertGreater(len(paths), 400)
+        self.assertTrue(all(name.startswith("bulk_") for name in paths))
+        # Missing stamp / non-ancestor still force full.
+        self.assertIsNone(self.stores.incremental_mine_paths(snapshot, None, tip))
+        self.assertIsNone(self.stores.incremental_mine_paths(snapshot, "f" * 40, tip))
+
     def test_second_clone_of_the_same_origin_reuses_populated_stores(self):
         registry = self.sandbox / "registry"
         registry.mkdir()

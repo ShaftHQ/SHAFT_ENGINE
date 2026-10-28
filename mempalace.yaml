@@ -145,7 +145,24 @@ rooms:
   keywords: []
 exclude_patterns:
   - mempalace.yaml
-  - .memory/**
-  - graphify-out/**
-  - .chaos-engine-runtime/**
-  - .chaos-engine-state/**
+  - '.memory/**'
+  - 'graphify-out/**'
+  - '.chaos-engine/**'
+  - '.chaos-engine-runtime/**'
+  - '.chaos-engine-state/**'
+  - '.chaos-engine.backup/**'
+  - '.chaos-engine.backup.*/**'
+  - '.chaos-engine-*.json'
+  - '.chaos-engine.*'
+  - 'plugins/chaos-engine/**'
+  - 'plugins/caveman/**'
+  - 'plugins/ponytail/**'
+  - 'plugins/icm-architect/**'
+  - '**/skills/chaos-engine/**'
+  - '.claude/agents/chaos-engine-*'
+  - '.codex/agents/chaos-engine-*'
+  - '.chaos-engine-account-rollback/**'
+  - '**/*.min.js'
+  - '**/*.min.css'
+  - '**/*.bundle.js'
+  - '**/*-embedded.html'

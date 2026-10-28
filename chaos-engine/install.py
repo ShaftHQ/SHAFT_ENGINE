@@ -6504,6 +6504,21 @@ def _repair_dependency_component(
     """Repair memory, mempalace, graphify, and tools, or reject an unknown component."""
     import subprocess
 
+    if name == "retrieval-config":
+        # #7465: merge missing owned MemPalace excludes without clobbering user entries.
+        if hasattr(host_controller, "ensure_owned_mempalace_excludes"):
+            merged = bool(host_controller.ensure_owned_mempalace_excludes(project))
+        else:
+            controller = load_dependency_controller(target)
+            merged = bool(controller.apply_owned_mempalace_excludes(project)) if hasattr(
+                controller, "apply_owned_mempalace_excludes"
+            ) else False
+        return {
+            "status": "repaired",
+            "component": name,
+            "action": "merge-owned-excludes" if merged else "already-complete",
+            "merged": merged,
+        }
     if name == "memory" and hasattr(host_controller, "migrate_legacy_memory_store"):
         migrated = host_controller.migrate_legacy_memory_store(project)
         if isinstance(migrated, dict) and migrated.get("status") == "migrated":

@@ -59,14 +59,17 @@ class OwnedExcludesTest(unittest.TestCase):
             self.assertFalse(self.dependencies.apply_owned_mempalace_excludes(project))
             self.assertEqual(content, (project / "mempalace.yaml").read_bytes())
 
-    def test_existing_exclude_key_is_never_rewritten(self):
+    def test_existing_exclude_key_merges_missing_owned_keeps_user(self):
+        """#7465: partial exclude_patterns keeps user entries and gains owned ones."""
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             config = INIT_GENERATED + "exclude_patterns: [docs/**]\n"
             (project / "mempalace.yaml").write_text(config, encoding="utf-8")
+            self.assertTrue(self.dependencies.apply_owned_mempalace_excludes(project))
+            updated = (project / "mempalace.yaml").read_text(encoding="utf-8")
+            self.assertIn("docs/**", updated)
+            self.assertEqual([], self.dependencies.missing_owned_mempalace_excludes(project))
             self.assertFalse(self.dependencies.apply_owned_mempalace_excludes(project))
-            self.assertEqual(config, (project / "mempalace.yaml").read_text(encoding="utf-8"))
-            self.assertIn(".chaos-engine/**", self.dependencies.missing_owned_mempalace_excludes(project))
 
     def _install(self, project: Path, command: list[str], on_run=None) -> str:
         module = self.dependencies
@@ -105,15 +108,97 @@ class OwnedExcludesTest(unittest.TestCase):
             )
             self.assertEqual([], self.dependencies.missing_owned_mempalace_excludes(project))
 
-    def test_user_config_stays_byte_identical_with_advisory(self):
+    def test_user_config_merges_owned_excludes_on_mine(self):
+        """#7465: mine merges owned excludes into a user/consumer mempalace.yaml."""
         with tempfile.TemporaryDirectory() as temporary:
             project = Path(temporary)
             (project / "mempalace.yaml").write_text(INIT_GENERATED, encoding="utf-8")
             mine = self.dependencies.mempalace_project_cli("/tools/mempalace", "mine", project)
             with mock.patch.dict("os.environ", {"CHAOS_ENGINE_MEMPALACE_MINE": "foreground"}):
                 stderr = self._install(project, mine)
-            self.assertEqual(INIT_GENERATED, (project / "mempalace.yaml").read_text(encoding="utf-8"))
-            self.assertIn(".chaos-engine/**", stderr)
+            self.assertEqual([], self.dependencies.missing_owned_mempalace_excludes(project))
+            self.assertIn("merged missing MemPalace owned exclude_patterns", stderr)
+
+    def test_block_style_partial_excludes_merge_preserves_placeholder(self):
+        """Placeholders only: user private path stays; owned gaps fill (#7465)."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            config = (
+                INIT_GENERATED
+                + "exclude_patterns:\n"
+                + "  - 'user-private-placeholder/**'\n"
+                + "  - mempalace.yaml\n"
+            )
+            (project / "mempalace.yaml").write_text(config, encoding="utf-8")
+            self.assertTrue(self.dependencies.apply_owned_mempalace_excludes(project))
+            updated = (project / "mempalace.yaml").read_text(encoding="utf-8")
+            self.assertIn("user-private-placeholder/**", updated)
+            self.assertEqual([], self.dependencies.missing_owned_mempalace_excludes(project))
+
+    def test_hosts_install_plan_merges_owned_into_existing_config(self):
+        hosts = load("hosts")
+        before = (INIT_GENERATED + "exclude_patterns:\n  - 'user-kept-placeholder/**'\n").encode()
+        after = hosts.merge_owned_mempalace_excludes_bytes(before)
+        text = after.decode()
+        self.assertIn("user-kept-placeholder/**", text)
+        for pattern in hosts.MEMPALACE_OWNED_EXCLUDES:
+            self.assertIn(pattern, text)
+
+    def test_doctor_flags_missing_owned_excludes(self):
+        overlay = load("overlay_match")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "mempalace.yaml").write_text(
+                INIT_GENERATED + "exclude_patterns:\n  - 'user-only-placeholder/**'\n",
+                encoding="utf-8",
+            )
+            result = {"status": "healthy", "components": {}}
+            overlay.apply_mempalace_owned_excludes_doctor(result, project)
+            row = result["components"]["mempalace-owned-excludes"]
+            self.assertEqual("degraded", row["status"])
+            self.assertEqual("owned-excludes-missing", row["reason"])
+            self.assertGreater(row["missingCount"], 0)
+
+
+    def test_unquoted_owned_lines_are_not_duplicated(self):
+        """#7465 coach: unquoted owned entries must count as present (no quoted dupes)."""
+        hosts = load("hosts")
+        # Unquoted forms of two owned patterns plus a user placeholder.
+        before = (
+            INIT_GENERATED
+            + "exclude_patterns:\n"
+            + "  - mempalace.yaml\n"
+            + "  - .memory/**\n"
+            + "  - user-private-placeholder/**\n"
+        ).encode()
+        after = hosts.merge_owned_mempalace_excludes_bytes(before)
+        text = after.decode()
+        self.assertEqual(1, text.count("mempalace.yaml"))
+        self.assertEqual(1, text.count(".memory/**"))
+        self.assertIn("user-private-placeholder/**", text)
+        # Every owned pattern present exactly once as a list item.
+        for pattern in hosts.MEMPALACE_OWNED_EXCLUDES:
+            matches = [
+                line for line in text.splitlines()
+                if line.lstrip().startswith("-") and pattern in line
+            ]
+            self.assertEqual(1, len(matches), pattern)
+
+    def test_removed_owned_exclude_is_re_added_by_design(self):
+        """#7465: a user who deletes an owned pattern gets it restored on merge."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            # Full owned list minus one harness path.
+            owned = list(self.dependencies.MEMPALACE_OWNED_EXCLUDES)
+            kept = [p for p in owned if p != ".chaos-engine/**"]
+            body = INIT_GENERATED + "exclude_patterns:\n" + "".join(
+                f"  - '{p}'\n" for p in kept
+            )
+            (project / "mempalace.yaml").write_text(body, encoding="utf-8")
+            self.assertIn(".chaos-engine/**", self.dependencies.missing_owned_mempalace_excludes(project))
+            self.assertTrue(self.dependencies.apply_owned_mempalace_excludes(project))
+            self.assertEqual([], self.dependencies.missing_owned_mempalace_excludes(project))
+            self.assertIn(".chaos-engine/**", (project / "mempalace.yaml").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
