@@ -9,7 +9,11 @@ name: PR Gate
 # with what those files used to list (see the deletion checklist in
 # .github/workflows/README.md). `merge_group:` (#6990 phase 4) runs the PR tier
 # against the queued merge commit (base = merge_group.base_sha), so the merge
-# queue can require "PR Gate Summary" without running post-merge legs. On
+# queue can require "PR Gate Summary" without running post-merge legs. When
+# that merge commit has two parents and its tree equals the second parent, the
+# pull request was already green and up to date with main: every leg except
+# changes and summary is skipped, and summary still accepts skipped. push to
+# main leaves same_tree unset, so the full gate still runs there. On
 # merge_group, dorny/paths-filter (no `base`) diffs the queue head against the
 # default branch, i.e. exactly the queued pull requests.
 #
@@ -78,6 +82,8 @@ jobs:
       cli_os: ${{ steps.installer-tier.outputs.cli_os }}
       run_capture_browser: ${{ steps.installer-tier.outputs.run_capture_browser }}
       run_intellij_verify: ${{ steps.installer-tier.outputs.run_intellij_verify }}
+      # Empty on pull_request and push. true only for an already-green merge-queue tree.
+      same_tree: ${{ steps.same-tree.outputs.same_tree }}
     permissions:
       contents: read
       issues: read
@@ -85,6 +91,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Depth 2 keeps both parents of a merge-queue commit. Fetching the
+          # raw SHA is not a branch tip and would fail the whole gate.
+          fetch-depth: 2
       - name: Filter changed paths
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
@@ -433,6 +443,8 @@ jobs:
               # Issue #6187/#6184: installer OS tier and time-to-merge pins.
               - 'scripts/ci/chaos_installer_tier.py'
               - 'tests/scripts/test_pr_gate_time_to_merge.py'
+              - 'scripts/ci/merge_group_same_tree.py'
+              - 'tests/scripts/test_merge_group_same_tree.py'
               - 'scripts/ci/pr_time_to_merge.py'
               - 'tests/scripts/test_pr_time_to_merge_report.py'
               - 'scripts/ci/quality_trend.py'
@@ -489,11 +501,17 @@ jobs:
             labels=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '[.[].name]') || labels="$EVENT_LABELS"
           fi
           python3 scripts/ci/chaos_installer_tier.py --event-name "$GITHUB_EVENT_NAME" --labels "$labels" >> "$GITHUB_OUTPUT"
+      # Missing parents make the script print false and exit 0, so this step
+      # cannot fail the changes job or stall the merge queue.
+      - name: Detect already-green merge-queue tree
+        id: same-tree
+        if: github.event_name == 'merge_group'
+        run: echo "same_tree=$(python3 scripts/ci/merge_group_same_tree.py)" >> "$GITHUB_OUTPUT"
 
   docs-boundary:
     name: Documentation Boundary Gate
     needs: changes
-    if: needs.changes.outputs.docs == 'true' || needs.changes.outputs.infra == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.docs == 'true' || needs.changes.outputs.infra == 'true')
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -505,7 +523,7 @@ jobs:
   chaos-gauge:
     name: ChaosGauge Recovery Gate
     needs: changes
-    if: needs.changes.outputs.chaos_gauge == 'true' || needs.changes.outputs.pr_gate == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.chaos_gauge == 'true' || needs.changes.outputs.pr_gate == 'true')
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -541,7 +559,7 @@ jobs:
   agent-guidance:
     name: Agent Guidance Gate
     needs: changes
-    if: needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.pr_gate == 'true' || needs.changes.outputs.infra == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.agent_guidance == 'true' || needs.changes.outputs.pr_gate == 'true' || needs.changes.outputs.infra == 'true')
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     permissions:
@@ -609,7 +627,7 @@ jobs:
   installer-verify:
     name: Installer verification (${{ matrix.os }})
     needs: changes
-    if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -646,7 +664,7 @@ jobs:
   intellij-build:
     name: Build IntelliJ plugin
     needs: changes
-    if: needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true')
     runs-on: ubuntu-22.04
     # A clean build takes ~5m and a connect timeout at :verifyPlugin dependency
     # resolution takes ~2m40s to surface, so the second attempt issue #4494 buys
@@ -686,7 +704,7 @@ jobs:
   intellij-verify-plugin:
     name: Verify IntelliJ plugin (Plugin Verifier)
     needs: changes
-    if: (needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true') && needs.changes.outputs.run_intellij_verify == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.intellij == 'true' || needs.changes.outputs.infra == 'true') && needs.changes.outputs.run_intellij_verify == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -700,7 +718,7 @@ jobs:
   cli:
     name: shaft-cli (${{ matrix.os }})
     needs: changes
-    if: needs.changes.outputs.cli == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.cli == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true')
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -760,7 +778,7 @@ jobs:
   capture-e2e:
     name: SHAFT Capture Browser E2E
     needs: changes
-    if: (needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true') && needs.changes.outputs.run_capture_browser == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.capture == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true') && needs.changes.outputs.run_capture_browser == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -874,8 +892,8 @@ jobs:
     name: Unit Tests (${{ matrix.leg || matrix.module }})
     needs: changes
     if: >-
-      needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true'
-      || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true'
+      needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true'
+      || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true')
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     strategy:
@@ -971,7 +989,7 @@ jobs:
   template-coupling:
     name: Template Coupling Gate
     needs: changes
-    if: needs.changes.outputs.templates == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.templates == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.coverage_all == 'true')
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -1016,7 +1034,7 @@ jobs:
   workflow-security:
     name: Workflow Security (actionlint + zizmor)
     needs: changes
-    if: needs.changes.outputs.workflows == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions:
@@ -1056,7 +1074,7 @@ jobs:
   bug-analysis:
     name: Bug Analysis (Error Prone + NullAway)
     needs: changes
-    if: github.event_name != 'push' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true')
+    if: needs.changes.outputs.same_tree != 'true' && github.event_name != 'push' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true')
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -1103,7 +1121,7 @@ jobs:
   api-compat:
     name: API Compatibility (japicmp)
     needs: changes
-    if: github.event_name == 'pull_request' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true')
+    if: needs.changes.outputs.same_tree != 'true' && github.event_name == 'pull_request' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.capture == 'true')
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -1161,7 +1179,7 @@ jobs:
   mutation-testing:
     name: Mutation Testing (PIT, report-only)
     needs: changes
-    if: github.event_name == 'pull_request' && needs.changes.outputs.javacore == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && github.event_name == 'pull_request' && needs.changes.outputs.javacore == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 12
     continue-on-error: true
@@ -1205,7 +1223,7 @@ jobs:
     name: Workflow Timeout Guard
     needs: changes
     # #6206: pom edits also re-run the quality-configuration validator.
-    if: needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.dependencies == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true' || needs.changes.outputs.dependencies == 'true')
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -1244,6 +1262,7 @@ jobs:
           tests.scripts.test_spotbugs_trend
           tests.scripts.test_workflow_security_gate
           tests.scripts.test_pr_gate_time_to_merge
+          tests.scripts.test_merge_group_same_tree
           tests.scripts.test_pr_time_to_merge_report
           tests.scripts.test_quality_layers_6990
           tests.scripts.test_shard_test_selector
@@ -1271,7 +1290,7 @@ jobs:
   javadoc-coverage:
     name: Javadoc Coverage Ratchet
     needs: changes
-    if: needs.changes.outputs.javadoc == 'true' || needs.changes.outputs.infra == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.javadoc == 'true' || needs.changes.outputs.infra == 'true')
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -1291,7 +1310,7 @@ jobs:
   module-boundary:
     name: Pilot Module Boundary Gate
     needs: changes
-    if: needs.changes.outputs.module_boundary == 'true' || needs.changes.outputs.infra == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.module_boundary == 'true' || needs.changes.outputs.infra == 'true')
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -1328,7 +1347,7 @@ jobs:
   static-analysis:
     name: Static Analysis (diff-scoped)
     needs: changes
-    if: github.event_name != 'push'
+    if: needs.changes.outputs.same_tree != 'true' && github.event_name != 'push'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -1348,7 +1367,7 @@ jobs:
   orphaned-suite-files:
     name: Orphaned Suite XML Guard
     needs: changes
-    if: needs.changes.outputs.javacore == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && (needs.changes.outputs.javacore == 'true' || needs.changes.outputs.workflows == 'true' || needs.changes.outputs.infra == 'true')
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -1391,7 +1410,7 @@ jobs:
   pr-body-autoclose-guard:
     name: PR Body & Commit Autoclose Guard
     needs: changes
-    if: github.event_name == 'pull_request'
+    if: needs.changes.outputs.same_tree != 'true' && github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
@@ -1433,7 +1452,7 @@ jobs:
     name: Dependency Review
     needs: [changes, dependency-changes]
     if: >-
-      github.event_name == 'pull_request' && needs.dependency-changes.outputs.review == 'true'
+      needs.changes.outputs.same_tree != 'true' && github.event_name == 'pull_request' && needs.dependency-changes.outputs.review == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
@@ -1451,7 +1470,7 @@ jobs:
     name: Detect dependency changes
     needs: changes
     if: >-
-      github.event_name == 'pull_request' && needs.changes.outputs.dependencies == 'true'
+      needs.changes.outputs.same_tree != 'true' && github.event_name == 'pull_request' && needs.changes.outputs.dependencies == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     outputs:
@@ -1480,7 +1499,7 @@ jobs:
   chaos-installer-acceptance:
     name: ChaosEngine fresh installer (${{ matrix.os }})
     needs: changes
-    if: needs.changes.outputs.chaos_installer == 'true'
+    if: needs.changes.outputs.same_tree != 'true' && needs.changes.outputs.chaos_installer == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
@@ -1526,7 +1545,7 @@ jobs:
     needs: changes
     # #6990: off the PR critical path unless labelled ci:installer-windows or
     # ci:installer-macos; an empty tier skips the job (summary accepts skipped).
-    if: needs.changes.outputs.chaos_installer == 'true' && needs.changes.outputs.installer_contracts_os != '[]'
+    if: needs.changes.outputs.same_tree != 'true' && needs.changes.outputs.chaos_installer == 'true' && needs.changes.outputs.installer_contracts_os != '[]'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
