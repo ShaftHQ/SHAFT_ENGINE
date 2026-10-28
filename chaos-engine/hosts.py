@@ -4487,6 +4487,21 @@ LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE = (
     "ChaosEngine guard temporarily unavailable while install rewrites the harness; "
     "retry shortly; do not repair from this child"
 )
+
+
+def guard_wait_budget_seconds(raw: str | None = None) -> float:
+    """#7492: parse CHAOS_ENGINE_GUARD_WAIT_MS safely (default 60s, clamp 0..600s)."""
+    if raw is None:
+        raw = __import__("os").environ.get("CHAOS_ENGINE_GUARD_WAIT_MS", "60000")
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = 60000.0
+    if value != value:  # NaN
+        value = 60000.0
+    return max(0.0, min(value, 600000.0)) / 1000.0
+
+
 LAUNCH_PYTHON_UNAVAILABLE = (
     "ChaosEngine hook found no Python 3.11 or newer; install Python 3.11+ or rerun the ChaosEngine installer, then start a new session"
 )
@@ -4657,14 +4672,22 @@ def _locator_script(host: str, event: str | None = None) -> str:
         "        except OSError:\n"
         "            pass\n"
         "    return False\n"
+        "def wait_budget_s():\n"
+        '    raw=os.environ.get("CHAOS_ENGINE_GUARD_WAIT_MS","60000")\n'
+        "    try:\n"
+        "        value=float(raw)\n"
+        "    except (TypeError,ValueError):\n"
+        "        value=60000.0\n"
+        "    if value!=value:\n"
+        "        value=60000.0\n"
+        "    return max(0.0,min(value,600000.0))/1000.0\n"
         "if found is None:\n"
         "    try:\n"
         "        start=pathlib.Path.cwd()\n"
         "    except OSError as error:\n"
         "        deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
-        "    waiting=installing(start)\n"
-        "    if waiting:\n"
-        "        deadline=time.monotonic()+max(0.0,float(os.environ.get(\"CHAOS_ENGINE_GUARD_WAIT_MS\",\"60000\"))/1000.0)\n"
+        "    if installing(start):\n"
+        "        deadline=time.monotonic()+wait_budget_s()\n"
         "        while found is None and time.monotonic()<deadline:\n"
         "            time.sleep(0.2)\n"
         "            try:\n"
@@ -4679,7 +4702,7 @@ def _locator_script(host: str, event: str | None = None) -> str:
         "                        found=None\n"
         "                    if found is not None: break\n"
         "    if found is None:\n"
-        "        deny(GUARD_TEMP if waiting else GUARD)\n"
+        "        deny(GUARD_TEMP if installing(start) else GUARD)\n"
         "base,path=found\n"
         f"{event_filter}"
         f'ptr=base/"{pointer}"\n'
