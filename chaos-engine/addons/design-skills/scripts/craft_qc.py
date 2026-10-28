@@ -589,8 +589,8 @@ def cmd_silencegap(qc, args) -> int:
         if src.suffix.lower() == ".wav":
             wav = src
         else:
-            subprocess.run(  # nosec B603 - fixed argv
-                ["ffmpeg", "-v", "error", "-y", "-i", str(src), "-ac", "1", "-ar", "48000", str(wav)],
+            subprocess.run(  # nosec B603 - fixed argv, absolute ffmpeg via qc.need
+                [qc.need("ffmpeg"), "-v", "error", "-y", "-i", str(src), "-ac", "1", "-ar", "48000", str(wav)],
                 check=True, capture_output=True)
         with wave.open(str(wav), "rb") as handle:
             if handle.getnchannels() != 1 or handle.getsampwidth() != 2:
