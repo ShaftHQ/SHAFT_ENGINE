@@ -34,7 +34,7 @@ NEEDLES = {
         "hook and label text", "normal RTL order: warn", "design_qc.py bidi",
         "unicode-bidi: plaintext", "unicode-bidi: isolate", "direction: rtl", "leading RLM",
         "author hard newlines", "cue midpoints", "Article **right** of Latin", "SRT must carry it",
-        "Tech-term lexicon", "design_qc.py termlexicon", "--term AR=LATIN",
+        "Tech/loan lexicon", "design_qc.py termlexicon", "--term AR=LATIN", "فري",
         "Trailing Latin sentence punct", "trailing-latin-punct-outside-isolate", ".AI"),
 }
 
@@ -211,6 +211,79 @@ class CaptionChecksTest(unittest.TestCase):
             hook_good.write_text("وهل هو هيبدل الـ testers؟", encoding="utf-8")
             self.assertEqual(1, run_qc("hookmodality", "--hook", str(hook_bad), "--spoken", str(spoken))[0])
             code, payload = run_qc("hookmodality", "--hook", str(hook_good), "--spoken", str(spoken))
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
+
+    def test_qaanswer_drops_dodge_only_tail(self) -> None:
+        """U9 G14: dodge/pivot-only post-question transcript fails; real answer passes."""
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "bad.txt"
+            good = Path(folder) / "good.txt"
+            span_bad = Path(folder) / "span_bad.json"
+            span_good = Path(folder) / "span_good.json"
+            bad.write_text("مش عارف. طب خلينا نتكلم عن حاجة تانية في الحكومة.", encoding="utf-8")
+            good.write_text(
+                "الحل إنك تبني جودة من الأول: tests مع الـ codegen قبل ما تطلق.",
+                encoding="utf-8",
+            )
+            span_bad.write_text("{}", encoding="utf-8")
+            span_good.write_text('{"answer_beat": 12.4}', encoding="utf-8")
+            self.assertEqual(1, run_qc("qaanswer", "--after", str(bad))[0])
+            code, payload = run_qc("qaanswer", "--after", str(good), "--span", str(span_good))
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+            self.assertEqual(1, run_qc("qaanswer", "--span", str(span_bad))[0])
+
+    def test_hookmodality_type_qa_requires_answer_beat(self) -> None:
+        """U9 G14: hookmodality --type qa fails without answer beat in --after."""
+        with tempfile.TemporaryDirectory() as folder:
+            hook = Path(folder) / "hook.txt"
+            spoken = Path(folder) / "spoken.txt"
+            after_bad = Path(folder) / "after_bad.txt"
+            after_good = Path(folder) / "after_good.txt"
+            hook.write_text("مفيش ChatGPT free tier — هتعمل إيه؟", encoding="utf-8")
+            spoken.write_text("مفيش ChatGPT free tier — هتعمل إيه؟", encoding="utf-8")
+            after_bad.write_text("مش عارف.", encoding="utf-8")
+            after_good.write_text(
+                "هبني جودة من الأول وأغطي الـ flows بـ tests قبل الإطلاق.",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                1,
+                run_qc(
+                    "hookmodality", "--hook", str(hook), "--spoken", str(spoken),
+                    "--type", "qa", "--after", str(after_bad),
+                )[0],
+            )
+            code, payload = run_qc(
+                "hookmodality", "--hook", str(hook), "--spoken", str(spoken),
+                "--type", "qa", "--after", str(after_good),
+            )
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
+    def test_termlexicon_flags_common_loanwords(self) -> None:
+        """U9 G15: default lexicon covers فري→free and سولو→solo (no brands)."""
+        self.pair(
+            "termlexicon",
+            srt((0, 2, "مفيش حاجه اسمها فري للسولو")),
+            srt((0, 2, "مفيش حاجه اسمها free للـ solo")),
+        )
+
+    def test_opendoubt_flags_self_flagged_doubt(self) -> None:
+        """U9 G15: open self-flagged doubt fails; cleared review passes."""
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "bad.md"
+            good = Path(folder) / "good.md"
+            bad.write_text(
+                "# SELF-REVIEW\n\nDoubt: not sure whether فري should stay Arabic.\n"
+                "Ask Coach to decide script form.\n",
+                encoding="utf-8",
+            )
+            good.write_text(
+                "# SELF-REVIEW\n\nOpen doubts: none\n\nG7 Latin free on card+SRT.\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(1, run_qc("opendoubt", str(bad))[0])
+            code, payload = run_qc("opendoubt", str(good))
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
     def test_hookbleed_straddle_fails(self) -> None:

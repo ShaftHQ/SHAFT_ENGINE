@@ -48,6 +48,12 @@ extends [C10 hooks](../craft/hooks.md) and [D13 cutting](../cutting-pacing.md).
     `hook_end+0.3` (dropped from burn); the first surviving cue starts
     at/after `hook_end` with post-hook text only. Gate:
     `design_qc.py hookbleed cues.srt --hook-end <s>`.
+14. **G14 pre-render:** for `type=qa`, skim the transcript **after** the
+    question **before** render. Confirm a real answer beat (not only
+    «مش عارف» / dodge + topic pivot). If none → **drop/skip** the row;
+    do not render. Gate: `design_qc.py qaanswer --after post.txt` and/or
+    `hookmodality --type qa --after post.txt`; note `answer_beat` in
+    BRIEF/span.json (`qaanswer --span`).
 
 ## Verify
 
@@ -63,6 +69,8 @@ extends [C10 hooks](../craft/hooks.md) and [D13 cutting](../cutting-pacing.md).
       passes (question↔؟ / claim↔claim).
 - [ ] Q&A / viral disagreement clips carry the answer beat or payoff.
 - [ ] `design_qc.py hookbleed cues.srt --hook-end <s>` passes.
+- [ ] `design_qc.py qaanswer --after` (or `hookmodality --type qa --after`)
+      passes before render; dropped rows are not rendered.
 
 ## Sources
 
