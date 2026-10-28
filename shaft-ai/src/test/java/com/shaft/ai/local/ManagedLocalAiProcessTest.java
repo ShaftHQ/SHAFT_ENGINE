@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -1304,6 +1305,163 @@ class ManagedLocalAiProcessTest {
                 deadline);
 
         assertEquals(AiResponseStatus.TIMEOUT, response.status());
+    }
+
+    @Test
+    void commandRejectsInvalidLaunchParameters() throws Exception {
+        Path executable = Files.writeString(temp.resolve("llama-server.exe"), "binary");
+        Path model = Files.writeString(temp.resolve("model.gguf"), "weights");
+        Path keyFile = Files.writeString(temp.resolve("api-key.txt"), "key-123");
+
+        assertEquals("Managed local AI launch parameters are invalid.",
+                assertThrows(IllegalArgumentException.class,
+                        () -> ManagedLocalAiProcess.command(executable, model, -1, "alias", keyFile, 1)).getMessage());
+        assertEquals("Managed local AI launch parameters are invalid.",
+                assertThrows(IllegalArgumentException.class,
+                        () -> ManagedLocalAiProcess.command(executable, model, 65_536, "alias", keyFile, 1)).getMessage());
+        assertEquals("Managed local AI launch parameters are invalid.",
+                assertThrows(IllegalArgumentException.class,
+                        () -> ManagedLocalAiProcess.command(executable, model, 1, "  ", keyFile, 1)).getMessage());
+        assertEquals("Managed local AI launch parameters are invalid.",
+                assertThrows(IllegalArgumentException.class,
+                        () -> ManagedLocalAiProcess.command(executable, model, 1, null, keyFile, 1)).getMessage());
+        assertEquals("Managed local AI launch parameters are invalid.",
+                assertThrows(IllegalArgumentException.class,
+                        () -> ManagedLocalAiProcess.command(executable, model, 1, "alias", keyFile, 0)).getMessage());
+        assertTrue(ManagedLocalAiProcess.command(executable, model, 65_535, "alias", keyFile, 1)
+                .contains("65535"));
+    }
+
+    @Test
+    void launchRejectsANonPositiveTimeoutBeforeStartingAProcess() {
+        AtomicBoolean started = new AtomicBoolean();
+        var spec = new ManagedLocalAiProcess.RuntimeSpec("alias", 1);
+        for (Duration timeout : List.of(Duration.ZERO, Duration.ofMillis(-1))) {
+            var request = launchRequest(temp, temp.resolve("missing.exe"), temp.resolve("missing.gguf"),
+                    temp.resolve("staging/logs/server.log"), spec, timeout);
+            IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () ->
+                    ManagedLocalAiProcess.launch(request, (command, environment, log) -> {
+                        started.set(true);
+                        return null;
+                    }, (process, port, apiKey, alias, identityTimeout) -> { }));
+            assertEquals("Launch timeout must be positive.", error.getMessage());
+        }
+        assertFalse(started.get());
+    }
+
+    @Test
+    void sanitizedLogIgnoresNullAndEmptySecretsAndRejectsANonPositiveCeiling() throws Exception {
+        Path log = temp.resolve("staging/logs/empty-secret.log");
+        var secrets = new java.util.HashSet<String>();
+        secrets.add(null);
+        secrets.add("");
+        ManagedLocalAiProcess.writeSanitizedLog(temp, new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)),
+                log, secrets, 128);
+        assertEquals("hello", Files.readString(log));
+
+        Path rejected = temp.resolve("staging/logs/rejected.log");
+        assertEquals("Log byte ceiling must be positive.",
+                assertThrows(IllegalArgumentException.class, () -> ManagedLocalAiProcess.writeSanitizedLog(
+                        temp, new ByteArrayInputStream("hello".getBytes(StandardCharsets.UTF_8)),
+                        rejected, Set.of(), 0)).getMessage());
+        assertFalse(Files.exists(rejected));
+    }
+
+    @Test
+    void startupCaptureCopiesDoNotShareTheCallerBuffer() {
+        byte[] raw = new byte[] {1, 2, 3};
+        byte[][] copies = ManagedLocalAiProcess.captured(raw);
+
+        raw[0] = 9;
+        assertEquals(1, copies[0][0]);
+        copies[0][0] = 4;
+        assertEquals(1, copies[1][0]);
+        assertEquals(3, copies[0].length);
+    }
+
+    @Test
+    void requestIdentityRejectsNonOkOversizedAndMalformedLoopbackBodies() throws Exception {
+        HttpServer rejected = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        rejected.createContext("/rejected", exchange -> {
+            byte[] body = "{\"data\":[{\"id\":\"alias\"}]}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(401, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        rejected.createContext("/oversized", exchange -> {
+            byte[] body = new byte[(64 * 1024) + 1];
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        rejected.createContext("/malformed", exchange -> {
+            byte[] body = "{\"ok\":true}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        rejected.start();
+        try {
+            int port = rejected.getAddress().getPort();
+            assertEquals("Managed local AI identity response was rejected.",
+                    assertThrows(IOException.class, () -> ManagedLocalAiProcess.requestIdentity(
+                            URI.create("http://127.0.0.1:" + port + "/rejected"), "Bearer key",
+                            Duration.ofSeconds(2))).getMessage());
+            assertEquals("Managed local AI identity response was rejected.",
+                    assertThrows(IOException.class, () -> ManagedLocalAiProcess.requestIdentity(
+                            URI.create("http://127.0.0.1:" + port + "/oversized"), "Bearer key",
+                            Duration.ofSeconds(2))).getMessage());
+            assertEquals("Managed local AI identity response is malformed.",
+                    assertThrows(IOException.class, () -> ManagedLocalAiProcess.requestIdentity(
+                            URI.create("http://127.0.0.1:" + port + "/malformed"), "Bearer key",
+                            Duration.ofSeconds(2))).getMessage());
+        } finally {
+            rejected.stop(0);
+        }
+    }
+
+    @Test
+    void inferenceMapsResidualHttpStatusesToTheExactReason() {
+        AiRequest request = AiRequest.builder("status-map", JsonNodeFactory.instance.objectNode())
+                .timeout(Duration.ofSeconds(1))
+                .deterministicFallback(JsonNodeFactory.instance.objectNode().put("fallback", true))
+                .build();
+        ManagedLocalAiProcess.Session session = new ManagedLocalAiProcess.Session(new FakeProcess(null),
+                18181, "selected-model", "secret-key", Duration.ZERO);
+
+        assertInference(session, request, 403, AiResponseStatus.AUTHENTICATION_FAILED,
+                "Managed local inference authentication failed.");
+        assertInference(session, request, 408, AiResponseStatus.TIMEOUT,
+                "Managed local inference timed out.");
+        assertInference(session, request, 504, AiResponseStatus.TIMEOUT,
+                "Managed local inference timed out.");
+        assertInference(session, request, 500, AiResponseStatus.PROVIDER_UNAVAILABLE,
+                "Managed local inference is unavailable.");
+        assertInference(session, request, 400, AiResponseStatus.ERROR,
+                "Managed local inference request was rejected.");
+    }
+
+    private static void assertInference(ManagedLocalAiProcess.Session session, AiRequest request, int statusCode,
+                                        AiResponseStatus status, String reason) {
+        AtomicBoolean read = new AtomicBoolean();
+        AiResponse response = ManagedLocalAiProcess.infer(session, request,
+                (uri, bearer, body, timeout) -> new ManagedLocalAiProcess.InferenceResponse(statusCode,
+                        new java.io.InputStream() {
+                            @Override
+                            public int read() {
+                                read.set(true);
+                                return -1;
+                            }
+
+                            @Override
+                            public int read(byte[] buffer, int offset, int length) {
+                                read.set(true);
+                                return -1;
+                            }
+                        }));
+        assertEquals(status, response.status());
+        assertEquals(reason, response.fallbackReason());
+        assertFalse(read.get(), statusCode + " must be mapped before the body is read");
     }
 
     private static Path readyStage(Path cache, String prefix, String fileName, String content) throws Exception {

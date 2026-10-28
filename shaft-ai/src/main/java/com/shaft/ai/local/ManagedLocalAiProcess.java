@@ -1479,6 +1479,11 @@ final class ManagedLocalAiProcess {
             Objects.requireNonNull(body, "body");
         }
     }
+    static byte[][] captured(byte[] raw) {
+        StartupObservation observation = new StartupObservation(1, raw);
+        return new byte[][] {observation.captured, observation.captured()};
+    }
+
     private record StartupObservation(Integer port, byte[] captured) {
         private StartupObservation {
             captured = captured.clone();
