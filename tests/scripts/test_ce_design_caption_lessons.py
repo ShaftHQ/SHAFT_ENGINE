@@ -429,5 +429,97 @@ class CaptionChecksTest(unittest.TestCase):
 
 
 
+    def test_antecedent_splice_land_needs_prior_binder(self) -> None:
+        """U11 G17: class-aware binders — she --noun must not clear a dangling هو land."""
+        # U11 r1 shape: prior has she-binders only; land «هو …»; ho binder sat inside the cut.
+        r1 = srt(
+            (0.0, 1.32, "دي مش skill انت بتضيفها"),
+            (1.32, 1.80, "دي حاجة"),
+            (2.60, 3.92, "هي فيها كلمة testing بس"),
+            (3.92, 6.50, "هي الأساس فيها فكرة انك انت تبقى hacker"),
+            (20.0, 30.0, "الاوت بوت بتاعك المفروض هو"),  # inside cut — not prior
+            (43.37, 45.0, "هو risk management report"),
+            (45.0, 48.0, "المفروض انك انت تقول لي ايه الحاجات"),
+        )
+        # U11 r2: extend cut past هو cue; land on not-weak «المفروض»
+        r2 = srt(
+            (0.0, 1.32, "دي مش skill انت بتضيفها"),
+            (1.32, 1.80, "دي حاجة"),
+            (2.60, 3.92, "هي فيها كلمة testing بس"),
+            (3.92, 6.50, "هي الأساس فيها فكرة انك انت تبقى hacker"),
+            (20.0, 30.0, "الاوت بوت بتاعك المفروض هو"),
+            (43.37, 44.40, "هو risk management report"),  # still inside extended cut
+            (44.50, 48.0, "المفروض انك انت تقول لي ايه الحاجات"),
+        )
+        # ho binder present in prior → PASS for هو land
+        r1_bound = srt(
+            (0.0, 1.32, "دي مش skill انت بتضيفها"),
+            (1.32, 1.80, "دي حاجة"),
+            (2.60, 3.92, "هي فيها كلمة testing بس"),
+            (3.92, 6.50, "التقرير اوت بوت جاهز قبل القطع"),
+            (43.37, 45.0, "هو risk management report"),
+        )
+        she = ["--noun", "حاجة", "--noun", "فكرة", "--noun", "skill", "--noun", "testing"]
+        ho = ["--noun-ho", "تقرير", "--noun-ho", "اوت", "--noun-ho", "بوت", "--noun-ho", "report"]
+        with tempfile.TemporaryDirectory() as folder:
+            r1_p = Path(folder) / "r1.srt"
+            r2_p = Path(folder) / "r2.srt"
+            ok_p = Path(folder) / "bound.srt"
+            r1_p.write_text(r1, encoding="utf-8")
+            r2_p.write_text(r2, encoding="utf-8")
+            ok_p.write_text(r1_bound, encoding="utf-8")
+            # mixed brain-style list via she+ho flags: r1 still FAIL (ho nouns not in prior)
+            self.assertEqual(
+                1,
+                run_qc("antecedent", str(r1_p), "--splice", "6.50-43.37", *she, *ho)[0],
+            )
+            # she-only --noun must not false-PASS هو land
+            self.assertEqual(
+                1,
+                run_qc("antecedent", str(r1_p), "--splice", "6.50-43.37", *she)[0],
+            )
+            code, payload = run_qc(
+                "antecedent", str(r2_p), "--splice", "6.50-44.50", *she, *ho)
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+            self.assertEqual(payload.get("gate"), "G17")
+            code, payload = run_qc(
+                "antecedent", str(ok_p), "--splice", "6.50-43.37", *she, *ho)
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
+    def test_overlayverbatim_rejects_invented_token(self) -> None:
+        """U11 G18: short/footer inventing a never-spoken token fails; verbatim passes."""
+        words = {"words": [
+            {"w": "دي", "s": 0.0, "e": 0.2},
+            {"w": "مش", "s": 0.2, "e": 0.4},
+            {"w": "skill", "s": 0.4, "e": 0.7},
+            {"w": "انت", "s": 0.7, "e": 0.9},
+            {"w": "بتضيفها", "s": 0.9, "e": 1.3},
+        ]}
+        cues = srt((0.0, 1.4, "دي مش skill انت بتضيفها"))
+        with tempfile.TemporaryDirectory() as folder:
+            w = Path(folder) / "words.json"
+            s = Path(folder) / "cues.srt"
+            w.write_text(json.dumps(words), encoding="utf-8")
+            s.write_text(cues, encoding="utf-8")
+            self.assertEqual(
+                1,
+                run_qc(
+                    "overlayverbatim", str(w),
+                    "--srt", str(s),
+                    "--hook", "دي مش skill|انت بتضيفها",
+                    "--short", "مش skill زيادة",
+                )[0],
+            )
+            code, payload = run_qc(
+                "overlayverbatim", str(w),
+                "--srt", str(s),
+                "--hook", "دي مش skill|انت بتضيفها",
+                "--short", "دي مش skill",
+            )
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+            self.assertEqual(payload.get("gate"), "G18")
+
+
+
 if __name__ == "__main__":
     unittest.main()
