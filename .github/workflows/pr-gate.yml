@@ -334,6 +334,21 @@ jobs:
               - '**/build.gradle.kts'
               - '**/gradle.properties'
               - 'requirements-ci.txt'
+              # #7451: managed Appium locks / manifests feed the advisory check
+              # that runs under workflow-timeouts (dependencies==true leg).
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/repair-shell-quote.js'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/repair-shell-quote.js'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/repair-shell-quote.js'
+              - 'scripts/ci/validate_npm_lock_advisories.py'
+              - 'tests/scripts/test_validate_npm_lock_advisories.py'
+              - 'scripts/ci/repair_bundled_shell_quote.js'
+              - 'tests/fixtures/npm_lock_advisories/**'
               - '.github/dependabot.yml'
               - '.github/dependency-review-config.yml'
               - '.github/workflows/agent-plugin-acceptance.yml'
@@ -468,6 +483,22 @@ jobs:
               - 'codecov.yml'
               - 'scripts/ci/validate_codecov_yml.py'
               - 'tests/scripts/test_validate_codecov_yml.py'
+              # #7451: npm lock advisory check must re-run on its own inputs
+              # (#4529 shape — a guard blind to edits of itself / its locks
+              # is unbound). Lock-only or validator-only edits must not skip it.
+              - 'scripts/ci/validate_npm_lock_advisories.py'
+              - 'tests/scripts/test_validate_npm_lock_advisories.py'
+              - 'scripts/ci/repair_bundled_shell_quote.js'
+              - 'tests/fixtures/npm_lock_advisories/**'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium/repair-shell-quote.js'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-ios/repair-shell-quote.js'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/package-lock.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/package.json'
+              - 'shaft-infrastructure/src/main/resources/com/shaft/infrastructure/appium-windows/repair-shell-quote.js'
               - '.github/workflows/pr-time-to-merge.yml'
               - 'scripts/ci/shard_test_selector.py'
               - 'tests/scripts/test_shard_test_selector.py'
@@ -1274,6 +1305,8 @@ jobs:
           tests.scripts.test_rerun_pr_gate_on_label
           tests.scripts.test_check_plugin_changelog_version
           -v
+      - name: Validate bundled npm locks have no vulnerable shell-quote (#7451)
+        run: python3 scripts/ci/validate_npm_lock_advisories.py
       - name: Validate every workflow job declares timeout-minutes
         run: python3 scripts/ci/validate_workflow_timeouts.py
       - name: Validate test steps cannot stay green on failures (#6870)
