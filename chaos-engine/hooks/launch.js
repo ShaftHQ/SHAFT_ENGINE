@@ -9,7 +9,14 @@ const CWD_UNAVAILABLE =
   "repository working directory unavailable; restore the original mount or checkout, then retry";
 const GUARD_UNAVAILABLE =
   "ChaosEngine guard unavailable; repair the original installation, then retry";
+// #7425: parent-distinguishable retry while bootstrap/install rewrites the harness.
+const GUARD_TEMPORARILY_UNAVAILABLE =
+  "ChaosEngine guard temporarily unavailable while install rewrites the harness; retry shortly; do not repair from this child";
 const CWD_UNAVAILABLE_CODES = new Set(["ENOENT", "ESTALE", "ENOTCONN"]);
+const INSTALL_MARKERS = [
+  ".chaos-engine.transaction.json",
+  ".chaos-engine.backup.next",
+];
 
 function deny(message, code = 2) {
   process.stdout.write(JSON.stringify({ decision: "block", reason: message }) + "\n");
@@ -18,6 +25,42 @@ function deny(message, code = 2) {
 
 function unavailableError(error) {
   return Boolean(error && CWD_UNAVAILABLE_CODES.has(error.code));
+}
+
+function sleepMs(ms) {
+  try {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  } catch (error) {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      /* busy wait fallback */
+    }
+  }
+}
+
+function installInProgress(start) {
+  let root = start;
+  while (true) {
+    for (const marker of INSTALL_MARKERS) {
+      try {
+        if (fs.existsSync(path.join(root, marker))) return true;
+      } catch (error) {
+        if (unavailableError(error)) deny(CWD_UNAVAILABLE);
+        throw error;
+      }
+    }
+    try {
+      for (const entry of fs.readdirSync(root)) {
+        if (entry.startsWith(".chaos-engine-stage-")) return true;
+      }
+    } catch (error) {
+      if (unavailableError(error)) deny(CWD_UNAVAILABLE);
+      // ignore unreadable dirs when scanning for stage markers
+    }
+    const parent = path.dirname(root);
+    if (parent === root) return false;
+    root = parent;
+  }
 }
 
 function currentRoot() {
@@ -133,7 +176,30 @@ if (!matchesHook()) {
   process.exit(0);
 }
 
-const guard = guardPath();
+function waitForGuard() {
+  let found = guardPath();
+  if (found) return found;
+  let start;
+  try {
+    start = currentRoot();
+  } catch (error) {
+    return null;
+  }
+  const waiting = installInProgress(start);
+  if (!waiting) return null;
+  const budget = Math.max(0, Number(process.env.CHAOS_ENGINE_GUARD_WAIT_MS || "60000"));
+  const deadline = Date.now() + budget;
+  while (!found && Date.now() < deadline) {
+    sleepMs(200);
+    found = guardPath();
+  }
+  if (!found) {
+    deny(GUARD_TEMPORARILY_UNAVAILABLE);
+  }
+  return found;
+}
+
+const guard = waitForGuard();
 if (!guard) {
   deny(GUARD_UNAVAILABLE);
 }
@@ -178,5 +244,10 @@ for (const [command, prefix] of candidates) {
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
   process.exit(result.status === null ? 1 : result.status);
+}
+try {
+  if (installInProgress(currentRoot())) deny(GUARD_TEMPORARILY_UNAVAILABLE);
+} catch (error) {
+  /* fall through to permanent */
 }
 deny(GUARD_UNAVAILABLE);

@@ -479,6 +479,83 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertNotEqual({}, payload)
         self.assertIn("ChaosEngine guard unavailable", rendered)
 
+    def test_javascript_launch_temp_denies_when_install_marker_present(self):
+        """#7425: journal without guard → temporary deny after short wait."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
+        launcher = ROOT / "chaos-engine/hooks/launch.js"
+        with tempfile.TemporaryDirectory() as temporary:
+            Path(temporary, ".chaos-engine.transaction.json").write_text(
+                '{"operation":"install"}\n', encoding="utf-8"
+            )
+            completed = subprocess.run(  # nosec B603 - fixed node launcher.
+                [node, str(launcher), "gemini"],
+                input=json.dumps(
+                    {
+                        "hook_event_name": "BeforeTool",
+                        "tool_name": "write_file",
+                    }
+                ),
+                capture_output=True,
+                text=True,
+                cwd=temporary,
+                check=False,
+                env={**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "400"},
+                timeout=10,
+            )
+        rendered = completed.stdout + completed.stderr
+        self.assertNotEqual(0, completed.returncode, rendered)
+        payload = json.loads(completed.stdout)
+        self.assertIn("temporarily unavailable", rendered)
+        self.assertNotIn("repair the original installation", rendered)
+        self.assertEqual("block", payload.get("decision"))
+
+    def test_javascript_launch_waits_for_guard_during_install(self):
+        """#7425: guard reappears under journal → launch proceeds."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
+        launcher = ROOT / "chaos-engine/hooks/launch.js"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / ".chaos-engine.transaction.json").write_text(
+                '{"operation":"update"}\n', encoding="utf-8"
+            )
+            appear = (
+                "const fs=require('fs');const path=require('path');"
+                f"const root={json.dumps(str(root))};"
+                "setTimeout(()=>{const d=path.join(root,'.chaos-engine','hooks');"
+                "fs.mkdirSync(d,{recursive:true});"
+                "fs.writeFileSync(path.join(d,'guard.py'),\"print('{}')\\n\");},350);"
+                "setTimeout(()=>{},2000);"
+            )
+            planter = subprocess.Popen(  # nosec B603 - fixed node planter.
+                [node, "-e", appear],
+            )
+            try:
+                completed = subprocess.run(  # nosec B603 - fixed node launcher.
+                    [node, str(launcher), "gemini"],
+                    input=json.dumps(
+                        {
+                            "hook_event_name": "BeforeTool",
+                            "tool_name": "write_file",
+                        }
+                    ),
+                    capture_output=True,
+                    text=True,
+                    cwd=temporary,
+                    check=False,
+                    env={**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "3000"},
+                    timeout=10,
+                )
+            finally:
+                planter.wait(timeout=5)
+            rendered = completed.stdout + completed.stderr
+            self.assertNotIn("repair the original installation", rendered, rendered)
+            self.assertNotIn("temporarily unavailable", rendered, rendered)
+            self.assertEqual(0, completed.returncode, rendered)
+
     def test_javascript_launch_reports_missing_cwd_without_private_paths(self):
         node = shutil.which("node")
         if not node:

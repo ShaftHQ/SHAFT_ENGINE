@@ -4482,6 +4482,11 @@ LAUNCH_CWD_UNAVAILABLE = (
 LAUNCH_GUARD_UNAVAILABLE = (
     "ChaosEngine guard unavailable; repair the original installation, then retry"
 )
+# #7425: distinct from permanent deny so a parent can retry while bootstrap rewrites.
+LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE = (
+    "ChaosEngine guard temporarily unavailable while install rewrites the harness; "
+    "retry shortly; do not repair from this child"
+)
 LAUNCH_PYTHON_UNAVAILABLE = (
     "ChaosEngine hook found no Python 3.11 or newer; install Python 3.11+ or rerun the ChaosEngine installer, then start a new session"
 )
@@ -4563,7 +4568,11 @@ def _locator_script(host: str, event: str | None = None) -> str:
     pointer = HOOK_PYTHON_POINTER
     if "'" in pointer or '"' in pointer:
         raise ValueError("hook pointer must be quote-free")
-    for message in (LAUNCH_CWD_UNAVAILABLE, LAUNCH_GUARD_UNAVAILABLE):
+    for message in (
+        LAUNCH_CWD_UNAVAILABLE,
+        LAUNCH_GUARD_UNAVAILABLE,
+        LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE,
+    ):
         if "'" in message or '"' in message:
             raise ValueError("hook locator message must be quote-free")
     # Hosts without per-tool matchers (Copilot `.github/hooks`) pass the
@@ -4597,10 +4606,11 @@ def _locator_script(host: str, event: str | None = None) -> str:
         "        raise SystemExit(0)\n"
     ) if event else ""
     return (
-        "import errno,io,json,os,pathlib,re,runpy,sys,tempfile\n"
+        "import errno,io,json,os,pathlib,re,runpy,sys,tempfile,time\n"
         f'os.environ["CHAOS_ENGINE_HOST"]="{host}"\n'
         f'CWD="{LAUNCH_CWD_UNAVAILABLE}"\n'
         f'GUARD="{LAUNCH_GUARD_UNAVAILABLE}"\n'
+        f'GUARD_TEMP="{LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE}"\n'
         'E={errno.ENOENT,getattr(errno,"ESTALE",116),getattr(errno,"ENOTCONN",107)}\n'
         "def deny(message):\n"
         '    print(json.dumps({"decision":"block","reason":message}))\n'
@@ -4638,8 +4648,38 @@ def _locator_script(host: str, event: str | None = None) -> str:
         "            found=None\n"
         "        if found is not None:\n"
         "            break\n"
+        "def installing(start):\n"
+        "    for root in (start,*start.parents):\n"
+        "        try:\n"
+        '            if (root/".chaos-engine.transaction.json").is_file(): return True\n'
+        '            if (root/".chaos-engine.backup.next").exists(): return True\n'
+        '            if next(root.glob(".chaos-engine-stage-*"),None) is not None: return True\n'
+        "        except OSError:\n"
+        "            pass\n"
+        "    return False\n"
         "if found is None:\n"
-        "    deny(GUARD)\n"
+        "    try:\n"
+        "        start=pathlib.Path.cwd()\n"
+        "    except OSError as error:\n"
+        "        deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
+        "    waiting=installing(start)\n"
+        "    if waiting:\n"
+        "        deadline=time.monotonic()+max(0.0,float(os.environ.get(\"CHAOS_ENGINE_GUARD_WAIT_MS\",\"60000\"))/1000.0)\n"
+        "        while found is None and time.monotonic()<deadline:\n"
+        "            time.sleep(0.2)\n"
+        "            try:\n"
+        "                found=locate(pathlib.Path.cwd())\n"
+        "            except OSError as error:\n"
+        "                deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
+        "            if found is None:\n"
+        '                for hint in filter(None,[os.environ.get(\"CLAUDE_PROJECT_DIR\",\"\"),os.environ.get(\"GEMINI_PROJECT_DIR\",\"\")]):\n'
+        "                    try:\n"
+        "                        found=locate(pathlib.Path(hint))\n"
+        "                    except OSError:\n"
+        "                        found=None\n"
+        "                    if found is not None: break\n"
+        "    if found is None:\n"
+        "        deny(GUARD_TEMP if waiting else GUARD)\n"
         "base,path=found\n"
         f"{event_filter}"
         f'ptr=base/"{pointer}"\n'
