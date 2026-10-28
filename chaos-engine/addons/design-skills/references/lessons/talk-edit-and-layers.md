@@ -45,8 +45,8 @@ It extends [D13 cutting](../cutting-pacing.md) and
     binder noun must sit in **kept-prior** speech (cues ending ≤ `a`).
     Same-cue Latin after `هو` does not bind. Prefer extending the cut or
     landing on a self-contained opener. Gate:
-    `design_qc.py antecedent pre.srt --splice a-b,c-d --noun <binder>`
-    (project binder lists stay out of CE; pass via `--noun`).
+    `design_qc.py antecedent pre.srt --splice a-b,c-d --noun <she> --noun-ho <he>`
+    (`--noun` = هي/دي/ده class; `--noun-ho` = هو/هم class; project lists stay out of CE).
 
 ## Verify
 
@@ -62,8 +62,8 @@ It extends [D13 cutting](../cutting-pacing.md) and
 - [ ] `design_qc.py softjump plan.json` passes for every big jump (soft /
       punch-in / crossfade flagged when `removed_s` is large).
 - [ ] Antecedent check passes on the kept span after every splice.
-- [ ] `design_qc.py antecedent pre.srt --splice … --noun …` passes (G17;
-      no dangling land opener).
+- [ ] `design_qc.py antecedent pre.srt --splice … --noun … --noun-ho …`
+      passes (G17; class-matched binders; no dangling land opener).
 
 ## Sources
 

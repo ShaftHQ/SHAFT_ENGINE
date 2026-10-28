@@ -23,7 +23,7 @@ CARDS = {
                               "Tech/loan lexicon", "design_qc.py termlexicon", "فري", "free"),
     "talk-edit-and-layers": ("never mid-word", "30 ms crossfade", "after the content span", "0.3 s", "Per-frame fade check", "0.8 s", "No mid-sentence jump cuts", "pre-cut time", "RMS dip", "2 or more models",
                              "opaque base", "mask (blur)", "soft transition", "design_qc.py softjump", "Antecedent check",
-                             "G17 per-splice land", "--splice"),
+                             "G17 per-splice land", "--splice", "--noun-ho"),
     "signed-output-release": ("re-gate only the cues that changed", "0 SRT errors", "one opt-in flag", "byte-identical", "`framemd5`", "never re-render",
                               "failed before the fix", "10 fps", "CRLF", "shared profile",
                               "One Short active", "native schedule", "hand-fixed SRTs",

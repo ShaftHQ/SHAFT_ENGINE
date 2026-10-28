@@ -430,38 +430,61 @@ class CaptionChecksTest(unittest.TestCase):
 
 
     def test_antecedent_splice_land_needs_prior_binder(self) -> None:
-        """U11 G17: land opening on هو with binder only inside the cut fails; binder in prior passes."""
-        # pre-cut timeline: cue A (binder), cut removes middle, land opens with هو + Latin
-        bad = srt(
-            (0.0, 1.5, "مقدمة قصيرة"),
-            (1.5, 5.0, "التقرير جاهز"),  # binder inside cut 1.5-6.0 — NOT kept prior
-            (6.0, 8.0, "هو risk report بعد القطع"),
+        """U11 G17: class-aware binders — she --noun must not clear a dangling هو land."""
+        # U11 r1 shape: prior has she-binders only; land «هو …»; ho binder sat inside the cut.
+        r1 = srt(
+            (0.0, 1.32, "دي مش skill انت بتضيفها"),
+            (1.32, 1.80, "دي حاجة"),
+            (2.60, 3.92, "هي فيها كلمة testing بس"),
+            (3.92, 6.50, "هي الأساس فيها فكرة انك انت تبقى hacker"),
+            (20.0, 30.0, "الاوت بوت بتاعك المفروض هو"),  # inside cut — not prior
+            (43.37, 45.0, "هو risk management report"),
+            (45.0, 48.0, "المفروض انك انت تقول لي ايه الحاجات"),
         )
-        good = srt(
-            (0.0, 1.5, "التقرير جاهز قبل القطع"),
-            (1.5, 5.0, "جملة جوه القطع تتشال"),
-            (6.0, 8.0, "هو risk report بعد القطع"),
+        # U11 r2: extend cut past هو cue; land on not-weak «المفروض»
+        r2 = srt(
+            (0.0, 1.32, "دي مش skill انت بتضيفها"),
+            (1.32, 1.80, "دي حاجة"),
+            (2.60, 3.92, "هي فيها كلمة testing بس"),
+            (3.92, 6.50, "هي الأساس فيها فكرة انك انت تبقى hacker"),
+            (20.0, 30.0, "الاوت بوت بتاعك المفروض هو"),
+            (43.37, 44.40, "هو risk management report"),  # still inside extended cut
+            (44.50, 48.0, "المفروض انك انت تقول لي ايه الحاجات"),
         )
+        # ho binder present in prior → PASS for هو land
+        r1_bound = srt(
+            (0.0, 1.32, "دي مش skill انت بتضيفها"),
+            (1.32, 1.80, "دي حاجة"),
+            (2.60, 3.92, "هي فيها كلمة testing بس"),
+            (3.92, 6.50, "التقرير اوت بوت جاهز قبل القطع"),
+            (43.37, 45.0, "هو risk management report"),
+        )
+        she = ["--noun", "حاجة", "--noun", "فكرة", "--noun", "skill", "--noun", "testing"]
+        ho = ["--noun-ho", "تقرير", "--noun-ho", "اوت", "--noun-ho", "بوت", "--noun-ho", "report"]
         with tempfile.TemporaryDirectory() as folder:
-            bad_p = Path(folder) / "bad.srt"
-            good_p = Path(folder) / "good.srt"
-            bad_p.write_text(bad, encoding="utf-8")
-            good_p.write_text(good, encoding="utf-8")
+            r1_p = Path(folder) / "r1.srt"
+            r2_p = Path(folder) / "r2.srt"
+            ok_p = Path(folder) / "bound.srt"
+            r1_p.write_text(r1, encoding="utf-8")
+            r2_p.write_text(r2, encoding="utf-8")
+            ok_p.write_text(r1_bound, encoding="utf-8")
+            # mixed brain-style list via she+ho flags: r1 still FAIL (ho nouns not in prior)
             self.assertEqual(
                 1,
-                run_qc(
-                    "antecedent", str(bad_p),
-                    "--splice", "1.5-6.0",
-                    "--noun", "التقرير",
-                )[0],
+                run_qc("antecedent", str(r1_p), "--splice", "6.50-43.37", *she, *ho)[0],
+            )
+            # she-only --noun must not false-PASS هو land
+            self.assertEqual(
+                1,
+                run_qc("antecedent", str(r1_p), "--splice", "6.50-43.37", *she)[0],
             )
             code, payload = run_qc(
-                "antecedent", str(good_p),
-                "--splice", "1.5-6.0",
-                "--noun", "التقرير",
-            )
+                "antecedent", str(r2_p), "--splice", "6.50-44.50", *she, *ho)
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
             self.assertEqual(payload.get("gate"), "G17")
+            code, payload = run_qc(
+                "antecedent", str(ok_p), "--splice", "6.50-43.37", *she, *ho)
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
     def test_overlayverbatim_rejects_invented_token(self) -> None:
         """U11 G18: short/footer inventing a never-spoken token fails; verbatim passes."""

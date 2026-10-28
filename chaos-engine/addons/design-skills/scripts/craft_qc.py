@@ -960,8 +960,10 @@ def cmd_softjump(qc, args) -> int:
 
 
 # Arabic binder pronouns / demonstratives that open a land cue weakly (G17).
-# Project-specific binder nouns stay on --noun (Automatest lists live in brain).
+# Opener class must match binder class: هو/هم → --noun-ho; هي/دي/ده/… → --noun.
+# Project nouns stay on flags (Automatest lists live in brain).
 WEAK_OPEN = frozenset({"هو", "هي", "هم", "هن", "ده", "دي", "دا", "دول", "هذا", "هذه"})
+HO_OPEN = frozenset({"هو", "هم", "هذا"})  # masculine / "he" class
 
 
 def _norm_tok(word: str) -> str:
@@ -986,16 +988,18 @@ def _parse_splices(spec: str) -> list[tuple[float, float]]:
 
 
 def cmd_antecedent(qc, args) -> int:
-    """G13 kept-span epithets, or G17 per-splice land openers that need a prior binder noun."""
+    """G13 kept-span epithets, or G17 per-splice land openers that need a class-matched prior binder."""
     nouns = [n.strip() for n in (args.noun or []) if n.strip()]
+    nouns_ho = [n.strip() for n in (getattr(args, "noun_ho", None) or []) if n.strip()]
     if getattr(args, "splice", None):
-        # G17: pre-cut SRT + splice list; land cue opener must bind in kept-prior speech.
-        if not nouns:
-            raise qc.Skip("pass --noun at least once (binder nouns for splice lands)")
+        # G17: pre-cut SRT + splice list; land opener binds only to matching class in kept-prior.
+        if not nouns and not nouns_ho:
+            raise qc.Skip("pass --noun and/or --noun-ho (class-matched binders for splice lands)")
         cues = cue_list(qc, args.file)
         cuts = _parse_splices(args.splice)
         hits, lands = [], []
-        noun_norms = {_norm_tok(n) for n in nouns}
+        she_norms = {_norm_tok(n) for n in nouns}
+        ho_norms = {_norm_tok(n) for n in nouns_ho}
         for start, end in cuts:
             land = next((c for c in cues if c["start"] >= end - 0.05), None)
             if land is None:
@@ -1008,8 +1012,12 @@ def cmd_antecedent(qc, args) -> int:
             if opener not in WEAK_OPEN:
                 lands.append({"cut": [start, end], "opener": opener, "bind": "not-weak-opener", "ok": True})
                 continue
-            ok = bool(prior_set & noun_norms)
-            why = "binder-in-prior" if ok else "no-binder-in-prior"
+            if opener in HO_OPEN:
+                ok = bool(prior_set & ho_norms)
+                why = "ho-binder-in-prior" if ok else "ho-no-binder"
+            else:
+                ok = bool(prior_set & she_norms)
+                why = "she-binder-in-prior" if ok else "she-no-binder"
             lands.append({"cut": [start, end], "opener": opener, "bind": why, "ok": ok,
                           "land_cue": land_text, "prior": prior})
             if not ok:
@@ -1019,8 +1027,9 @@ def cmd_antecedent(qc, args) -> int:
                 )
         return qc.report(
             "antecedent", qc.FAIL if hits else qc.PASS,
-            gate="G17", nouns=nouns, hits=hits, lands=lands,
-            note="per-splice land opener; binders via --noun (prior cues only; same-cue Latin does not bind)",
+            gate="G17", nouns=nouns, nouns_ho=nouns_ho, hits=hits, lands=lands,
+            note="per-splice land opener; --noun = she-class, --noun-ho = هو-class "
+                 "(prior cues only; same-cue Latin does not bind)",
         )
     # G13: whole kept span
     text = Path(args.file).read_text(encoding="utf-8")
@@ -1350,11 +1359,13 @@ def register(add, qc) -> None:
     p.add_argument("--epithet", action="append", default=[],
                    help="pronoun/descriptor that needs a referent (repeatable; G13)")
     p.add_argument("--noun", action="append", default=[],
-                   help="antecedent / binder noun that must remain (repeatable)")
+                   help="G13 referent, or G17 she-class binder (هي/دي/ده/…) in prior (repeatable)")
+    p.add_argument("--noun-ho", action="append", default=[], dest="noun_ho",
+                   help="G17 هو/هم-class binder in prior (repeatable); not used for هي/دي lands")
     p.add_argument("--anywhere", action="store_true",
                    help="allow noun anywhere in the file, not only before the epithet (G13)")
     p.add_argument("--splice", default=None,
-                   help="G17: pre-cut splice list a-b,c-d; land opener binds via --noun in prior cues")
+                   help="G17: pre-cut splice list a-b,c-d; land opener binds via class-matched --noun/--noun-ho")
     p = add("overlayverbatim", bind(cmd_overlayverbatim),
             "G18: hook/short/SRT overlay tokens must be spoken verbatim in words.json")
     p.add_argument("words", help="words.json (spoken word bag)")
