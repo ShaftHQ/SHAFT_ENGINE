@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Fail when bundled npm locks declare or resolve vulnerable shell-quote (#7451).
+"""
+Fail when bundled npm locks declare or resolve vulnerable shell-quote (#7451).
 
 GHSA-pqg4-j6r4-53mv patches shell-quote in 1.11.0 (range >=1.8.4 <1.11.0).
 GHSA-395f-4hp3-45gv patches shell-quote in 1.9.0 (range <=1.8.4).

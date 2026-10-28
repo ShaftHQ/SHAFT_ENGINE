@@ -4,17 +4,15 @@ from __future__ import annotations
 
 import json
 import shutil
-import subprocess
+import subprocess  # nosec B404 -- resolved node and repository-owned repair script only.
 import tempfile
 import unittest
 from pathlib import Path
 
 import sys as _sys
-from pathlib import Path as _Path
 
-_sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
+_sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.ci import validate_npm_lock_advisories as advisories
-
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_LOCK = ROOT / "tests/fixtures/npm_lock_advisories/inbundle_shell_quote_1_10_0.package-lock.json"
@@ -114,7 +112,7 @@ class ValidateNpmLockAdvisoriesTest(unittest.TestCase):
                 json.dumps({"name": "shell-quote", "version": "1.10.0"}),
                 encoding="utf-8",
             )
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 -- resolved node and repository-owned repair script.
                 [NODE, str(REPAIR)],
                 cwd=root,
                 capture_output=True,
@@ -135,16 +133,13 @@ class ValidateNpmLockAdvisoriesTest(unittest.TestCase):
                 encoding="utf-8",
             )
             (hoisted / "index.js").write_text("module.exports = {}\n", encoding="utf-8")
-            nested = (
-                root
-                / "node_modules/appium-windows-driver/node_modules/shell-quote"
-            )
+            nested = root / "node_modules/appium-windows-driver/node_modules/shell-quote"
             nested.mkdir(parents=True)
             (nested / "package.json").write_text(
                 json.dumps({"name": "shell-quote", "version": "1.10.0"}),
                 encoding="utf-8",
             )
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603 -- resolved node and repository-owned repair script.
                 [NODE, str(REPAIR)],
                 cwd=root,
                 capture_output=True,
