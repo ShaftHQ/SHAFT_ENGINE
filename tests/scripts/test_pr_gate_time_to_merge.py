@@ -230,9 +230,13 @@ class MergeGroupSameTreeSkipTest(unittest.TestCase):
 
     EXCLUDED = frozenset({"changes", "summary", "main-red-reaction"})
 
-    def test_merge_group_fetches_parents_and_publishes_same_tree(self) -> None:
+    def test_merge_group_checkout_depth_publishes_same_tree(self) -> None:
         jobs = load("pr-gate.yml")["jobs"]
         changes = jobs["changes"]
+        checkout = next(
+            item for item in changes["steps"] if str(item.get("uses", "")).startswith("actions/checkout@")
+        )
+        self.assertEqual(2, checkout["with"]["fetch-depth"])
         self.assertIn("steps.same-tree.outputs.same_tree", changes["outputs"]["same_tree"])
         step = next(
             item
@@ -241,8 +245,9 @@ class MergeGroupSameTreeSkipTest(unittest.TestCase):
         )
         self.assertIn("merge_group", step["if"])
         run = step["run"]
-        self.assertIn("git fetch --no-tags --depth=2", run)
-        self.assertLess(run.index("git fetch --no-tags --depth=2"), run.index("merge_group_same_tree.py"))
+        self.assertNotIn("$GITHUB_SHA", run)
+        self.assertNotIn("github.sha", run)
+        self.assertNotIn("git fetch", run)
         self.assertIn("same_tree != 'true'", jobs["unit-tests"]["if"])
         for name, job in jobs.items():
             condition = str(job.get("if", ""))

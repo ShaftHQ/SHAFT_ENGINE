@@ -91,6 +91,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Depth 2 keeps both parents of a merge-queue commit. Fetching the
+          # raw SHA is not a branch tip and would fail the whole gate.
+          fetch-depth: 2
       - name: Filter changed paths
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
@@ -497,14 +501,12 @@ jobs:
             labels=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/labels" --jq '[.[].name]') || labels="$EVENT_LABELS"
           fi
           python3 scripts/ci/chaos_installer_tier.py --event-name "$GITHUB_EVENT_NAME" --labels "$labels" >> "$GITHUB_OUTPUT"
-      # Default checkout depth is 1, so a merge commit has no parents until this fetch.
+      # Missing parents make the script print false and exit 0, so this step
+      # cannot fail the changes job or stall the merge queue.
       - name: Detect already-green merge-queue tree
         id: same-tree
         if: github.event_name == 'merge_group'
-        run: |
-          set -euo pipefail
-          git fetch --no-tags --depth=2 origin "$GITHUB_SHA"
-          echo "same_tree=$(python3 scripts/ci/merge_group_same_tree.py)" >> "$GITHUB_OUTPUT"
+        run: echo "same_tree=$(python3 scripts/ci/merge_group_same_tree.py)" >> "$GITHUB_OUTPUT"
 
   docs-boundary:
     name: Documentation Boundary Gate
