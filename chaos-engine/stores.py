@@ -1396,7 +1396,8 @@ def ensure_store_snapshot(cwd: Path, common: Path, revision: str) -> Path:
 
 
 def incremental_mine_paths(snapshot: Path, previous: str | None, revision: str) -> list[str] | None:
-    """Files added or modified since ``previous``, or None when a full mine is required.
+    """
+    Files added or modified since ``previous``, or None when a full mine is required.
 
     Full mine only when there is no stamped revision or it is not an ancestor of
     ``revision`` (missing index stamp / rewritten history). Corrupt or format-changed

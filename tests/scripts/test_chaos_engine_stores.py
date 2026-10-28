@@ -105,8 +105,7 @@ class SharedStoreTest(unittest.TestCase):
         self.git("add", ".", cwd=self.primary)
         self.git("commit", "-m", "bulk change set", cwd=self.primary)
         tip = self.git("rev-parse", "HEAD", cwd=self.primary).stdout.strip()
-        common = self.stores.resolve_common_dir(self.primary)
-        # Build a store-snapshot the same way refresh does, or use primary as snapshot stand-in.
+        # Use the primary checkout as the snapshot stand-in for path listing.
         snapshot = self.primary
         paths = self.stores.incremental_mine_paths(snapshot, previous, tip)
         self.assertIsNotNone(paths)
