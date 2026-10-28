@@ -38,6 +38,15 @@ function sleepMs(ms) {
   }
 }
 
+// #7425/#7492: invalid WAIT_MS must not become NaN (instant TEMP); clamp to defaults.
+function guardWaitMs() {
+  const raw = process.env.CHAOS_ENGINE_GUARD_WAIT_MS;
+  if (raw === undefined || raw === "") return 60000;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0) return 60000;
+  return Math.min(value, 600000);
+}
+
 function installInProgress(start) {
   let root = start;
   while (true) {
@@ -185,16 +194,16 @@ function waitForGuard() {
   } catch (error) {
     return null;
   }
-  const waiting = installInProgress(start);
-  if (!waiting) return null;
-  const budget = Math.max(0, Number(process.env.CHAOS_ENGINE_GUARD_WAIT_MS || "60000"));
-  const deadline = Date.now() + budget;
+  if (!installInProgress(start)) return null;
+  const deadline = Date.now() + guardWaitMs();
   while (!found && Date.now() < deadline) {
     sleepMs(200);
     found = guardPath();
   }
   if (!found) {
-    deny(GUARD_TEMPORARILY_UNAVAILABLE);
+    // Re-sample after deadline: TEMP only while install markers remain.
+    if (installInProgress(start)) deny(GUARD_TEMPORARILY_UNAVAILABLE);
+    return null;
   }
   return found;
 }

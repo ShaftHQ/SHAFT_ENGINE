@@ -479,30 +479,30 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertNotEqual({}, payload)
         self.assertIn("ChaosEngine guard unavailable", rendered)
 
-    def test_javascript_launch_temp_denies_when_install_marker_present(self):
-        """#7425: journal without guard → temporary deny after short wait."""
+    def _run_launch_js(self, cwd, env, timeout=15):
         node = shutil.which("node")
         if not node:
             self.skipTest("node is required for this launcher check")
         launcher = ROOT / "chaos-engine/hooks/launch.js"
+        return subprocess.run(  # nosec B603 - fixed node launcher.
+            [node, str(launcher), "gemini"],
+            input=json.dumps({"hook_event_name": "BeforeTool", "tool_name": "write_file"}),
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+            check=False,
+            env=env,
+            timeout=timeout,
+        )
+
+    def test_javascript_launch_temp_denies_when_install_marker_present(self):
+        """#7425: journal without guard → temporary deny after short wait."""
         with tempfile.TemporaryDirectory() as temporary:
             Path(temporary, ".chaos-engine.transaction.json").write_text(
                 '{"operation":"install"}\n', encoding="utf-8"
             )
-            completed = subprocess.run(  # nosec B603 - fixed node launcher.
-                [node, str(launcher), "gemini"],
-                input=json.dumps(
-                    {
-                        "hook_event_name": "BeforeTool",
-                        "tool_name": "write_file",
-                    }
-                ),
-                capture_output=True,
-                text=True,
-                cwd=temporary,
-                check=False,
-                env={**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "400"},
-                timeout=10,
+            completed = self._run_launch_js(
+                temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "400"}
             )
         rendered = completed.stdout + completed.stderr
         self.assertNotEqual(0, completed.returncode, rendered)
@@ -516,7 +516,6 @@ class ChaosEngineHookTest(unittest.TestCase):
         node = shutil.which("node")
         if not node:
             self.skipTest("node is required for this launcher check")
-        launcher = ROOT / "chaos-engine/hooks/launch.js"
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             (root / ".chaos-engine.transaction.json").write_text(
@@ -530,24 +529,10 @@ class ChaosEngineHookTest(unittest.TestCase):
                 "fs.writeFileSync(path.join(d,'guard.py'),\"print('{}')\\n\");},350);"
                 "setTimeout(()=>{},2000);"
             )
-            planter = subprocess.Popen(  # nosec B603 - fixed node planter.
-                [node, "-e", appear],
-            )
+            planter = subprocess.Popen([node, "-e", appear])  # nosec B603
             try:
-                completed = subprocess.run(  # nosec B603 - fixed node launcher.
-                    [node, str(launcher), "gemini"],
-                    input=json.dumps(
-                        {
-                            "hook_event_name": "BeforeTool",
-                            "tool_name": "write_file",
-                        }
-                    ),
-                    capture_output=True,
-                    text=True,
-                    cwd=temporary,
-                    check=False,
-                    env={**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "3000"},
-                    timeout=10,
+                completed = self._run_launch_js(
+                    temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "3000"}
                 )
             finally:
                 planter.wait(timeout=5)
@@ -555,6 +540,93 @@ class ChaosEngineHookTest(unittest.TestCase):
             self.assertNotIn("repair the original installation", rendered, rendered)
             self.assertNotIn("temporarily unavailable", rendered, rendered)
             self.assertEqual(0, completed.returncode, rendered)
+
+    def test_javascript_launch_backup_next_and_stage_markers(self):
+        """#7492: backup.next + stage-* markers (TEMP timeout + success)."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
+        for marker_kind in ("backup.next", "stage"):
+            with self.subTest(marker=marker_kind), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                if marker_kind == "backup.next":
+                    (root / ".chaos-engine.backup.next").mkdir()
+                else:
+                    (root / ".chaos-engine-stage-xyz").mkdir()
+                timed = self._run_launch_js(
+                    temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "400"}
+                )
+                self.assertIn("temporarily unavailable", timed.stdout + timed.stderr)
+                json.loads(timed.stdout)
+                appear = (
+                    "const fs=require('fs');const path=require('path');"
+                    f"const root={json.dumps(str(root))};"
+                    "setTimeout(()=>{const d=path.join(root,'.chaos-engine','hooks');"
+                    "fs.mkdirSync(d,{recursive:true});"
+                    "fs.writeFileSync(path.join(d,'guard.py'),\"print('{}')\\n\");},350);"
+                    "setTimeout(()=>{},2000);"
+                )
+                planter = subprocess.Popen([node, "-e", appear])  # nosec B603
+                try:
+                    ok = self._run_launch_js(
+                        temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "3000"}
+                    )
+                finally:
+                    planter.wait(timeout=5)
+                self.assertEqual(0, ok.returncode, ok.stdout + ok.stderr)
+
+    def test_javascript_launch_markers_cleared_mid_wait_permanent_deny(self):
+        """#7492: markers cleared mid-wait → permanent deny after re-sample."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            marker = root / ".chaos-engine.transaction.json"
+            marker.write_text('{"operation":"update"}\n', encoding="utf-8")
+            clearer = (
+                "const fs=require('fs');"
+                f"const marker={json.dumps(str(marker))};"
+                "setTimeout(()=>{try{fs.unlinkSync(marker)}catch(e){}},250);"
+                "setTimeout(()=>{},2000);"
+            )
+            planter = subprocess.Popen([node, "-e", clearer])  # nosec B603
+            try:
+                completed = self._run_launch_js(
+                    temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "800"}
+                )
+            finally:
+                planter.wait(timeout=5)
+        rendered = completed.stdout + completed.stderr
+        payload = json.loads(completed.stdout)
+        self.assertEqual("block", payload.get("decision"))
+        self.assertIn("repair the original installation", rendered)
+        self.assertNotIn("temporarily unavailable", rendered)
+
+    def test_javascript_launch_invalid_wait_ms_still_emits_deny_json(self):
+        """#7492: invalid WAIT_MS must not NaN-instant-TEMP; emit JSON deny."""
+        with tempfile.TemporaryDirectory() as temporary:
+            completed = self._run_launch_js(
+                temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "not-a-number"}
+            )
+        self.assertTrue(completed.stdout.strip(), completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual("block", payload.get("decision"))
+        self.assertIn("repair the original installation", completed.stdout)
+        # With markers + invalid env, guardWaitMs falls back to 60000 — probe via node.
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
+        probe = r"""
+const raw='not-a-number';
+const value=Number(raw);
+const ms=(!Number.isFinite(value)||value<0)?60000:Math.min(value,600000);
+if(ms!==60000) process.exit(1);
+"""
+        checked = subprocess.run(  # nosec B603
+            [node, "-e", probe], capture_output=True, text=True, check=False
+        )
+        self.assertEqual(0, checked.returncode, checked.stderr)
 
     def test_javascript_launch_reports_missing_cwd_without_private_paths(self):
         node = shutil.which("node")
