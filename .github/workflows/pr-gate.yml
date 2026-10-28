@@ -1680,9 +1680,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout
+      - name: Checkout PR head (full history)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # PR head (not the ephemeral merge ref) + full history so
+          # merge-base --is-ancestor cannot false-fail on a depth=1 clone.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
           sparse-checkout: scripts/ci/assert_branch_uptodate.py
           sparse-checkout-cone-mode: false
       - name: Fetch base tip and assert HEAD contains it

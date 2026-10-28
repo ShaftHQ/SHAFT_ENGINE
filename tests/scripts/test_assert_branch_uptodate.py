@@ -76,6 +76,9 @@ class AssertBranchUptodateTest(unittest.TestCase):
         self.assertIn("branch-uptodate:", workflow)
         self.assertIn("scripts/ci/assert_branch_uptodate.py", workflow)
         self.assertIn("--fetch-url", workflow)
+        job = workflow.split("branch-uptodate:", 1)[1].split("summary:", 1)[0]
+        self.assertIn("fetch-depth: 0", job)
+        self.assertIn("github.event.pull_request.head.sha", job)
         # Required by summary so it cannot be bypassed.
         summary = workflow.split("summary:", 1)[1].split("main-red-reaction:", 1)[0]
         self.assertIn("branch-uptodate", summary)
