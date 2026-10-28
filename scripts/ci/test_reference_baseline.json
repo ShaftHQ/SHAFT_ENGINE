@@ -15,7 +15,6 @@
   "shaft-cli/src/main/java/com/shaft/commandline/command/GuideCommand.java": 2,
   "shaft-cli/src/main/java/com/shaft/commandline/command/SessionCommand.java": 6,
   "shaft-cli/src/main/java/com/shaft/commandline/runtime/ConnectionFactory.java": 2,
-  "shaft-cli/src/main/java/com/shaft/commandline/session/SessionManager.java": 3,
   "shaft-doctor/src/main/java/com/shaft/doctor/analysis/ProjectPatternRuleLoader.java": 1,
   "shaft-doctor/src/main/java/com/shaft/doctor/format/DoctorFormatException.java": 2,
   "shaft-doctor/src/main/java/com/shaft/doctor/history/AllureHistoryModels.java": 1,
