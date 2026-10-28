@@ -634,7 +634,7 @@ public final class FirstRunWizardPanel extends JPanel implements Disposable {
         notNow.setVisible(false);
     }
 
-    private void fileReport() {
+    void fileReport() {
         String stepId = "install";
         String body = SetupFailureReport.attentionBody(pluginVersion(), ideBuild(),
                 System.getProperty("os.name", ""), stepId);
