@@ -148,10 +148,15 @@ public final class MobileAccessibilityTreeConverter {
 
     private static String attribute(Element element, String name) {
         String issued = IosXcuiAttributeNames.issued(name);
-        if (issued != null && !issued.equals(name) && element.hasAttribute(issued)) {
-            return element.getAttribute(issued).trim();
+        if (!issued.equals(name) && element.hasAttribute(issued)) {
+            return trimmedAttribute(element, issued);
         }
-        return element.hasAttribute(name) ? element.getAttribute(name).trim() : "";
+        return element.hasAttribute(name) ? trimmedAttribute(element, name) : "";
+    }
+
+    private static String trimmedAttribute(Element element, String attributeName) {
+        String value = element.getAttribute(attributeName);
+        return value == null ? "" : value.trim();
     }
 
     private static List<Element> childElements(Element element) {

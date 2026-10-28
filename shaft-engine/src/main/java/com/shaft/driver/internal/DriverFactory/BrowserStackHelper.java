@@ -264,9 +264,6 @@ public class BrowserStackHelper {
      * Web paths already set {@code local} themselves and are left unchanged.
      */
     private static MutableCapabilities withNativeLocal(MutableCapabilities capabilities) {
-        if (capabilities == null) {
-            return null;
-        }
         Object raw = capabilities.getCapability("bstack:options");
         if (!(raw instanceof Map<?, ?> existing)) {
             return capabilities;

@@ -74,7 +74,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 /**
  * Provides a fluent API for performing low-level UI interactions on web and mobile elements.
@@ -878,19 +877,19 @@ public class Actions extends ElementActions {
                         // Use upload input field to send the file location for upload
                         input.sendKeys(absoluteFilePath);
                     }
-                    case GET_ATTRIBUTE -> output.set(readOrDropStale(foundElements, () ->
-                            foundElements.get().getFirst().getAttribute(IosXcuiAttributeNames.issued(String.valueOf(data)))));
-                    case GET_DOM_ATTRIBUTE -> output.set(readOrDropStale(foundElements, () ->
-                            foundElements.get().getFirst().getDomAttribute(IosXcuiAttributeNames.issued(String.valueOf(data)))));
+                    case GET_ATTRIBUTE -> readOrDropStale(foundElements, () -> output.set(
+                            firstFound(foundElements).getAttribute(IosXcuiAttributeNames.issued(String.valueOf(data)))));
+                    case GET_DOM_ATTRIBUTE -> readOrDropStale(foundElements, () -> output.set(
+                            firstFound(foundElements).getDomAttribute(IosXcuiAttributeNames.issued(String.valueOf(data)))));
                     case GET_DOM_PROPERTY -> output.set(foundElements.get().getFirst().getDomProperty((String) data));
                     case GET_CSS_VALUE -> output.set(foundElements.get().getFirst().getCssValue((String) data));
                     case GET_NAME -> output.set(foundElements.get().getFirst().getAccessibleName());
-                    case GET_IS_DISPLAYED -> output.set(String.valueOf(readOrDropStale(foundElements, () ->
-                            foundElements.get().getFirst().isDisplayed())));
-                    case GET_IS_ENABLED -> output.set(String.valueOf(readOrDropStale(foundElements, () ->
-                            foundElements.get().getFirst().isEnabled())));
-                    case GET_IS_SELECTED -> output.set(String.valueOf(readOrDropStale(foundElements, () ->
-                            foundElements.get().getFirst().isSelected())));
+                    case GET_IS_DISPLAYED -> readOrDropStale(foundElements, () -> output.set(String.valueOf(
+                            firstFound(foundElements).isDisplayed())));
+                    case GET_IS_ENABLED -> readOrDropStale(foundElements, () -> output.set(String.valueOf(
+                            firstFound(foundElements).isEnabled())));
+                    case GET_IS_SELECTED -> readOrDropStale(foundElements, () -> output.set(String.valueOf(
+                            firstFound(foundElements).isSelected())));
                     case GET_TEXT -> {
                         output.set(foundElements.get().getFirst().getText());
                         if ((output.get() == null || output.get().isBlank()) && !DriverFactoryHelper.isMobileNativeExecution()) {
@@ -1358,9 +1357,14 @@ public class Actions extends ElementActions {
      * {@link WebDriverException} whose text contains {@code previously found element} or {@code fb_uid}.
      * Other exceptions propagate immediately.
      */
-    private static <T> T readOrDropStale(AtomicReference<List<WebElement>> foundElements, Supplier<T> read) {
+    private static WebElement firstFound(AtomicReference<List<WebElement>> foundElements) {
+        WebElement element = Objects.requireNonNull(foundElements.get()).getFirst();
+        return Objects.requireNonNull(element);
+    }
+
+    private static void readOrDropStale(AtomicReference<List<WebElement>> foundElements, Runnable read) {
         try {
-            return read.get();
+            read.run();
         } catch (RuntimeException exception) {
             if (!isRetryableStale(exception)) {
                 throw exception;
@@ -1383,7 +1387,8 @@ public class Actions extends ElementActions {
             if (current instanceof StaleElementReferenceException) {
                 return true;
             }
-            if (current instanceof WebDriverException && xcuiStaleText(current.getMessage())) {
+            if (current instanceof WebDriverException
+                    && xcuiStaleText(Objects.requireNonNullElse(current.getMessage(), ""))) {
                 return true;
             }
             current = current.getCause();

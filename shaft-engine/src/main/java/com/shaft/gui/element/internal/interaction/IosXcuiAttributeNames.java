@@ -19,10 +19,13 @@ public final class IosXcuiAttributeNames {
      * keeps the requested name, including Android {@code class}.
      *
      * @param name requested attribute name
-     * @return the name to issue
+     * @return the name to issue; empty when {@code name} is null
      */
     public static String issued(String name) {
-        if (name == null || !isIosXcuiNative() || !isClassAlias(name)) {
+        if (name == null) {
+            return "";
+        }
+        if (!isIosXcuiNative() || !isClassAlias(name)) {
             return name;
         }
         return "type";
