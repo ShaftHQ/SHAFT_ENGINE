@@ -3405,9 +3405,12 @@ module.install_with_dependencies(project, source, "3" * 40)
                 b"SQLite format 3\\x00",
                 project.joinpath(".chaos-engine-state/mempalace/sqlite_exact.sqlite3").read_bytes(),
             )
-            self.assertEqual(
-                "wing: generated\n", project.joinpath("mempalace.yaml").read_text(encoding="utf-8")
-            )
+            # #7465: initialize_account_project_palace merges owned excludes into the
+            # LIVE_PERSISTENT yaml; host-failure restore must leave that merge in place.
+            yaml_text = project.joinpath("mempalace.yaml").read_text(encoding="utf-8")
+            self.assertTrue(yaml_text.startswith("wing: generated\n"), yaml_text)
+            self.assertIn("exclude_patterns:", yaml_text)
+            self.assertIn(".chaos-engine/**", yaml_text)
             # First-install provision/host failure keeps portable core for self-heal (#5629/#5630).
             self.assertTrue(project.joinpath(".chaos-engine").exists())
             self.assertTrue(project.joinpath(".chaos-engine/install.py").is_file())
