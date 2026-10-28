@@ -2,8 +2,8 @@
 
 import importlib.util
 import unittest
+import unittest.mock as mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location(
