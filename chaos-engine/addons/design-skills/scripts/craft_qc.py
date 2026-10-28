@@ -1244,6 +1244,113 @@ def cmd_orthography(qc, args) -> int:
     )
 
 
+# G21 title polarity / negation lemmas (Coach U13 REJECT).
+TITLE_NEG_LEMMAS = {"مافيش", "مفيش", "مش", "ما", "لسه", "not", "no"}
+TITLE_REL_AFTER = {
+    "قالوا", "قال", "كانت", "كان", "كنت", "يكون", "تكون", "فى", "في",
+    "هو", "هي", "هم", "احنا", "إحنا", "انت", "إن", "ان",
+}
+TITLE_SEG_SPLIT = re.compile(r"\s*[—–\-]\s*")
+TITLE_META_RE = re.compile(r"^## Title[^\n]*\n\n(?P<title>.+)\n", re.MULTILINE)
+TITLE_PUNCT = re.compile(r"[.,!?;:؟،؛\"\'()\[\]{}…]+")
+
+
+def _title_fold_tok(word: str) -> str:
+    word = TITLE_PUNCT.sub("", word.replace("\u00a0", " ").replace("\u0640", "")).strip()
+    word = word.translate(str.maketrans("أإآىة", "ااايه"))
+    if re.search(r"[A-Za-z]", word):
+        word = word.lower()
+    if word.startswith("و") and len(word) > 2 and word[1:] in TITLE_NEG_LEMMAS:
+        word = word[1:]
+    return word
+
+
+def _title_tokenize(text: str) -> list[str]:
+    return [t for t in (_title_fold_tok(x) for x in text.replace("|", " ").split()) if t]
+
+
+def _title_neg_in_tokens(toks: list[str]) -> set[str]:
+    out: set[str] = set()
+    for i, tok in enumerate(toks):
+        lem = tok if tok in TITLE_NEG_LEMMAS else None
+        if not lem:
+            continue
+        if lem == "ما":
+            nxt = toks[i + 1] if i + 1 < len(toks) else ""
+            if nxt in TITLE_REL_AFTER:
+                continue
+        out.add(lem)
+    return out
+
+
+def _title_content_tokens(toks: list[str]) -> set[str]:
+    neg = _title_neg_in_tokens(toks)
+    return {t for t in toks if t not in neg and t not in TITLE_NEG_LEMMAS and len(t) > 1}
+
+
+def _title_from_metadata(path: Path) -> str:
+    text = path.read_text(encoding="utf-8")
+    match = TITLE_META_RE.search(text)
+    if not match:
+        raise ValueError(f"no ## Title in {path}")
+    return match.group("title").strip()
+
+
+def cmd_titlepolarity(qc, args) -> int:
+    """G21: title segments must preserve source-cue negation (token presence ≠ meaning)."""
+    title = (args.title or "").strip()
+    if getattr(args, "metadata", None):
+        title = _title_from_metadata(Path(args.metadata))
+    if not title:
+        raise qc.Skip("pass --title or --metadata")
+    cues = cue_list(qc, args.srt)
+    errors, checked = [], []
+    title_toks = _title_tokenize(title)
+    title_negs = _title_neg_in_tokens(title_toks)
+    segments = [s.strip() for s in TITLE_SEG_SPLIT.split(title) if s.strip()] or [title]
+
+    for si, seg in enumerate(segments, 1):
+        seg_toks = _title_tokenize(seg)
+        seg_negs = _title_neg_in_tokens(seg_toks)
+        content = _title_content_tokens(seg_toks)
+        if not content:
+            checked.append(
+                {"segment": si, "text": seg, "content": [], "required_negs": [], "ok": True}
+            )
+            continue
+        required: set[str] = set()
+        hit_cues: list[str] = []
+        for cue in cues:
+            text_c = " ".join(cue["lines"])
+            ct = _title_tokenize(text_c)
+            if not (content & _title_content_tokens(ct)):
+                continue
+            cue_negs = _title_neg_in_tokens(ct)
+            hit_cues.append(text_c)
+            if cue_negs:
+                required |= cue_negs
+        missing = sorted(required - seg_negs)
+        ok = not missing
+        checked.append({
+            "segment": si, "text": seg, "content": sorted(content),
+            "required_negs": sorted(required), "title_negs": sorted(title_negs),
+            "source_cues": hit_cues, "missing": missing, "ok": ok,
+        })
+        if missing:
+            errors.append(
+                f"segment[{si}] {seg!r}: polarity flip — source negation {missing} "
+                f"not preserved in title (cues: {hit_cues})"
+            )
+    return qc.report(
+        "titlepolarity", qc.FAIL if errors else qc.PASS,
+        gate="G21", title=title, title_negs=sorted(title_negs),
+        errors=errors, checked=checked,
+        note="segment-local negation; first-half مافيش does not license a positive second claim",
+    )
+
+
+
+
 def cmd_textfloor(qc, args) -> int:
     """Text under 2.6% of the frame's short side; nothing read under 28 px on portrait."""
     spec = json.loads(Path(args.file).read_text(encoding="utf-8"))
@@ -1492,6 +1599,11 @@ def register(add, qc) -> None:
     p.add_argument("--hook", default="", help="hook card text; | splits parts")
     p.add_argument("--fix", action="append", default=[], metavar="AR=CORRECT",
                    help="extend baseline ASR_ORTHO_FIX map")
+    p = add("titlepolarity", bind(cmd_titlepolarity),
+            "G21: title segments must preserve source-cue negation lemmas")
+    p.add_argument("--srt", required=True, help="source/caption SRT overlapping title content")
+    p.add_argument("--title", default="", help="title text (or use --metadata)")
+    p.add_argument("--metadata", default=None, help="METADATA.md with ## Title block")
     p = add("textfloor", bind(cmd_textfloor), "text under 2.6%% of the short side (28 px on portrait)")
     p.add_argument("file")
     p.add_argument("--frame", default="1080x1920")

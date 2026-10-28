@@ -585,6 +585,39 @@ class CaptionChecksTest(unittest.TestCase):
             )
             self.assertEqual((0, "pass"), (code3, payload3["status"]), payload3)
             self.assertEqual(payload3.get("diff_exact_raw_asr"), 0.0)
+    def test_titlepolarity_u13_r1_fail_r2_pass(self) -> None:
+        """U13 G21: r1 drops مافيش لسه on segment 2 → FAIL; r2 preserves → PASS."""
+        with tempfile.TemporaryDirectory() as folder:
+            srt_path = Path(folder) / "cues.srt"
+            # Minimal U13 cues: seg1 content + seg2 content with negs
+            srt_path.write_text(
+                srt(
+                    (0.0, 3.0, "مافيش standardization خالص"),
+                    (29.0, 31.5, "ومافيش لسه governance"),
+                    (32.0, 35.0, "مطبقة وبينادوا بوجود review"),
+                ),
+                encoding="utf-8",
+            )
+            bad = "مافيش standardization — governance مطبقة"
+            good = "مافيش standardization — مافيش لسه governance مطبقة"
+            code_b, payload_b = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--title", bad)
+            self.assertEqual(1, code_b, payload_b)
+            self.assertEqual(payload_b.get("gate"), "G21")
+            self.assertTrue(payload_b.get("errors"))
+            code_g, payload_g = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--title", good)
+            self.assertEqual((0, "pass"), (code_g, payload_g["status"]), payload_g)
+            self.assertEqual(payload_g.get("gate"), "G21")
+            # --metadata path
+            meta = Path(folder) / "METADATA.md"
+            meta.write_text(
+                "# meta\n\n## Title\n\n" + good + "\n\n## Description\n\nx\n",
+                encoding="utf-8",
+            )
+            code_m, payload_m = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--metadata", str(meta))
+            self.assertEqual((0, "pass"), (code_m, payload_m["status"]), payload_m)
 
 
 if __name__ == "__main__":
