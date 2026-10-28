@@ -61,6 +61,12 @@ Burned-in captions, hook lines or labels mix RTL and Latin. It extends
     SRT string alone. False positive: reading LTR visual order of a
     correct RTL paint as “wrong.” Article **right** of Latin = correct
     RTL (read the article first).
+13. Tech-term lexicon (ASR Arabic-script misspellings): Whisper often
+    paints English tech terms as Arabic-script transliterations. Prefer
+    Latin with the bound article outside the isolate (rule 2 / 11). Gate
+    with `design_qc.py termlexicon` on the shipped SRT; extend the
+    placeholder lexicon with `--term AR=LATIN` when a new miss appears —
+    do not waive by tagging alone.
 
 ## Verify
 
@@ -79,6 +85,8 @@ Burned-in captions, hook lines or labels mix RTL and Latin. It extends
       `plaintext`; author newlines preserved.
 - [ ] `design_qc.py bidi <captions|hooks.json|labels>` passes (percent
       warnings allowed); rendered frames show no tofu.
+- [ ] `design_qc.py termlexicon cues.srt` passes (no leftover Arabic-script
+      tech transliterations; `--term` for project extensions).
 
 ## Sources
 

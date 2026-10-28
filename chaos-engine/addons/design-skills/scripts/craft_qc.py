@@ -399,6 +399,68 @@ def cmd_boundprefix(qc, args) -> int:
     return qc.report("boundprefix", qc.FAIL if hits else qc.PASS, cues=len(cues), hits=hits)
 
 
+# U2 G7: ASR paints English tech terms as Arabic-script transliterations.
+# Prefer Latin with the bound article outside the isolate (L02). Placeholder lexicon
+# only — project terms arrive via --term AR=LATIN, never shipped here.
+TERM_WORDS = {
+    "داتايز": "database", "داتابيز": "database", "داتابيس": "database", "داتابايز": "database",
+    "تست": "test", "تستنج": "testing", "فريمورك": "framework", "باكند": "backend", "فرونتند": "frontend",
+}
+TERM_PHRASES = (("فريم ورك", "framework"), ("تست كيس", "test case"), ("تست كيسز", "test cases"))
+TERM_PREF = ("وال", "فال", "بال", "لل", "ال", "و", "ف", "ب", "ك")
+
+
+def _term_lexicon_maps(extra: list[str]) -> tuple[dict[str, str], list[tuple[str, str]]]:
+    words, phrases = dict(TERM_WORDS), list(TERM_PHRASES)
+    for item in extra:
+        if "=" not in item:
+            continue
+        ar, lat = item.split("=", 1)
+        ar, lat = ar.strip(), lat.strip()
+        if not ar or not lat:
+            continue
+        if " " in ar:
+            phrases.append((ar, lat))
+        else:
+            words[ar] = lat
+    phrases.sort(key=lambda p: len(p[0]), reverse=True)
+    return words, phrases
+
+
+def term_lexicon_hits(text: str, words: dict[str, str], phrases: list[tuple[str, str]]) -> list[str]:
+    """Flag leftover Arabic-script forms of known tech terms (optional bound prefixes)."""
+    hits: list[str] = []
+    joined = text.replace(" ", " ")
+    for ar, lat in phrases:
+        if ar in joined:
+            hits.append(f"Arabic-script tech transliteration {ar!r} → prefer Latin {lat!r}")
+    for tok in joined.split():
+        core = tok.rstrip("؟?.!")
+        if core in words:
+            hits.append(f"Arabic-script tech transliteration {tok!r} → prefer Latin {words[core]!r}")
+            continue
+        for pref in TERM_PREF:
+            if core.startswith(pref) and len(core) > len(pref):
+                rest = core[len(pref):]
+                if rest.startswith("ـ"):  # tatweel after article
+                    rest = rest[1:]
+                if rest in words:
+                    hits.append(
+                        f"Arabic-script tech transliteration {tok!r} → prefer Latin {words[rest]!r} "
+                        "(bound article outside)"
+                    )
+                    break
+    return hits
+
+
+def cmd_termlexicon(qc, args) -> int:
+    words, phrases = _term_lexicon_maps(args.term)
+    cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    hits = [f"cue {i}: {hit}" for i, cue in enumerate(cues, 1)
+            for hit in term_lexicon_hits(" ".join(cue["lines"]), words, phrases)]
+    return qc.report("termlexicon", qc.FAIL if hits else qc.PASS, cues=len(cues), hits=hits)
+
+
 def cmd_fadetail(qc, args) -> int:
     data = json.loads(Path(args.words).read_text(encoding="utf-8"))
     ends = [w["end"] for w in words_of(data) if w["end"] is not None]
@@ -598,6 +660,11 @@ def register(add, qc) -> None:
     p.add_argument("--phrase", action="append", default=[])
     p = add("boundprefix", bind(cmd_boundprefix), "caption line ending on a bound prefix")
     p.add_argument("file")
+    p = add("termlexicon", bind(cmd_termlexicon),
+            "ASR Arabic-script tech transliterations left in captions (prefer Latin)")
+    p.add_argument("file")
+    p.add_argument("--term", action="append", default=[], metavar="AR=LATIN",
+                   help="extend placeholder lexicon (multiword AR allowed before =)")
     p = add("fadetail", bind(cmd_fadetail), "tail fade clears the last spoken word")
     p.add_argument("--words", required=True)
     p.add_argument("--end", type=float, required=True)
