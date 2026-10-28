@@ -1220,6 +1220,7 @@ def upgrade_host_receipt_drift_needed(project: Path) -> bool:
             token in message
             for token in (
                 "host adapter drift",
+                "host preflight snapshot is invalid",
                 "host receipt does not match the installed core",
                 "host receipt is missing or invalid",
                 "host anchor collision",
@@ -1254,7 +1255,7 @@ def _quarantine_state_path(state: Path, preferred: str) -> Path:
 
 
 def _is_healable_host_drift(error: BaseException) -> bool:
-    """True when host preflight/verify drift should quarantine and rebind (#5685)."""
+    """True when host preflight/verify drift should quarantine and rebind (#5685/#7463)."""
     texts = [str(error)]
     cause = error.__cause__
     if cause is not None:
@@ -1264,6 +1265,7 @@ def _is_healable_host_drift(error: BaseException) -> bool:
         token in blob
         for token in (
             "host adapter drift",
+            "host preflight snapshot is invalid",
             "host receipt does not match the installed core",
             "MCP server collision",
             "Codex configuration collision",
@@ -7933,6 +7935,7 @@ def _blocked_diagnostic_code(args, error: BaseException) -> tuple[str, str]:
         diagnostic_code = "CE_WIPED_RUNTIME"
     elif (
         "host adapter drift" in message
+        or "host preflight snapshot is invalid" in message
         or "host receipt does not match the installed core" in message
         or "receipt integrity drift" in message
     ):
