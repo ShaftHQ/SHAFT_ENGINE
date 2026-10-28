@@ -138,9 +138,7 @@ jobs:
         continue-on-error: true
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: |
-            */target/*.jar
-            target/bom.json
+          subject-path: '*/target/*.jar'
       - name: Attach provenance bundle to the GitHub Release
         if: inputs.dry_run != true && steps.attest.outcome == 'success'
         continue-on-error: true

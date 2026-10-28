@@ -52,8 +52,8 @@ class ReleaseProvenanceTest(unittest.TestCase):
         self.assertEqual(pin, attest["uses"].split()[0])
         self.assertTrue(attest.get("continue-on-error"))
         self.assertIn("inputs.dry_run", attest["if"])
-        self.assertIn("*/target/*.jar", attest["with"]["subject-path"])
-        self.assertIn("target/bom.json", attest["with"]["subject-path"])
+        self.assertEqual("*/target/*.jar", attest["with"]["subject-path"])
+        self.assertNotIn("bom.json", attest["with"]["subject-path"])
         reconcile = next(
             step for step in job["steps"] if "reconcile_maven_central_release.py" in str(step.get("run", ""))
         )
