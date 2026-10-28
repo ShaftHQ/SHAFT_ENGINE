@@ -18,6 +18,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -36,7 +37,10 @@ class ReportingSetupServiceTest {
         }
 
         assertTrue(packageJson.contains("\"adm-zip\": \"0.6.1\""));
+        assertTrue(packageJson.contains("\"dompurify\": \"3.4.17\""));
         assertTrue(lock.matches("(?s).*\"node_modules/adm-zip\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"0\\.6\\.1\".*"));
+        assertTrue(lock.matches("(?s).*\"node_modules/dompurify\"\\s*:\\s*\\{\\s*\"version\"\\s*:\\s*\"3\\.4\\.17\".*"));
+        assertFalse(lock.contains("dompurify-3.4.16.tgz"));
         Path canonicalLock = Files.createTempFile("reporting-lock", ".json");
         try {
             Files.writeString(canonicalLock, lock.replace("\r\n", "\n").replace('\r', '\n'));
