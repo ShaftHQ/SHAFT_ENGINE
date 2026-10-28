@@ -225,5 +225,32 @@ class InstallerAcceptancePartsTest(unittest.TestCase):
             self.assertIn(f"tests.scripts.test_chaos_engine_{module}", others["run"])
 
 
+class MergeGroupSameTreeSkipTest(unittest.TestCase):
+    """Skip merge-queue legs when the queued tree already matches the PR head."""
+
+    EXCLUDED = frozenset({"changes", "summary", "main-red-reaction"})
+
+    def test_merge_group_fetches_parents_and_publishes_same_tree(self) -> None:
+        jobs = load("pr-gate.yml")["jobs"]
+        changes = jobs["changes"]
+        self.assertIn("steps.same-tree.outputs.same_tree", changes["outputs"]["same_tree"])
+        step = next(
+            item
+            for item in changes["steps"]
+            if "merge_group_same_tree.py" in item.get("run", "")
+        )
+        self.assertIn("merge_group", step["if"])
+        run = step["run"]
+        self.assertIn("git fetch --no-tags --depth=2", run)
+        self.assertLess(run.index("git fetch --no-tags --depth=2"), run.index("merge_group_same_tree.py"))
+        self.assertIn("same_tree != 'true'", jobs["unit-tests"]["if"])
+        for name, job in jobs.items():
+            condition = str(job.get("if", ""))
+            if name in self.EXCLUDED:
+                self.assertNotIn("same_tree", condition, name)
+                continue
+            self.assertIn("same_tree != 'true'", condition, name)
+
+
 if __name__ == "__main__":
     unittest.main()
