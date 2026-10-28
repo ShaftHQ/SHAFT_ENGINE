@@ -1365,14 +1365,14 @@ public class Actions extends ElementActions {
     private static void readOrDropStale(AtomicReference<List<WebElement>> foundElements, Runnable read) {
         try {
             read.run();
+        } catch (StaleElementReferenceException stale) {
+            foundElements.set(List.of());
+            throw stale;
         } catch (RuntimeException exception) {
             if (!isRetryableStale(exception)) {
                 throw exception;
             }
             foundElements.set(List.of());
-            if (exception instanceof StaleElementReferenceException stale) {
-                throw stale;
-            }
             String message = exception.getMessage();
             throw new StaleElementReferenceException(
                     message == null || message.isBlank() ? "stale element reference" : message,
