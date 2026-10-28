@@ -3,6 +3,9 @@ package com.shaft.intellij.ui.firstrun;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,6 +60,46 @@ class SetupFailureReportTest {
         assertTrue(first.contains("IllegalStateException"));
         assertTrue(first.contains("com.shaft.intellij.ui.firstrun.InstallStep.check"));
         assertTrue(first.contains("install"));
+    }
+
+    @Test
+    void attentionReportKeepsTheCheckSentenceWithoutAFakeCrash() throws IOException {
+        String cause = WizardMessages.get("wizard.failure.cause");
+        String body = SetupFailureReport.attentionBody(
+                "10.4.20261024", "AI-262.9437.185.2621.16467767", "Windows 11", "install");
+        String fingerprint = SetupFailureReport.fingerprint("install");
+        String panel = Files.readString(Path.of(
+                "src/main/java/com/shaft/intellij/ui/firstrun/FirstRunWizardPanel.java"));
+        String english = reportBodyLine(Path.of("src/main/resources/messages/ShaftBundle.properties"));
+        String spanish = reportBodyLine(Path.of("src/main/resources/messages/ShaftBundle_es.properties"));
+
+        assertTrue(body.contains("10.4.20261024"), body);
+        assertTrue(body.contains("AI-262.9437.185.2621.16467767"), body);
+        assertTrue(body.contains("Windows 11"), body);
+        assertTrue(body.contains("Step install"), body);
+        assertTrue(body.contains(cause), body);
+        assertFalse(body.contains("IllegalStateException"), body);
+        assertFalse(body.contains("runCheck"), body);
+        assertEquals(SetupFailureReport.fingerprint((Throwable) null, "install"), fingerprint);
+        assertFalse(fingerprint.contains("IllegalStateException"), fingerprint);
+        assertFalse(fingerprint.contains("runCheck"), fingerprint);
+        assertFalse(panel.contains("IllegalStateException"));
+        assertFalse(panel.contains("FirstRunWizardPanel.runCheck"));
+        assertReportBodyPlaceholders(english);
+        assertReportBodyPlaceholders(spanish);
+    }
+
+    private static String reportBodyLine(Path properties) throws IOException {
+        return Files.readAllLines(properties).stream()
+                .filter(line -> line.startsWith("wizard.report.body="))
+                .findFirst()
+                .orElse("");
+    }
+
+    private static void assertReportBodyPlaceholders(String line) {
+        assertTrue(line.contains("{4}"), line);
+        assertFalse(line.contains("{5}"), line);
+        assertFalse(line.contains("{6}"), line);
     }
 
     @Test

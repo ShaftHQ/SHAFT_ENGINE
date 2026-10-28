@@ -61,6 +61,16 @@ public final class SetupFailureReport {
         return text;
     }
 
+    public static String attentionBody(String pluginVersion, String ideBuild, String osName, String stepId) {
+        return redact(WizardMessages.format("wizard.report.body", pluginVersion, ideBuild, osName, stepId,
+                WizardMessages.get("wizard.failure.cause")));
+    }
+
+    public static String fingerprint(String stepId) {
+        // Attention is not a thrown failure, so no throwable is allocated.
+        return fingerprint((Throwable) null, stepId);
+    }
+
     public static String fingerprint(Throwable error, String stepId) {
         String type = error == null ? "unknown" : error.getClass().getName();
         String frame = "none";
