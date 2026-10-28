@@ -24,7 +24,7 @@ NEEDLES = {
         "ear-checked word timestamps", "Pad end-card silence",
         "ASR hallucinates on pauses", "2 or more models", "Hook = spoken words", "cross-source agreement",
         "shot cut and a clean sentence onset", "re-runs the caption checks", "one at a time, detached",
-        "Silence-gap on the **final** render", "design_qc.py silencegap",
+        "Silence-gap on the **final** render", "design_qc.py silencegap", "--content-end",
         "exact-raw", "design_qc.py txdiff",
         "design_qc.py cuemids", "design_qc.py cuegaps", "design_qc.py asrhall", "design_qc.py boundprefix",
         "design_qc.py fadetail", "design_qc.py bidi"),

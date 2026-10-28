@@ -400,6 +400,34 @@ class Batch3MediaChecksTest(unittest.TestCase):
         code, payload = run_qc("silencegap", str(ok), "--hook-end", "0", "--max", "0.6")
         self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
+    def test_silencegap_content_end_excludes_end_card_pad(self) -> None:
+        """U4 G8 Carl: end-card silence past --content-end must not fail; mid gap still fails."""
+        d = Path(self.tmp.name)
+        # 1.0 s tone + 0.9 s mid silence + 0.5 s tone + 2.0 s end-card silence
+        clip = d / "endpad.wav"
+        ffmpeg("-f", "lavfi", "-i", "sine=f=440:d=1.0",
+               "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono:d=0.9",
+               "-f", "lavfi", "-i", "sine=f=440:d=0.5",
+               "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono:d=2.0",
+               "-filter_complex", "[0:a][1:a][2:a][3:a]concat=n=4:v=0:a=1[a]", "-map", "[a]", str(clip))
+        # Without content-end, default duration-0.3 still sees mid gap → fail
+        code, payload = run_qc("silencegap", str(clip), "--hook-end", "0", "--max", "0.6")
+        self.assertEqual(1, code, payload)
+        # With content-end at end of speech (~2.4), mid gap still fails; end pad ignored
+        code, payload = run_qc(
+            "silencegap", str(clip), "--hook-end", "0", "--content-end", "2.4", "--max", "0.6")
+        self.assertEqual(1, code, payload)
+        self.assertTrue(any(g["s"] < 2.4 for g in payload.get("fail_gaps", [])), payload)
+        # Clean mid-answer + long end pad: content-end excludes pad → pass
+        clean = d / "clean_endpad.wav"
+        ffmpeg("-f", "lavfi", "-i", "sine=f=440:d=2.0",
+               "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono:d=3.5",
+               "-filter_complex", "[0:a][1:a]concat=n=2:v=0:a=1[a]", "-map", "[a]", str(clean))
+        code, payload = run_qc(
+            "silencegap", str(clean), "--hook-end", "0", "--content-end", "2.0", "--max", "0.6")
+        self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+        self.assertFalse(payload.get("fail_gaps"), payload)
+
     def test_mediaclamp(self) -> None:
         self.assertEqual(0, run_qc("mediaclamp", str(self.ok_cues), str(self.busy))[0])
         self.assertEqual(1, run_qc("mediaclamp", str(self.bad_cues), str(self.busy))[0])

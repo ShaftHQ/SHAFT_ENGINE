@@ -56,7 +56,9 @@ and [L03](talk-edit-and-layers.md).
     RMS dBFS with a short hop (≤10 ms). Do not trust `silencedetect`
     alone for mid-answer dead air. Gate: FAIL if any mid-answer gap
     (after `hook_end`, before end-card) **>0.6 s** —
-    `design_qc.py silencegap`.
+    `design_qc.py silencegap`. Always pass `--content-end` (time before
+    the end card / last speech); the default `duration−0.3` is **not**
+    safe when end-card silence is long.
 
 ## Verify
 
@@ -70,8 +72,8 @@ and [L03](talk-edit-and-layers.md).
 - [ ] `design_qc.py fadetail --words words.json --end <s> --fade <s>`
       passes.
 - [ ] `design_qc.py bidi` passes on the captions and the hook/label text.
-- [ ] `design_qc.py silencegap final.mp4 --hook-end <s>` passes (no mid-
-      answer gap >0.6 s).
+- [ ] `design_qc.py silencegap final.mp4 --hook-end <s> --content-end <s>`
+      passes (no mid-answer gap >0.6 s; `--content-end` = before end-card).
 - [ ] `design_qc.py txdiff cues.srt words.json` reports exact-raw + fuzzy;
       gate on exact-raw.
 - [ ] Notes record the scene-cut scan, the reframe tile check and the

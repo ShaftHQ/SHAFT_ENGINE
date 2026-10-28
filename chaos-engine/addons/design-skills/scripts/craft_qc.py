@@ -576,6 +576,8 @@ def cmd_silencegap(qc, args) -> int:
 
     silencedetect alone understated a ~1.25 s gap as 0.69 s. Gate: FAIL if any
     mid-answer gap (after hook_end, before content_end) exceeds --max (0.6 s).
+    Pass --content-end (before end-card); default duration-0.3 is not safe for
+    long end-card pads.
     """
     import math
     import struct
@@ -858,8 +860,11 @@ def register(add, qc) -> None:
     p = add("silencegap", bind(cmd_silencegap),
             "RMS mid-answer silence gap on the final render (FAIL if any gap > max s)")
     p.add_argument("file")
-    p.add_argument("--hook-end", type=float, default=0.0)
-    p.add_argument("--content-end", type=float, default=None)
+    p.add_argument("--hook-end", type=float, default=0.0,
+                   help="exclude [0, hook_end) from mid-answer")
+    p.add_argument("--content-end", type=float, default=None,
+                   help="end of mid-answer (before end-card / last speech); "
+                        "default duration-0.3 is NOT safe for end-card shorts — pass it")
     p.add_argument("--thr", type=float, default=-40.0, help="RMS dBFS threshold")
     p.add_argument("--hop", type=float, default=0.01)
     p.add_argument("--min-gap", type=float, default=0.08)
