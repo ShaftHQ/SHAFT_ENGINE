@@ -320,24 +320,31 @@ MEMPALACE_OWNED_EXCLUDES = (
 
 
 def merge_owned_mempalace_excludes_bytes(content: bytes) -> bytes:
-    """Append missing owned exclude_patterns; preserve every existing entry (#7465)."""
+    """Append missing owned exclude_patterns; preserve every existing entry (#7465).
+
+    Quoted and unquoted list items both count as present (same optional-quote rule as
+    ``missing_owned_mempalace_excludes``). An owned pattern the user removed is
+    re-added by design on the next merge.
+    """
     text = content.decode("utf-8")
     present: set[str] = set()
     block = re.search(r"(?ms)^exclude_patterns\s*:\s*\n((?:[ \t]+.*\n?|\s*\n)*)", text)
     if block is not None:
+        # Optional quotes — unquoted owned lines must not be treated as missing.
         for match in re.finditer(
-            r"(?m)^[ \t]+-[ \t]+(?P<q>[\'\"])(?P<body>.*?)(?P=q)",
+            r"(?m)^\s*-\s*['\"]?([^'\"#\n]+?)['\"]?\s*$",
             block.group(1),
         ):
-            present.add(match.group("body"))
+            present.add(match.group(1))
     else:
         flow = re.search(r"(?m)^exclude_patterns\s*:\s*\[([^\]]*)\]\s*$", text)
         if flow is not None:
             for item in flow.group(1).split(","):
-                item = item.strip().strip("\'\"")
+                item = item.strip().strip("'\"")
                 if item:
                     present.add(item)
     missing = [pattern for pattern in MEMPALACE_OWNED_EXCLUDES if pattern not in present]
+
     if not missing:
         return content
     addition = "".join(f"  - '{pattern}'\n" for pattern in missing)

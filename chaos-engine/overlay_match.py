@@ -650,7 +650,7 @@ def apply_mempalace_owned_excludes_doctor(result: dict[str, object], project: Pa
         "missingCount": len(missing),
         "fixNext": (
             "python3 .chaos-engine/install.py repair --project . --component retrieval-config "
-            "(merges missing owned exclude_patterns into mempalace.yaml; user entries stay)"
+            "(merges missing owned exclude_patterns into mempalace.yaml; user entries stay; removed owned patterns are re-added by design)"
         ),
     }
 

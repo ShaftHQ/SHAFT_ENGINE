@@ -160,5 +160,46 @@ class OwnedExcludesTest(unittest.TestCase):
             self.assertGreater(row["missingCount"], 0)
 
 
+    def test_unquoted_owned_lines_are_not_duplicated(self):
+        """#7465 coach: unquoted owned entries must count as present (no quoted dupes)."""
+        hosts = load("hosts")
+        # Unquoted forms of two owned patterns plus a user placeholder.
+        before = (
+            INIT_GENERATED
+            + "exclude_patterns:\n"
+            + "  - mempalace.yaml\n"
+            + "  - .memory/**\n"
+            + "  - user-private-placeholder/**\n"
+        ).encode()
+        after = hosts.merge_owned_mempalace_excludes_bytes(before)
+        text = after.decode()
+        self.assertEqual(1, text.count("mempalace.yaml"))
+        self.assertEqual(1, text.count(".memory/**"))
+        self.assertIn("user-private-placeholder/**", text)
+        # Every owned pattern present exactly once as a list item.
+        for pattern in hosts.MEMPALACE_OWNED_EXCLUDES:
+            matches = [
+                line for line in text.splitlines()
+                if line.lstrip().startswith("-") and pattern in line
+            ]
+            self.assertEqual(1, len(matches), pattern)
+
+    def test_removed_owned_exclude_is_re_added_by_design(self):
+        """#7465: a user who deletes an owned pattern gets it restored on merge."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            # Full owned list minus one harness path.
+            owned = list(self.dependencies.MEMPALACE_OWNED_EXCLUDES)
+            kept = [p for p in owned if p != ".chaos-engine/**"]
+            body = INIT_GENERATED + "exclude_patterns:\n" + "".join(
+                f"  - '{p}'\n" for p in kept
+            )
+            (project / "mempalace.yaml").write_text(body, encoding="utf-8")
+            self.assertIn(".chaos-engine/**", self.dependencies.missing_owned_mempalace_excludes(project))
+            self.assertTrue(self.dependencies.apply_owned_mempalace_excludes(project))
+            self.assertEqual([], self.dependencies.missing_owned_mempalace_excludes(project))
+            self.assertIn(".chaos-engine/**", (project / "mempalace.yaml").read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()

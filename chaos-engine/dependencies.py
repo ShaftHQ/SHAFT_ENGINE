@@ -1544,6 +1544,8 @@ def apply_owned_mempalace_excludes(project: Path) -> bool:
 
     Installer-created configs and user/consumer configs are both merged. Existing
     ``exclude_patterns`` entries are preserved; only absent owned patterns are added.
+    An owned pattern the user removed is re-added by design on the next install, mine,
+    repair, or doctor-driven merge — private harness paths must stay out of the palace.
     """
     configuration = project.resolve() / "mempalace.yaml"
     if is_link_or_reparse(configuration) or not configuration.is_file():
@@ -2493,6 +2495,7 @@ def _reprobe_managed_account_runtimes(
     *,
     runner,
     opener,
+    which=shutil.which,
 ) -> tuple[dict[str, dict[str, object]], dict[str, str]]:
     """Install exact java/node and re-probe after non-reused prerequisite installs."""
     managed_python = None
@@ -2638,6 +2641,7 @@ def _install_non_reused_account_prerequisites(
         selected_system,
         runner=runner,
         opener=opener,
+        which=which,
     )
 
 
