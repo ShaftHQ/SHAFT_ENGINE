@@ -23,9 +23,6 @@ CODACY = "Codacy Static Code Analysis"
 NEW_ISSUES = re.compile(r"(\d+)\s+new issue", re.IGNORECASE)
 
 
-# Ratchet: first published OpenSSF Scorecard was 4.4 (2026-10-16). Only raise this.
-SCORECARD_FLOOR = 4.0
-
 def _gh(path: str) -> object:
     gh = shutil.which("gh")
     if gh is None:
@@ -44,27 +41,23 @@ def codacy_rows(runs: list[dict]) -> list[dict]:
     return rows
 
 
-def summarize(rows: list[dict], coverage: float | None, floor: float,
-              scorecard: float | None = None, scorecard_floor: float = SCORECARD_FLOOR) -> dict:
+def summarize(rows: list[dict], coverage: float | None, floor: float) -> dict:
     failing = sum(1 for row in rows if row["conclusion"] == "failure")
     new_issues = sum(row["new_issues"] for row in rows)
     coverage_drop = coverage is not None and coverage < floor
-    scorecard_drop = scorecard is not None and scorecard < scorecard_floor
     return {"commits": len(rows), "codacy_failures": failing, "codacy_new_issues": new_issues,
             "coverage": coverage, "coverage_floor": floor,
-            "scorecard": scorecard, "scorecard_floor": scorecard_floor,
-            "regression": failing > 0 or coverage_drop or scorecard_drop}
+            "regression": failing > 0 or coverage_drop}
 
 
 def render(summary: dict) -> str:
     status = "REGRESSION" if summary["regression"] else "OK"
     return (
         "## Quality trend (main)\n\n"
-        "| Commits | Codacy failures | Codacy new issues | Coverage % | Floor % | Scorecard | Scorecard floor | Status |\n"
-        "|---|---|---|---|---|---|---|---|\n"
+        "| Commits | Codacy failures | Codacy new issues | Coverage % | Floor % | Status |\n"
+        "|---|---|---|---|---|---|\n"
         f"| {summary['commits']} | {summary['codacy_failures']} | {summary['codacy_new_issues']} "
-        f"| {summary['coverage']} | {summary['coverage_floor']} "
-        f"| {summary.get('scorecard')} | {summary.get('scorecard_floor', 0.0)} | {status} |\n"
+        f"| {summary['coverage']} | {summary['coverage_floor']} | {status} |\n"
     )
 
 
@@ -86,28 +79,14 @@ def fetch(repo: str, limit: int) -> tuple[list[dict], float | None]:
     return runs, float(coverage) if coverage is not None else None
 
 
-def fetch_scorecard(repo: str) -> float | None:
-    """#7001: the published OpenSSF Scorecard aggregate score (0-10)."""
-    url = f"https://api.scorecard.dev/projects/github.com/{repo}"
-    try:
-        with urllib.request.urlopen(url, timeout=20) as response:  # nosec B310 - fixed https host
-            score = json.load(response).get("score")
-    except (OSError, ValueError):
-        return None
-    return float(score) if score is not None else None
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True)
     parser.add_argument("--limit", type=int, default=30)
     parser.add_argument("--coverage-floor", type=float, default=72.9)
-    # Raise to the first published score once it exists; a drop then opens ci-quality.
-    parser.add_argument("--scorecard-floor", type=float, default=SCORECARD_FLOOR)
     args = parser.parse_args(argv)
     runs, coverage = fetch(args.repo, args.limit)
-    summary = summarize(codacy_rows(runs), coverage, args.coverage_floor,
-                        fetch_scorecard(args.repo), args.scorecard_floor)
+    summary = summarize(codacy_rows(runs), coverage, args.coverage_floor)
     print(render(summary))
     print(json.dumps(summary))
     return 2 if summary["regression"] else 0

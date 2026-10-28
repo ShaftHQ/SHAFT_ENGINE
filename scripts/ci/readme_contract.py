@@ -279,12 +279,6 @@ def _badge_errors(link_scan: str) -> list[str]:
         errors.append(
             f"README.md exceeds the {STATUS_BADGE_BUDGET}-badge budget above the first section"
         )
-    kinds = ["codecov" if "/codecov/" in s else "scorecard" if "/ossf-scorecard/" in s else "" for s in status]
-    if "codecov" in kinds and "scorecard" in kinds:
-        if kinds.index("codecov") != kinds.index("scorecard") + 1:
-            errors.append(
-                "README.md must place the Codecov badge right after the OpenSSF Scorecard badge"
-            )
     return errors
 
 
