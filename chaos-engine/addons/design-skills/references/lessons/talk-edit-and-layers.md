@@ -32,6 +32,14 @@ It extends [D13 cutting](../cutting-pacing.md) and
    the frame.
 8. End card: append it after the content span; it never overlaps speech.
    Fade the span audio out over 0.3 s and hold the panel through the fade.
+9. Big content jumps (a splice that removes a long bridge, ≫ a pause)
+   need a **soft transition**: keep the 30 ms audio crossfade and add a
+   short zoom punch-in (~0.4–0.8 s after land) or another soft mask so
+   the cut does not read as a glitch. Prefer keeping 1–2 bridge sentences
+   when length allows. Gate: `design_qc.py softjump plan.json`.
+10. Antecedent check before splice lock: scan the kept span for pronouns
+    and epithets; ensure the referent noun/setup remains (or rewrite so
+    the referent is self-contained). See also [L06](caption-video-qc.md).
 
 ## Verify
 
@@ -44,6 +52,9 @@ It extends [D13 cutting](../cutting-pacing.md) and
       see-through panel.
 - [ ] Per-frame fade check: the end card starts after the last word, the
       audio fades over 0.3 s, and the panel is held on every fade frame.
+- [ ] `design_qc.py softjump plan.json` passes for every big jump (soft /
+      punch-in / crossfade flagged when `removed_s` is large).
+- [ ] Antecedent check passes on the kept span after every splice.
 
 ## Sources
 

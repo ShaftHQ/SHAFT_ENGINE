@@ -37,6 +37,17 @@ extends [C10 hooks](../craft/hooks.md) and [D13 cutting](../cutting-pacing.md).
     family under the hook; lengthen the hook crossfade (~0.55 s); land
     captions in the same stroke/scrim system. Prove with frames at
     ~0.8 / 1.5 / 1.7 s, not only hookcheck scores.
+11. Hook preserves modality: a spoken **question** stays a question on
+    the card (end with `؟` / `?`; keep the interrogative). A spoken
+    **claim** stays a claim. Modality match is never N/A — including
+    viral hooks. Gate: `design_qc.py hookmodality --hook --spoken`.
+12. Q&A / disagreement Shorts must include the **answer beat** (or
+    reasoning payoff), not only the setup. Extending past a neat
+    mid-thought end is required when the answer lands later.
+13. OUT SRT hook-bleed: under-hook speech lives in cues that end ≤
+    `hook_end+0.3` (dropped from burn); the first surviving cue starts
+    at/after `hook_end` with post-hook text only. Gate:
+    `design_qc.py hookbleed cues.srt --hook-end <s>`.
 
 ## Verify
 
@@ -48,6 +59,10 @@ extends [C10 hooks](../craft/hooks.md) and [D13 cutting](../cutting-pacing.md).
 - [ ] Frame 1 is read muted: the card is legible and a face is visible.
 - [ ] Frames at ~0.8 / 1.5 / 1.7 s show shared lower-third chrome across
       the hook→caption crossfade (no chrome jump).
+- [ ] `design_qc.py hookmodality --hook hook.txt --spoken spoken.txt`
+      passes (question↔؟ / claim↔claim).
+- [ ] Q&A / viral disagreement clips carry the answer beat or payoff.
+- [ ] `design_qc.py hookbleed cues.srt --hook-end <s>` passes.
 
 ## Sources
 

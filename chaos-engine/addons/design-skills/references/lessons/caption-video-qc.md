@@ -54,11 +54,15 @@ and [L03](talk-edit-and-layers.md).
     can be killed for memory without an error.
 13. Silence-gap on the **final** render (post-denoise/loudnorm): measure
     RMS dBFS with a short hop (≤10 ms). Do not trust `silencedetect`
-    alone for mid-answer dead air. Gate: FAIL if any mid-answer gap
-    (after `hook_end`, before end-card) **>0.6 s** —
-    `design_qc.py silencegap`. Always pass `--content-end` (time before
-    the end card / last speech); the default `duration−0.3` is **not**
-    safe when end-card silence is long.
+    alone for mid-answer dead air. Hard gate: FAIL if any mid-answer gap
+    (after `hook_end`, before end-card) **>0.6 s**. Soft target: aim
+    mid-answer gaps **≤0.45 s** (`--target 0.45` warns above it without
+    failing). Always pass `--content-end` (last word / last cue, not
+    end-card); default `duration−0.3` is **not** safe for long end pads.
+14. Antecedent check on every splice: pronouns and epithets in the kept
+    span need their referent noun/setup still present (or rewrite the
+    card/caption so the referent is self-contained). Gate with
+    `design_qc.py antecedent` (`--epithet` / `--noun`).
 
 ## Verify
 
@@ -73,9 +77,12 @@ and [L03](talk-edit-and-layers.md).
       passes.
 - [ ] `design_qc.py bidi` passes on the captions and the hook/label text.
 - [ ] `design_qc.py silencegap final.mp4 --hook-end <s> --content-end <s>`
-      passes (no mid-answer gap >0.6 s; `--content-end` = before end-card).
+      passes hard (>0.6 s FAIL); `--target 0.45` has no soft warnings for
+      handoff; `--content-end` = last speech, not end-card.
 - [ ] `design_qc.py txdiff cues.srt words.json` reports exact-raw + fuzzy;
       gate on exact-raw.
+- [ ] `design_qc.py antecedent kept.txt --epithet <e> --noun <n>` passes
+      after every splice.
 - [ ] Notes record the scene-cut scan, the reframe tile check and the
       shot-cut onset.
 
