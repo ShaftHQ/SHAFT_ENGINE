@@ -90,7 +90,11 @@ updates:
     labels:
       - "dependencies"
     ignore:
-      # REST Assured 6.3.0 and openapi-request-validator 3.0.0 still call the Jackson 2 SchemaRegistry.getSchema overload that networknt 3 removed.
+      # Blocked on Atlassian openapi-request-validator Jackson 3 migration:
+      # https://github.com/atlassian/openapi-request-validator/issues/21
+      # https://github.com/atlassian/openapi-request-validator/issues/37
+      # https://github.com/atlassian/openapi-request-validator/pull/24 (unmerged)
+      # REST Assured 6.3.0 and openapi-request-validator-core 3.0.0 still call SchemaRegistry.getSchema(com.fasterxml.jackson.databind.JsonNode).
       - dependency-name: "com.networknt:json-schema-validator"
         update-types: ["version-update:semver-major"]
     groups:

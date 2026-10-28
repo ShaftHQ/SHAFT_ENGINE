@@ -159,6 +159,75 @@ public class OpenApiCoverageReporterUnitTest {
         }
     }
 
+    @Test(description = "swaggerValidationEnabled(true) validates a matching JSON body against content.application/json.schema (hits SchemaRegistry.getSchema)")
+    public void testSwaggerValidationEnabledMatchesJsonSchema() throws Exception {
+        String spec = writeJsonSchemaResourceSpec();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/resource", exchange -> {
+            byte[] body = "{\"ok\":true}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+        server.start();
+
+        try {
+            SHAFT.Properties.api.set()
+                    .swaggerValidationEnabled(true)
+                    .swaggerValidationUrl(spec)
+                    .openApiCoverageReportEnabled(false);
+
+            SHAFT.API api = new SHAFT.API("http://127.0.0.1:" + server.getAddress().getPort() + "/");
+            // RestActions → OpenApiValidationFilter → ResponseValidator.validateResponseBody
+            // → SchemaValidator → SchemaRegistry.getSchema(JsonNode). Must succeed on networknt 2.x.
+            api.get("resource").perform();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test(description = "swaggerValidationEnabled(true) rejects a JSON body that fails content.application/json.schema (proves schema validation ran)")
+    public void testSwaggerValidationEnabledRejectsMismatchedJsonBody() throws Exception {
+        String spec = writeJsonSchemaResourceSpec();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/resource", exchange -> {
+            // ok must be boolean; string forces Schema.validate after getSchema.
+            byte[] body = "{\"ok\":\"not-a-boolean\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(body);
+            }
+        });
+        server.start();
+
+        try {
+            SHAFT.Properties.api.set()
+                    .swaggerValidationEnabled(true)
+                    .swaggerValidationUrl(spec)
+                    .openApiCoverageReportEnabled(false);
+
+            SHAFT.API api = new SHAFT.API("http://127.0.0.1:" + server.getAddress().getPort() + "/");
+            Throwable error = Assert.expectThrows(Throwable.class, () -> api.get("resource").perform());
+            Throwable cursor = error;
+            boolean sawOpenApiValidation = false;
+            while (cursor != null) {
+                if (cursor instanceof OpenApiValidationFilter.OpenApiValidationException
+                        || String.valueOf(cursor.getMessage()).contains("validation.response.body")) {
+                    sawOpenApiValidation = true;
+                    break;
+                }
+                cursor = cursor.getCause();
+            }
+            assertTrue(sawOpenApiValidation,
+                    "expected OpenAPI response-body schema failure, got: " + error);
+        } finally {
+            server.stop(0);
+        }
+    }
+
     private String writeSpec() throws IOException {
         specFile = Files.createTempFile("shaft-openapi-coverage", ".yaml");
         Files.writeString(specFile, """
@@ -251,6 +320,40 @@ public class OpenApiCoverageReporterUnitTest {
                       responses:
                         '200':
                           description: ok
+                """);
+        return specFile.toString().replace("\\", "/");
+    }
+
+    /**
+     * Spec with response content schema so Atlassian ResponseValidator reaches
+     * SchemaRegistry.getSchema(JsonNode). An empty/no-schema 200 short-circuits
+     * before getSchema (openapi-request-validator-core 3.0.0 ResponseValidator).
+     */
+    private String writeJsonSchemaResourceSpec() throws IOException {
+        specFile = Files.createTempFile("shaft-openapi-json-schema-resource", ".yaml");
+        Files.writeString(specFile, """
+                openapi: 3.0.0
+                info:
+                  title: SHAFT JSON Schema Guard API
+                  version: 1.0.0
+                paths:
+                  /resource:
+                    get:
+                      tags:
+                        - Resources
+                      operationId: getResource
+                      responses:
+                        '200':
+                          description: ok
+                          content:
+                            application/json:
+                              schema:
+                                type: object
+                                required:
+                                  - ok
+                                properties:
+                                  ok:
+                                    type: boolean
                 """);
         return specFile.toString().replace("\\", "/");
     }
