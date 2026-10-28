@@ -326,6 +326,69 @@ class CaptionChecksTest(unittest.TestCase):
             code, payload = run_qc("opendoubt", str(good))
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
+
+    def test_metadatadesc_exact_four_line_template(self) -> None:
+        """U10 G16: freeform desc fails; exact 4-line template with --site/--tags passes."""
+        title = "محتاجين نكب mind — إحنا مش فاهمين"
+        good_body = (
+            f"مقطع من الـ Q&A: {title}\n"
+            "الإجابة كاملة: https://www.youtube.com/watch?v=OcgL3MwC014&t=2126s\n"
+            "https://example.com\n"
+            "#testing #automation #shorts\n"
+        )
+        bad_body = (
+            "ملخص سريع عن الموضوع بدون لينك أو تاجات.\n"
+            "كلام مخترع عن جزء متشال من الـ splice.\n"
+        )
+        def meta(desc: str) -> str:
+            return (
+                f"# YouTube metadata\n\n## Title (≤70)\n\n{title}\n\n"
+                f"## Description (4 lines)\n\n{desc}"
+            )
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "bad.md"
+            good = Path(folder) / "good.md"
+            bad.write_text(meta(bad_body), encoding="utf-8")
+            good.write_text(meta(good_body), encoding="utf-8")
+            self.assertEqual(
+                1,
+                run_qc(
+                    "metadatadesc", str(bad),
+                    "--site", "https://example.com",
+                    "--tags", "#testing #automation #shorts",
+                )[0],
+            )
+            code, payload = run_qc(
+                "metadatadesc", str(good),
+                "--site", "https://example.com",
+                "--tags", "#testing #automation #shorts",
+            )
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+            self.assertEqual(payload.get("gate"), "G16")
+            # wrong site fill-in fails
+            self.assertEqual(
+                1,
+                run_qc(
+                    "metadatadesc", str(good),
+                    "--site", "https://other.example",
+                    "--tags", "#testing #automation #shorts",
+                )[0],
+            )
+            # trailing freeform 5th line must FAIL (MULTILINE $ used to truncate)
+            five = Path(folder) / "five.md"
+            five.write_text(
+                meta(good_body + "extra freeform fifth line that must fail\n"),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                1,
+                run_qc(
+                    "metadatadesc", str(five),
+                    "--site", "https://example.com",
+                    "--tags", "#testing #automation #shorts",
+                )[0],
+            )
+
     def test_hookbleed_straddle_fails(self) -> None:
         """U6 G11: cue straddling hook_end with under-hook speech fails."""
         with tempfile.TemporaryDirectory() as folder:

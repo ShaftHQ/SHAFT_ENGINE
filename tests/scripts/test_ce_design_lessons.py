@@ -26,7 +26,8 @@ CARDS = {
                               "failed before the fix", "10 fps", "CRLF", "shared profile",
                               "One Short active", "native schedule", "hand-fixed SRTs",
                               "≤0.45 s soft target", "silencegap --target 0.45",
-                              "self-flagged", "design_qc.py opendoubt"),
+                              "self-flagged", "design_qc.py opendoubt",
+                              "G16 Shorts description", "design_qc.py metadatadesc"),
     "cross-surface-takeaways": ("at most 1 brand-colour key word", "1.05", "Explicit CTA end card",
                                 "big cursor", "Masked speaker", "Pattern interrupt", "verb first", "reduced motion"),
 }

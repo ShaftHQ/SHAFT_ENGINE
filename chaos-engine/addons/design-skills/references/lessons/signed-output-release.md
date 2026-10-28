@@ -39,6 +39,14 @@ visual or gate change is coming. It pairs with
    One Short active at a time: build → self-review → accept → native
    schedule before starting the next clip. Parallel renders on a shared
    Chrome profile lose hand-fixed SRTs.
+8. **G16 Shorts description:** METADATA `## Description` is exactly four
+   lines — no freeform paraphrase, no invented spliced-out speech:
+   (1) `مقطع من الـ Q&A: ` + **same** Title string (≤70);
+   (2) `الإجابة كاملة: ` + canonical
+   `https://www.youtube.com/watch?v=<VIDEO_ID>&t=<START_SECS>s`;
+   (3) project site URL; (4) project hashtag line. Gate before handoff:
+   `design_qc.py metadatadesc METADATA.md --site <url> --tags "<tags>"`
+   (write `qc/<rev>/metadata_desc_gate.json`).
 
 ## Verify
 
@@ -54,6 +62,8 @@ visual or gate change is coming. It pairs with
       (hard >0.6 s already FAIL).
 - [ ] `design_qc.py opendoubt SELF-REVIEW.md` passes (no open self-flagged
       doubts).
+- [ ] `design_qc.py metadatadesc METADATA.md --site … --tags …` passes
+      (exact 4-line desc; site/tags are project fill-ins).
 
 ## Sources
 
