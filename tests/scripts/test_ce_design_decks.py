@@ -22,11 +22,14 @@ QC = DESIGN / "scripts/design_qc.py"
 HAS_FFMPEG = bool(shutil.which("ffmpeg") and shutil.which("ffprobe"))
 CARDS = {
     "deck-qc-measurable.md": ("name: deck-qc-measurable", "zero rows", "rendered spans", "padding", "Ghost layout art", "pixel",
-                              "design_qc.py cxnglue", "design_qc.py deckgap", "design_qc.py slidediff", "Waivers", "--min-leg 10", "whitelist", "padding >= 12"),
+                              "design_qc.py cxnglue", "design_qc.py deckgap", "design_qc.py slidediff", "Waivers", "--min-leg 10", "whitelist", "padding >= 12",
+                              "slide-level", "single-panel content layout", "hanging indent", "Never invent a closer"),
     "deck-roundtrip-review.md": ("name: deck-roundtrip-review", "modified time", "speaker notes", "10 MB",
                                  "design_qc.py pptxparity", "reject", "delta", "re-check external state",
                                  "application/vnd.google-apps.presentation", "redraw", "re-resolve", "never from a cached file",
-                                 "never body text", "no client names"),
+                                 "never body text", "no client names",
+                                 "patches the exact round-N final", "named helper", "unique path under", "trash them after finalize",
+                                 "explicit typeface"),
 }
 
 
@@ -101,6 +104,13 @@ class DeckCardsTest(unittest.TestCase):
         self.assertIn("deck-qc-measurable.md", system)
         self.assertLessEqual(len((DESIGN / "references/craft/training-decks.md").read_bytes()), 6144)
         self.assertLessEqual(len((DESIGN / "SKILL.md").read_bytes()), 4096)
+        linked_flat = " ".join(linked.split())
+        system_flat = " ".join(system.split())
+        for needle in ("Refresh doctrine", "written waiver", "explicitly on every visible run"):
+            self.assertIn(needle, linked_flat)
+        for needle in ("course-map", "single-panel content", "slide-level construction"):
+            self.assertIn(needle, system_flat)
+        self.assertLessEqual(len((SLIDES / "deck-system.md").read_bytes()), 6144)
 
     def test_cards_carry_no_project_data(self) -> None:
         for name in CARDS:

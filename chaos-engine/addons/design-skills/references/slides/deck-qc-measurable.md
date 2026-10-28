@@ -30,17 +30,22 @@ Companion to [C12 training decks](../craft/training-decks.md) and
    padding >= 12, and the note and reference clearances.
 5. **Cross-deck sameness**: the same component renders the same pixels in
    every deck. Diff a reference crop of one deck against every instance
-   (art region diff = 0.00 %).
+   (art region diff = 0.00 %). Divider art is one shared slide-level
+   construction, not layout-driven art that drifts across decks.
 6. **Type floors**: minimum sizes, at most N sizes per slide, no mid-word
    breaks, no orphan word, code lines never soft-wrap (rendered line count
-   equals paragraph count). If it does not fit, restructure; never shrink
-   below the floor.
+   equals paragraph count). Soft-wrap fixes use an explicit newline plus
+   hanging indent; mid-token breaks: widen or regrid before rewording
+   (teaching meaning unchanged). If it does not fit, restructure; never
+   shrink below the floor.
 7. **Connectors**: glued at both ends, one width, colour and head, no tiny
    final leg, no diagonals unless they are glued straight spokes. If an
    elbow cannot be made clean and the steps are already ordered, remove the
    arrow.
 8. **Waivers** are written per slide in the brief and in the review file, so
-   they are not rediscovered every round.
+   they are not rediscovered every round. Never invent a closer CTA, claim
+   or line absent from the approved base just to clear a detector; leave
+   the waiver written.
 
 ## Pixel-only bugs
 
@@ -49,7 +54,9 @@ look find them.
 
 - **Ghost layout art**: a leftover panel or second copy of an image that is
   absent from the slide's shape tree. Test a band that must be blank and
-  diff the art region against a reference.
+  diff the art region against a reference. Quiz and cream-header slides
+  use a single-panel content layout; a multi-panel leftover leaves a ghost
+  band visible only as pixels.
 - **Text touching a picture**: descenders a point or two from a
   screenshot is not a text-in-container fault, so the padding check is
   silent. Gate the text-box bottom to picture top gap (>= 6 pt) and zoom
