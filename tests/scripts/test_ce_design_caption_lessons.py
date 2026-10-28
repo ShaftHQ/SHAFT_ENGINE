@@ -374,6 +374,20 @@ class CaptionChecksTest(unittest.TestCase):
                     "--tags", "#testing #automation #shorts",
                 )[0],
             )
+            # trailing freeform 5th line must FAIL (MULTILINE $ used to truncate)
+            five = Path(folder) / "five.md"
+            five.write_text(
+                meta(good_body + "extra freeform fifth line that must fail\n"),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                1,
+                run_qc(
+                    "metadatadesc", str(five),
+                    "--site", "https://example.com",
+                    "--tags", "#testing #automation #shorts",
+                )[0],
+            )
 
     def test_hookbleed_straddle_fails(self) -> None:
         """U6 G11: cue straddling hook_end with under-hook speech fails."""

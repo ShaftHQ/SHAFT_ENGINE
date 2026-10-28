@@ -836,7 +836,7 @@ META_TITLE_RE = re.compile(
     re.MULTILINE,
 )
 META_DESC_RE = re.compile(
-    r"^## Description[^\n]*\n\n(?P<body>(?:.+\n){3}.+)$",
+    r"^## Description[^\n]*\n\n(?P<body>(?:.+\n){3}.+)\n?\Z",
     re.MULTILINE,
 )
 META_LINE1_PREFIX = "مقطع من الـ Q&A: "
