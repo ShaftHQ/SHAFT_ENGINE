@@ -39,6 +39,35 @@ class ReleaseProvenanceTest(unittest.TestCase):
         self.assertIn(".intoto.jsonl", step["run"])
         upload = next(s for s in job["steps"] if s.get("name") == "Keep the SBOM for the GitHub Release")
         self.assertIn("*.intoto.jsonl", upload["with"]["path"])
+
+    def test_reconcile_attaches_provenance_without_failing_the_job(self) -> None:
+        text = (ROOT / ".github/workflows/maven-central-reconcile.yml").read_text(encoding="utf-8")
+        workflow = yaml.safe_load(text)
+        job = workflow["jobs"]["reconcile"]
+        self.assertEqual("write", job["permissions"]["contents"])
+        self.assertEqual("write", job["permissions"]["id-token"])
+        self.assertEqual("write", job["permissions"]["attestations"])
+        pin = "actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8"
+        attest = next(step for step in job["steps"] if str(step.get("uses", "")).startswith(pin))
+        self.assertEqual(pin, attest["uses"].split()[0])
+        self.assertTrue(attest.get("continue-on-error"))
+        self.assertIn("inputs.dry_run != true", attest["if"])
+        self.assertEqual("*/target/*.jar", attest["with"]["subject-path"])
+        self.assertNotIn("bom.json", attest["with"]["subject-path"])
+        reconcile = next(
+            step for step in job["steps"] if "reconcile_maven_central_release.py" in str(step.get("run", ""))
+        )
+        attach = next(
+            step for step in job["steps"] if "attach_release_provenance.py" in str(step.get("run", ""))
+        )
+        self.assertGreater(job["steps"].index(attest), job["steps"].index(reconcile))
+        self.assertGreater(job["steps"].index(attach), job["steps"].index(attest))
+        self.assertTrue(attach.get("continue-on-error"))
+        self.assertIn("inputs.dry_run != true", attach["if"])
+        self.assertIn("steps.attest.outcome == 'success'", attach["if"])
+        self.assertIn("attach_release_provenance.py", text)
+        self.assertIn(pin, text)
+
     def test_release_blocks_on_unlabelled_binary_break(self) -> None:
         jobs = self.wf["jobs"]
         self.assertIn("cd_api_compat", jobs["build_release_and_deliver"]["needs"])
