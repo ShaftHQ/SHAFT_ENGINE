@@ -26,10 +26,10 @@ public class NetworkntSchemaValidationTest {
         var valid = JACKSON2.readTree("{\"id\":1}");
         var invalid = JACKSON2.readTree("{\"id\":\"x\"}");
 
-        List<String> ok = NetworkntSchemaValidation.validate(JsonSchemaVersion.V7, schema, null, valid);
+        List<String> ok = NetworkntSchemaValidation.validate(JsonSchemaVersion.DRAFT_7, schema, null, valid);
         Assert.assertTrue(ok.isEmpty(), ok.toString());
 
-        List<String> bad = NetworkntSchemaValidation.validate(JsonSchemaVersion.V7, schema, null, invalid);
+        List<String> bad = NetworkntSchemaValidation.validate(JsonSchemaVersion.DRAFT_7, schema, null, invalid);
         Assert.assertFalse(bad.isEmpty(), "expected type error for id");
     }
 
@@ -40,7 +40,7 @@ public class NetworkntSchemaValidationTest {
                 """);
         var content = JACKSON2.readTree("\"ok\"");
         List<String> messages = NetworkntSchemaValidation.validate(
-                JsonSchemaVersion.V7, schema, "https://example.invalid/schema.json", content);
+                JsonSchemaVersion.DRAFT_7, schema, "https://example.invalid/schema.json", content);
         Assert.assertTrue(messages.isEmpty(), messages.toString());
     }
 }
