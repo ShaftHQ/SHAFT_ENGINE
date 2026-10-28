@@ -577,7 +577,8 @@ def cmd_silencegap(qc, args) -> int:
     silencedetect alone understated a ~1.25 s gap as 0.69 s. Gate: FAIL if any
     mid-answer gap (after hook_end, before content_end) exceeds --max (0.6 s).
     Pass --content-end (before end-card); default duration-0.3 is not safe for
-    long end-card pads.
+    long end-card pads. Optional --target (default 0.45) warns above the soft
+    comfort margin without failing; hard FAIL stays at --max (0.6).
     """
     import math
     import struct
@@ -633,11 +634,21 @@ def cmd_silencegap(qc, args) -> int:
             if length > args.max + 1e-9:
                 fail.append(item)
     max_mid = max((g["d"] for g in mid), default=0.0)
+    soft = []
+    if args.target is not None:
+        soft = [g for g in mid if args.target + 1e-9 < g["d"] <= args.max + 1e-9]
+    warnings = []
+    if soft:
+        warnings.append(
+            f"soft_target: max mid-answer gap {max_mid:.3f}s above target {args.target:.2f}s "
+            f"(hard gate still {args.max:.2f}s)"
+        )
     return qc.report(
         "silencegap", qc.FAIL if fail else qc.PASS,
-        max_gap=args.max, hook_end=args.hook_end, content_end=round(content_end, 3),
+        max_gap=args.max, target=args.target, hook_end=args.hook_end,
+        content_end=round(content_end, 3),
         duration=round(duration, 3), max_mid_answer_gap=round(max_mid, 3),
-        mid_answer_gaps=mid, fail_gaps=fail)
+        mid_answer_gaps=mid, fail_gaps=fail, soft_gaps=soft, warnings=warnings)
 
 
 TXDIFF_PUNCT = re.compile(r"[.,!?;:؟،؛\"'()\[\]{}…—–-]+")
@@ -691,6 +702,97 @@ def cmd_txdiff(qc, args) -> int:
         max=args.max,
         problems=problems,
         note="gate on exact-raw (no alias, no fuzzy); fuzzy is companion only",
+    )
+
+
+
+QUESTION_MARK = re.compile(r"[?؟]")
+# Leading/near-start interrogatives (Arabic + Latin); keep neutral / short.
+QUESTION_LEAD = re.compile(
+    r"(?i)(?:^|[\s\u0600-\u06FF]{0,3})(?:هل|وهل|إزاي|ازاي|ليه|مين|فين|متى|what|why|how|who|when|is|are|do|does|did)\b"
+)
+
+
+def _is_question(text: str) -> bool:
+    return bool(QUESTION_MARK.search(text) or QUESTION_LEAD.search(text.strip()))
+
+
+def cmd_hookmodality(qc, args) -> int:
+    """Hook card must keep the speaker's modality (question ≠ claim) for every hook type."""
+    hook = Path(args.hook).read_text(encoding="utf-8").strip()
+    spoken = Path(args.spoken).read_text(encoding="utf-8").strip()
+    hook_q, spoken_q = _is_question(hook), _is_question(spoken)
+    problems = []
+    if spoken_q and not hook_q:
+        problems.append("spoken is a question but hook reads as a claim (add ؟/? / interrogative)")
+    if hook_q and not spoken_q:
+        problems.append("hook is a question but spoken is a claim (drop ؟/? or match claim modality)")
+    return qc.report(
+        "hookmodality", qc.FAIL if problems else qc.PASS,
+        hook_question=hook_q, spoken_question=spoken_q, problems=problems,
+        note="modality match is never N/A — viral claim↔claim and qa question↔؟ both apply",
+    )
+
+
+def cmd_hookbleed(qc, args) -> int:
+    """OUT SRT must not keep under-hook speech past hook_end (split cues at the card edge)."""
+    cues = qc.parse_cues(Path(args.srt).read_text(encoding="utf-8"))
+    hits = []
+    pad = args.pad
+    for i, cue in enumerate(cues, 1):
+        # Cue that still holds under-hook words while extending well past the card.
+        if cue["start"] < args.hook_end and cue["end"] > args.hook_end + pad:
+            hits.append(
+                f"cue {i}: {cue['start']:.2f}-{cue['end']:.2f}s straddles hook_end "
+                f"{args.hook_end:.2f}s (split so under-hook ends ≤ hook_end+{pad:.1f})"
+            )
+    return qc.report(
+        "hookbleed", qc.FAIL if hits else qc.PASS,
+        hook_end=args.hook_end, pad=pad, hits=hits,
+    )
+
+
+def cmd_softjump(qc, args) -> int:
+    """Big content jumps (long removed bridges) need a soft transition flag in the edit plan."""
+    plan = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    cuts = plan.get("cuts") or plan.get("splices") or []
+    hits = []
+    for i, cut in enumerate(cuts, 1):
+        removed = float(cut.get("removed_s") or cut.get("removed") or 0)
+        soft = bool(cut.get("soft") or cut.get("soft_transition") or cut.get("punch_in")
+                    or cut.get("crossfade"))
+        if removed > args.min_removed + 1e-9 and not soft:
+            hits.append(
+                f"cut {i}: removed {removed:.2f}s without soft transition "
+                f"(crossfade / punch-in / soft flag)"
+            )
+    return qc.report(
+        "softjump", qc.FAIL if hits else qc.PASS,
+        min_removed=args.min_removed, hits=hits,
+        note="prefer keeping 1–2 bridge sentences; if you must jump, soft-mask",
+    )
+
+
+def cmd_antecedent(qc, args) -> int:
+    """Kept caption/script text: epithets/pronouns need a referent noun still in the span."""
+    text = Path(args.file).read_text(encoding="utf-8")
+    nouns = [n.strip() for n in (args.noun or []) if n.strip()]
+    epithets = [e.strip() for e in (args.epithet or []) if e.strip()]
+    if not epithets:
+        raise qc.Skip("pass --epithet at least once")
+    hits = []
+    for epi in epithets:
+        if epi not in text:
+            continue
+        # Referent must appear before the first epithet occurrence (or anywhere if --anywhere).
+        pos = text.find(epi)
+        window = text if args.anywhere else text[: pos + len(epi)]
+        if not any(noun in window for noun in nouns):
+            hits.append(f"epithet {epi!r} with no antecedent noun in kept span "
+                        f"(pass --noun for referents that must remain)")
+    return qc.report(
+        "antecedent", qc.FAIL if hits else qc.PASS,
+        epithets=epithets, nouns=nouns, hits=hits,
     )
 
 
@@ -868,12 +970,38 @@ def register(add, qc) -> None:
     p.add_argument("--thr", type=float, default=-40.0, help="RMS dBFS threshold")
     p.add_argument("--hop", type=float, default=0.01)
     p.add_argument("--min-gap", type=float, default=0.08)
-    p.add_argument("--max", type=float, default=0.6)
+    p.add_argument("--max", type=float, default=0.6, help="hard FAIL if any mid-answer gap exceeds this")
+    p.add_argument("--target", type=float, default=0.45,
+                   help="soft comfort target; warn (do not fail) when max mid gap is above this but ≤ --max")
     p = add("txdiff", bind(cmd_txdiff),
             "SRT vs words.json exact-raw + fuzzy; gate on exact-raw only (G9)")
     p.add_argument("srt")
     p.add_argument("words")
     p.add_argument("--max", type=float, default=0.12)
+    p = add("hookmodality", bind(cmd_hookmodality),
+            "hook card keeps speaker modality (question ≠ claim) for every hook type")
+    p.add_argument("--hook", required=True, help="hook card text file")
+    p.add_argument("--spoken", required=True, help="spoken hook / under-card transcript file")
+    p = add("hookbleed", bind(cmd_hookbleed),
+            "OUT SRT must not straddle hook_end with under-hook speech")
+    p.add_argument("srt")
+    p.add_argument("--hook-end", type=float, required=True)
+    p.add_argument("--pad", type=float, default=0.3,
+                   help="cues may end ≤ hook_end+pad; beyond that is bleed")
+    p = add("softjump", bind(cmd_softjump),
+            "big content jumps need soft transition / punch-in in the edit plan")
+    p.add_argument("file", help="JSON edit plan with cuts[].removed_s and soft/punch_in/crossfade")
+    p.add_argument("--min-removed", type=float, default=2.0,
+                   help="removed bridge seconds that require a soft mask")
+    p = add("antecedent", bind(cmd_antecedent),
+            "kept span: epithets/pronouns need an antecedent noun still present")
+    p.add_argument("file", help="kept SRT or script text")
+    p.add_argument("--epithet", action="append", default=[],
+                   help="pronoun/descriptor that needs a referent (repeatable)")
+    p.add_argument("--noun", action="append", default=[],
+                   help="antecedent noun/setup that must remain (repeatable)")
+    p.add_argument("--anywhere", action="store_true",
+                   help="allow noun anywhere in the file, not only before the epithet")
     p = add("textfloor", bind(cmd_textfloor), "text under 2.6%% of the short side (28 px on portrait)")
     p.add_argument("file")
     p.add_argument("--frame", default="1080x1920")

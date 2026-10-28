@@ -25,6 +25,7 @@ NEEDLES = {
         "ASR hallucinates on pauses", "2 or more models", "Hook = spoken words", "cross-source agreement",
         "shot cut and a clean sentence onset", "re-runs the caption checks", "one at a time, detached",
         "Silence-gap on the **final** render", "design_qc.py silencegap", "--content-end",
+        "≤0.45 s", "--target 0.45", "Antecedent check", "design_qc.py antecedent",
         "exact-raw", "design_qc.py txdiff",
         "design_qc.py cuemids", "design_qc.py cuegaps", "design_qc.py asrhall", "design_qc.py boundprefix",
         "design_qc.py fadetail", "design_qc.py bidi"),
@@ -196,6 +197,59 @@ class CaptionChecksTest(unittest.TestCase):
             code, payload = run_qc("txdiff", str(srt_path), str(words_path), "--max", "0.0")
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
             self.assertEqual(payload["diff_exact_raw"], 0.0)
+
+
+
+    def test_hookmodality_question_vs_claim(self) -> None:
+        """U6 G11: spoken question with claim hook fails; matching ؟ passes."""
+        with tempfile.TemporaryDirectory() as folder:
+            hook_bad = Path(folder) / "hook_bad.txt"
+            hook_good = Path(folder) / "hook_good.txt"
+            spoken = Path(folder) / "spoken.txt"
+            spoken.write_text("وهل هو هيبدل الـ testers ولا لا؟", encoding="utf-8")
+            hook_bad.write_text("هيبدل الـ testers", encoding="utf-8")
+            hook_good.write_text("وهل هو هيبدل الـ testers؟", encoding="utf-8")
+            self.assertEqual(1, run_qc("hookmodality", "--hook", str(hook_bad), "--spoken", str(spoken))[0])
+            code, payload = run_qc("hookmodality", "--hook", str(hook_good), "--spoken", str(spoken))
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
+    def test_hookbleed_straddle_fails(self) -> None:
+        """U6 G11: cue straddling hook_end with under-hook speech fails."""
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "bad.srt"
+            good = Path(folder) / "good.srt"
+            bad.write_text(srt((0.0, 5.0, "under hook and past")), encoding="utf-8")
+            good.write_text(
+                srt((0.0, 3.2, "under hook only"), (3.5, 5.0, "post hook only")),
+                encoding="utf-8",
+            )
+            self.assertEqual(1, run_qc("hookbleed", str(bad), "--hook-end", "3.5")[0])
+            code, payload = run_qc("hookbleed", str(good), "--hook-end", "3.5")
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
+    def test_softjump_requires_soft_flag_on_big_cut(self) -> None:
+        """U6 G12: large removed bridge without soft/punch-in fails."""
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "bad.json"
+            good = Path(folder) / "good.json"
+            bad.write_text(json.dumps({"cuts": [{"removed_s": 25.8, "soft": False}]}), encoding="utf-8")
+            good.write_text(json.dumps({"cuts": [{"removed_s": 25.8, "punch_in": True}]}), encoding="utf-8")
+            self.assertEqual(1, run_qc("softjump", str(bad))[0])
+            code, payload = run_qc("softjump", str(good))
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
+    def test_antecedent_requires_referent_noun(self) -> None:
+        """U7 G13: epithet without antecedent noun fails; noun present passes."""
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "bad.txt"
+            good = Path(folder) / "good.txt"
+            bad.write_text("وبعدين المغرور وقع", encoding="utf-8")
+            good.write_text("الأرنب المغرور وقع", encoding="utf-8")
+            self.assertEqual(
+                1, run_qc("antecedent", str(bad), "--epithet", "المغرور", "--noun", "الأرنب")[0])
+            code, payload = run_qc(
+                "antecedent", str(good), "--epithet", "المغرور", "--noun", "الأرنب")
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
 
 

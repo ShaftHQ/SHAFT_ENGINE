@@ -428,6 +428,32 @@ class Batch3MediaChecksTest(unittest.TestCase):
         self.assertEqual((0, "pass"), (code, payload["status"]), payload)
         self.assertFalse(payload.get("fail_gaps"), payload)
 
+    def test_silencegap_soft_target_warns(self) -> None:
+        """U5 G10: gap between target 0.45 and hard 0.6 warns; hard >0.6 still fails."""
+        d = Path(self.tmp.name)
+        # 0.5 tone + 0.50 silence + 0.5 tone → mid gap 0.50 (soft warn, hard pass)
+        soft = d / "soft.wav"
+        ffmpeg("-f", "lavfi", "-i", "sine=f=440:d=0.5",
+               "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono:d=0.50",
+               "-f", "lavfi", "-i", "sine=f=440:d=0.5",
+               "-filter_complex", "[0:a][1:a][2:a]concat=n=3:v=0:a=1[a]", "-map", "[a]", str(soft))
+        code, payload = run_qc(
+            "silencegap", str(soft), "--hook-end", "0", "--content-end", "1.5",
+            "--max", "0.6", "--target", "0.45")
+        self.assertEqual(0, code, payload)
+        self.assertTrue(any("soft_target" in w for w in payload.get("warnings", [])), payload)
+        # Comfortable gap ≤0.45: no soft warning
+        ok = d / "ok045.wav"
+        ffmpeg("-f", "lavfi", "-i", "sine=f=440:d=0.5",
+               "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono:d=0.30",
+               "-f", "lavfi", "-i", "sine=f=440:d=0.5",
+               "-filter_complex", "[0:a][1:a][2:a]concat=n=3:v=0:a=1[a]", "-map", "[a]", str(ok))
+        code, payload = run_qc(
+            "silencegap", str(ok), "--hook-end", "0", "--content-end", "1.3",
+            "--max", "0.6", "--target", "0.45")
+        self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+        self.assertFalse(payload.get("warnings"), payload)
+
     def test_mediaclamp(self) -> None:
         self.assertEqual(0, run_qc("mediaclamp", str(self.ok_cues), str(self.busy))[0])
         self.assertEqual(1, run_qc("mediaclamp", str(self.bad_cues), str(self.busy))[0])
