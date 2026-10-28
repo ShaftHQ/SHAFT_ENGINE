@@ -97,7 +97,7 @@ public interface Internal extends EngineProperties<Internal> {
      * and recording flows on macOS.
      */
     @Key("appiumXcuitestDriverVersion")
-    @DefaultValue("12.20.0")
+    @DefaultValue("12.22.2")
     String appiumXcuitestDriverVersion();
 
     /**
