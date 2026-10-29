@@ -111,8 +111,11 @@ public class SynchronizationManager {
             expectedExceptions.addAll(VISIBILITY_EXCEPTIONS);
         }
 
-        if (isSafari) {
-            // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
+        // Safari/WebKit often omits a typed cause, so web (and mobile-web) waits ignore
+        // generic WebDriverException. Mobile-native XCUI/UiAutomator sessions must not:
+        // #7456 fail-fast for non-stale driver errors would otherwise wait out as TimeoutException
+        // when CI leaves -DtargetBrowserName=safari set (Local E2E Safari jobs / #7530).
+        if (isSafari && !DriverFactoryHelper.isMobileNativeExecution()) {
             expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
         }
 

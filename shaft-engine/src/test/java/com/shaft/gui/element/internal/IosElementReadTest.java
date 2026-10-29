@@ -169,6 +169,9 @@ public class IosElementReadTest {
     public void unrelatedDriverExceptionIsNotRetried() {
         SHAFT.Properties.platform.set().targetPlatform("iOS");
         SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        // Safari Local E2E sets -DtargetBrowserName=safari for the whole Maven JVM; prove
+        // native XCUI fail-fast still holds under that property (#7530 / #7456).
+        SHAFT.Properties.web.set().targetBrowserName("safari");
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(4);
         WebDriver driver = driver();
         WebElement element = element();
@@ -186,6 +189,30 @@ public class IosElementReadTest {
         }
         Assert.assertTrue(System.nanoTime() - started < 2_000_000_000L, "unrelated error waited out the element budget");
         Assert.assertEquals(finds.get(), 1);
+    }
+
+    @Test(description = "#7530: Safari web (non-native) still ignores generic WebDriverException until timeout")
+    public void safariWebIgnoresGenericWebDriverExceptionUntilTimeout() {
+        // Desktop Safari: isMobileNativeExecution() is false, so SyncManager still adds
+        // WebDriverException to FluentWait (wait-out as TimeoutException) — covers the
+        // true branch of isSafari && !isMobileNativeExecution (#7530 codecov/patch).
+        SHAFT.Properties.platform.set().targetPlatform("MAC");
+        SHAFT.Properties.web.set().targetBrowserName("safari");
+        SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(1);
+        WebDriver driver = driver();
+        WebElement element = element();
+        when(element.isDisplayed()).thenThrow(new WebDriverException("element click intercepted"));
+        AtomicInteger finds = new AtomicInteger();
+        when(driver.findElements(LOCATOR)).thenAnswer(invocation -> {
+            finds.incrementAndGet();
+            return List.of(element);
+        });
+        try (var ignored = org.mockito.Mockito.mockStatic(JavaScriptWaitManager.class)) {
+            RuntimeException failure = Assert.expectThrows(RuntimeException.class,
+                    () -> new Actions(driver, true).get().isDisplayed(LOCATOR));
+            Assert.assertTrue(hasType(failure, TimeoutException.class), failure.toString());
+        }
+        Assert.assertTrue(finds.get() > 1, "Safari web should retry until the element budget expires, finds=" + finds.get());
     }
 
     @Test(description = "#7456: XCUI stale that never clears fails only after the wait expires")
