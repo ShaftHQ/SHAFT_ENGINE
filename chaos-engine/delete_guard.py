@@ -8,6 +8,8 @@ HEAD is not ahead). Outside git a target must be on the scratch allow-list.
 When the command cannot be parsed with confidence, the guard refuses.
 #7343: the owner overrides a refusal with a one-time chat code bound to the
 exact path list; a hard never-touch list refuses even with a code.
+#7525: verified uploaded yt files on a local/env allowlist (exact path + video id)
+may take the owner code; yt/meta and unlisted/unverified stay never-touch.
 """
 
 from __future__ import annotations
@@ -37,6 +39,10 @@ NEVER_NAMES = ("ROG*", "yt", "designer-ws.git.retired")
 YT_RENDER = re.compile(r".+\.r\d+\.mp4")
 NEVER_PATTERNS = ("**/.config/google-chrome*/**", "**/.config/chromium/**", "**/*chrome*-profile*/**")
 NEVER_FILE = Path("~/.config/chaos-engine/never-delete.txt")
+# #7525: exact-file allowlist of verified uploaded yt files (local/env only; not committed).
+YT_VERIFIED_ENV = "CHAOS_YT_VERIFIED_DELETE"
+YT_VERIFIED_FILE = Path("~/.config/chaos-engine/yt-verified-delete.txt")
+YT_VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 # Generic scratch: temp, caches, build output, video render output.
 DEFAULT_ALLOW = (
     str(Path(tempfile.gettempdir()).resolve() / "**"),
@@ -334,12 +340,56 @@ def _yt_render(path: Path, part: str) -> bool:
     return bool(after) and "meta" not in after and YT_RENDER.fullmatch(path.name) is not None
 
 
+def _yt_verified_path() -> Path | None:
+    """Env override, else the default config file when it exists."""
+    override = os.environ.get(YT_VERIFIED_ENV, "").strip()
+    if override:
+        return Path(os.path.expanduser(override))
+    default = YT_VERIFIED_FILE.expanduser()
+    return default if default.is_file() else None
+
+
+def _load_yt_verified() -> dict[str, str]:
+    """Exact resolved file path -> YouTube video id. Globs, dirs, and bad proofs are skipped."""
+    config = _yt_verified_path()
+    if config is None or not config.is_file():
+        return {}
+    out: dict[str, str] = {}
+    for line in config.read_text(encoding="utf-8").splitlines():
+        item = line.strip()
+        if not item or item.startswith("#"):
+            continue
+        parts = item.split(None, 1)
+        if len(parts) != 2:
+            continue
+        raw, proof = parts
+        if glob.has_magic(raw) or raw.endswith(("/", "\\")):
+            continue
+        if not YT_VIDEO_ID.fullmatch(proof):
+            continue
+        candidate = Path(os.path.expanduser(raw))
+        if not candidate.suffix or (candidate.exists() and candidate.is_dir()):
+            continue
+        out[str(candidate.resolve())] = proof
+    return out
+
+
+def _yt_verified_uploaded(path: Path, part: str) -> bool:
+    """#7525: exact allowlisted yt file with valid proof, outside yt/meta/, not a directory."""
+    after = path.parts[path.parts.index(part) + 1 :]
+    if not after or "meta" in after:
+        return False
+    if path.exists() and path.is_dir() and not path.is_symlink():
+        return False
+    return str(path.resolve()) in _load_yt_verified()
+
+
 def never_touch(path: Path) -> str:
     """Non-empty when no code may unlock deleting ``path`` (itself, inside, or directly containing a protected dir)."""
     names, patterns = _never_rules()
     for part in path.parts:
         hit = next((name for name in names if fnmatchcase(part, name)), "")
-        if hit == "yt" and _yt_render(path, part):
+        if hit == "yt" and (_yt_render(path, part) or _yt_verified_uploaded(path, part)):
             continue
         if hit:
             return f"never-touch `{hit}`"

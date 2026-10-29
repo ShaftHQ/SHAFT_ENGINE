@@ -58,9 +58,19 @@ No code unlocks a path with a segment named `ROG*`, `yt` or
 that directly contains one. Add names or `/` patterns, one per line, to
 `~/.config/chaos-engine/never-delete.txt`.
 
-Inside `yt/`, an old render named `*.rN.mp4` (N digits) is not never-touch:
-it needs the owner's code like any other refusal. `yt/` itself, `yt/meta/`
-and final mp4s stay never-touch. `wt-relblock`, `wt-ls` and `ce-src-*` use
+Inside `yt/`, two exact-file exceptions are not never-touch and need the
+owner's code like any other refusal:
+
+- an old render named `*.rN.mp4` (N digits) outside `yt/meta/`
+- a file listed in the verified-upload allowlist with a valid YouTube video
+  id proof (`CHAOS_YT_VERIFIED_DELETE` path, or else
+  `~/.config/chaos-engine/yt-verified-delete.txt` when present). Each line is
+  `absolute/path.mp4 <11-char-video-id>`. Globs, directories, missing or
+  malformed proofs are ignored. The allowlist is local/env-only; never commit
+  real paths or titles.
+
+`yt/` itself, `yt/meta/**`, and any unlisted or unverified yt file stay
+never-touch with no code override. `wt-relblock`, `wt-ls` and `ce-src-*` use
 the owner-code flow too.
 
 ## Doctor

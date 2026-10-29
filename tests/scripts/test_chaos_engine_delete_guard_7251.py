@@ -195,6 +195,52 @@ class DeleteGuardTest(unittest.TestCase):
             code = GUARD.request_code([target])
             self.assertEqual("", GUARD.check(f"rm -rf {target}", self.base, self.base, code)[0])
 
+    def test_yt_verified_uploaded_needs_code_meta_and_unlisted_refused(self):
+        """#7525: listed+proof+code unlocks exact yt files; meta/unlisted/globs stay locked."""
+        yt = self.base / "yt"
+        (yt / "meta").mkdir(parents=True)
+        (yt / "src").mkdir(parents=True)
+        listed = yt / "src" / "AbCdEfGhIjK.mp4"
+        unlisted = yt / "src" / "unlisted.mp4"
+        no_proof = yt / "src" / "noproof.mp4"
+        bad_proof = yt / "src" / "badproof.mp4"
+        meta_listed = yt / "meta" / "AbCdEfGhIjK.mp4"
+        for target in (listed, unlisted, no_proof, bad_proof, meta_listed):
+            target.write_text("x", encoding="utf-8")
+        allow = self.base / "home" / "yt-verified-delete.txt"
+        allow.write_text(
+            "\n".join(
+                [
+                    f"{listed} AbCdEfGhIjK",
+                    f"{no_proof}",
+                    f"{bad_proof} not-a-valid-id",
+                    f"{meta_listed} AbCdEfGhIjK",
+                    f"{yt / 'src'}/** AbCdEfGhIjK",
+                    f"{yt / 'src'}/ AbCdEfGhIjK",
+                    f"{yt / 'batch'} AbCdEfGhIjK",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_YT_VERIFIED_DELETE": str(allow)}):
+            self.assertEqual("", GUARD.never_touch(listed))
+            self.assertIn("outside git", self.reason(f"rm -f {listed}"))
+            code = GUARD.request_code([listed])
+            self.assertEqual("", GUARD.check(f"rm -f {listed}", self.base, self.base, code)[0])
+            for kept in (unlisted, no_proof, bad_proof, meta_listed, yt, yt / "meta", yt / "src"):
+                self.assertIn("never-touch", GUARD.never_touch(kept) or self.reason(f"rm -rf {kept}"), kept)
+                with self.assertRaises(PermissionError):
+                    GUARD.request_code([kept])
+            loaded = GUARD._load_yt_verified()
+            self.assertEqual("AbCdEfGhIjK", loaded.get(str(listed.resolve())))
+            self.assertNotIn(str(unlisted.resolve()), loaded)
+            self.assertNotIn(str(no_proof.resolve()), loaded)
+            self.assertNotIn(str(bad_proof.resolve()), loaded)
+            self.assertNotIn(str((yt / "src").resolve()), loaded)
+            self.assertNotIn(str((yt / "batch").resolve()), loaded)
+            # meta may be listed in the file but never_touch still refuses it (above).
+
     def test_yt_old_renders_need_a_code_rest_refused(self):
         yt = self.base / "yt"
         (yt / "meta").mkdir(parents=True)
