@@ -19,9 +19,9 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 
 final class PlaywrightTraceImporter {
-    /** Version 8 names snapshots on actions; version 9 (Playwright 1.63) links them from frame-snapshot records. */
+    /** Version 8 names snapshots on actions; versions 9–10 (Playwright 1.63–1.64) link them from frame-snapshot records. */
     private static final int FIRST_SUPPORTED_TRACE_VERSION = 8;
-    private static final int LAST_SUPPORTED_TRACE_VERSION = 9;
+    private static final int LAST_SUPPORTED_TRACE_VERSION = 10;
     private static final int MAX_ACTIONS = 10_000;
     private static final int MAX_LOGS_PER_ACTION = 100;
     private static final int MAX_TEXT_CHARACTERS = 4_096;
@@ -181,7 +181,7 @@ final class PlaywrightTraceImporter {
         int version = versionNode.asInt();
         if (version < FIRST_SUPPORTED_TRACE_VERSION || version > LAST_SUPPORTED_TRACE_VERSION) {
             throw new UnsupportedTraceVersionException("Unsupported Playwright trace version " + version + " in " + context.name
-                    + "; only versions 8 and 9 are importable.");
+                    + "; only versions 8 through 10 are importable.");
         }
         context.origin = text(node, "origin");
         context.wallTime = finite(node.path("wallTime").asDouble(Double.NaN), "wallTime", context.name);
@@ -203,9 +203,11 @@ final class PlaywrightTraceImporter {
     }
 
     /**
-     * Version 9 drops the snapshot names from actions and tags each frame-snapshot with the owning
-     * {@code callId} and a {@code phase}. Name them {@code <before|input|after>@<callId>}, the same
-     * names version 8 used, so the offline adapter resolves both versions identically.
+     * Versions 9 and 10 drop the snapshot names from actions and tag each frame-snapshot with the
+     * owning {@code callId} and a {@code phase}. Name them {@code <before|input|after>@<callId>},
+     * the same names version 8 used, so the offline adapter resolves versions 8–10 identically.
+     * Playwright 1.64's v10 change only remaps library↔test-runner call/step ids; the snapshot
+     * layout SHAFT imports is unchanged from v9.
      */
     static String version9SnapshotName(JsonNode snapshot) {
         String callId = snapshot.path("callId").asText("");

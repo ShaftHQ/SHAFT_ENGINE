@@ -143,15 +143,50 @@ class PlaywrightTraceImporterTest {
         }
     }
 
+    private static String version10Trace() {
+        // Playwright 1.64 library traces keep v9 frame-snapshot callId+phase layout; only the version bumps.
+        return version9Trace().replace("\"version\":9", "\"version\":10")
+                .replace("v9 before", "v10 before")
+                .replace("v9 input", "v10 input")
+                .replace("v9 after", "v10 after");
+    }
+
+    @Test(description = "Issue #7534: Playwright 1.64 writes trace version 10 with the same snapshot layout as v9")
+    void importsVersion10TracesAndNamesSnapshotsLikeVersion9() throws Exception {
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(version10Trace());
+        try {
+            PlaywrightTraceImporter.NativeAction action = PlaywrightTraceImporter.importTrace(archive, List.of())
+                    .actions().getFirst();
+            Assert.assertEquals(action.beforeSnapshot(), "before@call@9");
+            Assert.assertEquals(action.inputSnapshot(), "input@call@9");
+            Assert.assertEquals(action.afterSnapshot(), "after@call@9");
+        } finally {
+            Files.deleteIfExists(archive);
+        }
+    }
+
+    @Test(description = "Issue #7534: the offline adapter must resolve the version 10 snapshot names")
+    void rendersVersion10SnapshotsByTheNamesTheImporterAssigns() throws Exception {
+        Path archive = PlaywrightTraceTestFixtures.writeTrace(version10Trace());
+        try {
+            var loaded = PlaywrightTraceArchiveLoader.load(archive);
+            Assert.assertTrue(PlaywrightTraceOfflineAdapter.snapshotDocument(loaded, "before@call@9").contains("v10 before"));
+            Assert.assertTrue(PlaywrightTraceOfflineAdapter.snapshotDocument(loaded, "input@call@9").contains("v10 input"));
+            Assert.assertTrue(PlaywrightTraceOfflineAdapter.snapshotDocument(loaded, "after@call@9").contains("v10 after"));
+        } finally {
+            Files.deleteIfExists(archive);
+        }
+    }
+
     @Test
     void rejectsVersionsNewerThanTheLastKnownLayout() throws Exception {
         Path archive = PlaywrightTraceTestFixtures.writeTrace(
-                "{\"version\":10,\"type\":\"context-options\",\"origin\":\"library\","
+                "{\"version\":11,\"type\":\"context-options\",\"origin\":\"library\","
                         + "\"wallTime\":10000,\"monotonicTime\":100}\n");
         try {
             IOException failure = Assert.expectThrows(IOException.class,
                     () -> PlaywrightTraceImporter.importTrace(archive, List.of()));
-            Assert.assertTrue(failure.getMessage().startsWith("Unsupported Playwright trace version 10"));
+            Assert.assertTrue(failure.getMessage().startsWith("Unsupported Playwright trace version 11"));
         } finally {
             Files.deleteIfExists(archive);
         }
@@ -166,7 +201,7 @@ class PlaywrightTraceImporterTest {
             IOException failure = Assert.expectThrows(IOException.class,
                     () -> PlaywrightTraceImporter.importTrace(archive, List.of()));
             Assert.assertEquals(failure.getMessage(),
-                    "Unsupported Playwright trace version 7 in 0-trace.trace; only versions 8 and 9 are importable.");
+                    "Unsupported Playwright trace version 7 in 0-trace.trace; only versions 8 through 10 are importable.");
         } finally {
             Files.deleteIfExists(archive);
         }
