@@ -14,12 +14,18 @@ branch. Research URLs are canonicalized before a second research dispatch.
 ## Stream-ownership manifest
 
 Before the first dispatch, write a stream table (checkpoint items or a review
-scratch file) with: stream id, repository, owned path globs, issues, implementer
-id, reviewer id, worktree path, branch, disk budget (MB), status.
+scratch file) with: stream id, repository, owned path globs, semantic **kind**
+(when design work: `video`, `podcast`, `image`, or `website`), issues,
+implementer id, reviewer id, worktree path, branch, disk budget (MB), status,
+and (for design kinds) `first_pass_signoff_streak` for that kind.
 
 - Two active streams must not share a **writable** path glob.
 - Read-only shared paths are allowed.
 - Epic children inherit the parent's locks until released.
+- Two active **design** streams of the **same kind** are a conflict under the
+  kind WIP cap (see [Design-kind WIP](#design-kind-wip-same-kind-batch--conflict)),
+  even when path globs are disjoint — one shared template/gate defect otherwise
+  multiplies across the batch.
 
 ## Conflict detection (before dispatch)
 
@@ -28,9 +34,14 @@ id, reviewer id, worktree path, branch, disk budget (MB), status.
 2. Collect paths from open agentic PRs and dirty files in live worktrees.
 3. Intersect the proposed stream's writable globs with (1) and (2).
 4. Non-empty intersection → do not dispatch; re-scope, stack, or wait.
+5. If the proposal carries a design **kind**, collect active peers of that kind.
+   When their count is at or above the kind WIP limit (1, or 2 after two
+   consecutive first-pass sign-offs for that kind), treat it as a conflict —
+   same as path overlap. Different kinds may run in parallel.
 
 Executable check: `scripts/ci/parallel_stream_conflict.py`
-(`refuse_dispatch_on_ownership_overlap` / `conflicting_peer_stream_ids`).
+(`refuse_dispatch_on_ownership_overlap` / `conflicting_peer_stream_ids` /
+`refuse_dispatch_on_same_kind_wip` / `conflicting_same_kind_stream_ids`).
 
 ## Brief template (implementer)
 
@@ -96,6 +107,27 @@ profiles); those refuse even with an owner code. Hygiene refuses `never-touch-pa
   when free disk is under the [disk gate](#disk-gate) or the review queue is
   deeper than one round (Theory of Constraints: cap in front of review / disk /
   attention, not coding).
+
+## Design-kind WIP (same-kind batch = conflict)
+
+A design **conflict** is not only file overlap. Batching several items of the
+**same kind** (video, podcast chapter, image, website change) while one shared
+defect is still unknown multiplies rejects: one bad caption/template/gate rule
+fails the whole batch (wasted tokens and wall time). Treat that like a path
+conflict.
+
+Rules:
+
+1. **WIP = 1 per design kind.** Parallel across different kinds is allowed when
+   path globs are still disjoint.
+2. Each item must finish **build → independent review → orchestrator sign-off →
+   lessons captured** before the next same-kind item starts.
+3. After **two consecutive first-pass sign-offs** for that kind, the kind may
+   rise to **WIP = 2**. Any reject drops that kind back to WIP = 1 (streak
+   resets to 0).
+4. Ownership-manifest rows for design work set `kind` and keep
+   `first_pass_signoff_streak` current so
+   `refuse_dispatch_on_same_kind_wip` can enforce the cap before dispatch.
 
 ## Disk gate
 

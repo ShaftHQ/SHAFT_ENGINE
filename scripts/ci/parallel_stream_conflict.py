@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refuse parallel-stream dispatch when writable path globs overlap peers."""
+"""Refuse parallel-stream dispatch on path-glob overlap or same-kind design WIP."""
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
@@ -97,6 +97,171 @@ def refuse_dispatch_on_ownership_overlap(
             exclude_stream_id=exclude_stream_id,
         )
     )
+
+
+
+# Design kinds that share templates/gates so one defect multiplies across a batch.
+DESIGN_KINDS = frozenset({"video", "podcast", "image", "website"})
+
+
+def _peer_kind(peer: Mapping[str, Any]) -> str | None:
+    """Return normalized design kind from a manifest row, or None if absent/unknown."""
+    raw = peer.get("kind")
+    if raw is None:
+        raw = peer.get("design_kind")
+    if raw is None:
+        raw = peer.get("designKind")
+    if raw is None:
+        return None
+    kind = str(raw).strip().casefold()
+    if not kind:
+        return None
+    # Normalize common aliases used in briefs.
+    aliases = {
+        "podcast chapter": "podcast",
+        "podcast_chapter": "podcast",
+        "website change": "website",
+        "website_change": "website",
+        "web": "website",
+    }
+    kind = aliases.get(kind, kind)
+    return kind if kind in DESIGN_KINDS else kind
+
+
+def _peer_first_pass_streak(peer: Mapping[str, Any]) -> int | None:
+    """Consecutive first-pass sign-offs for this kind, or None if unset.
+
+    Manifest may carry ``first_pass_signoff_streak`` (or camelCase). Explicit
+    ``0`` (after a reject) must win over a peer's stale streak.
+    """
+    for key in (
+        "first_pass_signoff_streak",
+        "firstPassSignoffStreak",
+        "kind_first_pass_streak",
+        "kindFirstPassStreak",
+    ):
+        if key not in peer:
+            continue
+        value = peer.get(key)
+        if value is None:
+            return 0
+        try:
+            return max(0, int(value))
+        except (TypeError, ValueError):
+            return 0
+    return None
+
+
+def kind_wip_limit(
+    kind: str | None,
+    *,
+    first_pass_signoff_streak: int = 0,
+) -> int:
+    """WIP cap for a design kind: 1 by default; 2 after two consecutive first-pass signs.
+
+    Any reject drops the streak (orchestrator sets streak to 0); this helper only
+    maps streak → limit.
+    """
+    if kind is None:
+        return 1
+    if first_pass_signoff_streak >= 2:
+        return 2
+    return 1
+
+
+def active_peers_of_kind(
+    peer_streams: Sequence[Mapping[str, Any]],
+    kind: str,
+    *,
+    exclude_stream_id: str | None = None,
+) -> list[str]:
+    """Active peer stream ids whose ``kind`` matches (case-insensitive)."""
+    wanted = str(kind).strip().casefold()
+    aliases = {
+        "podcast chapter": "podcast",
+        "podcast_chapter": "podcast",
+        "website change": "website",
+        "website_change": "website",
+        "web": "website",
+    }
+    wanted = aliases.get(wanted, wanted)
+    exclude = (exclude_stream_id or "").strip()
+    hits: list[str] = []
+    for peer in peer_streams:
+        if not isinstance(peer, Mapping):
+            continue
+        peer_id = _peer_id(peer)
+        if exclude and peer_id == exclude:
+            continue
+        if not _peer_active(peer):
+            continue
+        peer_kind = _peer_kind(peer)
+        if peer_kind is None:
+            continue
+        if peer_kind == wanted:
+            hits.append(peer_id)
+    return list(dict.fromkeys(hits))
+
+
+def refuse_dispatch_on_same_kind_wip(
+    proposed: Mapping[str, Any],
+    peer_streams: Sequence[Mapping[str, Any]],
+    *,
+    exclude_stream_id: str | None = None,
+) -> bool:
+    """True when dispatch would exceed the design-kind WIP cap.
+
+    - No ``kind`` on the proposal → not a design-kind conflict (path check only).
+    - Count active peers of the same kind; refuse when count >= kind WIP limit.
+    - Limit is 1, or 2 when ``first_pass_signoff_streak >= 2`` on the proposal
+      (or any peer row carrying the kind's streak — proposal wins when set).
+    """
+    kind = _peer_kind(proposed)
+    if kind is None:
+        return False
+    streak = _peer_first_pass_streak(proposed)
+    if streak is None:
+        # Proposal omitted streak: take the max recorded on same-kind peers.
+        streak = 0
+        for peer in peer_streams:
+            if not isinstance(peer, Mapping):
+                continue
+            if _peer_kind(peer) != kind:
+                continue
+            peer_streak = _peer_first_pass_streak(peer)
+            if peer_streak is not None:
+                streak = max(streak, peer_streak)
+    limit = kind_wip_limit(kind, first_pass_signoff_streak=streak)
+    exclude = exclude_stream_id or _peer_id(proposed)
+    if exclude == "?":
+        exclude = None
+    in_flight = active_peers_of_kind(
+        peer_streams, kind, exclude_stream_id=exclude
+    )
+    return len(in_flight) >= limit
+
+
+def conflicting_same_kind_stream_ids(
+    proposed: Mapping[str, Any],
+    peer_streams: Sequence[Mapping[str, Any]],
+    *,
+    exclude_stream_id: str | None = None,
+) -> list[str]:
+    """Peer ids that block dispatch under the design-kind WIP rule.
+
+    Empty when under the WIP cap (including different kinds / no kind).
+    """
+    if not refuse_dispatch_on_same_kind_wip(
+        proposed, peer_streams, exclude_stream_id=exclude_stream_id
+    ):
+        return []
+    kind = _peer_kind(proposed)
+    if kind is None:
+        return []
+    exclude = exclude_stream_id or _peer_id(proposed)
+    if exclude == "?":
+        exclude = None
+    return active_peers_of_kind(peer_streams, kind, exclude_stream_id=exclude)
 
 
 if __name__ == "__main__":
