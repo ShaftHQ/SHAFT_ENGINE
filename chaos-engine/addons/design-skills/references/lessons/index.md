@@ -20,7 +20,7 @@ one lesson card.
 | [L12 question-mark baseline](qmark-baseline.md) | mixed-font trailing `?`/`؟` shares body baseline (`anchor=ls`) |
 | [L13 perceptual acceptance](perceptual-acceptance.md) | accepting a visual/media package; metric floors; reviewer must view output vs real reference |
 | [L14 band coverage gate](band-coverage-gate.md) | burned band must cover source on-screen text every content frame |
-| [L15 mute span gate](mute-span-gate.md) | hard mute ≤2s/span and ≤10% content; else recut |
+| [L15 mute span gate](mute-span-gate.md) | hard mute ≤2s/span and ≤10% content; cue >2s → contiguous cut; else recut |
 | [L16 end-card filter_complex](endcard-filter-complex.md) | concat via filter_complex; seek by video-stream duration; pix_fmt |
 | [L17 caption micro-gap snap](caption-micro-gap-snap.md) | snap sub-~80ms cue gaps after cuts |
 | [L18 ASR names in run_gates](asr-names-run-gates.md) | wire privacy/ASR scan into run_gates; fail-closed if words missing |
