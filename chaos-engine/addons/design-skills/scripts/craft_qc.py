@@ -7,6 +7,7 @@ and the craft cards in references/craft/. Each check is red-then-green tested.
 from __future__ import annotations
 
 import json
+import math
 import re
 import statistics
 from pathlib import Path
@@ -1486,6 +1487,422 @@ def cmd_pptxbidi(qc, args) -> int:
     return qc.report("pptxbidi", qc.FAIL if hits else qc.PASS, slides=len(names), hits=hits, warnings=warnings)
 
 
+
+def _tok_alnum(s: str) -> str:
+    return re.sub(r"[^\w\u0600-\u06FF]", "", s or "")
+
+
+def _srt_cue_lines(text: str) -> list[tuple[int, str]]:
+    """Return (lineno, cue-text) pairs, skipping index and timing rows."""
+    out: list[tuple[int, str]] = []
+    for i, line in enumerate(text.splitlines(), 1):
+        s = line.strip()
+        if not s or re.match(r"^\d+$", s) or "-->" in s:
+            continue
+        out.append((i, line))
+    return out
+
+
+def _name_hits_in_line(line: str, names: set[str], vocative_only: set[str]) -> list[str]:
+    hits: list[str] = []
+    for match in re.finditer(r"(?<![\w\u0600-\u06FF])(?:ياا?)\s+([\w\u0600-\u06FF]+)", line):
+        name = _tok_alnum(match.group(1))
+        if name in names:
+            hits.append(name)
+    for name in names - vocative_only:
+        if re.search(rf"(?<![\w\u0600-\u06FF]){re.escape(name)}(?![\w\u0600-\u06FF])", line):
+            if name not in hits:
+                hits.append(name)
+    return hits
+
+
+def _load_asr_words(path: Path) -> list[dict]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        if isinstance(data.get("words"), list):
+            return data["words"]
+        segs = data.get("segments") or []
+        words: list[dict] = []
+        for seg in segs:
+            words.extend(seg.get("words") or [])
+        return words
+    return []
+
+
+DEFAULT_AMOUNT_RE = re.compile(
+    r"(\d[\d,]*\s*(?:USD|EUR|EGP|\$)|(?:USD|EUR|EGP)\s*\d)",
+    re.I,
+)
+
+
+def cmd_privacynames(qc, args) -> int:
+    """L09: caption + ASR personal-name / hard-amount scan; mute notes alone never PASS.
+
+    Project denylist via --name (repeatable). --vocative-only marks tokens that
+    only count after يا/ياا. Synthetic examples in tests use فلان / Alice.
+    """
+    names = {_tok_alnum(n) for n in (args.name or []) if _tok_alnum(n)}
+    vocative_only = {_tok_alnum(n) for n in (args.vocative_only or []) if _tok_alnum(n)}
+    amount_re = re.compile(args.amount_re, re.I) if args.amount_re else DEFAULT_AMOUNT_RE
+    if not names and not args.allow_empty_names:
+        return qc.report(
+            "privacynames", qc.USAGE,
+            error="pass --name TOKEN (repeatable); project denylist stays out of CE source",
+        )
+    hits: list[str] = []
+    scanned = False
+    if args.srt:
+        scanned = True
+        for lineno, line in _srt_cue_lines(Path(args.srt).read_text(encoding="utf-8")):
+            for name in _name_hits_in_line(line, names, vocative_only):
+                hits.append(f"srt:{lineno} name={name}")
+            if amount_re.search(line):
+                hits.append(f"srt:{lineno} hard-amount")
+    if args.words:
+        scanned = True
+        words = _load_asr_words(Path(args.words))
+        for i, item in enumerate(words):
+            w = item.get("w") or item.get("word") or ""
+            tok = _tok_alnum(w)
+            prev = _tok_alnum(
+                (words[i - 1].get("w") or words[i - 1].get("word") or "") if i else ""
+            )
+            is_voc = prev in ("يا", "ياا")
+            if tok in names:
+                if tok in vocative_only and not is_voc:
+                    continue
+                hits.append(f"asr:{i} name={tok}" + (" vocative" if is_voc else ""))
+            if amount_re.search(w):
+                hits.append(f"asr:{i} hard-amount")
+    notes_ok = True
+    if args.notes:
+        notes = Path(args.notes).read_text(encoding="utf-8")
+        has_mute = bool(re.search(r"\bmute", notes, re.I))
+        has_text_scan = bool(re.search(r"text[- ]?scan|srt[- ]?scan|asr[- ]?scan|privacynames", notes, re.I))
+        if has_mute and not has_text_scan:
+            notes_ok = False
+            hits.append("notes:mute-without-text-scan")
+    if not scanned:
+        return qc.report(
+            "privacynames", qc.USAGE,
+            error="pass --srt and/or --words; mute notes alone never PASS",
+        )
+    return qc.report(
+        "privacynames",
+        qc.FAIL if hits or not notes_ok else qc.PASS,
+        hits=hits,
+        names=sorted(names),
+        scanned=["srt"] * bool(args.srt) + ["asr"] * bool(args.words),
+        notes_ok=notes_ok,
+        note="fail-closed on residual name/amount hits; mute notes alone never PASS (L09)",
+    )
+
+
+def _script_direction(text: str) -> str:
+    """rtl if any Arabic letter, else ltr (strong Latin/digit)."""
+    if ARABIC.search(text):
+        return "rtl"
+    return "ltr"
+
+
+def _titlepunct_blocks(metadata_path: str) -> dict[str, str]:
+    text = Path(metadata_path).read_text(encoding="utf-8")
+    section, buf = None, []
+    blocks: dict[str, str] = {}
+    for line in text.splitlines() + ["## _end"]:
+        if line.startswith("## "):
+            if section:
+                blocks[section] = "\n".join(buf).strip()
+            heading = line[3:].strip().lower()
+            buf = []
+            if heading.startswith("title"):
+                section = "title"
+            elif heading.startswith("description"):
+                section = "description"
+            else:
+                section = None
+            continue
+        if section:
+            buf.append(line)
+    return blocks
+
+
+def _titlepunct_mark_errors(label: str, raw: str, url_re, ar_q: str, lat_q: str) -> list[str]:
+    if not raw or not raw.strip():
+        return []
+    cleaned = url_re.sub(" ", raw)
+    if not cleaned.strip():
+        return []
+    direction = _script_direction(cleaned.rstrip("؟?"))
+    expected = ar_q if direction == "rtl" else lat_q
+    has_ar, has_lat = ar_q in cleaned, lat_q in cleaned
+    if not has_ar and not has_lat:
+        return []
+    out: list[str] = []
+    if expected == lat_q and has_ar:
+        out.append(f"{label}: Latin-script uses Arabic ؟; use ASCII '?'")
+    if expected == ar_q and has_lat:
+        out.append(f"{label}: Arabic/RTL uses ASCII '?'; use Arabic '؟'")
+    return out
+
+
+def _titlepunct_desc_errors(
+    desc: str, title_bare: str, title_exp: str | None, url_re, ar_q: str, lat_q: str,
+) -> list[str]:
+    errors: list[str] = []
+    for i, line in enumerate(desc.splitlines(), 1):
+        cleaned = url_re.sub(" ", line)
+        if "؟" not in cleaned and "?" not in cleaned:
+            continue
+        if title_bare and title_bare in cleaned and title_exp:
+            after = cleaned[cleaned.find(title_bare) + len(title_bare):]
+            span = cleaned[cleaned.find(title_bare):]
+            if title_exp == lat_q and (ar_q in span or after.lstrip().startswith(ar_q)):
+                errors.append(f"desc:L{i}: embedded Latin title uses ؟")
+            if title_exp == ar_q and lat_q in after and ar_q not in span:
+                errors.append(f"desc:L{i}: embedded Arabic title uses ?")
+        else:
+            errors.extend(_titlepunct_mark_errors(f"desc:L{i}", cleaned, url_re, ar_q, lat_q))
+    return errors
+
+
+def cmd_titlepunct(qc, args) -> int:
+    """L11: title/desc question mark matches script (Latin ? vs Arabic ؟)."""
+    ar_q, lat_q = "؟", "?"
+    url_re = re.compile(r"https?://\S+|www\.\S+", re.I)
+    title = args.title or ""
+    desc = args.desc or ""
+    if args.metadata:
+        blocks = _titlepunct_blocks(args.metadata)
+        title = title or blocks.get("title", "")
+        desc = desc or blocks.get("description", "")
+    if not (title.strip() or desc.strip() or args.metadata):
+        return qc.report(
+            "titlepunct", qc.USAGE,
+            error="pass --title, --desc, and/or --metadata; empty input never PASS",
+        )
+    errors = _titlepunct_mark_errors("title", title, url_re, ar_q, lat_q)
+    title_bare = title.strip().rstrip("؟?").rstrip() if title else ""
+    title_dir = _script_direction(title_bare) if title_bare else None
+    title_exp = (ar_q if title_dir == "rtl" else lat_q) if title_dir else None
+    errors.extend(_titlepunct_desc_errors(desc, title_bare, title_exp, url_re, ar_q, lat_q))
+    errors = list(dict.fromkeys(errors))
+    return qc.report(
+        "titlepunct",
+        qc.FAIL if errors else qc.PASS,
+        errors=errors,
+        title=title,
+        expected_title_q=(ar_q if title_dir == "rtl" else lat_q) if title_dir else None,
+        note="Latin ASCII '?'; Arabic '؟'; URLs ignored (L11)",
+    )
+
+
+def _band_ink_frac(rgb, y0: int, y1: int) -> float:
+    """Fraction of bright (near-white) pixels in band rows — proxy for text ink.
+
+    Returns NaN when the band is empty so callers fail closed (never 0.0 PASS).
+    """
+    if y0 >= y1 or y0 < 0 or y1 > rgb.shape[0]:
+        return float("nan")
+    region = rgb[y0:y1, :, :].astype("int16")
+    if region.size == 0:
+        return float("nan")
+    r, g, b = region[:, :, 0], region[:, :, 1], region[:, :, 2]
+    bright = (r > 200) & (g > 200) & (b > 200)
+    # Exclude near-navy ground and warm gold accents
+    navy = (r < 40) & (g < 80) & (b < 100)
+    gold = (r > 180) & (g > 140) & (b < 180) & (r > b + 40)
+    ink = bright & ~navy & ~gold
+    if ink.size == 0:
+        return float("nan")
+    return float(ink.mean())
+
+
+def cmd_endcardlive(qc, args) -> int:
+    """L10: live end-card frame band-row ink vs clean endcard plate."""
+    try:
+        from PIL import Image
+        import numpy as np
+    except ImportError as exc:  # pragma: no cover - optional dep
+        raise qc.Skip(f"Pillow/numpy required for endcardlive: {exc}") from exc
+
+    clean = Path(args.clean)
+    live_path = Path(args.live) if args.live else None
+    if live_path is None:
+        if not args.file:
+            return qc.report("endcardlive", qc.USAGE, error="pass final.mp4 or --live frame")
+        # Grab a frame near end of end-card hold
+        import tempfile, subprocess
+        dur = float(qc.ffprobe(args.file).get("format", {}).get("duration", 0) or 0)
+        ss = max(0.0, dur - float(args.offset_from_end))
+        tmp = Path(tempfile.mkdtemp(prefix="ce-endcard-")) / "live.jpg"
+        cmd = [qc.need("ffmpeg"), "-v", "error", "-y", "-ss", str(ss), "-i", args.file,
+               "-frames:v", "1", "-q:v", "2", str(tmp)]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)  # nosec B603
+        if result.returncode != 0:
+            return qc.report("endcardlive", qc.USAGE, error=f"ffmpeg failed: {result.stderr[-400:]}")
+        live_path = tmp
+
+    live_im = np.array(Image.open(live_path).convert("RGB"))
+    clean_im = np.array(Image.open(clean).convert("RGB"))
+    y0 = int(args.band_y)
+    y1 = y0 + int(args.band_h)
+    live_h, clean_h = int(live_im.shape[0]), int(clean_im.shape[0])
+    # Both frames must fully cover a non-empty band; never clamp into empty slice.
+    if y0 < 0 or y1 <= y0 or live_h < y1 or clean_h < y1:
+        return qc.report(
+            "endcardlive", qc.FAIL,
+            error="band out of bounds or empty; both frames must cover y0:y1",
+            band=[y0, y1],
+            live_h=live_h,
+            clean_h=clean_h,
+            live_frame=str(live_path),
+            clean_png=str(clean),
+        )
+    live_ink = _band_ink_frac(live_im, y0, y1)
+    clean_ink = _band_ink_frac(clean_im, y0, y1)
+    delta = abs(live_ink - clean_ink)
+    tl = live_im[0:100, 0:100] if live_im.shape[0] >= 100 and live_im.shape[1] >= 100 else live_im
+    topleft_white = float(np.all(tl >= 250, axis=2).mean()) if tl.size else 0.0
+    finite = all(math.isfinite(v) for v in (live_ink, clean_ink, delta, topleft_white))
+    ok = (
+        finite
+        and live_ink <= float(args.max_live_ink)
+        and delta <= float(args.max_ink_delta)
+        and topleft_white < 0.05
+    )
+    return qc.report(
+        "endcardlive",
+        qc.PASS if ok else qc.FAIL,
+        live_ink_frac=None if not math.isfinite(live_ink) else round(live_ink, 5),
+        clean_ink_frac=None if not math.isfinite(clean_ink) else round(clean_ink, 5),
+        ink_delta=None if not math.isfinite(delta) else round(delta, 5),
+        max_live_ink=float(args.max_live_ink),
+        max_ink_delta=float(args.max_ink_delta),
+        topleft_white_frac=round(topleft_white, 4) if math.isfinite(topleft_white) else None,
+        band=[y0, y1],
+        live_frame=str(live_path),
+        clean_png=str(clean),
+        note="burn bands on content only; gate live end card vs clean plate (L10)",
+    )
+
+
+def _line_components(mask) -> list[tuple[int, int, int, int]]:
+    import numpy as np
+    cols = np.where(mask.any(axis=0))[0]
+    if len(cols) == 0:
+        return []
+    bounds: list[tuple[int, int]] = []
+    start = int(cols[0])
+    for i in range(1, len(cols)):
+        if int(cols[i]) - int(cols[i - 1]) > 2:
+            bounds.append((start, int(cols[i - 1])))
+            start = int(cols[i])
+    bounds.append((start, int(cols[-1])))
+    out = []
+    for x0, x1 in bounds:
+        ys, xs = np.where(mask[:, x0: x1 + 1])
+        if len(ys) == 0:
+            continue
+        out.append((x0, x1, int(ys.min()), int(ys.max())))
+    return out
+
+
+def cmd_qmarkbaseline(qc, args) -> int:
+    """L12: trailing ?/؟ ink bottom vs body baseline; fail if offset/line_h > 6%."""
+    try:
+        from PIL import Image
+        import numpy as np
+    except ImportError as exc:  # pragma: no cover
+        raise qc.Skip(f"Pillow/numpy required for qmarkbaseline: {exc}") from exc
+
+    path = Path(args.file)
+    threshold = float(args.max_frac)
+    im = np.array(Image.open(path).convert("RGBA"))
+    mask = (im[:, :, 0] > 200) & (im[:, :, 1] > 200) & (im[:, :, 2] > 200)
+    # Ignore bottom chrome (gold rule / footer) — keep upper band text
+    cut = int(args.ignore_below) if args.ignore_below is not None else max(0, im.shape[0] - 40)
+    if cut < im.shape[0]:
+        mask[cut:, :] = False
+    rows = np.where(mask.any(axis=1))[0]
+    if len(rows) == 0:
+        return qc.report(
+            "qmarkbaseline", qc.FAIL, reason="no_text",
+            path=str(path), note="blank/no-ink frame never PASS (L12)",
+        )
+    groups: list[tuple[int, int]] = []
+    start = prev = int(rows[0])
+    for r in rows[1:]:
+        r = int(r)
+        if r - prev > 4:
+            groups.append((start, prev))
+            start = r
+        prev = r
+    groups.append((start, prev))
+    ls, le = groups[-1]
+    comps = _line_components(mask[ls: le + 1])
+    if len(comps) < 2:
+        return qc.report(
+            "qmarkbaseline", qc.PASS, reason="no_trailing_qmark",
+            path=str(path), components=len(comps),
+        )
+    widths = [c[1] - c[0] + 1 for c in comps]
+    med_w = float(np.median(widths))
+    max_mark_w = max(22.0, 0.7 * med_w)
+    direction = (args.direction or "").lower() or None
+
+    def eval_side(side: str):
+        q = comps[0] if side == "left" else comps[-1]
+        body = comps[1:] if side == "left" else comps[:-1]
+        if not body:
+            return None
+        qw = q[1] - q[0] + 1
+        if qw > max_mark_w:
+            return None
+        bottoms = sorted(c[3] for c in body)
+        if len(bottoms) >= 4:
+            keep = bottoms[: max(1, int(round(len(bottoms) * 0.75)))]
+            baseline = float(np.median(keep))
+        else:
+            baseline = float(np.median(bottoms))
+        body_top = float(min(c[2] for c in body))
+        line_h = max(1.0, baseline - body_top + 1.0)
+        q_bottom = float(q[3])
+        frac = abs(q_bottom - baseline) / line_h
+        fail = (not math.isfinite(frac)) or frac > threshold
+        return {
+            "side": side, "q_bottom": q_bottom, "baseline": baseline,
+            "line_h": line_h,
+            "bottom_offset_frac": None if not math.isfinite(frac) else round(frac, 4),
+            "fail": fail,
+        }
+
+    sides = ["right"] if direction == "ltr" else ["left"] if direction == "rtl" else ["left", "right"]
+    checked = [c for s in sides if (c := eval_side(s)) is not None]
+    if not checked:
+        return qc.report(
+            "qmarkbaseline", qc.PASS, reason="no_trailing_qmark",
+            path=str(path), direction=direction, components=len(comps),
+        )
+    # Prefer finite fractions for worst-of ranking; non-finite always fail.
+    def _rank(c):
+        v = c["bottom_offset_frac"]
+        return float("inf") if v is None else v
+    worst = max(checked, key=_rank)
+    status = qc.FAIL if any(c["fail"] for c in checked) else qc.PASS
+    return qc.report(
+        "qmarkbaseline", status,
+        path=str(path), direction=direction, threshold=threshold,
+        components=len(comps), checked=checked,
+        side=worst["side"], bottom_offset_frac=worst["bottom_offset_frac"],
+        baseline=worst["baseline"], line_h=worst["line_h"],
+        note="mixed-font trailing ?/؟ share body baseline; fail >6% line_h (L12)",
+    )
+
+
+
 def register(add, qc) -> None:
     """Add the craft subcommands to design_qc's parser."""
     def bind(func):
@@ -1692,3 +2109,38 @@ def register(add, qc) -> None:
     p.add_argument("path")
     p = add("pptxbidi", bind(cmd_pptxbidi), "Arabic PPTX paragraphs: native rtl, no bidi controls, native bullets")
     p.add_argument("file")
+    p = add("privacynames", bind(cmd_privacynames),
+            "L09: caption+ASR personal names/amounts; mute notes alone never PASS")
+    p.add_argument("--srt", default=None, help="caption SRT to scan")
+    p.add_argument("--words", default=None, help="ASR words.json to scan")
+    p.add_argument("--name", action="append", default=[],
+                   help="denylist token (repeatable; project-supplied)")
+    p.add_argument("--vocative-only", action="append", default=[], dest="vocative_only",
+                   help="token only counts after يا/ياا")
+    p.add_argument("--notes", default=None, help="review notes; mute without text-scan fails")
+    p.add_argument("--amount-re", default=None, dest="amount_re",
+                   help="override hard-amount regex")
+    p.add_argument("--allow-empty-names", action="store_true", dest="allow_empty_names",
+                   help="allow amount-only scan with no --name")
+    p = add("titlepunct", bind(cmd_titlepunct),
+            "L11: title/desc question mark matches script (Latin ? vs Arabic ؟)")
+    p.add_argument("--title", default="", help="title string")
+    p.add_argument("--desc", default="", help="description string")
+    p.add_argument("--metadata", default=None, help="METADATA.md with ## Title / ## Description")
+    p = add("endcardlive", bind(cmd_endcardlive),
+            "L10: live end-card band-row ink vs clean endcard plate")
+    p.add_argument("file", nargs="?", default=None, help="final mp4 (optional if --live given)")
+    p.add_argument("--clean", required=True, help="clean endcard.png plate")
+    p.add_argument("--live", default=None, help="pre-grabbed live end-card frame")
+    p.add_argument("--band-y", type=int, default=500, dest="band_y")
+    p.add_argument("--band-h", type=int, default=175, dest="band_h")
+    p.add_argument("--offset-from-end", type=float, default=1.5, dest="offset_from_end")
+    p.add_argument("--max-live-ink", type=float, default=0.01, dest="max_live_ink")
+    p.add_argument("--max-ink-delta", type=float, default=0.008, dest="max_ink_delta")
+    p = add("qmarkbaseline", bind(cmd_qmarkbaseline),
+            "L12: trailing ?/؟ ink bottom vs body baseline (fail >6%% line_h)")
+    p.add_argument("file", help="rendered band PNG")
+    p.add_argument("--direction", choices=("ltr", "rtl"), default=None)
+    p.add_argument("--max-frac", type=float, default=0.06, dest="max_frac")
+    p.add_argument("--ignore-below", type=int, default=None, dest="ignore_below",
+                   help="clear mask rows at/after this y (drop footer chrome)")
