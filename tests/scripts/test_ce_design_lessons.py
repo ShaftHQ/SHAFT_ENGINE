@@ -1,4 +1,4 @@
-"""Design-skills lesson cards L01-L09 and the resource verdicts (#7333)."""
+"""Design-skills lesson cards L01-L08+L13 and the resource verdicts (#7333)."""
 
 from __future__ import annotations
 

@@ -3,7 +3,7 @@ name: perceptual-acceptance
 description: Use when numeric QC or a reviewer is about to accept a visual/media package, or when metric floors are set or changed.
 ---
 
-# L09 Perceptual acceptance
+# L13 Perceptual acceptance
 
 ## Use when
 
