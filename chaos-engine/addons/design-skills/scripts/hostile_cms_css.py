@@ -1,7 +1,4 @@
-"""Hosted-builder-like hostile CSS string for L26 rehearsal (stdlib).
-
-Node consumers may re-export the same string; portable assemble ships .py only.
-"""
+"""Hostile CMS CSS fixture string for L26 rehearsal (stdlib)."""
 
 HOSTILE_CMS_CSS = """
   h1,h2,h3,h4 { color:#1a6fc0 !important; font-family:'Roboto Slab',serif !important; }

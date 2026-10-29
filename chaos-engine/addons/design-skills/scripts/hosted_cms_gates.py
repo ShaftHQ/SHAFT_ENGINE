@@ -71,11 +71,7 @@ def check_cms_sticky(
     header_px: float | None = None,
     scroll_margin_px: float | None = None,
 ) -> dict[str, Any]:
-    """L23: embed paste/CSS must declare --header-height and scroll-margin-top.
-
-    Optional ``header_px`` / ``scroll_margin_px`` (both required together) fail
-    when scroll_margin_px < header_px.
-    """
+    """Require --header-height and scroll-margin-top; optional px compare."""
     has_header = bool(HEADER_HEIGHT_TOKEN.search(text or ""))
     has_margin = bool(SCROLL_MARGIN_TOKEN.search(text or ""))
     missing = []
@@ -229,6 +225,78 @@ def check_hostile_tile(
     return {**base, "status": "pass", "note": "identity tile geometry ok (L26)"}
 
 
+def _finite_num(name: str, val: float | None) -> float | None:
+    if val is None:
+        return None
+    try:
+        out = float(val)
+    except (TypeError, ValueError):
+        raise ValueError(name) from None
+    if not math.isfinite(out):
+        raise ValueError(name)
+    return out
+
+
+def _gutter_parity_fails(
+    hero_gutter: float | None,
+    embed_gutter: float | None,
+    gutter_tol: float,
+    base: dict[str, Any],
+) -> list[str]:
+    if (hero_gutter is None) ^ (embed_gutter is None):
+        raise ValueError("pass both --hero-gutter and --embed-gutter, or neither")
+    if hero_gutter is None or embed_gutter is None:
+        return []
+    diff = abs(embed_gutter - hero_gutter)
+    base.update({
+        "hero_gutter": hero_gutter,
+        "embed_gutter": embed_gutter,
+        "gutter_diff": round(diff, 4),
+        "gutter_tol": gutter_tol,
+    })
+    if diff > gutter_tol + 1e-9:
+        return [
+            f"gutter mismatch embed={embed_gutter} hero={hero_gutter} "
+            f"diff={diff:.1f} (tol ±{gutter_tol})"
+        ]
+    return []
+
+
+def _double_pad_fails(
+    outer_pad: float | None,
+    inner_pad: float | None,
+    content_inset: float | None,
+    viewport: float | None,
+    max_phone_inset: float,
+    double_pad_lo: float,
+    double_pad_hi: float,
+    base: dict[str, Any],
+) -> list[str]:
+    fails: list[str] = []
+    if outer_pad is not None or inner_pad is not None:
+        op_v = 0.0 if outer_pad is None else outer_pad
+        ip_v = 0.0 if inner_pad is None else inner_pad
+        base.update({"outer_pad": op_v, "inner_pad": ip_v})
+        if op_v > 0 and ip_v > 0:
+            fails.append("no-double-pad: nested padding-inline stack (L27)")
+    if content_inset is not None:
+        base["content_inset"] = content_inset
+        if viewport is not None:
+            base["viewport"] = viewport
+        phone = viewport is None or viewport <= 430
+        if phone and content_inset > max_phone_inset + 1e-9:
+            fails.append(
+                f"phone over-inset content_inset={content_inset} > "
+                f"{max_phone_inset} (double-pad smell)"
+            )
+        if phone and double_pad_lo - 1e-9 <= content_inset <= double_pad_hi + 1e-9:
+            fails.append(
+                f"double-pad band content_inset={content_inset} in "
+                f"[{double_pad_lo}, {double_pad_hi}] at phone (L27)"
+            )
+    return fails
+
+
 def check_cms_width(
     code_w: float,
     column_w: float,
@@ -245,11 +313,7 @@ def check_cms_width(
     double_pad_lo: float = 72.0,
     double_pad_hi: float = 80.0,
 ) -> dict[str, Any]:
-    """L27: full-width ratio + phone gutter parity / no-double-pad.
-
-    Ported generically from designer-workspace home-align-gate (GUTTER_TOL=4,
-    phone over-inset / stacked padding-inline smell ~72–80px at 390).
-    """
+    """Full-width ratio plus phone gutter parity / no-double-pad (L27)."""
     try:
         cw, col = float(code_w), float(column_w)
     except (TypeError, ValueError):
@@ -266,73 +330,28 @@ def check_cms_width(
     fails: list[str] = []
     if ratio + 1e-9 < min_ratio:
         fails.append("code block must span content grid (L27)")
-
-    def _num(name: str, val: float | None) -> float | None:
-        if val is None:
-            return None
-        try:
-            out = float(val)
-        except (TypeError, ValueError):
-            raise ValueError(name)
-        if not math.isfinite(out):
-            raise ValueError(name)
-        return out
-
     try:
-        hg = _num("hero_gutter", hero_gutter)
-        eg = _num("embed_gutter", embed_gutter)
-        op = _num("outer_pad", outer_pad)
-        ip = _num("inner_pad", inner_pad)
-        ci = _num("content_inset", content_inset)
-        vp = _num("viewport", viewport)
+        hg = _finite_num("hero_gutter", hero_gutter)
+        eg = _finite_num("embed_gutter", embed_gutter)
+        op = _finite_num("outer_pad", outer_pad)
+        ip = _finite_num("inner_pad", inner_pad)
+        ci = _finite_num("content_inset", content_inset)
+        vp = _finite_num("viewport", viewport)
         tol = float(gutter_tol)
-        max_inset = float(max_phone_inset)
-        lo, hi = float(double_pad_lo), float(double_pad_hi)
-    except (TypeError, ValueError) as exc:
+    except ValueError as exc:
         return {"status": "error", "reasons": [f"non-numeric {exc}"]}
-
-    if (hg is None) ^ (eg is None):
-        return {
-            "status": "error",
-            "reasons": ["pass both --hero-gutter and --embed-gutter, or neither"],
-        }
-    if hg is not None and eg is not None:
-        diff = abs(eg - hg)
-        base.update({
-            "hero_gutter": hg,
-            "embed_gutter": eg,
-            "gutter_diff": round(diff, 4),
-            "gutter_tol": tol,
-        })
-        if diff > tol + 1e-9:
-            fails.append(
-                f"gutter mismatch embed={eg} hero={hg} diff={diff:.1f} (tol ±{tol})"
-            )
-
-    if op is not None or ip is not None:
-        op_v = 0.0 if op is None else op
-        ip_v = 0.0 if ip is None else ip
-        base.update({"outer_pad": op_v, "inner_pad": ip_v})
-        if op_v > 0 and ip_v > 0:
-            fails.append("no-double-pad: nested padding-inline stack (L27)")
-
-    if ci is not None:
-        base["content_inset"] = ci
-        if vp is not None:
-            base["viewport"] = vp
-        phone = vp is None or vp <= 430
-        if phone and ci > max_inset + 1e-9:
-            fails.append(
-                f"phone over-inset content_inset={ci} > {max_inset} (double-pad smell)"
-            )
-        if phone and lo - 1e-9 <= ci <= hi + 1e-9:
-            fails.append(
-                f"double-pad band content_inset={ci} in [{lo}, {hi}] at phone (L27)"
-            )
-
+    try:
+        fails.extend(_gutter_parity_fails(hg, eg, tol, base))
+    except ValueError as exc:
+        return {"status": "error", "reasons": [str(exc)]}
+    fails.extend(_double_pad_fails(
+        op, ip, ci, vp, float(max_phone_inset),
+        float(double_pad_lo), float(double_pad_hi), base,
+    ))
     if fails:
         return {**base, "status": "fail", "note": "; ".join(fails), "fails": fails}
     return {**base, "status": "pass", "note": "full-width + gutter parity ok (L27)"}
+
 
 
 def check_cms_duration(
@@ -398,11 +417,7 @@ REQUIRED_LIVECMS_ROWS = (
 
 
 def check_livecms(report: dict[str, Any]) -> dict[str, Any]:
-    """L28/L31: fail-closed live matrix receipt.
-
-    media_ok / duration_ok may be the sentinel ``n/a`` when the page has no
-    required video; keys must still be present. nested_containers_0 must pass.
-    """
+    """Fail-closed live matrix receipt for L28/L31 (n/a ok for media rows)."""
     if not isinstance(report, dict):
         return {"status": "error", "reasons": ["report must be a JSON object"]}
     rows = report.get("rows") if isinstance(report.get("rows"), dict) else report
