@@ -782,6 +782,7 @@ SURFACE_PATTERNS = {
         "chaos-engine/mobile_retro.py",
         "scripts/ci/no_push_guard.py",
         "scripts/ci/mobile_retro_live.py",
+        "scripts/ci/mobile_retro_runtime.py",
     ),
     "plugins": (
         "agent-plugins/*",

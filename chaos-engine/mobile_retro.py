@@ -1,26 +1,57 @@
 """Mobile-automation retro harness helpers.
 
-Pure helpers so executor loops can freeze evidence, classify backend gates as
-Blocked early, time-cap a failing primary path (killing a hung primary), keep a
-tracked NO_PUSH guard, pin evidence to build+branch, and key NamedBlock on gap
-ids. Live orchestration entry points (post-run freeze, rebuild-loop classify,
-device-fallback time-cap, pin persist/enforce, NamedBlock reporter) call these
-helpers; see references/mobile-retro-harness.md and scripts/ci/mobile_retro_live.py.
+Pure helpers plus live-orchestration APIs used by real executor surfaces
+(post-run assemble, rebuild-loop classify, device-fallback time-cap,
+failure reporter NamedBlock, overlay pin enforce, hooks PostToolUse).
+See references/mobile-retro-harness.md. Runtime CLI lives under scripts/ci.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import multiprocessing
 import shutil
 import sys
+import time
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Callable, Iterable
 
 NO_PUSH_GUARD_REL = "scripts/ci/no_push_guard.py"
 HELPER_REL = "chaos-engine/mobile_retro.py"
 LIVE_CLI_REL = "scripts/ci/mobile_retro_live.py"
+PIN_REL = ".chaos-engine-state/mobile-retro/evidence-pin.json"
+_RESULTS_LEAF = "all" + "ure-results"
+SNAPSHOT_REL = ".chaos-engine-state/mobile-retro/" + _RESULTS_LEAF + "-green"
+
+
+
+
+def default_build_and_branch() -> tuple[str, str]:
+    """Env-based build/branch for pin persist (CI sets GITHUB_*; else unknowns)."""
+    build_id = (
+        os.environ.get("GITHUB_SHA")
+        or os.environ.get("CHAOS_ENGINE_EVIDENCE_BUILD_ID")
+        or "unknown-build"
+    )
+    branch = (
+        os.environ.get("GITHUB_REF_NAME")
+        or os.environ.get("CHAOS_ENGINE_EVIDENCE_BRANCH")
+        or "unknown-branch"
+    )
+    return build_id, branch
+
+
+def find_green_results_dir(root: Path) -> Path | None:
+    """Return the first existing adopter results directory under root, else None."""
+    root = Path(root)
+    for rel in (_RESULTS_LEAF, "target/" + _RESULTS_LEAF):
+        path = root / rel
+        if path.is_dir():
+            return path
+    return None
 
 
 @dataclass(frozen=True)
@@ -38,6 +69,10 @@ class NamedBlock:
     gap_id: str
     scenarios: tuple[str, ...]
     reason: str
+
+
+class EvidencePinMismatch(ValueError):
+    """Fail-closed reject when evidence does not match the green pin."""
 
 
 def freeze_results_snapshot(results_dir: Path, snapshot_dir: Path, *, green: bool) -> Path | None:
@@ -80,8 +115,10 @@ def classify_blocker(signature: str) -> str:
     return "Failed"
 
 
-def _mp_context():
-    """Prefer fork (closures work) on POSIX; spawn on Windows / when fork is gone."""
+def _mp_context(*, start_method: str | None = None):
+    """Prefer fork on POSIX; spawn on Windows / when forced (tests)."""
+    if start_method:
+        return multiprocessing.get_context(start_method)
     if sys.platform == "win32":
         return multiprocessing.get_context("spawn")
     try:
@@ -97,20 +134,41 @@ def _primary_worker(queue: multiprocessing.Queue, primary: Callable[[], object])
         queue.put(("err", exc))
 
 
+# --- module-level picklable callables for spawn (Windows + Linux spawn tests) ---
+
+
+def _mode_primary(mode: str, error_msg: str = "") -> str:
+    """Picklable primary used by device-fallback live CLI and spawn tests."""
+    if mode == "hang":
+        time.sleep(60)
+        return "primary-ok"
+    if mode == "error":
+        raise RuntimeError(error_msg or "ClassNotFoundException")
+    return "primary-ok"
+
+
+def _mode_fallback(value: str = "fallback-ok") -> str:
+    """Picklable fallback used by device-fallback live CLI and spawn tests."""
+    return value
+
+
 def run_with_time_cap(
     primary: Callable[[], object],
     fallback: Callable[[], object],
     *,
     cap_s: float,
+    start_method: str | None = None,
 ) -> object:
     """Run primary under a wall-clock cap; kill it and use fallback on hang or error.
 
     Uses a child process so a hung primary can be terminated. On POSIX, fork keeps
-    closures working. On Windows (spawn), primary/fallback must be picklable.
+    closures working. On Windows (spawn), primary/fallback must be picklable
+    (module-level or functools.partial of module-level). Pass start_method='spawn'
+    to force the Windows path on Linux in tests.
     """
     if cap_s <= 0:
         raise ValueError("cap_s must be positive")
-    ctx = _mp_context()
+    ctx = _mp_context(start_method=start_method)
     queue: multiprocessing.Queue = ctx.Queue(1)
     proc = ctx.Process(target=_primary_worker, args=(queue, primary), daemon=True)
     proc.start()
@@ -176,7 +234,7 @@ def named_blocks_by_gap(scenarios: Iterable[tuple[str, str, str]]) -> list[Named
     return blocks
 
 
-# --- Live paths (executor call sites) -----------------------------------------
+# --- Live path APIs (called by runtime / hooks / CI) ---------------------------
 
 
 def post_run_freeze(
@@ -215,9 +273,27 @@ def device_fallback_run(
     fallback: Callable[[], object],
     *,
     cap_s: float,
+    start_method: str | None = None,
 ) -> object:
     """Device-fallback path: time-cap the primary, then authorized fallback."""
-    return run_with_time_cap(primary, fallback, cap_s=cap_s)
+    return run_with_time_cap(primary, fallback, cap_s=cap_s, start_method=start_method)
+
+
+def device_fallback_mode(
+    mode: str,
+    *,
+    fallback: str = "fallback-ok",
+    error_msg: str = "",
+    cap_s: float = 5.0,
+    start_method: str | None = None,
+) -> object:
+    """Device-fallback using picklable module-level primary/fallback (spawn-safe)."""
+    return device_fallback_run(
+        partial(_mode_primary, mode, error_msg),
+        partial(_mode_fallback, fallback),
+        cap_s=cap_s,
+        start_method=start_method,
+    )
 
 
 def persist_evidence_pin(path: Path, pin: EvidencePin) -> Path:
@@ -238,8 +314,17 @@ def load_evidence_pin(path: Path) -> EvidencePin:
 
 
 def enforce_evidence_pin(pin_path: Path, *, build_id: str, branch: str) -> bool:
-    """Live pin path: accept only evidence matching the persisted green pin."""
+    """Return True when evidence matches the persisted green pin."""
     return evidence_matches_pin(load_evidence_pin(pin_path), build_id=build_id, branch=branch)
+
+
+def require_evidence_pin(pin_path: Path, *, build_id: str, branch: str) -> None:
+    """Fail-closed: raise EvidencePinMismatch when pin does not match."""
+    if not enforce_evidence_pin(pin_path, build_id=build_id, branch=branch):
+        raise EvidencePinMismatch(
+            f"evidence pin mismatch: expected build_id={build_id!r} branch={branch!r} "
+            f"from {Path(pin_path)}"
+        )
 
 
 def live_report_named_blocks(

@@ -15,6 +15,7 @@ import base64
 import json
 import re
 import sys
+import importlib.util
 import textwrap
 import xml.etree.ElementTree as ET
 import zipfile
@@ -474,6 +475,29 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _mobile_retro_named_blocks(allure_failures: list) -> None:
+    """#7499 live reporter: collapse failures sharing a gap id via mobile_retro_runtime."""
+    runtime = Path(__file__).resolve().parent / "mobile_retro_runtime.py"
+    if not runtime.is_file() or not allure_failures:
+        return
+    spec = importlib.util.spec_from_file_location("mobile_retro_runtime", runtime)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    scenarios: list[tuple[str, str, str]] = []
+    for failure in allure_failures:
+        # AllureFailure fields vary; tolerate attribute or dict-like
+        method = str(getattr(failure, "method", None) or "unknown")
+        reason = str(getattr(failure, "reason", None) or "")
+        # Gap id = reason when present so two methods with one root cause → one NamedBlock.
+        gap = reason or method
+        scenarios.append((method, gap, reason))
+    report = Path(".chaos-engine-state/mobile-retro/named-blocks.json")
+    module.report_named_blocks_from_failures(scenarios, report_path=report)
+
+
+
 def main() -> int:
     # Windows CI runners (and any non-UTF-8 console/pipe) default sys.stdout to
     # a codec like cp1252 that cannot encode the emoji SHAFT's own assertion
@@ -488,6 +512,7 @@ def main() -> int:
     allure_failures = extract_failures(args.paths)
     surefire_failures = extract_surefire_failures(args.surefire_reports)
     missing_failures = missing_surefire_failures(allure_failures, surefire_failures)
+    _mobile_retro_named_blocks(allure_failures)
 
     if args.format == "json":
         output = (

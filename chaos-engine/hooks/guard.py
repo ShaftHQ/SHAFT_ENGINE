@@ -1649,9 +1649,38 @@ def _prompt_entry(event: dict, event_name: str, session_id: str, host: str) -> i
     return 0
 
 
+def _mobile_retro_post_run(event: dict, commands: tuple) -> None:
+    """Live post-run freeze via PostToolUse after a green test command (#7494)."""
+    if not any(test_command(candidate) for candidate in commands):
+        return
+    root = Path(str(event.get("cwd") or Path.cwd()))
+    try:
+        import mobile_retro as _mr
+    except ImportError:
+        return
+    results = _mr.find_green_results_dir(root)
+    if results is None:
+        return
+    try:
+        build_id, branch = _mr.default_build_and_branch()
+        _mr.post_run_freeze(
+            results,
+            root / _mr.SNAPSHOT_REL,
+            green=True,
+            pin_path=root / _mr.PIN_REL,
+            build_id=build_id,
+            branch=branch,
+        )
+    except Exception:
+        # Post-run freeze must never break the hook protocol.
+        return
+
+
+
 def _post_tool_activity(event: dict, event_name: str, commands: tuple, session_id: str, receipt_command: bool, mutation: bool) -> None:
     if event_name != "PostToolUse" or receipt_command:
         return
+    _mobile_retro_post_run(event, commands)
     if any(learning_session_finalize_command(candidate) for candidate in commands):
         if learning_completion_artifact(session_id) is not None:
             reflection.record_activity(session_id, "learning-session-complete")
