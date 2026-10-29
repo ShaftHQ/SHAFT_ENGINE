@@ -1,10 +1,12 @@
 package com.shaft.intellij.ui;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
 
@@ -92,18 +94,23 @@ class ShaftIconAssetsTest {
     @Test
     void allPluginSvgIconsBanPngInSvgAndStayUnderBudget() throws IOException {
         Path resources = Path.of("src/main/resources");
+        List<Path> svgs;
         try (Stream<Path> stream = Files.walk(resources)) {
-            stream.filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".svg"))
-                    .forEach(path -> {
-                        try {
-                            assertNoRasterEmbed(path);
-                            assertTrue(Files.size(path) <= MAX_ICON_SVG_BYTES,
-                                    path + " exceeds " + MAX_ICON_SVG_BYTES + " bytes");
-                        } catch (IOException e) {
-                            throw new AssertionError(path.toString(), e);
-                        }
-                    });
+            svgs = stream
+                    .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".svg"))
+                    .sorted()
+                    .toList();
         }
+        assertFalse(svgs.isEmpty(), "expected SVG icons under plugin resources");
+        assertAll(svgs.stream().map(ShaftIconAssetsTest::svgBudgetExecutable).toList());
+    }
+
+    private static Executable svgBudgetExecutable(Path path) {
+        return () -> {
+            assertNoRasterEmbed(path);
+            assertTrue(Files.size(path) <= MAX_ICON_SVG_BYTES,
+                    path + " exceeds " + MAX_ICON_SVG_BYTES + " bytes");
+        };
     }
 
     private static void assertSvgIcon(Path path, int size, String color) throws IOException {
