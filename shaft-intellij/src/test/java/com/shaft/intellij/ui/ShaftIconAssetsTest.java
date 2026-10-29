@@ -49,26 +49,29 @@ class ShaftIconAssetsTest {
     }
 
     @Test
-    void actionIconsUseJetBrainsStyleSvgPairs() throws IOException {
+    void pluginOwnedActionIconsRemainVectorPairs() throws IOException {
+        // W1.2: generic actions moved to AllIcons; only SHAFT-unique glyphs stay as plugin SVGs.
         Path actions = Path.of("src/main/resources/icons/actions");
+        assertAll(
+                actionIconAssertions(actions, "attach"),
+                actionIconAssertions(actions, "github"));
+    }
+
+    @Test
+    void pluginDescriptorRegistersIconMapperForNewUi() throws IOException {
+        String descriptor = Files.readString(Path.of("src/main/resources/META-INF/plugin.xml"));
+        String mappings = Files.readString(Path.of("src/main/resources/ShaftIconMappings.json"));
+        Path expui = Path.of("src/main/resources/icons/expui/toolwindow/shaftToolWindow.svg");
+        Path expuiDark = Path.of("src/main/resources/icons/expui/toolwindow/shaftToolWindow_dark.svg");
 
         assertAll(
-                actionIconAssertions(actions, "add"),
-                actionIconAssertions(actions, "cancel"),
-                actionIconAssertions(actions, "check"),
-                actionIconAssertions(actions, "clear"),
-                actionIconAssertions(actions, "code"),
-                actionIconAssertions(actions, "copy"),
-                actionIconAssertions(actions, "download"),
-                actionIconAssertions(actions, "edit"),
-                actionIconAssertions(actions, "github"),
-                actionIconAssertions(actions, "help"),
-                actionIconAssertions(actions, "rerun"),
-                actionIconAssertions(actions, "reset"),
-                actionIconAssertions(actions, "search"),
-                actionIconAssertions(actions, "send"),
-                actionIconAssertions(actions, "settings"),
-                actionIconAssertions(actions, "view"));
+                () -> assertTrue(descriptor.contains("iconMapper"), "iconMapper EP required (F02)"),
+                () -> assertTrue(descriptor.contains("mappingFile=\"ShaftIconMappings.json\""),
+                        "ShaftIconMappings.json must be registered"),
+                () -> assertTrue(mappings.contains("shaftToolWindow.svg")),
+                () -> assertTrue(mappings.contains("icons/shaftToolWindow.svg")),
+                () -> assertOutlinedIcon(expui, 20, LIGHT_ACTION_COLOR),
+                () -> assertOutlinedIcon(expuiDark, 20, DARK_ACTION_COLOR));
     }
 
     @Test
