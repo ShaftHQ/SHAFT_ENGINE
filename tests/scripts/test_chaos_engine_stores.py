@@ -909,7 +909,9 @@ with mod.refresh_lock(Path(sys.argv[2])):
         self.assertFalse(self.database.exists())
         self.assertTrue(list((self.palace / ".chaos-engine-quarantine").glob("corrupt-*")))
         status = load_hosts_directory_status(self.palace)
-        self.assertEqual("initialization-required", status["status"])
+        # #7431: quarantine leftovers without a live sqlite are recovery-required
+        # (not initialization-required); see test_quarantined_palace_without_sqlite_is_recovery_required_7431.
+        self.assertEqual("recovery-required", status["status"])
 
     def test_doctor_reports_corrupt_before_the_file_is_already_gone(self):
         fresh = self.palace / "other"

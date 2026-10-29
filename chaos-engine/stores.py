@@ -533,6 +533,11 @@ def graph_freshness(cwd: Path) -> tuple[bool, str]:
         return False, "stale - indexed revision marker has no valid revision"
     if not isinstance(expected, str) or expected != digest:
         return False, "stale - Graphify manifest changed after revision marker"
+    if not is_git_work_tree(cwd):
+        requested = project_content_revision(cwd)
+        if indexed != requested:
+            return False, f"stale - indexed={indexed} requested={requested} (non-git fingerprint)"
+        return True, str(graph_out)
     try:
         requested = default_branch_commit(cwd)
     except RuntimeError as error:
@@ -568,6 +573,7 @@ def write_marker(graph_out: Path, revision: str) -> Path:
     return marker
 
 
+# #7303/#7487: emitted for never-indexed non-git graphs; severity maps to warning.
 NON_GIT_GRAPHIFY_DETAIL = (
     "n/a - not a git repository; Graphify freshness binds to a git revision"
 )
@@ -582,6 +588,48 @@ def is_git_work_tree(cwd: Path) -> bool:
     except OSError:
         return True
     return True
+
+
+_FINGERPRINT_SKIP = frozenset({
+    ".git", ".chaos-engine-runtime", "graphify-out", ".memory", "target",
+    "node_modules", "__pycache__", ".chaos-engine-state",
+})
+
+
+def project_content_revision(cwd: Path) -> str:
+    """40-hex blake2b of sorted relative paths + file bytes for a non-git tree. #7487"""
+    root = Path(cwd).resolve()
+    digest = hashlib.blake2b(digest_size=20)
+    files: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(
+            name for name in dirnames
+            if name not in _FINGERPRINT_SKIP and not name.startswith(".")
+        )
+        relative_dir = Path(dirpath).resolve().relative_to(root)
+        if any(part in _FINGERPRINT_SKIP for part in relative_dir.parts):
+            dirnames[:] = []
+            continue
+        for name in sorted(filenames):
+            if name.startswith(".") or name.endswith(".pyc"):
+                continue
+            path = Path(dirpath) / name
+            try:
+                if not path.is_file() or path.is_symlink():
+                    continue
+            except OSError:
+                continue
+            files.append(path)
+    for path in files:
+        rel = path.resolve().relative_to(root).as_posix().encode("utf-8")
+        digest.update(rel)
+        digest.update(b"\0")
+        try:
+            digest.update(path.read_bytes())
+        except OSError:
+            digest.update(b"?")
+        digest.update(b"\n")
+    return digest.hexdigest()
 
 
 def _has_commit(cwd: Path) -> bool:
@@ -608,16 +656,16 @@ def graphify_doctor_row(cwd: Path) -> dict[str, str] | None:
     if fresh:
         return {"status": "healthy", "detail": message}
     if not is_git_work_tree(cwd):
-        # #7303: no revision exists to bind, so repair can't make it fresh.
-        # Keep "degraded" (install/acceptance behaviour unchanged); severity
-        # maps this detail to a warning, and repair reports the skip honestly.
+        # #7487: fingerprint-stale → repair. Never-indexed keeps #7303 warning detail.
+        fix = (
+            "python3 .chaos-engine/install.py repair --project . --component graphify"
+        )
+        if "non-git fingerprint" in message:
+            return {"status": "degraded", "detail": message, "fixNext": fix}
         return {
             "status": "degraded",
             "detail": NON_GIT_GRAPHIFY_DETAIL,
-            "fixNext": (
-                "optional: git init && git add -A && git commit -m init, then "
-                "python3 .chaos-engine/install.py repair --project . --component graphify"
-            ),
+            "fixNext": fix,
         }
     if not _has_commit(cwd):
         # #6499: repair cannot index a repository with no commits; say so.
@@ -1539,6 +1587,26 @@ def refresh(
     if unknown:
         raise RuntimeError(f"unsupported store component: {sorted(unknown)[0]}")
     common = resolve_common_dir(cwd)
+    if common is None and not is_git_work_tree(cwd):
+        # #7487: non-git projects refresh graphify against the live tree fingerprint.
+        if selected - {"graphify"}:
+            raise RuntimeError("store refresh requires a git repository")
+        if _component_current(cwd, "graphify"):
+            return 0
+        revision = project_content_revision(cwd)
+        invoke = runner or subprocess.run
+        scratch = Path(tempfile.mkdtemp(prefix="chaos-engine-graphify-"))
+        try:
+            _refresh_graphify(
+                cwd,
+                snapshot=Path(cwd).resolve(),
+                scratch=scratch,
+                revision=revision,
+                invoke=invoke,
+            )
+        finally:
+            shutil.rmtree(scratch, ignore_errors=True)
+        return 0
     if common is None:
         raise RuntimeError("store refresh requires a git repository")
 
