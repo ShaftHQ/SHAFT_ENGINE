@@ -18,7 +18,9 @@ from pathlib import Path
 
 SOURCE_DIR = "chaos-engine"
 OVERLAY_DIR = ".chaos-engine"
-REPOSITORY_DISTRIBUTION = "repository"
+# CE-10 portable+packs: origin ownership compares the portable payload (#7564).
+# Kept name for call-site stability; value follows install.DEFAULT_DISTRIBUTION.
+REPOSITORY_DISTRIBUTION = "portable"
 OVERLAY_HANDOFF_RELATIVE = ".chaos-engine-state/overlay-handoff.md"
 
 
@@ -59,8 +61,10 @@ def _payload_relative(source: Path, path: Path) -> Path:
 
 
 def owned_source_files(source: Path) -> tuple[Path, ...]:
-    """Same payload source_files() copies for distribution=repository."""
-    return _install_module().source_files(source, REPOSITORY_DISTRIBUTION)
+    """Same payload source_files() copies for the rematerialize distribution (#7564)."""
+    install = _install_module()
+    distribution = getattr(install, "DEFAULT_DISTRIBUTION", REPOSITORY_DISTRIBUTION)
+    return install.source_files(source, distribution)
 
 
 _GIT_COMMIT = re.compile(r"[0-9a-f]{40}")

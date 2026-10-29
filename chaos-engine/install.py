@@ -60,6 +60,8 @@ SCHEMA_VERSION = 1
 DIAGNOSTIC_SCHEMA_VERSION = 2
 CANONICAL_IDENTITY = "chaos-engine"
 DEFAULT_DISTRIBUTION = "portable"
+# Pre-CE-10 ids that rematerialize as portable without uninstall (#7564).
+RETIRED_DISTRIBUTIONS = frozenset({"legacy", "repository"})
 DISTRIBUTIONS_NAME = "distributions.json"
 # Project packs live next to the core tree (`<repo>/<dir>/ce-pack/profile.json`)
 # and install under `.chaos-engine/packs/<name>/`.
@@ -398,6 +400,44 @@ def distribution_catalog(source: Path) -> dict[str, dict[str, object]]:
         tokens = [*default["forbiddenTokens"], *portable_forbidden]
         merged[DEFAULT_DISTRIBUTION] = {**default, "forbiddenTokens": list(dict.fromkeys(tokens))}
     return merged
+
+
+
+def migrates_to_default_distribution(
+    installed_id: object, requested: str, source: Path | None = None
+) -> bool:
+    """True when an installed distribution may upgrade in place to DEFAULT_DISTRIBUTION.
+
+    `legacy` predates distribution records. `repository` survived the CE-10 hard cut in
+    manifests after distributions.json kept only portable (#7564). Any other id absent
+    from the install source catalog is treated the same way.
+    """
+    if requested != DEFAULT_DISTRIBUTION or not isinstance(installed_id, str) or not installed_id:
+        return False
+    if installed_id == requested:
+        return False
+    if installed_id in RETIRED_DISTRIBUTIONS:
+        return True
+    if source is None:
+        return False
+    try:
+        return installed_id not in distribution_catalog(source)
+    except ValueError:
+        return True
+
+
+def resolve_rematerialize_distribution(installed_id: object, source: Path) -> str:
+    """Distribution for rematerialize/repair/maintain after CE-10 retirements (#7564)."""
+    if migrates_to_default_distribution(installed_id, DEFAULT_DISTRIBUTION, source):
+        return DEFAULT_DISTRIBUTION
+    if isinstance(installed_id, str) and installed_id:
+        try:
+            if installed_id in distribution_catalog(source):
+                return installed_id
+        except ValueError:
+            # Invalid catalog → treat as retired and fall through to portable.
+            pass
+    return DEFAULT_DISTRIBUTION
 
 
 def legacy_profile_layout(target: Path) -> list[str]:
@@ -2922,15 +2962,16 @@ def sync_repository_overlay_from_source(project: Path, commit: str | None = None
         pass
 
 
-def install(  # noqa: MC0001 - publication and compensation form one transaction.
+
+
+
+def _prepare_install_inputs(
     project: Path,
     source: Path,
     commit: str,
-    _locked: bool = False,
-    source_record: dict[str, str] | None = None,
-    distribution: str = DEFAULT_DISTRIBUTION,
-    addons: tuple[str, ...] = (),
-) -> Path:
+    source_record: dict[str, str] | None,
+) -> tuple[Path, Path, dict[str, object]]:
+    """Resolve/validate project+source and build the desired source record."""
     project = project.resolve()
     reject_link_or_reparse(source.absolute())
     source = source.resolve()
@@ -2948,9 +2989,102 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
             raise ValueError("ChaosEngine source record is invalid")
     require_disjoint_trees(source, project)
     reject_nested_project(project)
-
     if (source / MANIFEST_NAME).exists():
         raise ValueError(f"source contains the reserved manifest path: {MANIFEST_NAME}")
+    return project, source, desired_source
+
+
+def _require_compatible_distribution(
+    current_distribution: object, distribution: str, source: Path
+) -> bool:
+    """Raise when installed distribution cannot rematerialize as `distribution`.
+
+    Returns True when the install is an allowed CE-10 retirement migrate (#7564).
+    """
+    if not isinstance(current_distribution, dict):
+        raise ValueError(
+            "installed ChaosEngine distribution differs; uninstall before changing it"
+        )
+    installed_id = current_distribution.get("id")
+    migrating = migrates_to_default_distribution(installed_id, distribution, source)
+    if current_distribution.get("id") != distribution and not migrating:
+        raise ValueError(
+            "installed ChaosEngine distribution differs; uninstall before changing it"
+        )
+    return migrating
+
+
+def _upgrade_same_commit_in_place(
+    project: Path,
+    source: Path,
+    target: Path,
+    current: dict[str, object],
+    *,
+    commit: str,
+    distribution: str,
+    policy_digest: str,
+    capabilities: dict[str, object],
+    capability_digest: str,
+    ownership: dict[str, str],
+    desired_source: dict[str, object],
+    migrating_distribution: bool,
+) -> Path | None:
+    """Return target when same-commit install is a no-op/in-place upgrade; else None."""
+    current_distribution = current.get("distribution")
+    if not isinstance(current_distribution, dict):
+        return None
+    same_policy = migrating_distribution or (
+        current_distribution.get("policySha256") == policy_digest
+    )
+    same_payload = current["files"] == ownership
+    same_source = current["source"] == desired_source
+    if not (same_policy and same_payload and same_source):
+        return None
+    current_capabilities = current.get("capabilities")
+    current_capability_digest = current.get("capabilityPolicySha256")
+    manifest_changed = False
+    if migrating_distribution:
+        current["distribution"] = {
+            "id": distribution,
+            "policySha256": policy_digest,
+        }
+        manifest_changed = True
+    if current_capabilities is None and current_capability_digest is None:
+        current["capabilities"] = capabilities
+        current["capabilityPolicySha256"] = capability_digest
+        manifest_changed = True
+    elif (
+        current_capabilities != capabilities
+        or current_capability_digest != capability_digest
+    ):
+        raise ValueError("same commit resolved to a different capability policy")
+    if manifest_changed:
+        temporary_manifest = target / f"{MANIFEST_NAME}.upgrade-{secrets.token_hex(8)}"
+        try:
+            temporary_manifest.write_text(
+                json.dumps(current, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            temporary_manifest.replace(target / MANIFEST_NAME)
+        finally:
+            if temporary_manifest.exists():
+                temporary_manifest.unlink()
+    sync_repository_overlay_from_source(project, commit)
+    return target
+
+
+def install(  # noqa: MC0001 - publication and compensation form one transaction.
+    project: Path,
+    source: Path,
+    commit: str,
+    _locked: bool = False,
+    source_record: dict[str, str] | None = None,
+    distribution: str = DEFAULT_DISTRIBUTION,
+    addons: tuple[str, ...] = (),
+) -> Path:
+    project, source, desired_source = _prepare_install_inputs(
+        project, source, commit, source_record
+    )
     _, policy_digest = load_distribution(source, distribution)
     capabilities, capability_digest = load_capability_policy(source, distribution)
     files = source_files(source, distribution, tuple(addons))
@@ -2970,64 +3104,28 @@ def install(  # noqa: MC0001 - publication and compensation form one transaction
         if current is not None:
             current_commit = current["source"]["commit"]  # type: ignore[index]
             current_distribution = current.get("distribution")
-            legacy_distribution = (
-                isinstance(current_distribution, dict)
-                and current_distribution.get("id") == "legacy"
+            migrating_distribution = _require_compatible_distribution(
+                current_distribution, distribution, source
             )
-            if (
-                not isinstance(current_distribution, dict)
-                or (
-                    current_distribution.get("id") != distribution
-                    and not (legacy_distribution and distribution == DEFAULT_DISTRIBUTION)
-                )
-            ):
-                raise ValueError(
-                    "installed ChaosEngine distribution differs; uninstall before changing it"
-                )
             if current_commit == commit:
-                # Identical no-op only when policy + owned payload + provenance
-                # all match. Overlay sync and transport filters can rewrite owned
-                # digests while keeping the same SOURCE commit; rematerialize
-                # from the newly resolved tree instead of fail-closing (#5839).
-                # hostToken is preserved in the publish path below.
-                same_policy = legacy_distribution or (
-                    current_distribution.get("policySha256") == policy_digest
+                # Identical no-op / in-place migrate when policy + payload + provenance
+                # match; otherwise fall through to rematerialize (#5839/#7564).
+                upgraded = _upgrade_same_commit_in_place(
+                    project,
+                    source,
+                    target,
+                    current,
+                    commit=commit,
+                    distribution=distribution,
+                    policy_digest=policy_digest,
+                    capabilities=capabilities,
+                    capability_digest=capability_digest,
+                    ownership=ownership,
+                    desired_source=desired_source,
+                    migrating_distribution=migrating_distribution,
                 )
-                same_payload = current["files"] == ownership
-                same_source = current["source"] == desired_source
-                if same_policy and same_payload and same_source:
-                    current_capabilities = current.get("capabilities")
-                    current_capability_digest = current.get("capabilityPolicySha256")
-                    manifest_changed = False
-                    if legacy_distribution:
-                        current["distribution"] = {
-                            "id": distribution,
-                            "policySha256": policy_digest,
-                        }
-                        manifest_changed = True
-                    if current_capabilities is None and current_capability_digest is None:
-                        current["capabilities"] = capabilities
-                        current["capabilityPolicySha256"] = capability_digest
-                        manifest_changed = True
-                    elif (
-                        current_capabilities != capabilities
-                        or current_capability_digest != capability_digest
-                    ):
-                        raise ValueError("same commit resolved to a different capability policy")
-                    if manifest_changed:
-                        temporary_manifest = target / f"{MANIFEST_NAME}.upgrade-{secrets.token_hex(8)}"
-                        try:
-                            temporary_manifest.write_text(
-                                json.dumps(current, indent=2, sort_keys=True) + "\n",
-                                encoding="utf-8",
-                            )
-                            temporary_manifest.replace(target / MANIFEST_NAME)
-                        finally:
-                            if temporary_manifest.exists():
-                                temporary_manifest.unlink()
-                    sync_repository_overlay_from_source(project, commit)
-                    return target
-                # Drift at the same commit: fall through to rematerialize.
+                if upgraded is not None:
+                    return upgraded
         if backup.exists():
             require_absent(old_backup, "obsolete backup path")
         stage = Path(tempfile.mkdtemp(prefix=f"{INSTALL_DIRECTORY}-stage-", dir=project))
@@ -6478,8 +6576,18 @@ def _repair_policy_overlay(project: Path, runner) -> dict[str, object]:
     ).stdout.strip()
     snapshot = Path(tempfile.mkdtemp(prefix="chaos-engine-repair-")) / "chaos-engine"
     _shutil.copytree(source, snapshot, ignore=_shutil.ignore_patterns("__pycache__"))
+    installed_id = None
+    try:
+        manifest = json.loads((overlay / MANIFEST_NAME).read_text(encoding="utf-8"))
+        distribution = manifest.get("distribution") if isinstance(manifest, dict) else None
+        if isinstance(distribution, dict):
+            installed_id = distribution.get("id")
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, TypeError):
+        installed_id = None
+    # #7564: pass migrated/installed id so repair does not invent a portable/repository mismatch.
+    rematerialize = resolve_rematerialize_distribution(installed_id, snapshot)
     argv = [sys.executable, str(snapshot / "install.py"), "install", "--project", str(project),
-            "--source", str(snapshot), "--commit", commit]
+            "--source", str(snapshot), "--commit", commit, "--distribution", rematerialize]
     completed = runner(argv, cwd=project, check=False)
     if getattr(completed, "returncode", 1) != 0:
         raise ValueError("policy-overlay reinstall failed: " + " ".join(argv[1:3]))
