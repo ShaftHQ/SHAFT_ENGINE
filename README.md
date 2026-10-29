@@ -18,6 +18,10 @@ Drivers, waits, and evidence are handled. Every run ends in an Allure report.
 [![Build](https://img.shields.io/github/actions/workflow/status/ShaftHQ/SHAFT_ENGINE/pr-gate.yml?branch=main&label=build)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/pr-gate.yml)
 [![Codecov](https://img.shields.io/codecov/c/github/ShaftHQ/SHAFT_ENGINE?label=coverage&logo=codecov)](https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)
 
+[![GitHub stars](https://img.shields.io/github/stars/ShaftHQ/SHAFT_ENGINE?style=flat&label=stars)](https://github.com/ShaftHQ/SHAFT_ENGINE/stargazers)
+
+<sub>**Usage (GA4 Engine property + GitHub API, as of 2026-10-29):** 4,885,097 tests run and 53,062 active users in 30 days (2026-09-29 to 2026-10-28); 154,202 active users in 12 months (2025-10-29 to 2026-10-28); 36 countries (12-month window). The stars badge above is live.</sub>
+
 <a href="https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-hero-video-20261017/shaft-hero-16x9.mp4">
   <picture>
     <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset=".github/assets/readme/shaft-hero-thumb-dark-1280x720.jpg">
