@@ -110,7 +110,7 @@
         <commons.compress.version>1.28.0</commons.compress.version>
         <bouncycastle.version>1.86</bouncycastle.version>
         <littleproxy.version>2.8.0</littleproxy.version>
-        <ant.version>1.10.17</ant.version>
+        <ant.version>1.10.18</ant.version>
         <poi.version>5.5.1</poi.version>
         <axe.selenium.version>4.12.0</axe.selenium.version>
         <pdfbox.version>3.0.7</pdfbox.version>
