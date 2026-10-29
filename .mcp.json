@@ -34,6 +34,13 @@
     },
     "context7": {
       "url": "https://mcp.context7.com/mcp"
+    },
+    "maven-tools-mcp": {
+      "args": [
+        "-jar",
+        "/home/mohab/.local/share/ChaosEngine/tools/maven-tools-mcp/3.2.2/maven-tools-mcp-3.2.2.jar"
+      ],
+      "command": "/usr/lib/jvm/java-25-openjdk-amd64/bin/java"
     }
   }
 }

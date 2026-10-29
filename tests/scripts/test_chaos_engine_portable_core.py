@@ -468,6 +468,17 @@ class ChaosEnginePortableCoreTest(unittest.TestCase):
             with self.subTest(forbidden=label):
                 self.assertIsNone(pattern.search(task_isolation_router + cleanup_scopes))
 
+        recipe = cleanup_scopes.split("#### Authorized default-branch reset recipe", 1)[1]
+        compact_recipe = " ".join(recipe.split()).casefold()
+        self.assertIn("fetch and prune the configured upstream", compact_recipe)
+        self.assertIn("one expected", compact_recipe)
+        self.assertIn("delete extra worktrees", compact_recipe)
+        self.assertIn("delete extra local branches", compact_recipe)
+        self.assertIn("never rewrite remote history as cleanup", compact_recipe)
+        self.assertIn("no `git push --force`", compact_recipe)
+        self.assertNotIn("push --force-with-lease to the configured default", compact_recipe.replace("no `--force-with-lease` to the configured default", ""))
+        self.assertIn("no `--force-with-lease` to the configured default", compact_recipe)
+
     def test_task_isolation_gates_planning_on_a_clean_primary_checkout(self):
         canonical = CANONICAL_SKILL.read_text(encoding="utf-8")
         task_isolation_router = canonical.split("## Task isolation", 1)[1].split(

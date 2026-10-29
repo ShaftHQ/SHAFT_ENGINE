@@ -328,6 +328,12 @@ class IssueFilingTest(unittest.TestCase):
         self.assertIn("Deliver the stated acceptance", combined)
         self.assertRegex(combined, r"(?i)specialize")
 
+    def test_work_item_tracks_full_plan_on_named_active_pr(self):
+        skill = (ROOT / "chaos-engine/skills/work-item/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("One GitHub issue tracks the full plan", skill)
+        self.assertIn("currently active PR", skill)
+        self.assertIn("same PR", skill)
+
 
 def _first_fr(body: str) -> str:
     for line in body.splitlines():

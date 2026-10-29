@@ -1,0 +1,171 @@
+{
+  "checkedAt": "2026-09-10T12:59:12.254725+00:00",
+  "commands": {
+    "ctx7": "/home/mohab/.local/share/chaos-engine/node/24.21.0/lib/node_modules/ctx7/dist/index.js",
+    "graphify": "/home/mohab/.local/share/uv/tools/graphifyy/bin/graphify",
+    "java": "/usr/lib/jvm/java-25-openjdk-amd64/bin/java",
+    "memory": "/home/mohab/.local/share/chaos-engine/node/24.19.0/lib/node_modules/@aictx/memory/dist/cli/main.js",
+    "memory-mcp": "/home/mohab/.local/share/chaos-engine/node/24.19.0/lib/node_modules/@aictx/memory/dist/mcp/server.js",
+    "mempalace": "/home/mohab/.local/share/uv/tools/mempalace/bin/mempalace",
+    "mempalace-mcp": "/home/mohab/.local/share/uv/tools/mempalace/bin/mempalace-mcp",
+    "node": "/home/mohab/.local/share/chaos-engine/node/24.21.0/bin/node",
+    "npm": "/home/mohab/.local/share/chaos-engine/node/24.21.0/bin/npm",
+    "npx": "/home/mohab/.local/share/chaos-engine/node/24.21.0/bin/npx",
+    "python3": "/home/mohab/.local/share/uv/python/cpython-3.14.7-linux-x86_64-gnu/bin/python3.14",
+    "uv": "/home/mohab/.local/bin/uv",
+    "uvx": "/home/mohab/.local/bin/uvx"
+  },
+  "components": {
+    "context7": {
+      "action": "reused",
+      "detail": "passed",
+      "executable": "<home>/.local/share/chaos-engine/node/24.21.0/lib/node_modules/ctx7/dist/index.js",
+      "healthy": true,
+      "installedVersion": "0.5.11",
+      "latestVersionVerified": true,
+      "probe": "passed",
+      "provider": "npm-global-user",
+      "resolvedVersion": "0.5.11",
+      "scope": "user",
+      "siblings": {
+        "ctx7": "<home>/.local/share/chaos-engine/node/24.21.0/lib/node_modules/ctx7/dist/index.js"
+      },
+      "source": "https://registry.npmjs.org/ctx7/latest",
+      "status": "healthy",
+      "version": "0.5.11"
+    },
+    "graphify": {
+      "action": "upgraded",
+      "detail": "passed",
+      "executable": "<home>/.local/share/uv/tools/graphifyy/bin/graphify",
+      "healthy": true,
+      "installedVersion": "0.9.57",
+      "latestVersionVerified": true,
+      "probe": "passed",
+      "provider": "uv-tool",
+      "resolvedVersion": "0.9.57",
+      "scope": "user",
+      "siblings": {
+        "graphify": "<home>/.local/share/uv/tools/graphifyy/bin/graphify"
+      },
+      "source": "https://pypi.org/pypi/graphifyy/json",
+      "status": "healthy",
+      "version": "0.9.57"
+    },
+    "java": {
+      "action": "reused",
+      "detail": "passed",
+      "executable": "/usr/lib/jvm/java-25-openjdk-amd64/bin/java",
+      "healthy": true,
+      "installedVersion": "25.0.4+7",
+      "latestVersionVerified": true,
+      "probe": "passed",
+      "provider": "adoptium-platform-package",
+      "resolvedVersion": "25.0.4+7",
+      "scope": "user",
+      "siblings": {
+        "java": "/usr/lib/jvm/java-25-openjdk-amd64/bin/java"
+      },
+      "source": "https://api.adoptium.net/v3/info/release_versions?feature_version=25&release_type=ga&page_size=50",
+      "status": "healthy",
+      "version": "25.0.4+7"
+    },
+    "memory": {
+      "action": "reused",
+      "detail": "passed",
+      "executable": "<home>/.local/share/chaos-engine/node/24.19.0/lib/node_modules/@aictx/memory/dist/cli/main.js",
+      "healthy": true,
+      "installedVersion": "0.2.1",
+      "latestVersionVerified": true,
+      "probe": "passed",
+      "provider": "npm-global-user",
+      "resolvedVersion": "0.2.1",
+      "scope": "user",
+      "siblings": {
+        "memory": "<home>/.local/share/chaos-engine/node/24.19.0/lib/node_modules/@aictx/memory/dist/cli/main.js",
+        "memory-mcp": "<home>/.local/share/chaos-engine/node/24.19.0/lib/node_modules/@aictx/memory/dist/mcp/server.js"
+      },
+      "source": "https://registry.npmjs.org/@aictx%2fmemory/latest",
+      "status": "healthy",
+      "version": "0.2.1"
+    },
+    "mempalace": {
+      "action": "reused",
+      "detail": "passed",
+      "executable": "<home>/.local/share/uv/tools/mempalace/bin/mempalace",
+      "healthy": true,
+      "installedVersion": "3.8.0",
+      "latestVersionVerified": true,
+      "probe": "passed",
+      "provider": "uv-tool",
+      "resolvedVersion": "3.8.0",
+      "scope": "user",
+      "siblings": {
+        "mempalace": "<home>/.local/share/uv/tools/mempalace/bin/mempalace",
+        "mempalace-mcp": "<home>/.local/share/uv/tools/mempalace/bin/mempalace-mcp"
+      },
+      "source": "https://pypi.org/pypi/mempalace/json",
+      "status": "healthy",
+      "version": "3.8.0"
+    },
+    "node": {
+      "action": "reused",
+      "detail": "passed",
+      "executable": "<home>/.local/share/chaos-engine/node/24.21.0/bin/node",
+      "healthy": true,
+      "installedVersion": "24.21.0",
+      "latestVersionVerified": true,
+      "probe": "passed",
+      "provider": "platform-package-manager",
+      "resolvedVersion": "24.21.0",
+      "scope": "user",
+      "siblings": {
+        "node": "<home>/.local/share/chaos-engine/node/24.21.0/bin/node",
+        "npm": "<home>/.local/share/chaos-engine/node/24.21.0/bin/npm",
+        "npx": "<home>/.local/share/chaos-engine/node/24.21.0/bin/npx"
+      },
+      "source": "https://nodejs.org/dist/index.json",
+      "status": "healthy",
+      "version": "24.21.0"
+    },
+    "python": {
+      "action": "upgraded",
+      "detail": "passed",
+      "executable": "<home>/.local/share/uv/python/cpython-3.14.7-linux-x86_64-gnu/bin/python3.14",
+      "healthy": true,
+      "installedVersion": "3.14.7",
+      "latestVersionVerified": true,
+      "probe": "passed",
+      "provider": "uv-managed",
+      "resolvedVersion": "3.14.7",
+      "scope": "user",
+      "siblings": {
+        "python3": "<home>/.local/share/uv/python/cpython-3.14.7-linux-x86_64-gnu/bin/python3.14"
+      },
+      "source": "https://www.python.org/api/v2/downloads/release/?is_published=true",
+      "status": "healthy",
+      "version": "3.14.7"
+    },
+    "uv": {
+      "action": "upgraded",
+      "detail": "passed",
+      "executable": "<home>/.local/bin/uv",
+      "healthy": true,
+      "installedVersion": "0.12.12",
+      "latestVersionVerified": true,
+      "probe": "passed",
+      "provider": "astral-standalone",
+      "resolvedVersion": "0.12.12",
+      "scope": "user",
+      "siblings": {
+        "uv": "<home>/.local/bin/uv",
+        "uvx": "<home>/.local/bin/uvx"
+      },
+      "source": "https://api.github.com/repos/astral-sh/uv/releases/latest",
+      "status": "healthy",
+      "version": "0.12.12"
+    }
+  },
+  "schemaVersion": 2,
+  "scope": "user"
+}
