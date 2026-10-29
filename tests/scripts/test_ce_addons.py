@@ -101,6 +101,98 @@ class CatalogTests(unittest.TestCase):
                 catalog.discover(source)
 
 
+
+
+class LocalSourceInstallMessageTests(unittest.TestCase):
+    """#7487: missing local source points at --source / --from-bundle."""
+
+    def test_missing_source_error_names_local_flags(self):
+        message = install._local_source_required_message()
+        self.assertRegex(message, r"--source")
+        self.assertRegex(message, r"--from-bundle")
+        self.assertRegex(message, r"--commit")
+
+
+class SiblingScanDuplicateTests(unittest.TestCase):
+    """#7487/#7489: sibling dups fail-closed unless PATHS set or content-identical."""
+
+    def _manifest(self, folder: Path, name: str) -> None:
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "addon.json").write_text(json.dumps({
+            "schemaVersion": 1, "kind": "addon", "name": name, "requires": [],
+            "description": "d", "useWhen": "u",
+        }), encoding="utf-8")
+
+    def test_divergent_sibling_roots_fail_closed_not_lex_pick(self):
+        """aaa-old vs zzz-new with different markers must fail (never pick stale)."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "chaos-engine"
+            source.mkdir()
+            (source / "addons").mkdir()
+            stale = root / "aaa-old" / "ce-addons" / "demo-coach"
+            fresh = root / "zzz-new" / "ce-addons" / "demo-coach"
+            self._manifest(stale, "demo-coach")
+            self._manifest(fresh, "demo-coach")
+            (stale / "marker.txt").write_text("stale", encoding="utf-8")
+            (fresh / "marker.txt").write_text("fresh", encoding="utf-8")
+            with self.assertRaisesRegex(
+                ValueError,
+                r"duplicate ChaosEngine add-on: demo-coach.*CHAOS_ENGINE_ADDON_PATHS",
+            ):
+                catalog.discover(source)
+
+    def test_identical_sibling_roots_are_accepted(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "chaos-engine"
+            source.mkdir()
+            (source / "addons").mkdir()
+            a = root / "aaa-old" / "ce-addons" / "demo-coach"
+            b = root / "zzz-new" / "ce-addons" / "demo-coach"
+            self._manifest(a, "demo-coach")
+            self._manifest(b, "demo-coach")
+            (a / "marker.txt").write_text("same", encoding="utf-8")
+            (b / "marker.txt").write_text("same", encoding="utf-8")
+            with contextlib.redirect_stderr(io.StringIO()):
+                found = catalog.discover(source)
+            self.assertIn("demo-coach", found)
+            self.assertEqual(Path(found["demo-coach"]["root"]).name, "demo-coach")
+
+    def test_explicit_paths_beats_sibling_scan(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "chaos-engine"
+            source.mkdir()
+            (source / "addons").mkdir()
+            sibling = root / "brain-a" / "ce-addons" / "demo-coach"
+            explicit = root / "explicit-pack"
+            self._manifest(sibling, "demo-coach")
+            self._manifest(explicit / "demo-coach", "demo-coach")
+            (sibling / "marker.txt").write_text("sibling", encoding="utf-8")
+            (explicit / "demo-coach" / "marker.txt").write_text("explicit", encoding="utf-8")
+            with mock.patch.dict(os.environ, {catalog.PATHS_ENVIRONMENT: str(explicit)}):
+                with contextlib.redirect_stderr(io.StringIO()):
+                    found = catalog.discover(source)
+            self.assertEqual(Path(found["demo-coach"]["root"]), (explicit / "demo-coach").resolve())
+
+    def test_two_explicit_paths_same_name_still_fail(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "chaos-engine"
+            source.mkdir()
+            (source / "addons").mkdir()
+            one = root / "pack-one"
+            two = root / "pack-two"
+            self._manifest(one / "demo-coach", "demo-coach")
+            self._manifest(two / "demo-coach", "demo-coach")
+            env = {catalog.PATHS_ENVIRONMENT: os.pathsep.join([str(one), str(two)])}
+            with mock.patch.dict(os.environ, env):
+                with self.assertRaisesRegex(ValueError, r"duplicate ChaosEngine add-on: demo-coach"):
+                    catalog.discover(source)
+
+
+
 class PayloadTests(unittest.TestCase):
     def relatives(self, distribution: str, addons=()) -> set[str]:
         return {

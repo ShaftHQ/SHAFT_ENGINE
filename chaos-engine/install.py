@@ -4780,8 +4780,7 @@ def _refresh_shared_store(project: Path, component: str) -> str:
         return "skipped-test"
     try:
         stores = _load_stores_module()
-        if component == "graphify" and not stores["is_git_work_tree"](project):
-            return "skipped: not a git repository (Graphify freshness needs a git revision)"
+        # #7487: non-git graphify refreshes against a content fingerprint.
         stores["refresh"](project, if_stale=True, components=frozenset({component}))
     except (OSError, RuntimeError, ValueError) as error:
         return f"skipped: {error}"
@@ -7768,6 +7767,16 @@ def python_floor_message(version: tuple[int, ...] | None = None) -> str:
 _HANDLED = object()
 
 
+
+def _local_source_required_message() -> str:
+    """#7487: name the local-source flags; a bare --commit is not enough."""
+    return (
+        "install needs --source and --commit, or --from-bundle. "
+        "Local example: python3 .chaos-engine/install.py install --project . "
+        "--consumer --source ../ce-src/chaos-engine --commit <40-hex-sha>"
+    )
+
+
 def _run_install_command(args, requested, removed) -> object:
     """The `install` subcommand: the JSON result, or ``_HANDLED`` for an unchanged no-op."""
     if args.from_bundle is not None:
@@ -7775,7 +7784,7 @@ def _run_install_command(args, requested, removed) -> object:
             args.from_bundle, Path(tempfile.mkdtemp(prefix="chaos-engine-bundle-")) / "chaos-engine"
         )
     elif args.source is None or args.commit is None:
-        raise ValueError("install needs --source and --commit, or --from-bundle")
+        raise ValueError(_local_source_required_message())
     refusal = linked_worktree_refusal(args.project)
     if refusal:
         raise RuntimeError(refusal)
