@@ -88,11 +88,13 @@ subtask), and keep working until every in-scope ticket is delivered. Do not
 treat planning, a status table, or one PR as session complete.
 
 After grouping, the done condition is: every in-scope ticket is merged or
-explicitly out of scope. After each chunk merges, destroy that writer, start
-the next from a fresh `ChaosEngine/*` branch off the fetched configured
-default branch, update the live status table, and continue. Stop only when
-the in-scope set is empty, the owner narrows scope, or a real blocker needs
-the owner.
+explicitly out of scope. After each chunk merges, destroy that writer: run
+[post-merge own cleanup](parallel-streams.md#post-merge-own-cleanup) for that
+writer's ownership-manifest row (worktree, local branch, remote head if still
+present, prune), start the next from a fresh `ChaosEngine/*` branch off the
+fetched configured default branch, update the live status table, and continue.
+Stop only when the in-scope set is empty, the owner narrows scope, or a real
+blocker needs the owner.
 
 Same-subsystem leftovers share one PR. Split only when writers would collide on
 the same files and cannot be sequenced, or when the work truly belongs to

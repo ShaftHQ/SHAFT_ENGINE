@@ -1116,6 +1116,8 @@ SURFACE_PATTERNS = {
         "chaos-engine/references/parallel-streams.md",
         "chaos-engine/references/cleanup-scopes.md",
         "chaos-engine/references/delegation.md",
+        "scripts/ci/parallel_stream_conflict.py",
+        "scripts/ci/worktree_hygiene.py",
         "tests/scripts/test_parallel_streams.py",
     ),
     # #6411-#6414: decision-quality gate, dod, latency budgets, usage table.

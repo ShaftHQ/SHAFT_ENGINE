@@ -23,9 +23,14 @@ id, reviewer id, worktree path, branch, disk budget (MB), status.
 
 ## Conflict detection (before dispatch)
 
-1. Collect paths from open agentic PRs and dirty files in live worktrees.
-2. Intersect with the proposed owned globs.
-3. Non-empty intersection → do not dispatch; re-scope, stack, or wait.
+1. Collect **peer owned path globs** from every other **active** row in the
+   ownership manifest (and any stacked / in-flight brief reservations).
+2. Collect paths from open agentic PRs and dirty files in live worktrees.
+3. Intersect the proposed stream's writable globs with (1) and (2).
+4. Non-empty intersection → do not dispatch; re-scope, stack, or wait.
+
+Executable check: `scripts/ci/parallel_stream_conflict.py`
+(`refuse_dispatch_on_ownership_overlap` / `conflicting_peer_stream_ids`).
 
 ## Brief template (implementer)
 
@@ -50,6 +55,41 @@ Never force-push a branch under open review. Prefer append-only fix commits. If 
 rebase is required, the orchestrator pauses reviewers, rebases, then requests a
 fresh sign-off on the new SHA. Merge with head-SHA match; confirm auto-merge.
 
+## Post-merge own cleanup
+
+After the stream's PR is **MERGED** (GitHub state MERGED and the merge commit /
+head OID is on the remote), the **owning worker** (or orchestrator on its behalf)
+cleans **only** artifacts recorded on that stream's ownership row:
+
+1. Verify the local branch tip is contained in the remote merge (ancestor of the
+   configured upstream tip, or PR head OID matches the merged receipt) and the
+   worktree has **no unpushed commits** and **no untracked / dirty work**.
+2. From outside the target worktree, run
+   `scripts/ci/worktree_hygiene.py --cleanup-task-worktree …` with the schema-v1
+   ownership manifest, owned branch, expected HEAD, and diff SHA-256
+   ([cleanup scopes](cleanup-scopes.md) bounded task cleanup).
+3. Then `--cleanup-task-local-branch` (merged-only `git branch -d`) once no
+   worktree still holds that branch.
+4. Then `--cleanup-task-remote-head` if `origin/<branch>` still exists (repo did
+   not auto-delete).
+5. Then `--prune-after-task-cleanup` (`git worktree prune` + `git fetch --prune`).
+
+Never remove another stream's worktree, branch, or scratch. Never touch
+[delete-guard](delete-guard.md) never-touch paths (`ROG*`, `yt`, Chrome/Chromium
+profiles); those refuse even with an owner code. Hygiene refuses
+`never-touch-path` without weakening the guard.
+
+### Delete-guard interaction
+
+- `git worktree remove` / `git branch -d` / remote head delete via hygiene proofs
+  are **outside** delete-guard's parse list; the sanctioned path is MERGED +
+  ownership manifest + clean/ancestor proofs above — **do not** weaken
+  delete-guard to special-case them.
+- Filesystem deletes of scratch under the stream row still need
+  `tool.py delete-check` ([delete-check discipline](delete-check-discipline.md)).
+  Clean + pushed targets may pass; dirty / unpushed / outside allow-list still
+  need the owner's one-time code. Never route around a refusal.
+
 ## WIP and system cap
 
 - Inside a stream: WIP limit 1 until Done (both sign-offs and shipped).
@@ -72,9 +112,10 @@ Shared box, before creating a worktree or clone:
 5. Default working-tree budget **500 MB** for harness-only streams unless the
    brief raises it.
 6. After verified push or merge: inventory scratch paths on the stream row as
-   `scratch_pending_cleanup`. **Do not delete** without
-   [delete-check](delete-check-discipline.md) / owner code. List candidates with
-   verified-pushed status for the owner ([cleanup scopes](cleanup-scopes.md)).
+   `scratch_pending_cleanup`, then run [post-merge own cleanup](#post-merge-own-cleanup)
+   for that stream's recorded artifacts. Listing candidates is always allowed;
+   foreign or never-touch paths stay listed only — never deleted without the
+   proofs above / [delete-check](delete-check-discipline.md).
 
 ## Checkpoint
 

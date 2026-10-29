@@ -49,6 +49,15 @@ from scripts.agents.repository_context import (  # noqa: E402
     parse_git_remote,
 )
 
+_DELETE_GUARD_DIR = ROOT / "chaos-engine"
+if _DELETE_GUARD_DIR.is_dir() and str(_DELETE_GUARD_DIR) not in sys.path:
+    sys.path.insert(0, str(_DELETE_GUARD_DIR))
+try:
+    from delete_guard import never_touch as _delete_guard_never_touch  # noqa: E402
+except ImportError:  # pragma: no cover - sparse checkouts without delete_guard
+    def _delete_guard_never_touch(path: Path) -> str:
+        return ""
+
 GIT_TIMEOUT_SECONDS = 30
 PULL_REQUEST_TIMEOUT_SECONDS = 30
 # A checkout with more linked worktrees than this is already the problem this
@@ -1027,6 +1036,8 @@ def cleanup_task_owned_worktree(
     )
     if blockers:
         return blockers
+    if _delete_guard_never_touch(resolved_target):
+        return ["never-touch-path"]
     removed = subprocess.run(  # nosec B603 B607 - exact validated target, no force.
         ["git", "-c", "core.longpaths=true", "worktree", "remove", "--", str(resolved_target)],
         cwd=resolved_root, capture_output=True, text=True, timeout=GIT_TIMEOUT_SECONDS, check=False,
@@ -1036,7 +1047,180 @@ def cleanup_task_owned_worktree(
     return []
 
 
+def _branch_attached_worktrees(root: Path, branch: str) -> list[str]:
+    """Return worktree paths currently checked out on ``branch``."""
+    listing = _git(root, "worktree", "list", "--porcelain")
+    if listing is None:
+        return ["unknown"]
+    attached: list[str] = []
+    for record in _parse_worktree_list(listing)[:MAX_REPORTED_WORKTREES]:
+        if record.get("branch") == branch:
+            attached.append(record["path"])
+    return attached
+
+
+def task_branch_ownership_manifest_matches(
+    manifest_path: Path,
+    branch: str,
+    expected_head: str,
+) -> bool:
+    """Verify the ownership ledger recorded this branch tip (worktree may be gone)."""
+    try:
+        payload = json.loads(manifest_path.resolve().read_text(encoding="utf-8"))
+        entries = payload.get("worktrees", [])
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return False
+    if payload.get("schemaVersion") != 1 or not isinstance(entries, list):
+        return False
+    matches = [
+        entry for entry in entries
+        if isinstance(entry, dict)
+        and entry.get("branch") == branch
+        and entry.get("head") == expected_head
+    ]
+    return len(matches) == 1
+
+
+def task_local_branch_cleanup_blockers(
+    *,
+    owned_branch: str,
+    expected_head: str,
+    actual_branch_head: str,
+    pull_request_state: str,
+    is_ancestor: bool,
+    attached_worktrees: list[str],
+    ownership_verified: bool,
+    active_operations: list[str],
+) -> list[str]:
+    """Return every failed proof for deleting one task-owned local branch after merge."""
+    blockers: list[str] = []
+    if not ownership_verified:
+        blockers.append("ownership-not-verified")
+    normalized = owned_branch.casefold()
+    if normalized in {"origin", *PROTECTED_BRANCH_NAMES} or normalized.startswith(
+        ("origin/", "refs/remotes/origin/")
+    ):
+        blockers.append("protected-branch")
+    if pull_request_state != "MERGED":
+        blockers.append("pull-request-not-merged")
+    if not is_ancestor:
+        blockers.append("branch-not-upstream")
+    if not expected_head or actual_branch_head != expected_head:
+        blockers.append("branch-head-mismatch")
+    if attached_worktrees:
+        blockers.append("branch-still-attached")
+    if active_operations:
+        blockers.append("active-git-operation")
+    return list(dict.fromkeys(blockers))
+
+
+def cleanup_task_owned_local_branch(
+    root: Path,
+    branch: str,
+    expected_head: str,
+    *,
+    pull_request_state: Callable[[Path, str, str], str] = merged_pull_request_state_via_gh,
+    ownership_verified: bool = False,
+) -> list[str]:
+    """Delete one proven merged task-owned local branch after no worktree holds it."""
+    resolved_root = root.resolve()
+    upstream = resolve_upstream_ref(resolved_root)
+    if upstream is None:
+        return ["missing-upstream"]
+    actual_branch_head = (_git(resolved_root, "rev-parse", "--verify", branch) or "").strip()
+    if not actual_branch_head:
+        return ["branch-missing"]
+    attached = _branch_attached_worktrees(resolved_root, branch)
+    if attached == ["unknown"]:
+        return ["worktree-list-failed"]
+    ancestor = subprocess.run(  # nosec B603 B607 - fixed read-only git query.
+        ["git", "-c", "core.longpaths=true", "merge-base", "--is-ancestor", branch, upstream],
+        cwd=resolved_root,
+        capture_output=True,
+        timeout=GIT_TIMEOUT_SECONDS,
+        check=False,
+    ).returncode == 0
+    blockers = task_local_branch_cleanup_blockers(
+        owned_branch=branch,
+        expected_head=expected_head,
+        actual_branch_head=actual_branch_head,
+        pull_request_state=pull_request_state(resolved_root, branch, expected_head),
+        is_ancestor=ancestor,
+        attached_worktrees=attached,
+        ownership_verified=ownership_verified,
+        active_operations=_active_git_operations(resolved_root),
+    )
+    if blockers:
+        return blockers
+    deleted = subprocess.run(  # nosec B603 B607 - merged-only branch delete, never -D.
+        ["git", "-c", "core.longpaths=true", "branch", "-d", "--", branch],
+        cwd=resolved_root, capture_output=True, text=True, timeout=GIT_TIMEOUT_SECONDS, check=False,
+    )
+    if deleted.returncode != 0:
+        return ["local-branch-delete-failed"]
+    return []
+
+
+def cleanup_task_owned_remote_head(
+    root: Path,
+    branch: str,
+    expected_head: str,
+    *,
+    pull_request_state: Callable[[Path, str, str], str] = merged_pull_request_state_via_gh,
+    ownership_verified: bool = False,
+    push: Callable[[Path, list[str]], subprocess.CompletedProcess] | None = None,
+) -> list[str]:
+    """Delete origin/<branch> when the repo did not auto-delete after MERGED."""
+    resolved_root = root.resolve()
+    if branch in {"main", "master"} or branch.casefold() in {
+        "origin", *PROTECTED_BRANCH_NAMES
+    } or branch.casefold().startswith(("origin/", "refs/remotes/origin/")):
+        return ["protected-branch"]
+    if not ownership_verified:
+        return ["ownership-not-verified"]
+    remote_ref = f"refs/remotes/origin/{branch}"
+    remote_head = (_git(resolved_root, "rev-parse", "--verify", remote_ref) or "").strip()
+    if not remote_head:
+        return []
+    state = pull_request_state(resolved_root, branch, expected_head)
+    if state != "MERGED":
+        return ["pull-request-not-merged"]
+    if remote_head != expected_head:
+        return ["remote-head-mismatch"]
+    def default_push(cwd: Path, argv: list[str]) -> subprocess.CompletedProcess:
+        return subprocess.run(  # nosec B603 B607 - exact branch name after proofs.
+            argv, cwd=cwd, capture_output=True, text=True,
+            timeout=GIT_TIMEOUT_SECONDS, check=False,
+        )
+    push_fn = push or default_push
+    completed = push_fn(
+        resolved_root,
+        ["git", "-c", "core.longpaths=true", "push", "origin", "--delete", "--", branch],
+    )
+    if completed.returncode != 0:
+        return ["remote-branch-delete-failed"]
+    return []
+
+
+def prune_task_cleanup_refs(root: Path) -> list[str]:
+    """Prune stale worktree metadata and remote-tracking refs after own cleanup."""
+    resolved_root = root.resolve()
+    failures: list[str] = []
+    for argv, label in (
+        (["git", "-c", "core.longpaths=true", "worktree", "prune"], "worktree-prune-failed"),
+        (["git", "-c", "core.longpaths=true", "fetch", "--prune", "origin"], "fetch-prune-failed"),
+    ):
+        completed = subprocess.run(  # nosec B603 B607 - fixed prune argv.
+            argv, cwd=resolved_root, capture_output=True, text=True,
+            timeout=GIT_TIMEOUT_SECONDS, check=False,
+        )
+        if completed.returncode != 0:
+            failures.append(label)
+    return failures
+
+
 def task_ownership_manifest_matches(
+
     manifest_path: Path,
     target: Path,
     branch: str,
@@ -1067,6 +1251,94 @@ def task_ownership_manifest_matches(
             matches.append(entry)
     return len(matches) == 1 and matches[0].get("head") == expected_head \
         and matches[0].get("diffSha256") == expected_diff_sha256
+
+
+def run_task_cleanup_cli(args: argparse.Namespace, resolved_root: Path) -> int:
+    """Dispatch opt-in post-merge own cleanup flags; return process exit code."""
+
+    if args.cleanup_task_worktree is not None:
+        required = (
+            args.owned_branch, args.expected_head, args.expected_diff_sha256,
+            args.ownership_manifest,
+        )
+        if not all(required):
+            print(
+                "task-cleanup: ownership manifest, branch, head, "
+                "and diff SHA-256 are required"
+            )
+            return 2
+        ownership_verified = task_ownership_manifest_matches(
+            args.ownership_manifest,
+            args.cleanup_task_worktree,
+            args.owned_branch,
+            args.expected_head,
+            args.expected_diff_sha256,
+        )
+        blockers = cleanup_task_owned_worktree(
+            resolved_root,
+            args.cleanup_task_worktree,
+            args.owned_branch,
+            args.expected_head,
+            args.expected_diff_sha256,
+            ownership_verified=ownership_verified,
+        )
+        if blockers:
+            print("task-cleanup-blocked: " + ", ".join(blockers))
+            return 1
+        print(
+            f"Task-owned worktree removed: {args.cleanup_task_worktree}; "
+            f"local branch retained for a fresh ownership check: {args.owned_branch}."
+        )
+    if args.cleanup_task_local_branch:
+        if not args.owned_branch or not args.expected_head or not args.ownership_manifest:
+            print(
+                "task-cleanup: ownership manifest, owned branch, "
+                "and expected head are required"
+            )
+            return 2
+        branch_ownership = task_branch_ownership_manifest_matches(
+            args.ownership_manifest, args.owned_branch, args.expected_head,
+        )
+        blockers = cleanup_task_owned_local_branch(
+            resolved_root,
+            args.owned_branch,
+            args.expected_head,
+            ownership_verified=branch_ownership,
+        )
+        if blockers:
+            print("task-cleanup-blocked: " + ", ".join(blockers))
+            return 1
+        print(f"Task-owned local branch deleted: {args.owned_branch}.")
+    if args.cleanup_task_remote_head:
+        if not args.owned_branch or not args.expected_head or not args.ownership_manifest:
+            print(
+                "task-cleanup: ownership manifest, owned branch, "
+                "and expected head are required"
+            )
+            return 2
+        branch_ownership = task_branch_ownership_manifest_matches(
+            args.ownership_manifest, args.owned_branch, args.expected_head,
+        )
+        blockers = cleanup_task_owned_remote_head(
+            resolved_root,
+            args.owned_branch,
+            args.expected_head,
+            ownership_verified=branch_ownership,
+        )
+        if blockers:
+            print("task-cleanup-blocked: " + ", ".join(blockers))
+            return 1
+        print(
+            f"Task-owned remote head deleted or already absent: "
+            f"origin/{args.owned_branch}."
+        )
+    if args.prune_after_task_cleanup:
+        prune_failures = prune_task_cleanup_refs(resolved_root)
+        if prune_failures:
+            print("task-cleanup-blocked: " + ", ".join(prune_failures))
+            return 1
+        print("Task cleanup prune completed (worktree prune + fetch --prune).")
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1104,6 +1376,21 @@ def build_parser() -> argparse.ArgumentParser:
         "--expected-diff-sha256",
         help="SHA-256 of `git diff --binary --no-ext-diff HEAD --` captured before cleanup.",
     )
+    parser.add_argument(
+        "--cleanup-task-local-branch",
+        action="store_true",
+        help="Delete the owned local branch with git branch -d after MERGED proofs.",
+    )
+    parser.add_argument(
+        "--cleanup-task-remote-head",
+        action="store_true",
+        help="Delete origin/<owned-branch> when MERGED and remote tip still matches expected.",
+    )
+    parser.add_argument(
+        "--prune-after-task-cleanup",
+        action="store_true",
+        help="Run git worktree prune and git fetch --prune origin after own cleanup.",
+    )
     return parser
 
 
@@ -1111,37 +1398,13 @@ def main() -> int:
     """Run the advisory reporter or the opt-in repository verification gate."""
     args = build_parser().parse_args()
     resolved_root = args.root.resolve()
-    if args.cleanup_task_worktree is not None:
-        required = (
-            args.owned_branch, args.expected_head, args.expected_diff_sha256,
-            args.ownership_manifest,
-        )
-        if not all(required):
-            print("task-cleanup: ownership manifest, branch, head, and diff SHA-256 are required")
-            return 2
-        ownership_verified = task_ownership_manifest_matches(
-            args.ownership_manifest,
-            args.cleanup_task_worktree,
-            args.owned_branch,
-            args.expected_head,
-            args.expected_diff_sha256,
-        )
-        blockers = cleanup_task_owned_worktree(
-            resolved_root,
-            args.cleanup_task_worktree,
-            args.owned_branch,
-            args.expected_head,
-            args.expected_diff_sha256,
-            ownership_verified=ownership_verified,
-        )
-        if blockers:
-            print("task-cleanup-blocked: " + ", ".join(blockers))
-            return 1
-        print(
-            f"Task-owned worktree removed: {args.cleanup_task_worktree}; "
-            f"local branch retained for a fresh ownership check: {args.owned_branch}."
-        )
-        return 0
+    if (
+        args.cleanup_task_worktree is not None
+        or args.cleanup_task_local_branch
+        or args.cleanup_task_remote_head
+    ):
+        return run_task_cleanup_cli(args, resolved_root)
+
     upstream_ref = resolve_upstream_ref(resolved_root, args.upstream)
     report = collect_worktree_report(
         resolved_root,

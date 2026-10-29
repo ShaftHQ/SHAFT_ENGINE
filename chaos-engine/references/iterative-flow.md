@@ -82,10 +82,14 @@ written on that row.
 
 WIP limit: 1 item still applies **inside** each owner–reviewer pair (one
 stream). An orchestrator may run several streams only when their writable
-paths do not overlap, after an ownership manifest and conflict check, under
-the system cap and disk gate in [parallel streams](parallel-streams.md).
+paths do not overlap, after an ownership manifest and conflict check (peer
+owned globs in the manifest, not only open PRs / dirty trees), under the
+system cap and disk gate in [parallel streams](parallel-streams.md).
 Same-file work stays serial or stacked. Do not start stream N+1 in a pair
-until that pair's current item is Done.
+until that pair's current item is Done. After a stream's item is Done
+(merged), that stream runs
+[post-merge own cleanup](parallel-streams.md#post-merge-own-cleanup) for its
+own recorded worktree / branch / scratch only.
 
 ## Sources
 
