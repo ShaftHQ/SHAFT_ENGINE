@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Content-scan preflight helpers (G-META pattern).
+"""
+Content-scan preflight helpers (G-META pattern).
 
 Path/filename denylists alone are not enough. Callers supply tokens and roots;
 this module word-boundary scans file contents and exposes a planted --self-test
@@ -79,8 +80,11 @@ def scan_roots(
     return findings
 
 
-def planted_self_test(token: str = "planted_banned_token_xyz") -> int:
-    """Plant a banned token file under a temp tree; expect a finding (exit 2).
+def planted_self_test(
+    token: str = "planted_banned_marker_xyz",  # nosec B105 - planted banned marker for content-scan self-test, not a credential
+) -> int:
+    """
+    Plant a banned marker file under a temp tree; expect a finding (exit 2).
 
     Returns 0 when the scan correctly FAILs (finding present). Returns 2 when
     the scan misses the plant (vacuous / name-only bug).

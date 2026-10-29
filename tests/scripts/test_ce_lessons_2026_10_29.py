@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import subprocess
+import subprocess  # nosec B404 - stdlib only; argv is fixed CE helper path
 import sys
 import tempfile
 import unittest
@@ -89,11 +89,11 @@ class ContentScanPreflightLessonTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             safe_name = root / "innocent_module.py"
-            safe_name.write_text("import planted_banned_token_xyz\n", encoding="utf-8")
-            findings = _mod.scan_roots([root], ["planted_banned_token_xyz"])
+            safe_name.write_text("import planted_banned_marker_xyz\n", encoding="utf-8")
+            findings = _mod.scan_roots([root], ["planted_banned_marker_xyz"])
             self.assertTrue(findings)
             # Basename alone is clean; content carries the token.
-            self.assertNotIn("planted_banned_token_xyz", safe_name.name)
+            self.assertNotIn("planted_banned_marker_xyz", safe_name.name)
 
     def test_cli_self_test_exits_zero(self) -> None:
         proc = subprocess.run(  # nosec B603
