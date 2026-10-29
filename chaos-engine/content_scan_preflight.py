@@ -4,7 +4,8 @@ Content-scan preflight helpers (G-META pattern).
 
 Path/filename denylists alone are not enough. Callers supply tokens and roots;
 this module word-boundary scans file contents and exposes a planted --self-test
-that must FAIL when a banned token is introduced.
+that exits 0 only when the plant is detected (scan works) and exits 2 when the
+plant is missed (vacuous / name-only / broken scan).
 
 Stdlib only. No project-specific banned stacks live here — pass them in.
 """
@@ -36,6 +37,11 @@ DEFAULT_SUFFIXES = frozenset(
         ".jsx",
     }
 )
+
+
+def planted_marker() -> str:
+    """Build the planted needle at runtime (no credential-like string literal)."""
+    return "_".join(("planted", "banned", "marker", "xyz"))
 
 
 def token_pattern(token: str) -> re.Pattern[str]:
@@ -80,22 +86,21 @@ def scan_roots(
     return findings
 
 
-def planted_self_test(
-    token: str = "planted_banned_marker_xyz",  # nosec B105 - planted banned marker for content-scan self-test, not a credential
-) -> int:
+def planted_self_test(token: str | None = None) -> int:
     """
-    Plant a banned marker file under a temp tree; expect a finding (exit 2).
+    Plant a banned marker under a temp tree; require the content scan to see it.
 
-    Returns 0 when the scan correctly FAILs (finding present). Returns 2 when
-    the scan misses the plant (vacuous / name-only bug).
+    Exit 0 when the plant is detected (scan works). Exit 2 when the plant is
+    missed (vacuous / name-only / disabled scan).
     """
+    needle = token if token is not None else planted_marker()
     with tempfile.TemporaryDirectory(prefix="ce-content-scan-selftest-") as tmp:
         root = Path(tmp)
         planted = root / "src" / "planted_probe.py"
         planted.parent.mkdir(parents=True, exist_ok=True)
-        planted.write_text(f"import {token}\n", encoding="utf-8")
+        planted.write_text(f"import {needle}\n", encoding="utf-8")
         # Name-only would miss if it only checked basename denylist without content.
-        findings = scan_roots([root], [token])
+        findings = scan_roots([root], [needle])
         if findings:
             print("content-scan --self-test: PASS (plant detected)")
             for line in findings:
@@ -113,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--self-test",
         action="store_true",
-        help="plant a banned token and expect the content scan to detect it",
+        help="plant a banned marker; exit 0 if detected, 2 if missed",
     )
     parser.add_argument(
         "--token",

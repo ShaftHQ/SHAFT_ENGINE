@@ -2,9 +2,10 @@
 """
 Tip-churn local preflight for ChaosEngine PRs (#6161: #6164 #6165 #6169).
 
-Run before every push so Bandit B607, README inventory drift, and stale
-Memory ``content_hash`` land in the same tip as the edit that caused them
-instead of costing a PR Gate + fresh-installer matrix cycle:
+Run before every push so Bandit B607, README inventory drift, stale
+Memory ``content_hash``, and the content-scan planted ``--self-test`` land in
+the same tip as the edit that caused them instead of costing a PR Gate +
+fresh-installer matrix cycle:
 
     python3 chaos-engine/skills/local-agency/scripts/tip_preflight.py
     python3 chaos-engine/skills/local-agency/scripts/tip_preflight.py --rehash .memory/memory/<type>/<slug>.json
@@ -186,9 +187,36 @@ def b607_failures(root: Path, paths: list[str]) -> list[str]:
     return failures
 
 
+def content_scan_self_test_failures(root: Path) -> list[str]:
+    """Run chaos-engine/content_scan_preflight.py planted self-test (L2 adoption).
+
+    Missing helper (scratch trees) is a no-op. Non-zero self-test exit is a
+    tip failure: plant detected ⇒ 0; plant missed ⇒ 2.
+    """
+    helper = root / "chaos-engine" / "content_scan_preflight.py"
+    if not helper.is_file():
+        return []
+    spec = importlib.util.spec_from_file_location("ce_tip_content_scan_preflight", helper)
+    if spec is None or spec.loader is None:
+        return [f"content-scan: cannot load {helper.as_posix()}"]
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    code = int(module.planted_self_test())
+    if code == 0:
+        return []
+    return [
+        f"content-scan --self-test exited {code} "
+        "(plant must be detected for PASS; missed plant means broken/name-only scan)"
+    ]
+
+
 def preflight_failures(root: Path, paths: list[str], *, inventory_validator=None) -> list[str]:
-    """One tip-churn preflight: B607 + README inventory + Memory content_hash."""
-    failures = b607_failures(root, paths) + memory_hash_failures(root, paths)
+    """One tip-churn preflight: B607 + Memory hash + content-scan self-test + inventory."""
+    failures = (
+        b607_failures(root, paths)
+        + memory_hash_failures(root, paths)
+        + content_scan_self_test_failures(root)
+    )
     if any(p.replace("\\", "/").startswith("chaos-engine/") and p.endswith(".py") for p in paths):
         failures += inventory_drift(root, inventory_validator)
     return failures
