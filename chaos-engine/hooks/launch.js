@@ -74,8 +74,16 @@ function installInProgress(start) {
 }
 
 function currentRoot() {
+  // #7515: ghost cwd (getcwd returns a deleted path) must deny before parent walk.
   try {
-    return process.cwd();
+    const cwd = process.cwd();
+    try {
+      if (!fs.existsSync(cwd)) deny(CWD_UNAVAILABLE);
+    } catch (error) {
+      if (unavailableError(error)) deny(CWD_UNAVAILABLE);
+      throw error;
+    }
+    return cwd;
   } catch (error) {
     if (unavailableError(error)) deny(CWD_UNAVAILABLE);
     throw error;
