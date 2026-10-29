@@ -149,6 +149,8 @@ public final class SourceCodeAttachment {
                         || name.startsWith("com.shaft.gui.playwright.validation.")
                         || (name.equals(ReportManagerHelper.class.getName())
                         && frame.getMethodName().equals("logNestedSteps") && frame.getDescriptor().contains("CheckpointType"));
+                action |= frame.getDeclaringClass() == com.shaft.api.RequestBuilder.class
+                        && frame.getMethodName().equals("perform");
                 action |= (name.startsWith("com.shaft.gui.") || name.startsWith("com.shaft.api.")
                         || name.startsWith("com.shaft.cli.") || name.startsWith("com.shaft.db."))
                         && (name.contains("Actions") || name.contains("BrowserDownload"));

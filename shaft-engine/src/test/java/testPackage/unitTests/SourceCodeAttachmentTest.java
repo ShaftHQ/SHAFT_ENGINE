@@ -273,6 +273,55 @@ public class SourceCodeAttachmentTest {
         }
     }
 
+    @DataProvider
+    public Object[][] publicApiPolicies() {
+        List<Object[]> cases = new ArrayList<>();
+        for (String mode : List.of("Never", "FailuresOnly", "ValidationPointsOnly", "Always")) {
+            for (boolean failed : List.of(false, true)) {
+                cases.add(new Object[]{mode, failed, mode.equals("Always") || (failed && !mode.equals("Never"))});
+            }
+        }
+        return cases.toArray(Object[][]::new);
+    }
+
+    @Test(dataProvider = "publicApiPolicies")
+    public void publicApiRequestAttachesToItsExistingStep(String mode, boolean failed, boolean expected) throws Exception {
+        SHAFT.Properties.reporting.set().whenToAttachSourceCode(mode).disableLogging(false)
+                .alwaysLogDiscreetly(false).traceEnabled(false);
+        SHAFT.Properties.flags.set().automaticallyAssertResponseStatusCode(true);
+        var previousFilters = List.copyOf(io.restassured.RestAssured.filters());
+        var requests = new java.util.concurrent.atomic.AtomicInteger();
+        io.restassured.RestAssured.replaceFiltersWith((request, response, context) -> {
+            requests.incrementAndGet();
+            return new io.restassured.builder.ResponseBuilder().setStatusCode(failed ? 404 : 200)
+                    .setContentType("application/json").setBody("{\"message\":\"source-api-proof\"}").build();
+        });
+        try (Fixture fixture = new Fixture(null)) {
+            SHAFT.API api = new SHAFT.API("https://source-attachment.invalid/");
+            if (failed) {
+                Assert.expectThrows(AssertionError.class, () -> api.get("fixture").perform());
+            } else {
+                api.get("fixture").perform();
+                Assert.assertEquals(api.getResponse().getStatusCode(), 200);
+            }
+            Assert.assertEquals(requests.get(), 1, "The in-memory transport must handle the whole request.");
+            Assert.assertEquals(fixture.result.getSteps().size(), 1, "The existing request step must be reused.");
+            StepResult step = fixture.result.getSteps().getFirst();
+            Assert.assertEquals(step.getStatus(), failed ? Status.FAILED : Status.PASSED);
+            Assert.assertEquals(fixture.attachments().size(), expected ? 1 : 0, mode + "/" + failed);
+            if (expected) {
+                String html = Files.readString(fixture.directory.resolve(fixture.attachments().getFirst().getSource()));
+                Assert.assertTrue(html.contains("api.get(&quot;fixture&quot;).perform()"), html);
+                Assert.assertTrue(html.contains("SourceCodeAttachmentTest"), html);
+            }
+            fixture.write();
+            String json = Files.readString(fixture.directory.resolve(fixture.result.getUuid() + "-result.json"));
+            Assert.assertEquals(json.contains("Source code"), expected);
+        } finally {
+            io.restassured.RestAssured.replaceFiltersWith(previousFilters);
+        }
+    }
+
     @Test
     public void capturedKeyKeepsAttachmentOnItsStepWhenAnotherStepIsCurrent() throws Exception {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(false).alwaysLogDiscreetly(false);

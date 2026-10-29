@@ -95,36 +95,40 @@ final class SourceCodeContext {
         if (sourceFile == null) {
             return new Window(List.of(), "Java source is unavailable on the test runner.");
         }
+        try (Reader reader = Files.newBufferedReader(sourceFile, StandardCharsets.UTF_8)) {
+            return readWindow(reader, lineNumber);
+        } catch (IOException | SecurityException exception) {
+            return new Window(List.of(), "Java source could not be read on the test runner.");
+        }
+    }
+
+    private static Window readWindow(Reader reader, int lineNumber) throws IOException {
         int start = Math.max(1, lineNumber - RADIUS);
         long end = (long) lineNumber + RADIUS;
         List<Line> lines = new ArrayList<>();
         StringBuilder text = new StringBuilder();
         int current = 1;
         int read = 0;
-        try (Reader reader = Files.newBufferedReader(sourceFile, StandardCharsets.UTF_8)) {
-            int character;
-            while (current <= end && (character = reader.read()) != -1) {
-                if (++read > MAX_READ_CHARACTERS) {
-                    return new Window(List.of(), "Source context omitted because the read limit was reached.");
-                }
-                if (character == '\n') {
-                    if (current >= start) {
-                        lines.add(new Line(current, withoutCarriageReturn(text)));
-                    }
-                    current++;
-                    text.setLength(0);
-                } else if (current >= start) {
-                    if (text.length() >= MAX_LINE_CHARACTERS) {
-                        return new Window(List.of(), "Source context omitted because a line exceeds the size limit.");
-                    }
-                    text.append((char) character);
-                }
+        int character;
+        while (current <= end && (character = reader.read()) != -1) {
+            if (++read > MAX_READ_CHARACTERS) {
+                return new Window(List.of(), "Source context omitted because the read limit was reached.");
             }
-            if (current >= start && current <= end && !text.isEmpty()) {
-                lines.add(new Line(current, withoutCarriageReturn(text)));
+            if (character == '\n') {
+                if (current >= start) {
+                    lines.add(new Line(current, withoutCarriageReturn(text)));
+                }
+                current++;
+                text.setLength(0);
+            } else if (current >= start) {
+                if (text.length() >= MAX_LINE_CHARACTERS) {
+                    return new Window(List.of(), "Source context omitted because a line exceeds the size limit.");
+                }
+                text.append((char) character);
             }
-        } catch (IOException | SecurityException exception) {
-            return new Window(List.of(), "Java source could not be read on the test runner.");
+        }
+        if (current >= start && current <= end && !text.isEmpty()) {
+            lines.add(new Line(current, withoutCarriageReturn(text)));
         }
         if (lines.stream().noneMatch(line -> line.number() == lineNumber)) {
             return new Window(List.of(), "The recorded line is outside the available source file.");
