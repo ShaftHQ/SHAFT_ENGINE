@@ -199,6 +199,11 @@
 /generatedReport_*.zip
 /generatedReport/
 /graphify-out/
+
+# Mobile test apk/ipa fixtures (#7547 Phase 0) — fetch via scripts/ci/fetch_mobile_test_apps.py
+shaft-engine/src/test/resources/testDataFiles/apps/*.apk
+shaft-engine/src/test/resources/testDataFiles/apps/*.ipa
+shaft-engine/src/main/resources/examples/**/testDataFiles/apk/*.apk
 /generate_allure_report.sh
 /allure-results.zip
 /generate_allure_report.bat

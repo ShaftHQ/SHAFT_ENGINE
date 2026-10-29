@@ -570,6 +570,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           node-version: '24'
       - name: Provision the Android emulator host runtime
         run: |
@@ -668,6 +669,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           java-version: '17'
           node-version: '20'
       - name: Setup Flutter 3.22.1

@@ -545,6 +545,11 @@ CHECKS = {
         "visual-ocr-workflow",
         ("tests.scripts.test_visual_ocr_workflow",),
     ),
+    "mobile-test-apps-contract": Check(
+        "mobile-test-apps-contract",
+        "mobile-test-apps",
+        ("tests.scripts.test_fetch_mobile_test_apps",),
+    ),
     "harness-eval-suite-contract": Check(
         "harness-eval-suite-contract",
         "harness-eval",
@@ -652,6 +657,7 @@ SURFACE_CHECKS = {
     "process-owner": ("process-owner-contract",),
     "design-skills": ("design-skills-contract",),
     "visual-ocr-workflow": ("visual-ocr-workflow-contract",),
+    "mobile-test-apps": ("mobile-test-apps-contract",),
     "ce-h2-gates": ("ce-h2-gates-contract",),
     "harness-eval": ("harness-eval-suite-contract",),
     "durable-jobs": ("durable-jobs-contract",),
@@ -1149,6 +1155,14 @@ SURFACE_PATTERNS = {
         "shaft-engine/src/test/java/testPackage/appium/AndroidBasicInteractionsTests.java",
         "shaft-engine/src/test/java/testPackage/appium/IOSBasicInteractionsTest.java",
         "tests/scripts/test_visual_ocr_workflow.py",
+    ),
+    "mobile-test-apps": (
+        "scripts/ci/fetch_mobile_test_apps.py",
+        "scripts/ci/mobile_test_apps.manifest.json",
+        "tests/scripts/test_fetch_mobile_test_apps.py",
+        ".github/actions/setup-test-env/action.yml",
+        "shaft-engine/src/test/resources/testDataFiles/apps/**",
+        "shaft-engine/src/main/resources/examples/**/testDataFiles/apk/**",
     ),
     "harness-eval": (
         "chaos-engine/**",
