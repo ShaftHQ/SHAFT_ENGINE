@@ -810,7 +810,7 @@ NODE install [src=chaos-engine/install.py loc=L12]
             "-path '*allure*' 2>/dev/null |\n"
             "head -40\n"
             'echo "---- KNOWN PNG ----"\n'
-            "find /media/mohab/Data/hrsd-automation-tests /tmp /home/mohab "
+            "find /media/mohab/Data/sample-automation-tests /tmp /home/mohab "
             "-name '5189c2d7*' 2>/dev/null |\n"
             "head\n"
             'echo "---- SUREFIRE ----"\n'
