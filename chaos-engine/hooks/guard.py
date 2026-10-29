@@ -141,6 +141,163 @@ def learning_requested(event: dict) -> bool:
     return isinstance(prompt, str) and bool(LEARNING_REQUEST.search(prompt))
 
 
+# #7424: owner ``/goal`` (finish-delivery) → write owner-finish-goal marker.
+OWNER_GOAL_FINISH = re.compile(
+    r"(?i)(?:^|\s)/goal\b|"
+    r"\bfinish(?:ing)?\s+(?:the\s+)?(?:delivery|multi[- ]?pr)\b"
+)
+# #7443: owner names a pull request as out of scope (do not babysit / until-merged).
+_OUT_OF_SCOPE_PR_URL = re.compile(
+    r"https://github\.com/([^\s/]+/[^\s/]+)/pull/(\d+)",
+    re.IGNORECASE,
+)
+_OUT_OF_SCOPE_CUE = re.compile(
+    r"(?i)\b(?:out\s+of\s+scope|do\s+not\s+(?:watch|babysit|merge)|don'?t\s+watch)\b"
+)
+_OUT_OF_SCOPE_STATE = "out-of-scope-pull-requests.json"
+
+
+def owner_goal_finish_requested(event: dict) -> bool:
+    """True when the owner's prompt starts a finish-delivery ``/goal`` (#7424)."""
+    prompt = event.get("prompt") or event.get("user_prompt") or ""
+    return isinstance(prompt, str) and bool(OWNER_GOAL_FINISH.search(prompt))
+
+
+def _task_ledger_module():
+    """Load chaos-engine/task_ledger.py without requiring package install."""
+    root = Path(__file__).resolve().parents[1]
+    candidate = root / "task_ledger.py"
+    if not candidate.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("chaos_engine_task_ledger_guard", candidate)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except (OSError, ImportError, SyntaxError, TypeError):
+        return None
+    return module
+
+
+def activate_owner_finish_goal_from_prompt(event: dict) -> Path | None:
+    """Write owner-finish-goal.json when ``/goal`` finish-delivery is requested (#7424)."""
+    if not owner_goal_finish_requested(event):
+        return None
+    ledger = _task_ledger_module()
+    if ledger is None or not hasattr(ledger, "write_owner_finish_goal"):
+        return None
+    cwd = Path(str(event.get("cwd") or Path.cwd()))
+    return ledger.write_owner_finish_goal(cwd, active=True, source="/goal")
+
+
+def _out_of_scope_state_path(cwd: Path) -> Path:
+    return cwd / ".chaos-engine-state" / _OUT_OF_SCOPE_STATE
+
+
+def remember_out_of_scope_pull_request(
+    cwd: Path, number: int, *, repository: str | None = None
+) -> None:
+    """Record a pull request the owner named out of scope (#7443)."""
+    if number is None or isinstance(number, bool) or int(number) <= 0:
+        return
+    path = _out_of_scope_state_path(cwd)
+    entries: list[dict] = []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict) and isinstance(payload.get("pullRequests"), list):
+            entries = [item for item in payload["pullRequests"] if isinstance(item, dict)]
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        entries = []
+    key_repo = (repository or "").strip()
+    for item in entries:
+        if int(item.get("pullRequest") or 0) == int(number):
+            if not key_repo or str(item.get("repository") or "") == key_repo:
+                return
+    entries.append({"pullRequest": int(number), "repository": key_repo})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"pullRequests": entries}, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def out_of_scope_pull_request(
+    cwd: Path, number: int | None, *, repository: str | None = None
+) -> bool:
+    """True when ``number`` is on the owner out-of-scope allowlist (#7443)."""
+    if number is None or isinstance(number, bool) or int(number) <= 0:
+        return False
+    path = _out_of_scope_state_path(cwd)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    entries = payload.get("pullRequests")
+    if not isinstance(entries, list):
+        return False
+    want_repo = (repository or "").strip().casefold()
+    for item in entries:
+        if not isinstance(item, dict):
+            continue
+        if int(item.get("pullRequest") or 0) != int(number):
+            continue
+        have = str(item.get("repository") or "").strip().casefold()
+        if not want_repo or not have or have == want_repo:
+            return True
+    return False
+
+
+def record_out_of_scope_from_prompt(event: dict) -> None:
+    """Parse owner 'out of scope' + PR URL from UserPromptSubmit (#7443)."""
+    prompt = event.get("prompt") or event.get("user_prompt") or ""
+    if not isinstance(prompt, str) or not _OUT_OF_SCOPE_CUE.search(prompt):
+        return
+    cwd = Path(str(event.get("cwd") or Path.cwd()))
+    for match in _OUT_OF_SCOPE_PR_URL.finditer(prompt):
+        remember_out_of_scope_pull_request(
+            cwd, int(match.group(2)), repository=match.group(1)
+        )
+
+
+def _watch_until_merged_target(command: str) -> tuple[int | None, str | None]:
+    """Return (pr_number, repository) from a watch_pr_checks --until-merged command."""
+    text = str(command or "")
+    if "watch_pr_checks" not in text.replace("\\", "/").casefold():
+        return None, None
+    if "--until-merged" not in text:
+        return None, None
+    number = None
+    pr_match = re.search(r"--pr\s+(\d+)\b", text)
+    if pr_match:
+        number = int(pr_match.group(1))
+    repo = None
+    url_match = _OUT_OF_SCOPE_PR_URL.search(text)
+    if url_match:
+        repo = url_match.group(1)
+        if number is None:
+            number = int(url_match.group(2))
+    return number, repo
+
+
+def until_merged_out_of_scope_reason(cwd: Path, commands: tuple[str, ...]) -> str:
+    """PreToolUse: refuse --until-merged on an owner out-of-scope PR (#7443)."""
+    for command in commands:
+        number, repository = _watch_until_merged_target(command)
+        if number is None:
+            continue
+        if out_of_scope_pull_request(cwd, number, repository=repository):
+            label = f"{repository}#{number}" if repository else f"#{number}"
+            return (
+                f"Pull request {label} is on the owner out-of-scope allowlist. "
+                "Do not run watch_pr_checks.py --until-merged on it (#7443)."
+            )
+    return ""
+
+
+
 def learning_session_reason(session_id: str, event: dict) -> str | None:
     # #6739: Learning Session after every final delivery. delivery-complete
     # alone owes it; the completion artifact pays it (the Learning Session
@@ -298,6 +455,7 @@ def _overlay_push_block(commands: tuple[str, ...]) -> str:
             if completed.returncode == 0 and completed.stdout.strip():
                 project = Path(completed.stdout.strip())
         except OSError:
+            # Non-git cwd: keep Path.cwd() as the project root for the checker.
             pass
     script = project / "scripts/ci/overlay_pre_push.py"
     if not script.is_file():
@@ -779,11 +937,101 @@ def _pull_request_number(event: dict, commands: tuple[str, ...]) -> int | None:
     return None
 
 
-def remember_open_pull_request(cwd: Path, number: int | None) -> None:
-    """Persist a pull request opened by gh pr create for later sessions."""
-    payload: dict[str, object] = {"active": True, "state": "open"}
-    if number is not None:
-        payload["pullRequest"] = number
+
+_GITHUB_PERMISSION_DENIED = "github-permission-denied"
+_AUTO_MERGE_ARM = re.compile(
+    r"(?:^|[\s;|&])gh\s+pr\s+merge\b[^\n]*--auto\b",
+    re.IGNORECASE,
+)
+_FORK_WORKFLOW_APPROVE = re.compile(
+    r"repos/[^\s]+/actions/runs/\d+/approve|"
+    r"actions/runs/\d+/approve|"
+    r"gh\s+workflow\s+run\b.*approve|"
+    r"approve-fork|"
+    r"actions/permissions/workflow",
+    re.IGNORECASE,
+)
+
+
+def _command_is_github_write_permission_mutation(command: str) -> bool:
+    """True for auto-merge arm or fork-workflow approve mutations (#7443)."""
+    text = str(command or "")
+    if _AUTO_MERGE_ARM.search(text):
+        return True
+    if _FORK_WORKFLOW_APPROVE.search(text):
+        return True
+    # GraphQL EnablePullRequestAutoMerge
+    if "EnablePullRequestAutoMerge" in text:
+        return True
+    return False
+
+
+def _tool_result_looks_like_http_403(result: object) -> bool:
+    """True when a tool result reports HTTP 403 / permission denied."""
+    chunks: list[str] = []
+    if isinstance(result, dict):
+        for key in ("stderr", "stdout", "output", "body", "message", "error"):
+            chunks.append(str(result.get(key) or ""))
+        code = result.get("exit_code", result.get("exitCode"))
+        if code not in {0, None, "0"}:
+            chunks.append(str(code))
+    elif isinstance(result, str):
+        chunks.append(result)
+    blob = "\n".join(chunks).casefold()
+    return (
+        "403" in blob
+        or "http 403" in blob
+        or "permission denied" in blob
+        or "resource not accessible" in blob
+        or "must have write" in blob
+    )
+
+
+def remember_github_permission_denied(session_id: str, event: dict, commands: tuple[str, ...]) -> None:
+    """Record a write-permission failure so the same mutation is not retried (#7443)."""
+    if not session_id:
+        return
+    result = event.get("tool_response") or event.get("toolResponse") or event.get("tool_result")
+    if not any(_command_is_github_write_permission_mutation(c) for c in commands):
+        return
+    if not _tool_result_looks_like_http_403(result):
+        return
+    reflection.record_activity(session_id, _GITHUB_PERMISSION_DENIED)
+
+
+def github_permission_denied_reason(session_id: str, commands: tuple[str, ...]) -> str:
+    """Block repeating auto-merge / fork-approve after HTTP 403 (#7443)."""
+    if not any(_command_is_github_write_permission_mutation(c) for c in commands):
+        return ""
+    activities = {
+        item.get("activity")
+        for item in reflection.entries(session_id)
+        if item.get("kind") == "task-activity"
+    }
+    if _GITHUB_PERMISSION_DENIED not in activities:
+        return ""
+    return (
+        "GitHub returned HTTP 403 on auto-merge or fork-workflow approval. "
+        "That is a permission failure, not a pending check. Stop; do not retry "
+        "the same mutation. Ask a maintainer with write access."
+    )
+
+
+def remember_open_pull_request(cwd: Path, number: int | None, *, repository: str | None = None) -> None:
+    """Persist a numbered pull request opened by gh pr create for later sessions.
+
+    #7443: refuse to write a numberless mark — Stop must not demand until-merged
+    without a pull request identity.
+    """
+    if number is None or isinstance(number, bool) or int(number) <= 0:
+        return
+    payload: dict[str, object] = {
+        "active": True,
+        "state": "open",
+        "pullRequest": int(number),
+    }
+    if repository:
+        payload["repository"] = repository
     path = _open_pull_request_state_path(cwd)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -923,8 +1171,13 @@ def delivery_goal_open_pull_request(event: dict) -> bool:
         return False
     if str(payload.get("state") or "").casefold() != "open":
         return False
+    # #7443: a numberless open-PR mark is not an identity — do not demand until-merged.
     number = payload.get("pullRequest")
-    return number is None or (isinstance(number, int) and not isinstance(number, bool) and number > 0)
+    if not (isinstance(number, int) and not isinstance(number, bool) and number > 0):
+        return False
+    # #7443: owner out-of-scope allowlist — do not demand until-merged for that PR.
+    repository = str(payload.get("repository") or "") or None
+    return not out_of_scope_pull_request(Path(str(cwd)), number, repository=repository)
 
 
 def _open_pull_request_reason(session_id: str, event: dict) -> str:
@@ -932,7 +1185,8 @@ def _open_pull_request_reason(session_id: str, event: dict) -> str:
 
     ``delivery-status`` does not clear the block. An active delivery goal
     with an open pull request counts even when this session never ran
-    ``gh pr create``.
+    ``gh pr create``. #7443: only a numbered open-PR mark is an identity —
+    activity alone or a numberless mark must not demand ``--until-merged``.
     """
     activities = {
         item.get("activity")
@@ -941,7 +1195,7 @@ def _open_pull_request_reason(session_id: str, event: dict) -> str:
     }
     if "pull-request-merged" in activities:
         return ""
-    if "pull-request-open" not in activities and not delivery_goal_open_pull_request(event):
+    if not delivery_goal_open_pull_request(event):
         return ""
     return (
         "Delivery is not complete while the pull request is open. "
@@ -997,6 +1251,7 @@ def _record_failed_result(
     # A denied receipt adapter must not enlarge the fingerprint set the next receipt has to list.
     if commands and any(denied_reflection_retry(command) for command in commands):
         return False
+    remember_github_permission_denied(session_id, event, commands)
     reflection.record_failure(
         session_id,
         phase="tool-outcome",
@@ -1062,6 +1317,14 @@ def _command_guard_state(
     push_block = (_overlay_push_block(commands) or _pr_body_block(commands)) if event_name == "PreToolUse" else ""
     if push_block:
         return receipt_command, mutation, push_block
+    if event_name == "PreToolUse":
+        permission_block = github_permission_denied_reason(session_id, commands)
+        if permission_block:
+            return receipt_command, mutation, permission_block
+        cwd = Path(str(event.get("cwd") or Path.cwd()))
+        scope_block = until_merged_out_of_scope_reason(cwd, commands)
+        if scope_block:
+            return receipt_command, mutation, scope_block
     if event_name == "PreToolUse" and checkpoint and not receipt_command and (mutation or unchanged_test):
         return receipt_command, mutation, checkpoint_reason(checkpoint, session_id)
     uninspectable = _uninspectable_functions_call(
@@ -1369,6 +1632,10 @@ def _prompt_entry(event: dict, event_name: str, session_id: str, host: str) -> i
         _lifecycle.record_companion_opt_out(session_id, prompt)
     if learning_requested(event):
         reflection.record_activity(session_id, "learning-requested")
+    # #7424: /goal finish-delivery writes the owner-finish-goal marker automatically.
+    activate_owner_finish_goal_from_prompt(event)
+    # #7443: owner "out of scope" + PR URL → allowlist for --until-merged refuse.
+    record_out_of_scope_from_prompt(event)
     # Grok discards UserPromptSubmit context. Gemini and Copilot have no
     # subagent-start event; Claude and Codex use this only when SubagentStart
     # did not already inject for this agent scope.
@@ -1382,9 +1649,38 @@ def _prompt_entry(event: dict, event_name: str, session_id: str, host: str) -> i
     return 0
 
 
+def _mobile_retro_post_run(event: dict, commands: tuple) -> None:
+    """Live post-run freeze via PostToolUse after a green test command (#7494)."""
+    if not any(test_command(candidate) for candidate in commands):
+        return
+    root = Path(str(event.get("cwd") or Path.cwd()))
+    try:
+        import mobile_retro as _mr
+    except ImportError:
+        return
+    results = _mr.find_green_results_dir(root)
+    if results is None:
+        return
+    try:
+        build_id, branch = _mr.default_build_and_branch()
+        _mr.post_run_freeze(
+            results,
+            root / _mr.SNAPSHOT_REL,
+            green=True,
+            pin_path=root / _mr.PIN_REL,
+            build_id=build_id,
+            branch=branch,
+        )
+    except Exception:
+        # Post-run freeze must never break the hook protocol.
+        return
+
+
+
 def _post_tool_activity(event: dict, event_name: str, commands: tuple, session_id: str, receipt_command: bool, mutation: bool) -> None:
     if event_name != "PostToolUse" or receipt_command:
         return
+    _mobile_retro_post_run(event, commands)
     if any(learning_session_finalize_command(candidate) for candidate in commands):
         if learning_completion_artifact(session_id) is not None:
             reflection.record_activity(session_id, "learning-session-complete")

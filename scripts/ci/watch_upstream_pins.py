@@ -8,7 +8,9 @@ Latest for a PyPI or npm package is the newest non-yanked stable release.
 Latest for uv, Node, and Temurin is the newest stable version on that
 dependency's stable channel. Latest for a commit pin is the commit of the
 newest GitHub release, or default-branch HEAD when that repository has no
-stable release. Unreleased history is not latest. The Python generation pin
+stable release. A pin that already equals default-branch HEAD is current
+even when HEAD is ahead of the newest release (#7432). Unreleased history
+is not latest. The Python generation pin
 and the project-runtime series are not one bump and are not watched here.
 deja stays on its pinned release tag.
 
@@ -135,7 +137,17 @@ def compare_pin(pin: Pin, stable: Stable) -> Verdict:
     if pin.kind in _VERSION_KINDS:
         behind = _version_key(pin.current) < _version_key(latest)
     elif pin.kind in _COMMIT_KINDS:
+        # #7432: a pin equal to the default-branch tip is current even when that
+        # tip is ahead of the newest release commit (release remains the
+        # reported latest for older pins).
         behind = pin.current != latest
+        if (
+            behind
+            and stable.head_commit
+            and pin.current == stable.head_commit
+        ):
+            behind = False
+            latest = stable.head_commit
     else:
         raise ValueError(f"unknown pin kind for {pin.name}")
     return Verdict(

@@ -75,5 +75,26 @@ class IterativeFlowRuleTest(unittest.TestCase):
             self.assertEqual(setup.validate_iterative_flow_rule(root), [])
 
 
+
+class DesignerOwnsGenerationTest(unittest.TestCase):
+    """#7506 L6: orchestrator never implements media generation via own executors."""
+
+    def test_roles_design_loop_and_pdca_forbid_self_generation(self):
+        import re
+
+        def flat(path: Path) -> str:
+            return re.sub(r"\s+", " ", path.read_text(encoding="utf-8")).lower()
+
+        roles = flat(REFS / "roles.md")
+        design_loop = flat(REFS / "design-loop.md")
+        pdca = flat(DOC)
+        for body in (roles, design_loop, pdca):
+            self.assertIn("media generation", body)
+        self.assertIn("never implements media generation", roles)
+        self.assertIn("own executors", roles)
+        self.assertIn("design-capable implementer", design_loop)
+        self.assertIn("designer", pdca)
+
+
 if __name__ == "__main__":
     unittest.main()

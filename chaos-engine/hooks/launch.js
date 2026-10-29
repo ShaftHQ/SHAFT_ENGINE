@@ -9,7 +9,14 @@ const CWD_UNAVAILABLE =
   "repository working directory unavailable; restore the original mount or checkout, then retry";
 const GUARD_UNAVAILABLE =
   "ChaosEngine guard unavailable; repair the original installation, then retry";
+// #7425: parent-distinguishable retry while bootstrap/install rewrites the harness.
+const GUARD_TEMPORARILY_UNAVAILABLE =
+  "ChaosEngine guard temporarily unavailable while install rewrites the harness; retry shortly; do not repair from this child";
 const CWD_UNAVAILABLE_CODES = new Set(["ENOENT", "ESTALE", "ENOTCONN"]);
+const INSTALL_MARKERS = [
+  ".chaos-engine.transaction.json",
+  ".chaos-engine.backup.next",
+];
 
 function deny(message, code = 2) {
   process.stdout.write(JSON.stringify({ decision: "block", reason: message }) + "\n");
@@ -20,9 +27,63 @@ function unavailableError(error) {
   return Boolean(error && CWD_UNAVAILABLE_CODES.has(error.code));
 }
 
-function currentRoot() {
+function sleepMs(ms) {
   try {
-    return process.cwd();
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  } catch (error) {
+    const end = Date.now() + ms;
+    while (Date.now() < end) {
+      /* busy wait fallback */
+    }
+  }
+}
+
+// #7425/#7492/#7434: invalid/NaN → 60s default; finite values clamp to 0..600s
+// (same semantics as hosts.py guard_wait_budget_seconds).
+function guardWaitMs() {
+  const raw = process.env.CHAOS_ENGINE_GUARD_WAIT_MS;
+  if (raw === undefined || raw === "") return 60000;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return 60000;
+  return Math.max(0, Math.min(value, 600000));
+}
+
+function installInProgress(start) {
+  let root = start;
+  while (true) {
+    for (const marker of INSTALL_MARKERS) {
+      try {
+        if (fs.existsSync(path.join(root, marker))) return true;
+      } catch (error) {
+        if (unavailableError(error)) deny(CWD_UNAVAILABLE);
+        throw error;
+      }
+    }
+    try {
+      for (const entry of fs.readdirSync(root)) {
+        if (entry.startsWith(".chaos-engine-stage-")) return true;
+      }
+    } catch (error) {
+      if (unavailableError(error)) deny(CWD_UNAVAILABLE);
+      // ignore unreadable dirs when scanning for stage markers
+    }
+    const parent = path.dirname(root);
+    if (parent === root) return false;
+    root = parent;
+  }
+}
+
+function currentRoot() {
+  // #7515: ghost cwd (getcwd returns a deleted path) must deny before parent walk.
+  try {
+    const cwd = process.cwd();
+    try {
+      if (!fs.existsSync(cwd)) deny(CWD_UNAVAILABLE);
+    } catch (error) {
+      if (unavailableError(error)) deny(CWD_UNAVAILABLE);
+      throw error;
+    }
+    return cwd;
   } catch (error) {
     if (unavailableError(error)) deny(CWD_UNAVAILABLE);
     throw error;
@@ -133,7 +194,30 @@ if (!matchesHook()) {
   process.exit(0);
 }
 
-const guard = guardPath();
+function waitForGuard() {
+  let found = guardPath();
+  if (found) return found;
+  let start;
+  try {
+    start = currentRoot();
+  } catch (error) {
+    return null;
+  }
+  if (!installInProgress(start)) return null;
+  const deadline = Date.now() + guardWaitMs();
+  while (!found && Date.now() < deadline) {
+    sleepMs(200);
+    found = guardPath();
+  }
+  if (!found) {
+    // Re-sample after deadline: TEMP only while install markers remain.
+    if (installInProgress(start)) deny(GUARD_TEMPORARILY_UNAVAILABLE);
+    return null;
+  }
+  return found;
+}
+
+const guard = waitForGuard();
 if (!guard) {
   deny(GUARD_UNAVAILABLE);
 }
@@ -178,5 +262,10 @@ for (const [command, prefix] of candidates) {
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
   process.exit(result.status === null ? 1 : result.status);
+}
+try {
+  if (installInProgress(currentRoot())) deny(GUARD_TEMPORARILY_UNAVAILABLE);
+} catch (error) {
+  /* fall through to permanent */
 }
 deny(GUARD_UNAVAILABLE);

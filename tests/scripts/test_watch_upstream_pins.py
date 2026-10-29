@@ -300,6 +300,24 @@ class WatchUpstreamPinsTest(unittest.TestCase):
         self.assertEqual("24.19.0", latest)
         self.assertFalse(verdict.behind)
 
+    def test_tip_pin_equal_to_head_is_current_even_when_ahead_of_release(self) -> None:
+        """#7432: pin == default-branch tip is current; release remains latest for older pins."""
+        release = "2" * 40
+        head = "3" * 40
+        url = "https://github.com/JuliusBrussee/caveman"
+        tip = compare_pin(
+            Pin("caveman", "git", head, url, repository="JuliusBrussee/caveman"),
+            Stable(release_commit=release, head_commit=head),
+        )
+        older = compare_pin(
+            Pin("caveman", "git", "1" * 40, url, repository="JuliusBrussee/caveman"),
+            Stable(release_commit=release, head_commit=head),
+        )
+        self.assertFalse(tip.behind)
+        self.assertEqual(head, tip.latest)
+        self.assertTrue(older.behind)
+        self.assertEqual(release, older.latest)
+
     def test_git_latest_is_the_release_commit_not_a_newer_head(self) -> None:
         old = "1" * 40
         release = "2" * 40

@@ -51,6 +51,17 @@ mkdir -p target/attempts
 for suite in "${SUITES[@]}"; do
   green=0
   for attempt in $(seq 1 "$ATTEMPTS"); do
+    if [ "$attempt" -gt 1 ]; then
+      # #7495: stop rebuild when last log is a backend-gated Blocked signature
+      last_log="target/attempts/$(basename "$suite" .xml)-$((attempt-1)).log"
+      if [ -f "$last_log" ]; then
+        sig=$(tr '\n' ' ' <"$last_log" | head -c 4000)
+        if ! python3 scripts/ci/mobile_retro_runtime.py classify-before-rebuild --signature "$sig"; then
+          echo "$suite rebuild stopped: backend Blocked (see $last_log)"
+          exit 2
+        fi
+      fi
+    fi
     run="$suite"
     if [ "$attempt" -gt 1 ] || { [ "$KEEP" = 1 ] && [ "$suite" = "${SUITES[0]}" ] && [ -f target/surefire-reports/testng-failed.xml ]; }; then
       results "$suite" prune
@@ -62,7 +73,12 @@ for suite in "${SUITES[@]}"; do
     mvn -q test -Dsurefire.suiteXmlFiles="$run" -Dallure.cleanResultsDirectory=false $MVN_ARGS > "target/attempts/$(basename "$suite" .xml)-$attempt.log" 2>&1
     read -r bad total <<<"$(results "$suite" count)"; echo "   not passed: $bad of $total"
     a="target/attempts/$(basename "$suite" .xml)-$attempt"; mkdir -p "$a"; cp -r allure-results target/surefire-reports "$a"/ 2>/dev/null
-    [ "$bad" = 0 ] && { green=1; break; }
+    if [ "$bad" = 0 ]; then
+      green=1
+      # #7494: freeze green allure-results snapshot
+      python3 scripts/ci/mobile_retro_runtime.py after-green-allure --results allure-results --green || true
+      break
+    fi
   done
   [ "$green" = 1 ] || { echo "$suite still has failures after $ATTEMPTS attempts (see target/attempts/)"; exit 1; }
 done

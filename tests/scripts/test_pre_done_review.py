@@ -109,7 +109,7 @@ class PreDoneReviewTest(unittest.TestCase):
         bad = "rule: blocked-on-data; alt: no mock yet `tests/scripts/test_pre_done_review.py::PreDoneReviewTest`"
         self.assertTrue(any("not done yet" in f for f in self._row(bad)))
 
-    def test_hrsd_repro_fails(self) -> None:
+    def test_blocked_row_without_alt_repro_fails(self) -> None:
         repro = ("| ID | Status | Notes |\n|---|---|---|\n"
                  "| S1 | Blocked | rule: G51 no test data. alt: no mock written yet |\n"
                  "## What's missing\n- nothing\n")

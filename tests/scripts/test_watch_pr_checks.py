@@ -408,6 +408,74 @@ class QuietUnattendedWatchTest(unittest.TestCase):
         self.assertEqual("PENDING", bucket)
         self.assertEqual([], failing)
 
+    def test_actions_action_required_omitted_from_gh_pr_checks_is_blocked(self):
+        """#7444: workflow runs left action_required must fail the watch."""
+        checks = [{"name": "PR Gate Summary", "state": "SUCCESS", "link": "https://checks/gate"}]
+        blocked = [
+            {
+                "name": "CI",
+                "state": "ACTION_REQUIRED",
+                "link": "https://github.com/org/repo/actions/runs/1",
+            }
+        ]
+        merged = watch_pr_checks.merge_action_required_runs(checks, blocked)
+        bucket, failing = watch_pr_checks.classify_checks(merged)
+        self.assertEqual("RED", bucket)
+        self.assertEqual("CI", failing[0]["name"])
+        self.assertEqual("ACTION_REQUIRED", failing[0]["state"])
+
+    def test_poll_once_enriches_green_checks_with_action_required_runs(self):
+        """#7444 fixture: gh pr checks omits action_required; enrich makes RED."""
+        calls: list[list[str]] = []
+
+        def run_gh(_executable, arguments, root):
+            calls.append(list(arguments))
+            if arguments[:2] == ["pr", "checks"]:
+                return subprocess.CompletedProcess(
+                    arguments,
+                    0,
+                    stdout=json.dumps(
+                        [{"name": "lint", "state": "SUCCESS", "link": "https://checks/lint"}]
+                    ),
+                    stderr="",
+                )
+            if arguments[:2] == ["pr", "view"]:
+                return subprocess.CompletedProcess(
+                    arguments,
+                    0,
+                    stdout=json.dumps({"headRefOid": "abc123"}),
+                    stderr="",
+                )
+            if arguments[:2] == ["api", "repos/org/repo/actions/runs"]:
+                return subprocess.CompletedProcess(
+                    arguments,
+                    0,
+                    stdout=json.dumps(
+                        {
+                            "workflow_runs": [
+                                {
+                                    "name": "Fork CI",
+                                    "status": "action_required",
+                                    "conclusion": None,
+                                    "html_url": "https://github.com/org/repo/actions/runs/9",
+                                }
+                            ]
+                        }
+                    ),
+                    stderr="",
+                )
+            return subprocess.CompletedProcess(arguments, 1, stdout="", stderr="unexpected")
+
+        with unittest.mock.patch.object(watch_pr_checks, "run_gh", side_effect=run_gh):
+            checks = watch_pr_checks.poll_once("gh", Path("."), "org/repo", 42)
+        bucket, failing = watch_pr_checks.classify_checks(checks)
+        self.assertEqual("RED", bucket)
+        self.assertTrue(any(item.get("state") == "ACTION_REQUIRED" for item in failing))
+        self.assertTrue(
+            any(args[:2] == ["api", "repos/org/repo/actions/runs"] for args in calls),
+            calls,
+        )
+
     def test_codacy_action_required_stays_pending_while_another_check_runs(self):
         bucket, failing = watch_pr_checks.classify_checks(
             [

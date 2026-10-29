@@ -356,6 +356,85 @@ def fetch_head_sha(gh_executable: str, root: Path, repo: str, pr: int) -> str | 
     return value if isinstance(value, str) and value else None
 
 
+
+def action_required_workflow_runs(
+    gh_executable: str, root: Path, repo: str, head_sha: str
+) -> list[dict]:
+    """#7444: Actions runs left ``action_required`` (fork maintainer approval).
+
+    ``gh pr checks`` omits these. They are blocked, not pending and not green.
+    """
+    if not head_sha:
+        return []
+    api = run_gh(
+        gh_executable,
+        [
+            "api",
+            f"repos/{repo}/actions/runs",
+            "--method",
+            "GET",
+            "-f",
+            f"head_sha={head_sha}",
+            "-f",
+            "status=action_required",
+            "-f",
+            "per_page=50",
+        ],
+        root,
+    )
+    if api.returncode != 0:
+        return []
+    try:
+        payload = json.loads(api.stdout or "{}")
+    except json.JSONDecodeError:
+        return []
+    runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
+    if not isinstance(runs, list):
+        return []
+    blocked: list[dict] = []
+    for run in runs:
+        if not isinstance(run, dict):
+            continue
+        status = str(run.get("status") or "").casefold()
+        conclusion = str(run.get("conclusion") or "").casefold()
+        if status != "action_required" and conclusion != "action_required":
+            continue
+        blocked.append(
+            {
+                "name": str(run.get("name") or run.get("display_title") or "actions-run"),
+                "state": "ACTION_REQUIRED",
+                "link": str(run.get("html_url") or ""),
+            }
+        )
+    return blocked
+
+
+def merge_action_required_runs(checks: list[dict], blocked: list[dict]) -> list[dict]:
+    """Append ``action_required`` workflow runs omitted from ``gh pr checks`` (#7444)."""
+    if not blocked:
+        return checks
+    known = {
+        (str(item.get("name") or ""), str(item.get("link") or ""))
+        for item in checks
+    }
+    merged = list(checks)
+    for item in blocked:
+        key = (str(item.get("name") or ""), str(item.get("link") or ""))
+        if key not in known:
+            merged.append(item)
+            known.add(key)
+    return merged
+
+
+def enrich_checks_with_action_required(
+    gh_executable: str, root: Path, repo: str, pr: int, checks: list[dict]
+) -> list[dict]:
+    """Attach fork ``action_required`` workflow runs to the check list (#7444)."""
+    head = fetch_head_sha(gh_executable, root, repo, pr) or ""
+    blocked = action_required_workflow_runs(gh_executable, root, repo, head)
+    return merge_action_required_runs(checks, blocked)
+
+
 def _publish(args, root: Path, pr: int, digest: dict) -> None:
     """Write the shared digest file and the status lease on state change; never stdout."""
     if args.digest_out:
@@ -367,7 +446,11 @@ def _publish(args, root: Path, pr: int, digest: dict) -> None:
 
 
 def poll_once(gh_executable: str, root: Path, repo: str, pr: int) -> list[dict]:
-    """Fetch the current check list for a single poll, preferring `gh pr checks --json`."""
+    """Fetch the current check list for a single poll, preferring `gh pr checks --json`.
+
+    #7444: also fold Actions workflow runs left ``action_required`` (fork
+    maintainer approval) that ``gh pr checks`` omits.
+    """
     proc = run_gh(
         gh_executable,
         ["pr", "checks", str(pr), "--repo", repo, "--json", "name,state,link"],
@@ -377,15 +460,17 @@ def poll_once(gh_executable: str, root: Path, repo: str, pr: int) -> list[dict]:
     # parseable --json response, so both 0 and 8 are success here.
     if proc.returncode in (0, 8):
         try:
-            return validate_checks(json.loads(proc.stdout or "[]"), "gh pr checks")
+            checks = validate_checks(json.loads(proc.stdout or "[]"), "gh pr checks")
         except json.JSONDecodeError as error:
             raise CheckWatchError(f"gh pr checks returned unparseable JSON: {error}") from error
+        return enrich_checks_with_action_required(gh_executable, root, repo, pr, checks)
 
     stderr_lower = (proc.stderr or "").lower()
     if "unknown json field" in stderr_lower or "unsupported flag" in stderr_lower or (
         "--json" in stderr_lower and "unknown" in stderr_lower
     ):
-        return poll_via_check_runs_api(gh_executable, root, repo, pr)
+        checks = poll_via_check_runs_api(gh_executable, root, repo, pr)
+        return enrich_checks_with_action_required(gh_executable, root, repo, pr, checks)
 
     raise CheckWatchError(f"gh pr checks failed: {proc.stderr.strip() or proc.stdout.strip()}")
 
