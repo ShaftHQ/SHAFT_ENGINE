@@ -65,6 +65,11 @@ __all__ = (
     "java_compiler_present",
     "managed_temurin_root",
     "managed_maven_root",
+    "_jdk_home_if_usable",
+    "_jdk_home_from_java_binary",
+    "_managed_temurin_java_home",
+    "_account_java_home",
+    "_java_home_for_maven_probe",
     "maven_version",
     "verified_managed_maven",
     "TEMURIN_REPAIR_HINT",
@@ -191,8 +196,102 @@ def managed_maven_root(version: str = "3.9.12") -> Path:
     )
 
 
-def maven_version(mvn: Path) -> str | None:
+def _jdk_home_if_usable(home: Path) -> str | None:
+    """Return ``home`` when it contains a real executable ``java`` binary."""
+    java_name = "java.exe" if os.name == "nt" else "java"
+    try:
+        java = home / "bin" / java_name
+        if not java.is_file() or is_link_or_reparse(java):
+            return None
+        # Missing is already rejected above; non-executable ambient JAVA_HOME
+        # is also unusable for `mvn -v` (#7558).
+        if os.name != "nt" and not os.access(java, os.X_OK):
+            return None
+        return str(home.resolve())
+    except OSError:
+        return None
+
+
+def _jdk_home_from_java_binary(java_bin: Path) -> str | None:
+    """Map a java binary path to its JDK home (linux/windows or macOS Contents/Home)."""
+    for home in (java_bin.parent.parent, java_bin.parent.parent.parent):
+        usable = _jdk_home_if_usable(home)
+        if usable is not None:
+            return usable
+    return None
+
+
+def _managed_temurin_java_home() -> str | None:
+    """Return the verified managed Temurin JDK home when provisioned."""
+    try:
+        _system, _architecture, host_platform = _tools_host_platform()
+        managed_java = managed_temurin_root() / _temurin_java_relative()
+        verified = verified_managed_temurin(managed_java, host_platform)
+    except (OSError, RuntimeError, TypeError, ValueError):
+        # Pack helpers may be unbound in unit stubs; treat as absent.
+        return None
+    if verified is None:
+        return None
+    return _jdk_home_if_usable(verified.parent.parent)
+
+
+def _account_java_home() -> str | None:
+    """Return the newest account-scoped CE java tree under ~/.local/share/chaos-engine/java."""
+    account_root = Path.home() / ".local/share/chaos-engine/java"
+    try:
+        if not account_root.is_dir() or is_link_or_reparse(account_root):
+            return None
+        for child in sorted(account_root.iterdir(), reverse=True):
+            usable = _jdk_home_if_usable(child)
+            if usable is not None:
+                return usable
+    except OSError:
+        # Directory vanished mid-scan; ambient/managed candidates still apply.
+        return None
+    return None
+
+
+def _java_home_for_maven_probe() -> str | None:
+    """Return a JDK home for `mvn -v` when ambient JAVA_HOME is empty/unusable (#7558)."""
+    ambient = str(os.environ.get("JAVA_HOME") or "").strip()
+    if ambient:
+        usable = _jdk_home_if_usable(Path(ambient).expanduser())
+        if usable is not None:
+            return usable
+
+    configured = str(os.environ.get("CHAOSENGINE_JAVA") or "").strip()
+    if configured:
+        usable = _jdk_home_from_java_binary(Path(configured).expanduser())
+        if usable is not None:
+            return usable
+
+    path_java = shutil.which("java")
+    if path_java:
+        try:
+            resolved = Path(path_java).resolve(strict=True)
+        except OSError:
+            resolved = None
+        if resolved is not None:
+            usable = _jdk_home_from_java_binary(resolved)
+            if usable is not None:
+                return usable
+
+    for candidate in (_managed_temurin_java_home, _account_java_home):
+        usable = candidate()
+        if usable is not None:
+            return usable
+    return None
+
+
+def maven_version(mvn: Path, *, env: dict[str, str] | None = None) -> str | None:
     """Parse a stable Apache Maven version from `mvn -v` output."""
+    probe_env = dict(env) if env is not None else os.environ.copy()
+    ambient = str(probe_env.get("JAVA_HOME") or "").strip()
+    # #7558: inject when ambient is empty OR unusable (missing/non-executable).
+    if not ambient or _jdk_home_if_usable(Path(ambient).expanduser()) is None:
+        fallback = _java_home_for_maven_probe()
+        if fallback is not None:
+            probe_env["JAVA_HOME"] = fallback
     try:
         result = subprocess.run(  # nosec B603 - executable is resolved before use.
             [str(mvn), "-v"],
@@ -200,6 +299,7 @@ def maven_version(mvn: Path) -> str | None:
             text=True,
             timeout=30,
             check=False,
+            env=probe_env,
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
@@ -516,6 +616,12 @@ def ensure_managed_maven(
         reporter.trace(f"provision managed Apache Maven {version}")
     if root.exists() or is_link_or_reparse(root):
         if verified_managed_maven(mvn, host_platform, version=version) is None:
+            if _java_home_for_maven_probe() is None:
+                raise ValueError(
+                    "JAVA_HOME is unset or unusable and no managed Temurin JDK is "
+                    "available to verify managed Maven; set JAVA_HOME to a JDK 25+ "
+                    "home or install the managed Temurin JDK"
+                )
             raise ValueError("existing managed Maven tree is invalid")
         return mvn.resolve()
     _materialize_runtime(

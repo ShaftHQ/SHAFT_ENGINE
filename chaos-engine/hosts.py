@@ -2030,6 +2030,11 @@ def detected_plugin_status(
         executable = which(client)
         if executable is None:
             continue
+        # Doctor calls this without activate; prune CE-owned stale marketplaces
+        # first so marketplace list is not Blocked by missing manifests (#7559).
+        remove_stale_marketplace_before_activation(
+            client, executable, project, runner=runner
+        )
         if client == "codex":
             marketplace_document = client_json(
                 executable, ["plugin", "marketplace", "list", "--json"], project, runner=runner

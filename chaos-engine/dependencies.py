@@ -473,6 +473,53 @@ def sanitize_receipt(value: object, *, home: Path | None = None) -> object:
     return type(value).__name__
 
 
+
+_CE_UV_TOOL_SHIMS = (
+    # launcher name → uv tools package directory name
+    ("mempalace", "mempalace"),
+    ("mempalace-mcp", "mempalace"),
+    ("graphify", "graphifyy"),
+)
+
+
+def dangling_ce_uv_tool_shims(
+    *,
+    bin_dir: Path | None = None,
+    tools_root: Path | None = None,
+) -> list[str]:
+    """Return CE-owned ~/.local/bin uv shim names whose tool tree target is missing (#7557).
+
+    Only ChaosEngine `uv tool install` launchers are considered. Foreign binaries
+    in the same bin dir are ignored. Never deletes paths (delete_guard).
+    """
+    root = bin_dir if bin_dir is not None else Path.home() / ".local/bin"
+    tools = tools_root if tools_root is not None else Path.home() / ".local/share/uv/tools"
+    found: list[str] = []
+    for name, package in _CE_UV_TOOL_SHIMS:
+        shim = root / name
+        try:
+            if not shim.exists() and not shim.is_symlink():
+                continue
+            if shim.is_symlink():
+                try:
+                    target = shim.resolve(strict=True)
+                    missing = False
+                except (OSError, RuntimeError):
+                    missing = True
+                else:
+                    missing = not target.is_file()
+            else:
+                # Rare non-link occupant with a CE launcher name: only treat as
+                # stale when the uv tools package tree for that launcher is gone.
+                expected = tools / package / "bin" / name
+                missing = not expected.is_file()
+            if missing:
+                found.append(name)
+        except OSError:
+            continue
+    return found
+
+
 def account_tool_plan(
     project: Path,
     specification: dict[str, object],
@@ -499,7 +546,9 @@ def account_tool_plan(
         action = actions.get(name)
         options = [item for dependency in extra for item in ("--with", dependency)]
         if action in {"installed", "upgraded", "repaired"}:
-            force = ["--force"] if action in {"upgraded", "repaired"} else []
+            # Always --force: action "installed" still hits leftover ~/.local/bin
+            # uv shims after a tools wipe (mempalace/graphify; #7557).
+            force = ["--force"]
             python_pin: list[str] = []
             if name in {"mempalace", "graphify"}:
                 python_version = (resolved_versions or {}).get("python")
