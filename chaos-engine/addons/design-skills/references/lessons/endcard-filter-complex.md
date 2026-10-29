@@ -25,9 +25,10 @@ seek rules that keep video and audio aligned.
    from the live mp4, pass `-update 1` and `-pix_fmt yuvj420p` (or the
    project target) so modern ffmpeg does not reject full-range MJPEG and
    the gate frame is non-empty.
-4. **Fail closed on short video.** After concat, if format duration −
-   video-stream duration > ~0.35 s, treat the end card as lost and
-   rebuild.
+4. **Fail closed on short video (project-side).** After concat, if format
+   duration − video-stream duration > ~0.35 s, treat the end card as lost
+   and rebuild. The 0.35 s rule lives in the project render helper — CE
+   ships seek + pix_fmt on `endcardlive`, not a duration-skew helper.
 
 ## Verify
 

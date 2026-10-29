@@ -19,7 +19,6 @@ one lesson card.
 | [L11 title punct by script](title-punct-by-script.md) | metadata title/desc question marks: Latin `?` vs Arabic `؟` |
 | [L12 question-mark baseline](qmark-baseline.md) | mixed-font trailing `?`/`؟` shares body baseline (`anchor=ls`) |
 | [L13 perceptual acceptance](perceptual-acceptance.md) | accepting a visual/media package; metric floors; reviewer must view output vs real reference |
-
 | [L14 band coverage gate](band-coverage-gate.md) | burned band must cover source on-screen text every content frame |
 | [L15 mute span gate](mute-span-gate.md) | hard mute ≤2s/span and ≤10% content; else recut |
 | [L16 end-card filter_complex](endcard-filter-complex.md) | concat via filter_complex; seek by video-stream duration; pix_fmt |

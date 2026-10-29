@@ -1,14 +1,14 @@
 ---
 name: mute-span-gate
-description: Use when hard-muting privacy or price spans; reject long silence that should have been a cut or HOLD.
+description: Use when hard-muting privacy or hard-amount spans; reject long silence that should have been a cut or HOLD.
 ---
 
 # L15 Mute span gate
 
 ## Use when
 
-A publish window uses hard mute (volume zero) for privacy, price, or
-filler, and reviewers must not ship long dead air. Extends
+A publish window uses hard mute (volume zero) for privacy, hard-amount,
+or filler, and reviewers must not ship long dead air. Extends
 [L06](caption-video-qc.md) silence-gap rules and
 [L09](privacy-names-gate.md).
 

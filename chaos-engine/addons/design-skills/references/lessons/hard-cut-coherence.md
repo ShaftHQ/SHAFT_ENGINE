@@ -7,7 +7,7 @@ description: Use when joining or trimming talk clips; each join must be one thou
 
 ## Use when
 
-Hard-cutting privacy/price spans, shortening a Q&A answer, or choosing
+Hard-cutting privacy or hard-amount spans, shortening a Q&A answer, or choosing
 between mute, cut, and a shorter contiguous window.
 
 ## Rules
@@ -22,8 +22,8 @@ between mute, cut, and a shorter contiguous window.
 3. **Prefer contiguous alternate over a cut that drops setup.** If
    removing a muted middle also removes the premise the closer needs,
    publish a shorter contiguous window instead of a join that skips
-   setup (example pattern: keep claim-only beat; HOLD the free-tier /
-   price tail).
+   setup (example pattern: keep the claim-only beat; HOLD the trailing
+   detail that needs the dropped setup).
 4. **Sentence boundaries from word timestamps.** Land `start`/`end` on
    proven word ends, not exclusive ends of multi-thought ASR events.
 

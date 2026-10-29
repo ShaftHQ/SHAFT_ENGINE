@@ -1,6 +1,6 @@
 ---
 name: asr-names-run-gates
-description: Use when a unit render suite runs QC; ASR name/price scan must be wired fail-closed into run_gates.
+description: Use when a unit render suite runs QC; ASR name/hard-amount scan must be wired fail-closed into run_gates.
 ---
 
 # L18 ASR names in run_gates
@@ -39,5 +39,5 @@ wiring makes a missing words file a red suite, not a silent ship.
 
 ## Sources
 
-Field lesson from a content QA recut batch: ASR name/price gate had to
+Field lesson from a content QA recut batch: ASR name/hard-amount gate had to
 live inside `run_gates` and fail when words were missing.

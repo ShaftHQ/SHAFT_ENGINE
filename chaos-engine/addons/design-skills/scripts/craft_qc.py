@@ -1538,22 +1538,71 @@ DEFAULT_AMOUNT_RE = re.compile(
 
 
 
+def _asr_words_payload_ok(data) -> bool:
+    """True when words payload is a non-empty list (or dict with non-empty words list)."""
+    if data is None:
+        return False
+    if isinstance(data, list):
+        return len(data) > 0
+    if isinstance(data, dict):
+        words = data.get("words")
+        if isinstance(words, list):
+            return len(words) > 0
+        # segments-only with nested words still counts if any word present
+        segs = data.get("segments")
+        if isinstance(segs, list):
+            for seg in segs:
+                if isinstance(seg, dict) and isinstance(seg.get("words"), list) and seg["words"]:
+                    return True
+        return False
+    return False
+
+
 def _privacynames_require_words_fail(qc, args) -> int | None:
-    """L18: missing/empty words.json is FAIL when --require-words is set."""
+    """L18: check --require-words BEFORE load; missing/empty/null/{} / non-list = FAIL."""
     if not getattr(args, "require_words", False):
         return None
+    note = "ASR words required in run_gates; missing ≠ pass (L18)"
     if not args.words:
         return qc.report(
             "privacynames", qc.FAIL,
             hits=["missing words.json (--require-words)"],
-            note="ASR words required in run_gates; missing ≠ pass (L18)",
+            note=note,
         )
     words_path = Path(args.words)
-    if not words_path.exists() or words_path.stat().st_size < 2:
+    if not words_path.exists():
         return qc.report(
             "privacynames", qc.FAIL,
-            hits=["missing or empty words.json (--require-words)"],
-            note="ASR words required in run_gates; missing ≠ pass (L18)",
+            hits=["missing words.json (--require-words)"],
+            note=note,
+        )
+    try:
+        raw = words_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return qc.report(
+            "privacynames", qc.FAIL,
+            hits=["missing words.json (--require-words)"],
+            note=note,
+        )
+    if not raw:
+        return qc.report(
+            "privacynames", qc.FAIL,
+            hits=["empty words.json (--require-words)"],
+            note=note,
+        )
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return qc.report(
+            "privacynames", qc.FAIL,
+            hits=["empty words.json (--require-words)"],
+            note=note,
+        )
+    if not _asr_words_payload_ok(data):
+        return qc.report(
+            "privacynames", qc.FAIL,
+            hits=["empty words.json (--require-words)"],
+            note=note,
         )
     return None
 
@@ -1564,6 +1613,9 @@ def cmd_privacynames(qc, args) -> int:
     Project denylist via --name (repeatable). --vocative-only marks tokens that
     only count after يا/ياا. Synthetic examples in tests use فلان / Alice.
     """
+    require_fail = _privacynames_require_words_fail(qc, args)
+    if require_fail is not None:
+        return require_fail
     names = {_tok_alnum(n) for n in (args.name or []) if _tok_alnum(n)}
     vocative_only = {_tok_alnum(n) for n in (args.vocative_only or []) if _tok_alnum(n)}
     amount_re = re.compile(args.amount_re, re.I) if args.amount_re else DEFAULT_AMOUNT_RE
@@ -1605,9 +1657,6 @@ def cmd_privacynames(qc, args) -> int:
         if has_mute and not has_text_scan:
             notes_ok = False
             hits.append("notes:mute-without-text-scan")
-    require_fail = _privacynames_require_words_fail(qc, args)
-    if require_fail is not None:
-        return require_fail
     if not scanned:
         return qc.report(
             "privacynames", qc.USAGE,
@@ -1779,7 +1828,7 @@ def cmd_endcardlive(qc, args) -> int:
             "-frames:v", "1", "-update", "1", "-q:v", "2", "-pix_fmt", "yuvj420p", str(tmp),
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)  # nosec B603
-        if result.returncode != 0 or not tmp.exists() or tmp.stat().st_size < 500:
+        if result.returncode != 0 or not tmp.exists() or tmp.stat().st_size < 1000:
             return qc.report(
                 "endcardlive", qc.USAGE,
                 error=f"ffmpeg failed or empty frame at ss={ss}: {(result.stderr or '')[-400:]}",
@@ -1974,6 +2023,14 @@ def cmd_bandcoverage(qc, args) -> int:
     except ImportError as exc:  # pragma: no cover
         raise qc.Skip(f"Pillow/numpy required for bandcoverage: {exc}") from exc
 
+    if int(args.band_h) <= 0:
+        return qc.report(
+            "bandcoverage", qc.FAIL,
+            error="band_h must be > 0",
+            band=[int(args.band_y), int(args.band_h)],
+            note="invalid band never PASS (L14)",
+        )
+
     frames: list[Path] = []
     if args.frame:
         frames = [Path(p) for p in args.frame]
@@ -2032,21 +2089,47 @@ def check_mute_spans(
     max_span: float = 2.0,
     max_frac: float = 0.10,
 ) -> dict:
-    """L15: reject mute spans > max_span or total mute frac > max_frac."""
+    """L15: reject mute spans > max_span or total mute frac > max_frac.
+
+    Fail-closed: content_dur NaN/<=0 or any NaN mute end → FAIL.
+    """
     mutes = list(mutes or [])
     spans = []
     total = 0.0
     worst = 0.0
+    reasons: list[str] = []
+    try:
+        content_dur_f = float(content_dur)
+    except (TypeError, ValueError):
+        content_dur_f = float("nan")
+    if not math.isfinite(content_dur_f) or content_dur_f <= 0:
+        reasons.append(f"content_dur NaN or <=0 ({content_dur!r})")
+        return {
+            "status": "fail",
+            "max_span_s": 0.0,
+            "total_mute_s": 0.0,
+            "content_dur_s": None,
+            "total_mute_frac": None,
+            "limits": {"max_span_s": max_span, "max_frac": max_frac},
+            "mutes": [],
+            "reasons": reasons,
+        }
     for a, b in mutes:
-        a, b = float(a), float(b)
-        if b <= a:
+        try:
+            a_f, b_f = float(a), float(b)
+        except (TypeError, ValueError):
+            reasons.append(f"NaN mute end {a!r},{b!r}")
             continue
-        d = b - a
-        spans.append({"start": a, "end": b, "dur": round(d, 3)})
+        if not math.isfinite(a_f) or not math.isfinite(b_f):
+            reasons.append(f"NaN mute end {a_f},{b_f}")
+            continue
+        if b_f <= a_f:
+            continue
+        d = b_f - a_f
+        spans.append({"start": a_f, "end": b_f, "dur": round(d, 3)})
         total += d
         worst = max(worst, d)
-    frac = (total / content_dur) if content_dur > 0 else 0.0
-    reasons = []
+    frac = total / content_dur_f
     if worst > max_span + 1e-6:
         reasons.append(f"max_mute_span {worst:.3f}s > {max_span}s")
     if frac > max_frac + 1e-9:
@@ -2055,7 +2138,7 @@ def check_mute_spans(
         "status": "fail" if reasons else "pass",
         "max_span_s": round(worst, 3),
         "total_mute_s": round(total, 3),
-        "content_dur_s": round(float(content_dur), 3),
+        "content_dur_s": round(content_dur_f, 3),
         "total_mute_frac": round(frac, 4),
         "limits": {"max_span_s": max_span, "max_frac": max_frac},
         "mutes": spans,
@@ -2143,6 +2226,9 @@ def cmd_cuegapsnap(qc, args) -> int:
         gap = cues[i]["start"] - cues[i - 1]["end"]
         if 1e-6 < gap < max_gap - 1e-9:
             pending.append(round(gap, 4))
+        elif gap < -1e-6:
+            # micro-overlaps also fail --check (snap closes them; S1)
+            pending.append(round(gap, 4))
     snapped, notes = snap_cue_micro_gaps(cues, max_gap=max_gap)
     if args.check:
         return qc.report(
@@ -2150,7 +2236,7 @@ def cmd_cuegapsnap(qc, args) -> int:
             qc.FAIL if pending else qc.PASS,
             pending_gaps=pending,
             max_gap=max_gap,
-            note="FAIL while micro-gaps remain; snap then re-check (L17)",
+            note="FAIL while micro-gaps or overlaps remain; snap then re-check (L17)",
         )
     if args.out:
         rebuilt = []
