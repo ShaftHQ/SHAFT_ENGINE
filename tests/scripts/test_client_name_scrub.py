@@ -52,6 +52,7 @@ class ScrubSurfacesTest(unittest.TestCase):
                 branch=f"ChaosEngine/{PLACEHOLDER}-leak",
                 commit_messages=[f"feat: {PLACEHOLDER} lessons"],
                 pr_body=f"Rename to {PLACEHOLDER}",
+                diff_added_text=f"+ leak {PLACEHOLDER}\n",
             ),
         )
 
@@ -62,6 +63,7 @@ class ScrubSurfacesTest(unittest.TestCase):
             branch=f"ChaosEngine/{PLACEHOLDER.lower()}-harness",
             commit_messages=[],
             pr_body="",
+            diff_added_text="",
         )
         self.assertTrue(failures)
         self.assertIn("branch name", failures[0])
@@ -73,6 +75,7 @@ class ScrubSurfacesTest(unittest.TestCase):
             branch="ChaosEngine/mobile-retro-harness",
             commit_messages=[f"feat(harness): {PLACEHOLDER} lessons"],
             pr_body="",
+            diff_added_text="",
         )
         self.assertTrue(any("commit message" in f for f in failures))
 
@@ -83,6 +86,7 @@ class ScrubSurfacesTest(unittest.TestCase):
             branch="ChaosEngine/mobile-retro-harness",
             commit_messages=[],
             pr_body=f"Plan: rename `{PLACEHOLDER.lower()}_j11` → mobile_retro",
+            diff_added_text="",
         )
         self.assertTrue(any("PR body" in f for f in failures))
 
@@ -93,8 +97,46 @@ class ScrubSurfacesTest(unittest.TestCase):
             branch="ChaosEngine/mobile-retro-harness",
             commit_messages=["feat(harness): mobile-retro lessons — freeze, Blocked, NO_PUSH"],
             pr_body="Fixes #7497\nRefs #7493",
+            diff_added_text='+ buildName("Acme Android")\n',
         )
         self.assertEqual([], failures)
+
+    def test_diff_added_lines_match_fails_closed(self) -> None:
+        diff = (
+            "diff --git a/x.py b/x.py\n"
+            "--- a/x.py\n"
+            "+++ b/x.py\n"
+            f"- old\n+ buildName(\"{PLACEHOLDER} Android\")\n"
+        )
+        failures = client_name_scrub.client_name_scrub_failures(
+            ROOT,
+            denylist=(PLACEHOLDER,),
+            branch="ChaosEngine/scrub-main-client-literals",
+            commit_messages=[],
+            pr_body="",
+            diff_added_text=client_name_scrub.added_lines_from_diff(diff),
+        )
+        self.assertTrue(any("PR diff added lines" in f for f in failures), failures)
+
+    def test_diff_removal_only_does_not_fail(self) -> None:
+        """Scrub PRs delete markers on '-' lines; those must not trip the gate."""
+        diff = (
+            "diff --git a/x.py b/x.py\n"
+            "--- a/x.py\n"
+            "+++ b/x.py\n"
+            f"- buildName(\"{PLACEHOLDER} Android\")\n"
+            "+ buildName(\"Acme Android\")\n"
+        )
+        failures = client_name_scrub.client_name_scrub_failures(
+            ROOT,
+            denylist=(PLACEHOLDER,),
+            branch="ChaosEngine/scrub-main-client-literals",
+            commit_messages=["chore(tests): replace legacy client literals"],
+            pr_body="Fixes #0",
+            diff_added_text=client_name_scrub.added_lines_from_diff(diff),
+        )
+        self.assertEqual([], failures)
+
 
 
 class LessonAndWiringTest(unittest.TestCase):
@@ -102,6 +144,7 @@ class LessonAndWiringTest(unittest.TestCase):
         lesson = (ROOT / "chaos-engine/references/client-name-scrub.md").read_text(encoding="utf-8")
         self.assertIn("CHAOS_ENGINE_CLIENT_NAME_DENYLIST", lesson)
         self.assertTrue("fail closed" in lesson.casefold() or "fails closed" in lesson.casefold())
+        self.assertIn("added lines", lesson.casefold())
         harness_map = (ROOT / "chaos-engine/references/harness-map.md").read_text(encoding="utf-8")
         self.assertIn("client-name-scrub.md", harness_map)
         agents = (ROOT / ".agents/skills/README.md").read_text(encoding="utf-8")

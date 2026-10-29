@@ -1,8 +1,8 @@
 # Client-name scrub (public repos)
 
 Public remotes must not carry a client or engagement code name in branch
-names, commit messages, or PR bodies. Load markers from a **local** denylist
-only — never commit the real tokens.
+names, commit messages, PR bodies, or **added lines of a PR diff**. Load
+markers from a **local** denylist only — never commit the real tokens.
 
 ## Configure
 
@@ -18,6 +18,8 @@ gate **fails closed** on a match.
 1. Current branch name
 2. Commit subjects/bodies since merge-base with the remote default branch
 3. Open PR body for the current head (when `gh` can see one)
+4. Added lines of `merge-base...HEAD` (unified diff `+` lines only; removals
+   are ignored so scrub PRs that delete a marker are not blocked by `-` lines)
 
 Library: [`client_name_scrub.py`](../client_name_scrub.py). Overlay pre-push
 calls it on live pushes. Tests inject a **synthetic** placeholder via env; they

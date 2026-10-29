@@ -1,7 +1,8 @@
 """Client-name scrub for public repositories.
 
 When a denylist is configured (env or untracked local file), refuse PR bodies,
-commit subjects/bodies, and branch names that contain any listed marker.
+commit subjects/bodies, branch names, and added lines in the PR diff that
+contain any listed marker.
 Not configured → no-op. Configured → fail closed.
 
 Denylist sources (merged):
@@ -124,6 +125,25 @@ def open_pr_body(root: Path) -> str:
     return proc.stdout or ""
 
 
+
+def added_lines_from_diff(diff_text: str) -> str:
+    """Extract added file content from a unified diff (ignore headers and removals)."""
+    out: list[str] = []
+    for line in (diff_text or "").splitlines():
+        if line.startswith("+") and not line.startswith("+++"):
+            out.append(line[1:])
+    return "\n".join(out)
+
+
+def diff_added_text_since_merge_base(root: Path, *, base_ref: str | None = None) -> str:
+    """Added-line content of ``merge-base...HEAD`` (empty when git cannot resolve)."""
+    ref = base_ref or default_base_ref(root)
+    mb = _git(root, "merge-base", "HEAD", ref).strip()
+    if not mb:
+        return ""
+    return added_lines_from_diff(_git(root, "diff", f"{mb}...HEAD"))
+
+
 def client_name_scrub_failures(
     root: Path,
     *,
@@ -131,13 +151,14 @@ def client_name_scrub_failures(
     branch: str | None = None,
     commit_messages: Iterable[str] | None = None,
     pr_body: str | None = None,
+    diff_added_text: str | None = None,
     environ: dict[str, str] | None = None,
 ) -> list[str]:
     """Fail closed when a configured denylist marker appears on PR-visible surfaces.
 
-    When no denylist is configured, returns []. Callers that pass explicit
-    ``denylist`` / ``branch`` / ``commit_messages`` / ``pr_body`` avoid git/gh
-    (tests and fixtures).
+    Surfaces: branch name, commit messages, PR body, and added lines of the PR
+    diff. When no denylist is configured, returns []. Explicit kwargs avoid
+    git/gh (tests and fixtures).
     """
     root = Path(root)
     tokens = tuple(denylist) if denylist is not None else load_denylist(root, environ=environ)
@@ -158,4 +179,11 @@ def client_name_scrub_failures(
 
     body = open_pr_body(root) if pr_body is None else pr_body
     failures.extend(findings_in_text(body, tokens, surface="PR body"))
+
+    added = (
+        diff_added_text
+        if diff_added_text is not None
+        else diff_added_text_since_merge_base(root)
+    )
+    failures.extend(findings_in_text(added, tokens, surface="PR diff added lines"))
     return failures
