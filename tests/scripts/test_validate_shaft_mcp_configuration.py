@@ -113,6 +113,7 @@ spring.ai.mcp.server.version=@project.version@
 """
 
 LOGBACK_XML = """<configuration>
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
     <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
         <target>System.err</target>
     </appender>
@@ -470,6 +471,27 @@ class ValidateShaftMcpConfigurationFullContractTest(unittest.TestCase):
             errors = MODULE.validate(root)
 
         self.assertIn("shaft-mcp logging must target stderr", errors)
+
+    def test_logback_must_register_nop_status_listener(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _write_minimal_mcp_root(root)
+            _write_text(
+                root / "shaft-mcp/src/main/resources/logback-spring.xml",
+                """<configuration>
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+    </appender>
+</configuration>
+""",
+            )
+
+            errors = MODULE.validate_logback_stdio_contract(root)
+
+        self.assertTrue(
+            any("NopStatusListener" in error for error in errors),
+            errors,
+        )
 
     def test_server_json_must_derive_version_from_reactor(self):
         with tempfile.TemporaryDirectory() as temp:
