@@ -5,6 +5,7 @@ import com.deque.html.axecore.results.Results;
 import com.deque.html.axecore.results.Rule;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.LoadState;
+import com.shaft.gui.capabilities.internal.LiveSessionSupport;
 import com.shaft.tools.internal.support.ReportHtmlTheme;
 import io.qameta.allure.Allure;
 import com.shaft.tools.io.internal.AllureAttachments;
@@ -16,7 +17,6 @@ import org.json.JSONObject;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.FileInputStream;
@@ -249,10 +249,10 @@ public class AccessibilityHelper {
                 return;
             }
 
-            if (driver instanceof RemoteWebDriver remoteDriver) {
-                Capabilities caps = remoteDriver.getCapabilities();
+            Capabilities liveCaps = LiveSessionSupport.capabilities(driver);
+            if (liveCaps != null) {
                 logger.debug("Running accessibility scan on browser: {} {}, URL: {}.",
-                        caps.getBrowserName(), caps.getBrowserVersion(), driver.getCurrentUrl());
+                        liveCaps.getBrowserName(), liveCaps.getBrowserVersion(), driver.getCurrentUrl());
             } else {
                 logger.debug("Running accessibility scan with driver type: {}.", driver.getClass().getSimpleName());
             }
@@ -1201,10 +1201,12 @@ public class AccessibilityHelper {
 
         if (driver != null) {
             try {
-                Capabilities caps = ((RemoteWebDriver) driver).getCapabilities();
-                browserInfo = caps.getBrowserName();
-                browserVersion = caps.getBrowserVersion();
-                platform = (caps.getPlatformName() != null) ? caps.getPlatformName().toString() : "Unknown";
+                Capabilities caps = LiveSessionSupport.capabilities(driver);
+                if (caps != null) {
+                    browserInfo = caps.getBrowserName();
+                    browserVersion = caps.getBrowserVersion();
+                    platform = (caps.getPlatformName() != null) ? caps.getPlatformName().toString() : "Unknown";
+                }
             } catch (Exception e) {
                 logger.warn("Could not fetch browser capabilities for report metadata: {}", e.getMessage());
             }

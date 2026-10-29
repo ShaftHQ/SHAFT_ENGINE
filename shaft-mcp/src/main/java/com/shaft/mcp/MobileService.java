@@ -14,7 +14,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.interactions.Pause;
 import org.openqa.selenium.interactions.PointerInput;
 import org.openqa.selenium.interactions.Sequence;
-import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.interactions.Interactive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -1159,7 +1159,7 @@ public class MobileService {
         tap.addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
         tap.addAction(new Pause(finger, Duration.ofMillis(100)));
         tap.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-        ((RemoteWebDriver) getDriver().getDriver()).perform(List.of(tap));
+        ((Interactive) getDriver().getDriver()).perform(List.of(tap));
     }
 
     private static void performSwipeCoordinates(int startX, int startY, int endX, int endY, int durationMillis) {
@@ -1173,7 +1173,7 @@ public class MobileService {
                 endX,
                 endY));
         swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-        ((RemoteWebDriver) getDriver().getDriver()).perform(List.of(swipe));
+        ((Interactive) getDriver().getDriver()).perform(List.of(swipe));
     }
 
     private static McpCodeBlock actionBlock(String action, String javaCode) {

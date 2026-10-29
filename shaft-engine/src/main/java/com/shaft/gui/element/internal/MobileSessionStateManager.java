@@ -52,7 +52,7 @@ public final class MobileSessionStateManager {
         SessionCapabilitiesState state = new SessionCapabilitiesState();
         state.schemaVersion = "1.0";
         state.platformName = firstNonBlank(capability(capabilities, "platformName"), platformName(capabilities));
-        state.capabilities = capabilities == null ? Map.of() : new LinkedHashMap<>(capabilities.asMap());
+        state.capabilities = new LinkedHashMap<>(capabilities.asMap());
         write(path, state);
     }
 

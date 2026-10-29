@@ -157,7 +157,7 @@ public final class AutomationCapabilityResolver {
                     .adaptedFeature(AutomationFeature.VIEWPORT_EMULATION, "Selenium DevTools through SHAFT")
                     .adaptedFeature(AutomationFeature.MEDIA_EMULATION, "Selenium DevTools through SHAFT");
             if (driver instanceof HasAuthentication
-                    && (!LiveSessionSupport.isClosedRemoteSession(driver))) {
+                    && !LiveSessionSupport.isClosedRemoteSession(driver)) {
                 builder.nativeFeature(AutomationFeature.AUTHENTICATION, "Selenium CDP-backed HasAuthentication");
             }
         }
@@ -301,7 +301,7 @@ public final class AutomationCapabilityResolver {
     }
 
     private static boolean hasLiveDevTools(WebDriver driver) {
-        return (!LiveSessionSupport.isClosedRemoteSession(driver))
+        return !LiveSessionSupport.isClosedRemoteSession(driver)
                 && driver instanceof HasDevTools hasDevTools
                 && hasDevTools.maybeGetDevTools().isPresent();
     }
