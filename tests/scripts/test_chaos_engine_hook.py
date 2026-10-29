@@ -728,6 +728,8 @@ process.stderr.write(result.stderr || '');
         self.assertIn("repository working directory unavailable", rendered)
         self.assertNotIn(private, rendered)
         self.assertNotEqual({}, payload)
+        launcher_source = launcher.read_text(encoding="utf-8")
+        self.assertIn("existsSync(cwd)", launcher_source)
 
     def test_javascript_launch_keeps_ordinary_guard_execution_when_cwd_restored(self):
         node = shutil.which("node")

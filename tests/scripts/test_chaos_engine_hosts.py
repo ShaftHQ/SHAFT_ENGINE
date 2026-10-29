@@ -1346,6 +1346,54 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertNotIn(private, rendered)
         self.assertNotRegex(rendered, r"(?i)\b(git clone|remount|worktree add|os\.chdir\()\b")
 
+    def test_is_unusable_launch_cwd_detects_missing_path(self):
+        """#7515: ghost-cwd helper treats a deleted path as unusable."""
+        module = load(HOSTS, "chaos_engine_unusable_cwd_helper")
+        with tempfile.TemporaryDirectory() as temporary:
+            gone = Path(temporary) / "ghost-cwd"
+            gone.mkdir()
+            private = gone.resolve()
+            self.assertFalse(module.is_unusable_launch_cwd(private))
+            shutil.rmtree(private)
+            self.assertTrue(module.is_unusable_launch_cwd(private))
+            self.assertNotIn(str(private), module.LAUNCH_CWD_UNAVAILABLE)
+
+    def test_inline_launch_denies_ghost_cwd_without_parent_walk(self):
+        """#7515: getcwd returning a deleted path must deny CWD, not walk to a repo guard."""
+        module = load(HOSTS, "chaos_engine_hook_ghost_cwd")
+        script = module._locator_script("codex")
+        self.assertIn("def usable_cwd():", script)
+        self.assertIn("missing=not start.exists()", script)
+        event = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+        # Temp under the repo so a parent walk would find .chaos-engine/hooks/guard.py.
+        with tempfile.TemporaryDirectory(dir=str(ROOT)) as temporary:
+            gone = Path(temporary) / "missing-cwd"
+            gone.mkdir()
+            private = str(gone.resolve())
+            shutil.rmtree(gone)
+            probe = (
+                "import pathlib, sys\n"
+                f"private = {private!r}\n"
+                "pathlib.Path.cwd = classmethod(lambda cls: cls(private))\n"
+                f"script = {script!r}\n"
+                "exec(script)\n"
+            )
+            completed = subprocess.run(  # nosec B603 - fixed local interpreter probe.
+                [os.sys.executable, "-c", probe],
+                input=event,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        rendered = completed.stdout + completed.stderr
+        self.assertNotEqual(0, completed.returncode, rendered)
+        payload = json.loads(completed.stdout)
+        self.assertEqual("block", payload.get("decision"))
+        self.assertEqual(module.LAUNCH_CWD_UNAVAILABLE, payload.get("reason"))
+        self.assertIn(module.LAUNCH_CWD_UNAVAILABLE, rendered)
+        self.assertNotIn(module.LAUNCH_GUARD_UNAVAILABLE, rendered)
+        self.assertNotIn(private, rendered)
+
     def test_launch_preflight_maps_stale_and_disconnected_errnos(self):
         module = load(HOSTS, "chaos_engine_hook_cwd_errnos")
         for code in (

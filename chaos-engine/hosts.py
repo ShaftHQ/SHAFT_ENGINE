@@ -4536,6 +4536,19 @@ def is_cwd_unavailable_errno(code: int | None) -> bool:
     return code in _CWD_UNAVAILABLE_ERRNOS
 
 
+def is_unusable_launch_cwd(start: Path) -> bool:
+    """True when a cwd path is already gone (ghost cwd) (#7515 / #5519).
+
+    Some OS/FS combinations return a path from getcwd after the directory was
+    removed. Walking parents from that path can find an unrelated checkout's
+    guard; treat a missing cwd path as unavailable before any parent walk.
+    """
+    try:
+        return not start.exists()
+    except OSError as error:
+        return is_cwd_unavailable_errno(error.errno)
+
+
 DIGEST_OK_STATUSES = frozenset({"healthy", "ok", "compatible-legacy", "sync-advisory"})
 
 
@@ -4653,6 +4666,19 @@ def _locator_script(host: str, event: str | None = None) -> str:
         'cands=(".chaos-engine/hooks/guard.py","plugins/chaos-engine/hooks/guard.py","chaos-engine/hooks/guard.py")\n'
         "def locate(start):\n"
         "    return next(((root,root/rel) for root in (start,*start.parents) for rel in cands if (root/rel).is_file()),None)\n"
+        # #7515: ghost cwd (getcwd returns a deleted path) must deny before parent walk.
+        "def usable_cwd():\n"
+        "    try:\n"
+        "        start=pathlib.Path.cwd()\n"
+        "    except OSError as error:\n"
+        "        deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
+        "    try:\n"
+        "        missing=not start.exists()\n"
+        "    except OSError as error:\n"
+        "        deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
+        "    if missing:\n"
+        "        deny(CWD)\n"
+        "    return start\n"
         "data=None\n"
         # #6632: the Windows PowerShell branch hands the payload over in an
         # untracked temporary file; Windows PowerShell 5.1 does not deliver a
@@ -4665,7 +4691,7 @@ def _locator_script(host: str, event: str | None = None) -> str:
         "        data=None\n"
         f"{read_first}"
         "try:\n"
-        "    found=locate(pathlib.Path.cwd())\n"
+        "    found=locate(usable_cwd())\n"
         "except OSError as error:\n"
         "    deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
         "if found is None:\n"
@@ -4702,16 +4728,13 @@ def _locator_script(host: str, event: str | None = None) -> str:
         "        value=60000.0\n"
         "    return max(0.0,min(value,600000.0))/1000.0\n"
         "if found is None:\n"
-        "    try:\n"
-        "        start=pathlib.Path.cwd()\n"
-        "    except OSError as error:\n"
-        "        deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
+        "    start=usable_cwd()\n"
         "    if installing(start):\n"
         "        deadline=time.monotonic()+wait_budget_s()\n"
         "        while found is None and time.monotonic()<deadline:\n"
         "            time.sleep(0.2)\n"
         "            try:\n"
-        "                found=locate(pathlib.Path.cwd())\n"
+        "                found=locate(usable_cwd())\n"
         "            except OSError as error:\n"
         "                deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
         "            if found is None:\n"
