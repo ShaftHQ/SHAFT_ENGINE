@@ -66,7 +66,8 @@ class CodecovStatusGateTest(unittest.TestCase):
         summary = workflow.split("summary:", 1)[1].split("main-red-reaction:", 1)[0]
         self.assertNotIn("Enforce Codecov patch/project", summary)
         # Coach: poll only after coverage-producing legs finish (no early false green).
-        gate = workflow.split("codecov-gate:", 1)[1].split("branch-uptodate:", 1)[0]
+        # Next job after codecov-gate is summary (branch-uptodate removed; merge queue covers tip).
+        gate = workflow.split("codecov-gate:", 1)[1].split("summary:", 1)[0]
         self.assertIn("unit-tests", gate)
         self.assertIn("needs.unit-tests.result", gate)
         self.assertIn("intellij-build", gate)

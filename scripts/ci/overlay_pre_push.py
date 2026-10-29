@@ -444,6 +444,25 @@ def no_push_guard_failures(root: Path) -> list[str]:
     return list(mobile_retro.no_push_guard_tracked(root))
 
 
+def evidence_pin_failures(root: Path) -> list[str]:
+    """
+    Fail closed when a persisted mobile-retro evidence pin mismatches (#7498).
+
+    Absent pin file → []. Sparse fixtures without mobile_retro skip.
+    """
+    helper = root / "chaos-engine" / "mobile_retro.py"
+    runtime = root / "scripts" / "ci" / "mobile_retro_runtime.py"
+    if not helper.is_file() or not runtime.is_file():
+        return []
+    sys.path.insert(0, str(root / "chaos-engine"))
+    spec = importlib.util.spec_from_file_location("mobile_retro_runtime", runtime)
+    if spec is None or spec.loader is None:
+        return ["evidence pin checker unavailable"]
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return list(module.evidence_pin_failures(root))
+
+
 def client_name_scrub_failures(
     root: Path,
     *,
@@ -469,6 +488,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     failures: list[str] = tip_preflight_failures(root, changed)
     if paths is None:
         failures.extend(no_push_guard_failures(root))
+        failures.extend(evidence_pin_failures(root))
         failures.extend(client_name_scrub_failures(root))
         failures.extend(code_quality_failures(root))
         failures.extend(release_note_label_failures(root))

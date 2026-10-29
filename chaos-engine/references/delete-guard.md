@@ -58,9 +58,28 @@ No code unlocks a path with a segment named `ROG*`, `yt` or
 that directly contains one. Add names or `/` patterns, one per line, to
 `~/.config/chaos-engine/never-delete.txt`.
 
-Inside `yt/`, an old render named `*.rN.mp4` (N digits) is not never-touch:
-it needs the owner's code like any other refusal. `yt/` itself, `yt/meta/`
-and final mp4s stay never-touch. `wt-relblock`, `wt-ls` and `ce-src-*` use
+Inside `yt/`, two exact-file exceptions are not never-touch and need the
+owner's code like any other refusal:
+
+- an old render named `*.rN.mp4` (N digits) outside `yt/meta/`
+- a file listed in the verified-upload allowlist that passes live checks.
+  Allowlist path: `CHAOS_YT_VERIFIED_DELETE` (must be owner-only mode `0600`
+  and owned by the current user) or else
+  `~/.config/chaos-engine/yt-verified-delete.txt` under the same owner-only
+  rule. The source used is logged. Each line is
+  `absolute/path.mp4 <11-char-video-id> <sha256>`. At `request_code` and
+  `check` time the guard requires: (1) exact path with no `..` and no
+  symlink components; (2) `realpath(path)` equals the normalized listed
+  path, lies under the `yt` root, and is not under `yt/meta`; (3) file
+  sha256 matches the entry; (4) YouTube oEmbed
+  (`/oembed?url=...watch?v=<id>&format=json`) returns HTTP 200 (result
+  cached with a timestamp under state; network errors, non-200, and
+  private videos stay locked). Globs, directories, escapes, and malformed
+  proofs are ignored. The allowlist is local/env-only; never commit real
+  paths or titles. Env override cannot widen unlocks without those checks.
+
+`yt/` itself, `yt/meta/**`, and any unlisted or unverified yt file stay
+never-touch with no code override. `wt-relblock`, `wt-ls` and `ce-src-*` use
 the owner-code flow too.
 
 ## Doctor
