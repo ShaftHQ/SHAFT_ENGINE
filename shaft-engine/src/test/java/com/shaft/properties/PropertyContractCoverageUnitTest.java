@@ -230,6 +230,7 @@ public class PropertyContractCoverageUnitTest {
 
     @Test(description = "Reporting properties read their defaults and round-trip through set()")
     public void reportingPropertiesRoundTrip() {
+        roundTrip(SHAFT.Properties.reporting::whenToAttachSourceCode, SHAFT.Properties.reporting.set()::whenToAttachSourceCode);
         assertReadable(
                 SHAFT.Properties.reporting::cleanSummaryReportsDirectoryBeforeExecution);
     }

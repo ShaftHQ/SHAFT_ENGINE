@@ -83,6 +83,7 @@ final class TraceViewerHtml {
                 throw new IllegalStateException("Trace viewer scripts must not contain a closing script tag.");
             }
             cached = resource("index.html")
+                    .replace("\r\n", "\n")
                     .replace("/*@SHAFT_THEME_STYLE@*/", ReportHtmlTheme.style())
                     .replace("/*@VIEWER_CSS@*/", resource("viewer.css"))
                     .replace("/*@VIEWER_CORE_JS@*/\n/*@VIEWER_JS@*/", mainScript)

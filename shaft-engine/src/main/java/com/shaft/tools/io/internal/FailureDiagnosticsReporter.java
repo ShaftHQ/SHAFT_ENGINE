@@ -36,7 +36,6 @@ public final class FailureDiagnosticsReporter {
             "(?i)(password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)(\\s*[:=]\\s*)[^\\s,;&\"'<>]+");
     private static final Pattern SECRET_QUERY_PATTERN = Pattern.compile(
             "(?i)([?&](?:password|passwd|pwd|secret|token|access[_-]?key|api[_-]?key)=)[^&#\\s]+");
-    private static final int SNIPPET_RADIUS = 2;
     // ponytail: bounded log list. Ceiling: the latest 200 lines only. Upgrade trigger: an agent
     // handoff needs older evidence that the bounded report demonstrably omits.
     private static final int MAX_LOG_LINES = 200;
@@ -318,44 +317,11 @@ public final class FailureDiagnosticsReporter {
     }
 
     private static Path findSourceFile(StackTraceElement frame) {
-        String classPath = frame.getClassName().replace('.', '/') + ".java";
-        int nestedClassIndex = classPath.indexOf('$');
-        if (nestedClassIndex > -1) {
-            classPath = classPath.substring(0, nestedClassIndex) + ".java";
-        }
-        List<Path> candidates = List.of(
-                Path.of("src/test/java", classPath),
-                Path.of("src/main/java", classPath),
-                Path.of("shaft-engine/src/test/java", classPath),
-                Path.of("shaft-engine/src/main/java", classPath));
-        for (Path candidate : candidates) {
-            if (Files.isRegularFile(candidate)) {
-                return candidate;
-            }
-        }
-        return null;
+        return SourceCodeContext.findSourceFile(frame);
     }
 
     private static String snippet(Path sourceFile, int lineNumber) {
-        if (lineNumber < 1) {
-            return "";
-        }
-        try {
-            List<String> lines = Files.readAllLines(sourceFile, StandardCharsets.UTF_8);
-            int start = Math.max(1, lineNumber - SNIPPET_RADIUS);
-            int end = Math.min(lines.size(), lineNumber + SNIPPET_RADIUS);
-            StringBuilder snippet = new StringBuilder();
-            for (int line = start; line <= end; line++) {
-                snippet.append(line == lineNumber ? "> " : "  ")
-                        .append(line)
-                        .append(": ")
-                        .append(lines.get(line - 1))
-                        .append(System.lineSeparator());
-            }
-            return snippet.toString().trim();
-        } catch (IOException e) {
-            return sourceFile + ":" + lineNumber;
-        }
+        return SourceCodeContext.snippet(sourceFile, lineNumber);
     }
 
     private static String status() {

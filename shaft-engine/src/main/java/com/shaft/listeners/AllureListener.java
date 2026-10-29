@@ -9,6 +9,7 @@ import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.FailureTraceReporter;
 import com.shaft.tools.io.internal.ReportSecrets;
+import com.shaft.tools.io.internal.SourceCodeAttachment;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AttachmentOptions;
 import io.qameta.allure.AllureLifecycle;
@@ -56,6 +57,7 @@ import java.util.Objects;
 public class AllureListener implements StepLifecycleListener, FixtureLifecycleListener, TestLifecycleListener,
         ContainerLifecycleListener {
     private volatile AllureLifecycle lifecycle;
+    private final SourceCodeAttachment sourceCodeAttachment = new SourceCodeAttachment();
 
     /**
      * Creates a new Allure lifecycle listener instance using the default Allure lifecycle singleton.
@@ -92,6 +94,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     //After each step starts inside the methods
     @Override
     public void afterStepStart(StepResult result) {
+        sourceCodeAttachment.started(result, this::getLifecycle);
         com.shaft.tools.io.internal.OpenTelemetryTracing.start("step", result.getName());
         StepLifecycleListener.super.afterStepStart(result);
     }
@@ -111,6 +114,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     //Before each step Stop inside the methods
     @Override
     public void beforeStepStop(StepResult result) {
+        sourceCodeAttachment.stopping(result);
         // #7173: no step name or parameter may carry a secret value into allure-results.
         result.setName(ReportSecrets.redact(result.getName()));
         redactParameters(result.getParameters());
@@ -224,6 +228,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
      */
     @Override
     public void beforeFixtureStop(FixtureResult result) {
+        sourceCodeAttachment.clear(result.getSteps());
         redactStatusDetails(result);
         TestNGListenerHelper.attachConfigurationMethods();
     }
@@ -287,6 +292,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
      */
     @Override
     public void beforeTestStop(TestResult result) {
+        sourceCodeAttachment.clear(result.getSteps());
         applySuiteIdentity(result);
         AutomaticRunLabels.apply(result);
         TestNgTagLabels.apply(result);
