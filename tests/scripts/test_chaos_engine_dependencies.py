@@ -337,7 +337,7 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         memory = specification["tools"]["memory"]
         self.assertEqual(
             [[
-                "/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with",
+                "/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with",
                 *mempalace["with"], mempalace["package"],
             ]],
             plan["mempalace"],
@@ -359,15 +359,12 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
         module = load_controller()
         specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
         mempalace = specification["tools"]["mempalace"]
-        pinned = [
-            "/user/bin/uv", "tool", "install", "--python", "3.14.2", "--with",
-            *mempalace["with"], mempalace["package"],
-        ]
         forced = [
             "/user/bin/uv", "tool", "install", "--force", "--python", "3.14.2", "--with",
             *mempalace["with"], mempalace["package"],
         ]
-        expected = {"installed": pinned, "upgraded": forced, "repaired": forced}
+        # #7557: installed also passes --force so leftover ~/.local/bin shims do not Block.
+        expected = {"installed": forced, "upgraded": forced, "repaired": forced}
         for action, command in expected.items():
             with self.subTest(action=action):
                 plan = module.account_tool_plan(
@@ -3188,6 +3185,46 @@ class GraphifyExtractProvision6934Test(unittest.TestCase):
             completed.stderr.strip().splitlines()[-1],
         )
 
+
+
+
+class DanglingCeUvToolShimsTest(unittest.TestCase):
+    def test_dangling_ce_uv_tool_shims_detects_broken_symlinks_only(self):
+        module = load_controller()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bin_dir = root / "bin"
+            tools = root / "tools"
+            bin_dir.mkdir()
+            tools.mkdir()
+            # CE dangling shim
+            (bin_dir / "mempalace").symlink_to(tools / "mempalace" / "bin" / "mempalace")
+            (bin_dir / "mempalace-mcp").symlink_to(tools / "mempalace" / "bin" / "mempalace-mcp")
+            # Healthy graphifyy tree + shim
+            target = tools / "graphifyy" / "bin" / "graphify"
+            target.parent.mkdir(parents=True)
+            target.write_text("#!/bin/sh\n", encoding="utf-8")
+            (bin_dir / "graphify").symlink_to(target)
+            # Foreign binary must never be reported
+            (bin_dir / "foreign-tool").write_text("#!/bin/sh\n", encoding="utf-8")
+            found = module.dangling_ce_uv_tool_shims(bin_dir=bin_dir, tools_root=tools)
+            self.assertEqual(["mempalace", "mempalace-mcp"], found)
+
+    def test_account_tool_plan_installed_passes_force_for_stale_shim_recovery(self):
+        module = load_controller()
+        specification = json.loads(SPECIFICATION.read_text(encoding="utf-8"))
+        plan = module.account_tool_plan(
+            Path("."),
+            specification,
+            actions={"mempalace": "installed", "graphify": "installed"},
+            executables={"uv": "/user/bin/uv", "npm": "/user/bin/npm"},
+            resolved_versions={"python": "3.14.2"},
+        )
+        for name in ("mempalace", "graphify"):
+            command = plan[name][0]
+            self.assertIn("--force", command)
+            self.assertEqual("tool", command[1])
+            self.assertEqual("install", command[2])
 
 if __name__ == "__main__":
     unittest.main()

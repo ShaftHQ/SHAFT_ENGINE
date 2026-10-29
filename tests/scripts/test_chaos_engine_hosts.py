@@ -609,6 +609,78 @@ class ChaosEngineHostsTest(unittest.TestCase):
             ]
             self.assertEqual([owned_name], removed)
 
+    def test_detected_plugin_status_prunes_stale_marketplaces_before_list(self):
+        """#7559: doctor plugin status must prune CE-owned stales before marketplace list."""
+        module = load(HOSTS, "chaos_engine_doctor_status_prunes_stale")
+        calls: list[str] = []
+
+        def fake_remove(client, executable, project, *, runner=None):
+            del executable, project, runner
+            calls.append(f"prune:{client}")
+
+        def fake_client_json(executable, arguments, project, runner=None):
+            del executable, project, runner
+            calls.append(" ".join(arguments))
+            if arguments[:3] == ["plugin", "marketplace", "list"]:
+                return []
+            if arguments[:2] == ["plugin", "list"]:
+                return {"installed": []}
+            raise AssertionError(arguments)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            for name in ("chaos-engine", "caveman", "ponytail", "icm-architect"):
+                manifest = project / f"plugins/{name}/.codex-plugin/plugin.json"
+                manifest.parent.mkdir(parents=True, exist_ok=True)
+                manifest.write_text(
+                    json.dumps({"name": name, "version": "1.0.0"}) + "\n",
+                    encoding="utf-8",
+                )
+            with mock.patch.object(
+                module, "remove_stale_marketplace_before_activation", side_effect=fake_remove
+            ), mock.patch.object(module, "client_json", side_effect=fake_client_json), mock.patch.object(
+                module,
+                "activation_contract",
+                return_value=(
+                    Path(temporary) / "bundle",
+                    "chaos-engine-aabbccddeeff",
+                    "chaos-engine@chaos-engine-aabbccddeeff",
+                    "1.0.0",
+                ),
+            ), mock.patch.object(
+                module,
+                "activation_plugins",
+                return_value={
+                    "chaos-engine": {
+                        "id": "chaos-engine@chaos-engine-aabbccddeeff",
+                        "version": "1.0.0",
+                        "source": project / "plugins/chaos-engine",
+                    },
+                    "caveman": {
+                        "id": "caveman@chaos-engine-aabbccddeeff",
+                        "version": "1.0.0",
+                        "source": project / "plugins/caveman",
+                    },
+                    "ponytail": {
+                        "id": "ponytail@chaos-engine-aabbccddeeff",
+                        "version": "1.0.0",
+                        "source": project / "plugins/ponytail",
+                    },
+                    "icm-architect": {
+                        "id": "icm-architect@chaos-engine-aabbccddeeff",
+                        "version": "1.0.0",
+                        "source": project / "plugins/icm-architect",
+                    },
+                },
+            ):
+                status = module.detected_plugin_status(
+                    project, which=lambda name: "/bin/claude" if name == "claude" else None
+                )
+        self.assertIn("claude", status)
+        self.assertEqual("prune:claude", calls[0])
+        self.assertIn("plugin marketplace list --json", calls)
+
+
     def test_activation_preserves_unclassified_broken_marketplace(self):
         module = load(HOSTS, "chaos_engine_unclassified_broken_marketplace")
         with tempfile.TemporaryDirectory() as temporary:
