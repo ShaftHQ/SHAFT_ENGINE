@@ -311,6 +311,8 @@ class GuardPostRunLiveTest(unittest.TestCase):
     def test_guard_defines_and_calls_mobile_retro_post_run(self) -> None:
         src = (ROOT / "chaos-engine/hooks/guard.py").read_text(encoding="utf-8")
         self.assertIn("def _mobile_retro_post_run", src)
+        self.assertIn("_tool_result_failed", src)
+        self.assertIn("current_build_and_branch", src)
         tree = ast.parse(src)
         calls: set[str] = set()
 
@@ -322,8 +324,51 @@ class GuardPostRunLiveTest(unittest.TestCase):
 
         Visitor().visit(tree)
         self.assertIn("_mobile_retro_post_run", calls)
+        self.assertIn("_tool_result_failed", calls)
+
+    def _git_root(self, root: Path) -> tuple[str, str]:
+        import shutil
+        import subprocess
+
+        git = shutil.which("git")
+        if not git:
+            self.fail("git executable not found on PATH")
+        subprocess.run([git, "init"], cwd=root, check=True, capture_output=True)
+        subprocess.run([git, "config", "user.email", "chaosengine@mail.grokbot.com"], cwd=root, check=True, capture_output=True)
+        subprocess.run([git, "config", "user.name", "ChaosEngine"], cwd=root, check=True, capture_output=True)
+        (root / "README").write_text("x\n", encoding="utf-8")
+        subprocess.run([git, "add", "README"], cwd=root, check=True, capture_output=True)
+        subprocess.run([git, "commit", "-m", "init"], cwd=root, check=True, capture_output=True)
+        return mobile_retro.current_build_and_branch(root)
 
     def test_post_run_freezes_through_guard_helper(self) -> None:
+        import hooks.guard as guard  # type: ignore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            build_id, branch = self._git_root(root)
+            results = root / "allure-results"
+            results.mkdir()
+            (results / "ok-result.json").write_text("{}", encoding="utf-8")
+            event = {
+                "cwd": str(root),
+                "hook_event_name": "PostToolUse",
+                "tool_response": {"exit_code": 0},
+            }
+            commands = ("python3 -m pytest tests",)
+            guard._mobile_retro_post_run(event, commands)
+            snap = root / mobile_retro.SNAPSHOT_REL
+            self.assertTrue(snap.is_dir(), "PostToolUse live path must freeze green results")
+            self.assertTrue((snap / "ok-result.json").is_file())
+            pin_path = root / mobile_retro.PIN_REL
+            self.assertTrue(pin_path.is_file())
+            pin = mobile_retro.load_evidence_pin(pin_path)
+            self.assertEqual(pin.build_id, build_id)
+            self.assertEqual(pin.branch, branch)
+            self.assertNotEqual(pin.build_id, "unknown-build")
+            self.assertNotEqual(pin.branch, "unknown-branch")
+
+    def test_post_run_skips_freeze_when_tool_failed(self) -> None:
         import hooks.guard as guard  # type: ignore
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -331,13 +376,57 @@ class GuardPostRunLiveTest(unittest.TestCase):
             results = root / "allure-results"
             results.mkdir()
             (results / "ok-result.json").write_text("{}", encoding="utf-8")
-            event = {"cwd": str(root)}
-            commands = ("python3 -m pytest tests",)
-            guard._mobile_retro_post_run(event, commands)
-            snap = root / mobile_retro.SNAPSHOT_REL
-            self.assertTrue(snap.is_dir(), "PostToolUse live path must freeze green results")
-            self.assertTrue((snap / "ok-result.json").is_file())
-            self.assertTrue((root / mobile_retro.PIN_REL).is_file())
+            event = {
+                "cwd": str(root),
+                "hook_event_name": "PostToolUse",
+                "tool_response": {"exit_code": 1},
+            }
+            guard._mobile_retro_post_run(event, ("python3 -m pytest tests",))
+            self.assertFalse((root / mobile_retro.SNAPSHOT_REL).exists())
+            self.assertFalse((root / mobile_retro.PIN_REL).exists())
+
+    def test_post_run_skips_freeze_when_tool_response_missing(self) -> None:
+        import hooks.guard as guard  # type: ignore
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            results = root / "allure-results"
+            results.mkdir()
+            (results / "ok-result.json").write_text("{}", encoding="utf-8")
+            event = {"cwd": str(root), "hook_event_name": "PostToolUse"}
+            guard._mobile_retro_post_run(event, ("python3 -m pytest tests",))
+            self.assertFalse((root / mobile_retro.SNAPSHOT_REL).exists())
+
+    def test_guard_written_pin_passes_overlay_evidence_pin_failures(self) -> None:
+        import hooks.guard as guard  # type: ignore
+        import importlib.util
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._git_root(root)
+            # Ship helper so evidence_pin_failures does not no-op.
+            (root / "chaos-engine").mkdir()
+            (root / "chaos-engine" / "mobile_retro.py").write_text(
+                (ROOT / "chaos-engine/mobile_retro.py").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            results = root / "allure-results"
+            results.mkdir()
+            (results / "ok-result.json").write_text("{}", encoding="utf-8")
+            event = {
+                "cwd": str(root),
+                "hook_event_name": "PostToolUse",
+                "tool_response": {"exit_code": 0},
+            }
+            guard._mobile_retro_post_run(event, ("python3 -m pytest tests",))
+            spec = importlib.util.spec_from_file_location(
+                "mobile_retro_runtime", ROOT / "scripts/ci/mobile_retro_runtime.py"
+            )
+            mod = importlib.util.module_from_spec(spec)
+            assert spec and spec.loader
+            spec.loader.exec_module(mod)
+            failures = mod.evidence_pin_failures(root)
+            self.assertEqual(failures, [], failures)
 
 
 class ExtractReporterLiveTest(unittest.TestCase):
@@ -428,7 +517,21 @@ class ShellLivePathPresenceTest(unittest.TestCase):
         self.assertIn("classify-before-rebuild", rerun)
         self.assertIn("after-green-allure", rerun)
         self.assertIn("mobile_retro_runtime.py", flutter)
-        self.assertIn("device-fallback", flutter)
+        self.assertIn("after-green-allure", flutter)
+
+    def test_flutter_primary_is_wall_clock_capped_by_device_cap_s(self) -> None:
+        """Red/green contract for #7496: primary attempt_flutter_test under timeout $DEVICE_CAP_S."""
+        flutter = (ROOT / "scripts/ci/run_ubuntu_flutter_emulator_e2e.sh").read_text(encoding="utf-8")
+        self.assertIn('DEVICE_CAP_S="${CHAOS_ENGINE_DEVICE_CAP_S:-900}"', flutter)
+        # Primary must be invoked under GNU timeout using DEVICE_CAP_S (not uncapped).
+        capped = 'timeout --signal=TERM --kill-after=60s "$DEVICE_CAP_S" bash -c \'attempt_flutter_test\''
+        self.assertIn(capped, flutter)
+        # Post-hoc --mode error / hang device-fallback no-op is forbidden as the "cap".
+        self.assertNotIn('device-fallback --mode error', flutter)
+        self.assertNotIn('device-fallback --mode hang', flutter)
+        # Cap miss (124) or socket hang must trigger a second capped attempt (authorized fallback).
+        self.assertIn('primary_rc" -eq 124', flutter)
+        self.assertEqual(flutter.count("bash -c 'attempt_flutter_test'"), 2)
 
 
 class LessonCardLiveWiringTest(unittest.TestCase):
