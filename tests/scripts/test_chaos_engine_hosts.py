@@ -4341,8 +4341,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         rendered = module.codex_content(legacy).decode()
 
-        self.assertNotIn('command = "npx"', rendered)
+        # Legacy Context7 npx packaging must be gone; optional CDP may still use npx.
+        self.assertNotIn("@upstash/context7-mcp", rendered)
         self.assertNotIn("required = false", rendered)
+        self.assertIn('url = "https://mcp.context7.com/mcp"', rendered)
 
         rerendered = module.codex_content(
             ("\n\nrequired = false\n" + rendered).encode()
