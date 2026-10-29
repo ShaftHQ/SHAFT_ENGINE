@@ -157,7 +157,7 @@ public final class AutomationCapabilityResolver {
                     .adaptedFeature(AutomationFeature.VIEWPORT_EMULATION, "Selenium DevTools through SHAFT")
                     .adaptedFeature(AutomationFeature.MEDIA_EMULATION, "Selenium DevTools through SHAFT");
             if (driver instanceof HasAuthentication
-                    && (!(driver instanceof RemoteWebDriver remote) || remote.getSessionId() != null)) {
+                    && (!LiveSessionSupport.isClosedRemoteSession(driver))) {
                 builder.nativeFeature(AutomationFeature.AUTHENTICATION, "Selenium CDP-backed HasAuthentication");
             }
         }
@@ -172,7 +172,7 @@ public final class AutomationCapabilityResolver {
 
     private static boolean hasEnabledDownloads(WebDriver driver) {
         if (!(driver instanceof HasDownloads downloads)
-                || (driver instanceof RemoteWebDriver remote && remote.getSessionId() == null)) {
+                || LiveSessionSupport.isClosedRemoteSession(driver)) {
             return false;
         }
         try {
@@ -286,7 +286,7 @@ public final class AutomationCapabilityResolver {
      */
     public static boolean hasNegotiatedBiDi(WebDriver driver) {
         try {
-            if ((driver instanceof RemoteWebDriver remote && remote.getSessionId() == null)
+            if (LiveSessionSupport.isClosedRemoteSession(driver)
                     || !(driver instanceof HasBiDi hasBiDi)
                     || !(driver instanceof HasCapabilities hasCapabilities)
                     || hasBiDi.getHandle() == null) {
@@ -301,7 +301,7 @@ public final class AutomationCapabilityResolver {
     }
 
     private static boolean hasLiveDevTools(WebDriver driver) {
-        return (!(driver instanceof RemoteWebDriver remote) || remote.getSessionId() != null)
+        return (!LiveSessionSupport.isClosedRemoteSession(driver))
                 && driver instanceof HasDevTools hasDevTools
                 && hasDevTools.maybeGetDevTools().isPresent();
     }

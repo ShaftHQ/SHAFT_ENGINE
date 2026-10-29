@@ -10,6 +10,7 @@ import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.ScreenOrientation;
 import org.openqa.selenium.WebDriver;
+import com.shaft.gui.capabilities.internal.LiveSessionSupport;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.SerializationFeature;
@@ -43,8 +44,11 @@ public final class MobileSessionStateManager {
     public static void saveCapabilities(WebDriver driver, String filePath) {
         requireDriver(driver);
         Path path = path(filePath);
-        RemoteWebDriver remoteWebDriver = requireRemoteWebDriver(driver);
-        Capabilities capabilities = remoteWebDriver.getCapabilities();
+        requireRemoteOrAppiumSession(driver);
+        Capabilities capabilities = LiveSessionSupport.capabilities(driver);
+        if (capabilities == null) {
+            throw new IllegalArgumentException("Mobile session capabilities require a RemoteWebDriver (Appium) session.");
+        }
         SessionCapabilitiesState state = new SessionCapabilitiesState();
         state.schemaVersion = "1.0";
         state.platformName = firstNonBlank(capability(capabilities, "platformName"), platformName(capabilities));
@@ -191,9 +195,9 @@ public final class MobileSessionStateManager {
         }
     }
 
-    private static RemoteWebDriver requireRemoteWebDriver(WebDriver driver) {
-        if (driver instanceof RemoteWebDriver remoteWebDriver) {
-            return remoteWebDriver;
+    private static WebDriver requireRemoteOrAppiumSession(WebDriver driver) {
+        if (LiveSessionSupport.isRemoteOrAppiumSession(driver)) {
+            return driver;
         }
         throw new IllegalArgumentException("Mobile session capabilities require a RemoteWebDriver (Appium) session.");
     }
@@ -217,14 +221,7 @@ public final class MobileSessionStateManager {
     }
 
     private static Capabilities capabilities(WebDriver driver) {
-        if (driver instanceof RemoteWebDriver remoteWebDriver) {
-            try {
-                return remoteWebDriver.getCapabilities();
-            } catch (RuntimeException ignored) {
-                return null;
-            }
-        }
-        return null;
+        return LiveSessionSupport.capabilities(driver);
     }
 
     private static String capability(Capabilities capabilities, String key) {

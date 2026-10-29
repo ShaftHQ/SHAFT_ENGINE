@@ -6,7 +6,7 @@ import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.remote.RemoteWebDriver;
+import com.shaft.gui.capabilities.internal.LiveSessionSupport;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -77,13 +77,13 @@ final class HealingSupport {
         String screenId = "";
         String automationContext = "";
         String windowHandle = "";
-        if (driver instanceof RemoteWebDriver remote) {
+        if (LiveSessionSupport.isRemoteOrAppiumSession(driver)) {
             applicationId = firstNonBlank(
-                    capability(remote, "appium:appPackage"),
-                    capability(remote, "appium:bundleId"),
-                    capability(remote, "appPackage"),
-                    capability(remote, "bundleId"),
-                    capability(remote, "app"));
+                    capability(driver, "appium:appPackage"),
+                    capability(driver, "appium:bundleId"),
+                    capability(driver, "appPackage"),
+                    capability(driver, "bundleId"),
+                    capability(driver, "app"));
         }
         if (platform.nativePlatform()) {
             applicationId = firstNonBlank(
@@ -147,15 +147,12 @@ final class HealingSupport {
     }
 
     private static HealingPlatform platform(WebDriver driver) {
-        if (!(driver instanceof AppiumDriver) && !(driver instanceof RemoteWebDriver)) {
+        if (!LiveSessionSupport.isRemoteOrAppiumSession(driver)) {
             return HealingPlatform.WEB;
         }
-        String name = "";
-        if (driver instanceof RemoteWebDriver remote) {
-            name = firstNonBlank(
-                    capability(remote, "platformName"),
-                    capability(remote, "appium:platformName"));
-        }
+        String name = firstNonBlank(
+                capability(driver, "platformName"),
+                capability(driver, "appium:platformName"));
         if ("android".equalsIgnoreCase(name)) {
             return HealingPlatform.ANDROID;
         }
@@ -165,9 +162,13 @@ final class HealingSupport {
         return driver instanceof AppiumDriver ? HealingPlatform.NATIVE : HealingPlatform.WEB;
     }
 
-    private static String capability(RemoteWebDriver driver, String name) {
+    private static String capability(WebDriver driver, String name) {
         try {
-            Object value = driver.getCapabilities().getCapability(name);
+            var capabilities = LiveSessionSupport.capabilities(driver);
+            if (capabilities == null) {
+                return "";
+            }
+            Object value = capabilities.getCapability(name);
             return value == null ? "" : sanitize(String.valueOf(value));
         } catch (RuntimeException exception) {
             return "";
