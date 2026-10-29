@@ -38,7 +38,7 @@
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-core</artifactId>
-                <version>1.6.5</version>
+                <version>1.6.6</version>
             </dependency>
             <!-- Import the reactor's selenium-bom before spring-boot-dependencies: Spring Boot
                  also manages org.seleniumhq.selenium artifacts (at an older version), and the
@@ -148,9 +148,10 @@
                  That method exists on networknt 3.0.0. The parent pin 2.0.8 keeps
                  REST Assured convergence and removes the method, so the stdio
                  server exits 1. This entry outranks the parent for shaft-mcp.
-                 Latent risk: engine still brings openapi-request-validator + REST Assured
-                 jsv (Jackson 2 getSchema); enabling swaggerValidation or matchesJsonSchema
-                 on this classpath yields NoSuchMethodError — tracked in #7483. -->
+                 #7483: shaft-engine's openapi-request-validator + REST Assured jsv are
+                 excluded below so Jackson-2 SchemaRegistry.getSchema never meets
+                 this module's networknt 3.x. Do not enable swaggerValidationEnabled
+                 or matchesJsonSchema on the mcp classpath. -->
             <dependency>
                 <groupId>com.networknt</groupId>
                 <artifactId>json-schema-validator</artifactId>
@@ -198,10 +199,23 @@
                     <groupId>org.slf4j</groupId>
                     <artifactId>jcl-over-slf4j</artifactId>
                 </exclusion>
-                <!-- Excludes engine's 2.0.8 only. openapi-request-validator and REST Assured
-                     jsv still arrive from shaft-engine; see #7483. -->
+                <!-- Engine networknt 2.0.8 must not win over mcp's 3.0.8 pin. -->
                 <exclusion>
                     <groupId>com.networknt</groupId>
+                    <artifactId>json-schema-validator</artifactId>
+                </exclusion>
+                <!-- #7483: isolate Jackson-2 OpenAPI / REST Assured jsv from mcp's
+                     networknt 3.x classpath (latent NoSuchMethodError on getSchema). -->
+                <exclusion>
+                    <groupId>com.atlassian.oai</groupId>
+                    <artifactId>openapi-request-validator-restassured</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>com.atlassian.oai</groupId>
+                    <artifactId>openapi-request-validator-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.rest-assured</groupId>
                     <artifactId>json-schema-validator</artifactId>
                 </exclusion>
                 <exclusion>

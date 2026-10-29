@@ -40,6 +40,13 @@ It extends [D13 cutting](../cutting-pacing.md) and
 10. Antecedent check before splice lock: scan the kept span for pronouns
     and epithets; ensure the referent noun/setup remains (or rewrite so
     the referent is self-contained). See also [L06](caption-video-qc.md).
+11. **G17 per-splice land:** for each cut `a-b`, the first cue at/after `b`
+    must not open on a dangling binder pronoun (`هو`/`هي`/`ده`/`دي`/…). A
+    binder noun must sit in **kept-prior** speech (cues ending ≤ `a`).
+    Same-cue Latin after `هو` does not bind. Prefer extending the cut or
+    landing on a self-contained opener. Gate:
+    `design_qc.py antecedent pre.srt --splice a-b,c-d --noun <she> --noun-ho <he>`
+    (`--noun` = هي/دي/ده class; `--noun-ho` = هو/هم class; project lists stay out of CE).
 
 ## Verify
 
@@ -55,6 +62,8 @@ It extends [D13 cutting](../cutting-pacing.md) and
 - [ ] `design_qc.py softjump plan.json` passes for every big jump (soft /
       punch-in / crossfade flagged when `removed_s` is large).
 - [ ] Antecedent check passes on the kept span after every splice.
+- [ ] `design_qc.py antecedent pre.srt --splice … --noun … --noun-ho …`
+      passes (G17; class-matched binders; no dangling land opener).
 
 ## Sources
 

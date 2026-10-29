@@ -29,6 +29,14 @@ inspect and adapt live work on that policy's scope-selected cadence, including
 when the owner asks for unattended babysitting or dynamic follow-ups. Status
 reports use the [status report format](process-owner-scrum-master.md#status-report-format).
 
+In orchestrated mode the orchestrator **never implements media
+generation** (video, talking-avatar / lip-sync, stills, voice renders,
+or their QC pipelines) and never drives that generation through its
+own executors. It plans, delegates to the design-capable implementer
+(the Designer in multi-bot teams), accepts or rejects, and follows
+through. Generation ownership stays with that design implementer;
+see [design-loop](design-loop.md).
+
 ## Implementer
 
 Implements one bounded spec using TDD and Ponytail. Runs at the default

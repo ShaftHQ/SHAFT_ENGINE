@@ -1663,6 +1663,9 @@ def mempalace_mine_decision(project: Path, command: list[str] | None = None,
                             environ=None) -> tuple[str, str]:
     """Return (``full``|``incremental``, reason) for the next project mine."""
     environ = os.environ if environ is None else environ
+    # #7436: always merge owned harness excludes before deciding to mine, so a
+    # user-owned mempalace.yaml cannot leave .chaos-engine/** indexable.
+    apply_owned_mempalace_excludes(project)
     if str(environ.get(MEMPALACE_FULL_ENV, "")).strip().lower() in {"1", "true", "yes", "full"}:
         return "full", f"explicit request ({MEMPALACE_FULL_ENV})"
     palace = mempalace_project_palace(project)

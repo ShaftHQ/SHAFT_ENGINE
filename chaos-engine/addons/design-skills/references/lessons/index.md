@@ -1,6 +1,6 @@
 # Lesson cards (talk video, captions, release)
 
-Field lessons from a finished batch of talk Shorts. These are rules
+Field lessons from talk Shorts and visual/media pipeline retros. These are rules
 with checks, not taste. Load the matching D-card or craft card first, then
 one lesson card.
 
@@ -13,5 +13,6 @@ one lesson card.
 | [L05 cross-surface takeaways](cross-surface-takeaways.md) | one technique must carry across Shorts, long video, decks and web |
 | [L06 caption and video QC](caption-video-qc.md) | splice joins, frame sampling, fade tails, ASR hallucinations |
 | [L07 Arabic text and mirroring](arabic-rtl-type-mirroring.md) | Arabic text on any surface; mirroring layout, icons and arrows for RTL |
+| [L08 visual-first approach](visual-first-approach.md) | choosing or iterating a visual/media approach before multi-pass; visual gate before metrics |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).

@@ -426,11 +426,70 @@ def codecov_yml_failures(root: Path, changed: list[str]) -> list[str]:
     return [] if result.returncode == 0 else [result.stdout.strip() or "codecov.yml validation failed"]
 
 
+
+def no_push_guard_failures(root: Path) -> list[str]:
+    """Fail closed when the tracked NO_PUSH guard is absent.
+
+    Sparse fixtures that only copy this checker (OverlayPrePushTest) omit the
+    helper; skip rather than shadow playbook failures. Full checkouts that ship
+    ``chaos-engine/mobile_retro.py`` must keep ``scripts/ci/no_push_guard.py``
+    tracked.
+    """
+    helper = root / "chaos-engine" / "mobile_retro.py"
+    if not helper.is_file():
+        return []
+    sys.path.insert(0, str(root / "chaos-engine"))
+    import mobile_retro  # noqa: WPS433
+
+    return list(mobile_retro.no_push_guard_tracked(root))
+
+
+def evidence_pin_failures(root: Path) -> list[str]:
+    """
+    Fail closed when a persisted mobile-retro evidence pin mismatches (#7498).
+
+    Absent pin file → []. Sparse fixtures without mobile_retro skip.
+    """
+    helper = root / "chaos-engine" / "mobile_retro.py"
+    runtime = root / "scripts" / "ci" / "mobile_retro_runtime.py"
+    if not helper.is_file() or not runtime.is_file():
+        return []
+    sys.path.insert(0, str(root / "chaos-engine"))
+    spec = importlib.util.spec_from_file_location("mobile_retro_runtime", runtime)
+    if spec is None or spec.loader is None:
+        return ["evidence pin checker unavailable"]
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return list(module.evidence_pin_failures(root))
+
+
+def client_name_scrub_failures(
+    root: Path,
+    *,
+    environ: dict[str, str] | None = None,
+) -> list[str]:
+    """Fail closed when a configured client-name denylist matches PR-visible text.
+
+    Unconfigured denylist → []. Sparse OverlayPrePush fixtures without the
+    helper module skip. See references/client-name-scrub.md.
+    """
+    helper = root / "chaos-engine" / "client_name_scrub.py"
+    if not helper.is_file():
+        return []
+    sys.path.insert(0, str(root / "chaos-engine"))
+    import client_name_scrub  # noqa: WPS433
+
+    return list(client_name_scrub.client_name_scrub_failures(root, environ=environ))
+
+
 def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
     """Return contract failures for one overlay diff. Empty means the push may proceed."""
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
     failures: list[str] = tip_preflight_failures(root, changed)
     if paths is None:
+        failures.extend(no_push_guard_failures(root))
+        failures.extend(evidence_pin_failures(root))
+        failures.extend(client_name_scrub_failures(root))
         failures.extend(code_quality_failures(root))
         failures.extend(release_note_label_failures(root))
         failures.extend(pr_body_failures(root))

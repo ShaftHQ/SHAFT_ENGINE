@@ -179,11 +179,20 @@ class GuardReachabilityTest(unittest.TestCase):
             body = hosts_module.role_adapter_desired(relative).decode("utf-8")
             with self.subTest(adapter=relative):
                 self.assertTrue(self.allowed(relative))
-                named = re.findall(r"\.chaos-engine/[\w./-]+\.md", body)
-                self.assertTrue(named, body)
-                for path in named:
+                # #7434: primary source-tree refs + overlay fallbacks both named.
+                source_named = re.findall(r"(?<![\w.-])chaos-engine/[\w./-]+\.md", body)
+                overlay_named = re.findall(r"\.chaos-engine/[\w./-]+\.md", body)
+                self.assertTrue(source_named, body)
+                self.assertTrue(overlay_named, body)
+                for path in overlay_named:
                     self.assertIn(path.removeprefix(".chaos-engine/"), installed_layout())
                     self.assertTrue(self.allowed(path))
+                for path in source_named:
+                    # SOURCE is the chaos-engine/ package root.
+                    relative = path.removeprefix("chaos-engine/")
+                    self.assertTrue((SOURCE / relative).is_file(), path)
+                    twin = f".chaos-engine/{relative}"
+                    self.assertTrue(self.allowed(twin), twin)
 
     def test_documented_commands_exist_or_are_marked_repo_only(self):
         failures = []
