@@ -1,4 +1,4 @@
-"""Hosted-CMS embed lessons L23–L31 + gates (Carl retro 2026-10-29)."""
+"""Hosted-CMS embed lessons L23–L31 (+ L36 livecms header rows) + gates."""
 
 from __future__ import annotations
 
@@ -57,13 +57,15 @@ CARDS = {
     ),
     "live-verify-cms-embed.md": (
         "Public URL, not editor",
-        "390 and 1440",
+        "360/390/430/1440",
         "livecms",
         "Fail closed",
         "media_ok",
         "duration_ok",
         "nested_containers_0",
     ),
+    # L36/L37 cards covered in test_ce_design_cms_paste_l36_l37.py
+
     "plan-first-multi-axis.md": (
         "Plan before build",
         "Acceptance first",
@@ -117,8 +119,8 @@ class HostedCmsLessonCardsTest(unittest.TestCase):
         self.assertIn("hosted-cms-embed", sq)
         self.assertIn("livecms", sq)
         inv = " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split())
-        self.assertIn("35 lesson", inv)
-        self.assertIn("L01-L35", inv)
+        self.assertIn("37 lesson", inv)
+        self.assertIn("L01-L37", inv)
         craft = (DESIGN / "references/craft/index.md").read_text(encoding="utf-8")
         self.assertIn("hosted-CMS no-dup chrome", craft)
         self.assertIn("Hosted CMS embed", craft)
@@ -296,6 +298,7 @@ class LivecmsMatrixTest(unittest.TestCase):
             full = Path(folder) / "full.json"
             incomplete = Path(folder) / "incomplete.json"
             partial.write_text(json.dumps({"http_200": True, "viewport_390": True}), encoding="utf-8")
+            widths = (360, 390, 430, 1440)
             base = {
                 "http_200": True,
                 "no_dup_chrome": True,
@@ -303,12 +306,25 @@ class LivecmsMatrixTest(unittest.TestCase):
                 "heading_colour": "pass",
                 "identity_tile": "pass",
                 "og_title_once": True,
+                "viewport_360": True,
                 "viewport_390": True,
+                "viewport_430": True,
                 "viewport_1440": True,
                 "media_ok": "n/a",
                 "duration_ok": "n/a",
                 "nested_containers_0": True,
             }
+            viewports = {}
+            for width in widths:
+                viewports[str(width)] = {
+                    "home_logo": {"x": 12.0, "y": 8.0},
+                    "page_logo": {"x": 12.5, "y": 8.0},
+                    "home_nav": {"x": 200.0, "y": 10.0},
+                    "page_nav": {"x": 200.0, "y": 10.25},
+                    "home_content_width": 1440.0,
+                    "page_content_width": 1440.0,
+                }
+            base["header_measure"] = {"viewports": viewports}
             full.write_text(json.dumps(base), encoding="utf-8")
             # D4: old full receipt without media/nested keys must fail closed
             incomplete.write_text(json.dumps({
@@ -323,8 +339,23 @@ class LivecmsMatrixTest(unittest.TestCase):
             code, payload = run_qc("livecms", str(incomplete))
             self.assertEqual(1, code, payload)
             missing = set(payload.get("missing") or [])
-            for key in ("media_ok", "duration_ok", "nested_containers_0"):
+            for key in (
+                "media_ok", "duration_ok", "nested_containers_0",
+                "viewport_360", "viewport_430",
+                *(f"header_logo_delta_ok_{w}" for w in widths),
+                *(f"header_nav_delta_ok_{w}" for w in widths),
+            ):
                 self.assertIn(key, missing, payload)
+            # Forged bools alone must not satisfy header rows (D1).
+            forged = dict(base)
+            forged.pop("header_measure", None)
+            for width in widths:
+                forged[f"header_logo_delta_ok_{width}"] = True
+                forged[f"header_nav_delta_ok_{width}"] = True
+            forged_path = Path(folder) / "forged.json"
+            forged_path.write_text(json.dumps(forged), encoding="utf-8")
+            code, payload = run_qc("livecms", str(forged_path))
+            self.assertEqual(1, code, payload)
             code, payload = run_qc("livecms", str(full))
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 

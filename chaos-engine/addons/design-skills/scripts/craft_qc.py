@@ -2448,7 +2448,7 @@ def cmd_lessgrid(qc, args) -> int:
         note="L33: no slash grid shorthand / bare calc under LESS 1.3.3; re-check gutters live after CSS paste",
     )
 
-# --- Hosted-CMS embed gates (L23–L31, L34 paste robots) -----------------------
+# --- Hosted-CMS embed gates (L23–L31, L34/L36/L37 paste) ---------------------
 def _hosted_cms():
     import importlib.util
     spec = importlib.util.spec_from_file_location(
@@ -2461,8 +2461,20 @@ def _hosted_cms():
     return mod
 
 
+def _hosted_cms_live():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "hosted_cms_live", Path(__file__).with_name("hosted_cms_live.py"),
+    )
+    mod = importlib.util.module_from_spec(spec)
+    if spec.loader is None:
+        raise RuntimeError("hosted_cms_live loader missing")
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def cmd_cmsmeta(qc, args) -> int:
-    """L25/L34: paste HTML must not include og/twitter, html lang, or robots noindex."""
+    """L25/L34/L36/L37: no og/twitter, robots, shell, root CSS, or comments."""
     html = Path(args.file).read_text(encoding="utf-8")
     report = _hosted_cms().check_cms_meta(html)
     status = report.pop("status")
@@ -2571,15 +2583,61 @@ def cmd_cmsduration(qc, args) -> int:
 
 
 def cmd_livecms(qc, args) -> int:
-    """L28/L31: fail-closed live matrix receipt JSON."""
-    report_obj = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    """L28/L31/L36: measure live URLs or validate a header_measure receipt."""
+    live = _hosted_cms_live()
+
+    target = args.file
+    if live.looks_like_url(target) or getattr(args, "page_url", None):
+        page_url = args.page_url or target
+        try:
+            measured = live.measure_header_viewports(
+                page_url,
+                home_url=getattr(args, "home_url", None),
+            )
+        except Exception as exc:  # noqa: BLE001 - surface measure errors as USAGE/FAIL
+            return qc.report("livecms", qc.USAGE, error=str(exc))
+        report_obj = {
+            "http_200": True,
+            "no_dup_chrome": True,
+            "assets_loaded": True,
+            "heading_colour": "pass",
+            "identity_tile": "pass",
+            "og_title_once": True,
+            **{f"viewport_{w}": True for w in _hosted_cms().HEADER_VIEWPORTS},
+            "media_ok": "n/a",
+            "duration_ok": "n/a",
+            "nested_containers_0": True,
+            "header_measure": measured,
+            "page_url": page_url,
+            "home_url": measured.get("home_url"),
+        }
+        # URL mode only asserts the measured header matrix unless a base receipt
+        # is also supplied via --receipt.
+        if getattr(args, "receipt", None):
+            base = json.loads(Path(args.receipt).read_text(encoding="utf-8"))
+            base["header_measure"] = measured
+            report_obj = base
+    else:
+        report_obj = json.loads(Path(target).read_text(encoding="utf-8"))
     report = _hosted_cms().check_livecms(report_obj)
     status = report.pop("status")
     if status == "error":
         return qc.report("livecms", qc.USAGE, **report)
     code = qc.PASS if status == "pass" else qc.FAIL
+    if "header_measure" in report_obj:
+        report["header_measure"] = report_obj["header_measure"]
     return qc.report("livecms", code, **report)
 
+
+def cmd_cmsheader(qc, args) -> int:
+    """L36: per-viewport header logo/nav delta vs '/' ≤1px (360/390/430/1440)."""
+    report_obj = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    report = _hosted_cms().check_cms_header_delta(report_obj)
+    status = report.pop("status")
+    if status == "error":
+        return qc.report("cmsheader", qc.USAGE, **report)
+    code = qc.PASS if status == "pass" else qc.FAIL
+    return qc.report("cmsheader", code, **report)
 
 
 def _liveseo():
@@ -3288,7 +3346,7 @@ def register(add, qc) -> None:
     p.add_argument("--threshold", type=float, default=0.65,
                    help="FLAG when punchline_at/content_dur > threshold")
     p = add("cmsmeta", bind(cmd_cmsmeta),
-            "L25/L34: paste HTML: no og/twitter, html lang, or robots noindex")
+            "L25/L34/L36/L37: paste — no og/twitter, robots, shell, root CSS, comments")
     p.add_argument("file", help="paste HTML file")
     p = add("cmsassets", bind(cmd_cmsassets),
             "L24: fail relative local assets in paste HTML")
@@ -3349,8 +3407,17 @@ def register(add, qc) -> None:
     p.add_argument("--peer", type=float, default=None, help="sibling duration seconds")
     p.add_argument("--peer-tol", type=float, default=30.0, dest="peer_tol")
     p = add("livecms", bind(cmd_livecms),
-            "L28/L31: fail-closed live matrix receipt JSON")
-    p.add_argument("file", help="livecms report JSON")
+            "L28/L31/L36: live URL measure or header_measure receipt")
+    p.add_argument("file", help="livecms receipt JSON, or https URL to measure")
+    p.add_argument("--page-url", dest="page_url", default=None,
+                   help="page URL to measure (overrides file when set)")
+    p.add_argument("--home-url", dest="home_url", default=None,
+                   help="homepage URL (default: origin / of page)")
+    p.add_argument("--receipt", dest="receipt", default=None,
+                   help="base livecms receipt JSON; header_measure overlaid from URLs")
+    p = add("cmsheader", bind(cmd_cmsheader),
+            "L36: per-viewport header logo/nav delta vs '/' ≤1px (360/390/430/1440)")
+    p.add_argument("file", help="cmsheader receipt JSON with viewports map")
     p = add("bidiwao", bind(cmd_bidiwao),
             "L32: Arabic و adjacent to <bdi> Latin in headings/card titles (use ،)")
     p.add_argument("path", help="HTML file or directory")

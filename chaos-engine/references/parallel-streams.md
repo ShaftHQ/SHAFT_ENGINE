@@ -14,12 +14,18 @@ branch. Research URLs are canonicalized before a second research dispatch.
 ## Stream-ownership manifest
 
 Before the first dispatch, write a stream table (checkpoint items or a review
-scratch file) with: stream id, repository, owned path globs, issues, implementer
-id, reviewer id, worktree path, branch, disk budget (MB), status.
+scratch file) with: stream id, repository, owned path globs, semantic **kind**
+(when design work: `video`, `podcast`, `image`, or `website`), issues,
+implementer id, reviewer id, worktree path, branch, disk budget (MB), status,
+and (for design kinds) `first_pass_signoff_streak` for that kind.
 
 - Two active streams must not share a **writable** path glob.
 - Read-only shared paths are allowed.
 - Epic children inherit the parent's locks until released.
+- Two active **design** streams of the **same kind** are a conflict under the
+  kind WIP cap (see [Design-kind WIP](#design-kind-wip-same-kind-batch--conflict)),
+  even when path globs are disjoint — one shared template/gate defect otherwise
+  multiplies across the batch.
 
 ## Conflict detection (before dispatch)
 
@@ -28,9 +34,14 @@ id, reviewer id, worktree path, branch, disk budget (MB), status.
 2. Collect paths from open agentic PRs and dirty files in live worktrees.
 3. Intersect the proposed stream's writable globs with (1) and (2).
 4. Non-empty intersection → do not dispatch; re-scope, stack, or wait.
+5. If the proposal carries a design **kind**, collect active peers of that kind.
+   When their count is at or above the kind WIP limit (1, or 2 after two
+   consecutive first-pass sign-offs for that kind), treat it as a conflict —
+   same as path overlap. Different kinds may run in parallel.
 
 Executable check: `scripts/ci/parallel_stream_conflict.py`
-(`refuse_dispatch_on_ownership_overlap` / `conflicting_peer_stream_ids`).
+(`refuse_dispatch_on_ownership_overlap` / `conflicting_peer_stream_ids` /
+`refuse_dispatch` with workspace for disk + worktree caps, and `refuse_dispatch_on_same_kind_wip` / `conflicting_same_kind_stream_ids`).
 
 ## Brief template (implementer)
 
@@ -57,9 +68,12 @@ fresh sign-off on the new SHA. Merge with head-SHA match; confirm auto-merge.
 
 ## Post-merge own cleanup
 
-After the stream's PR is **MERGED** (GitHub state MERGED and the merge commit /
-head OID is on the remote), the **owning worker** (or orchestrator on its behalf)
-cleans **only** artifacts recorded on that stream's ownership row:
+**Definition of Done (mandatory, not advisory):** after the stream's PR is
+**MERGED** (GitHub state MERGED and the merge commit / head OID is on the
+remote), the **owning worker** (or orchestrator on its behalf) **must** clean
+**only** artifacts recorded on that stream's ownership row before the next
+item in that stream. Hookless bots run this themselves; CLI Stop hooks cannot
+substitute on hosts without hooks. Skipping cleanup is a DoD miss.
 
 1. Verify the local branch tip is contained in the remote merge (ancestor of the
    configured upstream tip, or PR head OID matches the merged receipt) and the
@@ -97,24 +111,75 @@ profiles); those refuse even with an owner code. Hygiene refuses `never-touch-pa
   deeper than one round (Theory of Constraints: cap in front of review / disk /
   attention, not coding).
 
+## Design-kind WIP (same-kind batch = conflict)
+
+A design **conflict** is not only file overlap. Batching several items of the
+**same kind** (video, podcast chapter, image, website change) while one shared
+defect is still unknown multiplies rejects: one bad caption/template/gate rule
+fails the whole batch (wasted tokens and wall time). Treat that like a path
+conflict.
+
+Rules:
+
+1. **WIP = 1 per design kind.** Parallel across different kinds is allowed when
+   path globs are still disjoint.
+2. Each item must finish **build → independent review → orchestrator sign-off →
+   lessons captured** before the next same-kind item starts.
+3. After **two consecutive first-pass sign-offs** for that kind, the kind may
+   rise to **WIP = 2**. Any reject drops that kind back to WIP = 1 (streak
+   resets to 0).
+4. Ownership-manifest rows for design work set `kind` and keep
+   `first_pass_signoff_streak` current so
+   `refuse_dispatch_on_same_kind_wip` can enforce the cap before dispatch.
+
 ## Disk gate
 
-Shared box, before creating a worktree or clone:
+Shared box, before creating a worktree or clone. **Executable** check:
+`scripts/ci/box_disk_guard.py` (`disk_level` / `refuse_new_worker` /
+`new_worker_blockers`) and `scripts/ci/parallel_stream_conflict.py`
+(`refuse_dispatch` with a workspace path).
 
-1. Refuse when free space on the workspace filesystem is under **20 GiB**.
-2. Prefer one `git clone --filter=blob:none` (or bare / `--reference`) primary
+1. **Warn** when free space is under **15 GiB**. **Block** a new worker,
+   worktree, or clone when free space is under **10 GiB**
+   (`disk-free-below-10giB`).
+2. **Block** when linked worktrees on the primary already reach the cap
+   (**24**, `linked-worktree-cap`); reclaim via [post-merge own cleanup](#post-merge-own-cleanup)
+   before adding another.
+3. Prefer one `git clone --filter=blob:none` (or bare / `--reference`) primary
    per repository and `git worktree add` for every worker — never N full clones
    when a primary already exists ([bot-entry](bot-entry.md)).
-3. Optional cone sparse-checkout for path-scoped tasks.
-4. Share host language caches (`~/.m2`, Gradle caches, yarn/npm/pip) across
-   worktrees; do not duplicate them per worker.
-5. Default working-tree budget **500 MB** for harness-only streams unless the
+4. Optional cone sparse-checkout for path-scoped tasks.
+5. Share host language caches across worktrees; do not duplicate them per
+   worker. Enforce [cache caps](#cache-caps); prune with tool-native commands
+   only (`box_disk_guard.prune_cache`) — never raw `rm` on caches.
+6. Default working-tree budget **500 MB** for harness-only streams unless the
    brief raises it.
-6. After verified push or merge: inventory scratch paths on the stream row as
+7. After verified push or merge: inventory scratch paths on the stream row as
    `scratch_pending_cleanup`, then run [post-merge own cleanup](#post-merge-own-cleanup)
    for that stream's recorded artifacts. Listing candidates is always allowed;
    foreign or never-touch paths stay listed only — never deleted without the
    proofs above / [delete-check](delete-check-discipline.md).
+
+## Cache caps
+
+Shared host caches have size caps in `box_disk_guard.CACHE_SPECS` (pip, yarn,
+npm, uv, gradle, m2, ChaosEngine cache/share). When a cache is over cap:
+
+- If a **tool-native** prune exists (`pip cache purge`, `uv cache prune`,
+  `yarn cache clean`, `npm cache clean --force`), run `prune_cache(name)`.
+- If no native prune exists (gradle / m2 / CE share), **report only** and route
+  regenerable reclaim through [delete-check](delete-check-discipline.md) — never
+  invent `rm -rf` inside the guard.
+- Never-touch paths refuse prune even when over cap.
+
+## Own scratch TTL
+
+Own-created scratch under stream-allowed roots may be listed as TTL candidates
+after **24 hours** when they carry the owner marker
+`.chaos-engine-owned-scratch` (`own_scratch_ttl_candidates`). False positives
+refused: no marker (`not-own-scratch`), within TTL (`within-ttl`), never-touch /
+delete-guard unavailable. Listing is always safe; filesystem delete of scratch
+still needs `tool.py delete-check`.
 
 ## Checkpoint
 

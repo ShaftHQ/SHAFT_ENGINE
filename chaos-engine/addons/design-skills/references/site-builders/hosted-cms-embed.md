@@ -11,7 +11,8 @@ or landing snippet is pasted into a hosted builder Code block (or equivalent
 embed) that already owns the site header, nav, SEO, and sticky chrome.
 
 Field lessons: [L23](../lessons/hosted-cms-no-dup-chrome.md) through
-[L31](../lessons/paste-then-reverify.md). Sticky header offset lives on **L23**.
+[L31](../lessons/paste-then-reverify.md), plus [L36](../lessons/cms-paste-fragment-only.md)
+and [L37](../lessons/cms-paste-no-html-comments.md). Sticky header offset lives on **L23**.
 
 ## Body only (no duplicate chrome)
 
@@ -22,6 +23,16 @@ Field lessons: [L23](../lessons/hosted-cms-no-dup-chrome.md) through
    and reset rules apply only to the paste kit.
 4. Skip links: visually hidden until `:focus`; never consume layout when
    unfocused.
+
+
+## Fragment only (no document shell)
+
+Paste a body fragment, never a full HTML document. Do not emit `<!doctype`,
+`<html`, `<head>`, or `<body>`. Put `dir`/`lang` on the embed wrapper and
+scope CSS to that wrapper — never bare `html`/`body`/`:root`. No HTML
+comments (`<!--`) in paste ([L36](../lessons/cms-paste-fragment-only.md),
+[L37](../lessons/cms-paste-no-html-comments.md)). After publish, header logo
+and nav must stay within **≤1px** of homepage `/`.
 
 ## Sticky site header offset
 
@@ -74,9 +85,9 @@ only on pill/CTA chrome — never on dark-surface headings/body. See
 ## Paste then re-verify
 
 Always paste from the **build artifact** full file. After Save, run the
-headless live matrix on the **public** URL at **390 and 1440** ([L28](../lessons/live-verify-cms-embed.md),
+headless live matrix on the **public** URL at **360/390/430/1440** ([L28](../lessons/live-verify-cms-embed.md),
 [L31](../lessons/paste-then-reverify.md)). Nested code-container count must
-stay 0. Editor success toasts are untrusted.
+stay 0; header logo/nav delta vs `/` ≤1px (L36). Editor success toasts are untrusted.
 
 ## Checks
 
@@ -85,6 +96,8 @@ stay 0. Editor success toasts are untrusted.
 | No paste OG/Twitter meta | `design_qc.py cmsmeta <paste.html>` |
 | No paste robots noindex/nofollow (L34) | `design_qc.py cmsmeta <paste.html>` |
 | Live product URL not noindex | `design_qc.py liveseo <https-url>` |
+| Fragment only + no HTML comments (L36/L37) | `design_qc.py cmsmeta <paste.html>` |
+| Header logo/nav Δ≤1px vs `/` @360/390/430/1440 (L36) | `design_qc.py livecms <url>` / `cmsheader` on `header_measure` |
 | No relative local assets | `design_qc.py cmsassets <paste.html>` |
 | Sticky header tokens present | `design_qc.py cmssticky <paste.html\|.css>` |
 | Full-width + gutter | `design_qc.py cmswidth --code W --column C [--hero-gutter H --embed-gutter E] [--outer-pad/--inner-pad]` |
@@ -95,5 +108,6 @@ stay 0. Editor success toasts are untrusted.
 ## Scripts
 
 - Python gates (loaded by `design_qc.py`): [`hosted_cms_gates.py`](../../scripts/hosted_cms_gates.py)
+- Live header measure (Selenium): [`hosted_cms_live.py`](../../scripts/hosted_cms_live.py)
 - Hostile CSS fixture: [`hostile_cms_css.py`](../../scripts/hostile_cms_css.py)
 

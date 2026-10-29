@@ -60,8 +60,8 @@ class PasteRobotsLessonCardTest(unittest.TestCase):
         self.assertIn("L34 ", index)
         self.assertIn(f"]({CARD})", index)
         inv = " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split())
-        self.assertIn("35 lesson", inv)
-        self.assertIn("L01-L35", inv)
+        self.assertIn("37 lesson", inv)
+        self.assertIn("L01-L37", inv)
         craft = (DESIGN / "references/craft/index.md").read_text(encoding="utf-8")
         self.assertIn("paste robots L34", craft)
         embed = (DESIGN / "references/site-builders/hosted-cms-embed.md").read_text(
@@ -126,7 +126,7 @@ class CmsmetaPasteRobotsGateTest(unittest.TestCase):
 
 
     def test_cmsmeta_passes_false_positive_noindex_mentions(self) -> None:
-        """Body text / HTML comment 'noindex' and robots index,follow must PASS."""
+        """Body text / robots index,follow must PASS; comment 'noindex' is L37 not L34."""
         with tempfile.TemporaryDirectory() as folder:
             cases = {
                 "index_follow.html": (
@@ -137,10 +137,6 @@ class CmsmetaPasteRobotsGateTest(unittest.TestCase):
                     "<div><p>Do not paste noindex into Code blocks.</p>"
                     "<h1>Product</h1></div>"
                 ),
-                "comment_word.html": (
-                    "<!-- reminder: avoid noindex on product pages -->"
-                    "<div><h1>Product</h1></div>"
-                ),
             }
             for name, html in cases.items():
                 path = Path(folder) / name
@@ -150,6 +146,18 @@ class CmsmetaPasteRobotsGateTest(unittest.TestCase):
                     (0, "pass"), (code, payload.get("status")), (name, payload),
                 )
                 self.assertEqual(0, payload.get("robots_block_hits", -1), (name, payload))
+            comment = Path(folder) / "comment_word.html"
+            comment.write_text(
+                "<!-- reminder: avoid noindex on product pages -->"
+                "<div><h1>Product</h1></div>",
+                encoding="utf-8",
+            )
+            code, payload = run_qc("cmsmeta", str(comment))
+            # L37 bans HTML comments; L34 robots hits must stay 0 for bare word in comment.
+            self.assertEqual(1, code, payload)
+            self.assertEqual("fail", payload.get("status"), payload)
+            self.assertEqual(0, payload.get("robots_block_hits", -1), payload)
+            self.assertGreaterEqual(payload.get("html_comment_hits", 0), 1, payload)
 
 
 if __name__ == "__main__":

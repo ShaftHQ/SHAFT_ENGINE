@@ -102,7 +102,7 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
 - Only verified numbers/claims; no placeholder, lorem, or "coming soon".
 - Release gate: design + content reviewers approve before live (no owner
   preview). [Squarespace 7.1](../site-builders/squarespace-7-1.md);
-  embeds: [hosted-cms-embed](../site-builders/hosted-cms-embed.md) (sticky=[L23](../lessons/hosted-cms-no-dup-chrome.md)).
+  embeds: [hosted-cms-embed](../site-builders/hosted-cms-embed.md) (sticky=[L23](../lessons/hosted-cms-no-dup-chrome.md); fragment=[L36](../lessons/cms-paste-fragment-only.md)/[L37](../lessons/cms-paste-no-html-comments.md)).
 
 ## GitHub README surfaces
 

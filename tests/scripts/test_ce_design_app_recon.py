@@ -39,6 +39,9 @@ class AppReconCraftTests(unittest.TestCase):
         inv = " ".join(INVENTORY.read_text(encoding="utf-8").split())
         self.assertIn("1 recon-craft card (R01, references/recon-craft)", inv)
         self.assertIn("replica-skill", inv)
+        self.assertIn(
+            "77c9436fb3d18c3d58169efb8caf4fe906b0dc51", inv,
+        )
         self.assertIn("method re-expressed only", inv)
         self.assertIn("Replica eleven-skill clone pipeline", inv)
 
