@@ -405,6 +405,7 @@ def _curl(url: str, *, head: bool = False, timeout: int = 20) -> tuple[int, str,
             try:
                 Path(hdr_file.name).unlink(missing_ok=True)
             except OSError:
+                # Temp header dump is best-effort cleanup after curl.
                 pass
 
 
