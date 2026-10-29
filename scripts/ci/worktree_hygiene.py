@@ -52,11 +52,16 @@ from scripts.agents.repository_context import (  # noqa: E402
 _DELETE_GUARD_DIR = ROOT / "chaos-engine"
 if _DELETE_GUARD_DIR.is_dir() and str(_DELETE_GUARD_DIR) not in sys.path:
     sys.path.insert(0, str(_DELETE_GUARD_DIR))
+_DELETE_GUARD_NEVER_TOUCH_AVAILABLE = False
 try:
-    from delete_guard import never_touch as _delete_guard_never_touch  # noqa: E402
-except ImportError:  # pragma: no cover - sparse checkouts without delete_guard
+    from delete_guard import never_touch as _imported_delete_guard_never_touch  # noqa: E402
+
+    _delete_guard_never_touch = _imported_delete_guard_never_touch
+    _DELETE_GUARD_NEVER_TOUCH_AVAILABLE = True
+except ImportError:
     def _delete_guard_never_touch(path: Path) -> str:
-        return ""
+        """Fail closed: refuse every cleanup target when delete-guard is unavailable."""
+        return "never-touch-check-unavailable"
 
 GIT_TIMEOUT_SECONDS = 30
 PULL_REQUEST_TIMEOUT_SECONDS = 30
@@ -992,6 +997,18 @@ def _exact_worktree_entry(root: Path, target: Path) -> dict | None:
     return matches[0] if len(matches) == 1 else None
 
 
+def never_touch_cleanup_blockers(path: Path) -> list[str]:
+    """Refuse cleanup for never-touch paths; refuse all cleanup if the check is unavailable."""
+    if not _DELETE_GUARD_NEVER_TOUCH_AVAILABLE:
+        return ["never-touch-check-unavailable"]
+    hit = _delete_guard_never_touch(path)
+    if not hit:
+        return []
+    if hit == "never-touch-check-unavailable":
+        return ["never-touch-check-unavailable"]
+    return ["never-touch-path"]
+
+
 def cleanup_task_owned_worktree(
     root: Path,
     target: Path,
@@ -1036,8 +1053,9 @@ def cleanup_task_owned_worktree(
     )
     if blockers:
         return blockers
-    if _delete_guard_never_touch(resolved_target):
-        return ["never-touch-path"]
+    never_touch_blockers = never_touch_cleanup_blockers(resolved_target)
+    if never_touch_blockers:
+        return never_touch_blockers
     removed = subprocess.run(  # nosec B603 B607 - exact validated target, no force.
         ["git", "-c", "core.longpaths=true", "worktree", "remove", "--", str(resolved_target)],
         cwd=resolved_root, capture_output=True, text=True, timeout=GIT_TIMEOUT_SECONDS, check=False,

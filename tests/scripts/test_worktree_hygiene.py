@@ -31,6 +31,7 @@ from scripts.ci.worktree_hygiene import (
     collect_worktree_report,
     format_advisories,
     merged_pull_request_state_via_gh,
+    never_touch_cleanup_blockers,
     open_pull_requests_via_gh,
     resolve_upstream_ref,
     task_branch_ownership_manifest_matches,
@@ -39,6 +40,7 @@ from scripts.ci.worktree_hygiene import (
     task_ownership_manifest_matches,
     verify_repository_state,
 )
+import scripts.ci.worktree_hygiene as worktree_hygiene_module
 
 
 def git(cwd: Path, *arguments: str) -> subprocess.CompletedProcess:
@@ -326,6 +328,75 @@ class WorktreeHygieneTest(unittest.TestCase):
         self.assertFalse(
             task_branch_ownership_manifest_matches(manifest, "ChaosEngine/owned", "c" * 40)
         )
+
+    def test_never_touch_cleanup_refuses_rog_yt_and_chrome_profile_paths(self):
+        cases = (
+            self.base / "ROG_backup" / "owned-wt",
+            self.base / "yt" / "owned-wt",
+            self.base / "agent-chrome-user-profile-1",
+            Path("/home/box/.config/google-chrome/Default"),
+            Path("/home/box/.config/chromium/Default"),
+        )
+        for target in cases:
+            with self.subTest(target=str(target)):
+                self.assertEqual(
+                    ["never-touch-path"],
+                    never_touch_cleanup_blockers(target),
+                )
+        self.assertEqual([], never_touch_cleanup_blockers(self.base / "safe-owned-wt"))
+
+    def test_never_touch_cleanup_fails_closed_when_delete_guard_unavailable(self):
+        safe = self.base / "safe-owned-wt"
+        previous = worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE
+        try:
+            worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE = False
+            self.assertEqual(
+                ["never-touch-check-unavailable"],
+                never_touch_cleanup_blockers(safe),
+            )
+        finally:
+            worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE = previous
+
+    def test_task_cleanup_refuses_never_touch_path_before_remove(self):
+        branch = "ChaosEngine/owned-never-touch"
+        worktree = self.add_worktree("owned-never-touch", branch)
+        head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+        with patch(
+            "scripts.ci.worktree_hygiene.never_touch_cleanup_blockers",
+            return_value=["never-touch-path"],
+        ):
+            blockers = cleanup_task_owned_worktree(
+                self.main,
+                worktree,
+                branch,
+                head,
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                pull_request_state=lambda *_: "MERGED",
+                ownership_verified=True,
+            )
+        self.assertEqual(["never-touch-path"], blockers)
+        self.assertTrue(worktree.exists())
+
+    def test_task_cleanup_fails_closed_when_never_touch_check_unavailable(self):
+        branch = "ChaosEngine/owned-nt-unavailable"
+        worktree = self.add_worktree("owned-nt-unavailable", branch)
+        head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+        previous = worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE
+        try:
+            worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE = False
+            blockers = cleanup_task_owned_worktree(
+                self.main,
+                worktree,
+                branch,
+                head,
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                pull_request_state=lambda *_: "MERGED",
+                ownership_verified=True,
+            )
+        finally:
+            worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE = previous
+        self.assertEqual(["never-touch-check-unavailable"], blockers)
+        self.assertTrue(worktree.exists())
 
     def test_task_cleanup_preserves_branch_if_head_changes_after_worktree_removal(self):
         branch = "ChaosEngine/owned-cleanup-race"

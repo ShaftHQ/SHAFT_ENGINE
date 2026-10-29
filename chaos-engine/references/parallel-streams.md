@@ -76,8 +76,7 @@ cleans **only** artifacts recorded on that stream's ownership row:
 
 Never remove another stream's worktree, branch, or scratch. Never touch
 [delete-guard](delete-guard.md) never-touch paths (`ROG*`, `yt`, Chrome/Chromium
-profiles); those refuse even with an owner code. Hygiene refuses
-`never-touch-path` without weakening the guard.
+profiles); those refuse even with an owner code. Hygiene refuses `never-touch-path` without weakening the guard, and fails **closed** (`never-touch-check-unavailable`) if delete-guard cannot be imported — cleanup does not proceed open.
 
 ### Delete-guard interaction
 
