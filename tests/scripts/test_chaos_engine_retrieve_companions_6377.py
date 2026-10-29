@@ -394,6 +394,19 @@ class MaintainTest(unittest.TestCase):
         # #6849: the re-mine runs as a durable background job, never in maintain's foreground.
         self.assertEqual(["job", "start", "stores-refresh", "--"], commands[2][2:6])
 
+    def test_maintain_rewrites_retired_repository_distribution_7564(self):
+        """#7564: maintain must not pass --distribution repository to a pack-less reinstall."""
+        root = self.tmp / "repo-dist-core"
+        root.mkdir()
+        (root / "manifest.json").write_text(
+            '{"source": {"repository": "o/r", "branch": "main"}, "distribution": {"id": "repository"}}',
+            encoding="utf-8",
+        )
+        reinstall = self.tool.maintain_commands(root, self.work)[0]
+        self.assertEqual("portable", reinstall[reinstall.index("--distribution") + 1])
+        self.assertNotIn("repository", reinstall)
+
+
     def _digest_manifest(self, repository: str, branch: str) -> Path:
         import hashlib
         root = self.tmp / "digest-core"

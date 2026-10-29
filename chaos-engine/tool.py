@@ -311,6 +311,10 @@ def maintain_commands(installed_root: Path, project: Path) -> list[list[str]]:
             reinstall += ["--branch", branch]
     distribution = str(manifest.get("distribution", {}).get("id", ""))
     if distribution:
+        # #7564: retired ids (repository/legacy) must rematerialize as portable; a
+        # chaos-engine-only snapshot no longer synthesizes distribution=repository.
+        if distribution in {"legacy", "repository"}:
+            distribution = "portable"
         reinstall += ["--distribution", distribution]
     return [
         reinstall,

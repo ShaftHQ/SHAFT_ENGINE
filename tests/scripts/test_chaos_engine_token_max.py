@@ -90,7 +90,8 @@ def seed_repository_project(
 
     install = load(ROOT / "chaos-engine/install.py", "ce_install_seed_5689")
     overlay = root / ".chaos-engine"
-    for path in install.source_files(source, "repository"):
+    # #7564: origin ownership compares the portable payload (CE-10 portable+packs).
+    for path in install.source_files(source, install.DEFAULT_DISTRIBUTION):
         relative = path.relative_to(source).as_posix()
         if omit is not None and relative == omit:
             continue
@@ -172,9 +173,12 @@ class TokenMaxTests(TestCase):
                 Path(temporary) / "extra", extra="local-only.txt"
             )
             self.assertTrue(self.overlay.core_matches_source(extra)["coreMatchesSource"])
-            # Origin-only README and non-selected portable profile are not owned.
+            # Origin-only README and non-selected shaft profile are not owned (#7564).
             self.assertFalse((extra / ".chaos-engine/README.md").is_file())
             self.assertFalse(
+                (extra / ".chaos-engine/profiles/shaft/entrypoint.md").is_file()
+            )
+            self.assertTrue(
                 (extra / ".chaos-engine/profiles/portable/entrypoint.md").is_file()
             )
 
@@ -222,8 +226,8 @@ class TokenMaxTests(TestCase):
                 "assets/memory-v5/SCHEMAS.md",
                 "assets/memory-v5/config.schema.json",
                 "assets/memory-v5/event.schema.json",
-                "profiles/shaft/references/playbooks/allure-extent-report-operator.md",
-                "profiles/shaft/references/playbooks/ci-failure-investigator.md",
+                # Portable-owned references (shaft playbooks are not owned after #7564).
+                "references/playbooks/ci-failure-investigator.md",
             ):
                 source_path = root / "chaos-engine" / relative
                 source_path.parent.mkdir(parents=True, exist_ok=True)
@@ -242,7 +246,7 @@ class TokenMaxTests(TestCase):
                 __import__("json").dumps(
                     {
                         "schemaVersion": 1,
-                        "distribution": {"id": "repository", "policySha256": "0" * 64},
+                        "distribution": {"id": "portable", "policySha256": "0" * 64},
                         "source": {"commit": "a" * 40, "kind": "local"},
                         "files": files,
                         "hostToken": "b" * 64,
