@@ -26,6 +26,7 @@ Install first: [harness maintenance](harness-maintenance.md#install).
    CI then requires `## Plan` and `retrieve:` lines. Human PRs are exempt.
 4. Before any delete, run `tool.py delete-check <paths>`; refusal: only
    an owner chat code unlocks ([delete guard](delete-guard.md)).
+   Lesson: backup dir = push.
 
 Re-runs print one line while the harness is unchanged; `--full` reprints the
 cards. Run `--full` at the start of every conversation and after every
