@@ -18,5 +18,6 @@ one lesson card.
 | [L10 end-card band concat](endcard-band-concat.md) | burn overlay bands on content only; gate live end card vs clean plate |
 | [L11 title punct by script](title-punct-by-script.md) | metadata title/desc question marks: Latin `?` vs Arabic `؟` |
 | [L12 question-mark baseline](qmark-baseline.md) | mixed-font trailing `?`/`؟` shares body baseline (`anchor=ls`) |
+| [L13 perceptual acceptance](perceptual-acceptance.md) | accepting a visual/media package; metric floors; reviewer must view output vs real reference |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).
