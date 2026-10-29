@@ -5,8 +5,8 @@ from __future__ import annotations
 import subprocess
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -91,7 +91,7 @@ class CachePruneTest(unittest.TestCase):
             # 3 GiB marker file size via mock of _dir_size_bytes path walk is heavy;
             # write a small file and patch size.
             (fat / "wheel").write_bytes(b"x")
-            with mock.patch(
+            with unittest.mock.patch(
                 "scripts.ci.box_disk_guard._dir_size_bytes",
                 side_effect=lambda path: 3 * GiB if "pip" in str(path) else 0,
             ):
@@ -112,7 +112,7 @@ class CachePruneTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
             (home / ".cache" / "pip").mkdir(parents=True)
-            with mock.patch(
+            with unittest.mock.patch(
                 "scripts.ci.box_disk_guard.never_touch_blockers",
                 return_value=[],
             ):
@@ -124,7 +124,7 @@ class CachePruneTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
             (home / ".gradle").mkdir()
-            with mock.patch(
+            with unittest.mock.patch(
                 "scripts.ci.box_disk_guard.never_touch_blockers",
                 return_value=[],
             ):
@@ -133,7 +133,7 @@ class CachePruneTest(unittest.TestCase):
         self.assertIn("prune-unavailable", result["blockers"])
 
     def test_prune_refuses_never_touch(self) -> None:
-        with mock.patch(
+        with unittest.mock.patch(
             "scripts.ci.box_disk_guard.never_touch_blockers",
             return_value=["never-touch-path"],
         ):
@@ -163,7 +163,7 @@ class ScratchTtlFpTest(unittest.TestCase):
 
             os.utime(own_old, (now - 48 * 3600, now - 48 * 3600))
             os.utime(own_new, (now - 1 * 3600, now - 1 * 3600))
-            with mock.patch(
+            with unittest.mock.patch(
                 "scripts.ci.box_disk_guard.never_touch_blockers",
                 return_value=[],
             ):
@@ -180,7 +180,7 @@ class ScratchTtlFpTest(unittest.TestCase):
             target = Path(tmp) / "x"
             target.mkdir()
             now = 1_700_000_000.0
-            with mock.patch(
+            with unittest.mock.patch(
                 "scripts.ci.box_disk_guard.never_touch_blockers",
                 return_value=[],
             ):
@@ -193,7 +193,7 @@ class ScratchTtlFpTest(unittest.TestCase):
             import os
 
             os.utime(target, (now - 60, now - 60))
-            with mock.patch(
+            with unittest.mock.patch(
                 "scripts.ci.box_disk_guard.never_touch_blockers",
                 return_value=[],
             ):
@@ -202,7 +202,7 @@ class ScratchTtlFpTest(unittest.TestCase):
                 )
             self.assertIn("within-ttl", blockers)
 
-            with mock.patch(
+            with unittest.mock.patch(
                 "scripts.ci.box_disk_guard.never_touch_blockers",
                 return_value=["never-touch-path"],
             ):
