@@ -22,7 +22,9 @@ QC is about to declare a pass ready for owner review.
    loudness, length) are **secondary**. They may pass while the picture
    is still a fail (owner ~2–4/10). Never call a render ready for
    handoff on metrics alone; require a human/visual gate with frame
-   evidence (contact sheet or timed strips).
+   evidence (contact sheet or timed strips). For acceptance, blind A/B
+   vs real reference, floors-only metrics, NaN fail-closed, and reviewer
+   eye-check rules, see [L09 perceptual acceptance](perceptual-acceptance.md).
 3. **AV lag sign by sweep.** Prove lag direction and magnitude with a
    delay sweep (grid of offsets, pick best by both metric and ear/eye).
    Do not guess the sign or a single delay from one trial.
