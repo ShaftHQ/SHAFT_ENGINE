@@ -117,15 +117,13 @@ class HostedCmsLessonCardsTest(unittest.TestCase):
         self.assertIn("hosted-cms-embed", sq)
         self.assertIn("livecms", sq)
         inv = " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split())
-        self.assertIn("31 lesson", inv)
-        self.assertIn("L01-L31", inv)
-        self.assertIn("L32 reserved", inv)
+        self.assertIn("33 lesson", inv)
+        self.assertIn("L01-L33", inv)
         craft = (DESIGN / "references/craft/index.md").read_text(encoding="utf-8")
         self.assertIn("hosted-CMS no-dup chrome", craft)
         self.assertIn("Hosted CMS embed", craft)
-        # L32 must not exist yet (Arabic pending)
-        self.assertFalse(any(LESSONS.glob("*arabic*tech*")))
-        self.assertNotIn("L32 ", index)
+        self.assertTrue(any(LESSONS.glob("*arabic*tech*")))
+        self.assertIn("L32 ", index)
 
     def test_cards_are_project_neutral(self) -> None:
         banned = (

@@ -17,8 +17,8 @@ targets, an anchored rubric, and 20 verified references.
 | [C10](hooks.md) | Hooks, thumbnails and posters | [research/hooks.md](../research/hooks.md) |
 | [C11](social-video.md) | Social media videos | [research/social-video.md](../research/social-video.md) |
 | [C12](training-decks.md) | Training and course decks | none |
-| [Squarespace 7.1](../site-builders/squarespace-7-1.md) | Web builder without JS (companion to C01) | none |
-| [Hosted CMS embed](../site-builders/hosted-cms-embed.md) | Product/landing paste under site chrome (L23–L31) | none |
+| [Squarespace 7.1](../site-builders/squarespace-7-1.md) | Web builder without JS (companion to C01); LESS CSS L33 | none |
+| [Hosted CMS embed](../site-builders/hosted-cms-embed.md) | Product/landing paste under site chrome (L23–L31); Arabic tech L32; LESS CSS L33 | none |
 | [Site merge and redirects](../site-builders/site-merge-redirects.md) | Page merge, anchors, 301s, SEO titles | none |
 
 - Field lessons (hooks over speech, mixed-script captions, talk edits,
@@ -29,7 +29,7 @@ targets, an anchored rubric, and 20 verified references.
   avatar voice first, viral pacing FLAG, ear-lock type templates,
   hosted-CMS no-dup chrome + sticky header offset, assets, CMS meta,
   hostile resets, full-width embed, livecms verify, plan-first,
-  explainer length, paste then re-verify):
+  explainer length, paste then re-verify, Arabic tech code-switch, LESS CSS grid/calc):
   [lesson cards](../lessons/index.md).
 - Web craft (anti-generic lint, motion tokens, GSAP motion, micro-polish,
   measured type): [web-craft cards](../web-craft/index.md).

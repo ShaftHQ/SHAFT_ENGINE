@@ -2350,6 +2350,103 @@ def cmd_cuegapsnap(qc, args) -> int:
 
 
 
+
+# --- Arabic tech copy / bidi-wao (L32) ----------------------------------------
+# Fail Arabic conjunction و adjacent to <bdi> Latin in headings / card titles.
+# Ported from field site gate; default scope is h1–h6 only (card titles are h3).
+WAO_BEFORE = re.compile(r"(?<![ء-يأإآؤئ])و(?:\s|&nbsp;|\u00a0)*<bdi\b", re.I)
+WAO_BETWEEN = re.compile(r"</bdi>(?:\s|&nbsp;|\u00a0)*و(?:\s|&nbsp;|\u00a0)*<bdi\b", re.I)
+HEADING_BLOCKS = re.compile(r"<h([1-6])\b[^>]*>(.*?)</h\1>", re.I | re.S)
+
+
+def _heading_snippets(html: str) -> list[tuple[str, str]]:
+    """Return (label, inner_html) for each h1–h6 (card titles included)."""
+    out = []
+    for match in HEADING_BLOCKS.finditer(html):
+        level, body = match.group(1), match.group(2)
+        out.append((f"h{level}", body))
+    return out
+
+
+def cmd_bidiwao(qc, args) -> int:
+    """L32: flag و adjacent to <bdi> Latin in headings/card titles (use ،)."""
+    files = files_of(args.path, {".html", ".htm"})
+    if not files:
+        return qc.report("bidiwao", qc.USAGE, error="pass an .html/.htm file or directory")
+    hits = []
+    for file in files:
+        html = file.read_text(encoding="utf-8", errors="replace")
+        snippets = [(f"{file}:doc", html)] if args.all else [
+            (f"{file}:{label}", body) for label, body in _heading_snippets(html)
+        ]
+        if not args.all and not snippets:
+            continue
+        for where, body in snippets:
+            if "design-qc: allow" in body:
+                continue
+            if WAO_BEFORE.search(body) or WAO_BETWEEN.search(body):
+                hits.append(f"{where} wao-adjacent-bdi (use ، or one <bdi> island)")
+    return qc.report(
+        "bidiwao",
+        qc.FAIL if hits else qc.PASS,
+        files=len(files),
+        hits=hits,
+        note="L32: no و next to <bdi> in headings/card titles",
+    )
+
+
+
+
+# --- LESS Custom CSS grid/calc (L33) ------------------------------------------
+# Fail slash grid-column/row shorthand and bare (unescaped) calc() under LESS
+# 1.3.3. Ported from Squarespace Custom CSS field lesson.
+# Strip /* */ and // comments before matching so commented examples are ignored.
+_LESS_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+_LESS_LINE_COMMENT = re.compile(r"(?<!:)//.*?$", re.M)
+# grid-column: 1 / -1  or grid-row: 2 / span 3  (slash in the value)
+_GRID_SLASH = re.compile(
+    r"(?i)(?:grid-column|grid-row)\s*:\s*[^;{}\n]*?/"
+)
+def _strip_css_comments(src: str) -> str:
+    return _LESS_LINE_COMMENT.sub("", _LESS_BLOCK_COMMENT.sub("", src))
+
+
+def _bare_calc_snippets(body: str) -> list[str]:
+    """Snippets of bare calc( not escaped as ~\"calc(...)\" / ~'calc(...)'."""
+    out = []
+    for match in re.finditer(r"(?i)\bcalc\s*\(", body):
+        start = match.start()
+        prefix = body[max(0, start - 2):start]
+        if prefix in ('~"', "~'"):
+            continue
+        out.append(body[start:start + 40].split("\n", 1)[0][:60])
+    return out
+
+
+def cmd_lessgrid(qc, args) -> int:
+    """L33: flag slash grid shorthand and bare calc() in LESS Custom CSS."""
+    files = files_of(args.path, {".css", ".less", ".scss"})
+    if not files:
+        return qc.report("lessgrid", qc.USAGE, error="pass a .css/.less/.scss file or directory")
+    hits = []
+    for file in files:
+        raw = file.read_text(encoding="utf-8", errors="replace")
+        if "design-qc: allow" in raw:
+            continue
+        body = _strip_css_comments(raw)
+        for match in _GRID_SLASH.finditer(body):
+            snippet = match.group(0).strip()[:80]
+            hits.append(f"{file}: slash-grid `{snippet}` (use grid-*-start/end)")
+        for snippet in _bare_calc_snippets(body):
+            hits.append(f'{file}: bare-calc `{snippet}` (use ~"calc(...)" or split)')
+    return qc.report(
+        "lessgrid",
+        qc.FAIL if hits else qc.PASS,
+        files=len(files),
+        hits=hits,
+        note="L33: no slash grid shorthand / bare calc under LESS 1.3.3; re-check gutters live after CSS paste",
+    )
+
 # --- Hosted-CMS embed gates (L23–L31) -----------------------------------------
 def _hosted_cms():
     import importlib.util
@@ -2820,6 +2917,15 @@ def register(add, qc) -> None:
     p = add("livecms", bind(cmd_livecms),
             "L28/L31: fail-closed live matrix receipt JSON")
     p.add_argument("file", help="livecms report JSON")
+    p = add("bidiwao", bind(cmd_bidiwao),
+            "L32: Arabic و adjacent to <bdi> Latin in headings/card titles (use ،)")
+    p.add_argument("path", help="HTML file or directory")
+    p.add_argument("--all", action="store_true",
+                   help="scan whole document, not only h1–h6")
+
+    p = add("lessgrid", bind(cmd_lessgrid),
+            "L33: slash grid-column/row + bare calc under LESS 1.3.3 Custom CSS")
+    p.add_argument("path", help="CSS/LESS/SCSS file or directory")
 
     p = add("cuegapsnap", bind(cmd_cuegapsnap),
             "L17: snap cue micro-gaps under ~80ms; --check fails while pending")
