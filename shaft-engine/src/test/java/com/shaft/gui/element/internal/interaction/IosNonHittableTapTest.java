@@ -9,6 +9,7 @@ import io.appium.java_client.ios.IOSDriver;
 import org.mockito.ArgumentCaptor;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
+import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebElement;
 import org.testng.annotations.AfterMethod;
@@ -22,9 +23,10 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -34,7 +36,8 @@ import static org.testng.Assert.fail;
 
 /**
  * Drives the shipped iOS element click and {@code touch().tap(locator)} from their public entry points.
- * A non-hittable element whose page source does not change must not be reported as a successful tap.
+ * A non-hittable element whose page source does not change must not be reported as a successful tap
+ * unless a W3C centre-tap recovery changes the page (#7531 / #6908).
  */
 // Instance fields (driver, helper, saved properties) are per-test state: methods must not interleave
 // under the nightly's -DsetParallel=METHODS (#6931).
@@ -42,6 +45,7 @@ import static org.testng.Assert.fail;
 public class IosNonHittableTapTest {
     private static final By LOGIN = By.xpath("//*[@name='login_iam_loginButton']");
     private static final String UNCHANGED_SOURCE = "<XCUIElementTypeApplication><XCUIElementTypeButton name=\"login_iam_loginButton\" hittable=\"false\"/></XCUIElementTypeApplication>";
+    private static final String AFTER_W3C_SOURCE = "<XCUIElementTypeApplication><XCUIElementTypeOther name=\"civil_id_entry\"/></XCUIElementTypeApplication>";
 
     private String platform;
     private String browserName;
@@ -80,6 +84,7 @@ public class IosNonHittableTapTest {
         RemoteWebElement element = mock(RemoteWebElement.class);
         when(element.getId()).thenReturn("login_iam_loginButton");
         when(element.getSize()).thenReturn(new Dimension(120, 44));
+        when(element.getRect()).thenReturn(new Rectangle(32, 645, 329, 53));
         when(element.getTagName()).thenReturn("XCUIElementTypeButton");
         when(element.isDisplayed()).thenReturn(true);
         when(element.isEnabled()).thenReturn(true);
@@ -90,6 +95,7 @@ public class IosNonHittableTapTest {
         when(driver.getPageSource()).thenReturn(UNCHANGED_SOURCE);
         doAnswer(invocation -> null).when(element).click();
         doAnswer(invocation -> null).when(driver).executeScript(anyString(), any());
+        doAnswer(invocation -> null).when(driver).perform(any());
 
         helper = new DriverFactoryHelper(driver);
 
@@ -99,6 +105,30 @@ public class IosNonHittableTapTest {
         assertNoEffect(clickFailure);
         assertNoEffect(tapFailure);
         assertAnchoredTapAtElementCentre();
+        verify(driver, atLeast(2)).perform(anyCollection());
+    }
+
+    @Test
+    public void w3cCenterTapRecoverySucceedsWhenMobileTapLeavesPageUnchanged() {
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getId()).thenReturn("login_iam_loginButton");
+        when(localElement.getSize()).thenReturn(new Dimension(329, 53));
+        when(localElement.getRect()).thenReturn(new Rectangle(32, 645, 329, 53));
+        when(localElement.getDomAttribute(anyString())).thenReturn("false");
+        when(localElement.getAttribute(anyString())).thenReturn("false");
+        // before → after mobile (unchanged) → after W3C (changed)
+        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE, UNCHANGED_SOURCE, AFTER_W3C_SOURCE);
+        doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+        doAnswer(invocation -> null).when(localDriver).perform(any());
+
+        IosNonHittableTap.afterReportedClick(localDriver, localElement);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
+        verify(localDriver, times(1)).executeScript(eq("mobile: tap"), params.capture());
+        assertEquals(params.getValue().get("elementId"), "login_iam_loginButton");
+        verify(localDriver, times(1)).perform(anyCollection());
     }
 
     @Test
@@ -107,10 +137,12 @@ public class IosNonHittableTapTest {
         RemoteWebElement localElement = mock(RemoteWebElement.class);
         when(localElement.getId()).thenReturn("login_iam_loginButton");
         when(localElement.getSize()).thenReturn(new Dimension(120, 44));
+        when(localElement.getRect()).thenReturn(new Rectangle(10, 20, 120, 44));
         when(localElement.getDomAttribute(anyString())).thenReturn("false");
         when(localElement.getAttribute(anyString())).thenReturn("false");
-        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE, (String) null);
+        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE, (String) null, (String) null);
         doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+        doAnswer(invocation -> null).when(localDriver).perform(any());
 
         Throwable failure = failureFrom(() -> IosNonHittableTap.afterReportedClick(localDriver, localElement));
         assertNoEffect(failure);
@@ -149,7 +181,6 @@ public class IosNonHittableTapTest {
             assertEquals(((Number) tap.get("x")).doubleValue(), 60.0, "element-relative centre x: " + tap);
             assertEquals(((Number) tap.get("y")).doubleValue(), 22.0, "element-relative centre y: " + tap);
         }
-        verify(driver, never()).perform(anyCollection());
     }
 
     private static Collection<Sequence> anyCollection() {
