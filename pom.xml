@@ -99,7 +99,7 @@
         <appium.version>11.0.0</appium.version>
         <browserstack.sdk.version>1.63.0</browserstack.sdk.version>
         <webdrivermanager.version>6.4.0</webdrivermanager.version>
-        <aspectj.version>1.9.25.1</aspectj.version>
+        <aspectj.version>1.9.26</aspectj.version>
         <commons.csv.version>1.14.1</commons.csv.version>
         <jython.slim.version>2.7.4</jython.slim.version>
         <tess4j.version>5.20.0</tess4j.version>
