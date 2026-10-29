@@ -1,5 +1,6 @@
 package com.shaft.tools.io.internal;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
@@ -19,11 +20,13 @@ final class SourceCodeContext {
         throw new IllegalStateException("Utility class");
     }
 
+    @Nullable
     static Path findSourceFile(StackTraceElement frame) {
         return findSourceFile(frame, null);
     }
 
-    static Path findSourceFile(StackTraceElement frame, Class<?> caller) {
+    @Nullable
+    static Path findSourceFile(StackTraceElement frame, @Nullable Class<?> caller) {
         String fileName = frame.getFileName();
         if (fileName == null || !fileName.endsWith(".java") || fileName.contains("/") || fileName.contains("\\")) {
             return null;
@@ -53,7 +56,7 @@ final class SourceCodeContext {
         return null;
     }
 
-    static String relative(Path sourceFile, Class<?> caller) {
+    static String relative(Path sourceFile, @Nullable Class<?> caller) {
         Path absolute = sourceFile.toAbsolutePath().normalize();
         Path workingDirectory = Path.of("").toAbsolutePath().normalize();
         if (absolute.startsWith(workingDirectory)) {
@@ -66,7 +69,8 @@ final class SourceCodeContext {
         return sourceFile.getFileName().toString();
     }
 
-    private static Path moduleRoot(Class<?> caller) {
+    @Nullable
+    private static Path moduleRoot(@Nullable Class<?> caller) {
         if (caller == null) {
             return null;
         }
@@ -88,7 +92,7 @@ final class SourceCodeContext {
         return null;
     }
 
-    static Window read(Path sourceFile, int lineNumber) {
+    static Window read(@Nullable Path sourceFile, int lineNumber) {
         if (lineNumber < 1) {
             return new Window(List.of(), "Source line metadata is unavailable.");
         }
@@ -141,7 +145,7 @@ final class SourceCodeContext {
         return text.substring(0, end > 0 && text.charAt(end - 1) == '\r' ? end - 1 : end);
     }
 
-    static String snippet(Path sourceFile, int lineNumber) {
+    static String snippet(@Nullable Path sourceFile, int lineNumber) {
         Window window = read(sourceFile, lineNumber);
         StringBuilder snippet = new StringBuilder();
         for (Line line : window.lines()) {

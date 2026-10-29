@@ -1,5 +1,6 @@
 package com.shaft.tools.io.internal;
 
+import com.google.common.base.Equivalence;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.qameta.allure.AllureExternalKey;
@@ -8,6 +9,7 @@ import io.qameta.allure.AttachmentOptions;
 import io.qameta.allure.model.Status;
 import io.qameta.allure.model.StepResult;
 
+import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.lang.StackWalker.StackFrame;
 import java.nio.charset.StandardCharsets;
@@ -16,7 +18,6 @@ import java.util.IdentityHashMap;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
@@ -28,10 +29,7 @@ public final class SourceCodeAttachment {
     // Allure loads separate listener instances for each SPI. Share pending captures by model identity so
     // test/fixture callbacks can release the step listener's state, without mixing equal nested steps.
     // StepResult equality/hashCode change with name/status, so ordinary hash keys are unsafe here.
-    private static final Map<StepResult, Capture> active = new IdentityHashMap<>();
-
-    /** Creates a collector for one lifecycle listener's callbacks. */
-    public SourceCodeAttachment() { }
+    private static final IdentityHashMap<StepResult, Capture> active = new IdentityHashMap<>();
 
     /**
      * Captures the user invocation and explicit step identity, without reading source files.
@@ -56,7 +54,7 @@ public final class SourceCodeAttachment {
                 return;
             }
             AtomicBoolean sameStep = new AtomicBoolean();
-            lifecycle.updateStep(key.get(), current -> sameStep.set(current == step));
+            lifecycle.updateStep(key.get(), current -> sameStep.set(Equivalence.identity().equivalent(current, step)));
             if (sameStep.get()) {
                 synchronized (active) {
                     if (active.size() < MAX_ACTIVE_STEPS) {
@@ -134,6 +132,7 @@ public final class SourceCodeAttachment {
         };
     }
 
+    @Nullable
     private static Caller caller(List<StackFrame> frames) {
         boolean action = false;
         boolean validation = false;

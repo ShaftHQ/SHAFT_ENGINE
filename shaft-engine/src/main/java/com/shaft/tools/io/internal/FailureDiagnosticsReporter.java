@@ -316,6 +316,7 @@ public final class FailureDiagnosticsReporter {
         return throwable == null || throwable.getStackTrace().length == 0 ? null : throwable.getStackTrace()[0];
     }
 
+    @javax.annotation.Nullable
     private static Path findSourceFile(StackTraceElement frame) {
         return SourceCodeContext.findSourceFile(frame);
     }

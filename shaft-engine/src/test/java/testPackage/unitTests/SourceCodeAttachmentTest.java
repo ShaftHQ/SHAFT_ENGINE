@@ -28,9 +28,12 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 import org.testng.annotations.DataProvider;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -44,7 +47,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test
-    public void successfulValidationAttachesItsUserSourceLine() throws Exception {
+    public void successfulValidationAttachesItsUserSourceLine() throws Throwable {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always");
         SHAFT.Properties.reporting.set().disableLogging(false).alwaysLogDiscreetly(false);
 
@@ -89,7 +92,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test(dataProvider = "policies")
-    public void modesSelectIndividualFinalStepStatus(String mode, Status status, boolean validation, boolean expected) throws Exception {
+    public void modesSelectIndividualFinalStepStatus(String mode, Status status, boolean validation, boolean expected) throws Throwable {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode(mode).disableLogging(false).alwaysLogDiscreetly(false);
         try (Fixture fixture = new Fixture(status)) {
             if (validation) {
@@ -150,7 +153,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test
-    public void genericLogsAndAttachmentStepsAreExcluded() throws Exception {
+    public void genericLogsAndAttachmentStepsAreExcluded() throws Throwable {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(false).alwaysLogDiscreetly(false);
         try (Fixture fixture = new Fixture(null)) {
             ReportManager.log("ordinary user log");
@@ -160,7 +163,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test
-    public void suppressedSuccessfulStepsStaySuppressed() throws Exception {
+    public void suppressedSuccessfulStepsStaySuppressed() throws Throwable {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(true);
         try (Fixture fixture = new Fixture(null)) {
             terminalAction();
@@ -169,7 +172,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test
-    public void pageObjectOwnsTheNearestUserCallSite() throws Exception {
+    public void pageObjectOwnsTheNearestUserCallSite() throws Throwable {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(false).alwaysLogDiscreetly(false);
         try (Fixture fixture = new Fixture(null)) {
             new PageFixture().open();
@@ -181,7 +184,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test
-    public void attachmentWriteFailureDoesNotChangeActionStatus() throws Exception {
+    public void attachmentWriteFailureDoesNotChangeActionStatus() throws Throwable {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(false).alwaysLogDiscreetly(false);
         try (Fixture fixture = new Fixture(null, true)) {
             terminalAction();
@@ -191,20 +194,68 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test
+    public void unavailableSourceLifecycleDoesNotChangeActionStatus() throws Throwable {
+        SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(false).alwaysLogDiscreetly(false);
+        try (Fixture fixture = new Fixture(null)) {
+            AllureLifecycle unavailable = Mockito.mock(AllureLifecycle.class);
+            Mockito.when(unavailable.getCurrentExecutableKey()).thenThrow(new IllegalStateException("source lifecycle unavailable"));
+            fixture.listeners.clear();
+            fixture.listeners.add(new AllureListener(unavailable));
+            terminalAction();
+            Assert.assertEquals(fixture.result.getSteps().size(), 1);
+            Assert.assertEquals(fixture.result.getSteps().getFirst().getStatus(), Status.PASSED);
+            Assert.assertTrue(fixture.attachments().isEmpty());
+        }
+    }
+
+    @Test
+    public void lostAmbientContextDoesNotAttachSourceToAnUnrelatedStep() throws Throwable {
+        SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(false).alwaysLogDiscreetly(false);
+        try (Fixture fixture = new Fixture(null)) {
+            fixture.listeners.addFirst(new StepLifecycleListener() {
+                @Override
+                public void afterStepStart(StepResult step) {
+                    fixture.lifecycle.clearCurrent();
+                }
+            });
+            terminalAction();
+            Assert.assertEquals(fixture.result.getSteps().size(), 1);
+            Assert.assertEquals(fixture.result.getSteps().getFirst().getStatus(), Status.PASSED);
+            Assert.assertTrue(fixture.attachments().isEmpty());
+        }
+    }
+
+    @Test
+    public void stepWithoutFinalStatusDoesNotClaimExecutedSource() throws Throwable {
+        SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(false).alwaysLogDiscreetly(false);
+        try (Fixture fixture = new Fixture(null)) {
+            fixture.listeners.addFirst(new StepLifecycleListener() {
+                @Override
+                public void beforeStepStop(StepResult step) {
+                    step.setStatus(null);
+                }
+            });
+            terminalAction();
+            Assert.assertEquals(fixture.result.getSteps().size(), 1);
+            Assert.assertNull(fixture.result.getSteps().getFirst().getStatus());
+            Assert.assertTrue(fixture.attachments().isEmpty());
+        }
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
-    public void serviceLoadedTestListenerReleasesAbandonedStepCapture() throws Exception {
+    public void serviceLoadedTestListenerReleasesAbandonedStepCapture() throws Throwable {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(false).alwaysLogDiscreetly(false);
         AllureLifecycle lifecycle = new AllureLifecycle(Mockito.mock(AllureResultsWriter.class));
-        var notifierField = AllureLifecycle.class.getDeclaredField("notifier");
-        notifierField.setAccessible(true);
-        Object notifier = notifierField.get(lifecycle);
-        var stepsField = LifecycleNotifier.class.getDeclaredField("stepListeners");
-        var testsField = LifecycleNotifier.class.getDeclaredField("testListeners");
-        stepsField.setAccessible(true);
-        testsField.setAccessible(true);
-        List<StepLifecycleListener> listeners = (List<StepLifecycleListener>) stepsField.get(notifier);
+        var lifecycleLookup = MethodHandles.privateLookupIn(AllureLifecycle.class, MethodHandles.lookup());
+        var notifier = (LifecycleNotifier) lifecycleLookup
+                .findVarHandle(AllureLifecycle.class, "notifier", LifecycleNotifier.class).get(lifecycle);
+        var notifierLookup = MethodHandles.privateLookupIn(LifecycleNotifier.class, MethodHandles.lookup());
+        List<StepLifecycleListener> listeners = (List<StepLifecycleListener>) notifierLookup
+                .findVarHandle(LifecycleNotifier.class, "stepListeners", List.class).get(notifier);
         Object stepListener = listeners.stream().filter(AllureListener.class::isInstance).findFirst().orElseThrow();
-        Object testListener = ((List<?>) testsField.get(notifier)).stream().filter(AllureListener.class::isInstance).findFirst().orElseThrow();
+        Object testListener = ((List<?>) notifierLookup.findVarHandle(LifecycleNotifier.class, "testListeners", List.class)
+                .get(notifier)).stream().filter(AllureListener.class::isInstance).findFirst().orElseThrow();
         Assert.assertNotSame(stepListener, testListener, "The real SPI uses distinct listener objects.");
         listeners.add(new StepLifecycleListener() {
             @Override
@@ -213,9 +264,10 @@ public class SourceCodeAttachmentTest {
                 lifecycle.stopStep(lifecycle.getCurrentExecutableKey().orElseThrow());
             }
         });
-        var activeField = com.shaft.tools.io.internal.SourceCodeAttachment.class.getDeclaredField("active");
-        activeField.setAccessible(true);
-        Map<StepResult, ?> pending = (Map<StepResult, ?>) activeField.get(null);
+        var collectorLookup = MethodHandles.privateLookupIn(com.shaft.tools.io.internal.SourceCodeAttachment.class,
+                MethodHandles.lookup());
+        IdentityHashMap<StepResult, ?> pending = (IdentityHashMap<StepResult, ?>) collectorLookup
+                .findStaticVarHandle(com.shaft.tools.io.internal.SourceCodeAttachment.class, "active", IdentityHashMap.class).get();
         AllureExternalKey root = AllureExternalKey.random(SourceCodeAttachmentTest.class);
         TestResult result = new TestResult().setUuid(UUID.randomUUID().toString()).setStatus(Status.PASSED);
         try (MockedStatic<Allure> allure = Mockito.mockStatic(Allure.class)) {
@@ -233,7 +285,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test
-    public void browserApiAndElementReportersAttachWithoutLiveInfrastructure() throws Exception {
+    public void browserApiAndElementReportersAttachWithoutLiveInfrastructure() throws Throwable {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(false)
                 .alwaysLogDiscreetly(false).traceEnabled(false);
         SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never").whenToTakePageSourceSnapshot("Never");
@@ -243,11 +295,11 @@ public class SourceCodeAttachmentTest {
             new com.shaft.gui.browser.internal.BrowserActionsHelper(false).passAction(null, "navigateToURL", "fixture");
             new com.shaft.gui.element.internal.ElementActionsHelper(false)
                     .reportActionResult(null, "tap", "fixture", null, null, "fixture", true);
-            var api = com.shaft.api.RestActions.class.getDeclaredMethod("reportActionResult", String.class, String.class,
-                    Object.class, io.restassured.specification.RequestSpecification.class, io.restassured.response.Response.class,
-                    Boolean.class, List.class, Boolean.class, Throwable[].class);
-            api.setAccessible(true);
-            api.invoke(null, "performRequest", "fixture", null, null, null, false, null, true, new Throwable[0]);
+            var api = MethodHandles.privateLookupIn(com.shaft.api.RestActions.class, MethodHandles.lookup())
+                    .findStatic(com.shaft.api.RestActions.class, "reportActionResult", MethodType.methodType(String.class,
+                            String.class, String.class, Object.class, io.restassured.specification.RequestSpecification.class,
+                            io.restassured.response.Response.class, Boolean.class, List.class, Boolean.class, Throwable[].class));
+            api.invoke("performRequest", "fixture", null, null, null, false, null, true, new Throwable[0]);
             Assert.assertEquals(fixture.result.getSteps().size(), 3);
             Assert.assertEquals(fixture.attachments().size(), 3);
         } finally {
@@ -256,7 +308,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test
-    public void mobileActionUsesItsExistingReportingStep() throws Exception {
+    public void mobileActionUsesItsExistingReportingStep() throws Throwable {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(false)
                 .alwaysLogDiscreetly(false).traceEnabled(false);
         SHAFT.Properties.visuals.set().screenshotParamsWhenToTakeAScreenshot("Never").whenToTakePageSourceSnapshot("Never");
@@ -285,7 +337,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test(dataProvider = "publicApiPolicies")
-    public void publicApiRequestAttachesToItsExistingStep(String mode, boolean failed, boolean expected) throws Exception {
+    public void publicApiRequestAttachesToItsExistingStep(String mode, boolean failed, boolean expected) throws Throwable {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode(mode).disableLogging(false)
                 .alwaysLogDiscreetly(false).traceEnabled(false);
         SHAFT.Properties.flags.set().automaticallyAssertResponseStatusCode(true);
@@ -323,7 +375,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test
-    public void capturedKeyKeepsAttachmentOnItsStepWhenAnotherStepIsCurrent() throws Exception {
+    public void capturedKeyKeepsAttachmentOnItsStepWhenAnotherStepIsCurrent() throws Throwable {
         SHAFT.Properties.reporting.set().whenToAttachSourceCode("Always").disableLogging(false).alwaysLogDiscreetly(false);
         try (Fixture fixture = new Fixture(null)) {
             java.util.concurrent.atomic.AtomicReference<AllureExternalKey> outerKey = new java.util.concurrent.atomic.AtomicReference<>();
@@ -355,7 +407,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test
-    public void parallelInvocationsKeepPoliciesAndAttachmentsSeparate() throws Exception {
+    public void parallelInvocationsKeepPoliciesAndAttachmentsSeparate() throws Throwable {
         try (Fixture fixture = new Fixture(null); var executor = Executors.newFixedThreadPool(2)) {
             List<Callable<Integer>> tasks = List.of(() -> isolatedCount(fixture.lifecycle, "Always"),
                     () -> isolatedCount(fixture.lifecycle, "Never"));
@@ -366,7 +418,7 @@ public class SourceCodeAttachmentTest {
     }
 
     @Test
-    public void repeatedAndRetriedInvocationsKeepTheirOwnPolicy() throws Exception {
+    public void repeatedAndRetriedInvocationsKeepTheirOwnPolicy() throws Throwable {
         try (Fixture fixture = new Fixture(null)) {
             fixture.write();
             for (int attempt = 0; attempt < 3; attempt++) {
@@ -406,7 +458,7 @@ public class SourceCodeAttachmentTest {
                 TestResult result = new TestResult().setUuid(UUID.randomUUID().toString());
                 lifecycle.scheduleTest(root, result);
                 lifecycle.startTest(root);
-                terminalAction();
+                new PageFixture().open();
                 lifecycle.stopTest(root);
                 List<Attachment> attachments = new ArrayList<>();
                 collect(result.getSteps(), attachments);
@@ -419,11 +471,11 @@ public class SourceCodeAttachmentTest {
         }
     }
 
-    private static void terminalAction() throws Exception {
-        var method = TerminalActions.class.getDeclaredMethod("reportActionResult", String.class, String.class,
-                String.class, Boolean.class, Exception[].class);
-        method.setAccessible(true);
-        method.invoke(null, "fixture", "source-proof", "", true, new Exception[0]);
+    private static void terminalAction() throws Throwable {
+        var method = MethodHandles.privateLookupIn(TerminalActions.class, MethodHandles.lookup())
+                .findStatic(TerminalActions.class, "reportActionResult", MethodType.methodType(String.class,
+                        String.class, String.class, String.class, Boolean.class, Exception[].class));
+        method.invoke("fixture", "source-proof", "", true, new Exception[0]);
     }
 
     private static final class PageFixture {
@@ -441,20 +493,21 @@ public class SourceCodeAttachmentTest {
         private final MockedStatic<Allure> allure;
         private final List<StepLifecycleListener> listeners = new ArrayList<>();
 
-        private Fixture(Status finalStatus) throws Exception {
+        private Fixture(Status finalStatus) throws Throwable {
             this(finalStatus, false);
         }
 
-        private Fixture(Status finalStatus, boolean failAttachmentWrite) throws Exception {
-            var constructor = AllureLifecycle.class.getDeclaredConstructor(AllureResultsWriter.class, LifecycleNotifier.class);
-            constructor.setAccessible(true);
+        private Fixture(Status finalStatus, boolean failAttachmentWrite) throws Throwable {
+            var constructor = MethodHandles.privateLookupIn(AllureLifecycle.class, MethodHandles.lookup())
+                    .findConstructor(AllureLifecycle.class, MethodType.methodType(void.class,
+                            AllureResultsWriter.class, LifecycleNotifier.class));
             AllureResultsWriter writer = new FileSystemResultsWriter(directory);
             if (failAttachmentWrite) {
                 writer = Mockito.mock(AllureResultsWriter.class);
                 Mockito.doThrow(new IllegalStateException("fixture attachment write unavailable"))
                         .when(writer).write(Mockito.anyString(), Mockito.any(java.io.InputStream.class));
             }
-            lifecycle = constructor.newInstance(writer,
+            lifecycle = (AllureLifecycle) constructor.invoke(writer,
                     new LifecycleNotifier(List.of(), List.of(), List.of(), listeners));
             if (finalStatus != null) {
                 listeners.add(new StepLifecycleListener() {
