@@ -188,12 +188,15 @@ def b607_failures(root: Path, paths: list[str]) -> list[str]:
 
 
 def content_scan_self_test_failures(root: Path) -> list[str]:
-    """Run chaos-engine/content_scan_preflight.py planted self-test (L2 adoption).
+    """Run content_scan_preflight planted self-test (L2 adoption).
 
-    Missing helper (scratch trees) is a no-op. Non-zero self-test exit is a
-    tip failure: plant detected ⇒ 0; plant missed ⇒ 2.
+    Prefer source-tree helper; fall back to installed overlay. Missing helper
+    (scratch trees) is a no-op. Non-zero self-test exit is a tip failure:
+    plant detected ⇒ 0; plant missed ⇒ 2.
     """
     helper = root / "chaos-engine" / "content_scan_preflight.py"
+    if not helper.is_file():
+        helper = root / ".chaos-engine" / "content_scan_preflight.py"
     if not helper.is_file():
         return []
     spec = importlib.util.spec_from_file_location("ce_tip_content_scan_preflight", helper)

@@ -36,9 +36,9 @@ false PASS before a human review round does.
 ## Helper
 
 Reusable planted self-test:
-[`content_scan_preflight.py`](../content_scan_preflight.py)
-(`python3 -m` from repo root, or
-`python3 chaos-engine/content_scan_preflight.py --self-test`).
+[`content_scan_preflight.py`](../content_scan_preflight.py).
+Run `python3 .chaos-engine/content_scan_preflight.py --self-test`
+(tip_preflight also runs this planted check on CE Python tips).
 
 Project gates keep their own token lists; this module only proves the
 content-scan + plant pattern.
