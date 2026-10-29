@@ -169,6 +169,9 @@ public class IosElementReadTest {
     public void unrelatedDriverExceptionIsNotRetried() {
         SHAFT.Properties.platform.set().targetPlatform("iOS");
         SHAFT.Properties.mobile.set().browserName("").automationName("XCUITest");
+        // Safari Local E2E sets -DtargetBrowserName=safari for the whole Maven JVM; prove
+        // native XCUI fail-fast still holds under that property (#7530 / #7456).
+        SHAFT.Properties.web.set().targetBrowserName("safari");
         SHAFT.Properties.timeouts.set().defaultElementIdentificationTimeout(4);
         WebDriver driver = driver();
         WebElement element = element();
