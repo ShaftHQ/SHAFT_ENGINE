@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Thin CLI wrapper over mobile_retro_runtime (operators / local demos).
+"""
+Thin CLI wrapper over mobile_retro_runtime (operators / local demos).
 
 Production live paths call ``mobile_retro_runtime`` from assemble_shard_blob,
 rerun-failures.sh, flutter e2e, overlay_pre_push, extract_allure_failures, and
@@ -9,7 +10,6 @@ hooks/guard PostToolUse — not this file alone.
 from __future__ import annotations
 
 import importlib.util
-import sys
 from pathlib import Path
 
 _RUNTIME = Path(__file__).resolve().parent / "mobile_retro_runtime.py"

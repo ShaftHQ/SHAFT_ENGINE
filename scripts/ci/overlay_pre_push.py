@@ -445,7 +445,8 @@ def no_push_guard_failures(root: Path) -> list[str]:
 
 
 def evidence_pin_failures(root: Path) -> list[str]:
-    """Fail closed when a persisted mobile-retro evidence pin mismatches (#7498).
+    """
+    Fail closed when a persisted mobile-retro evidence pin mismatches (#7498).
 
     Absent pin file → []. Sparse fixtures without mobile_retro skip.
     """
@@ -454,8 +455,6 @@ def evidence_pin_failures(root: Path) -> list[str]:
     if not helper.is_file() or not runtime.is_file():
         return []
     sys.path.insert(0, str(root / "chaos-engine"))
-    import importlib.util
-
     spec = importlib.util.spec_from_file_location("mobile_retro_runtime", runtime)
     if spec is None or spec.loader is None:
         return ["evidence pin checker unavailable"]

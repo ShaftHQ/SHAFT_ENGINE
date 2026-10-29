@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Live mobile-retro runtime wired into executor surfaces (#7494–7496, #7498–7499).
+"""
+Live mobile-retro runtime wired into executor surfaces (#7494–7496, #7498–7499).
 
 Call sites (must stay wired; AST tests enforce):
 - ``scripts/ci/assemble_shard_blob.assemble`` — post-run green freeze (#7494)
@@ -116,7 +117,8 @@ def run_device_with_fallback(
 
 
 def evidence_pin_failures(root: Path, *, build_id: str | None = None, branch: str | None = None) -> list[str]:
-    """Fail-closed pin enforce for overlay_pre_push (#7498).
+    """
+    Fail-closed pin enforce for overlay_pre_push (#7498).
 
     No pin file → []; mismatch → non-empty failure list (callers treat as block).
     """

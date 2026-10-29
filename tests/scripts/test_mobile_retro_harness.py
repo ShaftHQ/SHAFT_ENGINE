@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import ast
-import json
 import importlib.util
 import sys
 import tempfile
 import time
 import unittest
-from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -226,8 +224,7 @@ class EvidencePinFailClosedLiveTest(unittest.TestCase):
             mobile_retro.persist_evidence_pin(
                 pin, mobile_retro.EvidencePin(build_id="pinned", branch="pinned-branch")
             )
-            failures = overlay_pre_push.evidence_pin_failures(root)
-            # current build/branch from git in tmp may not exist → unknown; force via runtime
+            # Force build/branch via runtime (tmp git may be unknown-*).
             spec = importlib.util.spec_from_file_location(
                 "mobile_retro_runtime", root / "scripts/ci/mobile_retro_runtime.py"
             )
@@ -360,27 +357,7 @@ class ExtractReporterLiveTest(unittest.TestCase):
         self.assertIn("_mobile_retro_named_blocks", names)
 
     def test_named_blocks_helper_writes_one_block_per_gap(self) -> None:
-        from scripts.ci import extract_allure_failures as eaf
-
-        with tempfile.TemporaryDirectory() as tmp:
-            cwd = Path.cwd()
-            try:
-                import os
-
-                os.chdir(tmp)
-                Path(".chaos-engine-state/mobile-retro").mkdir(parents=True)
-                # Ensure runtime importable from REPO scripts path via helper loading ROOT runtime
-                # Call helper with synthetic failures (method, shared reason → one gap)
-                Fail = eaf.AllureFailure
-                failures = [
-                    Fail("s", "failed", "scen-a", "missing grant", "t"),
-                    Fail("s", "failed", "scen-b", "missing grant", "t"),
-                    Fail("s", "failed", "scen-c", "timeout", "t"),
-                ]
-                # Point helper at REPO runtime by running from ROOT with report under tmp via chdir back
-            finally:
-                os.chdir(cwd)
-        # Drive runtime reporter directly as extract does
+        # Drive runtime reporter the same way extract_allure_failures does.
         with tempfile.TemporaryDirectory() as tmp:
             report = Path(tmp) / "blocks.json"
             # Load runtime
