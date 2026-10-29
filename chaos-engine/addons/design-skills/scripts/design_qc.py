@@ -25,6 +25,7 @@ from array import array
 from pathlib import Path
 
 PASS, FAIL, USAGE, SKIPPED = 0, 1, 2, 4
+FLAG = "flag"  # advisory: status=flag, exit 0 (never a hard fail)
 STATUS = {PASS: "pass", FAIL: "fail", USAGE: "error", SKIPPED: "skipped"}
 
 
@@ -32,7 +33,10 @@ class Skip(Exception):
     """A required external tool is unavailable."""
 
 
-def report(check: str, code: int, **details: object) -> int:
+def report(check: str, code: int | str, **details: object) -> int:
+    if code == FLAG or code == "flag":
+        print(json.dumps({"check": check, "status": "flag", **details}, sort_keys=True))
+        return PASS
     print(json.dumps({"check": check, "status": STATUS[code], **details}, sort_keys=True))
     return code
 

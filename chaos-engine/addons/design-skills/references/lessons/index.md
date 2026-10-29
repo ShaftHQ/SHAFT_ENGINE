@@ -26,5 +26,7 @@ one lesson card.
 | [L18 ASR names in run_gates](asr-names-run-gates.md) | wire privacy/ASR scan into run_gates; fail-closed if words missing |
 | [L19 hard-cut coherence](hard-cut-coherence.md) | each join one thought; prefer contiguous alternate over bad cut |
 | [L20 avatar voice first](avatar-voice-first.md) | voice is first dealbreaker; I2V still ≠ voice-matched avatar |
+| [L21 viral pacing FLAG](viral-pacing-flag.md) | late punchline on viral → FLAG (advisory), never FAIL |
+| [L22 ear-lock type templates](earlock-type-templates.md) | ear-lock title; viral vs qa G16 line-1 prefixes |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).
