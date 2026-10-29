@@ -94,7 +94,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPanelSetupTest {
     static {
-        // Plugin-owned IconLoader SVGs (ATTACH/GITHUB) paint under headless once activated.
+        // Plugin-owned IconLoader SVG (ATTACH) paints under headless once activated.
         // AllIcons DeferredIcons do not rasterize in this plain JUnit sandbox — see assertIcon.
         com.intellij.openapi.util.IconLoader.activate();
     }
@@ -6470,6 +6470,8 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertNull(findButton(panel, "Test connection and start chatting")),
                 () -> assertIcon(findButton(panel, "New chat")),
+                () -> assertIcon(findButton(panel, "Attach")),
+                () -> assertIcon(findButton(panel, "Save transcript")),
                 () -> assertIcon(findButton(panel, "Copy response")),
                 () -> assertIcon(findButton(panel, "Copy raw")),
                 () -> assertIcon(findButton(panel, "Copy all")),
@@ -9245,6 +9247,9 @@ class ShaftPanelSetupTest {
         assertNotNull(icon, name);
         assertTrue(icon.getIconWidth() > 0, name);
         assertTrue(icon.getIconHeight() > 0, name);
+        // Always enforce ≥16 before any paint early-return (Carl #7621 nit).
+        assertTrue(icon.getIconWidth() >= 16, name);
+        assertTrue(icon.getIconHeight() >= 16, name);
         if (paintsVisiblePixels(icon, button)) {
             return;
         }
@@ -9253,15 +9258,13 @@ class ShaftPanelSetupTest {
         // JUnit, not UsefulTestCase with isIconRequired(). IconLoader.activate() alone leaves
         // a fake empty IconManager; CoreIconManager.Companion.activate was tried on #7621 and
         // (a) still painted zero pixels for AllIcons and (b) poisoned later LightPlatform tests
-        // via TestLogger ERROR (4 failures → 21). Plugin-owned IconLoader SVGs (ATTACH/GITHUB)
-        // must still paint; AllIcons chrome is proven by non-null/sized here plus
+        // via TestLogger ERROR (4 failures → 21). Plugin-owned IconLoader SVG (ATTACH) must
+        // still paint; AllIcons chrome is proven by non-null/≥16 here plus
         // ShaftIconsTest.genericActionsReuseAllIcons identity.
         assertTrue(
                 isPlatformAllIconsMetaphor(icon),
                 () -> "icon paints no visible pixels and is not an AllIcons metaphor: "
                         + name + " class=" + icon.getClass().getName());
-        assertTrue(icon.getIconWidth() >= 16, name);
-        assertTrue(icon.getIconHeight() >= 16, name);
     }
 
     private static boolean paintsVisiblePixels(Icon icon, JButton button) {
@@ -9291,7 +9294,7 @@ class ShaftPanelSetupTest {
         return false;
     }
 
-    /** True when {@code icon} is one of the AllIcons refs ShaftIcons reuses (not ATTACH/GITHUB). */
+    /** True when {@code icon} is one of the AllIcons refs ShaftIcons reuses (not ATTACH). */
     private static boolean isPlatformAllIconsMetaphor(Icon icon) {
         return icon == ShaftIcons.ADD
                 || icon == ShaftIcons.CANCEL

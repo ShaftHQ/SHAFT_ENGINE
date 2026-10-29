@@ -8,9 +8,9 @@ import javax.swing.Icon;
 /**
  * Action icons for SHAFT UI (Carl F03 / F04 / W1.2).
  *
- * <p>Generic metaphors come from {@link AllIcons}. Plugin-owned glyphs (attach, GitHub)
- * load via {@link IconLoader}, which resolves {@code _dark} variants without a manual
- * {@code ThemeIcon} switch.
+ * <p>Generic metaphors come from {@link AllIcons}. The plugin-owned attach glyph
+ * loads via {@link IconLoader}, which resolves {@code _dark} variants without a manual
+ * {@code ThemeIcon} switch. A GitHub glyph is not shipped until a control wires it.
  */
 public final class ShaftIcons {
     public static final Icon ADD = AllIcons.General.Add;
@@ -25,8 +25,6 @@ public final class ShaftIcons {
     public static final Icon DELETE = AllIcons.General.Remove;
     public static final Icon DOWNLOAD = AllIcons.Actions.Download;
     public static final Icon EDIT = AllIcons.Actions.Edit;
-    /** Plugin-owned: no stable AllIcons GitHub glyph across IDE builds. */
-    public static final Icon GITHUB = IconLoader.getIcon("/icons/actions/github.svg", ShaftIcons.class);
     public static final Icon HELP = AllIcons.General.ContextHelp;
     public static final Icon MOVE_DOWN = AllIcons.Actions.MoveDown;
     public static final Icon MOVE_UP = AllIcons.Actions.MoveUp;

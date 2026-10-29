@@ -52,9 +52,8 @@ class ShaftIconAssetsTest {
     void pluginOwnedActionIconsRemainVectorPairs() throws IOException {
         // W1.2: generic actions moved to AllIcons; only SHAFT-unique glyphs stay as plugin SVGs.
         Path actions = Path.of("src/main/resources/icons/actions");
-        assertAll(
-                actionIconAssertions(actions, "attach"),
-                actionIconAssertions(actions, "github"));
+        // Only ATTACH is wired in UI; github.svg pair dropped until a control needs it (Carl #7621 B1).
+        assertAll(actionIconAssertions(actions, "attach"));
     }
 
     @Test
