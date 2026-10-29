@@ -7389,7 +7389,7 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
     return lines
 
 
-AGENT_SUMMARY_MAX_LINES = 10
+AGENT_SUMMARY_MAX_LINES = 11
 
 
 def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
@@ -7437,6 +7437,7 @@ def format_agent_summary(document: dict[str, object]) -> str:
         "token-economy: " + " ".join(token_economy_status()),
         "delete-guard: " + " ".join(delete_guard_status()),
         "backup-remote: " + " ".join(backup_remote_advisory(installed_project())),
+        "backups-watch: " + " ".join(backups_watch_advisory()),
         "secret-guard: " + " ".join(secret_guard_status(installed_project())),
     ]
     if delete_guard_status()[0] != "pass" or lines[-1].startswith("secret-guard: fail"):
@@ -7471,6 +7472,21 @@ def delete_guard_status(root: Path | None = None) -> tuple[str, ...]:
     except Exception as error:  # nosec B110 - doctor reports, never crashes
         return ("fail", f"({type(error).__name__})")
     return (status,) if status == "pass" else (status, f"({reason})")
+
+
+def backups_watch_advisory(root: Path | None = None) -> tuple[str, ...]:
+    """Advisory tip for the optional backups-dir watcher; never fails doctor."""
+    try:
+        path = (root or Path(__file__).resolve().parent) / "backups_watch.py"
+        if not path.is_file():
+            return ("warn", "(backups_watch.py missing)")
+        spec = importlib.util.spec_from_file_location("_chaos_engine_backups_watch_doctor", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        status, reason = module.doctor_row()
+    except Exception as error:  # nosec B110 - advisory only
+        return ("warn", f"({type(error).__name__})")
+    return (status,) if not reason else (status, f"({reason})")
 
 
 def backup_remote_advisory(project: Path | None, root: Path | None = None) -> tuple[str, ...]:

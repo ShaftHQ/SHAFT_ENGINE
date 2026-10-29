@@ -11,6 +11,13 @@ exact path list; a hard never-touch list refuses even with a code.
 #7525: verified uploaded yt files on a local/env allowlist (path + video id + sha256)
 may take the owner code after live sha + oEmbed author proof; yt/meta and unverified stay locked.
 oEmbed HTTP 403 means private (not a box IP block); optional CHAOS_YT_EXPECTED_AUTHORS binds channel.
+Also covers raw filesystem deletes that previously bypassed the shell-word trigger:
+``mv`` of a source path (including to trash/outside), ``rsync --delete*`` /
+``--remove-source-files``, and ``Path(...).unlink|rmdir|rmtree`` constructor forms.
+Tree ops that follow links (``find -delete``, ``rsync --delete*``, ``rm -r`` with a
+trailing slash, ``shutil.rmtree`` / ``Path.rmtree``, ``mv`` of ``src/``) resolve the
+realpath and apply ``path_reason`` to the target; plain ``rm`` of a symlink stays a
+link-only delete. Symlink resolution failures refuse closed.
 """
 
 from __future__ import annotations
@@ -76,12 +83,20 @@ DEFAULT_ALLOW = (
     "**/*video*/**/frames/**",
     "**/*video*/**/clips/**",
 )
-DELETE_WORD = re.compile(r"(?:^|[^\w.-])(?:rm|unlink|shred|rmtree|clean)\b|-delete\b|-exec(?:dir)?\s+\S*rm\b")
+DELETE_WORD = re.compile(
+    r"(?:^|[^\w.-])(?:rm|unlink|shred|rmtree|clean|mv)\b|-delete\b|--remove-source-files\b|"
+    r"-exec(?:dir)?\s+\S*rm\b"
+)
 UNSURE = re.compile(r"\$|`|<\(|>\(")
 RMTREE = re.compile(
-    r"(?:shutil\.rmtree|os\.remove|os\.unlink|os\.rmdir|\.unlink|\.rmtree)\s*\(\s*(?P<arg>[^)]*)\)"
+    r"(?:shutil\.rmtree|os\.remove|os\.unlink|os\.rmdir|\.unlink|\.rmtree|\.rmdir)\s*\(\s*(?P<arg>[^)]*)\)"
+)
+# Path('literal').unlink() / .rmdir() / .rmtree() — path is in the constructor, not the call.
+PATHLIB_DELETE = re.compile(
+    r"""(?:pathlib\.)?Path\s*\(\s*(?:r|R)?(['"])(?P<path>[^'"]+)\1\s*\)\s*\.\s*(?:unlink|rmdir|rmtree)\b"""
 )
 LITERAL = re.compile(r"""^\s*(?:Path\()?\s*(?:r|R)?(['"])(?P<path>[^'"]+)\1\s*\)?\s*(?:,.*)?$""")
+RS_DELETE = re.compile(r"^--delete(?:-|$)|^-delete$|^--remove-source-files$")
 WRAPPERS = frozenset({"command", "env", "sudo", "timeout", "nice", "nohup", "exec", "builtin"})
 SHELLS = frozenset({"sh", "bash", "zsh", "dash"})
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -163,30 +178,118 @@ def _git_clean_targets(arguments: list[str]) -> list[str] | None:
     return words[1:] or ["."]
 
 
-def _python_targets(segment: str) -> list[str]:
-    targets = []
+def _python_entries(segment: str) -> list[tuple[str, bool]]:
+    """Return (path, follow_symlinks) for Python delete calls in ``segment``."""
+    entries: list[tuple[str, bool]] = []
+    for match in PATHLIB_DELETE.finditer(segment):
+        method = match.group(0).rsplit(".", 1)[-1]
+        # Path.rmtree follows; unlink/rmdir operate on the named inode (link itself).
+        follow = method.startswith("rmtree")
+        entries.append((match.group("path"), follow))
     for match in RMTREE.finditer(segment):
-        literal = LITERAL.match(match.group("arg"))
+        arg = match.group("arg")
+        # Method calls already captured via PATHLIB_DELETE have an empty arg list.
+        if not arg.strip() and match.group(0).lstrip().startswith("."):
+            continue
+        literal = LITERAL.match(arg)
         if literal is None:
             raise Unsure("non-literal path in a Python delete call")
-        targets.append(literal.group("path"))
+        token = match.group(0)
+        follow = "rmtree" in token
+        entries.append((literal.group("path"), follow))
+    return entries
+
+
+def _operands(arguments: list[str]) -> list[str]:
+    """Non-option operands after optional ``--``."""
+    targets, options = [], True
+    for item in arguments:
+        if options and item == "--":
+            options = False
+        elif options and item.startswith("-") and item != "-":
+            continue
+        else:
+            targets.append(item)
     return targets
 
 
-def _segment_targets(arguments: list[str], cwd: Path) -> list[Path]:
+def _rm_recursive(arguments: list[str]) -> bool:
+    for item in arguments:
+        if item in {"-r", "-R", "--recursive"}:
+            return True
+        if item.startswith("-") and not item.startswith("--") and any(flag in item for flag in "rR"):
+            return True
+    return False
+
+
+def _mv_entries(arguments: list[str]) -> list[tuple[str, bool]]:
+    """``mv`` sources; trailing slash means move-through-contents (follow)."""
+    operands = _operands(arguments)
+    if len(operands) < 2:
+        raise Unsure("mv without source and destination")
+    return [(item, item.endswith(("/", os.sep))) for item in operands[:-1]]
+
+
+def _rsync_entries(arguments: list[str]) -> list[tuple[str, bool]]:
+    """``rsync --delete*`` / ``--remove-source-files`` always follow symlink operands."""
+    deleteish = any(RS_DELETE.match(item) or item.startswith("--delete-") for item in arguments)
+    remove_sources = "--remove-source-files" in arguments
+    if not deleteish and not remove_sources:
+        return []
+    operands = _operands(arguments)
+    if len(operands) < 2:
+        raise Unsure("rsync delete without source and destination")
+    sources, dest = operands[:-1], operands[-1]
+    raw = [dest] if deleteish else []
+    if remove_sources:
+        raw = list(sources) + raw
+    if not raw:
+        raise Unsure("rsync delete without resolvable targets")
+    return [(item, True) for item in raw]
+
+
+def _resolve_follow(path: Path) -> Path:
+    """Realpath for tree ops that follow links; refuse closed when resolution fails."""
+    try:
+        if path.is_symlink() or path.exists():
+            return path.resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        raise Unsure(f"cannot resolve symlink delete target: {path}") from error
+    return path
+
+
+def _expand_entries(raw: list[tuple[str, bool]], cwd: Path) -> list[tuple[Path, bool]]:
+    found: list[tuple[Path, bool]] = []
+    for item, follow in raw:
+        for path in _expand(item, cwd):
+            found.append((path, follow))
+    return found
+
+
+def _segment_targets(arguments: list[str], cwd: Path) -> list[tuple[Path, bool]]:
     head, rest = _head(arguments)
-    raw: list[str] = []
     if head in {"rm", "unlink", "shred"}:
-        raw = _rm_targets(rest)
-    elif head == "find":
-        raw = _find_targets(rest)
-    elif head == "git":
+        recursive = _rm_recursive(rest)
+        # Trailing slash + recursive: GNU rm follows the symlink and deletes contents.
+        return _expand_entries(
+            [(item, recursive and item.endswith(("/", os.sep))) for item in _rm_targets(rest)],
+            cwd,
+        )
+    if head == "mv":
+        return _expand_entries(_mv_entries(rest), cwd)
+    if head == "rsync":
+        return _expand_entries(_rsync_entries(rest), cwd)
+    if head == "find":
+        # find follows a symlink start point when searching/deleting under it.
+        return _expand_entries([(item, True) for item in _find_targets(rest)], cwd)
+    if head == "git":
         raw = _git_clean_targets(_drop_git_options(rest)) or []
-    elif head in {"xargs", "parallel"} and DELETE_WORD.search(" ".join(rest)):
+        return _expand_entries([(item, False) for item in raw], cwd)
+    if head in {"xargs", "parallel"} and DELETE_WORD.search(" ".join(rest)):
         raise Unsure("xargs/parallel delete: targets come from stdin")
-    elif head in SHELLS and "-c" in rest and rest.index("-c") + 1 < len(rest):
+    if head in SHELLS and "-c" in rest and rest.index("-c") + 1 < len(rest):
         return _command_targets(rest[rest.index("-c") + 1], cwd)[0]
-    return [path for item in raw for path in _expand(item, cwd)]
+    return []
 
 
 def _segments(line: str) -> list[list[str]]:
@@ -201,12 +304,12 @@ def _segments(line: str) -> list[list[str]]:
     return [segment for segment in segments if segment]
 
 
-def _command_targets(command: str, cwd: Path) -> tuple[list[Path], Path]:
-    """Every path a shell command would delete, resolved against a tracked cwd."""
-    found: list[Path] = []
+def _command_targets(command: str, cwd: Path) -> tuple[list[tuple[Path, bool]], Path]:
+    """Every (path, follow_symlinks) a shell command would delete, against a tracked cwd."""
+    found: list[tuple[Path, bool]] = []
     for line in command.splitlines():
-        if RMTREE.search(line):
-            found.extend(path for item in _python_targets(line) for path in _expand(item, cwd))
+        if RMTREE.search(line) or PATHLIB_DELETE.search(line):
+            found.extend(_expand_entries(_python_entries(line), cwd))
         try:
             segments = _segments(line)
         except ValueError as error:
@@ -238,7 +341,12 @@ def _expand(raw: str, cwd: Path) -> list[Path]:
 
 
 def command_targets(command: str, cwd: Path | None = None) -> list[Path]:
-    return _command_targets(command, (cwd or Path.cwd()).resolve())[0]
+    """Paths a command would delete; tree ops resolve symlink operands to their realpath."""
+    entries, _ = _command_targets(command, (cwd or Path.cwd()).resolve())
+    resolved: list[Path] = []
+    for path, follow in entries:
+        resolved.append(_resolve_follow(path) if follow else path)
+    return list(dict.fromkeys(resolved))
 
 
 def _git(cwd: Path, *argv: str) -> subprocess.CompletedProcess:
@@ -316,7 +424,9 @@ def path_reason(path: Path, project: Path | None = None) -> str:
     if not path.exists() and not path.is_symlink():
         return ""
     if path.is_symlink():
-        return ""  # rm removes the link, not its target.
+        # Link-only deletes (plain rm/unlink/mv of the symlink inode). Tree ops
+        # that follow links resolve via command_targets before path_reason runs.
+        return ""
     probe = _existing(path)
     top = _git(probe, "rev-parse", "--show-toplevel")
     if top.returncode != 0:
@@ -541,7 +651,7 @@ def _normalized_abs(path: Path | str) -> Path:
 
 def _safe_listed_realpath(raw: str) -> str | None:
     """Normalize an allowlist path; reject '..', globs, dirs, escapes, and symlink components."""
-    if glob.has_magic(raw) or raw.endswith(("/", "\\")):
+    if glob.has_magic(raw) or raw.endswith(("/", os.sep)):
         return None
     expanded = Path(os.path.expanduser(raw))
     if ".." in expanded.parts:
@@ -728,7 +838,7 @@ def consume_code(code: str, paths: list[Path]) -> str:
 
 def check(command: str, cwd: Path | None = None, project: Path | None = None, code: str | None = None) -> tuple[str, list[str]]:
     """(refusal or '', warnings). A matching owner code turns git/allow-list refusals into warnings."""
-    if not (DELETE_WORD.search(command) or RMTREE.search(command)):
+    if not (DELETE_WORD.search(command) or RMTREE.search(command) or PATHLIB_DELETE.search(command)):
         return "", []
     try:
         targets = command_targets(command, cwd)
