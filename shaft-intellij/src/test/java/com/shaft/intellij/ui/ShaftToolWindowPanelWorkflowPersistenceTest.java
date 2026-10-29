@@ -70,6 +70,18 @@ class ShaftToolWindowPanelWorkflowPersistenceTest {
     }
 
     @Test
+    void legacyLiveRecordKeyRestoresWorkflowSurface() {
+        // W0.2: LIVE_RECORD_TAB ("Live record") must resolve via surfaceTarget, not fall through to Agent.
+        FakePropertiesComponent properties = new FakePropertiesComponent();
+        properties.setValue(ShaftUiState.WORKFLOW_VIEW_KEY, ShaftToolWindowPanel.LIVE_RECORD_TAB);
+
+        ShaftToolWindowPanel panel = newPanel(properties);
+
+        assertEquals(ShaftToolWindowPanel.SURFACE_WORKFLOW, selectedLabel(panel));
+        assertEquals("Live record", ShaftToolWindowPanel.LIVE_RECORD_TAB);
+    }
+
+    @Test
     void selectingAutomationPersistsLiveRecordNotGuided() {
         FakePropertiesComponent properties = new FakePropertiesComponent();
         ShaftToolWindowPanel panel = newPanel(properties);

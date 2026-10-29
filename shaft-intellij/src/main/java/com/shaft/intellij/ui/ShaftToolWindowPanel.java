@@ -811,17 +811,15 @@ public final class ShaftToolWindowPanel extends JPanel implements Disposable {
         if (surface.isBlank()) {
             return;
         }
-        // Issue #6014: never re-write the retired Guided key; canonicalize to Live record.
-        if ("Guided".equals(surface)) {
-            surface = LIVE_RECORD_TAB;
-        }
+        // Issue #6014: selectedSurfaceLabel never returns the retired "Guided" key.
+        // Restore still accepts Guided + LIVE_RECORD_TAB via surfaceTarget().
         ShaftUiState.getInstance(project).setWorkflowView(surface);
     }
 
     private SurfaceTarget surfaceTarget(String savedKey) {
         return switch (savedKey) {
-            case SURFACE_WORKFLOW, "Guided", "Recorder", "Automation", "Inspector", "API Recording",
-                    "SHAFT Tests", "More" ->
+            case SURFACE_WORKFLOW, LIVE_RECORD_TAB, "Guided", "Recorder", "Automation", "Inspector",
+                    "API Recording", "SHAFT Tests", "More" ->
                     new SurfaceTarget(SURFACE_WORKFLOW, SURFACE_WORKFLOW, guidedWorkflowPanel);
             case SURFACE_LOG -> new SurfaceTarget(SURFACE_LOG, SURFACE_LOG, executionLogPanel);
             default -> new SurfaceTarget(SURFACE_AGENT, SURFACE_AGENT, assistantPanel);
