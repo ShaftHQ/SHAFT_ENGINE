@@ -1584,6 +1584,20 @@ def cmd_privacynames(qc, args) -> int:
         if has_mute and not has_text_scan:
             notes_ok = False
             hits.append("notes:mute-without-text-scan")
+    if getattr(args, "require_words", False) and not args.words:
+        return qc.report(
+            "privacynames", qc.FAIL,
+            hits=["missing words.json (--require-words)"],
+            note="ASR words required in run_gates; missing ≠ pass (L18)",
+        )
+    if getattr(args, "require_words", False) and args.words:
+        words_path = Path(args.words)
+        if not words_path.exists() or words_path.stat().st_size < 2:
+            return qc.report(
+                "privacynames", qc.FAIL,
+                hits=["missing or empty words.json (--require-words)"],
+                note="ASR words required in run_gates; missing ≠ pass (L18)",
+            )
     if not scanned:
         return qc.report(
             "privacynames", qc.USAGE,
@@ -1733,16 +1747,33 @@ def cmd_endcardlive(qc, args) -> int:
     if live_path is None:
         if not args.file:
             return qc.report("endcardlive", qc.USAGE, error="pass final.mp4 or --live frame")
-        # Grab a frame near end of end-card hold
+        # Grab a frame near end of end-card hold (L16: video-stream duration + pix_fmt)
         import tempfile, subprocess
-        dur = float(qc.ffprobe(args.file).get("format", {}).get("duration", 0) or 0)
+        probe = qc.ffprobe(args.file)
+        vdur = None
+        for stream in probe.get("streams") or []:
+            if stream.get("codec_type") == "video":
+                raw = stream.get("duration")
+                if raw not in (None, "N/A", "n/a"):
+                    try:
+                        vdur = float(raw)
+                    except (TypeError, ValueError):
+                        vdur = None
+                break
+        fmt_dur = float((probe.get("format") or {}).get("duration", 0) or 0)
+        dur = vdur if vdur is not None else fmt_dur
         ss = max(0.0, dur - float(args.offset_from_end))
         tmp = Path(tempfile.mkdtemp(prefix="ce-endcard-")) / "live.jpg"
-        cmd = [qc.need("ffmpeg"), "-v", "error", "-y", "-ss", str(ss), "-i", args.file,
-               "-frames:v", "1", "-q:v", "2", str(tmp)]
+        cmd = [
+            qc.need("ffmpeg"), "-v", "error", "-y", "-ss", str(ss), "-i", args.file,
+            "-frames:v", "1", "-update", "1", "-q:v", "2", "-pix_fmt", "yuvj420p", str(tmp),
+        ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)  # nosec B603
-        if result.returncode != 0:
-            return qc.report("endcardlive", qc.USAGE, error=f"ffmpeg failed: {result.stderr[-400:]}")
+        if result.returncode != 0 or not tmp.exists() or tmp.stat().st_size < 500:
+            return qc.report(
+                "endcardlive", qc.USAGE,
+                error=f"ffmpeg failed or empty frame at ss={ss}: {(result.stderr or '')[-400:]}",
+            )
         live_path = tmp
 
     live_im = np.array(Image.open(live_path).convert("RGB"))
@@ -1899,6 +1930,237 @@ def cmd_qmarkbaseline(qc, args) -> int:
         side=worst["side"], bottom_offset_frac=worst["bottom_offset_frac"],
         baseline=worst["baseline"], line_h=worst["line_h"],
         note="mixed-font trailing ?/؟ share body baseline; fail >6% line_h (L12)",
+    )
+
+
+
+
+def _leak_ink_below_band(rgb, band_y: int, band_h: int) -> dict:
+    """Detect text-like near-white ink below the overlay band (L14)."""
+    import numpy as np
+    h = int(rgb.shape[0])
+    y0 = int(band_y) + int(band_h)
+    if y0 >= h - 1:
+        return {"status": "pass", "ink": 0, "text_rows": 0, "bbox": None}
+    below = rgb[y0:h].astype("float32")
+    mn, mx = below.min(axis=2), below.max(axis=2)
+    bright = (mn > 200) & ((mx - mn) < 40)
+    row_counts = bright.sum(axis=1)
+    text_rows = int((row_counts >= 20).sum())
+    ink = int(bright.sum())
+    ys, xs = np.where(bright)
+    bbox = None
+    if len(ys):
+        bbox = [int(xs.min()), int(ys.min()) + y0, int(xs.max()), int(ys.max()) + y0]
+    status = "fail" if text_rows >= 3 and ink >= 200 else "pass"
+    return {"status": status, "ink": ink, "text_rows": text_rows, "bbox": bbox, "band_bottom": y0}
+
+
+def cmd_bandcoverage(qc, args) -> int:
+    """L14: text-like ink outside burned band on sampled content frames."""
+    try:
+        from PIL import Image
+        import numpy as np
+    except ImportError as exc:  # pragma: no cover
+        raise qc.Skip(f"Pillow/numpy required for bandcoverage: {exc}") from exc
+
+    frames: list[Path] = []
+    if args.frame:
+        frames = [Path(p) for p in args.frame]
+    elif args.mp4:
+        import tempfile, subprocess
+        mp4 = Path(args.mp4)
+        probe = qc.ffprobe(str(mp4))
+        dur = float((probe.get("format") or {}).get("duration", 0) or 0)
+        end = float(args.content_end) if args.content_end is not None else max(0.5, dur - 3.0)
+        end = max(0.5, min(end, dur - 0.05)) if dur > 0.5 else 0.5
+        n = max(1, int(args.n))
+        times = [0.3] if n == 1 else [0.3 + i * (end - 0.3) / (n - 1) for i in range(n)]
+        tmp = Path(tempfile.mkdtemp(prefix="ce-bandcov-"))
+        for i, t in enumerate(times):
+            out = tmp / f"f{i}.png"
+            cmd = [
+                qc.need("ffmpeg"), "-v", "error", "-y", "-ss", f"{t:.3f}", "-i", str(mp4),
+                "-frames:v", "1", str(out),
+            ]
+            subprocess.run(cmd, capture_output=True, text=True, check=False)  # nosec B603
+            if out.exists():
+                frames.append(out)
+    else:
+        return qc.report("bandcoverage", qc.USAGE, error="pass --frame and/or --mp4")
+
+    if not frames:
+        return qc.report("bandcoverage", qc.FAIL, error="no frames to check", frames_checked=0)
+
+    samples = []
+    worst = None
+    for frame in frames:
+        rgb = np.array(Image.open(frame).convert("RGB"))
+        detail = _leak_ink_below_band(rgb, int(args.band_y), int(args.band_h))
+        detail["frame"] = str(frame)
+        samples.append(detail)
+        if worst is None or (
+            (detail["status"] == "fail" and worst["status"] != "fail")
+            or detail["ink"] > worst.get("ink", 0)
+        ):
+            worst = detail
+    status = qc.FAIL if any(s["status"] == "fail" for s in samples) else qc.PASS
+    return qc.report(
+        "bandcoverage", status,
+        frames_checked=len(samples),
+        band=[int(args.band_y), int(args.band_h)],
+        worst=worst,
+        samples=[{"status": s["status"], "ink": s["ink"], "text_rows": s["text_rows"]} for s in samples],
+        note="multi-sample ink outside band = FAIL (L14)",
+    )
+
+
+def check_mute_spans(
+    mutes: list[tuple[float, float]] | None,
+    content_dur: float,
+    *,
+    max_span: float = 2.0,
+    max_frac: float = 0.10,
+) -> dict:
+    """L15: reject mute spans > max_span or total mute frac > max_frac."""
+    mutes = list(mutes or [])
+    spans = []
+    total = 0.0
+    worst = 0.0
+    for a, b in mutes:
+        a, b = float(a), float(b)
+        if b <= a:
+            continue
+        d = b - a
+        spans.append({"start": a, "end": b, "dur": round(d, 3)})
+        total += d
+        worst = max(worst, d)
+    frac = (total / content_dur) if content_dur > 0 else 0.0
+    reasons = []
+    if worst > max_span + 1e-6:
+        reasons.append(f"max_mute_span {worst:.3f}s > {max_span}s")
+    if frac > max_frac + 1e-9:
+        reasons.append(f"total_mute_frac {frac:.3%} > {max_frac:.0%}")
+    return {
+        "status": "fail" if reasons else "pass",
+        "max_span_s": round(worst, 3),
+        "total_mute_s": round(total, 3),
+        "content_dur_s": round(float(content_dur), 3),
+        "total_mute_frac": round(frac, 4),
+        "limits": {"max_span_s": max_span, "max_frac": max_frac},
+        "mutes": spans,
+        "reasons": reasons,
+    }
+
+
+def cmd_mutespan(qc, args) -> int:
+    """L15: mute ≤2s/span and ≤10% of content duration."""
+    mutes: list[tuple[float, float]] = []
+    if args.mute:
+        for item in args.mute:
+            a, b = item.split(",", 1)
+            mutes.append((float(a), float(b)))
+    if args.mutes:
+        raw = json.loads(Path(args.mutes).read_text(encoding="utf-8"))
+        if isinstance(raw, dict) and "mutes" in raw:
+            raw = raw["mutes"]
+        for m in raw:
+            if isinstance(m, (list, tuple)) and len(m) >= 2:
+                mutes.append((float(m[0]), float(m[1])))
+            elif isinstance(m, dict) and "start" in m:
+                mutes.append((float(m["start"]), float(m["end"])))
+    if args.content_dur is None:
+        return qc.report("mutespan", qc.USAGE, error="pass --content-dur seconds")
+    report = check_mute_spans(
+        mutes, float(args.content_dur),
+        max_span=float(args.max_span), max_frac=float(args.max_frac),
+    )
+    return qc.report(
+        "mutespan",
+        qc.FAIL if report["status"] == "fail" else qc.PASS,
+        **{k: v for k, v in report.items() if k != "status"},
+        note="mute ≤2s/span and ≤10% content; else recut (L15)",
+    )
+
+
+def snap_cue_micro_gaps(cues: list[dict], *, max_gap: float = 0.08) -> tuple[list[dict], list[str]]:
+    """Snap sub-max_gap gaps; close micro-overlaps at midpoint (L17)."""
+    if not cues:
+        return [], []
+    out = [dict(c) for c in cues]
+    notes: list[str] = []
+    for i in range(1, len(out)):
+        gap = out[i]["start"] - out[i - 1]["end"]
+        if 1e-6 < gap < max_gap - 1e-9:
+            notes.append(f"snap gap {gap:.4f}s at {out[i - 1]['end']:.3f}")
+            out[i]["start"] = out[i - 1]["end"]
+        elif gap < -1e-6:
+            mid = (out[i - 1]["end"] + out[i]["start"]) / 2.0
+            notes.append(f"close overlap {gap:.4f}s at {mid:.3f}")
+            out[i - 1]["end"] = mid
+            out[i]["start"] = mid
+    return out, notes
+
+
+def _format_srt(cues: list[dict]) -> str:
+    def stamp(s: float) -> str:
+        ms = int(round(max(0.0, s) * 1000))
+        h, rem = divmod(ms, 3_600_000)
+        m, rem = divmod(rem, 60_000)
+        sec, milli = divmod(rem, 1000)
+        return f"{h:02d}:{m:02d}:{sec:02d},{milli:03d}"
+
+    nl = "\n"
+    blocks = []
+    for i, c in enumerate(cues, 1):
+        lines = c.get("lines")
+        if lines is None:
+            lines = [c.get("text") or ""]
+        if isinstance(lines, str):
+            lines = lines.splitlines() or [lines]
+        body = nl.join(lines)
+        blocks.append(f"{i}{nl}{stamp(c['start'])} --> {stamp(c['end'])}{nl}{body}")
+    return (nl * 2).join(blocks) + nl
+
+
+def cmd_cuegapsnap(qc, args) -> int:
+    """L17: snap cue gaps under ~80ms; --check fails while micro-gaps remain."""
+    raw = Path(args.file).read_text(encoding="utf-8")
+    cues = qc.parse_cues(raw)
+    max_gap = float(args.max_gap)
+    pending = []
+    for i in range(1, len(cues)):
+        gap = cues[i]["start"] - cues[i - 1]["end"]
+        if 1e-6 < gap < max_gap - 1e-9:
+            pending.append(round(gap, 4))
+    snapped, notes = snap_cue_micro_gaps(cues, max_gap=max_gap)
+    if args.check:
+        return qc.report(
+            "cuegapsnap",
+            qc.FAIL if pending else qc.PASS,
+            pending_gaps=pending,
+            max_gap=max_gap,
+            note="FAIL while micro-gaps remain; snap then re-check (L17)",
+        )
+    if args.out:
+        rebuilt = []
+        for c in snapped:
+            item = {"start": c["start"], "end": c["end"]}
+            if "lines" in c:
+                item["lines"] = c["lines"]
+            elif "text" in c:
+                item["lines"] = str(c["text"]).splitlines() or [str(c["text"])]
+            else:
+                item["lines"] = [""]
+            rebuilt.append(item)
+        Path(args.out).write_text(_format_srt(rebuilt), encoding="utf-8")
+    return qc.report(
+        "cuegapsnap", qc.PASS,
+        snapped=len(notes),
+        notes=notes,
+        max_gap=max_gap,
+        out=args.out,
+        note="micro-gaps < max_gap snapped to abut (L17)",
     )
 
 
@@ -2122,6 +2384,8 @@ def register(add, qc) -> None:
                    help="override hard-amount regex")
     p.add_argument("--allow-empty-names", action="store_true", dest="allow_empty_names",
                    help="allow amount-only scan with no --name")
+    p.add_argument("--require-words", action="store_true", dest="require_words",
+                   help="L18: FAIL when --words missing/empty (run_gates fail-closed)")
     p = add("titlepunct", bind(cmd_titlepunct),
             "L11: title/desc question mark matches script (Latin ? vs Arabic ؟)")
     p.add_argument("--title", default="", help="title string")
@@ -2144,3 +2408,27 @@ def register(add, qc) -> None:
     p.add_argument("--max-frac", type=float, default=0.06, dest="max_frac")
     p.add_argument("--ignore-below", type=int, default=None, dest="ignore_below",
                    help="clear mask rows at/after this y (drop footer chrome)")
+
+    p = add("bandcoverage", bind(cmd_bandcoverage),
+            "L14: text-like ink outside burned band on content frames")
+    p.add_argument("--frame", action="append", default=[], help="PNG/JPG frame to check (repeatable)")
+    p.add_argument("--mp4", default=None, help="sample frames from rendered unit mp4")
+    p.add_argument("--band-y", type=int, default=500, dest="band_y")
+    p.add_argument("--band-h", type=int, default=175, dest="band_h")
+    p.add_argument("--content-end", type=float, default=None, dest="content_end",
+                   help="stop sampling before end-card (seconds)")
+    p.add_argument("--n", type=int, default=8, help="sample count for --mp4")
+    p = add("mutespan", bind(cmd_mutespan),
+            "L15: mute ≤2s/span and ≤10%% of content duration")
+    p.add_argument("--mutes", default=None, help="JSON list of [start,end] or {mutes:[...]}")
+    p.add_argument("--mute", action="append", default=[], help="start,end seconds (repeatable)")
+    p.add_argument("--content-dur", type=float, default=None, dest="content_dur",
+                   help="content duration seconds (exclude end card)")
+    p.add_argument("--max-span", type=float, default=2.0, dest="max_span")
+    p.add_argument("--max-frac", type=float, default=0.10, dest="max_frac")
+    p = add("cuegapsnap", bind(cmd_cuegapsnap),
+            "L17: snap cue micro-gaps under ~80ms; --check fails while pending")
+    p.add_argument("file", help="caption SRT")
+    p.add_argument("--max-gap", type=float, default=0.08, dest="max_gap")
+    p.add_argument("--check", action="store_true", help="FAIL while micro-gaps remain")
+    p.add_argument("--out", default=None, help="write snapped SRT")
