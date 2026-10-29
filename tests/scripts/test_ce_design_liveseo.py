@@ -243,6 +243,59 @@ class LiveseoGateTest(unittest.TestCase):
         self.assertEqual(200, code)
         self.assertTrue(body.endswith("</html>"), body)
 
+    def test_head_attrs_quoted_unquoted_and_og_image_width_decoy(self) -> None:
+        """Docusaurus-like unquoted attrs; ignore og:image:width decoy."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("liveseo_gates", GATES)
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        quoted = (
+            '<html lang="en"><head>'
+            '<link rel="canonical" href="https://example.com/q">'
+            '<meta name="description" content="Quoted description for search.">'
+            '<meta property="og:image:width" content="1200">'
+            '<meta property="og:image" content="https://example.com/og-q.png">'
+            '<meta property="og:image:height" content="630">'
+            "</head><body><h1>H</h1></body></html>"
+        )
+        unquoted = (
+            "<html lang=en-US dir=ltr><head>"
+            "<link data-rh=true rel=canonical href=https://example.com/u />"
+            '<meta data-rh=true name=description content="Unquoted desc for AI."/>'
+            "<meta property=og:image:width content=1200>"
+            "<meta property=og:image "
+            "content=https://example.com/og-u.png>"
+            "<meta property=og:image:height content=630>"
+            "</head><body><h1>H</h1></body></html>"
+        )
+        for label, html, want_can, want_og, want_desc, want_lang in (
+            ("quoted", quoted, "https://example.com/q",
+             "https://example.com/og-q.png",
+             "Quoted description for search.", "en"),
+            ("unquoted", unquoted, "https://example.com/u",
+             "https://example.com/og-u.png",
+             "Unquoted desc for AI.", "en-US"),
+        ):
+            page = mod.check_page_html(html)
+            self.assertTrue(page["canonical_https"], (label, page))
+            self.assertEqual([want_can], page["canonicals"], label)
+            self.assertTrue(page["meta_desc_ok"], (label, page))
+            self.assertEqual(want_desc, page["meta_desc"], label)
+            self.assertTrue(page["og_image_https"], (label, page))
+            self.assertEqual([want_og], page["og_images"], label)
+            self.assertNotIn("1200", page["og_images"], label)
+            self.assertNotIn("630", page["og_images"], label)
+            self.assertEqual(want_lang, page["html_lang"], label)
+
+        # robots meta unquoted noindex still detected
+        robots = mod.check_page_html(
+            "<html lang=en><head>"
+            "<meta name=robots content=noindex,nofollow>"
+            "</head><body><h1>H</h1></body></html>",
+        )
+        self.assertFalse(robots["no_noindex_meta"], robots)
+
     def test_html_lang_accepts_unquoted(self) -> None:
         import importlib.util
         spec = importlib.util.spec_from_file_location("liveseo_gates", GATES)

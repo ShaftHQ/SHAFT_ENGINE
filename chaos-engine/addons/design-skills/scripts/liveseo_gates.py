@@ -51,31 +51,7 @@ AGENT = (
 )
 WRITEOUT_MARK = "---CE_LIVESEO_WRITEOUT---"
 
-META_ROBOTS = re.compile(
-    r"""<meta\s+[^>]*name\s*=\s*["']robots["'][^>]*content\s*=\s*["']([^"']+)["']"""
-    r"""|<meta\s+[^>]*content\s*=\s*["']([^"']+)["'][^>]*name\s*=\s*["']robots["']""",
-    re.IGNORECASE,
-)
-CANONICAL = re.compile(
-    r"""<link\s+[^>]*rel\s*=\s*["']canonical["'][^>]*href\s*=\s*["']([^"']+)["']"""
-    r"""|<link\s+[^>]*href\s*=\s*["']([^"']+)["'][^>]*rel\s*=\s*["']canonical["']""",
-    re.IGNORECASE,
-)
-OG_IMAGE = re.compile(
-    r"""<meta\s+[^>]*property\s*=\s*["']og:image["'][^>]*content\s*=\s*["']([^"']+)["']"""
-    r"""|<meta\s+[^>]*content\s*=\s*["']([^"']+)["'][^>]*property\s*=\s*["']og:image["']""",
-    re.IGNORECASE,
-)
-META_DESC = re.compile(
-    r"""<meta\s+[^>]*name\s*=\s*["']description["'][^>]*content\s*=\s*["']([^"']*)["']"""
-    r"""|<meta\s+[^>]*content\s*=\s*["']([^"']*)["'][^>]*name\s*=\s*["']description["']""",
-    re.IGNORECASE,
-)
 TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
-HTML_LANG = re.compile(
-    r"""<\s*html\b[^>]*\blang\s*=\s*(?:["']([^"']+)["']|([^\s>]+))""",
-    re.IGNORECASE,
-)
 SLUG_BAD = re.compile(r"[A-Z_\s]|%20")
 LD_JSON_SCRIPT = re.compile(
     r"""<script\b[^>]*\btype\s*=\s*["']application/ld\+json["'][^>]*>(.*?)</script>""",
@@ -84,6 +60,8 @@ LD_JSON_SCRIPT = re.compile(
 
 
 class _Outline(HTMLParser):
+    """Lenient html.parser extract of outline + head SEO attrs (quoted or not)."""
+
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.h1 = 0
@@ -92,10 +70,17 @@ class _Outline(HTMLParser):
         self.anchors: list[str] = []
         self._in_title = False
         self.title = ""
+        self.html_lang = ""
+        self.canonicals: list[str] = []
+        self.meta_desc = ""
+        self.og_images: list[str] = []
+        self.robots_vals: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         ad = {k.lower(): (v or "") for k, v in attrs}
-        if tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+        if tag == "html" and ad.get("lang") and not self.html_lang:
+            self.html_lang = ad["lang"].strip()
+        elif tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
             level = int(tag[1])
             self.levels.append(level)
             if level == 1:
@@ -106,6 +91,22 @@ class _Outline(HTMLParser):
             self.anchors.append(ad["href"])
         elif tag == "title":
             self._in_title = True
+        elif tag == "link":
+            rels = {p.strip().lower() for p in ad.get("rel", "").split()}
+            href = ad.get("href", "").strip()
+            if "canonical" in rels and href:
+                self.canonicals.append(href)
+        elif tag == "meta":
+            name = ad.get("name", "").strip().lower()
+            prop = ad.get("property", "").strip().lower()
+            content = ad.get("content", "").strip()
+            if name == "description" and content and not self.meta_desc:
+                self.meta_desc = content
+            elif name == "robots" and content:
+                self.robots_vals.append(content.lower())
+            # Exact og:image only — not og:image:width / :height / :secure_url.
+            elif prop == "og:image" and content:
+                self.og_images.append(content)
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "title":
@@ -255,6 +256,9 @@ def check_jsonld(html: str) -> dict[str, Any]:
 def check_page_html(html: str) -> dict[str, Any]:
     """
     On-page SEO rows from published HTML (not paste).
+
+    Head attrs (canonical, description, og:image, robots, lang) come from
+    html.parser so quoted and unquoted markup both work (Docusaurus).
     """
     outline = _Outline()
     # html.parser is lenient; feed never raises on typical malformed markup.
@@ -262,21 +266,11 @@ def check_page_html(html: str) -> dict[str, Any]:
     title_m = TITLE.search(html or "")
     title = (outline.title or (title_m.group(1) if title_m else "")).strip()
     title = re.sub(r"\s+", " ", title)
-    desc_m = META_DESC.search(html or "")
-    desc = (desc_m.group(1) or desc_m.group(2) or "").strip() if desc_m else ""
-    lang_m = HTML_LANG.search(html or "")
-    lang = ""
-    if lang_m:
-        lang = (lang_m.group(1) or lang_m.group(2) or "").strip()
-    cans = []
-    for m in CANONICAL.finditer(html or ""):
-        cans.append(m.group(1) or m.group(2) or "")
-    ogs = []
-    for m in OG_IMAGE.finditer(html or ""):
-        ogs.append(m.group(1) or m.group(2) or "")
-    robots_vals = []
-    for m in META_ROBOTS.finditer(html or ""):
-        robots_vals.append((m.group(1) or m.group(2) or "").lower())
+    desc = outline.meta_desc
+    lang = outline.html_lang
+    cans = list(outline.canonicals)
+    ogs = list(outline.og_images)
+    robots_vals = list(outline.robots_vals)
     noindex = any("noindex" in v for v in robots_vals)
     skips = heading_skips(outline.levels)
     return {
