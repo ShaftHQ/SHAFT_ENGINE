@@ -11,6 +11,7 @@ import math
 import re
 import statistics
 from pathlib import Path
+import unicodedata
 
 TEXT_SUFFIXES = {".css", ".scss", ".html", ".htm", ".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".mdx",
                  ".md", ".txt", ".json", ".srt", ".vtt"}
@@ -2350,7 +2351,104 @@ def cmd_cuegapsnap(qc, args) -> int:
 
 
 
-# --- Hosted-CMS embed gates (L23–L31) -----------------------------------------
+
+# --- Arabic tech copy / bidi-wao (L32) ----------------------------------------
+# Fail Arabic conjunction و adjacent to <bdi> Latin in headings / card titles.
+# Ported from field site gate; default scope is h1–h6 only (card titles are h3).
+WAO_BEFORE = re.compile(r"(?<![ء-يأإآؤئ])و(?:\s|&nbsp;|\u00a0)*<bdi\b", re.I)
+WAO_BETWEEN = re.compile(r"</bdi>(?:\s|&nbsp;|\u00a0)*و(?:\s|&nbsp;|\u00a0)*<bdi\b", re.I)
+HEADING_BLOCKS = re.compile(r"<h([1-6])\b[^>]*>(.*?)</h\1>", re.I | re.S)
+
+
+def _heading_snippets(html: str) -> list[tuple[str, str]]:
+    """Return (label, inner_html) for each h1–h6 (card titles included)."""
+    out = []
+    for match in HEADING_BLOCKS.finditer(html):
+        level, body = match.group(1), match.group(2)
+        out.append((f"h{level}", body))
+    return out
+
+
+def cmd_bidiwao(qc, args) -> int:
+    """L32: flag و adjacent to <bdi> Latin in headings/card titles (use ،)."""
+    files = files_of(args.path, {".html", ".htm"})
+    if not files:
+        return qc.report("bidiwao", qc.USAGE, error="pass an .html/.htm file or directory")
+    hits = []
+    for file in files:
+        html = file.read_text(encoding="utf-8", errors="replace")
+        snippets = [(f"{file}:doc", html)] if args.all else [
+            (f"{file}:{label}", body) for label, body in _heading_snippets(html)
+        ]
+        if not args.all and not snippets:
+            continue
+        for where, body in snippets:
+            if "design-qc: allow" in body:
+                continue
+            if WAO_BEFORE.search(body) or WAO_BETWEEN.search(body):
+                hits.append(f"{where} wao-adjacent-bdi (use ، or one <bdi> island)")
+    return qc.report(
+        "bidiwao",
+        qc.FAIL if hits else qc.PASS,
+        files=len(files),
+        hits=hits,
+        note="L32: no و next to <bdi> in headings/card titles",
+    )
+
+
+
+
+# --- LESS Custom CSS grid/calc (L33) ------------------------------------------
+# Fail slash grid-column/row shorthand and bare (unescaped) calc() under LESS
+# 1.3.3. Ported from Squarespace Custom CSS field lesson.
+# Strip /* */ and // comments before matching so commented examples are ignored.
+_LESS_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+_LESS_LINE_COMMENT = re.compile(r"(?<!:)//.*?$", re.M)
+# grid-column: 1 / -1  or grid-row: 2 / span 3  (slash in the value)
+_GRID_SLASH = re.compile(
+    r"(?i)(?:grid-column|grid-row)\s*:\s*[^;{}\n]*?/"
+)
+def _strip_css_comments(src: str) -> str:
+    return _LESS_LINE_COMMENT.sub("", _LESS_BLOCK_COMMENT.sub("", src))
+
+
+def _bare_calc_snippets(body: str) -> list[str]:
+    """Snippets of bare calc( not escaped as ~\"calc(...)\" / ~'calc(...)'."""
+    out = []
+    for match in re.finditer(r"(?i)\bcalc\s*\(", body):
+        start = match.start()
+        prefix = body[max(0, start - 2):start]
+        if prefix in ('~"', "~'"):
+            continue
+        out.append(body[start:start + 40].split("\n", 1)[0][:60])
+    return out
+
+
+def cmd_lessgrid(qc, args) -> int:
+    """L33: flag slash grid shorthand and bare calc() in LESS Custom CSS."""
+    files = files_of(args.path, {".css", ".less", ".scss"})
+    if not files:
+        return qc.report("lessgrid", qc.USAGE, error="pass a .css/.less/.scss file or directory")
+    hits = []
+    for file in files:
+        raw = file.read_text(encoding="utf-8", errors="replace")
+        if "design-qc: allow" in raw:
+            continue
+        body = _strip_css_comments(raw)
+        for match in _GRID_SLASH.finditer(body):
+            snippet = match.group(0).strip()[:80]
+            hits.append(f"{file}: slash-grid `{snippet}` (use grid-*-start/end)")
+        for snippet in _bare_calc_snippets(body):
+            hits.append(f'{file}: bare-calc `{snippet}` (use ~"calc(...)" or split)')
+    return qc.report(
+        "lessgrid",
+        qc.FAIL if hits else qc.PASS,
+        files=len(files),
+        hits=hits,
+        note="L33: no slash grid shorthand / bare calc under LESS 1.3.3; re-check gutters live after CSS paste",
+    )
+
+# --- Hosted-CMS embed gates (L23–L31, L34 paste robots) -----------------------
 def _hosted_cms():
     import importlib.util
     spec = importlib.util.spec_from_file_location(
@@ -2364,7 +2462,7 @@ def _hosted_cms():
 
 
 def cmd_cmsmeta(qc, args) -> int:
-    """L25: paste HTML must not include og:/twitter: meta or <html lang>."""
+    """L25/L34: paste HTML must not include og/twitter, html lang, or robots noindex."""
     html = Path(args.file).read_text(encoding="utf-8")
     report = _hosted_cms().check_cms_meta(html)
     status = report.pop("status")
@@ -2481,6 +2579,439 @@ def cmd_livecms(qc, args) -> int:
         return qc.report("livecms", qc.USAGE, **report)
     code = qc.PASS if status == "pass" else qc.FAIL
     return qc.report("livecms", code, **report)
+
+
+
+def _liveseo():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "liveseo_gates", Path(__file__).with_name("liveseo_gates.py"),
+    )
+    mod = importlib.util.module_from_spec(spec)
+    if spec.loader is None:
+        raise RuntimeError("liveseo_gates loader missing")
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def cmd_liveseo(qc, args) -> int:
+    """W16: cheap public SEO + AI crawler / llms.txt gate (published HTML)."""
+    ls = _liveseo()
+    if getattr(args, "fixture", None):
+        bundle = ls.load_fixture(args.fixture)
+    elif getattr(args, "url", None):
+        bundle = ls.fetch_bundle(
+            args.url,
+            link_sample=args.link_sample,
+            missing_path=args.missing_path,
+        )
+        if args.allow_og_unfixable:
+            bundle["allow_og_unfixable"] = True
+    else:
+        return qc.report("liveseo", qc.USAGE, error="pass a url or --fixture DIR")
+    report = ls.evaluate_bundle(bundle)
+    status = report.pop("status")
+    if status == "error":
+        return qc.report("liveseo", qc.USAGE, **report)
+    if status == "flag":
+        return qc.report("liveseo", qc.FLAG, **report)
+    code = qc.PASS if status == "pass" else qc.FAIL
+    return qc.report("liveseo", code, **report)
+
+
+# ---------------------------------------------------------------- L35 video caption handoff
+
+
+TOKEN_SPLIT = re.compile(r"\s+")
+# Letter tokens for VFX spell: Latin words or Arabic-script runs.
+VFX_TOKEN = re.compile(
+    r"[A-Za-z][A-Za-z0-9'-]*|"
+    r"[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+"
+)
+# Alias → canonical script id used by scriptfilter allowlist.
+_SCRIPT_ALIAS = {
+    "ar": "ar", "arab": "ar", "arabic": "ar",
+    "latn": "latn", "latin": "latn", "en": "latn", "eng": "latn",
+    "cjk": "cjk", "han": "cjk", "hani": "cjk", "jp": "cjk", "kr": "cjk",
+    "cyrl": "cyrl", "cyrillic": "cyrl", "ru": "cyrl",
+    "thai": "thai", "th": "thai",
+    "deva": "deva", "devanagari": "deva", "hi": "deva",
+    "symbol": "symbol", "emoji": "symbol",
+    "other": "other",
+}
+# Major script blocks (BMP + common supplements). Unknown letters → "other".
+_SCRIPT_BLOCKS: tuple[tuple[str, tuple[tuple[int, int], ...]], ...] = (
+    ("latn", ((0x0041, 0x005A), (0x0061, 0x007A), (0x00C0, 0x024F), (0x1E00, 0x1EFF))),
+    ("ar", ((0x0600, 0x06FF), (0x0750, 0x077F), (0x08A0, 0x08FF),
+            (0xFB50, 0xFDFF), (0xFE70, 0xFEFF))),
+    ("cjk", ((0x3040, 0x30FF), (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF),
+             (0xAC00, 0xD7AF), (0x3000, 0x303F), (0xFF00, 0xFFEF))),
+    ("cyrl", ((0x0400, 0x04FF), (0x0500, 0x052F), (0x2DE0, 0x2DFF), (0xA640, 0xA69F))),
+    ("thai", ((0x0E00, 0x0E7F),)),
+    ("deva", ((0x0900, 0x097F),)),
+)
+
+
+def _cue_tokens(cue: dict) -> list[str]:
+    text = " ".join(cue.get("lines") or [])
+    return [t for t in TOKEN_SPLIT.split(text.strip()) if t]
+
+
+def _char_script(ch: str) -> str | None:
+    """Return canonical script id for a letter/symbol, or None if ignorable."""
+    o = ord(ch)
+    cat = unicodedata.category(ch)
+    # Emoji / pictographs / other symbols that are not punctuation.
+    if (
+        cat.startswith("So")
+        or cat.startswith("Sk")
+        or 0x1F300 <= o <= 0x1FAFF
+        or 0x2600 <= o <= 0x27BF
+        or 0x1F000 <= o <= 0x1F02F
+    ):
+        return "symbol"
+    # Ignore marks, numbers, punctuation, separators, controls.
+    if cat[0] in "MNPCZ" or cat in ("Cf", "Cs", "Co"):
+        return None
+    if cat[0] != "L":
+        return None
+    for name, ranges in _SCRIPT_BLOCKS:
+        for start, end in ranges:
+            if start <= o <= end:
+                return name
+    return "other"
+
+
+def _text_scripts(text: str) -> set[str]:
+    return {s for ch in text if (s := _char_script(ch)) is not None}
+
+
+def _normalize_expect(raw: str) -> set[str]:
+    out: set[str] = set()
+    for part in (raw or "").split(","):
+        key = part.strip().casefold()
+        if not key:
+            continue
+        out.add(_SCRIPT_ALIAS.get(key, key))
+    return out
+
+
+def _human_corrected_attestation(path: str | None) -> bool:
+    """True when attestation file affirms human-corrected captions."""
+    if not path:
+        return False
+    file_path = Path(path)
+    if not file_path.is_file():
+        return False
+    body = file_path.read_text(encoding="utf-8").casefold()
+    return "human-corrected" in body or "human_corrected" in body
+
+
+def _hole_speech_overlap(hs: float, he: float,
+                         speech: list[tuple[float, float]]) -> float:
+    """Union duration of speech intervals overlapping [hs, he], clamped ≥ 0."""
+    pieces: list[tuple[float, float]] = []
+    for ss, se in speech:
+        start = max(hs, ss)
+        end = min(he, se)
+        if end - start > 0:
+            pieces.append((start, end))
+    if not pieces:
+        return 0.0
+    pieces.sort()
+    merged = [pieces[0]]
+    for start, end in pieces[1:]:
+        last_s, last_e = merged[-1]
+        if start <= last_e:
+            merged[-1] = (last_s, max(last_e, end))
+        else:
+            merged.append((start, end))
+    return sum(max(0.0, b - a) for a, b in merged)
+
+
+def _levenshtein(a: str, b: str) -> int:
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            ins, delete, sub = cur[j - 1] + 1, prev[j] + 1, prev[j - 1] + (ca != cb)
+            cur.append(min(ins, delete, sub))
+        prev = cur
+    return prev[-1]
+
+
+def _speech_spans_rms(qc, media: str, thr: float = -40.0, hop: float = 0.05,
+                      min_speech: float = 0.15) -> list[tuple[float, float]]:
+    """Return (start, end) spans where mono RMS exceeds thr dBFS."""
+    import struct
+    import subprocess
+    import tempfile
+    import wave
+
+    src = Path(media)
+    with tempfile.TemporaryDirectory() as folder:
+        wav = Path(folder) / "mono.wav"
+        if src.suffix.lower() == ".wav":
+            wav = src
+        else:
+            subprocess.run(  # nosec B603 - fixed argv
+                [qc.need("ffmpeg"), "-v", "error", "-y", "-i", str(src),
+                 "-ac", "1", "-ar", "16000", str(wav)],
+                check=True, capture_output=True,
+            )
+        with wave.open(str(wav), "rb") as handle:
+            if handle.getnchannels() != 1 or handle.getsampwidth() != 2:
+                raise qc.Skip("need mono 16-bit PCM after decode")
+            rate = handle.getframerate()
+            frames = handle.readframes(handle.getnframes())
+    samples = struct.unpack("<" + "h" * (len(frames) // 2), frames)
+    if not samples:
+        return []
+    hop_n = max(1, int(round(hop * rate)))
+    n = len(samples) // hop_n
+    active = []
+    for i in range(n):
+        chunk = samples[i * hop_n:(i + 1) * hop_n]
+        mean_sq = sum(s * s for s in chunk) / len(chunk) + 1e-20
+        db = 20 * math.log10(math.sqrt(mean_sq) / 32768.0)
+        active.append(db > thr)
+    spans: list[tuple[float, float]] = []
+    i = 0
+    while i < n:
+        if not active[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and active[j]:
+            j += 1
+        start, end = i * hop, j * hop
+        if end - start >= min_speech:
+            spans.append((start, end))
+        i = j
+    return spans
+
+
+def _audio_onset(qc, media: str, thr: float = -35.0, hop: float = 0.01) -> float | None:
+    spans = _speech_spans_rms(qc, media, thr=thr, hop=hop, min_speech=0.05)
+    return None if not spans else spans[0][0]
+
+
+def _fps_of(qc, media: str) -> float:
+    probe = qc.ffprobe(media)
+    video = qc.video_stream(probe)
+    rate = video.get("avg_frame_rate") or video.get("r_frame_rate") or "0/1"
+    return qc.ratio(rate)
+
+
+def cmd_askaraoke(qc, args) -> int:
+    """Fail raw ASR karaoke / unattested captions (need human-corrected attestation)."""
+    cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    if not cues:
+        return qc.report("askaraoke", qc.FAIL, hits=["no cues"])
+    short = 0
+    for cue in cues:
+        tokens = _cue_tokens(cue)
+        dur = cue["end"] - cue["start"]
+        if len(tokens) <= args.max_tokens and dur < args.max_dur + 1e-9:
+            short += 1
+    ratio = short / len(cues)
+    hits = []
+    if not _human_corrected_attestation(getattr(args, "attestation", None)):
+        hits.append("missing human-corrected attestation")
+    # No high min_cues floor: small karaoke dumps (e.g. 7 cues) must still fail.
+    if len(cues) >= args.min_cues and ratio >= args.max_ratio - 1e-12:
+        hits.append(
+            f"karaoke_ratio {ratio:.2f} ({short}/{len(cues)} cues "
+            f"≤{args.max_tokens} tokens and <{args.max_dur:.2f}s)"
+        )
+    return qc.report(
+        "askaraoke", qc.FAIL if hits else qc.PASS,
+        cues=len(cues), short_cues=short, karaoke_ratio=round(ratio, 3), hits=hits,
+    )
+
+
+def cmd_scriptfilter(qc, args) -> int:
+    """Fail unexpected-script / emoji-only garbage and filler token loops."""
+    cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    if not cues:
+        return qc.report("scriptfilter", qc.FAIL, hits=["no cues"])
+    expect = _normalize_expect(args.expect or "ar,latn")
+    hits = []
+    for index, cue in enumerate(cues, 1):
+        text = " ".join(cue.get("lines") or [])
+        scripts = _text_scripts(text)
+        unexpected = sorted(s for s in scripts if s not in expect)
+        if unexpected:
+            label = ",".join(unexpected)
+            hits.append(f"cue {index}: unexpected script ({label})")
+        elif text.strip() and not scripts:
+            # Digits/punct-only with no letters still OK; pure whitespace already empty.
+            pass
+        tokens = _cue_tokens(cue)
+        run, prev = 1, None
+        for tok in tokens:
+            key = tok.casefold()
+            if prev is not None and key == prev:
+                run += 1
+                if run >= args.filler_repeat:
+                    hits.append(
+                        f"cue {index}: filler loop {tok!r} x{run}"
+                    )
+                    break
+            else:
+                run, prev = 1, key
+    seen, uniq = set(), []
+    for h in hits:
+        if h not in seen:
+            seen.add(h)
+            uniq.append(h)
+    return qc.report(
+        "scriptfilter", qc.FAIL if uniq else qc.PASS,
+        cues=len(cues), expect=sorted(expect), hits=uniq[:40],
+    )
+
+
+def _wav_duration(path: Path) -> float:
+    import wave
+    with wave.open(str(path), "rb") as handle:
+        return handle.getnframes() / float(handle.getframerate() or 1)
+
+
+def cmd_speechcuegap(qc, args) -> int:
+    """Fail caption holes longer than max seconds that overlap speech."""
+    cues = qc.parse_cues(Path(args.cues).read_text(encoding="utf-8"))
+    media = Path(args.file)
+    if media.suffix.lower() == ".wav":
+        duration = _wav_duration(media)
+    else:
+        probe = qc.ffprobe(args.file)
+        duration = float(probe.get("format", {}).get("duration", 0) or 0)
+    # Short talk bursts (e.g. 80–200 ms) must still count as speech in a hole.
+    speech = _speech_spans_rms(
+        qc, args.file, thr=args.thr, hop=args.hop, min_speech=args.min_speech,
+    )
+    if not speech and duration <= 0:
+        return qc.report("speechcuegap", qc.FAIL, hits=["no speech and no duration"])
+    covered = [(c["start"], c["end"]) for c in cues]
+    holes = []
+    end_t = duration if duration > 0 else (speech[-1][1] if speech else 0.0)
+    cursor = 0.0
+    events = sorted(covered)
+    for start, end in events:
+        if start > cursor + 1e-9:
+            holes.append((cursor, start))
+        cursor = max(cursor, end)
+    if end_t > cursor + 1e-9:
+        holes.append((cursor, end_t))
+    hits = []
+    for hs, he in holes:
+        gap = he - hs
+        if gap <= args.max + 1e-9:
+            continue
+        overlap = _hole_speech_overlap(hs, he, speech)
+        if overlap > args.min_speech_overlap + 1e-9:
+            hits.append({
+                "gap_s": round(hs, 3), "gap_e": round(he, 3),
+                "gap": round(gap, 3), "speech_overlap": round(overlap, 3),
+            })
+    return qc.report(
+        "speechcuegap", qc.FAIL if hits else qc.PASS,
+        max_gap=args.max, duration=round(end_t, 3),
+        speech_spans=[{"s": round(a, 3), "e": round(b, 3)} for a, b in speech[:40]],
+        hits=hits[:40],
+    )
+
+
+def cmd_fpsmatch(qc, args) -> int:
+    """Fail when output fps differs from source fps beyond tolerance."""
+    out_fps = _fps_of(qc, args.file)
+    src_fps = _fps_of(qc, args.source)
+    hits = []
+    if abs(out_fps - src_fps) > args.tol + 1e-12:
+        hits.append(f"fps {out_fps:.5f} != source {src_fps:.5f} (tol {args.tol})")
+    return qc.report(
+        "fpsmatch", qc.FAIL if hits else qc.PASS,
+        output_fps=round(out_fps, 5), source_fps=round(src_fps, 5),
+        tol=args.tol, hits=hits,
+    )
+
+
+def cmd_vfxspell(qc, args) -> int:
+    """Spell-check on-screen VFX labels against a lexicon (near typos + unknowns fail)."""
+    raw = Path(args.file).read_text(encoding="utf-8")
+    if args.file.lower().endswith(".json"):
+        data = json.loads(raw)
+        if isinstance(data, list):
+            lines = [str(x) for x in data]
+        elif isinstance(data, dict):
+            lines = [str(v) for v in data.values()]
+        else:
+            lines = [str(data)]
+    else:
+        lines = [ln for ln in raw.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+    lexicon = {
+        w.strip().casefold()
+        for w in Path(args.lexicon).read_text(encoding="utf-8").splitlines()
+        if w.strip() and not w.strip().startswith("#")
+    }
+    allow = {a.casefold() for a in (args.allow or [])}
+    hits = []
+    for line in lines:
+        for tok in VFX_TOKEN.findall(line):
+            key = tok.casefold()
+            if key in lexicon or key in allow:
+                continue
+            near = [w for w in lexicon if 0 < _levenshtein(key, w) <= args.max_edits]
+            if near:
+                hits.append(f"{tok!r} typo of {near[0]!r}")
+            elif args.unknown == "fail":
+                hits.append(f"{tok!r} not in lexicon")
+            elif args.unknown == "flag":
+                hits.append(f"{tok!r} unknown (flag)")
+    return qc.report(
+        "vfxspell", qc.FAIL if hits else qc.PASS,
+        labels=len(lines), hits=hits[:40],
+    )
+
+
+def cmd_onsetclip(qc, args) -> int:
+    """Fail when the open is a clipped short fragment on early audio onset."""
+    cues = qc.parse_cues(Path(args.cues).read_text(encoding="utf-8"))
+    if not cues:
+        return qc.report("onsetclip", qc.FAIL, hits=["no cues"])
+    onset = _audio_onset(qc, args.file, thr=args.thr, hop=0.01)
+    first = cues[0]
+    tokens = _cue_tokens(first)
+    dur = first["end"] - first["start"]
+    hits = []
+    early = onset is not None and onset <= args.early_onset + 1e-9
+    # Short first cue inside the early window (multi-token clips included).
+    fragment = (
+        first["start"] <= args.early_onset + 1e-9
+        and dur < args.max_dur + 1e-9
+        and len(tokens) <= args.max_tokens
+    )
+    if early and fragment:
+        hits.append(
+            f"clipped_open onset={onset:.3f}s first_cue={first['start']:.3f}-"
+            f"{first['end']:.3f}s tokens={tokens!r}"
+        )
+    return qc.report(
+        "onsetclip", qc.FAIL if hits else qc.PASS,
+        onset=None if onset is None else round(onset, 3),
+        first_start=round(first["start"], 3),
+        first_end=round(first["end"], 3),
+        first_tokens=tokens, hits=hits,
+    )
+
+
+
 
 
 def register(add, qc) -> None:
@@ -2757,7 +3288,7 @@ def register(add, qc) -> None:
     p.add_argument("--threshold", type=float, default=0.65,
                    help="FLAG when punchline_at/content_dur > threshold")
     p = add("cmsmeta", bind(cmd_cmsmeta),
-            "L25: paste HTML must not include og:/twitter: meta")
+            "L25/L34: paste HTML: no og/twitter, html lang, or robots noindex")
     p.add_argument("file", help="paste HTML file")
     p = add("cmsassets", bind(cmd_cmsassets),
             "L24: fail relative local assets in paste HTML")
@@ -2820,6 +3351,25 @@ def register(add, qc) -> None:
     p = add("livecms", bind(cmd_livecms),
             "L28/L31: fail-closed live matrix receipt JSON")
     p.add_argument("file", help="livecms report JSON")
+    p = add("bidiwao", bind(cmd_bidiwao),
+            "L32: Arabic و adjacent to <bdi> Latin in headings/card titles (use ،)")
+    p.add_argument("path", help="HTML file or directory")
+    p.add_argument("--all", action="store_true",
+                   help="scan whole document, not only h1–h6")
+
+    p = add("lessgrid", bind(cmd_lessgrid),
+            "L33: slash grid-column/row + bare calc under LESS 1.3.3 Custom CSS")
+    p.add_argument("path", help="CSS/LESS/SCSS file or directory")
+    p = add("liveseo", bind(cmd_liveseo),
+            "W16: public SEO + AI crawler / llms.txt (url or --fixture)")
+    p.add_argument("url", nargs="?", default=None, help="https URL to audit")
+    p.add_argument("--fixture", default=None, help="offline fixture directory")
+    p.add_argument("--link-sample", type=int, default=5, dest="link_sample")
+    p.add_argument("--missing-path", default="/chaosengine-liveseo-missing-probe-404",
+                   dest="missing_path")
+    p.add_argument("--allow-og-unfixable", action="store_true",
+                   dest="allow_og_unfixable",
+                   help="treat missing/http og:image as UNFIXABLE (plan-locked)")
 
     p = add("cuegapsnap", bind(cmd_cuegapsnap),
             "L17: snap cue micro-gaps under ~80ms; --check fails while pending")
@@ -2827,3 +3377,65 @@ def register(add, qc) -> None:
     p.add_argument("--max-gap", type=float, default=0.08, dest="max_gap")
     p.add_argument("--check", action="store_true", help="FAIL while micro-gaps remain")
     p.add_argument("--out", default=None, help="write snapped SRT")
+
+    p = add("askaraoke", bind(cmd_askaraoke),
+            "L35: fail raw ASR karaoke / unattested captions")
+    p.add_argument("file", help="caption SRT")
+    p.add_argument("--max-tokens", type=int, default=2, dest="max_tokens")
+    p.add_argument("--max-dur", type=float, default=0.45, dest="max_dur")
+    p.add_argument("--max-ratio", type=float, default=0.40, dest="max_ratio",
+                   help="fail when short-cue fraction >= this (default 0.40)")
+    p.add_argument("--min-cues", type=int, default=1, dest="min_cues",
+                   help="minimum cue count before karaoke ratio can fail (default 1)")
+    p.add_argument("--attestation", default=None,
+                   help="file affirming human-corrected captions (must contain "
+                        "'human-corrected'); required for PASS")
+
+    p = add("scriptfilter", bind(cmd_scriptfilter),
+            "L35: unexpected-script / emoji garbage + filler loops")
+    p.add_argument("file", help="caption SRT")
+    p.add_argument("--expect", default="ar,latn",
+                   help="allowed scripts: ar,latn/en,cjk,cyrl,thai,deva,symbol "
+                        "(default ar,latn)")
+    p.add_argument("--filler-repeat", type=int, default=3, dest="filler_repeat",
+                   help="fail when same token repeats this many times in a cue")
+
+    p = add("speechcuegap", bind(cmd_speechcuegap),
+            "L35: caption hole >max s overlapping speech (RMS union)")
+    p.add_argument("file", help="media with audio (mp4/wav)")
+    p.add_argument("--cues", required=True, help="caption SRT")
+    p.add_argument("--max", type=float, default=3.0, help="max allowed hole over speech (s)")
+    p.add_argument("--thr", type=float, default=-40.0, help="RMS dBFS speech threshold")
+    p.add_argument("--hop", type=float, default=0.05)
+    p.add_argument("--min-speech", type=float, default=0.05, dest="min_speech",
+                   help="drop RMS spans shorter than this (default 0.05s)")
+    p.add_argument("--min-speech-overlap", type=float, default=0.0,
+                   dest="min_speech_overlap",
+                   help="fail hole when union speech overlap exceeds this (default 0)")
+
+    p = add("fpsmatch", bind(cmd_fpsmatch),
+            "L35: output fps must equal source fps")
+    p.add_argument("file", help="output media")
+    p.add_argument("--source", required=True, help="source media")
+    p.add_argument("--tol", type=float, default=0.01, help="absolute fps tolerance")
+
+    p = add("vfxspell", bind(cmd_vfxspell),
+            "L35: spell-check on-screen VFX labels (near typos + unknowns fail)")
+    p.add_argument("file", help="labels txt or json")
+    p.add_argument("--lexicon", required=True, help="one correct word per line")
+    p.add_argument("--allow", action="append", default=[],
+                   help="extra allowed tokens")
+    p.add_argument("--max-edits", type=int, default=2, dest="max_edits",
+                   help="Levenshtein distance treated as typo (default 2)")
+    p.add_argument("--unknown", choices=("ignore", "fail", "flag"), default="fail",
+                   help="unknown tokens not near lexicon: fail (default), flag, or ignore")
+
+    p = add("onsetclip", bind(cmd_onsetclip),
+            "L35: fail clipped first spoken word / open fragment")
+    p.add_argument("file", help="media with audio")
+    p.add_argument("--cues", required=True, help="caption SRT")
+    p.add_argument("--thr", type=float, default=-35.0, help="RMS dBFS onset threshold")
+    p.add_argument("--early-onset", type=float, default=0.15, dest="early_onset",
+                   help="onset/cue start window that counts as clipped open (default 0.15s)")
+    p.add_argument("--max-tokens", type=int, default=4, dest="max_tokens")
+    p.add_argument("--max-dur", type=float, default=0.45, dest="max_dur")

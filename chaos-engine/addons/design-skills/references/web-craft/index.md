@@ -22,3 +22,4 @@ one web-craft card. The licence verdicts are in
 | [W13 navigation and pricing layout](nav-and-pricing-patterns.md) | nav bar type, plans page layout |
 | [W14 OG image](og-image.md) | link-preview image per page |
 | [W15 CSS cascade safety](css-cascade-safety.md) | editing grouped rules, borders, masks or theme overrides |
+| [W16 SEO + AI-answer-engine basics](seo-basics.md) | public site crawl, on-page SEO, AI crawlers / llms.txt |

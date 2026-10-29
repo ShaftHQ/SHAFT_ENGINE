@@ -54,6 +54,7 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
 ## Verify
 
 - `design_qc.py cutrhythm|static|silence|blackfreeze <file>`
+- Talk handoff (L35): `askaraoke|scriptfilter|speechcuegap|fpsmatch|vfxspell|onsetclip`; `loudness --max-peak -1`
 
 ## References
 

@@ -104,13 +104,39 @@ pull-request state, upstream ancestry, branch HEAD, and diff immediately before
 using non-force `git worktree remove`.
 
 Keep the ownership manifest outside the target worktree so cleanup cannot erase
-its own evidence. The action never deletes the local branch because another
-worktree can attach that same ref concurrently after target removal. It reports
-the retained branch for separate cleanup after fresh ownership, attachment,
-ancestry, and pull-request checks.
+its own evidence. Worktree removal retains the local branch because another
+worktree can attach that same ref concurrently after target removal. A separate
+`--cleanup-task-local-branch` step deletes it only after fresh ownership,
+attachment, ancestry, and MERGED checks (`git branch -d`, never `-D`).
+`--cleanup-task-remote-head` deletes `origin/<owned-branch>` only when MERGED
+and the remote tip still matches the expected head (no-op when auto-deleted).
 
-The action never performs repository- or machine-scope cleanup, never removes
-remote branches, and rejects `origin` and `gh-pages`. A missing, ambiguous, or
-changed proof blocks the action; it does not widen or guess cleanup authority.
-Invocation from the target worktree or any descendant also blocks cleanup,
-independent of which checkout was supplied as `--root`.
+The worktree action never performs repository- or machine-scope cleanup and
+rejects `origin` and `gh-pages`. A missing, ambiguous, or changed proof blocks
+the action; it does not widen or guess cleanup authority. Invocation from the
+target worktree or any descendant also blocks cleanup, independent of which
+checkout was supplied as `--root`. Never-touch paths from delete-guard refuse
+cleanup without weakening that guard.
+
+## After a parallel stream ships
+
+See also [parallel streams](parallel-streams.md#post-merge-own-cleanup).
+
+When a stream's PR is merged (or its push is verified on the remote), append
+every task-owned scratch path and worktree to that stream's ownership row as
+`scratch_pending_cleanup`, with a verified-pushed note for unique commits.
+Listing candidates is always allowed.
+
+Then run **post-merge own cleanup** for that stream only: after MERGED +
+ancestor / head proofs and a clean worktree, `worktree_hygiene.py
+--cleanup-task-worktree`, then `--cleanup-task-local-branch`, then
+`--cleanup-task-remote-head` when the remote head remains, then
+`--prune-after-task-cleanup`. Bounded task cleanup still retains the local
+branch until the separate local-branch step re-checks attachment, ancestry,
+and MERGED. Remote delete stays opt-in via that flag — never repository- or
+machine-scope cleanup.
+
+Filesystem scratch still follows [delete-check discipline](delete-check-discipline.md)
+and [delete guard](delete-guard.md): clean + pushed may pass; dirty / unpushed
+need owner codes; never-touch paths refuse even with a code. Never infer
+machine cleanup from parallelism alone; never remove another stream's artifacts.

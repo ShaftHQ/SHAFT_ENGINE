@@ -10,10 +10,10 @@ locks Code Injection, so only Custom CSS and Code blocks are available.
 
 ## Custom CSS (LESS 1.3.3)
 
-- The minifier breaks `clamp()`, `calc()` arithmetic and the `a / b` grid
+- Lesson gate: [L33](../lessons/less-css-grid-calc.md) (`lessgrid`). The
+  minifier breaks `clamp()`, `calc()` arithmetic and the `a / b` grid
   shorthand. Use fixed sizes per breakpoint and longhand grid properties;
-  split a padding sum across two elements instead of
-  `calc(24px + env(...))`.
+  escape calc as `~"calc(...)"` or split a padding sum across two elements.
 - A local `lessc` parses differently (it rewrites `1fr` to `1 fr`; live
   keeps `1fr`). Verify by injecting the source CSS over the live page, not
   the locally compiled output.
@@ -83,8 +83,9 @@ locks Code Injection, so only Custom CSS and Code blocks are available.
   [hosted-cms-embed](hosted-cms-embed.md). Sticky header offset for the
   first paste section is [L23](../lessons/hosted-cms-no-dup-chrome.md).
 - Read the plan and the site-language list before planning SEO work. The
-  Personal plan has no Code Injection or scripts: no JSON-LD, and the http
-  `og:image`/`twitter:image` emitted for static1 URLs cannot be overridden.
+  Personal plan has no Code Injection (needs Core+); JSON-LD still works via a
+  Code block (verified live). The http `og:image`/`twitter:image` emitted for
+  static1 URLs cannot be overridden.
   A missing site language keeps `<html lang>` fixed; set language per block
   ([D05](../typography-layout.md)). Drop impossible items early.
 

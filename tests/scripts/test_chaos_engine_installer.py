@@ -2721,6 +2721,56 @@ module.install_with_dependencies(project, source, "3" * 40)
             self.assertEqual("portable", upgraded["distribution"])
             self.assertEqual("2" * 40, upgraded["commit"])
 
+    def test_repository_distribution_migrates_to_portable_7564(self):
+        """#7564 riskiest assumption: retired repository rematerializes as portable.
+
+        Red on main (distribution differs). Preserves hostToken; second run is idempotent.
+        """
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install(project, SOURCE, TEST_COMMIT)
+            manifest_path = project / ".chaos-engine/manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            host_token = manifest["hostToken"]
+            manifest["distribution"] = {"id": "repository", "policySha256": "0" * 64}
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+
+            self.assertTrue(
+                MODULE.migrates_to_default_distribution("repository", MODULE.DEFAULT_DISTRIBUTION, SOURCE)
+            )
+            MODULE.install(project, SOURCE, "2" * 40, distribution=MODULE.DEFAULT_DISTRIBUTION)
+            upgraded = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual("portable", upgraded["distribution"]["id"])
+            self.assertEqual(host_token, upgraded["hostToken"])
+            self.assertEqual("2" * 40, upgraded["source"]["commit"])
+
+            MODULE.install(project, SOURCE, "2" * 40, distribution=MODULE.DEFAULT_DISTRIBUTION)
+            again = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual("portable", again["distribution"]["id"])
+            self.assertEqual(host_token, again["hostToken"])
+
+    def test_unknown_retired_distribution_migrates_to_portable_7564(self):
+        """Ids absent from the source catalog migrate like repository (#7564)."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            project.mkdir()
+            MODULE.install(project, SOURCE, TEST_COMMIT)
+            manifest_path = project / ".chaos-engine/manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            host_token = manifest["hostToken"]
+            manifest["distribution"] = {"id": "pre-ce10-gone", "policySha256": "0" * 64}
+            manifest_path.write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+
+            MODULE.install(project, SOURCE, "3" * 40, distribution=MODULE.DEFAULT_DISTRIBUTION)
+            upgraded = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual("portable", upgraded["distribution"]["id"])
+            self.assertEqual(host_token, upgraded["hostToken"])
+
     def test_distribution_rejects_a_missing_profile_before_mutation(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -88,6 +88,9 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
   mounting: recheck, never clone over it. Keep `graphify-out/` and
   `.chaos-engine-state/` untracked; do not rebuild a Graphify index per
   worktree on the same host when one shared index already exists.
+- Disk gate before a new worktree or clone: refuse under 20 GiB free; never
+  add a full clone when a blobless primary for that repo already exists.
+  Details: [parallel streams](parallel-streams.md).
 - Keep tools and drafts outside `/tmp` (a box restore wipes it) and check
   `git ls-files -d` before each push.
 
@@ -96,9 +99,11 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
 Several tasks, issues, or PRs: first record each with `tool.py checkpoint
 TASK --item ID --group G --status todo`, show the table, and update it at
 each milestone (`pr #N`, `merged`, `blocked: reason`). `resume` prints it.
-Every task: [flow](iterative-flow.md), [PDCA](multi-agent-pdca.md); WIP limit 1:
-babysit PR to merged, then next.
-Need parallel? Stack PRs on the previous branch.
+Every task: [flow](iterative-flow.md), [PDCA](multi-agent-pdca.md); WIP limit 1
+per stream: babysit PR to merged, then next in that stream.
+Need parallel on the **same** files? Stack PRs on the previous branch.
+File-disjoint streams: [parallel streams](parallel-streams.md) (ownership
+manifest, conflict check, disk gate, no force-push under review).
 
 ## After each delivery
 

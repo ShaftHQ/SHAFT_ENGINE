@@ -52,7 +52,7 @@ class WebCraftCardsTest(unittest.TestCase):
         self.assertIn("../web-craft/index.md", (DESIGN / "references/craft/index.md").read_text(encoding="utf-8"))
         self.assertIn("web-craft/motion-tokens.md", (DESIGN / "references/motion-principles.md").read_text(encoding="utf-8"))
         self.assertNotIn("web-craft/", (DESIGN / "SKILL.md").read_text(encoding="utf-8"))
-        self.assertIn("14 web-craft cards", (DESIGN / "INVENTORY.md").read_text(encoding="utf-8"))
+        self.assertIn("16 web-craft cards", (DESIGN / "INVENTORY.md").read_text(encoding="utf-8"))
 
     def test_every_resource_has_licence_and_verdict_and_nothing_is_vendored(self) -> None:
         research = _text(DESIGN / "references/research/design-resources-2026-10.md")

@@ -17,9 +17,10 @@ targets, an anchored rubric, and 20 verified references.
 | [C10](hooks.md) | Hooks, thumbnails and posters | [research/hooks.md](../research/hooks.md) |
 | [C11](social-video.md) | Social media videos | [research/social-video.md](../research/social-video.md) |
 | [C12](training-decks.md) | Training and course decks | none |
-| [Squarespace 7.1](../site-builders/squarespace-7-1.md) | Web builder without JS (companion to C01) | none |
-| [Hosted CMS embed](../site-builders/hosted-cms-embed.md) | Product/landing paste under site chrome (L23–L31) | none |
+| [Squarespace 7.1](../site-builders/squarespace-7-1.md) | Web builder without JS (companion to C01); LESS CSS L33 | none |
+| [Hosted CMS embed](../site-builders/hosted-cms-embed.md) | Product/landing paste under site chrome (L23–L31); Arabic tech L32; LESS CSS L33; paste robots L34 | none |
 | [Site merge and redirects](../site-builders/site-merge-redirects.md) | Page merge, anchors, 301s, SEO titles | none |
+| [W16 SEO + AI-answer basics](../web-craft/seo-basics.md) | Public crawl, on-page SEO, AI crawlers / llms.txt | `liveseo` |
 
 - Field lessons (hooks over speech, mixed-script captions, talk edits,
   signed-output release, cross-surface takeaways, visual-first approach,
@@ -29,7 +30,7 @@ targets, an anchored rubric, and 20 verified references.
   avatar voice first, viral pacing FLAG, ear-lock type templates,
   hosted-CMS no-dup chrome + sticky header offset, assets, CMS meta,
   hostile resets, full-width embed, livecms verify, plan-first,
-  explainer length, paste then re-verify):
+  explainer length, paste then re-verify, Arabic tech code-switch, LESS CSS grid/calc, paste robots noindex, video caption handoff):
   [lesson cards](../lessons/index.md).
 - App recon / `app-recon` (screen/flow map, feature-gap matrix, evidence-linked
   complaint themes; clean-room only): [recon-craft cards](../recon-craft/index.md).
