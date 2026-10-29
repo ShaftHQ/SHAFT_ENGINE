@@ -23,7 +23,9 @@ targets, an anchored rubric, and 20 verified references.
 - Field lessons (hooks over speech, mixed-script captions, talk edits,
   signed-output release, cross-surface takeaways, visual-first approach,
   privacy names, end-card band concat, title punct, qmark baseline,
-  perceptual acceptance):
+  perceptual acceptance, band coverage, mute span, endcard filter_complex,
+  caption micro-gap snap, ASR names in run_gates, hard-cut coherence,
+  avatar voice first):
   [lesson cards](../lessons/index.md).
 - Web craft (anti-generic lint, motion tokens, GSAP motion, micro-polish,
   measured type): [web-craft cards](../web-craft/index.md).
