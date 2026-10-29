@@ -14,6 +14,7 @@ Checks:
 - Bandit B607 on changed Python files.
 - README inventory drift whenever a `chaos-engine/**/*.py` file changes; an added import changes the `python-libraries` table, so refresh with `python3 scripts/ci/validate_chaos_engine_readme.py --write` in the same commit. (repo-only)
 - Memory `content_hash` for touched `.memory/memory/**` objects.
+- Content-scan planted `--self-test` via [`content_scan_preflight.py`](../content_scan_preflight.py) (exit 0 = plant detected; nonzero = miss).
 
 ## Tip batching rule
 
@@ -42,4 +43,6 @@ PRs run the fresh installer on ubuntu and Windows only. Add `ci:installer-macos`
 
 - [CI status economy](ci-status-economy.md) (fingerprints, digest, one status channel)
 - [Coach loop](../skills/local-agency/references/coach-loop.md)
+- [Delete-check discipline](delete-check-discipline.md) (D5 — never bare rm)
+- [Content-scan preflight](content-scan-preflight.md) (G-META: content scan + planted `--self-test`)
 - Script: [`tip_preflight.py`](../skills/local-agency/scripts/tip_preflight.py) (also `classify_failure` fingerprints)

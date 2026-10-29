@@ -8,7 +8,7 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.AndroidStartScreenRecordingOptions;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ios.IOSStartScreenRecordingOptions;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -170,7 +170,7 @@ public class RecordManagerDesktopProviderTest {
     public void automaticStopFailureShouldRetainOwnershipUntilAProviderRetrySucceeds() throws Exception {
         enableNativeMobileRecording();
         AndroidDriver driver = mock(AndroidDriver.class);
-        when(driver.getSessionId()).thenReturn(new SessionId("automatic-stop-retry"));
+        when(driver.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("automatic-stop-retry"));
         RuntimeException stopFailure = new RuntimeException("provider stop failed");
         when(driver.stopRecordingScreen()).thenThrow(stopFailure).thenReturn(encodedVideo("retried"));
         RecordManager.startVideoRecording(driver);
@@ -192,7 +192,7 @@ public class RecordManagerDesktopProviderTest {
     public void automaticDecodeFailureShouldReleaseTheLegacyHandleForANewRecording() throws Exception {
         enableNativeMobileRecording();
         AndroidDriver driver = mock(AndroidDriver.class);
-        when(driver.getSessionId()).thenReturn(new SessionId("automatic-decode-recovery"));
+        when(driver.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("automatic-decode-recovery"));
         when(driver.stopRecordingScreen()).thenReturn("malformed!", encodedVideo("restarted"));
 
         RecordManager.startVideoRecording(driver);
@@ -251,7 +251,7 @@ public class RecordManagerDesktopProviderTest {
     public void iosAutomaticAndExplicitRecordingShouldShareTheSameOwner() throws Exception {
         enableNativeMobileRecording();
         IOSDriver driver = mock(IOSDriver.class);
-        when(driver.getSessionId()).thenReturn(new SessionId("ios-automatic-recording-owner"));
+        when(driver.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("ios-automatic-recording-owner"));
         when(driver.stopRecordingScreen()).thenReturn(encodedVideo("ios-automatic"));
         RecordManager.startVideoRecording(driver);
         MobileRecordingActionsContract explicit = new SHAFT.GUI.WebDriver(driver).mobile().recording();

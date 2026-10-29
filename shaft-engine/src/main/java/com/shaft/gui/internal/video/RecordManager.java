@@ -13,7 +13,7 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.ios.IOSStartScreenRecordingOptions;
 import org.apache.commons.io.FileUtils;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.remote.RemoteWebDriver;
+import com.shaft.gui.capabilities.internal.LiveSessionSupport;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -102,7 +102,7 @@ public class RecordManager {
         return driver != null
                 && SHAFT.Properties.platform.executionAddress().equals("local")
                 && !SHAFT.Properties.web.headlessExecution()
-                && !(driver instanceof RemoteWebDriver);
+                && !LiveSessionSupport.isRemoteOrAppiumSession(driver);
     }
 
     /**

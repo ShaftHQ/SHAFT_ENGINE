@@ -10,7 +10,6 @@ import com.shaft.gui.playwright.internal.PlaywrightSession;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.InteractsWithApps;
 import io.appium.java_client.LocksDevice;
-import io.appium.java_client.PerformsTouchActions;
 import io.appium.java_client.PullsFiles;
 import io.appium.java_client.PushesFiles;
 import io.appium.java_client.android.AuthenticatesByFinger;
@@ -158,7 +157,7 @@ public final class AutomationCapabilityResolver {
                     .adaptedFeature(AutomationFeature.VIEWPORT_EMULATION, "Selenium DevTools through SHAFT")
                     .adaptedFeature(AutomationFeature.MEDIA_EMULATION, "Selenium DevTools through SHAFT");
             if (driver instanceof HasAuthentication
-                    && (!(driver instanceof RemoteWebDriver remote) || remote.getSessionId() != null)) {
+                    && !LiveSessionSupport.isClosedRemoteSession(driver)) {
                 builder.nativeFeature(AutomationFeature.AUTHENTICATION, "Selenium CDP-backed HasAuthentication");
             }
         }
@@ -173,7 +172,7 @@ public final class AutomationCapabilityResolver {
 
     private static boolean hasEnabledDownloads(WebDriver driver) {
         if (!(driver instanceof HasDownloads downloads)
-                || (driver instanceof RemoteWebDriver remote && remote.getSessionId() == null)) {
+                || LiveSessionSupport.isClosedRemoteSession(driver)) {
             return false;
         }
         try {
@@ -209,9 +208,8 @@ public final class AutomationCapabilityResolver {
             builder.nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "JavaScript in the active Appium web context")
                     .nativeFeature(AutomationFeature.STORAGE, "Web Storage in the active Appium web context");
         }
-        if (driver instanceof PerformsTouchActions) {
-            builder.nativeFeature(AutomationFeature.TOUCH_GESTURES, "Appium touch actions");
-        }
+        // Appium 11: touch-action API removed; every AppiumDriver is Interactive (W3C Actions).
+        builder.nativeFeature(AutomationFeature.TOUCH_GESTURES, "Appium W3C Actions and mobile gestures");
         if (driver instanceof InteractsWithApps || driver instanceof WindowsDriver) {
             builder.nativeFeature(AutomationFeature.APP_LIFECYCLE, "Appium application commands");
         }
@@ -288,7 +286,7 @@ public final class AutomationCapabilityResolver {
      */
     public static boolean hasNegotiatedBiDi(WebDriver driver) {
         try {
-            if ((driver instanceof RemoteWebDriver remote && remote.getSessionId() == null)
+            if (LiveSessionSupport.isClosedRemoteSession(driver)
                     || !(driver instanceof HasBiDi hasBiDi)
                     || !(driver instanceof HasCapabilities hasCapabilities)
                     || hasBiDi.getHandle() == null) {
@@ -303,7 +301,7 @@ public final class AutomationCapabilityResolver {
     }
 
     private static boolean hasLiveDevTools(WebDriver driver) {
-        return (!(driver instanceof RemoteWebDriver remote) || remote.getSessionId() != null)
+        return !LiveSessionSupport.isClosedRemoteSession(driver)
                 && driver instanceof HasDevTools hasDevTools
                 && hasDevTools.maybeGetDevTools().isPresent();
     }

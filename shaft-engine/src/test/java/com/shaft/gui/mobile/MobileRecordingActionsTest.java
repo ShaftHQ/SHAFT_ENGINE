@@ -15,10 +15,10 @@ import io.appium.java_client.screenrecording.CanRecordScreen;
 import io.appium.java_client.windows.WindowsDriver;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.SessionId;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.ImmutableCapabilities;
-import org.openqa.selenium.remote.HttpCommandExecutor;
+import io.appium.java_client.remote.AppiumCommandExecutor;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -593,7 +593,7 @@ public class MobileRecordingActionsTest {
         private final AtomicInteger stopCalls = new AtomicInteger();
 
         private EqualRecordingDriver(String sessionId, byte[] payload) {
-            super(Mockito.mock(HttpCommandExecutor.class), new ImmutableCapabilities());
+            super(Mockito.mock(AppiumCommandExecutor.class), new ImmutableCapabilities());
             this.sessionId = new SessionId(sessionId);
             this.payload = payload.clone();
         }

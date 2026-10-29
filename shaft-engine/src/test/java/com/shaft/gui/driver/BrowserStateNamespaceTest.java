@@ -146,7 +146,7 @@ public class BrowserStateNamespaceTest {
         AppiumDriver driver = Mockito.mock(AppiumDriver.class,
                 Mockito.withSettings().extraInterfaces(SupportsContextSwitching.class));
         SupportsContextSwitching contexts = (SupportsContextSwitching) driver;
-        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("appium-session"));
+        Mockito.when(driver.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("appium-session"));
         AtomicReference<String> current = new AtomicReference<>("WEBVIEW_1");
         Mockito.when(contexts.getContext()).thenAnswer(ignored -> current.get());
         Mockito.doAnswer(invocation -> {

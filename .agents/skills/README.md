@@ -184,6 +184,7 @@ sends you there; the rest by
 - [bot entry](../../chaos-engine/references/bot-entry.md): start path for bots without hooks (Grok Bot, GPTs)
 - [harness maintenance](../../chaos-engine/references/harness-maintenance.md): install, maintain-lock recovery, harness-edit checks for bot hosts
 - [delete guard](../../chaos-engine/references/delete-guard.md): refuse deletes of untracked, dirty or unpushed work; scratch allow-list, owner override
+- [delete-check discipline](../../chaos-engine/references/delete-check-discipline.md): install+doctor delete-guard, tool.py delete-check before every delete, owner code only
 - [harness files](../../chaos-engine/references/harness-files.md): source-repo index of every harness file off the task routes, so both entries reach it
 - [TDD](../../chaos-engine/references/tdd.md)
 - [TDD failure modes](../../chaos-engine/references/tdd-failure-modes.md)
@@ -195,6 +196,7 @@ sends you there; the rest by
 - [catalog](../../chaos-engine/references/catalog.md)
 - [harness map](../../chaos-engine/references/harness-map.md)
 - [ci status economy](../../chaos-engine/references/ci-status-economy.md)
+- [content-scan preflight](../../chaos-engine/references/content-scan-preflight.md): G-META content scan + planted --self-test (exit 0 = plant detected)
 - [codacy action required gate](../../chaos-engine/references/static-analysis-gate.md)
 - [codacy complexity gate](../../chaos-engine/references/complexity-gate.md)
 - [delegate card](../../chaos-engine/references/delegate-card.md)

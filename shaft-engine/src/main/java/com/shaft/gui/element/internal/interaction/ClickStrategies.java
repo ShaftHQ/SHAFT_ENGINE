@@ -10,12 +10,14 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Pause;
 import org.openqa.selenium.interactions.PointerInput;
 import org.openqa.selenium.interactions.Sequence;
+import io.appium.java_client.remote.AppiumWebElement;
 import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Selenium click ladder: native click → optional scroll/stabilize retry → flagged JS fallback.
@@ -149,12 +151,13 @@ public final class ClickStrategies {
             throw new InvalidElementStateException(
                     "Windows click fallback requires a driver that executes scripts.");
         }
-        if (!(element instanceof RemoteWebElement remote)) {
+        String elementId = elementId(element);
+        if (elementId == null) {
             throw new InvalidElementStateException(
-                    "Windows click fallback requires a RemoteWebElement with an element id.");
+                    "Windows click fallback requires an Appium or remote element with an element id.");
         }
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("elementId", remote.getId());
+        params.put("elementId", elementId);
         executor.executeScript("windows: click", params);
     }
 
@@ -195,5 +198,16 @@ public final class ClickStrategies {
                 // Ignore — touch fallback follows.
             }
         }
+    }
+
+    @Nullable
+    private static String elementId(WebElement element) {
+        if (element instanceof AppiumWebElement appiumElement) {
+            return appiumElement.getId();
+        }
+        if (element instanceof RemoteWebElement remote) {
+            return remote.getId();
+        }
+        return null;
     }
 }

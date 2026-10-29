@@ -11,8 +11,8 @@ import io.appium.java_client.android.ListensToLogcatMessages;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ws.StringWebSocketClient;
 import org.mockito.Mockito;
-import org.openqa.selenium.remote.HttpCommandExecutor;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.AppiumCommandExecutor;
+import io.appium.java_client.remote.SessionId;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.ImmutableCapabilities;
 import org.testng.Assert;
@@ -430,7 +430,7 @@ public class MobileLogActionsTest {
                                   CopyOnWriteArrayList<Consumer<String>> messages,
                                   CopyOnWriteArrayList<Consumer<Throwable>> errors,
                                   String id, boolean listening, String serverUrl) throws Exception {
-        HttpCommandExecutor executor = Mockito.mock(HttpCommandExecutor.class);
+        AppiumCommandExecutor executor = Mockito.mock(AppiumCommandExecutor.class);
         Mockito.when(driver.getSessionId()).thenReturn(new SessionId(id));
         Mockito.when(driver.getCommandExecutor()).thenReturn(executor);
         Mockito.when(executor.getAddressOfRemoteServer()).thenReturn(URI.create(serverUrl).toURL());
@@ -460,7 +460,7 @@ public class MobileLogActionsTest {
         }
 
         private EqualLogDriver(String id, CopyOnWriteArrayList<Consumer<String>> messageHandlers) {
-            super(Mockito.mock(HttpCommandExecutor.class), new ImmutableCapabilities());
+            super(Mockito.mock(AppiumCommandExecutor.class), new ImmutableCapabilities());
             sessionId = new SessionId(id);
             this.messageHandlers = messageHandlers;
             Mockito.when(client.isListening()).thenReturn(true);

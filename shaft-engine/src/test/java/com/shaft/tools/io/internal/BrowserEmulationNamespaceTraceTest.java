@@ -102,13 +102,13 @@ public class BrowserEmulationNamespaceTraceTest {
 
     @Test
     public void appiumBiDiEmulationShouldEmitOneAppiumOwnedEvent() {
-        AppiumDriver driver = Mockito.mock(AppiumDriver.class);
+        AppiumDriver driver = Mockito.mock(AppiumDriver.class, Mockito.withSettings().extraInterfaces(HasBiDi.class));
         BiDi bidi = Mockito.mock(BiDi.class);
         MutableCapabilities capabilities = new MutableCapabilities();
         capabilities.setCapability("webSocketUrl", "ws://bidi.example.test/session");
-        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("appium-emulation"));
+        Mockito.when(driver.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("appium-emulation"));
         Mockito.when(driver.getCapabilities()).thenReturn(capabilities);
-        Mockito.when(driver.getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
+        Mockito.when(((HasBiDi) driver).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(driver.getWindowHandle()).thenReturn("webview-context");
 
         new com.shaft.gui.browser.BrowserActions(driver, true).emulation().location().locale("ar-EG");
@@ -169,10 +169,10 @@ public class BrowserEmulationNamespaceTraceTest {
         Mockito.doThrow(providerFailure).when(bidi).send(Mockito.any(org.openqa.selenium.bidi.Command.class));
         MutableCapabilities capabilities = new MutableCapabilities();
         capabilities.setCapability("webSocketUrl", "ws://bidi.example.test/appium-session");
-        AppiumDriver driver = Mockito.mock(AppiumDriver.class);
-        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("appium-sensitive-emulation"));
+        AppiumDriver driver = Mockito.mock(AppiumDriver.class, Mockito.withSettings().extraInterfaces(HasBiDi.class));
+        Mockito.when(driver.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("appium-sensitive-emulation"));
         Mockito.when(driver.getCapabilities()).thenReturn(capabilities);
-        Mockito.when(driver.getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
+        Mockito.when(((HasBiDi) driver).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(driver.getWindowHandle()).thenReturn("WEBVIEW_1");
         Mockito.when(driver.getPageSource()).thenReturn(domEvidence);
 
@@ -232,10 +232,10 @@ public class BrowserEmulationNamespaceTraceTest {
         MutableCapabilities capabilities = new MutableCapabilities();
         capabilities.setCapability("webSocketUrl", "ws://bidi.example.test/appium-sensitive-success");
         BiDi bidi = Mockito.mock(BiDi.class);
-        AppiumDriver driver = Mockito.mock(AppiumDriver.class);
-        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("appium-sensitive-success"));
+        AppiumDriver driver = Mockito.mock(AppiumDriver.class, Mockito.withSettings().extraInterfaces(HasBiDi.class));
+        Mockito.when(driver.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("appium-sensitive-success"));
         Mockito.when(driver.getCapabilities()).thenReturn(capabilities);
-        Mockito.when(driver.getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
+        Mockito.when(((HasBiDi) driver).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(driver.getWindowHandle()).thenReturn("WEBVIEW_1");
         Mockito.when(driver.getPageSource()).thenReturn("application rendered " + sensitiveValue);
 

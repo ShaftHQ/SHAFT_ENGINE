@@ -8,9 +8,11 @@ import com.shaft.gui.internal.locator.LocatorBuilder;
 import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
 import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.internal.FlakeProfiler;
+import io.appium.java_client.remote.AppiumWebElement;
 import io.appium.java_client.windows.WindowsDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.InvalidElementStateException;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Platform;
@@ -26,6 +28,8 @@ import org.testng.annotations.Test;
 
 import java.util.List;
 import java.util.Map;
+
+import org.mockito.ArgumentCaptor;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -326,7 +330,7 @@ public class DesktopInteractionStrategiesTest {
     @SuppressWarnings("rawtypes")
     private static WindowsDriver mockWindowsDriver() {
         return mock(WindowsDriver.class, org.mockito.Mockito.withSettings()
-                .extraInterfaces(TakesScreenshot.class));
+                .extraInterfaces(TakesScreenshot.class, JavascriptExecutor.class));
     }
 
     private DriverFactoryHelper helperFor(WindowsDriver driver) {
@@ -362,5 +366,30 @@ public class DesktopInteractionStrategiesTest {
             current = current.getCause();
         }
         return false;
+    }
+
+    @Test
+    public void windowsClickUsesAppiumWebElementId() {
+        WindowsDriver driver = mockWindowsDriver();
+        AppiumWebElement element = mock(AppiumWebElement.class);
+        when(element.getId()).thenReturn("appium-uia-1");
+        ArgumentCaptor<Map> params = ArgumentCaptor.forClass(Map.class);
+
+        ClickStrategies.windowsClick(driver, element);
+
+        verify(driver).executeScript(eq("windows: click"), params.capture());
+        Assert.assertEquals(params.getValue().get("elementId"), "appium-uia-1");
+    }
+
+    @Test
+    public void windowsClickRejectsElementWithoutId() {
+        WindowsDriver driver = mockWindowsDriver();
+        WebElement element = mock(WebElement.class);
+
+        InvalidElementStateException thrown = Assert.expectThrows(
+                InvalidElementStateException.class,
+                () -> ClickStrategies.windowsClick(driver, element));
+        Assert.assertTrue(thrown.getMessage().contains("element id"));
+        verify(driver, never()).executeScript(eq("windows: click"), any());
     }
 }

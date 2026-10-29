@@ -7,11 +7,12 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.remote.SupportsContextSwitching;
 import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.remote.RemoteWebDriver;
+import com.shaft.gui.capabilities.internal.LiveSessionSupport;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -168,14 +169,8 @@ public final class MobileTraceMetadata {
     }
 
     private static Capabilities capabilities(WebDriver driver) {
-        if (driver instanceof RemoteWebDriver remoteWebDriver) {
-            try {
-                return remoteWebDriver.getCapabilities();
-            } catch (RuntimeException ignored) {
-                return null;
-            }
-        }
-        return null;
+        Capabilities caps = LiveSessionSupport.capabilities(driver);
+        return caps != null ? caps : new MutableCapabilities();
     }
 
     private static String capability(Capabilities capabilities, String key) {

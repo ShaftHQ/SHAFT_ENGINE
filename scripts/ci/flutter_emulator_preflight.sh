@@ -37,10 +37,26 @@ fi
 adb start-server
 adb version
 
+# Pin lives under scripts/ci/npm-pins. Same-shell `export PATH` is not enough
+# for later Actions steps (android-emulator-runner): persist via $GITHUB_PATH.
+pin="$(cd "$(dirname "$0")/npm-pins/appium-3.5.2" && pwd)"
+pin_bin="$pin/node_modules/.bin"
 if ! command -v appium >/dev/null 2>&1; then
-  pin="$(cd "$(dirname "$0")/npm-pins/appium-3.5.2" && pwd)"
   npm ci --prefix "$pin"
-  export PATH="$pin/node_modules/.bin:$PATH"
+  if [ ! -e "$pin_bin/appium" ]; then
+    echo "::error::Pinned Appium binary missing at $pin_bin/appium after npm ci."
+    exit 1
+  fi
+fi
+if [ -e "$pin_bin/appium" ]; then
+  export PATH="$pin_bin:$PATH"
+  if [ -n "${GITHUB_PATH:-}" ]; then
+    echo "$pin_bin" >> "$GITHUB_PATH"
+  fi
+fi
+if ! command -v appium >/dev/null 2>&1; then
+  echo "::error::appium not on PATH after Flutter emulator preflight."
+  exit 1
 fi
 appium driver install --source npm appium-flutter-integration-driver
 

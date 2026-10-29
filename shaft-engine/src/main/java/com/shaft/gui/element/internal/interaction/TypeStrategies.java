@@ -3,13 +3,13 @@ package com.shaft.gui.element.internal.interaction;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.HidesKeyboard;
 import io.appium.java_client.android.CanReplaceElementValue;
+import io.appium.java_client.remote.AppiumWebElement;
 import io.appium.java_client.flutter.FlutterIntegrationTestDriver;
 import org.openqa.selenium.InvalidElementStateException;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -352,9 +352,9 @@ public final class TypeStrategies {
 
         if (replaceAllowed
                 && driver instanceof CanReplaceElementValue replacer
-                && element instanceof RemoteWebElement remote) {
+                && element instanceof AppiumWebElement appiumElement) {
             try {
-                replacer.replaceElementValue(remote, typed);
+                replacer.replaceElementValue(appiumElement, typed);
                 return;
             } catch (RuntimeException replaceFailure) {
                 lastFailure = replaceFailure;

@@ -45,6 +45,7 @@ import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.bidi.permissions.PermissionState;
+import com.shaft.gui.capabilities.internal.LiveSessionSupport;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.http.HttpRequest;
 import org.openqa.selenium.remote.http.HttpResponse;
@@ -383,7 +384,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
 
     private HasDownloads requireDownloadsSupport(String operation) {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
-        boolean closed = driver instanceof RemoteWebDriver remote && remote.getSessionId() == null;
+        boolean closed = LiveSessionSupport.isClosedRemoteSession(driver);
         if (driver instanceof AppiumDriver || closed || !(driver instanceof HasDownloads downloads)
                 || !downloads.isDownloadsEnabled()) {
             throw new UnsupportedOperationException("Browser downloads " + operation
@@ -435,7 +436,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
 
     void requireContextSupport(String operation) {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
-        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
         if (!(driver instanceof SupportsContextSwitching) || closedRemoteSession) {
             throw new UnsupportedOperationException("Appium context " + operation
                     + " is not supported by the live Selenium/Appium session.");
@@ -444,7 +445,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
 
     boolean isCurrentAlertPresent() {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
-        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
         if (driver == null || closedRemoteSession) {
             throw new UnsupportedOperationException("Dialog inspection requires a live Selenium/Appium session.");
         }
@@ -534,7 +535,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
 
     private JavascriptExecutor storageExecutor(String operation) {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
-        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
         boolean appiumWebContext = true;
         if (driver instanceof AppiumDriver) {
             appiumWebContext = isAppiumWebStorageContext(driver);
@@ -622,7 +623,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
 
     private WebDriver requireLiveConsoleDriver(String operation) {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
-        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
         if (driver == null || closedRemoteSession) {
             throw unsupportedConsole(operation);
         }
@@ -664,7 +665,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
 
     private JavascriptExecutor scriptExecutor(String operation) {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
-        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
         boolean supportedContext = !(driver instanceof AppiumDriver) || isAppiumWebStorageContext(driver);
         if (!(driver instanceof JavascriptExecutor executor) || closedRemoteSession || !supportedContext) {
             throw new UnsupportedOperationException("Browser script " + operation
@@ -756,7 +757,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
 
     private WebDriver authenticationDriver(String operation) {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
-        boolean closed = driver instanceof RemoteWebDriver remote && remote.getSessionId() == null;
+        boolean closed = LiveSessionSupport.isClosedRemoteSession(driver);
         boolean devToolsLive = driver instanceof HasDevTools hasDevTools && hasDevTools.maybeGetDevTools().isPresent();
         if (driver instanceof AppiumDriver || closed || !(driver instanceof HasAuthentication) || !devToolsLive) {
             throw new UnsupportedOperationException("Browser authentication " + operation
@@ -842,7 +843,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
     }
 
     private HandlePermissionModule bidiPermissions(WebDriver driver, String operation) {
-        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
         Capabilities capabilities = driver instanceof HasCapabilities hasCapabilities
                 ? hasCapabilities.getCapabilities() : null;
         Object webSocketUrl = capabilities == null ? null : capabilities.getCapability("webSocketUrl");
@@ -926,7 +927,7 @@ public class BrowserActions extends FluentWebDriverAction implements com.shaft.g
 
     void requireNetworkNamespaceSupport(String operation) {
         WebDriver driver = driverFactoryHelper == null ? null : driverFactoryHelper.getDriver();
-        boolean closedRemoteSession = driver instanceof RemoteWebDriver remoteDriver && remoteDriver.getSessionId() == null;
+        boolean closedRemoteSession = LiveSessionSupport.isClosedRemoteSession(driver);
         boolean liveDevTools = driver instanceof HasDevTools hasDevTools && hasDevTools.maybeGetDevTools().isPresent();
         if (!liveDevTools || closedRemoteSession) {
             var exception = new UnsupportedOperationException("Network " + operation
