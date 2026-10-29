@@ -13,4 +13,4 @@ Live selector labels remain `Agent` / `Workflow` / `Execution log` until journey
 
 Persistence key `Live record` stays on `ShaftToolWindowPanel.LIVE_RECORD_TAB` for #6014 Guided→Live record canonicalize.
 
-Refs: epic #7568, child W0.2, SPEC `docs/revamp/SPEC.md` C1.
+Refs: epic #7568, child W0.2, SPEC `tools/intellij-plugin-recording/revamp/SPEC.md` C1.

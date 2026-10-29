@@ -93,6 +93,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPanelSetupTest {
+    static {
+        // AllIcons / DeferredIcon paint empty placeholders until IconLoader is activated.
+        // Without this, paintsVisiblePixels fails for toolbar icons that now resolve via AllIcons (W1.2).
+        // Same requirement as ShaftPluginScreenshotRendererTest.
+        com.intellij.openapi.util.IconLoader.activate();
+    }
+
     private static final List<Path> TEMP_DIRECTORIES = new ArrayList<>();
 
     @Test
