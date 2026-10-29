@@ -59,7 +59,7 @@ public class AccessibilityHelperCoverageUnitTest {
         caps.setCapability("browserName", "chrome");
         caps.setCapability("browserVersion", "120.0");
         caps.setCapability("platformName", Platform.LINUX);
-        WebDriver driver = mockAxeDriver(results, caps);
+        WebDriver driver = mockAxeDriver(caps, results);
         AccessibilityHelper.analyzePageAccessibility(driver, "SuccessfulPage", config);
 
         Map<String, Object> request = capturedAxeRequest(driver);
