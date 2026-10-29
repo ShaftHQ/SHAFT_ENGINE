@@ -82,8 +82,12 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
 - Reports: deltas only (merged, next, blockers), <= 15 lines.
 - One worktree per worker on a shared box: `git worktree add "$WT"
   origin/HEAD -b "$BRANCH"`; never branch, stage, or install in another
-  worker's clone. Empty `/workspace` or logged-out `gh` at start means the
-  box is still mounting: recheck, never clone over it.
+  worker's clone. Prefer a single `git clone --filter=blob:none` (or bare /
+  `--reference`) host checkout and worktrees over N full clones.
+  Empty `/workspace` or logged-out `gh` at start means the box is still
+  mounting: recheck, never clone over it. Keep `graphify-out/` and
+  `.chaos-engine-state/` untracked; do not rebuild a Graphify index per
+  worktree on the same host when one shared index already exists.
 - Keep tools and drafts outside `/tmp` (a box restore wipes it) and check
   `git ls-files -d` before each push.
 

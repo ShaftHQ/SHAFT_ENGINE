@@ -13,20 +13,38 @@ The public user-guide source lives in
 
 ## 1. Check Out The Code
 
-Fork the repository if you are not a maintainer. Then clone your fork:
+Prefer a **partial clone** so Git downloads file contents on demand instead of
+every historical blob up front (#7547). Fork the repository if you are not a
+maintainer, then:
 
 ```bash
-git clone https://github.com/<your-user>/SHAFT_ENGINE.git
+git clone --filter=blob:none https://github.com/<your-user>/SHAFT_ENGINE.git
 cd SHAFT_ENGINE
 git remote add upstream https://github.com/ShaftHQ/SHAFT_ENGINE.git
 ```
 
-Maintainers can clone the canonical repository directly:
+Maintainers can clone the canonical repository the same way:
 
 ```bash
-git clone https://github.com/ShaftHQ/SHAFT_ENGINE.git
+git clone --filter=blob:none https://github.com/ShaftHQ/SHAFT_ENGINE.git
 cd SHAFT_ENGINE
 ```
+
+On a shared agent host, keep **one** partial clone (or bare/`--reference`
+clone) and add a `git worktree` per branch. Do not create N full clones of this
+repository on the same disk.
+
+Mobile test apk/ipa fixtures are **not** in the tree. Fetch them once before a
+local mobile run:
+
+```bash
+python3 scripts/ci/fetch_mobile_test_apps.py
+```
+
+CI jobs that need the fixtures pass `mobile-apps: 'true'` to
+`.github/actions/setup-test-env`. Generated indexes (`graphify-out/`) and
+ChaosEngine runtime state (`.chaos-engine-state/`) stay gitignored; do not
+commit them, and prefer one shared index per host over rebuilding per worktree.
 
 Start every change from current `main`:
 

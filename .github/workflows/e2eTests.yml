@@ -737,6 +737,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           node-version: '20'
       # Wrapped because this step, not `Run tests`, is where a cold cache pays:
       # it has no continue-on-error, so a Central refusal here skips `Run tests`
@@ -794,6 +795,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           node-version: '20'
       - name: Run FlutterTest on BrowserStack
         continue-on-error: true
@@ -825,6 +827,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           node-version: '20'
       - name: Install visual and OCR test runtimes
         shell: bash
@@ -884,6 +887,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           node-version: '20'
       - name: Fetch provider-compatible iOS sample app
         run: |
@@ -951,6 +955,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           node-version: '20'
       - name: Run Android recording acceptance
         continue-on-error: true
@@ -987,6 +992,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           node-version: '20'
       - name: Fetch provider-compatible iOS sample app
         run: |
@@ -1031,6 +1037,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           node-version: '20'
       - name: Run Android evidence acceptance
         continue-on-error: true
@@ -1067,6 +1074,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           node-version: '20'
       - name: Fetch provider-compatible iOS sample app
         run: |

@@ -61,6 +61,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           node-version: 'lts/*'
       - name: Verify LambdaTest credentials
         shell: bash
@@ -140,6 +141,7 @@ jobs:
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
+          mobile-apps: 'true'
           node-version: 'lts/*'
       - name: Verify LambdaTest credentials
         shell: bash
