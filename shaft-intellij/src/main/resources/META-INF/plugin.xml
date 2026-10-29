@@ -41,6 +41,7 @@
         <notificationGroup id="SHAFT Notifications" displayType="BALLOON"/>
         <postStartupActivity implementation="com.shaft.intellij.settings.ShaftPluginUpgradeActivity"/>
         <postStartupActivity implementation="com.shaft.intellij.settings.ShaftFirstRunNoticeActivity"/>
+        <iconMapper mappingFile="ShaftIconMappings.json"/>
     </extensions>
 
     <projectListeners>
