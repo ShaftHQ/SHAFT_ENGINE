@@ -1437,6 +1437,139 @@ process.stderr.write(result.stderr || '');
             self.assertIn("403", rendered)
             self.assertIn("permission", rendered)
 
+
+    def test_http_403_on_fork_workflow_approve_blocks_retry(self):
+        """#7443: HTTP 403 on fork-workflow approve is permission; do not retry."""
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "fork-403"
+            failed = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": (
+                            "gh api --method POST "
+                            "repos/ShaftHQ/SHAFT_ENGINE/actions/runs/123/approve"
+                        )
+                    },
+                    "tool_response": {
+                        "status": "error",
+                        "exit_code": 1,
+                        "stderr": "HTTP 403: Resource not accessible by integration\n",
+                    },
+                    "session_id": session,
+                },
+                environment,
+            )
+            self.assertEqual(0, failed.returncode)
+            blocked = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": (
+                            "gh api --method POST "
+                            "repos/ShaftHQ/SHAFT_ENGINE/actions/runs/123/approve"
+                        )
+                    },
+                    "session_id": session,
+                },
+                environment,
+            )
+            rendered = (blocked.stdout + blocked.stderr).casefold()
+            self.assertNotEqual(0, blocked.returncode)
+            self.assertIn("403", rendered)
+            self.assertIn("permission", rendered)
+
+    def test_goal_prompt_writes_owner_finish_goal_marker(self):
+        """#7424: UserPromptSubmit /goal writes owner-finish-goal.json automatically."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            submitted = self.run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "cwd": str(root),
+                    "prompt": "/goal finish the delivery across the open queue",
+                    "session_id": "goal-7424",
+                },
+                environment,
+            )
+            self.assertEqual(0, submitted.returncode, submitted.stdout + submitted.stderr)
+            marker = root / ".chaos-engine-state" / "owner-finish-goal.json"
+            self.assertTrue(marker.is_file(), " /goal must write owner-finish-goal.json")
+            payload = json.loads(marker.read_text(encoding="utf-8"))
+            self.assertTrue(payload.get("active"))
+            self.assertEqual("/goal", payload.get("source"))
+
+    def test_until_merged_refused_for_out_of_scope_pull_request(self):
+        """#7443: PreToolUse refuses --until-merged on owner out-of-scope PR."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            # Owner names Selenium PR out of scope via prompt.
+            named = self.run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "cwd": str(root),
+                    "prompt": (
+                        "SeleniumHQ/selenium#18254 is out of scope — do not watch "
+                        "https://github.com/SeleniumHQ/selenium/pull/18254"
+                    ),
+                    "session_id": "oos-7443",
+                },
+                environment,
+            )
+            self.assertEqual(0, named.returncode, named.stdout + named.stderr)
+            allow = root / ".chaos-engine-state" / "out-of-scope-pull-requests.json"
+            self.assertTrue(allow.is_file(), "out-of-scope allowlist must be written")
+            blocked = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": (
+                            "python3 scripts/agents/watch_pr_checks.py "
+                            "--pr 18254 --until-merged"
+                        )
+                    },
+                    "session_id": "oos-7443",
+                },
+                environment,
+            )
+            rendered = (blocked.stdout + blocked.stderr).casefold()
+            self.assertNotEqual(0, blocked.returncode, rendered)
+            self.assertIn("out-of-scope", rendered)
+            self.assertIn("18254", rendered)
+            # Stop must not demand until-merged when the open mark is that PR.
+            mark = root / ".chaos-engine-state" / "open-pull-request.json"
+            mark.write_text(
+                json.dumps(
+                    {
+                        "active": True,
+                        "state": "open",
+                        "pullRequest": 18254,
+                        "repository": "SeleniumHQ/selenium",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "cwd": str(root),
+                    "session_id": "oos-7443",
+                    "stop_hook_active": True,
+                },
+                environment,
+            )
+            text = (stopped.stdout + stopped.stderr).casefold()
+            self.assertNotIn("until merged", text)
+
+
     def test_session_start_reports_reflection_controller_drift_only_when_files_differ(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

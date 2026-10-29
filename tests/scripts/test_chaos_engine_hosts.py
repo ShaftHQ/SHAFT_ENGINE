@@ -6,6 +6,7 @@ import importlib.util
 import errno
 import hashlib
 import json
+import contextlib
 import os
 import re
 import shutil
@@ -1231,6 +1232,58 @@ class ChaosEngineHostsTest(unittest.TestCase):
         script = module._locator_script("codex")
         self.assertIn("wait_budget_s", script)
         self.assertIn("except (TypeError,ValueError)", script)
+
+
+    def test_lifecycle_hook_invalid_wait_ms_with_markers_waits(self):
+        """#7492/#7434: markers + invalid WAIT_MS must not NaN-instant; default 60s (JS parity)."""
+        module = load(HOSTS, "chaos_engine_hook_bad_wait_markers")
+        command = self._guard_locator_command(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            Path(temporary, ".chaos-engine.transaction.json").write_text(
+                '{"operation":"install"}\n', encoding="utf-8"
+            )
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "not-a-number"}
+            # Invalid env defaults to 60s; with markers the locator must still be
+            # waiting after 1.5s (NaN would exit TEMP instantly).
+            planter = subprocess.Popen(  # nosec B602 - generated fixed hook command.
+                command,
+                shell=True,
+                cwd=temporary,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                text=True,
+            )
+            try:
+                planter.stdin.write(
+                    json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+                )
+                planter.stdin.close()
+                try:
+                    planter.wait(timeout=1.5)
+                except subprocess.TimeoutExpired:
+                    # Expected: default 60s wait still running after 1.5s probe.
+                    pass
+                self.assertIsNone(
+                    planter.poll(),
+                    "invalid WAIT_MS with markers must wait (default 60s), not NaN-instant exit",
+                )
+            finally:
+                if planter.poll() is None:
+                    planter.kill()
+                try:
+                    planter.communicate(timeout=5)
+                except Exception:
+                    with contextlib.suppress(Exception):
+                        if planter.stdout:
+                            planter.stdout.close()
+                        if planter.stderr:
+                            planter.stderr.close()
+                    with contextlib.suppress(Exception):
+                        planter.wait(timeout=5)
+        self.assertEqual(60.0, module.guard_wait_budget_seconds("not-a-number"))
+
 
     def test_lifecycle_hook_negative_wait_ms_with_markers_temps_immediately(self):
         """#7434: negative WAIT_MS → 0s budget; markers still present → TEMP deny."""

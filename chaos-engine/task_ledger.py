@@ -229,6 +229,25 @@ def checkpoint_step(ns: argparse.Namespace) -> int:
 
 
 
+def write_owner_finish_goal(
+    project: Path | None = None,
+    *,
+    active: bool = True,
+    source: str = "/goal",
+) -> Path:
+    """Persist ``.chaos-engine-state/owner-finish-goal.json`` for #7424.
+
+    Called when the owner starts a ``/goal`` finish-delivery session so the
+    35-minute checkpoint stop becomes a warning instead of exit 3.
+    """
+    root = Path(project) if project is not None else Path.cwd()
+    path = root / ".chaos-engine-state" / OWNER_FINISH_STATE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"active": bool(active), "source": str(source or "/goal")}
+    path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
 def owner_finish_goal_active(project: Path | None = None) -> bool:
     """True when the owner explicitly asked to finish a named delivery (#7424).
 

@@ -99,6 +99,19 @@ class TaskLedgerTest(unittest.TestCase):
                         ):
                             self.assertEqual(0, self.ledger.session_gate("cli", 35, now=40 * 60))
 
+
+    def test_write_owner_finish_goal_persists_marker(self):
+        """#7424: write_owner_finish_goal creates active marker for /goal path."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = self.ledger.write_owner_finish_goal(root, active=True, source="/goal")
+            self.assertTrue(path.is_file())
+            payload = __import__("json").loads(path.read_text(encoding="utf-8"))
+            self.assertTrue(payload["active"])
+            self.assertEqual("/goal", payload["source"])
+            self.assertTrue(self.ledger.owner_finish_goal_active(root))
+
+
     def test_step_checkpoint_enforces_the_35_minute_stop_7194(self):
         self.assertEqual(35, self.ledger.DEFAULT_BUDGET_MINUTES)
         self.ledger.record("cli", "start", start=True, now=0)

@@ -141,6 +141,163 @@ def learning_requested(event: dict) -> bool:
     return isinstance(prompt, str) and bool(LEARNING_REQUEST.search(prompt))
 
 
+# #7424: owner ``/goal`` (finish-delivery) → write owner-finish-goal marker.
+OWNER_GOAL_FINISH = re.compile(
+    r"(?i)(?:^|\s)/goal\b|"
+    r"\bfinish(?:ing)?\s+(?:the\s+)?(?:delivery|multi[- ]?pr)\b"
+)
+# #7443: owner names a pull request as out of scope (do not babysit / until-merged).
+_OUT_OF_SCOPE_PR_URL = re.compile(
+    r"https://github\.com/([^\s/]+/[^\s/]+)/pull/(\d+)",
+    re.IGNORECASE,
+)
+_OUT_OF_SCOPE_CUE = re.compile(
+    r"(?i)\b(?:out\s+of\s+scope|do\s+not\s+(?:watch|babysit|merge)|don'?t\s+watch)\b"
+)
+_OUT_OF_SCOPE_STATE = "out-of-scope-pull-requests.json"
+
+
+def owner_goal_finish_requested(event: dict) -> bool:
+    """True when the owner's prompt starts a finish-delivery ``/goal`` (#7424)."""
+    prompt = event.get("prompt") or event.get("user_prompt") or ""
+    return isinstance(prompt, str) and bool(OWNER_GOAL_FINISH.search(prompt))
+
+
+def _task_ledger_module():
+    """Load chaos-engine/task_ledger.py without requiring package install."""
+    root = Path(__file__).resolve().parents[1]
+    candidate = root / "task_ledger.py"
+    if not candidate.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("chaos_engine_task_ledger_guard", candidate)
+    if spec is None or spec.loader is None:
+        return None
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except (OSError, ImportError, SyntaxError, TypeError):
+        return None
+    return module
+
+
+def activate_owner_finish_goal_from_prompt(event: dict) -> Path | None:
+    """Write owner-finish-goal.json when ``/goal`` finish-delivery is requested (#7424)."""
+    if not owner_goal_finish_requested(event):
+        return None
+    ledger = _task_ledger_module()
+    if ledger is None or not hasattr(ledger, "write_owner_finish_goal"):
+        return None
+    cwd = Path(str(event.get("cwd") or Path.cwd()))
+    return ledger.write_owner_finish_goal(cwd, active=True, source="/goal")
+
+
+def _out_of_scope_state_path(cwd: Path) -> Path:
+    return cwd / ".chaos-engine-state" / _OUT_OF_SCOPE_STATE
+
+
+def remember_out_of_scope_pull_request(
+    cwd: Path, number: int, *, repository: str | None = None
+) -> None:
+    """Record a pull request the owner named out of scope (#7443)."""
+    if number is None or isinstance(number, bool) or int(number) <= 0:
+        return
+    path = _out_of_scope_state_path(cwd)
+    entries: list[dict] = []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict) and isinstance(payload.get("pullRequests"), list):
+            entries = [item for item in payload["pullRequests"] if isinstance(item, dict)]
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        entries = []
+    key_repo = (repository or "").strip()
+    for item in entries:
+        if int(item.get("pullRequest") or 0) == int(number):
+            if not key_repo or str(item.get("repository") or "") == key_repo:
+                return
+    entries.append({"pullRequest": int(number), "repository": key_repo})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"pullRequests": entries}, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def out_of_scope_pull_request(
+    cwd: Path, number: int | None, *, repository: str | None = None
+) -> bool:
+    """True when ``number`` is on the owner out-of-scope allowlist (#7443)."""
+    if number is None or isinstance(number, bool) or int(number) <= 0:
+        return False
+    path = _out_of_scope_state_path(cwd)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    entries = payload.get("pullRequests")
+    if not isinstance(entries, list):
+        return False
+    want_repo = (repository or "").strip().casefold()
+    for item in entries:
+        if not isinstance(item, dict):
+            continue
+        if int(item.get("pullRequest") or 0) != int(number):
+            continue
+        have = str(item.get("repository") or "").strip().casefold()
+        if not want_repo or not have or have == want_repo:
+            return True
+    return False
+
+
+def record_out_of_scope_from_prompt(event: dict) -> None:
+    """Parse owner 'out of scope' + PR URL from UserPromptSubmit (#7443)."""
+    prompt = event.get("prompt") or event.get("user_prompt") or ""
+    if not isinstance(prompt, str) or not _OUT_OF_SCOPE_CUE.search(prompt):
+        return
+    cwd = Path(str(event.get("cwd") or Path.cwd()))
+    for match in _OUT_OF_SCOPE_PR_URL.finditer(prompt):
+        remember_out_of_scope_pull_request(
+            cwd, int(match.group(2)), repository=match.group(1)
+        )
+
+
+def _watch_until_merged_target(command: str) -> tuple[int | None, str | None]:
+    """Return (pr_number, repository) from a watch_pr_checks --until-merged command."""
+    text = str(command or "")
+    if "watch_pr_checks" not in text.replace("\\", "/").casefold():
+        return None, None
+    if "--until-merged" not in text:
+        return None, None
+    number = None
+    pr_match = re.search(r"--pr\s+(\d+)\b", text)
+    if pr_match:
+        number = int(pr_match.group(1))
+    repo = None
+    url_match = _OUT_OF_SCOPE_PR_URL.search(text)
+    if url_match:
+        repo = url_match.group(1)
+        if number is None:
+            number = int(url_match.group(2))
+    return number, repo
+
+
+def until_merged_out_of_scope_reason(cwd: Path, commands: tuple[str, ...]) -> str:
+    """PreToolUse: refuse --until-merged on an owner out-of-scope PR (#7443)."""
+    for command in commands:
+        number, repository = _watch_until_merged_target(command)
+        if number is None:
+            continue
+        if out_of_scope_pull_request(cwd, number, repository=repository):
+            label = f"{repository}#{number}" if repository else f"#{number}"
+            return (
+                f"Pull request {label} is on the owner out-of-scope allowlist. "
+                "Do not run watch_pr_checks.py --until-merged on it (#7443)."
+            )
+    return ""
+
+
+
 def learning_session_reason(session_id: str, event: dict) -> str | None:
     # #6739: Learning Session after every final delivery. delivery-complete
     # alone owes it; the completion artifact pays it (the Learning Session
@@ -298,6 +455,7 @@ def _overlay_push_block(commands: tuple[str, ...]) -> str:
             if completed.returncode == 0 and completed.stdout.strip():
                 project = Path(completed.stdout.strip())
         except OSError:
+            # Non-git cwd: keep Path.cwd() as the project root for the checker.
             pass
     script = project / "scripts/ci/overlay_pre_push.py"
     if not script.is_file():
@@ -1015,7 +1173,11 @@ def delivery_goal_open_pull_request(event: dict) -> bool:
         return False
     # #7443: a numberless open-PR mark is not an identity — do not demand until-merged.
     number = payload.get("pullRequest")
-    return isinstance(number, int) and not isinstance(number, bool) and number > 0
+    if not (isinstance(number, int) and not isinstance(number, bool) and number > 0):
+        return False
+    # #7443: owner out-of-scope allowlist — do not demand until-merged for that PR.
+    repository = str(payload.get("repository") or "") or None
+    return not out_of_scope_pull_request(Path(str(cwd)), number, repository=repository)
 
 
 def _open_pull_request_reason(session_id: str, event: dict) -> str:
@@ -1159,6 +1321,10 @@ def _command_guard_state(
         permission_block = github_permission_denied_reason(session_id, commands)
         if permission_block:
             return receipt_command, mutation, permission_block
+        cwd = Path(str(event.get("cwd") or Path.cwd()))
+        scope_block = until_merged_out_of_scope_reason(cwd, commands)
+        if scope_block:
+            return receipt_command, mutation, scope_block
     if event_name == "PreToolUse" and checkpoint and not receipt_command and (mutation or unchanged_test):
         return receipt_command, mutation, checkpoint_reason(checkpoint, session_id)
     uninspectable = _uninspectable_functions_call(
@@ -1466,6 +1632,10 @@ def _prompt_entry(event: dict, event_name: str, session_id: str, host: str) -> i
         _lifecycle.record_companion_opt_out(session_id, prompt)
     if learning_requested(event):
         reflection.record_activity(session_id, "learning-requested")
+    # #7424: /goal finish-delivery writes the owner-finish-goal marker automatically.
+    activate_owner_finish_goal_from_prompt(event)
+    # #7443: owner "out of scope" + PR URL → allowlist for --until-merged refuse.
+    record_out_of_scope_from_prompt(event)
     # Grok discards UserPromptSubmit context. Gemini and Copilot have no
     # subagent-start event; Claude and Codex use this only when SubagentStart
     # did not already inject for this agent scope.
