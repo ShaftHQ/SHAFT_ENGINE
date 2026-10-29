@@ -80,13 +80,31 @@ attempt_flutter_test() {
   run_flutter_maven
 }
 
+# #7496: device primary under time-cap; authorized fallback = one Appium restart path
+DEVICE_CAP_S="${CHAOS_ENGINE_DEVICE_CAP_S:-900}"
+export CHAOS_ENGINE_DEVICE_CAP_S="$DEVICE_CAP_S"
 if attempt_flutter_test; then
   :
 elif grep -q "socket hang up" "$mavenLog"; then
-  echo "::warning::Flutter Appium proxy dropped the session. Restarting Appium once."
+  echo "::warning::Flutter Appium proxy dropped the session. Restarting Appium once (device fallback)."
+  # Record fallback via mobile_retro_runtime (picklable spawn-safe worker)
+  python3 scripts/ci/mobile_retro_runtime.py device-fallback --mode error --error-msg "socket hang up" --fallback restarted --cap-s 5 >/dev/null || true
   attempt_flutter_test
+elif grep -qiE "ClassNotFound|server-side gate|versionCode ignored" "$mavenLog"; then
+  sig=$(tr '\n' ' ' <"$mavenLog" | head -c 4000)
+  python3 scripts/ci/mobile_retro_runtime.py classify-before-rebuild --signature "$sig" || {
+    echo "::error::Flutter run Blocked by backend gate; not rebuilding device path."
+    exit 2
+  }
+  exit 1
 else
   exit 1
+fi
+# #7494: freeze green allure cohort when present
+if [ -d "$GITHUB_WORKSPACE/shaft-engine/allure-results" ] || [ -d allure-results ]; then
+  results_dir="$GITHUB_WORKSPACE/shaft-engine/allure-results"
+  [ -d "$results_dir" ] || results_dir="allure-results"
+  python3 scripts/ci/mobile_retro_runtime.py after-green-allure --root "$GITHUB_WORKSPACE" --results "$results_dir" --green || true
 fi
 if [ ! -d "$GITHUB_WORKSPACE/shaft-engine/allure-results" ]; then
   for d in "$PWD/shaft-engine/allure-results" "$PWD/allure-results" "$GITHUB_WORKSPACE/allure-results"; do
