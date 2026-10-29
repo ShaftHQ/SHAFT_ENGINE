@@ -62,7 +62,7 @@ class DesignQaR2DeltaLessonCardsTest(unittest.TestCase):
                     self.assertIn(needle, text)
                 self.assertIn(f"]({name})", index)
         inv = " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split())
-        self.assertIn("33 lesson", inv)
+        self.assertIn("34 lesson", inv)
         self.assertIn("L01-L33", inv)
         craft = (DESIGN / "references/craft/index.md").read_text(encoding="utf-8")
         self.assertIn("viral pacing FLAG", craft)
