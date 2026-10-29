@@ -51,7 +51,10 @@ _CSS_STRING = re.compile(
     re.S,
 )
 # HTML5 RCDATA + obsolete rawtext: <!--...--> is character data, not a comment.
-# script/style also raw. noscript/iframe/template keep real Comment nodes → L37 fail.
+# script/style also raw. noscript/template keep real Comment nodes → L37 fail.
+# iframe: paste hygiene still L37-fails on <!-- --> even when the stdlib parser
+# treats iframe as CDATA (CPython ≥3.13.17 CDATA_CONTENT_ELEMENTS includes it)
+# and emits handle_data instead of handle_comment.
 _RAW_OR_RCDATA = frozenset({
     "script",
     "style",
@@ -63,6 +66,8 @@ _RAW_OR_RCDATA = frozenset({
     "noframes",
     "plaintext",
 })
+# Elements that may be CDATA to the parser but still count <!-- for L37.
+_RAW_STILL_L37 = frozenset({"iframe"})
 # Livecms / cmsheader viewports (L28 + L36): phone + desktop matrix.
 HEADER_VIEWPORTS = (360, 390, 430, 1440)
 HEADER_DELTA_OK_PREFIXES = ("header_logo_delta_ok_", "header_nav_delta_ok_")
@@ -206,7 +211,7 @@ class _PasteMarkupScanner(HTMLParser):
         name = (tag or "").lower()
         if self._in_raw():
             return
-        if name in _RAW_OR_RCDATA:
+        if name in _RAW_OR_RCDATA or name in _RAW_STILL_L37:
             self._raw_stack.append(name)
             if name == "style":
                 self._style_chunks = []
@@ -223,25 +228,39 @@ class _PasteMarkupScanner(HTMLParser):
         # Void/self-closing — still a shell hit if html/head/body (rare).
         self.handle_starttag(tag, attrs)
         name = (tag or "").lower()
-        if name in _RAW_OR_RCDATA and self._raw_stack and self._raw_stack[-1] == name:
+        if (
+            name in _RAW_OR_RCDATA or name in _RAW_STILL_L37
+        ) and self._raw_stack and self._raw_stack[-1] == name:
             self.handle_endtag(tag)
 
     def handle_endtag(self, tag: str) -> None:
         name = (tag or "").lower()
-        if name in _RAW_OR_RCDATA and self._raw_stack and self._raw_stack[-1] == name:
+        if (
+            (name in _RAW_OR_RCDATA or name in _RAW_STILL_L37)
+            and self._raw_stack and self._raw_stack[-1] == name
+        ):
             if name == "style":
                 self.style_bodies.append("".join(self._style_chunks))
                 self._style_chunks = []
             self._raw_stack.pop()
 
     def handle_data(self, data: str) -> None:
-        if self._raw_stack and self._raw_stack[-1] == "style":
+        if not self._raw_stack:
+            return
+        top = self._raw_stack[-1]
+        if top == "style":
             self._style_chunks.append(data or "")
+            return
+        # CDATA iframe (CPython ≥3.13.17): <!-- arrives as text, still L37.
+        if top in _RAW_STILL_L37 and data and "<!--" in data:
+            self.comments += data.count("<!--")
 
     def handle_comment(self, data: str) -> None:
         # Real HTML comments, including conditional <!--[if ...] ... <![endif]-->.
-        # Ignore parser false comments inside RCDATA/rawtext (_RAW_OR_RCDATA).
-        if self._in_raw():
+        # Ignore parser false comments inside true RCDATA/rawtext only.
+        # iframe may be on _raw_stack (_RAW_STILL_L37) but still counts here when
+        # older CPython emits handle_comment instead of CDATA handle_data.
+        if self._raw_stack and self._raw_stack[-1] in _RAW_OR_RCDATA:
             return
         self.comments += 1
 

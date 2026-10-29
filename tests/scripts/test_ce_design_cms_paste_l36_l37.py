@@ -441,7 +441,11 @@ class CmsPasteCommentsL37Test(unittest.TestCase):
                 self.assertEqual(0, payload.get("html_comment_hits", -1), (name, payload))
 
     def test_cmsmeta_rejects_real_comments_in_noscript_iframe_template(self) -> None:
-        """C2 intentional FAIL: HTML5 Comment nodes in noscript/iframe/template."""
+        """C2 intentional FAIL: noscript/iframe/template comments (paste hygiene).
+
+        noscript/template: real Comment nodes. iframe: still L37-fail even when
+        CPython CDATA_CONTENT_ELEMENTS treats iframe as raw text (≥3.13.17).
+        """
         cases = {
             "noscript.html": "<div><noscript><!-- real --></noscript><h1>x</h1></div>",
             "iframe.html": "<div><iframe><!-- real --></iframe><h1>x</h1></div>",
@@ -457,6 +461,28 @@ class CmsPasteCommentsL37Test(unittest.TestCase):
                 self.assertGreaterEqual(
                     payload.get("html_comment_hits", 0), 1, (name, payload),
                 )
+
+    def test_cmsmeta_rejects_iframe_comment_under_cdata_elements(self) -> None:
+        """FN guard: iframe <!-- --> still fails when parser uses CDATA mode."""
+        import html.parser as hp
+
+        html = "<div><iframe><!-- real --></iframe><h1>x</h1></div>"
+        old = hp.HTMLParser.CDATA_CONTENT_ELEMENTS
+        hp.HTMLParser.CDATA_CONTENT_ELEMENTS = (
+            "script", "style", "xmp", "iframe", "noembed", "noframes",
+        )
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                path = Path(folder) / "iframe_cdata.html"
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(1, code, payload)
+                self.assertEqual("fail", payload.get("status"), payload)
+                self.assertGreaterEqual(
+                    payload.get("html_comment_hits", 0), 1, payload,
+                )
+        finally:
+            hp.HTMLParser.CDATA_CONTENT_ELEMENTS = old
 
     def test_cmsmeta_passes_escaped_comment_text(self) -> None:
         html = "<div><p>Do not leave &lt;!-- notes --&gt; in paste.</p></div>"
