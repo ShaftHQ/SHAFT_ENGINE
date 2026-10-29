@@ -1,6 +1,6 @@
-# Lesson cards (talk video, captions, release)
+# Lesson cards (talk video, captions, release, hosted CMS)
 
-Field lessons from talk Shorts and visual/media pipeline retros. These are rules
+Field lessons from talk Shorts, visual/media pipeline retros, and hosted-CMS embeds. These are rules
 with checks, not taste. Load the matching D-card or craft card first, then
 one lesson card.
 
@@ -28,5 +28,15 @@ one lesson card.
 | [L20 avatar voice first](avatar-voice-first.md) | voice is first dealbreaker; I2V still ≠ voice-matched avatar |
 | [L21 viral pacing FLAG](viral-pacing-flag.md) | late punchline on viral → FLAG (advisory), never FAIL |
 | [L22 ear-lock type templates](earlock-type-templates.md) | ear-lock title; viral vs qa G16 line-1 prefixes |
+
+| [L23 hosted-CMS no-dup chrome](hosted-cms-no-dup-chrome.md) | embed under site chrome; sticky header offset on first section |
+| [L24 hosted-CMS assets](hosted-cms-assets.md) | relative assets → https or data after CSP probe |
+| [L25 CMS owns meta](hosted-cms-owns-meta.md) | no og/twitter/html lang in Code-block paste |
+| [L26 hostile CMS resets](hostile-cms-resets.md) | hostile CSS + heading luminance + squircle tile |
+| [L27 full-width embed](full-width-embed.md) | Code-block section spans content grid |
+| [L28 live-verify CMS embed](live-verify-cms-embed.md) | headless public URL matrix @390/1440 |
+| [L29 plan-first multi-axis](plan-first-multi-axis.md) | plan+accept before multi-axis visual build |
+| [L30 explainer embed length](explainer-embed-length.md) | sibling Watch explainers ~60–100 s parity |
+| [L31 paste then re-verify](paste-then-reverify.md) | artifact paste + immediate livecms |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).

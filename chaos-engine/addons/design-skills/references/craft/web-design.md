@@ -105,6 +105,9 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
 - Release gate: when the owner delegates the site, a change goes live once
   both the design reviewer and the content reviewer approve; no owner
   preview. Details without JS: [Squarespace 7.1](../site-builders/squarespace-7-1.md).
+  Product/landing Code-block embeds under existing site chrome:
+  [hosted-cms-embed](../site-builders/hosted-cms-embed.md) (sticky header
+  offset = [L23](../lessons/hosted-cms-no-dup-chrome.md)).
 
 ## GitHub README surfaces
 
