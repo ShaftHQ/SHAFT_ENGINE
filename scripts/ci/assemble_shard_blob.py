@@ -37,6 +37,7 @@ from __future__ import annotations
 import argparse
 import shlex
 import shutil
+import importlib.util
 import subprocess  # nosec B404
 import sys
 import zipfile
@@ -115,6 +116,20 @@ def zip_blob(output: Path) -> Path:
     return zip_path
 
 
+def _mobile_retro_after_allure(allure_results: Path, *, green: bool) -> None:
+    """#7494 live post-run: freeze green allure-results via mobile_retro_runtime."""
+    runtime = Path(__file__).resolve().parent / "mobile_retro_runtime.py"
+    if not runtime.is_file():
+        return
+    spec = importlib.util.spec_from_file_location("mobile_retro_runtime", runtime)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.after_green_allure_run(Path.cwd(), allure_results, green=green)
+
+
+
 def assemble(args: argparse.Namespace) -> Path:
     """Stages the ShardBlob layout under args.output and returns its path."""
     output = (args.output or Path("target") / "shard-blobs" / f"shard-{args.shard}").resolve()
@@ -125,6 +140,12 @@ def assemble(args: argparse.Namespace) -> Path:
     if not args.allure_results.is_dir():
         raise SystemExit(f"Allure results directory not found: {args.allure_results}")
     stage_directory(args.allure_results, output / "allure-results")
+    # Post-run freeze: doctor success ⇒ green cohort; no doctor ⇒ treat staged run as green.
+    green = True
+    if args.doctor_command:
+        green = False  # set after doctor below
+    else:
+        _mobile_retro_after_allure(args.allure_results, green=True)
 
     if args.traces_dir.is_dir():
         stage_directory(args.traces_dir, output / "shaft-traces")
@@ -142,6 +163,10 @@ def assemble(args: argparse.Namespace) -> Path:
                     "blob will have no execution-intelligence.json.",
                     file=sys.stderr,
                 )
+            green = True
+        else:
+            green = False
+        _mobile_retro_after_allure(args.allure_results, green=green)
     else:
         print("No --doctor-command supplied; blob will have no execution-intelligence.json.", file=sys.stderr)
 
