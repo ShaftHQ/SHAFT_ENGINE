@@ -426,11 +426,23 @@ def codecov_yml_failures(root: Path, changed: list[str]) -> list[str]:
     return [] if result.returncode == 0 else [result.stdout.strip() or "codecov.yml validation failed"]
 
 
+
+def no_push_guard_failures(root: Path) -> list[str]:
+    """Fail closed when the tracked NO_PUSH guard is absent (issue 7497)."""
+    sys.path.insert(0, str(root / "chaos-engine"))
+    try:
+        import hrsd_j11  # noqa: WPS433
+    except ImportError:
+        return ["NO_PUSH guard helper missing: chaos-engine/hrsd_j11.py"]
+    return list(hrsd_j11.no_push_guard_tracked(root))
+
+
 def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:
     """Return contract failures for one overlay diff. Empty means the push may proceed."""
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
     failures: list[str] = tip_preflight_failures(root, changed)
     if paths is None:
+        failures.extend(no_push_guard_failures(root))
         failures.extend(code_quality_failures(root))
         failures.extend(release_note_label_failures(root))
         failures.extend(pr_body_failures(root))
