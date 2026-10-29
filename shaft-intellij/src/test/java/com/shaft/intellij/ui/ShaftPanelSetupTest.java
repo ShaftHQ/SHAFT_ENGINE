@@ -9249,7 +9249,14 @@ class ShaftPanelSetupTest {
     }
 
     private static boolean paintsVisiblePixels(Icon icon, JButton button) {
-        BufferedImage image = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
+        // AllIcons are DeferredIcon instances. In headless Platform tests their paintIcon
+        // can draw nothing until evaluate()/retrieveIcon() resolves the real glyph, even
+        // after IconLoader.activate(). Unwrap without weakening the non-empty assertion.
+        icon = resolvePaintIcon(icon);
+        BufferedImage image = new BufferedImage(
+                Math.max(1, icon.getIconWidth()),
+                Math.max(1, icon.getIconHeight()),
+                BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         try {
             icon.paintIcon(button, graphics, 0, 0);
@@ -9264,6 +9271,39 @@ class ShaftPanelSetupTest {
             }
         }
         return false;
+    }
+
+    /**
+     * Resolves DeferredIcon / RetrievableIcon chains to the paint-ready glyph.
+     * Reflective so the test compiles against both older and newer platform icon APIs.
+     */
+    private static Icon resolvePaintIcon(Icon icon) {
+        com.intellij.openapi.util.IconLoader.activate();
+        Icon current = icon;
+        for (int depth = 0; depth < 8 && current != null; depth++) {
+            Icon next = invokeIconResolver(current, "evaluate");
+            if (next == null) {
+                next = invokeIconResolver(current, "retrieveIcon");
+            }
+            if (next == null) {
+                next = invokeIconResolver(current, "getBaseIcon");
+            }
+            if (next == null || next == current) {
+                return current;
+            }
+            current = next;
+        }
+        return current;
+    }
+
+    private static Icon invokeIconResolver(Icon icon, String methodName) {
+        try {
+            Method method = icon.getClass().getMethod(methodName);
+            Object result = method.invoke(icon);
+            return result instanceof Icon resolved ? resolved : null;
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
     }
 
     private static void assertIconOnlySymmetric(JButton button) {
