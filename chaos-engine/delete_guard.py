@@ -9,7 +9,8 @@ When the command cannot be parsed with confidence, the guard refuses.
 #7343: the owner overrides a refusal with a one-time chat code bound to the
 exact path list; a hard never-touch list refuses even with a code.
 #7525: verified uploaded yt files on a local/env allowlist (path + video id + sha256)
-may take the owner code after live sha + oEmbed checks; yt/meta and unverified stay locked.
+may take the owner code after live sha + oEmbed author proof; yt/meta and unverified stay locked.
+oEmbed HTTP 403 means private (not a box IP block); optional CHAOS_YT_EXPECTED_AUTHORS binds channel.
 """
 
 from __future__ import annotations
@@ -50,6 +51,9 @@ YT_VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
 YT_SHA256 = re.compile(r"^[a-f0-9]{64}$")
 YT_OEMBED = "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={id}&format=json"
 YT_OEMBED_TTL = 86400
+YT_OEMBED_SOFT_TTL = 60  # network/5xx: short negative cache so outages do not lock for a day
+YT_EXPECTED_AUTHORS_ENV = "CHAOS_YT_EXPECTED_AUTHORS"  # optional comma-separated oEmbed author_name values
+YT_OEMBED_UA = "Mozilla/5.0 (compatible; ChaosEngine-delete-guard/2)"
 _youtube_video_verifier: Callable[[str], bool] | None = None
 # Generic scratch: temp, caches, build output, video render output.
 DEFAULT_ALLOW = (
@@ -374,25 +378,84 @@ def _save_oembed_cache(cache: dict) -> None:
     store.chmod(0o600)
 
 
+def _expected_oembed_authors() -> frozenset[str] | None:
+    """Optional channel bind: non-empty CHAOS_YT_EXPECTED_AUTHORS → require oEmbed author_name match."""
+    raw = os.environ.get(YT_EXPECTED_AUTHORS_ENV, "")
+    if not raw or not raw.strip():
+        return None
+    names = frozenset(part.strip() for part in raw.split(",") if part.strip())
+    return names or None
+
+
+def _oembed_author_ok(author: str) -> bool:
+    expected = _expected_oembed_authors()
+    if expected is None:
+        return bool(author)
+    return author in expected
+
+
+def _parse_oembed_proof(body: bytes) -> tuple[bool, str]:
+    """Positive proof: JSON with non-empty author_name (and optional expected-authors match)."""
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return False, ""
+    if not isinstance(payload, dict):
+        return False, ""
+    author = payload.get("author_name")
+    if not isinstance(author, str):
+        return False, ""
+    author = author.strip()
+    if not author:
+        return False, ""
+    return _oembed_author_ok(author), author
+
+
 def _default_youtube_video_exists(video_id: str) -> bool:
-    """True only on HTTP 200 oEmbed. Non-200, private, or network errors stay locked."""
+    """True only on oEmbed HTTP 200 + JSON author_name proof (optional expected-authors bind).
+
+    HTTP 403/401 from oEmbed means private/unlisted-private (not a box IP block): stay locked.
+    Network/5xx use a short negative cache so a brief outage does not lock for a day.
+    """
     cache = _load_oembed_cache()
     entry = cache.get(video_id)
     now = time.time()
     if isinstance(entry, dict) and entry.get("expires", 0) >= now and "ok" in entry:
         return bool(entry["ok"])
     ok = False
+    ttl = YT_OEMBED_TTL
+    status: int | None = None
+    author = ""
     try:
         request = urllib.request.Request(
             YT_OEMBED.format(id=video_id),
-            headers={"User-Agent": "ChaosEngine-delete-guard/1"},
+            headers={"User-Agent": YT_OEMBED_UA, "Accept": "application/json"},
             method="GET",
         )
         with urllib.request.urlopen(request, timeout=10) as response:  # nosec B310 - fixed YouTube oEmbed URL.
-            ok = int(getattr(response, "status", 200) or 200) == 200
-    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, ValueError):
+            status = int(getattr(response, "status", 200) or 200)
+            body = response.read()
+        if status == 200:
+            ok, author = _parse_oembed_proof(body)
+        else:
+            ok = False
+            ttl = YT_OEMBED_SOFT_TTL if status >= 500 else YT_OEMBED_TTL
+    except urllib.error.HTTPError as error:
+        status = int(error.code)
         ok = False
-    cache[video_id] = {"ok": ok, "expires": now + YT_OEMBED_TTL, "checked": int(now)}
+        # 4xx (incl. 403 private) is definitive; 5xx is soft.
+        ttl = YT_OEMBED_SOFT_TTL if status >= 500 else YT_OEMBED_TTL
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        ok = False
+        ttl = YT_OEMBED_SOFT_TTL
+    cache[video_id] = {
+        "ok": ok,
+        "expires": now + ttl,
+        "checked": int(now),
+        "status": status,
+        "author": author[:80],
+        "ttl": ttl,
+    }
     _save_oembed_cache(cache)
     return ok
 
@@ -522,7 +585,7 @@ def _yt_containment_ok(real: Path) -> bool:
 
 
 def _yt_verified_uploaded(path: Path, part: str | None = None) -> bool:
-    """#7525: allowlisted yt file with matching sha256 + oEmbed; contained; re-checked live."""
+    """#7525: allowlisted yt file with matching sha256 + oEmbed author proof; contained; re-checked live."""
     del part
     if ".." in Path(os.path.expanduser(str(path))).parts:
         return False

@@ -308,11 +308,78 @@ class DeleteGuardTest(unittest.TestCase):
         allow = self.base / "home" / "yt-verified-delete.txt"
         self._write_allow(allow, [f"{listed} AbCdEfGhIjK {self._sha(listed)}"])
         GUARD.set_youtube_video_verifier(None)
-        with unittest.mock.patch.dict(os.environ, {"CHAOS_YT_VERIFIED_DELETE": str(allow)}):
-            with unittest.mock.patch.object(GUARD.urllib.request, "urlopen", side_effect=OSError("down")):
-                self.assertFalse(GUARD.youtube_video_exists("AbCdEfGhIjK"))
-                self.assertIn("never-touch", GUARD.never_touch(listed))
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_YT_VERIFIED_DELETE": str(allow)}, clear=False):
+            env = {"CHAOS_YT_VERIFIED_DELETE": str(allow)}
+            env.pop("CHAOS_YT_EXPECTED_AUTHORS", None)
+            with unittest.mock.patch.dict(os.environ, env, clear=False):
+                with unittest.mock.patch.object(GUARD.urllib.request, "urlopen", side_effect=OSError("down")):
+                    self.assertFalse(GUARD.youtube_video_exists("AbCdEfGhIjK"))
+                    self.assertIn("never-touch", GUARD.never_touch(listed))
+                    cache = GUARD._load_oembed_cache()
+                    entry = cache.get("AbCdEfGhIjK")
+                    self.assertIsInstance(entry, dict)
+                    self.assertFalse(entry.get("ok"))
+                    self.assertEqual(GUARD.YT_OEMBED_SOFT_TTL, entry.get("ttl"))
 
+    def _fake_oembed(self, status: int, body: bytes):
+        class _Resp:
+            def __init__(self):
+                self.status = status
+
+            def read(self):
+                return body
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        return _Resp()
+
+    def test_yt_oembed_requires_author_json_and_optional_channel_bind(self):
+        """HTTP 200 alone is not enough; author_name proof + optional expected authors."""
+        GUARD.set_youtube_video_verifier(None)
+        # empty JSON author → locked
+        with unittest.mock.patch.object(
+            GUARD.urllib.request,
+            "urlopen",
+            return_value=self._fake_oembed(200, b'{"title":"x"}'),
+        ):
+            self.assertFalse(GUARD.youtube_video_exists("AbCdEfGhIjK"))
+        # wipe cache between cases
+        GUARD._save_oembed_cache({})
+        good = b'{"title":"x","author_name":"Channel One","author_url":"https://www.youtube.com/@one"}'
+        with unittest.mock.patch.object(
+            GUARD.urllib.request, "urlopen", return_value=self._fake_oembed(200, good)
+        ):
+            self.assertTrue(GUARD.youtube_video_exists("AbCdEfGhIjK"))
+        GUARD._save_oembed_cache({})
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_YT_EXPECTED_AUTHORS": "Other Channel"}):
+            with unittest.mock.patch.object(
+                GUARD.urllib.request, "urlopen", return_value=self._fake_oembed(200, good)
+            ):
+                self.assertFalse(GUARD.youtube_video_exists("AbCdEfGhIjK"))
+        GUARD._save_oembed_cache({})
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_YT_EXPECTED_AUTHORS": "Channel One,Other"}):
+            with unittest.mock.patch.object(
+                GUARD.urllib.request, "urlopen", return_value=self._fake_oembed(200, good)
+            ):
+                self.assertTrue(GUARD.youtube_video_exists("AbCdEfGhIjK"))
+
+    def test_yt_oembed_403_private_long_ttl_fail_closed(self):
+        """oEmbed 403 (private) stays locked and uses the long definitive TTL."""
+        GUARD.set_youtube_video_verifier(None)
+        GUARD._save_oembed_cache({})
+        err = GUARD.urllib.error.HTTPError(
+            GUARD.YT_OEMBED.format(id="AbCdEfGhIjK"), 403, "Forbidden", hdrs=None, fp=None
+        )
+        with unittest.mock.patch.object(GUARD.urllib.request, "urlopen", side_effect=err):
+            self.assertFalse(GUARD.youtube_video_exists("AbCdEfGhIjK"))
+        entry = GUARD._load_oembed_cache()["AbCdEfGhIjK"]
+        self.assertFalse(entry["ok"])
+        self.assertEqual(403, entry.get("status"))
+        self.assertEqual(GUARD.YT_OEMBED_TTL, entry.get("ttl"))
 
     def test_yt_old_renders_need_a_code_rest_refused(self):
         yt = self.base / "yt"

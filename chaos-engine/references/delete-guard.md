@@ -72,11 +72,21 @@ owner's code like any other refusal:
   symlink components; (2) `realpath(path)` equals the normalized listed
   path, lies under the `yt` root, and is not under `yt/meta`; (3) file
   sha256 matches the entry; (4) YouTube oEmbed
-  (`/oembed?url=...watch?v=<id>&format=json`) returns HTTP 200 (result
-  cached with a timestamp under state; network errors, non-200, and
-  private videos stay locked). Globs, directories, escapes, and malformed
-  proofs are ignored. The allowlist is local/env-only; never commit real
-  paths or titles. Env override cannot widen unlocks without those checks.
+  (`/oembed?url=...watch?v=<id>&format=json`) returns HTTP 200 **and** a
+  JSON body with a non-empty `author_name` (status alone is not enough).
+  Optional `CHAOS_YT_EXPECTED_AUTHORS` (comma-separated oEmbed
+  `author_name` values) binds the unlock to those channels; when unset,
+  any non-empty author counts. Results are cached under state: positives
+  and definitive HTTP 4xx (including **403 = private / unlisted-private**,
+  not a box IP block — public ids still return 200 from the same host)
+  use a long TTL; network errors and HTTP 5xx use a short negative TTL so
+  a brief outage does not lock public files for a day. Private videos stay
+  locked without an owner YouTube Data API credential (none required for
+  public proof). noembed and thumbnail checks are not used: noembed
+  proxies oEmbed, and private thumbs look like missing. Globs,
+  directories, escapes, and malformed proofs are ignored. The allowlist
+  is local/env-only; never commit real paths or titles. Env override
+  cannot widen unlocks without those checks.
 
 `yt/` itself, `yt/meta/**`, and any unlisted or unverified yt file stay
 never-touch with no code override. `wt-relblock`, `wt-ls` and `ce-src-*` use
