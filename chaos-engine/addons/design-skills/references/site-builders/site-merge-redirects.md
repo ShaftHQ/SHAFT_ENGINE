@@ -35,3 +35,8 @@ Builder-neutral; examples fit hosted builders such as
 - Page title format "Page | Site" (Squarespace example: `%p | %s`) with a
   keyword-first home title; descriptions use verified figures only. Re-scrape Open Graph and
   resubmit the sitemap after changes.
+
+## Verify
+
+- [ ] `design_qc.py liveseo <https-url>` after redirects/merges ([W16](../web-craft/seo-basics.md)).
+- [ ] Resubmit sitemap in Search Console / Bing Webmaster.

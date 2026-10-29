@@ -25,16 +25,22 @@ import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_
 from scripts.ci.worktree_hygiene import (
     FOREIGN_WORKTREE_STALE_HOURS,
     _activity_epoch,
+    cleanup_task_owned_local_branch,
+    cleanup_task_owned_remote_head,
     cleanup_task_owned_worktree,
     collect_worktree_report,
     format_advisories,
     merged_pull_request_state_via_gh,
+    never_touch_cleanup_blockers,
     open_pull_requests_via_gh,
     resolve_upstream_ref,
+    task_branch_ownership_manifest_matches,
     task_cleanup_blockers,
+    task_local_branch_cleanup_blockers,
     task_ownership_manifest_matches,
     verify_repository_state,
 )
+worktree_hygiene_module = sys.modules["scripts.ci.worktree_hygiene"]
 
 
 def git(cwd: Path, *arguments: str) -> subprocess.CompletedProcess:
@@ -204,6 +210,193 @@ class WorktreeHygieneTest(unittest.TestCase):
         self.assertEqual([], blockers)
         self.assertFalse(worktree.exists())
         self.assertEqual(0, git(self.main, "show-ref", "--verify", f"refs/heads/{branch}").returncode)
+
+    def test_task_local_branch_cleanup_deletes_merged_detached_branch(self):
+        branch = "ChaosEngine/owned-local-branch"
+        worktree = self.add_worktree("owned-local-branch", branch)
+        head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+        git(self.main, "worktree", "remove", "--", str(worktree))
+        self.assertFalse(worktree.exists())
+        blockers = cleanup_task_owned_local_branch(
+            self.main,
+            branch,
+            head,
+            pull_request_state=lambda _r, _b, _h: "MERGED",
+            ownership_verified=True,
+        )
+        self.assertEqual([], blockers)
+        self.assertNotEqual(
+            0, git(self.main, "show-ref", "--verify", f"refs/heads/{branch}").returncode
+        )
+
+    def test_task_local_branch_cleanup_refuses_while_worktree_attached(self):
+        branch = "ChaosEngine/owned-still-attached"
+        worktree = self.add_worktree("owned-still-attached", branch)
+        head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+        blockers = cleanup_task_owned_local_branch(
+            self.main,
+            branch,
+            head,
+            pull_request_state=lambda _r, _b, _h: "MERGED",
+            ownership_verified=True,
+        )
+        self.assertIn("branch-still-attached", blockers)
+        self.assertEqual(0, git(self.main, "show-ref", "--verify", f"refs/heads/{branch}").returncode)
+
+    def test_task_local_branch_cleanup_blockers_require_merged_and_ownership(self):
+        blockers = task_local_branch_cleanup_blockers(
+            owned_branch="ChaosEngine/x",
+            expected_head="a" * 40,
+            actual_branch_head="a" * 40,
+            pull_request_state="OPEN",
+            is_ancestor=True,
+            attached_worktrees=[],
+            ownership_verified=False,
+            active_operations=[],
+        )
+        self.assertIn("pull-request-not-merged", blockers)
+        self.assertIn("ownership-not-verified", blockers)
+
+    def test_task_remote_head_cleanup_noops_when_absent_and_deletes_when_present(self):
+        branch = "ChaosEngine/owned-remote"
+        calls: list[list[str]] = []
+
+        def fake_push(_cwd, argv):
+            calls.append(argv)
+            class Result:
+                returncode = 0
+            return Result()
+
+        # absent remote → no-op
+        self.assertEqual(
+            [],
+            cleanup_task_owned_remote_head(
+                self.main,
+                branch,
+                "a" * 40,
+                pull_request_state=lambda *_: "MERGED",
+                ownership_verified=True,
+                push=fake_push,
+            ),
+        )
+        self.assertEqual([], calls)
+
+        head = git(self.main, "rev-parse", "HEAD").stdout.strip()
+        git(self.main, "update-ref", f"refs/remotes/origin/{branch}", head)
+        self.assertEqual(
+            [],
+            cleanup_task_owned_remote_head(
+                self.main,
+                branch,
+                head,
+                pull_request_state=lambda *_: "MERGED",
+                ownership_verified=True,
+                push=fake_push,
+            ),
+        )
+        self.assertEqual(
+            ["git", "-c", "core.longpaths=true", "push", "origin", "--delete", "--", branch],
+            calls[0],
+        )
+        self.assertEqual(
+            ["protected-branch"],
+            cleanup_task_owned_remote_head(
+                self.main,
+                "main",
+                head,
+                pull_request_state=lambda *_: "MERGED",
+                ownership_verified=True,
+                push=fake_push,
+            ),
+        )
+
+    def test_task_branch_ownership_manifest_matches_by_branch_head(self):
+        manifest = self.base / "branch-ownership.json"
+        payload = {
+            "schemaVersion": 1,
+            "worktrees": [{
+                "path": str(self.base / "gone"),
+                "branch": "ChaosEngine/owned",
+                "head": "a" * 40,
+                "diffSha256": "b" * 64,
+            }],
+        }
+        manifest.write_text(__import__("json").dumps(payload), encoding="utf-8")
+        self.assertTrue(
+            task_branch_ownership_manifest_matches(manifest, "ChaosEngine/owned", "a" * 40)
+        )
+        self.assertFalse(
+            task_branch_ownership_manifest_matches(manifest, "ChaosEngine/owned", "c" * 40)
+        )
+
+    def test_never_touch_cleanup_refuses_rog_yt_and_chrome_profile_paths(self):
+        cases = (
+            self.base / "ROG_backup" / "owned-wt",
+            self.base / "yt" / "owned-wt",
+            self.base / "agent-chrome-user-profile-1",
+            Path("/home/box/.config/google-chrome/Default"),
+            Path("/home/box/.config/chromium/Default"),
+        )
+        for target in cases:
+            with self.subTest(target=str(target)):
+                self.assertEqual(
+                    ["never-touch-path"],
+                    never_touch_cleanup_blockers(target),
+                )
+        self.assertEqual([], never_touch_cleanup_blockers(self.base / "safe-owned-wt"))
+
+    def test_never_touch_cleanup_fails_closed_when_delete_guard_unavailable(self):
+        safe = self.base / "safe-owned-wt"
+        previous = worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE
+        try:
+            worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE = False
+            self.assertEqual(
+                ["never-touch-check-unavailable"],
+                never_touch_cleanup_blockers(safe),
+            )
+        finally:
+            worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE = previous
+
+    def test_task_cleanup_refuses_never_touch_path_before_remove(self):
+        branch = "ChaosEngine/owned-never-touch"
+        worktree = self.add_worktree("owned-never-touch", branch)
+        head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+        with patch(
+            "scripts.ci.worktree_hygiene.never_touch_cleanup_blockers",
+            return_value=["never-touch-path"],
+        ):
+            blockers = cleanup_task_owned_worktree(
+                self.main,
+                worktree,
+                branch,
+                head,
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                pull_request_state=lambda *_: "MERGED",
+                ownership_verified=True,
+            )
+        self.assertEqual(["never-touch-path"], blockers)
+        self.assertTrue(worktree.exists())
+
+    def test_task_cleanup_fails_closed_when_never_touch_check_unavailable(self):
+        branch = "ChaosEngine/owned-nt-unavailable"
+        worktree = self.add_worktree("owned-nt-unavailable", branch)
+        head = git(worktree, "rev-parse", "HEAD").stdout.strip()
+        previous = worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE
+        try:
+            worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE = False
+            blockers = cleanup_task_owned_worktree(
+                self.main,
+                worktree,
+                branch,
+                head,
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                pull_request_state=lambda *_: "MERGED",
+                ownership_verified=True,
+            )
+        finally:
+            worktree_hygiene_module._DELETE_GUARD_NEVER_TOUCH_AVAILABLE = previous
+        self.assertEqual(["never-touch-check-unavailable"], blockers)
+        self.assertTrue(worktree.exists())
 
     def test_task_cleanup_preserves_branch_if_head_changes_after_worktree_removal(self):
         branch = "ChaosEngine/owned-cleanup-race"

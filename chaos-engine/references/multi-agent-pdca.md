@@ -6,6 +6,7 @@ single-session phase order in [TDD/PDCA](tdd.md#workflow) and the
 [orchestrator follow-through](orchestrator-follow-through.md) cadence.
 Across items, the [iterative flow](iterative-flow.md) rule applies: WIP 1,
 Done = both sign-offs and shipped, lessons become preventive rules.
+File-disjoint fan-out follows [parallel streams](parallel-streams.md).
 
 ## Roles
 
@@ -37,7 +38,9 @@ only the final Done, with evidence.
   equals the PR head; on a mismatch or no SHA, ask for a re-sign-off.
 - Reviewer evidence: re-run every check on a fresh copy of the artifact; the
   implementer's own tool output is never evidence. A reject names the
-  location, the measured value and the expected value.
+  location, the measured value and the expected value. When the work claims a
+  live gate, the reviewer exercises live behaviour on a real target (URL,
+  build, or rendered page), not only offline fixtures.
 - A sign-off on an artifact outside git (document, deck, design file) names
   the version it reviewed (revision id, modified time or hash). Before
   accepting it, compare with the current version; if the artifact changed

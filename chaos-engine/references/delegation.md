@@ -66,7 +66,7 @@ Orchestrator retains decomposition, architecture, consultation, assignment,
 synthesis, integration, and final verification. Stay available to the owner
 for realignment and delegate questions. Select and switch modes only through
 [execution workflows](execution-workflows.md); this file does not redefine
-their criteria or writer limits. Each writer owns an isolated worktree. While
+their criteria or writer limits. Each writer owns an isolated worktree. Before dispatching a second writer, run the ownership and conflict checks in [parallel streams](parallel-streams.md) and hand the brief template from that card. While
 a writer, subagent, or required check is live, automatically follow
 [orchestrator follow-through](orchestrator-follow-through.md); never a
 heartbeat.
@@ -88,11 +88,13 @@ subtask), and keep working until every in-scope ticket is delivered. Do not
 treat planning, a status table, or one PR as session complete.
 
 After grouping, the done condition is: every in-scope ticket is merged or
-explicitly out of scope. After each chunk merges, destroy that writer, start
-the next from a fresh `ChaosEngine/*` branch off the fetched configured
-default branch, update the live status table, and continue. Stop only when
-the in-scope set is empty, the owner narrows scope, or a real blocker needs
-the owner.
+explicitly out of scope. After each chunk merges, destroy that writer: run
+[post-merge own cleanup](parallel-streams.md#post-merge-own-cleanup) for that
+writer's ownership-manifest row (worktree, local branch, remote head if still
+present, prune), start the next from a fresh `ChaosEngine/*` branch off the
+fetched configured default branch, update the live status table, and continue.
+Stop only when the in-scope set is empty, the owner narrows scope, or a real
+blocker needs the owner.
 
 Same-subsystem leftovers share one PR. Split only when writers would collide on
 the same files and cannot be sequenced, or when the work truly belongs to

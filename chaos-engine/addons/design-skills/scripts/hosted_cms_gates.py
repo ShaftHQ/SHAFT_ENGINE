@@ -1,4 +1,4 @@
-"""Stdlib gates for hosted-CMS embed lessons L23–L31 + L36/L37 paste (no browser)."""
+"""Stdlib gates for hosted-CMS embed lessons L23–L31 + L34/L36/L37 paste (no browser)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,18 @@ from typing import Any
 
 OG_TWITTER_META = re.compile(
     r"""<meta\s+[^>]*(?:property|name)\s*=\s*["'](?:og|twitter):""",
+    re.IGNORECASE,
+)
+# L34: paste must not carry crawl-block robots (meta or X-Robots-Tag-style).
+ROBOTS_META = re.compile(
+    r"""<meta\s+(?=[^>]*\b(?:name|http-equiv)\s*=\s*["'](?:robots|googlebot|bingbot|x-robots-tag)["'])"""
+    r"""[^>]*\bcontent\s*=\s*["']([^"']*)["']"""
+    r"""|<meta\s+(?=[^>]*\bcontent\s*=\s*["']([^"']*)["'])"""
+    r"""[^>]*\b(?:name|http-equiv)\s*=\s*["'](?:robots|googlebot|bingbot|x-robots-tag)["']""",
+    re.IGNORECASE,
+)
+XROBOTS_HEADERISH = re.compile(
+    r"""(?:^|[\r\n<]|<!--)\s*X-Robots-Tag\s*:\s*([^\r\n<>]*)""",
     re.IGNORECASE,
 )
 RELATIVE_ASSET_SRC = re.compile(
@@ -137,8 +149,24 @@ def _html_comment_hits(html: str) -> int:
     return int(_scan_paste_markup(html).comments)
 
 
+
+def _robots_directive_hits(html: str) -> list[str]:
+    """Return paste snippets that block indexing/following (L34)."""
+    body = html or ""
+    hits: list[str] = []
+    for m in ROBOTS_META.finditer(body):
+        content = (m.group(1) or m.group(2) or "").lower()
+        if "noindex" in content or "nofollow" in content or content.strip() == "none":
+            hits.append(m.group(0)[:120])
+    for m in XROBOTS_HEADERISH.finditer(body):
+        content = (m.group(1) or "").lower()
+        if "noindex" in content or "nofollow" in content or "none" in content.split(","):
+            hits.append(m.group(0)[:120])
+    return hits
+
+
 def check_cms_meta(html: str) -> dict[str, Any]:
-    """L25/L36/L37: no og/twitter, document shell, global root CSS, or comments."""
+    """L25/L34/L36/L37: no og/twitter, robots, shell, root CSS, or comments."""
     body = html or ""
     count = len(list(OG_TWITTER_META.finditer(body)))
     scanned = _scan_paste_markup(body)
@@ -149,9 +177,12 @@ def check_cms_meta(html: str) -> dict[str, Any]:
         for b in scanned.style_bodies
     )
     comments = int(scanned.comments)
+    robots_hits = _robots_directive_hits(body)
     base = {
         "og_twitter_meta": count,
         "html_lang": lang_hits,
+        "robots_block_hits": len(robots_hits),
+        "robots_samples": robots_hits[:5],
         "doc_shell_hits": len(shell),
         "doc_shell_samples": shell[:5],
         "global_css_root_hits": css_roots,
@@ -162,6 +193,11 @@ def check_cms_meta(html: str) -> dict[str, Any]:
         fails.append("CMS SEO panel owns og/twitter; strip paste meta (L25)")
     if lang_hits:
         fails.append("no <html lang> in paste; set language per block (L25)")
+    if robots_hits:
+        fails.append(
+            "no robots noindex/nofollow or X-Robots-Tag in paste; "
+            "CMS SEO / live headers own crawl (L34)"
+        )
     if shell:
         fails.append(
             "fragment only: strip <!doctype>/<html>/<head>/<body>; "
@@ -178,7 +214,7 @@ def check_cms_meta(html: str) -> dict[str, Any]:
     return {
         **base,
         "status": "pass",
-        "note": "paste fragment clean of meta/shell/comments (L25/L36/L37)",
+        "note": "paste clean of meta/robots/shell/comments (L25/L34/L36/L37)",
     }
 
 
