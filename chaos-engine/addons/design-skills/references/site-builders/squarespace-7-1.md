@@ -10,10 +10,10 @@ locks Code Injection, so only Custom CSS and Code blocks are available.
 
 ## Custom CSS (LESS 1.3.3)
 
-- The minifier breaks `clamp()`, `calc()` arithmetic and the `a / b` grid
+- Lesson gate: [L33](../lessons/less-css-grid-calc.md) (`lessgrid`). The
+  minifier breaks `clamp()`, `calc()` arithmetic and the `a / b` grid
   shorthand. Use fixed sizes per breakpoint and longhand grid properties;
-  split a padding sum across two elements instead of
-  `calc(24px + env(...))`.
+  escape calc as `~"calc(...)"` or split a padding sum across two elements.
 - A local `lessc` parses differently (it rewrites `1fr` to `1 fr`; live
   keeps `1fr`). Verify by injecting the source CSS over the live page, not
   the locally compiled output.
