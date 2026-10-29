@@ -8,6 +8,10 @@ import com.shaft.properties.internal.ThreadLocalPropertiesManager;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Platform;
+import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.HasCapabilities;
+import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -51,7 +55,11 @@ public class AccessibilityHelperCoverageUnitTest {
                 .setTags(List.of("wcag21aa"));
         Results results = results(List.of(), List.of(rule("page-has-heading-one", "moderate", "wcag21aa", 1)), List.of(), List.of());
 
-        WebDriver driver = mockAxeDriver(results);
+        MutableCapabilities caps = new MutableCapabilities();
+        caps.setCapability("browserName", "chrome");
+        caps.setCapability("browserVersion", "120.0");
+        caps.setCapability("platformName", Platform.LINUX);
+        WebDriver driver = mockAxeDriver(caps, results);
         AccessibilityHelper.analyzePageAccessibility(driver, "SuccessfulPage", config);
 
         Map<String, Object> request = capturedAxeRequest(driver);
@@ -64,6 +72,29 @@ public class AccessibilityHelperCoverageUnitTest {
         Assert.assertFalse(html.contains("cdn.jsdelivr.net"), html);
         Assert.assertFalse(html.contains("new Chart("), html);
         Assert.assertTrue(html.contains("Overall Accessibility Score"), html);
+        Assert.assertTrue(html.contains("chrome"), html);
+        Assert.assertTrue(html.contains("120.0"), html);
+    }
+
+    @Test(description = "Covers LiveSessionSupport null-caps branch and failure fallback report writing")
+    public void analyzePageAccessibilityShouldWriteFallbackWhenReadyStateProbeFails() throws IOException {
+        Path reportsDir = REPORT_ROOT.resolve("fallback-flow");
+        Files.createDirectories(reportsDir);
+        AccessibilityHelper.AccessibilityConfig config = new AccessibilityHelper.AccessibilityConfig()
+                .setReportsDir(reportsDir + "/");
+        WebDriver driver = mock(WebDriver.class, Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        when(driver.getWindowHandle()).thenReturn("window-handle");
+        when(driver.getCurrentUrl()).thenReturn("https://example.test/broken");
+        when(((JavascriptExecutor) driver).executeScript("return document.readyState"))
+                .thenThrow(new RuntimeException("session closed"));
+
+        AccessibilityHelper.analyzePageAccessibility(driver, "BrokenPage", config);
+
+        Assert.assertEquals(countFiles(Path.of("accessibility-reports"), "FailedReport_BrokenPage", ".txt"), 1);
+        String fallback = Files.readString(Path.of("accessibility-reports", "FailedReport_BrokenPage.txt"));
+        Assert.assertTrue(fallback.contains("Accessibility scan failed for BrokenPage"), fallback);
+        Assert.assertTrue(fallback.contains("session closed"), fallback);
+        Files.deleteIfExists(Path.of("accessibility-reports", "FailedReport_BrokenPage.txt"));
     }
 
     @Test(description = "Covers accepted null result buckets when at least one axe bucket has content")
@@ -175,15 +206,26 @@ public class AccessibilityHelperCoverageUnitTest {
     }
 
     private static WebDriver mockAxeDriver(Results... results) {
+        return mockAxeDriver(null, results);
+    }
+
+    private static WebDriver mockAxeDriver(Capabilities capabilities, Results... results) {
         AtomicInteger analyses = new AtomicInteger();
-        WebDriver driver = mock(WebDriver.class, Mockito.withSettings().extraInterfaces(JavascriptExecutor.class));
+        var settings = Mockito.withSettings().extraInterfaces(JavascriptExecutor.class);
+        if (capabilities != null) {
+            settings = settings.extraInterfaces(JavascriptExecutor.class, HasCapabilities.class);
+        }
+        WebDriver driver = mock(WebDriver.class, settings);
         when(driver.getWindowHandle()).thenReturn("window-handle");
         when(driver.getCurrentUrl()).thenReturn("https://example.test/page");
+        if (capabilities != null) {
+            when(((HasCapabilities) driver).getCapabilities()).thenReturn(capabilities);
+        }
         JavascriptExecutor javascriptExecutor = (JavascriptExecutor) driver;
         doReturn("complete").when(javascriptExecutor).executeScript("return document.readyState");
         doReturn(3L).when(javascriptExecutor).executeScript("return document.getElementsByTagName('*').length");
         doAnswer(invocation -> {
-            int index = Math.min(analyses.getAndIncrement(), results.length - 1);
+            int index = Math.min(analyses.getAndIncrement(), Math.max(results.length - 1, 0));
             return rawResults(results[index]);
         }).when(javascriptExecutor).executeAsyncScript(anyString(), any());
         return driver;

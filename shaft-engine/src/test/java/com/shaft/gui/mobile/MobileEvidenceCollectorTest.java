@@ -14,7 +14,7 @@ import org.openqa.selenium.ImmutableCapabilities;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.ScreenOrientation;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import re
+
 import importlib.util
 import os
 import shutil
@@ -329,6 +331,46 @@ CHEAP_CI_CONTRACTS = (
 )
 
 
+
+def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
+    """Refuse a *UnitTest that no PR Gate shard selects (#7310 / #7529).
+
+    Mirrors ``tests.scripts.test_shard_test_selector.unselected_unit_test_classes``
+    without importing PyYAML: the ``-Dtest`` selector is read with a regex from
+    ``pr-gate.yml``. Classes under ``testPackage/unitTests/`` ride the shard-1
+    glob; every other ``*UnitTest`` must be named in the selector.
+    """
+    normalized = [path.replace("\\", "/").removeprefix("./") for path in changed]
+    if not any(
+        path.endswith("UnitTest.java") or path.endswith(".github/workflows/pr-gate.yml")
+        for path in normalized
+    ):
+        return []
+    pr_gate = root / ".github/workflows/pr-gate.yml"
+    test_root = root / "shaft-engine/src/test/java"
+    if not pr_gate.is_file() or not test_root.is_dir():
+        return []
+    match = re.search(r"'-Dtest=([^']*)'", pr_gate.read_text(encoding="utf-8"))
+    if match is None:
+        return ["PR Gate unit-test step lost its -Dtest selector"]
+    named = {entry.strip() for entry in match.group(1).split(",")}
+    missing = []
+    for path in sorted(test_root.rglob("*UnitTest.java")):
+        relative = path.relative_to(test_root).as_posix()
+        if relative.startswith("testPackage/unitTests/") or path.stem in named:
+            continue
+        missing.append(relative)
+    if not missing:
+        return []
+    return [
+        "UnitTest class not selected by PR Gate shards (#7310): "
+        + missing[0]
+        + (" (+%d more)" % (len(missing) - 1) if len(missing) > 1 else "")
+        + "; add the class name to -Dtest in .github/workflows/pr-gate.yml "
+        "and a matching !%regex exclusion in e2eTests.yml / e2eLocalTests.yml"
+    ]
+
+
 def cheap_ci_contract_failures(root: Path, changed: list[str]) -> list[str]:
     """Run the Agent Guidance Gate's cheap byte-budget/lint/allowlist tests before push."""
     import importlib
@@ -498,6 +540,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     if any(path.replace("\\", "/").startswith("tests/scripts/test_") for path in changed):
         failures.extend(ungated_script_module_failures(root))
     failures.extend(shipped_validator_import_failures(root, changed))
+    failures.extend(unselected_unit_test_failures(root, changed))
     failures.extend(cheap_ci_contract_failures(root, changed))
     failures.extend(coverage_ratchet_failures(root, changed))
     failures.extend(codecov_yml_failures(root, changed))

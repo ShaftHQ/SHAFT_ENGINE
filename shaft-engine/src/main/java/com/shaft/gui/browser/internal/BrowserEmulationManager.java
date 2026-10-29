@@ -4,6 +4,7 @@ import com.shaft.gui.driver.EmulatedColorScheme;
 import com.shaft.gui.driver.EmulatedMediaType;
 import com.shaft.gui.driver.EmulatedReducedMotion;
 import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
+import com.shaft.gui.capabilities.internal.LiveSessionSupport;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.bidi.Command;
 import org.openqa.selenium.bidi.HasBiDi;
@@ -18,7 +19,6 @@ import org.openqa.selenium.bidi.emulation.SetUserAgentOverrideParameters;
 import org.openqa.selenium.bidi.emulation.OverrideParameters;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
-import org.openqa.selenium.remote.RemoteWebDriver;
 
 import java.util.IllformedLocaleException;
 import java.util.ArrayList;
@@ -192,7 +192,7 @@ public final class BrowserEmulationManager {
 
     private static DevTools devTools(WebDriver driver, String operation) {
         if (driver == null
-                || (driver instanceof RemoteWebDriver remote && remote.getSessionId() == null)
+                || LiveSessionSupport.isClosedRemoteSession(driver)
                 || !(driver instanceof HasDevTools hasDevTools)
                 || hasDevTools.maybeGetDevTools().isEmpty()) {
             throw new UnsupportedOperationException("Emulation " + operation

@@ -14,8 +14,8 @@ import io.appium.java_client.windows.WindowsDriver;
 import org.mockito.Mockito;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.ImmutableCapabilities;
-import org.openqa.selenium.remote.HttpCommandExecutor;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.AppiumCommandExecutor;
+import io.appium.java_client.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -454,7 +454,7 @@ public class MobilePerformanceActionsTest {
         private final int value;
 
         private EqualPerformanceDriver(String id, int value) {
-            super(Mockito.mock(HttpCommandExecutor.class), new ImmutableCapabilities());
+            super(Mockito.mock(AppiumCommandExecutor.class), new ImmutableCapabilities());
             sessionId = new SessionId(id);
             this.value = value;
         }

@@ -10,7 +10,7 @@ import org.mockito.Mockito;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

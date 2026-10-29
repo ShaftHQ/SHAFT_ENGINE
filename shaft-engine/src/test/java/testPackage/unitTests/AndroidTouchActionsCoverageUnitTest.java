@@ -20,6 +20,7 @@ import io.appium.java_client.flutter.commands.LongPressParameter;
 import io.appium.java_client.flutter.commands.ScrollParameter;
 import io.appium.java_client.flutter.commands.WaitParameter;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.AppiumWebElement;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
@@ -1402,7 +1403,7 @@ public class AndroidTouchActionsCoverageUnitTest {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private String capturedPointerType(RemoteWebDriver driver) {
+    private String capturedPointerType(org.openqa.selenium.interactions.Interactive driver) {
         ArgumentCaptor<Collection<Sequence>> actionsCaptor = ArgumentCaptor.forClass((Class) Collection.class);
         verify(driver).perform(actionsCaptor.capture());
         Map<String, Object> encodedSequence = actionsCaptor.getValue().iterator().next().encode();
@@ -1421,6 +1422,54 @@ public class AndroidTouchActionsCoverageUnitTest {
             SHAFT.Validations.assertThat().object(runtimeException.getMessage() != null).isTrue().perform();
         } catch (AssertionError assertionError) {
             SHAFT.Validations.assertThat().object(assertionError.getMessage() != null).isTrue().perform();
+        }
+    }
+
+    @Test
+    public void prepareParametersUsesAppiumWebElementId() throws Exception {
+        IOSDriver iosDriver = createMockIOSDriver();
+        TouchActions touchActions = new TouchActions(iosDriver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        AppiumWebElement scrollableElement = mock(AppiumWebElement.class);
+        when(scrollableElement.getId()).thenReturn("appium-container-id");
+        when(scrollableElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
+        when(elementActionsHelper.identifyUniqueElement(any(), eq(By.id("appium-container"))))
+                .thenReturn(List.of("appium-container", scrollableElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        Method prepareParameters = TouchActions.class.getDeclaredMethod(
+                "prepareParameters", TouchActions.SwipeDirection.class, By.class, By.class);
+        prepareParameters.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> elementUpParameters = (Map<Object, Object>) prepareParameters.invoke(
+                touchActions, TouchActions.SwipeDirection.UP, By.id("appium-container"), By.id("target"));
+
+        Assert.assertEquals(elementUpParameters, Map.of(
+                "direction", "up", "elementId", "appium-container-id"));
+    }
+
+    @Test
+    public void prepareParametersFailsClosedWhenIosScrollableHasNoElementId() throws Exception {
+        IOSDriver iosDriver = createMockIOSDriver();
+        TouchActions touchActions = new TouchActions(iosDriver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        WebElement scrollableElement = mock(WebElement.class);
+        when(scrollableElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
+        when(elementActionsHelper.identifyUniqueElement(any(), eq(By.id("plain-container"))))
+                .thenReturn(List.of("plain-container", scrollableElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        Method prepareParameters = TouchActions.class.getDeclaredMethod(
+                "prepareParameters", TouchActions.SwipeDirection.class, By.class, By.class);
+        prepareParameters.setAccessible(true);
+        try {
+            prepareParameters.invoke(
+                    touchActions, TouchActions.SwipeDirection.UP, By.id("plain-container"), By.id("target"));
+            Assert.fail("expected IllegalStateException for missing Appium element id");
+        } catch (InvocationTargetException ex) {
+            Assert.assertTrue(ex.getCause() instanceof IllegalStateException, String.valueOf(ex.getCause()));
+            Assert.assertTrue(ex.getCause().getMessage().contains("Appium remote element"),
+                    ex.getCause().getMessage());
         }
     }
 }

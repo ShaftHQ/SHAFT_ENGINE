@@ -6,6 +6,7 @@ import com.shaft.gui.browser.internal.LegacyConsoleLogSource;
 import com.shaft.gui.capabilities.AutomationCapabilities;
 import com.shaft.gui.capabilities.AutomationFeature;
 import com.shaft.gui.capabilities.internal.AutomationCapabilityResolver;
+import com.shaft.gui.capabilities.internal.LiveSessionSupport;
 import com.shaft.gui.driver.BrowserConsoleMessage;
 import com.shaft.tools.io.internal.BrowserObservabilityRecorder;
 import com.shaft.validation.ValidationEnums;
@@ -13,7 +14,6 @@ import com.shaft.validation.VisualComparisonOptions;
 import org.openqa.selenium.HasDownloads;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.remote.RemoteWebDriver;
 
 import java.util.List;
 import java.util.Objects;
@@ -196,7 +196,7 @@ public class WebDriverBrowserValidationsBuilder implements com.shaft.gui.driver.
     }
 
     private AutomationCapabilities capabilities() {
-        if (driver instanceof RemoteWebDriver remote && remote.getSessionId() == null) {
+        if (LiveSessionSupport.isClosedRemoteSession(driver)) {
             throw new UnsupportedOperationException("Browser validations require a live WebDriver session.");
         }
         return AutomationCapabilityResolver.forWebDriver(driver);

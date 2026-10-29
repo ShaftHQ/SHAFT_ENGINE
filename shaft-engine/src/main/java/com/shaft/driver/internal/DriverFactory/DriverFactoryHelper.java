@@ -1351,6 +1351,8 @@ public class DriverFactoryHelper {
             setDriver(attemptRemoteServerConnection(capabilities));
             remoteGridPreflightPermit = preflightPermit;
             preflightPermit = RemoteGridPreflight.SessionPermit.noop();
+            // Appium java-client 11: AppiumDriver no longer extends RemoteWebDriver and exposes no
+            // setFileDetector API, so LocalFileDetector applies only to Selenium RemoteWebDriver sessions.
             if (driver instanceof RemoteWebDriver remoteWebDriver)
                 remoteWebDriver.setFileDetector(new LocalFileDetector());
             if (!isNotMobileExecution()

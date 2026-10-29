@@ -174,10 +174,10 @@ public class BrowserEmulationNamespaceTest {
         Assert.assertFalse(closedCapabilities.supports(AutomationFeature.VIEWPORT_EMULATION));
         Assert.assertFalse(closedCapabilities.supports(AutomationFeature.MEDIA_EMULATION));
 
-        AppiumDriver appium = Mockito.mock(AppiumDriver.class);
-        Mockito.when(appium.getSessionId()).thenReturn(new SessionId("appium-emulation"));
+        AppiumDriver appium = Mockito.mock(AppiumDriver.class, Mockito.withSettings().extraInterfaces(HasBiDi.class));
+        Mockito.when(appium.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("appium-emulation"));
         Mockito.when(appium.getCapabilities()).thenReturn(negotiated);
-        Mockito.when(appium.getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
+        Mockito.when(((HasBiDi) appium).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         AutomationCapabilities appiumCapabilities = AutomationCapabilityResolver.forWebDriver(appium);
         Assert.assertTrue(appiumCapabilities.supports(AutomationFeature.GEOLOCATION_EMULATION));
         Assert.assertTrue(appiumCapabilities.supports(AutomationFeature.LOCALE_EMULATION));
@@ -199,10 +199,10 @@ public class BrowserEmulationNamespaceTest {
                 () -> new com.shaft.gui.browser.BrowserActions(selenium, true)
                         .emulation().location().clearGeolocation());
 
-        AppiumDriver appium = Mockito.mock(AppiumDriver.class);
-        Mockito.when(appium.getSessionId()).thenReturn(new SessionId("appium-without-websocket"));
+        AppiumDriver appium = Mockito.mock(AppiumDriver.class, Mockito.withSettings().extraInterfaces(HasBiDi.class));
+        Mockito.when(appium.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("appium-without-websocket"));
         Mockito.when(appium.getCapabilities()).thenReturn(missingWebSocket);
-        Mockito.when(appium.getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
+        Mockito.when(((HasBiDi) appium).getHandle()).thenReturn(BidiTestSupport.handleFor(bidi));
         Mockito.when(appium.getWindowHandle()).thenReturn("WEBVIEW_1");
         Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(appium)
                 .supports(AutomationFeature.GEOLOCATION_EMULATION));

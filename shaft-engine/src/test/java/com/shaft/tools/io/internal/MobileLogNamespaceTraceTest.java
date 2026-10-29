@@ -6,7 +6,7 @@ import com.shaft.gui.driver.MobileLogActionsContract;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ws.StringWebSocketClient;
 import org.mockito.Mockito;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;

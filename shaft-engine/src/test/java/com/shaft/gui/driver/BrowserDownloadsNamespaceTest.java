@@ -111,8 +111,7 @@ public class BrowserDownloadsNamespaceTest {
                 .supports(AutomationFeature.DOWNLOADS));
 
         AppiumDriver appium = Mockito.mock(AppiumDriver.class);
-        Mockito.when(appium.getSessionId()).thenReturn(new SessionId("appium"));
-        Mockito.when(appium.isDownloadsEnabled()).thenReturn(true);
+        Mockito.when(appium.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("appium"));
         Assert.expectThrows(UnsupportedOperationException.class,
                 () -> new com.shaft.gui.browser.BrowserActions(appium, true).downloads().all());
         Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(appium)

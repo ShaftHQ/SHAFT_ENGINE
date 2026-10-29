@@ -11,7 +11,7 @@ import io.appium.java_client.windows.WindowsDriver;
 import org.mockito.Mockito;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.ScreenOrientation;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -563,14 +563,12 @@ public class MobileNamespaceTest {
     }
 
     @Test
-    public void gestureNamespaceShouldRequireThePinnedAppiumTouchInterface() {
+    public void gestureNamespaceShouldOpenOnAnyLiveAppiumDriver() {
+        // Appium java-client 11 removed PerformsTouchActions; W3C Interactive covers every AppiumDriver.
         AppiumDriver generic = Mockito.mock(AppiumDriver.class);
-        Mockito.when(generic.getSessionId()).thenReturn(new SessionId("generic-no-touch"));
+        Mockito.when(generic.getSessionId()).thenReturn(new SessionId("generic-live-gestures"));
 
-        UnsupportedOperationException exception = Assert.expectThrows(UnsupportedOperationException.class,
-                () -> new SHAFT.GUI.WebDriver(generic).mobile().gestures());
-
-        Assert.assertTrue(exception.getMessage().contains("touch gestures"));
+        Assert.assertNotNull(new SHAFT.GUI.WebDriver(generic).mobile().gestures());
     }
 
     @Test

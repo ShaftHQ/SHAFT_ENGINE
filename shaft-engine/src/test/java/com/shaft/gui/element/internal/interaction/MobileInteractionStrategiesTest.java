@@ -19,7 +19,7 @@ import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Interactive;
-import org.openqa.selenium.remote.RemoteWebElement;
+import io.appium.java_client.remote.AppiumWebElement;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -156,7 +156,7 @@ public class MobileInteractionStrategiesTest {
     public void typeWithNativeClearMayUseReplaceElementValue() {
         SHAFT.Properties.flags.setForCurrentThread().clearBeforeTypingMode("native");
         AppiumDriver driver = mockAppiumDriver();
-        RemoteWebElement element = mock(RemoteWebElement.class);
+        AppiumWebElement element = mock(AppiumWebElement.class);
         when(element.isDisplayed()).thenReturn(true);
         when(element.isEnabled()).thenReturn(true);
         when(element.getTagName()).thenReturn("android.widget.EditText");
@@ -266,7 +266,7 @@ public class MobileInteractionStrategiesTest {
     public void typeMobileTextPrefersFlutterEnterText() {
         io.appium.java_client.flutter.FlutterIntegrationTestDriver driver =
                 mock(io.appium.java_client.flutter.FlutterIntegrationTestDriver.class);
-        RemoteWebElement element = mock(RemoteWebElement.class);
+        AppiumWebElement element = mock(AppiumWebElement.class);
         doThrow(new InvalidElementStateException("sendKeys blocked")).when(element).sendKeys(any(CharSequence[].class));
 
         TypeStrategies.typeMobileText(driver, element, new CharSequence[]{"admin"}, false);
@@ -276,7 +276,7 @@ public class MobileInteractionStrategiesTest {
     @Test
     public void typeMobileTextDirectReplaceElementValue() {
         AppiumDriver driver = mockAppiumDriver();
-        RemoteWebElement element = mock(RemoteWebElement.class);
+        AppiumWebElement element = mock(AppiumWebElement.class);
         doThrow(new InvalidElementStateException("sendKeys blocked")).when(element).sendKeys(any(CharSequence[].class));
 
         TypeStrategies.typeMobileText(driver, element, new CharSequence[]{"via-replace"}, true);

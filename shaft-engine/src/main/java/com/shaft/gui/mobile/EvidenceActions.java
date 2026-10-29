@@ -19,7 +19,7 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.HasSupportedPerformanceDataType;
 import io.appium.java_client.android.ListensToLogcatMessages;
 import io.appium.java_client.ios.ListensToSyslogMessages;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.SessionId;
 
 import java.io.IOException;
 import java.io.InputStream;
