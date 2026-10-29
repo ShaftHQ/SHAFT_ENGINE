@@ -35,6 +35,7 @@ NEEDLES = (
     "vfxspell",
     "onsetclip",
     "3.0",
+    "--attestation",
 )
 
 
@@ -70,6 +71,10 @@ def write_srt(path: Path, cues: list[tuple[float, float, str]]) -> None:
     path.write_text("\n".join(blocks), encoding="utf-8")
 
 
+def write_attestation(path: Path) -> None:
+    path.write_text("human-corrected: ear-checked transcript\n", encoding="utf-8")
+
+
 def write_tone_wav(path: Path, duration: float, freq: float = 440.0,
                    rate: int = 16000, amp: float = 0.3,
                    silence: list[tuple[float, float]] | None = None) -> None:
@@ -85,6 +90,28 @@ def write_tone_wav(path: Path, duration: float, freq: float = 440.0,
             sample = 0
         else:
             sample = int(amp * 32767 * math.sin(2 * math.pi * freq * (i / rate)))
+        frames += struct.pack("<h", sample)
+    with wave.open(str(path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(frames)
+
+
+def write_pulsed_wav(path: Path, duration: float, on: float, off: float,
+                     freq: float = 440.0, rate: int = 16000,
+                     amp: float = 0.3) -> None:
+    """Tone that alternates on/off for the whole duration (bursty speech)."""
+    n = int(duration * rate)
+    period = on + off
+    frames = bytearray()
+    for i in range(n):
+        t = i / rate
+        phase = t % period
+        if phase < on:
+            sample = int(amp * 32767 * math.sin(2 * math.pi * freq * t))
+        else:
+            sample = 0
         frames += struct.pack("<h", sample)
     with wave.open(str(path), "wb") as handle:
         handle.setnchannels(1)
@@ -144,10 +171,13 @@ class VideoCaptionLessonCardTest(unittest.TestCase):
 
 
 class AsrKaraokeGateTest(unittest.TestCase):
-    def test_askaraoke_red_on_word_level_green_on_phrases(self) -> None:
+    def test_askaraoke_red_on_word_level_green_on_attested_phrases(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
-            bad = Path(folder) / "bad.srt"
-            good = Path(folder) / "good.srt"
+            root = Path(folder)
+            bad = root / "bad.srt"
+            good = root / "good.srt"
+            attest = root / "attest.txt"
+            write_attestation(attest)
             # 10 one-word micro cues → karaoke
             write_srt(bad, [(i * 0.3, i * 0.3 + 0.25, f"w{i}") for i in range(10)])
             write_srt(
@@ -158,13 +188,55 @@ class AsrKaraokeGateTest(unittest.TestCase):
                     (2.6, 3.8, "Human ear-checked wording stays"),
                 ],
             )
-            code, payload = run_qc("askaraoke", str(bad))
+            code, payload = run_qc(
+                "askaraoke", str(bad), "--attestation", str(attest),
+            )
             self.assertEqual(1, code, payload)
             self.assertEqual("fail", payload.get("status"), payload)
-            self.assertTrue(payload.get("hits"), payload)
+            self.assertTrue(
+                any("karaoke_ratio" in h for h in payload.get("hits", [])), payload,
+            )
 
-            code, payload = run_qc("askaraoke", str(good))
+            code, payload = run_qc(
+                "askaraoke", str(good), "--attestation", str(attest),
+            )
             self.assertEqual((0, "pass"), (code, payload.get("status")), payload)
+
+    def test_askaraoke_fn_seven_karaoke_cues_fail(self) -> None:
+        """FN1: 7 word-level cues must fail (old min_cues=8 floor was a false negative)."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            srt = root / "seven.srt"
+            attest = root / "attest.txt"
+            write_attestation(attest)
+            write_srt(srt, [(i * 0.3, i * 0.3 + 0.25, f"w{i}") for i in range(7)])
+            code, payload = run_qc(
+                "askaraoke", str(srt), "--attestation", str(attest),
+            )
+            self.assertEqual(1, code, payload)
+            self.assertEqual("fail", payload.get("status"), payload)
+            self.assertTrue(
+                any("karaoke_ratio" in h for h in payload.get("hits", [])), payload,
+            )
+
+    def test_askaraoke_fn_phrases_without_attestation_fail(self) -> None:
+        """Phrase-level raw ASR without human-corrected attestation must fail."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            srt = root / "raw.srt"
+            write_srt(
+                srt,
+                [
+                    (0.0, 1.2, "This is a full readable phrase"),
+                    (1.3, 2.5, "Another corrected caption line here"),
+                    (2.6, 3.8, "Human ear-checked wording stays"),
+                ],
+            )
+            code, payload = run_qc("askaraoke", str(srt))
+            self.assertEqual(1, code, payload)
+            self.assertTrue(
+                any("attestation" in h for h in payload.get("hits", [])), payload,
+            )
 
 
 class ScriptFilterGateTest(unittest.TestCase):
@@ -178,7 +250,10 @@ class ScriptFilterGateTest(unittest.TestCase):
             write_srt(good, [(0.0, 1.5, "هذا سطر عربي clean English mix")])
             code, payload = run_qc("scriptfilter", str(bad_cjk))
             self.assertEqual(1, code, payload)
-            self.assertTrue(any("CJK" in h for h in payload.get("hits", [])), payload)
+            self.assertTrue(
+                any("unexpected script" in h for h in payload.get("hits", [])),
+                payload,
+            )
 
             code, payload = run_qc("scriptfilter", str(bad_fill))
             self.assertEqual(1, code, payload)
@@ -187,17 +262,51 @@ class ScriptFilterGateTest(unittest.TestCase):
             code, payload = run_qc("scriptfilter", str(good))
             self.assertEqual((0, "pass"), (code, payload.get("status")), payload)
 
+    def test_scriptfilter_fn_emoji_and_triple_filler_fail(self) -> None:
+        """FN2: emoji-only cues and 3× filler must fail."""
+        with tempfile.TemporaryDirectory() as folder:
+            emoji = Path(folder) / "emoji.srt"
+            fill3 = Path(folder) / "fill3.srt"
+            write_srt(emoji, [(0.0, 1.0, "🔥🔥🔥🔥🔥")])
+            write_srt(fill3, [(0.0, 1.5, "حلو حلو حلو")])
+            code, payload = run_qc("scriptfilter", str(emoji))
+            self.assertEqual(1, code, payload)
+            self.assertTrue(
+                any("unexpected script" in h and "symbol" in h
+                    for h in payload.get("hits", [])),
+                payload,
+            )
+
+            code, payload = run_qc("scriptfilter", str(fill3))
+            self.assertEqual(1, code, payload)
+            self.assertTrue(any("filler" in h for h in payload.get("hits", [])), payload)
+
+    def test_scriptfilter_fn_cyrillic_thai_deva_fail(self) -> None:
+        """Non-allowed scripts (Cyrillic/Thai/Devanagari) must fail under ar,latn."""
+        with tempfile.TemporaryDirectory() as folder:
+            for name, sample in (
+                ("cyrl", "Привет мир"),
+                ("thai", "สวัสดี"),
+                ("deva", "नमस्ते"),
+            ):
+                srt = Path(folder) / f"{name}.srt"
+                write_srt(srt, [(0.0, 1.0, sample)])
+                code, payload = run_qc("scriptfilter", str(srt))
+                self.assertEqual(1, code, payload)
+                self.assertTrue(
+                    any("unexpected script" in h for h in payload.get("hits", [])),
+                    payload,
+                )
+
 
 class SpeechCueGapGateTest(unittest.TestCase):
-    """Riskiest assumption: >3s caption hole overlapping speech fails; silence hole passes."""
+    """Riskiest assumption: >3s hole over bursty speech fails; silence hole passes."""
 
     def test_speechcuegap_red_over_speech_green_over_silence(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            # 8s tone with continuous speech
             speech = root / "speech.wav"
             write_tone_wav(speech, 8.0)
-            # Captions cover 0-2 and 6-8 → 4s hole over speech
             hole = root / "hole.srt"
             write_srt(hole, [(0.0, 2.0, "start phrase here"), (6.0, 8.0, "end phrase here")])
             code, payload = run_qc(
@@ -207,13 +316,29 @@ class SpeechCueGapGateTest(unittest.TestCase):
             self.assertEqual("fail", payload.get("status"), payload)
             self.assertTrue(payload.get("hits"), payload)
 
-            # Same hole but audio silent in 2-6 → PASS
             quiet = root / "quiet.wav"
             write_tone_wav(quiet, 8.0, silence=[(2.0, 6.0)])
             code, payload = run_qc(
                 "speechcuegap", str(quiet), "--cues", str(hole), "--max", "3.0",
             )
             self.assertEqual((0, "pass"), (code, payload.get("status")), payload)
+
+    def test_speechcuegap_fails_bursty_speech_in_hole(self) -> None:
+        """FN3 (riskiest): 4s hole over 200ms-on/50ms-off speech must FAIL."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            pulsed = root / "bursty.wav"
+            write_pulsed_wav(pulsed, 8.0, on=0.2, off=0.05)
+            hole = root / "hole.srt"
+            write_srt(hole, [(0.0, 2.0, "start phrase here"), (6.0, 8.0, "end phrase here")])
+            code, payload = run_qc(
+                "speechcuegap", str(pulsed), "--cues", str(hole), "--max", "3.0",
+            )
+            self.assertEqual(1, code, payload)
+            self.assertEqual("fail", payload.get("status"), payload)
+            self.assertTrue(payload.get("hits"), payload)
+            overlap = payload["hits"][0].get("speech_overlap", 0)
+            self.assertGreater(overlap, 0.0, payload)
 
 
 @unittest.skipUnless(HAS_FFMPEG, "ffmpeg not installed")
@@ -255,12 +380,39 @@ class VfxSpellGateTest(unittest.TestCase):
             code, payload = run_qc("vfxspell", str(good), "--lexicon", str(lex))
             self.assertEqual((0, "pass"), (code, payload.get("status")), payload)
 
+    def test_vfxspell_fn_two_edit_typo_fails(self) -> None:
+        """FN4: 2-edit CLUODD must fail (old unknown=ignore + 1-edit-only was FN)."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            lex = root / "lex.txt"
+            lex.write_text("cloud\n", encoding="utf-8")
+            labels = root / "labels.txt"
+            labels.write_text("CLUODD\n", encoding="utf-8")
+            code, payload = run_qc("vfxspell", str(labels), "--lexicon", str(lex))
+            self.assertEqual(1, code, payload)
+            self.assertTrue(payload.get("hits"), payload)
+            hit = " ".join(payload.get("hits", [])).lower()
+            self.assertIn("cluodd", hit, payload)
+
+    def test_vfxspell_fn_arabic_unknown_fails(self) -> None:
+        """Arabic/unknown VFX tokens must fail under default unknown=fail."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            lex = root / "lex.txt"
+            lex.write_text("cloud\n", encoding="utf-8")
+            labels = root / "labels.txt"
+            labels.write_text("سحابة\n", encoding="utf-8")
+            code, payload = run_qc("vfxspell", str(labels), "--lexicon", str(lex))
+            self.assertEqual(1, code, payload)
+            self.assertTrue(
+                any("not in lexicon" in h for h in payload.get("hits", [])), payload,
+            )
+
 
 class OnsetClipGateTest(unittest.TestCase):
     def test_onsetclip_fails_clipped_fragment_passes_padded_phrase(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            # Speech from t=0; first cue is a short fragment at 0
             clipped = root / "clip.wav"
             write_tone_wav(clipped, 2.0)
             bad_srt = root / "bad.srt"
@@ -269,7 +421,6 @@ class OnsetClipGateTest(unittest.TestCase):
             self.assertEqual(1, code, payload)
             self.assertEqual("fail", payload.get("status"), payload)
 
-            # Pad: silence then speech; full first phrase
             padded = root / "pad.wav"
             write_tone_wav(padded, 2.5, silence=[(0.0, 0.25)])
             good_srt = root / "good.srt"
@@ -280,6 +431,35 @@ class OnsetClipGateTest(unittest.TestCase):
             code, payload = run_qc("onsetclip", str(padded), "--cues", str(good_srt))
             self.assertEqual((0, "pass"), (code, payload.get("status")), payload)
 
+    def test_onsetclip_fn_onset_just_outside_old_window_fails(self) -> None:
+        """FN5: clipped open with onset/cue at 0.06s must fail (old early_onset=0.05)."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            # Silence until 0.06s, then speech; short one-token cue from 0.06.
+            wav = root / "late.wav"
+            write_tone_wav(wav, 2.0, silence=[(0.0, 0.06)])
+            srt = root / "late.srt"
+            write_srt(srt, [(0.06, 0.35, "ويط"), (0.80, 2.0, "كل رول كامل هنا")])
+            code, payload = run_qc("onsetclip", str(wav), "--cues", str(srt))
+            self.assertEqual(1, code, payload)
+            self.assertEqual("fail", payload.get("status"), payload)
+            self.assertTrue(payload.get("hits"), payload)
+
+    def test_onsetclip_fn_multi_token_clip_fails(self) -> None:
+        """Multi-token clipped open at t=0 must fail."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            wav = root / "multi.wav"
+            write_tone_wav(wav, 2.0)
+            srt = root / "multi.srt"
+            write_srt(
+                srt,
+                [(0.0, 0.35, "ويط كل ده"), (0.80, 2.0, "كل رول كامل هنا")],
+            )
+            code, payload = run_qc("onsetclip", str(wav), "--cues", str(srt))
+            self.assertEqual(1, code, payload)
+            self.assertTrue(payload.get("hits"), payload)
+
 
 @unittest.skipUnless(HAS_FFMPEG, "ffmpeg not installed")
 class LoudnessPeakDocTest(unittest.TestCase):
@@ -288,7 +468,6 @@ class LoudnessPeakDocTest(unittest.TestCase):
     def test_loudness_fails_hot_true_peak(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             hot = Path(folder) / "hot.wav"
-            # Full-scale square-ish sine → true peak above -1
             write_tone_wav(hot, 0.4, amp=0.99)
             code, payload = run_qc(
                 "loudness", str(hot), "--max-peak", "-1", "--target", "-14",
