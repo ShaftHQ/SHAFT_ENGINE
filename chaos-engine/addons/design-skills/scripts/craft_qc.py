@@ -2581,12 +2581,9 @@ def cmd_livecms(qc, args) -> int:
 
 
 def cmd_cmsheader(qc, args) -> int:
-    """L36: live header logo/nav position delta vs homepage '/' ≤1px."""
-    report = _hosted_cms().check_cms_header_delta(
-        args.home_logo_x, args.home_logo_y, args.page_logo_x, args.page_logo_y,
-        args.home_nav_x, args.home_nav_y, args.page_nav_x, args.page_nav_y,
-        max_delta_px=args.max_delta,
-    )
+    """L36: per-viewport header logo/nav delta vs '/' ≤1px (360/390/430/1440)."""
+    report_obj = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    report = _hosted_cms().check_cms_header_delta(report_obj)
     status = report.pop("status")
     if status == "error":
         return qc.report("cmsheader", qc.USAGE, **report)
@@ -2932,17 +2929,8 @@ def register(add, qc) -> None:
             "L28/L31/L36: fail-closed live matrix receipt JSON")
     p.add_argument("file", help="livecms report JSON")
     p = add("cmsheader", bind(cmd_cmsheader),
-            "L36: header logo/nav delta vs homepage '/' ≤1px")
-    p.add_argument("--home-logo-x", type=float, required=True, dest="home_logo_x")
-    p.add_argument("--home-logo-y", type=float, required=True, dest="home_logo_y")
-    p.add_argument("--page-logo-x", type=float, required=True, dest="page_logo_x")
-    p.add_argument("--page-logo-y", type=float, required=True, dest="page_logo_y")
-    p.add_argument("--home-nav-x", type=float, required=True, dest="home_nav_x")
-    p.add_argument("--home-nav-y", type=float, required=True, dest="home_nav_y")
-    p.add_argument("--page-nav-x", type=float, required=True, dest="page_nav_x")
-    p.add_argument("--page-nav-y", type=float, required=True, dest="page_nav_y")
-    p.add_argument("--max-delta", type=float, default=1.0, dest="max_delta",
-                   help="max |page-home| px on either axis (default 1)")
+            "L36: per-viewport header logo/nav delta vs '/' ≤1px (360/390/430/1440)")
+    p.add_argument("file", help="cmsheader receipt JSON with viewports map")
     p = add("bidiwao", bind(cmd_bidiwao),
             "L32: Arabic و adjacent to <bdi> Latin in headings/card titles (use ،)")
     p.add_argument("path", help="HTML file or directory")

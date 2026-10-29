@@ -33,7 +33,7 @@ one lesson card.
 | [L25 CMS owns meta](hosted-cms-owns-meta.md) | no og/twitter/html lang in Code-block paste |
 | [L26 hostile CMS resets](hostile-cms-resets.md) | hostile CSS + heading luminance + squircle tile |
 | [L27 full-width embed](full-width-embed.md) | Span content grid + phone gutter parity |
-| [L28 live-verify CMS embed](live-verify-cms-embed.md) | headless public URL matrix @390/1440 |
+| [L28 live-verify CMS embed](live-verify-cms-embed.md) | headless public URL matrix @360/390/430/1440 |
 | [L29 plan-first multi-axis](plan-first-multi-axis.md) | plan+accept before multi-axis visual build |
 | [L30 explainer embed length](explainer-embed-length.md) | sibling Watch explainers ~60–100 s parity |
 | [L31 paste then re-verify](paste-then-reverify.md) | artifact paste + immediate livecms |

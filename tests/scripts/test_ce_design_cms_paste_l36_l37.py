@@ -20,6 +20,8 @@ QC = DESIGN / "scripts/design_qc.py"
 L36 = "cms-paste-fragment-only.md"
 L37 = "cms-paste-no-html-comments.md"
 
+HEADER_VIEWPORTS = (360, 390, 430, 1440)
+
 L36_NEEDLES = (
     "Fragment only",
     "<!doctype",
@@ -33,6 +35,10 @@ L36_NEEDLES = (
     "cmsheader",
     "1px",
     "documentElement",
+    "360",
+    "390",
+    "430",
+    "1440",
 )
 L37_NEEDLES = (
     "<!--",
@@ -61,6 +67,21 @@ def run_qc(*args: str) -> tuple[int, dict]:
     return proc.returncode, payload
 
 
+def _vp_receipt(*, logo_page_x: float = 12.5, bad_width: int | None = None) -> dict:
+    viewports = {}
+    for width in HEADER_VIEWPORTS:
+        page_x = logo_page_x
+        if bad_width is not None and width == bad_width:
+            page_x = 20.0  # >1px shift
+        viewports[str(width)] = {
+            "home_logo": {"x": 12.0, "y": 8.0},
+            "page_logo": {"x": page_x, "y": 8.0},
+            "home_nav": {"x": 200.0, "y": 10.0},
+            "page_nav": {"x": 200.0, "y": 10.25},
+        }
+    return {"viewports": viewports, "max_delta_px": 1.0}
+
+
 class LessonCardBudgetTest(unittest.TestCase):
     def test_l36_l37_cards_index_inventory(self) -> None:
         for card, needles in ((L36, L36_NEEDLES), (L37, L37_NEEDLES)):
@@ -87,6 +108,7 @@ class LessonCardBudgetTest(unittest.TestCase):
         self.assertIn("L36", embed)
         self.assertIn("L37", embed)
         self.assertIn("cmsheader", embed)
+        self.assertIn("360/390/430/1440", embed)
         web = DESIGN / "references/craft/web-design.md"
         self.assertLessEqual(len(web.read_text(encoding="utf-8").splitlines()), 120)
 
@@ -145,7 +167,6 @@ class CmsPasteFragmentL36Test(unittest.TestCase):
                 '<div data-tip="example &lt;html&gt; fragment" title=\'see &lt;head&gt;\'>'
                 "<h1>Product</h1></div>"
             ),
-            # Attribute contains raw <html — masked, must PASS.
             "attr_raw.html": (
                 '<div title="do not use <html dir=rtl> here"><h1>Product</h1></div>'
             ),
@@ -159,6 +180,36 @@ class CmsPasteFragmentL36Test(unittest.TestCase):
                     (0, "pass"), (code, payload.get("status")), (name, payload),
                 )
                 self.assertEqual(0, payload.get("doc_shell_hits", -1), (name, payload))
+
+    def test_cmsmeta_false_positives_script_style_strings(self) -> None:
+        """JSON-LD / JS template / CSS content strings must PASS (not real markup)."""
+        cases = {
+            "jsonld.html": (
+                '<div class="e"><script type="application/ld+json">'
+                '{"desc":"never paste <html dir=rtl> or <!-- notes --> into CMS"}'
+                "</script><h1>x</h1></div>"
+            ),
+            "js_template.html": (
+                '<div class="e"><script>'
+                "const tip = `avoid <html> and <!-- ops --> in paste`;"
+                "</script><h1>x</h1></div>"
+            ),
+            "css_content.html": (
+                '<div class="e"><style>'
+                '.e::before{content:"<!-- tip --> and <html>"}'
+                "</style><h1>x</h1></div>"
+            ),
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(
+                    (0, "pass"), (code, payload.get("status")), (name, payload),
+                )
+                self.assertEqual(0, payload.get("doc_shell_hits", -1), (name, payload))
+                self.assertEqual(0, payload.get("html_comment_hits", -1), (name, payload))
 
     def test_cmsmeta_rejects_global_root_css(self) -> None:
         html = (
@@ -184,6 +235,17 @@ class CmsPasteCommentsL37Test(unittest.TestCase):
             self.assertEqual(1, code, payload)
             self.assertGreaterEqual(payload.get("html_comment_hits", 0), 1, payload)
 
+    def test_cmsmeta_rejects_conditional_comment(self) -> None:
+        """FN guard: IE conditional comments are real markup comments → FAIL."""
+        html = "<!--[if IE]><div class=\"x\">legacy</div><![endif]-->\n<div>ok</div>"
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "cond.html"
+            path.write_text(html, encoding="utf-8")
+            code, payload = run_qc("cmsmeta", str(path))
+            self.assertEqual(1, code, payload)
+            self.assertEqual("fail", payload.get("status"), payload)
+            self.assertGreaterEqual(payload.get("html_comment_hits", 0), 1, payload)
+
     def test_cmsmeta_passes_escaped_comment_text(self) -> None:
         html = "<div><p>Do not leave &lt;!-- notes --&gt; in paste.</p></div>"
         with tempfile.TemporaryDirectory() as folder:
@@ -195,29 +257,30 @@ class CmsPasteCommentsL37Test(unittest.TestCase):
 
 
 class CmsHeaderDeltaL36Test(unittest.TestCase):
-    def test_cmsheader_delta_threshold(self) -> None:
-        # Within 1px → PASS
-        code, payload = run_qc(
-            "cmsheader",
-            "--home-logo-x", "12", "--home-logo-y", "8",
-            "--page-logo-x", "12.5", "--page-logo-y", "8",
-            "--home-nav-x", "200", "--home-nav-y", "10",
-            "--page-nav-x", "200", "--page-nav-y", "10.25",
-        )
-        self.assertEqual((0, "pass"), (code, payload.get("status")), payload)
-        # Logo shifted 2px → FAIL
-        code, payload = run_qc(
-            "cmsheader",
-            "--home-logo-x", "12", "--home-logo-y", "8",
-            "--page-logo-x", "14", "--page-logo-y", "8",
-            "--home-nav-x", "200", "--home-nav-y", "10",
-            "--page-nav-x", "200", "--page-nav-y", "10",
-        )
-        self.assertEqual(1, code, payload)
-        self.assertFalse(payload.get("header_logo_delta_ok"), payload)
-        self.assertTrue(payload.get("header_nav_delta_ok"), payload)
+    def test_cmsheader_delta_threshold_per_viewport(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            ok_path = Path(folder) / "ok.json"
+            bad_path = Path(folder) / "bad.json"
+            ok_path.write_text(json.dumps(_vp_receipt()), encoding="utf-8")
+            bad_path.write_text(
+                json.dumps(_vp_receipt(bad_width=390)), encoding="utf-8",
+            )
+            code, payload = run_qc("cmsheader", str(ok_path))
+            self.assertEqual((0, "pass"), (code, payload.get("status")), payload)
+            for width in HEADER_VIEWPORTS:
+                self.assertTrue(
+                    payload.get(f"header_logo_delta_ok_{width}"), (width, payload),
+                )
+                self.assertTrue(
+                    payload.get(f"header_nav_delta_ok_{width}"), (width, payload),
+                )
+            code, payload = run_qc("cmsheader", str(bad_path))
+            self.assertEqual(1, code, payload)
+            self.assertFalse(payload.get("header_logo_delta_ok_390"), payload)
+            self.assertTrue(payload.get("header_nav_delta_ok_390"), payload)
+            self.assertTrue(payload.get("header_logo_delta_ok_360"), payload)
 
-    def test_livecms_requires_header_delta_rows(self) -> None:
+    def test_livecms_requires_per_viewport_header_delta_rows(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "live.json"
             path.write_text(json.dumps({
@@ -227,7 +290,9 @@ class CmsHeaderDeltaL36Test(unittest.TestCase):
                 "heading_colour": "pass",
                 "identity_tile": "pass",
                 "og_title_once": True,
+                "viewport_360": True,
                 "viewport_390": True,
+                "viewport_430": True,
                 "viewport_1440": True,
                 "media_ok": "n/a",
                 "duration_ok": "n/a",
@@ -236,8 +301,9 @@ class CmsHeaderDeltaL36Test(unittest.TestCase):
             code, payload = run_qc("livecms", str(path))
             self.assertEqual(1, code, payload)
             missing = set(payload.get("missing") or [])
-            self.assertIn("header_logo_delta_ok", missing)
-            self.assertIn("header_nav_delta_ok", missing)
+            for width in HEADER_VIEWPORTS:
+                self.assertIn(f"header_logo_delta_ok_{width}", missing)
+                self.assertIn(f"header_nav_delta_ok_{width}", missing)
 
 
 if __name__ == "__main__":

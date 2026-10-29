@@ -4,14 +4,11 @@ from __future__ import annotations
 
 import math
 import re
+from html.parser import HTMLParser
 from typing import Any
 
 OG_TWITTER_META = re.compile(
     r"""<meta\s+[^>]*(?:property|name)\s*=\s*["'](?:og|twitter):""",
-    re.IGNORECASE,
-)
-HTML_LANG = re.compile(
-    r'''<\s*html\b[^>]*\blang\s*=''',
     re.IGNORECASE,
 )
 RELATIVE_ASSET_SRC = re.compile(
@@ -27,60 +24,109 @@ TOPBAR_IN_PASTE = re.compile(
 )
 
 # L36: Code-block paste must be a fragment — no document shell tags.
-DOC_SHELL_TAG = re.compile(
-    r"<!doctype\b|<\s*(?:html|head|body)\b",
-    re.IGNORECASE,
-)
-# L36: paste CSS must not target host document roots.
+DOC_SHELL_TAGS = frozenset({"html", "head", "body"})
+# L36: paste CSS must not target host document roots (selectors, not string literals).
 GLOBAL_CSS_ROOT = re.compile(
     r"(?:^|[{};,\s])(?:html|body|:root)(?=[\s.{:#\[,>+~]|$)",
     re.IGNORECASE | re.MULTILINE,
 )
-# L37: HTML comments in paste leak ops notes on the live page.
-HTML_COMMENT_OPEN = re.compile(r"<!--")
+# Livecms / cmsheader viewports (L28 + L36): phone + desktop matrix.
+HEADER_VIEWPORTS = (360, 390, 430, 1440)
 
 
-def _mask_attr_values(html: str) -> str:
-    """Blank quoted attribute values so tag-like text in attrs is not a hit."""
+class _PasteMarkupScanner(HTMLParser):
+    """Tokenize paste; judge only real markup. Skip script/style raw text."""
 
-    def repl(match: re.Match[str]) -> str:
-        prefix = match.group(1)
-        return prefix + (" " * (len(match.group(0)) - len(prefix)))
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.shell: list[str] = []
+        self.comments = 0
+        self.html_lang = 0
+        self.style_bodies: list[str] = []
+        self._raw_stack: list[str] = []
+        self._style_chunks: list[str] = []
 
-    return re.sub(r'(=\s*)("[^"]*"|\'[^\']*\')', repl, html or "")
+    def _in_raw(self) -> bool:
+        return bool(self._raw_stack)
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        name = (tag or "").lower()
+        if self._in_raw():
+            return
+        if name in ("script", "style"):
+            self._raw_stack.append(name)
+            if name == "style":
+                self._style_chunks = []
+            return
+        if name in DOC_SHELL_TAGS:
+            self.shell.append(f"<{name}")
+            if name == "html":
+                for key, _val in attrs or []:
+                    if (key or "").lower() == "lang":
+                        self.html_lang += 1
+                        break
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        # Void/self-closing — still a shell hit if html/head/body (rare).
+        self.handle_starttag(tag, attrs)
+        name = (tag or "").lower()
+        if name in ("script", "style") and self._raw_stack and self._raw_stack[-1] == name:
+            self.handle_endtag(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        name = (tag or "").lower()
+        if name in ("script", "style") and self._raw_stack and self._raw_stack[-1] == name:
+            if name == "style":
+                self.style_bodies.append("".join(self._style_chunks))
+                self._style_chunks = []
+            self._raw_stack.pop()
+
+    def handle_data(self, data: str) -> None:
+        if self._raw_stack and self._raw_stack[-1] == "style":
+            self._style_chunks.append(data or "")
+
+    def handle_comment(self, data: str) -> None:
+        # Real HTML comments, including conditional <!--[if ...] ... <![endif]-->.
+        if self._in_raw():
+            return
+        self.comments += 1
+
+    def handle_decl(self, decl: str) -> None:
+        if self._in_raw():
+            return
+        if (decl or "").lower().lstrip().startswith("doctype"):
+            self.shell.append("<!doctype")
 
 
-def _style_bodies(html: str) -> list[str]:
-    return re.findall(
-        r"<style\b[^>]*>(.*?)</style>",
-        html or "",
-        flags=re.IGNORECASE | re.DOTALL,
-    )
+def _scan_paste_markup(html: str) -> _PasteMarkupScanner:
+    scanner = _PasteMarkupScanner()
+    scanner.feed(html or "")
+    scanner.close()
+    return scanner
 
 
 def _doc_shell_samples(html: str) -> list[str]:
-    masked = _mask_attr_values(html or "")
-    return [m.group(0).lower().replace(" ", "") for m in DOC_SHELL_TAG.finditer(masked)]
+    return list(_scan_paste_markup(html).shell)
 
 
 def _global_css_root_hits(html: str) -> int:
-    return sum(len(GLOBAL_CSS_ROOT.findall(body)) for body in _style_bodies(html))
+    scanner = _scan_paste_markup(html)
+    return sum(len(GLOBAL_CSS_ROOT.findall(body)) for body in scanner.style_bodies)
 
 
 def _html_comment_hits(html: str) -> int:
-    # Comments are real markup; attr masking would hide rare data-* FPs only.
-    masked = _mask_attr_values(html or "")
-    return len(HTML_COMMENT_OPEN.findall(masked))
+    return int(_scan_paste_markup(html).comments)
 
 
 def check_cms_meta(html: str) -> dict[str, Any]:
     """L25/L36/L37: no og/twitter, document shell, global root CSS, or comments."""
     body = html or ""
     count = len(list(OG_TWITTER_META.finditer(body)))
-    lang_hits = len(list(HTML_LANG.finditer(body)))
-    shell = _doc_shell_samples(body)
-    css_roots = _global_css_root_hits(body)
-    comments = _html_comment_hits(body)
+    scanned = _scan_paste_markup(body)
+    lang_hits = int(scanned.html_lang)
+    shell = list(scanned.shell)
+    css_roots = sum(len(GLOBAL_CSS_ROOT.findall(b)) for b in scanned.style_bodies)
+    comments = int(scanned.comments)
     base = {
         "og_twitter_meta": count,
         "html_lang": lang_hits,
@@ -112,6 +158,7 @@ def check_cms_meta(html: str) -> dict[str, Any]:
         "status": "pass",
         "note": "paste fragment clean of meta/shell/comments (L25/L36/L37)",
     }
+
 
 
 def check_cms_assets(html: str) -> dict[str, Any]:
@@ -473,16 +520,22 @@ REQUIRED_LIVECMS_ROWS = (
     "heading_colour",
     "identity_tile",
     "og_title_once",
+    # L28 (+ L36 align): phone + desktop matrix
+    "viewport_360",
     "viewport_390",
+    "viewport_430",
     "viewport_1440",
     # L28: media playable + duration ±tol (sentinel "n/a" when no video)
     "media_ok",
     "duration_ok",
     # L31: nested code-container count must be 0
     "nested_containers_0",
-    # L36: sticky header logo/nav vs homepage '/' within 1px
-    "header_logo_delta_ok",
-    "header_nav_delta_ok",
+    # L36: sticky header logo/nav vs '/' ≤1px at each viewport
+    *(
+        key
+        for width in HEADER_VIEWPORTS
+        for key in (f"header_logo_delta_ok_{width}", f"header_nav_delta_ok_{width}")
+    ),
 )
 
 
@@ -518,62 +571,152 @@ def check_livecms(report: dict[str, Any]) -> dict[str, Any]:
     return {**base, "status": "pass", "note": "livecms matrix green (L28/L31/L36)"}
 
 
+def _xy_pair(node: Any, label: str) -> tuple[float, float] | str:
+    if not isinstance(node, dict):
+        return f"{label} must be an object with x,y"
+    try:
+        x, y = float(node["x"]), float(node["y"])
+    except (KeyError, TypeError, ValueError):
+        return f"{label} needs numeric x,y"
+    if not math.isfinite(x) or not math.isfinite(y):
+        return f"{label} x,y must be finite"
+    return x, y
+
+
+def _viewport_delta(
+    home_logo: tuple[float, float],
+    page_logo: tuple[float, float],
+    home_nav: tuple[float, float],
+    page_nav: tuple[float, float],
+    *,
+    max_delta_px: float,
+) -> tuple[float, float, bool, bool]:
+    logo_delta = max(
+        abs(page_logo[0] - home_logo[0]),
+        abs(page_logo[1] - home_logo[1]),
+    )
+    nav_delta = max(
+        abs(page_nav[0] - home_nav[0]),
+        abs(page_nav[1] - home_nav[1]),
+    )
+    tol = max_delta_px
+    return (
+        logo_delta,
+        nav_delta,
+        logo_delta <= tol + 1e-9,
+        nav_delta <= tol + 1e-9,
+    )
+
+
 def check_cms_header_delta(
-    home_logo_x: float,
-    home_logo_y: float,
-    page_logo_x: float,
-    page_logo_y: float,
-    home_nav_x: float,
-    home_nav_y: float,
-    page_nav_x: float,
-    page_nav_y: float,
+    report: dict[str, Any] | None = None,
     *,
     max_delta_px: float = 1.0,
+    **legacy: Any,
 ) -> dict[str, Any]:
-    """L36: live header logo/nav position delta vs homepage '/' ≤ max_delta_px."""
-    try:
-        values = {
-            "home_logo_x": float(home_logo_x),
-            "home_logo_y": float(home_logo_y),
-            "page_logo_x": float(page_logo_x),
-            "page_logo_y": float(page_logo_y),
-            "home_nav_x": float(home_nav_x),
-            "home_nav_y": float(home_nav_y),
-            "page_nav_x": float(page_nav_x),
-            "page_nav_y": float(page_nav_y),
-            "max_delta_px": float(max_delta_px),
+    """L36: per-viewport header logo/nav delta vs '/' ≤ max_delta_px.
+
+    Preferred receipt::
+        {"viewports": {"360": {"home_logo": {"x", "y"}, "page_logo": {...},
+         "home_nav": {...}, "page_nav": {...}}, ...}, "max_delta_px": 1}
+
+    Legacy scalar kwargs (single viewport) are rejected — pass a viewports map.
+    """
+    if legacy and report is None:
+        return {
+            "status": "error",
+            "reasons": [
+                "cmsheader requires a viewports receipt "
+                f"(widths {list(HEADER_VIEWPORTS)}); scalar kwargs removed"
+            ],
         }
+    if not isinstance(report, dict):
+        return {"status": "error", "reasons": ["report must be a JSON object"]}
+    try:
+        tol = float(report.get("max_delta_px", max_delta_px))
     except (TypeError, ValueError):
-        return {"status": "error", "reasons": ["non-numeric header positions"]}
-    if any(not math.isfinite(v) for v in values.values()):
-        return {"status": "error", "reasons": ["non-finite header positions"]}
-    logo_dx = abs(values["page_logo_x"] - values["home_logo_x"])
-    logo_dy = abs(values["page_logo_y"] - values["home_logo_y"])
-    nav_dx = abs(values["page_nav_x"] - values["home_nav_x"])
-    nav_dy = abs(values["page_nav_y"] - values["home_nav_y"])
-    logo_delta = max(logo_dx, logo_dy)
-    nav_delta = max(nav_dx, nav_dy)
-    tol = values["max_delta_px"]
-    base = {
-        **values,
-        "logo_delta_px": round(logo_delta, 4),
-        "nav_delta_px": round(nav_delta, 4),
-        "header_logo_delta_ok": logo_delta <= tol + 1e-9,
-        "header_nav_delta_ok": nav_delta <= tol + 1e-9,
-    }
+        return {"status": "error", "reasons": ["non-numeric max_delta_px"]}
+    if not math.isfinite(tol) or tol < 0:
+        return {"status": "error", "reasons": ["max_delta_px must be finite ≥ 0"]}
+    raw_vp = report.get("viewports")
+    if not isinstance(raw_vp, dict):
+        return {"status": "error", "reasons": ["viewports map required"]}
+    per: dict[str, Any] = {}
     fails: list[str] = []
-    if logo_delta > tol + 1e-9:
-        fails.append(
-            f"header logo delta {logo_delta:.2f}px > {tol}px vs / (L36)"
+    missing_widths: list[int] = []
+    for width in HEADER_VIEWPORTS:
+        key = str(width)
+        node = raw_vp.get(key, raw_vp.get(width))
+        if not isinstance(node, dict):
+            missing_widths.append(width)
+            continue
+        parsed: dict[str, tuple[float, float]] = {}
+        err = None
+        for label in ("home_logo", "page_logo", "home_nav", "page_nav"):
+            got = _xy_pair(node.get(label), f"{width}.{label}")
+            if isinstance(got, str):
+                err = got
+                break
+            parsed[label] = got
+        if err:
+            fails.append(err)
+            continue
+        logo_d, nav_d, logo_ok, nav_ok = _viewport_delta(
+            parsed["home_logo"],
+            parsed["page_logo"],
+            parsed["home_nav"],
+            parsed["page_nav"],
+            max_delta_px=tol,
         )
-    if nav_delta > tol + 1e-9:
-        fails.append(
-            f"header nav delta {nav_delta:.2f}px > {tol}px vs / (L36)"
+        row = {
+            "logo_delta_px": round(logo_d, 4),
+            "nav_delta_px": round(nav_d, 4),
+            f"header_logo_delta_ok_{width}": logo_ok,
+            f"header_nav_delta_ok_{width}": nav_ok,
+        }
+        per[key] = row
+        if not logo_ok:
+            fails.append(
+                f"viewport {width}: header logo delta {logo_d:.2f}px > {tol}px vs / (L36)"
+            )
+        if not nav_ok:
+            fails.append(
+                f"viewport {width}: header nav delta {nav_d:.2f}px > {tol}px vs / (L36)"
+            )
+    flat_flags = {
+        f"header_logo_delta_ok_{w}": bool(
+            (per.get(str(w)) or {}).get(f"header_logo_delta_ok_{w}")
+        )
+        for w in HEADER_VIEWPORTS
+    }
+    flat_flags.update({
+        f"header_nav_delta_ok_{w}": bool(
+            (per.get(str(w)) or {}).get(f"header_nav_delta_ok_{w}")
+        )
+        for w in HEADER_VIEWPORTS
+    })
+    base: dict[str, Any] = {
+        "viewports": per,
+        "required_widths": list(HEADER_VIEWPORTS),
+        "missing_widths": missing_widths,
+        "max_delta_px": tol,
+        **flat_flags,
+    }
+    if missing_widths:
+        fails.insert(
+            0,
+            "cmsheader missing viewports "
+            + ",".join(str(w) for w in missing_widths)
+            + f" (need {list(HEADER_VIEWPORTS)})",
         )
     if fails:
         return {**base, "status": "fail", "note": "; ".join(fails), "fails": fails}
     return {
         **base,
         "status": "pass",
-        "note": "header logo/nav within 1px of homepage / (L36)",
+        "note": (
+            "header logo/nav within 1px of / at "
+            + "/".join(str(w) for w in HEADER_VIEWPORTS)
+            + " (L36)"
+        ),
     }

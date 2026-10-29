@@ -85,7 +85,7 @@ only on pill/CTA chrome — never on dark-surface headings/body. See
 ## Paste then re-verify
 
 Always paste from the **build artifact** full file. After Save, run the
-headless live matrix on the **public** URL at **390 and 1440** ([L28](../lessons/live-verify-cms-embed.md),
+headless live matrix on the **public** URL at **360/390/430/1440** ([L28](../lessons/live-verify-cms-embed.md),
 [L31](../lessons/paste-then-reverify.md)). Nested code-container count must
 stay 0; header logo/nav delta vs `/` ≤1px (L36). Editor success toasts are untrusted.
 
@@ -95,7 +95,7 @@ stay 0; header logo/nav delta vs `/` ≤1px (L36). Editor success toasts are unt
 | --- | --- |
 | No paste OG/Twitter meta | `design_qc.py cmsmeta <paste.html>` |
 | Fragment only + no HTML comments (L36/L37) | `design_qc.py cmsmeta <paste.html>` |
-| Header logo/nav Δ≤1px vs `/` (L36) | `design_qc.py cmsheader …` / livecms rows |
+| Header logo/nav Δ≤1px vs `/` @360/390/430/1440 (L36) | `design_qc.py cmsheader <receipt.json>` / livecms rows |
 | No relative local assets | `design_qc.py cmsassets <paste.html>` |
 | Sticky header tokens present | `design_qc.py cmssticky <paste.html\|.css>` |
 | Full-width + gutter | `design_qc.py cmswidth --code W --column C [--hero-gutter H --embed-gutter E] [--outer-pad/--inner-pad]` |

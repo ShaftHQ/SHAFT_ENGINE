@@ -22,16 +22,16 @@ and [hosted-cms-embed](../site-builders/hosted-cms-embed.md).
    descendants). Do not style bare `html`, `body`, or `:root` from paste.
 4. **Live header parity.** After publish, site header logo and nav positions
    on the paste URL must stay within **≤1px** of the homepage `/`
-   (`design_qc.py cmsheader` + `livecms` rows).
+   at **360/390/430/1440** (`design_qc.py cmsheader` + `livecms` rows).
 
 ## Verify
 
 - [ ] `design_qc.py cmsmeta <paste.html>` fails on document-shell tags or
       global `html`/`body`/`:root` CSS; passes on a wrapper fragment with
       `dir`/`lang` on the embed root.
-- [ ] `design_qc.py cmsheader <receipt.json>` (or livecms
-      `header_logo_delta_ok` / `header_nav_delta_ok`) fails when logo or nav
-      delta vs `/` exceeds 1px.
+- [ ] `design_qc.py cmsheader <receipt.json>` (viewports 360/390/430/1440)
+      or livecms `header_*_delta_ok_{width}` fails when logo or nav delta vs
+      `/` exceeds 1px at any required width.
 
 ## Why
 

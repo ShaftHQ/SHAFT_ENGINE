@@ -57,7 +57,7 @@ CARDS = {
     ),
     "live-verify-cms-embed.md": (
         "Public URL, not editor",
-        "390 and 1440",
+        "360/390/430/1440",
         "livecms",
         "Fail closed",
         "media_ok",
@@ -298,6 +298,7 @@ class LivecmsMatrixTest(unittest.TestCase):
             full = Path(folder) / "full.json"
             incomplete = Path(folder) / "incomplete.json"
             partial.write_text(json.dumps({"http_200": True, "viewport_390": True}), encoding="utf-8")
+            widths = (360, 390, 430, 1440)
             base = {
                 "http_200": True,
                 "no_dup_chrome": True,
@@ -305,14 +306,17 @@ class LivecmsMatrixTest(unittest.TestCase):
                 "heading_colour": "pass",
                 "identity_tile": "pass",
                 "og_title_once": True,
+                "viewport_360": True,
                 "viewport_390": True,
+                "viewport_430": True,
                 "viewport_1440": True,
                 "media_ok": "n/a",
                 "duration_ok": "n/a",
                 "nested_containers_0": True,
-                "header_logo_delta_ok": True,
-                "header_nav_delta_ok": True,
             }
+            for width in widths:
+                base[f"header_logo_delta_ok_{width}"] = True
+                base[f"header_nav_delta_ok_{width}"] = True
             full.write_text(json.dumps(base), encoding="utf-8")
             # D4: old full receipt without media/nested keys must fail closed
             incomplete.write_text(json.dumps({
@@ -329,7 +333,9 @@ class LivecmsMatrixTest(unittest.TestCase):
             missing = set(payload.get("missing") or [])
             for key in (
                 "media_ok", "duration_ok", "nested_containers_0",
-                "header_logo_delta_ok", "header_nav_delta_ok",
+                "viewport_360", "viewport_430",
+                *(f"header_logo_delta_ok_{w}" for w in widths),
+                *(f"header_nav_delta_ok_{w}" for w in widths),
             ):
                 self.assertIn(key, missing, payload)
             code, payload = run_qc("livecms", str(full))
