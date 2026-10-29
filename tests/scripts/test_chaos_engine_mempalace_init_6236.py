@@ -123,6 +123,25 @@ class MemPalaceInitializationTest(unittest.TestCase):
         self.assertEqual("recovery-required", status["status"])
         self.assertNotIn("code", status)
 
+
+    def test_quarantined_palace_without_sqlite_is_recovery_required_7431(self):
+        """#7431: quarantine leftovers without live sqlite must not look fresh."""
+        palace = self.project / PALACE
+        palace.mkdir(parents=True)
+        quarantine = palace / ".chaos-engine-quarantine" / "corrupt-20261027T191436Z"
+        quarantine.mkdir(parents=True)
+        (quarantine / "sqlite_exact.sqlite3").write_bytes(b"broken")
+        status = self.hosts.mempalace_directory_status(palace)
+        self.assertEqual("recovery-required", status["status"])
+        self.assertIn("quarantined", status.get("detail", "").casefold())
+        # Fresh empty palace without quarantine stays initialization-required.
+        fresh = self.project / ".chaos-engine-state" / "mempalace-fresh"
+        fresh.mkdir(parents=True)
+        self.assertEqual(
+            "initialization-required",
+            self.hosts.mempalace_directory_status(fresh)["status"],
+        )
+
     def test_opted_out_mcp_is_unchanged(self):
         with mock.patch.dict(os.environ, {self.hosts.WITH_MCP_ENV: "0"}):
             self.assertEqual("mcp-opted-out", self.hosts.mcp_runtime_status(self.project, None, {})["detail"])

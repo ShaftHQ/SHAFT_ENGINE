@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import shutil
@@ -479,7 +480,217 @@ class ChaosEngineHookTest(unittest.TestCase):
         self.assertNotEqual({}, payload)
         self.assertIn("ChaosEngine guard unavailable", rendered)
 
+    def _run_launch_js(self, cwd, env, timeout=15):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
+        launcher = ROOT / "chaos-engine/hooks/launch.js"
+        return subprocess.run(  # nosec B603 - fixed node launcher.
+            [node, str(launcher), "gemini"],
+            input=json.dumps({"hook_event_name": "BeforeTool", "tool_name": "write_file"}),
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+            check=False,
+            env=env,
+            timeout=timeout,
+        )
+
+    def test_javascript_launch_temp_denies_when_install_marker_present(self):
+        """#7425: journal without guard → temporary deny after short wait."""
+        with tempfile.TemporaryDirectory() as temporary:
+            Path(temporary, ".chaos-engine.transaction.json").write_text(
+                '{"operation":"install"}\n', encoding="utf-8"
+            )
+            completed = self._run_launch_js(
+                temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "400"}
+            )
+        rendered = completed.stdout + completed.stderr
+        self.assertNotEqual(0, completed.returncode, rendered)
+        payload = json.loads(completed.stdout)
+        self.assertIn("temporarily unavailable", rendered)
+        self.assertNotIn("repair the original installation", rendered)
+        self.assertEqual("block", payload.get("decision"))
+
+    def test_javascript_launch_waits_for_guard_during_install(self):
+        """#7425: guard reappears under journal → launch proceeds."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / ".chaos-engine.transaction.json").write_text(
+                '{"operation":"update"}\n', encoding="utf-8"
+            )
+            appear = (
+                "const fs=require('fs');const path=require('path');"
+                f"const root={json.dumps(str(root))};"
+                "setTimeout(()=>{const d=path.join(root,'.chaos-engine','hooks');"
+                "fs.mkdirSync(d,{recursive:true});"
+                "fs.writeFileSync(path.join(d,'guard.py'),\"print('{}')\\n\");},350);"
+                "setTimeout(()=>{},2000);"
+            )
+            planter = subprocess.Popen([node, "-e", appear])  # nosec B603
+            try:
+                completed = self._run_launch_js(
+                    temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "3000"}
+                )
+            finally:
+                planter.wait(timeout=5)
+            rendered = completed.stdout + completed.stderr
+            self.assertNotIn("repair the original installation", rendered, rendered)
+            self.assertNotIn("temporarily unavailable", rendered, rendered)
+            self.assertEqual(0, completed.returncode, rendered)
+
+    def test_javascript_launch_backup_next_and_stage_markers(self):
+        """#7492: backup.next + stage-* markers (TEMP timeout + success)."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
+        for marker_kind in ("backup.next", "stage"):
+            with self.subTest(marker=marker_kind), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                if marker_kind == "backup.next":
+                    (root / ".chaos-engine.backup.next").mkdir()
+                else:
+                    (root / ".chaos-engine-stage-xyz").mkdir()
+                timed = self._run_launch_js(
+                    temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "400"}
+                )
+                self.assertIn("temporarily unavailable", timed.stdout + timed.stderr)
+                json.loads(timed.stdout)
+                appear = (
+                    "const fs=require('fs');const path=require('path');"
+                    f"const root={json.dumps(str(root))};"
+                    "setTimeout(()=>{const d=path.join(root,'.chaos-engine','hooks');"
+                    "fs.mkdirSync(d,{recursive:true});"
+                    "fs.writeFileSync(path.join(d,'guard.py'),\"print('{}')\\n\");},350);"
+                    "setTimeout(()=>{},2000);"
+                )
+                planter = subprocess.Popen([node, "-e", appear])  # nosec B603
+                try:
+                    ok = self._run_launch_js(
+                        temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "3000"}
+                    )
+                finally:
+                    planter.wait(timeout=5)
+                self.assertEqual(0, ok.returncode, ok.stdout + ok.stderr)
+
+    def test_javascript_launch_markers_cleared_mid_wait_permanent_deny(self):
+        """#7492: markers cleared mid-wait → permanent deny after re-sample."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            marker = root / ".chaos-engine.transaction.json"
+            marker.write_text('{"operation":"update"}\n', encoding="utf-8")
+            clearer = (
+                "const fs=require('fs');"
+                f"const marker={json.dumps(str(marker))};"
+                "setTimeout(()=>{try{fs.unlinkSync(marker)}catch(e){}},250);"
+                "setTimeout(()=>{},2000);"
+            )
+            planter = subprocess.Popen([node, "-e", clearer])  # nosec B603
+            try:
+                completed = self._run_launch_js(
+                    temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "800"}
+                )
+            finally:
+                planter.wait(timeout=5)
+        rendered = completed.stdout + completed.stderr
+        payload = json.loads(completed.stdout)
+        self.assertEqual("block", payload.get("decision"))
+        self.assertIn("repair the original installation", rendered)
+        self.assertNotIn("temporarily unavailable", rendered)
+
+    def test_javascript_launch_invalid_wait_ms_still_emits_deny_json(self):
+        """#7492/#7434: markers + invalid WAIT_MS must not NaN-instant; default 60s."""
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required for this launcher check")
+        launcher = ROOT / "chaos-engine/hooks/launch.js"
+        # Parse probe mirrors production guardWaitMs (invalid → 60000; negative → 0).
+        probe = r"""
+function guardWaitMs(raw) {
+  if (raw === undefined || raw === "") return 60000;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return 60000;
+  return Math.max(0, Math.min(value, 600000));
+}
+if (guardWaitMs("not-a-number") !== 60000) process.exit(1);
+if (guardWaitMs("nan") !== 60000) process.exit(2);
+if (guardWaitMs("-5") !== 0) process.exit(3);
+if (guardWaitMs("9999999") !== 600000) process.exit(4);
+"""
+        checked = subprocess.run(  # nosec B603
+            [node, "-e", probe], capture_output=True, text=True, check=False
+        )
+        self.assertEqual(0, checked.returncode, checked.stderr)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / ".chaos-engine.transaction.json").write_text(
+                '{"operation":"install"}\n', encoding="utf-8"
+            )
+            event = json.dumps({"hook_event_name": "BeforeTool", "tool_name": "write_file"})
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "not-a-number"}
+            # Invalid env defaults to 60s; with markers the launcher must still be
+            # waiting after 1.5s (NaN would exit TEMP instantly).
+            planter = subprocess.Popen(  # nosec B603
+                [node, str(launcher), "gemini"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=temporary,
+                env=env,
+                text=True,
+            )
+            try:
+                planter.stdin.write(event)
+                planter.stdin.close()
+                try:
+                    planter.wait(timeout=1.5)
+                except subprocess.TimeoutExpired:
+                    # Expected: default 60s wait still running after 1.5s probe.
+                    pass
+                self.assertIsNone(
+                    planter.poll(),
+                    "invalid WAIT_MS with markers must wait (default 60s), not NaN-instant exit",
+                )
+            finally:
+                if planter.poll() is None:
+                    planter.kill()
+                # Drain pipes so TextIOWrappers close without ResourceWarning.
+                try:
+                    planter.communicate(timeout=5)
+                except Exception:
+                    # Process already dead or pipes closed; force-close handles.
+                    with contextlib.suppress(Exception):
+                        if planter.stdout:
+                            planter.stdout.close()
+                        if planter.stderr:
+                            planter.stderr.close()
+                    with contextlib.suppress(Exception):
+                        planter.wait(timeout=5)
+
+    def test_javascript_launch_negative_wait_ms_with_markers_temps_immediately(self):
+        """#7434: negative WAIT_MS clamps to 0s (hosts.py parity); markers → TEMP."""
+        with tempfile.TemporaryDirectory() as temporary:
+            Path(temporary, ".chaos-engine.transaction.json").write_text(
+                '{"operation":"install"}\n', encoding="utf-8"
+            )
+            completed = self._run_launch_js(
+                temporary, {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "-5"}
+            )
+        rendered = completed.stdout + completed.stderr
+        self.assertNotEqual(0, completed.returncode, rendered)
+        payload = json.loads(completed.stdout)
+        self.assertEqual("block", payload.get("decision"))
+        self.assertIn("temporarily unavailable", rendered)
+        self.assertNotIn("repair the original installation", rendered)
+
     def test_javascript_launch_reports_missing_cwd_without_private_paths(self):
+
         node = shutil.which("node")
         if not node:
             self.skipTest("node is required for this launcher check")
@@ -1104,14 +1315,20 @@ process.stderr.write(result.stderr || '');
 
     def test_stop_keeps_an_opened_pull_request_until_merge(self):
         with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
             environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
             session = "babysit-open-pr"
             opened = self.run_hook(
                 {
                     "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
                     "tool_name": "Bash",
                     "tool_input": {"command": "gh pr create --base main --title x --body y"},
-                    "tool_response": {"status": "success", "exit_code": 0},
+                    "tool_response": {
+                        "status": "success",
+                        "exit_code": 0,
+                        "stdout": "https://github.com/ShaftHQ/SHAFT_ENGINE/pull/6320\n",
+                    },
                     "session_id": session,
                 },
                 environment,
@@ -1120,6 +1337,7 @@ process.stderr.write(result.stderr || '');
             stopped = self.run_hook(
                 {
                     "hook_event_name": "Stop",
+                    "cwd": str(root),
                     "session_id": session,
                     "stop_hook_active": True,
                 },
@@ -1130,6 +1348,7 @@ process.stderr.write(result.stderr || '');
             merged = self.run_hook(
                 {
                     "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
                     "tool_name": "Bash",
                     "tool_input": {"command": "gh pr merge 6320 --merge"},
                     "tool_response": {"status": "success", "exit_code": 0},
@@ -1141,12 +1360,215 @@ process.stderr.write(result.stderr || '');
             cleared = self.run_hook(
                 {
                     "hook_event_name": "Stop",
+                    "cwd": str(root),
                     "session_id": session,
                     "stop_hook_active": True,
                 },
                 environment,
             )
             self.assertNotIn("until merged", cleared.stdout.casefold())
+
+    def test_numberless_open_pull_request_mark_does_not_demand_until_merged(self):
+        """#7443: numberless open-PR state is not an identity."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            mark = root / ".chaos-engine-state" / "open-pull-request.json"
+            mark.parent.mkdir(parents=True)
+            mark.write_text('{"active": true, "state": "open"}\n', encoding="utf-8")
+            # Also record activity without a number (create stdout omitted).
+            opened = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "gh pr create --base main --title x --body y"},
+                    "tool_response": {"status": "success", "exit_code": 0},
+                    "session_id": "numberless-pr",
+                },
+                environment,
+            )
+            self.assertEqual(0, opened.returncode)
+            # remember_open_pull_request must not invent a numberless mark overwrite
+            # that still lacks pullRequest — and Stop must not demand until-merged.
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "cwd": str(root),
+                    "session_id": "numberless-pr",
+                    "stop_hook_active": True,
+                },
+                environment,
+            )
+            text = (stopped.stdout + stopped.stderr).casefold()
+            self.assertNotIn("until merged", text)
+
+    def test_http_403_on_auto_merge_blocks_repeat_mutation(self):
+        """#7443: HTTP 403 on auto-merge is permission; do not retry."""
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "perm-403"
+            failed = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "gh pr merge 99 --auto --merge"},
+                    "tool_response": {
+                        "status": "error",
+                        "exit_code": 1,
+                        "stderr": "GraphQL: Resource not accessible by integration (EnablePullRequestAutoMerge)\nHTTP 403\n",
+                    },
+                    "session_id": session,
+                },
+                environment,
+            )
+            self.assertEqual(0, failed.returncode)
+            blocked = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {"command": "gh pr merge 99 --auto --merge"},
+                    "session_id": session,
+                },
+                environment,
+            )
+            rendered = (blocked.stdout + blocked.stderr).casefold()
+            self.assertNotEqual(0, blocked.returncode)
+            self.assertIn("403", rendered)
+            self.assertIn("permission", rendered)
+
+
+    def test_http_403_on_fork_workflow_approve_blocks_retry(self):
+        """#7443: HTTP 403 on fork-workflow approve is permission; do not retry."""
+        with tempfile.TemporaryDirectory() as temporary:
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            session = "fork-403"
+            failed = self.run_hook(
+                {
+                    "hook_event_name": "PostToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": (
+                            "gh api --method POST "
+                            "repos/ShaftHQ/SHAFT_ENGINE/actions/runs/123/approve"
+                        )
+                    },
+                    "tool_response": {
+                        "status": "error",
+                        "exit_code": 1,
+                        "stderr": "HTTP 403: Resource not accessible by integration\n",
+                    },
+                    "session_id": session,
+                },
+                environment,
+            )
+            self.assertEqual(0, failed.returncode)
+            blocked = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": (
+                            "gh api --method POST "
+                            "repos/ShaftHQ/SHAFT_ENGINE/actions/runs/123/approve"
+                        )
+                    },
+                    "session_id": session,
+                },
+                environment,
+            )
+            rendered = (blocked.stdout + blocked.stderr).casefold()
+            self.assertNotEqual(0, blocked.returncode)
+            self.assertIn("403", rendered)
+            self.assertIn("permission", rendered)
+
+    def test_goal_prompt_writes_owner_finish_goal_marker(self):
+        """#7424: UserPromptSubmit /goal writes owner-finish-goal.json automatically."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            submitted = self.run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "cwd": str(root),
+                    "prompt": "/goal finish the delivery across the open queue",
+                    "session_id": "goal-7424",
+                },
+                environment,
+            )
+            self.assertEqual(0, submitted.returncode, submitted.stdout + submitted.stderr)
+            marker = root / ".chaos-engine-state" / "owner-finish-goal.json"
+            self.assertTrue(marker.is_file(), " /goal must write owner-finish-goal.json")
+            payload = json.loads(marker.read_text(encoding="utf-8"))
+            self.assertTrue(payload.get("active"))
+            self.assertEqual("/goal", payload.get("source"))
+
+    def test_until_merged_refused_for_out_of_scope_pull_request(self):
+        """#7443: PreToolUse refuses --until-merged on owner out-of-scope PR."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {**os.environ, "TMPDIR": temporary, "TEMP": temporary}
+            # Owner names Selenium PR out of scope via prompt.
+            named = self.run_hook(
+                {
+                    "hook_event_name": "UserPromptSubmit",
+                    "cwd": str(root),
+                    "prompt": (
+                        "SeleniumHQ/selenium#18254 is out of scope — do not watch "
+                        "https://github.com/SeleniumHQ/selenium/pull/18254"
+                    ),
+                    "session_id": "oos-7443",
+                },
+                environment,
+            )
+            self.assertEqual(0, named.returncode, named.stdout + named.stderr)
+            allow = root / ".chaos-engine-state" / "out-of-scope-pull-requests.json"
+            self.assertTrue(allow.is_file(), "out-of-scope allowlist must be written")
+            blocked = self.run_hook(
+                {
+                    "hook_event_name": "PreToolUse",
+                    "cwd": str(root),
+                    "tool_name": "Bash",
+                    "tool_input": {
+                        "command": (
+                            "python3 scripts/agents/watch_pr_checks.py "
+                            "--pr 18254 --until-merged"
+                        )
+                    },
+                    "session_id": "oos-7443",
+                },
+                environment,
+            )
+            rendered = (blocked.stdout + blocked.stderr).casefold()
+            self.assertNotEqual(0, blocked.returncode, rendered)
+            self.assertIn("out-of-scope", rendered)
+            self.assertIn("18254", rendered)
+            # Stop must not demand until-merged when the open mark is that PR.
+            mark = root / ".chaos-engine-state" / "open-pull-request.json"
+            mark.write_text(
+                json.dumps(
+                    {
+                        "active": True,
+                        "state": "open",
+                        "pullRequest": 18254,
+                        "repository": "SeleniumHQ/selenium",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            stopped = self.run_hook(
+                {
+                    "hook_event_name": "Stop",
+                    "cwd": str(root),
+                    "session_id": "oos-7443",
+                    "stop_hook_active": True,
+                },
+                environment,
+            )
+            text = (stopped.stdout + stopped.stderr).casefold()
+            self.assertNotIn("until merged", text)
+
 
     def test_session_start_reports_reflection_controller_drift_only_when_files_differ(self):
         with tempfile.TemporaryDirectory() as temporary:

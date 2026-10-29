@@ -6,6 +6,7 @@ import importlib.util
 import errno
 import hashlib
 import json
+import contextlib
 import os
 import re
 import shutil
@@ -1076,7 +1077,234 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertIn(module.LAUNCH_GUARD_UNAVAILABLE, rendered)
         self.assertNotEqual({}, payload)
 
+    def _guard_locator_command(self, module):
+        return module.chaos_guard_locator_command(windows=os.name == "nt", host="codex")
+
+    def _plant_guard_later(self, root, delay_s=0.35):
+        planter_src = (
+            "import pathlib, time\n"
+            f"root = pathlib.Path({str(root)!r})\n"
+            f"time.sleep({delay_s!r})\n"
+            "destination = root / '.chaos-engine' / 'hooks'\n"
+            "destination.mkdir(parents=True, exist_ok=True)\n"
+            "(destination / 'guard.py').write_text('print(\\'{}\\')\\n', encoding='utf-8')\n"
+        )
+        return subprocess.Popen(  # nosec B603 - local interpreter planter.
+            [os.sys.executable, "-c", planter_src],
+            env={**os.environ},
+        )
+
+    def _run_locator(self, command, cwd, env, timeout=15):
+        return subprocess.run(  # nosec B602 - generated fixed hook command.
+            command,
+            shell=True,
+            cwd=cwd,
+            input=json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash"}),
+            capture_output=True,
+            text=True,
+            check=False,
+            env=env,
+            timeout=timeout,
+        )
+
+    def test_lifecycle_hook_waits_then_runs_when_guard_reappears_during_install(self):
+        """#7425: journal present → wait for guard.py instead of permanent deny."""
+        module = load(HOSTS, "chaos_engine_hook_guard_wait")
+        command = self._guard_locator_command(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / ".chaos-engine.transaction.json").write_text(
+                '{"operation":"update","commit":"abc"}\n', encoding="utf-8"
+            )
+            guard = root / ".chaos-engine" / "hooks" / "guard.py"
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "3000"}
+            planter = self._plant_guard_later(root)
+            try:
+                completed = self._run_locator(command, temporary, env)
+            finally:
+                planter.wait(timeout=5)
+            rendered = completed.stdout + completed.stderr
+            self.assertNotIn(module.LAUNCH_GUARD_UNAVAILABLE, rendered, rendered)
+            self.assertNotIn(module.LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE, rendered, rendered)
+            self.assertEqual(0, completed.returncode, rendered)
+            self.assertTrue(guard.is_file())
+
+    def test_lifecycle_hook_temp_denies_after_wait_when_install_marker_stays(self):
+        """#7425: timeout with journal still present → temporary retryable deny."""
+        module = load(HOSTS, "chaos_engine_hook_guard_temp")
+        command = self._guard_locator_command(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / ".chaos-engine.transaction.json").write_text(
+                '{"operation":"update","commit":"abc"}\n', encoding="utf-8"
+            )
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "400"}
+            completed = self._run_locator(command, temporary, env)
+        rendered = completed.stdout + completed.stderr
+        self.assertNotEqual(0, completed.returncode, rendered)
+        payload = json.loads(completed.stdout)
+        self.assertIn("block", {payload.get("decision"), payload.get("permissionDecision")})
+        self.assertIn(module.LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE, rendered)
+        self.assertNotIn("repair the original installation", rendered)
+
+    def test_lifecycle_hook_backup_next_marker_temp_and_success(self):
+        """#7492: .chaos-engine.backup.next drives wait (timeout TEMP + success)."""
+        module = load(HOSTS, "chaos_engine_hook_backup_next")
+        command = self._guard_locator_command(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / ".chaos-engine.backup.next").mkdir()
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "400"}
+            timed = self._run_locator(command, temporary, env)
+            self.assertIn(module.LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE, timed.stdout + timed.stderr)
+            payload = json.loads(timed.stdout)
+            self.assertIn("block", {payload.get("decision"), payload.get("permissionDecision")})
+            env_ok = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "3000"}
+            planter = self._plant_guard_later(root)
+            try:
+                ok = self._run_locator(command, temporary, env_ok)
+            finally:
+                planter.wait(timeout=5)
+            self.assertEqual(0, ok.returncode, ok.stdout + ok.stderr)
+
+    def test_lifecycle_hook_stage_marker_temp_and_success(self):
+        """#7492: .chaos-engine-stage-* drives wait (timeout TEMP + success)."""
+        module = load(HOSTS, "chaos_engine_hook_stage")
+        command = self._guard_locator_command(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / ".chaos-engine-stage-abc").mkdir()
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "400"}
+            timed = self._run_locator(command, temporary, env)
+            self.assertIn(module.LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE, timed.stdout + timed.stderr)
+            env_ok = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "3000"}
+            planter = self._plant_guard_later(root)
+            try:
+                ok = self._run_locator(command, temporary, env_ok)
+            finally:
+                planter.wait(timeout=5)
+            self.assertEqual(0, ok.returncode, ok.stdout + ok.stderr)
+
+    def test_lifecycle_hook_markers_cleared_mid_wait_permanent_deny(self):
+        """#7492: markers gone after deadline → permanent deny (re-sample)."""
+        module = load(HOSTS, "chaos_engine_hook_markers_gone")
+        command = self._guard_locator_command(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            marker = root / ".chaos-engine.transaction.json"
+            marker.write_text('{"operation":"update"}\n', encoding="utf-8")
+            clearer = (
+                "import pathlib, time\n"
+                f"marker = pathlib.Path({str(marker)!r})\n"
+                "time.sleep(0.25)\n"
+                "marker.unlink(missing_ok=True)\n"
+            )
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "800"}
+            planter = subprocess.Popen(  # nosec B603 - local clearer.
+                [os.sys.executable, "-c", clearer], env=env
+            )
+            try:
+                completed = self._run_locator(command, temporary, env)
+            finally:
+                planter.wait(timeout=5)
+        rendered = completed.stdout + completed.stderr
+        self.assertNotEqual(0, completed.returncode, rendered)
+        payload = json.loads(completed.stdout)
+        self.assertIn("block", {payload.get("decision"), payload.get("permissionDecision")})
+        self.assertIn(module.LAUNCH_GUARD_UNAVAILABLE, rendered)
+        self.assertNotIn(module.LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE, rendered)
+
+    def test_lifecycle_hook_invalid_wait_ms_still_emits_deny_json(self):
+        """#7492: CHAOS_ENGINE_GUARD_WAIT_MS garbage → JSON deny; parse defaults to 60s."""
+        module = load(HOSTS, "chaos_engine_hook_bad_wait")
+        command = self._guard_locator_command(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "not-a-number"}
+            completed = self._run_locator(command, temporary, env)
+        self.assertTrue(completed.stdout.strip(), completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertIn("block", {payload.get("decision"), payload.get("permissionDecision")})
+        self.assertIn(module.LAUNCH_GUARD_UNAVAILABLE, completed.stdout)
+        self.assertEqual(60.0, module.guard_wait_budget_seconds("not-a-number"))
+        self.assertEqual(60.0, module.guard_wait_budget_seconds("nan"))
+        self.assertEqual(0.0, module.guard_wait_budget_seconds("-5"))
+        self.assertEqual(600.0, module.guard_wait_budget_seconds("9999999"))
+        script = module._locator_script("codex")
+        self.assertIn("wait_budget_s", script)
+        self.assertIn("except (TypeError,ValueError)", script)
+
+
+    def test_lifecycle_hook_invalid_wait_ms_with_markers_waits(self):
+        """#7492/#7434: markers + invalid WAIT_MS must not NaN-instant; default 60s (JS parity)."""
+        module = load(HOSTS, "chaos_engine_hook_bad_wait_markers")
+        command = self._guard_locator_command(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            Path(temporary, ".chaos-engine.transaction.json").write_text(
+                '{"operation":"install"}\n', encoding="utf-8"
+            )
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "not-a-number"}
+            # Invalid env defaults to 60s; with markers the locator must still be
+            # waiting after 1.5s (NaN would exit TEMP instantly).
+            planter = subprocess.Popen(  # nosec B602 - generated fixed hook command.
+                command,
+                shell=True,
+                cwd=temporary,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                text=True,
+            )
+            try:
+                planter.stdin.write(
+                    json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash"})
+                )
+                planter.stdin.close()
+                try:
+                    planter.wait(timeout=1.5)
+                except subprocess.TimeoutExpired:
+                    # Expected: default 60s wait still running after 1.5s probe.
+                    pass
+                self.assertIsNone(
+                    planter.poll(),
+                    "invalid WAIT_MS with markers must wait (default 60s), not NaN-instant exit",
+                )
+            finally:
+                if planter.poll() is None:
+                    planter.kill()
+                try:
+                    planter.communicate(timeout=5)
+                except Exception:
+                    with contextlib.suppress(Exception):
+                        if planter.stdout:
+                            planter.stdout.close()
+                        if planter.stderr:
+                            planter.stderr.close()
+                    with contextlib.suppress(Exception):
+                        planter.wait(timeout=5)
+        self.assertEqual(60.0, module.guard_wait_budget_seconds("not-a-number"))
+
+
+    def test_lifecycle_hook_negative_wait_ms_with_markers_temps_immediately(self):
+        """#7434: negative WAIT_MS → 0s budget; markers still present → TEMP deny."""
+        module = load(HOSTS, "chaos_engine_hook_neg_wait")
+        command = self._guard_locator_command(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            Path(temporary, ".chaos-engine.transaction.json").write_text(
+                '{"operation":"install"}\n', encoding="utf-8"
+            )
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "-5"}
+            completed = self._run_locator(command, temporary, env)
+        rendered = completed.stdout + completed.stderr
+        self.assertNotEqual(0, completed.returncode, rendered)
+        payload = json.loads(completed.stdout)
+        self.assertIn("block", {payload.get("decision"), payload.get("permissionDecision")})
+        self.assertIn(module.LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE, rendered)
+        self.assertNotIn(module.LAUNCH_GUARD_UNAVAILABLE, rendered)
+        self.assertEqual(0.0, module.guard_wait_budget_seconds("-5"))
+
     def test_inline_launch_reports_missing_cwd_without_private_paths(self):
+
         module = load(HOSTS, "chaos_engine_hook_missing_cwd")
         command = module.chaos_guard_locator_command(windows=os.name == "nt", host="codex")
         event = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash"})

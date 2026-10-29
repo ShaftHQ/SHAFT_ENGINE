@@ -1098,6 +1098,26 @@ def attempt_mempalace_sqlite_exact_heal(palace: Path) -> bool:
             connection.close()
 
 
+
+def _classify_missing_exact_after_quarantine(palace: Path) -> dict[str, str]:
+    """#7431: quarantine leftovers without a live sqlite are recovery-required."""
+    quarantine = palace / ".chaos-engine-quarantine"
+    try:
+        has_quarantine = quarantine.is_dir() and any(quarantine.iterdir())
+    except OSError:
+        # Unreadable quarantine dir: treat as absent and fall through to init.
+        has_quarantine = False
+    if has_quarantine:
+        return {
+            "status": "recovery-required",
+            "detail": (
+                "MemPalace sqlite was quarantined and no live database remains; "
+                "run python3 .chaos-engine/tool.py stores refresh"
+            ),
+        }
+    return {"status": "initialization-required", "backend": "sqlite_exact"}
+
+
 def _classify_exact_mempalace(
     palace: Path,
     exact: Path,
@@ -1180,7 +1200,7 @@ def _classify_exact_mempalace(
                 "detail": "SQLite-exact MemPalace state is unreadable or malformed",
             }
         return {"status": "healthy", "backend": "sqlite_exact"}
-    return {"status": "initialization-required", "backend": "sqlite_exact"}
+    return _classify_missing_exact_after_quarantine(palace)
 
 
 def mempalace_directory_status(palace: Path) -> dict[str, str]:
@@ -4482,6 +4502,26 @@ LAUNCH_CWD_UNAVAILABLE = (
 LAUNCH_GUARD_UNAVAILABLE = (
     "ChaosEngine guard unavailable; repair the original installation, then retry"
 )
+# #7425: distinct from permanent deny so a parent can retry while bootstrap rewrites.
+LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE = (
+    "ChaosEngine guard temporarily unavailable while install rewrites the harness; "
+    "retry shortly; do not repair from this child"
+)
+
+
+def guard_wait_budget_seconds(raw: str | None = None) -> float:
+    """#7492: parse CHAOS_ENGINE_GUARD_WAIT_MS safely (default 60s, clamp 0..600s)."""
+    if raw is None:
+        raw = __import__("os").environ.get("CHAOS_ENGINE_GUARD_WAIT_MS", "60000")
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = 60000.0
+    if value != value:  # NaN
+        value = 60000.0
+    return max(0.0, min(value, 600000.0)) / 1000.0
+
+
 LAUNCH_PYTHON_UNAVAILABLE = (
     "ChaosEngine hook found no Python 3.11 or newer; install Python 3.11+ or rerun the ChaosEngine installer, then start a new session"
 )
@@ -4563,7 +4603,11 @@ def _locator_script(host: str, event: str | None = None) -> str:
     pointer = HOOK_PYTHON_POINTER
     if "'" in pointer or '"' in pointer:
         raise ValueError("hook pointer must be quote-free")
-    for message in (LAUNCH_CWD_UNAVAILABLE, LAUNCH_GUARD_UNAVAILABLE):
+    for message in (
+        LAUNCH_CWD_UNAVAILABLE,
+        LAUNCH_GUARD_UNAVAILABLE,
+        LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE,
+    ):
         if "'" in message or '"' in message:
             raise ValueError("hook locator message must be quote-free")
     # Hosts without per-tool matchers (Copilot `.github/hooks`) pass the
@@ -4597,10 +4641,11 @@ def _locator_script(host: str, event: str | None = None) -> str:
         "        raise SystemExit(0)\n"
     ) if event else ""
     return (
-        "import errno,io,json,os,pathlib,re,runpy,sys,tempfile\n"
+        "import errno,io,json,os,pathlib,re,runpy,sys,tempfile,time\n"
         f'os.environ["CHAOS_ENGINE_HOST"]="{host}"\n'
         f'CWD="{LAUNCH_CWD_UNAVAILABLE}"\n'
         f'GUARD="{LAUNCH_GUARD_UNAVAILABLE}"\n'
+        f'GUARD_TEMP="{LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE}"\n'
         'E={errno.ENOENT,getattr(errno,"ESTALE",116),getattr(errno,"ENOTCONN",107)}\n'
         "def deny(message):\n"
         '    print(json.dumps({"decision":"block","reason":message}))\n'
@@ -4638,8 +4683,46 @@ def _locator_script(host: str, event: str | None = None) -> str:
         "            found=None\n"
         "        if found is not None:\n"
         "            break\n"
+        "def installing(start):\n"
+        "    for root in (start,*start.parents):\n"
+        "        try:\n"
+        '            if (root/".chaos-engine.transaction.json").is_file(): return True\n'
+        '            if (root/".chaos-engine.backup.next").exists(): return True\n'
+        '            if next(root.glob(".chaos-engine-stage-*"),None) is not None: return True\n'
+        "        except OSError:\n"
+        "            pass\n"
+        "    return False\n"
+        "def wait_budget_s():\n"
+        '    raw=os.environ.get("CHAOS_ENGINE_GUARD_WAIT_MS","60000")\n'
+        "    try:\n"
+        "        value=float(raw)\n"
+        "    except (TypeError,ValueError):\n"
+        "        value=60000.0\n"
+        "    if value!=value:\n"
+        "        value=60000.0\n"
+        "    return max(0.0,min(value,600000.0))/1000.0\n"
         "if found is None:\n"
-        "    deny(GUARD)\n"
+        "    try:\n"
+        "        start=pathlib.Path.cwd()\n"
+        "    except OSError as error:\n"
+        "        deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
+        "    if installing(start):\n"
+        "        deadline=time.monotonic()+wait_budget_s()\n"
+        "        while found is None and time.monotonic()<deadline:\n"
+        "            time.sleep(0.2)\n"
+        "            try:\n"
+        "                found=locate(pathlib.Path.cwd())\n"
+        "            except OSError as error:\n"
+        "                deny(CWD) if error.errno in E else (_ for _ in ()).throw(error)\n"
+        "            if found is None:\n"
+        '                for hint in filter(None,[os.environ.get(\"CLAUDE_PROJECT_DIR\",\"\"),os.environ.get(\"GEMINI_PROJECT_DIR\",\"\")]):\n'
+        "                    try:\n"
+        "                        found=locate(pathlib.Path(hint))\n"
+        "                    except OSError:\n"
+        "                        found=None\n"
+        "                    if found is not None: break\n"
+        "    if found is None:\n"
+        "        deny(GUARD_TEMP if installing(start) else GUARD)\n"
         "base,path=found\n"
         f"{event_filter}"
         f'ptr=base/"{pointer}"\n'
@@ -6882,19 +6965,31 @@ def role_adapter_desired(relative: str, *, legacy: bool = False) -> bytes | None
     if named is None:
         return None
     title, responsibility = named
+    # #7434: prefer source-tree references so unbootstrapped worktrees resolve
+    # policy; overlay paths remain the post-bootstrap fallback for consumers.
     process_owner = (
-        " In orchestrated mode also load `.chaos-engine/references/process-owner-scrum-master.md`."
+        " In orchestrated mode also load `chaos-engine/references/process-owner-scrum-master.md` "
+        "(fallback: `.chaos-engine/references/process-owner-scrum-master.md`)."
         if role == "orchestrator"
         else ""
     )
-    card = (
-        ".chaos-engine/skills/chaos-engine/SKILL.md"
-        if legacy
-        else ".chaos-engine/references/delegate-card.md"
+    if legacy:
+        card = (
+            "`chaos-engine/skills/chaos-engine/SKILL.md` "
+            "(fallback: `.chaos-engine/skills/chaos-engine/SKILL.md`)"
+        )
+    else:
+        card = (
+            "`chaos-engine/references/delegate-card.md` "
+            "(fallback: `.chaos-engine/references/delegate-card.md`)"
+        )
+    roles_path = (
+        f"`chaos-engine/references/roles.md#{role}` "
+        f"(fallback: `.chaos-engine/references/roles.md#{role}`)"
     )
     body = (
-        f"Load `{card}` and follow the "
-        f"{title} role at `.chaos-engine/references/roles.md#{role}`."
+        f"Load {card} and follow the "
+        f"{title} role at {roles_path}."
         f"{process_owner} {responsibility}"
     )
     if host == "claude" and kind == "md":

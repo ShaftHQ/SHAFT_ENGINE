@@ -74,8 +74,29 @@ class LeanBootstrapTest(unittest.TestCase):
         for relative in hosts.ROLE_ADAPTER_PATHS:
             body = hosts.role_adapter_desired(relative).decode("utf-8")
             with self.subTest(adapter=relative):
-                self.assertIn(".chaos-engine/references/delegate-card.md", body)
+                self.assertIn("chaos-engine/references/delegate-card.md", body)
+                self.assertIn(".chaos-engine/references/delegate-card.md", body)  # overlay fallback
                 self.assertNotIn("skills/chaos-engine/SKILL.md", body)
+
+    def test_eliminate_waste_names_assertion_fix_stop_7445(self):
+        """#7445: named assertion fix guidance is in eliminate-waste card."""
+        text = (SOURCE / "references" / "eliminate-waste.md").read_text(encoding="utf-8")
+        self.assertIn("Named assertion fix", text)
+        self.assertIn("Do not rediscover the repository first", text)
+
+    def test_role_adapters_prefer_source_tree_references(self):
+        """#7434: unbootstrapped worktrees get chaos-engine/references/ first."""
+        hosts = load_module("ce_c_hosts_7434", SOURCE / "hosts.py")
+        for relative in hosts.ROLE_ADAPTER_PATHS:
+            body = hosts.role_adapter_desired(relative).decode("utf-8")
+            with self.subTest(adapter=relative):
+                self.assertRegex(
+                    body,
+                    r"(?<![.\w])chaos-engine/references/delegate-card\.md",
+                )
+                self.assertIn("roles.md#", body)
+                # Overlay fallback kept for consumer installs without the source tree.
+                self.assertIn(".chaos-engine/references/delegate-card.md", body)
 
     def test_pre_push_checks_skill_budgets(self):
         pre_push = load_module("ce_c_pre_push", ROOT / "scripts/ci/overlay_pre_push.py")
