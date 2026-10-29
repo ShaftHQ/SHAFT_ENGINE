@@ -1720,12 +1720,13 @@ def client_json(
         ) from error
 
 
-_STALE_MARKETPLACE_ERROR = re.compile(
+_STALE_MARKETPLACE_HEADER = re.compile(
     r"^(?:client plugin command failed:\s*)?(?:Error:\s*)?"
-    r"failed to load (?:configured )?marketplace(?: snapshot)?\(s\):\s*-\s*"
-    r"`(?P<name>chaos-engine-[0-9a-f]{12})`\s+at\s+(?P<root>.+?)"
-    r"(?::\s*|\s+)marketplace root does not contain a supported manifest\.?\s*$",
-    re.DOTALL,
+    r"failed to load (?:configured )?marketplace(?: snapshot)?\(s\):\s*",
+)
+_STALE_MARKETPLACE_BULLET = re.compile(
+    r"[-\u2022*]\s*`(?P<name>chaos-engine-[0-9a-f]{12})`\s+at\s+(?P<root>[^\n]+?)"
+    r"(?::\s*|\s+)marketplace root does not contain a supported manifest\.?",
 )
 _SUPPORTED_MARKETPLACE_MANIFESTS = (
     ".agents/plugins/marketplace.json",
@@ -1733,14 +1734,10 @@ _SUPPORTED_MARKETPLACE_MANIFESTS = (
     ".claude-plugin/marketplace.json",
     ".cursor-plugin/marketplace.json",
 )
+_MAX_STALE_MARKETPLACE_PRUNES = 64
 
 
-def stale_owned_marketplace(error: RuntimeError) -> str | None:
-    match = _STALE_MARKETPLACE_ERROR.fullmatch(str(error))
-    if match is None:
-        return None
-    name = match.group("name")
-    root = Path(match.group("root").strip())
+def _owned_stale_marketplace_name(name: str, root: Path) -> str | None:
     if not root.is_absolute():
         return None
     try:
@@ -1779,6 +1776,30 @@ def stale_owned_marketplace(error: RuntimeError) -> str | None:
     return name
 
 
+def stale_owned_marketplaces(error: RuntimeError) -> list[str]:
+    """Return every CE-owned stale marketplace named in a Claude load error."""
+    text = str(error).strip()
+    if _STALE_MARKETPLACE_HEADER.match(text) is None:
+        return []
+    names: list[str] = []
+    seen: set[str] = set()
+    for match in _STALE_MARKETPLACE_BULLET.finditer(text):
+        name = match.group("name")
+        if name in seen:
+            continue
+        owned = _owned_stale_marketplace_name(name, Path(match.group("root").strip()))
+        if owned is None:
+            continue
+        seen.add(owned)
+        names.append(owned)
+    return names
+
+
+def stale_owned_marketplace(error: RuntimeError) -> str | None:
+    names = stale_owned_marketplaces(error)
+    return names[0] if names else None
+
+
 def remove_stale_marketplace_before_activation(
     client: str,
     executable: str,
@@ -1787,17 +1808,24 @@ def remove_stale_marketplace_before_activation(
     runner=subprocess.run,
 ) -> None:
     arguments = ["plugin", "marketplace", "list", "--json"]
-    try:
-        client_json(executable, arguments, project, runner=runner)
-    except RuntimeError as error:
-        marketplace_name = stale_owned_marketplace(error)
-        if marketplace_name is None:
-            raise
-        remove = ["plugin", "marketplace", "remove", marketplace_name]
-        if client == "claude":
-            remove.extend(["--scope", "local"])
-        client_command(executable, remove, project, runner=runner)
-        client_json(executable, arguments, project, runner=runner)
+    removed: set[str] = set()
+    for _ in range(_MAX_STALE_MARKETPLACE_PRUNES):
+        try:
+            client_json(executable, arguments, project, runner=runner)
+            return
+        except RuntimeError as error:
+            names = [name for name in stale_owned_marketplaces(error) if name not in removed]
+            if not names:
+                raise
+            for marketplace_name in names:
+                remove = ["plugin", "marketplace", "remove", marketplace_name]
+                if client == "claude":
+                    remove.extend(["--scope", "local"])
+                client_command(executable, remove, project, runner=runner)
+                removed.add(marketplace_name)
+    raise RuntimeError(
+        "client plugin command failed: exhausted stale ChaosEngine marketplace prune attempts"
+    )
 
 
 def same_path(left: object, right: Path) -> bool:

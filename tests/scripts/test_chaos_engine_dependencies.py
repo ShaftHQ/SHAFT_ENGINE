@@ -1647,7 +1647,10 @@ class ChaosEngineDependenciesTest(unittest.TestCase):
                     ),
                 )
 
-        self.assertNotIn(signature, str(error.exception))
+        message = str(error.exception)
+        self.assertIn(signature, message)
+        self.assertLessEqual(len(message), len("dependency command failed: mempalace: ") + 500)
+        self.assertEqual(501 + len(signature), len(error.exception.stderr))
 
     def test_mempalace_retry_preserves_the_shared_deadline(self):
         module = load_controller()
