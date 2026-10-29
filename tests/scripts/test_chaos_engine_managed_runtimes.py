@@ -962,6 +962,40 @@ class ManagedMavenJavaHomeProbeTest(TestCase):
                     mock.patch.object(HOSTS, "_java_home_for_maven_probe", return_value=str(java_home)):
                 self.assertEqual("3.9.12", HOSTS.maven_version(mvn))
 
+    def test_maven_version_injects_managed_java_home_when_unusable(self):
+        """#7558: set-but-unusable JAVA_HOME must fall back to managed JDK."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            java_home = root / "jdk"
+            (java_home / "bin").mkdir(parents=True)
+            (java_home / "bin" / "java").write_text("#!/bin/sh\n", encoding="utf-8")
+            (java_home / "bin" / "java").chmod(0o755)
+            missing_home = root / "missing-jdk"
+            mvn = root / "mvn"
+            mvn.write_text(
+                "#!/bin/bash\n"
+                "case \"${JAVA_HOME}\" in\n"
+                "  */missing-jdk) echo unusable>&2; exit 1;;\n"
+                "esac\n"
+                "if [ -z \"${JAVA_HOME}\" ]; then echo missing>&2; exit 1; fi\n"
+                "echo \"Apache Maven 3.9.12\"\n",
+                encoding="utf-8",
+            )
+            mvn.chmod(0o755)
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(missing_home)}, clear=False), \
+                    mock.patch.object(HOSTS, "_java_home_for_maven_probe", return_value=str(java_home)):
+                self.assertEqual("3.9.12", HOSTS.maven_version(mvn))
+            # Non-executable java under JAVA_HOME is also unusable.
+            dead_home = root / "dead-jdk"
+            (dead_home / "bin").mkdir(parents=True)
+            dead_java = dead_home / "bin" / "java"
+            dead_java.write_text("#!/bin/sh\n", encoding="utf-8")
+            dead_java.chmod(0o644)
+            self.assertIsNone(HOSTS._jdk_home_if_usable(dead_home))
+            with mock.patch.dict(os.environ, {"JAVA_HOME": str(dead_home)}, clear=False), \
+                    mock.patch.object(HOSTS, "_java_home_for_maven_probe", return_value=str(java_home)):
+                self.assertEqual("3.9.12", HOSTS.maven_version(mvn))
+
     def test_ensure_managed_maven_names_java_home_when_no_jdk_for_probe(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

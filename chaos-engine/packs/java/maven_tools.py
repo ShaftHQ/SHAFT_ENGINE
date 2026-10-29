@@ -197,11 +197,15 @@ def managed_maven_root(version: str = "3.9.12") -> Path:
 
 
 def _jdk_home_if_usable(home: Path) -> str | None:
-    """Return ``home`` when it contains a real ``java`` binary."""
+    """Return ``home`` when it contains a real executable ``java`` binary."""
     java_name = "java.exe" if os.name == "nt" else "java"
     try:
         java = home / "bin" / java_name
         if not java.is_file() or is_link_or_reparse(java):
+            return None
+        # Missing is already rejected above; non-executable ambient JAVA_HOME
+        # is also unusable for `mvn -v` (#7558).
+        if os.name != "nt" and not os.access(java, os.X_OK):
             return None
         return str(home.resolve())
     except OSError:
@@ -282,7 +286,9 @@ def _java_home_for_maven_probe() -> str | None:
 def maven_version(mvn: Path, *, env: dict[str, str] | None = None) -> str | None:
     """Parse a stable Apache Maven version from `mvn -v` output."""
     probe_env = dict(env) if env is not None else os.environ.copy()
-    if not str(probe_env.get("JAVA_HOME") or "").strip():
+    ambient = str(probe_env.get("JAVA_HOME") or "").strip()
+    # #7558: inject when ambient is empty OR unusable (missing/non-executable).
+    if not ambient or _jdk_home_if_usable(Path(ambient).expanduser()) is None:
         fallback = _java_home_for_maven_probe()
         if fallback is not None:
             probe_env["JAVA_HOME"] = fallback
