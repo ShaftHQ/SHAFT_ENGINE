@@ -26,6 +26,8 @@ Hookless bots load this via [bot entry](bot-entry.md) and the
 
 ## Why
 
+Lesson: backup dir = push (a local backup is not safe until remote-backed).
+
 Cleanup that used a bare `rm -rf` in a worktree with no CE overlay bypassed the
 guard entirely. Doctor + delete-check in the **same** tree is the only safe
 path.
