@@ -249,13 +249,7 @@ public class AccessibilityHelper {
                 return;
             }
 
-            Capabilities liveCaps = LiveSessionSupport.capabilities(driver);
-            if (liveCaps != null) {
-                logger.debug("Running accessibility scan on browser: {} {}, URL: {}.",
-                        liveCaps.getBrowserName(), liveCaps.getBrowserVersion(), driver.getCurrentUrl());
-            } else {
-                logger.debug("Running accessibility scan with driver type: {}.", driver.getClass().getSimpleName());
-            }
+            logAccessibilityScanTarget(driver);
 
             new WebDriverWait(driver, Duration.ofSeconds(PAGE_LOAD_TIMEOUT_SECONDS))
                     .until(webDriver -> ((JavascriptExecutor) webDriver)
@@ -280,46 +274,80 @@ public class AccessibilityHelper {
             logger.debug("Generated accessibility JSON report: {}.", jsonReportPath);
             printDetailedSummary(responseJSON, pageName);
 
-            try {
-                Path reportPath = Paths.get(htmlReportPath);
-                if (Files.exists(reportPath)) {
-                    Path allureDir = Paths.get("allure-results", "accessibility");
-                    Files.createDirectories(allureDir);
-                    try {
-                        Path target = allureDir.resolve(reportPath.getFileName());
-                        Files.copy(reportPath, target, StandardCopyOption.REPLACE_EXISTING);
-                    } catch (IOException ioEx) {
-                        logger.warn("Could not copy accessibility report to Allure results: {}", ioEx.getMessage());
-                    }
-                    try (FileInputStream fis = new FileInputStream(reportPath.toFile())) {
-                        AllureAttachments.add("Accessibility Report - " + pageName, "text/html", fis, ".html");
-                    }
-                    logger.debug("Attached accessibility report for page '{}'.", pageName);
-                } else {
-                    logger.warn("Accessibility HTML report not found for Allure attachment: {}", htmlReportPath);
-                }
-            } catch (Exception e) {
-                logger.error("Could not copy or attach the accessibility report to Allure: {}", e.getMessage(), e);
-            }
+            attachAccessibilityReportToAllure(pageName, htmlReportPath);
         } catch (Exception e) {
             logger.error("Accessibility scan failed for page: {}", pageName, e);
-            try {
-                String fallbackPath = "accessibility-reports/FailedReport_" + pageName + ".txt";
-                Files.createDirectories(Paths.get("accessibility-reports/"));
-                Files.writeString(Paths.get(fallbackPath),
-                        "Accessibility scan failed for " + pageName + ":\n" + e.getMessage(),
-                        StandardCharsets.UTF_8);
-                try (FileInputStream fis = new FileInputStream(fallbackPath)) {
-                    AllureAttachments.add("Accessibility Report - " + pageName,
-                            "text/plain", fis, ".txt");
-                }
-            } catch (Exception inner) {
-                logger.error("Could not save fallback accessibility report: {}", inner.getMessage());
-            }
+            writeAccessibilityFailureFallback(pageName, e);
         }
 
     }
 
+    /**
+     * Logs the browser or driver identity used for an accessibility scan.
+     *
+     * @param driver live WebDriver under scan
+     */
+    private static void logAccessibilityScanTarget(WebDriver driver) {
+        Capabilities liveCaps = LiveSessionSupport.capabilities(driver);
+        if (liveCaps != null) {
+            logger.debug("Running accessibility scan on browser: {} {}, URL: {}.",
+                    liveCaps.getBrowserName(), liveCaps.getBrowserVersion(), driver.getCurrentUrl());
+            return;
+        }
+        logger.debug("Running accessibility scan with driver type: {}.", driver.getClass().getSimpleName());
+    }
+
+    /**
+     * Copies the HTML accessibility report into Allure results and attaches it.
+     *
+     * @param pageName scanned page label
+     * @param htmlReportPath absolute or workspace-relative HTML report path
+     */
+    private static void attachAccessibilityReportToAllure(String pageName, String htmlReportPath) {
+        try {
+            Path reportPath = Paths.get(htmlReportPath);
+            if (!Files.exists(reportPath)) {
+                logger.warn("Accessibility HTML report not found for Allure attachment: {}", htmlReportPath);
+                return;
+            }
+            Path allureDir = Paths.get("allure-results", "accessibility");
+            Files.createDirectories(allureDir);
+            try {
+                Path target = allureDir.resolve(reportPath.getFileName());
+                Files.copy(reportPath, target, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ioEx) {
+                logger.warn("Could not copy accessibility report to Allure results: {}", ioEx.getMessage());
+            }
+            try (FileInputStream fis = new FileInputStream(reportPath.toFile())) {
+                AllureAttachments.add("Accessibility Report - " + pageName, "text/html", fis, ".html");
+            }
+            logger.debug("Attached accessibility report for page '{}'.", pageName);
+        } catch (Exception e) {
+            logger.error("Could not copy or attach the accessibility report to Allure: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Writes a plain-text fallback report when the accessibility scan itself fails.
+     *
+     * @param pageName scanned page label
+     * @param failure  scan failure
+     */
+    private static void writeAccessibilityFailureFallback(String pageName, Exception failure) {
+        try {
+            String fallbackPath = "accessibility-reports/FailedReport_" + pageName + ".txt";
+            Files.createDirectories(Paths.get("accessibility-reports/"));
+            Files.writeString(Paths.get(fallbackPath),
+                    "Accessibility scan failed for " + pageName + ":\n" + failure.getMessage(),
+                    StandardCharsets.UTF_8);
+            try (FileInputStream fis = new FileInputStream(fallbackPath)) {
+                AllureAttachments.add("Accessibility Report - " + pageName,
+                        "text/plain", fis, ".txt");
+            }
+        } catch (Exception inner) {
+            logger.error("Could not save fallback accessibility report: {}", inner.getMessage());
+        }
+    }
     /**
      * Convenience overload that runs an accessibility scan scoped to a specific CSS
      * context selector using default settings for all other configuration values.
