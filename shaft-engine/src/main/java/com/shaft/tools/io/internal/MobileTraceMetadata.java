@@ -15,6 +15,7 @@ import com.shaft.gui.capabilities.internal.LiveSessionSupport;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Collects mobile and mobile-emulation metadata for SHAFT trace events.
@@ -167,6 +168,7 @@ public final class MobileTraceMetadata {
                 || DriverFactoryHelper.isMobileWebExecution();
     }
 
+    @Nullable
     private static Capabilities capabilities(WebDriver driver) {
         return LiveSessionSupport.capabilities(driver);
     }

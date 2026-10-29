@@ -24,7 +24,7 @@ public final class LiveSessionSupport {
      * @return capabilities when the driver exposes them; {@code null} otherwise or on failure
      */
     @Nullable
-    public static Capabilities capabilities(WebDriver driver) {
+    public static Capabilities capabilities(@Nullable WebDriver driver) {
         if (!(driver instanceof HasCapabilities hasCapabilities)) {
             return null;
         }
@@ -40,7 +40,7 @@ public final class LiveSessionSupport {
      *
      * @return {@code true} when a Selenium or Appium remote session exists and reports a null session id
      */
-    public static boolean isClosedRemoteSession(WebDriver driver) {
+    public static boolean isClosedRemoteSession(@Nullable WebDriver driver) {
         if (driver instanceof RemoteWebDriver remoteWebDriver) {
             return remoteWebDriver.getSessionId() == null;
         }
@@ -55,7 +55,7 @@ public final class LiveSessionSupport {
      *
      * @return {@code true} when a Selenium or Appium remote session reports a non-null session id
      */
-    public static boolean hasLiveRemoteSession(WebDriver driver) {
+    public static boolean hasLiveRemoteSession(@Nullable WebDriver driver) {
         if (driver instanceof RemoteWebDriver remoteWebDriver) {
             return remoteWebDriver.getSessionId() != null;
         }
@@ -70,7 +70,7 @@ public final class LiveSessionSupport {
      *
      * @return {@code true} when the driver is a Selenium remote or Appium session
      */
-    public static boolean isRemoteOrAppiumSession(WebDriver driver) {
+    public static boolean isRemoteOrAppiumSession(@Nullable WebDriver driver) {
         return driver instanceof RemoteWebDriver || driver instanceof AppiumDriver;
     }
 }
