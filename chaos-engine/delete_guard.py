@@ -11,6 +11,9 @@ exact path list; a hard never-touch list refuses even with a code.
 #7525: verified uploaded yt files on a local/env allowlist (path + video id + sha256)
 may take the owner code after live sha + oEmbed author proof; yt/meta and unverified stay locked.
 oEmbed HTTP 403 means private (not a box IP block); optional CHAOS_YT_EXPECTED_AUTHORS binds channel.
+Also covers raw filesystem deletes that previously bypassed the shell-word trigger:
+``mv`` of a source path (including to trash/outside), ``rsync --delete*`` /
+``--remove-source-files``, and ``Path(...).unlink|rmdir|rmtree`` constructor forms.
 """
 
 from __future__ import annotations
@@ -76,12 +79,20 @@ DEFAULT_ALLOW = (
     "**/*video*/**/frames/**",
     "**/*video*/**/clips/**",
 )
-DELETE_WORD = re.compile(r"(?:^|[^\w.-])(?:rm|unlink|shred|rmtree|clean)\b|-delete\b|-exec(?:dir)?\s+\S*rm\b")
+DELETE_WORD = re.compile(
+    r"(?:^|[^\w.-])(?:rm|unlink|shred|rmtree|clean|mv)\b|-delete\b|--remove-source-files\b|"
+    r"-exec(?:dir)?\s+\S*rm\b"
+)
 UNSURE = re.compile(r"\$|`|<\(|>\(")
 RMTREE = re.compile(
-    r"(?:shutil\.rmtree|os\.remove|os\.unlink|os\.rmdir|\.unlink|\.rmtree)\s*\(\s*(?P<arg>[^)]*)\)"
+    r"(?:shutil\.rmtree|os\.remove|os\.unlink|os\.rmdir|\.unlink|\.rmtree|\.rmdir)\s*\(\s*(?P<arg>[^)]*)\)"
+)
+# Path('literal').unlink() / .rmdir() / .rmtree() — path is in the constructor, not the call.
+PATHLIB_DELETE = re.compile(
+    r"""(?:pathlib\.)?Path\s*\(\s*(?:r|R)?(['"])(?P<path>[^'"]+)\1\s*\)\s*\.\s*(?:unlink|rmdir|rmtree)\b"""
 )
 LITERAL = re.compile(r"""^\s*(?:Path\()?\s*(?:r|R)?(['"])(?P<path>[^'"]+)\1\s*\)?\s*(?:,.*)?$""")
+RS_DELETE = re.compile(r"^--delete(?:-|$)|^-delete$|^--remove-source-files$")
 WRAPPERS = frozenset({"command", "env", "sudo", "timeout", "nice", "nohup", "exec", "builtin"})
 SHELLS = frozenset({"sh", "bash", "zsh", "dash"})
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -165,11 +176,56 @@ def _git_clean_targets(arguments: list[str]) -> list[str] | None:
 
 def _python_targets(segment: str) -> list[str]:
     targets = []
+    for match in PATHLIB_DELETE.finditer(segment):
+        targets.append(match.group("path"))
     for match in RMTREE.finditer(segment):
-        literal = LITERAL.match(match.group("arg"))
+        arg = match.group("arg")
+        # Method calls already captured via PATHLIB_DELETE have an empty arg list.
+        if not arg.strip() and match.group(0).lstrip().startswith("."):
+            continue
+        literal = LITERAL.match(arg)
         if literal is None:
             raise Unsure("non-literal path in a Python delete call")
         targets.append(literal.group("path"))
+    return targets
+
+
+def _operands(arguments: list[str]) -> list[str]:
+    """Non-option operands after optional ``--``."""
+    targets, options = [], True
+    for item in arguments:
+        if options and item == "--":
+            options = False
+        elif options and item.startswith("-") and item != "-":
+            continue
+        else:
+            targets.append(item)
+    return targets
+
+
+def _mv_targets(arguments: list[str]) -> list[str]:
+    """``mv`` removes each source from its current location (including moves to trash/outside)."""
+    operands = _operands(arguments)
+    if len(operands) < 2:
+        raise Unsure("mv without source and destination")
+    return operands[:-1]
+
+
+def _rsync_targets(arguments: list[str]) -> list[str]:
+    """``rsync --delete*`` deletes under the destination; ``--remove-source-files`` also drops sources."""
+    deleteish = any(RS_DELETE.match(item) or item.startswith("--delete-") for item in arguments)
+    remove_sources = "--remove-source-files" in arguments
+    if not deleteish and not remove_sources:
+        return []
+    operands = _operands(arguments)
+    if len(operands) < 2:
+        raise Unsure("rsync delete without source and destination")
+    sources, dest = operands[:-1], operands[-1]
+    targets = [dest] if deleteish else []
+    if remove_sources:
+        targets = list(sources) + targets
+    if not targets:
+        raise Unsure("rsync delete without resolvable targets")
     return targets
 
 
@@ -178,6 +234,10 @@ def _segment_targets(arguments: list[str], cwd: Path) -> list[Path]:
     raw: list[str] = []
     if head in {"rm", "unlink", "shred"}:
         raw = _rm_targets(rest)
+    elif head == "mv":
+        raw = _mv_targets(rest)
+    elif head == "rsync":
+        raw = _rsync_targets(rest)
     elif head == "find":
         raw = _find_targets(rest)
     elif head == "git":
@@ -205,7 +265,7 @@ def _command_targets(command: str, cwd: Path) -> tuple[list[Path], Path]:
     """Every path a shell command would delete, resolved against a tracked cwd."""
     found: list[Path] = []
     for line in command.splitlines():
-        if RMTREE.search(line):
+        if RMTREE.search(line) or PATHLIB_DELETE.search(line):
             found.extend(path for item in _python_targets(line) for path in _expand(item, cwd))
         try:
             segments = _segments(line)
@@ -728,7 +788,7 @@ def consume_code(code: str, paths: list[Path]) -> str:
 
 def check(command: str, cwd: Path | None = None, project: Path | None = None, code: str | None = None) -> tuple[str, list[str]]:
     """(refusal or '', warnings). A matching owner code turns git/allow-list refusals into warnings."""
-    if not (DELETE_WORD.search(command) or RMTREE.search(command)):
+    if not (DELETE_WORD.search(command) or RMTREE.search(command) or PATHLIB_DELETE.search(command)):
         return "", []
     try:
         targets = command_targets(command, cwd)
