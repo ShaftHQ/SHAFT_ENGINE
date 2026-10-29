@@ -40,7 +40,7 @@ from scripts.ci.worktree_hygiene import (
     task_ownership_manifest_matches,
     verify_repository_state,
 )
-import scripts.ci.worktree_hygiene as worktree_hygiene_module
+worktree_hygiene_module = sys.modules["scripts.ci.worktree_hygiene"]
 
 
 def git(cwd: Path, *arguments: str) -> subprocess.CompletedProcess:
