@@ -2,7 +2,6 @@ package com.shaft.listeners.internal;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shaft.listeners.TestNGListener;
 import io.qameta.allure.AllureExternalKey;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.FileSystemResultsWriter;
@@ -21,7 +20,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.internal.ConstructorOrMethod;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,19 +35,14 @@ import java.util.UUID;
  */
 public class TestNgTagLabelsUnitTest {
     private Path allureResultsDirectory;
-    private Field iTestResultField;
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
         allureResultsDirectory = Files.createTempDirectory("shaft-7549-allure-tags");
-        iTestResultField = TestNGListener.class.getDeclaredField("iTestResult");
-        iTestResultField.setAccessible(true);
-        iTestResultField.set(null, null);
     }
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
-        iTestResultField.set(null, null);
         if (allureResultsDirectory != null && Files.exists(allureResultsDirectory)) {
             try (var paths = Files.walk(allureResultsDirectory)) {
                 paths.sorted(Comparator.reverseOrder()).forEach(path -> {
@@ -78,7 +71,6 @@ public class TestNgTagLabelsUnitTest {
         ITestResult testNgResult = Mockito.mock(ITestResult.class);
         Mockito.when(testNgResult.getMethod()).thenReturn(method);
         Mockito.when(testNgResult.getTestClass()).thenReturn(testClass);
-        iTestResultField.set(null, testNgResult);
 
         String uuid = UUID.randomUUID().toString();
         TestResult result = new TestResult()
@@ -92,7 +84,7 @@ public class TestNgTagLabelsUnitTest {
         AllureExternalKey testKey = AllureExternalKey.of(TestNgTagLabelsUnitTest.class, uuid);
         lifecycle.scheduleTest(testKey, result);
         lifecycle.startTest(testKey);
-        TestNgTagLabels.apply(result);
+        TestNgTagLabels.apply(result, testNgResult);
         lifecycle.stopTest(testKey);
         lifecycle.writeTest(testKey);
 
@@ -119,7 +111,7 @@ public class TestNgTagLabelsUnitTest {
     public void applyIsNoOpWithoutBoundTestNgResultAndDoesNotDuplicate() {
         TestResult result = new TestResult();
         result.getLabels().add(new Label().setName("tag").setValue("smoke"));
-        TestNgTagLabels.apply(result);
+        TestNgTagLabels.apply(result, null);
         Assert.assertEquals(result.getLabels().size(), 1);
 
         ITestNGMethod method = Mockito.mock(ITestNGMethod.class);
