@@ -106,5 +106,6 @@ stay 0; header logo/nav delta vs `/` ≤1px (L36). Editor success toasts are unt
 ## Scripts
 
 - Python gates (loaded by `design_qc.py`): [`hosted_cms_gates.py`](../../scripts/hosted_cms_gates.py)
+- Live header measure (Selenium): [`hosted_cms_live.py`](../../scripts/hosted_cms_live.py)
 - Hostile CSS fixture: [`hostile_cms_css.py`](../../scripts/hostile_cms_css.py)
 

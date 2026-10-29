@@ -2460,6 +2460,18 @@ def _hosted_cms():
     return mod
 
 
+def _hosted_cms_live():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "hosted_cms_live", Path(__file__).with_name("hosted_cms_live.py"),
+    )
+    mod = importlib.util.module_from_spec(spec)
+    if spec.loader is None:
+        raise RuntimeError("hosted_cms_live loader missing")
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def cmd_cmsmeta(qc, args) -> int:
     """L25/L36/L37: paste fragment — no og/twitter, shell, root CSS, or comments."""
     html = Path(args.file).read_text(encoding="utf-8")
@@ -2571,13 +2583,13 @@ def cmd_cmsduration(qc, args) -> int:
 
 def cmd_livecms(qc, args) -> int:
     """L28/L31/L36: measure live URLs or validate a header_measure receipt."""
-    from hosted_cms_live import looks_like_url, measure_header_viewports
+    live = _hosted_cms_live()
 
     target = args.file
-    if looks_like_url(target) or getattr(args, "page_url", None):
+    if live.looks_like_url(target) or getattr(args, "page_url", None):
         page_url = args.page_url or target
         try:
-            measured = measure_header_viewports(
+            measured = live.measure_header_viewports(
                 page_url,
                 home_url=getattr(args, "home_url", None),
             )
