@@ -43,8 +43,11 @@ import static org.testng.Assert.fail;
  * Drives the shipped iOS element click and {@code touch().tap(locator)} from their public entry points.
  * A non-hittable element whose page source does not change must not be reported as a successful tap
  * unless a W3C centre-tap recovery changes the page (#7531 / #6908). Unreadable page source after
- * {@code mobile: tap} fails closed with no further tap (#6913 contract).
+ * {@code mobile: tap} fails closed with no further tap (#6913 contract). A pre-click page-source
+ * snapshot that already shows a structural effect after the click (sheet/modal open) is success,
+ * not no-effect (#7571). Clock/spinner-only page-source noise must still fail loud.
  */
+
 // Instance fields (driver, helper, saved properties) are per-test state: methods must not interleave
 // under the nightly's -DsetParallel=METHODS (#6931).
 @Test(singleThreaded = true)
@@ -53,6 +56,14 @@ public class IosNonHittableTapTest {
     private static final String UNCHANGED_SOURCE = "<XCUIElementTypeApplication><XCUIElementTypeButton name=\"login_iam_loginButton\" hittable=\"false\"/></XCUIElementTypeApplication>";
     private static final String AFTER_MOBILE_SOURCE = "<XCUIElementTypeApplication><XCUIElementTypeOther name=\"next_screen_entry\"/></XCUIElementTypeApplication>";
     private static final String AFTER_W3C_SOURCE = "<XCUIElementTypeApplication><XCUIElementTypeOther name=\"next_screen_entry\"/></XCUIElementTypeApplication>";
+    /** Generic home screen before a settings sheet opens (no client ids). */
+    private static final String HOME_BEFORE_SHEET = "<XCUIElementTypeApplication><XCUIElementTypeButton name=\"home_toolbar_settingsButton\" visible=\"true\" hittable=\"true\"/></XCUIElementTypeApplication>";
+    /** Same tree after the settings sheet covers the opener (#7571 shape). */
+    private static final String HOME_AFTER_SHEET = "<XCUIElementTypeApplication><XCUIElementTypeButton name=\"home_toolbar_settingsButton\" visible=\"false\" hittable=\"false\"/><XCUIElementTypeSheet name=\"settings_sheet_root\"><XCUIElementTypeButton name=\"settings_sheet_closeButton\" hittable=\"true\"/></XCUIElementTypeSheet></XCUIElementTypeApplication>";
+    /** Same home chrome with a status-bar clock StaticText (volatile noise). */
+    private static final String HOME_WITH_CLOCK_3_00 = "<XCUIElementTypeApplication><XCUIElementTypeStaticText name=\"status_bar_time\" label=\"3:00\"/><XCUIElementTypeButton name=\"home_toolbar_settingsButton\" visible=\"true\" hittable=\"false\"/></XCUIElementTypeApplication>";
+    /** Identical to {@link #HOME_WITH_CLOCK_3_00} except the clock label ticked — no sheet/modal. */
+    private static final String HOME_WITH_CLOCK_3_01 = "<XCUIElementTypeApplication><XCUIElementTypeStaticText name=\"status_bar_time\" label=\"3:01\"/><XCUIElementTypeButton name=\"home_toolbar_settingsButton\" visible=\"true\" hittable=\"false\"/></XCUIElementTypeApplication>";
     /** Selenium Rectangle ctor is (x, y, height, width). Button 329×53 at (32,645) → centre (196,671). */
     private static final Rectangle FIXTURE_RECT = new Rectangle(32, 645, 53, 329);
 
@@ -346,6 +357,71 @@ public class IosNonHittableTapTest {
             depth++;
         }
         return false;
+    }
+
+    @Test
+    public void sheetPresentationAfterClickIsNotTreatedAsNoEffect() {
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getId()).thenReturn("home_toolbar_settingsButton");
+        when(localElement.getSize()).thenReturn(new Dimension(44, 44));
+        when(localElement.getRect()).thenReturn(new Rectangle(300, 40, 44, 44));
+        when(localElement.getDomAttribute(anyString())).thenReturn("false");
+        when(localElement.getAttribute(anyString())).thenReturn("false");
+        // Post-click tree already includes the sheet the original click opened.
+        when(localDriver.getPageSource()).thenReturn(HOME_AFTER_SHEET);
+        doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+        doAnswer(invocation -> null).when(localDriver).perform(any());
+
+        IosNonHittableTap.afterReportedClick(localDriver, localElement, HOME_BEFORE_SHEET);
+
+        verify(localDriver, never()).executeScript(eq("mobile: tap"), any());
+        verify(localDriver, never()).perform(anyCollection());
+    }
+
+    @Test
+    public void trueNoEffectWithPreClickSnapshotStillFailsLoud() {
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getId()).thenReturn("home_toolbar_settingsButton");
+        when(localElement.getSize()).thenReturn(new Dimension(44, 44));
+        when(localElement.getRect()).thenReturn(new Rectangle(300, 40, 44, 44));
+        when(localElement.getDomAttribute(anyString())).thenReturn("false");
+        when(localElement.getAttribute(anyString())).thenReturn("false");
+        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE);
+        doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+        doAnswer(invocation -> null).when(localDriver).perform(any());
+
+        Throwable failure = failureFrom(
+                () -> IosNonHittableTap.afterReportedClick(localDriver, localElement, UNCHANGED_SOURCE));
+        assertNoEffect(failure);
+        verify(localDriver, times(1)).executeScript(eq("mobile: tap"), any());
+        verify(localDriver, times(1)).perform(anyCollection());
+    }
+
+    /**
+     * Riskiest false-negative for #7571: pre/post differ only by status-bar clock label.
+     * Must still run recovery and fail loud — raw inequality alone must not skip recovery.
+     */
+    @Test
+    public void clockOnlyPageSourceDeltaStillFailsLoud() {
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getId()).thenReturn("home_toolbar_settingsButton");
+        when(localElement.getSize()).thenReturn(new Dimension(44, 44));
+        when(localElement.getRect()).thenReturn(new Rectangle(300, 40, 44, 44));
+        when(localElement.getDomAttribute(anyString())).thenReturn("false");
+        when(localElement.getAttribute(anyString())).thenReturn("false");
+        // Every post-click read still shows only the ticked clock — no sheet/modal.
+        when(localDriver.getPageSource()).thenReturn(HOME_WITH_CLOCK_3_01);
+        doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+        doAnswer(invocation -> null).when(localDriver).perform(any());
+
+        Throwable failure = failureFrom(
+                () -> IosNonHittableTap.afterReportedClick(localDriver, localElement, HOME_WITH_CLOCK_3_00));
+        assertNoEffect(failure);
+        verify(localDriver, times(1)).executeScript(eq("mobile: tap"), any());
+        verify(localDriver, times(1)).perform(anyCollection());
     }
 
     @Test

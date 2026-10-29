@@ -17,6 +17,8 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -26,6 +28,12 @@ import javax.annotation.Nullable;
  *
  * <p>Recovery order:
  * <ol>
+ *   <li>If a pre-click page-source snapshot was supplied and the tree already shows a
+ *       structural effect after volatile XCUI noise is normalized away (new
+ *       sheet/alert/modal/window, hierarchy or element-set change — not status-bar
+ *       clock/spinner/progress ticks alone), treat the tap as success — do not use
+ *       post-tap {@code hittable=false} on the covered opener as "no effect"
+ *       (#7571).</li>
  *   <li>Element-anchored {@code mobile: tap} with the element id and element-relative
  *       centre coordinates ({@code width/2}, {@code height/2}).</li>
  *   <li>If page source is unchanged, a W3C touch pointer tap at the element's centre
@@ -46,17 +54,90 @@ public final class IosNonHittableTap {
 
     private static final Duration TOUCH_PAUSE = Duration.ofMillis(100);
 
+    /** Entire status-bar subtree is volatile (clock, signal, battery). */
+    private static final Pattern STATUS_BAR_SUBTREE = Pattern.compile(
+            "<XCUIElementTypeStatusBar\\b[^>]*>.*?</XCUIElementTypeStatusBar>",
+            Pattern.DOTALL);
+    private static final Pattern STATUS_BAR_EMPTY = Pattern.compile(
+            "<XCUIElementTypeStatusBar\\b[^>]*/>");
+    /** Progress / activity indicator opening tags carry ticking value|label. */
+    private static final Pattern PROGRESS_OR_ACTIVITY_OPEN = Pattern.compile(
+            "<(XCUIElementTypeProgressIndicator|XCUIElementTypeActivityIndicator)\\b([^>]*)>");
+    /** Wall-clock / countdown-looking label or value attributes anywhere in the tree. */
+    private static final Pattern TIME_LIKE_LABEL_OR_VALUE = Pattern.compile(
+            "\\b(label|value)=\"\\d{1,2}:\\d{2}(?::\\d{2})?(?:\\s*[AaPp][Mm])?\"");
+    private static final Pattern VALUE_OR_LABEL_ATTR = Pattern.compile(
+            "\\b(value|label)=\"[^\"]*\"");
+
     private IosNonHittableTap() {
     }
 
+    /**
+     * Post-click guard without a pre-click snapshot. Prefer
+     * {@link #afterReportedClick(WebDriver, WebElement, String)} from the click path.
+     */
     public static void afterReportedClick(WebDriver driver, WebElement element) {
+        afterReportedClick(driver, element, null);
+    }
+
+    /**
+     * Post-click iOS guard using a pre-click page-source snapshot to recognize sheet/modal opens.
+     *
+     * @param pageSourceBeforeClick page source captured before {@code element.click()}, or
+     *                              {@code null} when unavailable; when present and the tree
+     *                              already shows a structural effect after the click
+     *                              (volatile status-bar/clock/progress noise ignored),
+     *                              recovery is skipped
+     */
+    public static void afterReportedClick(WebDriver driver, WebElement element,
+                                          @Nullable String pageSourceBeforeClick) {
         if (!isIosXcui(driver) || element == null) {
             return;
         }
-        if (!"false".equalsIgnoreCase(readHittable(element))) {
+        // Hittable check first: avoid a post-click page-source read when the control is still
+        // hittable (N1). Pre-click snapshot is still required for #7571 when non-hittable.
+        if (!isReportedNonHittable(element)) {
             return;
         }
-        String before = readPageSource(driver);
+        if (clickAlreadyHadEffect(driver, pageSourceBeforeClick)) {
+            return;
+        }
+        recoverOrFail(driver, element, pageSourceBeforeClick);
+    }
+
+    /**
+     * Best-effort page-source snapshot for the pre-click guard. Returns {@code null} when
+     * unreadable so callers still run the post-click path.
+     */
+    @Nullable
+    static String snapshotPageSource(WebDriver driver) {
+        return readPageSource(driver);
+    }
+
+    static boolean isIosXcui(WebDriver driver) {
+        if (!(driver instanceof IOSDriver)) {
+            return false;
+        }
+        return !driver.getClass().getName().contains("Flutter");
+    }
+
+    private static boolean clickAlreadyHadEffect(WebDriver driver, @Nullable String pageSourceBeforeClick) {
+        // No pre-click snapshot → cannot prove effect yet; skip the read so recovery's
+        // stubbed/real page-source sequence still starts at the post-click baseline.
+        if (pageSourceBeforeClick == null) {
+            return false;
+        }
+        return pageChanged(pageSourceBeforeClick, readPageSource(driver));
+    }
+
+    private static boolean isReportedNonHittable(WebElement element) {
+        return "false".equalsIgnoreCase(readHittable(element));
+    }
+
+    private static void recoverOrFail(WebDriver driver, WebElement element,
+                                      @Nullable String pageSourceBeforeClick) {
+        String afterClick = readPageSource(driver);
+        String before = pageSourceBeforeClick != null ? pageSourceBeforeClick : afterClick;
         boolean anchored = elementAnchoredTap(driver, element);
         String afterMobile = readPageSource(driver);
         if (anchored && pageChanged(before, afterMobile)) {
@@ -75,15 +156,38 @@ public final class IosNonHittableTap {
         throw new IosTapHadNoEffectException(NO_EFFECT_MESSAGE);
     }
 
-    static boolean isIosXcui(WebDriver driver) {
-        if (!(driver instanceof IOSDriver)) {
+    /**
+     * True when the XCUI tree changed in a structural way. Volatile status-bar / clock /
+     * progress / activity-indicator label and value noise is normalized away first so a
+     * true no-effect tap is not masked (#7571 indep F1).
+     */
+    private static boolean pageChanged(@Nullable String before, @Nullable String after) {
+        if (before == null || after == null) {
             return false;
         }
-        return !driver.getClass().getName().contains("Flutter");
+        String normalizedBefore = normalizeVolatileXcuiNoise(before);
+        String normalizedAfter = normalizeVolatileXcuiNoise(after);
+        return !normalizedBefore.equals(normalizedAfter);
     }
 
-    private static boolean pageChanged(@Nullable String before, @Nullable String after) {
-        return before != null && after != null && !before.equals(after);
+    /**
+     * Strip ticking XCUI chrome before comparing page sources: status-bar subtrees,
+     * progress/activity indicator value|label, and time-like label|value attributes
+     * (including status-bar clocks rendered as top-level StaticText).
+     */
+    static String normalizeVolatileXcuiNoise(String source) {
+        String normalized = STATUS_BAR_SUBTREE.matcher(source).replaceAll("<XCUIElementTypeStatusBar/>");
+        normalized = STATUS_BAR_EMPTY.matcher(normalized).replaceAll("<XCUIElementTypeStatusBar/>");
+        Matcher progress = PROGRESS_OR_ACTIVITY_OPEN.matcher(normalized);
+        StringBuffer progressBuf = new StringBuffer();
+        while (progress.find()) {
+            String attrs = VALUE_OR_LABEL_ATTR.matcher(progress.group(2)).replaceAll("");
+            progress.appendReplacement(progressBuf,
+                    Matcher.quoteReplacement("<" + progress.group(1) + attrs + ">"));
+        }
+        progress.appendTail(progressBuf);
+        normalized = progressBuf.toString();
+        return TIME_LIKE_LABEL_OR_VALUE.matcher(normalized).replaceAll("$1=\"\"");
     }
 
     private static String readHittable(WebElement element) {
