@@ -26,7 +26,7 @@ and [Squarespace 7.1](../site-builders/squarespace-7-1.md) Source vs rendered.
 ## Verify
 
 - [ ] `design_qc.py cmsmeta <paste.html>` fails when any og/twitter meta
-      remains; passes on a clean paste.
+      or `<html lang>` remains; passes on a clean paste.
 - [ ] Live page shows a single CMS `og:title` matching the SEO title.
 
 ## Why

@@ -2364,7 +2364,7 @@ def _hosted_cms():
 
 
 def cmd_cmsmeta(qc, args) -> int:
-    """L25: paste HTML must not include og:/twitter: meta."""
+    """L25: paste HTML must not include og:/twitter: meta or <html lang>."""
     html = Path(args.file).read_text(encoding="utf-8")
     report = _hosted_cms().check_cms_meta(html)
     status = report.pop("status")
@@ -2384,8 +2384,14 @@ def cmd_cmsassets(qc, args) -> int:
 def cmd_cmssticky(qc, args) -> int:
     """L23: require --header-height and scroll-margin-top for sticky offset."""
     body = Path(args.file).read_text(encoding="utf-8")
-    report = _hosted_cms().check_cms_sticky(body)
+    report = _hosted_cms().check_cms_sticky(
+        body,
+        header_px=getattr(args, "header_px", None),
+        scroll_margin_px=getattr(args, "scroll_margin_px", None),
+    )
     status = report.pop("status")
+    if status == "error":
+        return qc.report("cmssticky", qc.USAGE, **report)
     code = qc.PASS if status == "pass" else qc.FAIL
     return qc.report("cmssticky", code, **report)
 
@@ -2433,8 +2439,20 @@ def cmd_hostilecms(qc, args) -> int:
 
 
 def cmd_cmswidth(qc, args) -> int:
-    """L27: code-container vs content-column width ratio."""
-    report = _hosted_cms().check_cms_width(args.code, args.column, min_ratio=args.min_ratio)
+    """L27: full-width ratio + phone gutter parity / no-double-pad."""
+    report = _hosted_cms().check_cms_width(
+        args.code,
+        args.column,
+        min_ratio=args.min_ratio,
+        hero_gutter=args.hero_gutter,
+        embed_gutter=args.embed_gutter,
+        gutter_tol=args.gutter_tol,
+        outer_pad=args.outer_pad,
+        inner_pad=args.inner_pad,
+        content_inset=args.content_inset,
+        viewport=args.viewport,
+        max_phone_inset=args.max_phone_inset,
+    )
     status = report.pop("status")
     if status == "error":
         return qc.report("cmswidth", qc.USAGE, **report)
@@ -2747,6 +2765,12 @@ def register(add, qc) -> None:
     p = add("cmssticky", bind(cmd_cmssticky),
             "L23: require --header-height and scroll-margin-top (sticky offset)")
     p.add_argument("file", help="paste HTML or CSS file")
+    p.add_argument("--header-px", type=float, default=None, dest="header_px",
+                   help="optional sticky header height px")
+    p.add_argument("--scroll-margin-px", type=float, default=None,
+                   dest="scroll_margin_px",
+                   help="optional measured scroll-margin-top px")
+
     p = add("cmschrome", bind(cmd_cmschrome),
             "L23: paste must not include in-page topbar/nav")
     p.add_argument("file", help="paste HTML file")
@@ -2766,10 +2790,26 @@ def register(add, qc) -> None:
     p.add_argument("--sq-tol", type=float, default=1.5, dest="sq_tol")
     p.add_argument("--inset-tol", type=float, default=0.75, dest="inset_tol")
     p = add("cmswidth", bind(cmd_cmswidth),
-            "L27: code-container vs content-column width ratio")
+            "L27: full-width ratio + phone gutter parity / no-double-pad")
     p.add_argument("--code", type=float, required=True, help="code container width px")
     p.add_argument("--column", type=float, required=True, help="content column width px")
     p.add_argument("--min-ratio", type=float, default=0.92, dest="min_ratio")
+    p.add_argument("--hero-gutter", type=float, default=None, dest="hero_gutter",
+                   help="hero container left inset px (phone)")
+    p.add_argument("--embed-gutter", type=float, default=None, dest="embed_gutter",
+                   help="embed content left inset px (phone)")
+    p.add_argument("--gutter-tol", type=float, default=4.0, dest="gutter_tol",
+                   help="max |embed-hero| gutter delta px (default 4)")
+    p.add_argument("--outer-pad", type=float, default=None, dest="outer_pad",
+                   help="outer padding-inline px (no-double-pad)")
+    p.add_argument("--inner-pad", type=float, default=None, dest="inner_pad",
+                   help="nested padding-inline px (no-double-pad)")
+    p.add_argument("--content-inset", type=float, default=None, dest="content_inset",
+                   help="measured content left inset px (phone double-pad band)")
+    p.add_argument("--viewport", type=float, default=None,
+                   help="viewport width px (phone checks when <=430 or omitted)")
+    p.add_argument("--max-phone-inset", type=float, default=36.0, dest="max_phone_inset",
+                   help="fail phone content-inset above this (default 36)")
     p = add("cmsduration", bind(cmd_cmsduration),
             "L30: explainer duration band + optional sibling parity")
     p.add_argument("--dur", type=float, required=True, help="duration seconds")

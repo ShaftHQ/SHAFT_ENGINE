@@ -14,7 +14,8 @@ Code block (or equivalent) that already has site chrome. Playbook:
 ## Rules
 
 1. **Body only.** Paste product body (hero → product footer). Drop in-page
-   topbar, nav, and skip that duplicate the host.
+   topbar/nav and any *duplicate* skip chrome the host already owns
+   (keep a focusable paste skip per Rule 4 when the host has none).
 2. **Preview vs paste.** Keep a separate preview document with full chrome;
    the paste kit strips chrome and uses an embed class.
 3. **Sticky site header offset.** First section of the pasted/embedded
@@ -30,6 +31,7 @@ Code block (or equivalent) that already has site chrome. Playbook:
 - [ ] Live/paste DOM: zero in-page topbar/nav under the code container.
 - [ ] `design_qc.py cmssticky` passes when `--header-height` and
       `scroll-margin-top` appear on the embed root; fails when absent.
+      Optional `--header-px` / `--scroll-margin-px` fail when margin < height.
 - [ ] First content clears the sticky header after paste.
 - [ ] Unfocused skip does not consume layout.
 

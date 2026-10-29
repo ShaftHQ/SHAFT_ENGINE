@@ -52,12 +52,14 @@ description, and social image in the CMS SEO panel. Duplicate paste meta
 produces double titles and fighting tags. If the plan cannot override an
 http social image, record UNFIXABLE and stop — do not “fix” it in paste.
 
-## Layout: full width
+## Layout: full width + gutter parity
 
 Fluid Engine / builder sections that hold the product Code block must span
 the content grid. Fail when the code-container width ratio vs the page
-content column is below **0.92** (configurable) at 1440 and 390. See
-[L27](../lessons/full-width-embed.md).
+content column is below **0.92** at 1440 and 390. On phone, embed inset
+must stay within **±4px** of the hero gutter; FE grid inset + nested
+`padding-inline` must not stack into the ~72–80px double-pad band.
+Details: [L27](../lessons/full-width-embed.md).
 
 ## Hostile CSS and identity tile
 
@@ -83,7 +85,7 @@ stay 0. Editor success toasts are untrusted.
 | No paste OG/Twitter meta | `design_qc.py cmsmeta <paste.html>` |
 | No relative local assets | `design_qc.py cmsassets <paste.html>` |
 | Sticky header tokens present | `design_qc.py cmssticky <paste.html\|.css>` |
-| Full-width ratio | `design_qc.py cmswidth --code W --column C` |
+| Full-width + gutter | `design_qc.py cmswidth --code W --column C [--hero-gutter H --embed-gutter E] [--outer-pad/--inner-pad]` |
 | Hostile heading + tile | `design_qc.py hostilecms …` |
 | Duration band (sibling Watch) | `design_qc.py cmsduration --dur …` |
 | Live matrix receipt | `design_qc.py livecms <report.json>` |

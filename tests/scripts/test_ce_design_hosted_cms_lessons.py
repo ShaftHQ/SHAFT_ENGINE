@@ -37,6 +37,7 @@ CARDS = {
         "No paste social meta",
         "cmsmeta",
         "UNFIXABLE",
+        "html lang",
     ),
     "hostile-cms-resets.md": (
         "Hostile injection before SIGN",
@@ -50,12 +51,18 @@ CARDS = {
         "0.92",
         "cmswidth",
         "L23",
+        "Gutter parity",
+        "no-double-pad",
+        "72–80",
     ),
     "live-verify-cms-embed.md": (
         "Public URL, not editor",
         "390 and 1440",
         "livecms",
         "Fail closed",
+        "media_ok",
+        "duration_ok",
+        "nested_containers_0",
     ),
     "plan-first-multi-axis.md": (
         "Plan before build",
@@ -152,6 +159,17 @@ class CmsStickyHeaderOffsetTest(unittest.TestCase):
             self.assertIn("--header-height", payload.get("missing", []))
             code, payload = run_qc("cmssticky", str(good))
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+            # S1: optional numeric margin < header fails
+            code, payload = run_qc(
+                "cmssticky", str(good),
+                "--header-px", "92", "--scroll-margin-px", "48",
+            )
+            self.assertEqual(1, code, payload)
+            code, payload = run_qc(
+                "cmssticky", str(good),
+                "--header-px", "92", "--scroll-margin-px", "100",
+            )
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
 
 class CmsMetaAssetsChromeTest(unittest.TestCase):
@@ -163,11 +181,20 @@ class CmsMetaAssetsChromeTest(unittest.TestCase):
                 '<html><head><meta property="og:title" content="x"></head></html>',
                 encoding="utf-8",
             )
-            good.write_text("<html><head><title>x</title></head><body></body></html>", encoding="utf-8")
+            good.write_text("<div><title>x</title></div>", encoding="utf-8")
             code, payload = run_qc("cmsmeta", str(bad))
             self.assertEqual(1, code, payload)
             code, payload = run_qc("cmsmeta", str(good))
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
+    def test_cmsmeta_rejects_html_lang(self) -> None:
+        """D3: L25 forbids document lang in paste — red without html-lang scan."""
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "lang.html"
+            bad.write_text('<html lang="en"><body><p>x</p></body></html>', encoding="utf-8")
+            code, payload = run_qc("cmsmeta", str(bad))
+            self.assertEqual(1, code, payload)
+            self.assertGreaterEqual(payload.get("html_lang", 0), 1, payload)
 
     def test_cmsassets_rejects_relative(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
@@ -219,6 +246,42 @@ class HostileCmsAndWidthDurationTest(unittest.TestCase):
         code, payload = run_qc("cmswidth", "--code", "950", "--column", "1000")
         self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
+    def test_cmswidth_gutter_parity_and_no_double_pad(self) -> None:
+        # Red without fix: hero/embed gutter diverge beyond ±4px.
+        code, payload = run_qc(
+            "cmswidth", "--code", "950", "--column", "1000",
+            "--hero-gutter", "18", "--embed-gutter", "76",
+        )
+        self.assertEqual(1, code, payload)
+        self.assertIn("gutter", payload.get("note", "").lower())
+        # Green: within ±4px of hero.
+        code, payload = run_qc(
+            "cmswidth", "--code", "950", "--column", "1000",
+            "--hero-gutter", "18", "--embed-gutter", "20",
+        )
+        self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+        # Red: nested outer+inner padding-inline (no-double-pad).
+        code, payload = run_qc(
+            "cmswidth", "--code", "950", "--column", "1000",
+            "--outer-pad", "20", "--inner-pad", "20",
+        )
+        self.assertEqual(1, code, payload)
+        self.assertIn("no-double-pad", payload.get("note", ""))
+        # Red: content inset in ~72–80 double-pad band at 390.
+        code, payload = run_qc(
+            "cmswidth", "--code", "950", "--column", "1000",
+            "--content-inset", "76", "--viewport", "390",
+        )
+        self.assertEqual(1, code, payload)
+        # Green: single phone gutter ~18px, pads not stacked.
+        code, payload = run_qc(
+            "cmswidth", "--code", "950", "--column", "1000",
+            "--hero-gutter", "18", "--embed-gutter", "18",
+            "--outer-pad", "18", "--inner-pad", "0",
+            "--content-inset", "18", "--viewport", "390",
+        )
+        self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
     def test_cmsduration_band_and_peer(self) -> None:
         code, payload = run_qc("cmsduration", "--dur", "225")
         self.assertEqual(1, code, payload)
@@ -233,8 +296,9 @@ class LivecmsMatrixTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             partial = Path(folder) / "partial.json"
             full = Path(folder) / "full.json"
+            incomplete = Path(folder) / "incomplete.json"
             partial.write_text(json.dumps({"http_200": True, "viewport_390": True}), encoding="utf-8")
-            full.write_text(json.dumps({
+            base = {
                 "http_200": True,
                 "no_dup_chrome": True,
                 "assets_loaded": True,
@@ -243,10 +307,26 @@ class LivecmsMatrixTest(unittest.TestCase):
                 "og_title_once": True,
                 "viewport_390": True,
                 "viewport_1440": True,
+                "media_ok": "n/a",
+                "duration_ok": "n/a",
+                "nested_containers_0": True,
+            }
+            full.write_text(json.dumps(base), encoding="utf-8")
+            # D4: old full receipt without media/nested keys must fail closed
+            incomplete.write_text(json.dumps({
+                k: base[k] for k in (
+                    "http_200", "no_dup_chrome", "assets_loaded", "heading_colour",
+                    "identity_tile", "og_title_once", "viewport_390", "viewport_1440",
+                )
             }), encoding="utf-8")
             code, payload = run_qc("livecms", str(partial))
             self.assertEqual(1, code, payload)
             self.assertTrue(payload.get("missing"), payload)
+            code, payload = run_qc("livecms", str(incomplete))
+            self.assertEqual(1, code, payload)
+            missing = set(payload.get("missing") or [])
+            for key in ("media_ok", "duration_ok", "nested_containers_0"):
+                self.assertIn(key, missing, payload)
             code, payload = run_qc("livecms", str(full))
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 

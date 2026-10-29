@@ -10,6 +10,10 @@ OG_TWITTER_META = re.compile(
     r"""<meta\s+[^>]*(?:property|name)\s*=\s*["'](?:og|twitter):""",
     re.IGNORECASE,
 )
+HTML_LANG = re.compile(
+    r'''<\s*html\b[^>]*\blang\s*=''',
+    re.IGNORECASE,
+)
 RELATIVE_ASSET_SRC = re.compile(
     r"""\b(?:src|href)\s*=\s*["'](\.\./[^"']+|assets/[^"']+)["']""",
     re.IGNORECASE,
@@ -24,18 +28,22 @@ TOPBAR_IN_PASTE = re.compile(
 
 
 def check_cms_meta(html: str) -> dict[str, Any]:
-    """L25: paste must not include og:/twitter: meta."""
-    count = len(list(OG_TWITTER_META.finditer(html or "")))
+    """L25: paste must not include og:/twitter: meta or <html lang>."""
+    body = html or ""
+    count = len(list(OG_TWITTER_META.finditer(body)))
+    lang_hits = len(list(HTML_LANG.finditer(body)))
+    base = {"og_twitter_meta": count, "html_lang": lang_hits}
+    fails: list[str] = []
     if count:
-        return {
-            "status": "fail",
-            "og_twitter_meta": count,
-            "note": "CMS SEO panel owns og/twitter; strip paste meta (L25)",
-        }
+        fails.append("CMS SEO panel owns og/twitter; strip paste meta (L25)")
+    if lang_hits:
+        fails.append("no <html lang> in paste; set language per block (L25)")
+    if fails:
+        return {**base, "status": "fail", "note": "; ".join(fails), "fails": fails}
     return {
+        **base,
         "status": "pass",
-        "og_twitter_meta": 0,
-        "note": "no og:/twitter: meta in paste (L25)",
+        "note": "no og:/twitter meta or html lang in paste (L25)",
     }
 
 
@@ -57,8 +65,17 @@ def check_cms_assets(html: str) -> dict[str, Any]:
     }
 
 
-def check_cms_sticky(text: str) -> dict[str, Any]:
-    """L23: embed paste/CSS must declare --header-height and scroll-margin-top."""
+def check_cms_sticky(
+    text: str,
+    *,
+    header_px: float | None = None,
+    scroll_margin_px: float | None = None,
+) -> dict[str, Any]:
+    """L23: embed paste/CSS must declare --header-height and scroll-margin-top.
+
+    Optional ``header_px`` / ``scroll_margin_px`` (both required together) fail
+    when scroll_margin_px < header_px.
+    """
     has_header = bool(HEADER_HEIGHT_TOKEN.search(text or ""))
     has_margin = bool(SCROLL_MARGIN_TOKEN.search(text or ""))
     missing = []
@@ -66,19 +83,39 @@ def check_cms_sticky(text: str) -> dict[str, Any]:
         missing.append("--header-height")
     if not has_margin:
         missing.append("scroll-margin-top")
+    base: dict[str, Any] = {
+        "has_header_height": has_header,
+        "has_scroll_margin_top": has_margin,
+        "missing": missing,
+    }
     if missing:
         return {
+            **base,
             "status": "fail",
-            "has_header_height": has_header,
-            "has_scroll_margin_top": has_margin,
-            "missing": missing,
             "note": "first section must offset host sticky header (L23)",
         }
+    if header_px is not None or scroll_margin_px is not None:
+        if header_px is None or scroll_margin_px is None:
+            return {
+                "status": "error",
+                "reasons": ["pass both --header-px and --scroll-margin-px, or neither"],
+            }
+        try:
+            hp, sm = float(header_px), float(scroll_margin_px)
+        except (TypeError, ValueError):
+            return {"status": "error", "reasons": ["non-numeric header/scroll margin"]}
+        if not math.isfinite(hp) or not math.isfinite(sm):
+            return {"status": "error", "reasons": ["non-finite header/scroll margin"]}
+        base.update({"header_px": hp, "scroll_margin_px": sm})
+        if sm + 1e-9 < hp:
+            return {
+                **base,
+                "status": "fail",
+                "note": f"scroll-margin-top {sm}px < sticky header {hp}px (L23)",
+            }
     return {
+        **base,
         "status": "pass",
-        "has_header_height": True,
-        "has_scroll_margin_top": True,
-        "missing": [],
         "note": "sticky header offset tokens present (L23)",
     }
 
@@ -197,8 +234,22 @@ def check_cms_width(
     column_w: float,
     *,
     min_ratio: float = 0.92,
+    hero_gutter: float | None = None,
+    embed_gutter: float | None = None,
+    gutter_tol: float = 4.0,
+    outer_pad: float | None = None,
+    inner_pad: float | None = None,
+    content_inset: float | None = None,
+    viewport: float | None = None,
+    max_phone_inset: float = 36.0,
+    double_pad_lo: float = 72.0,
+    double_pad_hi: float = 80.0,
 ) -> dict[str, Any]:
-    """L27: code container vs content column width ratio."""
+    """L27: full-width ratio + phone gutter parity / no-double-pad.
+
+    Ported generically from designer-workspace home-align-gate (GUTTER_TOL=4,
+    phone over-inset / stacked padding-inline smell ~72–80px at 390).
+    """
     try:
         cw, col = float(code_w), float(column_w)
     except (TypeError, ValueError):
@@ -206,14 +257,82 @@ def check_cms_width(
     if not math.isfinite(cw) or not math.isfinite(col) or col <= 0:
         return {"status": "error", "reasons": ["column_w must be > 0 and finite"]}
     ratio = cw / col
-    base = {"code_w": cw, "column_w": col, "ratio": round(ratio, 4), "min_ratio": min_ratio}
+    base: dict[str, Any] = {
+        "code_w": cw,
+        "column_w": col,
+        "ratio": round(ratio, 4),
+        "min_ratio": min_ratio,
+    }
+    fails: list[str] = []
     if ratio + 1e-9 < min_ratio:
+        fails.append("code block must span content grid (L27)")
+
+    def _num(name: str, val: float | None) -> float | None:
+        if val is None:
+            return None
+        try:
+            out = float(val)
+        except (TypeError, ValueError):
+            raise ValueError(name)
+        if not math.isfinite(out):
+            raise ValueError(name)
+        return out
+
+    try:
+        hg = _num("hero_gutter", hero_gutter)
+        eg = _num("embed_gutter", embed_gutter)
+        op = _num("outer_pad", outer_pad)
+        ip = _num("inner_pad", inner_pad)
+        ci = _num("content_inset", content_inset)
+        vp = _num("viewport", viewport)
+        tol = float(gutter_tol)
+        max_inset = float(max_phone_inset)
+        lo, hi = float(double_pad_lo), float(double_pad_hi)
+    except (TypeError, ValueError) as exc:
+        return {"status": "error", "reasons": [f"non-numeric {exc}"]}
+
+    if (hg is None) ^ (eg is None):
         return {
-            **base,
-            "status": "fail",
-            "note": "code block must span content grid (L27)",
+            "status": "error",
+            "reasons": ["pass both --hero-gutter and --embed-gutter, or neither"],
         }
-    return {**base, "status": "pass", "note": "full-width ratio ok (L27)"}
+    if hg is not None and eg is not None:
+        diff = abs(eg - hg)
+        base.update({
+            "hero_gutter": hg,
+            "embed_gutter": eg,
+            "gutter_diff": round(diff, 4),
+            "gutter_tol": tol,
+        })
+        if diff > tol + 1e-9:
+            fails.append(
+                f"gutter mismatch embed={eg} hero={hg} diff={diff:.1f} (tol ±{tol})"
+            )
+
+    if op is not None or ip is not None:
+        op_v = 0.0 if op is None else op
+        ip_v = 0.0 if ip is None else ip
+        base.update({"outer_pad": op_v, "inner_pad": ip_v})
+        if op_v > 0 and ip_v > 0:
+            fails.append("no-double-pad: nested padding-inline stack (L27)")
+
+    if ci is not None:
+        base["content_inset"] = ci
+        if vp is not None:
+            base["viewport"] = vp
+        phone = vp is None or vp <= 430
+        if phone and ci > max_inset + 1e-9:
+            fails.append(
+                f"phone over-inset content_inset={ci} > {max_inset} (double-pad smell)"
+            )
+        if phone and lo - 1e-9 <= ci <= hi + 1e-9:
+            fails.append(
+                f"double-pad band content_inset={ci} in [{lo}, {hi}] at phone (L27)"
+            )
+
+    if fails:
+        return {**base, "status": "fail", "note": "; ".join(fails), "fails": fails}
+    return {**base, "status": "pass", "note": "full-width + gutter parity ok (L27)"}
 
 
 def check_cms_duration(
@@ -254,7 +373,11 @@ def check_cms_duration(
     }
     if reasons:
         return {**base, "status": "fail", "note": "explainer length band/parity (L30)"}
-    return {**base, "status": "pass", "note": "duration band ok (L30)"}
+    note = "duration band ok (L30)"
+    if dur > 100:
+        note += f"; advisory: {dur}s above preferred ~60–100s (still ≤{max_s})"
+        base["advisory"] = "above_preferred_100s"
+    return {**base, "status": "pass", "note": note}
 
 
 REQUIRED_LIVECMS_ROWS = (
@@ -266,22 +389,34 @@ REQUIRED_LIVECMS_ROWS = (
     "og_title_once",
     "viewport_390",
     "viewport_1440",
+    # L28: media playable + duration ±tol (sentinel "n/a" when no video)
+    "media_ok",
+    "duration_ok",
+    # L31: nested code-container count must be 0
+    "nested_containers_0",
 )
 
 
 def check_livecms(report: dict[str, Any]) -> dict[str, Any]:
-    """L28/L31: fail-closed live matrix receipt."""
+    """L28/L31: fail-closed live matrix receipt.
+
+    media_ok / duration_ok may be the sentinel ``n/a`` when the page has no
+    required video; keys must still be present. nested_containers_0 must pass.
+    """
     if not isinstance(report, dict):
         return {"status": "error", "reasons": ["report must be a JSON object"]}
     rows = report.get("rows") if isinstance(report.get("rows"), dict) else report
     missing: list[str] = []
     failed: list[str] = []
+    na_ok = {"media_ok", "duration_ok"}
     for key in REQUIRED_LIVECMS_ROWS:
         if key not in rows:
             missing.append(key)
             continue
         val = rows[key]
         ok = val is True or val == "pass" or val == "ok"
+        if key in na_ok and isinstance(val, str) and val.lower() == "n/a":
+            ok = True
         if not ok:
             failed.append(key)
     base = {
@@ -295,4 +430,4 @@ def check_livecms(report: dict[str, Any]) -> dict[str, Any]:
             "status": "fail",
             "note": "livecms matrix incomplete or red (L28/L31)",
         }
-    return {**base, "status": "pass", "note": "livecms matrix green (L28)"}
+    return {**base, "status": "pass", "note": "livecms matrix green (L28/L31)"}

@@ -28,7 +28,8 @@ A Code-block paste was saved in a hosted builder. Extends core
 
 - [ ] `design_qc.py livecms report.json` fails when any required row is
       missing or not pass; passes on a complete green matrix.
-- [ ] Receipt includes 390 and 1440 (and durations when video is required).
+- [ ] Receipt includes 390/1440 plus `media_ok`/`duration_ok` (`n/a` if no
+      video) and `nested_containers_0`.
 
 ## Why
 
