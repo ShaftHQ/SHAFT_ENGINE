@@ -166,4 +166,16 @@ public class MobileAccessibilityTreeConverterUnitTest {
 
         Assert.assertTrue(exception.getMessage().contains("Failed to parse Appium accessibility XML"));
     }
+
+    @Test(description = "#7523: Element.getAttribute never returns null; padded names still trim via trimmedAttribute")
+    public void convertShouldTrimWhitespacePaddedAccessibleNames() {
+        String xml = """
+                <hierarchy>
+                  <android.widget.Button class="android.widget.Button" content-desc="  Sign in  " bounds="[0,0][100,50]"/>
+                </hierarchy>
+                """;
+        Assert.assertEquals(MobileAccessibilityTreeConverter.convert(xml), List.of(
+                new AriaNode("button", "Sign in", List.of())
+        ));
+    }
 }

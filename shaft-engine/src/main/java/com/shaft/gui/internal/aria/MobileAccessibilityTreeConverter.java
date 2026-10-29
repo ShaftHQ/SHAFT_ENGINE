@@ -155,8 +155,8 @@ public final class MobileAccessibilityTreeConverter {
     }
 
     private static String trimmedAttribute(Element element, String attributeName) {
-        String value = element.getAttribute(attributeName);
-        return value == null ? "" : value.trim();
+        // Element.getAttribute never returns null (W3C DOM / JDK); empty string when absent.
+        return element.getAttribute(attributeName).trim();
     }
 
     private static List<Element> childElements(Element element) {
