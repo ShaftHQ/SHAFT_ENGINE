@@ -423,6 +423,16 @@ class CmsPasteFragmentL36Test(unittest.TestCase):
             "part_body.html": (
                 "<div><style>::part(body){color:red}</style><h1>x</h1></div>"
             ),
+            "escape_class_body.html": (
+                "<div><style>.\\62 ody{color:red}</style><h1>x</h1></div>"
+            ),
+            "escape_id_html.html": (
+                "<div><style>#\\68 tml{color:red}</style><h1>x</h1></div>"
+            ),
+            "supports_selector_class_body.html": (
+                "<div><style>@supports selector(.body){.x{}}</style>"
+                "<h1>x</h1></div>"
+            ),
         }
         with tempfile.TemporaryDirectory() as folder:
             for name, html in cases.items():

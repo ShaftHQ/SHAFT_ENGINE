@@ -57,7 +57,7 @@ listed in the card.
 | [remotion-dev/remotion](https://github.com/remotion-dev/remotion) | `e385a83dbde54179c0457ad90b7d7c3a4b6ab44a` | custom (company licence may be required) | documented alternative only | D09 |
 | [Tejashmakwana/motionmaxxing](https://github.com/Tejashmakwana/motionmaxxing) | `8c8ec0f2a6f6c9a0da15cd24f7b1298ab298368c` | Apache-2.0 (NOTICE: Tejas Makwana; GSAP, fonts and showcase media excluded and not used) | re-expressed: never-ship list, craft laws, gates G2/G3/G5, measured eases; map in references/research/motionmaxxing-map.md | D08, D09, D20, craft cards |
 
-| [Jakeschincariol/replica-skill](https://github.com/Jakeschincariol/replica-skill) | `patterns-only-2026-10-29` (single launch commit; not vendored) | MIT | method re-expressed only: recon map, features.csv parity, evidence-linked complaint themes; no clone/build/deploy skills copied | R01 |
+| [Jakeschincariol/replica-skill](https://github.com/Jakeschincariol/replica-skill) | `77c9436fb3d18c3d58169efb8caf4fe906b0dc51` (patterns-only; not vendored) | MIT | method re-expressed only: recon map, features.csv parity, evidence-linked complaint themes; no clone/build/deploy skills copied | R01 |
 
 Evaluated 2026-10-24, reference only and not vendored: UI UX Pro Max
 (MIT), design-motion-principles (MIT), the Google DESIGN.md spec
