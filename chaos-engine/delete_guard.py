@@ -8,6 +8,8 @@ HEAD is not ahead). Outside git a target must be on the scratch allow-list.
 When the command cannot be parsed with confidence, the guard refuses.
 #7343: the owner overrides a refusal with a one-time chat code bound to the
 exact path list; a hard never-touch list refuses even with a code.
+#7525: verified uploaded yt files on a local/env allowlist (path + video id + sha256)
+may take the owner code after live sha + oEmbed checks; yt/meta and unverified stay locked.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ import json
 import os
 import re
 import secrets
+import stat
 import shlex
 from fnmatch import fnmatchcase
 import tempfile
@@ -25,6 +28,9 @@ import subprocess  # nosec B404 - fixed git argv only.
 import sys
 import time
 from pathlib import Path
+from typing import Callable
+import urllib.error
+import urllib.request
 
 STATE_DIR = ".chaos-engine-state"
 ALLOW_FILE = "delete-allow.txt"
@@ -37,6 +43,14 @@ NEVER_NAMES = ("ROG*", "yt", "designer-ws.git.retired")
 YT_RENDER = re.compile(r".+\.r\d+\.mp4")
 NEVER_PATTERNS = ("**/.config/google-chrome*/**", "**/.config/chromium/**", "**/*chrome*-profile*/**")
 NEVER_FILE = Path("~/.config/chaos-engine/never-delete.txt")
+# #7525: exact-file allowlist of verified uploaded yt files (local/env only; not committed).
+YT_VERIFIED_ENV = "CHAOS_YT_VERIFIED_DELETE"
+YT_VERIFIED_FILE = Path("~/.config/chaos-engine/yt-verified-delete.txt")
+YT_VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{11}$")
+YT_SHA256 = re.compile(r"^[a-f0-9]{64}$")
+YT_OEMBED = "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={id}&format=json"
+YT_OEMBED_TTL = 86400
+_youtube_video_verifier: Callable[[str], bool] | None = None
 # Generic scratch: temp, caches, build output, video render output.
 DEFAULT_ALLOW = (
     str(Path(tempfile.gettempdir()).resolve() / "**"),
@@ -334,12 +348,217 @@ def _yt_render(path: Path, part: str) -> bool:
     return bool(after) and "meta" not in after and YT_RENDER.fullmatch(path.name) is not None
 
 
+def set_youtube_video_verifier(fn: Callable[[str], bool] | None) -> None:
+    """Tests inject a verifier; production uses oEmbed (+ cache)."""
+    global _youtube_video_verifier
+    _youtube_video_verifier = fn
+
+
+def _oembed_cache_path() -> Path:
+    return _ack_store().with_name("yt-oembed-cache.json")
+
+
+def _load_oembed_cache() -> dict:
+    store = _oembed_cache_path()
+    try:
+        data = json.loads(store.read_text(encoding="utf-8")) if store.is_file() else {}
+    except ValueError:
+        data = {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_oembed_cache(cache: dict) -> None:
+    store = _oembed_cache_path()
+    store.parent.mkdir(parents=True, exist_ok=True)
+    store.write_text(json.dumps(cache, sort_keys=True), encoding="utf-8")
+    store.chmod(0o600)
+
+
+def _default_youtube_video_exists(video_id: str) -> bool:
+    """True only on HTTP 200 oEmbed. Non-200, private, or network errors stay locked."""
+    cache = _load_oembed_cache()
+    entry = cache.get(video_id)
+    now = time.time()
+    if isinstance(entry, dict) and entry.get("expires", 0) >= now and "ok" in entry:
+        return bool(entry["ok"])
+    ok = False
+    try:
+        request = urllib.request.Request(
+            YT_OEMBED.format(id=video_id),
+            headers={"User-Agent": "ChaosEngine-delete-guard/1"},
+            method="GET",
+        )
+        with urllib.request.urlopen(request, timeout=10) as response:  # nosec B310 - fixed YouTube oEmbed URL.
+            ok = int(getattr(response, "status", 200) or 200) == 200
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError, ValueError):
+        ok = False
+    cache[video_id] = {"ok": ok, "expires": now + YT_OEMBED_TTL, "checked": int(now)}
+    _save_oembed_cache(cache)
+    return ok
+
+
+def youtube_video_exists(video_id: str) -> bool:
+    if _youtube_video_verifier is not None:
+        return bool(_youtube_video_verifier(video_id))
+    return _default_youtube_video_exists(video_id)
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _owner_only_file(path: Path) -> bool:
+    try:
+        info = os.stat(path)
+    except OSError:
+        return False
+    if not stat.S_ISREG(info.st_mode):
+        return False
+    if info.st_uid != os.getuid():
+        return False
+    return (info.st_mode & 0o777) == 0o600
+
+
+def _symlink_in_path(path: Path) -> bool:
+    """True if any existing component of path is a symlink (lstat)."""
+    abs_path = Path(os.path.abspath(os.path.expanduser(path)))
+    abs_path = Path(os.path.normpath(abs_path))
+    current = Path(abs_path.anchor) if abs_path.anchor else Path("/")
+    parts = abs_path.parts[1:] if abs_path.is_absolute() else abs_path.parts
+    for part in parts:
+        current = current / part
+        try:
+            if stat.S_ISLNK(os.lstat(current).st_mode):
+                return True
+        except OSError:
+            return False
+    return False
+
+
+def _normalized_abs(path: Path | str) -> Path:
+    return Path(os.path.normpath(os.path.abspath(os.path.expanduser(str(path)))))
+
+
+def _safe_listed_realpath(raw: str) -> str | None:
+    """Normalize an allowlist path; reject '..', globs, dirs, escapes, and symlink components."""
+    if glob.has_magic(raw) or raw.endswith(("/", "\\")):
+        return None
+    expanded = Path(os.path.expanduser(raw))
+    if ".." in expanded.parts:
+        return None
+    abs_path = _normalized_abs(expanded)
+    if ".." in abs_path.parts or not abs_path.suffix:
+        return None
+    if _symlink_in_path(abs_path):
+        return None
+    if abs_path.exists() and (abs_path.is_dir() or abs_path.is_symlink()):
+        return None
+    real = Path(os.path.realpath(abs_path))
+    if str(real) != str(abs_path):
+        return None
+    if "yt" not in real.parts:
+        return None
+    after = real.parts[real.parts.index("yt") + 1 :]
+    if not after or "meta" in after:
+        return None
+    return str(real)
+
+
+def _yt_verified_path() -> Path | None:
+    """Env override (owner-only 0600) or default config when present and owner-only."""
+    override = os.environ.get(YT_VERIFIED_ENV, "").strip()
+    if override:
+        candidate = Path(os.path.expanduser(override))
+        if not _owner_only_file(candidate):
+            _log({"yt_verified_source": "env-rejected", "path": str(candidate), "reason": "not-owner-only-0600"})
+            return None
+        _log({"yt_verified_source": "env", "path": str(candidate)})
+        return candidate
+    default = YT_VERIFIED_FILE.expanduser()
+    if not default.is_file():
+        return None
+    if not _owner_only_file(default):
+        _log({"yt_verified_source": "default-rejected", "path": str(default), "reason": "not-owner-only-0600"})
+        return None
+    _log({"yt_verified_source": "default", "path": str(default)})
+    return default
+
+
+def _load_yt_verified() -> dict[str, dict[str, str]]:
+    """realpath -> {video_id, sha256}. Globs, dirs, escapes, and bad proofs are skipped."""
+    config = _yt_verified_path()
+    if config is None:
+        return {}
+    out: dict[str, dict[str, str]] = {}
+    for line in config.read_text(encoding="utf-8").splitlines():
+        item = line.strip()
+        if not item or item.startswith("#"):
+            continue
+        parts = item.split()
+        if len(parts) != 3:
+            continue
+        raw, video_id, digest = parts
+        if not YT_VIDEO_ID.fullmatch(video_id) or not YT_SHA256.fullmatch(digest):
+            continue
+        real = _safe_listed_realpath(raw)
+        if real is None:
+            continue
+        out[real] = {"video_id": video_id, "sha256": digest}
+    return out
+
+
+def _yt_containment_ok(real: Path) -> bool:
+    if "yt" not in real.parts:
+        return False
+    after = real.parts[real.parts.index("yt") + 1 :]
+    return bool(after) and "meta" not in after
+
+
+def _yt_verified_uploaded(path: Path, part: str | None = None) -> bool:
+    """#7525: allowlisted yt file with matching sha256 + oEmbed; contained; re-checked live."""
+    del part
+    if ".." in Path(os.path.expanduser(str(path))).parts:
+        return False
+    if _symlink_in_path(path):
+        return False
+    abs_norm = _normalized_abs(path)
+    if ".." in abs_norm.parts:
+        return False
+    try:
+        real = Path(os.path.realpath(abs_norm))
+    except OSError:
+        return False
+    if str(real) != str(abs_norm):
+        return False
+    if not _yt_containment_ok(real):
+        return False
+    if not real.is_file() or real.is_symlink():
+        return False
+    entries = _load_yt_verified()
+    entry = entries.get(str(real))
+    if entry is None:
+        return False
+    try:
+        if _file_sha256(real) != entry["sha256"]:
+            return False
+    except OSError:
+        return False
+    return bool(youtube_video_exists(entry["video_id"]))
+
+
 def never_touch(path: Path) -> str:
     """Non-empty when no code may unlock deleting ``path`` (itself, inside, or directly containing a protected dir)."""
     names, patterns = _never_rules()
     for part in path.parts:
         hit = next((name for name in names if fnmatchcase(part, name)), "")
-        if hit == "yt" and _yt_render(path, part):
+        if hit == "yt" and (_yt_render(path, part) or _yt_verified_uploaded(path, part)):
             continue
         if hit:
             return f"never-touch `{hit}`"
