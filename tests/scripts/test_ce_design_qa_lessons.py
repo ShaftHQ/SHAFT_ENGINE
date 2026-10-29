@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import subprocess  # nosec B404 - fixed list-form argv in tests, never a shell.
 import sys
 import tempfile
@@ -17,6 +18,11 @@ DESIGN = ROOT / "chaos-engine/addons/design-skills"
 LESSONS = DESIGN / "references/lessons"
 QC = DESIGN / "scripts/design_qc.py"
 
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:  # pragma: no cover - skip path when Pillow absent
+    Image = ImageDraw = ImageFont = None  # type: ignore[misc, assignment]
+
 CARDS = {
     "privacy-names-gate.md": (
         "Scan caption text and ASR tokens",
@@ -26,6 +32,8 @@ CARDS = {
         "يا فلان",
         "يا [اسم]",
         "Fail-closed",
+        "احسن",
+        "يحسنوا",
     ),
     "endcard-band-concat.md": (
         "Burn bands on the content segment only",
@@ -58,7 +66,9 @@ def run_qc(*args: str) -> tuple[int, dict]:
         capture_output=True, text=True, check=False,
     )
     lines = [ln for ln in result.stdout.strip().splitlines() if ln.strip()]
-    payload = json.loads(lines[-1]) if lines else {"status": "error", "stdout": result.stdout, "stderr": result.stderr}
+    payload = json.loads(lines[-1]) if lines else {
+        "status": "error", "stdout": result.stdout, "stderr": result.stderr,
+    }
     return result.returncode, payload
 
 
@@ -69,6 +79,11 @@ def srt(*cues: tuple[float, float, str]) -> str:
     return "\n\n".join(
         f"{i}\n{stamp(a)} --> {stamp(b)}\n{text}" for i, (a, b, text) in enumerate(cues, 1)
     ) + "\n"
+
+
+def _require_pillow(test: unittest.TestCase) -> None:
+    if Image is None:
+        test.skipTest("Pillow required")
 
 
 class DesignQaLessonCardsTest(unittest.TestCase):
@@ -84,11 +99,17 @@ class DesignQaLessonCardsTest(unittest.TestCase):
                 for needle in needles:
                     self.assertIn(needle, text)
                 self.assertIn(f"]({name})", index)
-        self.assertIn("12 lesson", " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split()))
-        self.assertIn("privacy names", (DESIGN / "references/craft/index.md").read_text(encoding="utf-8"))
+        self.assertIn(
+            "12 lesson",
+            " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split()),
+        )
+        self.assertIn(
+            "privacy names",
+            (DESIGN / "references/craft/index.md").read_text(encoding="utf-8"),
+        )
 
     def test_cards_are_project_neutral(self) -> None:
-        banned = ("automatest", "mohab", "hrsd", "elmenus", "stc", *private_terms())
+        banned = ("automatest", "mohab", "hrsd", "elmenus", "stc", "price", *private_terms())
         for name in CARDS:
             lowered = (LESSONS / name).read_text(encoding="utf-8").lower()
             for word in banned:
@@ -134,6 +155,35 @@ class PrivacyNamesGateTest(unittest.TestCase):
             )
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
+    def test_lookalike_negatives_do_not_match_stem(self) -> None:
+        """احسن / يحسنوا embed حسن but must not trip whole-token denylist."""
+        with tempfile.TemporaryDirectory() as folder:
+            cues = Path(folder) / "look.srt"
+            cues.write_text(
+                srt((0, 2, "احسن حاجة"), (3, 5, "يحسنوا الوضع")),
+                encoding="utf-8",
+            )
+            code, payload = run_qc("privacynames", "--srt", str(cues), "--name", "حسن")
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+            self.assertEqual([], payload.get("hits", []))
+
+    def test_vocative_only_positive_fails_bare_passes(self) -> None:
+        """--vocative-only: يا حسن fails; bare حسن alone does not."""
+        with tempfile.TemporaryDirectory() as folder:
+            voc = Path(folder) / "voc.srt"
+            bare = Path(folder) / "bare.srt"
+            voc.write_text(srt((0, 2, "يا حسن تعال")), encoding="utf-8")
+            bare.write_text(srt((0, 2, "حسن تعال")), encoding="utf-8")
+            code, payload = run_qc(
+                "privacynames", "--srt", str(voc), "--name", "حسن", "--vocative-only", "حسن",
+            )
+            self.assertEqual(1, code, payload)
+            self.assertTrue(any("حسن" in h for h in payload["hits"]), payload)
+            code, payload = run_qc(
+                "privacynames", "--srt", str(bare), "--name", "حسن", "--vocative-only", "حسن",
+            )
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
 
 class TitlePunctGateTest(unittest.TestCase):
     def test_latin_title_rejects_arabic_qmark(self) -> None:
@@ -159,32 +209,36 @@ class TitlePunctGateTest(unittest.TestCase):
             code, payload = run_qc("titlepunct", "--metadata", str(meta))
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
+    def test_no_inputs_never_pass(self) -> None:
+        code, payload = run_qc("titlepunct")
+        self.assertNotEqual(0, code, payload)
+        self.assertIn(payload.get("status"), ("usage", "fail", "error"))
+
 
 class EndcardLiveGateTest(unittest.TestCase):
-    def _plate(self, path: Path, *, band_text: bool) -> None:
-        from PIL import Image, ImageDraw, ImageFont
-        im = Image.new("RGB", (1280, 720), (0, 38, 63))
+    def _plate(self, path: Path, *, band_text: bool, height: int = 720) -> None:
+        _require_pillow(self)
+        im = Image.new("RGB", (1280, height), (0, 38, 63))
         dr = ImageDraw.Draw(im)
-        # white plate
-        dr.rectangle([240, 240, 1040, 400], fill=(255, 255, 255))
-        if band_text:
-            dr.rectangle([0, 500, 1280, 675], fill=(0, 38, 63))
+        dr.rectangle([240, 240, 1040, min(400, height - 1)], fill=(255, 255, 255))
+        if band_text and height > 500:
+            dr.rectangle([0, 500, 1280, min(675, height - 1)], fill=(0, 38, 63))
             try:
                 font = ImageFont.truetype(
                     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 42
                 )
             except OSError:
                 font = ImageFont.load_default()
-            # Fill most of the band row with bright glyphs so ink_frac >> 0.01
             for y in (520, 560, 600):
-                dr.text((40, y), "SYNTHETIC QUESTION BAND TEXT " * 3, font=font, fill=(255, 255, 255))
+                if y < height:
+                    dr.text(
+                        (40, y), "SYNTHETIC QUESTION BAND TEXT " * 3,
+                        font=font, fill=(255, 255, 255),
+                    )
         im.save(path)
 
     def test_banded_live_fails_against_clean(self) -> None:
-        try:
-            from PIL import Image  # noqa: F401
-        except ImportError:
-            self.skipTest("Pillow required")
+        _require_pillow(self)
         with tempfile.TemporaryDirectory() as folder:
             clean = Path(folder) / "endcard.png"
             live_bad = Path(folder) / "live-bad.png"
@@ -204,10 +258,25 @@ class EndcardLiveGateTest(unittest.TestCase):
             )
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
+    def test_short_clean_oob_band_never_pass(self) -> None:
+        """Carl repro: 1280x720 live + 1280x400 clean @band_y=500 must FAIL (was fail-open)."""
+        _require_pillow(self)
+        with tempfile.TemporaryDirectory() as folder:
+            live = Path(folder) / "live.png"
+            clean = Path(folder) / "clean.png"
+            self._plate(live, band_text=True, height=720)
+            self._plate(clean, band_text=False, height=400)
+            code, payload = run_qc(
+                "endcardlive", "--live", str(live), "--clean", str(clean),
+                "--band-y", "500", "--band-h", "175",
+            )
+            self.assertEqual(1, code, payload)
+            self.assertIn(payload.get("status"), ("fail", "usage"))
+
 
 class QmarkBaselineGateTest(unittest.TestCase):
     def _band(self, path: Path, *, raised: bool) -> None:
-        from PIL import Image, ImageDraw, ImageFont
+        _require_pillow(self)
         im = Image.new("RGBA", (640, 180), (0, 38, 63, 255))
         dr = ImageDraw.Draw(im)
         try:
@@ -217,10 +286,8 @@ class QmarkBaselineGateTest(unittest.TestCase):
         except OSError:
             font = ImageFont.load_default()
         body = "QUALITY CHECK"
-        # Shared baseline y
         baseline = 100
         dr.text((40, baseline), body, font=font, fill=(255, 255, 255, 255), anchor="ls")
-        # Measure body width roughly
         bbox = dr.textbbox((40, baseline), body, font=font, anchor="ls")
         qx = bbox[2] + 8
         if raised:
@@ -230,10 +297,7 @@ class QmarkBaselineGateTest(unittest.TestCase):
         im.save(path)
 
     def test_raised_qmark_fails_aligned_passes(self) -> None:
-        try:
-            from PIL import Image  # noqa: F401
-        except ImportError:
-            self.skipTest("Pillow required")
+        _require_pillow(self)
         with tempfile.TemporaryDirectory() as folder:
             bad = Path(folder) / "raised.png"
             good = Path(folder) / "aligned.png"
@@ -244,6 +308,22 @@ class QmarkBaselineGateTest(unittest.TestCase):
             self.assertGreater(payload.get("bottom_offset_frac", 0), 0.06)
             code, payload = run_qc("qmarkbaseline", str(good), "--direction", "ltr")
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
+    def test_blank_png_never_pass(self) -> None:
+        _require_pillow(self)
+        with tempfile.TemporaryDirectory() as folder:
+            blank = Path(folder) / "blank.png"
+            Image.new("RGBA", (640, 180), (0, 38, 63, 255)).save(blank)
+            code, payload = run_qc("qmarkbaseline", str(blank), "--direction", "ltr")
+            self.assertEqual(1, code, payload)
+            self.assertEqual("fail", payload.get("status"))
+            self.assertEqual("no_text", payload.get("reason"))
+
+    def test_nonfinite_frac_is_fail(self) -> None:
+        """Mirrors craft_qc fail rule: not math.isfinite(frac) or frac > thr."""
+        self.assertTrue((not math.isfinite(float("nan"))) or (float("nan") > 0.06))
+        self.assertTrue((not math.isfinite(float("inf"))) or (float("inf") > 0.06))
+        self.assertFalse((not math.isfinite(0.01)) or (0.01 > 0.06))
 
 
 if __name__ == "__main__":

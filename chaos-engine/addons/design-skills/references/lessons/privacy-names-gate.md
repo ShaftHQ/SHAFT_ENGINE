@@ -1,6 +1,6 @@
 ---
 name: privacy-names-gate
-description: Use when gating captions or ASR for personal names and hard prices before a public publish; vocatives and mute notes alone.
+description: Use when gating captions or ASR for personal names and hard currency amounts before a public publish; vocatives and mute notes alone.
 ---
 
 # L09 Privacy names gate
@@ -8,7 +8,7 @@ description: Use when gating captions or ASR for personal names and hard prices 
 ## Use when
 
 A captioned talk clip, Short, or metadata pack is about to ship and must
-not leak personal names or hard prices. Extends
+not leak personal names or hard currency amounts. Extends
 [L06](caption-video-qc.md) (ASR QC) and the content-scan preflight.
 
 ## Rules
@@ -26,9 +26,9 @@ not leak personal names or hard prices. Extends
 4. **Mute notes never PASS alone.** A review note that says "muted 12.0–
    14.0" without a text-scan receipt is a fail. The gate must record that
    caption and ASR were scanned.
-5. **Hard prices** (currency amounts) fail the same gate when present in
-   caption or ASR text. Project price patterns stay in `--price-re` or
-   project scripts; CE ships a small currency-agnostic default.
+5. **Hard currency amounts** fail the same gate when present in caption
+   or ASR text. Project amount patterns stay in the gate's amount-regex
+   flag or in project scripts; CE ships a small currency-agnostic default.
 
 ## Verify
 
@@ -38,8 +38,10 @@ not leak personal names or hard prices. Extends
       on the vocative bigram `يا` + `فلان`.
 - [ ] A notes file that only lists mute windows (no `text-scan`) fails
       even when the SRT is clean: mute alone ≠ PASS.
-- [ ] Lookalikes that embed a name stem inside another word (project
-      cases) do not trip whole-token matching.
+- [ ] Lookalikes that embed a name stem inside another word do not trip
+      whole-token matching. Synthetic negatives: `احسن` / `يحسنوا` must
+      not match denylist `حسن`. Vocative-only positive: `يا حسن` with
+      `--vocative-only حسن` fails; bare `حسن` alone does not.
 
 ## Why
 

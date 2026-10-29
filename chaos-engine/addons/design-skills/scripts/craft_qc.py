@@ -7,6 +7,7 @@ and the craft cards in references/craft/. Each check is red-then-green tested.
 from __future__ import annotations
 
 import json
+import math
 import re
 import statistics
 from pathlib import Path
@@ -1530,21 +1531,21 @@ def _load_asr_words(path: Path) -> list[dict]:
     return []
 
 
-DEFAULT_PRICE_RE = re.compile(
+DEFAULT_AMOUNT_RE = re.compile(
     r"(\d[\d,]*\s*(?:USD|EUR|EGP|\$)|(?:USD|EUR|EGP)\s*\d)",
     re.I,
 )
 
 
 def cmd_privacynames(qc, args) -> int:
-    """L09: caption + ASR personal-name / hard-price scan; mute notes alone never PASS.
+    """L09: caption + ASR personal-name / hard-amount scan; mute notes alone never PASS.
 
     Project denylist via --name (repeatable). --vocative-only marks tokens that
     only count after يا/ياا. Synthetic examples in tests use فلان / Alice.
     """
     names = {_tok_alnum(n) for n in (args.name or []) if _tok_alnum(n)}
     vocative_only = {_tok_alnum(n) for n in (args.vocative_only or []) if _tok_alnum(n)}
-    price_re = re.compile(args.price_re, re.I) if args.price_re else DEFAULT_PRICE_RE
+    amount_re = re.compile(args.amount_re, re.I) if args.amount_re else DEFAULT_AMOUNT_RE
     if not names and not args.allow_empty_names:
         return qc.report(
             "privacynames", qc.USAGE,
@@ -1557,8 +1558,8 @@ def cmd_privacynames(qc, args) -> int:
         for lineno, line in _srt_cue_lines(Path(args.srt).read_text(encoding="utf-8")):
             for name in _name_hits_in_line(line, names, vocative_only):
                 hits.append(f"srt:{lineno} name={name}")
-            if price_re.search(line):
-                hits.append(f"srt:{lineno} hard-price")
+            if amount_re.search(line):
+                hits.append(f"srt:{lineno} hard-amount")
     if args.words:
         scanned = True
         words = _load_asr_words(Path(args.words))
@@ -1573,13 +1574,11 @@ def cmd_privacynames(qc, args) -> int:
                 if tok in vocative_only and not is_voc:
                     continue
                 hits.append(f"asr:{i} name={tok}" + (" vocative" if is_voc else ""))
-            if price_re.search(w):
-                hits.append(f"asr:{i} hard-price")
+            if amount_re.search(w):
+                hits.append(f"asr:{i} hard-amount")
     notes_ok = True
-    notes_detail = None
     if args.notes:
         notes = Path(args.notes).read_text(encoding="utf-8")
-        notes_detail = notes[:200]
         has_mute = bool(re.search(r"\bmute", notes, re.I))
         has_text_scan = bool(re.search(r"text[- ]?scan|srt[- ]?scan|asr[- ]?scan|privacynames", notes, re.I))
         if has_mute and not has_text_scan:
@@ -1597,7 +1596,7 @@ def cmd_privacynames(qc, args) -> int:
         names=sorted(names),
         scanned=["srt"] * bool(args.srt) + ["asr"] * bool(args.words),
         notes_ok=notes_ok,
-        note="fail-closed on residual name/price hits; mute notes alone never PASS (L09)",
+        note="fail-closed on residual name/amount hits; mute notes alone never PASS (L09)",
     )
 
 
@@ -1608,67 +1607,87 @@ def _script_direction(text: str) -> str:
     return "ltr"
 
 
-def cmd_titlepunct(qc, args) -> int:
-    """L11: title/desc question mark matches script (Latin ? vs Arabic ؟)."""
-    ar_q, lat_q = "؟", "?"
-    url_re = re.compile(r"https?://\S+|www\.\S+", re.I)
-    errors: list[str] = []
-    title = args.title or ""
-    desc = args.desc or ""
-    if args.metadata:
-        text = Path(args.metadata).read_text(encoding="utf-8")
-        section, buf = None, []
-        blocks: dict[str, str] = {}
-        for line in text.splitlines() + ["## _end"]:
-            if line.startswith("## "):
-                if section:
-                    blocks[section] = "\n".join(buf).strip()
-                heading = line[3:].strip().lower()
-                buf = []
-                if heading.startswith("title"):
-                    section = "title"
-                elif heading.startswith("description"):
-                    section = "description"
-                else:
-                    section = None
-                continue
+def _titlepunct_blocks(metadata_path: str) -> dict[str, str]:
+    text = Path(metadata_path).read_text(encoding="utf-8")
+    section, buf = None, []
+    blocks: dict[str, str] = {}
+    for line in text.splitlines() + ["## _end"]:
+        if line.startswith("## "):
             if section:
-                buf.append(line)
-        title = title or blocks.get("title", "")
-        desc = desc or blocks.get("description", "")
+                blocks[section] = "\n".join(buf).strip()
+            heading = line[3:].strip().lower()
+            buf = []
+            if heading.startswith("title"):
+                section = "title"
+            elif heading.startswith("description"):
+                section = "description"
+            else:
+                section = None
+            continue
+        if section:
+            buf.append(line)
+    return blocks
 
-    def check_one(label: str, raw: str) -> None:
-        if not raw or not raw.strip():
-            return
-        cleaned = url_re.sub(" ", raw)
-        if not cleaned.strip():
-            return
-        direction = _script_direction(cleaned.rstrip("؟?"))
-        expected = ar_q if direction == "rtl" else lat_q
-        has_ar, has_lat = ar_q in cleaned, lat_q in cleaned
-        if not has_ar and not has_lat:
-            return
-        if expected == lat_q and has_ar:
-            errors.append(f"{label}: Latin-script uses Arabic ؟; use ASCII '?'")
-        if expected == ar_q and has_lat:
-            errors.append(f"{label}: Arabic/RTL uses ASCII '?'; use Arabic '؟'")
 
-    check_one("title", title)
-    title_bare = title.strip().rstrip("؟?").rstrip() if title else ""
-    title_dir = _script_direction(title_bare) if title_bare else None
-    title_exp = (ar_q if title_dir == "rtl" else lat_q) if title_dir else None
+def _titlepunct_mark_errors(label: str, raw: str, url_re, ar_q: str, lat_q: str) -> list[str]:
+    if not raw or not raw.strip():
+        return []
+    cleaned = url_re.sub(" ", raw)
+    if not cleaned.strip():
+        return []
+    direction = _script_direction(cleaned.rstrip("؟?"))
+    expected = ar_q if direction == "rtl" else lat_q
+    has_ar, has_lat = ar_q in cleaned, lat_q in cleaned
+    if not has_ar and not has_lat:
+        return []
+    out: list[str] = []
+    if expected == lat_q and has_ar:
+        out.append(f"{label}: Latin-script uses Arabic ؟; use ASCII '?'")
+    if expected == ar_q and has_lat:
+        out.append(f"{label}: Arabic/RTL uses ASCII '?'; use Arabic '؟'")
+    return out
+
+
+def _titlepunct_desc_errors(
+    desc: str, title_bare: str, title_exp: str | None, url_re, ar_q: str, lat_q: str,
+) -> list[str]:
+    errors: list[str] = []
     for i, line in enumerate(desc.splitlines(), 1):
         cleaned = url_re.sub(" ", line)
         if "؟" not in cleaned and "?" not in cleaned:
             continue
         if title_bare and title_bare in cleaned and title_exp:
             after = cleaned[cleaned.find(title_bare) + len(title_bare):]
-            if title_exp == lat_q and (ar_q in cleaned[cleaned.find(title_bare):] or after.lstrip().startswith(ar_q)):
+            span = cleaned[cleaned.find(title_bare):]
+            if title_exp == lat_q and (ar_q in span or after.lstrip().startswith(ar_q)):
                 errors.append(f"desc:L{i}: embedded Latin title uses ؟")
-            if title_exp == ar_q and lat_q in after and ar_q not in cleaned[cleaned.find(title_bare):]:
+            if title_exp == ar_q and lat_q in after and ar_q not in span:
                 errors.append(f"desc:L{i}: embedded Arabic title uses ?")
         else:
-            check_one(f"desc:L{i}", cleaned)
+            errors.extend(_titlepunct_mark_errors(f"desc:L{i}", cleaned, url_re, ar_q, lat_q))
+    return errors
+
+
+def cmd_titlepunct(qc, args) -> int:
+    """L11: title/desc question mark matches script (Latin ? vs Arabic ؟)."""
+    ar_q, lat_q = "؟", "?"
+    url_re = re.compile(r"https?://\S+|www\.\S+", re.I)
+    title = args.title or ""
+    desc = args.desc or ""
+    if args.metadata:
+        blocks = _titlepunct_blocks(args.metadata)
+        title = title or blocks.get("title", "")
+        desc = desc or blocks.get("description", "")
+    if not (title.strip() or desc.strip() or args.metadata):
+        return qc.report(
+            "titlepunct", qc.USAGE,
+            error="pass --title, --desc, and/or --metadata; empty input never PASS",
+        )
+    errors = _titlepunct_mark_errors("title", title, url_re, ar_q, lat_q)
+    title_bare = title.strip().rstrip("؟?").rstrip() if title else ""
+    title_dir = _script_direction(title_bare) if title_bare else None
+    title_exp = (ar_q if title_dir == "rtl" else lat_q) if title_dir else None
+    errors.extend(_titlepunct_desc_errors(desc, title_bare, title_exp, url_re, ar_q, lat_q))
     errors = list(dict.fromkeys(errors))
     return qc.report(
         "titlepunct",
@@ -1681,16 +1700,24 @@ def cmd_titlepunct(qc, args) -> int:
 
 
 def _band_ink_frac(rgb, y0: int, y1: int) -> float:
-    """Fraction of bright (near-white) pixels in band rows — proxy for text ink."""
-    import numpy as np
+    """Fraction of bright (near-white) pixels in band rows — proxy for text ink.
+
+    Returns NaN when the band is empty so callers fail closed (never 0.0 PASS).
+    """
+    if y0 >= y1 or y0 < 0 or y1 > rgb.shape[0]:
+        return float("nan")
     region = rgb[y0:y1, :, :].astype("int16")
+    if region.size == 0:
+        return float("nan")
     r, g, b = region[:, :, 0], region[:, :, 1], region[:, :, 2]
     bright = (r > 200) & (g > 200) & (b > 200)
     # Exclude near-navy ground and warm gold accents
     navy = (r < 40) & (g < 80) & (b < 100)
     gold = (r > 180) & (g > 140) & (b < 180) & (r > b + 40)
     ink = bright & ~navy & ~gold
-    return float(ink.mean()) if ink.size else 0.0
+    if ink.size == 0:
+        return float("nan")
+    return float(ink.mean())
 
 
 def cmd_endcardlive(qc, args) -> int:
@@ -1720,27 +1747,41 @@ def cmd_endcardlive(qc, args) -> int:
 
     live_im = np.array(Image.open(live_path).convert("RGB"))
     clean_im = np.array(Image.open(clean).convert("RGB"))
-    y0, y1 = int(args.band_y), int(args.band_y) + int(args.band_h)
-    y1 = min(y1, live_im.shape[0], clean_im.shape[0])
+    y0 = int(args.band_y)
+    y1 = y0 + int(args.band_h)
+    live_h, clean_h = int(live_im.shape[0]), int(clean_im.shape[0])
+    # Both frames must fully cover a non-empty band; never clamp into empty slice.
+    if y0 < 0 or y1 <= y0 or live_h < y1 or clean_h < y1:
+        return qc.report(
+            "endcardlive", qc.FAIL,
+            error="band out of bounds or empty; both frames must cover y0:y1",
+            band=[y0, y1],
+            live_h=live_h,
+            clean_h=clean_h,
+            live_frame=str(live_path),
+            clean_png=str(clean),
+        )
     live_ink = _band_ink_frac(live_im, y0, y1)
     clean_ink = _band_ink_frac(clean_im, y0, y1)
     delta = abs(live_ink - clean_ink)
     tl = live_im[0:100, 0:100] if live_im.shape[0] >= 100 and live_im.shape[1] >= 100 else live_im
     topleft_white = float(np.all(tl >= 250, axis=2).mean()) if tl.size else 0.0
+    finite = all(math.isfinite(v) for v in (live_ink, clean_ink, delta, topleft_white))
     ok = (
-        live_ink <= float(args.max_live_ink)
+        finite
+        and live_ink <= float(args.max_live_ink)
         and delta <= float(args.max_ink_delta)
         and topleft_white < 0.05
     )
     return qc.report(
         "endcardlive",
         qc.PASS if ok else qc.FAIL,
-        live_ink_frac=round(live_ink, 5),
-        clean_ink_frac=round(clean_ink, 5),
-        ink_delta=round(delta, 5),
+        live_ink_frac=None if not math.isfinite(live_ink) else round(live_ink, 5),
+        clean_ink_frac=None if not math.isfinite(clean_ink) else round(clean_ink, 5),
+        ink_delta=None if not math.isfinite(delta) else round(delta, 5),
         max_live_ink=float(args.max_live_ink),
         max_ink_delta=float(args.max_ink_delta),
-        topleft_white_frac=round(topleft_white, 4),
+        topleft_white_frac=round(topleft_white, 4) if math.isfinite(topleft_white) else None,
         band=[y0, y1],
         live_frame=str(live_path),
         clean_png=str(clean),
@@ -1787,7 +1828,10 @@ def cmd_qmarkbaseline(qc, args) -> int:
         mask[cut:, :] = False
     rows = np.where(mask.any(axis=1))[0]
     if len(rows) == 0:
-        return qc.report("qmarkbaseline", qc.PASS, reason="no_text", path=str(path))
+        return qc.report(
+            "qmarkbaseline", qc.FAIL, reason="no_text",
+            path=str(path), note="blank/no-ink frame never PASS (L12)",
+        )
     groups: list[tuple[int, int]] = []
     start = prev = int(rows[0])
     for r in rows[1:]:
@@ -1827,10 +1871,12 @@ def cmd_qmarkbaseline(qc, args) -> int:
         line_h = max(1.0, baseline - body_top + 1.0)
         q_bottom = float(q[3])
         frac = abs(q_bottom - baseline) / line_h
+        fail = (not math.isfinite(frac)) or frac > threshold
         return {
             "side": side, "q_bottom": q_bottom, "baseline": baseline,
-            "line_h": line_h, "bottom_offset_frac": round(frac, 4),
-            "fail": frac > threshold,
+            "line_h": line_h,
+            "bottom_offset_frac": None if not math.isfinite(frac) else round(frac, 4),
+            "fail": fail,
         }
 
     sides = ["right"] if direction == "ltr" else ["left"] if direction == "rtl" else ["left", "right"]
@@ -1840,7 +1886,11 @@ def cmd_qmarkbaseline(qc, args) -> int:
             "qmarkbaseline", qc.PASS, reason="no_trailing_qmark",
             path=str(path), direction=direction, components=len(comps),
         )
-    worst = max(checked, key=lambda c: c["bottom_offset_frac"])
+    # Prefer finite fractions for worst-of ranking; non-finite always fail.
+    def _rank(c):
+        v = c["bottom_offset_frac"]
+        return float("inf") if v is None else v
+    worst = max(checked, key=_rank)
     status = qc.FAIL if any(c["fail"] for c in checked) else qc.PASS
     return qc.report(
         "qmarkbaseline", status,
@@ -2060,7 +2110,7 @@ def register(add, qc) -> None:
     p = add("pptxbidi", bind(cmd_pptxbidi), "Arabic PPTX paragraphs: native rtl, no bidi controls, native bullets")
     p.add_argument("file")
     p = add("privacynames", bind(cmd_privacynames),
-            "L09: caption+ASR personal names/prices; mute notes alone never PASS")
+            "L09: caption+ASR personal names/amounts; mute notes alone never PASS")
     p.add_argument("--srt", default=None, help="caption SRT to scan")
     p.add_argument("--words", default=None, help="ASR words.json to scan")
     p.add_argument("--name", action="append", default=[],
@@ -2068,10 +2118,10 @@ def register(add, qc) -> None:
     p.add_argument("--vocative-only", action="append", default=[], dest="vocative_only",
                    help="token only counts after يا/ياا")
     p.add_argument("--notes", default=None, help="review notes; mute without text-scan fails")
-    p.add_argument("--price-re", default=None, dest="price_re",
-                   help="override hard-price regex")
+    p.add_argument("--amount-re", default=None, dest="amount_re",
+                   help="override hard-amount regex")
     p.add_argument("--allow-empty-names", action="store_true", dest="allow_empty_names",
-                   help="allow price-only scan with no --name")
+                   help="allow amount-only scan with no --name")
     p = add("titlepunct", bind(cmd_titlepunct),
             "L11: title/desc question mark matches script (Latin ? vs Arabic ؟)")
     p.add_argument("--title", default="", help="title string")
@@ -2088,7 +2138,7 @@ def register(add, qc) -> None:
     p.add_argument("--max-live-ink", type=float, default=0.01, dest="max_live_ink")
     p.add_argument("--max-ink-delta", type=float, default=0.008, dest="max_ink_delta")
     p = add("qmarkbaseline", bind(cmd_qmarkbaseline),
-            "L12: trailing ?/؟ ink bottom vs body baseline (fail >6% line_h)")
+            "L12: trailing ?/؟ ink bottom vs body baseline (fail >6%% line_h)")
     p.add_argument("file", help="rendered band PNG")
     p.add_argument("--direction", choices=("ltr", "rtl"), default=None)
     p.add_argument("--max-frac", type=float, default=0.06, dest="max_frac")
