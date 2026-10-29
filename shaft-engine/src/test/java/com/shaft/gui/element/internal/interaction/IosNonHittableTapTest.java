@@ -10,6 +10,8 @@ import org.mockito.ArgumentCaptor;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Rectangle;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebElement;
 import org.testng.annotations.AfterMethod;
@@ -25,7 +27,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,7 +41,8 @@ import static org.testng.Assert.fail;
 /**
  * Drives the shipped iOS element click and {@code touch().tap(locator)} from their public entry points.
  * A non-hittable element whose page source does not change must not be reported as a successful tap
- * unless a W3C centre-tap recovery changes the page (#7531 / #6908).
+ * unless a W3C centre-tap recovery changes the page (#7531 / #6908). Unreadable page source after
+ * {@code mobile: tap} fails closed with no further tap (#6913 contract).
  */
 // Instance fields (driver, helper, saved properties) are per-test state: methods must not interleave
 // under the nightly's -DsetParallel=METHODS (#6931).
@@ -45,7 +50,10 @@ import static org.testng.Assert.fail;
 public class IosNonHittableTapTest {
     private static final By LOGIN = By.xpath("//*[@name='login_iam_loginButton']");
     private static final String UNCHANGED_SOURCE = "<XCUIElementTypeApplication><XCUIElementTypeButton name=\"login_iam_loginButton\" hittable=\"false\"/></XCUIElementTypeApplication>";
-    private static final String AFTER_W3C_SOURCE = "<XCUIElementTypeApplication><XCUIElementTypeOther name=\"civil_id_entry\"/></XCUIElementTypeApplication>";
+    private static final String AFTER_MOBILE_SOURCE = "<XCUIElementTypeApplication><XCUIElementTypeOther name=\"next_screen_entry\"/></XCUIElementTypeApplication>";
+    private static final String AFTER_W3C_SOURCE = "<XCUIElementTypeApplication><XCUIElementTypeOther name=\"next_screen_entry\"/></XCUIElementTypeApplication>";
+    /** Selenium Rectangle ctor is (x, y, height, width). Button 329×53 at (32,645) → centre (196,671). */
+    private static final Rectangle FIXTURE_RECT = new Rectangle(32, 645, 53, 329);
 
     private String platform;
     private String browserName;
@@ -84,7 +92,7 @@ public class IosNonHittableTapTest {
         RemoteWebElement element = mock(RemoteWebElement.class);
         when(element.getId()).thenReturn("login_iam_loginButton");
         when(element.getSize()).thenReturn(new Dimension(120, 44));
-        when(element.getRect()).thenReturn(new Rectangle(32, 645, 329, 53));
+        when(element.getRect()).thenReturn(FIXTURE_RECT);
         when(element.getTagName()).thenReturn("XCUIElementTypeButton");
         when(element.isDisplayed()).thenReturn(true);
         when(element.isEnabled()).thenReturn(true);
@@ -114,7 +122,7 @@ public class IosNonHittableTapTest {
         RemoteWebElement localElement = mock(RemoteWebElement.class);
         when(localElement.getId()).thenReturn("login_iam_loginButton");
         when(localElement.getSize()).thenReturn(new Dimension(329, 53));
-        when(localElement.getRect()).thenReturn(new Rectangle(32, 645, 329, 53));
+        when(localElement.getRect()).thenReturn(FIXTURE_RECT);
         when(localElement.getDomAttribute(anyString())).thenReturn("false");
         when(localElement.getAttribute(anyString())).thenReturn("false");
         // before → after mobile (unchanged) → after W3C (changed)
@@ -128,7 +136,30 @@ public class IosNonHittableTapTest {
         ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
         verify(localDriver, times(1)).executeScript(eq("mobile: tap"), params.capture());
         assertEquals(params.getValue().get("elementId"), "login_iam_loginButton");
-        verify(localDriver, times(1)).perform(anyCollection());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Collection<Sequence>> sequences = ArgumentCaptor.forClass(Collection.class);
+        verify(localDriver, times(1)).perform(sequences.capture());
+        assertW3cCentreCoords(sequences.getValue(), 196, 671);
+    }
+
+    @Test
+    public void unreadablePageSourceBeforeAnchoredTapDoesNotReportSuccess() {
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getId()).thenReturn("login_iam_loginButton");
+        when(localElement.getSize()).thenReturn(new Dimension(120, 44));
+        when(localElement.getRect()).thenReturn(new Rectangle(10, 20, 44, 120));
+        when(localElement.getDomAttribute(anyString())).thenReturn("false");
+        when(localElement.getAttribute(anyString())).thenReturn("false");
+        when(localDriver.getPageSource()).thenReturn(null, UNCHANGED_SOURCE);
+        doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+        doAnswer(invocation -> null).when(localDriver).perform(any());
+
+        Throwable failure = failureFrom(() -> IosNonHittableTap.afterReportedClick(localDriver, localElement));
+        assertNoEffect(failure);
+        verify(localDriver, times(1)).executeScript(eq("mobile: tap"), any());
+        verify(localDriver, never()).perform(anyCollection());
     }
 
     @Test
@@ -137,15 +168,114 @@ public class IosNonHittableTapTest {
         RemoteWebElement localElement = mock(RemoteWebElement.class);
         when(localElement.getId()).thenReturn("login_iam_loginButton");
         when(localElement.getSize()).thenReturn(new Dimension(120, 44));
-        when(localElement.getRect()).thenReturn(new Rectangle(10, 20, 120, 44));
+        when(localElement.getRect()).thenReturn(new Rectangle(10, 20, 44, 120));
         when(localElement.getDomAttribute(anyString())).thenReturn("false");
         when(localElement.getAttribute(anyString())).thenReturn("false");
-        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE, (String) null, (String) null);
+        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE, (String) null);
         doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
         doAnswer(invocation -> null).when(localDriver).perform(any());
 
         Throwable failure = failureFrom(() -> IosNonHittableTap.afterReportedClick(localDriver, localElement));
         assertNoEffect(failure);
+        verify(localDriver, times(1)).executeScript(eq("mobile: tap"), any());
+        verify(localDriver, never()).perform(anyCollection());
+    }
+
+    @Test
+    public void mobileTapRecoverySucceedsWithoutW3cWhenPageSourceChanges() {
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getId()).thenReturn("login_iam_loginButton");
+        when(localElement.getSize()).thenReturn(new Dimension(329, 53));
+        when(localElement.getRect()).thenReturn(FIXTURE_RECT);
+        when(localElement.getDomAttribute(anyString())).thenReturn("false");
+        when(localElement.getAttribute(anyString())).thenReturn("false");
+        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE, AFTER_MOBILE_SOURCE);
+        doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+        doAnswer(invocation -> null).when(localDriver).perform(any());
+
+        IosNonHittableTap.afterReportedClick(localDriver, localElement);
+
+        verify(localDriver, times(1)).executeScript(eq("mobile: tap"), any());
+        verify(localDriver, never()).perform(anyCollection());
+    }
+
+    @Test
+    public void missingElementRectFailsLoudWithoutW3cTap() {
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getId()).thenReturn("login_iam_loginButton");
+        when(localElement.getSize()).thenReturn(new Dimension(329, 53));
+        when(localElement.getRect()).thenReturn(null);
+        when(localElement.getDomAttribute(anyString())).thenReturn("false");
+        when(localElement.getAttribute(anyString())).thenReturn("false");
+        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE);
+        doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+        doAnswer(invocation -> null).when(localDriver).perform(any());
+
+        Throwable failure = failureFrom(() -> IosNonHittableTap.afterReportedClick(localDriver, localElement));
+        assertNoEffect(failure);
+        verify(localDriver, never()).perform(anyCollection());
+    }
+
+    @Test
+    public void getRectFailureFailsLoudWithoutW3cTap() {
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getId()).thenReturn("login_iam_loginButton");
+        when(localElement.getSize()).thenReturn(new Dimension(329, 53));
+        when(localElement.getRect()).thenThrow(new RuntimeException("stale element"));
+        when(localElement.getDomAttribute(anyString())).thenReturn("false");
+        when(localElement.getAttribute(anyString())).thenReturn("false");
+        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE);
+        doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+        doAnswer(invocation -> null).when(localDriver).perform(any());
+
+        Throwable failure = failureFrom(() -> IosNonHittableTap.afterReportedClick(localDriver, localElement));
+        assertNoEffect(failure);
+        verify(localDriver, never()).perform(anyCollection());
+    }
+
+    @Test
+    public void w3cPerformFailureStillFailsLoud() {
+        IOSDriver localDriver = mock(IOSDriver.class);
+        RemoteWebElement localElement = mock(RemoteWebElement.class);
+        when(localElement.getId()).thenReturn("login_iam_loginButton");
+        when(localElement.getSize()).thenReturn(new Dimension(329, 53));
+        when(localElement.getRect()).thenReturn(FIXTURE_RECT);
+        when(localElement.getDomAttribute(anyString())).thenReturn("false");
+        when(localElement.getAttribute(anyString())).thenReturn("false");
+        when(localDriver.getPageSource()).thenReturn(UNCHANGED_SOURCE);
+        doAnswer(invocation -> null).when(localDriver).executeScript(anyString(), any());
+        doThrow(new RuntimeException("gesture rejected")).when(localDriver).perform(any());
+
+        Throwable failure = failureFrom(() -> IosNonHittableTap.afterReportedClick(localDriver, localElement));
+        assertNoEffect(failure);
+        verify(localDriver, times(1)).perform(anyCollection());
+    }
+
+    @Test
+    public void w3cElementCenterTapRejectsNonAppiumDriver() {
+        WebDriver plain = mock(WebDriver.class);
+        WebElement element = mock(WebElement.class);
+        when(element.getRect()).thenReturn(FIXTURE_RECT);
+
+        assertFalse(IosNonHittableTap.w3cElementCenterTap(plain, element));
+    }
+
+    private static void assertW3cCentreCoords(Collection<Sequence> sequences, int expectedX, int expectedY) {
+        assertFalse(sequences == null || sequences.isEmpty(), "expected a W3C Sequence");
+        Sequence tap = sequences.iterator().next();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> encoded = tap.encode();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> actions = (List<Map<String, Object>>) encoded.get("actions");
+        Map<String, Object> move = actions.stream()
+                .filter(action -> "pointerMove".equals(action.get("type")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no pointerMove in " + actions));
+        assertEquals(((Number) move.get("x")).intValue(), expectedX, "W3C centre x: " + move);
+        assertEquals(((Number) move.get("y")).intValue(), expectedY, "W3C centre y: " + move);
     }
 
     private static Throwable failureFrom(Runnable action) {

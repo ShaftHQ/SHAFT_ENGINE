@@ -31,7 +31,8 @@ import java.util.Map;
  *       diagnosis in #6908 that a centre pointer tap reaches the control when
  *       element click does not.</li>
  * </ol>
- * Screen-only taps without an element rectangle are not used. When neither recovery
+ * Screen-only taps without an element rectangle are not used. Unreadable page source
+ * after {@code mobile: tap} fails closed with no further tap. When neither recovery
  * changes the page source, the action fails instead of returning success.
  */
 public final class IosNonHittableTap {
@@ -56,10 +57,14 @@ public final class IosNonHittableTap {
         if (anchored && pageChanged(before, afterMobile)) {
             return;
         }
-        String beforeW3c = afterMobile != null ? afterMobile : before;
+        // Fail closed when page source is unreadable — same contract as #6913; do not W3C-tap
+        // stale centre coords on a possibly already-navigated screen.
+        if (before == null || afterMobile == null) {
+            throw new IosTapHadNoEffectException(NO_EFFECT_MESSAGE);
+        }
         boolean w3c = w3cElementCenterTap(driver, element);
         String afterW3c = readPageSource(driver);
-        if (w3c && pageChanged(beforeW3c, afterW3c)) {
+        if (w3c && pageChanged(afterMobile, afterW3c)) {
             return;
         }
         throw new IosTapHadNoEffectException(NO_EFFECT_MESSAGE);
