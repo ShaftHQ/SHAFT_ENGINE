@@ -14,5 +14,9 @@ one lesson card.
 | [L06 caption and video QC](caption-video-qc.md) | splice joins, frame sampling, fade tails, ASR hallucinations |
 | [L07 Arabic text and mirroring](arabic-rtl-type-mirroring.md) | Arabic text on any surface; mirroring layout, icons and arrows for RTL |
 | [L08 visual-first approach](visual-first-approach.md) | choosing or iterating a visual/media approach before multi-pass; visual gate before metrics |
+| [L09 privacy names gate](privacy-names-gate.md) | captions/ASR personal names + vocatives; mute notes alone never PASS |
+| [L10 end-card band concat](endcard-band-concat.md) | burn overlay bands on content only; gate live end card vs clean plate |
+| [L11 title punct by script](title-punct-by-script.md) | metadata title/desc question marks: Latin `?` vs Arabic `؟` |
+| [L12 question-mark baseline](qmark-baseline.md) | mixed-font trailing `?`/`؟` shares body baseline (`anchor=ls`) |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).
