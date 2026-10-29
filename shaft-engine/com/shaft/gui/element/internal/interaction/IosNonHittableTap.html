@@ -71,10 +71,18 @@
 and the control does not run. Both <code>driver.element().click(locator)</code> and
 <code>driver.touch().tap(locator)</code> call this after that reported click.
 
-<p>The recovery is an element-anchored <code>mobile: tap</code> with the element id and
-element-relative centre coordinates (<code>width/2</code>, <code>height/2</code>).
-Screen coordinates are not used. When the page source does not change,
-the action fails instead of returning success.</div>
+<p>Recovery order:
+<ol>
+  <li>Element-anchored <code>mobile: tap</code> with the element id and element-relative
+      centre coordinates (<code>width/2</code>, <code>height/2</code>).</li>
+  <li>If page source is unchanged, a W3C touch pointer tap at the element's centre
+      (viewport coordinates from <code>WebElement.getRect()</code>), matching the
+      diagnosis in #6908 that a centre pointer tap reaches the control when
+      element click does not.</li>
+</ol>
+Screen-only taps without an element rectangle are not used. Unreadable page source
+after <code>mobile: tap</code> fails closed with no further tap. When neither recovery
+changes the page source, the action fails instead of returning success.</div>
 </div>
 </section>
 <section class="summary">
