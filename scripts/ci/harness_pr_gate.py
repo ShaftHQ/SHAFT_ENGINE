@@ -509,6 +509,7 @@ CHECKS = {
             "tests.scripts.test_process_owner_scrum_master",
             "tests.scripts.test_multi_agent_pdca",
             "tests.scripts.test_parallel_streams",
+            "tests.scripts.test_box_disk_guard",
             "tests.scripts.test_pre_done_review",
         ),
     ),
@@ -535,6 +536,7 @@ CHECKS = {
             "tests.scripts.test_ce_design_less_css_l33",
             "tests.scripts.test_ce_design_liveseo",
             "tests.scripts.test_ce_design_paste_robots_l34",
+            "tests.scripts.test_ce_design_video_caption_l35",
             "tests.scripts.test_ce_design_batch3",
             "tests.scripts.test_ce_design_decks",
             "tests.scripts.test_harness_isolated_imports",
@@ -1122,6 +1124,7 @@ SURFACE_PATTERNS = {
         "scripts/ci/parallel_stream_conflict.py",
         "scripts/ci/worktree_hygiene.py",
         "tests/scripts/test_parallel_streams.py",
+        "tests/scripts/test_box_disk_guard.py",
     ),
     # #6411-#6414: decision-quality gate, dod, latency budgets, usage table.
     "ce-h2-gates": (
@@ -1154,6 +1157,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_ce_design_less_css_l33.py",
         "tests/scripts/test_ce_design_liveseo.py",
         "tests/scripts/test_ce_design_paste_robots_l34.py",
+        "tests/scripts/test_ce_design_video_caption_l35.py",
         "tests/scripts/test_ce_design_batch3.py",
         "tests/scripts/test_ce_design_decks.py",
     ),

@@ -35,7 +35,12 @@ class ParallelStreamsProtocolTest(unittest.TestCase):
             "live behaviour",
             "no force-push",
             "Never force-push",
-            "20 GiB",
+            "15 GiB",
+            "10 GiB",
+            "box_disk_guard.py",
+            "Cache caps",
+            "Own scratch TTL",
+            "Definition of Done",
             "filter=blob:none",
             "git worktree add",
             "scratch_pending_cleanup",
@@ -49,6 +54,7 @@ class ParallelStreamsProtocolTest(unittest.TestCase):
             "--prune-after-task-cleanup",
             "never-touch",
             "parallel_stream_conflict.py",
+            "refuse_dispatch",
         ):
             self.assertIn(needle, text)
 
@@ -84,7 +90,10 @@ class ParallelStreamsProtocolTest(unittest.TestCase):
 
     def test_bot_entry_disk_gate_and_per_stream_wip(self) -> None:
         text = (REFS / "bot-entry.md").read_text(encoding="utf-8")
-        self.assertIn("20 GiB", text)
+        self.assertIn("15 GiB", text)
+        self.assertIn("10 GiB", text)
+        self.assertIn("box_disk_guard", text)
+        self.assertIn("post-merge own cleanup", text)
         self.assertIn("WIP limit 1\nper stream", text)
         self.assertIn("(parallel-streams.md)", text)
 
@@ -105,6 +114,7 @@ class ParallelStreamsProtocolTest(unittest.TestCase):
         self.assertIn("post-merge own cleanup", delegation)
         self.assertIn("post-merge own cleanup", iterative)
         self.assertIn("owned globs in the manifest", iterative)
+        self.assertIn("Post-merge own cleanup ran", iterative)
 
     def test_skills_map_lists_parallel_streams(self) -> None:
         readme = (ROOT / ".agents/skills/README.md").read_text(encoding="utf-8")

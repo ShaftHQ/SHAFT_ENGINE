@@ -88,8 +88,9 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
   mounting: recheck, never clone over it. Keep `graphify-out/` and
   `.chaos-engine-state/` untracked; do not rebuild a Graphify index per
   worktree on the same host when one shared index already exists.
-- Disk gate before a new worktree or clone: refuse under 20 GiB free; never
-  add a full clone when a blobless primary for that repo already exists.
+- Disk gate before a new worktree or clone: warn under 15 GiB free, block
+  under 10 GiB or at the linked-worktree cap (`box_disk_guard`); never add a
+  full clone when a blobless primary already exists.
   Details: [parallel streams](parallel-streams.md).
 - Keep tools and drafts outside `/tmp` (a box restore wipes it) and check
   `git ls-files -d` before each push.
@@ -107,9 +108,11 @@ manifest, conflict check, disk gate, no force-push under review).
 
 ## After each delivery
 
-Learning Session after every final delivery (owner approval, completed
-publish, or final merge): run it yourself at once, per the
-[router contract](router-contract.md#learning-session). Then run
+After every final delivery (owner approval, completed publish, or final
+merge), DoD in order: [post-merge own cleanup](parallel-streams.md#post-merge-own-cleanup)
+(mandatory; hygiene proofs; own items only), disk/cache inventory via
+`box_disk_guard`, Learning Session per the
+[router contract](router-contract.md#learning-session), then
 `python3 .chaos-engine/tool.py maintain` before the next task.
 
 Lock held, harness edits, or an older overlay:

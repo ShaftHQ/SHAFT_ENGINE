@@ -40,6 +40,7 @@ one lesson card.
 | [L32 Arabic tech code-switch](arabic-tech-codeswitch.md) | EN tech terms in Arabic UI; no و next to bdi Latin in headings |
 | [L33 LESS Custom CSS grid/calc](less-css-grid-calc.md) | longhand grid + escaped calc under LESS 1.3.3 |
 | [L34 Paste robots noindex](paste-robots-noindex.md) | no robots noindex/nofollow or X-Robots-Tag in Code-block paste |
+| [L35 Video caption handoff](video-caption-handoff.md) | human captions, script filter, speech cue gap, TP/fps/VFX/onset |
 | [L36 CMS paste fragment only](cms-paste-fragment-only.md) | Code-block paste = fragment; dir/lang + CSS on wrapper; header Δ≤1px vs `/` |
 | [L37 CMS paste no HTML comments](cms-paste-no-html-comments.md) | no `<!--` in paste; ops notes leak live |
 
