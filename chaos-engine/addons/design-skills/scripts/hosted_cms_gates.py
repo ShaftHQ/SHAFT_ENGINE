@@ -217,7 +217,12 @@ def _css_skip_simple_ident(s: str, i: int, n: int) -> int:
 
 
 def _css_consume_pseudo(s: str, i: int, n: int) -> tuple[int, int]:
-    """s[i] == ':'. Return (new_index, root_hits from :root / selector-arg pseudos)."""
+    """s[i] == ':'. Return (new_index, root_hits from :root / selector-arg pseudos).
+
+    Whitespace after the pseudo name is left for the main loop unless it is the
+    optional space before '(', so descendant combinators like `:hover body` stay
+    visible as combinator boundaries.
+    """
     i += 1
     if i < n and s[i] == ":":
         i += 1
@@ -225,34 +230,44 @@ def _css_consume_pseudo(s: str, i: int, n: int) -> tuple[int, int]:
         return i, 0
     name, i = _css_read_ident(s, i)
     hits = 1 if name == "root" else 0
-    i = _css_skip_ws(s, i, n)
-    if i < n and s[i] == "(":
-        args, i = _css_read_balanced_inner(s, i)
+    j = _css_skip_ws(s, i, n)
+    if j < n and s[j] == "(":
+        args, j = _css_read_balanced_inner(s, j)
         if name in _SELECTOR_ARG_PSEUDOS:
             hits += _count_type_roots_in_selector(args)
+        return j, hits
     return i, hits
 
 
 def _css_consume_star(s: str, i: int, n: int) -> tuple[int, bool]:
-    """s[i] == '*'. Return (new_index, at_type_pos after * or *|)."""
+    """s[i] == '*'. Return (new_index, at_type_pos after * or *|).
+
+    Peek for optional whitespace before namespace '|'; leave other whitespace for
+    the main loop so `* body` remains a descendant combinator. After bare `*`,
+    keep at_type_pos True so compound `*body` / `*\62 ody` still score.
+    """
     i += 1
-    i = _css_skip_ws(s, i, n)
-    if i < n and s[i] == "|":
-        return i + 1, True
-    return i, False
+    j = _css_skip_ws(s, i, n)
+    if j < n and s[j] == "|":
+        return j + 1, True
+    return i, True
 
 
 def _css_consume_type_or_ns(
     s: str, i: int, n: int, at_type_pos: bool,
 ) -> tuple[int, int, bool]:
-    """Read ident; handle ns| / func( / type root. Return (i, hits, at_type_pos)."""
+    """Read ident; handle ns| / func( / type root. Return (i, hits, at_type_pos).
+
+    Whitespace after the ident is left for the main loop unless it precedes
+    namespace '|' or function '(', so `div body` keeps its descendant combinator.
+    """
     name, i = _css_read_ident(s, i)
-    i = _css_skip_ws(s, i, n)
-    if i < n and s[i] == "|":
-        return i + 1, 0, True
-    if i < n and s[i] == "(":
-        _, i = _css_read_balanced_inner(s, i)
-        return i, 0, False
+    j = _css_skip_ws(s, i, n)
+    if j < n and s[j] == "|":
+        return j + 1, 0, True
+    if j < n and s[j] == "(":
+        _, j = _css_read_balanced_inner(s, j)
+        return j, 0, False
     hits = 1 if at_type_pos and name in _ROOT_TYPE_NAMES else 0
     return i, hits, False
 

@@ -482,6 +482,63 @@ class CmsPasteCommentsL37Test(unittest.TestCase):
             self.assertEqual(1, code, payload)
             self.assertGreaterEqual(payload.get("html_comment_hits", 0), 1, payload)
 
+    def test_cmsmeta_rejects_whitespace_descendant_root_combinators(self) -> None:
+        """A1 FN: whitespace after *, type, or pseudo is a descendant combinator."""
+        cases = {
+            "star_body.html": (
+                "<div><style>* body{color:red}</style><h1>x</h1></div>"
+            ),
+            "star_body_multi_ws.html": (
+                "<div><style>*  body{color:red}</style><h1>x</h1></div>"
+            ),
+            "star_body_tab.html": (
+                "<div><style>*\tbody{color:red}</style><h1>x</h1></div>"
+            ),
+            "star_body_newline.html": (
+                "<div><style>*\nbody{color:red}</style><h1>x</h1></div>"
+            ),
+            "div_body.html": (
+                "<div><style>div body{color:red}</style><h1>x</h1></div>"
+            ),
+            "hover_body.html": (
+                "<div><style>:hover body{color:red}</style><h1>x</h1></div>"
+            ),
+            "star_escape_body.html": (
+                "<div><style>* \\62 ody{color:red}</style><h1>x</h1></div>"
+            ),
+            "star_escape_nospace.html": (
+                "<div><style>*\\000062ody{color:red}</style><h1>x</h1></div>"
+            ),
+            "class_x_body.html": (
+                "<div><style>.x body{color:red}</style><h1>x</h1></div>"
+            ),
+            "star_plus_body.html": (
+                "<div><style>*+body{color:red}</style><h1>x</h1></div>"
+            ),
+            "star_gt_body.html": (
+                "<div><style>*>body{color:red}</style><h1>x</h1></div>"
+            ),
+            "star_tilde_body.html": (
+                "<div><style>*~body{color:red}</style><h1>x</h1></div>"
+            ),
+            "star_plus_ws_body.html": (
+                "<div><style>* + body{color:red}</style><h1>x</h1></div>"
+            ),
+            "comment_between.html": (
+                "<div><style>* /*c*/ body{color:red}</style><h1>x</h1></div>"
+            ),
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(1, code, (name, payload))
+                self.assertGreaterEqual(
+                    payload.get("global_css_root_hits", 0), 1, (name, payload),
+                )
+
+
     def test_cmsmeta_rejects_conditional_comment(self) -> None:
         """FN guard: IE conditional comments are real markup comments → FAIL."""
         html = "<!--[if IE]><div class=\"x\">legacy</div><![endif]-->\n<div>ok</div>"
