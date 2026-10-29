@@ -1466,7 +1466,7 @@ public class AndroidTouchActionsCoverageUnitTest {
             prepareParameters.invoke(
                     touchActions, TouchActions.SwipeDirection.UP, By.id("plain-container"), By.id("target"));
             Assert.fail("expected IllegalStateException for missing Appium element id");
-        } catch (java.lang.reflect.InvocationTargetException ex) {
+        } catch (InvocationTargetException ex) {
             Assert.assertTrue(ex.getCause() instanceof IllegalStateException, String.valueOf(ex.getCause()));
             Assert.assertTrue(ex.getCause().getMessage().contains("Appium remote element"),
                     ex.getCause().getMessage());
