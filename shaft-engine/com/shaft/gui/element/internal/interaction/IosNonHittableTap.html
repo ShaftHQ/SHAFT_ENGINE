@@ -50,6 +50,7 @@
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
 <li><a href="#afterReportedClick(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement)" tabindex="0">afterReportedClick(WebDriver, WebElement)</a></li>
+<li><a href="#afterReportedClick(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.String)" tabindex="0">afterReportedClick(WebDriver, WebElement, String)</a></li>
 </ol>
 </li>
 </ol>
@@ -73,6 +74,12 @@ and the control does not run. Both <code>driver.element().click(locator)</code> 
 
 <p>Recovery order:
 <ol>
+  <li>If a pre-click page-source snapshot was supplied and the tree already shows a
+      structural effect after volatile XCUI noise is normalized away (new
+      sheet/alert/modal/window, hierarchy or element-set change — not status-bar
+      clock/spinner/progress ticks alone), treat the tap as success — do not use
+      post-tap <code>hittable=false</code> on the covered opener as "no effect"
+      (#7571).</li>
   <li>Element-anchored <code>mobile: tap</code> with the element id and element-relative
       centre coordinates (<code>width/2</code>, <code>height/2</code>).</li>
   <li>If page source is unchanged, a W3C touch pointer tap at the element's centre
@@ -121,7 +128,16 @@ changes the page source, the action fails instead of returning success.
 <div class="col-first even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
 <div class="col-second even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#afterReportedClick(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement)" class="member-name-link">afterReportedClick</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
  org.openqa.selenium.WebElement&nbsp;element)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">&nbsp;</div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Post-click guard without a pre-click snapshot.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code>static void</code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4"><code><a href="#afterReportedClick(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.String)" class="member-name-link">afterReportedClick</a><wbr>(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element,
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageSourceBeforeClick)</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab1 method-summary-table-tab4">
+<div class="block">Post-click iOS guard using a pre-click page-source snapshot to recognize sheet/modal opens.</div>
+</div>
 </div>
 </div>
 </div>
@@ -145,6 +161,28 @@ changes the page source, the action fails instead of returning success.
 <div class="horizontal-scroll">
 <div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">afterReportedClick</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver,
  org.openqa.selenium.WebElement&nbsp;element)</span></div>
+<div class="block">Post-click guard without a pre-click snapshot. Prefer
+<a href="#afterReportedClick(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.String)"><code>afterReportedClick(WebDriver, WebElement, String)</code></a> from the click path.</div>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="afterReportedClick(org.openqa.selenium.WebDriver,org.openqa.selenium.WebElement,java.lang.String)">
+<h3>afterReportedClick</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public static</span>&nbsp;<span class="return-type">void</span>&nbsp;<span class="element-name">afterReportedClick</span><wbr><span class="parameters">(org.openqa.selenium.WebDriver&nbsp;driver,
+ org.openqa.selenium.WebElement&nbsp;element,
+ @Nullable
+ <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;pageSourceBeforeClick)</span></div>
+<div class="block">Post-click iOS guard using a pre-click page-source snapshot to recognize sheet/modal opens.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>pageSourceBeforeClick</code> - page source captured before <code>element.click()</code>, or
+                             <code>null</code> when unavailable; when present and the tree
+                             already shows a structural effect after the click
+                             (volatile status-bar/clock/progress noise ignored),
+                             recovery is skipped</dd>
+</dl>
 </div>
 </section>
 </li>
