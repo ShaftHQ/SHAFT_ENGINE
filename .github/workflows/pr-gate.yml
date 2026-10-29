@@ -291,6 +291,12 @@ jobs:
               # together or the gate asserts on a file it never re-runs for.
               - 'scripts/ci/extract_allure_failures.py'
               - 'tests/scripts/test_extract_allure_failures.py'
+              # #7530: Flutter emulator PATH contracts (GITHUB_PATH pin) live in
+              # visual-ocr-workflow; without these paths Agent Guidance Gate
+              # skips and the riskiest-assumption tests never run on the PR.
+              - 'scripts/ci/flutter_emulator_preflight.sh'
+              - 'scripts/ci/run_ubuntu_flutter_emulator_e2e.sh'
+              - 'tests/scripts/test_visual_ocr_workflow.py'
             intellij:
               - 'shaft-intellij/**'
               # Issue #6438: the shaft-mcp contract validator ran only nightly, so a

@@ -7,6 +7,7 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.remote.SupportsContextSwitching;
 import org.openqa.selenium.Capabilities;
+import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Platform;
@@ -15,7 +16,6 @@ import com.shaft.gui.capabilities.internal.LiveSessionSupport;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 /**
  * Collects mobile and mobile-emulation metadata for SHAFT trace events.
@@ -168,9 +168,9 @@ public final class MobileTraceMetadata {
                 || DriverFactoryHelper.isMobileWebExecution();
     }
 
-    @Nullable
     private static Capabilities capabilities(WebDriver driver) {
-        return LiveSessionSupport.capabilities(driver);
+        Capabilities caps = LiveSessionSupport.capabilities(driver);
+        return caps != null ? caps : new MutableCapabilities();
     }
 
     private static String capability(Capabilities capabilities, String key) {

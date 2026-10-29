@@ -867,6 +867,31 @@ class OutputAndWorkflowTest(unittest.TestCase):
         ):
             self.assertIn(f"'tests/scripts/{name}'", pr_gate)
 
+    def test_flutter_emulator_path_scripts_bind_visual_ocr_and_agent_guidance(self) -> None:
+        # #7530 / #7540 D1+D2: PATH contract scripts must both select the
+        # visual-ocr-workflow harness surface and start Agent Guidance Gate.
+        filters = self.filters()
+        guidance = filters["agent_guidance"]
+        surface = SURFACE_PATTERNS["visual-ocr-workflow"]
+        paths = (
+            "scripts/ci/flutter_emulator_preflight.sh",
+            "scripts/ci/run_ubuntu_flutter_emulator_e2e.sh",
+            "tests/scripts/test_visual_ocr_workflow.py",
+        )
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertIn(path, guidance)
+                self.assertTrue(
+                    any(fnmatch.fnmatchcase(path, pattern) for pattern in surface),
+                    f"{path} does not select visual-ocr-workflow",
+                )
+                plan = classify_paths([path])
+                self.assertIn("visual-ocr-workflow", plan.surfaces)
+                self.assertIn(
+                    "visual-ocr-workflow-contract",
+                    {check.id for check in plan.checks},
+                )
+
     def test_scheduled_chaos_gauge_recovery_is_enforced_when_its_workflow_changes(self) -> None:
         plan = classify_paths([".github/workflows/agent-plugin-acceptance.yml"])
         scheduled = (ROOT / ".github/workflows/agent-plugin-acceptance.yml").read_text(

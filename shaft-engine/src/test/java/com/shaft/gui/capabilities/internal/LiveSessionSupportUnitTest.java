@@ -36,6 +36,7 @@ public class LiveSessionSupportUnitTest {
         Capabilities actual = LiveSessionSupport.capabilities(driver);
 
         Assert.assertSame(actual, expected);
+        Assert.assertNotNull(actual);
         Assert.assertEquals(actual.getBrowserName(), "chrome");
     }
 
@@ -85,5 +86,19 @@ public class LiveSessionSupportUnitTest {
         Assert.assertFalse(LiveSessionSupport.isClosedRemoteSession(null));
         Assert.assertFalse(LiveSessionSupport.hasLiveRemoteSession(null));
         Assert.assertNull(LiveSessionSupport.capabilities(null));
+    }
+
+    @Test
+    public void utilityClassConstructorIsPrivate() throws Exception {
+        var ctor = LiveSessionSupport.class.getDeclaredConstructor();
+        Assert.assertTrue(java.lang.reflect.Modifier.isPrivate(ctor.getModifiers()));
+        ctor.setAccessible(true);
+        try {
+            ctor.newInstance();
+            Assert.fail("expected IllegalStateException");
+        } catch (java.lang.reflect.InvocationTargetException ex) {
+            Assert.assertTrue(ex.getCause() instanceof IllegalStateException);
+            Assert.assertEquals(ex.getCause().getMessage(), "Utility class");
+        }
     }
 }

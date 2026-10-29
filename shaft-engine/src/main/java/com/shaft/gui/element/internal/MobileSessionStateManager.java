@@ -22,7 +22,6 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 /**
  * Saves and restores Appium session capabilities and mobile app-state snapshots for one WebDriver session.
@@ -221,9 +220,9 @@ public final class MobileSessionStateManager {
         }
     }
 
-    @Nullable
     private static Capabilities capabilities(WebDriver driver) {
-        return LiveSessionSupport.capabilities(driver);
+        Capabilities caps = LiveSessionSupport.capabilities(driver);
+        return caps != null ? caps : new MutableCapabilities();
     }
 
     private static String capability(Capabilities capabilities, String key) {

@@ -1,6 +1,7 @@
 from pathlib import Path
 import re
 import shlex
+import tempfile
 import unittest
 
 import yaml
@@ -158,9 +159,19 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertLess(helper.find("APK_PATH="), helper.find('ls -l "$APK_PATH"'))
         self.assertIn("-Dallure.automaticallyOpen=false", helper)
         self.assertIn("-DheadlessExecution=true", helper)
-        self.assertEqual(1, helper.count("socket hang up"))
-        self.assertIn("Restarting Appium once.", helper)
-        self.assertLess(helper.find("socket hang up"), helper.rfind("attempt_flutter_test"))
+        # #7496 on main: GNU timeout primary + one capped restart; "socket hang up"
+        # appears in the mavenLog grep and in the warning text (not a device-fallback
+        # --mode error no-op). Detailed timeout contracts live in test_mobile_retro_harness.
+        capped = (
+            'timeout --signal=TERM --kill-after=60s "$DEVICE_CAP_S" '
+            "bash -c 'attempt_flutter_test'"
+        )
+        self.assertEqual(2, helper.count(capped))
+        self.assertIn('grep -q "socket hang up"', helper)
+        self.assertEqual(2, helper.count("socket hang up"))
+        self.assertIn("authorized device fallback", helper)
+        self.assertNotIn("device-fallback --mode error", helper)
+        self.assertNotIn("Restarting Appium once.", helper)
         self.assertIn("shaft-engine/allure-results", helper)
         self.assertIn("127.0.0.1:4723", helper)
 
@@ -285,3 +296,59 @@ class WindowsLocalCommandLineTest(unittest.TestCase):
                     if len(scope) + len(run) > 8000:
                         self.assertEqual(step.get("shell"), "bash", f"{name}: {step.get('name')}")
         self.assertGreater(checked, 0)
+
+class FlutterEmulatorAppiumPathTest(unittest.TestCase):
+    """
+    #7530 Flutter root: preflight must persist pinned Appium via $GITHUB_PATH.
+
+    Nightly 40831421070: preflight installed the pin; emulator-runner lost appium
+    (`command not found` / server not ready). Riskiest assumption: same-shell
+    export PATH is insufficient across Actions steps.
+    """
+
+    def test_preflight_persists_pin_bin_via_github_path(self) -> None:
+        preflight = (ROOT / "scripts" / "ci" / "flutter_emulator_preflight.sh").read_text(encoding="utf-8")
+        self.assertIn('pin_bin="$pin/node_modules/.bin"', preflight)
+        self.assertIn('echo "$pin_bin" >> "$GITHUB_PATH"', preflight)
+        self.assertIn("${GITHUB_PATH:-}", preflight)
+        self.assertIn('export PATH="$pin_bin:$PATH"', preflight)
+        self.assertIn("npm-pins/appium-3.5.2", preflight)
+
+    def test_e2e_reresolves_pin_when_appium_missing(self) -> None:
+        helper = (ROOT / "scripts" / "ci" / "run_ubuntu_flutter_emulator_e2e.sh").read_text(encoding="utf-8")
+        self.assertIn("if ! command -v appium >/dev/null 2>&1; then", helper)
+        self.assertIn("npm-pins/appium-3.5.2", helper)
+        self.assertIn('export PATH="$pin/node_modules/.bin:$PATH"', helper)
+        self.assertIn("appium not on PATH", helper)
+
+    def test_github_path_entries_make_appium_visible_to_child_shell(self) -> None:
+        """Simulate Actions PATH rebuild from a $GITHUB_PATH file without a shell.
+
+        Runner semantics: each GITHUB_PATH line is prepended for later steps.
+        Pure-Python rebuild avoids a Codacy medium on subprocess in tests while
+        still proving pin_bin would win `command -v appium`.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pin_bin = tmp_path / "pin" / "node_modules" / ".bin"
+            pin_bin.mkdir(parents=True)
+            fake_appium = pin_bin / "appium"
+            fake_appium.write_text("#!/bin/sh\necho fake-appium\n", encoding="utf-8")
+            fake_appium.chmod(fake_appium.stat().st_mode | 0o100)
+            github_path = tmp_path / "github_path"
+            github_path.write_text(f"{pin_bin}\n", encoding="utf-8")
+
+            path_dirs = ["/usr/bin", "/bin"]
+            for line in github_path.read_text(encoding="utf-8").splitlines():
+                directory = line.strip()
+                if directory:
+                    path_dirs.insert(0, directory)
+
+            resolved = None
+            for directory in path_dirs:
+                candidate = Path(directory) / "appium"
+                if candidate.is_file():
+                    resolved = candidate
+                    break
+            self.assertIsNotNone(resolved)
+            self.assertEqual(fake_appium.resolve(), resolved.resolve())

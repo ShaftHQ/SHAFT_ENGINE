@@ -82,7 +82,7 @@ public final class IosNonHittableTap {
         return !driver.getClass().getName().contains("Flutter");
     }
 
-    private static boolean pageChanged(String before, String after) {
+    private static boolean pageChanged(@Nullable String before, @Nullable String after) {
         return before != null && after != null && !before.equals(after);
     }
 
@@ -95,6 +95,7 @@ public final class IosNonHittableTap {
         return attribute == null ? "" : attribute.trim();
     }
 
+    @Nullable
     private static String readAttribute(WebElement element, boolean domAttribute) {
         try {
             return domAttribute ? element.getDomAttribute("hittable") : element.getAttribute("hittable");
@@ -103,6 +104,7 @@ public final class IosNonHittableTap {
         }
     }
 
+    @Nullable
     private static String readPageSource(WebDriver driver) {
         try {
             return driver.getPageSource();

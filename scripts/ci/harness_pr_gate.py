@@ -1137,6 +1137,8 @@ SURFACE_PATTERNS = {
     "visual-ocr-workflow": (
         ".github/workflows/e2eTests.yml",
         ".github/workflows/e2eLocalTests.yml",
+        "scripts/ci/flutter_emulator_preflight.sh",
+        "scripts/ci/run_ubuntu_flutter_emulator_e2e.sh",
         "shaft-engine/src/test/java/testPackage/appium/AndroidBasicInteractionsTests.java",
         "shaft-engine/src/test/java/testPackage/appium/IOSBasicInteractionsTest.java",
         "tests/scripts/test_visual_ocr_workflow.py",
