@@ -49,6 +49,7 @@ REQUIRED_ROWS = (
 AGENT = (
     "Mozilla/5.0 (compatible; ChaosEngine-liveseo/1.0)"
 )
+WRITEOUT_MARK = "---CE_LIVESEO_WRITEOUT---"
 
 META_ROBOTS = re.compile(
     r"""<meta\s+[^>]*name\s*=\s*["']robots["'][^>]*content\s*=\s*["']([^"']+)["']"""
@@ -71,7 +72,10 @@ META_DESC = re.compile(
     re.IGNORECASE,
 )
 TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
-HTML_LANG = re.compile(r"""<\s*html\b[^>]*\blang\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
+HTML_LANG = re.compile(
+    r"""<\s*html\b[^>]*\blang\s*=\s*(?:["']([^"']+)["']|([^\s>]+))""",
+    re.IGNORECASE,
+)
 SLUG_BAD = re.compile(r"[A-Z_\s]|%20")
 LD_JSON_SCRIPT = re.compile(
     r"""<script\b[^>]*\btype\s*=\s*["']application/ld\+json["'][^>]*>(.*?)</script>""",
@@ -261,7 +265,9 @@ def check_page_html(html: str) -> dict[str, Any]:
     desc_m = META_DESC.search(html or "")
     desc = (desc_m.group(1) or desc_m.group(2) or "").strip() if desc_m else ""
     lang_m = HTML_LANG.search(html or "")
-    lang = (lang_m.group(1) or "").strip() if lang_m else ""
+    lang = ""
+    if lang_m:
+        lang = (lang_m.group(1) or lang_m.group(2) or "").strip()
     cans = []
     for m in CANONICAL.finditer(html or ""):
         cans.append(m.group(1) or m.group(2) or "")
@@ -362,14 +368,16 @@ def evaluate_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
     allow_unfix = bool(bundle.get("allow_og_unfixable"))
     if page["og_image_https"]:
         rows["og_image_https"] = True
-    elif allow_unfix and page["og_images"]:
+    elif page["og_images"]:
+        # http (plan-locked) social images: UNFIXABLE / WARN, not hard FAIL (card §14).
         rows["og_image_https"] = "unfixable"
         notes.append("og_image_unfixable")
-    elif allow_unfix and not page["og_images"]:
+        flags.append("og_image_http")
+    elif allow_unfix:
         rows["og_image_https"] = "unfixable"
         notes.append("og_image_absent_unfixable")
     else:
-        rows["og_image_https"] = bool(page["og_image_https"])
+        rows["og_image_https"] = False
 
     llms_status = int(bundle.get("llms_status") or 0)
     llms_text = str(bundle.get("llms_text") or "")
@@ -418,8 +426,33 @@ def evaluate_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _split_curl_writeout(out: str, fallback_url: str) -> tuple[int, str, str]:
+    """
+    Split curl stdout into (status, body, final_url) using WRITEOUT_MARK.
+
+    Bodies that omit a trailing newline must not glue into the status code.
+    """
+    text = out or ""
+    idx = text.rfind(WRITEOUT_MARK)
+    if idx < 0:
+        return 0, text, fallback_url
+    body = text[:idx]
+    if body.endswith("\n"):
+        body = body[:-1]
+    lines = text[idx + len(WRITEOUT_MARK) :].splitlines()
+    code_s = lines[0].strip() if lines else "000"
+    final = lines[1].strip() if len(lines) > 1 else fallback_url
+    try:
+        code = int(code_s)
+    except ValueError:
+        code = 0
+    return code, body, final or fallback_url
+
+
 def _curl(url: str, *, head: bool = False, timeout: int = 20) -> tuple[int, str, str, dict[str, str]]:
-    """Return status, body, final_url, headers via curl."""
+    """
+    Return status, body, final_url, headers via curl.
+    """
     curl = shutil.which("curl") or "curl"
     hdr_file = None
     try:
@@ -429,7 +462,8 @@ def _curl(url: str, *, head: bool = False, timeout: int = 20) -> tuple[int, str,
         hdr_file.close()
         cmd = [
             curl, "-sL", "--max-time", str(timeout), "-A", AGENT,
-            "-D", hdr_path, "-o", "-", "-w", "%{http_code}\n%{url_effective}",
+            "-D", hdr_path, "-o", "-",
+            "-w", f"\n{WRITEOUT_MARK}%{{http_code}}\n%{{url_effective}}",
         ]
         if head:
             cmd.append("-I")
@@ -437,19 +471,7 @@ def _curl(url: str, *, head: bool = False, timeout: int = 20) -> tuple[int, str,
         result = subprocess.run(  # nosec B603
             cmd, capture_output=True, text=True, check=False,
         )
-        out = result.stdout or ""
-        # Trailing write-out: last two lines are code and url.
-        lines = out.splitlines()
-        if len(lines) >= 2:
-            final = lines[-1].strip()
-            code_s = lines[-2].strip()
-            body = "\n".join(lines[:-2])
-        else:
-            final, code_s, body = url, "000", out
-        try:
-            code = int(code_s)
-        except ValueError:
-            code = 0
+        code, body, final = _split_curl_writeout(result.stdout or "", url)
         headers: dict[str, str] = {}
         raw_h = Path(hdr_path).read_text(encoding="utf-8", errors="replace")
         for block in raw_h.split("\r\n\r\n"):

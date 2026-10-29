@@ -224,5 +224,73 @@ class LiveseoGateTest(unittest.TestCase):
 
 
 
+    def test_split_curl_writeout_without_trailing_newline(self) -> None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("liveseo_gates", GATES)
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        mark = mod.WRITEOUT_MARK
+        # Body with no trailing newline before write-out (old parser glued status).
+        glued = "</body></html>" + mark + "200\nhttps://shafthq.github.io/"
+        code, body, final = mod._split_curl_writeout(glued, "https://x")
+        self.assertEqual(200, code)
+        self.assertTrue(body.endswith("</html>"), body)
+        self.assertIn("shafthq.github.io", final)
+        # Normal case with newline before marker (curl -w "\nMARK...").
+        normal = "</body></html>\n" + mark + "200\nhttps://shafthq.github.io/"
+        code, body, final = mod._split_curl_writeout(normal, "https://x")
+        self.assertEqual(200, code)
+        self.assertTrue(body.endswith("</html>"), body)
+
+    def test_html_lang_accepts_unquoted(self) -> None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("liveseo_gates", GATES)
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        page = mod.check_page_html(
+            "<html lang=en-US><head><title>T</title></head>"
+            "<body><h1>H</h1></body></html>",
+        )
+        self.assertTrue(page["html_lang_ok"], page)
+        self.assertEqual("en-US", page["html_lang"])
+
+    def test_http_og_image_is_unfixable_not_fail(self) -> None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("liveseo_gates", GATES)
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        bundle = {
+            "final_url": "https://www.example.com/",
+            "page_html": (
+                "<html lang=en><head>"
+                "<title>Example product home page title here</title>"
+                '<meta name="description" content="' + ("d" * 80) + '">'
+                '<link rel="canonical" href="https://www.example.com/">'
+                '<meta property="og:image" '
+                'content="http://static1.squarespace.com/og.png">'
+                '<script type="application/ld+json">'
+                '{"@type":"Organization","name":"Example"}'
+                "</script></head><body><h1>Example</h1><h2>Why</h2></body></html>"
+            ),
+            "page_headers": {},
+            "robots_status": 200,
+            "robots_text": "User-agent: *\nAllow: /\n",
+            "sitemap_status": 200,
+            "sitemap_text": "<urlset></urlset>",
+            "llms_status": 200,
+            "llms_text": "# Example\n",
+            "link_statuses": {},
+            "missing_status": 404,
+        }
+        rep = mod.evaluate_bundle(bundle)
+        self.assertEqual("unfixable", rep["rows"]["og_image_https"], rep)
+        self.assertNotIn("og_image_https", rep.get("failed") or [], rep)
+        self.assertIn("og_image_http", rep.get("flags") or [], rep)
+        self.assertIn(rep.get("status"), {"pass", "flag"}, rep)
+
+
 if __name__ == "__main__":
     unittest.main()
