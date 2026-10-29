@@ -1,4 +1,4 @@
-"""Design-skills lesson cards L01-L06 and the resource verdicts (#7333)."""
+"""Design-skills lesson cards L01-L08+L13 and the resource verdicts (#7333)."""
 
 from __future__ import annotations
 
@@ -35,7 +35,11 @@ CARDS = {
     "cross-surface-takeaways": ("at most 1 brand-colour key word", "1.05", "Explicit CTA end card",
                                 "big cursor", "Masked speaker", "Pattern interrupt", "verb first", "reduced motion"),
     "visual-first-approach": ("owner glance", "Visual / human gate first", "secondary",
-                              "delay sweep", "PROGRESS.md", "Resume at:", "numeric-only"),
+                              "delay sweep", "PROGRESS.md", "Resume at:", "numeric-only",
+                              "perceptual acceptance"),
+    "perceptual-acceptance": ("Proxies", "perceived realism", "Blind A/B", "real footage",
+                              "Perceptual fail overrides", "floors only", "NaN", "fail closed",
+                              "Never tune floors", "gates_all_pass", "real reference"),
 }
 RESOURCES = ("taste-skill", "ui-ux-pro-max-skill", "design-motion-principles", "getdesign.md", "design-md-chrome")
 
