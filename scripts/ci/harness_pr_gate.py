@@ -781,6 +781,7 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_latest_stable_pins.py",
         "chaos-engine/mobile_retro.py",
         "scripts/ci/no_push_guard.py",
+        "scripts/ci/mobile_retro_live.py",
     ),
     "plugins": (
         "agent-plugins/*",

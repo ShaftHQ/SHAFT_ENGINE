@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import ast
+import json
 import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -170,6 +172,176 @@ class NoPushWiringTest(unittest.TestCase):
         finally:
             overlay_pre_push.overlay_pre_push_failures = original  # type: ignore[assignment]
         self.assertTrue(seen, "overlay_pre_push_failures(paths=None) must run NO_PUSH wiring")
+
+
+
+class PostRunFreezeLivePathTest(unittest.TestCase):
+    def test_green_then_red_keeps_snapshot_and_pin(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            green = root / "results"
+            red = root / "results-red"
+            snap = root / "results-green"
+            pin = root / "pin.json"
+            green.mkdir()
+            (green / "ok.json").write_text("{\"ok\":true}", encoding="utf-8")
+            red.mkdir()
+            (red / "bad.json").write_text("{\"ok\":false}", encoding="utf-8")
+
+            kept = mobile_retro.post_run_freeze(
+                green, snap, green=True, pin_path=pin, build_id="b1", branch="main"
+            )
+            self.assertEqual(kept, snap)
+            self.assertTrue(pin.is_file())
+            self.assertTrue(mobile_retro.enforce_evidence_pin(pin, build_id="b1", branch="main"))
+
+            kept2 = mobile_retro.post_run_freeze(red, snap, green=False)
+            self.assertEqual(kept2, snap)
+            self.assertTrue((snap / "ok.json").is_file())
+            self.assertFalse((snap / "bad.json").exists())
+            self.assertFalse(mobile_retro.enforce_evidence_pin(pin, build_id="other", branch="main"))
+
+
+class RebuildLoopLivePathTest(unittest.TestCase):
+    def test_blocked_skips_rebuild(self) -> None:
+        calls: list[str] = []
+
+        def rebuild() -> None:
+            calls.append("rebuild")
+
+        status = mobile_retro.rebuild_loop_classify(
+            "API ignores app versionCode — server-side gate", rebuild=rebuild
+        )
+        self.assertEqual(status, "Blocked")
+        self.assertTrue(mobile_retro.should_stop_rebuild(status))
+        self.assertEqual(calls, [])
+
+    def test_failed_still_rebuilds(self) -> None:
+        calls: list[str] = []
+
+        def rebuild() -> None:
+            calls.append("rebuild")
+
+        status = mobile_retro.rebuild_loop_classify("NullPointerException", rebuild=rebuild)
+        self.assertEqual(status, "Failed")
+        self.assertFalse(mobile_retro.should_stop_rebuild(status))
+        self.assertEqual(calls, ["rebuild"])
+
+
+class DeviceFallbackLivePathTest(unittest.TestCase):
+    def test_device_fallback_uses_time_cap(self) -> None:
+        def primary() -> str:
+            raise RuntimeError("ClassNotFoundException")
+
+        self.assertEqual(
+            mobile_retro.device_fallback_run(primary, lambda: "local-device", cap_s=5.0),
+            "local-device",
+        )
+
+    def test_start_method_is_spawn_on_windows(self) -> None:
+        with mock.patch.object(mobile_retro.sys, "platform", "win32"):
+            ctx = mobile_retro._mp_context()
+        self.assertEqual(ctx.get_start_method(), "spawn")
+
+
+class EvidencePinPersistLivePathTest(unittest.TestCase):
+    def test_persist_and_enforce(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            pin_path = Path(tmp) / "evidence-pin.json"
+            mobile_retro.persist_evidence_pin(
+                pin_path, mobile_retro.EvidencePin(build_id="build-9", branch="feature/y")
+            )
+            self.assertTrue(
+                mobile_retro.enforce_evidence_pin(pin_path, build_id="build-9", branch="feature/y")
+            )
+            self.assertFalse(
+                mobile_retro.enforce_evidence_pin(pin_path, build_id="build-8", branch="feature/y")
+            )
+
+
+class LiveReporterNamedBlockTest(unittest.TestCase):
+    def test_report_writes_one_block_per_gap(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "blocks.json"
+            blocks = mobile_retro.live_report_named_blocks(
+                [
+                    ("scen-a", "gap-login", "missing grant"),
+                    ("scen-b", "gap-login", "missing grant"),
+                    ("scen-c", "gap-pay", "timeout"),
+                ],
+                report_path=report,
+            )
+            self.assertEqual(len(blocks), 2)
+            payload = json.loads(report.read_text(encoding="utf-8"))
+            by_gap = {row["gap_id"]: row for row in payload}
+            self.assertEqual(by_gap["gap-login"]["scenarios"], ["scen-a", "scen-b"])
+            self.assertEqual(by_gap["gap-pay"]["scenarios"], ["scen-c"])
+
+
+class LiveCliWiringTest(unittest.TestCase):
+    def test_live_cli_calls_live_paths(self) -> None:
+        src = (ROOT / "scripts/ci/mobile_retro_live.py").read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        attrs: set[str] = set()
+
+        class Visitor(ast.NodeVisitor):
+            def visit_Attribute(self, node: ast.Attribute) -> None:  # noqa: N802
+                if isinstance(node.value, ast.Name) and node.value.id == "mobile_retro":
+                    attrs.add(node.attr)
+                self.generic_visit(node)
+
+        Visitor().visit(tree)
+        for name in (
+            "post_run_freeze",
+            "rebuild_loop_classify",
+            "device_fallback_run",
+            "persist_evidence_pin",
+            "enforce_evidence_pin",
+            "live_report_named_blocks",
+        ):
+            self.assertIn(name, attrs, f"live CLI must call mobile_retro.{name}")
+
+    def test_lesson_names_live_cli(self) -> None:
+        lesson = (ROOT / "chaos-engine/references/mobile-retro-harness.md").read_text(encoding="utf-8")
+        self.assertIn("mobile_retro_live.py", lesson)
+        self.assertIn("post_run_freeze", lesson)
+        self.assertIn("Windows", lesson)
+
+    def test_cli_post_run_freeze_subprocess(self) -> None:
+        import subprocess
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            results = root / "results"
+            snap = root / "snap"
+            pin = root / "pin.json"
+            results.mkdir()
+            (results / "a.json").write_text("{}", encoding="utf-8")
+            proc = subprocess.run(  # nosec B603
+                [
+                    sys.executable,
+                    str(ROOT / "scripts/ci/mobile_retro_live.py"),
+                    "post-run-freeze",
+                    "--results",
+                    str(results),
+                    "--snapshot",
+                    str(snap),
+                    "--green",
+                    "--pin",
+                    str(pin),
+                    "--build-id",
+                    "b1",
+                    "--branch",
+                    "main",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertTrue((snap / "a.json").is_file())
+            self.assertTrue(pin.is_file())
+
 
 
 if __name__ == "__main__":
