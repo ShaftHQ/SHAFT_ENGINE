@@ -25,8 +25,6 @@ TOPBAR_IN_PASTE = re.compile(
 
 def check_cms_meta(html: str) -> dict[str, Any]:
     """L25: paste must not include og:/twitter: meta."""
-    hits = OG_TWITTER_META.findall(html or "")
-    # findall on the meta pattern returns the match of first group-less — use finditer
     count = len(list(OG_TWITTER_META.finditer(html or "")))
     if count:
         return {

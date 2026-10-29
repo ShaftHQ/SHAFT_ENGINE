@@ -2353,12 +2353,12 @@ def cmd_cuegapsnap(qc, args) -> int:
 # --- Hosted-CMS embed gates (L23–L31) -----------------------------------------
 def _hosted_cms():
     import importlib.util
-    from pathlib import Path as _P
     spec = importlib.util.spec_from_file_location(
-        "hosted_cms_gates", _P(__file__).with_name("hosted_cms_gates.py"),
+        "hosted_cms_gates", Path(__file__).with_name("hosted_cms_gates.py"),
     )
     mod = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
+    if spec.loader is None:
+        raise RuntimeError("hosted_cms_gates loader missing")
     spec.loader.exec_module(mod)
     return mod
 
@@ -2456,8 +2456,7 @@ def cmd_cmsduration(qc, args) -> int:
 
 def cmd_livecms(qc, args) -> int:
     """L28/L31: fail-closed live matrix receipt JSON."""
-    import json as _json
-    report_obj = _json.loads(Path(args.file).read_text(encoding="utf-8"))
+    report_obj = json.loads(Path(args.file).read_text(encoding="utf-8"))
     report = _hosted_cms().check_livecms(report_obj)
     status = report.pop("status")
     if status == "error":
