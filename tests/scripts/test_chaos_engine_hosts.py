@@ -956,12 +956,22 @@ class ChaosEngineHostsTest(unittest.TestCase):
             for config in (claude, gemini):
                 servers = config["mcpServers"]
                 self.assertEqual(
-                    {"chaosengine-memory", "chaosengine-mempalace", "context7"},
+                    {
+                        "chaosengine-memory",
+                        "chaosengine-mempalace",
+                        "context7",
+                        "chrome-devtools-mcp",
+                    },
                     set(servers),
                 )
                 self.assertEqual(
                     {"url": "https://mcp.context7.com/mcp"}, servers["context7"]
                 )
+                cdp = servers["chrome-devtools-mcp"]
+                self.assertEqual("npx", cdp["command"])
+                self.assertIn("chrome-devtools-mcp@1.12.0", cdp["args"])
+                self.assertIn("--no-usage-statistics", cdp["args"])
+                self.assertIn("--no-performance-crux", cdp["args"])
                 for name in ("chaosengine-memory", "chaosengine-mempalace"):
                     server = servers[name]
                     self.assertEqual("python3", server["command"])
@@ -4331,8 +4341,10 @@ class ChaosEngineHostsTest(unittest.TestCase):
 
         rendered = module.codex_content(legacy).decode()
 
-        self.assertNotIn('command = "npx"', rendered)
+        # Legacy Context7 npx packaging must be gone; optional CDP may still use npx.
+        self.assertNotIn("@upstash/context7-mcp", rendered)
         self.assertNotIn("required = false", rendered)
+        self.assertIn('url = "https://mcp.context7.com/mcp"', rendered)
 
         rerendered = module.codex_content(
             ("\n\nrequired = false\n" + rendered).encode()

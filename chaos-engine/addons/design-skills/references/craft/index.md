@@ -32,6 +32,8 @@ targets, an anchored rubric, and 20 verified references.
   hostile resets, full-width embed, livecms verify, plan-first,
   explainer length, paste then re-verify, Arabic tech code-switch, LESS CSS grid/calc, paste robots noindex, video caption handoff):
   [lesson cards](../lessons/index.md).
+- App recon / `app-recon` (screen/flow map, feature-gap matrix, evidence-linked
+  complaint themes; clean-room only): [recon-craft cards](../recon-craft/index.md).
 - Web craft (anti-generic lint, motion tokens, GSAP motion, micro-polish,
   measured type): [web-craft cards](../web-craft/index.md).
 - Video craft (Shorts safe area and caption groups, film review and sound):

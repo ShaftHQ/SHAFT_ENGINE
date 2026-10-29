@@ -34,7 +34,7 @@ CLI_OWNED_MCP: dict[str, frozenset[str]] = {
 # #6179: servers whose job a first-party CLI already does. Default catalogs
 # omit them; `--with-mcp` (or `with_mcp=True`) opts back in.
 CLI_EQUIVALENT_MCP_IDS = frozenset({"chaosengine-memory", "chaosengine-mempalace", "context7"})
-OPTIONAL_MCP_IDS = ("chaosengine-memory", "chaosengine-mempalace", "context7")
+OPTIONAL_MCP_IDS = ("chaosengine-memory", "chaosengine-mempalace", "context7", "chrome-devtools-mcp")
 
 
 def _profile_named(path: Path, profile: str) -> bool:
