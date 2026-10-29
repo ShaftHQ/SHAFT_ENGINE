@@ -10,7 +10,6 @@ import com.shaft.gui.playwright.internal.PlaywrightSession;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.InteractsWithApps;
 import io.appium.java_client.LocksDevice;
-import io.appium.java_client.PerformsTouchActions;
 import io.appium.java_client.PullsFiles;
 import io.appium.java_client.PushesFiles;
 import io.appium.java_client.android.AuthenticatesByFinger;
@@ -209,9 +208,8 @@ public final class AutomationCapabilityResolver {
             builder.nativeFeature(AutomationFeature.SCRIPT_EXECUTION, "JavaScript in the active Appium web context")
                     .nativeFeature(AutomationFeature.STORAGE, "Web Storage in the active Appium web context");
         }
-        if (driver instanceof PerformsTouchActions) {
-            builder.nativeFeature(AutomationFeature.TOUCH_GESTURES, "Appium touch actions");
-        }
+        // Appium 11: touch-action API removed; every AppiumDriver is Interactive (W3C Actions).
+        builder.nativeFeature(AutomationFeature.TOUCH_GESTURES, "Appium W3C Actions and mobile gestures");
         if (driver instanceof InteractsWithApps || driver instanceof WindowsDriver) {
             builder.nativeFeature(AutomationFeature.APP_LIFECYCLE, "Appium application commands");
         }

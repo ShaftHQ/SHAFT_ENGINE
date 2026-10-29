@@ -6,7 +6,7 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.ListensToLogcatMessages;
 import io.appium.java_client.ios.ListensToSyslogMessages;
 import io.appium.java_client.ws.StringWebSocketClient;
-import org.openqa.selenium.remote.HttpCommandExecutor;
+import io.appium.java_client.remote.AppiumCommandExecutor;
 import org.openqa.selenium.WebDriver;
 
 import java.net.URL;
@@ -222,7 +222,7 @@ public final class MobileLogSource {
     }
 
     private static URL serverUrl(AppiumDriver driver) {
-        if (driver.getCommandExecutor() instanceof HttpCommandExecutor executor) {
+        if (driver.getCommandExecutor() instanceof AppiumCommandExecutor executor) {
             return executor.getAddressOfRemoteServer();
         }
         return null;

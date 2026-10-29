@@ -32,6 +32,7 @@ import com.shaft.tools.io.internal.MobileTraceMetadata;
 import com.shaft.tools.io.internal.ReportManagerHelper;
 import com.shaft.tools.io.internal.TraceEventRecorder;
 import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.remote.AppiumWebElement;
 import io.qameta.allure.Allure;
 import com.shaft.tools.io.internal.AllureAttachments;
 import io.qameta.allure.Step;
@@ -2231,9 +2232,10 @@ public class Actions extends ElementActions {
 
     private static void executeMobileDragAndDrop(AppiumDriver appiumDriver, WebElement sourceElement, WebElement destinationElement) {
         try {
-            if (sourceElement instanceof org.openqa.selenium.remote.RemoteWebElement remoteSourceElement) {
+            String sourceElementId = mobileElementId(sourceElement);
+            if (sourceElementId != null) {
                 appiumDriver.executeScript("mobile: dragGesture",
-                        createDragGestureParameters(remoteSourceElement.getId(), destinationElement.getRect()));
+                        createDragGestureParameters(sourceElementId, destinationElement.getRect()));
                 return;
             }
         } catch (WebDriverException ignored) {
@@ -2527,5 +2529,15 @@ public class Actions extends ElementActions {
             performAction(ActionType.CLIPBOARD_PASTE, locator, null);
             return this.actions;
         }
+    }
+
+    private static String mobileElementId(WebElement element) {
+        if (element instanceof AppiumWebElement appiumElement) {
+            return appiumElement.getId();
+        }
+        if (element instanceof org.openqa.selenium.remote.RemoteWebElement remote) {
+            return remote.getId();
+        }
+        return null;
     }
 }

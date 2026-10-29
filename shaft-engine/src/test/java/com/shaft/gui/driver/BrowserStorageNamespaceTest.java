@@ -121,7 +121,7 @@ public class BrowserStorageNamespaceTest {
     public void appiumNativeContextsShouldRejectWebStorageOperations() {
         AppiumDriver driver = Mockito.mock(AppiumDriver.class,
                 Mockito.withSettings().extraInterfaces(SupportsContextSwitching.class));
-        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("appium-session"));
+        Mockito.when(driver.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("appium-session"));
         Mockito.when(((SupportsContextSwitching) driver).getContext()).thenReturn("NATIVE_APP");
 
         Assert.expectThrows(UnsupportedOperationException.class,

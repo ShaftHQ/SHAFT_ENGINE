@@ -96,7 +96,7 @@ public class BrowserAuthenticationNamespaceTest {
 
         AppiumDriver appium = Mockito.mock(AppiumDriver.class,
                 Mockito.withSettings().extraInterfaces(HasAuthentication.class, HasDevTools.class));
-        Mockito.when(appium.getSessionId()).thenReturn(new SessionId("appium"));
+        Mockito.when(appium.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("appium"));
         Mockito.when(((HasDevTools) appium).maybeGetDevTools()).thenReturn(Optional.of(Mockito.mock(DevTools.class)));
         Assert.expectThrows(UnsupportedOperationException.class,
                 () -> new com.shaft.gui.browser.BrowserActions(appium, true).authentication()

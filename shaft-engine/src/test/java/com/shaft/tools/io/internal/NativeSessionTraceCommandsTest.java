@@ -40,7 +40,7 @@ public class NativeSessionTraceCommandsTest {
     @Test
     public void tracingANativeActionSendsNoBrowserOnlyCommand() {
         AndroidDriver driver = Mockito.mock(AndroidDriver.class);
-        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("native-trace"));
+        Mockito.when(driver.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("native-trace"));
 
         var event = TraceEventRecorder.start("element", "click", "accessibility id=submit", driver);
         TraceEventRecorder.finish(event, "failed", "boom", new IllegalStateException("boom"), Map.of(), List.of());

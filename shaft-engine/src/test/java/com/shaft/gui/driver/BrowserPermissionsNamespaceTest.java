@@ -240,7 +240,7 @@ public class BrowserPermissionsNamespaceTest {
 
         AppiumDriver appium = Mockito.mock(AppiumDriver.class,
                 Mockito.withSettings().extraInterfaces(HasBiDi.class));
-        Mockito.when(appium.getSessionId()).thenReturn(new SessionId("appium"));
+        Mockito.when(appium.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("appium"));
         PermissionActionsContract appiumPermissions = new com.shaft.gui.browser.BrowserActions(appium, true).permissions();
         Assert.expectThrows(UnsupportedOperationException.class,
                 () -> appiumPermissions.grantFor("https://example.test", "geolocation"));

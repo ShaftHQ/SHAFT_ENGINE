@@ -1402,7 +1402,7 @@ public class AndroidTouchActionsCoverageUnitTest {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private String capturedPointerType(RemoteWebDriver driver) {
+    private String capturedPointerType(org.openqa.selenium.interactions.Interactive driver) {
         ArgumentCaptor<Collection<Sequence>> actionsCaptor = ArgumentCaptor.forClass((Class) Collection.class);
         verify(driver).perform(actionsCaptor.capture());
         Map<String, Object> encodedSequence = actionsCaptor.getValue().iterator().next().encode();

@@ -38,10 +38,10 @@ import io.appium.java_client.flutter.commands.LongPressParameter;
 import io.appium.java_client.flutter.commands.ScrollParameter;
 import io.appium.java_client.flutter.commands.WaitParameter;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.AppiumWebElement;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
-import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.io.File;
@@ -133,11 +133,11 @@ public class TouchActions extends FluentWebDriverAction {
     public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
         String testData = String.valueOf(key);
         try {
-            if (driverFactoryHelper.getDriver() instanceof RemoteWebDriver remoteWebDriver) {
+            if (driverFactoryHelper.getDriver() instanceof JavascriptExecutor javascriptExecutor) {
                 new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait(false).until(d -> {
-                    boolean isKeyboardShown = Boolean.parseBoolean(String.valueOf(remoteWebDriver.executeScript("mobile: isKeyboardShown")));
+                    boolean isKeyboardShown = Boolean.parseBoolean(String.valueOf(javascriptExecutor.executeScript("mobile: isKeyboardShown")));
                     if (isKeyboardShown)
-                        remoteWebDriver.executeScript("mobile: performEditorAction", key.getValue());
+                        javascriptExecutor.executeScript("mobile: performEditorAction", key.getValue());
                     return isKeyboardShown;
                 });
             }
@@ -365,7 +365,7 @@ public class TouchActions extends FluentWebDriverAction {
         tap.addAction(new Pause(finger, Duration.ofMillis(100)));
         tap.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
         try {
-            ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
+            ((Interactive) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
                     Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
         } catch (Exception rootCauseException) {
@@ -644,7 +644,7 @@ public class TouchActions extends FluentWebDriverAction {
                 PointerInput.Origin.viewport(), endX, endY));
         swipe.addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
         try {
-            ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(ImmutableList.of(swipe));
+            ((Interactive) driverFactoryHelper.getDriver()).perform(ImmutableList.of(swipe));
             elementActionsHelper.passAction(driverFactoryHelper.getDriver(), null,
                     Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
         } catch (Exception rootCauseException) {
@@ -1535,7 +1535,7 @@ public class TouchActions extends FluentWebDriverAction {
         tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
         tap.addAction(new Pause(input, Duration.ofMillis(200)));
         tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-        ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
+        ((Interactive) driverFactoryHelper.getDriver()).perform(ImmutableList.of(tap));
     }
 
     private Optional<ImageMatch> findLocalImage(ImageTarget target, byte[] screenshot) {
@@ -1841,10 +1841,11 @@ public class TouchActions extends FluentWebDriverAction {
             if (scrollableElementLocator != null) {
                 WebElement scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(
                         driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
-                if (!(scrollableElement instanceof RemoteWebElement remoteElement)) {
+                String scrollableElementId = appiumElementId(scrollableElement);
+                if (scrollableElementId == null) {
                     throw new IllegalStateException("iOS container scrolling requires an Appium remote element.");
                 }
-                scrollParameters.put("elementId", remoteElement.getId());
+                scrollParameters.put("elementId", scrollableElementId);
             }
             return scrollParameters;
         }
@@ -1853,8 +1854,9 @@ public class TouchActions extends FluentWebDriverAction {
             //scrolling inside an element
             WebElement scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(
                     driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
-            if (scrollableElement instanceof RemoteWebElement remoteElement) {
-                scrollParameters.put("elementId", remoteElement.getId());
+            String scrollableElementId = appiumElementId(scrollableElement);
+            if (scrollableElementId != null) {
+                scrollParameters.put("elementId", scrollableElementId);
             }
             Rectangle elementRectangle = scrollableElement.getRect();
             scrollParameters.putAll(ImmutableMap.of(
@@ -2076,7 +2078,7 @@ public class TouchActions extends FluentWebDriverAction {
                         PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
                 .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
-        ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(asList(pinchAndZoom1, pinchAndZoom2));
+        ((Interactive) driverFactoryHelper.getDriver()).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
 
     private void attemptPinchToZoomOut() {
@@ -2107,7 +2109,7 @@ public class TouchActions extends FluentWebDriverAction {
                         PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
                 .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
-        ((RemoteWebDriver) driverFactoryHelper.getDriver()).perform(asList(pinchAndZoom1, pinchAndZoom2));
+        ((Interactive) driverFactoryHelper.getDriver()).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
 
     /**
@@ -2160,4 +2162,18 @@ public class TouchActions extends FluentWebDriverAction {
         }
     }
 
+
+    /**
+     * Element id for Appium mobile: commands. Appium java-client 11 returns
+     * {@link AppiumWebElement} instead of Selenium {@code RemoteWebElement}.
+     */
+    private static String appiumElementId(WebElement element) {
+        if (element instanceof AppiumWebElement appiumElement) {
+            return appiumElement.getId();
+        }
+        if (element instanceof RemoteWebElement remoteElement) {
+            return remoteElement.getId();
+        }
+        return null;
+    }
 }

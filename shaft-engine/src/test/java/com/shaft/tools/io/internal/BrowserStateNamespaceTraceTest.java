@@ -172,7 +172,7 @@ public class BrowserStateNamespaceTraceTest {
         AppiumDriver driver = Mockito.mock(AppiumDriver.class,
                 Mockito.withSettings().extraInterfaces(SupportsContextSwitching.class));
         SupportsContextSwitching contexts = (SupportsContextSwitching) driver;
-        Mockito.when(driver.getSessionId()).thenReturn(new SessionId("appium-session"));
+        Mockito.when(driver.getSessionId()).thenReturn(new io.appium.java_client.remote.SessionId("appium-session"));
         MutableCapabilities capabilities = new MutableCapabilities();
         capabilities.setCapability("platformName", "Android");
         Mockito.when(driver.getCapabilities()).thenReturn(capabilities);

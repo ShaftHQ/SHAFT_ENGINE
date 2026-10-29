@@ -5,6 +5,7 @@ import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import io.appium.java_client.remote.AppiumWebElement;
 import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.util.LinkedHashMap;
@@ -78,13 +79,13 @@ public final class IosNonHittableTap {
      * @return true when {@code mobile: tap} was issued with the element id and element-relative centre x,y
      */
     static boolean elementAnchoredTap(WebDriver driver, WebElement element) {
-        if (!(driver instanceof JavascriptExecutor executor) || !(element instanceof RemoteWebElement remote)) {
+        if (!(driver instanceof JavascriptExecutor executor)) {
             return false;
         }
         String elementId;
         Dimension size;
         try {
-            elementId = remote.getId();
+            elementId = elementId(element);
             size = element.getSize();
         } catch (RuntimeException ignored) {
             return false;
@@ -112,5 +113,15 @@ public final class IosNonHittableTap {
         public IosTapHadNoEffectException(String message) {
             super(message);
         }
+    }
+
+    private static String elementId(WebElement element) {
+        if (element instanceof AppiumWebElement appiumElement) {
+            return appiumElement.getId();
+        }
+        if (element instanceof RemoteWebElement remote) {
+            return remote.getId();
+        }
+        return null;
     }
 }

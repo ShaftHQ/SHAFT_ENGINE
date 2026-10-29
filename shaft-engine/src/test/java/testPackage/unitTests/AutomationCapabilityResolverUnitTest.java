@@ -27,7 +27,7 @@ import org.openqa.selenium.bidi.HasBiDi;
 import org.openqa.selenium.bidi.Handle;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.logging.Logs;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -90,7 +90,7 @@ public class AutomationCapabilityResolverUnitTest {
 
         Assert.assertEquals(capabilities.backend(), AutomationBackend.APPIUM);
         Assert.assertFalse(capabilities.supports(AutomationFeature.MOBILE_AUTOMATION));
-        Assert.assertFalse(capabilities.supports(AutomationFeature.TOUCH_GESTURES));
+        Assert.assertTrue(capabilities.supports(AutomationFeature.TOUCH_GESTURES));
         Assert.assertFalse(capabilities.supports(AutomationFeature.APP_LIFECYCLE));
         Assert.assertFalse(capabilities.supports(AutomationFeature.DEVICE_CONTROL));
         Assert.assertFalse(capabilities.supports(AutomationFeature.BIOMETRICS));
@@ -137,12 +137,12 @@ public class AutomationCapabilityResolverUnitTest {
 
     @Test
     public void appiumBrowserLogsShouldRetainPrecedenceWhenBiDiIsAlsoNegotiated() {
-        AppiumDriver driver = mock(AppiumDriver.class);
+        AppiumDriver driver = mock(AppiumDriver.class, withSettings().extraInterfaces(HasBiDi.class));
         MutableCapabilities capabilities = appiumCapabilities("custom", "unknown");
         capabilities.setCapability("webSocketUrl", "ws://bidi.example.test/session");
         when(driver.getSessionId()).thenReturn(new SessionId("appium-dual-console"));
         when(driver.getCapabilities()).thenReturn(capabilities);
-        when(driver.getHandle()).thenReturn(mock(Handle.class));
+        when(((HasBiDi) driver).getHandle()).thenReturn(mock(Handle.class));
         WebDriver.Options options = mock(WebDriver.Options.class);
         Logs logs = mock(Logs.class);
         when(driver.manage()).thenReturn(options);
@@ -263,17 +263,17 @@ public class AutomationCapabilityResolverUnitTest {
         boolean originalBiDi = SHAFT.Properties.platform.enableBiDi();
         try {
             SHAFT.Properties.platform.set().enableBiDi(false);
-            AndroidDriver android = mock(AndroidDriver.class);
+            AndroidDriver android = mock(AndroidDriver.class, withSettings().extraInterfaces(HasBiDi.class));
             MutableCapabilities rawCapabilities = appiumCapabilities("UiAutomator2", "android");
             rawCapabilities.setCapability("webSocketUrl", "ws://localhost/appium/session/1");
             when(android.getSessionId()).thenReturn(new SessionId("live-appium-bidi"));
             when(android.getCapabilities()).thenReturn(rawCapabilities);
-            when(android.getHandle()).thenReturn(null);
+            when(((HasBiDi) android).getHandle()).thenReturn(null);
 
             Assert.assertFalse(AutomationCapabilityResolver.forWebDriver(android)
                     .supports(AutomationFeature.BIDI));
 
-            when(android.getHandle()).thenReturn(mock(Handle.class));
+            when(((HasBiDi) android).getHandle()).thenReturn(mock(Handle.class));
             Assert.assertTrue(AutomationCapabilityResolver.forWebDriver(android)
                     .supports(AutomationFeature.BIDI));
         } finally {
