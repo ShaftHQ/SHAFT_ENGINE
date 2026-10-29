@@ -411,17 +411,47 @@ def _parse_oembed_proof(body: bytes) -> tuple[bool, str]:
     return _oembed_author_ok(author), author
 
 
+def _oembed_cache_hit_result(entry: object, now: float) -> bool | None:
+    """Return cached bool on a valid hit; None = miss. Never raises on poison/malformation.
+
+    Positive hits re-validate stored author (non-empty str) against the current
+    CHAOS_YT_EXPECTED_AUTHORS bind. Bare ok:true is never trusted alone.
+    """
+    if not isinstance(entry, dict):
+        return None
+    expires = entry.get("expires", 0)
+    if not isinstance(expires, (int, float)):
+        return None
+    if expires < now:
+        return None
+    ok = entry.get("ok")
+    if not isinstance(ok, bool):
+        return None
+    if ok is False:
+        return False
+    author = entry.get("author")
+    if not isinstance(author, str):
+        return None
+    author = author.strip()
+    if not author:
+        return False
+    return _oembed_author_ok(author)
+
+
 def _default_youtube_video_exists(video_id: str) -> bool:
     """True only on oEmbed HTTP 200 + JSON author_name proof (optional expected-authors bind).
 
     HTTP 403/401 from oEmbed means private/unlisted-private (not a box IP block): stay locked.
     Network/5xx use a short negative cache so a brief outage does not lock for a day.
+    Warm positive cache hits re-apply author proof and the current expected-authors bind;
+    malformed cache entries are treated as misses and never raise into never_touch.
     """
     cache = _load_oembed_cache()
     entry = cache.get(video_id)
     now = time.time()
-    if isinstance(entry, dict) and entry.get("expires", 0) >= now and "ok" in entry:
-        return bool(entry["ok"])
+    hit = _oembed_cache_hit_result(entry, now)
+    if hit is not None:
+        return hit
     ok = False
     ttl = YT_OEMBED_TTL
     status: int | None = None

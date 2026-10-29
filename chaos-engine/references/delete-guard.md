@@ -80,13 +80,17 @@ owner's code like any other refusal:
   and definitive HTTP 4xx (including **403 = private / unlisted-private**,
   not a box IP block — public ids still return 200 from the same host)
   use a long TTL; network errors and HTTP 5xx use a short negative TTL so
-  a brief outage does not lock public files for a day. Private videos stay
-  locked without an owner YouTube Data API credential (none required for
-  public proof). noembed and thumbnail checks are not used: noembed
-  proxies oEmbed, and private thumbs look like missing. Globs,
-  directories, escapes, and malformed proofs are ignored. The allowlist
-  is local/env-only; never commit real paths or titles. Env override
-  cannot widen unlocks without those checks.
+  a brief outage does not lock public files for a day. A warm **positive**
+  cache hit still re-checks the stored non-empty `author` against the
+  current `CHAOS_YT_EXPECTED_AUTHORS` bind (bare `ok: true` is never enough);
+  malformed cache entries (`expires` / `ok` / types) are treated as misses
+  and never raise into `never_touch`. Private videos stay locked without an
+  owner YouTube Data API credential (none required for public proof).
+  noembed and thumbnail checks are not used: noembed proxies oEmbed, and
+  private thumbs look like missing. Globs, directories, escapes, and
+  malformed proofs are ignored. The allowlist is local/env-only; never
+  commit real paths or titles. Env override cannot widen unlocks without
+  those checks.
 
 `yt/` itself, `yt/meta/**`, and any unlisted or unverified yt file stay
 never-touch with no code override. `wt-relblock`, `wt-ls` and `ce-src-*` use
