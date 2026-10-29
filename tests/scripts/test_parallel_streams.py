@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 REFS = ROOT / "chaos-engine/references"
 DOC = REFS / "parallel-streams.md"
 
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402,E702 - self-locating under python3 -I (#7197)
 from scripts.ci.parallel_stream_conflict import (  # noqa: E402
     conflicting_peer_stream_ids,
     refuse_dispatch_on_ownership_overlap,
