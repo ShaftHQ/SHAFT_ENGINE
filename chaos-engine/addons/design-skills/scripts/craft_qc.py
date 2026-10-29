@@ -1537,6 +1537,27 @@ DEFAULT_AMOUNT_RE = re.compile(
 )
 
 
+
+def _privacynames_require_words_fail(qc, args) -> int | None:
+    """L18: missing/empty words.json is FAIL when --require-words is set."""
+    if not getattr(args, "require_words", False):
+        return None
+    if not args.words:
+        return qc.report(
+            "privacynames", qc.FAIL,
+            hits=["missing words.json (--require-words)"],
+            note="ASR words required in run_gates; missing ≠ pass (L18)",
+        )
+    words_path = Path(args.words)
+    if not words_path.exists() or words_path.stat().st_size < 2:
+        return qc.report(
+            "privacynames", qc.FAIL,
+            hits=["missing or empty words.json (--require-words)"],
+            note="ASR words required in run_gates; missing ≠ pass (L18)",
+        )
+    return None
+
+
 def cmd_privacynames(qc, args) -> int:
     """L09: caption + ASR personal-name / hard-amount scan; mute notes alone never PASS.
 
@@ -1584,20 +1605,9 @@ def cmd_privacynames(qc, args) -> int:
         if has_mute and not has_text_scan:
             notes_ok = False
             hits.append("notes:mute-without-text-scan")
-    if getattr(args, "require_words", False) and not args.words:
-        return qc.report(
-            "privacynames", qc.FAIL,
-            hits=["missing words.json (--require-words)"],
-            note="ASR words required in run_gates; missing ≠ pass (L18)",
-        )
-    if getattr(args, "require_words", False) and args.words:
-        words_path = Path(args.words)
-        if not words_path.exists() or words_path.stat().st_size < 2:
-            return qc.report(
-                "privacynames", qc.FAIL,
-                hits=["missing or empty words.json (--require-words)"],
-                note="ASR words required in run_gates; missing ≠ pass (L18)",
-            )
+    require_fail = _privacynames_require_words_fail(qc, args)
+    if require_fail is not None:
+        return require_fail
     if not scanned:
         return qc.report(
             "privacynames", qc.USAGE,
