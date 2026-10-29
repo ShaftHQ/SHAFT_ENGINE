@@ -716,29 +716,32 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Download freshly-built Flutter demo-app APK
-        id: download_flutter_demo_apk
-        # Tolerate a missing artifact: Flutter_Demo_App_Build runs with
-        # continue-on-error: true precisely so its own failures never block
-        # this job's unrelated native-Android coverage. If the build failed,
-        # no artifact exists here -- fall through and keep the checked-in apk.
-        continue-on-error: true
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          name: flutter-demo-apk
-          path: ${{ runner.temp }}/flutter-demo-apk
-      - name: Replace stale checked-in flutter-demo.apk with the freshly-built one
-        if: steps.download_flutter_demo_apk.outcome == 'success'
-        # FlutterTest.java:48 hardcodes this exact relative path and is resolved
-        # against shaft-engine's own module basedir (BrowserStackHelper.java's
-        # setupNativeAppExecution -> FileActions.getAbsolutePath), which is why
-        # this overwrite alone is sufficient -- no FlutterTest.java change needed.
-        run: cp "${{ runner.temp }}/flutter-demo-apk/app-debug.apk" shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk
       - name: Setup Test Environment
         uses: ./.github/actions/setup-test-env
         with:
           mobile-apps: 'true'
           node-version: '20'
+      - name: Download freshly-built Flutter demo-app APK
+        id: download_flutter_demo_apk
+        # Tolerate a missing artifact: Flutter_Demo_App_Build runs with
+        # continue-on-error: true precisely so its own failures never block
+        # this job's unrelated native-Android coverage. If the build failed,
+        # no artifact exists here -- fall through to the pinned release fetch
+        # from setup-test-env (mobile-apps).
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: flutter-demo-apk
+          path: ${{ runner.temp }}/flutter-demo-apk
+      - name: Wire freshly-built flutter-demo.apk over the pinned fetch
+        if: steps.download_flutter_demo_apk.outcome == 'success'
+        # FlutterTest.java hardcodes this exact relative path and is resolved
+        # against shaft-engine's own module basedir (BrowserStackHelper.java's
+        # setupNativeAppExecution -> FileActions.getAbsolutePath), which is why
+        # this overwrite alone is sufficient -- no FlutterTest.java change needed.
+        # Must run AFTER mobile-apps fetch so a successful overnight build is not
+        # clobbered by the pinned release asset (#7547 / PR #7555 D1).
+        run: cp "${{ runner.temp }}/flutter-demo-apk/app-debug.apk" shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk
       # Wrapped because this step, not `Run tests`, is where a cold cache pays:
       # it has no continue-on-error, so a Central refusal here skips `Run tests`
       # and `Post-Test Report and Check` then fails on a missing Allure summary
@@ -779,11 +782,17 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Test Environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          mobile-apps: 'true'
+          node-version: '20'
       - name: Download freshly-built Flutter demo-app APK
         id: download_flutter_demo_apk
         # Mirror Android_Native: Flutter_Demo_App_Build is continue-on-error, so a
         # missing artifact must not skip FlutterTest entirely. Fall through to the
-        # checked-in APK when the overnight build did not upload one.
+        # pinned release fetch from setup-test-env (mobile-apps) when the overnight
+        # build did not upload one.
         continue-on-error: true
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
@@ -791,12 +800,9 @@ jobs:
           path: ${{ runner.temp }}/flutter-demo-apk
       - name: Wire Flutter demo APK into FlutterTest path
         if: steps.download_flutter_demo_apk.outcome == 'success'
+        # Must run AFTER mobile-apps fetch so a successful overnight build is not
+        # clobbered by the pinned release asset (#7547 / PR #7555 D1).
         run: cp "${{ runner.temp }}/flutter-demo-apk/app-debug.apk" shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk
-      - name: Setup Test Environment
-        uses: ./.github/actions/setup-test-env
-        with:
-          mobile-apps: 'true'
-          node-version: '20'
       - name: Run FlutterTest on BrowserStack
         continue-on-error: true
         timeout-minutes: 40

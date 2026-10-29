@@ -98,30 +98,61 @@ class FetchMobileTestAppsTest(unittest.TestCase):
                 self.assertEqual(report2["apps"][0]["changed"], [])
         finally:
             server.shutdown()
+            server.server_close()
 
     def test_sha256_mismatch_refuses_install(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp) / "repo"
-            cache = Path(tmp) / "cache"
-            (root / "scripts" / "ci").mkdir(parents=True)
-            # Seed cache with wrong bytes under the expected digest name so
-            # _ensure_cached re-downloads; point baseUrl at a dead port.
-            bad = {
-                "schemaVersion": 1,
-                "releaseTag": "test",
-                "baseUrl": "http://127.0.0.1:1",
-                "apps": [
-                    {
-                        "asset": "missing.apk",
-                        "sha256": "0" * 64,
-                        "destinations": ["apps/missing.apk"],
-                    }
-                ],
-            }
-            path = root / "scripts/ci/mobile_test_apps.manifest.json"
-            path.write_text(json.dumps(bad), encoding="utf-8")
-            with self.assertRaises(fetch.FetchError):
-                fetch.fetch_all(root=root, manifest_path=path, cache_dir=cache)
+        """HTTP 200 with wrong bytes must fail closed on sha256 (not only download errors)."""
+        wrong = b"not-the-pinned-fixture"
+        expected = "a" * 64  # deliberately not sha256(wrong)
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802
+                if self.path.endswith("/bad.apk"):
+                    self.send_response(200)
+                    self.send_header("Content-Length", str(len(wrong)))
+                    self.end_headers()
+                    self.wfile.write(wrong)
+                    return
+                self.send_response(404)
+                self.end_headers()
+
+            def log_message(self, *_args):
+                return
+
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp) / "repo"
+                cache = Path(tmp) / "cache"
+                dest = "shaft-engine/src/test/resources/testDataFiles/apps/bad.apk"
+                (root / "scripts" / "ci").mkdir(parents=True)
+                manifest = {
+                    "schemaVersion": 1,
+                    "releaseTag": "test",
+                    "baseUrl": f"http://127.0.0.1:{server.server_address[1]}",
+                    "apps": [
+                        {
+                            "asset": "bad.apk",
+                            "sha256": expected,
+                            "destinations": [dest],
+                        }
+                    ],
+                }
+                manifest_path = root / "scripts/ci/mobile_test_apps.manifest.json"
+                manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+                with self.assertRaises(fetch.FetchError) as raised:
+                    fetch.fetch_all(
+                        root=root, manifest_path=manifest_path, cache_dir=cache
+                    )
+                self.assertIn("sha256 mismatch", str(raised.exception))
+                self.assertFalse((root / dest).exists())
+                # Mismatched download must not leave a poison cache entry either.
+                self.assertFalse(any(cache.glob("*")), msg=list(cache.glob("*")))
+        finally:
+            server.shutdown()
+            server.server_close()
 
 
 if __name__ == "__main__":

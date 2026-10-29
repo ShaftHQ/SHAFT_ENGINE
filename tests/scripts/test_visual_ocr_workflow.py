@@ -115,6 +115,23 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         wire = next(step["run"] for step in flutter["steps"]
                     if "flutter-demo.apk" in step.get("run", "") and "cp " in step.get("run", ""))
         self.assertIn("shaft-engine/src/test/resources/testDataFiles/apps/flutter-demo.apk", wire)
+        # #7547 / #7555 D1: pinned mobile-apps fetch must run before the overnight
+        # build wire, otherwise fetch overwrites the freshly built APK.
+        for job_steps in (flutter["steps"], native["steps"]):
+            names = [step.get("name") for step in job_steps]
+            setup = names.index("Setup Test Environment")
+            download = next(
+                i for i, name in enumerate(names)
+                if isinstance(name, str) and name.startswith("Download freshly-built Flutter")
+            )
+            wire_idx = next(
+                i for i, name in enumerate(names)
+                if isinstance(name, str) and name.startswith("Wire ") and "flutter" in name.lower()
+            )
+            self.assertLess(setup, download, names)
+            self.assertLess(setup, wire_idx, names)
+            setup_step = next(step for step in job_steps if step.get("name") == "Setup Test Environment")
+            self.assertEqual("true", setup_step["with"]["mobile-apps"])
 
     def test_local_flutter_android_sdk_omits_deprecated_tools_package(self):
         # Mirror e2eTests Flutter_Demo_App_Build (#5826): Google no longer serves SDK
