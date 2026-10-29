@@ -147,14 +147,16 @@ class VideoCaptionLessonCardTest(unittest.TestCase):
         for needle in NEEDLES:
             self.assertIn(needle, text, needle)
         index = (LESSONS / "index.md").read_text(encoding="utf-8")
+        self.assertIn("L34 ", index)
         self.assertIn("L35 ", index)
+        self.assertIn("](paste-robots-noindex.md)", index)
         self.assertIn(f"]({CARD})", index)
         inv = " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split())
-        self.assertIn("34 lesson", inv)
-        self.assertIn("L35", inv)
-        self.assertIn("L34 reserved", inv)
+        self.assertIn("35 lesson", inv)
+        self.assertIn("L01-L35", inv)
         craft = (DESIGN / "references/craft/index.md").read_text(encoding="utf-8")
         self.assertIn("video caption handoff", craft)
+        self.assertIn("paste robots noindex", craft)
         ve = DESIGN / "references/craft/video-editing.md"
         self.assertLessEqual(len(ve.read_text(encoding="utf-8").splitlines()), 120)
         web = DESIGN / "references/craft/web-design.md"

@@ -74,7 +74,7 @@ class DesignReelLessonsTest(unittest.TestCase):
 
     def test_addon_description_counts_web_craft_cards(self) -> None:
         desc = (DESIGN / "addon.json").read_text(encoding="utf-8")
-        self.assertIn("fourteen web-craft cards", desc)
+        self.assertIn("sixteen web-craft cards", desc)
         self.assertIn("diagram design", desc)
         self.assertNotIn("four web-craft", desc)
 

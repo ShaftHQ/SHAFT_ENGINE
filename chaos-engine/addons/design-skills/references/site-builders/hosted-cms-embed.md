@@ -83,6 +83,8 @@ stay 0. Editor success toasts are untrusted.
 | Check | Command / idea |
 | --- | --- |
 | No paste OG/Twitter meta | `design_qc.py cmsmeta <paste.html>` |
+| No paste robots noindex/nofollow (L34) | `design_qc.py cmsmeta <paste.html>` |
+| Live product URL not noindex | `design_qc.py liveseo <https-url>` |
 | No relative local assets | `design_qc.py cmsassets <paste.html>` |
 | Sticky header tokens present | `design_qc.py cmssticky <paste.html\|.css>` |
 | Full-width + gutter | `design_qc.py cmswidth --code W --column C [--hero-gutter H --embed-gutter E] [--outer-pad/--inner-pad]` |
