@@ -157,7 +157,7 @@ sends you there; the rest by
 - [decision-quality report](../../chaos-engine/decision-quality-report.md)
 - [task isolation](../../chaos-engine/references/task-isolation.md)
 - [verification-gap lens](../../chaos-engine/references/verification-gap-lens.md)
-- [client-name scrub](../../chaos-engine/references/client-name-scrub.md): public-repo denylist for branch / commit / PR body (local config only)
+- [client-name scrub](../../chaos-engine/references/client-name-scrub.md): public-repo denylist for branch / commit / PR body / PR diff added lines (local config only)
 - [mobile-retro harness](../../chaos-engine/references/mobile-retro-harness.md): results freeze, backend Blocked, primary time-cap, tracked NO_PUSH, evidence pin, NamedBlock by gap id
 - [reflection checkpoints](../../chaos-engine/references/reflection-checkpoints.md)
 - [rule retirement](../../chaos-engine/references/rule-retirement.md)
