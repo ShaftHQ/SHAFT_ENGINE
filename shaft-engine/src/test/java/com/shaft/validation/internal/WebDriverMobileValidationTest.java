@@ -37,7 +37,7 @@ import org.mockito.Mockito;
 import org.openqa.selenium.ScreenOrientation;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.SessionId;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.TimeoutException;
 import org.testng.Assert;

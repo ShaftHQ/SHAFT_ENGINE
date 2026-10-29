@@ -8,9 +8,11 @@ on a non-zero exit.
 
 ## What it refuses
 
-It parses `rm`, `unlink`, `shred`, `git clean -f`, `find ... -delete` or
-`-exec rm`, `bash -c`, and literal `shutil.rmtree` / `os.remove` /
-`Path.unlink` calls, tracking `cd` and `git -C` across `&&`, `;` and `|`, and
+It parses `rm`, `unlink`, `shred`, `mv` (each source path), `rsync --delete*` /
+`--remove-source-files`, `git clean -f`, `find ... -delete` or `-exec rm`,
+`bash -c`, literal `shutil.rmtree` / `os.remove` / `os.unlink` / `os.rmdir`,
+and `Path("...").unlink|rmdir|rmtree` constructor forms (including `python -c`
+and heredoc bodies), tracking `cd` and `git -C` across `&&`, `;` and `|`, and
 expanding globs. Each target is checked:
 
 - Inside git: refused when `git status --porcelain --ignored` lists any
@@ -20,6 +22,11 @@ expanding globs. Each target is checked:
 - Outside git: refused unless it is on the scratch allow-list.
 - Unsure parse (`$VAR`, command substitution, `xargs rm`, non-literal Python
   paths): refused. Rewrite with literal paths.
+- Symlink operands: plain `rm`/`unlink`/`mv` of the link inode are link-only.
+  Tree ops that follow links (`find -delete`/`-exec rm`, `rsync --delete*`/
+  `--remove-source-files`, `rm -r` with a trailing slash, `shutil.rmtree`/
+  `Path.rmtree`, `mv src/`) resolve the realpath and apply the checks to the
+  target; resolution failure refuses closed.
 
 ## Allow-list
 
@@ -106,3 +113,24 @@ the owner-code flow too.
   or run in consumer mode (its `info/exclude` block hides `.memory/`
   and mempalace from git). Push them or back them up; a bot workspace whose
   state must be backed up should not use `--consumer`.
+- `backups-watch: pass|warn`: advisory only. Documents the optional
+  backups-directory watcher ([backups_watch.py](../backups_watch.py)).
+  Doctor never starts it. Start by hand:
+  `python3 .chaos-engine/tool.py backups-watch --path <backups-root>`
+  (or set `CHAOS_BACKUPS_WATCH_PATH`). Uses `inotifywait` when installed,
+  otherwise a poll loop. Logs JSON lines to
+  `~/.local/state/chaos-engine/backups-watch.log` with timestamp, event,
+  path, watcher pid/cmdline, and agent env when present. Tests may call
+  `tool.py backups-watch --self-test` or `--once --force-poll`; they must
+  not leave a daemon running.
+
+## Lessons
+
+- **Backup dir = push to remote before parking.** A folder under a local
+  backups parking directory that has never been pushed (or copied to a
+  verified remote) is not a backup — it is a single copy. Push or sync it
+  before ending the session. Unpushed backup folders surface as a
+  `backup-remote: warn` (or an explicit warning in the parking checklist);
+  do not treat "it is under backups/" as durable. Incident 2026-10-29: an
+  unpushed `carl-cleanup-*` parking folder vanished with no delete-guard
+  log because a raw `mv`/`rm` path had bypassed the old shell-word trigger.

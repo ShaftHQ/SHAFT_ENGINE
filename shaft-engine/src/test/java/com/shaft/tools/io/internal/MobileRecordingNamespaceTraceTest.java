@@ -8,7 +8,7 @@ import com.shaft.listeners.internal.TestExecutionInfo;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.screenrecording.BaseStartScreenRecordingOptions;
 import org.mockito.Mockito;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.SessionId;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;

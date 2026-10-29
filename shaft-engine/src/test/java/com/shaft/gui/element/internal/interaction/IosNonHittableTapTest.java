@@ -6,6 +6,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.interaction.IosNonHittableTap.IosTapHadNoEffectException;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.AppiumWebElement;
 import org.mockito.ArgumentCaptor;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
@@ -345,5 +346,32 @@ public class IosNonHittableTapTest {
             depth++;
         }
         return false;
+    }
+
+    @Test
+    public void elementAnchoredTapUsesAppiumWebElementId() {
+        IOSDriver ios = mock(IOSDriver.class, org.mockito.Mockito.withSettings()
+                .extraInterfaces(org.openqa.selenium.JavascriptExecutor.class));
+        AppiumWebElement element = mock(AppiumWebElement.class);
+        when(element.getId()).thenReturn("appium-login-btn");
+        when(element.getSize()).thenReturn(new Dimension(120, 44));
+        ArgumentCaptor<Map> params = ArgumentCaptor.forClass(Map.class);
+
+        assertTrue(IosNonHittableTap.elementAnchoredTap(ios, element));
+        verify(ios).executeScript(eq("mobile: tap"), params.capture());
+        assertEquals(params.getValue().get("elementId"), "appium-login-btn");
+        assertEquals(params.getValue().get("x"), 60.0);
+        assertEquals(params.getValue().get("y"), 22.0);
+    }
+
+    @Test
+    public void elementAnchoredTapReturnsFalseWhenElementHasNoId() {
+        IOSDriver ios = mock(IOSDriver.class, org.mockito.Mockito.withSettings()
+                .extraInterfaces(org.openqa.selenium.JavascriptExecutor.class));
+        WebElement element = mock(WebElement.class);
+        when(element.getSize()).thenReturn(new Dimension(120, 44));
+
+        assertFalse(IosNonHittableTap.elementAnchoredTap(ios, element));
+        verify(ios, never()).executeScript(eq("mobile: tap"), any());
     }
 }

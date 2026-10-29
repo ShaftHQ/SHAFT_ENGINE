@@ -21,7 +21,9 @@ targets, an anchored rubric, and 20 verified references.
 | [Site merge and redirects](../site-builders/site-merge-redirects.md) | Page merge, anchors, 301s, SEO titles | none |
 
 - Field lessons (hooks over speech, mixed-script captions, talk edits,
-  signed-output release, cross-surface takeaways, visual-first approach, perceptual acceptance):
+  signed-output release, cross-surface takeaways, visual-first approach,
+  privacy names, end-card band concat, title punct, qmark baseline,
+  perceptual acceptance):
   [lesson cards](../lessons/index.md).
 - Web craft (anti-generic lint, motion tokens, GSAP motion, micro-polish,
   measured type): [web-craft cards](../web-craft/index.md).

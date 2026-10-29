@@ -327,8 +327,28 @@ def validate(root: Path = ROOT) -> list[str]:
     return errors
 
 
+def validate_logback_stdio_contract(root: Path = ROOT) -> list[str]:
+    """Keep MCP JSON-RPC stdout clean: logs on stderr, no Logback StatusPrinter.
+
+    Split from validate() so touching this contract does not trip the pre-push
+    complexity gate on the grandfathered validate() body (#7541/#7542).
+    """
+    errors: list[str] = []
+    logback = (root / "shaft-mcp/src/main/resources/logback-spring.xml").read_text(encoding="utf-8")
+    if "<target>System.err</target>" not in logback:
+        errors.append("shaft-mcp logging must target stderr")
+    if "ch.qos.logback.core.status.NopStatusListener" not in logback:
+        errors.append(
+            "shaft-mcp logging must register NopStatusListener so Logback status "
+            "never writes to stdout (MCP JSON-RPC)"
+        )
+    return errors
+
+
+
 def main() -> int:
     errors = validate()
+    errors.extend(validate_logback_stdio_contract())
     if errors:
         print("\n".join(errors), file=sys.stderr)
         return 1

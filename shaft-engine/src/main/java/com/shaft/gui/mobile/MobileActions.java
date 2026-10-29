@@ -14,7 +14,6 @@ import com.shaft.gui.driver.MobileLogActionsContract;
 import com.shaft.gui.driver.MobilePerformanceActionsContract;
 import com.shaft.gui.driver.MobileRecordingActionsContract;
 import io.appium.java_client.AppiumDriver;
-import io.appium.java_client.PerformsTouchActions;
 import io.appium.java_client.android.ListensToLogcatMessages;
 import io.appium.java_client.android.HasSupportedPerformanceDataType;
 import io.appium.java_client.android.AuthenticatesByFinger;
@@ -124,10 +123,9 @@ public final class MobileActions implements MobileActionsContract {
     }
 
     TouchActions touchActions() {
-        if (!(driver() instanceof PerformsTouchActions)) {
-            throw new UnsupportedOperationException(
-                    "The live Appium session does not support native touch gestures.");
-        }
+        // Appium java-client 11 removed PerformsTouchActions; W3C Interactive + mobile: gestures
+        // remain on every live AppiumDriver (see v10-to-v11 migration guide).
+        driver();
         return owner.touch();
     }
 

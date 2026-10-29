@@ -96,7 +96,7 @@
         <!-- Dependency Versions -->
         <log4j2.version>2.26.1</log4j2.version>
         <testng.version>7.12.0</testng.version>
-        <appium.version>10.1.1</appium.version>
+        <appium.version>11.0.0</appium.version>
         <browserstack.sdk.version>1.63.0</browserstack.sdk.version>
         <webdrivermanager.version>6.4.0</webdrivermanager.version>
         <aspectj.version>1.9.25.1</aspectj.version>
@@ -175,7 +175,7 @@
             <dependency>
                 <groupId>ch.qos.logback</groupId>
                 <artifactId>logback-classic</artifactId>
-                <version>1.6.5</version>
+                <version>1.6.6</version>
             </dependency>
             <dependency>
                 <groupId>ch.qos.logback</groupId>

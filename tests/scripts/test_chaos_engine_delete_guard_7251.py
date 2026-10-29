@@ -561,5 +561,161 @@ class DeleteGuardTest(unittest.TestCase):
         self.assertEqual("warn", status)
         self.assertIn("consumer mode hides harness state", reason)
 
+class RawFilesystemDeleteGuardTest(unittest.TestCase):
+    """Red-without-fix coverage for mv / rsync --delete / Path().rmdir|unlink."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.base = Path(self.temp.name).resolve()
+        home = self.base / "home"
+        home.mkdir()
+        self.patches = [
+            unittest.mock.patch.object(GUARD, "DEFAULT_ALLOW", ()),
+            unittest.mock.patch.dict(os.environ, {"HOME": str(home), "XDG_STATE_HOME": str(home / "state")}),
+        ]
+        for patch in self.patches:
+            patch.start()
+        self.loose = self.base / "precious"
+        self.loose.mkdir()
+        (self.loose / "only.txt").write_text("only-copy", encoding="utf-8")
+
+    def tearDown(self):
+        for patch in reversed(self.patches):
+            patch.stop()
+        self.temp.cleanup()
+
+    def reason(self, command: str) -> str:
+        return GUARD.block_reason(command, self.base, None)
+
+    def test_mv_protected_source_refused_rename_of_pushed_allowed(self):
+        self.assertIn("outside git", self.reason(f"mv {self.loose} {self.base / 'elsewhere'}"))
+        self.assertIn("outside git", self.reason(f"mv {self.loose} {self.base / 'Trash' / 'precious'}"))
+        self.assertIn("cannot tell", self.reason("mv $SRC /tmp/out"))
+        repo = self.base / "repo"
+        repo.mkdir()
+        git(repo, "init", "-q", "-b", "main")
+        (repo / "a.txt").write_text("a", encoding="utf-8")
+        git(repo, "add", ".")
+        git(repo, "commit", "-qm", "init")
+        remote = self.base / "remote.git"
+        subprocess.run([GIT, "init", "-q", "--bare", str(remote)], check=True, capture_output=True)  # nosec B603
+        git(repo, "remote", "add", "origin", str(remote))
+        git(repo, "push", "-q", "-u", "origin", "main")
+        self.assertEqual("", self.reason(f"mv {repo / 'a.txt'} {repo / 'b.txt'}"))
+
+    def test_rsync_delete_dest_refused_plain_rsync_allowed(self):
+        self.assertIn("outside git", self.reason(f"rsync -a --delete {self.base / 'empty'}/ {self.loose}/"))
+        self.assertIn("outside git", self.reason(f"rsync -a --delete-excluded {self.base / 'empty'}/ {self.loose}/"))
+        self.assertIn("outside git", self.reason(f"rsync -a --remove-source-files {self.loose}/ {self.base / 'copy'}/"))
+        self.assertEqual("", self.reason(f"rsync -a {self.loose}/ {self.base / 'copy'}/"))
+        self.assertIn("cannot tell", self.reason("rsync -a --delete $SRC/ $DEST/"))
+
+    def test_pathlib_constructor_unlink_and_rmdir_refused(self):
+        target = self.loose / "only.txt"
+        unlink_cmd = "python3 -c \"from pathlib import Path; Path('%s').unlink()\"" % target
+        rmdir_cmd = "python3 -c \"from pathlib import Path; Path('%s').rmdir()\"" % self.loose
+        heredoc = "python3 <<'PY'\nfrom pathlib import Path\nPath('%s').rmtree()\nPY" % self.loose
+        self.assertIn("outside git", self.reason(unlink_cmd))
+        self.assertIn("outside git", self.reason(rmdir_cmd))
+        self.assertIn("outside git", self.reason(heredoc))
+
+    def test_backups_watch_self_test_and_doctor_tip_no_daemon(self):
+        watch = load("chaos_engine_backups_watch", CORE / "backups_watch.py")
+        with unittest.mock.patch.dict(os.environ, {"XDG_STATE_HOME": str(self.base / "home" / "state")}):
+            self.assertEqual(0, watch.main(["--self-test"]))
+            log = watch.log_path()
+            self.assertTrue(log.is_file())
+            last = json.loads(log.read_text(encoding="utf-8").splitlines()[-1])
+            self.assertEqual("SELF_TEST", last["event"])
+            self.assertIn("pid", last)
+            self.assertIn("cmdline", last)
+            root = self.base / "backups"
+            root.mkdir()
+            # Seed baseline, then create a child, resnapshot, delete child, resnapshot -> DELETE log.
+            self.assertEqual(0, watch.main(["--path", str(root), "--force-poll", "--once", "--poll-seconds", "0.2"]))
+            (root / "gone").mkdir()
+            self.assertEqual(0, watch.main(["--path", str(root), "--force-poll", "--once", "--poll-seconds", "0.2"]))
+            before = len(log.read_text(encoding="utf-8").splitlines())
+            (root / "gone").rmdir()
+            self.assertEqual(0, watch.main(["--path", str(root), "--force-poll", "--once", "--poll-seconds", "0.2"]))
+            lines = log.read_text(encoding="utf-8").splitlines()
+            self.assertGreater(len(lines), before)
+            self.assertTrue(any('"event": "DELETE"' in line and "gone" in line for line in lines))
+        status, reason = watch.doctor_row()
+        self.assertEqual("pass", status)
+        self.assertIn("tool.py backups-watch", reason)
+        install = load("chaos_engine_install_rawfs", CORE / "install.py")
+        row = install.backups_watch_advisory(CORE)
+        self.assertEqual("pass", row[0])
+        self.assertIn("backups-watch", row[1])
+        docs = (CORE / "references" / "delete-guard.md").read_text(encoding="utf-8")
+        self.assertIn("Backup dir = push to remote before parking", docs)
+        self.assertIn("backups-watch", docs)
+        entry = (CORE / "references" / "bot-entry.md").read_text(encoding="utf-8")
+        self.assertIn("backup dir = push", entry.casefold())
+
+
+
+class SymlinkFollowDeleteGuardTest(unittest.TestCase):
+    """D1: tree ops resolve symlink operands; plain rm of a link stays link-only."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.base = Path(self.temp.name).resolve()
+        home = self.base / "home"
+        home.mkdir()
+        self.patches = [
+            unittest.mock.patch.object(GUARD, "DEFAULT_ALLOW", ()),
+            unittest.mock.patch.dict(os.environ, {"HOME": str(home), "XDG_STATE_HOME": str(home / "state")}),
+        ]
+        for patch in self.patches:
+            patch.start()
+        self.precious = self.base / "precious"
+        self.precious.mkdir()
+        (self.precious / "KEEP.txt").write_text("keep", encoding="utf-8")
+        self.alias = self.base / "alias"
+        self.alias.symlink_to(self.precious)
+        self.empty = self.base / "empty"
+        self.empty.mkdir()
+
+    def tearDown(self):
+        for patch in reversed(self.patches):
+            patch.stop()
+        self.temp.cleanup()
+
+    def reason(self, command: str) -> str:
+        return GUARD.block_reason(command, self.base, None)
+
+    def test_find_delete_through_symlink_refuses_target(self):
+        self.assertIn("outside git", self.reason(f"find {self.alias} -type f -delete"))
+        self.assertIn("outside git", self.reason(f"find {self.alias} -type f -exec rm -f {{}} +"))
+
+    def test_rsync_delete_through_symlink_refuses_target(self):
+        self.assertIn("outside git", self.reason(f"rsync -a --delete {self.empty}/ {self.alias}/"))
+        self.assertIn(
+            "outside git",
+            self.reason(f"rsync -a --remove-source-files {self.alias}/ {self.base / 'copy'}/"),
+        )
+
+    def test_rm_recursive_trailing_slash_follows_plain_rm_link_allowed(self):
+        self.assertIn("outside git", self.reason(f"rm -rf {self.alias}/"))
+        self.assertEqual("", self.reason(f"rm -rf {self.alias}"))
+
+    def test_shutil_rmtree_through_symlink_refuses_target(self):
+        cmd = "python3 -c \"import shutil; shutil.rmtree('%s')\"" % self.alias
+        self.assertIn("outside git", self.reason(cmd))
+
+    def test_mv_trailing_slash_follows_plain_mv_link_allowed(self):
+        self.assertIn("outside git", self.reason(f"mv {self.alias}/ {self.base / 'elsewhere'}"))
+        self.assertEqual("", self.reason(f"mv {self.alias} {self.base / 'elsewhere'}"))
+
+    def test_broken_symlink_follow_fails_closed(self):
+        broken = self.base / "broken"
+        broken.symlink_to(self.base / "missing-target")
+        self.assertIn("cannot resolve", self.reason(f"find {broken} -delete"))
+        self.assertIn("cannot resolve", self.reason(f"rsync -a --delete {self.empty}/ {broken}/"))
+
+
+
 if __name__ == "__main__":
     unittest.main()

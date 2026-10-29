@@ -2,6 +2,7 @@ package com.shaft.gui.element.internal.interaction;
 
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.AppiumWebElement;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Rectangle;
@@ -16,6 +17,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * iOS XCUITest reports {@code element.click()} as success when {@code hittable} is false
@@ -34,6 +36,9 @@ import java.util.Map;
  * Screen-only taps without an element rectangle are not used. Unreadable page source
  * after {@code mobile: tap} fails closed with no further tap. When neither recovery
  * changes the page source, the action fails instead of returning success.
+ *
+ * <p>Element id resolution prefers {@link AppiumWebElement#getId()} (Appium java-client
+ * 11) and falls back to {@link RemoteWebElement#getId()}.
  */
 public final class IosNonHittableTap {
 
@@ -77,7 +82,7 @@ public final class IosNonHittableTap {
         return !driver.getClass().getName().contains("Flutter");
     }
 
-    private static boolean pageChanged(String before, String after) {
+    private static boolean pageChanged(@Nullable String before, @Nullable String after) {
         return before != null && after != null && !before.equals(after);
     }
 
@@ -90,6 +95,7 @@ public final class IosNonHittableTap {
         return attribute == null ? "" : attribute.trim();
     }
 
+    @Nullable
     private static String readAttribute(WebElement element, boolean domAttribute) {
         try {
             return domAttribute ? element.getDomAttribute("hittable") : element.getAttribute("hittable");
@@ -98,6 +104,7 @@ public final class IosNonHittableTap {
         }
     }
 
+    @Nullable
     private static String readPageSource(WebDriver driver) {
         try {
             return driver.getPageSource();
@@ -110,13 +117,13 @@ public final class IosNonHittableTap {
      * @return true when {@code mobile: tap} was issued with the element id and element-relative centre x,y
      */
     static boolean elementAnchoredTap(WebDriver driver, WebElement element) {
-        if (!(driver instanceof JavascriptExecutor executor) || !(element instanceof RemoteWebElement remote)) {
+        if (!(driver instanceof JavascriptExecutor executor)) {
             return false;
         }
         String elementId;
         Dimension size;
         try {
-            elementId = remote.getId();
+            elementId = elementId(element);
             size = element.getSize();
         } catch (RuntimeException ignored) {
             return false;
@@ -180,5 +187,16 @@ public final class IosNonHittableTap {
         public IosTapHadNoEffectException(String message) {
             super(message);
         }
+    }
+
+    @Nullable
+    private static String elementId(WebElement element) {
+        if (element instanceof AppiumWebElement appiumElement) {
+            return appiumElement.getId();
+        }
+        if (element instanceof RemoteWebElement remote) {
+            return remote.getId();
+        }
+        return null;
     }
 }

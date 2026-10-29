@@ -10,7 +10,7 @@ import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.ScreenOrientation;
-import org.openqa.selenium.remote.SessionId;
+import io.appium.java_client.remote.SessionId;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
