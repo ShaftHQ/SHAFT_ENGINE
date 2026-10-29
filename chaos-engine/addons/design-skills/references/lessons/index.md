@@ -37,5 +37,6 @@ one lesson card.
 | [L29 plan-first multi-axis](plan-first-multi-axis.md) | plan+accept before multi-axis visual build |
 | [L30 explainer embed length](explainer-embed-length.md) | sibling Watch explainers ~60–100 s parity |
 | [L31 paste then re-verify](paste-then-reverify.md) | artifact paste + immediate livecms |
+| [L32 Arabic tech code-switch](arabic-tech-codeswitch.md) | EN tech terms in Arabic UI; no و next to <bdi> in headings |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).

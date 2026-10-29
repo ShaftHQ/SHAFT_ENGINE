@@ -2350,6 +2350,51 @@ def cmd_cuegapsnap(qc, args) -> int:
 
 
 
+
+# --- Arabic tech copy / bidi-wao (L32) ----------------------------------------
+# Fail Arabic conjunction و adjacent to <bdi> Latin in headings / card titles.
+# Ported from field site gate; default scope is h1–h6 only (card titles are h3).
+WAO_BEFORE = re.compile(r"(?<![ء-يأإآؤئ])و(?:\s|&nbsp;|\u00a0)*<bdi\b", re.I)
+WAO_BETWEEN = re.compile(r"</bdi>(?:\s|&nbsp;|\u00a0)*و(?:\s|&nbsp;|\u00a0)*<bdi\b", re.I)
+HEADING_BLOCKS = re.compile(r"<h([1-6])\b[^>]*>(.*?)</h\1>", re.I | re.S)
+
+
+def _heading_snippets(html: str) -> list[tuple[str, str]]:
+    """Return (label, inner_html) for each h1–h6 (card titles included)."""
+    out = []
+    for match in HEADING_BLOCKS.finditer(html):
+        level, body = match.group(1), match.group(2)
+        out.append((f"h{level}", body))
+    return out
+
+
+def cmd_bidiwao(qc, args) -> int:
+    """L32: flag و adjacent to <bdi> Latin in headings/card titles (use ،)."""
+    files = files_of(args.path, {".html", ".htm"})
+    if not files:
+        return qc.report("bidiwao", qc.USAGE, error="pass an .html/.htm file or directory")
+    hits = []
+    for file in files:
+        html = file.read_text(encoding="utf-8", errors="replace")
+        snippets = [(f"{file}:doc", html)] if args.all else [
+            (f"{file}:{label}", body) for label, body in _heading_snippets(html)
+        ]
+        if not args.all and not snippets:
+            continue
+        for where, body in snippets:
+            if "design-qc: allow" in body:
+                continue
+            if WAO_BEFORE.search(body) or WAO_BETWEEN.search(body):
+                hits.append(f"{where} wao-adjacent-bdi (use ، or one <bdi> island)")
+    return qc.report(
+        "bidiwao",
+        qc.FAIL if hits else qc.PASS,
+        files=len(files),
+        hits=hits,
+        note="L32: no و next to <bdi> in headings/card titles",
+    )
+
+
 # --- Hosted-CMS embed gates (L23–L31) -----------------------------------------
 def _hosted_cms():
     import importlib.util
@@ -2820,6 +2865,11 @@ def register(add, qc) -> None:
     p = add("livecms", bind(cmd_livecms),
             "L28/L31: fail-closed live matrix receipt JSON")
     p.add_argument("file", help="livecms report JSON")
+    p = add("bidiwao", bind(cmd_bidiwao),
+            "L32: Arabic و adjacent to <bdi> Latin in headings/card titles (use ،)")
+    p.add_argument("path", help="HTML file or directory")
+    p.add_argument("--all", action="store_true",
+                   help="scan whole document, not only h1–h6")
 
     p = add("cuegapsnap", bind(cmd_cuegapsnap),
             "L17: snap cue micro-gaps under ~80ms; --check fails while pending")
