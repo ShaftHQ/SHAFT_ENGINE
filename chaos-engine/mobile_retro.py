@@ -31,10 +31,14 @@ SNAPSHOT_REL = ".chaos-engine-state/mobile-retro/" + _RESULTS_LEAF + "-green"
 
 def _git_output(root: Path, *args: str) -> str:
     """Best-effort git stdout; empty on failure (no git / not a repo)."""
+    import shutil
     import subprocess  # nosec B404 — local git identity only
 
-    proc = subprocess.run(  # nosec B603 B607
-        ["git", "-C", str(root), *args],
+    git = shutil.which("git")
+    if not git:
+        return ""
+    proc = subprocess.run(  # nosec B603
+        [git, "-C", str(root), *args],
         check=False,
         capture_output=True,
         text=True,

@@ -327,14 +327,18 @@ class GuardPostRunLiveTest(unittest.TestCase):
         self.assertIn("_tool_result_failed", calls)
 
     def _git_root(self, root: Path) -> tuple[str, str]:
+        import shutil
         import subprocess
 
-        subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "chaosengine@mail.grokbot.com"], cwd=root, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.name", "ChaosEngine"], cwd=root, check=True, capture_output=True)
+        git = shutil.which("git")
+        if not git:
+            self.fail("git executable not found on PATH")
+        subprocess.run([git, "init"], cwd=root, check=True, capture_output=True)
+        subprocess.run([git, "config", "user.email", "chaosengine@mail.grokbot.com"], cwd=root, check=True, capture_output=True)
+        subprocess.run([git, "config", "user.name", "ChaosEngine"], cwd=root, check=True, capture_output=True)
         (root / "README").write_text("x\n", encoding="utf-8")
-        subprocess.run(["git", "add", "README"], cwd=root, check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "init"], cwd=root, check=True, capture_output=True)
+        subprocess.run([git, "add", "README"], cwd=root, check=True, capture_output=True)
+        subprocess.run([git, "commit", "-m", "init"], cwd=root, check=True, capture_output=True)
         return mobile_retro.current_build_and_branch(root)
 
     def test_post_run_freezes_through_guard_helper(self) -> None:
