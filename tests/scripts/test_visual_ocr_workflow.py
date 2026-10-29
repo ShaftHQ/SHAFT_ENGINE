@@ -1,6 +1,11 @@
 from pathlib import Path
+import os
 import re
 import shlex
+import shutil
+import stat
+import subprocess
+import tempfile
 import unittest
 
 import yaml
@@ -285,3 +290,68 @@ class WindowsLocalCommandLineTest(unittest.TestCase):
                     if len(scope) + len(run) > 8000:
                         self.assertEqual(step.get("shell"), "bash", f"{name}: {step.get('name')}")
         self.assertGreater(checked, 0)
+
+class FlutterEmulatorAppiumPathTest(unittest.TestCase):
+    """#7530 Flutter root: preflight must persist pinned Appium via $GITHUB_PATH.
+
+    Nightly 40831421070: preflight installed the pin; emulator-runner lost appium
+    (`command not found` / server not ready). Riskiest assumption: same-shell
+    export PATH is insufficient across Actions steps.
+    """
+
+    def test_preflight_persists_pin_bin_via_github_path(self) -> None:
+        preflight = (ROOT / "scripts" / "ci" / "flutter_emulator_preflight.sh").read_text(encoding="utf-8")
+        self.assertIn('pin_bin="$pin/node_modules/.bin"', preflight)
+        self.assertIn('echo "$pin_bin" >> "$GITHUB_PATH"', preflight)
+        self.assertIn("${GITHUB_PATH:-}", preflight)
+        self.assertIn('export PATH="$pin_bin:$PATH"', preflight)
+        self.assertIn("npm-pins/appium-3.5.2", preflight)
+
+    def test_e2e_reresolves_pin_when_appium_missing(self) -> None:
+        helper = (ROOT / "scripts" / "ci" / "run_ubuntu_flutter_emulator_e2e.sh").read_text(encoding="utf-8")
+        self.assertIn("if ! command -v appium >/dev/null 2>&1; then", helper)
+        self.assertIn("npm-pins/appium-3.5.2", helper)
+        self.assertIn('export PATH="$pin/node_modules/.bin:$PATH"', helper)
+        self.assertIn("appium not on PATH", helper)
+
+    def test_github_path_entries_make_appium_visible_to_child_shell(self) -> None:
+        """Simulate Actions: child shell PATH rebuilt from $GITHUB_PATH file only."""
+        bash = shutil.which("bash")
+        self.assertIsNotNone(bash)
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            pin_bin = tmp_path / "pin" / "node_modules" / ".bin"
+            pin_bin.mkdir(parents=True)
+            fake_appium = pin_bin / "appium"
+            fake_appium.write_text("#!/bin/sh\necho fake-appium\n", encoding="utf-8")
+            fake_appium.chmod(fake_appium.stat().st_mode | stat.S_IXUSR)
+            github_path = tmp_path / "github_path"
+            with github_path.open("a", encoding="utf-8") as fh:
+                fh.write(f"{pin_bin}\n")
+            script = (
+                "set -eu\n"
+                'PATH="/usr/bin:/bin"\n'
+                'while IFS= read -r dir || [ -n "$dir" ]; do\n'
+                '  [ -n "$dir" ] || continue\n'
+                '  PATH="$dir:$PATH"\n'
+                'done < "$GITHUB_PATH"\n'
+                "command -v appium >/dev/null\n"
+                "appium\n"
+            )
+            env = os.environ.copy()
+            env["GITHUB_PATH"] = str(github_path)
+            env["PATH"] = "/usr/bin:/bin"
+            result = subprocess.run(
+                [bash, "-c", script],
+                cwd=tmp,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(
+                0,
+                result.returncode,
+                msg=f"stdout={result.stdout!r} stderr={result.stderr!r}",
+            )
+            self.assertIn("fake-appium", result.stdout)

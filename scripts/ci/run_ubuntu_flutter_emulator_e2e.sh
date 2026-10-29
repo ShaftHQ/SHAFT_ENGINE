@@ -8,6 +8,17 @@ APK_PATH="$GITHUB_WORKSPACE/shaft-engine/src/test/resources/testDataFiles/apps/f
 ls -l "$APK_PATH"
 adb devices
 
+# Defense in depth: preflight should have written pin bin to $GITHUB_PATH, but
+# re-resolve the pin if this fresh emulator-runner shell still lacks appium.
+if ! command -v appium >/dev/null 2>&1; then
+  pin="$(cd "$(dirname "$0")/npm-pins/appium-3.5.2" && pwd)"
+  export PATH="$pin/node_modules/.bin:$PATH"
+fi
+if ! command -v appium >/dev/null 2>&1; then
+  echo "::error::appium not on PATH; run scripts/ci/flutter_emulator_preflight.sh first (and ensure pin bin is on \$GITHUB_PATH)."
+  exit 1
+fi
+
 appiumLog="$RUNNER_TEMP/appium-server.log"
 mavenLog="$RUNNER_TEMP/flutter-maven.log"
 APPIUM_PID=""
