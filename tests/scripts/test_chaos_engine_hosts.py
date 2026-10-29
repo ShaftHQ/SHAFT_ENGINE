@@ -434,6 +434,181 @@ class ChaosEngineHostsTest(unittest.TestCase):
                 ),
             )
 
+
+    def test_stale_owned_marketplaces_extracts_all_ce_owned_from_multi_error(self):
+        module = load(HOSTS, "chaos_engine_multi_stale_owned_parse")
+        with tempfile.TemporaryDirectory() as temporary:
+            data_root = Path(temporary) / "user-data"
+            first = "chaos-engine-" + ("a" * 12)
+            second = "chaos-engine-" + ("b" * 12)
+            foreign = "foreign-marketplace"
+            first_root = data_root / "ChaosEngine/client-marketplaces" / first
+            second_root = data_root / "ChaosEngine/client-marketplaces" / second
+            foreign_root = data_root / "other" / foreign
+            first_root.mkdir(parents=True)
+            second_root.mkdir(parents=True)
+            foreign_root.mkdir(parents=True)
+            error = RuntimeError(
+                "client plugin command failed: Error: failed to load marketplace(s):\n"
+                f"- `{first}` at {first_root}: marketplace root does not contain a supported manifest\n"
+                f"- `{foreign}` at {foreign_root}: marketplace root does not contain a supported manifest\n"
+                f"- `{second}` at {second_root} marketplace root does not contain a supported manifest\n"
+            )
+            self.assertEqual([first, second], module.stale_owned_marketplaces(error))
+            self.assertEqual(first, module.stale_owned_marketplace(error))
+
+    def test_activation_prunes_all_stale_owned_marketplaces_from_multi_error(self):
+        module = load(HOSTS, "chaos_engine_multi_stale_owned_prune")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            canonical = project / ".chaos-engine/skills/chaos-engine/SKILL.md"
+            canonical.parent.mkdir(parents=True)
+            canonical.write_text("# ChaosEngine\n", encoding="utf-8")
+            data_root = Path(temporary) / "user-data"
+            with mock.patch.dict(module.os.environ, {"XDG_DATA_HOME": str(data_root)}):
+                module.install(project, core_commit="1" * 40)
+                root, marketplace_name, _, _ = module.activation_contract(project)
+            # Synthetic CE-owned digests (not this project's live bundle) with missing
+            # roots after ~/.local/share/ChaosEngine cleanup — still CE-owned stales.
+            stale_names = {
+                "chaos-engine-" + ("a" * 12),
+                "chaos-engine-" + ("b" * 12),
+            }
+            state = {
+                "stale": set(stale_names),
+                "marketplace": False,
+                "plugins": set(),
+            }
+            calls = []
+
+            def runner(command, **_options):
+                calls.append(list(command))
+                joined = " ".join(command[1:])
+                if "marketplace list" in joined and state["stale"]:
+                    bullets = "\n".join(
+                        f"- `{name}` at {data_root / 'ChaosEngine/client-marketplaces' / name}: "
+                        "marketplace root does not contain a supported manifest"
+                        for name in sorted(state["stale"])
+                    )
+                    return mock.Mock(
+                        returncode=1,
+                        stdout="",
+                        stderr=f"Error: failed to load marketplace(s):\n{bullets}",
+                    )
+                if "marketplace list" in joined:
+                    value = {
+                        "marketplaces": [
+                            {"name": marketplace_name, "root": str(root)}
+                        ]
+                        if state["marketplace"]
+                        else []
+                    }
+                elif "marketplace remove" in joined:
+                    removed = command[command.index("remove") + 1]
+                    self.assertIn(removed, stale_names)
+                    self.assertNotEqual(removed, "foreign-marketplace")
+                    state["stale"].discard(removed)
+                    value = {}
+                elif "marketplace add" in joined:
+                    state["marketplace"] = True
+                    value = {}
+                elif "plugin list" in joined:
+                    contracts = module.activation_plugins(project, marketplace_name)
+                    value = {
+                        "installed": [
+                            {
+                                "pluginId": contracts[name]["id"],
+                                "version": contracts[name]["version"],
+                                "installed": True,
+                                "enabled": True,
+                                "source": {"path": str(root / f"plugins/{name}")},
+                            }
+                            for name in state["plugins"]
+                        ],
+                        "available": [],
+                    }
+                elif "plugin add" in joined:
+                    plugin_id = next(item for item in command if "@" in item)
+                    state["plugins"].add(plugin_id.split("@", 1)[0])
+                    value = {}
+                else:
+                    raise AssertionError(command)
+                return mock.Mock(returncode=0, stdout=json.dumps(value), stderr="")
+
+            with mock.patch.dict(module.os.environ, {"XDG_DATA_HOME": str(data_root)}):
+                receipt = module.activate_detected_plugins(
+                    project,
+                    runner=runner,
+                    which=lambda name: name if name == "codex" else None,
+                )
+
+            self.assertEqual("healthy", receipt["clients"]["codex"]["status"])
+            removed = [
+                command[command.index("remove") + 1]
+                for command in calls
+                if "marketplace remove" in " ".join(command[1:])
+            ]
+            self.assertEqual(stale_names, set(removed))
+            self.assertEqual(2, len(removed))
+            self.assertFalse(state["stale"])
+
+    def test_multi_stale_error_never_removes_foreign_marketplace(self):
+        module = load(HOSTS, "chaos_engine_multi_stale_foreign_guard")
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "consumer"
+            canonical = project / ".chaos-engine/skills/chaos-engine/SKILL.md"
+            canonical.parent.mkdir(parents=True)
+            canonical.write_text("# ChaosEngine\n", encoding="utf-8")
+            data_root = Path(temporary) / "user-data"
+            with mock.patch.dict(module.os.environ, {"XDG_DATA_HOME": str(data_root)}):
+                module.install(project, core_commit="1" * 40)
+            owned_name = "chaos-engine-" + ("d" * 12)
+            owned_root = data_root / "ChaosEngine/client-marketplaces" / owned_name
+            foreign_root = Path(temporary) / "foreign-marketplace"
+            state = {"owned": True}
+            calls = []
+
+            def runner(command, **_options):
+                calls.append(list(command))
+                joined = " ".join(command[1:])
+                if "marketplace list" in joined:
+                    bullets = [
+                        f"- `foreign-marketplace` at {foreign_root}: "
+                        "marketplace root does not contain a supported manifest"
+                    ]
+                    if state["owned"]:
+                        bullets.insert(
+                            0,
+                            f"- `{owned_name}` at {owned_root}: "
+                            "marketplace root does not contain a supported manifest",
+                        )
+                    return mock.Mock(
+                        returncode=1,
+                        stdout="",
+                        stderr="Error: failed to load marketplace(s):\n" + "\n".join(bullets),
+                    )
+                if "marketplace remove" in joined:
+                    removed = command[command.index("remove") + 1]
+                    self.assertEqual(owned_name, removed)
+                    state["owned"] = False
+                    return mock.Mock(returncode=0, stdout="{}", stderr="")
+                raise AssertionError(command)
+
+            with mock.patch.dict(module.os.environ, {"XDG_DATA_HOME": str(data_root)}), self.assertRaisesRegex(
+                RuntimeError, "marketplace root does not contain a supported manifest"
+            ):
+                module.activate_detected_plugins(
+                    project,
+                    runner=runner,
+                    which=lambda name: name if name == "codex" else None,
+                )
+            removed = [
+                command[command.index("remove") + 1]
+                for command in calls
+                if "marketplace remove" in " ".join(command[1:])
+            ]
+            self.assertEqual([owned_name], removed)
+
     def test_activation_preserves_unclassified_broken_marketplace(self):
         module = load(HOSTS, "chaos_engine_unclassified_broken_marketplace")
         with tempfile.TemporaryDirectory() as temporary:
