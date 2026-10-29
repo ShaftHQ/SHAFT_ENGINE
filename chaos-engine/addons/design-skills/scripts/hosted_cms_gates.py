@@ -611,8 +611,7 @@ def _apply_header_measure(rows: dict[str, Any], report: dict[str, Any]) -> dict[
 
 
 def check_livecms(report: dict[str, Any]) -> dict[str, Any]:
-    """
-    Fail-closed live matrix for L28/L31/L36.
+    """Fail-closed live matrix for L28/L31/L36.
 
     Header delta rows are never trusted from the operator. Any
     ``header_*_delta_ok_*`` keys in the receipt are stripped; flags are
@@ -780,8 +779,7 @@ def check_cms_header_delta(
     max_delta_px: float = 1.0,
     **legacy: Any,
 ) -> dict[str, Any]:
-    """
-    L36: per-viewport header logo/nav delta vs '/' ≤ max_delta_px.
+    """L36: per-viewport header logo/nav delta vs '/' ≤ max_delta_px.
 
     Preferred receipt::
         {"viewports": {"360": {"home_logo": {"x", "y"}, "page_logo": {...},
