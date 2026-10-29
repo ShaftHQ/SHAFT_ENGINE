@@ -1296,18 +1296,57 @@ def _title_from_metadata(path: Path) -> str:
     return match.group("title").strip()
 
 
+
+def _title_kept_covers(span: tuple[float, float], cuts: list[tuple[float, float]]) -> bool:
+    """True iff [s,e] lies in kept speech (no overlap with any cut)."""
+    start, end = span
+    if end < start:
+        return False
+    for a, b in cuts:
+        if min(end, b) - max(start, a) > 1e-6:
+            return False
+    return True
+
+
+def _title_ordered_match_span(seg_toks: list[str], words: list[dict]) -> tuple[float, float] | None:
+    """Minimal [start,end] covering an ordered match of content tokens in words."""
+    need = [t for t in seg_toks if t not in TITLE_NEG_LEMMAS and len(t) > 1]
+    if not need:
+        return None
+    wi = 0
+    first_s = None
+    last_e = None
+    for w in words:
+        tok = _title_fold_tok(str(w.get("word") or w.get("w") or ""))
+        if not tok:
+            continue
+        if tok == need[wi]:
+            if first_s is None:
+                first_s = float(w["start"] if w.get("start") is not None else w["s"])
+            last_e = float(w["end"] if w.get("end") is not None else w["e"])
+            wi += 1
+            if wi == len(need):
+                return (first_s, last_e)
+    return None
+
+
 def cmd_titlepolarity(qc, args) -> int:
-    """G21: title segments must preserve source-cue negation (token presence ≠ meaning)."""
+    """G21/G22: title polarity + claim binds to kept-speech clause (not cut span)."""
     title = (args.title or "").strip()
     if getattr(args, "metadata", None):
         title = _title_from_metadata(Path(args.metadata))
     if not title:
         raise qc.Skip("pass --title or --metadata")
     cues = cue_list(qc, args.srt)
+    words = None
+    if getattr(args, "words", None):
+        words = words_of(json.loads(Path(args.words).read_text(encoding="utf-8")))
+    cuts = _parse_splices(args.splice) if getattr(args, "splice", None) else []
     errors, checked = [], []
     title_toks = _title_tokenize(title)
     title_negs = _title_neg_in_tokens(title_toks)
     segments = [s.strip() for s in TITLE_SEG_SPLIT.split(title) if s.strip()] or [title]
+    g22 = words is not None
 
     for si, seg in enumerate(segments, 1):
         seg_toks = _title_tokenize(seg)
@@ -1331,21 +1370,50 @@ def cmd_titlepolarity(qc, args) -> int:
                 required |= cue_negs
         missing = sorted(required - seg_negs)
         ok = not missing
-        checked.append({
+        row = {
             "segment": si, "text": seg, "content": sorted(content),
             "required_negs": sorted(required), "title_negs": sorted(title_negs),
             "source_cues": hit_cues, "missing": missing, "ok": ok,
-        })
+        }
+        if g22:
+            # words_of entries use word/start/end
+            span = _title_ordered_match_span(seg_toks, [
+                {"word": w["word"], "w": w["word"], "start": w["start"], "s": w["start"],
+                 "end": w["end"], "e": w["end"]}
+                for w in words
+                if w.get("word") and w.get("start") is not None and w.get("end") is not None
+            ])
+            row["clause_span"] = list(span) if span else None
+            row["cuts"] = [list(c) for c in cuts]
+            if span is None:
+                ok = False
+                errors.append(
+                    f"segment[{si}] {seg!r}: G22 no ordered kept-speech match "
+                    f"for content tokens {sorted(content)}"
+                )
+            elif not _title_kept_covers(span, cuts):
+                ok = False
+                errors.append(
+                    f"segment[{si}] {seg!r}: G22 title clause span {span} "
+                    f"overlaps cut or is not ⊆ kept spans (cuts={cuts})"
+                )
+            row["ok"] = ok
+        checked.append(row)
         if missing:
             errors.append(
                 f"segment[{si}] {seg!r}: polarity flip — source negation {missing} "
                 f"not preserved in title (cues: {hit_cues})"
             )
+    note = (
+        "G21+G22: segment-local negation; title clause ordered match ⊆ kept spans"
+        if g22 else
+        "segment-local negation; first-half مافيش does not license a positive second claim; "
+        "G22: pass --words + --splice to bind claim to kept speech"
+    )
     return qc.report(
         "titlepolarity", qc.FAIL if errors else qc.PASS,
-        gate="G21", title=title, title_negs=sorted(title_negs),
-        errors=errors, checked=checked,
-        note="segment-local negation; first-half مافيش does not license a positive second claim",
+        gate="G21+G22" if g22 else "G21", title=title, title_negs=sorted(title_negs),
+        errors=errors, checked=checked, note=note,
     )
 
 
@@ -1600,10 +1668,12 @@ def register(add, qc) -> None:
     p.add_argument("--fix", action="append", default=[], metavar="AR=CORRECT",
                    help="extend baseline ASR_ORTHO_FIX map")
     p = add("titlepolarity", bind(cmd_titlepolarity),
-            "G21: title segments must preserve source-cue negation lemmas")
+            "G21/G22: title polarity + claim binds to kept-speech clause (--words/--splice)")
     p.add_argument("--srt", required=True, help="source/caption SRT overlapping title content")
     p.add_argument("--title", default="", help="title text (or use --metadata)")
     p.add_argument("--metadata", default=None, help="METADATA.md with ## Title block")
+    p.add_argument("--words", default=None, help="G22: pre-cut words.json for ordered clause binding")
+    p.add_argument("--splice", default="", help="G22: span-relative cuts a-b,c-d; clause must ⊆ kept")
     p = add("textfloor", bind(cmd_textfloor), "text under 2.6%% of the short side (28 px on portrait)")
     p.add_argument("file")
     p.add_argument("--frame", default="1080x1920")

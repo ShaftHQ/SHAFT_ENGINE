@@ -48,13 +48,12 @@ visual or gate change is coming. It pairs with
    (3) project site URL; (4) project hashtag line. Gate before handoff:
    `design_qc.py metadatadesc METADATA.md --site <url> --tags "<tags>"`
    (write `qc/<rev>/metadata_desc_gate.json`).
-9. **G21 title polarity:** token presence ≠ meaning. For each title
-   segment (split on —), source SRT cues that supply that segment's
-   content words must have their negation lemmas (`مافيش`/`مش`/`ما`/`لسه`/
-   `not`/`no`) preserved **in that same segment**. First-half negation
-   does not license a positive second claim. Gate:
-   `design_qc.py titlepolarity --title T --srt cues.srt` (or
-   `--metadata METADATA.md`).
+9. **G21/G22 title polarity + kept binding:** token presence ≠ meaning.
+   Per title segment (split on —), source-cue negation lemmas stay in
+   that segment. G22: ordered content-token match ⊆ kept spans
+   (complement of `--splice`); claim must not live only in a cut.
+   Gate: `design_qc.py titlepolarity --title T --srt cues.srt`
+   `[--words W --splice a-b]` (or `--metadata`).
 
 ## Verify
 
@@ -74,8 +73,8 @@ visual or gate change is coming. It pairs with
       doubts).
 - [ ] `design_qc.py metadatadesc METADATA.md --site … --tags …` passes
       (exact 4-line desc; site/tags are project fill-ins).
-- [ ] `design_qc.py titlepolarity --title … --srt …` passes (G21; segment-local
-      negation preserved).
+- [ ] `design_qc.py titlepolarity --title … --srt … [--words … --splice …]`
+      passes (G21 polarity; G22 claim ⊆ kept when words given).
 
 ## Sources
 
