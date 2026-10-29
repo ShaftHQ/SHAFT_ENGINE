@@ -82,7 +82,10 @@ and the control does not run. Both <code>driver.element().click(locator)</code> 
 </ol>
 Screen-only taps without an element rectangle are not used. Unreadable page source
 after <code>mobile: tap</code> fails closed with no further tap. When neither recovery
-changes the page source, the action fails instead of returning success.</div>
+changes the page source, the action fails instead of returning success.
+
+<p>Element id resolution prefers <code>AppiumWebElement.getId()</code> (Appium java-client
+11) and falls back to <code>RemoteWebElement.getId()</code>.</div>
 </div>
 </section>
 <section class="summary">
