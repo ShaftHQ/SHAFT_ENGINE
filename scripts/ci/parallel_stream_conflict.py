@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-"""Refuse parallel-stream dispatch when writable path globs overlap peers."""
+"""Refuse parallel-stream dispatch on ownership overlap or disk/worktree caps."""
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from pathlib import Path
 from typing import Any
+
+from scripts.ci.box_disk_guard import (  # noqa: E402
+    disk_warn,
+    new_worker_blockers,
+    refuse_new_worker,
+)
 
 
 def _stem(glob: str) -> str:
@@ -97,6 +104,52 @@ def refuse_dispatch_on_ownership_overlap(
             exclude_stream_id=exclude_stream_id,
         )
     )
+
+
+def refuse_dispatch(
+    proposed_owned_globs: Sequence[str],
+    peer_streams: Sequence[Mapping[str, Any]],
+    *,
+    exclude_stream_id: str | None = None,
+    workspace: Path | str | None = None,
+    repo_root: Path | str | None = None,
+    free: int | None = None,
+    linked_count: int | None = None,
+) -> list[str]:
+    """Return every dispatch blocker: ownership overlap and disk/worktree caps.
+
+    When ``workspace`` is omitted, only ownership is checked (unit tests /
+    callers that gate disk separately). Pass ``workspace`` (and optionally
+    ``repo_root``) before creating a new worktree or clone.
+    """
+    blockers: list[str] = []
+    conflicts = conflicting_peer_stream_ids(
+        proposed_owned_globs,
+        peer_streams,
+        exclude_stream_id=exclude_stream_id,
+    )
+    if conflicts:
+        blockers.append("ownership-overlap:" + ",".join(conflicts))
+    if workspace is not None:
+        blockers.extend(
+            new_worker_blockers(
+                workspace,
+                repo_root=repo_root,
+                free=free,
+                linked_count=linked_count,
+            )
+        )
+    return blockers
+
+
+__all__ = [
+    "conflicting_peer_stream_ids",
+    "disk_warn",
+    "refuse_dispatch",
+    "refuse_dispatch_on_ownership_overlap",
+    "refuse_new_worker",
+    "writable_globs_overlap",
+]
 
 
 if __name__ == "__main__":

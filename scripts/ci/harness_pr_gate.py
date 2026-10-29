@@ -509,6 +509,7 @@ CHECKS = {
             "tests.scripts.test_process_owner_scrum_master",
             "tests.scripts.test_multi_agent_pdca",
             "tests.scripts.test_parallel_streams",
+            "tests.scripts.test_box_disk_guard",
             "tests.scripts.test_pre_done_review",
         ),
     ),
@@ -1122,6 +1123,7 @@ SURFACE_PATTERNS = {
         "scripts/ci/parallel_stream_conflict.py",
         "scripts/ci/worktree_hygiene.py",
         "tests/scripts/test_parallel_streams.py",
+        "tests/scripts/test_box_disk_guard.py",
     ),
     # #6411-#6414: decision-quality gate, dod, latency budgets, usage table.
     "ce-h2-gates": (

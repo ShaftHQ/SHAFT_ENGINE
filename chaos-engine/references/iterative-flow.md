@@ -71,6 +71,7 @@ written on that row.
       views match the table, `## What's missing` answered, and
       `tool.py pre-done <report.md>` exits 0?
 - [ ] Both sign-offs, and the item shipped or scheduled?
+- [ ] Post-merge own cleanup ran for this stream's recorded worktree / branch (hygiene proofs; DoD)?
 - [ ] Each lesson logged as failure → root cause → preventive rule?
 - [ ] Preventive rule applied to the next item's plan, template, or checks?
 - [ ] Each lesson routed (generic → ChaosEngine, project → its own repo),
