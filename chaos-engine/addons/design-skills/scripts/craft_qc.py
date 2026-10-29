@@ -2887,7 +2887,6 @@ def cmd_speechcuegap(qc, args) -> int:
     """Fail caption holes longer than max seconds that overlap speech."""
     cues = qc.parse_cues(Path(args.cues).read_text(encoding="utf-8"))
     media = Path(args.file)
-    duration = 0.0
     if media.suffix.lower() == ".wav":
         duration = _wav_duration(media)
     else:
