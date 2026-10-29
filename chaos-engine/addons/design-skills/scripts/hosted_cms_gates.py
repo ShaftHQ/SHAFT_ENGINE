@@ -75,6 +75,92 @@ def _strip_css_comments_and_strings(src: str) -> str:
     return _CSS_STRING.sub('""', no_line)
 
 
+def _css_skip_ws(s: str, j: int, n: int) -> int:
+    """Advance past ASCII whitespace."""
+    while j < n and s[j].isspace():
+        j += 1
+    return j
+
+
+def _css_scan_rule_chunk(
+    s: str, j: int, n: int, hits: list[int],
+) -> tuple[int, bool]:
+    """Scan one ruleset or declaration from j.
+
+    Returns (new_index, closed_block). Selector text before `{` is scored;
+    declarations ending in `;` are skipped; `}` closes the enclosing block.
+    """
+    start = j
+    paren = 0
+    while j < n:
+        ch = s[j]
+        if ch == "(":
+            paren += 1
+            j += 1
+            continue
+        if ch == ")":
+            paren = max(0, paren - 1)
+            j += 1
+            continue
+        if paren != 0:
+            j += 1
+            continue
+        if ch == "{":
+            hits[0] += len(_ROOT_IN_SELECTOR.findall(s[start:j]))
+            return _css_scan_block(s, j + 1, n, hits), False
+        if ch == ";":
+            return j + 1, False
+        if ch == "}":
+            return j + 1, True
+        j += 1
+    return j, False
+
+
+def _css_scan_at_rule(s: str, j: int, n: int, hits: list[int]) -> int:
+    """Skip an at-rule prelude (names are not selectors); scan its block."""
+    # s[j] == '@'
+    j += 1
+    while j < n and (s[j].isalnum() or s[j] in "_-"):
+        j += 1
+    paren = 0
+    while j < n:
+        ch = s[j]
+        if ch == "(":
+            paren += 1
+            j += 1
+            continue
+        if ch == ")":
+            paren = max(0, paren - 1)
+            j += 1
+            continue
+        if paren != 0:
+            j += 1
+            continue
+        if ch == "{":
+            return _css_scan_block(s, j + 1, n, hits)
+        if ch == ";":
+            return j + 1
+        j += 1
+    return j
+
+
+def _css_scan_block(s: str, j: int, n: int, hits: list[int]) -> int:
+    """Scan a `{...}` body of rulesets, declarations, and nested at-rules."""
+    while j < n:
+        j = _css_skip_ws(s, j, n)
+        if j >= n:
+            return j
+        if s[j] == "}":
+            return j + 1
+        if s[j] == "@":
+            j = _css_scan_at_rule(s, j, n, hits)
+            continue
+        j, closed = _css_scan_rule_chunk(s, j, n, hits)
+        if closed:
+            return j
+    return j
+
+
 def _count_root_selectors(css: str) -> int:
     """Count html/body/:root type selectors in selector lists only.
 
@@ -85,103 +171,20 @@ def _count_root_selectors(css: str) -> int:
     """
     s = css or ""
     n = len(s)
-    hits = 0
-
-    def scan_block(j: int) -> int:
-        nonlocal hits
-        while j < n:
-            while j < n and s[j].isspace():
-                j += 1
-            if j >= n:
-                return j
-            if s[j] == "}":
-                return j + 1
-            if s[j] == "@":
-                j = scan_at_rule(j)
-                continue
-            start = j
-            paren = 0
-            while j < n:
-                ch = s[j]
-                if ch == "(":
-                    paren += 1
-                    j += 1
-                elif ch == ")":
-                    paren = max(0, paren - 1)
-                    j += 1
-                elif paren == 0 and ch == "{":
-                    hits += len(_ROOT_IN_SELECTOR.findall(s[start:j]))
-                    j = scan_block(j + 1)
-                    break
-                elif paren == 0 and ch == ";":
-                    j += 1
-                    break
-                elif paren == 0 and ch == "}":
-                    return j + 1
-                else:
-                    j += 1
-            else:
-                return j
-        return j
-
-    def scan_at_rule(j: int) -> int:
-        # s[j] == '@' — prelude identifiers are names/queries, not selectors.
-        j += 1
-        while j < n and (s[j].isalnum() or s[j] in "_-"):
-            j += 1
-        paren = 0
-        while j < n:
-            ch = s[j]
-            if ch == "(":
-                paren += 1
-                j += 1
-            elif ch == ")":
-                paren = max(0, paren - 1)
-                j += 1
-            elif paren == 0 and ch == "{":
-                return scan_block(j + 1)
-            elif paren == 0 and ch == ";":
-                return j + 1
-            else:
-                j += 1
-        return j
-
+    hits = [0]
     i = 0
     while i < n:
-        while i < n and s[i].isspace():
-            i += 1
+        i = _css_skip_ws(s, i, n)
         if i >= n:
             break
         if s[i] == "}":
             i += 1
             continue
         if s[i] == "@":
-            i = scan_at_rule(i)
+            i = _css_scan_at_rule(s, i, n, hits)
             continue
-        start = i
-        paren = 0
-        while i < n:
-            ch = s[i]
-            if ch == "(":
-                paren += 1
-                i += 1
-            elif ch == ")":
-                paren = max(0, paren - 1)
-                i += 1
-            elif paren == 0 and ch == "{":
-                hits += len(_ROOT_IN_SELECTOR.findall(s[start:i]))
-                i = scan_block(i + 1)
-                break
-            elif paren == 0 and ch == ";":
-                i += 1
-                break
-            elif paren == 0 and ch == "}":
-                break
-            else:
-                i += 1
-        else:
-            break
-    return hits
+        i, _closed = _css_scan_rule_chunk(s, i, n, hits)
+    return hits[0]
 
 
 class _PasteMarkupScanner(HTMLParser):
