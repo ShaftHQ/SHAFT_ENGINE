@@ -2,6 +2,7 @@ package com.shaft.listeners.internal;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.shaft.listeners.TestNGListener;
 import io.qameta.allure.AllureExternalKey;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.FileSystemResultsWriter;
@@ -26,12 +27,14 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
- * Regression for #7549: TestNG groups and Allure {@code @Tag} must land as
- * {@code labels} with {@code name=tag} in allure-results JSON.
+ * Regression for #7549: TestNG groups and Allure {@code @Tag}/{@code @Tags} must land as
+ * {@code labels} with {@code name=tag} in allure-results JSON. No reflective setAccessible.
  */
 public class TestNgTagLabelsUnitTest {
     private Path allureResultsDirectory;
@@ -59,18 +62,7 @@ public class TestNgTagLabelsUnitTest {
     @Test
     public void beforeTestStopShouldPublishTestNgGroupsAndTagAnnotationsAsAllureTags() throws Exception {
         Method annotated = TaggedFixture.class.getDeclaredMethod("taggedMethod");
-        ITestNGMethod method = Mockito.mock(ITestNGMethod.class);
-        Mockito.when(method.getGroups()).thenReturn(new String[]{"smoke", "regression"});
-        ConstructorOrMethod constructorOrMethod = Mockito.mock(ConstructorOrMethod.class);
-        Mockito.when(constructorOrMethod.getMethod()).thenReturn(annotated);
-        Mockito.when(method.getConstructorOrMethod()).thenReturn(constructorOrMethod);
-
-        IClass testClass = Mockito.mock(IClass.class);
-        Mockito.doReturn(TaggedFixture.class).when(testClass).getRealClass();
-
-        ITestResult testNgResult = Mockito.mock(ITestResult.class);
-        Mockito.when(testNgResult.getMethod()).thenReturn(method);
-        Mockito.when(testNgResult.getTestClass()).thenReturn(testClass);
+        ITestResult testNgResult = mockResult(annotated, new String[]{"smoke", "regression"}, TaggedFixture.class, null);
 
         String uuid = UUID.randomUUID().toString();
         TestResult result = new TestResult()
@@ -88,6 +80,124 @@ public class TestNgTagLabelsUnitTest {
         lifecycle.stopTest(testKey);
         lifecycle.writeTest(testKey);
 
+        Set<String> tagValues = tagValuesFromResults();
+        Assert.assertTrue(tagValues.contains("smoke"), "missing group tag smoke: " + tagValues);
+        Assert.assertTrue(tagValues.contains("regression"), "missing group tag regression: " + tagValues);
+        Assert.assertTrue(tagValues.contains("manual-tag"), "missing @Tag via @Tags manual-tag: " + tagValues);
+        Assert.assertTrue(tagValues.contains("class-tag"), "missing class @Tag class-tag: " + tagValues);
+    }
+
+    @Test
+    public void publicApplyUsesBoundTestNgResultWithoutReflection() {
+        Assert.assertNotNull(TestNGListener.getITestResult(),
+                "SHAFT TestNGListener must bind ITestResult for the running unit test");
+        TestNgTagLabels.apply(null);
+
+        TestResult result = new TestResult().setLabels(new ArrayList<>());
+        TestNgTagLabels.apply(result);
+        // Live unit-test method has no groups/@Tag; labels stay empty but public path executed.
+        Assert.assertTrue(result.getLabels().stream().noneMatch(label -> "tag".equals(label.getName())
+                && "should-not-appear".equals(label.getValue())));
+    }
+
+    @Test
+    public void applyIsNoOpWithoutBoundTestNgResultAndDoesNotDuplicate() {
+        TestResult result = new TestResult();
+        result.getLabels().add(new Label().setName("tag").setValue("smoke"));
+        TestNgTagLabels.apply(result, null);
+        Assert.assertEquals(result.getLabels().size(), 1);
+
+        ITestNGMethod method = Mockito.mock(ITestNGMethod.class);
+        Mockito.when(method.getGroups()).thenReturn(new String[]{"smoke", "smoke", "  ", null});
+        ITestResult testNgResult = Mockito.mock(ITestResult.class);
+        Mockito.when(testNgResult.getMethod()).thenReturn(method);
+        TestNgTagLabels.apply(result, testNgResult);
+        long smokeTags = result.getLabels().stream()
+                .filter(label -> "tag".equals(label.getName()) && "smoke".equals(label.getValue()))
+                .count();
+        Assert.assertEquals(smokeTags, 1L);
+    }
+
+    @Test
+    public void applyHandlesNullMethodNullGroupsAndInstanceClassFallback() throws Exception {
+        TestResult emptyMethod = new TestResult().setLabels(new ArrayList<>());
+        ITestResult noMethod = Mockito.mock(ITestResult.class);
+        Mockito.when(noMethod.getMethod()).thenReturn(null);
+        Mockito.when(noMethod.getTestClass()).thenReturn(null);
+        Mockito.when(noMethod.getInstance()).thenReturn(null);
+        TestNgTagLabels.apply(emptyMethod, noMethod);
+        Assert.assertTrue(emptyMethod.getLabels().isEmpty());
+
+        TestResult nullGroups = new TestResult().setLabels(new ArrayList<>());
+        ITestNGMethod method = Mockito.mock(ITestNGMethod.class);
+        Mockito.when(method.getGroups()).thenReturn(null);
+        Mockito.when(method.getConstructorOrMethod()).thenReturn(null);
+        ITestResult withNullGroups = Mockito.mock(ITestResult.class);
+        Mockito.when(withNullGroups.getMethod()).thenReturn(method);
+        Mockito.when(withNullGroups.getTestClass()).thenReturn(null);
+        Mockito.when(withNullGroups.getInstance()).thenReturn(new InstanceTaggedFixture());
+        TestNgTagLabels.apply(nullGroups, withNullGroups);
+        Set<String> tags = tagValues(nullGroups);
+        Assert.assertTrue(tags.contains("instance-class-tag"), "instance class @Tag: " + tags);
+
+        TestResult bothNull = new TestResult().setLabels(new ArrayList<>());
+        TestNgTagLabels.apply(null, null);
+        TestNgTagLabels.apply(bothNull, null);
+        Assert.assertTrue(bothNull.getLabels().isEmpty());
+    }
+
+    @Test
+    public void applyReadsSingleTagAnnotationAndSkipsNonTagLabels() throws Exception {
+        Method single = SingleTagFixture.class.getDeclaredMethod("singleTagged");
+        ITestResult testNgResult = mockResult(single, new String[]{}, SingleTagFixture.class, null);
+        TestResult result = new TestResult().setLabels(new ArrayList<>());
+        // Pre-seed a non-tag label so AnnotationUtils noise cannot confuse dedupe of tags.
+        result.getLabels().add(new Label().setName("severity").setValue("x"));
+        TestNgTagLabels.apply(result, testNgResult);
+        Set<String> tags = tagValues(result);
+        Assert.assertTrue(tags.contains("solo-tag"), "missing single @Tag: " + tags);
+        Assert.assertEquals(result.getLabels().stream().filter(l -> "severity".equals(l.getName())).count(), 1L);
+    }
+
+    @Test
+    public void applyUsesTagsContainerOnClassAndDedupesAgainstExisting() throws Exception {
+        Method bare = ClassTagsFixture.class.getDeclaredMethod("bare");
+        ITestResult testNgResult = mockResult(bare, new String[]{"shared"}, ClassTagsFixture.class, null);
+        TestResult result = new TestResult().setLabels(new ArrayList<>());
+        result.getLabels().add(new Label().setName("tag").setValue("shared"));
+        result.getLabels().add(new Label().setName("tag").setValue("class-tags-a"));
+        TestNgTagLabels.apply(result, testNgResult);
+        List<String> tagList = result.getLabels().stream()
+                .filter(label -> "tag".equals(label.getName()))
+                .map(Label::getValue)
+                .collect(Collectors.toList());
+        Assert.assertEquals(tagList.stream().filter("shared"::equals).count(), 1L);
+        Assert.assertEquals(tagList.stream().filter("class-tags-a"::equals).count(), 1L);
+        Assert.assertTrue(tagList.contains("class-tags-b"), "missing @Tags peer: " + tagList);
+    }
+
+    private static ITestResult mockResult(Method annotated, String[] groups, Class<?> realClass, Object instance)
+            throws Exception {
+        ITestNGMethod method = Mockito.mock(ITestNGMethod.class);
+        Mockito.when(method.getGroups()).thenReturn(groups);
+        ConstructorOrMethod constructorOrMethod = Mockito.mock(ConstructorOrMethod.class);
+        Mockito.when(constructorOrMethod.getMethod()).thenReturn(annotated);
+        Mockito.when(method.getConstructorOrMethod()).thenReturn(constructorOrMethod);
+
+        IClass testClass = null;
+        if (realClass != null) {
+            testClass = Mockito.mock(IClass.class);
+            Mockito.doReturn(realClass).when(testClass).getRealClass();
+        }
+
+        ITestResult testNgResult = Mockito.mock(ITestResult.class);
+        Mockito.when(testNgResult.getMethod()).thenReturn(method);
+        Mockito.when(testNgResult.getTestClass()).thenReturn(testClass);
+        Mockito.when(testNgResult.getInstance()).thenReturn(instance);
+        return testNgResult;
+    }
+
+    private Set<String> tagValuesFromResults() throws Exception {
         Path resultFile;
         try (var paths = Files.list(allureResultsDirectory)) {
             resultFile = paths.filter(path -> path.getFileName().toString().endsWith("-result.json"))
@@ -101,28 +211,14 @@ public class TestNgTagLabelsUnitTest {
                 tagValues.add(label.path("value").asText());
             }
         }
-        Assert.assertTrue(tagValues.contains("smoke"), "missing group tag smoke: " + tagValues);
-        Assert.assertTrue(tagValues.contains("regression"), "missing group tag regression: " + tagValues);
-        Assert.assertTrue(tagValues.contains("manual-tag"), "missing @Tag manual-tag: " + tagValues);
-        Assert.assertTrue(tagValues.contains("class-tag"), "missing class @Tag class-tag: " + tagValues);
+        return tagValues;
     }
 
-    @Test
-    public void applyIsNoOpWithoutBoundTestNgResultAndDoesNotDuplicate() {
-        TestResult result = new TestResult();
-        result.getLabels().add(new Label().setName("tag").setValue("smoke"));
-        TestNgTagLabels.apply(result, null);
-        Assert.assertEquals(result.getLabels().size(), 1);
-
-        ITestNGMethod method = Mockito.mock(ITestNGMethod.class);
-        Mockito.when(method.getGroups()).thenReturn(new String[]{"smoke", "smoke", "  "});
-        ITestResult testNgResult = Mockito.mock(ITestResult.class);
-        Mockito.when(testNgResult.getMethod()).thenReturn(method);
-        TestNgTagLabels.apply(result, testNgResult);
-        long smokeTags = result.getLabels().stream()
-                .filter(label -> "tag".equals(label.getName()) && "smoke".equals(label.getValue()))
-                .count();
-        Assert.assertEquals(smokeTags, 1L);
+    private static Set<String> tagValues(TestResult result) {
+        return result.getLabels().stream()
+                .filter(label -> "tag".equals(label.getName()))
+                .map(Label::getValue)
+                .collect(Collectors.toSet());
     }
 
     @Tag("class-tag")
@@ -130,7 +226,27 @@ public class TestNgTagLabelsUnitTest {
         @Tags({@Tag("manual-tag")})
         @SuppressWarnings("unused")
         private void taggedMethod() {
-            // annotation carrier for AnnotationUtils
+            // annotation carrier for AnnotationUtils (@Tags container)
+        }
+    }
+
+    @Tag("instance-class-tag")
+    private static final class InstanceTaggedFixture {
+    }
+
+    private static final class SingleTagFixture {
+        @Tag("solo-tag")
+        @SuppressWarnings("unused")
+        private void singleTagged() {
+            // single @Tag without @Tags container
+        }
+    }
+
+    @Tags({@Tag("class-tags-a"), @Tag("class-tags-b")})
+    private static final class ClassTagsFixture {
+        @SuppressWarnings("unused")
+        private void bare() {
+            // class-level @Tags only
         }
     }
 }
