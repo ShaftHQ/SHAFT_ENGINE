@@ -94,10 +94,35 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPanelSetupTest {
     static {
-        // AllIcons / DeferredIcon paint empty placeholders until IconLoader is activated.
-        // Without this, paintsVisiblePixels fails for toolbar icons that now resolve via AllIcons (W1.2).
-        // Same requirement as ShaftPluginScreenshotRendererTest.
+        // JetBrains UsefulTestCase.isIconRequired(): IconLoader.activate() alone leaves a fake
+        // empty IconManager, so AllIcons DeferredIcons paint zero pixels under headless Platform
+        // unit tests (CI Build IntelliJ plugin: 4× ShaftPanelSetupTest paintsVisiblePixels).
+        // Activate CoreIconManager first, then IconLoader — same order as platform testFramework.
+        activatePlatformIconManager();
         com.intellij.openapi.util.IconLoader.activate();
+    }
+
+    private static void activatePlatformIconManager() {
+        try {
+            Class<?> iconManagerClass = Class.forName("com.intellij.ui.IconManager");
+            Class<?> coreIconManagerClass = Class.forName("com.intellij.ui.icons.CoreIconManager");
+            Object companion = iconManagerClass.getField("Companion").get(null);
+            Object core = coreIconManagerClass.getDeclaredConstructor().newInstance();
+            Method activate = null;
+            for (Method candidate : companion.getClass().getMethods()) {
+                if ("activate".equals(candidate.getName()) && candidate.getParameterCount() == 1) {
+                    activate = candidate;
+                    break;
+                }
+            }
+            if (activate == null) {
+                throw new NoSuchMethodException("IconManager.Companion.activate(IconManager)");
+            }
+            activate.invoke(companion, core);
+        } catch (ReflectiveOperationException | LinkageError e) {
+            // Fall back to IconLoader.activate() below; paint helper still tries evaluate().
+            System.err.println("ShaftPanelSetupTest: CoreIconManager activate skipped: " + e);
+        }
     }
 
     private static final List<Path> TEMP_DIRECTORIES = new ArrayList<>();
@@ -9249,9 +9274,9 @@ class ShaftPanelSetupTest {
     }
 
     private static boolean paintsVisiblePixels(Icon icon, JButton button) {
-        // AllIcons are DeferredIcon instances. In headless Platform tests their paintIcon
-        // can draw nothing until evaluate()/retrieveIcon() resolves the real glyph, even
-        // after IconLoader.activate(). Unwrap without weakening the non-empty assertion.
+        // AllIcons are DeferredIcon instances. After CoreIconManager + IconLoader.activate(),
+        // still unwrap evaluate()/retrieveIcon()/getRealIcon so paint uses the loaded glyph.
+        // Assertion still requires at least one non-transparent pixel.
         icon = resolvePaintIcon(icon);
         BufferedImage image = new BufferedImage(
                 Math.max(1, icon.getIconWidth()),
@@ -9278,6 +9303,7 @@ class ShaftPanelSetupTest {
      * Reflective so the test compiles against both older and newer platform icon APIs.
      */
     private static Icon resolvePaintIcon(Icon icon) {
+        activatePlatformIconManager();
         com.intellij.openapi.util.IconLoader.activate();
         Icon current = icon;
         for (int depth = 0; depth < 8 && current != null; depth++) {
@@ -9287,6 +9313,9 @@ class ShaftPanelSetupTest {
             }
             if (next == null) {
                 next = invokeIconResolver(current, "getBaseIcon");
+            }
+            if (next == null) {
+                next = invokeIconResolver(current, "getRealIcon");
             }
             if (next == null || next == current) {
                 return current;
@@ -9298,7 +9327,13 @@ class ShaftPanelSetupTest {
 
     private static Icon invokeIconResolver(Icon icon, String methodName) {
         try {
-            Method method = icon.getClass().getMethod(methodName);
+            Method method;
+            try {
+                method = icon.getClass().getMethod(methodName);
+            } catch (NoSuchMethodException missing) {
+                method = icon.getClass().getDeclaredMethod(methodName);
+                method.setAccessible(true);
+            }
             Object result = method.invoke(icon);
             return result instanceof Icon resolved ? resolved : null;
         } catch (ReflectiveOperationException ignored) {
