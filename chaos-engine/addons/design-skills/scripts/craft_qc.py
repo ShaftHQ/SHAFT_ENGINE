@@ -1336,7 +1336,12 @@ def cmd_titlepolarity(qc, args) -> int:
     if getattr(args, "metadata", None):
         title = _title_from_metadata(Path(args.metadata))
     if not title:
-        raise qc.Skip("pass --title or --metadata")
+        return qc.report(
+            "titlepolarity", qc.USAGE,
+            gate="G21",
+            errors=["pass --title or --metadata with a non-empty title"],
+            note="fail-closed: empty title/metadata is error (exit 2), not skip",
+        )
     cues = cue_list(qc, args.srt)
     words = None
     if getattr(args, "words", None):

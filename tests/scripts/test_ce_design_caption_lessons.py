@@ -673,5 +673,27 @@ class CaptionChecksTest(unittest.TestCase):
 
 
 
+    def test_titlepolarity_empty_title_fail_closed(self) -> None:
+        """Empty --title/--metadata must exit 2 (USAGE), not Skip."""
+        with tempfile.TemporaryDirectory() as folder:
+            srt_path = Path(folder) / "cues.srt"
+            srt_path.write_text(srt((0.0, 1.0, "hello world")), encoding="utf-8")
+            code, payload = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--title", "")
+            self.assertEqual(2, code, payload)
+            self.assertEqual(payload.get("status"), "error")
+            self.assertNotEqual(payload.get("status"), "skipped")
+            meta = Path(folder) / "METADATA.md"
+            meta.write_text(
+                "# meta\n\n## Title\n\n\n\n## Description\n\nx\n",
+                encoding="utf-8",
+            )
+            code2, payload2 = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--metadata", str(meta))
+            self.assertEqual(2, code2, payload2)
+            self.assertEqual(payload2.get("status"), "error")
+
+
+
 if __name__ == "__main__":
     unittest.main()
