@@ -42,4 +42,6 @@ PRs run the fresh installer on ubuntu and Windows only. Add `ci:installer-macos`
 
 - [CI status economy](ci-status-economy.md) (fingerprints, digest, one status channel)
 - [Coach loop](../skills/local-agency/references/coach-loop.md)
+- [Delete-check discipline](delete-check-discipline.md) (D5 — never bare rm)
+- [Content-scan preflight](content-scan-preflight.md) (G-META: content scan + planted `--self-test`)
 - Script: [`tip_preflight.py`](../skills/local-agency/scripts/tip_preflight.py) (also `classify_failure` fingerprints)
