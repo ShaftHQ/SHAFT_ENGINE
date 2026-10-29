@@ -585,6 +585,114 @@ class CaptionChecksTest(unittest.TestCase):
             )
             self.assertEqual((0, "pass"), (code3, payload3["status"]), payload3)
             self.assertEqual(payload3.get("diff_exact_raw_asr"), 0.0)
+    def test_titlepolarity_u13_r1_fail_r2_pass(self) -> None:
+        """U13 G21: r1 drops مافيش لسه on segment 2 → FAIL; r2 preserves → PASS."""
+        with tempfile.TemporaryDirectory() as folder:
+            srt_path = Path(folder) / "cues.srt"
+            # Minimal U13 cues: seg1 content + seg2 content with negs
+            srt_path.write_text(
+                srt(
+                    (0.0, 3.0, "مافيش standardization خالص"),
+                    (29.0, 31.5, "ومافيش لسه governance"),
+                    (32.0, 35.0, "مطبقة وبينادوا بوجود review"),
+                ),
+                encoding="utf-8",
+            )
+            bad = "مافيش standardization — governance مطبقة"
+            good = "مافيش standardization — مافيش لسه governance مطبقة"
+            code_b, payload_b = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--title", bad)
+            self.assertEqual(1, code_b, payload_b)
+            self.assertEqual(payload_b.get("gate"), "G21")
+            self.assertTrue(payload_b.get("errors"))
+            code_g, payload_g = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--title", good)
+            self.assertEqual((0, "pass"), (code_g, payload_g["status"]), payload_g)
+            self.assertEqual(payload_g.get("gate"), "G21")
+            # --metadata path
+            meta = Path(folder) / "METADATA.md"
+            meta.write_text(
+                "# meta\n\n## Title\n\n" + good + "\n\n## Description\n\nx\n",
+                encoding="utf-8",
+            )
+            code_m, payload_m = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--metadata", str(meta))
+            self.assertEqual((0, "pass"), (code_m, payload_m["status"]), payload_m)
+
+
+
+    def test_titlepolarity_u14_g22_cut_fail_kept_pass(self) -> None:
+        """U14 G22: claim bound only to cut span fails; kept-span ordered match passes."""
+        with tempfile.TemporaryDirectory() as folder:
+            folder_p = Path(folder)
+            srt_path = folder_p / "cues.srt"
+            srt_path.write_text(
+                srt(
+                    (10.0, 12.0, "عايزه صفر لان"),
+                    (16.0, 18.0, "قدرتك صفر كانسان"),
+                    (20.0, 22.0, "needs human review"),
+                ),
+                encoding="utf-8",
+            )
+            # قدرتك صفر appears ONLY once — inside what will be the cut sandwich.
+            # Kept has عايزه صفر (صفر bound to عايزه; no ordered قدرتك→صفر).
+            words = [
+                {"w": "عايزه", "s": 10.0, "e": 10.4},
+                {"w": "صفر", "s": 10.4, "e": 10.8},
+                {"w": "لان", "s": 10.8, "e": 11.1},
+                {"w": "قدرتك", "s": 16.0, "e": 16.5},
+                {"w": "صفر", "s": 16.5, "e": 17.0},
+                {"w": "كانسان", "s": 17.0, "e": 17.5},
+                {"w": "needs", "s": 20.0, "e": 20.4},
+                {"w": "human", "s": 20.4, "e": 20.8},
+                {"w": "review", "s": 20.8, "e": 21.2},
+            ]
+            words_path = folder_p / "words.json"
+            words_path.write_text(json.dumps(words), encoding="utf-8")
+            title = "قدرتك صفر — needs human review"
+            # Red: only ordered match sits inside cut 15-19
+            code_b, payload_b = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--title", title,
+                "--words", str(words_path), "--splice", "15-19")
+            self.assertEqual(1, code_b, payload_b)
+            self.assertEqual(payload_b.get("gate"), "G21+G22")
+            self.assertTrue(any("G22" in e for e in payload_b.get("errors", [])), payload_b)
+            # Green: same clause kept (cut elsewhere)
+            code_g, payload_g = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--title", title,
+                "--words", str(words_path), "--splice", "12-14.5")
+            self.assertEqual((0, "pass"), (code_g, payload_g["status"]), payload_g)
+            self.assertEqual(payload_g.get("gate"), "G21+G22")
+            self.assertEqual(payload_g["checked"][0].get("clause_span"), [16.0, 17.0])
+            # Without --words, G21-only path still passes
+            code_c, payload_c = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--title", title)
+            self.assertEqual((0, "pass"), (code_c, payload_c["status"]), payload_c)
+            self.assertEqual(payload_c.get("gate"), "G21")
+
+
+
+
+    def test_titlepolarity_empty_title_fail_closed(self) -> None:
+        """Empty --title/--metadata must exit 2 (USAGE), not Skip."""
+        with tempfile.TemporaryDirectory() as folder:
+            srt_path = Path(folder) / "cues.srt"
+            srt_path.write_text(srt((0.0, 1.0, "hello world")), encoding="utf-8")
+            code, payload = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--title", "")
+            self.assertEqual(2, code, payload)
+            self.assertEqual(payload.get("status"), "error")
+            self.assertNotEqual(payload.get("status"), "skipped")
+            meta = Path(folder) / "METADATA.md"
+            meta.write_text(
+                "# meta\n\n## Title\n\n\n\n## Description\n\nx\n",
+                encoding="utf-8",
+            )
+            code2, payload2 = run_qc(
+                "titlepolarity", "--srt", str(srt_path), "--metadata", str(meta))
+            self.assertEqual(2, code2, payload2)
+            self.assertEqual(payload2.get("status"), "error")
+
 
 
 if __name__ == "__main__":
