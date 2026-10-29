@@ -22,7 +22,7 @@ Drivers, waits, and evidence are handled. Every run ends in an Allure report.
 [![GitHub releases](https://img.shields.io/github/v/release/ShaftHQ/SHAFT_ENGINE?label=latest%20release)](https://github.com/ShaftHQ/SHAFT_ENGINE/releases/latest)
 [![GitHub release count](https://img.shields.io/github/release-count/ShaftHQ/SHAFT_ENGINE?label=releases)](https://github.com/ShaftHQ/SHAFT_ENGINE/releases)
 
-<sub>**Usage (GA4 Engine property + GitHub API, as of 2026-10-29):** 4,885,097 tests run and 53,062 active users in 30 days (2026-09-29 to 2026-10-28); 154,202 active users in 12 months (2025-10-29 to 2026-10-28); 37 countries. Stars and release count badges above are live. Exact values — do not round up.</sub>
+<sub>**Usage (GA4 Engine property + GitHub API, as of 2026-10-29):** 4,885,097 tests run and 53,062 active users in 30 days (2026-09-29 to 2026-10-28); 154,202 active users in 12 months (2025-10-29 to 2026-10-28); 36 countries (12-month window). Stars and release count badges above are live. Exact values — do not round up.</sub>
 
 
 <a href="https://github.com/ShaftHQ/SHAFT_ENGINE/releases/download/shaft-hero-video-20261017/shaft-hero-16x9.mp4">
