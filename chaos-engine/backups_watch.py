@@ -190,7 +190,10 @@ def inotify_loop(root: Path) -> int:
         stderr=subprocess.STDOUT,
         text=True,
     )
-    assert process.stdout is not None
+    if process.stdout is None:
+        print("backups-watch: inotifywait produced no stdout pipe", file=sys.stderr)
+        process.terminate()
+        return 1
     try:
         for line in process.stdout:
             line = line.strip()

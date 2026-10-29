@@ -22,6 +22,11 @@ expanding globs. Each target is checked:
 - Outside git: refused unless it is on the scratch allow-list.
 - Unsure parse (`$VAR`, command substitution, `xargs rm`, non-literal Python
   paths): refused. Rewrite with literal paths.
+- Symlink operands: plain `rm`/`unlink`/`mv` of the link inode are link-only.
+  Tree ops that follow links (`find -delete`/`-exec rm`, `rsync --delete*`/
+  `--remove-source-files`, `rm -r` with a trailing slash, `shutil.rmtree`/
+  `Path.rmtree`, `mv src/`) resolve the realpath and apply the checks to the
+  target; resolution failure refuses closed.
 
 ## Allow-list
 

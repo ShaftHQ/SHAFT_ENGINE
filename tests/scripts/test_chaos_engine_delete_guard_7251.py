@@ -656,5 +656,66 @@ class RawFilesystemDeleteGuardTest(unittest.TestCase):
 
 
 
+class SymlinkFollowDeleteGuardTest(unittest.TestCase):
+    """D1: tree ops resolve symlink operands; plain rm of a link stays link-only."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.base = Path(self.temp.name).resolve()
+        home = self.base / "home"
+        home.mkdir()
+        self.patches = [
+            unittest.mock.patch.object(GUARD, "DEFAULT_ALLOW", ()),
+            unittest.mock.patch.dict(os.environ, {"HOME": str(home), "XDG_STATE_HOME": str(home / "state")}),
+        ]
+        for patch in self.patches:
+            patch.start()
+        self.precious = self.base / "precious"
+        self.precious.mkdir()
+        (self.precious / "KEEP.txt").write_text("keep", encoding="utf-8")
+        self.alias = self.base / "alias"
+        self.alias.symlink_to(self.precious)
+        self.empty = self.base / "empty"
+        self.empty.mkdir()
+
+    def tearDown(self):
+        for patch in reversed(self.patches):
+            patch.stop()
+        self.temp.cleanup()
+
+    def reason(self, command: str) -> str:
+        return GUARD.block_reason(command, self.base, None)
+
+    def test_find_delete_through_symlink_refuses_target(self):
+        self.assertIn("outside git", self.reason(f"find {self.alias} -type f -delete"))
+        self.assertIn("outside git", self.reason(f"find {self.alias} -type f -exec rm -f {{}} +"))
+
+    def test_rsync_delete_through_symlink_refuses_target(self):
+        self.assertIn("outside git", self.reason(f"rsync -a --delete {self.empty}/ {self.alias}/"))
+        self.assertIn(
+            "outside git",
+            self.reason(f"rsync -a --remove-source-files {self.alias}/ {self.base / 'copy'}/"),
+        )
+
+    def test_rm_recursive_trailing_slash_follows_plain_rm_link_allowed(self):
+        self.assertIn("outside git", self.reason(f"rm -rf {self.alias}/"))
+        self.assertEqual("", self.reason(f"rm -rf {self.alias}"))
+
+    def test_shutil_rmtree_through_symlink_refuses_target(self):
+        cmd = "python3 -c \"import shutil; shutil.rmtree('%s')\"" % self.alias
+        self.assertIn("outside git", self.reason(cmd))
+
+    def test_mv_trailing_slash_follows_plain_mv_link_allowed(self):
+        self.assertIn("outside git", self.reason(f"mv {self.alias}/ {self.base / 'elsewhere'}"))
+        self.assertEqual("", self.reason(f"mv {self.alias} {self.base / 'elsewhere'}"))
+
+    def test_broken_symlink_follow_fails_closed(self):
+        broken = self.base / "broken"
+        broken.symlink_to(self.base / "missing-target")
+        self.assertIn("cannot resolve", self.reason(f"find {broken} -delete"))
+        self.assertIn("cannot resolve", self.reason(f"rsync -a --delete {self.empty}/ {broken}/"))
+
+
+
 if __name__ == "__main__":
     unittest.main()
