@@ -64,7 +64,7 @@ class CaptionLessonCardsTest(unittest.TestCase):
         self.assertIn("(caption-video-qc.md)", (LESSONS / "index.md").read_text(encoding="utf-8"))
         self.assertIn("lessons/caption-video-qc.md", (DESIGN / "references/captions-subtitles.md").read_text(encoding="utf-8"))
         self.assertNotIn("caption-video-qc", (DESIGN / "SKILL.md").read_text(encoding="utf-8"))
-        self.assertIn("34 lesson cards (L01-L34", " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split()))
+        self.assertIn("35 lesson cards (L01-L35", " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split()))
 
     def test_cards_are_project_neutral(self) -> None:
         banned = ("automatest", "shaft", "mohab", "price", "india", *private_terms())
