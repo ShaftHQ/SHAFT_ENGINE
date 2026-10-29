@@ -314,9 +314,17 @@ class LivecmsMatrixTest(unittest.TestCase):
                 "duration_ok": "n/a",
                 "nested_containers_0": True,
             }
+            viewports = {}
             for width in widths:
-                base[f"header_logo_delta_ok_{width}"] = True
-                base[f"header_nav_delta_ok_{width}"] = True
+                viewports[str(width)] = {
+                    "home_logo": {"x": 12.0, "y": 8.0},
+                    "page_logo": {"x": 12.5, "y": 8.0},
+                    "home_nav": {"x": 200.0, "y": 10.0},
+                    "page_nav": {"x": 200.0, "y": 10.25},
+                    "home_content_width": 1440.0,
+                    "page_content_width": 1440.0,
+                }
+            base["header_measure"] = {"viewports": viewports}
             full.write_text(json.dumps(base), encoding="utf-8")
             # D4: old full receipt without media/nested keys must fail closed
             incomplete.write_text(json.dumps({
@@ -338,6 +346,16 @@ class LivecmsMatrixTest(unittest.TestCase):
                 *(f"header_nav_delta_ok_{w}" for w in widths),
             ):
                 self.assertIn(key, missing, payload)
+            # Forged bools alone must not satisfy header rows (D1).
+            forged = dict(base)
+            forged.pop("header_measure", None)
+            for width in widths:
+                forged[f"header_logo_delta_ok_{width}"] = True
+                forged[f"header_nav_delta_ok_{width}"] = True
+            forged_path = Path(folder) / "forged.json"
+            forged_path.write_text(json.dumps(forged), encoding="utf-8")
+            code, payload = run_qc("livecms", str(forged_path))
+            self.assertEqual(1, code, payload)
             code, payload = run_qc("livecms", str(full))
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 

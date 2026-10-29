@@ -25,13 +25,28 @@ TOPBAR_IN_PASTE = re.compile(
 
 # L36: Code-block paste must be a fragment — no document shell tags.
 DOC_SHELL_TAGS = frozenset({"html", "head", "body"})
-# L36: paste CSS must not target host document roots (selectors, not string literals).
+# L36: paste CSS must not target host document roots (selectors, not literals).
+# Prefix allows combinators and :is/:where/:not argument lists: *+html, :is(html).
 GLOBAL_CSS_ROOT = re.compile(
-    r"(?:^|[{};,\s])(?:html|body|:root)(?=[\s.{:#\[,>+~]|$)",
+    r"(?:^|[{};,\s(+~>])(?::root|html|body)(?=[\s.{:#\[,>+~)]|$)",
     re.IGNORECASE | re.MULTILINE,
+)
+_CSS_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+_CSS_LINE_COMMENT = re.compile(r"(?<!:)//.*?$", re.M)
+_CSS_STRING = re.compile(
+    r'("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\')',
+    re.S,
 )
 # Livecms / cmsheader viewports (L28 + L36): phone + desktop matrix.
 HEADER_VIEWPORTS = (360, 390, 430, 1440)
+HEADER_DELTA_OK_PREFIXES = ("header_logo_delta_ok_", "header_nav_delta_ok_")
+
+
+def _strip_css_comments_and_strings(src: str) -> str:
+    """Drop /* */ and // comments plus quoted strings before selector scans."""
+    no_block = _CSS_BLOCK_COMMENT.sub("", src or "")
+    no_line = _CSS_LINE_COMMENT.sub("", no_block)
+    return _CSS_STRING.sub('""', no_line)
 
 
 class _PasteMarkupScanner(HTMLParser):
@@ -111,7 +126,11 @@ def _doc_shell_samples(html: str) -> list[str]:
 
 def _global_css_root_hits(html: str) -> int:
     scanner = _scan_paste_markup(html)
-    return sum(len(GLOBAL_CSS_ROOT.findall(body)) for body in scanner.style_bodies)
+    total = 0
+    for body in scanner.style_bodies:
+        cleaned = _strip_css_comments_and_strings(body)
+        total += len(GLOBAL_CSS_ROOT.findall(cleaned))
+    return total
 
 
 def _html_comment_hits(html: str) -> int:
@@ -125,7 +144,10 @@ def check_cms_meta(html: str) -> dict[str, Any]:
     scanned = _scan_paste_markup(body)
     lang_hits = int(scanned.html_lang)
     shell = list(scanned.shell)
-    css_roots = sum(len(GLOBAL_CSS_ROOT.findall(b)) for b in scanned.style_bodies)
+    css_roots = sum(
+        len(GLOBAL_CSS_ROOT.findall(_strip_css_comments_and_strings(b)))
+        for b in scanned.style_bodies
+    )
     comments = int(scanned.comments)
     base = {
         "og_twitter_meta": count,
@@ -539,11 +561,74 @@ REQUIRED_LIVECMS_ROWS = (
 )
 
 
+def _livecms_rows_without_forged_header(report: dict[str, Any]) -> dict[str, Any]:
+    rows_src = report.get("rows") if isinstance(report.get("rows"), dict) else report
+    if not isinstance(rows_src, dict):
+        return {}
+    return {
+        key: value
+        for key, value in rows_src.items()
+        if not (isinstance(key, str) and key.startswith(HEADER_DELTA_OK_PREFIXES))
+    }
+
+
+def _header_measure_payload(report: dict[str, Any], measure: dict[str, Any]) -> dict[str, Any]:
+    if "viewports" in measure and isinstance(measure["viewports"], dict):
+        return {
+            "viewports": measure["viewports"],
+            "max_delta_px": measure.get("max_delta_px", report.get("max_delta_px", 1.0)),
+        }
+    payload: dict[str, Any] = {"viewports": measure}
+    if "max_delta_px" in report:
+        payload["max_delta_px"] = report["max_delta_px"]
+    return payload
+
+
+def _apply_header_measure(rows: dict[str, Any], report: dict[str, Any]) -> dict[str, Any] | None:
+    """Recompute header_* flags into rows. Return an error result dict or None."""
+    measure = report.get("header_measure")
+    if measure is None:
+        measure = report.get("viewports")
+    if not isinstance(measure, dict) or not measure:
+        return None
+    hdr = check_cms_header_delta(_header_measure_payload(report, measure))
+    if hdr.get("status") == "error":
+        return {
+            "status": "fail",
+            "missing": [f"header_logo_delta_ok_{w}" for w in HEADER_VIEWPORTS],
+            "failed": [],
+            "required": list(REQUIRED_LIVECMS_ROWS),
+            "note": "header_measure invalid: "
+            + "; ".join(hdr.get("reasons") or [hdr.get("note", "")]),
+            "header_measure_status": "error",
+            "header_measure_trusted": False,
+        }
+    for width in HEADER_VIEWPORTS:
+        rows[f"header_logo_delta_ok_{width}"] = bool(hdr.get(f"header_logo_delta_ok_{width}"))
+        rows[f"header_nav_delta_ok_{width}"] = bool(hdr.get(f"header_nav_delta_ok_{width}"))
+    rows["__header_measure_trusted__"] = True
+    return None
+
+
 def check_livecms(report: dict[str, Any]) -> dict[str, Any]:
-    """Fail-closed live matrix receipt for L28/L31/L36 (n/a ok for media rows)."""
+    """
+    Fail-closed live matrix for L28/L31/L36.
+
+    Header delta rows are never trusted from the operator. Any
+    ``header_*_delta_ok_*`` keys in the receipt are stripped; flags are
+    recomputed from ``header_measure`` / ``viewports`` (raw boxes + content
+    widths). A forged receipt that only sets those booleans to true fails.
+    """
     if not isinstance(report, dict):
         return {"status": "error", "reasons": ["report must be a JSON object"]}
-    rows = report.get("rows") if isinstance(report.get("rows"), dict) else report
+    rows_src = report.get("rows") if isinstance(report.get("rows"), dict) else report
+    if not isinstance(rows_src, dict):
+        return {"status": "error", "reasons": ["report must be a JSON object"]}
+    rows = _livecms_rows_without_forged_header(report)
+    err = _apply_header_measure(rows, report)
+    if err is not None:
+        return err
+    trusted = bool(rows.pop("__header_measure_trusted__", False))
     missing: list[str] = []
     failed: list[str] = []
     na_ok = {"media_ok", "duration_ok"}
@@ -561,6 +646,7 @@ def check_livecms(report: dict[str, Any]) -> dict[str, Any]:
         "missing": missing,
         "failed": failed,
         "required": list(REQUIRED_LIVECMS_ROWS),
+        "header_measure_trusted": trusted,
     }
     if missing or failed:
         return {
@@ -583,20 +669,42 @@ def _xy_pair(node: Any, label: str) -> tuple[float, float] | str:
     return x, y
 
 
+def _content_width(node: dict[str, Any], key: str, label: str) -> float | str:
+    raw = node.get(key)
+    if raw is None:
+        return f"{label} missing {key} (client/content width for scrollbar normalize)"
+    try:
+        width = float(raw)
+    except (TypeError, ValueError):
+        return f"{label} {key} must be numeric"
+    if not math.isfinite(width) or width <= 0:
+        return f"{label} {key} must be finite > 0"
+    return width
+
+
+def _axis_delta(a: float, b: float, wa: float, wb: float) -> float:
+    """Scrollbar-gutter stable axis delta: min(left-anchored, right-anchored)."""
+    left = abs(b - a)
+    right = abs((wb - b) - (wa - a))
+    return min(left, right)
+
+
 def _viewport_delta(
     home_logo: tuple[float, float],
     page_logo: tuple[float, float],
     home_nav: tuple[float, float],
     page_nav: tuple[float, float],
     *,
+    home_width: float,
+    page_width: float,
     max_delta_px: float,
 ) -> tuple[float, float, bool, bool]:
     logo_delta = max(
-        abs(page_logo[0] - home_logo[0]),
+        _axis_delta(home_logo[0], page_logo[0], home_width, page_width),
         abs(page_logo[1] - home_logo[1]),
     )
     nav_delta = max(
-        abs(page_nav[0] - home_nav[0]),
+        _axis_delta(home_nav[0], page_nav[0], home_width, page_width),
         abs(page_nav[1] - home_nav[1]),
     )
     tol = max_delta_px
@@ -608,19 +716,81 @@ def _viewport_delta(
     )
 
 
+def _parse_max_delta(report: dict[str, Any], default: float) -> float | str:
+    try:
+        tol = float(report.get("max_delta_px", default))
+    except (TypeError, ValueError):
+        return "non-numeric max_delta_px"
+    if not math.isfinite(tol) or tol < 0:
+        return "max_delta_px must be finite ≥ 0"
+    return tol
+
+
+def _score_viewport(
+    width: int,
+    node: dict[str, Any],
+    *,
+    tol: float,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Return (row, fails) for one viewport width."""
+    fails: list[str] = []
+    parsed: dict[str, tuple[float, float]] = {}
+    for label in ("home_logo", "page_logo", "home_nav", "page_nav"):
+        got = _xy_pair(node.get(label), f"{width}.{label}")
+        if isinstance(got, str):
+            return None, [got]
+        parsed[label] = got
+    home_w = _content_width(node, "home_content_width", str(width))
+    if isinstance(home_w, str):
+        return None, [home_w]
+    page_w = _content_width(node, "page_content_width", str(width))
+    if isinstance(page_w, str):
+        return None, [page_w]
+    logo_d, nav_d, logo_ok, nav_ok = _viewport_delta(
+        parsed["home_logo"],
+        parsed["page_logo"],
+        parsed["home_nav"],
+        parsed["page_nav"],
+        home_width=home_w,
+        page_width=page_w,
+        max_delta_px=tol,
+    )
+    row = {
+        "logo_delta_px": round(logo_d, 4),
+        "nav_delta_px": round(nav_d, 4),
+        "home_content_width": home_w,
+        "page_content_width": page_w,
+        f"header_logo_delta_ok_{width}": logo_ok,
+        f"header_nav_delta_ok_{width}": nav_ok,
+    }
+    if not logo_ok:
+        fails.append(
+            f"viewport {width}: header logo delta {logo_d:.2f}px > {tol}px vs / (L36)"
+        )
+    if not nav_ok:
+        fails.append(
+            f"viewport {width}: header nav delta {nav_d:.2f}px > {tol}px vs / (L36)"
+        )
+    return row, fails
+
+
 def check_cms_header_delta(
     report: dict[str, Any] | None = None,
     *,
     max_delta_px: float = 1.0,
     **legacy: Any,
 ) -> dict[str, Any]:
-    """L36: per-viewport header logo/nav delta vs '/' ≤ max_delta_px.
+    """
+    L36: per-viewport header logo/nav delta vs '/' ≤ max_delta_px.
 
     Preferred receipt::
         {"viewports": {"360": {"home_logo": {"x", "y"}, "page_logo": {...},
-         "home_nav": {...}, "page_nav": {...}}, ...}, "max_delta_px": 1}
+         "home_nav": {...}, "page_nav": {...},
+         "home_content_width": 1425, "page_content_width": 1440}, ...}}
 
-    Legacy scalar kwargs (single viewport) are rejected — pass a viewports map.
+    X deltas use min(left-anchored, right-anchored) so classic scrollbar
+    gutter (home clientWidth 1425 vs page 1440) does not false-fail a clean
+    site. Legacy scalar kwargs are rejected.
     """
     if legacy and report is None:
         return {
@@ -632,12 +802,9 @@ def check_cms_header_delta(
         }
     if not isinstance(report, dict):
         return {"status": "error", "reasons": ["report must be a JSON object"]}
-    try:
-        tol = float(report.get("max_delta_px", max_delta_px))
-    except (TypeError, ValueError):
-        return {"status": "error", "reasons": ["non-numeric max_delta_px"]}
-    if not math.isfinite(tol) or tol < 0:
-        return {"status": "error", "reasons": ["max_delta_px must be finite ≥ 0"]}
+    tol = _parse_max_delta(report, max_delta_px)
+    if isinstance(tol, str):
+        return {"status": "error", "reasons": [tol]}
     raw_vp = report.get("viewports")
     if not isinstance(raw_vp, dict):
         return {"status": "error", "reasons": ["viewports map required"]}
@@ -650,39 +817,12 @@ def check_cms_header_delta(
         if not isinstance(node, dict):
             missing_widths.append(width)
             continue
-        parsed: dict[str, tuple[float, float]] = {}
-        err = None
-        for label in ("home_logo", "page_logo", "home_nav", "page_nav"):
-            got = _xy_pair(node.get(label), f"{width}.{label}")
-            if isinstance(got, str):
-                err = got
-                break
-            parsed[label] = got
-        if err:
-            fails.append(err)
+        row, row_fails = _score_viewport(width, node, tol=tol)
+        if row is None:
+            fails.extend(row_fails)
             continue
-        logo_d, nav_d, logo_ok, nav_ok = _viewport_delta(
-            parsed["home_logo"],
-            parsed["page_logo"],
-            parsed["home_nav"],
-            parsed["page_nav"],
-            max_delta_px=tol,
-        )
-        row = {
-            "logo_delta_px": round(logo_d, 4),
-            "nav_delta_px": round(nav_d, 4),
-            f"header_logo_delta_ok_{width}": logo_ok,
-            f"header_nav_delta_ok_{width}": nav_ok,
-        }
         per[key] = row
-        if not logo_ok:
-            fails.append(
-                f"viewport {width}: header logo delta {logo_d:.2f}px > {tol}px vs / (L36)"
-            )
-        if not nav_ok:
-            fails.append(
-                f"viewport {width}: header nav delta {nav_d:.2f}px > {tol}px vs / (L36)"
-            )
+        fails.extend(row_fails)
     flat_flags = {
         f"header_logo_delta_ok_{w}": bool(
             (per.get(str(w)) or {}).get(f"header_logo_delta_ok_{w}")
@@ -717,6 +857,6 @@ def check_cms_header_delta(
         "note": (
             "header logo/nav within 1px of / at "
             + "/".join(str(w) for w in HEADER_VIEWPORTS)
-            + " (L36)"
+            + " (L36, scrollbar-normalized)"
         ),
     }

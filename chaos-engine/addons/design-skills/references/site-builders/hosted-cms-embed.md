@@ -95,7 +95,7 @@ stay 0; header logo/nav delta vs `/` ≤1px (L36). Editor success toasts are unt
 | --- | --- |
 | No paste OG/Twitter meta | `design_qc.py cmsmeta <paste.html>` |
 | Fragment only + no HTML comments (L36/L37) | `design_qc.py cmsmeta <paste.html>` |
-| Header logo/nav Δ≤1px vs `/` @360/390/430/1440 (L36) | `design_qc.py cmsheader <receipt.json>` / livecms rows |
+| Header logo/nav Δ≤1px vs `/` @360/390/430/1440 (L36) | `design_qc.py livecms <url>` / `cmsheader` on `header_measure` |
 | No relative local assets | `design_qc.py cmsassets <paste.html>` |
 | Sticky header tokens present | `design_qc.py cmssticky <paste.html\|.css>` |
 | Full-width + gutter | `design_qc.py cmswidth --code W --column C [--hero-gutter H --embed-gutter E] [--outer-pad/--inner-pad]` |

@@ -20,18 +20,20 @@ and [hosted-cms-embed](../site-builders/hosted-cms-embed.md).
    example `<div class="*-embed" dir="rtl" lang="ar">`), never on `html`.
 3. **CSS scoped to the wrapper.** Selectors target the embed class (or its
    descendants). Do not style bare `html`, `body`, or `:root` from paste.
-4. **Live header parity.** After publish, site header logo and nav positions
-   on the paste URL must stay within **≤1px** of the homepage `/`
-   at **360/390/430/1440** (`design_qc.py cmsheader` + `livecms` rows).
+4. **Live header parity.** After publish, measure the paste URL vs homepage
+   `/` at **360/390/430/1440**. Logo/nav must stay within **≤1px** after
+   scrollbar-gutter normalization (`design_qc.py livecms <url>` or a receipt
+   with `header_measure` raw boxes — boolean `header_*_delta_ok_*` alone is
+   rejected).
 
 ## Verify
 
 - [ ] `design_qc.py cmsmeta <paste.html>` fails on document-shell tags or
       global `html`/`body`/`:root` CSS; passes on a wrapper fragment with
       `dir`/`lang` on the embed root.
-- [ ] `design_qc.py cmsheader <receipt.json>` (viewports 360/390/430/1440)
-      or livecms `header_*_delta_ok_{width}` fails when logo or nav delta vs
-      `/` exceeds 1px at any required width.
+- [ ] `design_qc.py livecms https://…/paste` (or `cmsheader` on a
+      `header_measure` / viewports receipt with `*_content_width`) fails when
+      logo or nav delta vs `/` exceeds 1px at any of 360/390/430/1440.
 
 ## Why
 

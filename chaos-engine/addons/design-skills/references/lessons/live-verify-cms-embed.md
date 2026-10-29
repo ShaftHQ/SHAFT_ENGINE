@@ -26,7 +26,7 @@ A Code-block paste was saved in a hosted builder. Extends core
 
 ## Verify
 
-- [ ] Live receipt includes per-viewport `header_logo_delta_ok_*` / `header_nav_delta_ok_*` for 360/390/430/1440 (≤1px vs `/`, L36).
+- [ ] Live measure (URL or `header_measure` boxes + content widths) yields per-viewport header Δ≤1px vs `/` at 360/390/430/1440 (L36); forged `header_*_delta_ok_*` bools alone fail.
 - [ ] `design_qc.py livecms report.json` fails when any required row is
       missing or not pass; passes on a complete green matrix.
 - [ ] Receipt includes viewport_360/390/430/1440 plus `media_ok`/`duration_ok`

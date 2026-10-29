@@ -2570,13 +2570,49 @@ def cmd_cmsduration(qc, args) -> int:
 
 
 def cmd_livecms(qc, args) -> int:
-    """L28/L31/L36: fail-closed live matrix receipt JSON."""
-    report_obj = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    """L28/L31/L36: measure live URLs or validate a header_measure receipt."""
+    from hosted_cms_live import looks_like_url, measure_header_viewports
+
+    target = args.file
+    if looks_like_url(target) or getattr(args, "page_url", None):
+        page_url = args.page_url or target
+        try:
+            measured = measure_header_viewports(
+                page_url,
+                home_url=getattr(args, "home_url", None),
+            )
+        except Exception as exc:  # noqa: BLE001 - surface measure errors as USAGE/FAIL
+            return qc.report("livecms", qc.USAGE, error=str(exc))
+        report_obj = {
+            "http_200": True,
+            "no_dup_chrome": True,
+            "assets_loaded": True,
+            "heading_colour": "pass",
+            "identity_tile": "pass",
+            "og_title_once": True,
+            **{f"viewport_{w}": True for w in _hosted_cms().HEADER_VIEWPORTS},
+            "media_ok": "n/a",
+            "duration_ok": "n/a",
+            "nested_containers_0": True,
+            "header_measure": measured,
+            "page_url": page_url,
+            "home_url": measured.get("home_url"),
+        }
+        # URL mode only asserts the measured header matrix unless a base receipt
+        # is also supplied via --receipt.
+        if getattr(args, "receipt", None):
+            base = json.loads(Path(args.receipt).read_text(encoding="utf-8"))
+            base["header_measure"] = measured
+            report_obj = base
+    else:
+        report_obj = json.loads(Path(target).read_text(encoding="utf-8"))
     report = _hosted_cms().check_livecms(report_obj)
     status = report.pop("status")
     if status == "error":
         return qc.report("livecms", qc.USAGE, **report)
     code = qc.PASS if status == "pass" else qc.FAIL
+    if "header_measure" in report_obj:
+        report["header_measure"] = report_obj["header_measure"]
     return qc.report("livecms", code, **report)
 
 
@@ -2926,8 +2962,14 @@ def register(add, qc) -> None:
     p.add_argument("--peer", type=float, default=None, help="sibling duration seconds")
     p.add_argument("--peer-tol", type=float, default=30.0, dest="peer_tol")
     p = add("livecms", bind(cmd_livecms),
-            "L28/L31/L36: fail-closed live matrix receipt JSON")
-    p.add_argument("file", help="livecms report JSON")
+            "L28/L31/L36: live URL measure or header_measure receipt")
+    p.add_argument("file", help="livecms receipt JSON, or https URL to measure")
+    p.add_argument("--page-url", dest="page_url", default=None,
+                   help="page URL to measure (overrides file when set)")
+    p.add_argument("--home-url", dest="home_url", default=None,
+                   help="homepage URL (default: origin / of page)")
+    p.add_argument("--receipt", dest="receipt", default=None,
+                   help="base livecms receipt JSON; header_measure overlaid from URLs")
     p = add("cmsheader", bind(cmd_cmsheader),
             "L36: per-viewport header logo/nav delta vs '/' ≤1px (360/390/430/1440)")
     p.add_argument("file", help="cmsheader receipt JSON with viewports map")

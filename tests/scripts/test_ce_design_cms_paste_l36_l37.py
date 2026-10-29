@@ -67,19 +67,49 @@ def run_qc(*args: str) -> tuple[int, dict]:
     return proc.returncode, payload
 
 
-def _vp_receipt(*, logo_page_x: float = 12.5, bad_width: int | None = None) -> dict:
+def _vp_receipt(
+    *,
+    logo_page_x: float = 12.5,
+    bad_width: int | None = None,
+    home_content_width: float = 1440.0,
+    page_content_width: float = 1440.0,
+    nav_page_x: float | None = None,
+) -> dict:
     viewports = {}
     for width in HEADER_VIEWPORTS:
         page_x = logo_page_x
         if bad_width is not None and width == bad_width:
             page_x = 20.0  # >1px shift
+        nav_x = 200.0 if nav_page_x is None else nav_page_x
         viewports[str(width)] = {
             "home_logo": {"x": 12.0, "y": 8.0},
             "page_logo": {"x": page_x, "y": 8.0},
             "home_nav": {"x": 200.0, "y": 10.0},
-            "page_nav": {"x": 200.0, "y": 10.25},
+            "page_nav": {"x": nav_x, "y": 10.25},
+            "home_content_width": home_content_width,
+            "page_content_width": page_content_width,
         }
     return {"viewports": viewports, "max_delta_px": 1.0}
+
+
+def _live_base(**extra) -> dict:
+    base = {
+        "http_200": True,
+        "no_dup_chrome": True,
+        "assets_loaded": True,
+        "heading_colour": "pass",
+        "identity_tile": "pass",
+        "og_title_once": True,
+        "viewport_360": True,
+        "viewport_390": True,
+        "viewport_430": True,
+        "viewport_1440": True,
+        "media_ok": "n/a",
+        "duration_ok": "n/a",
+        "nested_containers_0": True,
+    }
+    base.update(extra)
+    return base
 
 
 class LessonCardBudgetTest(unittest.TestCase):
@@ -124,8 +154,7 @@ class LessonCardBudgetTest(unittest.TestCase):
 
 
 class CmsPasteFragmentL36Test(unittest.TestCase):
-    """Riskiest assumption: cmsmeta fails a full-doc <html dir=rtl> paste and
-    passes a wrapper fragment with dir/lang on the embed root."""
+    """cmsmeta fails full-doc shell paste; passes wrapper dir/lang fragment."""
 
     def test_cmsmeta_rejects_document_shell_tags(self) -> None:
         cases = {
@@ -224,6 +253,48 @@ class CmsPasteFragmentL36Test(unittest.TestCase):
             self.assertEqual(1, code, payload)
             self.assertGreaterEqual(payload.get("global_css_root_hits", 0), 1, payload)
 
+    def test_cmsmeta_rejects_is_where_combinator_root_css(self) -> None:
+        """FN guard: :is(html) / :where(html,body) / *+html must FAIL."""
+        cases = {
+            "is.html": "<div><style>:is(html){direction:rtl}</style><h1>x</h1></div>",
+            "where.html": "<div><style>:where(html,body){margin:0}</style><h1>x</h1></div>",
+            "plus.html": "<div><style>*+html{margin:0}</style><h1>x</h1></div>",
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(1, code, (name, payload))
+                self.assertGreaterEqual(
+                    payload.get("global_css_root_hits", 0), 1, (name, payload),
+                )
+
+    def test_cmsmeta_passes_css_comment_root_and_content_comment(self) -> None:
+        """FP guard: commented root selectors and content:'<!--' must PASS."""
+        cases = {
+            "css_comment.html": (
+                "<div><style>/* html{} body{} :root{} */.ok{color:red}</style>"
+                "<h1>x</h1></div>"
+            ),
+            "content_sq.html": (
+                "<div><style>.x::before{content:'<!--'}</style><h1>x</h1></div>"
+            ),
+            "content_dq.html": (
+                '<div><style>.x::before{content:"<!--"}</style><h1>x</h1></div>'
+            ),
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(
+                    (0, "pass"), (code, payload.get("status")), (name, payload),
+                )
+                self.assertEqual(0, payload.get("global_css_root_hits", -1), (name, payload))
+                self.assertEqual(0, payload.get("html_comment_hits", -1), (name, payload))
+
 
 class CmsPasteCommentsL37Test(unittest.TestCase):
     def test_cmsmeta_rejects_html_comments(self) -> None:
@@ -283,27 +354,60 @@ class CmsHeaderDeltaL36Test(unittest.TestCase):
     def test_livecms_requires_per_viewport_header_delta_rows(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "live.json"
-            path.write_text(json.dumps({
-                "http_200": True,
-                "no_dup_chrome": True,
-                "assets_loaded": True,
-                "heading_colour": "pass",
-                "identity_tile": "pass",
-                "og_title_once": True,
-                "viewport_360": True,
-                "viewport_390": True,
-                "viewport_430": True,
-                "viewport_1440": True,
-                "media_ok": "n/a",
-                "duration_ok": "n/a",
-                "nested_containers_0": True,
-            }), encoding="utf-8")
+            path.write_text(json.dumps(_live_base()), encoding="utf-8")
             code, payload = run_qc("livecms", str(path))
             self.assertEqual(1, code, payload)
             missing = set(payload.get("missing") or [])
             for width in HEADER_VIEWPORTS:
                 self.assertIn(f"header_logo_delta_ok_{width}", missing)
                 self.assertIn(f"header_nav_delta_ok_{width}", missing)
+            self.assertFalse(payload.get("header_measure_trusted"), payload)
+
+    def test_livecms_rejects_forged_header_ok_booleans(self) -> None:
+        """D1: forged header_*_delta_ok:true without measure must not pass."""
+        forged = _live_base()
+        for width in HEADER_VIEWPORTS:
+            forged[f"header_logo_delta_ok_{width}"] = True
+            forged[f"header_nav_delta_ok_{width}"] = True
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "forged.json"
+            path.write_text(json.dumps(forged), encoding="utf-8")
+            code, payload = run_qc("livecms", str(path))
+            self.assertEqual(1, code, payload)
+            self.assertEqual("fail", payload.get("status"), payload)
+            self.assertFalse(payload.get("header_measure_trusted"), payload)
+            missing = set(payload.get("missing") or [])
+            self.assertTrue(any(k.startswith("header_") for k in missing), payload)
+
+    def test_livecms_passes_with_header_measure(self) -> None:
+        receipt = _live_base(header_measure=_vp_receipt())
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "ok.json"
+            path.write_text(json.dumps(receipt), encoding="utf-8")
+            code, payload = run_qc("livecms", str(path))
+            self.assertEqual((0, "pass"), (code, payload.get("status")), payload)
+            self.assertTrue(payload.get("header_measure_trusted"), payload)
+
+    def test_cmsheader_scrollbar_gutter_normalized(self) -> None:
+        """D4: 15px nav shift with +15 content width (scrollbar) must PASS."""
+        receipt = _vp_receipt(
+            logo_page_x=57.59,
+            nav_page_x=953.88,
+            home_content_width=1425.0,
+            page_content_width=1440.0,
+        )
+        # overwrite home coords to match live automatest.org sample
+        for node in receipt["viewports"].values():
+            node["home_logo"] = {"x": 57.59, "y": 50.30}
+            node["page_logo"] = {"x": 57.59, "y": 50.30}
+            node["home_nav"] = {"x": 938.88, "y": 52.16}
+            node["page_nav"] = {"x": 953.88, "y": 52.16}
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "gutter.json"
+            path.write_text(json.dumps(receipt), encoding="utf-8")
+            code, payload = run_qc("cmsheader", str(path))
+            self.assertEqual((0, "pass"), (code, payload.get("status")), payload)
+            self.assertTrue(payload.get("header_nav_delta_ok_1440"), payload)
 
 
 if __name__ == "__main__":
