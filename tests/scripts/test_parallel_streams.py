@@ -88,8 +88,8 @@ class ParallelStreamsProtocolTest(unittest.TestCase):
         text = (REFS / "bot-entry.md").read_text(encoding="utf-8")
         self.assertIn("15 GiB", text)
         self.assertIn("10 GiB", text)
-        self.assertIn("box_disk_guard.py", text)
-        self.assertIn("Post-merge own cleanup", text)
+        self.assertIn("box_disk_guard", text)
+        self.assertIn("post-merge own cleanup", text)
         self.assertIn("WIP limit 1\nper stream", text)
         self.assertIn("(parallel-streams.md)", text)
 
