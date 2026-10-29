@@ -62,6 +62,11 @@ public final class ClickStrategies {
             throw new InvalidElementStateException(
                     "Refusing to click a disabled/readonly/aria-disabled element.");
         }
+        // Pre-tap XCUI tree: afterReportedClick compares this to the post-click source so a
+        // sheet/modal the click already opened is not treated as IosTapHadNoEffect (#7571).
+        String iosPageBefore = IosNonHittableTap.isIosXcui(driver)
+                ? IosNonHittableTap.snapshotPageSource(driver)
+                : null;
         try {
             element.click();
         } catch (InvalidElementStateException firstFailure) {
@@ -94,7 +99,7 @@ public final class ClickStrategies {
             }
         }
         // iOS XCUITest can return from element.click() while hittable=false and the control never runs.
-        IosNonHittableTap.afterReportedClick(driver, element);
+        IosNonHittableTap.afterReportedClick(driver, element, iosPageBefore);
     }
 
     private static void retryMobileNativeClick(WebDriver driver, WebElement element) {
