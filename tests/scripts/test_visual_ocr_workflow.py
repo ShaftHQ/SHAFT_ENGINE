@@ -159,7 +159,11 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertLess(helper.find("APK_PATH="), helper.find('ls -l "$APK_PATH"'))
         self.assertIn("-Dallure.automaticallyOpen=false", helper)
         self.assertIn("-DheadlessExecution=true", helper)
-        self.assertEqual(1, helper.count("socket hang up"))
+        # Two intentional mentions after #7496: mavenLog grep trigger, then
+        # mobile_retro_runtime device-fallback --error-msg for the one restart.
+        self.assertIn('grep -q "socket hang up"', helper)
+        self.assertIn('--error-msg "socket hang up"', helper)
+        self.assertEqual(2, helper.count("socket hang up"))
         self.assertIn("Restarting Appium once.", helper)
         self.assertLess(helper.find("socket hang up"), helper.rfind("attempt_flutter_test"))
         self.assertIn("shaft-engine/allure-results", helper)
