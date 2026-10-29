@@ -13,7 +13,7 @@ import unittest.mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-OPTIONAL = {"chaosengine-memory", "chaosengine-mempalace", "context7"}
+OPTIONAL = {"chaosengine-memory", "chaosengine-mempalace", "context7", "chrome-devtools-mcp"}
 
 
 def _load(name: str, path: Path):

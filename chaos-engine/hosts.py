@@ -3272,6 +3272,17 @@ def _optional_servers(
             managed_python=managed_python,
         ),
         "context7": {"url": "https://mcp.context7.com/mcp"},
+        # Optional live-Chrome DevTools debug aid (not a product-test replacement).
+        # Pin + telemetry/CrUX off; published only with --with-mcp (#reel-tools).
+        "chrome-devtools-mcp": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "chrome-devtools-mcp@1.12.0",
+                "--no-usage-statistics",
+                "--no-performance-crux",
+            ],
+        },
     }
     if account_commands is not None:
         memory = account_commands.get("memory-mcp")
@@ -3807,6 +3818,16 @@ def legacy_owned_python_server(name: str, platform_name: str) -> dict[str, objec
     return server
 
 
+def _replaceable_chrome_devtools_mcp(existing: object) -> bool:
+    """Prior unpinned / missing telemetry flags are replaceable by the pinned shape."""
+    if not isinstance(existing, dict) or existing.get("command") != "npx":
+        return False
+    args = existing.get("args")
+    if not isinstance(args, list):
+        return False
+    return "chrome-devtools-mcp" in " ".join(str(item) for item in args)
+
+
 def replaceable_owned_server(name: str, existing: object, desired: dict[str, object]) -> bool:
     if existing == desired:
         return True
@@ -3815,6 +3836,8 @@ def replaceable_owned_server(name: str, existing: object, desired: dict[str, obj
             {"command": "npx", "args": ["-y", "@upstash/context7-mcp"]},
             {"command": "npx", "args": ["-y", "@upstash/context7-mcp@latest"]},
         )
+    if name == "chrome-devtools-mcp":
+        return _replaceable_chrome_devtools_mcp(existing)
     if name == "maven-tools-mcp":
         if exact_legacy_native_maven_server(existing):
             return True
@@ -4212,6 +4235,7 @@ _OWNED_CODEX_MCP_SERVERS = frozenset(
         "chaosengine-memory",
         "chaosengine-mempalace",
         "context7",
+        "chrome-devtools-mcp",
         "maven-tools-mcp",
     }
 )
@@ -4343,6 +4367,111 @@ def _merge_or_preserve(relative: str, original: bytes | None, builder):
         return preserved
 
 
+
+def _append_optional_codex_mcp_servers(block: str) -> str:
+    """Insert Context7 + Chrome DevTools MCP tables before the CE end marker."""
+    optional = (
+        '\n[mcp_servers.context7]\nurl = "https://mcp.context7.com/mcp"\n'
+        '\n[mcp_servers."chrome-devtools-mcp"]\n'
+        'command = "npx"\n'
+        'args = ["-y", "chrome-devtools-mcp@1.12.0", '
+        '"--no-usage-statistics", "--no-performance-crux"]\n'
+        "# CHAOSENGINE:END\n"
+    )
+    return block.replace("# CHAOSENGINE:END\n", optional, 1)
+
+
+def _strip_legacy_codex_mcp_blocks(existing: str) -> str:
+    """Drop known legacy Context7 / package-index Codex tables before re-emitting CE."""
+    legacy_blocks = (
+        '[mcp_servers.maven-tools-mcp]\ncommand = "docker"\n'
+        'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
+        "required = false\n",
+        '[mcp_servers."maven-tools-mcp"]\ncommand = "docker"\n'
+        'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
+        "required = false\n",
+        '[mcp_servers.context7]\ncommand = "npx"\n'
+        'args = ["-y", "@upstash/context7-mcp"]\nrequired = false\n',
+        '[mcp_servers.context7]\ncommand = "npx"\n'
+        'args = ["-y", "@upstash/context7-mcp"]\n',
+        '[mcp_servers."context7"]\ncommand = "npx"\n'
+        'args = ["-y", "@upstash/context7-mcp"]\nrequired = false\n',
+        '[mcp_servers."context7"]\ncommand = "npx"\n'
+        'args = ["-y", "@upstash/context7-mcp"]\n',
+    )
+    for legacy in legacy_blocks:
+        for newline_variant in (legacy, legacy.replace("\n", "\r\n")):
+            existing = existing.replace(newline_variant, "")
+    existing = remove_exact_legacy_native_maven_codex_block(existing)
+    return remove_exact_legacy_codex_store_aliases(existing)
+
+
+def _append_codex_maven_mcp(
+    block: str,
+    *,
+    posix_command: str,
+    windows_command: str,
+    windows_prefix: str,
+    maven_runtime: tuple | None,
+    maven_docker: tuple | None,
+) -> str:
+    """Append portable or Docker package-index MCP before the CE end marker."""
+    if maven_runtime is not None:
+        maven_args = '".chaos-engine/tool.py", "maven-tools-mcp"'
+        return block.replace(
+            "# CHAOSENGINE:END\n",
+            "\n"
+            '[mcp_servers."maven-tools-mcp"]\n'
+            f'command = "{posix_command}"\n'
+            f"args = [{maven_args}]\n"
+            f'commandWindows = "{windows_command}"\n'
+            f'argsWindows = [{windows_prefix}{maven_args}]\n'
+            'cwd = "."\n'
+            "# CHAOSENGINE:END\n",
+        )
+    if maven_docker is not None:
+        _docker, image = maven_docker
+        return block.replace(
+            "# CHAOSENGINE:END\n",
+            "\n[mcp_servers.\"maven-tools-mcp\"]\n"
+            'command = "docker"\n'
+            f'args = ["run", "-i", "--rm", {json.dumps(image)}]\n'
+            "# CHAOSENGINE:END\n",
+        )
+    return block
+
+
+def _merge_codex_managed_block(
+    existing: str, block: str, original: bytes
+) -> bytes | None:
+    """Replace an existing CE Codex stanza; None means append path instead."""
+    if "# CHAOSENGINE:START" not in existing and "# CHAOSENGINE:END" not in existing:
+        return None
+    for candidate in (block, block.replace("\n", "\r\n")):
+        if candidate in existing:
+            return existing.replace(candidate, block).encode()
+    for os_family in ("nt", "posix"):
+        legacy = legacy_codex_python_block(os_family)
+        for candidate in (legacy, legacy.replace("\n", "\r\n")):
+            if candidate in existing:
+                return existing.replace(candidate, block).encode()
+    legacy = legacy_portable_codex_block()
+    for candidate in (legacy, legacy.replace("\n", "\r\n")):
+        if candidate in existing:
+            return existing.replace(candidate, block).encode()
+    try:
+        return heal_replace_codex_managed_block(existing, block).encode()
+    except ValueError as error:
+        if "collision" not in str(error):
+            raise
+        _note_merge_handoff(
+            ".codex/config.toml",
+            "marker count is not a single matching start and end",
+            block,
+        )
+        return original
+
+
 def codex_content(
     before: bytes | None,
     platform_name: str | None = None,
@@ -4366,27 +4495,7 @@ def codex_content(
         )
         return original
     existing = remove_known_codex_orphans(existing)
-    legacy_blocks = (
-        '[mcp_servers.maven-tools-mcp]\ncommand = "docker"\n'
-        'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
-        "required = false\n",
-        '[mcp_servers."maven-tools-mcp"]\ncommand = "docker"\n'
-        'args = ["run", "-i", "--rm", "arvindand/maven-tools-mcp:3.2.0"]\n'
-        "required = false\n",
-        '[mcp_servers.context7]\ncommand = "npx"\n'
-        'args = ["-y", "@upstash/context7-mcp"]\nrequired = false\n',
-        '[mcp_servers.context7]\ncommand = "npx"\n'
-        'args = ["-y", "@upstash/context7-mcp"]\n',
-        '[mcp_servers."context7"]\ncommand = "npx"\n'
-        'args = ["-y", "@upstash/context7-mcp"]\nrequired = false\n',
-        '[mcp_servers."context7"]\ncommand = "npx"\n'
-        'args = ["-y", "@upstash/context7-mcp"]\n',
-    )
-    for legacy in legacy_blocks:
-        for newline_variant in (legacy, legacy.replace("\n", "\r\n")):
-            existing = existing.replace(newline_variant, "")
-    existing = remove_exact_legacy_native_maven_codex_block(existing)
-    existing = remove_exact_legacy_codex_store_aliases(existing)
+    existing = _strip_legacy_codex_mcp_blocks(existing)
     del platform_name
     posix_command, _posix_prefix = interpreter("posix")
     windows_command, _windows_prefix = interpreter("nt")
@@ -4424,66 +4533,24 @@ def codex_content(
             'commandWindows = "py"\nargsWindows = ["-3", '
             f'{mempalace_args}]',
         )
-    block = block.replace(
-        "# CHAOSENGINE:END\n",
-        '\n[mcp_servers.context7]\nurl = "https://mcp.context7.com/mcp"\n'
-        "# CHAOSENGINE:END\n",
-    )
+    block = _append_optional_codex_mcp_servers(block)
     if not with_mcp:
         block = "# CHAOSENGINE:START\n# CHAOSENGINE:END\n"
-    if maven_runtime is not None:
-        # Portable launcher — no absolute java/jar in tracked Codex config (#5782).
-        maven_cmd = posix_command
-        maven_args = '".chaos-engine/tool.py", "maven-tools-mcp"'
-        block = block.replace(
-            "# CHAOSENGINE:END\n",
-            "\n"
-            '[mcp_servers."maven-tools-mcp"]\n'
-            f'command = "{maven_cmd}"\n'
-            f"args = [{maven_args}]\n"
-            f'commandWindows = "{windows_command}"\n'
-            f'argsWindows = [{windows_prefix}{maven_args}]\n'
-            'cwd = "."\n'
-            "# CHAOSENGINE:END\n",
-        )
-    elif maven_docker is not None:
-        _docker, image = maven_docker
-        block = block.replace(
-            "# CHAOSENGINE:END\n",
-            "\n[mcp_servers.\"maven-tools-mcp\"]\n"
-            'command = "docker"\n'
-            f'args = ["run", "-i", "--rm", {json.dumps(image)}]\n'
-            "# CHAOSENGINE:END\n",
-        )
-    if "# CHAOSENGINE:START" in existing or "# CHAOSENGINE:END" in existing:
-        for candidate in (block, block.replace("\n", "\r\n")):
-            if candidate in existing:
-                return existing.replace(candidate, block).encode()
-        for os_family in ("nt", "posix"):
-            legacy = legacy_codex_python_block(os_family)
-            for candidate in (legacy, legacy.replace("\n", "\r\n")):
-                if candidate in existing:
-                    return existing.replace(candidate, block).encode()
-        legacy = legacy_portable_codex_block()
-        for candidate in (legacy, legacy.replace("\n", "\r\n")):
-            if candidate in existing:
-                return existing.replace(candidate, block).encode()
-        # Drifted managed block / markers wrapping non-owned keys: replace stanza (#5630).
-        try:
-            return heal_replace_codex_managed_block(existing, block).encode()
-        except ValueError as error:
-            if "collision" not in str(error):
-                raise
-            _note_merge_handoff(
-                ".codex/config.toml",
-                "marker count is not a single matching start and end",
-                block,
-            )
-            return original
-    # Orphan CE-owned sections outside markers (esp. context7): strip then append.
+    block = _append_codex_maven_mcp(
+        block,
+        posix_command=posix_command,
+        windows_command=windows_command,
+        windows_prefix=windows_prefix,
+        maven_runtime=maven_runtime,
+        maven_docker=maven_docker,
+    )
+    merged = _merge_codex_managed_block(existing, block, original)
+    if merged is not None:
+        return merged
     existing = strip_owned_codex_server_sections(existing)
     separator = "\n" if existing and not existing.endswith("\n") else ""
     return (existing + separator + block).encode()
+
 
 
 def hook_content(before: bytes | None, rendered: bytes, label: str) -> bytes:
@@ -6893,7 +6960,7 @@ def strip_known_json_ownership(
     recorded_servers = recorded.get("mcpServers", {})
     if not isinstance(servers, dict) or not isinstance(original_servers, dict) or not isinstance(recorded_servers, dict):
         raise ValueError("invalid MCP server configuration")
-    for name in ("chaosengine-memory", "chaosengine-mempalace", "context7", "maven-tools-mcp"):
+    for name in ("chaosengine-memory", "chaosengine-mempalace", "context7", "chrome-devtools-mcp", "maven-tools-mcp"):
         if name not in servers:
             continue
         expected = [

@@ -44,6 +44,17 @@ vendor those bundles into the overlay catalog. Where the host allows it,
 doctor/repair disables user GitHub MCP when `gh` is healthy and reports the
 remaining host-product limit (`GAP-GROK-BUNDLED`).
 
+
+## Chrome DevTools MCP
+
+Optional host MCP only (`chrome-devtools-mcp`). Off by default; opt in with
+`install --with-mcp` (or the with-mcp marker / `CHAOS_ENGINE_WITH_MCP=1`).
+When published, launch args must include a pinned package version and
+`--no-usage-statistics` (and prefer `--no-performance-crux`). Use it for live
+CMS or harness debug in a real Chrome (network, console, performance). It does
+**not** replace product automation regression tests, Playwright/WebDriver suites, or
+`box-desktop` browser workflows. Never add it to the default project catalog.
+
 ## Pack tool servers
 
 Git-tracked project `.mcp.json` must never embed workstation-absolute runtime

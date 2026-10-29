@@ -1163,7 +1163,7 @@ def resolve_account_actions(
     )[1]
     resolved: dict[str, dict[str, object]] = {}
     for name, contract in contracts.items():  # type: ignore[union-attr]
-        if name == "maven-tools-mcp":
+        if name in {"maven-tools-mcp", "chrome-devtools-mcp"}:
             continue
         record = local.get(name, {})
         if name in OPTIONAL_ACCOUNT_DEPENDENCIES:

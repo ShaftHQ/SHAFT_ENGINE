@@ -115,6 +115,16 @@
         "initialize"
       ]
     },
+    "chrome-devtools-mcp": {
+      "minimumVersion": "1.12.0",
+      "executables": [],
+      "provider": "npm-npx",
+      "stableChannel": "https://registry.npmjs.org/chrome-devtools-mcp/latest",
+      "probe": [
+        "mcp",
+        "initialize"
+      ]
+    },
     "deja": {
       "minimumVersion": "0.21.2",
       "executables": [
