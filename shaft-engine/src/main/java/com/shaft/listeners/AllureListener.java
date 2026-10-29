@@ -3,6 +3,7 @@ package com.shaft.listeners;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.listeners.internal.AllureSuiteIdentity;
 import com.shaft.listeners.internal.AutomaticRunLabels;
+import com.shaft.listeners.internal.TestNgTagLabels;
 import com.shaft.listeners.internal.ExecutionFailureContext;
 import com.shaft.listeners.internal.TestNGListenerHelper;
 import com.shaft.tools.io.internal.ReportManagerHelper;
@@ -40,8 +41,9 @@ import java.util.Objects;
  *   <li>{@link #beforeFixtureStop(FixtureResult)} — attaches configuration-method artefacts to
  *       the Allure report before a fixture (setup/teardown) finishes</li>
  *   <li>{@link #beforeTestStop(TestResult)} — promotes a SKIPPED test result to BROKEN when the
- *       skip was caused by a configuration-method failure or kill-switch activation, and attaches
- *       the exception stacktrace so it is readable in the Allure HTML report</li>
+ *       skip was caused by a configuration-method failure or kill-switch activation, attaches
+ *       the exception stacktrace so it is readable in the Allure HTML report, and publishes
+ *       TestNG groups / Allure {@code @Tag} values as {@code labels} with {@code name=tag}</li>
  * </ul>
  *
  * <p><b>Example — automatic registration via SPI:</b>
@@ -287,6 +289,7 @@ public class AllureListener implements StepLifecycleListener, FixtureLifecycleLi
     public void beforeTestStop(TestResult result) {
         applySuiteIdentity(result);
         AutomaticRunLabels.apply(result);
+        TestNgTagLabels.apply(result);
         redactStatusDetails(result);
         redactParameters(result.getParameters());
         if (Status.SKIPPED.equals(result.getStatus())) {
