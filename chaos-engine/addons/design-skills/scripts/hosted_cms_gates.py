@@ -1,4 +1,4 @@
-"""Stdlib gates for hosted-CMS embed lessons L23–L31 (no browser required)."""
+"""Stdlib gates for hosted-CMS embed lessons L23–L31 + L36/L37 paste (no browser)."""
 
 from __future__ import annotations
 
@@ -26,24 +26,91 @@ TOPBAR_IN_PASTE = re.compile(
     re.IGNORECASE,
 )
 
+# L36: Code-block paste must be a fragment — no document shell tags.
+DOC_SHELL_TAG = re.compile(
+    r"<!doctype\b|<\s*(?:html|head|body)\b",
+    re.IGNORECASE,
+)
+# L36: paste CSS must not target host document roots.
+GLOBAL_CSS_ROOT = re.compile(
+    r"(?:^|[{};,\s])(?:html|body|:root)(?=[\s.{:#\[,>+~]|$)",
+    re.IGNORECASE | re.MULTILINE,
+)
+# L37: HTML comments in paste leak ops notes on the live page.
+HTML_COMMENT_OPEN = re.compile(r"<!--")
+
+
+def _mask_attr_values(html: str) -> str:
+    """Blank quoted attribute values so tag-like text in attrs is not a hit."""
+
+    def repl(match: re.Match[str]) -> str:
+        prefix = match.group(1)
+        return prefix + (" " * (len(match.group(0)) - len(prefix)))
+
+    return re.sub(r'(=\s*)("[^"]*"|\'[^\']*\')', repl, html or "")
+
+
+def _style_bodies(html: str) -> list[str]:
+    return re.findall(
+        r"<style\b[^>]*>(.*?)</style>",
+        html or "",
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+
+
+def _doc_shell_samples(html: str) -> list[str]:
+    masked = _mask_attr_values(html or "")
+    return [m.group(0).lower().replace(" ", "") for m in DOC_SHELL_TAG.finditer(masked)]
+
+
+def _global_css_root_hits(html: str) -> int:
+    return sum(len(GLOBAL_CSS_ROOT.findall(body)) for body in _style_bodies(html))
+
+
+def _html_comment_hits(html: str) -> int:
+    # Comments are real markup; attr masking would hide rare data-* FPs only.
+    masked = _mask_attr_values(html or "")
+    return len(HTML_COMMENT_OPEN.findall(masked))
+
 
 def check_cms_meta(html: str) -> dict[str, Any]:
-    """L25: paste must not include og:/twitter: meta or <html lang>."""
+    """L25/L36/L37: no og/twitter, document shell, global root CSS, or comments."""
     body = html or ""
     count = len(list(OG_TWITTER_META.finditer(body)))
     lang_hits = len(list(HTML_LANG.finditer(body)))
-    base = {"og_twitter_meta": count, "html_lang": lang_hits}
+    shell = _doc_shell_samples(body)
+    css_roots = _global_css_root_hits(body)
+    comments = _html_comment_hits(body)
+    base = {
+        "og_twitter_meta": count,
+        "html_lang": lang_hits,
+        "doc_shell_hits": len(shell),
+        "doc_shell_samples": shell[:5],
+        "global_css_root_hits": css_roots,
+        "html_comment_hits": comments,
+    }
     fails: list[str] = []
     if count:
         fails.append("CMS SEO panel owns og/twitter; strip paste meta (L25)")
     if lang_hits:
         fails.append("no <html lang> in paste; set language per block (L25)")
+    if shell:
+        fails.append(
+            "fragment only: strip <!doctype>/<html>/<head>/<body>; "
+            "put dir/lang on embed wrapper (L36)"
+        )
+    if css_roots:
+        fails.append(
+            "scope CSS to embed wrapper; no html/body/:root selectors (L36)"
+        )
+    if comments:
+        fails.append("no HTML comments in paste; ops notes leak live (L37)")
     if fails:
         return {**base, "status": "fail", "note": "; ".join(fails), "fails": fails}
     return {
         **base,
         "status": "pass",
-        "note": "no og:/twitter meta or html lang in paste (L25)",
+        "note": "paste fragment clean of meta/shell/comments (L25/L36/L37)",
     }
 
 
@@ -413,11 +480,14 @@ REQUIRED_LIVECMS_ROWS = (
     "duration_ok",
     # L31: nested code-container count must be 0
     "nested_containers_0",
+    # L36: sticky header logo/nav vs homepage '/' within 1px
+    "header_logo_delta_ok",
+    "header_nav_delta_ok",
 )
 
 
 def check_livecms(report: dict[str, Any]) -> dict[str, Any]:
-    """Fail-closed live matrix receipt for L28/L31 (n/a ok for media rows)."""
+    """Fail-closed live matrix receipt for L28/L31/L36 (n/a ok for media rows)."""
     if not isinstance(report, dict):
         return {"status": "error", "reasons": ["report must be a JSON object"]}
     rows = report.get("rows") if isinstance(report.get("rows"), dict) else report
@@ -443,6 +513,67 @@ def check_livecms(report: dict[str, Any]) -> dict[str, Any]:
         return {
             **base,
             "status": "fail",
-            "note": "livecms matrix incomplete or red (L28/L31)",
+            "note": "livecms matrix incomplete or red (L28/L31/L36)",
         }
-    return {**base, "status": "pass", "note": "livecms matrix green (L28/L31)"}
+    return {**base, "status": "pass", "note": "livecms matrix green (L28/L31/L36)"}
+
+
+def check_cms_header_delta(
+    home_logo_x: float,
+    home_logo_y: float,
+    page_logo_x: float,
+    page_logo_y: float,
+    home_nav_x: float,
+    home_nav_y: float,
+    page_nav_x: float,
+    page_nav_y: float,
+    *,
+    max_delta_px: float = 1.0,
+) -> dict[str, Any]:
+    """L36: live header logo/nav position delta vs homepage '/' ≤ max_delta_px."""
+    try:
+        values = {
+            "home_logo_x": float(home_logo_x),
+            "home_logo_y": float(home_logo_y),
+            "page_logo_x": float(page_logo_x),
+            "page_logo_y": float(page_logo_y),
+            "home_nav_x": float(home_nav_x),
+            "home_nav_y": float(home_nav_y),
+            "page_nav_x": float(page_nav_x),
+            "page_nav_y": float(page_nav_y),
+            "max_delta_px": float(max_delta_px),
+        }
+    except (TypeError, ValueError):
+        return {"status": "error", "reasons": ["non-numeric header positions"]}
+    if any(not math.isfinite(v) for v in values.values()):
+        return {"status": "error", "reasons": ["non-finite header positions"]}
+    logo_dx = abs(values["page_logo_x"] - values["home_logo_x"])
+    logo_dy = abs(values["page_logo_y"] - values["home_logo_y"])
+    nav_dx = abs(values["page_nav_x"] - values["home_nav_x"])
+    nav_dy = abs(values["page_nav_y"] - values["home_nav_y"])
+    logo_delta = max(logo_dx, logo_dy)
+    nav_delta = max(nav_dx, nav_dy)
+    tol = values["max_delta_px"]
+    base = {
+        **values,
+        "logo_delta_px": round(logo_delta, 4),
+        "nav_delta_px": round(nav_delta, 4),
+        "header_logo_delta_ok": logo_delta <= tol + 1e-9,
+        "header_nav_delta_ok": nav_delta <= tol + 1e-9,
+    }
+    fails: list[str] = []
+    if logo_delta > tol + 1e-9:
+        fails.append(
+            f"header logo delta {logo_delta:.2f}px > {tol}px vs / (L36)"
+        )
+    if nav_delta > tol + 1e-9:
+        fails.append(
+            f"header nav delta {nav_delta:.2f}px > {tol}px vs / (L36)"
+        )
+    if fails:
+        return {**base, "status": "fail", "note": "; ".join(fails), "fails": fails}
+    return {
+        **base,
+        "status": "pass",
+        "note": "header logo/nav within 1px of homepage / (L36)",
+    }

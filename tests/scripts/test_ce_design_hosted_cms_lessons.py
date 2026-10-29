@@ -1,4 +1,4 @@
-"""Hosted-CMS embed lessons L23–L31 + gates (Carl retro 2026-10-29)."""
+"""Hosted-CMS embed lessons L23–L31 (+ L36 livecms header rows) + gates."""
 
 from __future__ import annotations
 
@@ -64,6 +64,8 @@ CARDS = {
         "duration_ok",
         "nested_containers_0",
     ),
+    # L36/L37 cards covered in test_ce_design_cms_paste_l36_l37.py
+
     "plan-first-multi-axis.md": (
         "Plan before build",
         "Acceptance first",
@@ -117,7 +119,7 @@ class HostedCmsLessonCardsTest(unittest.TestCase):
         self.assertIn("hosted-cms-embed", sq)
         self.assertIn("livecms", sq)
         inv = " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split())
-        self.assertIn("33 lesson", inv)
+        self.assertIn("35 lesson", inv)
         self.assertIn("L01-L33", inv)
         craft = (DESIGN / "references/craft/index.md").read_text(encoding="utf-8")
         self.assertIn("hosted-CMS no-dup chrome", craft)
@@ -308,6 +310,8 @@ class LivecmsMatrixTest(unittest.TestCase):
                 "media_ok": "n/a",
                 "duration_ok": "n/a",
                 "nested_containers_0": True,
+                "header_logo_delta_ok": True,
+                "header_nav_delta_ok": True,
             }
             full.write_text(json.dumps(base), encoding="utf-8")
             # D4: old full receipt without media/nested keys must fail closed
@@ -323,7 +327,10 @@ class LivecmsMatrixTest(unittest.TestCase):
             code, payload = run_qc("livecms", str(incomplete))
             self.assertEqual(1, code, payload)
             missing = set(payload.get("missing") or [])
-            for key in ("media_ok", "duration_ok", "nested_containers_0"):
+            for key in (
+                "media_ok", "duration_ok", "nested_containers_0",
+                "header_logo_delta_ok", "header_nav_delta_ok",
+            ):
                 self.assertIn(key, missing, payload)
             code, payload = run_qc("livecms", str(full))
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)

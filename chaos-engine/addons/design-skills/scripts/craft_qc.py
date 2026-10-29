@@ -2447,7 +2447,7 @@ def cmd_lessgrid(qc, args) -> int:
         note="L33: no slash grid shorthand / bare calc under LESS 1.3.3; re-check gutters live after CSS paste",
     )
 
-# --- Hosted-CMS embed gates (L23–L31) -----------------------------------------
+# --- Hosted-CMS embed gates (L23–L31, L36/L37 paste fragment) -----------------
 def _hosted_cms():
     import importlib.util
     spec = importlib.util.spec_from_file_location(
@@ -2461,7 +2461,7 @@ def _hosted_cms():
 
 
 def cmd_cmsmeta(qc, args) -> int:
-    """L25: paste HTML must not include og:/twitter: meta or <html lang>."""
+    """L25/L36/L37: paste fragment — no og/twitter, shell, root CSS, or comments."""
     html = Path(args.file).read_text(encoding="utf-8")
     report = _hosted_cms().check_cms_meta(html)
     status = report.pop("status")
@@ -2570,7 +2570,7 @@ def cmd_cmsduration(qc, args) -> int:
 
 
 def cmd_livecms(qc, args) -> int:
-    """L28/L31: fail-closed live matrix receipt JSON."""
+    """L28/L31/L36: fail-closed live matrix receipt JSON."""
     report_obj = json.loads(Path(args.file).read_text(encoding="utf-8"))
     report = _hosted_cms().check_livecms(report_obj)
     status = report.pop("status")
@@ -2578,6 +2578,20 @@ def cmd_livecms(qc, args) -> int:
         return qc.report("livecms", qc.USAGE, **report)
     code = qc.PASS if status == "pass" else qc.FAIL
     return qc.report("livecms", code, **report)
+
+
+def cmd_cmsheader(qc, args) -> int:
+    """L36: live header logo/nav position delta vs homepage '/' ≤1px."""
+    report = _hosted_cms().check_cms_header_delta(
+        args.home_logo_x, args.home_logo_y, args.page_logo_x, args.page_logo_y,
+        args.home_nav_x, args.home_nav_y, args.page_nav_x, args.page_nav_y,
+        max_delta_px=args.max_delta,
+    )
+    status = report.pop("status")
+    if status == "error":
+        return qc.report("cmsheader", qc.USAGE, **report)
+    code = qc.PASS if status == "pass" else qc.FAIL
+    return qc.report("cmsheader", code, **report)
 
 
 def register(add, qc) -> None:
@@ -2854,7 +2868,7 @@ def register(add, qc) -> None:
     p.add_argument("--threshold", type=float, default=0.65,
                    help="FLAG when punchline_at/content_dur > threshold")
     p = add("cmsmeta", bind(cmd_cmsmeta),
-            "L25: paste HTML must not include og:/twitter: meta")
+            "L25/L36/L37: paste fragment — no og/twitter, shell, root CSS, comments")
     p.add_argument("file", help="paste HTML file")
     p = add("cmsassets", bind(cmd_cmsassets),
             "L24: fail relative local assets in paste HTML")
@@ -2915,8 +2929,20 @@ def register(add, qc) -> None:
     p.add_argument("--peer", type=float, default=None, help="sibling duration seconds")
     p.add_argument("--peer-tol", type=float, default=30.0, dest="peer_tol")
     p = add("livecms", bind(cmd_livecms),
-            "L28/L31: fail-closed live matrix receipt JSON")
+            "L28/L31/L36: fail-closed live matrix receipt JSON")
     p.add_argument("file", help="livecms report JSON")
+    p = add("cmsheader", bind(cmd_cmsheader),
+            "L36: header logo/nav delta vs homepage '/' ≤1px")
+    p.add_argument("--home-logo-x", type=float, required=True, dest="home_logo_x")
+    p.add_argument("--home-logo-y", type=float, required=True, dest="home_logo_y")
+    p.add_argument("--page-logo-x", type=float, required=True, dest="page_logo_x")
+    p.add_argument("--page-logo-y", type=float, required=True, dest="page_logo_y")
+    p.add_argument("--home-nav-x", type=float, required=True, dest="home_nav_x")
+    p.add_argument("--home-nav-y", type=float, required=True, dest="home_nav_y")
+    p.add_argument("--page-nav-x", type=float, required=True, dest="page_nav_x")
+    p.add_argument("--page-nav-y", type=float, required=True, dest="page_nav_y")
+    p.add_argument("--max-delta", type=float, default=1.0, dest="max_delta",
+                   help="max |page-home| px on either axis (default 1)")
     p = add("bidiwao", bind(cmd_bidiwao),
             "L32: Arabic و adjacent to <bdi> Latin in headings/card titles (use ،)")
     p.add_argument("path", help="HTML file or directory")

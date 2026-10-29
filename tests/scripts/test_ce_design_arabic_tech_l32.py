@@ -61,7 +61,7 @@ class ArabicTechLessonCardTest(unittest.TestCase):
         self.assertIn("L32 ", index)
         self.assertIn(f"]({CARD})", index)
         inv = " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split())
-        self.assertIn("33 lesson", inv)
+        self.assertIn("35 lesson", inv)
         self.assertIn("L01-L33", inv)
         self.assertNotIn("L32 reserved", inv)
         craft = (DESIGN / "references/craft/index.md").read_text(encoding="utf-8")
