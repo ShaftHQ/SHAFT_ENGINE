@@ -7,8 +7,8 @@ import subprocess  # nosec B404 - stdlib only; argv is fixed CE helper path
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 CE = ROOT / "chaos-engine"
@@ -101,7 +101,7 @@ class ContentScanPreflightLessonTest(unittest.TestCase):
 
     def test_planted_self_test_fails_when_scan_disabled(self) -> None:
         """Red proof: monkeypatched no-op scan must not vacuous-PASS."""
-        with mock.patch.object(_mod, "scan_roots", return_value=[]):
+        with unittest.mock.patch.object(_mod, "scan_roots", return_value=[]):
             code = _mod.planted_self_test()
         self.assertEqual(2, code)
 
@@ -153,9 +153,9 @@ class ContentScanPreflightLessonTest(unittest.TestCase):
             name = "ce_tip_content_scan_preflight"
             loader = Loader()
 
-        with mock.patch.object(
+        with unittest.mock.patch.object(
             importlib.util, "spec_from_file_location", return_value=Spec()
-        ), mock.patch.object(
+        ), unittest.mock.patch.object(
             importlib.util,
             "module_from_spec",
             return_value=types.SimpleNamespace(),
