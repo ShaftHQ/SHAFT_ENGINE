@@ -80,6 +80,23 @@ class DesignQaR2DeltaLessonCardsTest(unittest.TestCase):
                 self.assertNotIn(word, lowered, f"{name}: {word}")
 
 
+class DesignQaR2DeltaDiscoverabilityTest(unittest.TestCase):
+    def test_qc_docstring_documents_advisory_flag(self) -> None:
+        doc = QC.read_text(encoding="utf-8").split('"""')[1]
+        self.assertIn("viralpacing", doc)
+        self.assertIn("status=flag with exit 0", doc)
+        self.assertIn("never a hard fail", doc)
+
+    def test_lessons_index_l15_mentions_contiguous_cut(self) -> None:
+        row = next(
+            line
+            for line in (LESSONS / "index.md").read_text(encoding="utf-8").splitlines()
+            if "[L15 " in line
+        )
+        self.assertIn("cue >2s", row)
+        self.assertIn("contiguous cut", row)
+
+
 class ViralPacingFlagTest(unittest.TestCase):
     def test_late_punchline_flags_not_fails(self) -> None:
         # Riskiest assumption: late punchline → status=flag exit 0 (not fail).

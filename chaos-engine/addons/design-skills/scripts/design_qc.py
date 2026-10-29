@@ -3,6 +3,8 @@
 
 Every sub-command prints one JSON object and exits:
 0 pass, 1 fail, 2 usage error, 4 skipped (a required tool is missing).
+Advisory checks (e.g. ``viralpacing``) may report status=flag with exit 0;
+a flag is a warning to review, never a hard fail.
 A skipped check is never a pass. Stdlib only; media checks call ffmpeg/ffprobe.
 """
 
