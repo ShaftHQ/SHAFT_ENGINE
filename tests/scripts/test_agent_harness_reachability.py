@@ -583,8 +583,9 @@ class HarnessReachabilityTest(unittest.TestCase):
             self.assertEqual(report["orphans"], [])
             self.assertEqual(
                 report["stale_named_paths"],
-                ["scripts/ci/tool.py (named in .agents/skills/act-as-mohab/SKILL.md) "
-                 "matches no tracked path"],
+                [
+                    "scripts/ci/tool.py (named in .agents/skills/act-as-mohab/SKILL.md) matches no tracked path"
+                ],
             )
 
     def test_the_walk_places_link_targets_when_the_root_is_spelled_unresolved(self):

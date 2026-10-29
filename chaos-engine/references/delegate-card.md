@@ -35,6 +35,12 @@ Never run mutating `git stash` in a worktree (R8): the stash is shared
 across worktrees. Commit to your branch; for baselines use
 `git worktree add --detach <dir> <base-ref>`.
 
+## Policy paths
+
+Until this worktree is bootstrapped, load policy from
+`chaos-engine/references/` (not `.chaos-engine/references/`). After install,
+either tree is valid; prefer the source tree when both exist.
+
 ## Stop on ambiguity
 
 Stop and report when the specification is ambiguous, a premise is false, a

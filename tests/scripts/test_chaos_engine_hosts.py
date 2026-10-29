@@ -1232,7 +1232,26 @@ class ChaosEngineHostsTest(unittest.TestCase):
         self.assertIn("wait_budget_s", script)
         self.assertIn("except (TypeError,ValueError)", script)
 
+    def test_lifecycle_hook_negative_wait_ms_with_markers_temps_immediately(self):
+        """#7434: negative WAIT_MS → 0s budget; markers still present → TEMP deny."""
+        module = load(HOSTS, "chaos_engine_hook_neg_wait")
+        command = self._guard_locator_command(module)
+        with tempfile.TemporaryDirectory() as temporary:
+            Path(temporary, ".chaos-engine.transaction.json").write_text(
+                '{"operation":"install"}\n', encoding="utf-8"
+            )
+            env = {**os.environ, "CHAOS_ENGINE_GUARD_WAIT_MS": "-5"}
+            completed = self._run_locator(command, temporary, env)
+        rendered = completed.stdout + completed.stderr
+        self.assertNotEqual(0, completed.returncode, rendered)
+        payload = json.loads(completed.stdout)
+        self.assertIn("block", {payload.get("decision"), payload.get("permissionDecision")})
+        self.assertIn(module.LAUNCH_GUARD_TEMPORARILY_UNAVAILABLE, rendered)
+        self.assertNotIn(module.LAUNCH_GUARD_UNAVAILABLE, rendered)
+        self.assertEqual(0.0, module.guard_wait_budget_seconds("-5"))
+
     def test_inline_launch_reports_missing_cwd_without_private_paths(self):
+
         module = load(HOSTS, "chaos_engine_hook_missing_cwd")
         command = module.chaos_guard_locator_command(windows=os.name == "nt", host="codex")
         event = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash"})

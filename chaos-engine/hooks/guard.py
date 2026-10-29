@@ -779,11 +779,101 @@ def _pull_request_number(event: dict, commands: tuple[str, ...]) -> int | None:
     return None
 
 
-def remember_open_pull_request(cwd: Path, number: int | None) -> None:
-    """Persist a pull request opened by gh pr create for later sessions."""
-    payload: dict[str, object] = {"active": True, "state": "open"}
-    if number is not None:
-        payload["pullRequest"] = number
+
+_GITHUB_PERMISSION_DENIED = "github-permission-denied"
+_AUTO_MERGE_ARM = re.compile(
+    r"(?:^|[\s;|&])gh\s+pr\s+merge\b[^\n]*--auto\b",
+    re.IGNORECASE,
+)
+_FORK_WORKFLOW_APPROVE = re.compile(
+    r"repos/[^\s]+/actions/runs/\d+/approve|"
+    r"actions/runs/\d+/approve|"
+    r"gh\s+workflow\s+run\b.*approve|"
+    r"approve-fork|"
+    r"actions/permissions/workflow",
+    re.IGNORECASE,
+)
+
+
+def _command_is_github_write_permission_mutation(command: str) -> bool:
+    """True for auto-merge arm or fork-workflow approve mutations (#7443)."""
+    text = str(command or "")
+    if _AUTO_MERGE_ARM.search(text):
+        return True
+    if _FORK_WORKFLOW_APPROVE.search(text):
+        return True
+    # GraphQL EnablePullRequestAutoMerge
+    if "EnablePullRequestAutoMerge" in text:
+        return True
+    return False
+
+
+def _tool_result_looks_like_http_403(result: object) -> bool:
+    """True when a tool result reports HTTP 403 / permission denied."""
+    chunks: list[str] = []
+    if isinstance(result, dict):
+        for key in ("stderr", "stdout", "output", "body", "message", "error"):
+            chunks.append(str(result.get(key) or ""))
+        code = result.get("exit_code", result.get("exitCode"))
+        if code not in {0, None, "0"}:
+            chunks.append(str(code))
+    elif isinstance(result, str):
+        chunks.append(result)
+    blob = "\n".join(chunks).casefold()
+    return (
+        "403" in blob
+        or "http 403" in blob
+        or "permission denied" in blob
+        or "resource not accessible" in blob
+        or "must have write" in blob
+    )
+
+
+def remember_github_permission_denied(session_id: str, event: dict, commands: tuple[str, ...]) -> None:
+    """Record a write-permission failure so the same mutation is not retried (#7443)."""
+    if not session_id:
+        return
+    result = event.get("tool_response") or event.get("toolResponse") or event.get("tool_result")
+    if not any(_command_is_github_write_permission_mutation(c) for c in commands):
+        return
+    if not _tool_result_looks_like_http_403(result):
+        return
+    reflection.record_activity(session_id, _GITHUB_PERMISSION_DENIED)
+
+
+def github_permission_denied_reason(session_id: str, commands: tuple[str, ...]) -> str:
+    """Block repeating auto-merge / fork-approve after HTTP 403 (#7443)."""
+    if not any(_command_is_github_write_permission_mutation(c) for c in commands):
+        return ""
+    activities = {
+        item.get("activity")
+        for item in reflection.entries(session_id)
+        if item.get("kind") == "task-activity"
+    }
+    if _GITHUB_PERMISSION_DENIED not in activities:
+        return ""
+    return (
+        "GitHub returned HTTP 403 on auto-merge or fork-workflow approval. "
+        "That is a permission failure, not a pending check. Stop; do not retry "
+        "the same mutation. Ask a maintainer with write access."
+    )
+
+
+def remember_open_pull_request(cwd: Path, number: int | None, *, repository: str | None = None) -> None:
+    """Persist a numbered pull request opened by gh pr create for later sessions.
+
+    #7443: refuse to write a numberless mark — Stop must not demand until-merged
+    without a pull request identity.
+    """
+    if number is None or isinstance(number, bool) or int(number) <= 0:
+        return
+    payload: dict[str, object] = {
+        "active": True,
+        "state": "open",
+        "pullRequest": int(number),
+    }
+    if repository:
+        payload["repository"] = repository
     path = _open_pull_request_state_path(cwd)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -923,8 +1013,9 @@ def delivery_goal_open_pull_request(event: dict) -> bool:
         return False
     if str(payload.get("state") or "").casefold() != "open":
         return False
+    # #7443: a numberless open-PR mark is not an identity — do not demand until-merged.
     number = payload.get("pullRequest")
-    return number is None or (isinstance(number, int) and not isinstance(number, bool) and number > 0)
+    return isinstance(number, int) and not isinstance(number, bool) and number > 0
 
 
 def _open_pull_request_reason(session_id: str, event: dict) -> str:
@@ -932,7 +1023,8 @@ def _open_pull_request_reason(session_id: str, event: dict) -> str:
 
     ``delivery-status`` does not clear the block. An active delivery goal
     with an open pull request counts even when this session never ran
-    ``gh pr create``.
+    ``gh pr create``. #7443: only a numbered open-PR mark is an identity —
+    activity alone or a numberless mark must not demand ``--until-merged``.
     """
     activities = {
         item.get("activity")
@@ -941,7 +1033,7 @@ def _open_pull_request_reason(session_id: str, event: dict) -> str:
     }
     if "pull-request-merged" in activities:
         return ""
-    if "pull-request-open" not in activities and not delivery_goal_open_pull_request(event):
+    if not delivery_goal_open_pull_request(event):
         return ""
     return (
         "Delivery is not complete while the pull request is open. "
@@ -997,6 +1089,7 @@ def _record_failed_result(
     # A denied receipt adapter must not enlarge the fingerprint set the next receipt has to list.
     if commands and any(denied_reflection_retry(command) for command in commands):
         return False
+    remember_github_permission_denied(session_id, event, commands)
     reflection.record_failure(
         session_id,
         phase="tool-outcome",
@@ -1062,6 +1155,10 @@ def _command_guard_state(
     push_block = (_overlay_push_block(commands) or _pr_body_block(commands)) if event_name == "PreToolUse" else ""
     if push_block:
         return receipt_command, mutation, push_block
+    if event_name == "PreToolUse":
+        permission_block = github_permission_denied_reason(session_id, commands)
+        if permission_block:
+            return receipt_command, mutation, permission_block
     if event_name == "PreToolUse" and checkpoint and not receipt_command and (mutation or unchanged_test):
         return receipt_command, mutation, checkpoint_reason(checkpoint, session_id)
     uninspectable = _uninspectable_functions_call(

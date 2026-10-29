@@ -45,6 +45,11 @@ BUDGET_WARN_MINUTES = 5
 HOST_CAP_MINUTES = 50
 MISSING_NEXT = "(missing: rerun checkpoint with --next \"<exact next step>\")"
 STOP_NOW = "stop: push WIP, checkpoint --next, end turn"
+OWNER_FINISH_CONTINUE = (
+    "owner finish-delivery goal active; checkpoint budget warning only (#7424)"
+)
+OWNER_FINISH_ENV = "CHAOS_ENGINE_OWNER_FINISH_GOAL"
+OWNER_FINISH_STATE = "owner-finish-goal.json"
 DONE = "done"
 
 
@@ -223,10 +228,40 @@ def checkpoint_step(ns: argparse.Namespace) -> int:
     return session_gate(ns.task, ns.budget or ns.minutes) if ns.step != DONE else 0
 
 
+
+def owner_finish_goal_active(project: Path | None = None) -> bool:
+    """True when the owner explicitly asked to finish a named delivery (#7424).
+
+    Marker: env ``CHAOS_ENGINE_OWNER_FINISH_GOAL`` in {1,true,yes}, or
+    ``.chaos-engine-state/owner-finish-goal.json`` with ``{"active": true}``.
+    Ordinary unattended sessions without that marker still stop at the budget.
+    """
+    raw = str(__import__("os").environ.get(OWNER_FINISH_ENV, "")).strip().casefold()
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    root = Path(project) if project is not None else Path.cwd()
+    path = root / ".chaos-engine-state" / OWNER_FINISH_STATE
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    return isinstance(payload, dict) and payload.get("active") is True
+
+
 def session_gate(name: str, minutes: float, now: float | None = None) -> int:
-    """Hard stop after the step is recorded: exit 3 past the budget, warn in its last minutes."""
+    """Hard stop after the step is recorded: exit 3 past the budget, warn in its last minutes.
+
+    #7424: an explicit owner finish-delivery goal keeps exit 0 past the budget
+    (warning only). Sessions without that goal still get exit 3.
+    """
     spent, elapsed = over_budget(name, minutes, now)
     if spent:
+        if owner_finish_goal_active():
+            print(
+                f"{name}: {elapsed:.0f}/{minutes:.0f} min; {OWNER_FINISH_CONTINUE}",
+                file=sys.stderr,
+            )
+            return 0
         print(f"{name}: {elapsed:.0f}/{minutes:.0f} min; {STOP_NOW}", file=sys.stderr)
         return 3
     if elapsed >= minutes - BUDGET_WARN_MINUTES:
@@ -275,6 +310,11 @@ def main(argv: list[str] | None = None, command: str = "checkpoint") -> int:
             if ns.budget > 0:
                 ns.minutes = ns.budget
             spent, elapsed = over_budget(ns.task, ns.minutes)
+            if spent and owner_finish_goal_active():
+                print(
+                    f"{ns.task}: {elapsed:.0f}/{ns.minutes:.0f} min; {OWNER_FINISH_CONTINUE}"
+                )
+                return 0
             verdict = STOP_NOW if spent else "ok"
             print(f"{ns.task}: {elapsed:.0f}/{ns.minutes:.0f} min; {verdict}")
             return 3 if spent else 0

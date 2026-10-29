@@ -1098,6 +1098,26 @@ def attempt_mempalace_sqlite_exact_heal(palace: Path) -> bool:
             connection.close()
 
 
+
+def _classify_missing_exact_after_quarantine(palace: Path) -> dict[str, str]:
+    """#7431: quarantine leftovers without a live sqlite are recovery-required."""
+    quarantine = palace / ".chaos-engine-quarantine"
+    try:
+        has_quarantine = quarantine.is_dir() and any(quarantine.iterdir())
+    except OSError:
+        # Unreadable quarantine dir: treat as absent and fall through to init.
+        has_quarantine = False
+    if has_quarantine:
+        return {
+            "status": "recovery-required",
+            "detail": (
+                "MemPalace sqlite was quarantined and no live database remains; "
+                "run python3 .chaos-engine/tool.py stores refresh"
+            ),
+        }
+    return {"status": "initialization-required", "backend": "sqlite_exact"}
+
+
 def _classify_exact_mempalace(
     palace: Path,
     exact: Path,
@@ -1180,7 +1200,7 @@ def _classify_exact_mempalace(
                 "detail": "SQLite-exact MemPalace state is unreadable or malformed",
             }
         return {"status": "healthy", "backend": "sqlite_exact"}
-    return {"status": "initialization-required", "backend": "sqlite_exact"}
+    return _classify_missing_exact_after_quarantine(palace)
 
 
 def mempalace_directory_status(palace: Path) -> dict[str, str]:
@@ -6945,19 +6965,31 @@ def role_adapter_desired(relative: str, *, legacy: bool = False) -> bytes | None
     if named is None:
         return None
     title, responsibility = named
+    # #7434: prefer source-tree references so unbootstrapped worktrees resolve
+    # policy; overlay paths remain the post-bootstrap fallback for consumers.
     process_owner = (
-        " In orchestrated mode also load `.chaos-engine/references/process-owner-scrum-master.md`."
+        " In orchestrated mode also load `chaos-engine/references/process-owner-scrum-master.md` "
+        "(fallback: `.chaos-engine/references/process-owner-scrum-master.md`)."
         if role == "orchestrator"
         else ""
     )
-    card = (
-        ".chaos-engine/skills/chaos-engine/SKILL.md"
-        if legacy
-        else ".chaos-engine/references/delegate-card.md"
+    if legacy:
+        card = (
+            "`chaos-engine/skills/chaos-engine/SKILL.md` "
+            "(fallback: `.chaos-engine/skills/chaos-engine/SKILL.md`)"
+        )
+    else:
+        card = (
+            "`chaos-engine/references/delegate-card.md` "
+            "(fallback: `.chaos-engine/references/delegate-card.md`)"
+        )
+    roles_path = (
+        f"`chaos-engine/references/roles.md#{role}` "
+        f"(fallback: `.chaos-engine/references/roles.md#{role}`)"
     )
     body = (
-        f"Load `{card}` and follow the "
-        f"{title} role at `.chaos-engine/references/roles.md#{role}`."
+        f"Load {card} and follow the "
+        f"{title} role at {roles_path}."
         f"{process_owner} {responsibility}"
     )
     if host == "claude" and kind == "md":

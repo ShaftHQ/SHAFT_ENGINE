@@ -38,13 +38,14 @@ function sleepMs(ms) {
   }
 }
 
-// #7425/#7492: invalid WAIT_MS must not become NaN (instant TEMP); clamp to defaults.
+// #7425/#7492/#7434: invalid/NaN → 60s default; finite values clamp to 0..600s
+// (same semantics as hosts.py guard_wait_budget_seconds).
 function guardWaitMs() {
   const raw = process.env.CHAOS_ENGINE_GUARD_WAIT_MS;
   if (raw === undefined || raw === "") return 60000;
   const value = Number(raw);
-  if (!Number.isFinite(value) || value < 0) return 60000;
-  return Math.min(value, 600000);
+  if (!Number.isFinite(value)) return 60000;
+  return Math.max(0, Math.min(value, 600000));
 }
 
 function installInProgress(start) {
