@@ -36,7 +36,7 @@ CMS Code blocks (L25/L34 / `cmsmeta`); set crawl in the CMS SEO panel and verify
 ## Social / plan limits
 
 14. One CMS **`og:title`**; **`og:image`** https 200 (or record **UNFIXABLE** on plans that lock http social images). Asset craft: [W14](og-image.md).
-15. Schema / JSON-LD only when the plan allows injection; skip on Personal / no-injection plans ([Squarespace 7.1](../site-builders/squarespace-7-1.md)). Prefer FAQ / Organization entity blocks when allowed.
+15. Ship FAQ / Organization **JSON-LD** via a **Code block** when useful (works on Squarespace Personal; verified live). Site-wide **Code Injection** needs Core+ ([Squarespace 7.1](../site-builders/squarespace-7-1.md)). `liveseo` fails closed on invalid JSON-LD or missing `@type`.
 16. Core Web Vitals: follow C01 + D04 Lighthouse; do not restate thresholds here.
 
 ## AI answer engines
@@ -56,7 +56,7 @@ CMS Code blocks (L25/L34 / `cmsmeta`); set crawl in the CMS SEO panel and verify
 
 ## Verify
 
-- [ ] `design_qc.py liveseo <https-url>` (or `--fixture <dir>` offline); gate: [`liveseo_gates.py`](../../scripts/liveseo_gates.py)
+- [ ] `design_qc.py liveseo <https-url>` (or `--fixture <dir>` offline); gate: [`liveseo_gates.py`](../../scripts/liveseo_gates.py) — JSON-LD scripts must parse with `@type`
 - [ ] `design_qc.py cmsmeta <paste.html>` clean (no social meta / robots noindex in paste; L25/L34)
 - [ ] `design_qc.py livecms` / `ogimage` when embed or OG asset applies
 

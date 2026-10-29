@@ -76,6 +76,9 @@ def _write_fixture(folder: Path, *, good: bool) -> Path:
             'and short quotable answers for search and AI.">'
             '<link rel="canonical" href="https://example.com/">'
             '<meta property="og:image" content="https://example.com/og.png">'
+            '<script type="application/ld+json">'
+            '{"@context":"https://schema.org","@type":"Organization","name":"Example"}'
+            "</script>"
             "</head><body><h1>Example product</h1><h2>Why</h2>"
             '<p>Example helps teams ship verified releases.</p>'
             '<a href="/docs">Docs</a><img src="/a.png" alt="diagram"></body></html>',
@@ -179,6 +182,46 @@ class LiveseoGateTest(unittest.TestCase):
         self.assertFalse(page["heading_order"])
         robots = mod.parse_robots("User-agent: GPTBot\nDisallow: /\n")
         self.assertIn("GPTBot", robots["blocked_ai_bots"])
+
+
+    def test_jsonld_requires_type_and_rejects_invalid(self) -> None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("liveseo_gates", GATES)
+        mod = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(mod)
+        ok = mod.check_jsonld(
+            '<script type="application/ld+json">'
+            '{"@graph":[{"@type":"WebPage","name":"Home"}]}'
+            "</script>"
+        )
+        self.assertTrue(ok["jsonld_ok"], ok)
+        bad_json = mod.check_jsonld(
+            '<script type="application/ld+json">{not-json</script>'
+        )
+        self.assertFalse(bad_json["jsonld_ok"], bad_json)
+        missing = mod.check_jsonld(
+            '<script type="application/ld+json">{"name":"X"}</script>'
+        )
+        self.assertFalse(missing["jsonld_ok"], missing)
+        # No JSON-LD scripts is fine.
+        self.assertTrue(mod.check_jsonld("<html></html>")["jsonld_ok"])
+
+    def test_liveseo_fails_on_invalid_jsonld_fixture(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            good = _write_fixture(Path(folder), good=True)
+            # Poison the good page with invalid JSON-LD.
+            page = (good / "page.html").read_text(encoding="utf-8")
+            page = page.replace(
+                "</head>",
+                '<script type="application/ld+json">{broken</script></head>',
+                1,
+            )
+            (good / "page.html").write_text(page, encoding="utf-8")
+            code, payload = run_qc("liveseo", "--fixture", str(good))
+            self.assertEqual(1, code, payload)
+            self.assertIn("jsonld_ok", set(payload.get("failed") or []), payload)
+
 
 
 if __name__ == "__main__":

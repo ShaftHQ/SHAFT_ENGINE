@@ -1,4 +1,5 @@
-"""Cheap public-site SEO + AI-answer-engine gates (curl/HTML; no browser).
+"""
+Cheap public-site SEO + AI-answer-engine gates (curl/HTML; no browser).
 
 Opposite of cmsmeta: check the *published* page/headers, never paste ownership.
 """
@@ -42,6 +43,7 @@ REQUIRED_ROWS = (
     "llms_txt",
     "links_sample_ok",
     "true_404",
+    "jsonld_ok",
 )
 
 AGENT = (
@@ -71,6 +73,10 @@ META_DESC = re.compile(
 TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 HTML_LANG = re.compile(r"""<\s*html\b[^>]*\blang\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
 SLUG_BAD = re.compile(r"[A-Z_\s]|%20")
+LD_JSON_SCRIPT = re.compile(
+    r"""<script\b[^>]*\btype\s*=\s*["']application/ld\+json["'][^>]*>(.*?)</script>""",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 class _Outline(HTMLParser):
@@ -110,69 +116,77 @@ def _ok(val: Any) -> bool:
     return val is True or val in {"pass", "ok", "unfixable", "n/a"}
 
 
-def parse_robots(text: str) -> dict[str, Any]:
-    """Parse robots.txt for home disallow and AI-bot blocks."""
-    body = text or ""
+def _robots_groups(body: str) -> tuple[list[str], list[tuple[list[str], list[tuple[str, str]]]]]:
+    """Split robots.txt into sitemap URLs and (agents, rules) groups."""
     sitemaps = re.findall(r"(?im)^\s*Sitemap:\s*(\S+)", body)
-    # Collect rules per user-agent group (last match wins within a group).
     groups: list[tuple[list[str], list[tuple[str, str]]]] = []
     agents: list[str] = []
     rules: list[tuple[str, str]] = []
-
-    def flush() -> None:
-        nonlocal agents, rules
-        if agents:
-            groups.append((agents, rules))
-        agents, rules = [], []
-
     for raw in body.splitlines():
         line = raw.split("#", 1)[0].strip()
-        if not line:
-            continue
-        if ":" not in line:
+        if not line or ":" not in line:
             continue
         key, _, val = line.partition(":")
         key, val = key.strip().lower(), val.strip()
         if key == "user-agent":
             if rules and agents:
-                flush()
-            agents.append(val)
-            rules = []
+                groups.append((agents, rules))
+                agents, rules = [val], []
+            else:
+                agents.append(val)
         elif key in {"disallow", "allow"} and agents:
             rules.append((key, val))
         elif key == "sitemap" and val:
             sitemaps.append(val)
-    flush()
+    if agents:
+        groups.append((agents, rules))
+    return sitemaps, groups
+
+
+def _rules_for_agent(
+    groups: list[tuple[list[str], list[tuple[str, str]]]],
+    agent_name: str,
+) -> list[tuple[str, str]] | None:
+    """Pick the agent-specific rule list, else the ``*`` group."""
+    matched: list[tuple[str, str]] | None = None
+    star: list[tuple[str, str]] | None = None
+    needle = agent_name.lower()
+    for ags, rls in groups:
+        lower = [a.lower() for a in ags]
+        if needle in lower:
+            matched = rls
+        if "*" in lower:
+            star = rls
+    if matched is not None:
+        return matched
+    return star
+
+
+def _home_disallowed(rules: list[tuple[str, str]] | None) -> bool:
+    """True when Disallow:/ wins over Allow for the site root."""
+    if not rules:
+        return False
+    best_dis: str | None = None
+    best_all: str | None = None
+    for kind, path in rules:
+        if not path or not (path == "/" or path.startswith("/")):
+            continue
+        if kind == "disallow":
+            if best_dis is None or len(path) >= len(best_dis):
+                best_dis = path
+        elif best_all is None or len(path) >= len(best_all):
+            best_all = path
+    return best_dis == "/" and (best_all is None or len(best_all) <= 1)
+
+
+def parse_robots(text: str) -> dict[str, Any]:
+    """
+    Parse robots.txt for home disallow and AI-bot blocks.
+    """
+    sitemaps, groups = _robots_groups(text or "")
 
     def path_blocked(agent_name: str) -> bool:
-        # Find most specific matching group; fall back to *.
-        matched: list[tuple[str, str]] | None = None
-        star: list[tuple[str, str]] | None = None
-        for ags, rls in groups:
-            lower = [a.lower() for a in ags]
-            if agent_name.lower() in lower:
-                matched = rls
-            if "*" in lower:
-                star = rls
-        use = matched if matched is not None else star
-        if not use:
-            return False
-        # Longest matching Disallow/Allow for "/".
-        best_dis: str | None = None
-        best_all: str | None = None
-        for kind, path in use:
-            if not path:
-                continue
-            if path == "/" or path.startswith("/"):
-                if kind == "disallow":
-                    if best_dis is None or len(path) >= len(best_dis):
-                        best_dis = path
-                else:
-                    if best_all is None or len(path) >= len(best_all):
-                        best_all = path
-        if best_dis == "/" and (best_all is None or len(best_all) <= 1):
-            return True
-        return False
+        return _home_disallowed(_rules_for_agent(groups, agent_name))
 
     home_blocked = path_blocked("*")
     blocked_bots = [b for b in AI_BOTS if path_blocked(b)]
@@ -195,14 +209,52 @@ def heading_skips(levels: list[int]) -> list[tuple[int, int]]:
     return skips
 
 
+def _jsonld_node_has_type(node: Any) -> bool:
+    """True when a JSON-LD node (dict/list/@graph) exposes @type."""
+    if isinstance(node, list):
+        return bool(node) and all(_jsonld_node_has_type(item) for item in node)
+    if not isinstance(node, dict):
+        return False
+    if node.get("@type"):
+        return True
+    if "@graph" in node:
+        return _jsonld_node_has_type(node.get("@graph"))
+    return False
+
+
+def check_jsonld(html: str) -> dict[str, Any]:
+    """
+    Validate every application/ld+json script: parseable JSON with @type.
+    """
+    blocks = LD_JSON_SCRIPT.findall(html or "")
+    fails: list[str] = []
+    for idx, raw in enumerate(blocks):
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            fails.append(f"invalid_json:{idx}:{exc.msg}")
+            continue
+        if not _jsonld_node_has_type(data):
+            fails.append(f"missing_type:{idx}")
+    ok = not fails
+    return {
+        "count": len(blocks),
+        "fails": fails,
+        "jsonld_ok": ok,
+        "status": "pass" if ok else "fail",
+        "note": (
+            "json-ld ok" if ok else "json-ld invalid or missing @type: " + ",".join(fails)
+        ),
+    }
+
+
 def check_page_html(html: str) -> dict[str, Any]:
-    """On-page SEO rows from published HTML (not paste)."""
+    """
+    On-page SEO rows from published HTML (not paste).
+    """
     outline = _Outline()
-    try:
-        outline.feed(html or "")
-    except Exception:  # noqa: BLE001 - malformed HTML still yields partial rows
-        # Ignore parse errors: partial outline/title state is enough for fail-closed rows.
-        pass
+    # html.parser is lenient; feed never raises on typical malformed markup.
+    outline.feed(html or "")
     title_m = TITLE.search(html or "")
     title = (outline.title or (title_m.group(1) if title_m else "")).strip()
     title = re.sub(r"\s+", " ", title)
@@ -246,7 +298,8 @@ def check_page_html(html: str) -> dict[str, Any]:
 
 
 def evaluate_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
-    """Fail-closed evaluation of a fetched or fixture bundle.
+    """
+    Fail-closed evaluation of a fetched or fixture bundle.
 
     Expected keys: final_url, page_html, page_headers (dict), robots_text,
     robots_status, sitemap_text, sitemap_status, llms_status, llms_text,
@@ -293,6 +346,11 @@ def evaluate_bundle(bundle: dict[str, Any]) -> dict[str, Any]:
     rows["h1_one"] = bool(page["h1_one"])
     rows["heading_order"] = bool(page["heading_order"])
     rows["html_lang"] = bool(page["html_lang_ok"])
+
+    jsonld = check_jsonld(str(bundle.get("page_html") or ""))
+    rows["jsonld_ok"] = bool(jsonld["jsonld_ok"])
+    if jsonld.get("fails"):
+        notes.append("jsonld:" + ",".join(jsonld["fails"][:5]))
 
     if page["title_ok"] and not (30 <= page["title_len"] <= 60):
         flags.append("title_length")

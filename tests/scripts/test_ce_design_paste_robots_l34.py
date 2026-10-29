@@ -125,5 +125,32 @@ class CmsmetaPasteRobotsGateTest(unittest.TestCase):
             self.assertEqual("fail", payload.get("status"), payload)
 
 
+    def test_cmsmeta_passes_false_positive_noindex_mentions(self) -> None:
+        """Body text / HTML comment 'noindex' and robots index,follow must PASS."""
+        with tempfile.TemporaryDirectory() as folder:
+            cases = {
+                "index_follow.html": (
+                    '<div><meta name="robots" content="index, follow">'
+                    "<h1>Product</h1></div>"
+                ),
+                "body_word.html": (
+                    "<div><p>Do not paste noindex into Code blocks.</p>"
+                    "<h1>Product</h1></div>"
+                ),
+                "comment_word.html": (
+                    "<!-- reminder: avoid noindex on product pages -->"
+                    "<div><h1>Product</h1></div>"
+                ),
+            }
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(
+                    (0, "pass"), (code, payload.get("status")), (name, payload),
+                )
+                self.assertEqual(0, payload.get("robots_block_hits", -1), (name, payload))
+
+
 if __name__ == "__main__":
     unittest.main()
