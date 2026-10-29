@@ -39,5 +39,6 @@ one lesson card.
 | [L31 paste then re-verify](paste-then-reverify.md) | artifact paste + immediate livecms |
 | [L32 Arabic tech code-switch](arabic-tech-codeswitch.md) | EN tech terms in Arabic UI; no و next to bdi Latin in headings |
 | [L33 LESS Custom CSS grid/calc](less-css-grid-calc.md) | longhand grid + escaped calc under LESS 1.3.3 |
+| [L35 Video caption handoff](video-caption-handoff.md) | human captions, script filter, speech cue gap, TP/fps/VFX/onset |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).

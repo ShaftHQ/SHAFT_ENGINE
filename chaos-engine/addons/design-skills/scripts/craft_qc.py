@@ -2580,6 +2580,294 @@ def cmd_livecms(qc, args) -> int:
     return qc.report("livecms", code, **report)
 
 
+# ---------------------------------------------------------------- L35 video caption handoff
+
+CJK_OR_KANA = re.compile(
+    r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff"
+    r"\uac00-\ud7af\u3000-\u303f\uff00-\uffef]"
+)
+# Ideographic comma and related CJK punctuation often leaked by ASR.
+CJK_PUNCT = re.compile(r"[、。〃〄々〆〇〈〉《》「」『』【】〔〕〖〗〘〙〚〛〜・]")
+LATIN_LETTER = re.compile(r"[A-Za-z\u00c0-\u024f]")
+ARABIC_LETTER = re.compile(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]")
+TOKEN_SPLIT = re.compile(r"\s+")
+
+
+def _cue_tokens(cue: dict) -> list[str]:
+    text = " ".join(cue.get("lines") or [])
+    return [t for t in TOKEN_SPLIT.split(text.strip()) if t]
+
+
+def _levenshtein(a: str, b: str) -> int:
+    if a == b:
+        return 0
+    if not a:
+        return len(b)
+    if not b:
+        return len(a)
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            ins, delete, sub = cur[j - 1] + 1, prev[j] + 1, prev[j - 1] + (ca != cb)
+            cur.append(min(ins, delete, sub))
+        prev = cur
+    return prev[-1]
+
+
+def _speech_spans_rms(qc, media: str, thr: float = -40.0, hop: float = 0.05,
+                      min_speech: float = 0.15) -> list[tuple[float, float]]:
+    """Return (start, end) spans where mono RMS exceeds thr dBFS."""
+    import struct
+    import subprocess
+    import tempfile
+    import wave
+
+    src = Path(media)
+    with tempfile.TemporaryDirectory() as folder:
+        wav = Path(folder) / "mono.wav"
+        if src.suffix.lower() == ".wav":
+            wav = src
+        else:
+            subprocess.run(  # nosec B603 - fixed argv
+                [qc.need("ffmpeg"), "-v", "error", "-y", "-i", str(src),
+                 "-ac", "1", "-ar", "16000", str(wav)],
+                check=True, capture_output=True,
+            )
+        with wave.open(str(wav), "rb") as handle:
+            if handle.getnchannels() != 1 or handle.getsampwidth() != 2:
+                raise qc.Skip("need mono 16-bit PCM after decode")
+            rate = handle.getframerate()
+            frames = handle.readframes(handle.getnframes())
+    samples = struct.unpack("<" + "h" * (len(frames) // 2), frames)
+    if not samples:
+        return []
+    hop_n = max(1, int(round(hop * rate)))
+    n = len(samples) // hop_n
+    active = []
+    for i in range(n):
+        chunk = samples[i * hop_n:(i + 1) * hop_n]
+        mean_sq = sum(s * s for s in chunk) / len(chunk) + 1e-20
+        db = 20 * math.log10(math.sqrt(mean_sq) / 32768.0)
+        active.append(db > thr)
+    spans: list[tuple[float, float]] = []
+    i = 0
+    while i < n:
+        if not active[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and active[j]:
+            j += 1
+        start, end = i * hop, j * hop
+        if end - start >= min_speech:
+            spans.append((start, end))
+        i = j
+    return spans
+
+
+def _audio_onset(qc, media: str, thr: float = -35.0, hop: float = 0.01) -> float | None:
+    spans = _speech_spans_rms(qc, media, thr=thr, hop=hop, min_speech=0.05)
+    return None if not spans else spans[0][0]
+
+
+def _fps_of(qc, media: str) -> float:
+    probe = qc.ffprobe(media)
+    video = qc.video_stream(probe)
+    rate = video.get("avg_frame_rate") or video.get("r_frame_rate") or "0/1"
+    return qc.ratio(rate)
+
+
+def cmd_askaraoke(qc, args) -> int:
+    """Fail raw ASR word-level karaoke (mostly tiny one/two-token cues)."""
+    cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    if not cues:
+        return qc.report("askaraoke", qc.FAIL, hits=["no cues"])
+    short = 0
+    for cue in cues:
+        tokens = _cue_tokens(cue)
+        dur = cue["end"] - cue["start"]
+        if len(tokens) <= args.max_tokens and dur < args.max_dur + 1e-9:
+            short += 1
+    ratio = short / len(cues)
+    hits = []
+    if len(cues) >= args.min_cues and ratio >= args.max_ratio - 1e-12:
+        hits.append(
+            f"karaoke_ratio {ratio:.2f} ({short}/{len(cues)} cues "
+            f"≤{args.max_tokens} tokens and <{args.max_dur:.2f}s)"
+        )
+    return qc.report(
+        "askaraoke", qc.FAIL if hits else qc.PASS,
+        cues=len(cues), short_cues=short, karaoke_ratio=round(ratio, 3), hits=hits,
+    )
+
+
+def cmd_scriptfilter(qc, args) -> int:
+    """Fail unexpected-script garbage and filler token loops in captions."""
+    cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    if not cues:
+        return qc.report("scriptfilter", qc.FAIL, hits=["no cues"])
+    expect = {x.strip().lower() for x in (args.expect or "ar,latn").split(",") if x.strip()}
+    hits = []
+    for index, cue in enumerate(cues, 1):
+        text = " ".join(cue.get("lines") or [])
+        if CJK_OR_KANA.search(text) or CJK_PUNCT.search(text):
+            if "cjk" not in expect and "han" not in expect:
+                hits.append(f"cue {index}: unexpected CJK/script garbage")
+        if "ar" not in expect and ARABIC_LETTER.search(text):
+            hits.append(f"cue {index}: unexpected Arabic")
+        if "latn" not in expect and "en" not in expect and LATIN_LETTER.search(text):
+            hits.append(f"cue {index}: unexpected Latin")
+        tokens = _cue_tokens(cue)
+        run, prev = 1, None
+        for tok in tokens:
+            key = tok.casefold()
+            if prev is not None and key == prev:
+                run += 1
+                if run >= args.filler_repeat:
+                    hits.append(
+                        f"cue {index}: filler loop {tok!r} x{run}"
+                    )
+                    break
+            else:
+                run, prev = 1, key
+    # de-dupe while preserving order
+    seen, uniq = set(), []
+    for h in hits:
+        if h not in seen:
+            seen.add(h)
+            uniq.append(h)
+    return qc.report(
+        "scriptfilter", qc.FAIL if uniq else qc.PASS,
+        cues=len(cues), expect=sorted(expect), hits=uniq[:40],
+    )
+
+
+def cmd_speechcuegap(qc, args) -> int:
+    """Fail caption holes longer than max seconds that overlap speech."""
+    cues = qc.parse_cues(Path(args.cues).read_text(encoding="utf-8"))
+    probe = qc.ffprobe(args.file)
+    duration = float(probe.get("format", {}).get("duration", 0) or 0)
+    if duration <= 0 and Path(args.file).suffix.lower() == ".wav":
+        # ffprobe always has duration for wav; keep fallback
+        duration = 0.0
+    speech = _speech_spans_rms(qc, args.file, thr=args.thr, hop=args.hop)
+    if not speech and duration <= 0:
+        return qc.report("speechcuegap", qc.FAIL, hits=["no speech and no duration"])
+    covered = [(c["start"], c["end"]) for c in cues]
+    holes = []
+    # Uncovered intervals inside [0, duration] (or last speech end).
+    end_t = duration if duration > 0 else (speech[-1][1] if speech else 0.0)
+    cursor = 0.0
+    events = sorted(covered)
+    for start, end in events:
+        if start > cursor + 1e-9:
+            holes.append((cursor, start))
+        cursor = max(cursor, end)
+    if end_t > cursor + 1e-9:
+        holes.append((cursor, end_t))
+    hits = []
+    for hs, he in holes:
+        gap = he - hs
+        if gap <= args.max + 1e-9:
+            continue
+        overlap = 0.0
+        for ss, se in speech:
+            overlap = max(overlap, min(he, se) - max(hs, ss))
+        if overlap > args.min_speech_overlap + 1e-9:
+            hits.append({
+                "gap_s": round(hs, 3), "gap_e": round(he, 3),
+                "gap": round(gap, 3), "speech_overlap": round(overlap, 3),
+            })
+    return qc.report(
+        "speechcuegap", qc.FAIL if hits else qc.PASS,
+        max_gap=args.max, duration=round(end_t, 3),
+        speech_spans=[{"s": round(a, 3), "e": round(b, 3)} for a, b in speech[:40]],
+        hits=hits[:40],
+    )
+
+
+def cmd_fpsmatch(qc, args) -> int:
+    """Fail when output fps differs from source fps beyond tolerance."""
+    out_fps = _fps_of(qc, args.file)
+    src_fps = _fps_of(qc, args.source)
+    hits = []
+    if abs(out_fps - src_fps) > args.tol + 1e-12:
+        hits.append(f"fps {out_fps:.5f} != source {src_fps:.5f} (tol {args.tol})")
+    return qc.report(
+        "fpsmatch", qc.FAIL if hits else qc.PASS,
+        output_fps=round(out_fps, 5), source_fps=round(src_fps, 5),
+        tol=args.tol, hits=hits,
+    )
+
+
+def cmd_vfxspell(qc, args) -> int:
+    """Spell-check on-screen VFX labels against a lexicon (1-edit typos fail)."""
+    raw = Path(args.file).read_text(encoding="utf-8")
+    if args.file.lower().endswith(".json"):
+        data = json.loads(raw)
+        if isinstance(data, list):
+            lines = [str(x) for x in data]
+        elif isinstance(data, dict):
+            lines = [str(v) for v in data.values()]
+        else:
+            lines = [str(data)]
+    else:
+        lines = [ln for ln in raw.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+    lexicon = {
+        w.strip().casefold()
+        for w in Path(args.lexicon).read_text(encoding="utf-8").splitlines()
+        if w.strip() and not w.strip().startswith("#")
+    }
+    allow = {a.casefold() for a in (args.allow or [])}
+    hits = []
+    for line in lines:
+        for tok in re.findall(r"[A-Za-z][A-Za-z0-9'-]*", line):
+            key = tok.casefold()
+            if key in lexicon or key in allow:
+                continue
+            near = [w for w in lexicon if _levenshtein(key, w) == 1]
+            if near:
+                hits.append(f"{tok!r} typo of {near[0]!r}")
+            elif args.unknown == "fail":
+                hits.append(f"{tok!r} not in lexicon")
+    return qc.report(
+        "vfxspell", qc.FAIL if hits else qc.PASS,
+        labels=len(lines), hits=hits[:40],
+    )
+
+
+def cmd_onsetclip(qc, args) -> int:
+    """Fail when the open is a clipped short fragment on early audio onset."""
+    cues = qc.parse_cues(Path(args.cues).read_text(encoding="utf-8"))
+    if not cues:
+        return qc.report("onsetclip", qc.FAIL, hits=["no cues"])
+    onset = _audio_onset(qc, args.file, thr=args.thr, hop=0.01)
+    first = cues[0]
+    tokens = _cue_tokens(first)
+    dur = first["end"] - first["start"]
+    hits = []
+    early = onset is not None and onset <= args.early_onset + 1e-9
+    fragment = (
+        len(tokens) <= args.max_tokens
+        and dur < args.max_dur + 1e-9
+        and first["start"] <= args.early_onset + 1e-9
+    )
+    if early and fragment:
+        hits.append(
+            f"clipped_open onset={onset:.3f}s first_cue={first['start']:.3f}-"
+            f"{first['end']:.3f}s tokens={tokens!r}"
+        )
+    return qc.report(
+        "onsetclip", qc.FAIL if hits else qc.PASS,
+        onset=None if onset is None else round(onset, 3),
+        first_start=round(first["start"], 3),
+        first_end=round(first["end"], 3),
+        first_tokens=tokens, hits=hits,
+    )
+
+
+
 def register(add, qc) -> None:
     """Add the craft subcommands to design_qc's parser."""
     def bind(func):
@@ -2933,3 +3221,54 @@ def register(add, qc) -> None:
     p.add_argument("--max-gap", type=float, default=0.08, dest="max_gap")
     p.add_argument("--check", action="store_true", help="FAIL while micro-gaps remain")
     p.add_argument("--out", default=None, help="write snapped SRT")
+
+    p = add("askaraoke", bind(cmd_askaraoke),
+            "L35: fail raw ASR word-level karaoke caption timing")
+    p.add_argument("file", help="caption SRT")
+    p.add_argument("--max-tokens", type=int, default=2, dest="max_tokens")
+    p.add_argument("--max-dur", type=float, default=0.45, dest="max_dur")
+    p.add_argument("--max-ratio", type=float, default=0.40, dest="max_ratio",
+                   help="fail when short-cue fraction >= this (default 0.40)")
+    p.add_argument("--min-cues", type=int, default=8, dest="min_cues")
+
+    p = add("scriptfilter", bind(cmd_scriptfilter),
+            "L35: unexpected-script garbage + filler loops in captions")
+    p.add_argument("file", help="caption SRT")
+    p.add_argument("--expect", default="ar,latn",
+                   help="allowed scripts: ar,latn/en,cjk (default ar,latn)")
+    p.add_argument("--filler-repeat", type=int, default=4, dest="filler_repeat",
+                   help="fail when same token repeats this many times in a cue")
+
+    p = add("speechcuegap", bind(cmd_speechcuegap),
+            "L35: caption hole >max s overlapping speech (RMS segments)")
+    p.add_argument("file", help="media with audio (mp4/wav)")
+    p.add_argument("--cues", required=True, help="caption SRT")
+    p.add_argument("--max", type=float, default=3.0, help="max allowed hole over speech (s)")
+    p.add_argument("--thr", type=float, default=-40.0, help="RMS dBFS speech threshold")
+    p.add_argument("--hop", type=float, default=0.05)
+    p.add_argument("--min-speech-overlap", type=float, default=0.2,
+                   dest="min_speech_overlap")
+
+    p = add("fpsmatch", bind(cmd_fpsmatch),
+            "L35: output fps must equal source fps")
+    p.add_argument("file", help="output media")
+    p.add_argument("--source", required=True, help="source media")
+    p.add_argument("--tol", type=float, default=0.01, help="absolute fps tolerance")
+
+    p = add("vfxspell", bind(cmd_vfxspell),
+            "L35: spell-check on-screen VFX labels (1-edit typos fail)")
+    p.add_argument("file", help="labels txt or json")
+    p.add_argument("--lexicon", required=True, help="one correct word per line")
+    p.add_argument("--allow", action="append", default=[],
+                   help="extra allowed tokens")
+    p.add_argument("--unknown", choices=("ignore", "fail"), default="ignore",
+                   help="unknown tokens not near lexicon: ignore (default) or fail")
+
+    p = add("onsetclip", bind(cmd_onsetclip),
+            "L35: fail clipped first spoken word / open fragment")
+    p.add_argument("file", help="media with audio")
+    p.add_argument("--cues", required=True, help="caption SRT")
+    p.add_argument("--thr", type=float, default=-35.0, help="RMS dBFS onset threshold")
+    p.add_argument("--early-onset", type=float, default=0.05, dest="early_onset")
+    p.add_argument("--max-tokens", type=int, default=2, dest="max_tokens")
+    p.add_argument("--max-dur", type=float, default=0.40, dest="max_dur")
