@@ -89,3 +89,5 @@ wouldn't catch it), `gap_shape` (one of the four above, or `other` for a
 genuine problem noticed in passing), `evidence` (what you actually read,
 with `file:line`). An empty list is a valid, complete result — say so
 plainly rather than padding with low-confidence noise.
+
+Public-repo client-name scrub: [client-name-scrub.md](client-name-scrub.md).

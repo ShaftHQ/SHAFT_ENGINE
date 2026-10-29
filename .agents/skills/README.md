@@ -228,6 +228,7 @@ sends you there; the rest by
 - [tip churn preflight](../../chaos-engine/references/tip-churn-preflight.md)
 - [token budget modes](../../chaos-engine/references/token-budget-modes.md)
 - [zero llm catalog](../../chaos-engine/references/zero-llm-catalog.md)
+- [client-name scrub](../../chaos-engine/references/client-name-scrub.md): public-repo denylist for branch / commit / PR body / PR diff added lines (local config only)
 - [LICENSE](../../chaos-engine/LICENSE)
 - [third-party notices](../../chaos-engine/THIRD_PARTY_NOTICES.md)
 

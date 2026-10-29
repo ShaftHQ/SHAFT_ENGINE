@@ -142,6 +142,7 @@ CHECKS = {
             "tests.scripts.test_omniroute_portability",
             "tests.scripts.test_chaos_engine_public_landing",
             "tests.scripts.test_nonblocked_lessons",
+            "tests.scripts.test_client_name_scrub",
             "tests.scripts.test_chaos_engine_latest_stable_pins",
             "tests.scripts.test_always_loaded_budget",
             "tests.scripts.test_ce_load_stamp",
@@ -773,6 +774,8 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_chaos_engine_host_parity_matrix.py",
         "tests/scripts/test_chaos_engine_public_landing.py",
         "tests/scripts/test_nonblocked_lessons.py",
+        "tests/scripts/test_client_name_scrub.py",
+        "chaos-engine/client_name_scrub.py",
         "tests/scripts/test_chaos_engine_latest_stable_pins.py",
     ),
     "plugins": (
