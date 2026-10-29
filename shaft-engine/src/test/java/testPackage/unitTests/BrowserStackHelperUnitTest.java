@@ -45,13 +45,13 @@ public class BrowserStackHelperUnitTest {
     @Test(description = "#6832: configured buildName/projectName reach bstack:options on every legacy path")
     public void configuredBuildAndProjectNamesAreHonoured() throws Exception {
         SHAFT.Properties.browserStack.set().userName("user").accessKey("key").osVersion("Sonoma")
-                .buildName("HRSD Android").projectName("HRSD Mobile App Automation");
+                .buildName("Acme Android").projectName("Acme Mobile App Automation");
         SHAFT.Properties.platform.set().targetPlatform("mac");
         MutableCapabilities capabilities = (MutableCapabilities) invokePrivate("setupDesktopWebExecution", new Class[]{});
         @SuppressWarnings("unchecked")
         Map<String, Object> options = (Map<String, Object>) capabilities.getCapability("bstack:options");
-        Assert.assertEquals(options.get("buildName"), "HRSD Android");
-        Assert.assertEquals(options.get("projectName"), "HRSD Mobile App Automation");
+        Assert.assertEquals(options.get("buildName"), "Acme Android");
+        Assert.assertEquals(options.get("projectName"), "Acme Mobile App Automation");
     }
 
     @Test
