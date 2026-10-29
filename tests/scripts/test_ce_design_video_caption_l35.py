@@ -6,6 +6,8 @@ import json
 import math
 import shutil
 import struct
+
+HAS_FFMPEG = bool(shutil.which("ffmpeg") and shutil.which("ffprobe"))
 import subprocess  # nosec B404 - fixed list-form argv in tests, never a shell.
 import sys
 import tempfile
@@ -214,6 +216,7 @@ class SpeechCueGapGateTest(unittest.TestCase):
             self.assertEqual((0, "pass"), (code, payload.get("status")), payload)
 
 
+@unittest.skipUnless(HAS_FFMPEG, "ffmpeg not installed")
 class FpsMatchGateTest(unittest.TestCase):
     def test_fpsmatch_red_on_drift_green_on_match(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
@@ -278,6 +281,7 @@ class OnsetClipGateTest(unittest.TestCase):
             self.assertEqual((0, "pass"), (code, payload.get("status")), payload)
 
 
+@unittest.skipUnless(HAS_FFMPEG, "ffmpeg not installed")
 class LoudnessPeakDocTest(unittest.TestCase):
     """Lesson reuses design_qc loudness; assert measured TP gate works on a hot wav."""
 

@@ -2743,14 +2743,22 @@ def cmd_scriptfilter(qc, args) -> int:
     )
 
 
+def _wav_duration(path: Path) -> float:
+    import wave
+    with wave.open(str(path), "rb") as handle:
+        return handle.getnframes() / float(handle.getframerate() or 1)
+
+
 def cmd_speechcuegap(qc, args) -> int:
     """Fail caption holes longer than max seconds that overlap speech."""
     cues = qc.parse_cues(Path(args.cues).read_text(encoding="utf-8"))
-    probe = qc.ffprobe(args.file)
-    duration = float(probe.get("format", {}).get("duration", 0) or 0)
-    if duration <= 0 and Path(args.file).suffix.lower() == ".wav":
-        # ffprobe always has duration for wav; keep fallback
-        duration = 0.0
+    media = Path(args.file)
+    duration = 0.0
+    if media.suffix.lower() == ".wav":
+        duration = _wav_duration(media)
+    else:
+        probe = qc.ffprobe(args.file)
+        duration = float(probe.get("format", {}).get("duration", 0) or 0)
     speech = _speech_spans_rms(qc, args.file, thr=args.thr, hop=args.hop)
     if not speech and duration <= 0:
         return qc.report("speechcuegap", qc.FAIL, hits=["no speech and no duration"])
