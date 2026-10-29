@@ -114,3 +114,16 @@ remote branches, and rejects `origin` and `gh-pages`. A missing, ambiguous, or
 changed proof blocks the action; it does not widen or guess cleanup authority.
 Invocation from the target worktree or any descendant also blocks cleanup,
 independent of which checkout was supplied as `--root`.
+
+## After a parallel stream ships
+
+See also [parallel streams](parallel-streams.md).
+
+When a stream's PR is merged (or its push is verified on the remote), append
+every task-owned scratch path and worktree to that stream's ownership row as
+`scratch_pending_cleanup`, with a verified-pushed note for unique commits.
+Listing candidates is always allowed. Deletion still follows this file and
+[delete-check discipline](delete-check-discipline.md): task-owned clean
+worktrees may be removed under task scope; machine-wide or dirty trees need
+explicit approval and owner delete-check codes when required. Never infer
+machine cleanup from parallelism alone.

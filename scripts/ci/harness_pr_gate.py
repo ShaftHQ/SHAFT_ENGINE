@@ -508,6 +508,7 @@ CHECKS = {
         (
             "tests.scripts.test_process_owner_scrum_master",
             "tests.scripts.test_multi_agent_pdca",
+            "tests.scripts.test_parallel_streams",
             "tests.scripts.test_pre_done_review",
         ),
     ),
@@ -1112,6 +1113,10 @@ SURFACE_PATTERNS = {
         "tests/scripts/test_pre_done_review.py",
         "chaos-engine/references/bot-entry.md",
         "tests/scripts/test_multi_agent_pdca.py",
+        "chaos-engine/references/parallel-streams.md",
+        "chaos-engine/references/cleanup-scopes.md",
+        "chaos-engine/references/delegation.md",
+        "tests/scripts/test_parallel_streams.py",
     ),
     # #6411-#6414: decision-quality gate, dod, latency budgets, usage table.
     "ce-h2-gates": (

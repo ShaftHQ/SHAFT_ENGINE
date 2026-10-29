@@ -78,6 +78,15 @@ written on that row.
 - [ ] Rounds and cycle time recorded and shorter than last time? If not, why?
 - [ ] No engine reinstall until the batch ends?
 
+## Parallel streams (file-disjoint only)
+
+WIP limit: 1 item still applies **inside** each owner–reviewer pair (one
+stream). An orchestrator may run several streams only when their writable
+paths do not overlap, after an ownership manifest and conflict check, under
+the system cap and disk gate in [parallel streams](parallel-streams.md).
+Same-file work stays serial or stacked. Do not start stream N+1 in a pair
+until that pair's current item is Done.
+
 ## Sources
 
 1. Kanban Guide – limit WIP, manage flow, pull work:
