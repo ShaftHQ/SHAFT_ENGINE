@@ -1,0 +1,42 @@
+name: Dependabot auto-merge
+
+# Arms Dependabot pull requests for auto-merge once required checks pass.
+# Uses pull_request_target so GITHUB_TOKEN can write (Dependabot pull_request
+# tokens are read-only); never checks out or executes PR code. Release-note
+# governance already exempts dependabot[bot], so no classification label is
+# added here.
+
+on:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  enable-auto-merge:
+    name: Enable Dependabot auto-merge
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        # Merge queue on main: omit --squash/--merge/--rebase so GitHub picks
+        # the queue's required method.
+        run: gh pr merge --auto "$PR_URL"

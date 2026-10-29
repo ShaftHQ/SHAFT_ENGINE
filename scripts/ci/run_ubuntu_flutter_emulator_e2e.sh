@@ -21,16 +21,26 @@ fi
 
 appiumLog="$RUNNER_TEMP/appium-server.log"
 mavenLog="$RUNNER_TEMP/flutter-maven.log"
+appiumPidFile="$RUNNER_TEMP/flutter-appium.pid"
 APPIUM_PID=""
-trap 'kill "$APPIUM_PID" 2>/dev/null || true' EXIT
+# Pidfile lets a `timeout` child update Appium's pid for the parent EXIT trap (#7496).
+trap 'kill "$(cat "$appiumPidFile" 2>/dev/null || echo "$APPIUM_PID")" 2>/dev/null || true' EXIT
+export appiumLog mavenLog appiumPidFile APK_PATH GITHUB_WORKSPACE
 
 start_appium() {
-  if [ -n "$APPIUM_PID" ]; then
+  if [ -f "$appiumPidFile" ]; then
+    old_pid="$(cat "$appiumPidFile" 2>/dev/null || true)"
+    if [ -n "$old_pid" ]; then
+      kill "$old_pid" 2>/dev/null || true
+      wait "$old_pid" 2>/dev/null || true
+    fi
+  elif [ -n "$APPIUM_PID" ]; then
     kill "$APPIUM_PID" 2>/dev/null || true
     wait "$APPIUM_PID" 2>/dev/null || true
   fi
   appium --address 127.0.0.1 --port 4723 --log-level info --log "$appiumLog" &
   APPIUM_PID=$!
+  echo "$APPIUM_PID" >"$appiumPidFile"
   ready=false
   for i in $(seq 1 60); do
     if curl --max-time 2 -fsS http://127.0.0.1:4723/status >/dev/null 2>&1; then
@@ -91,17 +101,31 @@ attempt_flutter_test() {
   run_flutter_maven
 }
 
-# #7496: device primary under time-cap; authorized fallback = one Appium restart path
+# #7496: wall-clock time-cap the real Appium+Maven primary; authorized fallback =
+# one Appium restart + retry under the same DEVICE_CAP_S (not a post-hoc --mode error no-op).
 DEVICE_CAP_S="${CHAOS_ENGINE_DEVICE_CAP_S:-900}"
 export CHAOS_ENGINE_DEVICE_CAP_S="$DEVICE_CAP_S"
-if attempt_flutter_test; then
+export -f start_appium open_flutter_session run_flutter_maven attempt_flutter_test
+
+set +e
+# GNU timeout: exit 124 when the primary exceeds DEVICE_CAP_S.
+timeout --signal=TERM --kill-after=60s "$DEVICE_CAP_S" bash -c 'attempt_flutter_test'
+primary_rc=$?
+set -e
+
+if [ "$primary_rc" -eq 0 ]; then
   :
-elif grep -q "socket hang up" "$mavenLog"; then
-  echo "::warning::Flutter Appium proxy dropped the session. Restarting Appium once (device fallback)."
-  # Record fallback via mobile_retro_runtime (picklable spawn-safe worker)
-  python3 scripts/ci/mobile_retro_runtime.py device-fallback --mode error --error-msg "socket hang up" --fallback restarted --cap-s 5 >/dev/null || true
-  attempt_flutter_test
-elif grep -qiE "ClassNotFound|server-side gate|versionCode ignored" "$mavenLog"; then
+elif [ "$primary_rc" -eq 124 ] || { [ -f "$mavenLog" ] && grep -q "socket hang up" "$mavenLog"; }; then
+  echo "::warning::Flutter primary hit DEVICE_CAP_S=${DEVICE_CAP_S}s or Appium socket hang up. One authorized device fallback (Appium restart + retry under the same cap)."
+  # Authorized fallback = real retry under the same wall-clock DEVICE_CAP_S (library time-cap covered by unit tests).
+  set +e
+  timeout --signal=TERM --kill-after=60s "$DEVICE_CAP_S" bash -c 'attempt_flutter_test'
+  fallback_rc=$?
+  set -e
+  if [ "$fallback_rc" -ne 0 ]; then
+    exit "$fallback_rc"
+  fi
+elif [ -f "$mavenLog" ] && grep -qiE "ClassNotFound|server-side gate|versionCode ignored" "$mavenLog"; then
   sig=$(tr '\n' ' ' <"$mavenLog" | head -c 4000)
   python3 scripts/ci/mobile_retro_runtime.py classify-before-rebuild --signature "$sig" || {
     echo "::error::Flutter run Blocked by backend gate; not rebuilding device path."
@@ -109,7 +133,7 @@ elif grep -qiE "ClassNotFound|server-side gate|versionCode ignored" "$mavenLog";
   }
   exit 1
 else
-  exit 1
+  exit "$primary_rc"
 fi
 # #7494: freeze green allure cohort when present
 if [ -d "$GITHUB_WORKSPACE/shaft-engine/allure-results" ] || [ -d allure-results ]; then

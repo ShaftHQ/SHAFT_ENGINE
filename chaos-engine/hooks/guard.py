@@ -1653,6 +1653,15 @@ def _mobile_retro_post_run(event: dict, commands: tuple) -> None:
     """Live post-run freeze via PostToolUse after a green test command (#7494)."""
     if not any(test_command(candidate) for candidate in commands):
         return
+    event_name = str(event.get("hook_event_name") or event.get("hookEventName") or "PostToolUse")
+    result = event.get("tool_response")
+    if result is None:
+        result = event.get("toolResponse")
+    if result is None:
+        result = event.get("tool_result")
+    # Derive green from the real tool result; missing/failed → do not freeze.
+    if result is None or _tool_result_failed(event_name, result):
+        return
     root = Path(str(event.get("cwd") or Path.cwd()))
     try:
         import mobile_retro as _mr
@@ -1662,7 +1671,7 @@ def _mobile_retro_post_run(event: dict, commands: tuple) -> None:
     if results is None:
         return
     try:
-        build_id, branch = _mr.default_build_and_branch()
+        build_id, branch = _mr.current_build_and_branch(root)
         _mr.post_run_freeze(
             results,
             root / _mr.SNAPSHOT_REL,
