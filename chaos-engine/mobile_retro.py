@@ -29,19 +29,49 @@ SNAPSHOT_REL = ".chaos-engine-state/mobile-retro/" + _RESULTS_LEAF + "-green"
 
 
 
-def default_build_and_branch() -> tuple[str, str]:
-    """Env-based build/branch for pin persist (CI sets GITHUB_*; else unknowns)."""
+def _git_output(root: Path, *args: str) -> str:
+    """Best-effort git stdout; empty on failure (no git / not a repo)."""
+    import shutil
+    import subprocess  # nosec B404 — local git identity only
+
+    git = shutil.which("git")
+    if not git:
+        return ""
+    proc = subprocess.run(  # nosec B603
+        [git, "-C", str(root), *args],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return (proc.stdout or "").strip()
+
+
+def current_build_and_branch(root: Path | None = None) -> tuple[str, str]:
+    """Build/branch identity for pin persist and overlay enforce (same source).
+
+    Prefer CI/env overrides, then ``git rev-parse`` under root, else unknowns.
+    Guard PostToolUse and overlay_pre_push must both call this so a local freeze
+    cannot skew to unknown-build while enforce uses HEAD.
+    """
+    root_path = Path(root) if root is not None else Path.cwd()
     build_id = (
         os.environ.get("GITHUB_SHA")
         or os.environ.get("CHAOS_ENGINE_EVIDENCE_BUILD_ID")
+        or _git_output(root_path, "rev-parse", "HEAD")
         or "unknown-build"
     )
     branch = (
         os.environ.get("GITHUB_REF_NAME")
         or os.environ.get("CHAOS_ENGINE_EVIDENCE_BRANCH")
+        or _git_output(root_path, "rev-parse", "--abbrev-ref", "HEAD")
         or "unknown-branch"
     )
     return build_id, branch
+
+
+def default_build_and_branch(root: Path | None = None) -> tuple[str, str]:
+    """Alias of current_build_and_branch (kept for older call sites)."""
+    return current_build_and_branch(root)
 
 
 def find_green_results_dir(root: Path) -> Path | None:

@@ -5,7 +5,7 @@ Live mobile-retro runtime wired into executor surfaces (#7494–7496, #7498–74
 Call sites (must stay wired; AST tests enforce):
 - ``scripts/ci/assemble_shard_blob.assemble`` — post-run green freeze (#7494)
 - ``shaft-skills/.../rerun-failures.sh`` — rebuild-loop classify (#7495) + freeze
-- ``scripts/ci/run_ubuntu_flutter_emulator_e2e.sh`` — device time-cap (#7496)
+- ``scripts/ci/run_ubuntu_flutter_emulator_e2e.sh`` — ``timeout "$DEVICE_CAP_S"`` primary (#7496)
 - ``scripts/ci/overlay_pre_push.evidence_pin_failures`` — fail-closed pin (#7498)
 - ``scripts/ci/extract_allure_failures`` — NamedBlock reporter (#7499)
 - ``chaos-engine/hooks/guard._mobile_retro_post_run`` — PostToolUse green tests
@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -34,30 +33,9 @@ def snapshot_path(root: Path) -> Path:
     return Path(root) / mobile_retro.SNAPSHOT_REL
 
 
-def _git(root: Path, *args: str) -> str:
-    proc = subprocess.run(  # nosec B603 B607
-        ["git", "-C", str(root), *args],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return (proc.stdout or "").strip()
-
-
 def current_build_and_branch(root: Path) -> tuple[str, str]:
-    build_id = (
-        os.environ.get("GITHUB_SHA")
-        or os.environ.get("CHAOS_ENGINE_EVIDENCE_BUILD_ID")
-        or _git(root, "rev-parse", "HEAD")
-        or "unknown-build"
-    )
-    branch = (
-        os.environ.get("GITHUB_REF_NAME")
-        or os.environ.get("CHAOS_ENGINE_EVIDENCE_BRANCH")
-        or _git(root, "rev-parse", "--abbrev-ref", "HEAD")
-        or "unknown-branch"
-    )
-    return build_id, branch
+    """Delegate to mobile_retro so guard persist and overlay enforce share identity."""
+    return mobile_retro.current_build_and_branch(root)
 
 
 def after_green_allure_run(
