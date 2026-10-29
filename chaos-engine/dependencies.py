@@ -2127,11 +2127,18 @@ def _run_account_command(
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "no process output").strip()
         raise _AccountCommandError(
-            f"dependency command failed: {Path(resolved[0]).name}: {detail[:500]}",
+            f"dependency command failed: {Path(resolved[0]).name}: {_bounded_failure_detail(detail)}",
             stderr=str(result.stderr or ""),
             stdout=str(result.stdout or ""),
         )
     return result
+
+
+def _bounded_failure_detail(detail: str, limit: int = 500) -> str:
+    """Bound public error text; keep the tail so the real failure is not masked."""
+    if len(detail) <= limit:
+        return detail
+    return detail[-limit:]
 
 
 class _AccountCommandError(RuntimeError):
