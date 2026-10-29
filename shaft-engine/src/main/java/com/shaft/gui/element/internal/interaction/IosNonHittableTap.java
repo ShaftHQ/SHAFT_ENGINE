@@ -62,6 +62,8 @@ public final class IosNonHittableTap {
     }
 
     /**
+     * Post-click iOS guard using a pre-click page-source snapshot to recognize sheet/modal opens.
+     *
      * @param pageSourceBeforeClick page source captured before {@code element.click()}, or
      *                              {@code null} when unavailable; when present and the tree
      *                              already differs after the click, recovery is skipped
