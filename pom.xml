@@ -61,7 +61,7 @@
         <!-- quarantine (#7005): known-flaky tests with an owner issue; run nightly by quarantine-nightly.yml. -->
         <surefire.excludedGroups>allure3-visual-demo,trace-viewer-browser-acceptance,browser-capture-acceptance,playwright-trace-acceptance,quarantine</surefire.excludedGroups>
         <jdk.version>25</jdk.version>
-        <lombok.version>1.18.46</lombok.version>
+        <lombok.version>1.18.48</lombok.version>
         <maven.min.version>3.9.0</maven.min.version>
         <spring-boot.version>4.1.1</spring-boot.version>
         <spring-ai.version>2.0.0</spring-ai.version>
