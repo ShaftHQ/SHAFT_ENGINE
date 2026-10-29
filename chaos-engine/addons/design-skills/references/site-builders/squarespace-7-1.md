@@ -60,8 +60,11 @@ locks Code Injection, so only Custom CSS and Code blocks are available.
   markup present, no upgrade notice), not the editor view.
 - Headless Chrome does not prove autoplay. Report it unverified and ask for
   one real-device tap.
-- The live CSP blocks `data:` images. In previews serve local assets through
-  an intercepted same-origin URL.
+- Probe the live origin `Content-Security-Policy` `img-src` before inlining.
+  If `data:` is allowed, small brand marks may be `data:` URIs; otherwise
+  absolute `https://` only. In local previews, when `data:` is blocked,
+  serve assets through an intercepted same-origin URL. See
+  [hosted-cms-embed](hosted-cms-embed.md) Assets and [L24](../lessons/hosted-cms-assets.md).
 - Motion rules: [D08](../motion-principles.md). RTL text:
   [D05](../typography-layout.md).
 
@@ -72,6 +75,13 @@ locks Code Injection, so only Custom CSS and Code blocks are available.
   nests one wrapper per pass. Keep paste source apart from rendered
   copies (e.g. `.rendered.html`). After apply,
   `.sqs-code-container .sqs-code-container` count must be 0.
+- After every GUI paste from the **build artifact**, run the headless
+  livecms matrix on the public URL at 390 and 1440
+  ([L28](../lessons/live-verify-cms-embed.md),
+  [L31](../lessons/paste-then-reverify.md)). Editor toasts are untrusted.
+- Product/landing embeds under existing site chrome: follow
+  [hosted-cms-embed](hosted-cms-embed.md). Sticky header offset for the
+  first paste section is [L23](../lessons/hosted-cms-no-dup-chrome.md).
 - Read the plan and the site-language list before planning SEO work. The
   Personal plan has no Code Injection or scripts: no JSON-LD, and the http
   `og:image`/`twitter:image` emitted for static1 URLs cannot be overridden.

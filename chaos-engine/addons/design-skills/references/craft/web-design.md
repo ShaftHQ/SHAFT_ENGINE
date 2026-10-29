@@ -97,14 +97,12 @@ Score each deliverable against these anchors; quote the evidence (frame, check o
   `h1, h2, h3, h4, p { unicode-bidi: plaintext; }` plus a heading
   `font-family` stack; buttons, nav and site title stay single-script.
 - Site Styles has four font categories (headings, paragraphs, buttons,
-  misc); plan the script coverage per category, upload OFL files if missing.
-- One primary CTA to one real channel (for example a Messenger link),
-  identical on every page.
-- Only verified numbers and claims; no visible placeholder, lorem, or
-  "coming soon" block on a live page.
-- Release gate: when the owner delegates the site, a change goes live once
-  both the design reviewer and the content reviewer approve; no owner
-  preview. Details without JS: [Squarespace 7.1](../site-builders/squarespace-7-1.md).
+  misc); plan script coverage per category; upload OFL files if missing.
+- One primary CTA to one real channel, identical on every page.
+- Only verified numbers/claims; no placeholder, lorem, or "coming soon".
+- Release gate: design + content reviewers approve before live (no owner
+  preview). [Squarespace 7.1](../site-builders/squarespace-7-1.md);
+  embeds: [hosted-cms-embed](../site-builders/hosted-cms-embed.md) (sticky=[L23](../lessons/hosted-cms-no-dup-chrome.md)).
 
 ## GitHub README surfaces
 

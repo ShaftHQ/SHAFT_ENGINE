@@ -2349,6 +2349,140 @@ def cmd_cuegapsnap(qc, args) -> int:
 
 
 
+
+# --- Hosted-CMS embed gates (L23–L31) -----------------------------------------
+def _hosted_cms():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "hosted_cms_gates", Path(__file__).with_name("hosted_cms_gates.py"),
+    )
+    mod = importlib.util.module_from_spec(spec)
+    if spec.loader is None:
+        raise RuntimeError("hosted_cms_gates loader missing")
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def cmd_cmsmeta(qc, args) -> int:
+    """L25: paste HTML must not include og:/twitter: meta or <html lang>."""
+    html = Path(args.file).read_text(encoding="utf-8")
+    report = _hosted_cms().check_cms_meta(html)
+    status = report.pop("status")
+    code = qc.PASS if status == "pass" else qc.FAIL
+    return qc.report("cmsmeta", code, **report)
+
+
+def cmd_cmsassets(qc, args) -> int:
+    """L24: fail relative local assets in paste HTML."""
+    html = Path(args.file).read_text(encoding="utf-8")
+    report = _hosted_cms().check_cms_assets(html)
+    status = report.pop("status")
+    code = qc.PASS if status == "pass" else qc.FAIL
+    return qc.report("cmsassets", code, **report)
+
+
+def cmd_cmssticky(qc, args) -> int:
+    """L23: require --header-height and scroll-margin-top for sticky offset."""
+    body = Path(args.file).read_text(encoding="utf-8")
+    report = _hosted_cms().check_cms_sticky(
+        body,
+        header_px=getattr(args, "header_px", None),
+        scroll_margin_px=getattr(args, "scroll_margin_px", None),
+    )
+    status = report.pop("status")
+    if status == "error":
+        return qc.report("cmssticky", qc.USAGE, **report)
+    code = qc.PASS if status == "pass" else qc.FAIL
+    return qc.report("cmssticky", code, **report)
+
+
+def cmd_cmschrome(qc, args) -> int:
+    """L23: paste must not include in-page topbar/nav."""
+    html = Path(args.file).read_text(encoding="utf-8")
+    report = _hosted_cms().check_cms_chrome(html)
+    status = report.pop("status")
+    code = qc.PASS if status == "pass" else qc.FAIL
+    return qc.report("cmschrome", code, **report)
+
+
+def cmd_hostilecms(qc, args) -> int:
+    """L26: heading luminance and/or squircle tile geometry under hostile CSS."""
+    hcg = _hosted_cms()
+    parts = []
+    if args.heading_color:
+        parts.append(hcg.check_hostile_heading(args.heading_color, min_lum=args.min_lum))
+    if args.tile_w is not None:
+        missing = [n for n, v in (
+            ("tile-h", args.tile_h), ("img-x", args.img_x), ("img-y", args.img_y),
+            ("img-w", args.img_w), ("img-h", args.img_h),
+        ) if v is None]
+        if missing:
+            return qc.report(
+                "hostilecms", qc.USAGE,
+                error="pass " + ", ".join("--" + m for m in missing),
+            )
+        parts.append(hcg.check_hostile_tile(
+            args.tile_w, args.tile_h, args.img_x, args.img_y, args.img_w, args.img_h,
+            tile_x=args.tile_x, tile_y=args.tile_y,
+            sq_tol=args.sq_tol, inset_tol=args.inset_tol,
+        ))
+    if not parts:
+        return qc.report(
+            "hostilecms", qc.USAGE,
+            error="pass --heading-color and/or --tile-w …",
+        )
+    if any(p.get("status") == "error" for p in parts):
+        return qc.report("hostilecms", qc.USAGE, parts=parts)
+    failed = [p for p in parts if p.get("status") == "fail"]
+    code = qc.FAIL if failed else qc.PASS
+    return qc.report("hostilecms", code, parts=parts, note="hostile heading/tile gates (L26)")
+
+
+def cmd_cmswidth(qc, args) -> int:
+    """L27: full-width ratio + phone gutter parity / no-double-pad."""
+    report = _hosted_cms().check_cms_width(
+        args.code,
+        args.column,
+        min_ratio=args.min_ratio,
+        hero_gutter=args.hero_gutter,
+        embed_gutter=args.embed_gutter,
+        gutter_tol=args.gutter_tol,
+        outer_pad=args.outer_pad,
+        inner_pad=args.inner_pad,
+        content_inset=args.content_inset,
+        viewport=args.viewport,
+        max_phone_inset=args.max_phone_inset,
+    )
+    status = report.pop("status")
+    if status == "error":
+        return qc.report("cmswidth", qc.USAGE, **report)
+    code = qc.PASS if status == "pass" else qc.FAIL
+    return qc.report("cmswidth", code, **report)
+
+
+def cmd_cmsduration(qc, args) -> int:
+    """L30: explainer duration band + optional sibling parity."""
+    report = _hosted_cms().check_cms_duration(
+        args.dur, min_s=args.min, max_s=args.max, peer=args.peer, peer_tol=args.peer_tol,
+    )
+    status = report.pop("status")
+    if status == "error":
+        return qc.report("cmsduration", qc.USAGE, **report)
+    code = qc.PASS if status == "pass" else qc.FAIL
+    return qc.report("cmsduration", code, **report)
+
+
+def cmd_livecms(qc, args) -> int:
+    """L28/L31: fail-closed live matrix receipt JSON."""
+    report_obj = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    report = _hosted_cms().check_livecms(report_obj)
+    status = report.pop("status")
+    if status == "error":
+        return qc.report("livecms", qc.USAGE, **report)
+    code = qc.PASS if status == "pass" else qc.FAIL
+    return qc.report("livecms", code, **report)
+
+
 def register(add, qc) -> None:
     """Add the craft subcommands to design_qc's parser."""
     def bind(func):
@@ -2622,6 +2756,71 @@ def register(add, qc) -> None:
                    help="only type=viral can FLAG; others PASS")
     p.add_argument("--threshold", type=float, default=0.65,
                    help="FLAG when punchline_at/content_dur > threshold")
+    p = add("cmsmeta", bind(cmd_cmsmeta),
+            "L25: paste HTML must not include og:/twitter: meta")
+    p.add_argument("file", help="paste HTML file")
+    p = add("cmsassets", bind(cmd_cmsassets),
+            "L24: fail relative local assets in paste HTML")
+    p.add_argument("file", help="paste HTML file")
+    p = add("cmssticky", bind(cmd_cmssticky),
+            "L23: require --header-height and scroll-margin-top (sticky offset)")
+    p.add_argument("file", help="paste HTML or CSS file")
+    p.add_argument("--header-px", type=float, default=None, dest="header_px",
+                   help="optional sticky header height px")
+    p.add_argument("--scroll-margin-px", type=float, default=None,
+                   dest="scroll_margin_px",
+                   help="optional measured scroll-margin-top px")
+
+    p = add("cmschrome", bind(cmd_cmschrome),
+            "L23: paste must not include in-page topbar/nav")
+    p.add_argument("file", help="paste HTML file")
+    p = add("hostilecms", bind(cmd_hostilecms),
+            "L26: heading luminance and/or squircle tile under hostile CSS")
+    p.add_argument("--heading-color", default=None, dest="heading_color",
+                   help="computed CSS color e.g. rgb(255,255,255)")
+    p.add_argument("--min-lum", type=float, default=0.85, dest="min_lum")
+    p.add_argument("--tile-w", type=float, default=None, dest="tile_w")
+    p.add_argument("--tile-h", type=float, default=None, dest="tile_h")
+    p.add_argument("--tile-x", type=float, default=0.0, dest="tile_x")
+    p.add_argument("--tile-y", type=float, default=0.0, dest="tile_y")
+    p.add_argument("--img-x", type=float, default=None, dest="img_x")
+    p.add_argument("--img-y", type=float, default=None, dest="img_y")
+    p.add_argument("--img-w", type=float, default=None, dest="img_w")
+    p.add_argument("--img-h", type=float, default=None, dest="img_h")
+    p.add_argument("--sq-tol", type=float, default=1.5, dest="sq_tol")
+    p.add_argument("--inset-tol", type=float, default=0.75, dest="inset_tol")
+    p = add("cmswidth", bind(cmd_cmswidth),
+            "L27: full-width ratio + phone gutter parity / no-double-pad")
+    p.add_argument("--code", type=float, required=True, help="code container width px")
+    p.add_argument("--column", type=float, required=True, help="content column width px")
+    p.add_argument("--min-ratio", type=float, default=0.92, dest="min_ratio")
+    p.add_argument("--hero-gutter", type=float, default=None, dest="hero_gutter",
+                   help="hero container left inset px (phone)")
+    p.add_argument("--embed-gutter", type=float, default=None, dest="embed_gutter",
+                   help="embed content left inset px (phone)")
+    p.add_argument("--gutter-tol", type=float, default=4.0, dest="gutter_tol",
+                   help="max |embed-hero| gutter delta px (default 4)")
+    p.add_argument("--outer-pad", type=float, default=None, dest="outer_pad",
+                   help="outer padding-inline px (no-double-pad)")
+    p.add_argument("--inner-pad", type=float, default=None, dest="inner_pad",
+                   help="nested padding-inline px (no-double-pad)")
+    p.add_argument("--content-inset", type=float, default=None, dest="content_inset",
+                   help="measured content left inset px (phone double-pad band)")
+    p.add_argument("--viewport", type=float, default=None,
+                   help="viewport width px (phone checks when <=430 or omitted)")
+    p.add_argument("--max-phone-inset", type=float, default=36.0, dest="max_phone_inset",
+                   help="fail phone content-inset above this (default 36)")
+    p = add("cmsduration", bind(cmd_cmsduration),
+            "L30: explainer duration band + optional sibling parity")
+    p.add_argument("--dur", type=float, required=True, help="duration seconds")
+    p.add_argument("--min", type=float, default=60.0, help="min seconds (default 60)")
+    p.add_argument("--max", type=float, default=120.0, help="max seconds (default 120)")
+    p.add_argument("--peer", type=float, default=None, help="sibling duration seconds")
+    p.add_argument("--peer-tol", type=float, default=30.0, dest="peer_tol")
+    p = add("livecms", bind(cmd_livecms),
+            "L28/L31: fail-closed live matrix receipt JSON")
+    p.add_argument("file", help="livecms report JSON")
+
     p = add("cuegapsnap", bind(cmd_cuegapsnap),
             "L17: snap cue micro-gaps under ~80ms; --check fails while pending")
     p.add_argument("file", help="caption SRT")

@@ -18,6 +18,7 @@ targets, an anchored rubric, and 20 verified references.
 | [C11](social-video.md) | Social media videos | [research/social-video.md](../research/social-video.md) |
 | [C12](training-decks.md) | Training and course decks | none |
 | [Squarespace 7.1](../site-builders/squarespace-7-1.md) | Web builder without JS (companion to C01) | none |
+| [Hosted CMS embed](../site-builders/hosted-cms-embed.md) | Product/landing paste under site chrome (L23–L31) | none |
 | [Site merge and redirects](../site-builders/site-merge-redirects.md) | Page merge, anchors, 301s, SEO titles | none |
 
 - Field lessons (hooks over speech, mixed-script captions, talk edits,
@@ -25,7 +26,10 @@ targets, an anchored rubric, and 20 verified references.
   privacy names, end-card band concat, title punct, qmark baseline,
   perceptual acceptance, band coverage, mute span, endcard filter_complex,
   caption micro-gap snap, ASR names in run_gates, hard-cut coherence,
-  avatar voice first, viral pacing FLAG, ear-lock type templates):
+  avatar voice first, viral pacing FLAG, ear-lock type templates,
+  hosted-CMS no-dup chrome + sticky header offset, assets, CMS meta,
+  hostile resets, full-width embed, livecms verify, plan-first,
+  explainer length, paste then re-verify):
   [lesson cards](../lessons/index.md).
 - Web craft (anti-generic lint, motion tokens, GSAP motion, micro-polish,
   measured type): [web-craft cards](../web-craft/index.md).

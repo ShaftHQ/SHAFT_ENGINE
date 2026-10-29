@@ -104,7 +104,7 @@ class DesignQaR2LessonCardsTest(unittest.TestCase):
                     self.assertIn(needle, text)
                 self.assertIn(f"]({name})", index)
         inv = " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split())
-        self.assertIn("22 lesson", inv)
+        self.assertIn("31 lesson", inv)
         craft = (DESIGN / "references/craft/index.md").read_text(encoding="utf-8")
         self.assertIn("band coverage", craft)
         self.assertIn("avatar voice first", craft)
