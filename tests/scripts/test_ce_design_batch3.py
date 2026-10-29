@@ -136,7 +136,8 @@ class Batch3CardsTest(unittest.TestCase):
         for card in ("grade-and-loudness-map", "sidecar-captions-titles"):
             self.assertIn(f"({card}.md)", read("video-craft/index.md"))
         for card in ("ui-spacing-grid-score", "color-tokens-oklch", "a11y-wcag22-measured", "ui-motion-review",
-                     "threejs-post-inspire", "social-proof-patterns", "nav-and-pricing-patterns", "og-image"):
+                     "threejs-post-inspire", "social-proof-patterns", "nav-and-pricing-patterns", "og-image",
+                     "css-cascade-safety", "seo-basics"):
             self.assertIn(f"({card}.md)", read("web-craft/index.md"))
         router = (DESIGN / "SKILL.md").read_text(encoding="utf-8")
         for name in ("video-craft", "stills/", "dataviz/", "web-typography-measured", "og-image", "arabic-pptx-native-bidi"):
@@ -150,8 +151,8 @@ class Batch3CardsTest(unittest.TestCase):
             self.assertNotIn(old, inventory)
         flat = " ".join(inventory.split())
         for needle in ("`pptx` is proprietary and not used", "cite only (low trust)", "script not fetched or run",
-                       "ui-ux-pro-max", "superpowers ai-video-generation", "33 lesson cards (L01-L33",
-                       "land-book.com is human browsing only", "not connected (note only)", "14 web-craft cards (W01-W14"):
+                       "ui-ux-pro-max", "superpowers ai-video-generation", "34 lesson cards (L01-L34",
+                       "land-book.com is human browsing only", "not connected (note only)", "16 web-craft cards (W01-W16"):
             self.assertIn(needle, flat)
         desc = (DESIGN / "addon.json").read_text(encoding="utf-8")
         self.assertIn("four video-craft cards", desc)

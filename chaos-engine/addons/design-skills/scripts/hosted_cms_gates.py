@@ -1,4 +1,4 @@
-"""Stdlib gates for hosted-CMS embed lessons L23–L31 (no browser required)."""
+"""Stdlib gates for hosted-CMS embed lessons L23–L31 + L34 paste robots (no browser)."""
 
 from __future__ import annotations
 
@@ -14,6 +14,18 @@ HTML_LANG = re.compile(
     r'''<\s*html\b[^>]*\blang\s*=''',
     re.IGNORECASE,
 )
+# L34: paste must not carry crawl-block robots (meta or X-Robots-Tag-style).
+ROBOTS_META = re.compile(
+    r"""<meta\s+(?=[^>]*\b(?:name|http-equiv)\s*=\s*["'](?:robots|googlebot|bingbot|x-robots-tag)["'])"""
+    r"""[^>]*\bcontent\s*=\s*["']([^"']*)["']"""
+    r"""|<meta\s+(?=[^>]*\bcontent\s*=\s*["']([^"']*)["'])"""
+    r"""[^>]*\b(?:name|http-equiv)\s*=\s*["'](?:robots|googlebot|bingbot|x-robots-tag)["']""",
+    re.IGNORECASE,
+)
+XROBOTS_HEADERISH = re.compile(
+    r"""(?:^|[\r\n<]|<!--)\s*X-Robots-Tag\s*:\s*([^\r\n<>]*)""",
+    re.IGNORECASE,
+)
 RELATIVE_ASSET_SRC = re.compile(
     r"""\b(?:src|href)\s*=\s*["'](\.\./[^"']+|assets/[^"']+)["']""",
     re.IGNORECASE,
@@ -27,23 +39,49 @@ TOPBAR_IN_PASTE = re.compile(
 )
 
 
+def _robots_directive_hits(html: str) -> list[str]:
+    """Return paste snippets that block indexing/following (L34)."""
+    body = html or ""
+    hits: list[str] = []
+    for m in ROBOTS_META.finditer(body):
+        content = (m.group(1) or m.group(2) or "").lower()
+        if "noindex" in content or "nofollow" in content or content.strip() == "none":
+            hits.append(m.group(0)[:120])
+    for m in XROBOTS_HEADERISH.finditer(body):
+        content = (m.group(1) or "").lower()
+        if "noindex" in content or "nofollow" in content or "none" in content.split(","):
+            hits.append(m.group(0)[:120])
+    return hits
+
+
 def check_cms_meta(html: str) -> dict[str, Any]:
-    """L25: paste must not include og:/twitter: meta or <html lang>."""
+    """L25/L34: paste must not include og/twitter, html lang, or robots noindex."""
     body = html or ""
     count = len(list(OG_TWITTER_META.finditer(body)))
     lang_hits = len(list(HTML_LANG.finditer(body)))
-    base = {"og_twitter_meta": count, "html_lang": lang_hits}
+    robots_hits = _robots_directive_hits(body)
+    base = {
+        "og_twitter_meta": count,
+        "html_lang": lang_hits,
+        "robots_block_hits": len(robots_hits),
+        "robots_samples": robots_hits[:5],
+    }
     fails: list[str] = []
     if count:
         fails.append("CMS SEO panel owns og/twitter; strip paste meta (L25)")
     if lang_hits:
         fails.append("no <html lang> in paste; set language per block (L25)")
+    if robots_hits:
+        fails.append(
+            "no robots noindex/nofollow or X-Robots-Tag in paste; "
+            "CMS SEO / live headers own crawl (L34)"
+        )
     if fails:
         return {**base, "status": "fail", "note": "; ".join(fails), "fails": fails}
     return {
         **base,
         "status": "pass",
-        "note": "no og:/twitter meta or html lang in paste (L25)",
+        "note": "no og/twitter, html lang, or robots block in paste (L25/L34)",
     }
 
 
