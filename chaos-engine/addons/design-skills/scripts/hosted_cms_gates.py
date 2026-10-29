@@ -38,10 +38,11 @@ TOPBAR_IN_PASTE = re.compile(
 # L36: Code-block paste must be a fragment — no document shell tags.
 DOC_SHELL_TAGS = frozenset({"html", "head", "body"})
 # L36: paste CSS must not target host document roots (selectors, not literals).
-# Prefix allows combinators and :is/:where/:not argument lists: *+html, :is(html).
-GLOBAL_CSS_ROOT = re.compile(
-    r"(?:^|[{};,\s(+~>])(?::root|html|body)(?=[\s.{:#\[,>+~)]|$)",
-    re.IGNORECASE | re.MULTILINE,
+# Match only in selector context (tokenizer below): namespace |body / svg|html,
+# :is(html), *+html; not at-rule names or url()/declaration args.
+_ROOT_IN_SELECTOR = re.compile(
+    r"(?<![\w-])(?:(?:[\w-]+|\*)?\|)?(?::root|html|body)(?![\w-])",
+    re.IGNORECASE,
 )
 _CSS_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
 _CSS_LINE_COMMENT = re.compile(r"(?<!:)//.*?$", re.M)
@@ -49,6 +50,19 @@ _CSS_STRING = re.compile(
     r'("(?:[^"\\]|\\.)*"|\'(?:[^\'\\]|\\.)*\')',
     re.S,
 )
+# HTML5 RCDATA + obsolete rawtext: <!--...--> is character data, not a comment.
+# script/style also raw. noscript/iframe/template keep real Comment nodes → L37 fail.
+_RAW_OR_RCDATA = frozenset({
+    "script",
+    "style",
+    "textarea",
+    "title",
+    "xmp",
+    "listing",
+    "noembed",
+    "noframes",
+    "plaintext",
+})
 # Livecms / cmsheader viewports (L28 + L36): phone + desktop matrix.
 HEADER_VIEWPORTS = (360, 390, 430, 1440)
 HEADER_DELTA_OK_PREFIXES = ("header_logo_delta_ok_", "header_nav_delta_ok_")
@@ -61,8 +75,117 @@ def _strip_css_comments_and_strings(src: str) -> str:
     return _CSS_STRING.sub('""', no_line)
 
 
+def _count_root_selectors(css: str) -> int:
+    """Count html/body/:root type selectors in selector lists only.
+
+    Skips at-rule preludes (@keyframes body, @layer body, @import url(...)) and
+    declaration values (url(body.svg), image-set(body)). Still counts selectors
+    inside at-rule blocks (@media all{html{}}), functional pseudos (:is(html)),
+    and namespace type selectors (|body, svg|html, *|body).
+    """
+    s = css or ""
+    n = len(s)
+    hits = 0
+
+    def scan_block(j: int) -> int:
+        nonlocal hits
+        while j < n:
+            while j < n and s[j].isspace():
+                j += 1
+            if j >= n:
+                return j
+            if s[j] == "}":
+                return j + 1
+            if s[j] == "@":
+                j = scan_at_rule(j)
+                continue
+            start = j
+            paren = 0
+            while j < n:
+                ch = s[j]
+                if ch == "(":
+                    paren += 1
+                    j += 1
+                elif ch == ")":
+                    paren = max(0, paren - 1)
+                    j += 1
+                elif paren == 0 and ch == "{":
+                    hits += len(_ROOT_IN_SELECTOR.findall(s[start:j]))
+                    j = scan_block(j + 1)
+                    break
+                elif paren == 0 and ch == ";":
+                    j += 1
+                    break
+                elif paren == 0 and ch == "}":
+                    return j + 1
+                else:
+                    j += 1
+            else:
+                return j
+        return j
+
+    def scan_at_rule(j: int) -> int:
+        # s[j] == '@' — prelude identifiers are names/queries, not selectors.
+        j += 1
+        while j < n and (s[j].isalnum() or s[j] in "_-"):
+            j += 1
+        paren = 0
+        while j < n:
+            ch = s[j]
+            if ch == "(":
+                paren += 1
+                j += 1
+            elif ch == ")":
+                paren = max(0, paren - 1)
+                j += 1
+            elif paren == 0 and ch == "{":
+                return scan_block(j + 1)
+            elif paren == 0 and ch == ";":
+                return j + 1
+            else:
+                j += 1
+        return j
+
+    i = 0
+    while i < n:
+        while i < n and s[i].isspace():
+            i += 1
+        if i >= n:
+            break
+        if s[i] == "}":
+            i += 1
+            continue
+        if s[i] == "@":
+            i = scan_at_rule(i)
+            continue
+        start = i
+        paren = 0
+        while i < n:
+            ch = s[i]
+            if ch == "(":
+                paren += 1
+                i += 1
+            elif ch == ")":
+                paren = max(0, paren - 1)
+                i += 1
+            elif paren == 0 and ch == "{":
+                hits += len(_ROOT_IN_SELECTOR.findall(s[start:i]))
+                i = scan_block(i + 1)
+                break
+            elif paren == 0 and ch == ";":
+                i += 1
+                break
+            elif paren == 0 and ch == "}":
+                break
+            else:
+                i += 1
+        else:
+            break
+    return hits
+
+
 class _PasteMarkupScanner(HTMLParser):
-    """Tokenize paste; judge only real markup. Skip script/style raw text."""
+    """Tokenize paste; judge only real markup. Skip raw/RCDATA text."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -80,7 +203,7 @@ class _PasteMarkupScanner(HTMLParser):
         name = (tag or "").lower()
         if self._in_raw():
             return
-        if name in ("script", "style"):
+        if name in _RAW_OR_RCDATA:
             self._raw_stack.append(name)
             if name == "style":
                 self._style_chunks = []
@@ -97,12 +220,12 @@ class _PasteMarkupScanner(HTMLParser):
         # Void/self-closing — still a shell hit if html/head/body (rare).
         self.handle_starttag(tag, attrs)
         name = (tag or "").lower()
-        if name in ("script", "style") and self._raw_stack and self._raw_stack[-1] == name:
+        if name in _RAW_OR_RCDATA and self._raw_stack and self._raw_stack[-1] == name:
             self.handle_endtag(tag)
 
     def handle_endtag(self, tag: str) -> None:
         name = (tag or "").lower()
-        if name in ("script", "style") and self._raw_stack and self._raw_stack[-1] == name:
+        if name in _RAW_OR_RCDATA and self._raw_stack and self._raw_stack[-1] == name:
             if name == "style":
                 self.style_bodies.append("".join(self._style_chunks))
                 self._style_chunks = []
@@ -114,6 +237,7 @@ class _PasteMarkupScanner(HTMLParser):
 
     def handle_comment(self, data: str) -> None:
         # Real HTML comments, including conditional <!--[if ...] ... <![endif]-->.
+        # Ignore parser false comments inside RCDATA/rawtext (_RAW_OR_RCDATA).
         if self._in_raw():
             return
         self.comments += 1
@@ -141,7 +265,7 @@ def _global_css_root_hits(html: str) -> int:
     total = 0
     for body in scanner.style_bodies:
         cleaned = _strip_css_comments_and_strings(body)
-        total += len(GLOBAL_CSS_ROOT.findall(cleaned))
+        total += _count_root_selectors(cleaned)
     return total
 
 
@@ -173,7 +297,7 @@ def check_cms_meta(html: str) -> dict[str, Any]:
     lang_hits = int(scanned.html_lang)
     shell = list(scanned.shell)
     css_roots = sum(
-        len(GLOBAL_CSS_ROOT.findall(_strip_css_comments_and_strings(b)))
+        _count_root_selectors(_strip_css_comments_and_strings(b))
         for b in scanned.style_bodies
     )
     comments = int(scanned.comments)

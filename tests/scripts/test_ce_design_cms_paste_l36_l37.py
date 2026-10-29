@@ -295,6 +295,108 @@ class CmsPasteFragmentL36Test(unittest.TestCase):
                 self.assertEqual(0, payload.get("global_css_root_hits", -1), (name, payload))
                 self.assertEqual(0, payload.get("html_comment_hits", -1), (name, payload))
 
+    def test_cmsmeta_passes_at_rule_name_root_idents(self) -> None:
+        """C1 FP: at-rule names html/body are not type selectors."""
+        cases = {
+            "keyframes_body.html": (
+                "<div><style>@keyframes body{0%{opacity:0}to{opacity:1}}</style>"
+                "<h1>x</h1></div>"
+            ),
+            "keyframes_html.html": (
+                "<div><style>@keyframes html{from{left:0}to{left:1px}}</style>"
+                "<h1>x</h1></div>"
+            ),
+            "layer_body.html": (
+                "<div><style>@layer body {.x{color:red}}</style><h1>x</h1></div>"
+            ),
+            "container_body.html": (
+                "<div><style>@container body (min-width:1px){.x{color:red}}</style>"
+                "<h1>x</h1></div>"
+            ),
+            "media_body.html": (
+                "<div><style>@media body {.x{color:red}}</style><h1>x</h1></div>"
+            ),
+            "counter_style_body.html": (
+                "<div><style>@counter-style body "
+                "{system:cyclic;symbols:'*';}</style>"
+                "<h1>x</h1></div>"
+            ),
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(
+                    (0, "pass"), (code, payload.get("status")), (name, payload),
+                )
+                self.assertEqual(0, payload.get("global_css_root_hits", -1), (name, payload))
+
+    def test_cmsmeta_rejects_root_inside_at_rule_blocks(self) -> None:
+        """C1 FN: real type selectors inside at-rule blocks must FAIL."""
+        cases = {
+            "media_html.html": (
+                "<div><style>@media all{html{direction:rtl}}</style><h1>x</h1></div>"
+            ),
+            "supports_body.html": (
+                "<div><style>@supports (display:grid){body{margin:0}}</style>"
+                "<h1>x</h1></div>"
+            ),
+            "layer_base_html.html": (
+                "<div><style>@layer base{html{font-size:16px}}</style><h1>x</h1></div>"
+            ),
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(1, code, (name, payload))
+                self.assertGreaterEqual(
+                    payload.get("global_css_root_hits", 0), 1, (name, payload),
+                )
+
+    def test_cmsmeta_passes_css_function_arg_root_idents(self) -> None:
+        """C3 FP: unquoted url()/image-set()/@import args are not selectors."""
+        cases = {
+            "url_body.html": (
+                "<div><style>.x{background:url(body.svg)}</style><h1>x</h1></div>"
+            ),
+            "image_set_body.html": (
+                "<div><style>.x{background:image-set(body 1x)}</style><h1>x</h1></div>"
+            ),
+            "import_url_body.html": (
+                "<div><style>@import url(body.css);.x{color:red}</style>"
+                "<h1>x</h1></div>"
+            ),
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(
+                    (0, "pass"), (code, payload.get("status")), (name, payload),
+                )
+                self.assertEqual(0, payload.get("global_css_root_hits", -1), (name, payload))
+
+    def test_cmsmeta_rejects_namespace_root_selectors(self) -> None:
+        """C4 FN: |body / svg|html / *|body must FAIL."""
+        cases = {
+            "pipe_body.html": "<div><style>|body{margin:0}</style><h1>x</h1></div>",
+            "svg_html.html": "<div><style>svg|html{color:red}</style><h1>x</h1></div>",
+            "star_body.html": "<div><style>*|body{margin:0}</style><h1>x</h1></div>",
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(1, code, (name, payload))
+                self.assertGreaterEqual(
+                    payload.get("global_css_root_hits", 0), 1, (name, payload),
+                )
+
 
 class CmsPasteCommentsL37Test(unittest.TestCase):
     def test_cmsmeta_rejects_html_comments(self) -> None:
@@ -316,6 +418,45 @@ class CmsPasteCommentsL37Test(unittest.TestCase):
             self.assertEqual(1, code, payload)
             self.assertEqual("fail", payload.get("status"), payload)
             self.assertGreaterEqual(payload.get("html_comment_hits", 0), 1, payload)
+
+    def test_cmsmeta_passes_rcdata_rawtext_comment_lookalikes(self) -> None:
+        """C2 FP: <!-- --> inside RCDATA/rawtext is character data, not a comment."""
+        cases = {
+            "textarea.html": "<div><textarea><!-- not a comment --></textarea><h1>x</h1></div>",
+            "title.html": "<div><title><!-- not a comment --></title><h1>x</h1></div>",
+            "xmp.html": "<div><xmp><!-- x --></xmp><h1>x</h1></div>",
+            "listing.html": "<div><listing><!-- x --></listing><h1>x</h1></div>",
+            "noembed.html": "<div><noembed><!-- x --></noembed><h1>x</h1></div>",
+            "noframes.html": "<div><noframes><!-- x --></noframes><h1>x</h1></div>",
+            "plaintext.html": "<div><plaintext><!-- x",
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(
+                    (0, "pass"), (code, payload.get("status")), (name, payload),
+                )
+                self.assertEqual(0, payload.get("html_comment_hits", -1), (name, payload))
+
+    def test_cmsmeta_rejects_real_comments_in_noscript_iframe_template(self) -> None:
+        """C2 intentional FAIL: HTML5 Comment nodes in noscript/iframe/template."""
+        cases = {
+            "noscript.html": "<div><noscript><!-- real --></noscript><h1>x</h1></div>",
+            "iframe.html": "<div><iframe><!-- real --></iframe><h1>x</h1></div>",
+            "template.html": "<div><template><!-- real --></template><h1>x</h1></div>",
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(1, code, (name, payload))
+                self.assertEqual("fail", payload.get("status"), (name, payload))
+                self.assertGreaterEqual(
+                    payload.get("html_comment_hits", 0), 1, (name, payload),
+                )
 
     def test_cmsmeta_passes_escaped_comment_text(self) -> None:
         html = "<div><p>Do not leave &lt;!-- notes --&gt; in paste.</p></div>"
