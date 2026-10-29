@@ -45,7 +45,7 @@ REQUIRED_ROWS = (
 )
 
 AGENT = (
-    "Mozilla/5.0 (compatible; ChaosEngine-liveseo/1.0; +https://github.com/ShaftHQ/SHAFT_ENGINE)"
+    "Mozilla/5.0 (compatible; ChaosEngine-liveseo/1.0)"
 )
 
 META_ROBOTS = re.compile(
@@ -201,6 +201,7 @@ def check_page_html(html: str) -> dict[str, Any]:
     try:
         outline.feed(html or "")
     except Exception:  # noqa: BLE001 - malformed HTML still yields partial rows
+        # Ignore parse errors: partial outline/title state is enough for fail-closed rows.
         pass
     title_m = TITLE.search(html or "")
     title = (outline.title or (title_m.group(1) if title_m else "")).strip()

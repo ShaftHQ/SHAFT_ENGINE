@@ -56,7 +56,7 @@ Do **not** paste `og:` / `twitter:` / `<html lang>` into CMS Code blocks
 
 ## Verify
 
-- [ ] `design_qc.py liveseo <https-url>` (or `--fixture <dir>` offline)
+- [ ] `design_qc.py liveseo <https-url>` (or `--fixture <dir>` offline); gate: [`liveseo_gates.py`](../../scripts/liveseo_gates.py)
 - [ ] `design_qc.py cmsmeta <paste.html>` still clean (no social meta in paste)
 - [ ] `design_qc.py livecms` / `ogimage` when embed or OG asset applies
 
