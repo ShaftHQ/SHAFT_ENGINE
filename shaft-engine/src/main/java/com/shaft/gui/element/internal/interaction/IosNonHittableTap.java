@@ -26,6 +26,10 @@ import javax.annotation.Nullable;
  *
  * <p>Recovery order:
  * <ol>
+ *   <li>If a pre-click page-source snapshot was supplied and the tree already changed
+ *       (sheet/modal/navigation opened by the original click), treat the tap as success —
+ *       do not use post-tap {@code hittable=false} on the covered opener as "no effect"
+ *       (#7571).</li>
  *   <li>Element-anchored {@code mobile: tap} with the element id and element-relative
  *       centre coordinates ({@code width/2}, {@code height/2}).</li>
  *   <li>If page source is unchanged, a W3C touch pointer tap at the element's centre
@@ -49,14 +53,66 @@ public final class IosNonHittableTap {
     private IosNonHittableTap() {
     }
 
+    /**
+     * Post-click guard without a pre-click snapshot. Prefer
+     * {@link #afterReportedClick(WebDriver, WebElement, String)} from the click path.
+     */
     public static void afterReportedClick(WebDriver driver, WebElement element) {
+        afterReportedClick(driver, element, null);
+    }
+
+    /**
+     * @param pageSourceBeforeClick page source captured before {@code element.click()}, or
+     *                              {@code null} when unavailable; when present and the tree
+     *                              already differs after the click, recovery is skipped
+     */
+    public static void afterReportedClick(WebDriver driver, WebElement element,
+                                          @Nullable String pageSourceBeforeClick) {
         if (!isIosXcui(driver) || element == null) {
             return;
         }
-        if (!"false".equalsIgnoreCase(readHittable(element))) {
+        if (clickAlreadyHadEffect(driver, pageSourceBeforeClick)) {
             return;
         }
-        String before = readPageSource(driver);
+        if (!isReportedNonHittable(element)) {
+            return;
+        }
+        recoverOrFail(driver, element, pageSourceBeforeClick);
+    }
+
+    /**
+     * Best-effort page-source snapshot for the pre-click guard. Returns {@code null} when
+     * unreadable so callers still run the post-click path.
+     */
+    @Nullable
+    static String snapshotPageSource(WebDriver driver) {
+        return readPageSource(driver);
+    }
+
+    static boolean isIosXcui(WebDriver driver) {
+        if (!(driver instanceof IOSDriver)) {
+            return false;
+        }
+        return !driver.getClass().getName().contains("Flutter");
+    }
+
+    private static boolean clickAlreadyHadEffect(WebDriver driver, @Nullable String pageSourceBeforeClick) {
+        // No pre-click snapshot → cannot prove effect yet; skip the read so recovery's
+        // stubbed/real page-source sequence still starts at the post-click baseline.
+        if (pageSourceBeforeClick == null) {
+            return false;
+        }
+        return pageChanged(pageSourceBeforeClick, readPageSource(driver));
+    }
+
+    private static boolean isReportedNonHittable(WebElement element) {
+        return "false".equalsIgnoreCase(readHittable(element));
+    }
+
+    private static void recoverOrFail(WebDriver driver, WebElement element,
+                                      @Nullable String pageSourceBeforeClick) {
+        String afterClick = readPageSource(driver);
+        String before = pageSourceBeforeClick != null ? pageSourceBeforeClick : afterClick;
         boolean anchored = elementAnchoredTap(driver, element);
         String afterMobile = readPageSource(driver);
         if (anchored && pageChanged(before, afterMobile)) {
@@ -73,13 +129,6 @@ public final class IosNonHittableTap {
             return;
         }
         throw new IosTapHadNoEffectException(NO_EFFECT_MESSAGE);
-    }
-
-    static boolean isIosXcui(WebDriver driver) {
-        if (!(driver instanceof IOSDriver)) {
-            return false;
-        }
-        return !driver.getClass().getName().contains("Flutter");
     }
 
     private static boolean pageChanged(@Nullable String before, @Nullable String after) {
