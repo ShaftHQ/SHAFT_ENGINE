@@ -136,7 +136,10 @@ class SiblingScanDuplicateTests(unittest.TestCase):
             self._manifest(fresh, "demo-coach")
             (stale / "marker.txt").write_text("stale", encoding="utf-8")
             (fresh / "marker.txt").write_text("fresh", encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, r"duplicate ChaosEngine add-on: demo-coach"):
+            with self.assertRaisesRegex(
+                ValueError,
+                r"duplicate ChaosEngine add-on: demo-coach.*CHAOS_ENGINE_ADDON_PATHS",
+            ):
                 catalog.discover(source)
 
     def test_identical_sibling_roots_are_accepted(self):

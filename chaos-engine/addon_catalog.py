@@ -174,7 +174,11 @@ def _record_addon(
                 f"keeping {prior_root}"
             )
             return
-        raise ValueError(f"duplicate ChaosEngine add-on: {name}")
+        raise ValueError(
+            f"duplicate ChaosEngine add-on: {name} in sibling scan with divergent "
+            f"content ({prior_root} vs {new_root}); set {PATHS_ENVIRONMENT} to the "
+            f"intended pack root, or remove the stale sibling ce-addons tree"
+        )
     raise ValueError(f"duplicate ChaosEngine add-on: {name}")
 
 
