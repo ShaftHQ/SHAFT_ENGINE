@@ -398,6 +398,69 @@ class CmsPasteFragmentL36Test(unittest.TestCase):
                 )
 
 
+    def test_cmsmeta_passes_class_id_attr_pseudo_root_idents(self) -> None:
+        """N1 FP: class/id/attr/pseudo-arg html|body idents are not type selectors."""
+        cases = {
+            "class_body.html": "<div><style>.body{color:red}</style><h1>x</h1></div>",
+            "id_body.html": "<div><style>#body{color:red}</style><h1>x</h1></div>",
+            "class_html.html": "<div><style>.html{color:red}</style><h1>x</h1></div>",
+            "id_html.html": "<div><style>#html{color:red}</style><h1>x</h1></div>",
+            "attr_body.html": "<div><style>[body]{color:red}</style><h1>x</h1></div>",
+            "attr_name_body.html": (
+                "<div><style>[name=body]{color:red}</style><h1>x</h1></div>"
+            ),
+            "div_body.html": "<div><style>div.body{color:red}</style><h1>x</h1></div>",
+            "not_class_body.html": (
+                "<div><style>:not(.body){color:red}</style><h1>x</h1></div>"
+            ),
+            "href_star_body.html": (
+                "<div><style>[href*=body]{color:red}</style><h1>x</h1></div>"
+            ),
+            "lang_body.html": (
+                "<div><style>:lang(body){color:red}</style><h1>x</h1></div>"
+            ),
+            "part_body.html": (
+                "<div><style>::part(body){color:red}</style><h1>x</h1></div>"
+            ),
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(
+                    (0, "pass"), (code, payload.get("status")), (name, payload),
+                )
+                self.assertEqual(0, payload.get("global_css_root_hits", -1), (name, payload))
+
+    def test_cmsmeta_rejects_css_escaped_and_supports_selector_roots(self) -> None:
+        """N2/N3 FN: CSS-escaped types + @supports selector(body) must FAIL."""
+        cases = {
+            "escape_body.html": (
+                "<div><style>\\62 ody{margin:0}</style><h1>x</h1></div>"
+            ),
+            "escape_html.html": (
+                "<div><style>h\\74 ml{margin:0}</style><h1>x</h1></div>"
+            ),
+            "body_upper.html": (
+                "<div><style>BODY{margin:0}</style><h1>x</h1></div>"
+            ),
+            "supports_selector_body.html": (
+                "<div><style>@supports selector(body){.x{color:red}}</style>"
+                "<h1>x</h1></div>"
+            ),
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, html in cases.items():
+                path = Path(folder) / name
+                path.write_text(html, encoding="utf-8")
+                code, payload = run_qc("cmsmeta", str(path))
+                self.assertEqual(1, code, (name, payload))
+                self.assertGreaterEqual(
+                    payload.get("global_css_root_hits", 0), 1, (name, payload),
+                )
+
+
 class CmsPasteCommentsL37Test(unittest.TestCase):
     def test_cmsmeta_rejects_html_comments(self) -> None:
         html = "<!-- ops: re-check CTA -->\n<div class=\"product-embed\"><h1>x</h1></div>"

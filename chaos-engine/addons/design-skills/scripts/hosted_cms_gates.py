@@ -38,12 +38,14 @@ TOPBAR_IN_PASTE = re.compile(
 # L36: Code-block paste must be a fragment — no document shell tags.
 DOC_SHELL_TAGS = frozenset({"html", "head", "body"})
 # L36: paste CSS must not target host document roots (selectors, not literals).
-# Match only in selector context (tokenizer below): namespace |body / svg|html,
-# :is(html), *+html; not at-rule names or url()/declaration args.
-_ROOT_IN_SELECTOR = re.compile(
-    r"(?<![\w-])(?:(?:[\w-]+|\*)?\|)?(?::root|html|body)(?![\w-])",
-    re.IGNORECASE,
-)
+# Small CSS selector tokenizer: unescape idents, then match html/body/:root only
+# as TYPE selectors (compound start; optional ns | / svg| / *|). Never class/id/
+# attr names or values, non-selector pseudo args (:lang, ::part), at-rule names,
+# or declaration/function args. :is/:where/:not/:has and ::slotted args count;
+# @supports selector(...) prelude args count (N3).
+_ROOT_TYPE_NAMES = frozenset({"html", "body"})
+_SELECTOR_ARG_PSEUDOS = frozenset({"is", "where", "not", "has", "slotted"})
+_CSS_HEX = frozenset("0123456789abcdefABCDEF")
 _CSS_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
 _CSS_LINE_COMMENT = re.compile(r"(?<!:)//.*?$", re.M)
 _CSS_STRING = re.compile(
@@ -87,6 +89,236 @@ def _css_skip_ws(s: str, j: int, n: int) -> int:
     return j
 
 
+def _css_skip_string(s: str, j: int, n: int) -> int:
+    """s[j] is a quote; return index after the closing quote (or n)."""
+    quote = s[j]
+    j += 1
+    while j < n:
+        ch = s[j]
+        if ch == "\\":
+            j += 2 if j + 1 < n else 1
+            continue
+        if ch == quote:
+            return j + 1
+        j += 1
+    return j
+
+
+def _css_read_escape(s: str, i: int) -> tuple[str, int]:
+    """s[i] == '\\\\'. Return (decoded char, new index) per CSS Syntax escapes."""
+    n = len(s)
+    i += 1
+    if i >= n:
+        return "\ufffd", i
+    ch = s[i]
+    if ch in "\n\r\f":
+        return "", i + 1
+    if ch in _CSS_HEX:
+        hex_chars = ch
+        i += 1
+        while i < n and len(hex_chars) < 6 and s[i] in _CSS_HEX:
+            hex_chars += s[i]
+            i += 1
+        if i < n and s[i].isspace():
+            if s[i] == "\r" and i + 1 < n and s[i + 1] == "\n":
+                i += 2
+            else:
+                i += 1
+        try:
+            return chr(int(hex_chars, 16)), i
+        except (ValueError, OverflowError):
+            return "\ufffd", i
+    return ch, i + 1
+
+
+def _css_ident_start(ch: str) -> bool:
+    """True if ch can start a CSS ident (letter, _, non-ASCII, or backslash)."""
+    return bool(ch) and (
+        ch == "\\" or ch == "_" or ch.isalpha() or ord(ch) > 0x7F
+    )
+
+
+def _css_read_ident(s: str, i: int) -> tuple[str, int]:
+    """Read a CSS ident with escapes; return (decoded lowercase, new index)."""
+    n = len(s)
+    out: list[str] = []
+    # Optional leading '-' (custom props '--' or '-ident')
+    if i < n and s[i] == "-":
+        out.append("-")
+        i += 1
+        if i < n and s[i] == "-":
+            out.append("-")
+            i += 1
+    while i < n:
+        ch = s[i]
+        if ch == "\\":
+            decoded, i = _css_read_escape(s, i)
+            out.append(decoded)
+            continue
+        if ch.isalnum() or ch in "-_" or ord(ch) > 0x7F:
+            out.append(ch)
+            i += 1
+            continue
+        break
+    return "".join(out).lower(), i
+
+
+def _css_read_balanced_inner(s: str, i: int) -> tuple[str, int]:
+    """s[i] is '(' or '['. Return (inner text, index after matching closer)."""
+    open_ch = s[i]
+    close_ch = ")" if open_ch == "(" else "]"
+    n = len(s)
+    i += 1
+    start = i
+    depth = 1
+    while i < n and depth:
+        ch = s[i]
+        if ch in "\"'":
+            i = _css_skip_string(s, i, n)
+            continue
+        if ch == open_ch:
+            depth += 1
+            i += 1
+            continue
+        if ch == close_ch:
+            depth -= 1
+            if depth == 0:
+                return s[start:i], i + 1
+            i += 1
+            continue
+        i += 1
+    return s[start:i], i
+
+
+def _css_looking_at_selector_func(s: str, j: int, n: int) -> int | None:
+    """If s[j:] starts with selector(, return index of '('; else None."""
+    if j >= n or (s[j] != "s" and s[j] != "S"):
+        return None
+    # Word-boundary: prior char must not be ident-continue.
+    if j > 0:
+        prev = s[j - 1]
+        if prev.isalnum() or prev in "-_\\" or ord(prev) > 0x7F:
+            return None
+    name, k = _css_read_ident(s, j)
+    if name != "selector":
+        return None
+    k = _css_skip_ws(s, k, n)
+    if k < n and s[k] == "(":
+        return k
+    return None
+
+
+def _css_skip_simple_ident(s: str, i: int, n: int) -> int:
+    """After '.' or '#', skip an optional ident; return new index."""
+    i += 1
+    if i < n and (_css_ident_start(s[i]) or s[i] == "-"):
+        _, i = _css_read_ident(s, i)
+    return i
+
+
+def _css_consume_pseudo(s: str, i: int, n: int) -> tuple[int, int]:
+    """s[i] == ':'. Return (new_index, root_hits from :root / selector-arg pseudos)."""
+    i += 1
+    if i < n and s[i] == ":":
+        i += 1
+    if i >= n or not (_css_ident_start(s[i]) or s[i] == "-"):
+        return i, 0
+    name, i = _css_read_ident(s, i)
+    hits = 1 if name == "root" else 0
+    i = _css_skip_ws(s, i, n)
+    if i < n and s[i] == "(":
+        args, i = _css_read_balanced_inner(s, i)
+        if name in _SELECTOR_ARG_PSEUDOS:
+            hits += _count_type_roots_in_selector(args)
+    return i, hits
+
+
+def _css_consume_star(s: str, i: int, n: int) -> tuple[int, bool]:
+    """s[i] == '*'. Return (new_index, at_type_pos after * or *|)."""
+    i += 1
+    i = _css_skip_ws(s, i, n)
+    if i < n and s[i] == "|":
+        return i + 1, True
+    return i, False
+
+
+def _css_consume_type_or_ns(
+    s: str, i: int, n: int, at_type_pos: bool,
+) -> tuple[int, int, bool]:
+    """Read ident; handle ns| / func( / type root. Return (i, hits, at_type_pos)."""
+    name, i = _css_read_ident(s, i)
+    i = _css_skip_ws(s, i, n)
+    if i < n and s[i] == "|":
+        return i + 1, 0, True
+    if i < n and s[i] == "(":
+        _, i = _css_read_balanced_inner(s, i)
+        return i, 0, False
+    hits = 1 if at_type_pos and name in _ROOT_TYPE_NAMES else 0
+    return i, hits, False
+
+
+def _count_type_roots_in_selector(sel: str) -> int:
+    """Count html/body/:root TYPE selectors in a selector list.
+
+    Compound-start only (after start, combinator, or namespace '|'). Class/id/attr
+    and non-selector pseudo args (:lang, ::part) never count. :is/:where/:not/
+    :has and ::slotted recurse into their args as selector lists.
+    """
+    s = sel or ""
+    n = len(s)
+    hits = 0
+    i = 0
+    at_type_pos = True
+    while i < n:
+        ch = s[i]
+        if ch.isspace():
+            j = _css_skip_ws(s, i, n)
+            if j < n and s[j] not in ",{}":
+                at_type_pos = True
+            i = j
+            continue
+        if ch in ">+~,":
+            at_type_pos = True
+            i += 1
+            continue
+        if ch in ".#":
+            i = _css_skip_simple_ident(s, i, n)
+            at_type_pos = False
+            continue
+        if ch == "[":
+            _, i = _css_read_balanced_inner(s, i)
+            at_type_pos = False
+            continue
+        if ch == ":":
+            i, delta = _css_consume_pseudo(s, i, n)
+            hits += delta
+            at_type_pos = False
+            continue
+        if ch == "*":
+            i, at_type_pos = _css_consume_star(s, i, n)
+            continue
+        if ch == "|":
+            i += 1
+            at_type_pos = True
+            continue
+        if ch == "(":
+            _, i = _css_read_balanced_inner(s, i)
+            at_type_pos = False
+            continue
+        if ch in ")}{":
+            i += 1
+            at_type_pos = False
+            continue
+        if _css_ident_start(ch) or ch == "-":
+            i, delta, at_type_pos = _css_consume_type_or_ns(s, i, n, at_type_pos)
+            hits += delta
+            continue
+        i += 1
+        at_type_pos = False
+    return hits
+
+
+
 def _css_scan_rule_chunk(
     s: str, j: int, n: int, hits: list[int],
 ) -> tuple[int, bool]:
@@ -111,7 +343,7 @@ def _css_scan_rule_chunk(
             j += 1
             continue
         if ch == "{":
-            hits[0] += len(_ROOT_IN_SELECTOR.findall(s[start:j]))
+            hits[0] += _count_type_roots_in_selector(s[start:j])
             return _css_scan_block(s, j + 1, n, hits), False
         if ch == ";":
             return j + 1, False
@@ -122,14 +354,25 @@ def _css_scan_rule_chunk(
 
 
 def _css_scan_at_rule(s: str, j: int, n: int, hits: list[int]) -> int:
-    """Skip an at-rule prelude (names are not selectors); scan its block."""
+    """Skip at-rule prelude (names ≠ selectors); score selector() args; scan block."""
     # s[j] == '@'
     j += 1
     while j < n and (s[j].isalnum() or s[j] in "_-"):
         j += 1
     paren = 0
     while j < n:
+        j = _css_skip_ws(s, j, n)
+        if j >= n:
+            return j
+        paren_idx = _css_looking_at_selector_func(s, j, n)
+        if paren_idx is not None:
+            args, j = _css_read_balanced_inner(s, paren_idx)
+            hits[0] += _count_type_roots_in_selector(args)
+            continue
         ch = s[j]
+        if ch in "\"'":
+            j = _css_skip_string(s, j, n)
+            continue
         if ch == "(":
             paren += 1
             j += 1
@@ -169,10 +412,11 @@ def _css_scan_block(s: str, j: int, n: int, hits: list[int]) -> int:
 def _count_root_selectors(css: str) -> int:
     """Count html/body/:root type selectors in selector lists only.
 
-    Skips at-rule preludes (@keyframes body, @layer body, @import url(...)) and
-    declaration values (url(body.svg), image-set(body)). Still counts selectors
-    inside at-rule blocks (@media all{html{}}), functional pseudos (:is(html)),
-    and namespace type selectors (|body, svg|html, *|body).
+    Skips at-rule names (@keyframes body, @layer body) and declaration values
+    (url(body.svg), image-set(body)). Still counts selectors inside at-rule
+    blocks (@media all{html{}}), functional pseudos (:is(html)), namespace
+    type selectors (|body, svg|html, *|body), CSS-escaped types (\\62 ody),
+    and @supports selector(body) prelude args.
     """
     s = css or ""
     n = len(s)
