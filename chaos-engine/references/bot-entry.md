@@ -25,9 +25,7 @@ Install first: [harness maintenance](harness-maintenance.md#install).
    Agentic PRs carry `<!-- chaos-engine:agentic -->` (or the `agentic` label);
    CI then requires `## Plan` and `retrieve:` lines. Human PRs are exempt.
 4. Before any delete, run `tool.py delete-check <paths>`; refusal: only
-   an owner chat code unlocks ([delete guard](delete-guard.md)). Covers
-   `mv`/`rsync --delete`/raw Python deletes too. Lesson: backup dir = push
-   to remote before parking; unpushed backups parking folders warn.
+   an owner chat code unlocks ([delete guard](delete-guard.md)).
 
 Re-runs print one line while the harness is unchanged; `--full` reprints the
 cards. Run `--full` at the start of every conversation and after every
