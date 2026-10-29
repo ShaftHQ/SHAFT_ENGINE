@@ -2580,6 +2580,44 @@ def cmd_livecms(qc, args) -> int:
     return qc.report("livecms", code, **report)
 
 
+
+def _liveseo():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "liveseo_gates", Path(__file__).with_name("liveseo_gates.py"),
+    )
+    mod = importlib.util.module_from_spec(spec)
+    if spec.loader is None:
+        raise RuntimeError("liveseo_gates loader missing")
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def cmd_liveseo(qc, args) -> int:
+    """W16: cheap public SEO + AI crawler / llms.txt gate (published HTML)."""
+    ls = _liveseo()
+    if getattr(args, "fixture", None):
+        bundle = ls.load_fixture(args.fixture)
+    elif getattr(args, "url", None):
+        bundle = ls.fetch_bundle(
+            args.url,
+            link_sample=args.link_sample,
+            missing_path=args.missing_path,
+        )
+        if args.allow_og_unfixable:
+            bundle["allow_og_unfixable"] = True
+    else:
+        return qc.report("liveseo", qc.USAGE, error="pass a url or --fixture DIR")
+    report = ls.evaluate_bundle(bundle)
+    status = report.pop("status")
+    if status == "error":
+        return qc.report("liveseo", qc.USAGE, **report)
+    if status == "flag":
+        return qc.report("liveseo", qc.FLAG, **report)
+    code = qc.PASS if status == "pass" else qc.FAIL
+    return qc.report("liveseo", code, **report)
+
+
 def register(add, qc) -> None:
     """Add the craft subcommands to design_qc's parser."""
     def bind(func):
@@ -2926,6 +2964,16 @@ def register(add, qc) -> None:
     p = add("lessgrid", bind(cmd_lessgrid),
             "L33: slash grid-column/row + bare calc under LESS 1.3.3 Custom CSS")
     p.add_argument("path", help="CSS/LESS/SCSS file or directory")
+    p = add("liveseo", bind(cmd_liveseo),
+            "W16: public SEO + AI crawler / llms.txt (url or --fixture)")
+    p.add_argument("url", nargs="?", default=None, help="https URL to audit")
+    p.add_argument("--fixture", default=None, help="offline fixture directory")
+    p.add_argument("--link-sample", type=int, default=5, dest="link_sample")
+    p.add_argument("--missing-path", default="/chaosengine-liveseo-missing-probe-404",
+                   dest="missing_path")
+    p.add_argument("--allow-og-unfixable", action="store_true",
+                   dest="allow_og_unfixable",
+                   help="treat missing/http og:image as UNFIXABLE (plan-locked)")
 
     p = add("cuegapsnap", bind(cmd_cuegapsnap),
             "L17: snap cue micro-gaps under ~80ms; --check fails while pending")

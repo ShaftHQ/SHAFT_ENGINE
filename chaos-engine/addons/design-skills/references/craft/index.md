@@ -20,6 +20,7 @@ targets, an anchored rubric, and 20 verified references.
 | [Squarespace 7.1](../site-builders/squarespace-7-1.md) | Web builder without JS (companion to C01); LESS CSS L33 | none |
 | [Hosted CMS embed](../site-builders/hosted-cms-embed.md) | Product/landing paste under site chrome (L23–L31); Arabic tech L32; LESS CSS L33 | none |
 | [Site merge and redirects](../site-builders/site-merge-redirects.md) | Page merge, anchors, 301s, SEO titles | none |
+| [W16 SEO + AI-answer basics](../web-craft/seo-basics.md) | Public crawl, on-page SEO, AI crawlers / llms.txt | `liveseo` |
 
 - Field lessons (hooks over speech, mixed-script captions, talk edits,
   signed-output release, cross-surface takeaways, visual-first approach,
