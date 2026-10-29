@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import javax.annotation.Nullable;
 
 /** Session-keyed bounded Appium logcat/syslog callback storage. */
 public final class MobileLogSource {
@@ -54,6 +55,10 @@ public final class MobileLogSource {
                 provider.addErrorHandler(state.errorHandler);
                 if (!listening) {
                     URL remoteServer = serverUrl(driver);
+                    if (remoteServer == null) {
+                        throw new UnsupportedOperationException(
+                                "Cannot resolve Appium server URL for device-log broadcast.");
+                    }
                     broadcastStartAttempted = true;
                     provider.start(remoteServer);
                 }
@@ -221,6 +226,7 @@ public final class MobileLogSource {
                 "The live Appium session does not support continuous device logs.");
     }
 
+    @Nullable
     private static URL serverUrl(AppiumDriver driver) {
         if (driver.getCommandExecutor() instanceof AppiumCommandExecutor executor) {
             return executor.getAddressOfRemoteServer();

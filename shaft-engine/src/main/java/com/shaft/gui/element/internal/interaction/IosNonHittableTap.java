@@ -10,6 +10,7 @@ import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * iOS XCUITest reports {@code element.click()} as success when {@code hittable} is false
@@ -115,6 +116,7 @@ public final class IosNonHittableTap {
         }
     }
 
+    @Nullable
     private static String elementId(WebElement element) {
         if (element instanceof AppiumWebElement appiumElement) {
             return appiumElement.getId();

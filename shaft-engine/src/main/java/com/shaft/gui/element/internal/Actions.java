@@ -75,6 +75,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 
 /**
  * Provides a fluent API for performing low-level UI interactions on web and mobile elements.
@@ -2531,6 +2532,7 @@ public class Actions extends ElementActions {
         }
     }
 
+    @Nullable
     private static String mobileElementId(WebElement element) {
         if (element instanceof AppiumWebElement appiumElement) {
             return appiumElement.getId();

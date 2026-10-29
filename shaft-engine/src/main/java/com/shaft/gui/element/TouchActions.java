@@ -64,6 +64,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.Arrays;
 
 import static java.util.Arrays.asList;
+import javax.annotation.Nullable;
 
 /**
  * Provides touch and gesture actions for mobile test automation, including
@@ -2167,6 +2168,7 @@ public class TouchActions extends FluentWebDriverAction {
      * Element id for Appium mobile: commands. Appium java-client 11 returns
      * {@link AppiumWebElement} instead of Selenium {@code RemoteWebElement}.
      */
+    @Nullable
     private static String appiumElementId(WebElement element) {
         if (element instanceof AppiumWebElement appiumElement) {
             return appiumElement.getId();

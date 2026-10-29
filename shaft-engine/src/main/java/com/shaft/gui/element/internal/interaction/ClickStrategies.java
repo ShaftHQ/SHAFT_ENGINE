@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Selenium click ladder: native click → optional scroll/stabilize retry → flagged JS fallback.
@@ -199,6 +200,7 @@ public final class ClickStrategies {
         }
     }
 
+    @Nullable
     private static String elementId(WebElement element) {
         if (element instanceof AppiumWebElement appiumElement) {
             return appiumElement.getId();
