@@ -2447,7 +2447,7 @@ def cmd_lessgrid(qc, args) -> int:
         note="L33: no slash grid shorthand / bare calc under LESS 1.3.3; re-check gutters live after CSS paste",
     )
 
-# --- Hosted-CMS embed gates (L23–L31) -----------------------------------------
+# --- Hosted-CMS embed gates (L23–L31, L34 paste robots) -----------------------
 def _hosted_cms():
     import importlib.util
     spec = importlib.util.spec_from_file_location(
@@ -2461,7 +2461,7 @@ def _hosted_cms():
 
 
 def cmd_cmsmeta(qc, args) -> int:
-    """L25: paste HTML must not include og:/twitter: meta or <html lang>."""
+    """L25/L34: paste HTML must not include og/twitter, html lang, or robots noindex."""
     html = Path(args.file).read_text(encoding="utf-8")
     report = _hosted_cms().check_cms_meta(html)
     status = report.pop("status")
@@ -2892,7 +2892,7 @@ def register(add, qc) -> None:
     p.add_argument("--threshold", type=float, default=0.65,
                    help="FLAG when punchline_at/content_dur > threshold")
     p = add("cmsmeta", bind(cmd_cmsmeta),
-            "L25: paste HTML must not include og:/twitter: meta")
+            "L25/L34: paste HTML: no og/twitter, html lang, or robots noindex")
     p.add_argument("file", help="paste HTML file")
     p = add("cmsassets", bind(cmd_cmsassets),
             "L24: fail relative local assets in paste HTML")

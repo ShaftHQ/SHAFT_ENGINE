@@ -10,8 +10,8 @@ description: Use when shipping or auditing a public vibecoded, hosted-CMS, or st
 A public site ships, merges pages, or needs crawl / answer-engine visibility.
 Load after C01, [public-landing](../../../../references/public-landing.md),
 and [hosted-CMS owns meta](../lessons/hosted-cms-owns-meta.md) when relevant.
-Do **not** paste `og:` / `twitter:` / `<html lang>` into CMS Code blocks
-(L25 / `cmsmeta`); set those in the CMS SEO panel and verify live.
+Do **not** paste `og:` / `twitter:` / `<html lang>` / robots `noindex` into
+CMS Code blocks (L25/L34 / `cmsmeta`); set crawl in the CMS SEO panel and verify live.
 
 ## Crawl
 
@@ -57,7 +57,7 @@ Do **not** paste `og:` / `twitter:` / `<html lang>` into CMS Code blocks
 ## Verify
 
 - [ ] `design_qc.py liveseo <https-url>` (or `--fixture <dir>` offline); gate: [`liveseo_gates.py`](../../scripts/liveseo_gates.py)
-- [ ] `design_qc.py cmsmeta <paste.html>` still clean (no social meta in paste)
+- [ ] `design_qc.py cmsmeta <paste.html>` clean (no social meta / robots noindex in paste; L25/L34)
 - [ ] `design_qc.py livecms` / `ogimage` when embed or OG asset applies
 
 ## Sources

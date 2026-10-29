@@ -151,8 +151,8 @@ class Batch3CardsTest(unittest.TestCase):
             self.assertNotIn(old, inventory)
         flat = " ".join(inventory.split())
         for needle in ("`pptx` is proprietary and not used", "cite only (low trust)", "script not fetched or run",
-                       "ui-ux-pro-max", "superpowers ai-video-generation", "33 lesson cards (L01-L33",
-                       "land-book.com is human browsing only", "not connected (note only)", "16 web-craft cards (W01-W16":
+                       "ui-ux-pro-max", "superpowers ai-video-generation", "34 lesson cards (L01-L34",
+                       "land-book.com is human browsing only", "not connected (note only)", "16 web-craft cards (W01-W16"):
             self.assertIn(needle, flat)
         desc = (DESIGN / "addon.json").read_text(encoding="utf-8")
         self.assertIn("four video-craft cards", desc)
