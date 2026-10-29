@@ -62,12 +62,21 @@ Inside `yt/`, two exact-file exceptions are not never-touch and need the
 owner's code like any other refusal:
 
 - an old render named `*.rN.mp4` (N digits) outside `yt/meta/`
-- a file listed in the verified-upload allowlist with a valid YouTube video
-  id proof (`CHAOS_YT_VERIFIED_DELETE` path, or else
-  `~/.config/chaos-engine/yt-verified-delete.txt` when present). Each line is
-  `absolute/path.mp4 <11-char-video-id>`. Globs, directories, missing or
-  malformed proofs are ignored. The allowlist is local/env-only; never commit
-  real paths or titles.
+- a file listed in the verified-upload allowlist that passes live checks.
+  Allowlist path: `CHAOS_YT_VERIFIED_DELETE` (must be owner-only mode `0600`
+  and owned by the current user) or else
+  `~/.config/chaos-engine/yt-verified-delete.txt` under the same owner-only
+  rule. The source used is logged. Each line is
+  `absolute/path.mp4 <11-char-video-id> <sha256>`. At `request_code` and
+  `check` time the guard requires: (1) exact path with no `..` and no
+  symlink components; (2) `realpath(path)` equals the normalized listed
+  path, lies under the `yt` root, and is not under `yt/meta`; (3) file
+  sha256 matches the entry; (4) YouTube oEmbed
+  (`/oembed?url=...watch?v=<id>&format=json`) returns HTTP 200 (result
+  cached with a timestamp under state; network errors, non-200, and
+  private videos stay locked). Globs, directories, escapes, and malformed
+  proofs are ignored. The allowlist is local/env-only; never commit real
+  paths or titles. Env override cannot widen unlocks without those checks.
 
 `yt/` itself, `yt/meta/**`, and any unlisted or unverified yt file stay
 never-touch with no code override. `wt-relblock`, `wt-ls` and `ce-src-*` use

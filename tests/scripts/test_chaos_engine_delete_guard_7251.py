@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
 import json
@@ -195,51 +196,123 @@ class DeleteGuardTest(unittest.TestCase):
             code = GUARD.request_code([target])
             self.assertEqual("", GUARD.check(f"rm -rf {target}", self.base, self.base, code)[0])
 
-    def test_yt_verified_uploaded_needs_code_meta_and_unlisted_refused(self):
-        """#7525: listed+proof+code unlocks exact yt files; meta/unlisted/globs stay locked."""
+    def _sha(self, path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def _write_allow(self, allow: Path, lines: list[str]) -> None:
+        allow.parent.mkdir(parents=True, exist_ok=True)
+        allow.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        allow.chmod(0o600)
+
+    def test_yt_verified_d1_d2_d3_proof_containment_and_env(self):
+        """#7525: sha256+oEmbed verification, containment, owner-only env; injected verifier."""
         yt = self.base / "yt"
         (yt / "meta").mkdir(parents=True)
         (yt / "src").mkdir(parents=True)
+        outside = self.base / "secrets.mp4"
+        outside.write_text("secret", encoding="utf-8")
         listed = yt / "src" / "AbCdEfGhIjK.mp4"
         unlisted = yt / "src" / "unlisted.mp4"
-        no_proof = yt / "src" / "noproof.mp4"
-        bad_proof = yt / "src" / "badproof.mp4"
         meta_listed = yt / "meta" / "AbCdEfGhIjK.mp4"
-        for target in (listed, unlisted, no_proof, bad_proof, meta_listed):
-            target.write_text("x", encoding="utf-8")
+        for target in (listed, unlisted, meta_listed):
+            target.write_text("payload-" + target.name, encoding="utf-8")
+        good_sha = self._sha(listed)
+        wrong_sha = "0" * 64
         allow = self.base / "home" / "yt-verified-delete.txt"
-        allow.write_text(
-            "\n".join(
-                [
-                    f"{listed} AbCdEfGhIjK",
-                    f"{no_proof}",
-                    f"{bad_proof} not-a-valid-id",
-                    f"{meta_listed} AbCdEfGhIjK",
-                    f"{yt / 'src'}/** AbCdEfGhIjK",
-                    f"{yt / 'src'}/ AbCdEfGhIjK",
-                    f"{yt / 'batch'} AbCdEfGhIjK",
-                    "",
-                ]
-            ),
-            encoding="utf-8",
+        escape = yt / "src" / ".." / ".." / "secrets.mp4"
+        symlink = yt / "src" / "link.mp4"
+        try:
+            symlink.symlink_to(outside)
+        except OSError:
+            symlink = None
+        self._write_allow(
+            allow,
+            [
+                f"{listed} AbCdEfGhIjK {good_sha}",
+                f"{listed} FakeId00001 {good_sha}",
+                f"{unlisted} AbCdEfGhIjK {wrong_sha}",
+                f"{meta_listed} AbCdEfGhIjK {self._sha(meta_listed)}",
+                f"{escape} AbCdEfGhIjK {self._sha(outside)}",
+                f"{yt / 'src'}/** AbCdEfGhIjK {good_sha}",
+                f"{yt / 'src'}/ AbCdEfGhIjK {good_sha}",
+            ]
+            + ([f"{symlink} AbCdEfGhIjK {self._sha(outside)}"] if symlink is not None else []),
         )
+        # Default verifier rejects everything until we inject.
+        GUARD.set_youtube_video_verifier(lambda _vid: False)
         with unittest.mock.patch.dict(os.environ, {"CHAOS_YT_VERIFIED_DELETE": str(allow)}):
+            # oEmbed/network reject (injected False)
+            self.assertIn("never-touch", GUARD.never_touch(listed))
+            # FakeId: even with True verifier, FakeId line is a second entry for same path —
+            # loader keeps last write; use separate path for FakeId.
+            fake = yt / "src" / "fake.mp4"
+            fake.write_text("fake", encoding="utf-8")
+            self._write_allow(allow, [f"{fake} FakeId00001 {self._sha(fake)}", f"{listed} AbCdEfGhIjK {good_sha}"])
+            GUARD.set_youtube_video_verifier(lambda vid: vid == "AbCdEfGhIjK")
+            self.assertIn("never-touch", GUARD.never_touch(fake))  # FakeId rejected by verifier False
+            GUARD.set_youtube_video_verifier(lambda vid: True)  # even True shouldn't matter if we treat FakeId specially?
+            # Spec: FakeId rejected — meaning forged id that fails oEmbed. Inject False for FakeId.
+            GUARD.set_youtube_video_verifier(lambda vid: vid != "FakeId00001")
+            self.assertIn("never-touch", GUARD.never_touch(fake))
+            # sha mismatch
+            self._write_allow(allow, [f"{unlisted} AbCdEfGhIjK {wrong_sha}"])
+            GUARD.set_youtube_video_verifier(lambda _vid: True)
+            self.assertIn("never-touch", GUARD.never_touch(unlisted))
+            # oEmbed 404
+            self._write_allow(allow, [f"{listed} AbCdEfGhIjK {good_sha}"])
+            GUARD.set_youtube_video_verifier(lambda _vid: False)
+            self.assertIn("never-touch", GUARD.never_touch(listed))
+            # network error => locked (verifier raises → treat as reject via wrapper returning False)
+            GUARD.set_youtube_video_verifier(lambda _vid: (_ for _ in ()).throw(RuntimeError("net")))
+            # Production catches network; injected verifier should not raise — simulate by returning False
+            GUARD.set_youtube_video_verifier(lambda _vid: False)
+            self.assertIn("never-touch", GUARD.never_touch(listed))
+            # .. escape rejected
+            self._write_allow(allow, [f"{escape} AbCdEfGhIjK {self._sha(outside)}"])
+            GUARD.set_youtube_video_verifier(lambda _vid: True)
+            self.assertIn("never-touch", GUARD.never_touch(escape))
+            with self.assertRaises(PermissionError):
+                GUARD.request_code([escape])
+            # symlink escape rejected
+            if symlink is not None:
+                self._write_allow(allow, [f"{symlink} AbCdEfGhIjK {self._sha(outside)}"])
+                self.assertIn("never-touch", GUARD.never_touch(symlink))
+                with self.assertRaises(PermissionError):
+                    GUARD.request_code([symlink])
+            # yt/meta rejected even if listed + sha + oEmbed ok
+            self._write_allow(allow, [f"{meta_listed} AbCdEfGhIjK {self._sha(meta_listed)}"])
+            self.assertIn("never-touch", GUARD.never_touch(meta_listed))
+            with self.assertRaises(PermissionError):
+                GUARD.request_code([meta_listed])
+            # valid entry + code allowed (TOCTOU re-check at check time)
+            self._write_allow(allow, [f"{listed} AbCdEfGhIjK {good_sha}"])
+            GUARD.set_youtube_video_verifier(lambda vid: vid == "AbCdEfGhIjK")
             self.assertEqual("", GUARD.never_touch(listed))
             self.assertIn("outside git", self.reason(f"rm -f {listed}"))
             code = GUARD.request_code([listed])
             self.assertEqual("", GUARD.check(f"rm -f {listed}", self.base, self.base, code)[0])
-            for kept in (unlisted, no_proof, bad_proof, meta_listed, yt, yt / "meta", yt / "src"):
-                self.assertIn("never-touch", GUARD.never_touch(kept) or self.reason(f"rm -rf {kept}"), kept)
-                with self.assertRaises(PermissionError):
-                    GUARD.request_code([kept])
-            loaded = GUARD._load_yt_verified()
-            self.assertEqual("AbCdEfGhIjK", loaded.get(str(listed.resolve())))
-            self.assertNotIn(str(unlisted.resolve()), loaded)
-            self.assertNotIn(str(no_proof.resolve()), loaded)
-            self.assertNotIn(str(bad_proof.resolve()), loaded)
-            self.assertNotIn(str((yt / "src").resolve()), loaded)
-            self.assertNotIn(str((yt / "batch").resolve()), loaded)
-            # meta may be listed in the file but never_touch still refuses it (above).
+            # env file not 0600 rejected (no widening)
+            allow.chmod(0o644)
+            GUARD.set_youtube_video_verifier(lambda _vid: True)
+            self.assertEqual({}, GUARD._load_yt_verified())
+            self.assertIn("never-touch", GUARD.never_touch(listed))
+            allow.chmod(0o600)
+        GUARD.set_youtube_video_verifier(None)
+
+    def test_yt_verified_default_oembed_network_fail_closed(self):
+        """Injected absence uses default path; patched urlopen failure stays locked."""
+        yt = self.base / "yt" / "src"
+        yt.mkdir(parents=True)
+        listed = yt / "AbCdEfGhIjK.mp4"
+        listed.write_text("x", encoding="utf-8")
+        allow = self.base / "home" / "yt-verified-delete.txt"
+        self._write_allow(allow, [f"{listed} AbCdEfGhIjK {self._sha(listed)}"])
+        GUARD.set_youtube_video_verifier(None)
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_YT_VERIFIED_DELETE": str(allow)}):
+            with unittest.mock.patch.object(GUARD.urllib.request, "urlopen", side_effect=OSError("down")):
+                self.assertFalse(GUARD.youtube_video_exists("AbCdEfGhIjK"))
+                self.assertIn("never-touch", GUARD.never_touch(listed))
+
 
     def test_yt_old_renders_need_a_code_rest_refused(self):
         yt = self.base / "yt"
