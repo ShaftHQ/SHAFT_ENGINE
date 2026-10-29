@@ -872,7 +872,12 @@ META_DESC_RE = re.compile(
     r"^## Description[^\n]*\n\n(?P<body>(?:.+\n){3}.+)\n?\Z",
     re.MULTILINE,
 )
-META_LINE1_PREFIX = "مقطع من الـ Q&A: "
+# G16 line-1 prefixes by Shorts type (L22). Default remains qa for back-compat.
+META_LINE1_PREFIXES = {
+    "qa": "مقطع من الـ Q&A: ",
+    "viral": "مقطع: ",
+}
+META_LINE1_PREFIX = META_LINE1_PREFIXES["qa"]
 META_LINE2_RE = re.compile(
     r"^الإجابة كاملة: https://www\.youtube\.com/watch\?v=[A-Za-z0-9_-]+&t=\d+(?:\.\d+)?s$"
 )
@@ -882,27 +887,31 @@ def cmd_metadatadesc(qc, args) -> int:
     """G16: METADATA description is exactly 4 lines matching the Shorts template.
 
     Project site URL and hashtag line are passed in (--site / --tags); never
-    hard-coded here (generic placeholders only).
+    hard-coded here (generic placeholders only). --type qa|viral selects the
+    line-1 prefix (L22 ear-lock templates).
     """
     text = Path(args.file).read_text(encoding="utf-8")
     tm = META_TITLE_RE.search(text)
     dm = META_DESC_RE.search(text)
     errors: list[str] = []
     title = tm.group("title").strip() if tm else ""
+    kind = getattr(args, "type", None) or "qa"
+    prefix = META_LINE1_PREFIXES.get(kind, META_LINE1_PREFIXES["qa"])
     if not tm:
         errors.append("title_block_missing")
     if not dm:
         errors.append("desc_block_missing")
         return qc.report(
-            "metadatadesc", qc.FAIL, errors=errors, title=title, lines=[], gate="G16"
+            "metadatadesc", qc.FAIL, errors=errors, title=title, lines=[], gate="G16",
+            type=kind,
         )
     body_lines = [ln.rstrip() for ln in dm.group("body").splitlines() if ln.strip()]
     if len(body_lines) != 4:
         errors.append(f"desc_line_count={len(body_lines)} want 4")
     lines = (body_lines + [""] * 4)[:4]
-    if not lines[0].startswith(META_LINE1_PREFIX):
+    if not lines[0].startswith(prefix):
         errors.append("line1_prefix")
-    elif title and lines[0] != META_LINE1_PREFIX + title:
+    elif title and lines[0] != prefix + title:
         errors.append("line1_title_mismatch")
     if not META_LINE2_RE.match(lines[1]):
         errors.append("line2_watch_url")
@@ -917,7 +926,9 @@ def cmd_metadatadesc(qc, args) -> int:
         title=title,
         lines=lines,
         gate="G16",
-        note="4-line desc template; pass --site and --tags for project fill-ins",
+        type=kind,
+        prefix=prefix,
+        note="4-line desc template; --type qa|viral; pass --site/--tags for project fill-ins",
     )
 
 
@@ -2176,6 +2187,83 @@ def cmd_mutespan(qc, args) -> int:
     )
 
 
+def check_viral_pacing(
+    content_dur: float,
+    punchline_at: float,
+    *,
+    type_: str = "viral",
+    threshold: float = 0.65,
+) -> dict:
+    """L21: late punchline on type=viral → FLAG (advisory), never FAIL.
+
+    punchline_rel = punchline_at / content_dur. FLAG when type=viral and
+    punchline_rel > threshold. Non-viral types PASS (N/A). Bad inputs → error.
+    """
+    reasons: list[str] = []
+    try:
+        content_dur_f = float(content_dur)
+    except (TypeError, ValueError):
+        content_dur_f = float("nan")
+    try:
+        punchline_f = float(punchline_at)
+    except (TypeError, ValueError):
+        punchline_f = float("nan")
+    if not math.isfinite(content_dur_f) or content_dur_f <= 0:
+        reasons.append(f"content_dur NaN or <=0 ({content_dur!r})")
+    if not math.isfinite(punchline_f) or punchline_f < 0:
+        reasons.append(f"punchline_at NaN or <0 ({punchline_at!r})")
+    if reasons:
+        return {
+            "status": "error",
+            "type": type_,
+            "content_dur_s": None,
+            "punchline_at_s": None,
+            "punchline_rel": None,
+            "threshold": threshold,
+            "reasons": reasons,
+        }
+    base = {
+        "type": type_,
+        "content_dur_s": round(content_dur_f, 3),
+        "punchline_at_s": round(punchline_f, 3),
+        "punchline_rel": round(punchline_f / content_dur_f, 4),
+        "threshold": threshold,
+        "reasons": [],
+    }
+    if type_ != "viral":
+        return {**base, "status": "pass", "note": "pacing FLAG applies to type=viral only"}
+    rel = punchline_f / content_dur_f
+    if rel > threshold + 1e-9:
+        return {
+            **base,
+            "status": "flag",
+            "reasons": [f"punchline_rel {rel:.3f} > {threshold}"],
+            "note": "advisory FLAG: late punchline; do not REJECT on pacing alone",
+        }
+    return {**base, "status": "pass", "note": "punchline within threshold"}
+
+
+def cmd_viralpacing(qc, args) -> int:
+    """L21: viral punchline timing FLAG (late → flag exit 0, never fail)."""
+    if args.content_dur is None:
+        return qc.report("viralpacing", qc.USAGE, error="pass --content-dur seconds")
+    if args.punchline_at is None:
+        return qc.report("viralpacing", qc.USAGE, error="pass --punchline-at seconds")
+    report = check_viral_pacing(
+        float(args.content_dur),
+        float(args.punchline_at),
+        type_=str(args.type),
+        threshold=float(args.threshold),
+    )
+    status = report["status"]
+    payload = {k: v for k, v in report.items() if k != "status"}
+    if status == "error":
+        return qc.report("viralpacing", qc.USAGE, **payload)
+    if status == "flag":
+        return qc.report("viralpacing", qc.FLAG, **payload)
+    return qc.report("viralpacing", qc.PASS, **payload)
+
+
 def snap_cue_micro_gaps(cues: list[dict], *, max_gap: float = 0.08) -> tuple[list[dict], list[str]]:
     """Snap sub-max_gap gaps; close micro-overlaps at midpoint (L17)."""
     if not cues:
@@ -2407,6 +2495,8 @@ def register(add, qc) -> None:
                    help="exact line-3 site URL (project fill-in; no default)")
     p.add_argument("--tags", required=True,
                    help="exact line-4 hashtag string (project fill-in; no default)")
+    p.add_argument("--type", choices=("qa", "viral"), default="qa",
+                   help="L22: line-1 prefix qa=مقطع من الـ Q&A: / viral=مقطع:")
     p = add("hookbleed", bind(cmd_hookbleed),
             "OUT SRT must not straddle hook_end with under-hook speech")
     p.add_argument("srt")
@@ -2522,6 +2612,16 @@ def register(add, qc) -> None:
                    help="content duration seconds (exclude end card)")
     p.add_argument("--max-span", type=float, default=2.0, dest="max_span")
     p.add_argument("--max-frac", type=float, default=0.10, dest="max_frac")
+    p = add("viralpacing", bind(cmd_viralpacing),
+            "L21: viral late-punchline FLAG (advisory; never FAIL)")
+    p.add_argument("--content-dur", type=float, required=True, dest="content_dur",
+                   help="content duration seconds (exclude end card)")
+    p.add_argument("--punchline-at", type=float, required=True, dest="punchline_at",
+                   help="absolute seconds where title claim / punchline lands")
+    p.add_argument("--type", choices=("viral", "qa", "other"), default="viral",
+                   help="only type=viral can FLAG; others PASS")
+    p.add_argument("--threshold", type=float, default=0.65,
+                   help="FLAG when punchline_at/content_dur > threshold")
     p = add("cuegapsnap", bind(cmd_cuegapsnap),
             "L17: snap cue micro-gaps under ~80ms; --check fails while pending")
     p.add_argument("file", help="caption SRT")
