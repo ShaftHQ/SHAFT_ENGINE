@@ -159,13 +159,19 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertLess(helper.find("APK_PATH="), helper.find('ls -l "$APK_PATH"'))
         self.assertIn("-Dallure.automaticallyOpen=false", helper)
         self.assertIn("-DheadlessExecution=true", helper)
-        # Two intentional mentions after #7496: mavenLog grep trigger, then
-        # mobile_retro_runtime device-fallback --error-msg for the one restart.
+        # #7496 on main: GNU timeout primary + one capped restart; "socket hang up"
+        # appears in the mavenLog grep and in the warning text (not a device-fallback
+        # --mode error no-op). Detailed timeout contracts live in test_mobile_retro_harness.
+        capped = (
+            'timeout --signal=TERM --kill-after=60s "$DEVICE_CAP_S" '
+            "bash -c 'attempt_flutter_test'"
+        )
+        self.assertEqual(2, helper.count(capped))
         self.assertIn('grep -q "socket hang up"', helper)
-        self.assertIn('--error-msg "socket hang up"', helper)
         self.assertEqual(2, helper.count("socket hang up"))
-        self.assertIn("Restarting Appium once (device fallback).", helper)
-        self.assertLess(helper.find("socket hang up"), helper.rfind("attempt_flutter_test"))
+        self.assertIn("authorized device fallback", helper)
+        self.assertNotIn("device-fallback --mode error", helper)
+        self.assertNotIn("Restarting Appium once.", helper)
         self.assertIn("shaft-engine/allure-results", helper)
         self.assertIn("127.0.0.1:4723", helper)
 
