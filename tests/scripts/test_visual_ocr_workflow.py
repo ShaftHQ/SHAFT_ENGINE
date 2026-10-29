@@ -164,7 +164,7 @@ class VisualOcrWorkflowTest(unittest.TestCase):
         self.assertIn('grep -q "socket hang up"', helper)
         self.assertIn('--error-msg "socket hang up"', helper)
         self.assertEqual(2, helper.count("socket hang up"))
-        self.assertIn("Restarting Appium once.", helper)
+        self.assertIn("Restarting Appium once (device fallback).", helper)
         self.assertLess(helper.find("socket hang up"), helper.rfind("attempt_flutter_test"))
         self.assertIn("shaft-engine/allure-results", helper)
         self.assertIn("127.0.0.1:4723", helper)
