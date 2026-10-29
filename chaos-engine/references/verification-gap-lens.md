@@ -89,3 +89,8 @@ wouldn't catch it), `gap_shape` (one of the four above, or `other` for a
 genuine problem noticed in passing), `evidence` (what you actually read,
 with `file:line`). An empty list is a valid, complete result — say so
 plainly rather than padding with low-confidence noise.
+
+## Related
+
+Mobile / backend retro helpers (freeze, Blocked gate, primary time-cap, tracked NO_PUSH, evidence pin, NamedBlock by gap id): [mobile-retro-harness.md](mobile-retro-harness.md).
+Public-repo client-name scrub: [client-name-scrub.md](client-name-scrub.md).

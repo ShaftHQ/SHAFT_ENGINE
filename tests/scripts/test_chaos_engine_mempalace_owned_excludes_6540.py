@@ -201,5 +201,22 @@ class OwnedExcludesTest(unittest.TestCase):
             self.assertIn(".chaos-engine/**", (project / "mempalace.yaml").read_text(encoding="utf-8"))
 
 
+    def test_mine_decision_merges_owned_excludes_before_mine_7436(self):
+        """#7436: user-owned yaml still gets harness excludes before mine."""
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary)
+            (project / "mempalace.yaml").write_text(
+                INIT_GENERATED + "exclude_patterns:\n  - 'custom-only/**'\n",
+                encoding="utf-8",
+            )
+            mode, _reason = self.dependencies.mempalace_mine_decision(
+                project, command=["mempalace", "mine", "."]
+            )
+            text = (project / "mempalace.yaml").read_text(encoding="utf-8")
+            self.assertIn(".chaos-engine/**", text)
+            self.assertIn("custom-only/**", text)
+            self.assertIn(mode, {"full", "incremental"})
+
+
 if __name__ == "__main__":
     unittest.main()

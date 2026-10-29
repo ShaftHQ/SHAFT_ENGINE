@@ -35,3 +35,13 @@ Waste is any token, retry, duplicate tool, proxy hop, or retry-the-same-search t
 - Do not push one tip per micro-fix. Run [tip-churn preflight](tip-churn-preflight.md) first.
 
 Checked-in memory: `.memory/memory/constraints/token-optimization-is-eliminate-waste.md`.
+
+## Named assertion fix
+
+When the specification already names the file, the method, and the
+assertion that must fail when a specific line is deleted, edit that
+assertion and run that test. Do not rediscover the repository first.
+A dispatch for a named assertion fix must include the file path and
+the test command. Stop when that test is red for the deletion and
+green for the fix. Hundreds of tool calls with a clean worktree
+against a precise spec is a miss (Yagni; small CLs).
