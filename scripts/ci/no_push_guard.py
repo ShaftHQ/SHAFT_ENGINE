@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Tracked NO_PUSH / WIP push guard (#7497).
+"""Tracked NO_PUSH / WIP push guard.
 
 Keep this file tracked. WIP pushes that relied on an untracked assert-push
 script broke push-once; the pre-push contract fails closed when this path is
-missing from ``git ls-files``.
+missing from ``git ls-files`` on a checkout that ships mobile_retro.
 """
 
 from __future__ import annotations
@@ -19,9 +19,9 @@ if str(REPO_ROOT) not in sys.path:
 def main(argv: list[str] | None = None) -> int:
     root = Path(argv[1]).resolve() if argv and len(argv) > 1 else Path.cwd()
     sys.path.insert(0, str(root / "chaos-engine"))
-    import hrsd_j11  # noqa: WPS433
+    import mobile_retro  # noqa: WPS433
 
-    failures = hrsd_j11.no_push_guard_tracked(root)
+    failures = mobile_retro.no_push_guard_tracked(root)
     if failures:
         for item in failures:
             print(f"no_push_guard: {item}", file=sys.stderr)

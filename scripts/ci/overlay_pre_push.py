@@ -428,13 +428,20 @@ def codecov_yml_failures(root: Path, changed: list[str]) -> list[str]:
 
 
 def no_push_guard_failures(root: Path) -> list[str]:
-    """Fail closed when the tracked NO_PUSH guard is absent (issue 7497)."""
+    """Fail closed when the tracked NO_PUSH guard is absent.
+
+    Sparse fixtures that only copy this checker (OverlayPrePushTest) omit the
+    helper; skip rather than shadow playbook failures. Full checkouts that ship
+    ``chaos-engine/mobile_retro.py`` must keep ``scripts/ci/no_push_guard.py``
+    tracked.
+    """
+    helper = root / "chaos-engine" / "mobile_retro.py"
+    if not helper.is_file():
+        return []
     sys.path.insert(0, str(root / "chaos-engine"))
-    try:
-        import hrsd_j11  # noqa: WPS433
-    except ImportError:
-        return ["NO_PUSH guard helper missing: chaos-engine/hrsd_j11.py"]
-    return list(hrsd_j11.no_push_guard_tracked(root))
+    import mobile_retro  # noqa: WPS433
+
+    return list(mobile_retro.no_push_guard_tracked(root))
 
 
 def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> list[str]:

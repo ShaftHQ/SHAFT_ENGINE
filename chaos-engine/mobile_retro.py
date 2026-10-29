@@ -1,24 +1,26 @@
-"""HRSD J11 retro harness helpers (issues 7493-7499).
+"""Mobile-automation retro harness helpers.
 
-Pure helpers so mobile / backend executor loops can freeze evidence, classify
-backend gates as Blocked early, time-cap a failing primary path, keep a tracked
-NO_PUSH guard, pin evidence to build+branch, and key NamedBlock on gap ids.
+Pure helpers so executor loops can freeze evidence, classify backend gates as
+Blocked early, time-cap a failing primary path (killing a hung primary), keep a
+tracked NO_PUSH guard, pin evidence to build+branch, and key NamedBlock on gap
+ids. See references/mobile-retro-harness.md.
 """
 
 from __future__ import annotations
 
+import multiprocessing
 import shutil
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
 
 NO_PUSH_GUARD_REL = "scripts/ci/no_push_guard.py"
+HELPER_REL = "chaos-engine/mobile_retro.py"
 
 
 @dataclass(frozen=True)
 class EvidencePin:
-    """Immutable identity of the green evidence cohort (issue 7498)."""
+    """Immutable identity of the green evidence cohort."""
 
     build_id: str
     branch: str
@@ -26,7 +28,7 @@ class EvidencePin:
 
 @dataclass(frozen=True)
 class NamedBlock:
-    """One block keyed by gap id, not scenario id (issue 7499)."""
+    """One block keyed by gap id, not scenario id."""
 
     gap_id: str
     scenarios: tuple[str, ...]
@@ -34,7 +36,7 @@ class NamedBlock:
 
 
 def freeze_results_snapshot(results_dir: Path, snapshot_dir: Path, *, green: bool) -> Path | None:
-    """Copy a green results directory into snapshot_dir (issue 7494).
+    """Copy a green results directory into snapshot_dir.
 
     A later failing run must not overwrite an existing green snapshot.
     Returns the snapshot path when a freeze happened or an existing green
@@ -55,7 +57,7 @@ def freeze_results_snapshot(results_dir: Path, snapshot_dir: Path, *, green: boo
 
 
 def classify_blocker(signature: str) -> str:
-    """Return Blocked early for known backend-gated signatures (issue 7495).
+    """Return Blocked early for known backend-gated signatures.
 
     App rebuilds cannot clear a server-side gate (for example an API that
     ignores the app version code).
@@ -73,33 +75,53 @@ def classify_blocker(signature: str) -> str:
     return "Failed"
 
 
+def _primary_worker(queue: multiprocessing.Queue, primary: Callable[[], object]) -> None:
+    try:
+        queue.put(("ok", primary()))
+    except BaseException as exc:  # noqa: BLE001 - surface any primary failure to parent
+        queue.put(("err", exc))
+
+
 def run_with_time_cap(
     primary: Callable[[], object],
     fallback: Callable[[], object],
     *,
     cap_s: float,
-    clock: Callable[[], float] | None = None,
-    sleeper: Callable[[float], None] | None = None,
 ) -> object:
-    """Run primary under a wall-clock cap; on timeout or failure use fallback (issue 7496)."""
+    """Run primary under a wall-clock cap; kill it and use fallback on hang or error.
+
+    Uses a forked child process so a hung primary can be terminated. Requires a
+    picklable-or-forkable callable (closures work under fork on Linux/macOS).
+    """
     if cap_s <= 0:
         raise ValueError("cap_s must be positive")
-    now = clock or time.monotonic
-    sleep = sleeper or time.sleep
-    started = now()
-    try:
-        result = primary()
-    except Exception:
+    ctx = multiprocessing.get_context("fork")
+    queue: multiprocessing.Queue = ctx.Queue(1)
+    proc = ctx.Process(target=_primary_worker, args=(queue, primary), daemon=True)
+    proc.start()
+    proc.join(timeout=cap_s)
+    if proc.is_alive():
+        proc.terminate()
+        proc.join(timeout=min(1.0, max(cap_s, 0.1)))
+        if proc.is_alive():
+            proc.kill()
+            proc.join(timeout=1.0)
         return fallback()
-    elapsed = now() - started
-    if elapsed > cap_s:
-        sleep(0)
+    if queue.empty():
         return fallback()
-    return result
+    kind, payload = queue.get_nowait()
+    if kind == "err":
+        return fallback()
+    return payload
+
+
+def feature_present(root: Path) -> bool:
+    """True when this checkout ships the mobile-retro helper (not a sparse fixture)."""
+    return (Path(root) / HELPER_REL).is_file()
 
 
 def no_push_guard_tracked(root: Path, *, tracked_paths: Iterable[str] | None = None) -> list[str]:
-    """Fail when the NO_PUSH guard is missing from the tracked set (issue 7497)."""
+    """Fail when the NO_PUSH guard is missing from the tracked set."""
     rel = NO_PUSH_GUARD_REL
     if tracked_paths is None:
         import subprocess  # nosec B404
@@ -122,12 +144,12 @@ def no_push_guard_tracked(root: Path, *, tracked_paths: Iterable[str] | None = N
 
 
 def evidence_matches_pin(pin: EvidencePin, *, build_id: str, branch: str) -> bool:
-    """Accept evidence only when build id and branch match the green pin (issue 7498)."""
+    """Accept evidence only when build id and branch match the green pin."""
     return pin.build_id == build_id and pin.branch == branch
 
 
 def named_blocks_by_gap(scenarios: Iterable[tuple[str, str, str]]) -> list[NamedBlock]:
-    """Collapse scenarios that share a gap id into one NamedBlock (issue 7499)."""
+    """Collapse scenarios that share a gap id into one NamedBlock."""
     buckets: dict[str, list[tuple[str, str]]] = {}
     for scenario_id, gap_id, reason in scenarios:
         buckets.setdefault(gap_id, []).append((scenario_id, reason))
