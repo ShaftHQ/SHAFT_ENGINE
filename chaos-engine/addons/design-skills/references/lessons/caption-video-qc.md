@@ -41,10 +41,10 @@ and [L03](talk-edit-and-layers.md).
 9. Rendered-mix transcript diffs are noisy over music and end cards. Gate
    on cross-source agreement plus tagged misses; keep the rendered diff as
    evidence and waive only with a recorded reason. For SRT↔`words.json`,
-   always report **exact-raw** and fuzzy side-by-side (`design_qc.py
-   txdiff`): exact-raw = Latin `.lower()` only, no alias, no
-   SequenceMatcher. Gate and headline = exact-raw; never label fuzzy
-   “raw”.
+   always report **exact-raw** and fuzzy (`design_qc.py txdiff`): exact-raw
+   = Latin `.lower()` only, no alias. **G20:** always report
+   `diff_exact_raw_normalized` and `diff_exact_raw_asr` (`--words-raw`);
+   gate both ≤ max. Never label fuzzy “raw”.
 10. A span starts on a shot cut and a clean sentence onset, never
     mid-phrase or on a cutaway.
 11. Every cue edit re-runs the caption checks: removing a word can
@@ -57,12 +57,17 @@ and [L03](talk-edit-and-layers.md).
     alone for mid-answer dead air. Hard gate: FAIL if any mid-answer gap
     (after `hook_end`, before end-card) **>0.6 s**. Soft target: aim
     mid-answer gaps **≤0.45 s** (`--target 0.45` warns above it without
-    failing). Always pass `--content-end` (last word / last cue, not
+    failing); when splicing prefer a **≤0.40 s** margin under that soft
+    target. Always pass `--content-end` (last word / last cue, not
     end-card); default `duration−0.3` is **not** safe for long end pads.
 14. Antecedent check on every splice: pronouns and epithets in the kept
     span need their referent noun/setup still present (or rewrite the
     card/caption so the referent is self-contained). Gate with
     `design_qc.py antecedent` (`--epithet` / `--noun`).
+15. **G19 ASR orthography:** before handoff, audit title + short/footer +
+    hook + every caption for ASR ه-for-ة (`وضعيه`→`وضعية`). Gate with
+    `design_qc.py orthography`. Keep colloquial form; fix listed nouns
+    only. Re-render when on-screen cue text changes.
 
 ## Verify
 
@@ -79,12 +84,16 @@ and [L03](talk-edit-and-layers.md).
 - [ ] `design_qc.py silencegap final.mp4 --hook-end <s> --content-end <s>`
       passes hard (>0.6 s FAIL); `--target 0.45` has no soft warnings for
       handoff; `--content-end` = last speech, not end-card.
-- [ ] `design_qc.py txdiff cues.srt words.json` reports exact-raw + fuzzy;
-      gate on exact-raw.
+- [ ] `design_qc.py txdiff cues.srt words.json --words-raw words_raw.json`
+      reports `diff_exact_raw_normalized` + `diff_exact_raw_asr` + fuzzy;
+      gate both exact-raw ≤ max.
 - [ ] `design_qc.py antecedent kept.txt --epithet <e> --noun <n>` passes
       after every splice.
+- [ ] `design_qc.py orthography --srt cues.srt --title T --short S --hook H`
+      passes (G19).
 - [ ] Notes record the scene-cut scan, the reframe tile check and the
       shot-cut onset.
+- [ ] Soft silence handoff: no `--target 0.45` warnings; prefer ≤0.40 mid-gap.
 
 ## Sources
 

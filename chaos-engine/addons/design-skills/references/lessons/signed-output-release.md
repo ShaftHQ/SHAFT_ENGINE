@@ -25,7 +25,8 @@ visual or gate change is coming. It pairs with
 4. Self-review before asking for sign-off: frames from 0-4 s at 10 fps, a
    contact sheet, and the hook-end, video-end and first-cue-after-card
    frames. Mid-answer silence must meet the **≤0.45 s soft target**
-   (`silencegap --target 0.45` with no soft warnings) before handoff —
+   (`silencegap --target 0.45` with no soft warnings; prefer **≤0.40 s**
+   mid-gap when splicing) before handoff —
    do not send a near-limit 0.57–0.60 s gap for review. Any **self-flagged
    doubt** (script form vs Latin, lexicon gap, modality risk) must be
    **fixed before handoff** — do not ask the reviewer to decide. Gate:
@@ -47,6 +48,12 @@ visual or gate change is coming. It pairs with
    (3) project site URL; (4) project hashtag line. Gate before handoff:
    `design_qc.py metadatadesc METADATA.md --site <url> --tags "<tags>"`
    (write `qc/<rev>/metadata_desc_gate.json`).
+9. **G21/G22 title polarity + kept binding:** token presence ≠ meaning.
+   Per title segment (split on —), source-cue negation lemmas stay in
+   that segment. G22: ordered content-token match ⊆ kept spans
+   (complement of `--splice`); claim must not live only in a cut.
+   Gate: `design_qc.py titlepolarity --title T --srt cues.srt`
+   `[--words W --splice a-b]` (or `--metadata`).
 
 ## Verify
 
@@ -58,12 +65,16 @@ visual or gate change is coming. It pairs with
       crop.
 - [ ] Only one Short is in flight through schedule; no parallel Chrome
       profile renders.
-- [ ] `silencegap --target 0.45` shows no soft warnings before handoff
+- [ ] `silencegap --target 0.45` shows no soft warnings before handoff (prefer ≤0.40)
+- [ ] `txdiff … --words-raw` reports normalized + ASR exact-raw (G20)
+- [ ] `orthography` passes on title/short/hook/SRT (G19)
       (hard >0.6 s already FAIL).
 - [ ] `design_qc.py opendoubt SELF-REVIEW.md` passes (no open self-flagged
       doubts).
 - [ ] `design_qc.py metadatadesc METADATA.md --site … --tags …` passes
       (exact 4-line desc; site/tags are project fill-ins).
+- [ ] `design_qc.py titlepolarity --title … --srt … [--words … --splice …]`
+      passes (G21 polarity; G22 claim ⊆ kept when words given).
 
 ## Sources
 

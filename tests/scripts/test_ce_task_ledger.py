@@ -59,6 +59,59 @@ class TaskLedgerTest(unittest.TestCase):
         self.assertTrue(self.ledger.over_budget("t2", 40, now=41 * 60)[0])
         self.assertEqual(3, self.run_main(["t2", "--budget", "--minutes", "0"])[0])
 
+    def test_owner_finish_goal_exempts_budget_exit_three_7424(self):
+        """#7424: owner finish-delivery goal keeps exit 0 past the budget."""
+        self.ledger.record("cli", "start", start=True, now=0)
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_OWNER_FINISH_GOAL": "1"}):
+            err = io.StringIO()
+            with unittest.mock.patch("sys.stderr", err):
+                self.assertEqual(0, self.ledger.session_gate("cli", 35, now=36 * 60))
+            self.assertIn("owner finish-delivery", err.getvalue())
+            code, out = self.run_main(["cli", "--budget"])
+            self.assertEqual(0, code)
+            self.assertIn("owner finish-delivery", out)
+        # Without the marker, ordinary sessions still stop.
+        err2 = io.StringIO()
+        with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_OWNER_FINISH_GOAL": ""}):
+            with unittest.mock.patch("sys.stderr", err2):
+                self.assertEqual(3, self.ledger.session_gate("cli", 35, now=36 * 60))
+        self.assertIn("stop: push WIP", err2.getvalue())
+
+    def test_owner_finish_goal_state_file_exempts_budget(self):
+        """#7424: .chaos-engine-state/owner-finish-goal.json also exempts."""
+        self.ledger.record("cli", "start", start=True, now=0)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state = root / ".chaos-engine-state"
+            state.mkdir()
+            (state / "owner-finish-goal.json").write_text(
+                '{"active": true}\n', encoding="utf-8"
+            )
+            with unittest.mock.patch.dict(os.environ, {"CHAOS_ENGINE_OWNER_FINISH_GOAL": ""}):
+                with unittest.mock.patch.object(self.ledger.Path, "cwd", return_value=root):
+                    # owner_finish_goal_active uses Path.cwd by default
+                    self.assertTrue(self.ledger.owner_finish_goal_active(root))
+                    err = io.StringIO()
+                    with unittest.mock.patch("sys.stderr", err):
+                        # session_gate calls owner_finish_goal_active() without project
+                        with unittest.mock.patch.object(
+                            self.ledger, "owner_finish_goal_active", return_value=True
+                        ):
+                            self.assertEqual(0, self.ledger.session_gate("cli", 35, now=40 * 60))
+
+
+    def test_write_owner_finish_goal_persists_marker(self):
+        """#7424: write_owner_finish_goal creates active marker for /goal path."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = self.ledger.write_owner_finish_goal(root, active=True, source="/goal")
+            self.assertTrue(path.is_file())
+            payload = __import__("json").loads(path.read_text(encoding="utf-8"))
+            self.assertTrue(payload["active"])
+            self.assertEqual("/goal", payload["source"])
+            self.assertTrue(self.ledger.owner_finish_goal_active(root))
+
+
     def test_step_checkpoint_enforces_the_35_minute_stop_7194(self):
         self.assertEqual(35, self.ledger.DEFAULT_BUDGET_MINUTES)
         self.ledger.record("cli", "start", start=True, now=0)

@@ -10,7 +10,8 @@ Done = both sign-offs and shipped, lessons become preventive rules.
 ## Roles
 
 - **Orchestrator:** Plan and Do, then an adversarial self-Check of its own
-  diff or artifact before handing it over.
+  diff or artifact before handing it over. Does **not** implement media
+  generation; delegates that to the design-capable implementer (Designer).
 - **Reviewer:** a separate agent that Checks the actual diff, rendered output,
   and evidence; never a self-report.
 

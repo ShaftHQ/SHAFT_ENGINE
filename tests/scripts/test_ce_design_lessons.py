@@ -27,11 +27,15 @@ CARDS = {
     "signed-output-release": ("re-gate only the cues that changed", "0 SRT errors", "one opt-in flag", "byte-identical", "`framemd5`", "never re-render",
                               "failed before the fix", "10 fps", "CRLF", "shared profile",
                               "One Short active", "native schedule", "hand-fixed SRTs",
-                              "≤0.45 s soft target", "silencegap --target 0.45",
+                              "≤0.45 s soft target", "silencegap --target 0.45", "prefer **≤0.40 s**",
                               "self-flagged", "design_qc.py opendoubt",
-                              "G16 Shorts description", "design_qc.py metadatadesc"),
+                              "G16 Shorts description", "design_qc.py metadatadesc",
+                              "orthography", "G19", "--words-raw", "G20",
+                              "G21/G22 title polarity", "design_qc.py titlepolarity", "--words", "--splice"),
     "cross-surface-takeaways": ("at most 1 brand-colour key word", "1.05", "Explicit CTA end card",
                                 "big cursor", "Masked speaker", "Pattern interrupt", "verb first", "reduced motion"),
+    "visual-first-approach": ("owner glance", "Visual / human gate first", "secondary",
+                              "delay sweep", "PROGRESS.md", "Resume at:", "numeric-only"),
 }
 RESOURCES = ("taste-skill", "ui-ux-pro-max-skill", "design-motion-principles", "getdesign.md", "design-md-chrome")
 
@@ -55,13 +59,40 @@ class LessonCardsTest(unittest.TestCase):
 
     def test_index_lists_every_card_and_is_reachable_on_demand(self) -> None:
         index = (LESSONS / "index.md").read_text(encoding="utf-8")
+        marker = "External resources and verdicts:"
+        self.assertIn(marker, index)
+        before, after = index.split(marker, 1)
+        lesson_files = sorted(
+            p.stem for p in LESSONS.glob("*.md") if p.name != "index.md"
+        )
+        for name in lesson_files:
+            row = next(
+                (
+                    line
+                    for line in before.splitlines()
+                    if re.match(rf"\| \[L\d+ .*\]\({re.escape(name)}\.md\)", line)
+                ),
+                "",
+            )
+            with self.subTest(card=name):
+                self.assertTrue(
+                    row.startswith("| [L"),
+                    f"{name} must be a | [L… table row before External resources",
+                )
+                self.assertIn(f"]({name}.md)", row)
+        stray = [
+            line for line in after.splitlines() if re.match(r"\| \[L\d+ ", line)
+        ]
+        self.assertEqual(stray, [], f"lesson rows after External resources: {stray}")
         for name in CARDS:
-            self.assertIn(f"]({name}.md)", index)
+            self.assertIn(f"]({name}.md)", before)
         self.assertIn("../lessons/index.md", (DESIGN / "references/craft/index.md").read_text(encoding="utf-8"))
         self.assertIn("lessons/mixed-script-captions.md",
                       (DESIGN / "references/captions-subtitles.md").read_text(encoding="utf-8"))
         self.assertIn("lessons/talk-edit-and-layers.md",
                       (DESIGN / "references/cutting-pacing.md").read_text(encoding="utf-8"))
+        self.assertIn("visual-first approach",
+                      (DESIGN / "references/craft/index.md").read_text(encoding="utf-8"))
         router = (DESIGN / "SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn("lessons/", router)  # on demand via craft index; router budget untouched
 
