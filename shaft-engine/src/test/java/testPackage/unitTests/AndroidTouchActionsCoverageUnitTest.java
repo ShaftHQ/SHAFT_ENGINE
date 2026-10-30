@@ -4,7 +4,6 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.gui.element.TouchActions;
-import com.shaft.gui.element.internal.AndroidNestedScroll;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.image.ImageMatchingMode;
 import com.shaft.gui.image.ImageRectangle;
