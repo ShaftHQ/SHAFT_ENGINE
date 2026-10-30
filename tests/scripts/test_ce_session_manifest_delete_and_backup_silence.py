@@ -13,8 +13,6 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 DG = ROOT / "chaos-engine" / "delete_guard.py"
-# /workspace is not on DEFAULT_ALLOW (unlike tempfile.gettempdir()).
-WORKSPACE_SCRATCH = Path("/workspace/ce-cleanup-gate-scratch")
 
 
 def load():
@@ -39,33 +37,39 @@ def _git_repo(base: Path) -> Path:
 
 class SessionManifestDeleteTest(unittest.TestCase):
     def setUp(self) -> None:
-        WORKSPACE_SCRATCH.mkdir(parents=True, exist_ok=True)
-        self._dirs: list[Path] = []
-        self._env = mock.patch.dict(os.environ, {}, clear=False)
-        self._env.start()
         self.dg = load()
-        # Isolate secrets under scratch home.
-        self.home = self._scratch() / "home"
+        self._temp = tempfile.TemporaryDirectory()
+        self.base = Path(self._temp.name).resolve()
+        self.home = self.base / "home"
         self.home.mkdir()
-        os.environ["HOME"] = str(self.home)
-        os.environ["XDG_CONFIG_HOME"] = str(self.home / "config")
-        os.environ[self.dg.SESSION_MANIFEST_HMAC_ENV] = "unit-test-session-hmac-v1"
+        self._patches = [
+            mock.patch.object(self.dg, "DEFAULT_ALLOW", ()),
+            mock.patch.dict(
+                os.environ,
+                {
+                    "HOME": str(self.home),
+                    "XDG_CONFIG_HOME": str(self.home / "config"),
+                    self.dg.SESSION_MANIFEST_HMAC_ENV: "unit-test-session-hmac-v1",
+                },
+                clear=False,
+            ),
+        ]
+        for patch in self._patches:
+            patch.start()
 
     def tearDown(self) -> None:
-        self._env.stop()
-        for d in self._dirs:
-            shutil.rmtree(d, ignore_errors=True)
+        for patch in reversed(self._patches):
+            patch.stop()
+        self._temp.cleanup()
 
     def _scratch(self) -> Path:
-        base = WORKSPACE_SCRATCH / f"case-{os.getpid()}-{len(self._dirs)}"
-        base.mkdir(parents=True)
-        self._dirs.append(base)
-        return base
+        path = self.base / f"case-{len(list(self.base.iterdir()))}"
+        path.mkdir()
+        return path
 
     def test_manifest_path_allowed_without_code(self) -> None:
         dg = self.dg
-        base = self._scratch()
-        scoped = base / "scoped"
+        scoped = self._scratch() / "scoped"
         scoped.mkdir()
         target = scoped / "session-log.txt"
         target.write_text("log\n", encoding="utf-8")
@@ -82,15 +86,13 @@ class SessionManifestDeleteTest(unittest.TestCase):
 
     def test_forged_manifest_rejected(self) -> None:
         dg = self.dg
-        base = self._scratch()
-        scoped = base / "scoped"
+        scoped = self._scratch() / "scoped"
         scoped.mkdir()
         victim = scoped / "legit.txt"
         victim.write_text("ok\n", encoding="utf-8")
-        outside = base / "outside.txt"
+        outside = self._scratch() / "outside.txt"
         outside.write_text("secret\n", encoding="utf-8")
         manifest = scoped / "created-paths.json"
-        # Forged payload listing an outside path with a fake hmac.
         forged = {
             "schema": 2,
             "roots": [str(scoped)],
@@ -102,13 +104,12 @@ class SessionManifestDeleteTest(unittest.TestCase):
         self.assertEqual(set(), dg.load_session_created_paths(manifest))
         self.assertFalse(dg.session_created_allows(outside, manifest=manifest))
         self.assertFalse(dg.session_created_allows(victim, manifest=manifest))
-        reason, _ = dg.check(f"rm -f -- {outside}", cwd=base)
+        reason, _ = dg.check(f"rm -f -- {outside}", cwd=scoped)
         self.assertTrue(reason)
 
     def test_absolute_outside_containment_refused_at_record(self) -> None:
         dg = self.dg
-        base = self._scratch()
-        scoped = base / "scoped"
+        scoped = self._scratch() / "scoped"
         scoped.mkdir()
         manifest = scoped / "created-paths.json"
         os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
@@ -119,8 +120,7 @@ class SessionManifestDeleteTest(unittest.TestCase):
 
     def test_symlink_refused_at_record_and_allow(self) -> None:
         dg = self.dg
-        base = self._scratch()
-        scoped = base / "scoped"
+        scoped = self._scratch() / "scoped"
         scoped.mkdir()
         real = scoped / "real.txt"
         real.write_text("x\n", encoding="utf-8")
@@ -134,30 +134,24 @@ class SessionManifestDeleteTest(unittest.TestCase):
 
     def test_never_touch_still_wins_via_path_reason(self) -> None:
         dg = self.dg
-        with tempfile.TemporaryDirectory() as temporary:
-            base = Path(temporary)
-            yt = base / "yt" / "clip.mp4"
-            yt.parent.mkdir(parents=True)
-            yt.write_text("x", encoding="utf-8")
-            manifest = base / "created-paths.json"
-            os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
-            os.environ[dg.SESSION_CONTAINMENT_ROOTS_ENV] = str(base)
-            with self.assertRaises(PermissionError):
-                dg.record_session_created_paths([yt], manifest=manifest, roots=[base])
-            # Even a hand-written allow cannot bypass never-touch in path_reason.
-            os.environ[dg.SESSION_MANIFEST_HMAC_ENV] = "unit-test-session-hmac-v1"
-            # force a verified-looking entry by recording a sibling then forging is impossible;
-            # assert path_reason still blocks yt.
-            self.assertTrue(dg.never_touch(yt))
-            self.assertIn("never-touch", dg.path_reason(yt))
-            reason, _ = dg.check(f"rm -rf -- {yt}", cwd=base)
-            self.assertTrue(reason)
-            self.assertIn("never-touch", reason)
+        base = self._scratch()
+        yt = base / "yt" / "clip.mp4"
+        yt.parent.mkdir(parents=True)
+        yt.write_text("x", encoding="utf-8")
+        manifest = base / "created-paths.json"
+        os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
+        os.environ[dg.SESSION_CONTAINMENT_ROOTS_ENV] = str(base)
+        with self.assertRaises(PermissionError):
+            dg.record_session_created_paths([yt], manifest=manifest, roots=[base])
+        self.assertTrue(dg.never_touch(yt))
+        self.assertIn("never-touch", dg.path_reason(yt))
+        reason, _ = dg.check(f"rm -rf -- {yt}", cwd=base)
+        self.assertTrue(reason)
+        self.assertIn("never-touch", reason)
 
     def test_creds_like_never_touch(self) -> None:
         dg = self.dg
-        base = self._scratch()
-        scoped = base / "scoped"
+        scoped = self._scratch() / "scoped"
         ssh = scoped / ".ssh" / "id_rsa"
         ssh.parent.mkdir(parents=True)
         ssh.write_text("KEY\n", encoding="utf-8")
@@ -168,9 +162,9 @@ class SessionManifestDeleteTest(unittest.TestCase):
         dg = self.dg
         base = self._scratch()
         _git_repo(base)
-        secret = base / "only-copy.txt"
-        secret.write_text("unique\n", encoding="utf-8")
-        cmd = f"rm -f -- {secret}"
+        only = base / "only-copy.txt"
+        only.write_text("unique\n", encoding="utf-8")
+        cmd = f"rm -f -- {only}"
         via_check = dg.check(cmd, cwd=base)[0]
         via_block = dg.block_reason(cmd, cwd=base)
         self.assertEqual(via_check, via_block)
@@ -189,61 +183,48 @@ class SessionManifestDeleteTest(unittest.TestCase):
 
 class CeRestoreTest(unittest.TestCase):
     def setUp(self) -> None:
-        WORKSPACE_SCRATCH.mkdir(parents=True, exist_ok=True)
-        self._dirs: list[Path] = []
         self.dg = load()
+        self._temp = tempfile.TemporaryDirectory()
+        self.base = Path(self._temp.name).resolve()
+        # Temp dirs are on DEFAULT_ALLOW; clear so delete-check still guards CE paths.
+        self._allow = mock.patch.object(self.dg, "DEFAULT_ALLOW", ())
+        self._allow.start()
 
     def tearDown(self) -> None:
-        for d in self._dirs:
-            shutil.rmtree(d, ignore_errors=True)
-
-    def _scratch(self) -> Path:
-        base = WORKSPACE_SCRATCH / f"ce-{os.getpid()}-{len(self._dirs)}"
-        base.mkdir(parents=True)
-        self._dirs.append(base)
-        return base
+        self._allow.stop()
+        self._temp.cleanup()
 
     def test_restore_checkouts_not_deletes_and_refuses_other_worktree(self) -> None:
         dg = self.dg
         git = shutil.which("git")
         assert git is not None
-        base = self._scratch()
-        primary = base / "primary"
-        other = base / "other-wt"
+        primary = self.base / "primary"
+        other = self.base / "other-wt"
         primary.mkdir()
         _git_repo(primary)
-        # CE file committed on primary.
         ce = primary / ".chaos-engine"
         ce.mkdir()
         tool = ce / "tool.py"
         tool.write_text("primary-v1\n", encoding="utf-8")
         subprocess.run([git, "add", ".chaos-engine/tool.py"], cwd=primary, check=True, capture_output=True)  # nosec B603
         subprocess.run([git, "commit", "-qm", "ce"], cwd=primary, check=True, capture_output=True)  # nosec B603
-        sha = subprocess.run(  # nosec B603
-            [git, "rev-parse", "HEAD"], cwd=primary, check=True, capture_output=True, text=True
-        ).stdout.strip()
-        # Linked worktree for session.
-        session = base / "session"
+        session = self.base / "session"
         subprocess.run(  # nosec B603
             [git, "-C", str(primary), "worktree", "add", "-q", str(session)],
             check=True, capture_output=True,
         )
-        # Dirty the session CE file.
         session_tool = session / ".chaos-engine" / "tool.py"
         session_tool.write_text("session-dirty\n", encoding="utf-8")
         os.environ["CHAOS_ENGINE_PRIMARY"] = str(primary)
-        # Delete-check must still refuse (no free delete).
         reason, _ = dg.check(f"rm -f -- {session_tool}", cwd=session)
         self.assertTrue(reason, reason)
         self.assertFalse(dg.ce_managed_revert_allows(session_tool, primary=primary))
-        # Restore brings primary SHA content back.
         refusal, restored = dg.restore_ce_managed_to_primary(
             [session_tool], session=session, primary=primary
         )
         self.assertEqual("", refusal, refusal)
         self.assertEqual([".chaos-engine/tool.py"], restored)
         self.assertEqual("primary-v1\n", session_tool.read_text(encoding="utf-8"))
-        # Other worktree path refused.
         subprocess.run(  # nosec B603
             [git, "-C", str(primary), "worktree", "add", "-q", str(other)],
             check=True, capture_output=True,
@@ -255,10 +236,8 @@ class CeRestoreTest(unittest.TestCase):
         )
         self.assertTrue(refusal2)
         self.assertIn("outside session", refusal2)
-        # And delete-check still refuses the other worktree CE file.
         reason2, _ = dg.check(f"rm -f -- {other_tool}", cwd=other)
         self.assertTrue(reason2)
-        self.assertEqual(sha, sha)  # keep sha used for clarity / lint
 
 
 class BackupRemoteSilenceTest(unittest.TestCase):
