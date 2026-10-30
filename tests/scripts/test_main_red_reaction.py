@@ -52,6 +52,47 @@ class PlanTest(unittest.TestCase):
         self.assertFalse(hasattr(plan, "revert"))
         self.assertFalse(hasattr(reaction, "open_revert_pr"))
 
+
+    def test_jobs_from_payload_reads_api_object_without_jq(self) -> None:
+        jobs = reaction.jobs_from_payload(
+            {
+                "jobs": [
+                    {"name": "Unit", "conclusion": "success", "html_url": "u1"},
+                    {"name": "Gate", "conclusion": None, "html_url": "u2"},
+                ]
+            }
+        )
+        self.assertEqual(
+            [Job("Unit", "success", "u1"), Job("Gate", "", "u2")],
+            jobs,
+        )
+
+    def test_decode_concatenated_paginate_pages(self) -> None:
+        blob = (
+            '{"jobs":[{"name":"a","conclusion":"success","html_url":"u"}]}'
+            '{"jobs":[{"name":"b","conclusion":"failure","html_url":"v"}]}'
+        )
+        pages = reaction._decode_concatenated_json(blob)
+        jobs = [job for page in pages for job in reaction.jobs_from_payload(page)]
+        self.assertEqual(["a", "b"], [job.name for job in jobs])
+
+    def test_fetch_jobs_avoids_jq_flag(self) -> None:
+        calls: list[list[str]] = []
+
+        class FakeRunner:
+            gh = "gh"
+
+            def run(self, argv: list[str], **_kwargs: object) -> str:
+                calls.append(argv)
+                return json.dumps(
+                    {"jobs": [{"name": "leg", "conclusion": "success", "html_url": "u"}]}
+                )
+
+        jobs = reaction.fetch_jobs(FakeRunner(), "o/r", "1", "1")  # type: ignore[arg-type]
+        self.assertEqual([Job("leg", "success", "u")], jobs)
+        self.assertTrue(calls)
+        self.assertNotIn("--jq", calls[0])
+
     def test_parse_jobs_reads_gh_json_lines(self) -> None:
         lines = "\n".join(
             json.dumps({"name": name, "conclusion": conclusion, "html_url": "u"})
