@@ -468,6 +468,59 @@ public class BidiNetworkTraceSourceTest {
     }
 
     @Test
+    public void responseCompletedBeforeBeforeRequestSentShouldStillPublishWhenStartArrives() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        BidiNetworkActivitySource source = new BidiNetworkActivitySource(System::nanoTime);
+        RequestData post = request("race-1", "POST", "https://example.test/login", 0L, List.of());
+        source.handleResponseCompleted(completed(post));
+        Assert.assertTrue(BrowserObservabilityRecorder.snapshot(owner).isEmpty(),
+                "Orphan completion must stay unpublished until beforeRequestSent joins.");
+        source.handleBeforeRequestSent(before(post));
+        var event = awaitEvent(owner, java.time.Duration.ofSeconds(2));
+        Assert.assertEquals(event.method(), "POST");
+        Assert.assertTrue(event.url().endsWith("/login"), event.url());
+        source.close();
+    }
+
+    @Test
+    public void hungRequestBodyCollectorShouldStillPublishWithinTheFetchTimeout() throws Exception {
+        SHAFT.Properties.reporting.set().traceEnabled(true).traceIncludeNetwork(true);
+        BrowserObservabilityRecorder.ObservationSession owner = BrowserObservabilityRecorder.startSession();
+        BidiNetworkActivitySource source = new BidiNetworkActivitySource(System::nanoTime, id -> {
+            try {
+                Thread.sleep(60_000L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return new byte[0];
+        });
+        RequestData post = request("post-hang", "POST", "https://example.test/login", 8L, List.of());
+        source.handleBeforeRequestSent(before(post));
+        source.handleResponseCompleted(completed(post));
+
+        var event = awaitEvent(owner, java.time.Duration.ofSeconds(5));
+        Assert.assertTrue(event.url().endsWith("/login"), event.url());
+        Assert.assertEquals(event.requestBodyPreview(), "");
+        source.close();
+    }
+
+    @Test
+    public void timedBodyFetchShouldReturnEmptyWhenTheCollectorHangsPastTheTimeout() {
+        long started = System.nanoTime();
+        String preview = BidiNetworkActivitySource.fetchRequestBodyPreviewTimed(id -> {
+            try {
+                Thread.sleep(60_000L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return new byte[0];
+        }, "any", java.time.Duration.ofMillis(200));
+        Assert.assertEquals(preview, "");
+        Assert.assertTrue(System.nanoTime() - started < java.time.Duration.ofSeconds(3).toNanos());
+    }
+
+    @Test
     public void bytesValuesShouldDecodeStringAndBase64Bodies() {
         Assert.assertEquals(BidiNetworkActivitySource.decodeBytesValue(
                 java.util.Map.of("type", "string", "value", "a=1")), "a=1".getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -488,7 +541,13 @@ public class BidiNetworkTraceSourceTest {
 
     private static BrowserObservabilityRecorder.NetworkSnapshotEntry awaitEvent(
             BrowserObservabilityRecorder.ObservationSession owner) throws InterruptedException {
-        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(5).toNanos();
+        return awaitEvent(owner, java.time.Duration.ofSeconds(5));
+    }
+
+    private static BrowserObservabilityRecorder.NetworkSnapshotEntry awaitEvent(
+            BrowserObservabilityRecorder.ObservationSession owner, java.time.Duration timeout)
+            throws InterruptedException {
+        long deadline = System.nanoTime() + timeout.toNanos();
         while (BrowserObservabilityRecorder.snapshot(owner).isEmpty() && System.nanoTime() < deadline) {
             Thread.sleep(10);
         }
