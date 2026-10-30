@@ -328,6 +328,34 @@ CHEAP_CI_CONTRACTS = (
     (lambda p: p.startswith("chaos-engine/skills/") or p == "chaos-engine/harness_index.py",
      "tests.scripts.test_validate_chaos_engine_readme",
      "ChaosEngineReadmeInventoryTest.test_repository_readme_matches_every_source_derived_inventory"),
+    # N4/#7643: tip-churn / skills map / delete-guard consumer / upgrade-session repair
+    # must not escape cheap pre-push the way AG Gate catches them in CI.
+    (lambda p: p in {
+         "chaos-engine/references/tip-churn-preflight.md",
+         "chaos-engine/references/ce-upgrade-on-release.md",
+         "chaos-engine/references/cleanup-at-close.md",
+         "chaos-engine/references/worker-keep-alive.md",
+     } or p.startswith("chaos-engine/references/"),
+     "tests.scripts.test_ce_memory_abstraction_phase1",
+     "ProcessCardsTest.test_tip_churn_links_new_refs"),
+    (lambda p: p in {".agents/skills/README.md", "chaos-engine/references/ce-upgrade-on-release.md"}
+     or p.startswith("chaos-engine/references/"),
+     "tests.scripts.test_agent_router_contract",
+     "SkillsMapTest.test_the_map_covers_every_skill_playbook_and_chapter"),
+    (lambda p: p in {"chaos-engine/references/harness-map.md", "chaos-engine/harness_map.py"}
+     or p == "chaos-engine/references/ce-upgrade-on-release.md",
+     "tests.scripts.test_chaos_engine_harness_map_7242",
+     "HarnessMapTests.test_map_is_fresh"),
+    (lambda p: p == "chaos-engine/delete_guard.py",
+     "tests.scripts.test_chaos_engine_delete_guard_7251",
+     "DeleteGuardTest.test_backup_remote_warns_in_consumer_mode"),
+    (lambda p: p in {"chaos-engine/worktree_overlay.py", "chaos-engine/install.py"},
+     "tests.scripts.test_policy_overlay_repair",
+     "PolicyOverlayRepairTest.test_linked_worktree_repair_names_the_materialize_fix"),
+    (lambda p: p == "chaos-engine/delete_guard.py"
+     or p.endswith("test_ce_session_manifest_delete_and_backup_silence.py"),
+     "tests.scripts.test_ce_session_manifest_delete_and_backup_silence",
+     "SessionManifestDeleteTest.test_forged_manifest_rejected"),
 )
 
 

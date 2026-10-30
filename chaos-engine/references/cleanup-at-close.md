@@ -52,13 +52,16 @@
 9. **Close gate:** `item_close_blockers` requires a clean `git status` plus an
    accounted list of created files (session manifest) before the item can
    close.
-10. **Self-created cleanup:** workers record every path they create in a
-    per-session manifest under a scoped temp dir
-    (`CHAOS_SESSION_CREATED_MANIFEST`). `delete-check` allows deleting exactly
-    those manifest paths, or reverting CE-managed files to the primary SHA,
-    without an owner code. Never-touch and all other paths still need the
-    code (or stay locked). A delete-check refusal is final — never bypass
-    with raw `rm`.
+10. **Self-created cleanup:** workers record every path they create via the
+    tool into an HMAC-bound per-session manifest under a scoped temp dir
+    (`CHAOS_SESSION_CREATED_MANIFEST` + outside-tree secret). `delete-check`
+    allows deleting exactly those contained manifest paths (session scoped
+    dir or own worktree; no symlinks / traversal / absolute escapes).
+    CE-managed dirt is restored with `tool.py delete-check --restore-ce`
+    (`git checkout <primary-sha> -- <paths>` inside the current worktree
+    only — never delete, never other worktrees). Never-touch and all other
+    paths still need the code (or stay locked). A delete-check refusal is
+    final — never bypass with raw `rm`.
 11. **Large media** goes to a release artifact or Git LFS — not unbounded box
    scratch. Protected folders and the delete-guard (including its code
    requirement) stay intact.

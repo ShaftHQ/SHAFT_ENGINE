@@ -285,10 +285,10 @@ class CleanupAtCloseGateTest(unittest.TestCase):
     def test_stale_tip_on_origin_own_only(self) -> None:
         now = 1_700_000_000.0
         entries = [
-            {"path": "/tmp/wt-own-old", "own": True, "tip_on_origin": True, "mtime": now - 48 * 3600},
-            {"path": "/tmp/wt-own-new", "own": True, "tip_on_origin": True, "mtime": now - 1 * 3600},
-            {"path": "/tmp/wt-foreign", "own": False, "tip_on_origin": True, "mtime": now - 48 * 3600},
-            {"path": "/tmp/wt-unpushed", "own": True, "tip_on_origin": False, "mtime": now - 48 * 3600},
+            {"path": "/workspace/ce-test-wt-own-old", "own": True, "tip_on_origin": True, "mtime": now - 48 * 3600},
+            {"path": "/workspace/ce-test-wt-own-new", "own": True, "tip_on_origin": True, "mtime": now - 1 * 3600},
+            {"path": "/workspace/ce-test-wt-foreign", "own": False, "tip_on_origin": True, "mtime": now - 48 * 3600},
+            {"path": "/workspace/ce-test-wt-unpushed", "own": True, "tip_on_origin": False, "mtime": now - 48 * 3600},
         ]
         with unittest.mock.patch(
             "scripts.ci.box_disk_guard.never_touch_blockers",
@@ -296,7 +296,7 @@ class CleanupAtCloseGateTest(unittest.TestCase):
         ):
             found = stale_tip_on_origin_candidates(entries, now_epoch=now)
         paths = {row["path"] for row in found}
-        self.assertEqual({"/tmp/wt-own-old"}, paths)
+        self.assertEqual({"/workspace/ce-test-wt-own-old"}, paths)
 
     def test_shared_venv_root_outside_trees(self) -> None:
         self.assertIn("chaos-engine/venvs", SHARED_VENV_ROOT)
@@ -356,14 +356,14 @@ class CleanupAtCloseGateTest(unittest.TestCase):
             [],
             item_close_blockers(
                 git_status_clean=True,
-                created_files=["/tmp/a"],
+                created_files=["/workspace/ce-test-a"],
                 created_files_accounted=True,
                 session_logs_cleared=True,
             ),
         )
         blockers = item_close_blockers(
             git_status_clean=False,
-            created_files=["/tmp/a"],
+            created_files=["/workspace/ce-test-a"],
             created_files_accounted=False,
             session_logs_cleared=False,
         )

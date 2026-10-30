@@ -164,6 +164,7 @@ sends you there; the rest by
 - [rule retirement](../../chaos-engine/references/rule-retirement.md)
 - [cleanup scopes](../../chaos-engine/references/cleanup-scopes.md)
 - [cleanup at close](../../chaos-engine/references/cleanup-at-close.md): clean after verified delivery; disk free-GiB tiers
+- [CE upgrade on release](../../chaos-engine/references/ce-upgrade-on-release.md): VERSION calver + upgrade-session for linked worktrees
 - [checkpoint resume](../../chaos-engine/references/checkpoint-resume.md): interrupted worker → checkpoint file → resume
 - [worker keep-alive](../../chaos-engine/references/worker-keep-alive.md): non-empty keep-alive between turns
 - [sequential WIP](../../chaos-engine/references/sequential-wip.md): one In-progress item; adversarial review in parallel when authorized

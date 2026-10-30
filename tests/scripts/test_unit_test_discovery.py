@@ -1,10 +1,12 @@
 """Case-sensitive UnitTest.java discovery (#7627)."""
-
 from __future__ import annotations
 
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.ci.unit_test_discovery import is_unit_test_source_name, iter_unit_test_sources
 

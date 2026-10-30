@@ -21,14 +21,17 @@ link-only delete. Symlink resolution failures refuse closed.
 A delete-check refusal is final: do not bypass with raw ``rm``, ``unlink``,
 encoded argv, or a wrapper script; the PreToolUse hook and ``block_reason``
 enforce the same gate. Self-created paths may be deleted without a code only
-when recorded in the per-session created-paths manifest; CE-managed dirt may
-be reverted to the primary SHA without a code. Never-touch stays locked.
+when recorded by the tool in the HMAC-bound per-session created-paths
+manifest and contained in the session scoped dir or worktree; CE-managed
+dirt is restored via ``git checkout <primary-sha> -- <paths>`` in the current
+worktree only (never deleted, never other worktrees). Never-touch stays locked.
 """
 
 from __future__ import annotations
 
 import glob
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -48,10 +51,15 @@ import urllib.request
 STATE_DIR = ".chaos-engine-state"
 ALLOW_FILE = "delete-allow.txt"
 # Per-session created-paths manifest (scoped temp). Exact paths listed here may be
-# deleted without an owner code; never-touch still wins. Env overrides the path.
+# deleted without an owner code when the HMAC verifies and the path is contained;
+# never-touch still wins. Env overrides the path. Secret stays outside the tree.
 SESSION_CREATED_MANIFEST_ENV = "CHAOS_SESSION_CREATED_MANIFEST"
 SESSION_CREATED_MANIFEST_NAME = "created-paths.json"
-# Relative roots treated as CE-managed for primary-SHA revert without a code.
+SESSION_MANIFEST_SECRET_ENV = "CHAOS_SESSION_MANIFEST_SECRET"
+SESSION_CONTAINMENT_ROOTS_ENV = "CHAOS_SESSION_CONTAINMENT_ROOTS"
+SESSION_WORKTREE_ENV = "CHAOS_SESSION_WORKTREE"
+SESSION_MANIFEST_SCHEMA = 2
+# Relative roots treated as CE-managed for primary-SHA restore (checkout, never delete).
 CE_MANAGED_PREFIXES = (".chaos-engine/",)
 ACK_ENV = "CHAOS_DELETE_ACK"
 CODE_TTL = 600
@@ -60,7 +68,17 @@ CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 NEVER_NAMES = ("ROG*", "yt", "designer-ws.git.retired")
 # Old renders inside yt/ (not yt/meta/) such as clip.r3.mp4 go through the owner-code flow.
 YT_RENDER = re.compile(r".+\.r\d+\.mp4")
-NEVER_PATTERNS = ("**/.config/google-chrome*/**", "**/.config/chromium/**", "**/*chrome*-profile*/**")
+NEVER_PATTERNS = (
+    "**/.config/google-chrome*/**",
+    "**/.config/chromium/**",
+    "**/*chrome*-profile*/**",
+    "**/.ssh/**",
+    "**/.env",
+    "**/.env.*",
+    "**/credentials.json",
+    "**/id_rsa",
+    "**/id_ed25519",
+)
 NEVER_FILE = Path("~/.config/chaos-engine/never-delete.txt")
 # #7525: exact-file allowlist of verified uploaded yt files (local/env only; not committed).
 YT_VERIFIED_ENV = "CHAOS_YT_VERIFIED_DELETE"
@@ -439,8 +457,144 @@ def session_manifest_path(explicit: Path | None = None) -> Path | None:
     return Path(os.path.expanduser(raw))
 
 
+def _session_secret_path(manifest: Path) -> Path:
+    """Per-manifest secret file outside any checkout (XDG config)."""
+    digest = hashlib.sha256(str(manifest.resolve()).encode("utf-8")).hexdigest()[:24]
+    return (
+        Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+        / "chaos-engine"
+        / "session-manifest-secrets"
+        / f"{digest}.secret"
+    )
+
+
+def _read_session_secret(manifest: Path) -> bytes | None:
+    """Return the per-session HMAC secret, or None when unset (forge-closed on load)."""
+    raw = os.environ.get(SESSION_MANIFEST_SECRET_ENV, "").strip()
+    if raw:
+        return raw.encode("utf-8")
+    store = _session_secret_path(manifest)
+    if store.is_file():
+        return store.read_bytes()
+    return None
+
+
+def _load_or_create_session_secret(manifest: Path) -> bytes:
+    """Return the per-session HMAC secret; create one outside the tree when missing."""
+    existing = _read_session_secret(manifest)
+    if existing is not None:
+        return existing
+    store = _session_secret_path(manifest)
+    store.parent.mkdir(parents=True, exist_ok=True)
+    secret = secrets.token_bytes(32)
+    store.write_bytes(secret)
+    store.chmod(0o600)
+    return secret
+
+
+def _manifest_hmac_payload(roots: list[str], paths: list[str]) -> bytes:
+    body = (
+        f"schema={SESSION_MANIFEST_SCHEMA}\n"
+        + "roots=" + "\0".join(sorted(roots))
+        + "\npaths=" + "\0".join(sorted(paths))
+    )
+    return body.encode("utf-8")
+
+
+def _sign_manifest(secret: bytes, roots: list[str], paths: list[str]) -> str:
+    return hmac.new(secret, _manifest_hmac_payload(roots, paths), hashlib.sha256).hexdigest()
+
+
+def _verify_manifest_hmac(secret: bytes, roots: list[str], paths: list[str], supplied: str) -> bool:
+    if not supplied or not isinstance(supplied, str):
+        return False
+    expected = _sign_manifest(secret, roots, paths)
+    return hmac.compare_digest(expected, supplied.strip().lower())
+
+
+def _resolve_containment_roots(
+    *,
+    manifest: Path,
+    explicit_roots: list[Path] | None = None,
+    data_roots: list | None = None,
+) -> list[Path]:
+    """Roots that may contain allowlisted session-created paths."""
+    roots: list[Path] = []
+    if explicit_roots:
+        roots.extend(Path(r) for r in explicit_roots)
+    env_raw = os.environ.get(SESSION_CONTAINMENT_ROOTS_ENV, "").strip()
+    if env_raw:
+        for part in env_raw.split(os.pathsep):
+            part = part.strip()
+            if part:
+                roots.append(Path(os.path.expanduser(part)))
+    wt = os.environ.get(SESSION_WORKTREE_ENV, "").strip()
+    if wt:
+        roots.append(Path(os.path.expanduser(wt)))
+    if data_roots:
+        for item in data_roots:
+            if isinstance(item, str) and item.strip():
+                roots.append(Path(os.path.expanduser(item.strip())))
+    # Scoped temp = manifest parent is always a containment root.
+    roots.append(manifest.parent)
+    out: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        try:
+            resolved = Path(os.path.realpath(root))
+        except OSError:
+            continue
+        key = str(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(resolved)
+    return out
+
+
+def _is_under_root(real: Path, root: Path) -> bool:
+    try:
+        real.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _path_escape_or_symlink_reason(path: Path, roots: list[Path]) -> str:
+    """Non-empty when path is a symlink, escapes containment, or cannot be resolved."""
+    try:
+        expanded = Path(os.path.expanduser(str(path)))
+    except OSError:
+        return "unresolvable path"
+    # Reject symlink leafs and any symlink in the recorded path chain.
+    probe = expanded if expanded.is_absolute() else Path.cwd() / expanded
+    try:
+        cursor = probe if probe.exists() or probe.is_symlink() else probe.parent
+        # Walk parents for symlinks; also reject the leaf when it is a symlink.
+        if probe.is_symlink():
+            return "symlink refused"
+        for parent in [probe, *probe.parents]:
+            if parent.is_symlink():
+                return "symlink refused"
+            if parent == parent.anchor or parent == Path(parent.anchor):
+                break
+    except OSError:
+        return "unresolvable path"
+    try:
+        real = Path(os.path.realpath(probe))
+    except OSError:
+        return "unresolvable path"
+    if not any(_is_under_root(real, root) for root in roots):
+        return "outside session containment"
+    return ""
+
+
 def load_session_created_paths(manifest: Path | None = None) -> set[str]:
-    """Absolute realpath strings recorded as self-created by this session."""
+    """Absolute realpath strings recorded as self-created by this session.
+
+    Forge-closed: missing/invalid HMAC yields an empty set. Paths that escape
+    containment or are symlinks are dropped.
+    """
     path = session_manifest_path(manifest)
     if path is None or not path.is_file():
         return set()
@@ -448,14 +602,32 @@ def load_session_created_paths(manifest: Path | None = None) -> set[str]:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return set()
-    entries = data.get("paths") if isinstance(data, dict) else None
-    if not isinstance(entries, list):
+    if not isinstance(data, dict):
         return set()
+    entries = data.get("paths")
+    roots_raw = data.get("roots")
+    supplied = data.get("hmac")
+    if not isinstance(entries, list) or not isinstance(roots_raw, list):
+        return set()
+    root_strs = [item for item in roots_raw if isinstance(item, str) and item.strip()]
+    path_strs = [item for item in entries if isinstance(item, str) and item.strip()]
+    try:
+        secret = _read_session_secret(path)
+    except OSError:
+        return set()
+    if secret is None:
+        return set()
+    # Forged JSON without the outside-tree secret fails closed.
+    if not _verify_manifest_hmac(secret, root_strs, path_strs, supplied if isinstance(supplied, str) else ""):
+        return set()
+    roots = _resolve_containment_roots(manifest=path, data_roots=root_strs)
     out: set[str] = set()
-    for item in entries:
-        if not isinstance(item, str) or not item.strip():
+    for item in path_strs:
+        candidate = Path(os.path.expanduser(item.strip()))
+        reason = _path_escape_or_symlink_reason(candidate, roots)
+        if reason:
             continue
-        out.add(str(Path(os.path.realpath(os.path.expanduser(item.strip())))))
+        out.add(str(Path(os.path.realpath(candidate))))
     return out
 
 
@@ -463,11 +635,12 @@ def record_session_created_paths(
     paths: list,
     *,
     manifest: Path | None = None,
+    roots: list | None = None,
 ) -> Path:
-    """Append absolute paths to the session created-paths manifest (scoped temp).
+    """Append contained absolute paths to the HMAC-bound session manifest.
 
-    Creates parent dirs. Returns the manifest path. Callers must keep the
-    manifest under a scoped temp dir (not shared-workspace root clutter).
+    Tool-only writer. Rejects symlinks, traversal, and absolute paths outside
+    the session scoped dir / worktree containment roots. Creates parent dirs.
     """
     path = session_manifest_path(manifest)
     if path is None:
@@ -478,63 +651,126 @@ def record_session_created_paths(
             / SESSION_CREATED_MANIFEST_NAME
         )
         os.environ[SESSION_CREATED_MANIFEST_ENV] = str(path)
-    existing = load_session_created_paths(path)
+    path = Path(path)
+    explicit_roots = [Path(r) for r in (roots or [])]
+    containment = _resolve_containment_roots(manifest=path, explicit_roots=explicit_roots or None)
+    accepted: set[str] = set()
+    # Keep previously verified entries that still pass containment.
+    for prior in load_session_created_paths(path):
+        if not _path_escape_or_symlink_reason(Path(prior), containment):
+            accepted.add(prior)
     for item in paths:
-        existing.add(str(Path(os.path.realpath(os.path.expanduser(str(item))))))
+        candidate = Path(os.path.expanduser(str(item)))
+        reason = _path_escape_or_symlink_reason(candidate, containment)
+        if reason:
+            raise PermissionError(f"session-manifest refused `{candidate}`: {reason}")
+        # never-touch cannot be recorded (path_reason also refuses)
+        hit = never_touch(Path(os.path.realpath(candidate)))
+        if hit:
+            raise PermissionError(f"session-manifest refused `{candidate}`: {hit}")
+        accepted.add(str(Path(os.path.realpath(candidate))))
+    root_strs = sorted({str(r) for r in containment})
+    path_strs = sorted(accepted)
+    secret = _load_or_create_session_secret(path)
+    payload = {
+        "schema": SESSION_MANIFEST_SCHEMA,
+        "roots": root_strs,
+        "paths": path_strs,
+        "hmac": _sign_manifest(secret, root_strs, path_strs),
+    }
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"schema": 1, "paths": sorted(existing)}
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     path.chmod(0o600)
     return path
 
 
 def session_created_allows(path: Path, *, manifest: Path | None = None) -> bool:
-    """True when ``path`` is an exact entry in the session created-paths manifest."""
+    """True when ``path`` is an exact HMAC-verified, contained manifest entry."""
     allowed = load_session_created_paths(manifest)
     if not allowed:
         return False
     try:
         real = str(Path(os.path.realpath(path)))
     except OSError:
-        real = str(Path(os.path.abspath(os.path.expanduser(str(path)))))
+        return False
+    if Path(path).is_symlink():
+        return False
     return real in allowed
 
 
-def ce_managed_revert_allows(path: Path, *, primary: Path | None = None) -> bool:
-    """True when ``path`` is under ``.chaos-engine/`` and the same relative exists on primary.
+def restore_ce_managed_to_primary(
+    paths: list,
+    *,
+    session: Path,
+    primary: Path | None = None,
+) -> tuple[str, list[str]]:
+    """Restore CE-managed paths via ``git checkout <primary-sha> -- <paths>``.
 
-    Allows delete-check / revert of doctor/repair dirt back to primary content
-    without an owner code. Never-touch still refuses first. Does not allow
-    deleting arbitrary non-CE paths.
+    Only paths under ``session/.chaos-engine/``. Never deletes. Never touches
+    other worktrees. Returns ``(refusal_or_empty, restored_relpaths)``.
     """
-    try:
-        abs_path = Path(os.path.abspath(os.path.expanduser(str(path))))
-    except OSError:
-        return False
-    if ".chaos-engine" not in abs_path.parts:
-        return False
+    session = Path(session).resolve()
+    session_ce = session / ".chaos-engine"
+    if not session_ce.is_dir():
+        return f"no .chaos-engine under session `{session}`", []
     if primary is None:
         raw = os.environ.get("CHAOS_ENGINE_PRIMARY", "").strip()
         primary = Path(raw) if raw else None
     if primary is None:
-        return False
+        return "CHAOS_ENGINE_PRIMARY unset", []
     primary = Path(primary).resolve()
-    parts = list(abs_path.parts)
-    try:
-        ce_index = parts.index(".chaos-engine")
-    except ValueError:
-        return False
-    rel = Path(*parts[ce_index:])
-    return (primary / rel).exists()
+    if primary == session:
+        return "primary and session are the same checkout; refuse cross-ambiguity", []
+    sha = _git(primary, "rev-parse", "HEAD")
+    if sha.returncode != 0 or not sha.stdout.strip():
+        return f"cannot read primary SHA at `{primary}`", []
+    primary_sha = sha.stdout.strip()
+    rels: list[str] = []
+    for item in paths:
+        abs_path = Path(os.path.abspath(os.path.expanduser(str(item))))
+        try:
+            rel = abs_path.resolve().relative_to(session)
+        except ValueError:
+            return f"`{abs_path}` is outside session worktree `{session}`", []
+        if not str(rel).replace("\\", "/").startswith(".chaos-engine/"):
+            return f"`{abs_path}` is not under session .chaos-engine/", []
+        # Refuse if the same relative path would be applied against another worktree root.
+        if abs_path.resolve().parts[: len(session.parts)] != session.parts:
+            return f"`{abs_path}` escapes session worktree", []
+        hit = never_touch(abs_path)
+        if hit:
+            return f"`{abs_path}` is {hit}", []
+        rels.append(rel.as_posix())
+    if not rels:
+        return "no CE-managed paths", []
+    git = _git(session, "checkout", primary_sha, "--", *rels)
+    if git.returncode != 0:
+        detail = (git.stderr or git.stdout or "checkout failed").strip().splitlines()
+        return f"git checkout failed: {detail[-1] if detail else 'unknown'}", []
+    return "", rels
+
+
+def ce_managed_revert_allows(path: Path, *, primary: Path | None = None) -> bool:
+    """Deprecated delete allowlist — always False.
+
+    CE-managed dirt must be restored via ``restore_ce_managed_to_primary``
+    (git checkout), never deleted through delete-check.
+    """
+    return False
 
 
 def path_reason(path: Path, project: Path | None = None) -> str:
-    """Empty string when deleting ``path`` loses nothing; else the refusal reason."""
+    """Empty string when deleting ``path`` loses nothing; else the refusal reason.
+
+    Never-touch and protected checks run first so callers of ``path_reason``
+    alone cannot bypass them via a forged session manifest.
+    """
+    hit = never_touch(path)
+    if hit:
+        return hit
     if allow_listed(path, project):
         return ""
     if session_created_allows(path):
-        return ""
-    if ce_managed_revert_allows(path):
         return ""
     if not path.exists() and not path.is_symlink():
         return ""
@@ -1036,9 +1272,11 @@ def _is_linked_worktree(path: Path) -> bool:
 def backup_remote_issue(path: Path) -> str:
     if _git(path, "rev-parse", "--show-toplevel").returncode != 0:
         return "not in git"
-    # Silence in consumer mode (harness state is excluded; warn is noise).
+    # #7263: consumer mode (#6237) hides .memory/mempalace via info/exclude, so a
+    # clean status proves nothing — still warn. Silence is only for linked
+    # worktrees whose sole dirt is an uncommitted CE tree (below).
     if (path / CONSUMER_MARKER).is_file():
-        return ""
+        return "consumer mode hides harness state from git"
     if not _git(path, "remote").stdout.strip():
         return "no remote"
     if _git(path, "rev-parse", "--abbrev-ref", "@{u}").returncode != 0:
@@ -1072,6 +1310,14 @@ def _rm(paths: list[str]) -> str:
 
 def main(arguments: list[str]) -> int:
     code = None
+    if arguments[:1] == ["--restore-ce"] and len(arguments) >= 2:
+        session = Path(os.environ.get(SESSION_WORKTREE_ENV) or Path.cwd()).resolve()
+        reason, restored = restore_ce_managed_to_primary(arguments[1:], session=session)
+        if reason:
+            print(f"ce-restore: refused: {reason}", file=sys.stderr)
+            return 1
+        print("ce-restore: restored " + ", ".join(restored))
+        return 0
     if arguments[:1] == ["--code"] and len(arguments) >= 2:
         code, arguments = arguments[1], arguments[2:]
     if arguments[:1] == ["--request-code"] and len(arguments) >= 2 and code is None:
@@ -1089,7 +1335,7 @@ def main(arguments: list[str]) -> int:
     elif arguments and not arguments[0].startswith("--"):
         reason, warnings = check(_rm(arguments), Path.cwd(), Path.cwd(), code)
     else:
-        print("usage: tool.py delete-check [--code CODE] <paths...> | [--code CODE] --command '<cmd>' | --request-code <paths...>", file=sys.stderr)
+        print("usage: tool.py delete-check [--code CODE] <paths...> | [--code CODE] --command '<cmd>' | --request-code <paths...> | --restore-ce <CE-paths...>", file=sys.stderr)
         return 2
     if reason:
         print(reason, file=sys.stderr)

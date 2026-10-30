@@ -6,7 +6,7 @@
    Do not bypass it with raw `rm`, `unlink`, `pathlib` deletes, encoded argv,
    wrappers, or a second shell. Re-route: commit/push, back up, add an
    allow-list scratch pattern, or request an owner code for the **same** paths.
-2. Self-created paths recorded in the per-session created-paths manifest
+2. Self-created paths recorded in the HMAC-bound per-session created-paths manifest
    (`CHAOS_SESSION_CREATED_MANIFEST`, scoped temp) may be deleted without a
    code. CE-managed doctor/repair dirt may be reverted to the primary SHA
    without a code. **Never-touch** paths stay locked even with a code.

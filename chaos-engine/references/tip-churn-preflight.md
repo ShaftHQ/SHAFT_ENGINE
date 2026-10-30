@@ -50,6 +50,7 @@ PRs run the fresh installer on ubuntu and Windows only. Add `ci:installer-macos`
 - [Worker keep-alive](worker-keep-alive.md)
 - [Checkpoint resume](checkpoint-resume.md)
 - [Cleanup at close](cleanup-at-close.md)
+- [CE upgrade on release](ce-upgrade-on-release.md)
 - [Auto-merge re-arm](automerge-rearm.md)
 - [Sequential WIP](sequential-wip.md)
 - [Mobile client automation](mobile-client-automation.md)
