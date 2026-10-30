@@ -24,6 +24,6 @@ Titling a cut that is ear-locked to a spoken answer frame (Q&A, long-form chapte
 
 ## Sources
 
-- Index row lands after the Coach video sign-off PR (Coach video sign-off lesson) merges to avoid index/craft_qc collisions.
+- Indexed via [`index-extension.md`](index-extension.md) (avoids primary-index / craft_qc collision with the sibling video sign-off lesson).
 
 - Field reject where a retitle dropped the scope noun while similarity still passed.

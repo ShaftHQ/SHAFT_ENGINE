@@ -24,6 +24,6 @@ Uploading a talk / podcast / long-form cut in YouTube Studio (native scheduler o
 
 ## Sources
 
-- Lesson index row deferred until after the Coach video sign-off PR merges.
+- Indexed via [`index-extension.md`](index-extension.md) until the primary index absorbs L40–L43 after the sibling video sign-off lesson lands.
 
 - Field upload order from podcast batch scheduling retros (generic).

@@ -213,12 +213,36 @@ def content_scan_self_test_failures(root: Path) -> list[str]:
     ]
 
 
+
+def worker_ce_entry_self_test_failures(root: Path) -> list[str]:
+    """Planted self-test: bad brief fails, good brief passes (#7639 N1)."""
+    script = root / "chaos-engine/skills/local-agency/scripts/worker_ce_entry.py"
+    if not script.is_file():
+        return []
+    spec = importlib.util.spec_from_file_location("ce_tip_worker_ce_entry", script)
+    if spec is None or spec.loader is None:
+        return [f"worker_ce_entry: cannot load {script.as_posix()}"]
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    bad = module.lint_brief("goal: fix a bug\n")
+    good = module.lint_brief(
+        "ce_load: required\nRun: python3 .chaos-engine/tool.py entry\ngoal: x\n"
+    )
+    failures: list[str] = []
+    if not bad:
+        failures.append("worker_ce_entry: planted bad brief did not fail")
+    if good:
+        failures.append(f"worker_ce_entry: planted good brief failed: {good}")
+    return failures
+
+
 def preflight_failures(root: Path, paths: list[str], *, inventory_validator=None) -> list[str]:
-    """One tip-churn preflight: B607 + Memory hash + content-scan self-test + inventory."""
+    """One tip-churn preflight: B607 + Memory hash + content-scan + worker_ce_entry self-test + inventory."""
     failures = (
         b607_failures(root, paths)
         + memory_hash_failures(root, paths)
         + content_scan_self_test_failures(root)
+        + worker_ce_entry_self_test_failures(root)
     )
     if any(p.replace("\\", "/").startswith("chaos-engine/") and p.endswith(".py") for p in paths):
         failures += inventory_drift(root, inventory_validator)

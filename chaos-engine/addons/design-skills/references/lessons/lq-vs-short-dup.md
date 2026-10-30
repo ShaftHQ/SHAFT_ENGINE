@@ -23,6 +23,6 @@ SIGN / schedule of any long chapter or LQ that shares a source with Shorts or Q 
 
 ## Sources
 
-- Lesson index row deferred until after the Coach video sign-off PR merges.
+- Indexed via [`index-extension.md`](index-extension.md).
 
 - Field conflict where a long remux reused a Short title/span.

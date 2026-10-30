@@ -1,4 +1,4 @@
-"""Phase 1 CE memory abstraction (no overlap with Coach video sign-off gates)."""
+"""Phase 1 CE memory abstraction (no overlap with sibling video sign-off gates)."""
 
 from __future__ import annotations
 
@@ -34,10 +34,11 @@ class ProcessCardsTest(unittest.TestCase):
     CARDS = {
         "worker-keep-alive.md": ("keep-alive", "non-empty", "dispatch"),
         "checkpoint-resume.md": ("checkpoint", "interrupted", "resume"),
-        "cleanup-at-close.md": ("BLOCKED-INFRA", "80%", "Large media"),
+        "cleanup-at-close.md": ("BLOCKED-INFRA", "15 GiB", "Large media"),
         "automerge-rearm.md": ("re-arm", "soft-fail", "eviction"),
         "sequential-wip.md": ("one", "In progress", "adversarial"),
         "mobile-client-automation.md": ("Read-only", "Secret-scan", "NamedBlock"),
+        "design-review-video-checklist.md": ("Independent adversarial", "bidisolate", "LRI"),
     }
 
     def test_cards_have_rule_why_check(self) -> None:
@@ -55,7 +56,7 @@ class ProcessCardsTest(unittest.TestCase):
                 self.assertNotRegex(raw, r"(?i)\ballure\b")
 
     def test_keep_alive_does_not_claim_l39(self) -> None:
-        """Coach video PR owns design L39 (video sign-off); keep-alive is unnumbered."""
+        """Sibling video sign-off lesson owns design L39; keep-alive is unnumbered."""
         raw = (CE / "references/worker-keep-alive.md").read_text(encoding="utf-8")
         self.assertNotIn("L39", raw)
 
@@ -80,13 +81,14 @@ class ProcessCardsTest(unittest.TestCase):
             "automerge-rearm.md",
             "sequential-wip.md",
             "mobile-client-automation.md",
+            "design-review-video-checklist.md",
             "worker_ce_entry.py",
         ):
             self.assertIn(name, tip)
 
 
 class DesignLessonFilesPhase1Test(unittest.TestCase):
-    """Lesson files exist; index rows deferred until after #7638 merges."""
+    """Lesson files exist; indexed via index-extension.md (primary index: sibling L39 tip)."""
 
     CARDS = {
         "youtube-upload-language-order.md": ("L40", "video language", "auto-dub", "captions"),
@@ -107,12 +109,18 @@ class DesignLessonFilesPhase1Test(unittest.TestCase):
                     self.assertIn(section, raw)
                 for needle in needles:
                     self.assertIn(needle, _text(path))
-                # Index/L39 ownership deferred; no issue tags in lesson bodies.
                 self.assertNotRegex(raw, r"#\d{3,}")
                 self.assertNotIn("L39", raw)
-        # No viewer-video-qc duplicate of #7638
+                self.assertNotRegex(raw.lower(), r"\bcoach\b")
+        extension = (LESSONS / "index-extension.md").read_text(encoding="utf-8")
+        for name in self.CARDS:
+            self.assertIn(f"]({name})", extension)
         self.assertFalse((LESSONS / "viewer-video-qc.md").exists())
         self.assertNotIn("viewer-video-qc.md", index)
+        self.assertNotRegex(
+            (LESSONS / "caption-phonetic-mute-gate.md").read_text(encoding="utf-8").lower(),
+            r"\bcoach\b",
+        )
 
     def test_l38_n5_documented_code_deferred(self) -> None:
         raw = (LESSONS / "caption-phonetic-mute-gate.md").read_text(encoding="utf-8")
@@ -173,6 +181,37 @@ class TitleScopeGateTest(unittest.TestCase):
         )
         self.assertEqual([], hits)
 
+
+    def test_stem_and_arabic_and_brand(self) -> None:
+        """N2: stemming / Arabic ال- / brand allowlist reduce false positives."""
+        self.assertEqual(
+            [],
+            self.mod.title_scope_hits(
+                "testing craft",
+                "1\n00:00:00,000 --> 00:00:01,000\ntests of the craft\n",
+            ),
+        )
+        self.assertEqual(
+            [],
+            self.mod.title_scope_hits(
+                "الاختبار الآلي",
+                "1\n00:00:00,000 --> 00:00:01,000\nاختبار آلي للموقع\n",
+            ),
+        )
+        self.assertEqual(
+            [],
+            self.mod.title_scope_hits(
+                "YouTube tips",
+                "1\n00:00:00,000 --> 00:00:01,000\nuseful tips for the suite\n",
+            ),
+        )
+        # still fail when a real scope noun is absent
+        hits = self.mod.title_scope_hits(
+            "penetration testing basics",
+            "1\n00:00:00,000 --> 00:00:01,000\nbasics of the craft\n",
+        )
+        self.assertTrue(any("penetration" in h for h in hits))
+
     def test_cli_titlescope(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             srt = Path(tmp) / "a.srt"
@@ -198,11 +237,11 @@ class NoVideoGateOverlapTest(unittest.TestCase):
         self.assertFalse((DESIGN / "scripts/viewer_video_qc.py").exists())
 
     def test_craft_qc_untouched_for_phase1_gates(self) -> None:
-        """Phase 1 must not add titlescope/N5 into craft_qc while Coach video sign-off PR is open."""
+        """Phase 1 must not add titlescope/N5 into craft_qc (sibling video tip owns that surface)."""
         craft = (DESIGN / "scripts/craft_qc.py").read_text(encoding="utf-8")
         self.assertNotIn("def cmd_titlescope", craft)
         self.assertNotIn("بايبلاين", craft)
-        self.assertNotIn("def cmd_bidisolate", craft)  # Coach video PR lands these
+        # Do NOT assert absence of cmd_bidisolate: sibling video tip may land first.
 
 
 if __name__ == "__main__":

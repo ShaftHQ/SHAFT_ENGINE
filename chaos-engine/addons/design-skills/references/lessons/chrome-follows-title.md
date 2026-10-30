@@ -25,6 +25,6 @@ A title changes (retitle / lock / dup fix) on a pack that burns chrome, topic pi
 
 ## Sources
 
-- Lesson index row deferred until after the Coach video sign-off PR merges.
+- Indexed via [`index-extension.md`](index-extension.md).
 
 - Field FAIL: metadata title A while mp4 chrome still showed the old title; full-file overlay bled onto the endcard.

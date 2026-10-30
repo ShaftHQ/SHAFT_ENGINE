@@ -53,5 +53,6 @@ PRs run the fresh installer on ubuntu and Windows only. Add `ci:installer-macos`
 - [Auto-merge re-arm](automerge-rearm.md)
 - [Sequential WIP](sequential-wip.md)
 - [Mobile client automation](mobile-client-automation.md)
+- [Design review / video checklist](design-review-video-checklist.md)
 - Script: [`worker_ce_entry.py`](../skills/local-agency/scripts/worker_ce_entry.py)
 
