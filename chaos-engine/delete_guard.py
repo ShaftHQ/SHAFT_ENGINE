@@ -512,8 +512,7 @@ def _session_hmac_key_path(manifest: Path) -> Path:
 
 
 def _read_session_hmac_key(manifest: Path) -> bytes | None:
-    """
-    Return the per-session HMAC key, or None when unset (forge-closed on load)."""
+    """Return the per-session HMAC key, or None when unset (forge-closed on load)."""
     raw = os.environ.get(SESSION_MANIFEST_HMAC_ENV, "").strip()
     if raw:
         return raw.encode("utf-8")
@@ -524,8 +523,7 @@ def _read_session_hmac_key(manifest: Path) -> bytes | None:
 
 
 def _load_or_create_session_hmac_key(manifest: Path) -> bytes:
-    """
-    Return the per-session HMAC key; create one outside the tree when missing."""
+    """Return the per-session HMAC key; create one outside the tree when missing."""
     existing = _read_session_hmac_key(manifest)
     if existing is not None:
         return existing
@@ -1258,37 +1256,23 @@ def _refuse_or_proof_new_path(
     return real_s, _proof_token(real, st)
 
 
-def record_session_created_paths(
-    paths: list,
-    *,
-    manifest: Path | None = None,
-    roots: list | None = None,
-) -> Path:
-    """
-    Append contained absolute paths to the HMAC-bound session manifest.
 
-    Tool-only writer. Rejects symlinks, traversal, absolute paths outside
-    the session scoped dir / worktree containment roots, and any path that
-    existed before the session started (inventory / inode / birth-or-ctime).
-    Creates parent dirs. Initializes the session-start inventory when missing.
-    """
+def _ensure_session_manifest_path(manifest: Path | None) -> Path:
     path = session_manifest_path(manifest)
-    if path is None:
-        path = (
-            Path(tempfile.gettempdir())
-            / "chaos-engine-sessions"
-            / str(os.getpid())
-            / SESSION_CREATED_MANIFEST_NAME
-        )
-        os.environ[SESSION_CREATED_MANIFEST_ENV] = str(path)
-    path = Path(path)
-    explicit_roots = [Path(r) for r in (roots or [])]
-    if not path.is_file():
-        init_session_created_manifest(manifest=path, roots=explicit_roots or None)
-    data = _load_manifest_dict(path)
-    if data is None:
-        raise PermissionError("session-manifest refused: unreadable manifest")
-    containment = _resolve_containment_roots(manifest=path, explicit_roots=explicit_roots or None)
+    if path is not None:
+        return Path(path)
+    path = (
+        Path(tempfile.gettempdir())
+        / "chaos-engine-sessions"
+        / str(os.getpid())
+        / SESSION_CREATED_MANIFEST_NAME
+    )
+    os.environ[SESSION_CREATED_MANIFEST_ENV] = str(path)
+    return Path(path)
+
+
+def _inventory_from_manifest(path: Path, data: dict) -> tuple[object, float, int, list[str], list[str]]:
+    """Return started_at, started_f, started_ns, preexist_paths, preexist_inodes after seal check."""
     started_at = data.get("started_at")
     if not isinstance(started_at, (int, float, str)):
         raise PermissionError("session-manifest refused: missing started_at")
@@ -1309,16 +1293,18 @@ def record_session_created_paths(
         preexist_inodes=preexist_inodes,
     ):
         raise PermissionError("session-manifest refused: seal missing or mismatched")
-    preexist_path_set = set(preexist_paths)
-    preexist_inode_set = set(preexist_inodes)
     try:
         started_ns = int(started_f * 1_000_000_000)
     except (OverflowError, ValueError) as exc:
         raise PermissionError("session-manifest refused: bad started_at") from exc
+    return started_at, started_f, started_ns, preexist_paths, preexist_inodes
 
+
+def _retain_prior_session_entries(
+    path: Path, containment: list[Path]
+) -> tuple[set[str], dict[str, str]]:
     accepted: set[str] = set()
     proof_by_path: dict[str, str] = {}
-    # Keep previously verified entries that still pass containment + proof.
     for prior in load_session_created_paths(path):
         if _path_escape_or_symlink_reason(Path(prior), containment):
             continue
@@ -1330,18 +1316,20 @@ def record_session_created_paths(
         token = _proof_token(real, st)
         accepted.add(str(real))
         proof_by_path[str(real)] = token
+    return accepted, proof_by_path
 
-    for item in paths:
-        real_s, token = _refuse_or_proof_new_path(
-            Path(os.path.expanduser(str(item))),
-            containment=containment,
-            preexist_path_set=preexist_path_set,
-            preexist_inode_set=preexist_inode_set,
-            started_ns=started_ns,
-        )
-        accepted.add(real_s)
-        proof_by_path[real_s] = token
 
+def _persist_session_manifest(
+    path: Path,
+    *,
+    started_at: object,
+    started_f: float,
+    containment: list[Path],
+    accepted: set[str],
+    proof_by_path: dict[str, str],
+    preexist_path_set: set[str],
+    preexist_inode_set: set[str],
+) -> Path:
     root_strs = sorted({str(r) for r in containment})
     path_strs = sorted(accepted)
     proof_strs = sorted(proof_by_path[p] for p in path_strs if p in proof_by_path)
@@ -1371,6 +1359,58 @@ def record_session_created_paths(
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + chr(10), encoding="utf-8")
     path.chmod(0o600)
     return path
+
+
+def record_session_created_paths(
+    paths: list,
+    *,
+    manifest: Path | None = None,
+    roots: list | None = None,
+) -> Path:
+    """
+    Append contained absolute paths to the HMAC-bound session manifest.
+
+    Tool-only writer. Rejects symlinks, traversal, absolute paths outside
+    the session scoped dir / worktree containment roots, and any path that
+    existed before the session started (inventory / inode / birth-or-ctime).
+    Creates parent dirs. Initializes the session-start inventory when missing.
+    """
+    path = _ensure_session_manifest_path(manifest)
+    explicit_roots = [Path(r) for r in (roots or [])]
+    if not path.is_file():
+        init_session_created_manifest(manifest=path, roots=explicit_roots or None)
+    data = _load_manifest_dict(path)
+    if data is None:
+        raise PermissionError("session-manifest refused: unreadable manifest")
+    containment = _resolve_containment_roots(manifest=path, explicit_roots=explicit_roots or None)
+    started_at, started_f, started_ns, preexist_paths, preexist_inodes = _inventory_from_manifest(
+        path, data
+    )
+    preexist_path_set = set(preexist_paths)
+    preexist_inode_set = set(preexist_inodes)
+    accepted, proof_by_path = _retain_prior_session_entries(path, containment)
+    for item in paths:
+        real_s, token = _refuse_or_proof_new_path(
+            Path(os.path.expanduser(str(item))),
+            containment=containment,
+            preexist_path_set=preexist_path_set,
+            preexist_inode_set=preexist_inode_set,
+            started_ns=started_ns,
+        )
+        accepted.add(real_s)
+        proof_by_path[real_s] = token
+    return _persist_session_manifest(
+        path,
+        started_at=started_at,
+        started_f=started_f,
+        containment=containment,
+        accepted=accepted,
+        proof_by_path=proof_by_path,
+        preexist_path_set=preexist_path_set,
+        preexist_inode_set=preexist_inode_set,
+    )
+
+
 
 
 def session_created_allows(path: Path, *, manifest: Path | None = None) -> bool:
