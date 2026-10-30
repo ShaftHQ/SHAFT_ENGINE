@@ -9,6 +9,8 @@ name: Dependabot auto-merge
 # Merge-queue evictions (checks_timed_out / merge_conflict) clear
 # autoMergeRequest and do not re-fire pull_request_target. schedule +
 # workflow_dispatch re-arm open Dependabot PRs that lost their queue seat.
+# Schedule/dispatch skips drafts and CONFLICTING PRs and soft-fails per PR
+# (::warning, exit 0) so one unarmable PR cannot spam ~72 red runs/day.
 
 on:
   pull_request_target: # zizmor: ignore[dangerous-triggers]
@@ -39,13 +41,6 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
-      - name: Fetch Dependabot metadata
-        if: github.event_name == 'pull_request_target'
-        id: metadata
-        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Enable auto-merge (this PR)
         if: github.event_name == 'pull_request_target'
         env:
@@ -72,19 +67,23 @@ jobs:
           set -euo pipefail
           mapfile -t urls < <(
             gh pr list --author 'app/dependabot' --state open --limit 50 \
-              --json url,autoMergeRequest \
-              --jq '.[] | select(.autoMergeRequest == null) | .url'
+              --json url,autoMergeRequest,isDraft,mergeable \
+              --jq '.[]
+                | select(.autoMergeRequest == null)
+                | select(.isDraft == false)
+                | select(.mergeable != "CONFLICTING")
+                | .url'
           )
           if [ "${#urls[@]}" -eq 0 ]; then
             echo "No open Dependabot PRs need re-arming."
             exit 0
           fi
-          failed=0
+          warned=0
           for url in "${urls[@]}"; do
             echo "Re-arming $url"
             if ! gh pr merge --auto "$url"; then
-              echo "warn: gh pr merge --auto failed for $url"
-              failed=$((failed + 1))
+              echo "::warning::gh pr merge --auto failed for $url (left unarmed)"
+              warned=$((warned + 1))
               continue
             fi
             state="$(gh pr view "$url" --json state,autoMergeRequest,mergeStateStatus)"
@@ -94,11 +93,11 @@ jobs:
               or .state != "OPEN"
               or .mergeStateStatus == "QUEUED"
             ' >/dev/null; then
-              echo "warn: auto-merge not armed for $url"
-              failed=$((failed + 1))
+              echo "::warning::auto-merge not armed for $url"
+              warned=$((warned + 1))
             fi
           done
-          if [ "$failed" -gt 0 ]; then
-            echo "Failed to arm $failed Dependabot PR(s)."
-            exit 1
+          if [ "$warned" -gt 0 ]; then
+            echo "::warning::Could not arm $warned Dependabot PR(s); schedule soft-fail (exit 0)."
           fi
+          exit 0
