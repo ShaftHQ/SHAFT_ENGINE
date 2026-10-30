@@ -25,6 +25,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Future;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -98,11 +102,14 @@ public class BidiNetworkActivitySource implements AutoCloseable {
     private static final int TRACE_HEADER_CHARACTER_LIMIT = 8192;
     /** Largest request body the BiDi data collector retains per request (#6740). */
     private static final long REQUEST_BODY_COLLECTOR_BYTES = 262_144L;
+    /** Cap BiDi {@code network.getData} so a hung collector cannot drop the network event (#7626). */
+    static final Duration REQUEST_BODY_FETCH_TIMEOUT = Duration.ofSeconds(2);
 
     private static final ConcurrentHashMap<WebDriver, BidiNetworkActivitySource> CACHE = new ConcurrentHashMap<>();
 
     private final ConcurrentHashMap<String, Long> inFlightStartNanos = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, TraceRequest> traceRequests = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, EarlyCompletion> earlyCompletions = new ConcurrentHashMap<>();
     private final AtomicLong activitySequence = new AtomicLong();
     private final AtomicBoolean healthy = new AtomicBoolean(false);
     private final LongSupplier nanoTimeSource;
@@ -289,6 +296,18 @@ public class BidiNetworkActivitySource implements AutoCloseable {
         if (request == null || detailedObservationActive.getAsBoolean()) {
             return;
         }
+        TraceRequest traceRequest = buildTraceRequest(request);
+        if (longLived) {
+            publish(traceRequest, null, "BiDi long-lived request observed; completion metadata is unavailable.", "");
+            return;
+        }
+        if (!retainInFlight(traceRequest)) {
+            return;
+        }
+        registerPendingTraceRequest(request.getRequestId(), traceRequest);
+    }
+
+    private TraceRequest buildTraceRequest(org.openqa.selenium.bidi.network.RequestData request) {
         BrowserObservabilityRecorder.ObservationSession owner =
                 BrowserObservabilityRecorder.resolveSession(observationBinding);
         BoundedHeaders requestHeaders = headers(request.getHeaders());
@@ -297,45 +316,75 @@ public class BidiNetworkActivitySource implements AutoCloseable {
         if (metadataWasBounded(request, method, url, requestHeaders)) {
             warnMetadataLimit(owner);
         }
-        TraceRequest traceRequest = new TraceRequest(owner, method.value(), url.value(), requestHeaders.values(),
+        return new TraceRequest(owner, method.value(), url.value(), requestHeaders.values(),
                 method.context(), url.context(), requestHeaders.contexts(),
                 Math.max(0L, request.getBodySize() == null ? 0L : request.getBodySize()), nanoTimeSource.getAsLong());
-        if (longLived) {
-            publish(traceRequest, null, "BiDi long-lived request observed; completion metadata is unavailable.", "");
+    }
+
+    private boolean retainInFlight(TraceRequest traceRequest) {
+        if (traceRequests.size() < TRACE_REQUEST_LIMIT) {
+            return true;
+        }
+        BrowserObservabilityRecorder.ObservationSession owner = traceRequest.owner();
+        if (!java.util.Objects.equals(traceRequestLimitWarningOwner, owner)) {
+            traceRequestLimitWarningOwner = owner;
+            BrowserObservabilityRecorder.recordWarning(owner, "network",
+                    "A BiDi network request was omitted because the in-flight trace limit was reached.");
+        }
+        return false;
+    }
+
+    private void registerPendingTraceRequest(String requestId, TraceRequest traceRequest) {
+        if (requestId == null) {
+            // Without an id the response path cannot join; publish what we have so the session
+            // still observes the request (#7626).
+            publish(traceRequest, null, "BiDi request id was unavailable; completion metadata is unavailable.", "");
             return;
         }
-        if (traceRequests.size() >= TRACE_REQUEST_LIMIT) {
-            if (!java.util.Objects.equals(traceRequestLimitWarningOwner, owner)) {
-                traceRequestLimitWarningOwner = owner;
-                BrowserObservabilityRecorder.recordWarning(owner, "network",
-                        "A BiDi network request was omitted because the in-flight trace limit was reached.");
-            }
-            return;
-        }
-        String requestId = request.getRequestId();
-        if (requestId != null) {
-            traceRequests.put(requestId, traceRequest);
+        traceRequests.put(requestId, traceRequest);
+        EarlyCompletion early = earlyCompletions.remove(requestId);
+        if (early != null) {
+            completeTraceRequest(requestId, early.response(), early.failureReason());
         }
     }
 
     private synchronized void completeTraceRequest(String requestId,
                                                    org.openqa.selenium.bidi.network.ResponseData response,
                                                    String failureReason) {
-        TraceRequest pending = requestId == null ? null : traceRequests.remove(requestId);
+        if (requestId == null) {
+            return;
+        }
+        TraceRequest pending = traceRequests.remove(requestId);
+        if (pending == null) {
+            // Response/error can beat beforeRequestSent on Chromium BiDi; remember it until the
+            // matching start arrives so the observation session still gets the POST (#7626).
+            // Orphan completions with no matching start stay unpublished (see unit test).
+            earlyCompletions.put(requestId, new EarlyCompletion(response, failureReason));
+            return;
+        }
+        scheduleTracePublish(requestId, pending, response, failureReason);
+    }
+
+    private void scheduleTracePublish(String requestId,
+                                      TraceRequest pending,
+                                      org.openqa.selenium.bidi.network.ResponseData response,
+                                      String failureReason) {
         Function<String, byte[]> reader = requestBodyReader;
-        if (pending == null || reader == null || pending.requestSize() <= 0
+        if (reader == null || pending.requestSize() <= 0
                 || pending.requestSize() > REQUEST_BODY_COLLECTOR_BYTES) {
             publish(pending, response, failureReason, "");
             return;
         }
         // The BiDi reply to network.getData arrives on the thread that delivers this event, so the
-        // body is read on a worker; reading here would wait on itself.
+        // body is read on a worker; reading here would wait on itself. Cap the wait so a hung
+        // collector cannot omit the network event from the observation session (#7626).
+        final TraceRequest toPublish = pending;
         try {
             worker().execute(() -> {
-                String preview = fetchRequestBodyPreview(reader, requestId);
+                String preview = fetchRequestBodyPreviewTimed(reader, requestId, REQUEST_BODY_FETCH_TIMEOUT);
                 synchronized (this) {
                     if (!closed.get()) {
-                        publish(pending, response, failureReason, preview);
+                        publish(toPublish, response, failureReason, preview);
                     }
                 }
             });
@@ -343,6 +392,7 @@ public class BidiNetworkActivitySource implements AutoCloseable {
             publish(pending, response, failureReason, "");
         }
     }
+
 
     private ExecutorService worker() {
         ExecutorService current = bodyWorker;
@@ -362,6 +412,32 @@ public class BidiNetworkActivitySource implements AutoCloseable {
             return BrowserObservabilityRecorder.requestBodyPreview(reader.apply(requestId));
         } catch (RuntimeException e) {
             return "";
+        }
+    }
+
+    /**
+     * Reads the request-body preview with a hard timeout so {@code network.getData} cannot stall the
+     * publish path indefinitely (#7626).
+     */
+    static String fetchRequestBodyPreviewTimed(Function<String, byte[]> reader, String requestId,
+                                               Duration timeout) {
+        ExecutorService fetch = Executors.newSingleThreadExecutor(task -> {
+            Thread thread = new Thread(task, "shaft-bidi-request-body-fetch");
+            thread.setDaemon(true);
+            return thread;
+        });
+        try {
+            Future<String> future = fetch.submit(() -> fetchRequestBodyPreview(reader, requestId));
+            return future.get(Math.max(1L, timeout.toNanos()), TimeUnit.NANOSECONDS);
+        } catch (TimeoutException e) {
+            return "";
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return "";
+        } catch (ExecutionException e) {
+            return "";
+        } finally {
+            fetch.shutdownNow();
         }
     }
 
@@ -609,6 +685,7 @@ public class BidiNetworkActivitySource implements AutoCloseable {
             this.network = null;
             healthy.set(false);
             traceRequests.clear();
+            earlyCompletions.clear();
             inFlightStartNanos.clear();
         }
         ExecutorService toStop = bodyWorker;
@@ -622,6 +699,10 @@ public class BidiNetworkActivitySource implements AutoCloseable {
                 // Closing an already-torn-down BiDi connection during driver teardown is harmless.
             }
         }
+    }
+
+    private record EarlyCompletion(org.openqa.selenium.bidi.network.ResponseData response,
+                                    String failureReason) {
     }
 
     private record TraceRequest(BrowserObservabilityRecorder.ObservationSession owner, String method, String url,
