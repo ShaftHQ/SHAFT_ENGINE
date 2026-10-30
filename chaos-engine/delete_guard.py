@@ -2009,8 +2009,26 @@ def _workspaces(project: Path) -> list[Path]:
 CONSUMER_MARKER = ".chaos-engine-state/consumer-mode"
 
 
+def _is_chaos_engine_rel(rel: str) -> bool:
+    """True for harness paths that should not trigger backup-remote alone."""
+    normalized = rel.replace("\\", "/")
+    prefixes = (
+        ".chaos-engine",
+        ".chaos-engine-state",
+        ".memory",
+        ".mempalace",
+        "graphify-out",
+        ".graphifyignore",
+        "mempalace.yaml",
+    )
+    for prefix in prefixes:
+        if normalized == prefix or normalized.startswith(prefix + "/"):
+            return True
+    return False
+
+
 def _only_chaos_engine_dirt(porcelain: str) -> bool:
-    """True when every porcelain path is under .chaos-engine/ (uncommitted CE tree)."""
+    """True when every porcelain path is harness/CE state (uncommitted CE tree)."""
     lines = [line for line in porcelain.splitlines() if line.strip()]
     if not lines:
         return False
@@ -2019,7 +2037,7 @@ def _only_chaos_engine_dirt(porcelain: str) -> bool:
         rel = rel.strip().strip('"')
         if " -> " in rel:
             rel = rel.split(" -> ", 1)[-1]
-        if not (rel == ".chaos-engine" or rel.startswith(".chaos-engine/") or rel.startswith(".chaos-engine\\")):
+        if not _is_chaos_engine_rel(rel):
             return False
     return True
 
@@ -2037,11 +2055,9 @@ def _is_linked_worktree(path: Path) -> bool:
 def backup_remote_issue(path: Path) -> str:
     if _git(path, "rev-parse", "--show-toplevel").returncode != 0:
         return "not in git"
-    # #7263: consumer mode (#6237) hides .memory/mempalace via info/exclude, so a
-    # clean status proves nothing — still warn. Silence is only for linked
-    # worktrees whose sole dirt is an uncommitted CE tree (below).
-    if (path / CONSUMER_MARKER).is_file():
-        return "consumer mode hides harness state from git"
+    # Consumer mode (#6237) and CE-only dirt are silent: the harness hides its
+    # own state on purpose. Warn only for real unpushed work or non-CE dirt.
+    consumer = (path / CONSUMER_MARKER).is_file()
     if not _git(path, "remote").stdout.strip():
         return "no remote"
     if _git(path, "rev-parse", "--abbrev-ref", "@{u}").returncode != 0:
@@ -2050,9 +2066,11 @@ def backup_remote_issue(path: Path) -> str:
         return "unpushed commits"
     porcelain = _git(path, "status", "--porcelain", "--untracked-files=normal").stdout.strip()
     if porcelain:
-        # Silence on linked worktrees whose only dirt is an uncommitted CE tree.
-        if _is_linked_worktree(path) and _only_chaos_engine_dirt(porcelain):
+        if _only_chaos_engine_dirt(porcelain):
             return ""
+        if consumer:
+            # Consumer exclude hides .chaos-engine / .memory; non-CE dirt still warns.
+            return "uncommitted files"
         return "uncommitted files"
     return ""
 

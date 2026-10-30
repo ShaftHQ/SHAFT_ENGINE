@@ -109,10 +109,10 @@ the owner-code flow too.
   exposes `delete-check`. A fail fails doctor.
 - `backup-remote: pass|warn`: advisory only. Lists workspaces (the project,
   `.chaos-engine-state/backup-workspaces.txt`, `CHAOS_BACKUP_WORKSPACES`)
-  that have no remote, no upstream, unpushed commits or uncommitted files,
-  or run in consumer mode (its `info/exclude` block hides `.memory/`
-  and mempalace from git). Push them or back them up; a bot workspace whose
-  state must be backed up should not use `--consumer`.
+  that have no remote, no upstream, unpushed commits, or non-CE uncommitted
+  files. Consumer mode and dirt that is only under `.chaos-engine/` are
+  silent (the harness hides its own state on purpose).
+
 - `backups-watch: pass|warn`: advisory only. Documents the optional
   backups-directory watcher ([backups_watch.py](../backups_watch.py)).
   Doctor never starts it. Start by hand:
