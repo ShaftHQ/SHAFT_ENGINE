@@ -11,6 +11,7 @@ import math
 import re
 import statistics
 from pathlib import Path
+import os
 import unicodedata
 
 TEXT_SUFFIXES = {".css", ".scss", ".html", ".htm", ".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".mdx",
@@ -43,8 +44,17 @@ ARABIC = re.compile("[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]")
 
 
 def files_of(root: str, suffixes: set[str]) -> list[Path]:
+    """Return files under ``root`` whose suffix is in ``suffixes``.
+
+    A single-file path is included only when its suffix matches; a direct
+    image (or other non-text) path therefore yields an empty list so
+    text-only gates such as ``nonviewertext`` fail closed instead of
+    silent-PASS.
+    """
     base = Path(root)
-    return [base] if base.is_file() else sorted(p for p in base.rglob("*") if p.suffix in suffixes and p.is_file())
+    if base.is_file():
+        return [base] if base.suffix in suffixes else []
+    return sorted(p for p in base.rglob("*") if p.suffix in suffixes and p.is_file())
 
 
 def scan(qc, check: str, root: str, rules: dict[str, str], allow: list[str], case: bool = False) -> int:
@@ -3442,7 +3452,8 @@ def cmd_nonviewertext(qc, args) -> int:
     """L39: fail production/debug/placeholder tokens in on-screen chrome or captions.
 
     Scans text/ASS/SRT/JSON/HTML only (no OCR). A path that yields zero scannable
-    text files (empty dir, image-only frames dir) fails closed.
+    text files (empty dir, image-only frames dir, or a direct non-text file such
+    as a PNG) fails closed.
     """
     hits, files = [], files_of(args.path, {".txt", ".md", ".json", ".srt", ".vtt", ".ass", ".html", ".htm"})
     if not files:
@@ -3462,6 +3473,165 @@ def cmd_nonviewertext(qc, args) -> int:
                     hits.append(f"{file}:{where} {rule}")
     return qc.report("nonviewertext", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits)
 
+
+
+
+def _cue_duration(cue: dict) -> float:
+    return float(cue["end"]) - float(cue["start"])
+
+
+def cmd_mincuedur(qc, args) -> int:
+    """Fail cues shorter than min duration unless already merged away.
+
+    A cue under ``--min`` (default 0.8s) that still exists as its own block
+    fails. The fix is to merge it into a neighbour (keep the neighbour's
+    start; absorb text) so the short cue no longer appears. Passing a still-
+    short cue with a merge note is not allowed — merge must remove it.
+    """
+    cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    if not cues:
+        return qc.report("mincuedur", qc.FAIL, hits=["no cues"], min_s=args.min)
+    hits = []
+    for index, cue in enumerate(cues, 1):
+        dur = _cue_duration(cue)
+        if dur + 1e-9 < float(args.min):
+            text = " ".join(cue.get("lines") or [])[:40]
+            hits.append(f"cue {index}: duration {dur:.3f}s < {args.min:g}s ({text!r})")
+    return qc.report(
+        "mincuedur", qc.FAIL if hits else qc.PASS,
+        cues=len(cues), min_s=float(args.min), hits=hits,
+        note="merge short cues into a neighbour; do not leave sub-min blocks",
+    )
+
+
+def _load_independent_onsets(path: Path) -> list[dict]:
+    """Load word onsets from ASR or forced-alignment JSON (independent of cues)."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    words = words_of(data)
+    out = []
+    for entry in words:
+        start = entry.get("start")
+        word = (entry.get("word") or "").strip()
+        if start is None or not word:
+            continue
+        out.append({"word": word, "start": float(start), "end": entry.get("end")})
+    return out
+
+
+_LATIN_WORD = re.compile(r"^[A-Za-z][A-Za-z0-9'./+-]*$")
+
+
+def _is_codeswitch_en(word: str) -> bool:
+    """True when the onset token looks like a code-switched English/Latin word."""
+    return bool(_LATIN_WORD.match(word.strip()))
+
+
+
+def _paths_share_inode(left: Path, right: Path) -> bool:
+    """True when paths resolve equal or are hardlinks (samefile), not resolve-only."""
+    try:
+        if left.resolve() == right.resolve():
+            return True
+    except OSError:
+        # Unresolvable path: fall through to samefile / False.
+        pass
+    try:
+        return left.is_file() and right.is_file() and os.path.samefile(left, right)
+    except OSError:
+        return False
+
+def cmd_capsync(qc, args) -> int:
+    """Caption sync against independent ASR / forced-alignment onsets.
+
+    Never derive onsets from the cue file or from the snapper that produced
+    those cues — that is a tautology and always measures ~0 ms. Require an
+    external ``--onsets`` JSON (Whisper/word-level ASR or forced alignment)
+    timed on the rendered audio. Code-switched English/Latin tokens may use
+    a wider tolerance.
+    """
+    cue_path = Path(args.file)
+    onset_path = Path(args.onsets)
+    if not onset_path.is_file():
+        return qc.report(
+            "capsync", qc.FAIL, hits=["missing-independent-onsets"],
+            error="pass --onsets from ASR/forced-alignment on rendered audio",
+        )
+    if _paths_share_inode(onset_path, cue_path):
+        return qc.report(
+            "capsync", qc.FAIL, hits=["onsets-same-as-cues"],
+            error="onsets must be an independent ASR/FA file, not the cue file",
+        )
+    snapper = getattr(args, "snapper_words", None)
+    if snapper:
+        snap_path = Path(snapper)
+        if snap_path.is_file() and _paths_share_inode(onset_path, snap_path):
+            return qc.report(
+                "capsync", qc.FAIL, hits=["onsets-share-snapper-words"],
+                error="verifier ASR must be a separate run from the snapper word source",
+            )
+    cues = qc.parse_cues(cue_path.read_text(encoding="utf-8"))
+    if not cues:
+        return qc.report("capsync", qc.FAIL, hits=["no cues"])
+    onsets = _load_independent_onsets(onset_path)
+    if not onsets:
+        return qc.report(
+            "capsync", qc.FAIL, hits=["empty-onsets"],
+            error="onsets JSON has no word start times",
+        )
+    # Tautology guard: if every cue start equals some onset start within 1ms
+    # AND onset count == cue count AND all words match cue first tokens, still
+    # OK structurally — but if onsets were fabricated as cue starts with empty
+    # words we already failed empty. Detect cue-start cloning: when each onset
+    # start equals the corresponding cue start within 1e-4 and there is no
+    # other timing diversity, flag as snapper-echo.
+    if len(onsets) == len(cues):
+        diffs = [abs(onsets[i]["start"] - cues[i]["start"]) for i in range(len(cues))]
+        if diffs and max(diffs) < 1e-4:
+            return qc.report(
+                "capsync", qc.FAIL, hits=["onsets-echo-cue-starts"],
+                error="onsets match cue starts exactly — use independent ASR/FA, not snapper echo",
+                max_drift_ms=0.0,
+            )
+    tol = float(args.tol)
+    cs_tol = float(args.codeswitch_tol)
+    hits = []
+    worst_ms = 0.0
+    matched = 0
+    for index, cue in enumerate(cues, 1):
+        # Match: nearest onset at or after cue.start - tol_window, preferring
+        # first content token when available.
+        tokens = [t for t in re.findall(r"\S+", " ".join(cue.get("lines") or [])) if t]
+        first = tokens[0] if tokens else ""
+        window = max(tol, cs_tol) + 0.05
+        candidates = [
+            o for o in onsets
+            if abs(o["start"] - cue["start"]) <= window + 1e-9
+        ]
+        if first:
+            named = [o for o in candidates if o["word"].casefold() == first.casefold()
+                     or o["word"].casefold().rstrip(".,:;!?") == first.casefold().rstrip(".,:;!?")]
+            if named:
+                candidates = named
+        if not candidates:
+            hits.append(f"cue {index}: no independent onset near {cue['start']:.3f}s")
+            continue
+        best = min(candidates, key=lambda o: abs(o["start"] - cue["start"]))
+        drift = abs(best["start"] - cue["start"])
+        allow = cs_tol if _is_codeswitch_en(best["word"]) else tol
+        worst_ms = max(worst_ms, drift * 1000.0)
+        matched += 1
+        if drift > allow + 1e-9:
+            hits.append(
+                f"cue {index}: drift {drift * 1000:.1f}ms > {allow * 1000:g}ms "
+                f"(cue={cue['start']:.3f} onset={best['start']:.3f} word={best['word']!r})"
+            )
+    return qc.report(
+        "capsync", qc.FAIL if hits else qc.PASS,
+        cues=len(cues), onsets=len(onsets), matched=matched,
+        max_drift_ms=round(worst_ms, 1),
+        tol_ms=round(tol * 1000, 1), codeswitch_tol_ms=round(cs_tol * 1000, 1),
+        hits=hits,
+    )
 
 
 def register(add, qc) -> None:
@@ -3919,6 +4089,23 @@ def register(add, qc) -> None:
                    help="onset/cue start window that counts as clipped open (default 0.15s)")
     p.add_argument("--max-tokens", type=int, default=4, dest="max_tokens")
     p.add_argument("--max-dur", type=float, default=0.45, dest="max_dur")
+
+    p = add("mincuedur", bind(cmd_mincuedur),
+            "L44: fail cues shorter than min duration (default 0.8s); merge into neighbour")
+    p.add_argument("file", help="caption SRT")
+    p.add_argument("--min", type=float, default=0.8, help="minimum cue duration seconds (default 0.8)")
+
+    p = add("capsync", bind(cmd_capsync),
+            "L44: cue starts vs independent ASR/FA onsets (never snapper echo)")
+    p.add_argument("file", help="caption SRT")
+    p.add_argument("--onsets", required=True,
+                   help="independent ASR or forced-alignment JSON with word start times")
+    p.add_argument("--snapper-words", dest="snapper_words", default=None,
+                   help="snapper word-source JSON; fails when identical to --onsets path")
+    p.add_argument("--tol", type=float, default=0.15,
+                   help="max |cue.start - onset| seconds (default 0.15)")
+    p.add_argument("--codeswitch-tol", type=float, default=0.30, dest="codeswitch_tol",
+                   help="wider tol for code-switched English/Latin tokens (default 0.30)")
 
     p = add("bidisolate", bind(cmd_bidisolate),
             "L39: Latin runs inside RTL lines must use LRI/RLI/FSI…PDI")

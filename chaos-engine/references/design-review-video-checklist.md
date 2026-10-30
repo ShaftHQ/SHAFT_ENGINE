@@ -40,6 +40,9 @@ design_qc.py bidi <cues|ass|srt|hooks>
 design_qc.py captionlayers <ass|mp4|manifest.json>
 design_qc.py asscapfit <file.ass> --band-h <px>
 design_qc.py nonviewertext <chrome.txt|frames-dir|ass>
+design_qc.py renderfresh <out.mp4> --prior-sha256 <prev>   # L46; REUSE_MP4 fails
+design_qc.py frozentail <avatar.mp4>                        # L47 last 2s + after speech
+design_qc.py capsync <cues.srt> --onsets <asr.json> [--snapper-words <snap.json>]
 title_scope_gate.py check --title T --srt answer.srt
 ```
 Sibling video sign-off lesson owns viewer-frame SIGN (contact sheet ≥1/5s +

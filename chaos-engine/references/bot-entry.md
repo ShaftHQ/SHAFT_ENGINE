@@ -39,12 +39,18 @@ and PreCompact, so a bot must do it itself. One delivery per thread; at each bou
 
 ## Keep going
 
-Keep-alive: [worker-keep-alive](worker-keep-alive.md).
+Keep-alive: [worker-keep-alive](worker-keep-alive.md) (KEEP-ALIVE charter).
+Upgrade: [ce-upgrade-on-release](ce-upgrade-on-release.md) (see [VERSION](../VERSION)) — install latest
+ChaosEngine (`chaos-engine/VERSION`), load it for every task; workers inherit
+via `ce_load` + entry. Cleanup: [cleanup-at-close](cleanup-at-close.md).
+Work order: [work-ordering](work-ordering.md) (open PRs first).
+Commit identity: [commit-identity](commit-identity.md) (ChaosEngine author only on the engine repo + user-guide pages repo).
 
 Work the queue to the end without waiting for "proceed": after each step or
-delivery, start the next queued item. A turn that ends while CI runs must leave
-a wake (a PR-scoped CI listener) whose prompt resumes the queue; a host whose
-scheduled runs cannot create listeners hands that to the parent.
+delivery, start the next queued item (KEEP-ALIVE). A turn that ends while CI
+runs must leave a wake (a PR-scoped CI listener) whose prompt resumes the
+queue; a host whose scheduled runs cannot create listeners hands that to the
+parent. While waiting on review, pull the next independent own row.
 
 ## Session cap (Grok Bot default)
 

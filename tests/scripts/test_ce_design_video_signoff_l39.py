@@ -115,7 +115,7 @@ class LessonCardTest(unittest.TestCase):
         index = (LESSONS / "index.md").read_text(encoding="utf-8")
         self.assertIn(CARD, index)
         inv = (DESIGN / "INVENTORY.md").read_text(encoding="utf-8")
-        self.assertIn("L01-L39", inv)
+        self.assertIn("L01-L47", inv)
         self.assertIn("video sign-off viewer frames", inv)
 
 
@@ -247,6 +247,27 @@ class NonviewertextGateTest(unittest.TestCase):
             code, payload = run_qc("nonviewertext", str(frames))
             self.assertEqual(1, code, payload)
             self.assertIn("no-text-inputs", payload.get("hits", []))
+
+    def test_direct_png_file_fails_closed(self) -> None:
+        """N1: a direct PNG path must not silent-PASS (files=1, hits=[])."""
+        with tempfile.TemporaryDirectory() as folder:
+            solo = Path(folder) / "solo.png"
+            solo.write_bytes(b"\x89PNG\r\n\x1a\n")
+            code, payload = run_qc("nonviewertext", str(solo))
+            self.assertEqual(1, code, payload)
+            self.assertEqual(0, payload.get("files", -1), payload)
+            self.assertIn("no-text-inputs", payload.get("hits", []))
+
+
+
+class L39LessonNeutralityTest(unittest.TestCase):
+    def test_sources_role_neutral(self) -> None:
+        raw = (
+            Path(__file__).resolve().parents[2]
+            / "chaos-engine/addons/design-skills/references/lessons/video-signoff-viewer-frames.md"
+        ).read_text(encoding="utf-8")
+        self.assertNotRegex(raw.lower(), r"\bcoach\b")
+        self.assertNotIn("coach/signoff-", raw)
 
 
 if __name__ == "__main__":

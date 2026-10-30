@@ -11,7 +11,7 @@ Install, `maintain` recovery and harness-edit checks for bots that start from
   (add `--with-<add-on>` flags as needed; `install.py addons --project .`
   lists them). Expect a few minutes for the first store index.
 - Linked worktree: install in the primary checkout, then
-  `python3 <primary>/.chaos-engine/worktree_overlay.py materialize --primary <primary> --session <worktree>`.
+  `python3 <primary>/.chaos-engine/worktree_overlay.py upgrade-session --primary <primary> --session <worktree>` (preferred; skips plugin marketplace when VERSION matches) or `materialize` for overlay-only sync. `materialize` upgrades stale overlay files in place via hash/manifest; local edits refuse.
 - A clean source can also come from `git archive HEAD | tar -x -C ../ce-src`
   (a disjoint tree at the same commit).
 - Never reinstall after `entry`: the session's cards are bound to that

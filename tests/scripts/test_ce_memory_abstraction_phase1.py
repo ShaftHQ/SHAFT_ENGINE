@@ -32,13 +32,16 @@ def _load(name: str, path: Path):
 
 class ProcessCardsTest(unittest.TestCase):
     CARDS = {
-        "worker-keep-alive.md": ("keep-alive", "non-empty", "dispatch"),
+        "worker-keep-alive.md": ("KEEP-ALIVE", "same turn", "independent"),
         "checkpoint-resume.md": ("checkpoint", "interrupted", "resume"),
-        "cleanup-at-close.md": ("BLOCKED-INFRA", "15 GiB", "Large media"),
+        "cleanup-at-close.md": ("BLOCKED-INFRA", "80%", "Outdated YouTube"),
+        "ce-upgrade-on-release.md": ("CE upgrade", "VERSION", "ce_load"),
         "automerge-rearm.md": ("re-arm", "soft-fail", "eviction"),
         "sequential-wip.md": ("one", "In progress", "adversarial"),
         "mobile-client-automation.md": ("Read-only", "Secret-scan", "NamedBlock"),
         "design-review-video-checklist.md": ("Independent adversarial", "bidisolate", "LRI"),
+        "work-ordering.md": ("Open PRs", "bugs", "epics"),
+        "commit-identity.md": ("ChaosEngine", "allowed_remotes", "assert_chaosengine_author_allowed"),
     }
 
     def test_cards_have_rule_why_check(self) -> None:
@@ -54,6 +57,7 @@ class ProcessCardsTest(unittest.TestCase):
                 self.assertNotIn("<CLIENT>", raw)
                 self.assertNotIn("elmenus", raw.lower())
                 self.assertNotRegex(raw, r"(?i)\ballure\b")
+                self.assertNotRegex(raw.lower(), r"\bcoach\b")
 
     def test_keep_alive_does_not_claim_l39(self) -> None:
         """Sibling video sign-off lesson owns design L39; keep-alive is unnumbered."""
@@ -66,6 +70,15 @@ class ProcessCardsTest(unittest.TestCase):
         self.assertIn("worker_ce_entry.py", bot)
         self.assertIn("worker-keep-alive.md", bot)
         self.assertIn("checkpoint-resume.md", bot)
+        self.assertIn("ce-upgrade-on-release.md", bot)
+        self.assertIn("cleanup-at-close.md", bot)
+        self.assertIn("work-ordering.md", bot)
+        self.assertIn("commit-identity.md", bot)
+        self.assertIn("KEEP-ALIVE", bot)
+
+    def test_version_file_broadcastable(self) -> None:
+        raw = (CE / "VERSION").read_text(encoding="utf-8").strip().splitlines()[0]
+        self.assertRegex(raw, r"^\d{4}\.\d{2}\.\d{2}(\.\d+)?$")
 
     def test_parallel_streams_brief_marker(self) -> None:
         ps = (CE / "references/parallel-streams.md").read_text(encoding="utf-8")
@@ -78,10 +91,13 @@ class ProcessCardsTest(unittest.TestCase):
             "worker-keep-alive.md",
             "checkpoint-resume.md",
             "cleanup-at-close.md",
+            "ce-upgrade-on-release.md",
             "automerge-rearm.md",
             "sequential-wip.md",
             "mobile-client-automation.md",
             "design-review-video-checklist.md",
+            "work-ordering.md",
+            "commit-identity.md",
             "worker_ce_entry.py",
         ):
             self.assertIn(name, tip)

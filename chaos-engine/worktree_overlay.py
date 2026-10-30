@@ -7,10 +7,22 @@ linked git worktree or a fresh clone starts without them. This module:
 * `verify_ce_loads(cwd)` reports, per supported host, whether a session that
   starts in `cwd` (or any subdirectory) would load ChaosEngine.
 * `materialize(primary, session)` copies the overlay and missing untracked
-  host files from the primary checkout into a linked worktree. It never
-  overwrites a file that already exists in the session.
+  host files from the primary checkout into a linked worktree. Existing files
+  that still match the last materialized hash (or the current source) are left
+  alone; stale pure-overlay copies are upgraded in place. Local edits that
+  diverge from both refuse with a clear message. Idempotent and hash-based.
+* `upgrade_session(primary, session)` is the one fast command that brings a
+  worktree to the primary CE version: materialize (stale upgrade) plus a
+  lightweight host/plugin repair that skips client marketplace work when the
+  session VERSION already matches primary (plugins step is the ~60s cost).
 * `linked_worktree_reason(path)` returns a one-line refusal for installers
   run inside a linked worktree, naming the primary checkout.
+
+Timing budget: prefer `upgrade_session` / `materialize` over
+`CHAOS_ENGINE_ALLOW_LINKED_WORKTREE=1` + full `install.py install` (observed
+~227s across 17 worktrees). Target: well under 5s per worktree when VERSION
+matches (hash skip); under ~15s when overlay files need upgrade without a
+plugin marketplace round-trip.
 
 Standard library only; runs on Windows, macOS, and Linux.
 """
@@ -18,15 +30,20 @@ Standard library only; runs on Windows, macOS, and Linux.
 from __future__ import annotations
 
 import argparse
+import os
+import hashlib
 import json
 import shutil
 import subprocess  # nosec B404 - fixed git arguments only.
 import sys
+import time
 from pathlib import Path
 
 TREE = ".chaos-engine"
 ROUTER = f"{TREE}/skills/chaos-engine/SKILL.md"
 GUARD = f"{TREE}/hooks/guard.py"
+MANIFEST_REL = f"{TREE}/.overlay-materialize.json"
+VERSION_REL = f"{TREE}/VERSION"
 HOOK_HOSTS = ("claude", "codex", "copilot", "gemini", "grok")
 INSTRUCTION_ONLY_HOSTS = ("opencode", "cursor", "grok-bot", "antigravity")
 # Bots that auto-load nothing start from the bot entry; independent bots use the grok-bot path.
@@ -46,6 +63,13 @@ HOST_FILES = {
 }
 SHARED_FILES = ("AGENTS.md", ".mcp.json", ".claude/agents", ".codex/agents")
 SKIP_PARTS = {"__pycache__", ".pytest_cache"}
+# Timing budget note (seconds) for callers / docs.
+MATERIALIZE_BUDGET_S_PER_WORKTREE = 5.0
+UPGRADE_WITH_PLUGINS_BUDGET_S = 15.0
+
+
+class OverlayLocalEditError(RuntimeError):
+    """Session file diverges from source and from the last materialized hash."""
 
 
 def _git(cwd: Path, *arguments: str) -> str | None:
@@ -90,7 +114,7 @@ def linked_worktree_reason(path: Path) -> str | None:
         return None
     return (
         f"linked git worktree: install ChaosEngine in the primary checkout {primary}, then run "
-        f"`python3 {primary / TREE / 'worktree_overlay.py'} materialize --primary {primary} "
+        f"`python3 {primary / TREE / 'worktree_overlay.py'} upgrade-session --primary {primary} "
         f"--session {Path(path).resolve()}`"
     )
 
@@ -117,37 +141,272 @@ def verify_ce_loads(cwd: Path) -> dict[str, str]:
     return {host: _host_reason(root, host, primary) for host in HOSTS}
 
 
-def _copy(source: Path, destination: Path) -> list[str]:
-    copied: list[str] = []
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(65536)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _manifest_path(session: Path) -> Path:
+    return session / MANIFEST_REL
+
+
+def _load_manifest(session: Path) -> dict[str, str]:
+    path = _manifest_path(session)
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    files = data.get("files") if isinstance(data, dict) else None
+    if not isinstance(files, dict):
+        return {}
+    return {str(key): str(value) for key, value in files.items() if isinstance(value, str)}
+
+
+def _save_manifest(session: Path, files: dict[str, str]) -> None:
+    path = _manifest_path(session)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"schema": 1, "files": dict(sorted(files.items()))}
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _rel_key(session: Path, target: Path) -> str:
+    session_r = session.resolve()
+    abs_target = target if target.is_absolute() else session_r / target
+    # Avoid resolve() on missing paths (which anchors at CWD); normpath under session.
+    if abs_target.exists():
+        return abs_target.resolve().relative_to(session_r).as_posix()
+    normalized = Path(os.path.normpath(str(abs_target)))
+    return normalized.relative_to(session_r).as_posix()
+
+
+def _sync_file(
+    source: Path,
+    destination: Path,
+    *,
+    session: Path,
+    manifest: dict[str, str],
+    upgraded: list[str],
+    copied: list[str],
+    unchanged: list[str],
+) -> None:
+    if not source.is_file():
+        return
+    session_r = session.resolve()
+    dest_abs = destination if destination.is_absolute() else session_r / destination
+    key = _rel_key(session, dest_abs)
+    src_hash = _file_sha256(source)
+    if not dest_abs.exists():
+        dest_abs.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, dest_abs)
+        manifest[key] = src_hash
+        copied.append(dest_abs.as_posix())
+        return
+    dest_hash = _file_sha256(dest_abs)
+    if dest_hash == src_hash:
+        manifest[key] = src_hash
+        unchanged.append(dest_abs.as_posix())
+        return
+    recorded = manifest.get(key)
+    if recorded is not None and dest_hash == recorded:
+        shutil.copy2(source, dest_abs)
+        manifest[key] = src_hash
+        upgraded.append(dest_abs.as_posix())
+        return
+    raise OverlayLocalEditError(
+        f"local edit or unknown provenance at {dest_abs}: diverges from primary "
+        f"and from the last materialized hash; move it aside or reconcile, then re-run "
+        f"materialize / upgrade-session"
+    )
+
+
+def _iter_source_files(source: Path) -> list[Path]:
     if source.is_dir():
+        found: list[Path] = []
         for item in sorted(source.rglob("*")):
             if item.is_dir() or SKIP_PARTS & set(item.parts) or item.suffix == ".pyc":
                 continue
-            target = destination / item.relative_to(source)
-            if target.exists():
+            if item.name == ".overlay-materialize.json":
                 continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(item, target)
-            copied.append(target.as_posix())
-    elif source.is_file() and not destination.exists():
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination)
-        copied.append(destination.as_posix())
-    return copied
+            found.append(item)
+        return found
+    if source.is_file():
+        return [source]
+    return []
+
+
+def _copy(source: Path, destination: Path, *, session: Path, manifest: dict[str, str],
+          upgraded: list[str], copied: list[str], unchanged: list[str]) -> None:
+    if source.is_dir():
+        for item in _iter_source_files(source):
+            target = destination / item.relative_to(source)
+            _sync_file(
+                item, target, session=session, manifest=manifest,
+                upgraded=upgraded, copied=copied, unchanged=unchanged,
+            )
+    elif source.is_file():
+        _sync_file(
+            source, destination, session=session, manifest=manifest,
+            upgraded=upgraded, copied=copied, unchanged=unchanged,
+        )
+
+
+def _clean_stale_leftovers(primary: Path, session: Path, manifest: dict[str, str], removed: list[str]) -> None:
+    """Remove session overlay files we previously materialized that primary no longer has.
+
+    Only touches paths recorded in the materialize manifest (self-created leftovers).
+    Never deletes never-touch / protected content outside that set.
+    """
+    primary = primary.resolve()
+    session = session.resolve()
+    for key in list(manifest.keys()):
+        if key == MANIFEST_REL or key.endswith("/.overlay-materialize.json"):
+            continue
+        dest = session / key
+        src = primary / key
+        if dest.exists() and not src.exists():
+            if dest.is_file() and not dest.is_symlink():
+                dest.unlink()
+                removed.append(dest.as_posix())
+            del manifest[key]
 
 
 def materialize(primary: Path, session: Path) -> list[str]:
-    """Copy the overlay and missing host files from `primary` into `session`."""
+    """Copy/upgrade the overlay and host files from `primary` into `session`.
+
+    Returns paths newly written (copied or upgraded). Idempotent: a second call
+    with the same primary leaves current files untouched. Raises
+    ``OverlayLocalEditError`` when a session file has local edits.
+    """
     primary, session = Path(primary).resolve(), Path(session).resolve()
     if not (primary / ROUTER).is_file():
         raise FileNotFoundError(f"primary checkout has no ChaosEngine overlay: {primary}")
     relatives = [TREE, *SHARED_FILES]
     for files in HOST_FILES.values():
         relatives.extend(files)
+    manifest = _load_manifest(session)
     copied: list[str] = []
+    upgraded: list[str] = []
+    unchanged: list[str] = []
+    removed: list[str] = []
     for relative in dict.fromkeys(relatives):
-        copied.extend(_copy(primary / relative, session / relative))
-    return copied
+        _copy(
+            primary / relative, session / relative, session=session, manifest=manifest,
+            upgraded=upgraded, copied=copied, unchanged=unchanged,
+        )
+    _clean_stale_leftovers(primary, session, manifest, removed)
+    _save_manifest(session, manifest)
+    return copied + upgraded
+
+
+def _read_version(root: Path) -> str:
+    path = root / VERSION_REL
+    if not path.is_file():
+        # tracked tree may keep VERSION at chaos-engine/VERSION in repo root layout
+        alt = root / "chaos-engine" / "VERSION"
+        path = alt if alt.is_file() else path
+    if not path.is_file():
+        return ""
+    return path.read_text(encoding="utf-8").strip()
+
+
+def upgrade_session(primary: Path, session: Path, *, repair_plugins: bool | None = None) -> dict:
+    """One command: bring ``session`` to primary CE version (materialize + host repair).
+
+    Skips the slow plugin marketplace round-trip when VERSION already matches
+    unless ``repair_plugins=True``. Returns a result dict with timings.
+    """
+    primary, session = Path(primary).resolve(), Path(session).resolve()
+    started = time.perf_counter()
+    primary_ver = _read_version(primary)
+    session_ver_before = _read_version(session)
+    written = materialize(primary, session)
+    # Tracked-tree path: if session has a git checkout of .chaos-engine that
+    # drifted, also try to reset CE-managed tracked files from primary via git
+    # when both are linked worktrees of the same repo (best-effort, non-fatal).
+    _maybe_checkout_tracked_ce(primary, session)
+    session_ver_after = _read_version(session)
+    version_match = bool(primary_ver) and primary_ver == session_ver_after
+    if repair_plugins is None:
+        repair_plugins = not version_match or session_ver_before != primary_ver
+    plugins_ran = False
+    hosts_repaired = False
+    if repair_plugins:
+        plugins_ran = _try_repair_plugins(session)
+    else:
+        hosts_repaired = _try_repair_hosts_light(session)
+    elapsed = time.perf_counter() - started
+    return {
+        "written": written,
+        "primary_version": primary_ver,
+        "session_version": session_ver_after,
+        "plugins_repaired": plugins_ran,
+        "hosts_light_repaired": hosts_repaired,
+        "elapsed_s": round(elapsed, 3),
+        "budget_s": MATERIALIZE_BUDGET_S_PER_WORKTREE if not plugins_ran else UPGRADE_WITH_PLUGINS_BUDGET_S,
+    }
+
+
+def _maybe_checkout_tracked_ce(primary: Path, session: Path) -> None:
+    """Best-effort: when CE is tracked, check out primary's TREE into the session worktree."""
+    if not (primary / TREE).is_dir():
+        return
+    # Only when session is a linked worktree of the same primary.
+    if primary_checkout(session) is None:
+        return
+    # Prefer copying already-materialized content; git checkout -f for tracked files
+    # matching TREE when the index knows them.
+    top = _git(session, "rev-parse", "--show-toplevel")
+    if not top:
+        return
+    # List tracked CE paths at primary HEAD and restore into session.
+    listed = _git(primary, "ls-files", TREE)
+    if not listed:
+        return
+    sha = _git(primary, "rev-parse", "HEAD")
+    if not sha:
+        return
+    git = shutil.which("git")
+    if git is None:
+        return
+    try:
+        subprocess.run(  # nosec B603
+            [git, "checkout", "-q", sha, "--", TREE],
+            cwd=session, capture_output=True, text=True, timeout=60, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return
+
+
+def _try_repair_hosts_light(session: Path) -> bool:
+    """Copy missing host pointer files only; no marketplace."""
+    # materialize already synced HOST_FILES; nothing more required for light path.
+    return (session / ROUTER).is_file()
+
+
+def _try_repair_plugins(session: Path) -> bool:
+    """Best-effort plugin repair via install.py --component plugins when available."""
+    installer = session / TREE / "install.py"
+    if not installer.is_file():
+        installer = session / "chaos-engine" / "install.py"
+    if not installer.is_file():
+        return False
+    py = sys.executable or "python3"
+    try:
+        result = subprocess.run(  # nosec B603
+            [py, str(installer), "repair", "--project", str(session), "--component", "plugins"],
+            cwd=session, capture_output=True, text=True, timeout=120, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -155,16 +414,41 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     verify = commands.add_parser("verify", help="Report per-host CE load status for a directory.")
     verify.add_argument("--cwd", type=Path, default=Path.cwd())
-    make = commands.add_parser("materialize", help="Copy the overlay into a linked worktree.")
+    make = commands.add_parser("materialize", help="Copy/upgrade the overlay into a linked worktree.")
     make.add_argument("--primary", type=Path, required=True)
     make.add_argument("--session", type=Path, required=True)
+    upgrade = commands.add_parser(
+        "upgrade-session",
+        help="Fast: materialize + host repair; skip plugins when VERSION matches.",
+    )
+    upgrade.add_argument("--primary", type=Path, required=True)
+    upgrade.add_argument("--session", type=Path, required=True)
+    upgrade.add_argument(
+        "--force-plugins",
+        action="store_true",
+        help="Run plugin repair even when VERSION already matches (slow ~60s).",
+    )
     args = parser.parse_args(argv)
     if args.command == "verify":
         report = verify_ce_loads(args.cwd)
         failing = {host: reason for host, reason in report.items() if reason != "ok"}
         print("ChaosEngine loads on every host" if not failing else json.dumps(failing, sort_keys=True))
         return 0 if not failing else 1
-    copied = materialize(args.primary, args.session)
+    if args.command == "upgrade-session":
+        try:
+            result = upgrade_session(
+                args.primary, args.session, repair_plugins=True if args.force_plugins else None
+            )
+        except OverlayLocalEditError as error:
+            print(f"upgrade-session refused: {error}", file=sys.stderr)
+            return 2
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    try:
+        copied = materialize(args.primary, args.session)
+    except OverlayLocalEditError as error:
+        print(f"materialize refused: {error}", file=sys.stderr)
+        return 2
     print(f"materialized {len(copied)} file(s)")
     return 0
 

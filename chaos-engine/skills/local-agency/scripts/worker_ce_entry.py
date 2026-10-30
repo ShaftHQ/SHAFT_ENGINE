@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Lint worker / Task briefs for mandatory ChaosEngine load (Phase 1 memory abstraction).
+"""Lint worker / Task briefs for mandatory ChaosEngine load.
 
 Every fresh worker brief must:
 
 1. Contain a line ``ce_load: required`` (exact key).
-2. Instruct running ``tool.py entry`` (or ``entry --full``).
+2. Instruct running ``tool.py entry`` (or ``entry --full``) before any repo work.
+3. Workers inherit the bot's installed ChaosEngine implicitly; briefs must not
+   skip entry. Prefer the broadcast VERSION from ``chaos-engine/VERSION``
+   after a ``CE upgrade <version>`` notice (see ce-upgrade-on-release.md).
 
     python3 chaos-engine/skills/local-agency/scripts/worker_ce_entry.py lint BRIEF.md
 

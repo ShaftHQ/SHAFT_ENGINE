@@ -80,14 +80,14 @@ class PolicyOverlayRepairTest(unittest.TestCase):
             self.assertEqual("verified", result["action"])
 
     def test_linked_worktree_repair_names_the_materialize_fix(self):
-        """#7229: a worktree repair fails with the materialize command, not "reinstall failed"."""
+        """#7229: a worktree repair fails with the upgrade-session command, not "reinstall failed"."""
         with tempfile.TemporaryDirectory() as temporary:
             root = _project(Path(temporary) / "primary")
             worktree = Path(temporary) / "wt"
             git = shutil.which("git") or "git"
             subprocess.run([git, "-C", str(root), "worktree", "add", "-q", str(worktree)], check=True)  # nosec B603
             calls = []
-            with self.assertRaisesRegex(ValueError, "materialize --primary"):
+            with self.assertRaisesRegex(ValueError, "upgrade-session --primary"):
                 install._repair_policy_overlay(worktree, lambda *a, **k: calls.append(a))
             self.assertEqual([], calls)
 
