@@ -13,7 +13,7 @@ public class CustomSoftAssertTest {
     @Test(description = "Test formatFailureWithStackTrace with matching package")
     public void testFormatFailureWithStackTraceWithMatch() {
         AssertionError error = new AssertionError("Test error message");
-        String formatted = CustomSoftAssert.formatFailureWithStackTrace(error, "testPackage");
+        String formatted = CustomSoftAssert.formatFailureWithStackTrace(error, "com.shaft.test.unittests");
         
         Assert.assertNotNull(formatted, "Formatted message should not be null for matching package");
         Assert.assertTrue(formatted.contains("Test error message"), 
@@ -39,7 +39,7 @@ public class CustomSoftAssertTest {
 
     @Test(description = "Test formatFailureWithStackTrace with null error")
     public void testFormatFailureWithStackTraceNullError() {
-        String formatted = CustomSoftAssert.formatFailureWithStackTrace(null, "testPackage");
+        String formatted = CustomSoftAssert.formatFailureWithStackTrace(null, "com.shaft.test.unittests");
         Assert.assertNull(formatted, "Should return null for null error");
     }
 
@@ -53,9 +53,9 @@ public class CustomSoftAssertTest {
     @Test(description = "Test CustomSoftAssert setRootPackage and onAssertFailure")
     public void testCustomSoftAssertSetRootPackage() {
         CustomSoftAssert softAssert = new CustomSoftAssert();
-        softAssert.setRootPackage("testPackage");
+        softAssert.setRootPackage("com.shaft.test.unittests");
         
-        // Create a failure that will match testPackage
+        // Create a failure that will match com.shaft.test.unittests
         softAssert.assertEquals("expected", "actual", "Values should match");
         
         // Verify assertAll throws and contains formatted message
@@ -70,7 +70,7 @@ public class CustomSoftAssertTest {
     @Test(description = "Test CustomSoftAssert clearFailures")
     public void testCustomSoftAssertClearFailures() {
         CustomSoftAssert softAssert = new CustomSoftAssert();
-        softAssert.setRootPackage("testPackage");
+        softAssert.setRootPackage("com.shaft.test.unittests");
         
         // Add a failure
         softAssert.assertEquals("expected", "actual", "Test");
@@ -101,7 +101,7 @@ public class CustomSoftAssertTest {
             }
         };
         
-        String formatted = CustomSoftAssert.formatFailureWithStackTrace(error, "testPackage");
+        String formatted = CustomSoftAssert.formatFailureWithStackTrace(error, "com.shaft.test.unittests");
         Assert.assertNull(formatted, "Should return null for line number 0");
     }
 
@@ -117,7 +117,7 @@ public class CustomSoftAssertTest {
             }
         };
         
-        String formatted = CustomSoftAssert.formatFailureWithStackTrace(error, "testPackage");
+        String formatted = CustomSoftAssert.formatFailureWithStackTrace(error, "com.shaft.test.unittests");
         Assert.assertNotNull(formatted, "Should handle null fileName");
         Assert.assertTrue(formatted.contains("Unknown"), 
             "Should use 'Unknown' for null fileName");
@@ -126,7 +126,7 @@ public class CustomSoftAssertTest {
     @Test(description = "Test formatFailureWithStackTrace returns standard stack trace format")
     public void testFormatFailureWithStackTraceStandardFormat() {
         AssertionError error = new AssertionError("Test error message");
-        String formatted = CustomSoftAssert.formatFailureWithStackTrace(error, "testPackage");
+        String formatted = CustomSoftAssert.formatFailureWithStackTrace(error, "com.shaft.test.unittests");
         
         if (formatted != null) {
             // Verify it contains the standard format: at package.Class.method(File.java:lineNumber)
@@ -152,7 +152,7 @@ public class CustomSoftAssertTest {
     @Test(description = "Test assertAll with failures logs formatted messages")
     public void testAssertAllWithFailuresLogsMessages() {
         CustomSoftAssert softAssert = new CustomSoftAssert();
-        softAssert.setRootPackage("testPackage");
+        softAssert.setRootPackage("com.shaft.test.unittests");
         
         // Add a failure
         softAssert.assertEquals("expected", "actual", "Test message");
@@ -188,8 +188,8 @@ public class CustomSoftAssertTest {
     public void testFormatFailureWithStackTraceCompleteCoverage() {
         // Test with matching package and valid line number
         AssertionError error1 = new AssertionError("Error 1");
-        String result1 = CustomSoftAssert.formatFailureWithStackTrace(error1, "testPackage");
-        // Should return formatted message if testPackage is in stack trace
+        String result1 = CustomSoftAssert.formatFailureWithStackTrace(error1, "com.shaft.test.unittests");
+        // Should return formatted message if com.shaft.test.unittests is in stack trace
         // Result may be null or formatted - both are valid
         
         // Test with empty string rootPackage
@@ -217,7 +217,7 @@ public class CustomSoftAssertTest {
     public void testAssertAllBranches() {
         // Test assertAll with failures (non-empty list)
         CustomSoftAssert softAssert1 = new CustomSoftAssert();
-        softAssert1.setRootPackage("testPackage");
+        softAssert1.setRootPackage("com.shaft.test.unittests");
         softAssert1.assertEquals("a", "b", "Test");
         try {
             softAssert1.assertAll();
