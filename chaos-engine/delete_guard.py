@@ -24,7 +24,8 @@ enforce the same gate. Self-created paths may be deleted without a code only
 when recorded by the tool in the HMAC-bound per-session created-paths
 manifest and contained under independently derived floor roots (scoped
 session dir and process-cwd real git toplevel; git env and WORKTREE hint cannot
-expand floors; record refuses pre-existing paths); CE-managed
+expand floors; record refuses pre-existing paths; a write-once seal pins
+started_at + preexist inventory); CE-managed
 dirt is restored via ``git checkout <primary-sha> -- <paths>`` in the current
 worktree only (never deleted, never other worktrees). Never-touch stays locked.
 """
@@ -61,6 +62,9 @@ SESSION_MANIFEST_HMAC_ENV = "CHAOS_SESSION_MANIFEST_HMAC"
 SESSION_CONTAINMENT_ROOTS_ENV = "CHAOS_SESSION_CONTAINMENT_ROOTS"
 SESSION_WORKTREE_ENV = "CHAOS_SESSION_WORKTREE"
 SESSION_MANIFEST_SCHEMA = 3
+SESSION_MANIFEST_SEAL_SUFFIX = ".seal"
+SESSION_SEAL_SCHEMA = 1
+SESSION_SEAL_TIME_TOLERANCE_S = 2.0
 # Git env vars that redirect discovery / index / objects — never inherit into _git.
 _GIT_ENV_BLOCKLIST = frozenset(
     {
@@ -603,6 +607,115 @@ def _verify_manifest_hmac(
     return hmac.compare_digest(expected, supplied.strip().lower())
 
 
+def _session_seal_path(manifest: Path) -> Path:
+    """Sibling write-once seal next to the session manifest."""
+    return Path(str(manifest) + SESSION_MANIFEST_SEAL_SUFFIX)
+
+
+def _seal_inventory_digest(
+    started_at: str,
+    preexist_paths: list[str],
+    preexist_inodes: list[str],
+) -> str:
+    body = (
+        f"started_at={started_at}\n"
+        + "preexist_paths="
+        + "\0".join(sorted(preexist_paths))
+        + "\npreexist_inodes="
+        + "\0".join(sorted(preexist_inodes))
+    )
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+def _write_session_seal(
+    manifest: Path,
+    *,
+    started_at: str,
+    preexist_paths: list[str],
+    preexist_inodes: list[str],
+) -> None:
+    """
+    Create a write-once seal (O_CREAT|O_EXCL, mode 0444) pinning init inventory.
+    """
+    seal = _session_seal_path(manifest)
+    st = manifest.stat()
+    payload = {
+        "schema": SESSION_SEAL_SCHEMA,
+        "inventory_sha256": _seal_inventory_digest(
+            started_at, preexist_paths, preexist_inodes
+        ),
+        "manifest_inode": int(st.st_ino),
+        "floor_entry_count": len(preexist_paths),
+    }
+    raw = (json.dumps(payload, indent=2, sort_keys=True) + chr(10)).encode("utf-8")
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    fd = os.open(str(seal), flags, 0o444)
+    try:
+        os.write(fd, raw)
+    finally:
+        os.close(fd)
+    os.chmod(str(seal), 0o444)
+
+
+def _load_seal_dict(seal: Path) -> dict | None:
+    try:
+        raw = seal.read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _session_seal_ok(
+    manifest: Path,
+    *,
+    started_at: str,
+    preexist_paths: list[str],
+    preexist_inodes: list[str],
+) -> bool:
+    """
+    Fail closed when seal missing, changed, mismatched, or inventory laundered.
+    """
+    seal = _session_seal_path(manifest)
+    if not seal.is_file():
+        return False
+    data = _load_seal_dict(seal)
+    if data is None:
+        return False
+    if data.get("schema") != SESSION_SEAL_SCHEMA:
+        return False
+    expected = data.get("inventory_sha256")
+    if not isinstance(expected, str) or not expected:
+        return False
+    digest = _seal_inventory_digest(started_at, preexist_paths, preexist_inodes)
+    if not hmac.compare_digest(expected.strip().lower(), digest.lower()):
+        return False
+    try:
+        mst = manifest.stat()
+        sst = seal.stat()
+    except OSError:
+        return False
+    inode = data.get("manifest_inode")
+    if not isinstance(inode, int) or inode != int(mst.st_ino):
+        return False
+    floor_count = data.get("floor_entry_count")
+    if not isinstance(floor_count, int) or floor_count < 0:
+        return False
+    if floor_count > 0 and len(preexist_paths) == 0:
+        return False
+    try:
+        started_f = float(started_at)
+    except (TypeError, ValueError):
+        return False
+    # started_at must not predate seal ctime/mtime (small skew).
+    seal_floor = max(float(sst.st_mtime), float(sst.st_ctime)) - SESSION_SEAL_TIME_TOLERANCE_S
+    if started_f < seal_floor:
+        return False
+    return True
+
+
 def _inode_token(st: os.stat_result) -> str:
     return f"{st.st_dev}:{st.st_ino}"
 
@@ -942,6 +1055,13 @@ def _verified_manifest_fields(path: Path) -> tuple[list[str], list[str], list[st
         proofs=proofs,
     ):
         return None
+    if not _session_seal_ok(
+        path,
+        started_at=str(started_at),
+        preexist_paths=preexist_paths,
+        preexist_inodes=preexist_inodes,
+    ):
+        return None
     return root_strs, path_strs, preexist_paths, preexist_inodes, proofs
 
 
@@ -1057,6 +1177,12 @@ def init_session_created_manifest(
                     preexist_inodes=[x for x in pre_i if isinstance(x, str)],
                     proofs=[x for x in proofs if isinstance(x, str)],
                 )
+                and _session_seal_ok(
+                    path,
+                    started_at=str(started_at),
+                    preexist_paths=[x for x in pre_p if isinstance(x, str)],
+                    preexist_inodes=[x for x in pre_i if isinstance(x, str)],
+                )
             ):
                 return path
     explicit_roots = [Path(r) for r in (roots or [])]
@@ -1088,6 +1214,12 @@ def init_session_created_manifest(
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + chr(10), encoding="utf-8")
     path.chmod(0o600)
+    _write_session_seal(
+        path,
+        started_at=str(started_at),
+        preexist_paths=preexist_paths,
+        preexist_inodes=preexist_inodes,
+    )
     return path
 
 
@@ -1170,6 +1302,13 @@ def record_session_created_paths(
         raise PermissionError("session-manifest refused: missing session-start inventory")
     preexist_paths = [x for x in pre_p if isinstance(x, str) and x.strip()]
     preexist_inodes = [x for x in pre_i if isinstance(x, str) and x.strip()]
+    if not _session_seal_ok(
+        path,
+        started_at=str(started_at),
+        preexist_paths=preexist_paths,
+        preexist_inodes=preexist_inodes,
+    ):
+        raise PermissionError("session-manifest refused: seal missing or mismatched")
     preexist_path_set = set(preexist_paths)
     preexist_inode_set = set(preexist_inodes)
     try:

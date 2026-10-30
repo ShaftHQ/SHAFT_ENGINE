@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 import shutil
+import stat
 import subprocess  # nosec B404 - fixed git argv only in fixtures.
 import tempfile
 import unittest
@@ -341,6 +342,74 @@ class SessionManifestDeleteTest(unittest.TestCase):
         dg.record_session_created_paths([fresh], manifest=manifest, roots=[scoped])
         self.assertTrue(dg.session_created_allows(fresh, manifest=manifest))
         self.assertEqual("", dg.path_reason(fresh))
+
+
+    def test_B1_R3_stolen_key_empty_preexist_forge_refused(self) -> None:
+        """Stolen HMAC + started_at=0 + empty preexist must not launder (B1-R3)."""
+        dg = self.dg
+        scoped = self._scratch() / "scoped"
+        scoped.mkdir()
+        victim = scoped / "preexist-victim.txt"
+        victim.write_text("old\n", encoding="utf-8")
+        # Drop env HMAC so a real XDG key is created (stealable).
+        os.environ.pop(dg.SESSION_MANIFEST_HMAC_ENV, None)
+        manifest = self._init_manifest(scoped)
+        seal = dg._session_seal_path(manifest)
+        self.assertTrue(seal.is_file(), "init must create write-once seal")
+        self.assertEqual(stat.S_IMODE(seal.stat().st_mode), 0o444)
+        # Honest record of preexist still refused.
+        with self.assertRaises(PermissionError) as honest:
+            dg.record_session_created_paths([victim], manifest=manifest, roots=[scoped])
+        self.assertIn("pre-existing", str(honest.exception).casefold())
+        # Steal key and re-sign emptied inventory + rewound started_at.
+        key_path = dg._session_hmac_key_path(manifest)
+        self.assertTrue(key_path.is_file())
+        hmac_key = key_path.read_bytes()
+        root_strs = [str(scoped.resolve())]
+        forged = {
+            "schema": dg.SESSION_MANIFEST_SCHEMA,
+            "started_at": 0,
+            "roots": root_strs,
+            "paths": [],
+            "preexist_paths": [],
+            "preexist_inodes": [],
+            "proofs": [],
+            "hmac": dg._sign_manifest(
+                hmac_key,
+                root_strs,
+                [],
+                started_at="0",
+                preexist_paths=[],
+                preexist_inodes=[],
+                proofs=[],
+            ),
+        }
+        manifest.write_text(json.dumps(forged, indent=2), encoding="utf-8")
+        # Seal still pins honest inventory — load/record/check fail closed.
+        self.assertEqual(set(), dg.load_session_created_paths(manifest))
+        with self.assertRaises(PermissionError) as ctx:
+            dg.record_session_created_paths([victim], manifest=manifest, roots=[scoped])
+        self.assertIn("seal", str(ctx.exception).casefold())
+        self.assertFalse(dg.session_created_allows(victim, manifest=manifest))
+        reason, _ = dg.check(f"rm -f -- {victim}", cwd=scoped)
+        self.assertTrue(reason, reason)
+
+    def test_legit_cleanup_still_allows_after_seal(self) -> None:
+        """Write-once seal must not block honest session create → record → delete."""
+        dg = self.dg
+        scoped = self._scratch() / "scoped"
+        scoped.mkdir()
+        manifest = self._init_manifest(scoped)
+        self.assertTrue(dg._session_seal_path(manifest).is_file())
+        target = scoped / "session-log.txt"
+        target.write_text("log\n", encoding="utf-8")
+        dg.record_session_created_paths([target], manifest=manifest, roots=[scoped])
+        self.assertTrue(dg.session_created_allows(target, manifest=manifest))
+        self.assertEqual("", dg.path_reason(target))
+        reason, _ = dg.check(f"rm -f -- {target}", cwd=scoped)
+        self.assertEqual("", reason)
+        target.unlink()
+        self.assertFalse(target.exists())
 
 
 class CeRestoreTest(unittest.TestCase):

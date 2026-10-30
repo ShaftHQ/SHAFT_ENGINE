@@ -66,6 +66,23 @@
    scratch. Protected folders and the delete-guard (including its code
    requirement) stay intact.
 
+
+## THREAT MODEL (session manifest seal)
+
+Schema-3 manifests bind `started_at` and the preexist inventory with HMAC, and
+pin those fields in a **write-once seal** beside the manifest (`O_CREAT|O_EXCL`,
+mode `0444`: inventory digest, manifest inode, floor entry count). Load/record
+fail closed if the seal is missing, changed, or mismatched, if `started_at`
+predates the seal's ctime/mtime (small skew), or if the inventory is emptied
+while the seal recorded a non-empty floor.
+
+**In scope:** agent mistakes and HMAC-key laundering that rewrites only the
+manifest (emptying `preexist_*` / rewinding `started_at`).
+
+**Out of scope:** a same-UID attacker who can unlink and rewrite **both** the
+seal and the manifest. That principal can already run `rm` directly; the guard
+is not a hostile same-user sandbox.
+
 ## Why
 
 Shared boxes fill from orphaned worktrees (~1.5 GiB each), in-tree render
