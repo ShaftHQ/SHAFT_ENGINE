@@ -3533,6 +3533,7 @@ def _paths_share_inode(left: Path, right: Path) -> bool:
         if left.resolve() == right.resolve():
             return True
     except OSError:
+        # Unresolvable path: fall through to samefile / False.
         pass
     try:
         return left.is_file() and right.is_file() and os.path.samefile(left, right)

@@ -537,6 +537,7 @@ def _is_acceptable_containment_root(root: Path) -> bool:
         if home is not None and resolved == home:
             return False
     except OSError:
+        # HOME unresolvable: skip the home equality check only.
         pass
     if never_touch(resolved):
         return False
