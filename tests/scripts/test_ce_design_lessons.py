@@ -66,14 +66,18 @@ class LessonCardsTest(unittest.TestCase):
         marker = "External resources and verdicts:"
         self.assertIn(marker, index)
         before, after = index.split(marker, 1)
+        extension = LESSONS / "index-extension.md"
+        ext_text = extension.read_text(encoding="utf-8") if extension.is_file() else ""
+        row_corpus = before + "\n" + ext_text
+        index_names = {"index.md", "index-extension.md"}
         lesson_files = sorted(
-            p.stem for p in LESSONS.glob("*.md") if p.name != "index.md"
+            p.stem for p in LESSONS.glob("*.md") if p.name not in index_names
         )
         for name in lesson_files:
             row = next(
                 (
                     line
-                    for line in before.splitlines()
+                    for line in row_corpus.splitlines()
                     if re.match(rf"\| \[L\d+ .*\]\({re.escape(name)}\.md\)", line)
                 ),
                 "",
@@ -81,7 +85,7 @@ class LessonCardsTest(unittest.TestCase):
             with self.subTest(card=name):
                 self.assertTrue(
                     row.startswith("| [L"),
-                    f"{name} must be a | [L… table row before External resources",
+                    f"{name} must be a | [L… table row in index.md or index-extension.md",
                 )
                 self.assertIn(f"]({name}.md)", row)
         stray = [
@@ -90,6 +94,7 @@ class LessonCardsTest(unittest.TestCase):
         self.assertEqual(stray, [], f"lesson rows after External resources: {stray}")
         for name in CARDS:
             self.assertIn(f"]({name}.md)", before)
+
         self.assertIn("../lessons/index.md", (DESIGN / "references/craft/index.md").read_text(encoding="utf-8"))
         self.assertIn("lessons/mixed-script-captions.md",
                       (DESIGN / "references/captions-subtitles.md").read_text(encoding="utf-8"))

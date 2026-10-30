@@ -45,7 +45,14 @@ Executable check: `scripts/ci/parallel_stream_conflict.py`
 
 ## Brief template (implementer)
 
-Hand every implementer: goal, acceptance, out of scope, exclusive owned paths,
+First lines of every brief:
+
+```
+ce_load: required
+Run: python3 .chaos-engine/tool.py entry
+```
+
+Lint with `worker_ce_entry.py lint`. Hand every implementer: goal, acceptance, out of scope, exclusive owned paths,
 riskiest assumption with a **named** test (red on base / green on head),
 false-positive and live-behaviour cases the gate must pass, harness entry
 (`doctor`, `entry`, `retrieve`, worktree overlay materialize), push rule
