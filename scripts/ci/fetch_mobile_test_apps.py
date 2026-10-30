@@ -13,6 +13,8 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
+import subprocess  # nosec B404 - fixed git ls-files argv only
 import sys
 import tempfile
 import urllib.error
@@ -32,6 +34,49 @@ _USER_AGENT = "shaft-engine-fetch-mobile-test-apps/1"
 
 class FetchError(RuntimeError):
     """Pinned fixture could not be fetched or verified."""
+
+
+# Fixture destinations externalized in #7555. Force-adding these undoes Phase 0.
+TRACKED_BINARY_PATHSPECS = (
+    "shaft-engine/src/test/resources/testDataFiles/apps/*.apk",
+    "shaft-engine/src/test/resources/testDataFiles/apps/*.ipa",
+    ":(glob)shaft-engine/src/main/resources/examples/**/testDataFiles/apk/*.apk",
+    ":(glob)shaft-engine/src/main/resources/examples/**/testDataFiles/apk/*.ipa",
+)
+
+
+def tracked_mobile_binaries(root: Path | None = None) -> list[str]:
+    """Return tracked apk/ipa paths under the Phase 0 fixture destinations."""
+    repo = Path(root) if root is not None else _repo_root()
+    git = shutil.which("git")
+    if not git:
+        raise FetchError("git is required to check tracked mobile binaries")
+    completed = subprocess.run(  # nosec B603 - absolute git from shutil.which, no shell
+        [git, "-C", str(repo), "ls-files", "-z", "--", *TRACKED_BINARY_PATHSPECS],
+        check=False,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or b"").decode("utf-8", "replace").strip()
+        raise FetchError(f"git ls-files failed while checking tracked mobile binaries: {detail}")
+    return [item for item in completed.stdout.decode("utf-8").split("\0") if item]
+
+
+def tracked_mobile_binary_failures(root: Path | None = None) -> list[str]:
+    """Fail closed when apk/ipa fixtures are tracked again (#7547 Phase 0)."""
+    try:
+        tracked = tracked_mobile_binaries(root)
+    except FetchError as error:
+        return [str(error)]
+    if not tracked:
+        return []
+    shown = ", ".join(tracked[:5])
+    extra = f" (+{len(tracked) - 5} more)" if len(tracked) > 5 else ""
+    return [
+        "tracked mobile apk/ipa fixtures are forbidden after #7547 Phase 0 "
+        f"(fetch via scripts/ci/fetch_mobile_test_apps.py): {shown}{extra}"
+    ]
+
 
 
 def _repo_root() -> Path:
@@ -189,7 +234,20 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="print the fetch report as JSON",
     )
+    parser.add_argument(
+        "--check-tracked",
+        action="store_true",
+        help="fail if fixture apk/ipa paths are tracked in git (#7547 Phase 0)",
+    )
     args = parser.parse_args(argv)
+    if args.check_tracked:
+        failures = tracked_mobile_binary_failures(args.root)
+        if failures:
+            for item in failures:
+                print(f"ERROR: {item}", file=sys.stderr)
+            return 1
+        print("tracked-mobile-binaries: pass")
+        return 0
     try:
         report = fetch_all(
             root=args.root,

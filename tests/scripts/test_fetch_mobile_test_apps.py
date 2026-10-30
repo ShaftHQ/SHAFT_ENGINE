@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
+import subprocess  # nosec B404 - fixed git init/add in temp repo only
 import sys
 import tempfile
 import threading
@@ -153,6 +155,33 @@ class FetchMobileTestAppsTest(unittest.TestCase):
         finally:
             server.shutdown()
             server.server_close()
+
+
+    def test_tracked_mobile_binary_gate_passes_on_clean_tree(self):
+        failures = fetch.tracked_mobile_binary_failures(ROOT)
+        self.assertEqual([], failures)
+
+    def test_tracked_mobile_binary_gate_fails_on_force_added_apk(self):
+        """A force-added fixture apk must fail closed (gitignore is not enough)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "repo"
+            dest_dir = root / "shaft-engine/src/test/resources/testDataFiles/apps"
+            dest_dir.mkdir(parents=True)
+            apk = dest_dir / "sneaky.apk"
+            apk.write_bytes(b"not-a-real-apk")
+            git = shutil.which("git")
+            self.assertIsNotNone(git, "git is required")
+            subprocess.run([git, "init"], cwd=root, check=True, capture_output=True)
+            subprocess.run(
+                [git, "add", "-f", "--", str(apk.relative_to(root))],
+                cwd=root,
+                check=True,
+                capture_output=True,
+            )
+            failures = fetch.tracked_mobile_binary_failures(root)
+            self.assertTrue(failures, failures)
+            self.assertIn("sneaky.apk", failures[0])
+            self.assertIn("#7547", failures[0])
 
 
 if __name__ == "__main__":
