@@ -614,6 +614,7 @@ def _birth_or_ctime_ns(st: os.stat_result) -> int:
         try:
             return int(float(birth) * 1_000_000_000)
         except (TypeError, ValueError, OSError):
+            # Birthtime present but unusable; fall through to ctime.
             pass
     return int(getattr(st, "st_ctime_ns", int(st.st_ctime * 1_000_000_000)))
 
@@ -883,6 +884,86 @@ def _path_escape_or_symlink_reason(path: Path, roots: list[Path]) -> str:
     return ""
 
 
+def _str_list(raw) -> list[str] | None:
+    if not isinstance(raw, list):
+        return None
+    return [item for item in raw if isinstance(item, str) and item.strip()]
+
+
+def _verified_manifest_fields(path: Path) -> tuple[list[str], list[str], list[str], list[str], list[str]] | None:
+    """
+    Return (roots, paths, preexist_paths, preexist_inodes, proofs) when HMAC+schema ok.
+    """
+    data = _load_manifest_dict(path)
+    if data is None:
+        return None
+    path_strs = _str_list(data.get("paths"))
+    root_strs = _str_list(data.get("roots"))
+    preexist_paths = _str_list(data.get("preexist_paths"))
+    preexist_inodes = _str_list(data.get("preexist_inodes"))
+    proofs = _str_list(data.get("proofs"))
+    started_at = data.get("started_at")
+    supplied = data.get("hmac")
+    if None in (path_strs, root_strs, preexist_paths, preexist_inodes, proofs):
+        return None
+    if not isinstance(started_at, (int, float, str)):
+        return None
+    try:
+        hmac_key = _read_session_hmac_key(path)
+    except OSError:
+        return None
+    if hmac_key is None:
+        return None
+    if not _verify_manifest_hmac(
+        hmac_key,
+        root_strs,
+        path_strs,
+        supplied if isinstance(supplied, str) else "",
+        started_at=str(started_at),
+        preexist_paths=preexist_paths,
+        preexist_inodes=preexist_inodes,
+        proofs=proofs,
+    ):
+        return None
+    return root_strs, path_strs, preexist_paths, preexist_inodes, proofs
+
+
+def _proof_map(proofs: list[str]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for item in proofs:
+        if "|" not in item:
+            continue
+        out[item.split("|", 1)[0]] = item
+    return out
+
+
+def _proven_session_paths(
+    path_strs: list[str],
+    roots: list[Path],
+    preexist_paths: set[str],
+    preexist_inodes: set[str],
+    proof_by_path: dict[str, str],
+) -> set[str]:
+    out: set[str] = set()
+    for item in path_strs:
+        candidate = Path(os.path.expanduser(item.strip()))
+        if _path_escape_or_symlink_reason(candidate, roots):
+            continue
+        try:
+            real = Path(os.path.realpath(candidate))
+            st = real.stat()
+        except OSError:
+            continue
+        real_s = str(real)
+        if real_s in preexist_paths or _inode_token(st) in preexist_inodes:
+            continue
+        expected = proof_by_path.get(real_s)
+        if expected is None or expected != _proof_token(real, st):
+            continue
+        out.add(real_s)
+    return out
+
+
 def load_session_created_paths(manifest: Path | None = None) -> set[str]:
     """
     Absolute realpath strings recorded as self-created by this session.
@@ -895,78 +976,21 @@ def load_session_created_paths(manifest: Path | None = None) -> set[str]:
     path = session_manifest_path(manifest)
     if path is None or not path.is_file():
         return set()
-    data = _load_manifest_dict(path)
-    if data is None:
+    fields = _verified_manifest_fields(path)
+    if fields is None:
         return set()
-    entries = data.get("paths")
-    roots_raw = data.get("roots")
-    supplied = data.get("hmac")
-    started_at = data.get("started_at")
-    preexist_paths_raw = data.get("preexist_paths")
-    preexist_inodes_raw = data.get("preexist_inodes")
-    proofs_raw = data.get("proofs")
-    if not isinstance(entries, list) or not isinstance(roots_raw, list):
-        return set()
-    if not isinstance(started_at, (int, float, str)):
-        return set()
-    started_s = str(started_at)
-    if not isinstance(preexist_paths_raw, list) or not isinstance(preexist_inodes_raw, list):
-        return set()
-    if not isinstance(proofs_raw, list):
-        return set()
-    root_strs = [item for item in roots_raw if isinstance(item, str) and item.strip()]
-    path_strs = [item for item in entries if isinstance(item, str) and item.strip()]
-    preexist_paths = [item for item in preexist_paths_raw if isinstance(item, str) and item.strip()]
-    preexist_inodes = [item for item in preexist_inodes_raw if isinstance(item, str) and item.strip()]
-    proofs = [item for item in proofs_raw if isinstance(item, str) and item.strip()]
-    try:
-        hmac_key = _read_session_hmac_key(path)
-    except OSError:
-        return set()
-    if hmac_key is None:
-        return set()
-    if not _verify_manifest_hmac(
-        hmac_key,
-        root_strs,
-        path_strs,
-        supplied if isinstance(supplied, str) else "",
-        started_at=started_s,
-        preexist_paths=preexist_paths,
-        preexist_inodes=preexist_inodes,
-        proofs=proofs,
-    ):
-        return set()
+    root_strs, path_strs, preexist_paths, preexist_inodes, proofs = fields
     floors = _floor_containment_roots(path)
     if not _signed_roots_within_floors(root_strs, floors):
         return set()
     roots = _resolve_containment_roots(manifest=path, data_roots=None)
-    preexist_path_set = set(preexist_paths)
-    preexist_inode_set = set(preexist_inodes)
-    proof_by_path: dict[str, str] = {}
-    for item in proofs:
-        if "|" not in item:
-            continue
-        real_part = item.split("|", 1)[0]
-        proof_by_path[real_part] = item
-    out: set[str] = set()
-    for item in path_strs:
-        candidate = Path(os.path.expanduser(item.strip()))
-        reason = _path_escape_or_symlink_reason(candidate, roots)
-        if reason:
-            continue
-        try:
-            real = Path(os.path.realpath(candidate))
-            st = real.stat()
-        except OSError:
-            continue
-        real_s = str(real)
-        if real_s in preexist_path_set or _inode_token(st) in preexist_inode_set:
-            continue
-        expected = proof_by_path.get(real_s)
-        if expected is None or expected != _proof_token(real, st):
-            continue
-        out.add(real_s)
-    return out
+    return _proven_session_paths(
+        path_strs,
+        roots,
+        set(preexist_paths),
+        set(preexist_inodes),
+        _proof_map(proofs),
+    )
 
 
 def init_session_created_manifest(
@@ -1050,6 +1074,41 @@ def init_session_created_manifest(
     return path
 
 
+def _refuse_or_proof_new_path(
+    candidate: Path,
+    *,
+    containment: list[Path],
+    preexist_path_set: set[str],
+    preexist_inode_set: set[str],
+    started_ns: int,
+) -> tuple[str, str]:
+    """
+    Return (realpath, proof_token) or raise PermissionError.
+    """
+    reason = _path_escape_or_symlink_reason(candidate, containment)
+    if reason:
+        raise PermissionError(f"session-manifest refused `{candidate}`: {reason}")
+    try:
+        real = Path(os.path.realpath(candidate))
+        st = real.stat()
+    except OSError as exc:
+        raise PermissionError(f"session-manifest refused `{candidate}`: unresolvable path") from exc
+    hit = never_touch(real)
+    if hit:
+        raise PermissionError(f"session-manifest refused `{candidate}`: {hit}")
+    real_s = str(real)
+    if real_s in preexist_path_set or _inode_token(st) in preexist_inode_set:
+        raise PermissionError(
+            f"session-manifest refused `{candidate}`: pre-existing before session start"
+        )
+    # Fail closed: birth/ctime must not predate session start (1s skew).
+    if _birth_or_ctime_ns(st) < started_ns - 1_000_000_000:
+        raise PermissionError(
+            f"session-manifest refused `{candidate}`: pre-existing before session start"
+        )
+    return real_s, _proof_token(real, st)
+
+
 def record_session_created_paths(
     paths: list,
     *,
@@ -1118,32 +1177,15 @@ def record_session_created_paths(
         proof_by_path[str(real)] = token
 
     for item in paths:
-        candidate = Path(os.path.expanduser(str(item)))
-        reason = _path_escape_or_symlink_reason(candidate, containment)
-        if reason:
-            raise PermissionError(f"session-manifest refused `{candidate}`: {reason}")
-        try:
-            real = Path(os.path.realpath(candidate))
-            st = real.stat()
-        except OSError as exc:
-            raise PermissionError(f"session-manifest refused `{candidate}`: unresolvable path") from exc
-        hit = never_touch(real)
-        if hit:
-            raise PermissionError(f"session-manifest refused `{candidate}`: {hit}")
-        real_s = str(real)
-        inode = _inode_token(st)
-        if real_s in preexist_path_set or inode in preexist_inode_set:
-            raise PermissionError(
-                f"session-manifest refused `{candidate}`: pre-existing before session start"
-            )
-        birth_ns = _birth_or_ctime_ns(st)
-        # Fail closed: birth/ctime must not predate session start (1s skew).
-        if birth_ns < started_ns - 1_000_000_000:
-            raise PermissionError(
-                f"session-manifest refused `{candidate}`: pre-existing before session start"
-            )
+        real_s, token = _refuse_or_proof_new_path(
+            Path(os.path.expanduser(str(item))),
+            containment=containment,
+            preexist_path_set=preexist_path_set,
+            preexist_inode_set=preexist_inode_set,
+            started_ns=started_ns,
+        )
         accepted.add(real_s)
-        proof_by_path[real_s] = _proof_token(real, st)
+        proof_by_path[real_s] = token
 
     root_strs = sorted({str(r) for r in containment})
     path_strs = sorted(accepted)
