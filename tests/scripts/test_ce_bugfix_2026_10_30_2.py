@@ -129,11 +129,15 @@ class WorktreeReconcileTest(unittest.TestCase):
 
     def test_upgrade_session_checkouts_before_materialize(self) -> None:
         source = (CE / "worktree_overlay.py").read_text(encoding="utf-8")
-        # upgrade_session must call checkout before materialize
+        # upgrade_session must reconcile tracked + gitignored CE before materialize
         start = source.index("def upgrade_session")
         body = source[start : source.index("\ndef ", start + 1)]
         self.assertLess(
             body.index("_maybe_checkout_tracked_ce"),
+            body.index("materialize(primary, session)"),
+        )
+        self.assertLess(
+            body.index("_adopt_ignored_ce_owned"),
             body.index("materialize(primary, session)"),
         )
 
@@ -161,6 +165,95 @@ class AddonKeptMessageTest(unittest.TestCase):
         self.assertIn("project-local; set CHAOS_ENGINE_ADDON_PATHS", raw)
         docs = (CE / "references/addons.md").read_text(encoding="utf-8")
         self.assertIn("project-local", docs)
+
+
+
+
+class IgnoredOverlayUpgradeTest(unittest.TestCase):
+    def test_upgrade_session_reconciles_gitignored_stale_overlay(self) -> None:
+        """HRSD: VERSION then implementer refuse when overlay is gitignored."""
+        overlay = load("ce_overlay_bugfix2_hrsd", CE / "worktree_overlay.py")
+        git = shutil.which("git")
+        self.assertIsNotNone(git)
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            primary = base / "primary"
+            primary.mkdir()
+            subprocess.run([git, "init", "-q"], cwd=primary, check=True, capture_output=True)  # nosec B603
+            subprocess.run(  # nosec B603
+                [git, "config", "user.email", "t@ex.com"], cwd=primary, check=True, capture_output=True,
+            )
+            subprocess.run(  # nosec B603
+                [git, "config", "user.name", "T"], cwd=primary, check=True, capture_output=True,
+            )
+            (primary / ".gitignore").write_text(".chaos-engine/\n.claude/\n", encoding="utf-8")
+            (primary / "README").write_text("p\n", encoding="utf-8")
+            subprocess.run([git, "add", "README", ".gitignore"], cwd=primary, check=True, capture_output=True)  # nosec B603
+            subprocess.run([git, "commit", "-qm", "i"], cwd=primary, check=True, capture_output=True)  # nosec B603
+            session = base / "session"
+            subprocess.run(  # nosec B603
+                [git, "worktree", "add", "-q", str(session), "HEAD"],
+                cwd=primary, check=True, capture_output=True,
+            )
+
+            def write_overlay(root: Path, version: str, implementer: str) -> None:
+                ce = root / ".chaos-engine"
+                (ce / "skills" / "chaos-engine").mkdir(parents=True)
+                (ce / "hooks").mkdir(parents=True)
+                (ce / "VERSION").write_text(version + "\n", encoding="utf-8")
+                (ce / "skills" / "chaos-engine" / "SKILL.md").write_text("skill-" + version + "\n", encoding="utf-8")
+                (ce / "hooks" / "guard.py").write_text("guard\n", encoding="utf-8")
+                (ce / "always-loaded-budget.json").write_text('{"cap": 1}\n', encoding="utf-8")
+                agents = root / ".claude" / "agents"
+                agents.mkdir(parents=True)
+                (agents / "chaos-engine-implementer.md").write_text(implementer + "\n", encoding="utf-8")
+
+            write_overlay(primary, "2026.10.30.2", "implementer-NEW")
+            write_overlay(session, "2026.10.30.1", "implementer-OLD")
+            # No materialize manifest on session — the HRSD failure mode.
+            result = overlay.upgrade_session(primary, session, repair_plugins=False)
+            self.assertEqual("2026.10.30.2", (session / ".chaos-engine" / "VERSION").read_text(encoding="utf-8").strip())
+            self.assertEqual(
+                "implementer-NEW",
+                (session / ".claude" / "agents" / "chaos-engine-implementer.md").read_text(encoding="utf-8").strip(),
+            )
+            self.assertGreaterEqual(len(result.get("written") or []), 1)
+
+
+class SourceBehindConsumerTest(unittest.TestCase):
+    def test_consumer_without_source_tree_does_not_claim_behind(self) -> None:
+        install = load("ce_install_behind_consumer", CE / "install.py")
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            git = shutil.which("git")
+            self.assertIsNotNone(git)
+            subprocess.run([git, "init", "-q"], cwd=root, check=True, capture_output=True)  # nosec B603
+            subprocess.run(  # nosec B603
+                [git, "config", "user.email", "c@ex.com"], cwd=root, check=True, capture_output=True,
+            )
+            subprocess.run(  # nosec B603
+                [git, "config", "user.name", "C"], cwd=root, check=True, capture_output=True,
+            )
+            (root / "README").write_text("c\n", encoding="utf-8")
+            subprocess.run([git, "add", "README"], cwd=root, check=True, capture_output=True)  # nosec B603
+            subprocess.run([git, "commit", "-qm", "i"], cwd=root, check=True, capture_output=True)  # nosec B603
+            fake = "f251bdd2bee8d13455cb2e48ff3eea80ca0dd148"
+            install.installed_commit_of = lambda project: fake  # type: ignore[method-assign]
+            tips = install.source_behind_advisory(root)
+            self.assertEqual(("commit:", fake[:12]), tips)
+            self.assertTrue(all("behind" not in part for part in tips))
+
+
+class BoxDurabilityChecklistTest(unittest.TestCase):
+    def test_bot_entry_lists_box_durability(self) -> None:
+        raw = (CE / "references/bot-entry.md").read_text(encoding="utf-8")
+        self.assertIn("box-durability", raw)
+        self.assertIn("free -h", raw)
+        self.assertIn("/swapfile", raw)
+        self.assertIn("swappiness", raw)
+        self.assertIn("Only `/workspace` survives", raw)
+        self.assertIn("Update Bot's Computer", raw)
+        self.assertIn("go idle when asked", raw)
 
 
 if __name__ == "__main__":
