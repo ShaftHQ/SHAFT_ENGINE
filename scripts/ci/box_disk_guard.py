@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Executable shared-box disk gate, worktree cap, cache caps, and scratch TTL.
+"""
+    Executable shared-box disk gate, worktree cap, cache caps, and scratch TTL.
 
 Extends the parallel-streams protocol from advisory docs into callable
 gates (cleanup-at-close). Delete-guard never-touch paths stay refused.
@@ -268,7 +269,8 @@ def prune_cache(
     home: Path | None = None,
     runner: Callable[..., subprocess.CompletedProcess] | None = None,
 ) -> dict:
-    """Run the allowlisted tool-native prune for one cache, or refuse.
+    """
+        Run the allowlisted tool-native prune for one cache, or refuse.
 
     Never uses ``rm``. Caches without a native prune command return
     ``prune-unavailable`` so an orchestrator can route regenerable reclaim
@@ -322,7 +324,8 @@ def own_scratch_ttl_candidates(
     now_epoch: float | None = None,
     marker_name: str = OWN_SCRATCH_MARKER,
 ) -> list[dict]:
-    """List own-created scratch dirs older than TTL (candidates only).
+    """
+        List own-created scratch dirs older than TTL (candidates only).
 
     A directory qualifies only when it contains ``marker_name`` (owner proof).
     Never-touch / delete-guard failures are excluded. This function never
@@ -417,7 +420,8 @@ def blocked_infra_reasons(
     used: int | None = None,
     total: int | None = None,
 ) -> list[str]:
-    """Return BLOCKED-INFRA reasons (free-GiB warn/block and ≥80% used).
+    """
+        Return BLOCKED-INFRA reasons (free-GiB warn/block and ≥80% used).
 
     Free-GiB tiers still refuse new workers via ``refuse_new_worker``. This
     helper is the board/alert surface: any non-empty result means set
@@ -440,7 +444,8 @@ def blocked_infra_reasons(
 
 
 def classify_cleanup_path(path: Path | str) -> str:
-    """Classify a path as ``final``, ``intermediate``, or ``other``.
+    """
+        Classify a path as ``final``, ``intermediate``, or ``other``.
 
     Finals (signed deliverables) must remain until upload verify.
     Intermediates are safe to delete after tip-on-origin / merge verify when
@@ -474,7 +479,8 @@ def stale_tip_on_origin_candidates(
     now_epoch: float | None = None,
     max_age_hours: float = STALE_TIP_ON_ORIGIN_HOURS,
 ) -> list[dict]:
-    """Report linked worktrees whose tip is on origin and older than max age.
+    """
+        Report linked worktrees whose tip is on origin and older than max age.
 
     ``entries`` are dicts with keys: path, tip_on_origin (bool), mtime (epoch),
     own (bool). Only ``own`` + ``tip_on_origin`` rows older than the TTL are
@@ -519,7 +525,8 @@ def youtube_replace_cleanup_allowed(
     replacement_schedule_ok: bool,
     outdated_video_id: str,
 ) -> list[str]:
-    """Return blockers that forbid deleting an outdated YouTube upload.
+    """
+        Return blockers that forbid deleting an outdated YouTube upload.
 
     Deletion is allowed only when the replacement is verified live (watch page
     and schedule both OK) and an outdated video id is named. Report-only
@@ -542,7 +549,8 @@ def log_deleted_youtube_ids(
     log_path: Path | str,
     now_iso: str | None = None,
 ) -> dict:
-    """Append deleted YouTube video IDs to an append-only receipt log.
+    """
+        Append deleted YouTube video IDs to an append-only receipt log.
 
     Never deletes videos itself. Creates parent dirs as needed. Returns the
     number of IDs logged.
@@ -568,7 +576,8 @@ def verify_live_item_state_before_status(
     proposed_status: str,
     live_state: str,
 ) -> list[str]:
-    """Block stale board/status writes that contradict live gh state.
+    """
+        Block stale board/status writes that contradict live gh state.
 
     Call at write time with a freshly fetched ``live_state`` (e.g. from
     ``gh pr view --json state,statusCheckRollup,autoMergeRequest``). Refuses
@@ -595,7 +604,8 @@ def doctor_dirt_close_blockers(
     porcelain: str,
     doctor_touched_paths: Sequence[str] | None = None,
 ) -> list[str]:
-    """Refuse item close while doctor/repair dirt remains uncommitted/unreverted.
+    """
+        Refuse item close while doctor/repair dirt remains uncommitted/unreverted.
 
     Workers must commit doctor/repair tracked edits through the normal PR path
     or revert them before close. Session logs under the shared workspace root must be removed
@@ -619,7 +629,8 @@ def item_close_blockers(
     created_files_accounted: bool = False,
     session_logs_cleared: bool = True,
 ) -> list[str]:
-    """Cleanup-at-close gate: clean git status plus accounted created-files list.
+    """
+        Cleanup-at-close gate: clean git status plus accounted created-files list.
 
     ``created_files`` is the ownership / session-manifest list of paths the
     worker created. ``created_files_accounted`` means each entry was deleted,

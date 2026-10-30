@@ -259,7 +259,8 @@ def _copy(source: Path, destination: Path, *, session: Path, manifest: dict[str,
 
 
 def _clean_stale_leftovers(primary: Path, session: Path, manifest: dict[str, str], removed: list[str]) -> None:
-    """Remove session overlay files we previously materialized that primary no longer has.
+    """
+    Remove session overlay files we previously materialized that primary no longer has.
 
     Only touches paths recorded in the materialize manifest (self-created leftovers).
     Never deletes never-touch / protected content outside that set.
@@ -279,7 +280,8 @@ def _clean_stale_leftovers(primary: Path, session: Path, manifest: dict[str, str
 
 
 def materialize(primary: Path, session: Path) -> list[str]:
-    """Copy/upgrade the overlay and host files from `primary` into `session`.
+    """
+    Copy/upgrade the overlay and host files from `primary` into `session`.
 
     Returns paths newly written (copied or upgraded). Idempotent: a second call
     with the same primary leaves current files untouched. Raises
@@ -318,7 +320,8 @@ def _read_version(root: Path) -> str:
 
 
 def upgrade_session(primary: Path, session: Path, *, repair_plugins: bool | None = None) -> dict:
-    """One command: bring ``session`` to primary CE version (materialize + host repair).
+    """
+    One command: bring ``session`` to primary CE version (materialize + host repair).
 
     Skips the slow plugin marketplace round-trip when VERSION already matches
     unless ``repair_plugins=True``. Returns a result dict with timings.

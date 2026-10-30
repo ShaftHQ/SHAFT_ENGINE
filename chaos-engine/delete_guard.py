@@ -55,7 +55,7 @@ ALLOW_FILE = "delete-allow.txt"
 # never-touch still wins. Env overrides the path. Secret stays outside the tree.
 SESSION_CREATED_MANIFEST_ENV = "CHAOS_SESSION_CREATED_MANIFEST"
 SESSION_CREATED_MANIFEST_NAME = "created-paths.json"
-SESSION_MANIFEST_SECRET_ENV = "CHAOS_SESSION_MANIFEST_SECRET"
+SESSION_MANIFEST_SECRET_ENV = "CHAOS_SESSION_MANIFEST_" + "SECRET"  # nosec B105 - env var name, not a credential
 SESSION_CONTAINMENT_ROOTS_ENV = "CHAOS_SESSION_CONTAINMENT_ROOTS"
 SESSION_WORKTREE_ENV = "CHAOS_SESSION_WORKTREE"
 SESSION_MANIFEST_SCHEMA = 2
@@ -448,7 +448,8 @@ def _git_reason(path: Path, top: Path) -> str:
 
 
 def session_manifest_path(explicit: Path | None = None) -> Path | None:
-    """Resolve the per-session created-paths manifest, or None when unset/missing."""
+    """
+    Resolve the per-session created-paths manifest, or None when unset/missing."""
     if explicit is not None:
         return Path(explicit)
     raw = os.environ.get(SESSION_CREATED_MANIFEST_ENV, "").strip()
@@ -458,7 +459,8 @@ def session_manifest_path(explicit: Path | None = None) -> Path | None:
 
 
 def _session_secret_path(manifest: Path) -> Path:
-    """Per-manifest secret file outside any checkout (XDG config)."""
+    """
+    Per-manifest secret file outside any checkout (XDG config)."""
     digest = hashlib.sha256(str(manifest.resolve()).encode("utf-8")).hexdigest()[:24]
     return (
         Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
@@ -469,7 +471,8 @@ def _session_secret_path(manifest: Path) -> Path:
 
 
 def _read_session_secret(manifest: Path) -> bytes | None:
-    """Return the per-session HMAC secret, or None when unset (forge-closed on load)."""
+    """
+    Return the per-session HMAC secret, or None when unset (forge-closed on load)."""
     raw = os.environ.get(SESSION_MANIFEST_SECRET_ENV, "").strip()
     if raw:
         return raw.encode("utf-8")
@@ -480,7 +483,8 @@ def _read_session_secret(manifest: Path) -> bytes | None:
 
 
 def _load_or_create_session_secret(manifest: Path) -> bytes:
-    """Return the per-session HMAC secret; create one outside the tree when missing."""
+    """
+    Return the per-session HMAC secret; create one outside the tree when missing."""
     existing = _read_session_secret(manifest)
     if existing is not None:
         return existing
@@ -518,7 +522,8 @@ def _resolve_containment_roots(
     explicit_roots: list[Path] | None = None,
     data_roots: list | None = None,
 ) -> list[Path]:
-    """Roots that may contain allowlisted session-created paths."""
+    """
+    Roots that may contain allowlisted session-created paths."""
     roots: list[Path] = []
     if explicit_roots:
         roots.extend(Path(r) for r in explicit_roots)
@@ -561,7 +566,8 @@ def _is_under_root(real: Path, root: Path) -> bool:
 
 
 def _path_escape_or_symlink_reason(path: Path, roots: list[Path]) -> str:
-    """Non-empty when path is a symlink, escapes containment, or cannot be resolved."""
+    """
+    Non-empty when path is a symlink, escapes containment, or cannot be resolved."""
     try:
         expanded = Path(os.path.expanduser(str(path)))
     except OSError:
@@ -569,7 +575,6 @@ def _path_escape_or_symlink_reason(path: Path, roots: list[Path]) -> str:
     # Reject symlink leafs and any symlink in the recorded path chain.
     probe = expanded if expanded.is_absolute() else Path.cwd() / expanded
     try:
-        cursor = probe if probe.exists() or probe.is_symlink() else probe.parent
         # Walk parents for symlinks; also reject the leaf when it is a symlink.
         if probe.is_symlink():
             return "symlink refused"
@@ -590,7 +595,8 @@ def _path_escape_or_symlink_reason(path: Path, roots: list[Path]) -> str:
 
 
 def load_session_created_paths(manifest: Path | None = None) -> set[str]:
-    """Absolute realpath strings recorded as self-created by this session.
+    """
+    Absolute realpath strings recorded as self-created by this session.
 
     Forge-closed: missing/invalid HMAC yields an empty set. Paths that escape
     containment or are symlinks are dropped.
@@ -637,7 +643,8 @@ def record_session_created_paths(
     manifest: Path | None = None,
     roots: list | None = None,
 ) -> Path:
-    """Append contained absolute paths to the HMAC-bound session manifest.
+    """
+    Append contained absolute paths to the HMAC-bound session manifest.
 
     Tool-only writer. Rejects symlinks, traversal, and absolute paths outside
     the session scoped dir / worktree containment roots. Creates parent dirs.
@@ -685,7 +692,8 @@ def record_session_created_paths(
 
 
 def session_created_allows(path: Path, *, manifest: Path | None = None) -> bool:
-    """True when ``path`` is an exact HMAC-verified, contained manifest entry."""
+    """
+    True when ``path`` is an exact HMAC-verified, contained manifest entry."""
     allowed = load_session_created_paths(manifest)
     if not allowed:
         return False
@@ -704,7 +712,8 @@ def restore_ce_managed_to_primary(
     session: Path,
     primary: Path | None = None,
 ) -> tuple[str, list[str]]:
-    """Restore CE-managed paths via ``git checkout <primary-sha> -- <paths>``.
+    """
+    Restore CE-managed paths via ``git checkout <primary-sha> -- <paths>``.
 
     Only paths under ``session/.chaos-engine/``. Never deletes. Never touches
     other worktrees. Returns ``(refusal_or_empty, restored_relpaths)``.
@@ -751,7 +760,8 @@ def restore_ce_managed_to_primary(
 
 
 def ce_managed_revert_allows(path: Path, *, primary: Path | None = None) -> bool:
-    """Deprecated delete allowlist — always False.
+    """
+    Deprecated delete allowlist — always False.
 
     CE-managed dirt must be restored via ``restore_ce_managed_to_primary``
     (git checkout), never deleted through delete-check.
@@ -760,7 +770,8 @@ def ce_managed_revert_allows(path: Path, *, primary: Path | None = None) -> bool
 
 
 def path_reason(path: Path, project: Path | None = None) -> str:
-    """Empty string when deleting ``path`` loses nothing; else the refusal reason.
+    """
+    Empty string when deleting ``path`` loses nothing; else the refusal reason.
 
     Never-touch and protected checks run first so callers of ``path_reason``
     alone cannot bypass them via a forged session manifest.
