@@ -100,7 +100,7 @@ class DesignQaLessonCardsTest(unittest.TestCase):
                     self.assertIn(needle, text)
                 self.assertIn(f"]({name})", index)
         self.assertIn(
-            "45 lesson",
+            "47 lesson",
             " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split()),
         )
         self.assertIn(

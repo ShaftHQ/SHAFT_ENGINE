@@ -47,5 +47,7 @@ one lesson card.
 | [L39 Video sign-off viewer frames](video-signoff-viewer-frames.md) | full-frame SIGN; bidisolate/captionlayers/asscapfit/nonviewertext |
 | [L44 Caption min-cue + independent sync](caption-min-cue-independent-sync.md) | cue <0.8s fail unless merged; capsync vs independent ASR/FA onsets |
 | [L45 Delete-check refusal final](delete-check-refusal-final.md) | delete-check refusal is final; no raw-rm bypass; session-manifest self-delete |
+| [L46 Render freshness sha256](render-freshness-sha256.md) | fix-round mp4 sha256 ≠ prior; REUSE_MP4 fails |
+| [L47 Avatar frozen-tail](avatar-frozen-tail.md) | frame-diff last 2s + after speech; static fails |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).

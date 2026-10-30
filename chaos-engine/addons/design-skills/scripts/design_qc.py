@@ -614,6 +614,47 @@ def cmd_static(args: argparse.Namespace) -> int:
     return report("static", FAIL if spans else PASS, spans=spans, longest_static_s=longest, max_s=args.max)
 
 
+
+def cmd_renderfresh(args: argparse.Namespace) -> int:
+    """L46: fix-round mp4 must change sha256 vs prior; REUSE_MP4 fails the gate."""
+    reuse_flag = bool(getattr(args, "reuse_mp4", False))
+    env_raw = os.environ.get("REUSE_MP4", "").strip().lower()
+    reuse_env = env_raw in {"1", "true", "yes", "y", "on"}
+    if reuse_flag or reuse_env:
+        return report(
+            "renderfresh", FAIL,
+            hits=["REUSE_MP4"],
+            error="REUSE_MP4 fails the gate; re-render and prove a new sha256",
+            reuse_mp4=True,
+        )
+    target = Path(args.file)
+    if not target.is_file():
+        return report("renderfresh", FAIL, hits=["missing-mp4"], error=f"no file: {target}")
+    current = sha256(target)
+    prior = (getattr(args, "prior_sha256", None) or "").strip().lower()
+    if not prior and getattr(args, "prior", None):
+        prior_path = Path(args.prior)
+        if not prior_path.is_file():
+            return report("renderfresh", FAIL, hits=["missing-prior-mp4"], error=f"no prior: {prior_path}")
+        prior = sha256(prior_path)
+    if not prior:
+        return report(
+            "renderfresh", FAIL, hits=["missing-prior"],
+            error="pass --prior-sha256 or --prior (previous round mp4)",
+        )
+    if current == prior:
+        return report(
+            "renderfresh", FAIL, hits=["mp4-sha256-unchanged"],
+            sha256=current, prior_sha256=prior,
+            error="output sha256 equals prior round; re-render required",
+        )
+    return report(
+        "renderfresh", PASS,
+        sha256=current, prior_sha256=prior,
+        note="mp4 sha256 differs from prior round",
+    )
+
+
 HOP_S, SPEECH_DBFS = 0.02, -45.0
 
 
@@ -640,6 +681,68 @@ def speech_mask(path: str) -> list[bool]:
         power = sum(x * x for x in samples[i:i + hop]) / hop
         mask.append(10 * math.log10(power / 32768 ** 2 + 1e-12) > SPEECH_DBFS)
     return mask
+
+
+
+def _speech_end_s(path: str, explicit: float | None) -> float | None:
+    if explicit is not None:
+        return float(explicit)
+    mask = speech_mask(path)
+    if not mask:
+        return None
+    last = None
+    for index, active in enumerate(mask):
+        if active:
+            last = (index + 1) * HOP_S
+    return last
+
+
+def cmd_frozentail(args: argparse.Namespace) -> int:
+    """L47: frame-diff last N s and any span after speech ends; static = FAIL."""
+    probe = ffprobe(args.file)
+    video = video_stream(probe)
+    duration = float(video.get("duration") or probe.get("format", {}).get("duration") or 0.0)
+    if duration <= 0:
+        raise ValueError("cannot read media duration")
+    tail_s = float(args.tail)
+    speech_end = _speech_end_s(args.file, getattr(args, "speech_end", None))
+    windows: list[tuple[float, float, str]] = []
+    start_tail = max(0.0, duration - tail_s)
+    if start_tail < duration - 1e-6:
+        windows.append((start_tail, duration, "last-tail"))
+    if speech_end is not None and speech_end < duration - 1e-6:
+        windows.append((max(0.0, float(speech_end)), duration, "after-speech"))
+    grid = "scale='if(gt(iw,ih),32,18)':'if(gt(iw,ih),18,32)':flags=area,format=gray"
+    hits: list[str] = []
+    longest = 0.0
+    for start, stop, label in windows:
+        span = max(0.05, stop - start)
+        vf = f"fps={args.fps},{grid}"
+        raw = decode_raw(
+            args.file,
+            ["-ss", f"{start:.3f}", "-t", f"{span:.3f}", "-an", "-vf", vf, "-f", "rawvideo"],
+        )
+        frames = [raw[i:i + 576] for i in range(0, len(raw) - 575, 576)]
+        if len(frames) < 2:
+            hits.append(f"{label}: too-few-frames")
+            continue
+        spans, win_longest = static_spans(frames, args.fps, args.thresh, args.max, [])
+        longest = max(longest, win_longest)
+        for item in spans:
+            hits.append(
+                f"{label}: static {item['start']:.2f}-{item['end']:.2f}s "
+                f"(dur {item['dur']:.2f}s) in media window starting {start:.2f}s"
+            )
+    return report(
+        "frozentail", FAIL if hits else PASS,
+        duration_s=round(duration, 3),
+        speech_end_s=None if speech_end is None else round(float(speech_end), 3),
+        tail_s=tail_s,
+        longest_static_s=longest,
+        max_s=args.max,
+        hits=hits,
+        note="trim to speech end plus a short natural tail when frozen",
+    )
 
 
 def vo_entries(edl: dict) -> list[dict]:
@@ -1883,6 +1986,24 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("file")
     p.add_argument("--min", type=float, default=0.5)
     p.add_argument("--allow", action="append", default=[], help="start-end seconds")
+    p = add("renderfresh", cmd_renderfresh,
+            "L46: fix-round mp4 sha256 must differ from prior; REUSE_MP4 fails")
+    p.add_argument("file", help="current round mp4")
+    p.add_argument("--prior-sha256", dest="prior_sha256", default=None,
+                   help="previous round sha256 hex")
+    p.add_argument("--prior", default=None, help="previous round mp4 path")
+    p.add_argument("--reuse-mp4", action="store_true", dest="reuse_mp4",
+                   help="explicit REUSE_MP4 claim (always fails)")
+    p = add("frozentail", cmd_frozentail,
+            "L47: frame-diff last N s and after speech; static frame fails")
+    p.add_argument("file", help="avatar / talk video")
+    p.add_argument("--tail", type=float, default=2.0, help="last N seconds to check (default 2)")
+    p.add_argument("--speech-end", type=float, default=None, dest="speech_end",
+                   help="seconds; default = last speech frame from audio")
+    p.add_argument("--fps", type=float, default=8.0, help="sample fps for frame-diff")
+    p.add_argument("--thresh", type=float, default=3.0, help="grid cell delta for static")
+    p.add_argument("--max", type=float, default=0.35,
+                   help="static longer than this in checked windows fails (seconds)")
     p = add("gapfloor", cmd_gapfloor, "noise floor between narration lines")
     p.add_argument("file")
     p.add_argument("--timeline", required=True, help="EDL JSON with lines [{start, end}]")

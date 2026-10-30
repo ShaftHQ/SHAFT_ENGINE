@@ -21,6 +21,8 @@ Short. Extends [L17](caption-micro-gap-snap.md) and [L35](video-caption-handoff.
    snapper's own onset logic or clone cue starts into an onsets file — that is
    a tautology and always reports ~0 ms drift. Gate: `capsync` with
    `--onsets`. Echo detection fails closed (`onsets-echo-cue-starts`).
+   Pass `--snapper-words` when a snapper word-source file exists: the gate
+   fails if `--onsets` resolves to the same path (`onsets-share-snapper-words`).
 3. **Code-switch tolerance.** Latin / English tokens inside a mixed-script
    line may use a wider drift budget (`--codeswitch-tol`, default 0.30 s);
    default cue drift stays 0.15 s.
@@ -31,6 +33,8 @@ Short. Extends [L17](caption-micro-gap-snap.md) and [L35](video-caption-handoff.
       into a ≥0.8 s neighbour.
 - [ ] `design_qc.py capsync cues.srt --onsets asr.json` fails when onsets equal
       cue starts exactly; passes with independent ASR/FA within tol.
+- [ ] `capsync … --onsets a.json --snapper-words a.json` fails
+      `onsets-share-snapper-words`.
 - [ ] A code-switched English token at 250 ms drift passes under default
       `--codeswitch-tol`.
 

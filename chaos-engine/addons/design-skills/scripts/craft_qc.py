@@ -3546,6 +3546,14 @@ def cmd_capsync(qc, args) -> int:
             "capsync", qc.FAIL, hits=["onsets-same-as-cues"],
             error="onsets must be an independent ASR/FA file, not the cue file",
         )
+    snapper = getattr(args, "snapper_words", None)
+    if snapper:
+        snap_path = Path(snapper)
+        if snap_path.is_file() and onset_path.resolve() == snap_path.resolve():
+            return qc.report(
+                "capsync", qc.FAIL, hits=["onsets-share-snapper-words"],
+                error="verifier ASR must be a separate run from the snapper word source",
+            )
     cues = qc.parse_cues(cue_path.read_text(encoding="utf-8"))
     if not cues:
         return qc.report("capsync", qc.FAIL, hits=["no cues"])
@@ -4077,6 +4085,8 @@ def register(add, qc) -> None:
     p.add_argument("file", help="caption SRT")
     p.add_argument("--onsets", required=True,
                    help="independent ASR or forced-alignment JSON with word start times")
+    p.add_argument("--snapper-words", dest="snapper_words", default=None,
+                   help="snapper word-source JSON; fails when identical to --onsets path")
     p.add_argument("--tol", type=float, default=0.15,
                    help="max |cue.start - onset| seconds (default 0.15)")
     p.add_argument("--codeswitch-tol", type=float, default=0.30, dest="codeswitch_tol",
