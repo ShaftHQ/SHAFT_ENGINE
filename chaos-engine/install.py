@@ -7905,7 +7905,7 @@ _HANDLED = object()
 
 
 def detect_repo_chaos_engine_source(project: Path) -> Path | None:
-    """Return ``<repo>/chaos-engine`` when the project sits in a SHAFT-style source tree."""
+    """Return ``<repo>/chaos-engine`` when the project sits in an engine source tree."""
     root = Path(project).resolve()
     for candidate in (root, *root.parents):
         source = candidate / "chaos-engine"
@@ -7940,7 +7940,7 @@ def detect_full_commit(project: Path) -> str | None:
 
 
 def apply_install_source_defaults(args: argparse.Namespace) -> None:
-    """Carl 2026.10.30: auto-detect ``--source <repo>/chaos-engine`` and ``--commit`` HEAD."""
+    """Auto-detect ``--source <repo>/chaos-engine`` and ``--commit`` HEAD (40-hex)."""
     if getattr(args, "from_bundle", None) is not None:
         return
     project = Path(getattr(args, "project", Path.cwd())).resolve()

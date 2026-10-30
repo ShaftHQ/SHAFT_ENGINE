@@ -192,9 +192,9 @@ background worker as a hung install.
 
 Tee install/doctor output into
 `<project>/.chaos-engine-state/logs/install.log` (or `doctor.log`), not
-`/workspace/*.log`. Use `chaos-engine/session_logs.py` (`log_path("install")`)
-so the session created-paths manifest records the file and cleanup-at-close can
-self-delete it.
+workspace-root `*.log` files. Use [`session_logs.py`](session_logs.py)
+(`log_path("install")`) so the session created-paths manifest records the
+file and cleanup-at-close can self-delete it.
 
 That merges:
 

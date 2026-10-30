@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Session-scoped install/doctor log paths (#2026.10.30.2).
+"""Session-scoped install/doctor log paths for self-delete.
 
-Bots used to tee install/doctor output to ``/workspace/*.log``, which the
-delete guard then refused (outside git, not on the allow-list). Write those
-logs under ``.chaos-engine-state/logs/`` inside the session project (or an
-explicit session worktree) and record them on the session created-paths
-manifest so cleanup-at-close can self-delete them.
+Bots used to tee install/doctor output to workspace-root ``*.log`` files,
+which the delete guard then refused (outside git, not on the allow-list).
+Write those logs under ``.chaos-engine-state/logs/`` inside the session
+project (or an explicit session worktree) and record them on the session
+created-paths manifest so cleanup-at-close can self-delete them.
 """
 
 from __future__ import annotations

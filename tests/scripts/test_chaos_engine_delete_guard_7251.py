@@ -546,8 +546,8 @@ class DeleteGuardTest(unittest.TestCase):
         self.assertEqual(("pass",), install.backup_remote_advisory(self.repo, CORE))
 
 
-    def test_backup_remote_warns_in_consumer_mode(self):
-        """#7263: consumer exclude hides .memory, so a pushed clean tree must still warn."""
+    def test_backup_remote_silent_in_consumer_mode(self):
+        """#7263 superseded 2026.10.30.2: consumer mode is silent (HRSD/Cortex)."""
         self.push()
         self.assertEqual(("pass", ""), GUARD.backup_remote_status(self.repo))
         marker = self.repo / ".chaos-engine-state" / "consumer-mode"
@@ -558,8 +558,8 @@ class DeleteGuardTest(unittest.TestCase):
         (self.repo / ".memory").mkdir()
         (self.repo / ".memory" / "m.md").write_text("only copy", encoding="utf-8")
         status, reason = GUARD.backup_remote_status(self.repo)
-        self.assertEqual("warn", status)
-        self.assertIn("consumer mode hides harness state", reason)
+        self.assertEqual("pass", status)
+        self.assertEqual("", reason)
 
 class RawFilesystemDeleteGuardTest(unittest.TestCase):
     """Red-without-fix coverage for mv / rsync --delete / Path().rmdir|unlink."""

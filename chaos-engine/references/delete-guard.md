@@ -6,6 +6,9 @@ PreToolUse hook (`hooks/guard.py`, via [delete_guard.py](../delete_guard.py)); h
 `tool.py delete-check --command "<shell command>"` before every delete and stop
 on a non-zero exit.
 
+
+Install and doctor logs belong under `<project>/.chaos-engine-state/logs/` via [`session_logs.py`](../session_logs.py). Recording them on the session created-paths manifest lets cleanup-at-close self-delete those logs without an owner code.
+
 ## What it refuses
 
 It parses `rm`, `unlink`, `shred`, `mv` (each source path), `rsync --delete*` /

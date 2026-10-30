@@ -7,10 +7,10 @@ Projects, and any other independent bot. `AGENTS.md` is not read for you.
 ## No `.chaos-engine/` yet
 
 Install first: [harness maintenance](harness-maintenance.md#install).
-From a SHAFT_ENGINE source checkout the installer is `chaos-engine/install.py`
+From an engine source checkout the installer is `chaos-engine/install.py`
 (with `--source <repo>/chaos-engine --commit <40-hex-sha>`). After install,
 doctor and `tool.py` use `.chaos-engine/install.py`. Tee install/doctor logs to
-`.chaos-engine-state/logs/` via `session_logs.log_path`, never `/workspace/*.log`.
+`.chaos-engine-state/logs/` via `session_logs.log_path`, never workspace-root `*.log` files.
 
 ## Every task, before discovery
 
