@@ -375,7 +375,6 @@ def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
     ]
 
 
-
 def cheap_ci_contract_failures(root: Path, changed: list[str]) -> list[str]:
     """Run the Agent Guidance Gate's cheap byte-budget/lint/allowlist tests before push."""
     import importlib
