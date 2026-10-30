@@ -1,4 +1,6 @@
-package com.shaft.gui.element.internal;
+package testPackage.unitTests;
+
+import com.shaft.gui.element.internal.AndroidNestedScroll;
 
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
