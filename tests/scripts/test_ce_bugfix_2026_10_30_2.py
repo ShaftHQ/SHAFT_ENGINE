@@ -3,14 +3,12 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import json
 import shutil
 import subprocess  # nosec B404
 import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 CE = ROOT / "chaos-engine"
@@ -130,7 +128,6 @@ class WorktreeReconcileTest(unittest.TestCase):
             self.assertIn(".claude/agents", paths)
 
     def test_upgrade_session_checkouts_before_materialize(self) -> None:
-        overlay = load("ce_overlay_bugfix2b", CE / "worktree_overlay.py")
         source = (CE / "worktree_overlay.py").read_text(encoding="utf-8")
         # upgrade_session must call checkout before materialize
         start = source.index("def upgrade_session")

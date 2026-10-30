@@ -7968,14 +7968,16 @@ def installed_commit_of(project: Path) -> str | None:
 
 
 def source_behind_advisory(project: Path | None) -> tuple[str, ...]:
-    """Doctor tip: installed commit vs source HEAD."""
+    """
+    Doctor tip: installed commit vs source HEAD.
+    """
     if project is None:
         return ()
     installed = installed_commit_of(project)
     if not installed:
         return ()
     source = detect_repo_chaos_engine_source(project)
-    head = detect_full_commit(project)
+    head = detect_full_commit(source if source is not None else project)
     if not head:
         return ("commit:", installed[:12])
     if installed == head:

@@ -119,7 +119,8 @@ def local_git_identity(project: Path | None = None) -> tuple[str, str]:
 
 
 def entry_identity_warning(project: Path | None = None) -> str:
-    """Warn when repo-local git identity is ChaosEngine outside allowed remotes.
+    """
+    Warn when repo-local git identity is ChaosEngine outside allowed remotes.
 
     Entry / doctor call this so a mis-set ``user.email`` in a consumer repo
     (for example a board repo) is caught before more ChaosEngine-authored commits.

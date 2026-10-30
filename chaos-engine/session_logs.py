@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Session-scoped install/doctor log paths for self-delete.
+"""
+Session-scoped install/doctor log paths for self-delete.
 
 Bots used to tee install/doctor output to workspace-root ``*.log`` files,
 which the delete guard then refused (outside git, not on the allow-list).

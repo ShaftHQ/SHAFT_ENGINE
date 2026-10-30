@@ -177,7 +177,8 @@ def _decode_concatenated_json(blob: str) -> list[object]:
 
 
 def fetch_jobs(runner: Runner, repo: str, run_id: str, attempt: str) -> list[Job]:
-    """List jobs for one run attempt.
+    """
+    List jobs for one run attempt.
 
     Parse JSON in Python. Avoid ``gh api --jq``: object-construction filters
     combined with ``--paginate`` have crashed post-merge main runs and painted

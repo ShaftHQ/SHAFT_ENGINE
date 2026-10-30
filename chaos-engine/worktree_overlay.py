@@ -383,7 +383,8 @@ def _path_has_local_edit(session: Path, relative: str) -> bool:
 
 
 def _maybe_checkout_tracked_ce(primary: Path, session: Path) -> list[str]:
-    """Reset tracked CE/host adapters from primary HEAD when the consumer never edited them.
+    """
+    Reset tracked CE/host adapters from primary HEAD when the consumer never edited them.
 
     Worktrees parked on an older SHA still carry tracked ``.chaos-engine/`` and
     host adapters (for example ``.claude/agents/``). ``materialize`` would refuse
