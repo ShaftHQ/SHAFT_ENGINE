@@ -9,6 +9,7 @@ GitHub org. Every other remote uses the human owner identity.
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess  # nosec B404 - fixed git argv, list form only
 from pathlib import Path
 
@@ -62,8 +63,11 @@ def chaosengine_author_allowed(remote_url: str) -> bool:
 
 def origin_url(project: Path | None = None) -> str:
     root = Path(project) if project is not None else Path.cwd()
+    git = shutil.which("git")
+    if not git:
+        return ""
     result = subprocess.run(  # nosec B603
-        ["git", "-C", str(root), "remote", "get-url", "origin"],
+        [git, "-C", str(root), "remote", "get-url", "origin"],
         capture_output=True,
         text=True,
         check=False,

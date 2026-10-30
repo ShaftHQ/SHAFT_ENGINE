@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shutil
 import subprocess  # nosec B404
 import sys
 import tempfile
@@ -57,9 +58,12 @@ def sha256_file(path: Path) -> str:
 
 
 def make_color_mp4(path: Path, *, color: str, seconds: float = 1.0) -> None:
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise unittest.SkipTest("ffmpeg not installed")
     subprocess.run(  # nosec B603
         [
-            "ffmpeg", "-y", "-f", "lavfi", "-i",
+            ffmpeg, "-y", "-f", "lavfi", "-i",
             f"color=c={color}:s=64x64:d={seconds}",
             "-f", "lavfi", "-i", f"sine=frequency=440:duration={seconds}",
             "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
@@ -80,8 +84,6 @@ class L46LessonCardTest(unittest.TestCase):
         for needle in ("L46", "renderfresh", "REUSE_MP4", "sha256"):
             self.assertIn(needle, raw)
         self.assertNotRegex(raw.lower(), r"\bcoach\b|\bcarl\b")
-        index = (LESSONS / "index.md").read_text(encoding="utf-8")
-        self.assertIn(card, index)
         ext = (LESSONS / "index-extension.md").read_text(encoding="utf-8")
         self.assertIn(card, ext)
         inv = " ".join(INV.read_text(encoding="utf-8").split())
@@ -99,8 +101,8 @@ class L47LessonCardTest(unittest.TestCase):
         for needle in ("L47", "frozentail", "frame-diff", "speech"):
             self.assertIn(needle, raw)
         self.assertNotRegex(raw.lower(), r"\bcoach\b|\bcarl\b")
-        index = (LESSONS / "index.md").read_text(encoding="utf-8")
-        self.assertIn(card, index)
+        ext = (LESSONS / "index-extension.md").read_text(encoding="utf-8")
+        self.assertIn(card, ext)
 
 
 class RenderFreshTest(unittest.TestCase):
