@@ -163,6 +163,13 @@ sends you there; the rest by
 - [reflection checkpoints](../../chaos-engine/references/reflection-checkpoints.md)
 - [rule retirement](../../chaos-engine/references/rule-retirement.md)
 - [cleanup scopes](../../chaos-engine/references/cleanup-scopes.md)
+- [cleanup at close](../../chaos-engine/references/cleanup-at-close.md): clean after verified delivery; disk free-GiB tiers
+- [checkpoint resume](../../chaos-engine/references/checkpoint-resume.md): interrupted worker → checkpoint file → resume
+- [worker keep-alive](../../chaos-engine/references/worker-keep-alive.md): non-empty keep-alive between turns
+- [sequential WIP](../../chaos-engine/references/sequential-wip.md): one In-progress item; adversarial review in parallel when authorized
+- [auto-merge re-arm](../../chaos-engine/references/automerge-rearm.md): re-arm after merge-queue eviction; scheduled soft-fail per item
+- [mobile client automation](../../chaos-engine/references/mobile-client-automation.md): portable mobile automation (read-only secrets, NamedBlock)
+- [design review / video worker checklist](../../chaos-engine/references/design-review-video-checklist.md): default design+video SIGN checklist (role-neutral)
 - [harness learn](../../chaos-engine/references/harness-learn.md)
 - [learn traces](../../chaos-engine/references/learn-traces.md)
 - [design loop](../../chaos-engine/references/design-loop.md)
