@@ -20,29 +20,35 @@ burn a literal `[muted]` placeholder. Extends [L02](mixed-script-captions.md)
    (shipped defaults + `--allow AR`) must **not** fail termlexicon or
    listen-verify. Prefer Latin only for tech terms the audience already
    reads in Latin.
-3. **Unknown phonetic dumps → listen-verify.** An Arabic-script token
-   that looks like a letter-by-letter English phonetic (not in the
-   lexicon, not allowlisted, not a common Arabic function word) fails
-   `listenverify` so a human ear-pass restores Latin or allowlists it.
-   FN seed: `سيكتت ايس بانك`.
+3. **Unknown phonetic dumps → listen-verify.** `listenverify` fails a
+   token that (a) matches the shipped phonetic seed list or `--seed`,
+   including as a substring of the raw token, or (b) matches a
+   conservative English-loan shape heuristic (e.g. كوبيلوت). Lexicon
+   hits, `--allow`, and common Arabic function words are skipped. A
+   human ear-pass restores Latin or allowlists the token. FN seeds:
+   `سيكتت ايس بانك`, `كوبيلوت`.
 4. **Mute ranges must be silent.** Declared mute windows on the mix must
    measure as silence (`mutesilent` RMS). A mute note with residual
    speech fails.
-5. **No burned `[muted]` captions.** Mute only the audio (and redact
-   amounts/names in text). A cue containing `[muted]` / `[MUTED]` fails
-   `mutedburn`. Mute does not replace text gates ([L09](privacy-names-gate.md)).
+5. **No `[muted]` in cue text.** Mute only the audio (and redact
+   amounts/names in text). A cue containing `[muted]` (case- and
+   whitespace-insensitive) fails `mutedburn`. Cue-text / SRT-VTT only —
+   no OCR of burned-in frames. Mute does not replace text gates
+   ([L09](privacy-names-gate.md)).
 
 ## Verify
 
 - [ ] `design_qc.py termlexicon cues.srt` fails leftover tech phonetics;
       `--allow موبايل` keeps an Egyptian loanword.
-- [ ] `design_qc.py listenverify cues.srt` fails `سيكتت ايس بانك` (FN);
-      passes clean Arabic speech; `--allow` / common function words do
-      not false-positive (FP).
+- [ ] `design_qc.py listenverify cues.srt` fails `سيكتت ايس بانك` and
+      `كوبيلوت` (FN); fails seed-substring `بانكانا`; passes clean Arabic
+      speech and `البنك`; `--allow` / common function words do not
+      false-positive (FP).
 - [ ] `design_qc.py mutesilent media.wav --mute 1.0,2.0` fails when the
       range still has speech; passes when that range is silent.
-- [ ] `design_qc.py mutedburn cues.srt` fails a cue with `[muted]`;
-      passes redacted amount text without the placeholder.
+- [ ] `design_qc.py mutedburn cues.srt` fails `[muted]` / `[MuTeD]` /
+      `[ muted ]` in cue text; passes redacted amount text without the
+      placeholder.
 
 ## Why
 

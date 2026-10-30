@@ -29,8 +29,10 @@ CARD_NEEDLES = (
     "mutedburn",
     "--allow",
     "سيكتت",
+    "كوبيلوت",
     "[muted]",
     "Egyptian",
+    "Cue-text",
 )
 
 
@@ -149,6 +151,33 @@ class ListenVerifyL38Test(unittest.TestCase):
             self.assertEqual(1, code, payload)
             self.assertTrue(payload.get("hits"), payload)
 
+    def test_fn_copilot_loan_shape(self) -> None:
+        """B1 FN: كوبيلوت (unseeded) fails via loan-shape heuristic."""
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "bad.srt"
+            bad.write_text(srt((0, 2, "افتح كوبيلوت الآن")), encoding="utf-8")
+            code, payload = run_qc("listenverify", str(bad))
+            self.assertEqual(1, code, payload)
+            self.assertTrue(any("كوبيلوت" in h for h in payload.get("hits", [])), payload)
+
+    def test_fn_codebase_loan_shape_phrase(self) -> None:
+        """B1 FN: الكوبيبايس (article + loan shape) fails."""
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "bad.srt"
+            bad.write_text(srt((0, 2, "ودي الكوبيبايس بتاع المشروع")), encoding="utf-8")
+            code, payload = run_qc("listenverify", str(bad))
+            self.assertEqual(1, code, payload)
+            self.assertTrue(payload.get("hits"), payload)
+
+    def test_fn_bankana_seed_substring_despite_ba_prefix(self) -> None:
+        """B2 FN: بانكانا keeps seed substring بانك despite leading ب."""
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "bad.srt"
+            bad.write_text(srt((0, 2, "بانكانا غلط")), encoding="utf-8")
+            code, payload = run_qc("listenverify", str(bad))
+            self.assertEqual(1, code, payload)
+            self.assertTrue(any("بانكانا" in h for h in payload.get("hits", [])), payload)
+
     def test_fp_clean_arabic_passes(self) -> None:
         """FP: ordinary Egyptian Arabic speech must pass."""
         with tempfile.TemporaryDirectory() as folder:
@@ -157,6 +186,14 @@ class ListenVerifyL38Test(unittest.TestCase):
                 srt((0, 2, "إحنا محتاجين نبني جودة من الأول")),
                 encoding="utf-8",
             )
+            code, payload = run_qc("listenverify", str(good))
+            self.assertEqual((0, "pass"), (code, payload["status"]), payload)
+
+    def test_fp_real_albank_not_seed(self) -> None:
+        """FP: البنك (real Arabic) ≠ seed بانك after ال- strip."""
+        with tempfile.TemporaryDirectory() as folder:
+            good = Path(folder) / "good.srt"
+            good.write_text(srt((0, 2, "رحت البنك الصبح")), encoding="utf-8")
             code, payload = run_qc("listenverify", str(good))
             self.assertEqual((0, "pass"), (code, payload["status"]), payload)
 
@@ -198,6 +235,18 @@ class MutedBurnL38Test(unittest.TestCase):
             bad.write_text(srt((0, 2, "السعر كان [muted] جنيه")), encoding="utf-8")
             code, payload = run_qc("mutedburn", str(bad))
             self.assertEqual(1, code, payload)
+
+    def test_muted_case_and_whitespace_variants_fail(self) -> None:
+        """N1 FN: [MuTeD] and [ muted ] in cue text fail (SRT-only scope)."""
+        with tempfile.TemporaryDirectory() as folder:
+            for label, cue in (
+                ("case", "السعر كان [MuTeD] جنيه"),
+                ("ws", "السعر كان [ muted ] جنيه"),
+            ):
+                bad = Path(folder) / f"{label}.srt"
+                bad.write_text(srt((0, 2, cue)), encoding="utf-8")
+                code, payload = run_qc("mutedburn", str(bad))
+                self.assertEqual(1, code, (label, payload))
 
     def test_redacted_amount_without_placeholder_passes(self) -> None:
         """FP: redacted amount text without [muted] passes."""

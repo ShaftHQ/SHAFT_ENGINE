@@ -501,14 +501,40 @@ def term_lexicon_hits(
     return hits
 
 
-def _strip_bound_prefix(core: str) -> str:
+def _strip_bound_prefix(core: str, *, min_pref_len: int = 1) -> str:
+    """Strip one leading bound article/prefix. min_pref_len=2 keeps ب/و/ف/ك."""
     for pref in TERM_PREF:
+        if len(pref) < min_pref_len:
+            continue
         if core.startswith(pref) and len(core) > len(pref):
             rest = core[len(pref):]
             if rest.startswith("ـ"):
                 rest = rest[1:]
             return rest
     return core
+
+
+# Arabic-script English loan endings (L38 listen-verify heuristic).
+# Min length 6 avoids short native FP (e.g. مسافر/ياقوت). Shorter FN dumps
+# stay covered by PHONETIC_SEEDS (سيكتت/سيرفر/كلاود).
+_LOAN_SHAPE = re.compile(
+    r"(?:وت|ايس|ايز|تت|اود|بلوي|پلوي|ينغ|ينج|منت|شين|كشن)$"
+)
+# Native-Arabic markers almost never used in English phonetic dumps.
+_AR_NATIVE = re.compile(r"[عغحخصضظطءةئؤإ]")
+
+
+def _looks_like_english_phonetic(token: str) -> bool:
+    """True when an Arabic-script token has an English-loan shape (low FP)."""
+    if len(token) < 6:
+        return False
+    if _AR_NATIVE.search(token):
+        return False
+    if _LATIN.search(token):
+        return False
+    if not _AR_LETTER.search(token):
+        return False
+    return bool(_LOAN_SHAPE.search(token))
 
 
 def _arabic_tokens(text: str) -> list[str]:
@@ -530,30 +556,34 @@ def listen_verify_hits(
     allow: set[str],
     seeds: set[str],
 ) -> list[str]:
-    """L38: flag unknown Arabic-script phonetic dumps for human listen-verify."""
+    """L38: seed list + loan-shape heuristic → human listen-verify.
+
+    Matches: exact seed on tok/bare; seed substring on the *raw* token (so a
+    single-letter bound prefix cannot hide بانك inside بانكانا); loan-shape
+    heuristic on the article-stripped form (ال-/وال-/…).
+    """
     hits: list[str] = []
     known = set(words) | allow | ARABIC_COMMON
+    msg = (
+        "Arabic-script phonetic dump {tok!r} → listen-verify "
+        "(restore Latin or --allow Egyptian loanword)"
+    )
     for tok in _arabic_tokens(text):
-        bare = _strip_bound_prefix(tok)
-        if tok in known or bare in known:
+        bare = _strip_bound_prefix(tok)  # full strip for allow/lexicon
+        article_bare = _strip_bound_prefix(tok, min_pref_len=2)
+        if tok in known or bare in known or article_bare in known:
             continue
-        if tok in seeds or bare in seeds:
-            hits.append(
-                f"Arabic-script phonetic dump {tok!r} → listen-verify "
-                "(restore Latin or --allow Egyptian loanword)"
-            )
+        if tok in seeds or bare in seeds or article_bare in seeds:
+            hits.append(msg.format(tok=tok))
             continue
-        # Letter-by-letter English shape: short all-Arabic token in seed-like
-        # consonant pattern (no Arabic definite morphology beyond bound prefix).
-        if len(bare) >= 4 and bare == tok and bare not in ARABIC_COMMON:
-            # Heuristic: token equals a known seed after common ASR vowel noise
-            for seed in seeds:
-                if seed in bare or bare in seed:
-                    hits.append(
-                        f"Arabic-script phonetic dump {tok!r} → listen-verify "
-                        "(restore Latin or --allow Egyptian loanword)"
-                    )
-                    break
+        # B2: substring against RAW tok so ب/و/ف/ك prefix cannot drop the hit.
+        if any(len(seed) >= 3 and seed in tok for seed in seeds):
+            hits.append(msg.format(tok=tok))
+            continue
+        # B1: loan-shape heuristic (not seed-only).
+        if _looks_like_english_phonetic(article_bare) or _looks_like_english_phonetic(tok):
+            hits.append(msg.format(tok=tok))
+            continue
     return hits
 
 
@@ -567,7 +597,7 @@ def cmd_termlexicon(qc, args) -> int:
 
 
 def cmd_listenverify(qc, args) -> int:
-    """L38: unknown Arabic-script phonetic dumps need listen-verify."""
+    """L38: phonetic seeds + loan-shape heuristic → listen-verify."""
     words, _phrases = _term_lexicon_maps(getattr(args, "term", []) or [])
     allow = _allow_set(getattr(args, "allow", None))
     seeds = set(PHONETIC_SEEDS)
@@ -630,17 +660,21 @@ def cmd_mutesilent(qc, args) -> int:
     )
 
 
+_MUTED_PLACEHOLDER = re.compile(r"\[\s*muted\s*\]", re.IGNORECASE)
+
+
 def cmd_mutedburn(qc, args) -> int:
-    """L38: fail burned [muted] placeholders in captions."""
+    """L38: fail [muted] placeholders in cue text (SRT/VTT; no OCR/frames)."""
     cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
     hits: list[str] = []
-    patterns = ("[muted]", "[MUTED]", "[Muted]")
     for i, cue in enumerate(cues, 1):
         joined = " ".join(cue["lines"])
-        for pat in patterns:
-            if pat in joined:
-                hits.append(f"cue {i}: burned {pat!r} placeholder (mute audio + redact text)")
-                break
+        match = _MUTED_PLACEHOLDER.search(joined)
+        if match:
+            hits.append(
+                f"cue {i}: burned {match.group(0)!r} placeholder "
+                "(mute audio + redact text; cue-text only)"
+            )
     return qc.report("mutedburn", qc.FAIL if hits else qc.PASS, cues=len(cues), hits=hits)
 
 
@@ -3287,7 +3321,7 @@ def register(add, qc) -> None:
     p.add_argument("--allow", action="append", default=[], metavar="AR",
                    help="L38 Egyptian loanword allowlist (stay Arabic)")
     p = add("listenverify", bind(cmd_listenverify),
-            "L38: unknown Arabic-script phonetic dumps → listen-verify")
+            "L38: phonetic seeds + loan-shape heuristic → listen-verify")
     p.add_argument("file")
     p.add_argument("--term", action="append", default=[], metavar="AR=LATIN",
                    help="known tech map (same as termlexicon)")
@@ -3303,7 +3337,7 @@ def register(add, qc) -> None:
     p.add_argument("--thr", type=float, default=-40.0, help="speech RMS threshold dBFS")
     p.add_argument("--hop", type=float, default=0.05)
     p = add("mutedburn", bind(cmd_mutedburn),
-            "L38: fail burned [muted] placeholders in captions")
+            "L38: fail [muted] placeholders in cue text (SRT/VTT; no OCR)")
     p.add_argument("file")
     p = add("fadetail", bind(cmd_fadetail), "tail fade clears the last spoken word")
     p.add_argument("--words", required=True)
