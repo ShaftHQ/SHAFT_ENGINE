@@ -51,6 +51,8 @@ PRs run the fresh installer on ubuntu and Windows only. Add `ci:installer-macos`
 - [Checkpoint resume](checkpoint-resume.md)
 - [Cleanup at close](cleanup-at-close.md)
 - [CE upgrade on release](ce-upgrade-on-release.md)
+- [Work ordering](work-ordering.md)
+- [Commit identity](commit-identity.md)
 - [Auto-merge re-arm](automerge-rearm.md)
 - [Sequential WIP](sequential-wip.md)
 - [Mobile client automation](mobile-client-automation.md)

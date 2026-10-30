@@ -40,6 +40,8 @@ class ProcessCardsTest(unittest.TestCase):
         "sequential-wip.md": ("one", "In progress", "adversarial"),
         "mobile-client-automation.md": ("Read-only", "Secret-scan", "NamedBlock"),
         "design-review-video-checklist.md": ("Independent adversarial", "bidisolate", "LRI"),
+        "work-ordering.md": ("Open PRs", "bugs", "epics"),
+        "commit-identity.md": ("ChaosEngine", "allowed_remotes", "assert_chaosengine_author_allowed"),
     }
 
     def test_cards_have_rule_why_check(self) -> None:
@@ -70,6 +72,8 @@ class ProcessCardsTest(unittest.TestCase):
         self.assertIn("checkpoint-resume.md", bot)
         self.assertIn("ce-upgrade-on-release.md", bot)
         self.assertIn("cleanup-at-close.md", bot)
+        self.assertIn("work-ordering.md", bot)
+        self.assertIn("commit-identity.md", bot)
         self.assertIn("KEEP-ALIVE", bot)
 
     def test_version_file_broadcastable(self) -> None:
@@ -92,6 +96,8 @@ class ProcessCardsTest(unittest.TestCase):
             "sequential-wip.md",
             "mobile-client-automation.md",
             "design-review-video-checklist.md",
+            "work-ordering.md",
+            "commit-identity.md",
             "worker_ce_entry.py",
         ):
             self.assertIn(name, tip)
