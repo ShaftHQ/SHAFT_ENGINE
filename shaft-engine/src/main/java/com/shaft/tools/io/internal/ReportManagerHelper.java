@@ -669,9 +669,20 @@ public class ReportManagerHelper {
         }
     }
 
+    /**
+     * Framework frames contain {@code shaft} in the class name. Deliberate test packages under
+     * {@code com.shaft.test.} must still count as callers after the unit-test package migration (#7625).
+     */
+    private static boolean isFrameworkInternalClass(String className) {
+        if (className.startsWith("com.shaft.test.")) {
+            return false;
+        }
+        return className.contains("shaft");
+    }
+
     public static String getCallingMethodFullName() {
         return STACK_WALKER.walk(frames -> frames
-                .filter(frame -> !frame.getClassName().contains("shaft"))
+                .filter(frame -> !isFrameworkInternalClass(frame.getClassName()))
                 .findFirst()
                 .map(frame -> frame.getMethodName().isEmpty()
                         ? frame.getClassName()
@@ -683,8 +694,10 @@ public class ReportManagerHelper {
         StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
         var getCallingClassFullName = new StringBuilder();
         for (var i = 1; i < callingStack.length; i++) {
-            if (!callingStack[i].getClassName().contains("shaft") && !callingStack[i].getClassName().equals("org.openqa.selenium.support.ui.FluentWait")) {
-                getCallingClassFullName.append(callingStack[i].getClassName());
+            String className = callingStack[i].getClassName();
+            if (!isFrameworkInternalClass(className)
+                    && !className.equals("org.openqa.selenium.support.ui.FluentWait")) {
+                getCallingClassFullName.append(className);
                 break;
             }
         }

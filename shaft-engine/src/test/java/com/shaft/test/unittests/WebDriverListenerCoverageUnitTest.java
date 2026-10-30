@@ -1,0 +1,209 @@
+package com.shaft.test.unittests;
+
+import com.shaft.driver.SHAFT;
+import com.shaft.listeners.internal.WebDriverListener;
+import com.shaft.tools.io.ReportManager;
+import org.openqa.selenium.Alert;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Platform;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URL;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@Test(singleThreaded = true)
+public class WebDriverListenerCoverageUnitTest {
+    private String savedTargetPlatform;
+    private String savedMobileBrowserName;
+    private boolean savedRespectBuiltInWaitsInNativeMode;
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() {
+        if (savedTargetPlatform != null) {
+            SHAFT.Properties.platform.set().targetPlatform(savedTargetPlatform);
+        }
+        if (savedMobileBrowserName != null) {
+            SHAFT.Properties.mobile.set().browserName(savedMobileBrowserName);
+        }
+        SHAFT.Properties.flags.set().respectBuiltInWaitsInNativeMode(savedRespectBuiltInWaitsInNativeMode);
+    }
+
+    @Test
+    public void listenerShouldCoverDriverElementNavigationAndAlertHooks() throws Exception {
+        saveCurrentProperties();
+
+        WebDriverListener listener = new WebDriverListener();
+        WebDriver driver = mock(WebDriver.class);
+        WebDriver.Navigation navigation = mock(WebDriver.Navigation.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        WebElement element = mock(WebElement.class);
+        Alert alert = mock(Alert.class);
+
+        when(driver.findElement(any(By.class))).thenReturn(element);
+        when(element.getAccessibleName()).thenReturn("searchBox");
+
+        Method method = Object.class.getDeclaredMethod("toString");
+        listener.afterAnyCall(this, method, new Object[]{}, null);
+        listener.onError(this, method, new Object[]{}, new InvocationTargetException(new RuntimeException("forced")));
+
+        listener.afterGet(driver, "https://example.com");
+        listener.afterGetCurrentUrl("https://example.com", driver);
+        listener.afterGetTitle(driver, "Example");
+
+        SHAFT.Properties.flags.set().respectBuiltInWaitsInNativeMode(true);
+        listener.beforeFindElement(driver, By.id("sample"));
+        listener.beforeClick(element);
+
+        listener.beforeSubmit(element);
+        listener.beforeSendKeys(element, "abc", "123");
+        listener.afterSendKeys(element, "abc", "123");
+        listener.beforeClear(element);
+        listener.afterGetAttribute(element, "value", "abc123");
+        listener.afterGetText(element, "sample text");
+
+        listener.afterTo(navigation, "https://example.com");
+        listener.afterTo(navigation, new URL("https://example.com"));
+        listener.afterBack(navigation);
+        listener.afterForward(navigation);
+        listener.afterRefresh(navigation);
+
+        listener.beforeSendKeys(alert, "yes");
+        listener.afterMaximize(window);
+        listener.afterClose(driver);
+        listener.afterQuit(driver);
+
+        verify(driver, atLeastOnce()).findElement(any(By.class));
+    }
+
+    @Test
+    public void navigationHooksShouldQuoteUrls() throws Exception {
+        WebDriverListener listener = new WebDriverListener();
+        WebDriver driver = mock(WebDriver.class);
+        WebDriver.Navigation navigation = mock(WebDriver.Navigation.class);
+
+        try (MockedStatic<ReportManager> reportManager = Mockito.mockStatic(ReportManager.class)) {
+            listener.afterGet(driver, "https://example.com/");
+            listener.afterTo(navigation, "https://example.com/");
+            listener.afterTo(navigation, new URL("https://example.com/"));
+
+            reportManager.verify(() -> ReportManager.log("Navigate to \"https://example.com/\"."));
+            reportManager.verify(() -> ReportManager.log("Navigate to url \"https://example.com/\"."), Mockito.times(2));
+        }
+    }
+
+    @Test
+    public void afterSendKeysShouldRestoreSafariValueWhenNativeSendKeysIsSwallowed() {
+        saveCurrentProperties();
+        SHAFT.Properties.web.set().targetBrowserName("safari");
+        WebDriverListener listener = new WebDriverListener();
+        WebDriver driver = mock(WebDriver.class, Mockito.withSettings()
+                .extraInterfaces(org.openqa.selenium.JavascriptExecutor.class));
+        WebElement element = mock(WebElement.class);
+        when(element.getAttribute("value")).thenReturn("", "test");
+        when(((org.openqa.selenium.JavascriptExecutor) driver).executeScript("return document.readyState"))
+                .thenReturn("complete");
+        listener.afterGet(driver, "data:text/html,<input>");
+
+        listener.afterSendKeys(element, "test");
+
+        verify((org.openqa.selenium.JavascriptExecutor) driver).executeScript(
+                org.mockito.ArgumentMatchers.contains("arguments[0].value = arguments[1];"), eq(element), eq("test"));
+    }
+
+    @Test
+    public void afterSendKeysShouldNotRestoreWhenSafariAlreadyHasValue() {
+        saveCurrentProperties();
+        SHAFT.Properties.web.set().targetBrowserName("safari");
+        WebDriverListener listener = new WebDriverListener();
+        WebDriver driver = mock(WebDriver.class, Mockito.withSettings()
+                .extraInterfaces(org.openqa.selenium.JavascriptExecutor.class));
+        WebElement element = mock(WebElement.class);
+        when(element.getAttribute("value")).thenReturn("aa");
+        when(((org.openqa.selenium.JavascriptExecutor) driver).executeScript("return document.readyState"))
+                .thenReturn("complete");
+        listener.afterGet(driver, "data:text/html,<input>");
+
+        listener.afterSendKeys(element, "zz");
+
+        Mockito.verify((org.openqa.selenium.JavascriptExecutor) driver, Mockito.never())
+                .executeScript(org.mockito.ArgumentMatchers.contains("arguments[0].value = arguments[1];"), any(), any());
+    }
+
+    @Test
+    public void afterSendKeysShouldIgnoreSafariKeyChords() {
+        saveCurrentProperties();
+        SHAFT.Properties.web.set().targetBrowserName("safari");
+        WebDriverListener listener = new WebDriverListener();
+        WebDriver driver = mock(WebDriver.class, Mockito.withSettings()
+                .extraInterfaces(org.openqa.selenium.JavascriptExecutor.class));
+        WebElement element = mock(WebElement.class);
+        when(element.getAttribute("value")).thenReturn("");
+        when(((org.openqa.selenium.JavascriptExecutor) driver).executeScript("return document.readyState"))
+                .thenReturn("complete");
+        listener.afterGet(driver, "data:text/html,<input>");
+
+        listener.afterSendKeys(element, org.openqa.selenium.Keys.ENTER);
+        listener.afterSendKeys(element, "aa", org.openqa.selenium.Keys.ENTER);
+
+        Mockito.verify((org.openqa.selenium.JavascriptExecutor) driver).executeScript(
+                org.mockito.ArgumentMatchers.contains("arguments[0].value = arguments[1];"), eq(element), eq("aa"));
+    }
+
+    @Test
+    public void listenerShouldCoverElementNameFallbackAndMobileNativeBranches() throws Exception {
+        saveCurrentProperties();
+
+        WebDriverListener listener = new WebDriverListener();
+        WebDriver driver = mock(WebDriver.class);
+        WebElement accessibleElement = mock(WebElement.class);
+        WebElement blankNameElement = mock(WebElement.class);
+        WebElement failingElement = mock(WebElement.class);
+
+        Method getElementName = WebDriverListener.class.getDeclaredMethod("getElementName", WebElement.class);
+        getElementName.setAccessible(true);
+
+        SHAFT.Properties.platform.set().targetPlatform(Platform.WINDOWS.name());
+        SHAFT.Properties.mobile.set().browserName("chrome");
+        when(accessibleElement.getAccessibleName()).thenReturn("CTA");
+        when(blankNameElement.getAccessibleName()).thenReturn("");
+        when(failingElement.getAccessibleName()).thenThrow(new RuntimeException("forced"));
+
+        SHAFT.Validations.assertThat().object(getElementName.invoke(listener, accessibleElement)).isEqualTo("\"CTA\"").perform();
+        SHAFT.Validations.assertThat().object(getElementName.invoke(listener, blankNameElement)).isEqualTo("element").perform();
+        Assert.assertThrows(java.lang.reflect.InvocationTargetException.class,
+                () -> getElementName.invoke(listener, failingElement));
+
+        listener.afterGet(driver, "https://example.com");
+        listener.beforeClick(failingElement);
+        listener.beforeSubmit(failingElement);
+        listener.beforeSendKeys(failingElement, "fallback");
+        listener.beforeClear(failingElement);
+        listener.afterGetAttribute(failingElement, "name", "value");
+        listener.afterGetText(failingElement, "text");
+
+        SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
+        SHAFT.Properties.mobile.set().browserName("");
+        SHAFT.Validations.assertThat().object(getElementName.invoke(listener, accessibleElement)).isEqualTo("element").perform();
+    }
+
+    private void saveCurrentProperties() {
+        savedTargetPlatform = SHAFT.Properties.platform.targetPlatform();
+        savedMobileBrowserName = SHAFT.Properties.mobile.browserName();
+        savedRespectBuiltInWaitsInNativeMode = SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode();
+        SHAFT.Properties.flags.set().respectBuiltInWaitsInNativeMode(false);
+    }
+}

@@ -5,7 +5,7 @@ import io.restassured.http.ContentType;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import testPackage.unitTests.LocalApiServer;
+import com.shaft.test.unittests.LocalApiServer;
 
 import java.util.HashMap;
 

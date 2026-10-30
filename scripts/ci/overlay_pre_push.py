@@ -337,7 +337,7 @@ def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
 
     Mirrors ``tests.scripts.test_shard_test_selector.unselected_unit_test_classes``
     without importing PyYAML: the ``-Dtest`` selector is read with a regex from
-    ``pr-gate.yml``. Classes under ``testPackage/unitTests/`` ride the shard-1
+    ``pr-gate.yml``. Classes under ``com/shaft/test/unittests/`` ride the shard-1
     glob; every other ``*UnitTest`` must be named in the selector. Discovery keeps
     a case-sensitive ``UnitTest.java`` suffix so Windows ``rglob`` cannot treat
     ``JunitTest.java`` as a unit-test class (#7627).
@@ -361,7 +361,7 @@ def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
     missing = []
     for path in iter_unit_test_sources(test_root):
         relative = path.relative_to(test_root).as_posix()
-        if relative.startswith("testPackage/unitTests/") or path.stem in named:
+        if relative.startswith("com/shaft/test/unittests/") or path.stem in named:
             continue
         missing.append(relative)
     if not missing:
