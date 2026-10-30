@@ -1,0 +1,80 @@
+package com.shaft.gui.element.internal;
+
+import org.openqa.selenium.Rectangle;
+import org.openqa.selenium.WebElement;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+import java.util.List;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+public class AndroidNestedScrollTest {
+
+    @Test
+    public void inspectFlagsInvertedBoundsAsClipped() {
+        WebElement element = mock(WebElement.class);
+        when(element.isDisplayed()).thenReturn(false);
+        // Selenium Rectangle(x, y, height, width): negative height => inverted clip.
+        when(element.getRect()).thenReturn(new Rectangle(40, 2200, -80, 200));
+
+        AndroidNestedScroll.TargetPresence presence = AndroidNestedScroll.inspect(element);
+
+        Assert.assertTrue(presence.invertedOrEmpty());
+        Assert.assertTrue(presence.clippedOutOfView());
+        Assert.assertTrue(presence.diagnosis().contains("inverted / non-displayed bounds"));
+        Assert.assertTrue(presence.diagnosis().contains("displayed=false"));
+    }
+
+    @Test
+    public void pickScrollablePrefersNestedScrollResourceId() {
+        WebElement large = scrollable("com.app:id/otherScroll", 10, 100, 900, 800, true);
+        WebElement nested = scrollable("com.app:id/nestedScrollView", 20, 200, 400, 300, true);
+
+        WebElement picked = AndroidNestedScroll.pickScrollable(List.of(large, nested), 1080, 2400);
+
+        Assert.assertSame(picked, nested);
+    }
+
+    @Test
+    public void pickScrollableFallsBackToLargestDisplayedArea() {
+        WebElement small = scrollable("com.app:id/a", 10, 100, 100, 100, true);
+        WebElement large = scrollable("com.app:id/b", 10, 100, 900, 800, true);
+        WebElement hidden = scrollable("com.app:id/nestedScrollView", 10, 100, 900, 800, false);
+
+        WebElement picked = AndroidNestedScroll.pickScrollable(List.of(small, large, hidden), 1080, 2400);
+
+        Assert.assertSame(picked, large);
+    }
+
+    @Test
+    public void pickScrollableReturnsNullWhenNothingUsable() {
+        WebElement inverted = mock(WebElement.class);
+        when(inverted.isDisplayed()).thenReturn(true);
+        when(inverted.getRect()).thenReturn(new Rectangle(10, 10, -5, 20));
+        when(inverted.getDomAttribute("resource-id")).thenReturn("com.app:id/nestedScrollView");
+
+        Assert.assertNull(AndroidNestedScroll.pickScrollable(List.of(inverted), 1080, 2400));
+        Assert.assertNull(AndroidNestedScroll.pickScrollable(List.of(), 1080, 2400));
+        Assert.assertNull(AndroidNestedScroll.pickScrollable(null, 1080, 2400));
+    }
+
+    @Test
+    public void looksLikeNestedScrollMatchesResourceIdFragment() {
+        Assert.assertTrue(AndroidNestedScroll.looksLikeNestedScroll("pkg:id/nestedScrollView"));
+        Assert.assertTrue(AndroidNestedScroll.looksLikeNestedScroll("NESTEDSCROLL_HOST"));
+        Assert.assertFalse(AndroidNestedScroll.looksLikeNestedScroll("pkg:id/recyclerView"));
+        Assert.assertFalse(AndroidNestedScroll.looksLikeNestedScroll(""));
+        Assert.assertFalse(AndroidNestedScroll.looksLikeNestedScroll(null));
+    }
+
+    private static WebElement scrollable(String resourceId, int x, int y, int width, int height, boolean displayed) {
+        WebElement element = mock(WebElement.class);
+        when(element.isDisplayed()).thenReturn(displayed);
+        when(element.getRect()).thenReturn(new Rectangle(x, y, height, width));
+        when(element.getDomAttribute("resource-id")).thenReturn(resourceId);
+        when(element.getAttribute("resource-id")).thenReturn(resourceId);
+        return element;
+    }
+}

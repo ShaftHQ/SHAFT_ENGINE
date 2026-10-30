@@ -4,6 +4,7 @@ import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
 import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.element.internal.AndroidNestedScroll;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.image.ImageMatchingMode;
 import com.shaft.gui.image.ImageRectangle;
@@ -48,6 +49,7 @@ import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
@@ -60,6 +62,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -1117,6 +1120,85 @@ public class AndroidTouchActionsCoverageUnitTest {
         touchActions.swipeElementIntoView(By.id("tab12"), TouchActions.SwipeDirection.RIGHT);
 
         verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+    }
+
+    @Test
+    public void composeClippedTargetRecoversViaNestedScrollable() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(1080, 2400));
+
+        RemoteWebElement nested = mock(RemoteWebElement.class);
+        when(nested.getId()).thenReturn("nested-scroll-id");
+        when(nested.isDisplayed()).thenReturn(true);
+        when(nested.getRect()).thenReturn(new org.openqa.selenium.Rectangle(40, 200, 1800, 1000));
+        when(nested.getDomAttribute("resource-id")).thenReturn("app:id/nestedScrollView");
+        when(nested.getAttribute("resource-id")).thenReturn("app:id/nestedScrollView");
+
+        WebElement clipped = mock(WebElement.class);
+        when(clipped.isDisplayed()).thenReturn(false);
+        when(clipped.getRect()).thenReturn(new org.openqa.selenium.Rectangle(100, 2300, -50, 200));
+
+        WebElement visible = onScreenElement();
+        AtomicInteger gestures = new AtomicInteger();
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("scrollable")) {
+                return List.of(nested);
+            }
+            // After the first elementId-bound gesture (3rd scrollGesture call), the Compose
+            // node becomes displayed in the viewport (#7623).
+            return gestures.get() >= 3 ? List.of(visible) : List.of(clipped);
+        });
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            Map<Object, Object> params = invocation.getArgument(1);
+            int n = gestures.getAndIncrement();
+            if (n < 2) {
+                Assert.assertNull(params.get("elementId"), "null-container gestures must not bind elementId yet: " + params);
+                return false;
+            }
+            Assert.assertEquals(params.get("elementId"), "nested-scroll-id", params.toString());
+            return true;
+        }).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = touchActionsWithScreenshots(driver);
+        TouchActions returned = touchActions.swipeElementIntoView(By.id("mobileField"), TouchActions.SwipeDirection.DOWN);
+
+        Assert.assertSame(returned, touchActions);
+        List<Map<Object, Object>> maps = capturedGestureMaps(driver, "mobile: scrollGesture");
+        Assert.assertTrue(maps.size() >= 3, "expected null-container attempts then recovered nested scroll: " + maps);
+        Assert.assertNull(maps.get(0).get("elementId"));
+        Assert.assertNull(maps.get(1).get("elementId"));
+        Assert.assertEquals(maps.get(2).get("elementId"), "nested-scroll-id");
+    }
+
+    @Test
+    public void composeClippedTargetDiagnosesInvertedBoundsWhenScrollStillStuck() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(1080, 2400));
+
+        WebElement clipped = mock(WebElement.class);
+        when(clipped.isDisplayed()).thenReturn(false);
+        when(clipped.getRect()).thenReturn(new org.openqa.selenium.Rectangle(100, 2300, -50, 200));
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("scrollable")) {
+                return List.of();
+            }
+            return List.of(clipped);
+        });
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        ElementActionsHelper helper = screenshotHelper();
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, helper);
+        touchActions.swipeElementIntoView(By.id("mobileField"), TouchActions.SwipeDirection.DOWN);
+
+        verify(helper).failAction(eq(driver), anyString(), any(), org.mockito.ArgumentMatchers.<Throwable>argThat(throwable ->
+                throwable.getMessage() != null
+                        && throwable.getMessage().contains("inverted / non-displayed bounds")
+                        && throwable.getMessage().contains("scrolling did not move the scrollable")));
+        verify(helper, never()).passAction(any(), any(), anyString(), any(), any(), any());
     }
 
     @Test
