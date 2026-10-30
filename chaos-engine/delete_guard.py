@@ -18,6 +18,11 @@ Tree ops that follow links (``find -delete``, ``rsync --delete*``, ``rm -r`` wit
 trailing slash, ``shutil.rmtree`` / ``Path.rmtree``, ``mv`` of ``src/``) resolve the
 realpath and apply ``path_reason`` to the target; plain ``rm`` of a symlink stays a
 link-only delete. Symlink resolution failures refuse closed.
+A delete-check refusal is final: do not bypass with raw ``rm``, ``unlink``,
+encoded argv, or a wrapper script; the PreToolUse hook and ``block_reason``
+enforce the same gate. Self-created paths may be deleted without a code only
+when recorded in the per-session created-paths manifest; CE-managed dirt may
+be reverted to the primary SHA without a code. Never-touch stays locked.
 """
 
 from __future__ import annotations
@@ -42,6 +47,12 @@ import urllib.request
 
 STATE_DIR = ".chaos-engine-state"
 ALLOW_FILE = "delete-allow.txt"
+# Per-session created-paths manifest (scoped temp). Exact paths listed here may be
+# deleted without an owner code; never-touch still wins. Env overrides the path.
+SESSION_CREATED_MANIFEST_ENV = "CHAOS_SESSION_CREATED_MANIFEST"
+SESSION_CREATED_MANIFEST_NAME = "created-paths.json"
+# Relative roots treated as CE-managed for primary-SHA revert without a code.
+CE_MANAGED_PREFIXES = (".chaos-engine/",)
 ACK_ENV = "CHAOS_DELETE_ACK"
 CODE_TTL = 600
 CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
@@ -417,9 +428,113 @@ def _git_reason(path: Path, top: Path) -> str:
     return ""
 
 
+
+def session_manifest_path(explicit: Path | None = None) -> Path | None:
+    """Resolve the per-session created-paths manifest, or None when unset/missing."""
+    if explicit is not None:
+        return Path(explicit)
+    raw = os.environ.get(SESSION_CREATED_MANIFEST_ENV, "").strip()
+    if not raw:
+        return None
+    return Path(os.path.expanduser(raw))
+
+
+def load_session_created_paths(manifest: Path | None = None) -> set[str]:
+    """Absolute realpath strings recorded as self-created by this session."""
+    path = session_manifest_path(manifest)
+    if path is None or not path.is_file():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    entries = data.get("paths") if isinstance(data, dict) else None
+    if not isinstance(entries, list):
+        return set()
+    out: set[str] = set()
+    for item in entries:
+        if not isinstance(item, str) or not item.strip():
+            continue
+        out.add(str(Path(os.path.realpath(os.path.expanduser(item.strip())))))
+    return out
+
+
+def record_session_created_paths(
+    paths: list,
+    *,
+    manifest: Path | None = None,
+) -> Path:
+    """Append absolute paths to the session created-paths manifest (scoped temp).
+
+    Creates parent dirs. Returns the manifest path. Callers must keep the
+    manifest under a scoped temp dir (not shared-workspace root clutter).
+    """
+    path = session_manifest_path(manifest)
+    if path is None:
+        path = (
+            Path(tempfile.gettempdir())
+            / "chaos-engine-sessions"
+            / str(os.getpid())
+            / SESSION_CREATED_MANIFEST_NAME
+        )
+        os.environ[SESSION_CREATED_MANIFEST_ENV] = str(path)
+    existing = load_session_created_paths(path)
+    for item in paths:
+        existing.add(str(Path(os.path.realpath(os.path.expanduser(str(item))))))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"schema": 1, "paths": sorted(existing)}
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+    return path
+
+
+def session_created_allows(path: Path, *, manifest: Path | None = None) -> bool:
+    """True when ``path`` is an exact entry in the session created-paths manifest."""
+    allowed = load_session_created_paths(manifest)
+    if not allowed:
+        return False
+    try:
+        real = str(Path(os.path.realpath(path)))
+    except OSError:
+        real = str(Path(os.path.abspath(os.path.expanduser(str(path)))))
+    return real in allowed
+
+
+def ce_managed_revert_allows(path: Path, *, primary: Path | None = None) -> bool:
+    """True when ``path`` is under ``.chaos-engine/`` and the same relative exists on primary.
+
+    Allows delete-check / revert of doctor/repair dirt back to primary content
+    without an owner code. Never-touch still refuses first. Does not allow
+    deleting arbitrary non-CE paths.
+    """
+    try:
+        abs_path = Path(os.path.abspath(os.path.expanduser(str(path))))
+    except OSError:
+        return False
+    if ".chaos-engine" not in abs_path.parts:
+        return False
+    if primary is None:
+        raw = os.environ.get("CHAOS_ENGINE_PRIMARY", "").strip()
+        primary = Path(raw) if raw else None
+    if primary is None:
+        return False
+    primary = Path(primary).resolve()
+    parts = list(abs_path.parts)
+    try:
+        ce_index = parts.index(".chaos-engine")
+    except ValueError:
+        return False
+    rel = Path(*parts[ce_index:])
+    return (primary / rel).exists()
+
+
 def path_reason(path: Path, project: Path | None = None) -> str:
     """Empty string when deleting ``path`` loses nothing; else the refusal reason."""
     if allow_listed(path, project):
+        return ""
+    if session_created_allows(path):
+        return ""
+    if ce_managed_revert_allows(path):
         return ""
     if not path.exists() and not path.is_symlink():
         return ""
@@ -893,19 +1008,48 @@ def _workspaces(project: Path) -> list[Path]:
 CONSUMER_MARKER = ".chaos-engine-state/consumer-mode"
 
 
+def _only_chaos_engine_dirt(porcelain: str) -> bool:
+    """True when every porcelain path is under .chaos-engine/ (uncommitted CE tree)."""
+    lines = [line for line in porcelain.splitlines() if line.strip()]
+    if not lines:
+        return False
+    for line in lines:
+        rel = line[3:] if len(line) > 3 else line
+        rel = rel.strip().strip('"')
+        if " -> " in rel:
+            rel = rel.split(" -> ", 1)[-1]
+        if not (rel == ".chaos-engine" or rel.startswith(".chaos-engine/") or rel.startswith(".chaos-engine\\")):
+            return False
+    return True
+
+
+def _is_linked_worktree(path: Path) -> bool:
+    result = _git(path, "rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir")
+    if result.returncode != 0:
+        return False
+    lines = result.stdout.strip().splitlines()
+    if len(lines) != 2:
+        return False
+    return Path(lines[0]).resolve() != Path(lines[1]).resolve()
+
+
 def backup_remote_issue(path: Path) -> str:
     if _git(path, "rev-parse", "--show-toplevel").returncode != 0:
         return "not in git"
-    # #7263: consumer mode (#6237) hides .memory/mempalace via info/exclude, so a clean status proves nothing.
+    # Silence in consumer mode (harness state is excluded; warn is noise).
     if (path / CONSUMER_MARKER).is_file():
-        return "consumer mode hides harness state from git"
+        return ""
     if not _git(path, "remote").stdout.strip():
         return "no remote"
     if _git(path, "rev-parse", "--abbrev-ref", "@{u}").returncode != 0:
         return "no upstream"
     if _git(path, "rev-list", "--count", "@{u}..HEAD").stdout.strip() not in {"", "0"}:
         return "unpushed commits"
-    if _git(path, "status", "--porcelain", "--untracked-files=normal").stdout.strip():
+    porcelain = _git(path, "status", "--porcelain", "--untracked-files=normal").stdout.strip()
+    if porcelain:
+        # Silence on linked worktrees whose only dirt is an uncommitted CE tree.
+        if _is_linked_worktree(path) and _only_chaos_engine_dirt(porcelain):
+            return ""
         return "uncommitted files"
     return ""
 

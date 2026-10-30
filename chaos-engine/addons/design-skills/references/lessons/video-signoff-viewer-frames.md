@@ -60,7 +60,7 @@ A talk chapter, Short, podcast clip or other captioned video is about to be
 - [ ] design_qc.py bidi <cues|ass|srt|hooks>   # neutrals / trailing punct
 - [ ] design_qc.py captionlayers <ass|mp4|manifest.json>
 - [ ] design_qc.py asscapfit <file.ass> --band-h <px>
-- [ ] design_qc.py nonviewertext <chrome.txt|ass|srt|dir-of-text>  # no OCR; empty/image-only dir fails
+- [ ] design_qc.py nonviewertext <chrome.txt|ass|srt|dir-of-text>  # no OCR; empty/image-only dir or direct PNG fails
 - [ ] Reject any on-screen text not intended for viewers
 - [ ] No overlapping ASS Dialogue times / burn+soft both on; legible at phone size
 - [ ] Safe-area check; after upload: watch page with captions OFF
@@ -81,7 +81,7 @@ Metric-only / hash-only SIGN is a FAIL even when prior FAIL items closed.
 - [ ] `design_qc.py bidisolate cues.srt` fails RTL+Latin without LRI; passes with LRI…PDI; bare digits in RTL pass.
 - [ ] `design_qc.py captionlayers clip.ass` fails overlapping Dialogue times; passes clamped cues.
 - [ ] `design_qc.py asscapfit clip.ass --band-h 130` fails oversized karaoke Style even when Default is tiny; passes fitting Style.
-- [ ] `design_qc.py nonviewertext chrome.txt` fails `HEAVY VFX` / `TODO` / `PLACEHOLDER`; empty/image-only dir fails closed; brand lines pass.
+- [ ] `design_qc.py nonviewertext chrome.txt` fails `HEAVY VFX` / `TODO` / `PLACEHOLDER`; empty/image-only dir **and direct PNG file path** fail closed; brand lines pass.
 - [ ] SIGN receipt quotes the review-brief block and attaches gate JSON.
 
 ## Why
@@ -90,12 +90,11 @@ Batch1 podcast chapters passed independent adversarial SIGN on hashes,
 duration, chrome-title-vs-prior-FAIL and upload meta, then the owner rejected
 visible nonsense chrome and unreadable stacked captions. Lessons and Shorts
 gates already knew the fixes; they were prose or another pipeline's defaults,
-not hard fails on the podcast path or in the Coach sign-off brief.
+not hard fails on the podcast path or in the independent sign-off brief.
 
 ## Sources
 
-Field retro 2026-10-30: Coach sign-off branches
-`coach/signoff-pz-ch1-pack` @`029a3f9`, `coach/signoff-pz-ch2-chrome-r3`
-@`38dd572`, `coach/signoff-pz-ch3-pack` @`48e8722`,
-`coach/signoff-pf-ch1-pack` @`4f1a43c`; frame evidence under
-local frame extracts from the signed mp4s. Companions: L02, L13, L35, V07.
+Field retro 2026-10-30: independent sign-off packs for podcast chapters and
+one follow-on chrome re-render; SHAs `029a3f9`, `38dd572`, `48e8722`,
+`4f1a43c`. Frame evidence from local extracts of the signed mp4s.
+Companions: L02, L13, L35, V07.

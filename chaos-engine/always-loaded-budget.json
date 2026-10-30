@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "note": "Always-loaded bytes on a bot host: tool.py entry --full + references/bot-entry.md + AGENTS.md. Grow at most tolerance_pct over bytes; lower bytes when the bundle shrinks. 2026-10-30: raised after worker ce_load marker + keep-alive/checkpoint pointers (memory-abstraction Phase 1).",
-  "bytes": 19770,
+  "note": "Always-loaded bytes on a bot host: tool.py entry --full + references/bot-entry.md + AGENTS.md. Grow at most tolerance_pct over bytes; lower bytes when the bundle shrinks. 2026-10-30: raised after worker ce_load marker + keep-alive/checkpoint pointers (memory-abstraction Phase 1). 2026-10-30: KEEP-ALIVE + upgrade-on-release + cleanup-at-close pointers.",
+  "bytes": 20570,
   "tolerance_pct": 5,
   "shrink_ratchet_pct": 10
 }

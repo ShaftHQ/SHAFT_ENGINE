@@ -16,21 +16,32 @@ from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).resolve().parents[2]))  # noqa: E402
 
 from scripts.ci.box_disk_guard import (  # noqa: E402
+    DISK_USED_PCT_BLOCKED_INFRA,
     FREE_BLOCK_BYTES,
     FREE_WARN_BYTES,
     GiB,
     MAX_LINKED_WORKTREES,
     OWN_SCRATCH_MARKER,
+    SHARED_VENV_ROOT,
+    blocked_infra_reasons,
     cache_inventory,
     caches_over_cap,
+    classify_cleanup_path,
     disk_level,
+    disk_used_percent,
     disk_warn,
+    doctor_dirt_close_blockers,
+    item_close_blockers,
+    log_deleted_youtube_ids,
     new_worker_blockers,
     own_scratch_ttl_candidates,
     post_merge_dod_required,
     prune_cache,
     refuse_new_worker,
     scratch_ttl_blockers,
+    stale_tip_on_origin_candidates,
+    verify_live_item_state_before_status,
+    youtube_replace_cleanup_allowed,
 )
 from scripts.ci.parallel_stream_conflict import refuse_dispatch  # noqa: E402
 
@@ -247,6 +258,128 @@ class DodContractTest(unittest.TestCase):
         self.assertEqual("post-merge own cleanup", contract["cleanup"])
         self.assertIn("worktree_hygiene.py", contract["hygiene"])
         self.assertIn("box_disk_guard.py", contract["disk_guard"])
+
+
+
+class CleanupAtCloseGateTest(unittest.TestCase):
+    def test_blocked_infra_at_80_percent(self) -> None:
+        self.assertEqual(80, DISK_USED_PCT_BLOCKED_INFRA)
+        reasons = blocked_infra_reasons(".", free=50 * GiB, used_percent=81.0)
+        self.assertIn("disk-used-pct-ge-80", reasons)
+        ok = blocked_infra_reasons(".", free=50 * GiB, used_percent=50.0)
+        self.assertEqual([], ok)
+        warn = blocked_infra_reasons(".", free=12 * GiB, used_percent=50.0)
+        self.assertIn("disk-free-below-15giB", warn)
+
+    def test_disk_used_percent_math(self) -> None:
+        self.assertAlmostEqual(80.0, disk_used_percent(".", used=80, total=100))
+
+    def test_classify_intermediate_vs_final(self) -> None:
+        self.assertEqual("intermediate", classify_cleanup_path("cut.mp4"))
+        self.assertEqual("intermediate", classify_cleanup_path("scratch.wav"))
+        self.assertEqual("intermediate", classify_cleanup_path(".venv-task"))
+        self.assertEqual("intermediate", classify_cleanup_path("work"))
+        self.assertEqual("final", classify_cleanup_path("final-signed.mp4"))
+        self.assertEqual("final", classify_cleanup_path("chapter-release.png"))
+
+    def test_stale_tip_on_origin_own_only(self) -> None:
+        now = 1_700_000_000.0
+        entries = [
+            {"path": "/tmp/wt-own-old", "own": True, "tip_on_origin": True, "mtime": now - 48 * 3600},
+            {"path": "/tmp/wt-own-new", "own": True, "tip_on_origin": True, "mtime": now - 1 * 3600},
+            {"path": "/tmp/wt-foreign", "own": False, "tip_on_origin": True, "mtime": now - 48 * 3600},
+            {"path": "/tmp/wt-unpushed", "own": True, "tip_on_origin": False, "mtime": now - 48 * 3600},
+        ]
+        with unittest.mock.patch(
+            "scripts.ci.box_disk_guard.never_touch_blockers",
+            return_value=[],
+        ):
+            found = stale_tip_on_origin_candidates(entries, now_epoch=now)
+        paths = {row["path"] for row in found}
+        self.assertEqual({"/tmp/wt-own-old"}, paths)
+
+    def test_shared_venv_root_outside_trees(self) -> None:
+        self.assertIn("chaos-engine/venvs", SHARED_VENV_ROOT)
+
+    def test_youtube_replace_requires_live_verify(self) -> None:
+        self.assertEqual(
+            [],
+            youtube_replace_cleanup_allowed(
+                replacement_watch_ok=True,
+                replacement_schedule_ok=True,
+                outdated_video_id="abc123",
+            ),
+        )
+        blockers = youtube_replace_cleanup_allowed(
+            replacement_watch_ok=False,
+            replacement_schedule_ok=True,
+            outdated_video_id="abc123",
+        )
+        self.assertIn("replacement-watch-not-verified", blockers)
+
+    def test_log_deleted_youtube_ids_append_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "deleted-yt.log"
+            first = log_deleted_youtube_ids(
+                ["vidA"], log_path=log, now_iso="2026-10-30T10:00:00Z"
+            )
+            second = log_deleted_youtube_ids(
+                ["vidB"], log_path=log, now_iso="2026-10-30T11:00:00Z"
+            )
+            self.assertEqual(1, first["logged"])
+            self.assertEqual(1, second["logged"])
+            body = log.read_text(encoding="utf-8")
+            self.assertIn("vidA", body)
+            self.assertIn("vidB", body)
+            self.assertEqual(2, len(body.splitlines()))
+
+    def test_dod_mentions_finals_and_80pct(self) -> None:
+        contract = post_merge_dod_required()
+        self.assertIn("finals hold", contract["order"])
+        self.assertIn("80", contract["blocked_infra"])
+
+
+    def test_live_status_refuses_stale_merge_queue(self) -> None:
+        blockers = verify_live_item_state_before_status(
+            proposed_status="merge queue", live_state="MERGED"
+        )
+        self.assertTrue(any("stale-status" in b for b in blockers))
+        self.assertEqual(
+            [],
+            verify_live_item_state_before_status(
+                proposed_status="merged", live_state="MERGED"
+            ),
+        )
+
+    def test_item_close_requires_clean_and_accounted(self) -> None:
+        self.assertEqual(
+            [],
+            item_close_blockers(
+                git_status_clean=True,
+                created_files=["/tmp/a"],
+                created_files_accounted=True,
+                session_logs_cleared=True,
+            ),
+        )
+        blockers = item_close_blockers(
+            git_status_clean=False,
+            created_files=["/tmp/a"],
+            created_files_accounted=False,
+            session_logs_cleared=False,
+        )
+        self.assertIn("git-status-not-clean", blockers)
+        self.assertIn("created-files-unaccounted", blockers)
+        self.assertIn("session-logs-remain", blockers)
+
+    def test_doctor_dirt_blocks_close(self) -> None:
+        self.assertEqual([], doctor_dirt_close_blockers(porcelain=""))
+        blockers = doctor_dirt_close_blockers(
+            porcelain=" M chaos-engine/tool.py",
+            doctor_touched_paths=["chaos-engine/tool.py"],
+        )
+        self.assertIn("git-status-dirty", blockers)
+        self.assertIn("doctor-repair-dirt-unresolved", blockers)
+
 
 
 if __name__ == "__main__":

@@ -45,5 +45,7 @@ one lesson card.
 | [L37 CMS paste no HTML comments](cms-paste-no-html-comments.md) | no `<!--` in paste; ops notes leak live |
 | [L38 Caption phonetic + mute gate](caption-phonetic-mute-gate.md) | Arabic phonetic tech dumps + Egyptian allowlist; mute must be silent; no burned [muted] |
 | [L39 Video sign-off viewer frames](video-signoff-viewer-frames.md) | full-frame SIGN; bidisolate/captionlayers/asscapfit/nonviewertext |
+| [L44 Caption min-cue + independent sync](caption-min-cue-independent-sync.md) | cue <0.8s fail unless merged; capsync vs independent ASR/FA onsets |
+| [L45 Delete-check refusal final](delete-check-refusal-final.md) | delete-check refusal is final; no raw-rm bypass; session-manifest self-delete |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).
