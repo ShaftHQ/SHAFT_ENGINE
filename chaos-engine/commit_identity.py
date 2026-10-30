@@ -93,3 +93,55 @@ def is_chaosengine_identity(name: str, email: str) -> bool:
         (name or "").strip().casefold() == CHAOSENGINE_NAME.casefold()
         or (email or "").strip().casefold() == CHAOSENGINE_EMAIL.casefold()
     )
+
+
+def local_git_identity(project: Path | None = None) -> tuple[str, str]:
+    """Return repo-local (then global) ``user.name`` / ``user.email``."""
+    root = Path(project) if project is not None else Path.cwd()
+    git = shutil.which("git")
+    if not git:
+        return "", ""
+    name = ""
+    email = ""
+    for key, target in (("user.name", "name"), ("user.email", "email")):
+        result = subprocess.run(  # nosec B603
+            [git, "-C", str(root), "config", "--get", key],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        value = (result.stdout or "").strip() if result.returncode == 0 else ""
+        if target == "name":
+            name = value
+        else:
+            email = value
+    return name, email
+
+
+def entry_identity_warning(project: Path | None = None) -> str:
+    """Warn when repo-local git identity is ChaosEngine outside allowed remotes.
+
+    Entry / doctor call this so a mis-set ``user.email`` in a consumer repo
+    (for example a board repo) is caught before more ChaosEngine-authored commits.
+    """
+    root = Path(project) if project is not None else Path.cwd()
+    name, email = local_git_identity(root)
+    if not is_chaosengine_identity(name, email):
+        return ""
+    url = origin_url(root)
+    if chaosengine_author_allowed(url):
+        return ""
+    return (
+        "commit-identity: repo-local git user is ChaosEngine but origin "
+        f"{url or 'unset'} is outside allowed_remotes "
+        f"({', '.join(allowed_remotes())}); reset with "
+        "`git config user.email <owner>` / `user.name <owner>` before committing"
+    )
+
+
+def assert_local_identity_matches_remote(project: Path | None = None) -> None:
+    """Raise PermissionError when local ChaosEngine identity is out of scope."""
+    warning = entry_identity_warning(project)
+    if warning:
+        raise PermissionError(warning)
+
