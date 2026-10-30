@@ -21,17 +21,20 @@ A talk chapter, Short, podcast clip or other captioned video is about to be
    first 3 s and last 3 s before end-card) and reject anything a phone-sized
    viewer cannot read.
 2. **No non-viewer on-screen text.** Reject production meta, debug, prompts,
-   placeholders and editor notes burned into the frame (examples: `HEAVY VFX`,
-   `TODO`, `PLACEHOLDER`, `lorem`, `DEBUG`, raw brief lines). Gate:
-   `nonviewertext`. Brand wordmark and the locked ear-lock title may stay;
+   placeholders and editor notes (examples: `HEAVY VFX`, `TODO`,
+   `PLACEHOLDER`, `lorem`, `DEBUG`, raw brief lines). Gate: `nonviewertext`
+   scans text/ASS/SRT/JSON/HTML exports only (**no OCR**). An empty or
+   image-only directory fails closed (`no-text-inputs`) — export chrome or
+   ASS text first. Brand wordmark and the locked ear-lock title may stay;
    genre/meta chrome that reads as instructions fails unless explicitly
    allow-listed with `design-qc: allow` on that line.
-3. **Caption layer count = 1.** Exactly one burned caption system on content
-   frames. Overlapping ASS Dialogue times, a second subtitle stream, or
-   karaoke-plus-sidecar both enabled fail. Gate: `captionlayers`. YouTube
-   auto-captions/dub on the watch page are a **post-upload** check: after
-   upload, open the watch page with captions off and confirm no second
-   readable layer; disable auto-captions/dub when the burn-in is the caption.
+3. **No stacked timed captions.** Gate `captionlayers` fails overlapping ASS
+   Dialogue times, more than one muxed subtitle stream, or burn-in plus soft/
+   sidecar captions both enabled in a manifest. It does **not** read the ASS
+   `Layer` column or detect two time-disjoint burned systems — catch those
+   with the contact-sheet eye check (rule 1). YouTube auto-captions/dub on
+   the watch page are a **post-upload** check: open the watch page with
+   captions off and confirm no second readable layer.
 4. **Mixed-script isolates must survive to the burn format.** Every Latin run
    inside an RTL caption/hook/label line needs LRI…PDI (or HTML `<bdi>`).
    Gate: `bidisolate` (and existing `bidi` for neutrals). **Do not strip
@@ -40,7 +43,8 @@ A talk chapter, Short, podcast clip or other captioned video is about to be
    file and a cropped-frame check (L02 rule 12).
 5. **Caption alignment fits the band.** Two-line cues must fit the karaoke
    / lower-third band (fontsize × lines × leading ≤ band height − pad).
-   Gate: `asscapfit` on ASS Style + Dialogue `\\N` count vs `--band-h`.
+   Gate: `asscapfit` resolves **each Dialogue's Style** Fontsize (multi-style
+   karaoke included) + `\\N` count vs `--band-h`.
 6. **Safe area + phone legibility.** Text inside platform safe zones; caption
    ink readable when the frame is scaled to ~390 CSS px wide.
 7. **Standard review brief (mandatory).** Every video sign-off / independent
@@ -56,9 +60,9 @@ A talk chapter, Short, podcast clip or other captioned video is about to be
 - [ ] design_qc.py bidi <cues|ass|srt|hooks>   # neutrals / trailing punct
 - [ ] design_qc.py captionlayers <ass|mp4|manifest.json>
 - [ ] design_qc.py asscapfit <file.ass> --band-h <px>
-- [ ] design_qc.py nonviewertext <chrome.txt|frames-dir|ass>
+- [ ] design_qc.py nonviewertext <chrome.txt|ass|srt|dir-of-text>  # no OCR; empty/image-only dir fails
 - [ ] Reject any on-screen text not intended for viewers
-- [ ] Caption layer count = 1; legible at phone size
+- [ ] No overlapping ASS Dialogue times / burn+soft both on; legible at phone size
 - [ ] Safe-area check; after upload: watch page with captions OFF
 Receipts: attach the JSON stdout of each design_qc command.
 Metric-only / hash-only SIGN is a FAIL even when prior FAIL items closed.
@@ -74,10 +78,10 @@ Metric-only / hash-only SIGN is a FAIL even when prior FAIL items closed.
 
 ## Verify
 
-- [ ] `design_qc.py bidisolate cues.srt` fails RTL+Latin without LRI; passes with LRI…PDI.
+- [ ] `design_qc.py bidisolate cues.srt` fails RTL+Latin without LRI; passes with LRI…PDI; bare digits in RTL pass.
 - [ ] `design_qc.py captionlayers clip.ass` fails overlapping Dialogue times; passes clamped cues.
-- [ ] `design_qc.py asscapfit clip.ass --band-h 130` fails oversized two-line Style; passes fitting Style.
-- [ ] `design_qc.py nonviewertext chrome.txt` fails `HEAVY VFX` / `TODO` / `PLACEHOLDER`; passes allow-listed brand lines.
+- [ ] `design_qc.py asscapfit clip.ass --band-h 130` fails oversized karaoke Style even when Default is tiny; passes fitting Style.
+- [ ] `design_qc.py nonviewertext chrome.txt` fails `HEAVY VFX` / `TODO` / `PLACEHOLDER`; empty/image-only dir fails closed; brand lines pass.
 - [ ] SIGN receipt quotes the review-brief block and attaches gate JSON.
 
 ## Why

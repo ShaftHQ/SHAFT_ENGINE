@@ -81,6 +81,32 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     path.write_text("".join(lines), encoding="utf-8")
 
 
+
+
+def write_ass_multi(path: Path, styles: list[tuple[str, int]], dialogues: list[tuple[str, str, str, str]]) -> None:
+    """styles: (name, fontsize); dialogues: (start, end, style_name, text)."""
+    header = """[Script Info]
+ScriptType: v4.00+
+PlayResX: 1280
+PlayResY: 720
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+"""
+    lines = [header]
+    for name, fontsize in styles:
+        lines.append(
+            f"Style: {name},Cairo,{fontsize},&H00263F&,&H313CE0&,&H00000000&,&H00000000&,"
+            "1,0,0,0,100,100,0,0,1,0,0,2,60,60,95,1\n"
+        )
+    lines.append(
+        "[Events]\n"
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+    )
+    for start, end, style, body in dialogues:
+        lines.append(f"Dialogue: 0,{start},{end},{style},,0,0,0,,{body}\n")
+    path.write_text("".join(lines), encoding="utf-8")
+
 class LessonCardTest(unittest.TestCase):
     def test_card_needles_and_index(self) -> None:
         body = (LESSONS / CARD).read_text(encoding="utf-8")
@@ -105,6 +131,20 @@ class BidisolateGateTest(unittest.TestCase):
             self.assertTrue(any("latin-outside-isolate" in h for h in payload.get("hits", [])))
             code, payload = run_qc("bidisolate", str(good))
             self.assertEqual(0, code, payload)
+
+
+
+    def test_bare_digits_in_rtl_pass_latin_still_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            digits = Path(folder) / "digits.srt"
+            latin = Path(folder) / "latin.srt"
+            write_srt(digits, [(0.0, 2.0, "فيه 5 خطوات")])
+            write_srt(latin, [(0.0, 2.0, "فيه API لنا")])
+            code, payload = run_qc("bidisolate", str(digits))
+            self.assertEqual(0, code, payload)
+            code, payload = run_qc("bidisolate", str(latin))
+            self.assertEqual(1, code, payload)
+            self.assertTrue(any("API" in h for h in payload.get("hits", [])))
 
 
 class CaptionlayersGateTest(unittest.TestCase):
@@ -158,6 +198,28 @@ class AsscapfitGateTest(unittest.TestCase):
             self.assertEqual(0, code, payload)
 
 
+
+    def test_multi_style_uses_dialogue_style_fontsize(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            bad = Path(folder) / "bad.ass"
+            good = Path(folder) / "good.ass"
+            write_ass_multi(
+                bad,
+                [("Default", 12), ("Karaoke", 48)],
+                [("0:00:00.00", "0:00:03.00", "Karaoke", "سطر أول\\Nسطر ثاني")],
+            )
+            write_ass_multi(
+                good,
+                [("Default", 12), ("Karaoke", 28)],
+                [("0:00:00.00", "0:00:03.00", "Karaoke", "سطر أول\\Nسطر ثاني")],
+            )
+            code, payload = run_qc("asscapfit", str(bad), "--band-h", "100")
+            self.assertEqual(1, code, payload)
+            self.assertTrue(any("Karaoke" in h for h in payload.get("hits", [])))
+            code, payload = run_qc("asscapfit", str(good), "--band-h", "100")
+            self.assertEqual(0, code, payload)
+
+
 class NonviewertextGateTest(unittest.TestCase):
     def test_fails_heavy_vfx_and_todo(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
@@ -170,6 +232,21 @@ class NonviewertextGateTest(unittest.TestCase):
             self.assertTrue(any("heavy-vfx-meta" in h for h in payload.get("hits", [])))
             code, payload = run_qc("nonviewertext", str(good))
             self.assertEqual(0, code, payload)
+
+
+    def test_empty_or_image_only_dir_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            empty = Path(folder) / "empty"
+            empty.mkdir()
+            code, payload = run_qc("nonviewertext", str(empty))
+            self.assertEqual(1, code, payload)
+            self.assertIn("no-text-inputs", payload.get("hits", []))
+            frames = Path(folder) / "frames"
+            frames.mkdir()
+            (frames / "t1s.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+            code, payload = run_qc("nonviewertext", str(frames))
+            self.assertEqual(1, code, payload)
+            self.assertIn("no-text-inputs", payload.get("hits", []))
 
 
 if __name__ == "__main__":

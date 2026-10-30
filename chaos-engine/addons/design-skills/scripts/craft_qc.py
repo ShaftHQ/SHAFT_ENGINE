@@ -3298,8 +3298,11 @@ def cmd_onsetclip(qc, args) -> int:
 
 
 LATIN_OUTSIDE = re.compile(
+    # Alnum / light punctuation runs that contain ≥1 Latin letter (bare digits
+    # in RTL captions, e.g. "فيه 5 خطوات", must not false-positive).
     r"[A-Za-z0-9](?:[A-Za-z0-9 ._+/#-]{0,80}[A-Za-z0-9])?"
 )
+_LATIN_LETTER = re.compile(r"[A-Za-z]")
 NONVIEWER = {
     "heavy-vfx-meta": r"\bHEAVY\s*VFX\b",
     "todo": r"\bTODO\b",
@@ -3327,13 +3330,16 @@ def cmd_bidisolate(qc, args) -> int:
             bare = ISOLATE.sub(" ", line)
             for match in LATIN_OUTSIDE.finditer(bare):
                 token = match.group(0).strip()
-                if token:
+                if token and _LATIN_LETTER.search(token):
                     hits.append(f"{file}:{where} latin-outside-isolate {token!r}")
     return qc.report("bidisolate", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits)
 
 
 def cmd_captionlayers(qc, args) -> int:
-    """L39: exactly one burned caption layer — no overlapping ASS Dialogue times; ≤1 subtitle stream."""
+    """L39: fail overlapping ASS Dialogue times, >1 subtitle stream, or burn+soft both on.
+
+    Does not read the ASS Layer column or detect time-disjoint dual burned systems.
+    """
     path = Path(args.file)
     hits: list[str] = []
     subtitle_streams = None
@@ -3377,51 +3383,73 @@ def cmd_captionlayers(qc, args) -> int:
 
 
 def cmd_asscapfit(qc, args) -> int:
-    """L39: ASS two-line cues must fit the lower-third band height."""
+    """L39: ASS multi-line cues must fit the band using each Dialogue's Style Fontsize."""
     path = Path(args.file)
-    text = path.read_text(encoding="utf-8", errors="replace")
-    fontsize = None
-    for line in text.splitlines():
-        if line.startswith("Style:"):
-            parts = [p.strip() for p in line.split(",")]
-            # Name, Fontname, Fontsize, ...
-            if len(parts) >= 3:
-                try:
-                    fontsize = float(parts[2])
-                except ValueError:
-                    fontsize = None  # non-numeric Fontsize column; fail below
-            break
-    if fontsize is None:
+    body_text = path.read_text(encoding="utf-8", errors="replace")
+    styles: dict[str, float] = {}
+    for line in body_text.splitlines():
+        if not line.startswith("Style:"):
+            continue
+        parts = [p.strip() for p in line.split(",")]
+        # Style: Name, Fontname, Fontsize, ...
+        if len(parts) < 3:
+            continue
+        name = parts[0].split(":", 1)[1].strip()
+        try:
+            styles[name] = float(parts[2])
+        except ValueError:
+            continue
+    if not styles:
         return qc.report("asscapfit", qc.FAIL, error="no Style: Fontsize found", hits=["missing-style"])
     leading = float(args.leading)
     pad = float(args.pad)
     band_h = float(args.band_h)
     max_lines = 1
-    hits = []
-    for number, line in enumerate(text.splitlines(), 1):
+    hits: list[str] = []
+    worst_need = 0.0
+    worst_fs = max(styles.values())
+    for number, line in enumerate(body_text.splitlines(), 1):
         if not line.startswith("Dialogue:"):
             continue
         parts = line.split(",", 9)
+        style_name = parts[3].strip() if len(parts) > 3 else ""
+        if style_name in styles:
+            fontsize = styles[style_name]
+        else:
+            # Unknown Style name: fail closed with the largest declared Fontsize.
+            fontsize = max(styles.values())
         body = parts[9] if len(parts) > 9 else ""
         body = re.sub(r"\{[^}]*\}", "", body)
         lines_n = body.count("\\N") + body.count("\\n") + 1
         max_lines = max(max_lines, lines_n)
         need = lines_n * fontsize * leading + pad
+        if need > worst_need:
+            worst_need = need
+            worst_fs = fontsize
         if need > band_h + 1e-9:
             hits.append(
-                f"dialogue:{number} lines={lines_n} need={need:.1f}px > band_h={band_h:g}"
+                f"dialogue:{number} style={style_name or '?'} fontsize={fontsize:g} "
+                f"lines={lines_n} need={need:.1f}px > band_h={band_h:g}"
             )
-    need_max = max_lines * fontsize * leading + pad
     return qc.report(
         "asscapfit", qc.FAIL if hits else qc.PASS,
-        fontsize=fontsize, max_lines=max_lines, band_h=band_h,
-        need_px=round(need_max, 1), hits=hits,
+        styles=styles, fontsize=worst_fs, max_lines=max_lines, band_h=band_h,
+        need_px=round(worst_need, 1), hits=hits,
     )
 
 
 def cmd_nonviewertext(qc, args) -> int:
-    """L39: fail production/debug/placeholder tokens in on-screen chrome or captions."""
+    """L39: fail production/debug/placeholder tokens in on-screen chrome or captions.
+
+    Scans text/ASS/SRT/JSON/HTML only (no OCR). A path that yields zero scannable
+    text files (empty dir, image-only frames dir) fails closed.
+    """
     hits, files = [], files_of(args.path, {".txt", ".md", ".json", ".srt", ".vtt", ".ass", ".html", ".htm"})
+    if not files:
+        return qc.report(
+            "nonviewertext", qc.FAIL, files=0, hits=["no-text-inputs"],
+            error="no scannable text files; image-only dirs fail closed — export chrome/ASS text first",
+        )
     allow = set(args.allow or [])
     for file in files:
         for where, line in strings_of(file):
@@ -3897,7 +3925,7 @@ def register(add, qc) -> None:
     p.add_argument("path")
 
     p = add("captionlayers", bind(cmd_captionlayers),
-            "L39: one burned caption layer (no ASS time overlap; ≤1 subtitle stream)")
+            "L39: ASS Dialogue time overlap, >1 subtitle stream, or burn+soft both on")
     p.add_argument("file", help="ASS, mp4, or manifest JSON")
     p.add_argument("--ass", help="optional ASS path when file is an mp4")
 

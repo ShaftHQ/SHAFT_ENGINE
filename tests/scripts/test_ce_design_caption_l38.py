@@ -98,8 +98,8 @@ class LessonCardBudgetTest(unittest.TestCase):
         self.assertIn("L38 ", index)
         self.assertIn(f"]({CARD})", index)
         inv = " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split())
-        self.assertIn("L01-L38", inv)
-        self.assertIn("38 lesson", inv)
+        self.assertIn("L01-L39", inv)
+        self.assertIn("39 lesson", inv)
         craft = (DESIGN / "references/craft/index.md").read_text(encoding="utf-8")
         self.assertIn("caption phonetic + mute gate", craft)
 
