@@ -800,7 +800,7 @@ public class FailureTraceReporterTest {
             SHAFT.Properties.reporting.set().traceEnabled(true).traceMode("failure").traceIncludeCodeContext(true);
             RuntimeException throwable = new RuntimeException("boom");
             throwable.setStackTrace(new StackTraceElement[]{
-                    new StackTraceElement("testPackage.unitTests.AttachmentReporterUnitTest",
+                    new StackTraceElement("com.shaft.test.unittests.AttachmentReporterUnitTest",
                             "someScenario", "AttachmentReporterUnitTest.java", 20)
             });
 

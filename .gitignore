@@ -201,9 +201,11 @@
 /graphify-out/
 
 # Mobile test apk/ipa fixtures (#7547 Phase 0) — fetch via scripts/ci/fetch_mobile_test_apps.py
-shaft-engine/src/test/resources/testDataFiles/apps/*.apk
-shaft-engine/src/test/resources/testDataFiles/apps/*.ipa
-shaft-engine/src/main/resources/examples/**/testDataFiles/apk/*.apk
+# Character-class globs are case-insensitive (gitignore has no :(icase) magic).
+shaft-engine/src/test/resources/testDataFiles/apps/*.[aA][pP][kK]
+shaft-engine/src/test/resources/testDataFiles/apps/*.[iI][pP][aA]
+shaft-engine/src/main/resources/examples/**/testDataFiles/apk/*.[aA][pP][kK]
+shaft-engine/src/main/resources/examples/**/testDataFiles/apk/*.[iI][pP][aA]
 /generate_allure_report.sh
 /allure-results.zip
 /generate_allure_report.bat

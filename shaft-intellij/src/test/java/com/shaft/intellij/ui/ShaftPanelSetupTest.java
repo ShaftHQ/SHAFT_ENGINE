@@ -93,6 +93,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShaftPanelSetupTest {
+    static {
+        // Plugin-owned IconLoader SVG (ATTACH) paints under headless once activated.
+        // AllIcons DeferredIcons do not rasterize in this plain JUnit sandbox — see assertIcon.
+        com.intellij.openapi.util.IconLoader.activate();
+    }
+
     private static final List<Path> TEMP_DIRECTORIES = new ArrayList<>();
 
     @Test
@@ -6464,6 +6470,8 @@ class ShaftPanelSetupTest {
         assertAll(
                 () -> assertNull(findButton(panel, "Test connection and start chatting")),
                 () -> assertIcon(findButton(panel, "New chat")),
+                () -> assertIcon(findButton(panel, "Attach")),
+                () -> assertIcon(findButton(panel, "Save transcript")),
                 () -> assertIcon(findButton(panel, "Copy response")),
                 () -> assertIcon(findButton(panel, "Copy raw")),
                 () -> assertIcon(findButton(panel, "Copy all")),
@@ -9235,16 +9243,43 @@ class ShaftPanelSetupTest {
     private static void assertIcon(JButton button) {
         assertNotNull(button);
         String name = button.getText() + "/" + accessibleName(button);
-        assertNotNull(button.getIcon(), name);
-        assertTrue(button.getIcon().getIconWidth() > 0, name);
-        assertTrue(button.getIcon().getIconHeight() > 0, name);
-        assertTrue(paintsVisiblePixels(button.getIcon(), button), button.getToolTipText());
+        Icon icon = button.getIcon();
+        assertNotNull(icon, name);
+        assertTrue(icon.getIconWidth() > 0, name);
+        assertTrue(icon.getIconHeight() > 0, name);
+        // Always enforce ≥16 before any paint early-return (Carl #7621 nit).
+        assertTrue(icon.getIconWidth() >= 16, name);
+        assertTrue(icon.getIconHeight() >= 16, name);
+        if (paintsVisiblePixels(icon, button)) {
+            return;
+        }
+        // Carl F03 / W1.2 tradeoff (indep review #7616 + #7621 CI evidence):
+        // Generic toolbar metaphors are platform AllIcons (DeferredIcon). This class is plain
+        // JUnit, not UsefulTestCase with isIconRequired(). IconLoader.activate() alone leaves
+        // a fake empty IconManager; CoreIconManager.Companion.activate was tried on #7621 and
+        // (a) still painted zero pixels for AllIcons and (b) poisoned later LightPlatform tests
+        // via TestLogger ERROR (4 failures → 21). Plugin-owned IconLoader SVG (ATTACH) must
+        // still paint; AllIcons chrome is proven by non-null/≥16 here plus
+        // ShaftIconsTest.genericActionsReuseAllIcons identity.
+        assertTrue(
+                isPlatformAllIconsMetaphor(icon),
+                () -> "icon paints no visible pixels and is not an AllIcons metaphor: "
+                        + name + " class=" + icon.getClass().getName());
     }
 
     private static boolean paintsVisiblePixels(Icon icon, JButton button) {
-        BufferedImage image = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
+        icon = resolvePaintIcon(icon);
+        BufferedImage image = new BufferedImage(
+                Math.max(1, icon.getIconWidth()),
+                Math.max(1, icon.getIconHeight()),
+                BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         try {
+            // currentColor SVGs need a non-null foreground on the paint target.
+            if (button != null && button.getForeground() == null) {
+                button.setForeground(java.awt.Color.BLACK);
+            }
+            graphics.setColor(java.awt.Color.BLACK);
             icon.paintIcon(button, graphics, 0, 0);
         } finally {
             graphics.dispose();
@@ -9257,6 +9292,71 @@ class ShaftPanelSetupTest {
             }
         }
         return false;
+    }
+
+    /** True when {@code icon} is one of the AllIcons refs ShaftIcons reuses (not ATTACH). */
+    private static boolean isPlatformAllIconsMetaphor(Icon icon) {
+        return icon == ShaftIcons.ADD
+                || icon == ShaftIcons.CANCEL
+                || icon == ShaftIcons.CHECK
+                || icon == ShaftIcons.CLEAR
+                || icon == ShaftIcons.CODE
+                || icon == ShaftIcons.COPY
+                || icon == ShaftIcons.DEBUG
+                || icon == ShaftIcons.DELETE
+                || icon == ShaftIcons.DOWNLOAD
+                || icon == ShaftIcons.EDIT
+                || icon == ShaftIcons.HELP
+                || icon == ShaftIcons.MOVE_DOWN
+                || icon == ShaftIcons.MOVE_UP
+                || icon == ShaftIcons.RERUN
+                || icon == ShaftIcons.RESET
+                || icon == ShaftIcons.SEARCH
+                || icon == ShaftIcons.SEND
+                || icon == ShaftIcons.SETTINGS
+                || icon == ShaftIcons.VIEW;
+    }
+
+    /**
+     * Best-effort unwrap of DeferredIcon / RetrievableIcon chains before paint.
+     * Reflective so the test compiles against older and newer platform icon APIs.
+     */
+    private static Icon resolvePaintIcon(Icon icon) {
+        com.intellij.openapi.util.IconLoader.activate();
+        Icon current = icon;
+        for (int depth = 0; depth < 8 && current != null; depth++) {
+            Icon next = invokeIconResolver(current, "evaluate");
+            if (next == null) {
+                next = invokeIconResolver(current, "retrieveIcon");
+            }
+            if (next == null) {
+                next = invokeIconResolver(current, "getBaseIcon");
+            }
+            if (next == null) {
+                next = invokeIconResolver(current, "getRealIcon");
+            }
+            if (next == null || next == current) {
+                return current;
+            }
+            current = next;
+        }
+        return current;
+    }
+
+    private static Icon invokeIconResolver(Icon icon, String methodName) {
+        try {
+            Method method;
+            try {
+                method = icon.getClass().getMethod(methodName);
+            } catch (NoSuchMethodException missing) {
+                method = icon.getClass().getDeclaredMethod(methodName);
+                method.setAccessible(true);
+            }
+            Object result = method.invoke(icon);
+            return result instanceof Icon resolved ? resolved : null;
+        } catch (ReflectiveOperationException ignored) {
+            return null;
+        }
     }
 
     private static void assertIconOnlySymmetric(JButton button) {

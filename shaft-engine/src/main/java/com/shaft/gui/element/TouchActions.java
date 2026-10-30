@@ -9,6 +9,7 @@ import com.shaft.driver.internal.FluentWebDriverAction;
 import com.shaft.driver.internal.WizardHelpers;
 import com.shaft.gui.element.internal.ElementActionsHelper;
 import com.shaft.gui.element.internal.MobileSessionStateManager;
+import com.shaft.gui.element.internal.AndroidNestedScroll;
 import com.shaft.gui.element.internal.ScrollMotion;
 import com.shaft.gui.element.internal.WebScroll;
 import com.shaft.gui.internal.healing.HealingManager;
@@ -1855,23 +1856,7 @@ public class TouchActions extends FluentWebDriverAction {
             //scrolling inside an element
             WebElement scrollableElement = (WebElement) elementActionsHelper.identifyUniqueElement(
                     driverFactoryHelper.getDriver(), scrollableElementLocator).get(1);
-            String scrollableElementId = appiumElementId(scrollableElement);
-            if (scrollableElementId != null) {
-                scrollParameters.put("elementId", scrollableElementId);
-            }
-            Rectangle elementRectangle = scrollableElement.getRect();
-            scrollParameters.putAll(ImmutableMap.of(
-                    "height", elementRectangle.getHeight() * 90 / 100
-            ));
-            //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
-            switch (swipeDirection) {
-                case UP, DOWN ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getY()));
-                case RIGHT ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX(), "top", elementRectangle.getY()));
-                case LEFT ->
-                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", elementRectangle.getX() + (elementRectangle.getWidth() * 30 / 100), "top", elementRectangle.getY()));
-            }
+            return prepareAndroidElementScrollParameters(swipeDirection, scrollableElement);
         } else {
             //scrolling inside the screen. Margins stay, then the box is clamped onto the screen.
             ScrollMotion.Box box = ScrollMotion.nullContainerBox(swipeDirection, screenSize.getWidth(), screenSize.getHeight());
@@ -1940,6 +1925,9 @@ public class TouchActions extends FluentWebDriverAction {
         SwipeDirection[] activeDirection = {swipeDirection};
         boolean[] movedEarlier = {false};
         boolean[] oppositeTried = {false};
+        // #7623: null-container screen gestures can no-op on Compose nestedScrollView while the
+        // clipped target is already in the tree; recover once by binding elementId to a scrollable.
+        WebElement[] recoveredScrollable = {null};
         try {
             new SynchronizationManager(driverFactoryHelper.getDriver()).fluentWait().until(f -> {
                 // for the animated GIF:
@@ -1947,7 +1935,9 @@ public class TouchActions extends FluentWebDriverAction {
 
                 if (isTargetVisibleInViewport(targetElementLocator))
                     return true;
-                var scrollParameters = prepareParameters(activeDirection[0], scrollableElementLocator, targetElementLocator);
+                var scrollParameters = recoveredScrollable[0] != null
+                        ? prepareAndroidElementScrollParameters(activeDirection[0], recoveredScrollable[0])
+                        : prepareParameters(activeDirection[0], scrollableElementLocator, targetElementLocator);
                 boolean moved = performW3cCompliantScroll(scrollParameters, isFirstAttempt.getAndSet(false));
                 if (isTargetVisibleInViewport(targetElementLocator))
                     return true;
@@ -1962,8 +1952,13 @@ public class TouchActions extends FluentWebDriverAction {
                     }
                     case FAIL_END ->
                             throw new IllegalStateException("Element not found after scrolling to the end of the page.");
-                    case FAIL_NO_MOVEMENT ->
-                            throw new IllegalStateException("Element not found; scrolling did not move the scrollable.");
+                    case FAIL_NO_MOVEMENT -> {
+                        if (tryRecoverAndroidNestedScrollable(scrollableElementLocator, recoveredScrollable,
+                                activeDirection, movedEarlier, oppositeTried, isFirstAttempt, swipeDirection)) {
+                            yield false;
+                        }
+                        throw new IllegalStateException(noMovementFailureMessage(targetElementLocator));
+                    }
                 };
             });
         } catch (RuntimeException exception) {
@@ -1990,6 +1985,90 @@ public class TouchActions extends FluentWebDriverAction {
         }
         ReportManager.logDiscrete("Element found on screen.");
         return true;
+    }
+
+    /**
+     * When a null-container Android gesture never moves, bind once to a discovered
+     * {@code scrollable=true} container (Compose {@code nestedScrollView}) and retry (#7623).
+     */
+    private boolean tryRecoverAndroidNestedScrollable(By scrollableElementLocator, WebElement[] recoveredScrollable,
+                                                      SwipeDirection[] activeDirection, boolean[] movedEarlier,
+                                                      boolean[] oppositeTried, AtomicBoolean isFirstAttempt,
+                                                      SwipeDirection originalDirection) {
+        if (recoveredScrollable[0] != null || scrollableElementLocator != null) {
+            return false;
+        }
+        if (!(driverFactoryHelper.getDriver() instanceof AndroidDriver androidDriver)) {
+            return false;
+        }
+        Dimension screen = androidDriver.manage().window().getSize();
+        List<WebElement> candidates = ElementActionsHelper.safeFindElements(androidDriver, AndroidNestedScroll.SCROLLABLE);
+        WebElement picked = AndroidNestedScroll.pickScrollable(candidates, screen.getWidth(), screen.getHeight());
+        if (picked == null || appiumElementId(picked) == null) {
+            return false;
+        }
+        ReportManager.logDiscrete("Null-container scroll did not move; recovering via Android scrollable "
+                + AndroidNestedScroll.resourceId(picked) + " (#7623).");
+        recoveredScrollable[0] = picked;
+        activeDirection[0] = originalDirection;
+        movedEarlier[0] = false;
+        oppositeTried[0] = false;
+        isFirstAttempt.set(true);
+        return true;
+    }
+
+    private String noMovementFailureMessage(By targetElementLocator) {
+        String diagnosis = describeClippedSwipeTarget(targetElementLocator);
+        if (diagnosis != null) {
+            return "Element not found; " + diagnosis + "; scrolling did not move the scrollable.";
+        }
+        return "Element not found; scrolling did not move the scrollable.";
+    }
+
+    private String describeClippedSwipeTarget(By targetElementLocator) {
+        if (targetElementLocator == null) {
+            return null;
+        }
+        var matches = ElementActionsHelper.safeFindElements(driverFactoryHelper.getDriver(), targetElementLocator);
+        if (matches == null || matches.isEmpty()) {
+            return null;
+        }
+        return AndroidNestedScroll.inspect(matches.get(0)).diagnosis();
+    }
+
+    /**
+     * {@code mobile: scrollGesture} parameters bound to an already-resolved Android scrollable.
+     */
+    private HashMap<Object, Object> prepareAndroidElementScrollParameters(SwipeDirection swipeDirection,
+                                                                          WebElement scrollableElement) {
+        Rectangle elementRectangle = scrollableElement.getRect();
+        var scrollParameters = new HashMap<>();
+        String scrollableElementId = appiumElementId(scrollableElement);
+        if (scrollableElementId != null) {
+            scrollParameters.put("elementId", scrollableElementId);
+        }
+        switch (swipeDirection) {
+            case UP, DOWN ->
+                    scrollParameters.putAll(ImmutableMap.of("percent", 0.8,
+                            "height", elementRectangle.getHeight() * 90 / 100,
+                            "width", elementRectangle.getWidth(),
+                            "left", elementRectangle.getX(),
+                            "top", elementRectangle.getY()));
+            case RIGHT ->
+                    scrollParameters.putAll(ImmutableMap.of("percent", 1,
+                            "height", elementRectangle.getHeight(),
+                            "width", elementRectangle.getWidth() * 70 / 100,
+                            "left", elementRectangle.getX(),
+                            "top", elementRectangle.getY()));
+            case LEFT ->
+                    scrollParameters.putAll(ImmutableMap.of("percent", 1,
+                            "height", elementRectangle.getHeight(),
+                            "width", elementRectangle.getWidth() * 70 / 100,
+                            "left", elementRectangle.getX() + (elementRectangle.getWidth() * 30 / 100),
+                            "top", elementRectangle.getY()));
+        }
+        scrollParameters.put("direction", swipeDirection.name().toLowerCase(Locale.ROOT));
+        return scrollParameters;
     }
 
     /**

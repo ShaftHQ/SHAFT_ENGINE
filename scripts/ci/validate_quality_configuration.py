@@ -56,7 +56,7 @@ GRADLE_EXECUTABLES = {"gradle", "gradle.bat", "gradlew", "gradlew.bat", "./gradl
 GRADLE_TEST_TASKS = {"test", "check", "build"}
 COMMAND_WRAPPERS = {"bash", "sh", "pwsh", "powershell", "cmd", "sudo", "env", "timeout"}
 SHELL_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=.*$")
-UNIT_SCOPE_SENTINEL = "!%regex[.*testPackage.unitTests.*]"
+UNIT_SCOPE_SENTINEL = "!%regex[.*com.shaft.test.unittests.*]"
 REQUIRED_PR_GATE_SHAFT_ENGINE_UNIT_SELECTORS = (
     "com.shaft.tools.io.internal.Rfc8259SiblingEscapeJsonTest",
     "testPackage.ThreadLocalGuiTeardownGuardTest",
@@ -472,7 +472,7 @@ def validate_browser_matrix_scope_policy(root: Path = ROOT) -> list[str]:
     missing_pr_gate = []
     for exclusion in unit_exclusions:
         owner_selector = (
-            "testPackage/unitTests/*"
+            "com/shaft/test/unittests/*"
             if exclusion == UNIT_SCOPE_SENTINEL
             else exclusion.removeprefix("!%regex[.*").removesuffix(".*]")
         )

@@ -71,7 +71,11 @@ written on that row.
       views match the table, `## What's missing` answered, and
       `tool.py pre-done <report.md>` exits 0?
 - [ ] Both sign-offs, and the item shipped or scheduled?
+- [ ] Post-merge own cleanup ran for this stream's recorded worktree / branch (hygiene proofs; DoD)?
 - [ ] Each lesson logged as failure → root cause → preventive rule?
+- [ ] Design kind: next same-kind item waited until build → independent review →
+      sign-off → lessons landed (WIP=1 per kind; WIP=2 only after two consecutive
+      first-pass signs)? See [design-kind WIP](parallel-streams.md#design-kind-wip-same-kind-batch--conflict).
 - [ ] Preventive rule applied to the next item's plan, template, or checks?
 - [ ] Each lesson routed (generic → ChaosEngine, project → its own repo),
       with the PR handed to the engineering advisor?
@@ -85,9 +89,12 @@ stream). An orchestrator may run several streams only when their writable
 paths do not overlap, after an ownership manifest and conflict check (peer
 owned globs in the manifest, not only open PRs / dirty trees), under the
 system cap and disk gate in [parallel streams](parallel-streams.md).
-Same-file work stays serial or stacked. Do not start stream N+1 in a pair
-until that pair's current item is Done. After a stream's item is Done
-(merged), that stream runs
+Same-file work stays serial or stacked. Design work adds a **kind** axis:
+WIP=1 per kind (video / podcast / image / website), parallel across kinds;
+same-kind batching is a conflict until lessons land
+([design-kind WIP](parallel-streams.md#design-kind-wip-same-kind-batch--conflict)).
+Do not start stream N+1 in a pair until that pair's current item is Done.
+After a stream's item is Done (merged), that stream runs
 [post-merge own cleanup](parallel-streams.md#post-merge-own-cleanup) for its
 own recorded worktree / branch / scratch only.
 

@@ -2,7 +2,7 @@
 """
 Split one Surefire ``-Dtest`` selector into deterministic shards (#6188).
 
-Shard 1 runs every package glob (``testPackage/unitTests/*``); the named
+Shard 1 runs every package glob (``com/shaft/test/unittests/*``); the named
 classes are dealt round-robin across the remaining shards. Exclusions
 (``!Class``) are applied to every shard. The union of all shards is exactly
 the input selector, so sharding never adds or drops a test class. Measured on

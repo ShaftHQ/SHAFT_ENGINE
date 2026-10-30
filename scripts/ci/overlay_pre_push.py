@@ -337,12 +337,16 @@ def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
 
     Mirrors ``tests.scripts.test_shard_test_selector.unselected_unit_test_classes``
     without importing PyYAML: the ``-Dtest`` selector is read with a regex from
-    ``pr-gate.yml``. Classes under ``testPackage/unitTests/`` ride the shard-1
-    glob; every other ``*UnitTest`` must be named in the selector.
+    ``pr-gate.yml``. Classes under ``com/shaft/test/unittests/`` ride the shard-1
+    glob; every other ``*UnitTest`` must be named in the selector. Discovery keeps
+    a case-sensitive ``UnitTest.java`` suffix so Windows ``rglob`` cannot treat
+    ``JunitTest.java`` as a unit-test class (#7627).
     """
+    from scripts.ci.unit_test_discovery import is_unit_test_source_name, iter_unit_test_sources
+
     normalized = [path.replace("\\", "/").removeprefix("./") for path in changed]
     if not any(
-        path.endswith("UnitTest.java") or path.endswith(".github/workflows/pr-gate.yml")
+        is_unit_test_source_name(path) or path.endswith(".github/workflows/pr-gate.yml")
         for path in normalized
     ):
         return []
@@ -355,9 +359,9 @@ def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
         return ["PR Gate unit-test step lost its -Dtest selector"]
     named = {entry.strip() for entry in match.group(1).split(",")}
     missing = []
-    for path in sorted(test_root.rglob("*UnitTest.java")):
+    for path in iter_unit_test_sources(test_root):
         relative = path.relative_to(test_root).as_posix()
-        if relative.startswith("testPackage/unitTests/") or path.stem in named:
+        if relative.startswith("com/shaft/test/unittests/") or path.stem in named:
             continue
         missing.append(relative)
     if not missing:
@@ -469,6 +473,18 @@ def codecov_yml_failures(root: Path, changed: list[str]) -> list[str]:
 
 
 
+
+def tracked_mobile_binary_failures(root: Path) -> list[str]:
+    """Fail closed when Phase 0 fixture apk/ipa paths are tracked again (#7547)."""
+    helper = root / "scripts" / "ci" / "fetch_mobile_test_apps.py"
+    if not helper.is_file():
+        return []
+    sys.path.insert(0, str(helper.parent))
+    import fetch_mobile_test_apps as fetch  # noqa: WPS433
+
+    return list(fetch.tracked_mobile_binary_failures(root))
+
+
 def no_push_guard_failures(root: Path) -> list[str]:
     """Fail closed when the tracked NO_PUSH guard is absent.
 
@@ -529,6 +545,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
     failures: list[str] = tip_preflight_failures(root, changed)
     if paths is None:
+        failures.extend(tracked_mobile_binary_failures(root))
         failures.extend(no_push_guard_failures(root))
         failures.extend(evidence_pin_failures(root))
         failures.extend(client_name_scrub_failures(root))

@@ -62,7 +62,6 @@ public final class FailureTraceReporter {
     private static final Pattern NUMERIC_TOKEN_PATTERN = Pattern.compile(
             "(?<![\\d.+\\-])([+\\-]?(?:\\d++(?:\\.\\d*+)?|\\.\\d++)(?:[eE][+\\-]?\\d++)?)"
                     + "(?![\\d.]|[eE][+\\-]?\\d)");
-    private static final int SNIPPET_RADIUS = 2;
     private static final int MAX_SOURCE_FILE_CHARACTERS = 100_000;
     private static final ThreadLocal<String> CURRENT_NETWORK_JSON = ThreadLocal.withInitial(() -> "[]");
     private static final ThreadLocal<Map<String, byte[]>> CURRENT_SCREENSHOTS = ThreadLocal.withInitial(Map::of);
@@ -1492,45 +1491,13 @@ public final class FailureTraceReporter {
         return throwable.getStackTrace().length == 0 ? null : throwable.getStackTrace()[0];
     }
 
+    @javax.annotation.Nullable
     private static Path findSourceFile(StackTraceElement frame) {
-        String classPath = frame.getClassName().replace('.', '/') + ".java";
-        int nestedClassIndex = classPath.indexOf('$');
-        if (nestedClassIndex > -1) {
-            classPath = classPath.substring(0, nestedClassIndex) + ".java";
-        }
-        List<Path> candidates = List.of(
-                Path.of("src/test/java", classPath),
-                Path.of("src/main/java", classPath),
-                Path.of("shaft-engine/src/test/java", classPath),
-                Path.of("shaft-engine/src/main/java", classPath));
-        for (Path candidate : candidates) {
-            if (Files.isRegularFile(candidate)) {
-                return candidate;
-            }
-        }
-        return null;
+        return SourceCodeContext.findSourceFile(frame);
     }
 
     private static String snippet(Path sourceFile, int lineNumber) {
-        if (lineNumber < 1) {
-            return "";
-        }
-        try {
-            List<String> lines = Files.readAllLines(sourceFile, StandardCharsets.UTF_8);
-            int start = Math.max(1, lineNumber - SNIPPET_RADIUS);
-            int end = Math.min(lines.size(), lineNumber + SNIPPET_RADIUS);
-            StringBuilder snippet = new StringBuilder();
-            for (int line = start; line <= end; line++) {
-                snippet.append(line == lineNumber ? "> " : "  ")
-                        .append(line)
-                        .append(": ")
-                        .append(lines.get(line - 1))
-                        .append(System.lineSeparator());
-            }
-            return redactSourceText(snippet.toString().trim());
-        } catch (IOException e) {
-            return sourceFile + ":" + lineNumber;
-        }
+        return redactSourceText(SourceCodeContext.snippet(sourceFile, lineNumber));
     }
 
     private static List<String> timeline(Throwable throwable, String logText) {

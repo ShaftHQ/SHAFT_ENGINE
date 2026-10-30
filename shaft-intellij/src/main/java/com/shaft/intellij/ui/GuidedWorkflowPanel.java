@@ -326,7 +326,7 @@ final class GuidedWorkflowPanel extends JPanel implements Disposable {
         stepsPanel.add(new JBScrollPane(stepList), BorderLayout.CENTER);
         stepsPanel.add(stepsSouth, BorderLayout.SOUTH);
 
-        // Issue #5964: step inspector lives on the Live record primary surface (AutomationStagePanel
+        // Issue #5964: step inspector lives on the Live record / Workflow primary surface (formerly AutomationStagePanel
         // canvas), not behind Advanced options — same affordances for every backend.
         JPanel reviewArea = new JPanel(new BorderLayout(6, 6));
         reviewArea.add(row("Code", 'C', codeSnippet), BorderLayout.CENTER);

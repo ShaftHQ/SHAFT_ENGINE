@@ -4,6 +4,7 @@ import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.util.JDOMUtil;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.util.xmlb.XmlSerializer;
+import com.shaft.intellij.ui.ShaftIcons;
 import com.shaft.intellij.mcp.McpInvocationError;
 import com.shaft.intellij.mcp.ShaftMcpToolResult;
 import com.shaft.intellij.ui.ShaftStatusPresentation;
@@ -1267,9 +1268,20 @@ class ShaftSettingsConfigurableTest {
 
     private static void assertIcon(JButton button) {
         assertNotNull(button);
-        assertNotNull(button.getIcon(), button.getText());
-        assertTrue(button.getIcon().getIconWidth() > 0, button.getText());
-        assertTrue(button.getIcon().getIconHeight() > 0, button.getText());
+        String name = button.getText();
+        javax.swing.Icon icon = button.getIcon();
+        assertNotNull(icon, name);
+        assertTrue(icon.getIconWidth() >= 16, name);
+        assertTrue(icon.getIconHeight() >= 16, name);
+        // Settings chrome is AllIcons metaphors (Carl F03 / #7621 nit); no plugin SVG here.
+        assertTrue(
+                icon == ShaftIcons.SEND
+                        || icon == ShaftIcons.RERUN
+                        || icon == ShaftIcons.SETTINGS
+                        || icon == ShaftIcons.CHECK
+                        || icon == ShaftIcons.CLEAR,
+                () -> "settings icon not a known AllIcons metaphor: " + name
+                        + " class=" + icon.getClass().getName());
     }
 
     private static void assertIconOnlySymmetric(JButton button) {
