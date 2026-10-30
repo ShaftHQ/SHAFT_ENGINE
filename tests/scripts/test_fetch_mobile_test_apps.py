@@ -161,27 +161,100 @@ class FetchMobileTestAppsTest(unittest.TestCase):
         failures = fetch.tracked_mobile_binary_failures(ROOT)
         self.assertEqual([], failures)
 
+    def _force_add_fixture(self, root: Path, relative: str) -> None:
+        """Init a temp git repo and force-add one fixture path."""
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"not-a-real-mobile-binary")
+        git = shutil.which("git")
+        self.assertIsNotNone(git, "git is required")
+        subprocess.run(  # nosec B603 - absolute git from shutil.which, fixed argv, no shell
+            [git, "init"], cwd=root, check=True, capture_output=True
+        )
+        subprocess.run(  # nosec B603 - absolute git from shutil.which, fixed argv, no shell
+            [git, "add", "-f", "--", relative],
+            cwd=root,
+            check=True,
+            capture_output=True,
+        )
+
     def test_tracked_mobile_binary_gate_fails_on_force_added_apk(self):
         """A force-added fixture apk must fail closed (gitignore is not enough)."""
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "repo"
-            dest_dir = root / "shaft-engine/src/test/resources/testDataFiles/apps"
-            dest_dir.mkdir(parents=True)
-            apk = dest_dir / "sneaky.apk"
-            apk.write_bytes(b"not-a-real-apk")
-            git = shutil.which("git")
-            self.assertIsNotNone(git, "git is required")
-            subprocess.run([git, "init"], cwd=root, check=True, capture_output=True)
-            subprocess.run(
-                [git, "add", "-f", "--", str(apk.relative_to(root))],
-                cwd=root,
-                check=True,
-                capture_output=True,
-            )
+            rel = "shaft-engine/src/test/resources/testDataFiles/apps/sneaky.apk"
+            self._force_add_fixture(root, rel)
             failures = fetch.tracked_mobile_binary_failures(root)
             self.assertTrue(failures, failures)
             self.assertIn("sneaky.apk", failures[0])
             self.assertIn("#7547", failures[0])
+
+    def test_tracked_mobile_binary_gate_fails_on_force_added_ipa(self):
+        """Force-added lowercase .ipa under apps/ must fail closed."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "repo"
+            rel = "shaft-engine/src/test/resources/testDataFiles/apps/sneaky.ipa"
+            self._force_add_fixture(root, rel)
+            failures = fetch.tracked_mobile_binary_failures(root)
+            self.assertTrue(failures, failures)
+            self.assertIn("sneaky.ipa", failures[0])
+
+    def test_tracked_mobile_binary_gate_fails_on_examples_apk(self):
+        """Examples nested apk pathspec must fail closed."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "repo"
+            rel = (
+                "shaft-engine/src/main/resources/examples/demo/"
+                "testDataFiles/apk/sneaky.apk"
+            )
+            self._force_add_fixture(root, rel)
+            failures = fetch.tracked_mobile_binary_failures(root)
+            self.assertTrue(failures, failures)
+            self.assertIn("sneaky.apk", failures[0])
+
+    def test_tracked_mobile_binary_gate_fails_on_uppercase_extension(self):
+        """Case-variant .APK / .IPA must fail closed on case-sensitive git (#7547 B1)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "repo"
+            rel = "shaft-engine/src/test/resources/testDataFiles/apps/evil.APK"
+            self._force_add_fixture(root, rel)
+            failures = fetch.tracked_mobile_binary_failures(root)
+            self.assertTrue(failures, failures)
+            self.assertIn("evil.APK", failures[0])
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "repo"
+            rel = (
+                "shaft-engine/src/main/resources/examples/demo/"
+                "testDataFiles/apk/evil.IPA"
+            )
+            self._force_add_fixture(root, rel)
+            failures = fetch.tracked_mobile_binary_failures(root)
+            self.assertTrue(failures, failures)
+            self.assertIn("evil.IPA", failures[0])
+
+    def test_overlay_pre_push_wires_tracked_mobile_binary_gate(self):
+        """overlay_pre_push always-on block surfaces a tracked fixture when paths is None."""
+        from scripts.ci import overlay_pre_push as opp
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "repo"
+            helper_dir = root / "scripts" / "ci"
+            helper_dir.mkdir(parents=True)
+            shutil.copy2(
+                ROOT / "scripts/ci/fetch_mobile_test_apps.py",
+                helper_dir / "fetch_mobile_test_apps.py",
+            )
+            rel = "shaft-engine/src/test/resources/testDataFiles/apps/wired.apk"
+            self._force_add_fixture(root, rel)
+            via_overlay = opp.tracked_mobile_binary_failures(root)
+            self.assertTrue(via_overlay, via_overlay)
+            self.assertIn("wired.apk", via_overlay[0])
+            # paths=[] skips the always-on block (same pattern as sibling guards).
+            skipped = opp.overlay_pre_push_failures(root, paths=[])
+            self.assertFalse(
+                any("tracked mobile" in item or "#7547" in item for item in skipped),
+                skipped,
+            )
 
 
 if __name__ == "__main__":

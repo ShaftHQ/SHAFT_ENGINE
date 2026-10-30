@@ -46,6 +46,10 @@ runs:
         key: mobile-test-apps-${{ hashFiles('scripts/ci/mobile_test_apps.manifest.json') }}
         restore-keys: |
           mobile-test-apps-
+    - name: Refuse tracked mobile apk/ipa fixtures
+      if: inputs.mobile-apps == 'true'
+      shell: bash
+      run: python3 scripts/ci/fetch_mobile_test_apps.py --check-tracked
     - name: Fetch mobile test apps
       if: inputs.mobile-apps == 'true'
       shell: bash

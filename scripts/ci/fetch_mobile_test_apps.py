@@ -38,10 +38,11 @@ class FetchError(RuntimeError):
 
 # Fixture destinations externalized in #7555. Force-adding these undoes Phase 0.
 TRACKED_BINARY_PATHSPECS = (
-    "shaft-engine/src/test/resources/testDataFiles/apps/*.apk",
-    "shaft-engine/src/test/resources/testDataFiles/apps/*.ipa",
-    ":(glob)shaft-engine/src/main/resources/examples/**/testDataFiles/apk/*.apk",
-    ":(glob)shaft-engine/src/main/resources/examples/**/testDataFiles/apk/*.ipa",
+    # :(icase) closes the .APK/.IPA bypass on case-sensitive filesystems (#7547).
+    ":(icase)shaft-engine/src/test/resources/testDataFiles/apps/*.apk",
+    ":(icase)shaft-engine/src/test/resources/testDataFiles/apps/*.ipa",
+    ":(icase,glob)shaft-engine/src/main/resources/examples/**/testDataFiles/apk/*.apk",
+    ":(icase,glob)shaft-engine/src/main/resources/examples/**/testDataFiles/apk/*.ipa",
 )
 
 
