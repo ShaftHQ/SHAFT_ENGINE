@@ -9,8 +9,8 @@ import stat
 import subprocess  # nosec B404 - fixed git argv only in fixtures.
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 DG = ROOT / "chaos-engine" / "delete_guard.py"
@@ -44,8 +44,8 @@ class SessionManifestDeleteTest(unittest.TestCase):
         self.home = self.base / "home"
         self.home.mkdir()
         self._patches = [
-            mock.patch.object(self.dg, "DEFAULT_ALLOW", ()),
-            mock.patch.dict(
+            unittest.mock.patch.object(self.dg, "DEFAULT_ALLOW", ()),
+            unittest.mock.patch.dict(
                 os.environ,
                 {
                     "HOME": str(self.home),
@@ -300,7 +300,7 @@ class SessionManifestDeleteTest(unittest.TestCase):
         _git_repo(foreign)
         victim = foreign / "README"
         manifest = self._init_manifest(scoped)
-        with mock.patch.dict(
+        with unittest.mock.patch.dict(
             os.environ,
             {
                 "GIT_DIR": str(foreign / ".git"),
@@ -419,7 +419,7 @@ class CeRestoreTest(unittest.TestCase):
         self._temp = tempfile.TemporaryDirectory()
         self.base = Path(self._temp.name).resolve()
         # Temp dirs are on DEFAULT_ALLOW; clear so delete-check still guards CE paths.
-        self._allow = mock.patch.object(self.dg, "DEFAULT_ALLOW", ())
+        self._allow = unittest.mock.patch.object(self.dg, "DEFAULT_ALLOW", ())
         self._allow.start()
 
     def tearDown(self) -> None:
