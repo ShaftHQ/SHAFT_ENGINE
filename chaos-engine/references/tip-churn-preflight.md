@@ -46,3 +46,12 @@ PRs run the fresh installer on ubuntu and Windows only. Add `ci:installer-macos`
 - [Delete-check discipline](delete-check-discipline.md) (D5 — never bare rm)
 - [Content-scan preflight](content-scan-preflight.md) (G-META: content scan + planted `--self-test`)
 - Script: [`tip_preflight.py`](../skills/local-agency/scripts/tip_preflight.py) (also `classify_failure` fingerprints)
+
+- [Worker keep-alive](worker-keep-alive.md)
+- [Checkpoint resume](checkpoint-resume.md)
+- [Cleanup at close](cleanup-at-close.md)
+- [Auto-merge re-arm](automerge-rearm.md)
+- [Sequential WIP](sequential-wip.md)
+- [Mobile client automation](mobile-client-automation.md)
+- Script: [`worker_ce_entry.py`](../skills/local-agency/scripts/worker_ce_entry.py)
+

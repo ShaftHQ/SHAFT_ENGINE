@@ -14,6 +14,8 @@ burn a literal `[muted]` placeholder. Extends [L02](mixed-script-captions.md)
 
 ## Rules
 
+0. Seed list includes Arabic-script loan dumps for common tech words (including بايبلاين→pipeline and سكريبت→script) via `PHONETIC_SEEDS` / `TERM_WORDS` (code seed PR after the Coach video sign-off PR merges); extend with `--seed` / `--term` meanwhile.
+
 1. **Known Arabic-script tech/loan transliterations fail** until restored
    to Latin (`design_qc.py termlexicon`). Extend with `--term AR=LATIN`.
 2. **Egyptian loanword allowlist.** Dialect loanwords that stay Arabic
@@ -61,3 +63,10 @@ visible `[muted]` burn) leak what the cut was meant to hide.
 Field lesson from a caption QA batch: phonetic tech dumps, a missed
 `سيكتت ايس بانك` listen-verify, audible mute ranges, and burned
 `[muted]` placeholders blocked sign-off.
+
+## Related (phase-1 memory abstraction; index rows after Coach video sign-off PR merges)
+
+- [YouTube upload language order](youtube-upload-language-order.md)
+- [Spoken-lock scope words](spoken-lock-scope-words.md) → [`title_scope_gate.py`](../../scripts/title_scope_gate.py)
+- [Chrome follows title](chrome-follows-title.md)
+- [LQ vs short dup](lq-vs-short-dup.md)

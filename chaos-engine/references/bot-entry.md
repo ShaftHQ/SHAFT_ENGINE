@@ -10,6 +10,8 @@ Install first: [harness maintenance](harness-maintenance.md#install).
 
 ## Every task, before discovery
 
+Worker briefs: `ce_load: required` + `tool.py entry` (lint `worker_ce_entry.py`).
+
 1. With a shell: run `python3 .chaos-engine/tool.py entry` and follow what it
    prints. It bundles `identity.md`, the core card
    (`skills/chaos-engine/SKILL.md`), and the ethics card, and both companion cards
@@ -37,6 +39,8 @@ and PreCompact, so a bot must do it itself. One delivery per thread; at each bou
 
 ## Keep going
 
+Keep-alive: [worker-keep-alive](worker-keep-alive.md).
+
 Work the queue to the end without waiting for "proceed": after each step or
 delivery, start the next queued item. A turn that ends while CI runs must leave
 a wake (a PR-scoped CI listener) whose prompt resumes the queue; a host whose
@@ -54,7 +58,7 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
   the last 5 minutes and exits 3 past 35: push WIP, record `--next`, end the turn.
 - Parent: one issue per background run; split batches. On "interrupted
   before it finished", re-dispatch with `tool.py resume TASK` as the brief.
-  Never poll a child to keep it alive.
+  Never poll a child to keep it alive. Interrupt → new worker from [checkpoint-resume](checkpoint-resume.md).
 
 ## Token economy
 
