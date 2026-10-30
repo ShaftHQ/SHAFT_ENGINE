@@ -55,6 +55,7 @@
 </li>
 <li><a href="#method-detail" tabindex="0">Method Details</a>
 <ol class="toc-list">
+<li><a href="#whenToAttachSourceCode(java.lang.String)" tabindex="0">whenToAttachSourceCode(String)</a></li>
 <li><a href="#captureElementName(boolean)" tabindex="0">captureElementName(boolean)</a></li>
 <li><a href="#forceCheckForElementVisibility(boolean)" tabindex="0">forceCheckForElementVisibility(boolean)</a></li>
 <li><a href="#captureWebDriverLogs(boolean)" tabindex="0">captureWebDriverLogs(boolean)</a></li>
@@ -325,6 +326,11 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Overrides the <code>shaft.trace.retainFailedAttempts</code> property at runtime.</div>
 </div>
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#whenToAttachSourceCode(java.lang.String)" class="member-name-link">whenToAttachSourceCode</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Overrides the per-step source-code attachment policy for the current thread.</div>
+</div>
 </div>
 </div>
 </div>
@@ -361,6 +367,21 @@ implements <a href="EngineProperties.SetProperty.html" title="interface in com.s
 <section class="method-details" id="method-detail">
 <h2>Method Details</h2>
 <ul class="member-list">
+<li>
+<section class="detail" id="whenToAttachSourceCode(java.lang.String)">
+<h3>whenToAttachSourceCode</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="Reporting.SetProperty.html" title="class in com.shaft.properties.internal">Reporting.SetProperty</a></span>&nbsp;<span class="element-name">whenToAttachSourceCode</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;value)</span></div>
+<div class="block">Overrides the per-step source-code attachment policy for the current thread.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>value</code> - Always, ValidationPointsOnly, FailuresOnly, or Never</dd>
+<dt>Returns:</dt>
+<dd>this property builder</dd>
+</dl>
+</div>
+</section>
+</li>
 <li>
 <section class="detail" id="captureElementName(boolean)">
 <h3>captureElementName</h3>

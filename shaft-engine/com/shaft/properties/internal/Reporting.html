@@ -59,6 +59,7 @@
 <li><a href="#disableLogging()" tabindex="0">disableLogging()</a></li>
 <li><a href="#attachFullLog()" tabindex="0">attachFullLog()</a></li>
 <li><a href="#attachFailureEvidence()" tabindex="0">attachFailureEvidence()</a></li>
+<li><a href="#whenToAttachSourceCode()" tabindex="0">whenToAttachSourceCode()</a></li>
 <li><a href="#evidenceLevel()" tabindex="0">evidenceLevel()</a></li>
 <li><a href="#locatorHealthReportEnabled()" tabindex="0">locatorHealthReportEnabled()</a></li>
 <li><a href="#slowLocatorThresholdMillis()" tabindex="0">slowLocatorThresholdMillis()</a></li>
@@ -332,6 +333,11 @@ retryMaximumNumberOfAttempts &gt; 0, otherwise failure).</div>
 <div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
 <div class="block">Retain failed-attempt trace archives under attempt-indexed names when retries are enabled.</div>
 </div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3"><code><a href="#whenToAttachSourceCode()" class="member-name-link">whenToAttachSourceCode</a>()</code></div>
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab3">
+<div class="block">Attach the user call site to individual Allure action and validation steps.</div>
+</div>
 </div>
 </div>
 </div>
@@ -514,6 +520,28 @@ match counts per frame, nearest candidates, URL, title, and screenshot reference
 <dl class="notes">
 <dt>Returns:</dt>
 <dd>the configured value of <code>attachFailureEvidence</code></dd>
+</dl>
+</div>
+</section>
+</li>
+<li>
+<section class="detail" id="whenToAttachSourceCode()">
+<h3>whenToAttachSourceCode</h3>
+<div class="horizontal-scroll">
+<div class="member-signature"><span class="annotations">@Key("whenToAttachSourceCode")
+@DefaultValue("Never")
+</span><span class="return-type"><a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a></span>&nbsp;<span class="element-name">whenToAttachSourceCode</span>()</div>
+<div class="block">Attach the user call site to individual Allure action and validation steps.
+
+<p>Default: <code>Never</code>. Possible values: <code>Always</code>, <code>ValidationPointsOnly</code>,
+<code>FailuresOnly</code>, <code>Never</code>. ValidationPointsOnly includes assertions/verifications
+and failed or broken actions. <code>Never</code> disables the attachment, including on failure.
+This opt-in control is independent of <code>evidenceLevel</code> and trace code context.
+Source files must be available on the test runner; known secrets are redacted, but arbitrary
+hardcoded secrets in surrounding source cannot always be detected.</div>
+<dl class="notes">
+<dt>Returns:</dt>
+<dd>the source-code attachment policy</dd>
 </dl>
 </div>
 </section>
