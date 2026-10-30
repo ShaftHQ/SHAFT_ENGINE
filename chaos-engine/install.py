@@ -7969,15 +7969,22 @@ def installed_commit_of(project: Path) -> str | None:
 
 def source_behind_advisory(project: Path | None) -> tuple[str, ...]:
     """
-    Doctor tip: installed commit vs source HEAD.
+    Doctor tip: installed commit vs CE source HEAD.
+
+    Only compares when ``<project>/…/chaos-engine`` exists as a source tree.
+    Never falls back to the consumer project HEAD (that false-positive "behind
+    source HEAD" after a ROG/consumer install). Installer ``__file__`` fallback
+    alone is not enough to claim a source HEAD.
     """
     if project is None:
         return ()
     installed = installed_commit_of(project)
     if not installed:
         return ()
-    source = detect_repo_chaos_engine_source(project)
-    head = detect_full_commit(source if source is not None else project)
+    source = detect_project_chaos_engine_source(project)
+    if source is None:
+        return ("commit:", installed[:12])
+    head = detect_full_commit(source)
     if not head:
         return ("commit:", installed[:12])
     if installed == head:
@@ -7987,6 +7994,18 @@ def source_behind_advisory(project: Path | None) -> tuple[str, ...]:
         f"{installed[:12]} (behind source HEAD {head[:12]}; reinstall with "
         f"--source <repo>/chaos-engine --commit {head})",
     )
+
+
+def detect_project_chaos_engine_source(project: Path) -> Path | None:
+    """Return ``<repo>/chaos-engine`` walking from ``project`` only (no __file__)."""
+    root = Path(project).resolve()
+    for candidate in (root, *root.parents):
+        source = candidate / "chaos-engine"
+        if (source / "install.py").is_file() and (source / "VERSION").is_file():
+            return source
+        if candidate.parent == candidate:
+            break
+    return None
 
 
 def _local_source_required_message() -> str:
