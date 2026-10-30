@@ -45,3 +45,4 @@ one lesson card.
 | [L37 CMS paste no HTML comments](cms-paste-no-html-comments.md) | no `<!--` in paste; ops notes leak live |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).
+| [L38 Caption phonetic + mute gate](caption-phonetic-mute-gate.md) | Arabic phonetic tech dumps + Egyptian allowlist; mute must be silent; no burned [muted] |

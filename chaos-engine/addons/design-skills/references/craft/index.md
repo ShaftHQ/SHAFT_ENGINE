@@ -30,7 +30,7 @@ targets, an anchored rubric, and 20 verified references.
   avatar voice first, viral pacing FLAG, ear-lock type templates,
   hosted-CMS no-dup chrome + sticky header offset, assets, CMS meta,
   hostile resets, full-width embed, livecms verify, plan-first,
-explainer length, paste then re-verify, Arabic tech code-switch, LESS CSS grid/calc, paste robots noindex, video caption handoff, CMS paste fragment + no HTML comments):
+explainer length, paste then re-verify, Arabic tech code-switch, LESS CSS grid/calc, paste robots noindex, video caption handoff, CMS paste fragment + no HTML comments, caption phonetic + mute gate):
   [lesson cards](../lessons/index.md).
 - App recon / `app-recon` (screen/flow map, feature-gap matrix, evidence-linked
   complaint themes; clean-room only): [recon-craft cards](../recon-craft/index.md).
