@@ -52,10 +52,10 @@ STATE_DIR = ".chaos-engine-state"
 ALLOW_FILE = "delete-allow.txt"
 # Per-session created-paths manifest (scoped temp). Exact paths listed here may be
 # deleted without an owner code when the HMAC verifies and the path is contained;
-# never-touch still wins. Env overrides the path. Secret stays outside the tree.
+# never-touch still wins. Env overrides the path. HMAC key stays outside the tree.
 SESSION_CREATED_MANIFEST_ENV = "CHAOS_SESSION_CREATED_MANIFEST"
 SESSION_CREATED_MANIFEST_NAME = "created-paths.json"
-SESSION_MANIFEST_SECRET_ENV = "CHAOS_SESSION_MANIFEST_" + "SECRET"  # nosec B105 - env var name, not a credential
+SESSION_MANIFEST_HMAC_ENV = "CHAOS_SESSION_MANIFEST_HMAC"
 SESSION_CONTAINMENT_ROOTS_ENV = "CHAOS_SESSION_CONTAINMENT_ROOTS"
 SESSION_WORKTREE_ENV = "CHAOS_SESSION_WORKTREE"
 SESSION_MANIFEST_SCHEMA = 2
@@ -458,42 +458,41 @@ def session_manifest_path(explicit: Path | None = None) -> Path | None:
     return Path(os.path.expanduser(raw))
 
 
-def _session_secret_path(manifest: Path) -> Path:
-    """
-    Per-manifest secret file outside any checkout (XDG config)."""
+def _session_hmac_key_path(manifest: Path) -> Path:
+    """Per-manifest HMAC key file outside any checkout (XDG config)."""
     digest = hashlib.sha256(str(manifest.resolve()).encode("utf-8")).hexdigest()[:24]
     return (
         Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
         / "chaos-engine"
-        / "session-manifest-secrets"
-        / f"{digest}.secret"
+        / "session-manifest-hmac-keys"
+        / f"{digest}.hmac-key"
     )
 
 
-def _read_session_secret(manifest: Path) -> bytes | None:
+def _read_session_hmac_key(manifest: Path) -> bytes | None:
     """
-    Return the per-session HMAC secret, or None when unset (forge-closed on load)."""
-    raw = os.environ.get(SESSION_MANIFEST_SECRET_ENV, "").strip()
+    Return the per-session HMAC key, or None when unset (forge-closed on load)."""
+    raw = os.environ.get(SESSION_MANIFEST_HMAC_ENV, "").strip()
     if raw:
         return raw.encode("utf-8")
-    store = _session_secret_path(manifest)
+    store = _session_hmac_key_path(manifest)
     if store.is_file():
         return store.read_bytes()
     return None
 
 
-def _load_or_create_session_secret(manifest: Path) -> bytes:
+def _load_or_create_session_hmac_key(manifest: Path) -> bytes:
     """
-    Return the per-session HMAC secret; create one outside the tree when missing."""
-    existing = _read_session_secret(manifest)
+    Return the per-session HMAC key; create one outside the tree when missing."""
+    existing = _read_session_hmac_key(manifest)
     if existing is not None:
         return existing
-    store = _session_secret_path(manifest)
+    store = _session_hmac_key_path(manifest)
     store.parent.mkdir(parents=True, exist_ok=True)
-    secret = secrets.token_bytes(32)
-    store.write_bytes(secret)
+    hmac_key = secrets.token_bytes(32)
+    store.write_bytes(hmac_key)
     store.chmod(0o600)
-    return secret
+    return hmac_key
 
 
 def _manifest_hmac_payload(roots: list[str], paths: list[str]) -> bytes:
@@ -505,14 +504,14 @@ def _manifest_hmac_payload(roots: list[str], paths: list[str]) -> bytes:
     return body.encode("utf-8")
 
 
-def _sign_manifest(secret: bytes, roots: list[str], paths: list[str]) -> str:
-    return hmac.new(secret, _manifest_hmac_payload(roots, paths), hashlib.sha256).hexdigest()
+def _sign_manifest(hmac_key: bytes, roots: list[str], paths: list[str]) -> str:
+    return hmac.new(hmac_key, _manifest_hmac_payload(roots, paths), hashlib.sha256).hexdigest()
 
 
-def _verify_manifest_hmac(secret: bytes, roots: list[str], paths: list[str], supplied: str) -> bool:
+def _verify_manifest_hmac(hmac_key: bytes, roots: list[str], paths: list[str], supplied: str) -> bool:
     if not supplied or not isinstance(supplied, str):
         return False
-    expected = _sign_manifest(secret, roots, paths)
+    expected = _sign_manifest(hmac_key, roots, paths)
     return hmac.compare_digest(expected, supplied.strip().lower())
 
 
@@ -618,13 +617,13 @@ def load_session_created_paths(manifest: Path | None = None) -> set[str]:
     root_strs = [item for item in roots_raw if isinstance(item, str) and item.strip()]
     path_strs = [item for item in entries if isinstance(item, str) and item.strip()]
     try:
-        secret = _read_session_secret(path)
+        hmac_key = _read_session_hmac_key(path)
     except OSError:
         return set()
-    if secret is None:
+    if hmac_key is None:
         return set()
-    # Forged JSON without the outside-tree secret fails closed.
-    if not _verify_manifest_hmac(secret, root_strs, path_strs, supplied if isinstance(supplied, str) else ""):
+    # Forged JSON without the outside-tree HMAC key fails closed.
+    if not _verify_manifest_hmac(hmac_key, root_strs, path_strs, supplied if isinstance(supplied, str) else ""):
         return set()
     roots = _resolve_containment_roots(manifest=path, data_roots=root_strs)
     out: set[str] = set()
@@ -678,12 +677,12 @@ def record_session_created_paths(
         accepted.add(str(Path(os.path.realpath(candidate))))
     root_strs = sorted({str(r) for r in containment})
     path_strs = sorted(accepted)
-    secret = _load_or_create_session_secret(path)
+    hmac_key = _load_or_create_session_hmac_key(path)
     payload = {
         "schema": SESSION_MANIFEST_SCHEMA,
         "roots": root_strs,
         "paths": path_strs,
-        "hmac": _sign_manifest(secret, root_strs, path_strs),
+        "hmac": _sign_manifest(hmac_key, root_strs, path_strs),
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")

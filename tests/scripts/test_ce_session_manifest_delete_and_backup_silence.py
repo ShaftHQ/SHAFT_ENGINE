@@ -49,7 +49,7 @@ class SessionManifestDeleteTest(unittest.TestCase):
         self.home.mkdir()
         os.environ["HOME"] = str(self.home)
         os.environ["XDG_CONFIG_HOME"] = str(self.home / "config")
-        os.environ[self.dg.SESSION_MANIFEST_SECRET_ENV] = "unit-test-session-secret-v1"
+        os.environ[self.dg.SESSION_MANIFEST_HMAC_ENV] = "unit-test-session-hmac-v1"
 
     def tearDown(self) -> None:
         self._env.stop()
@@ -145,7 +145,7 @@ class SessionManifestDeleteTest(unittest.TestCase):
             with self.assertRaises(PermissionError):
                 dg.record_session_created_paths([yt], manifest=manifest, roots=[base])
             # Even a hand-written allow cannot bypass never-touch in path_reason.
-            os.environ[dg.SESSION_MANIFEST_SECRET_ENV] = "unit-test-session-secret-v1"
+            os.environ[dg.SESSION_MANIFEST_HMAC_ENV] = "unit-test-session-hmac-v1"
             # force a verified-looking entry by recording a sibling then forging is impossible;
             # assert path_reason still blocks yt.
             self.assertTrue(dg.never_touch(yt))

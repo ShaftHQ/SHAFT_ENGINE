@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Read and validate the broadcastable ChaosEngine VERSION.
+"""Read and validate the broadcastable ChaosEngine VERSION.
 
 The releasing lead broadcasts ``CE upgrade <version>`` using the exact
 string in ``chaos-engine/VERSION``. Stdlib only.
