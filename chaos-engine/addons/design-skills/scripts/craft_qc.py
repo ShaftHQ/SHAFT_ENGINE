@@ -11,6 +11,7 @@ import math
 import re
 import statistics
 from pathlib import Path
+import os
 import unicodedata
 
 TEXT_SUFFIXES = {".css", ".scss", ".html", ".htm", ".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".mdx",
@@ -3525,6 +3526,19 @@ def _is_codeswitch_en(word: str) -> bool:
     return bool(_LATIN_WORD.match(word.strip()))
 
 
+
+def _paths_share_inode(left: Path, right: Path) -> bool:
+    """True when paths resolve equal or are hardlinks (samefile), not resolve-only."""
+    try:
+        if left.resolve() == right.resolve():
+            return True
+    except OSError:
+        pass
+    try:
+        return left.is_file() and right.is_file() and os.path.samefile(left, right)
+    except OSError:
+        return False
+
 def cmd_capsync(qc, args) -> int:
     """Caption sync against independent ASR / forced-alignment onsets.
 
@@ -3541,7 +3555,7 @@ def cmd_capsync(qc, args) -> int:
             "capsync", qc.FAIL, hits=["missing-independent-onsets"],
             error="pass --onsets from ASR/forced-alignment on rendered audio",
         )
-    if onset_path.resolve() == cue_path.resolve():
+    if _paths_share_inode(onset_path, cue_path):
         return qc.report(
             "capsync", qc.FAIL, hits=["onsets-same-as-cues"],
             error="onsets must be an independent ASR/FA file, not the cue file",
@@ -3549,7 +3563,7 @@ def cmd_capsync(qc, args) -> int:
     snapper = getattr(args, "snapper_words", None)
     if snapper:
         snap_path = Path(snapper)
-        if snap_path.is_file() and onset_path.resolve() == snap_path.resolve():
+        if snap_path.is_file() and _paths_share_inode(onset_path, snap_path):
             return qc.report(
                 "capsync", qc.FAIL, hits=["onsets-share-snapper-words"],
                 error="verifier ASR must be a separate run from the snapper word source",

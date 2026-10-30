@@ -164,6 +164,29 @@ class CapSyncSnapperShareTest(unittest.TestCase):
             self.assertEqual(1, code, payload)
             self.assertIn("onsets-share-snapper-words", payload.get("hits", []))
 
+    def test_hardlinked_snapper_words_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            cues = Path(folder) / "c.srt"
+            write_srt(cues, [(0.0, 1.0, "Hello"), (1.5, 3.0, "world")])
+            onsets = Path(folder) / "onsets.json"
+            onsets.write_text(
+                json.dumps({"words": [
+                    {"word": "Hello", "start": 0.05},
+                    {"word": "world", "start": 1.55},
+                ]}),
+                encoding="utf-8",
+            )
+            hard = Path(folder) / "hard.json"
+            os.link(onsets, hard)
+            self.assertNotEqual(onsets.resolve(), hard.resolve())
+            self.assertTrue(os.path.samefile(onsets, hard))
+            code, payload = run_qc(
+                "capsync", str(cues), "--onsets", str(onsets),
+                "--snapper-words", str(hard),
+            )
+            self.assertEqual(1, code, payload)
+            self.assertIn("onsets-share-snapper-words", payload.get("hits", []))
+
 
 if __name__ == "__main__":
     unittest.main()
