@@ -44,5 +44,6 @@ one lesson card.
 | [L36 CMS paste fragment only](cms-paste-fragment-only.md) | Code-block paste = fragment; dir/lang + CSS on wrapper; header Δ≤1px vs `/` |
 | [L37 CMS paste no HTML comments](cms-paste-no-html-comments.md) | no `<!--` in paste; ops notes leak live |
 | [L38 Caption phonetic + mute gate](caption-phonetic-mute-gate.md) | Arabic phonetic tech dumps + Egyptian allowlist; mute must be silent; no burned [muted] |
+| [L39 Video sign-off viewer frames](video-signoff-viewer-frames.md) | full-frame SIGN; bidisolate/captionlayers/asscapfit/nonviewertext |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).

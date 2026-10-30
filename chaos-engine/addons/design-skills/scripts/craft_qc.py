@@ -14,7 +14,7 @@ from pathlib import Path
 import unicodedata
 
 TEXT_SUFFIXES = {".css", ".scss", ".html", ".htm", ".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".mdx",
-                 ".md", ".txt", ".json", ".srt", ".vtt"}
+                 ".md", ".txt", ".json", ".srt", ".vtt", ".ass"}
 CHROME = {
     "hud-counter": r"\b\d{2}\s*[/\u2013\u2014-]\s*[A-Z]{3,}\b",
     "timecode": r"\b\d{2}:\d{2}[:;]\d{2}\b",
@@ -321,6 +321,20 @@ def words_of(data) -> list[dict]:
 def strings_of(file: Path) -> list[tuple[str, str]]:
     """(location, text) pairs: JSON string values (hook/label specs), else real file lines; SRT adds the cue number."""
     text = file.read_text(encoding="utf-8", errors="replace")
+    if file.suffix == ".ass":
+        out: list[tuple[str, str]] = []
+        for number, line in enumerate(text.splitlines(), 1):
+            if not line.startswith("Dialogue:"):
+                continue
+            parts = line.split(",", 9)
+            body = parts[9] if len(parts) > 9 else ""
+            body = re.sub(r"\{[^}]*\}", "", body)
+            body = body.replace("\\N", "\n").replace("\\n", "\n")
+            for piece in body.split("\n"):
+                piece = piece.strip()
+                if piece:
+                    out.append((f"dialogue:{number}", piece))
+        return out
     if file.suffix == ".json":
         out: list[tuple[str, str]] = []
 
@@ -353,7 +367,7 @@ def strings_of(file: Path) -> list[tuple[str, str]]:
 
 def cmd_bidi(qc, args) -> int:
     hits, warnings = [], []
-    files = files_of(args.path, {".srt", ".vtt", ".txt", ".json", ".html", ".htm", ".md"})
+    files = files_of(args.path, {".srt", ".vtt", ".txt", ".json", ".html", ".htm", ".md", ".ass"})
     for file in files:
         for where, line in strings_of(file):
             if not RTL.search(line) or "design-qc: allow" in line:
@@ -3282,6 +3296,146 @@ def cmd_onsetclip(qc, args) -> int:
 
 
 
+
+LATIN_OUTSIDE = re.compile(
+    r"[A-Za-z0-9](?:[A-Za-z0-9 ._+/#-]{0,80}[A-Za-z0-9])?"
+)
+NONVIEWER = {
+    "heavy-vfx-meta": r"\bHEAVY\s*VFX\b",
+    "todo": r"\bTODO\b",
+    "placeholder": r"\bPLACEHOLDER\b",
+    "lorem": r"\blorem\s+ipsum\b",
+    "debug": r"\bDEBUG\b",
+    "fixme": r"\bFIXME\b",
+    "internal-prompt": r"\b(PROMPT|INSTRUCTION|EDITOR\s+NOTE)s?\b",
+}
+
+
+def _ass_time_to_s(stamp: str) -> float:
+    h, m, rest = stamp.split(":")
+    sec, cs = rest.split(".")
+    return int(h) * 3600 + int(m) * 60 + int(sec) + int(cs) / 100.0
+
+
+def cmd_bidisolate(qc, args) -> int:
+    """L39: every Latin run inside an RTL line must sit in LRI/RLI/FSI…PDI."""
+    hits, files = [], files_of(args.path, {".srt", ".vtt", ".txt", ".json", ".html", ".htm", ".md", ".ass"})
+    for file in files:
+        for where, line in strings_of(file):
+            if "design-qc: allow" in line or not RTL.search(line):
+                continue
+            bare = ISOLATE.sub(" ", line)
+            for match in LATIN_OUTSIDE.finditer(bare):
+                token = match.group(0).strip()
+                if token:
+                    hits.append(f"{file}:{where} latin-outside-isolate {token!r}")
+    return qc.report("bidisolate", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits)
+
+
+def cmd_captionlayers(qc, args) -> int:
+    """L39: exactly one burned caption layer — no overlapping ASS Dialogue times; ≤1 subtitle stream."""
+    path = Path(args.file)
+    hits: list[str] = []
+    subtitle_streams = None
+    if path.suffix.lower() in {".mp4", ".mkv", ".mov", ".webm"}:
+        probe = qc.ffprobe(str(path))
+        subtitle_streams = sum(1 for s in probe.get("streams") or [] if s.get("codec_type") == "subtitle")
+        if subtitle_streams > 1:
+            hits.append(f"subtitle_streams={subtitle_streams} (want ≤1)")
+    if path.suffix.lower() == ".json":
+        data = json.loads(path.read_text(encoding="utf-8"))
+        burn = bool(data.get("burn_captions") or data.get("burnin") or data.get("karaoke"))
+        soft = bool(data.get("soft_subs") or data.get("sidecar_captions") or data.get("upload_captions"))
+        if burn and soft:
+            hits.append("burn_captions and soft/sidecar captions both enabled")
+    if path.suffix.lower() == ".ass" or args.ass:
+        ass_path = Path(args.ass) if args.ass else path
+        rows: list[tuple[float, float, int]] = []
+        for number, line in enumerate(ass_path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if not line.startswith("Dialogue:"):
+                continue
+            parts = line.split(",", 9)
+            if len(parts) < 3:
+                continue
+            try:
+                start, end = _ass_time_to_s(parts[1]), _ass_time_to_s(parts[2])
+            except ValueError:
+                hits.append(f"dialogue:{number} bad_time")
+                continue
+            rows.append((start, end, number))
+        rows.sort()
+        for i in range(len(rows) - 1):
+            if rows[i][1] > rows[i + 1][0] + 1e-6:
+                hits.append(
+                    f"overlap dialogue:{rows[i][2]} ends {rows[i][1]:.3f}s "
+                    f"> dialogue:{rows[i + 1][2]} starts {rows[i + 1][0]:.3f}s"
+                )
+    return qc.report(
+        "captionlayers", qc.FAIL if hits else qc.PASS,
+        hits=hits, subtitle_streams=subtitle_streams,
+    )
+
+
+def cmd_asscapfit(qc, args) -> int:
+    """L39: ASS two-line cues must fit the lower-third band height."""
+    path = Path(args.file)
+    text = path.read_text(encoding="utf-8", errors="replace")
+    fontsize = None
+    for line in text.splitlines():
+        if line.startswith("Style:"):
+            parts = [p.strip() for p in line.split(",")]
+            # Name, Fontname, Fontsize, ...
+            if len(parts) >= 3:
+                try:
+                    fontsize = float(parts[2])
+                except ValueError:
+                    fontsize = None  # non-numeric Fontsize column; fail below
+            break
+    if fontsize is None:
+        return qc.report("asscapfit", qc.FAIL, error="no Style: Fontsize found", hits=["missing-style"])
+    leading = float(args.leading)
+    pad = float(args.pad)
+    band_h = float(args.band_h)
+    max_lines = 1
+    hits = []
+    for number, line in enumerate(text.splitlines(), 1):
+        if not line.startswith("Dialogue:"):
+            continue
+        parts = line.split(",", 9)
+        body = parts[9] if len(parts) > 9 else ""
+        body = re.sub(r"\{[^}]*\}", "", body)
+        lines_n = body.count("\\N") + body.count("\\n") + 1
+        max_lines = max(max_lines, lines_n)
+        need = lines_n * fontsize * leading + pad
+        if need > band_h + 1e-9:
+            hits.append(
+                f"dialogue:{number} lines={lines_n} need={need:.1f}px > band_h={band_h:g}"
+            )
+    need_max = max_lines * fontsize * leading + pad
+    return qc.report(
+        "asscapfit", qc.FAIL if hits else qc.PASS,
+        fontsize=fontsize, max_lines=max_lines, band_h=band_h,
+        need_px=round(need_max, 1), hits=hits,
+    )
+
+
+def cmd_nonviewertext(qc, args) -> int:
+    """L39: fail production/debug/placeholder tokens in on-screen chrome or captions."""
+    hits, files = [], files_of(args.path, {".txt", ".md", ".json", ".srt", ".vtt", ".ass", ".html", ".htm"})
+    allow = set(args.allow or [])
+    for file in files:
+        for where, line in strings_of(file):
+            if "design-qc: allow" in line:
+                continue
+            for rule, pat in NONVIEWER.items():
+                if rule in allow:
+                    continue
+                if re.search(pat, line, re.I):
+                    hits.append(f"{file}:{where} {rule}")
+    return qc.report("nonviewertext", qc.FAIL if hits else qc.PASS, files=len(files), hits=hits)
+
+
+
 def register(add, qc) -> None:
     """Add the craft subcommands to design_qc's parser."""
     def bind(func):
@@ -3737,3 +3891,28 @@ def register(add, qc) -> None:
                    help="onset/cue start window that counts as clipped open (default 0.15s)")
     p.add_argument("--max-tokens", type=int, default=4, dest="max_tokens")
     p.add_argument("--max-dur", type=float, default=0.45, dest="max_dur")
+
+    p = add("bidisolate", bind(cmd_bidisolate),
+            "L39: Latin runs inside RTL lines must use LRI/RLI/FSI…PDI")
+    p.add_argument("path")
+
+    p = add("captionlayers", bind(cmd_captionlayers),
+            "L39: one burned caption layer (no ASS time overlap; ≤1 subtitle stream)")
+    p.add_argument("file", help="ASS, mp4, or manifest JSON")
+    p.add_argument("--ass", help="optional ASS path when file is an mp4")
+
+    p = add("asscapfit", bind(cmd_asscapfit),
+            "L39: ASS multi-line cues must fit the lower-third band height")
+    p.add_argument("file", help="ASS file")
+    p.add_argument("--band-h", type=float, required=True, dest="band_h",
+                   help="karaoke / lower-third band height in px")
+    p.add_argument("--leading", type=float, default=1.35,
+                   help="line-height multiplier (default 1.35)")
+    p.add_argument("--pad", type=float, default=16.0,
+                   help="vertical padding reserved inside the band (default 16)")
+
+    p = add("nonviewertext", bind(cmd_nonviewertext),
+            "L39: fail production/debug/placeholder tokens in on-screen text")
+    p.add_argument("path")
+    p.add_argument("--allow", action="append", default=[],
+                   help="rule names to skip (heavy-vfx-meta, todo, …)")
