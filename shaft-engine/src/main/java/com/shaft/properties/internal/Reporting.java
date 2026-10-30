@@ -135,6 +135,22 @@ public interface Reporting extends EngineProperties<Reporting> {
     boolean attachFailureEvidence();
 
     /**
+     * Attach the user call site to individual Allure action and validation steps.
+     *
+     * <p>Default: {@code Never}. Possible values: {@code Always}, {@code ValidationPointsOnly},
+     * {@code FailuresOnly}, {@code Never}. ValidationPointsOnly includes assertions/verifications
+     * and failed or broken actions. {@code Never} disables the attachment, including on failure.
+     * This opt-in control is independent of {@code evidenceLevel} and trace code context.
+     * Source files must be available on the test runner; known secrets are redacted, but arbitrary
+     * hardcoded secrets in surrounding source cannot always be detected.
+     *
+     * @return the source-code attachment policy
+     */
+    @Key("whenToAttachSourceCode")
+    @DefaultValue("Never")
+    String whenToAttachSourceCode();
+
+    /**
      * Select the evidence profile. Profile values except CUSTOM override granular screenshot, page-
      * source, GIF, video, WebDriver-log, full-log, diagnostics, and trace controls.
      *
@@ -432,6 +448,17 @@ public interface Reporting extends EngineProperties<Reporting> {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
+
+        /**
+         * Overrides the per-step source-code attachment policy for the current thread.
+         *
+         * @param value Always, ValidationPointsOnly, FailuresOnly, or Never
+         * @return this property builder
+         */
+        public SetProperty whenToAttachSourceCode(String value) {
+            setProperty("whenToAttachSourceCode", value);
+            return this;
+        }
 
         /**
          * Overrides the {@code captureElementName} property at runtime. Capture element name in reports
