@@ -22,7 +22,8 @@ A delete-check refusal is final: do not bypass with raw ``rm``, ``unlink``,
 encoded argv, or a wrapper script; the PreToolUse hook and ``block_reason``
 enforce the same gate. Self-created paths may be deleted without a code only
 when recorded by the tool in the HMAC-bound per-session created-paths
-manifest and contained in the session scoped dir or worktree; CE-managed
+manifest and contained under independently derived floor roots (scoped
+session dir and real git toplevel; env/JSON cannot expand to ``/``); CE-managed
 dirt is restored via ``git checkout <primary-sha> -- <paths>`` in the current
 worktree only (never deleted, never other worktrees). Never-touch stays locked.
 """
@@ -515,6 +516,125 @@ def _verify_manifest_hmac(hmac_key: bytes, roots: list[str], paths: list[str], s
     return hmac.compare_digest(expected, supplied.strip().lower())
 
 
+def _realpath_root(path: Path) -> Path | None:
+    try:
+        return Path(os.path.realpath(path))
+    except OSError:
+        return None
+
+
+def _is_acceptable_containment_root(root: Path) -> bool:
+    """
+    False for ``/``, near-root (``/etc``, ``/tmp``, …), ``$HOME``, and never-touch."""
+    resolved = _realpath_root(root)
+    if resolved is None:
+        return False
+    # Depth < 3 => filesystem root or a single top-level dir (/, /etc, /home, /tmp).
+    if len(resolved.parts) < 3:
+        return False
+    try:
+        home = _realpath_root(Path.home())
+        if home is not None and resolved == home:
+            return False
+    except OSError:
+        pass
+    if never_touch(resolved):
+        return False
+    return True
+
+
+def _discover_git_toplevel(hint: Path | None = None) -> Path | None:
+    """
+    Real ``git rev-parse --show-toplevel`` only. Env worktree is a hint, never a root."""
+    probes: list[Path] = []
+    if hint is not None:
+        probes.append(hint)
+    env_wt = os.environ.get(SESSION_WORKTREE_ENV, "").strip()
+    if env_wt:
+        probes.append(Path(os.path.expanduser(env_wt)))
+    probes.append(Path.cwd())
+    seen: set[str] = set()
+    for probe in probes:
+        key = str(probe)
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            cwd = _existing(probe)
+        except OSError:
+            continue
+        result = _git(cwd, "rev-parse", "--show-toplevel")
+        if result.returncode != 0:
+            continue
+        top_raw = result.stdout.strip()
+        if not top_raw:
+            continue
+        top = _realpath_root(Path(top_raw))
+        if top is None or not _is_acceptable_containment_root(top):
+            continue
+        return top
+    return None
+
+
+def _scoped_session_floor(manifest: Path) -> Path | None:
+    """
+    Scoped temp dir for this manifest: ``…/chaos-engine-sessions/<id>`` when
+    present, else an acceptable manifest parent (never ``/`` or ``$HOME``)."""
+    parent = _realpath_root(manifest.parent)
+    if parent is None:
+        return None
+    parts = parent.parts
+    for index, part in enumerate(parts):
+        if part != "chaos-engine-sessions" or index + 1 >= len(parts):
+            continue
+        candidate = Path(parts[0]).joinpath(*parts[1 : index + 2])
+        resolved = _realpath_root(candidate)
+        if resolved is not None and _is_acceptable_containment_root(resolved):
+            return resolved
+    if _is_acceptable_containment_root(parent):
+        return parent
+    return None
+
+
+def _floor_containment_roots(manifest: Path) -> list[Path]:
+    """
+    Independently derived max roots: scoped session dir + real git toplevel."""
+    floors: list[Path] = []
+    seen: set[str] = set()
+    for candidate in (_scoped_session_floor(manifest), _discover_git_toplevel()):
+        if candidate is None:
+            continue
+        key = str(candidate)
+        if key in seen:
+            continue
+        seen.add(key)
+        floors.append(candidate)
+    return floors
+
+
+def _root_under_floors(root: Path, floors: list[Path]) -> bool:
+    if not floors:
+        return False
+    return any(_is_under_root(root, floor) for floor in floors)
+
+
+def _signed_roots_within_floors(root_strs: list[str], floors: list[Path]) -> bool:
+    """False when any signed JSON root escapes the live floor (policy forge)."""
+    if not root_strs:
+        return True
+    if not floors:
+        return False
+    for item in root_strs:
+        resolved = _realpath_root(Path(os.path.expanduser(item.strip())))
+        if resolved is None:
+            return False
+        if not _is_acceptable_containment_root(resolved):
+            return False
+        if not _root_under_floors(resolved, floors):
+            return False
+    return True
+
+
 def _resolve_containment_roots(
     *,
     manifest: Path,
@@ -522,31 +642,36 @@ def _resolve_containment_roots(
     data_roots: list | None = None,
 ) -> list[Path]:
     """
-    Roots that may contain allowlisted session-created paths."""
-    roots: list[Path] = []
+    Roots that may contain allowlisted session-created paths.
+
+    Floor roots come only from the scoped manifest dir and a real git toplevel.
+    Env / explicit / JSON candidates are untrusted: kept only when acceptable and
+    under those floors. ``CHAOS_SESSION_WORKTREE`` is never a root by itself.
+    """
+    floors = _floor_containment_roots(manifest)
+    candidates: list[Path] = []
     if explicit_roots:
-        roots.extend(Path(r) for r in explicit_roots)
+        candidates.extend(Path(r) for r in explicit_roots)
     env_raw = os.environ.get(SESSION_CONTAINMENT_ROOTS_ENV, "").strip()
     if env_raw:
         for part in env_raw.split(os.pathsep):
             part = part.strip()
             if part:
-                roots.append(Path(os.path.expanduser(part)))
-    wt = os.environ.get(SESSION_WORKTREE_ENV, "").strip()
-    if wt:
-        roots.append(Path(os.path.expanduser(wt)))
+                candidates.append(Path(os.path.expanduser(part)))
+    # Intentionally ignore SESSION_WORKTREE_ENV as a direct root (hint only via git).
     if data_roots:
         for item in data_roots:
             if isinstance(item, str) and item.strip():
-                roots.append(Path(os.path.expanduser(item.strip())))
-    # Scoped temp = manifest parent is always a containment root.
-    roots.append(manifest.parent)
-    out: list[Path] = []
-    seen: set[str] = set()
-    for root in roots:
-        try:
-            resolved = Path(os.path.realpath(root))
-        except OSError:
+                candidates.append(Path(os.path.expanduser(item.strip())))
+    out: list[Path] = list(floors)
+    seen: set[str] = {str(item) for item in floors}
+    for root in candidates:
+        resolved = _realpath_root(root)
+        if resolved is None:
+            continue
+        if not _is_acceptable_containment_root(resolved):
+            continue
+        if not _root_under_floors(resolved, floors):
             continue
         key = str(resolved)
         if key in seen:
@@ -597,8 +722,9 @@ def load_session_created_paths(manifest: Path | None = None) -> set[str]:
     """
     Absolute realpath strings recorded as self-created by this session.
 
-    Forge-closed: missing/invalid HMAC yields an empty set. Paths that escape
-    containment or are symlinks are dropped.
+    Forge-closed: missing/invalid HMAC yields an empty set. Signed JSON ``roots``
+    that escape the live floor fail the whole load. Paths that escape containment
+    or are symlinks are dropped. Containment is never expanded from JSON alone.
     """
     path = session_manifest_path(manifest)
     if path is None or not path.is_file():
@@ -625,7 +751,12 @@ def load_session_created_paths(manifest: Path | None = None) -> set[str]:
     # Forged JSON without the outside-tree HMAC key fails closed.
     if not _verify_manifest_hmac(hmac_key, root_strs, path_strs, supplied if isinstance(supplied, str) else ""):
         return set()
-    roots = _resolve_containment_roots(manifest=path, data_roots=root_strs)
+    floors = _floor_containment_roots(path)
+    # Stolen-key resign with roots=["/"] (or any escape) fails closed.
+    if not _signed_roots_within_floors(root_strs, floors):
+        return set()
+    # Floors + validated env/explicit only — do not expand policy from JSON roots.
+    roots = _resolve_containment_roots(manifest=path, data_roots=None)
     out: set[str] = set()
     for item in path_strs:
         candidate = Path(os.path.expanduser(item.strip()))
@@ -692,17 +823,32 @@ def record_session_created_paths(
 
 def session_created_allows(path: Path, *, manifest: Path | None = None) -> bool:
     """
-    True when ``path`` is an exact HMAC-verified, contained manifest entry."""
+    True when ``path`` is an exact HMAC-verified, contained manifest entry.
+
+    Re-checks live floor containment and never-touch at delete time, not only
+    at record time.
+    """
     allowed = load_session_created_paths(manifest)
     if not allowed:
         return False
     try:
-        real = str(Path(os.path.realpath(path)))
+        real_path = Path(os.path.realpath(path))
+        real = str(real_path)
     except OSError:
         return False
     if Path(path).is_symlink():
         return False
-    return real in allowed
+    if real not in allowed:
+        return False
+    manifest_path = session_manifest_path(manifest)
+    if manifest_path is None:
+        return False
+    floors = _floor_containment_roots(manifest_path)
+    if _path_escape_or_symlink_reason(real_path, floors):
+        return False
+    if never_touch(real_path):
+        return False
+    return True
 
 
 def restore_ce_managed_to_primary(

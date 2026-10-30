@@ -181,6 +181,87 @@ class SessionManifestDeleteTest(unittest.TestCase):
         self.assertIn("raw", body.casefold())
 
 
+    def test_env_containment_roots_slash_cannot_allow_etc_hosts(self) -> None:
+        dg = self.dg
+        scoped = self._scratch() / "scoped"
+        scoped.mkdir()
+        manifest = scoped / "created-paths.json"
+        os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
+        os.environ[dg.SESSION_CONTAINMENT_ROOTS_ENV] = "/"
+        os.environ.pop(dg.SESSION_WORKTREE_ENV, None)
+        hosts = Path("/etc/hosts")
+        with self.assertRaises(PermissionError) as ctx:
+            dg.record_session_created_paths([hosts], manifest=manifest)
+        self.assertIn("containment", str(ctx.exception).casefold())
+        self.assertFalse(dg.session_created_allows(hosts, manifest=manifest))
+        reason, _ = dg.check("rm -f -- /etc/hosts", cwd=scoped)
+        self.assertTrue(reason)
+
+    def test_env_worktree_slash_cannot_allow_etc_hosts(self) -> None:
+        dg = self.dg
+        scoped = self._scratch() / "scoped"
+        scoped.mkdir()
+        manifest = scoped / "created-paths.json"
+        os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
+        os.environ.pop(dg.SESSION_CONTAINMENT_ROOTS_ENV, None)
+        os.environ[dg.SESSION_WORKTREE_ENV] = "/"
+        hosts = Path("/etc/hosts")
+        with self.assertRaises(PermissionError) as ctx:
+            dg.record_session_created_paths([hosts], manifest=manifest, roots=[scoped])
+        self.assertIn("containment", str(ctx.exception).casefold())
+        reason, _ = dg.check("rm -f -- /etc/hosts", cwd=scoped)
+        self.assertTrue(reason)
+
+    def test_stolen_key_resign_roots_slash_refuses_etc_hosts(self) -> None:
+        dg = self.dg
+        scoped = self._scratch() / "scoped"
+        scoped.mkdir()
+        legit = scoped / "ok.txt"
+        legit.write_text("ok\n", encoding="utf-8")
+        manifest = scoped / "created-paths.json"
+        os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
+        os.environ.pop(dg.SESSION_CONTAINMENT_ROOTS_ENV, None)
+        os.environ.pop(dg.SESSION_WORKTREE_ENV, None)
+        # Drop env HMAC so a real XDG key is created (stealable).
+        os.environ.pop(dg.SESSION_MANIFEST_HMAC_ENV, None)
+        dg.record_session_created_paths([legit], manifest=manifest, roots=[scoped])
+        key_path = dg._session_hmac_key_path(manifest)
+        self.assertTrue(key_path.is_file())
+        hmac_key = key_path.read_bytes()
+        hosts = str(Path("/etc/hosts").resolve())
+        forged_roots = ["/"]
+        forged_paths = [hosts]
+        payload = {
+            "schema": dg.SESSION_MANIFEST_SCHEMA,
+            "roots": forged_roots,
+            "paths": forged_paths,
+            "hmac": dg._sign_manifest(hmac_key, forged_roots, forged_paths),
+        }
+        manifest.write_text(json.dumps(payload), encoding="utf-8")
+        self.assertEqual(set(), dg.load_session_created_paths(manifest))
+        self.assertFalse(dg.session_created_allows(Path("/etc/hosts"), manifest=manifest))
+        reason, _ = dg.check("rm -f -- /etc/hosts", cwd=scoped)
+        self.assertTrue(reason)
+
+    def test_delete_time_rechecks_floor_after_env_expansion_attempt(self) -> None:
+        dg = self.dg
+        scoped = self._scratch() / "scoped"
+        scoped.mkdir()
+        target = scoped / "session-log.txt"
+        target.write_text("log\n", encoding="utf-8")
+        manifest = scoped / "created-paths.json"
+        os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
+        os.environ.pop(dg.SESSION_CONTAINMENT_ROOTS_ENV, None)
+        dg.record_session_created_paths([target], manifest=manifest, roots=[scoped])
+        self.assertTrue(dg.session_created_allows(target, manifest=manifest))
+        # Attacker widens env after record; delete-time floor re-check still scopes.
+        os.environ[dg.SESSION_CONTAINMENT_ROOTS_ENV] = "/"
+        self.assertTrue(dg.session_created_allows(target, manifest=manifest))
+        self.assertFalse(dg.session_created_allows(Path("/etc/hosts"), manifest=manifest))
+        reason, _ = dg.check("rm -f -- /etc/hosts", cwd=scoped)
+        self.assertTrue(reason)
+
+
 class CeRestoreTest(unittest.TestCase):
     def setUp(self) -> None:
         self.dg = load()
