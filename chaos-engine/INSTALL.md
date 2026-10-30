@@ -155,11 +155,20 @@ python3 .chaos-engine/install.py install --project . --source … --commit … -
 ```
 
 Self-install from the SHAFT_ENGINE checkout itself: `--source` must not sit
-inside the project, so point it at a detached worktree of the same commit:
-`git worktree add -f --detach ../ce-src <sha> && python3 chaos-engine/install.py install --project . --source ../ce-src/chaos-engine --commit <sha>`.
+inside the project, so point it at a detached worktree of the same commit.
+From the source tree use `chaos-engine/install.py`; after install, doctor and
+`tool.py` use `.chaos-engine/install.py`.
 
-Local-source installs always need `--source <dir>` (or `--from-bundle <zip>`) plus
-the full 40-hex `--commit`. A bare `--commit` alone fails. When an add-on lives
+```bash
+sha="$(git rev-parse HEAD)"
+git worktree add -f --detach ../ce-src "$sha"
+python3 chaos-engine/install.py install --project . --consumer \
+  --source ../ce-src/chaos-engine --commit "$sha"
+```
+
+`--source` and `--commit` still win when set. When omitted, install auto-detects
+`<repo>/chaos-engine` as `--source` and `git rev-parse HEAD` (40-hex) as
+`--commit`. A bare ref such as `--commit HEAD` is refused. When an add-on lives
 beside the core, set `CHAOS_ENGINE_ADDON_PATHS` to the intended pack so the
 correct root is chosen (sibling trees with the same add-on name and divergent
 content fail closed):
@@ -169,6 +178,23 @@ CHAOS_ENGINE_ADDON_PATHS=../addons-pack/ce-addons \
   python3 .chaos-engine/install.py install --project . --consumer \
   --source ../ce-src/chaos-engine --commit <40-hex-sha>
 ```
+
+### Doctor commit and MemPalace index
+
+`doctor --agent-summary` prints the installed core commit and warns when it is
+behind the source tree `HEAD` (typical after a failed or partial install). The
+first doctor after install may leave a MemPalace full-index build running in the
+background; that is expected. Wait for it to finish, or run an explicit
+foreground refresh via `tool.py mempalace` / store repair — do not treat the
+background worker as a hung install.
+
+### Install and doctor logs
+
+Tee install/doctor output into
+`<project>/.chaos-engine-state/logs/install.log` (or `doctor.log`), not
+`/workspace/*.log`. Use `chaos-engine/session_logs.py` (`log_path("install")`)
+so the session created-paths manifest records the file and cleanup-at-close can
+self-delete it.
 
 That merges:
 

@@ -104,8 +104,9 @@ def tracked_core_advice(count: int) -> str:
         f"ChaosEngine consumer mode: .chaos-engine/ is committed ({count} tracked files), "
         "so this upgrade changed tracked files. Committing the core is adopter "
         "(maintainer) mode: commit the upgraded .chaos-engine/ to stay an adopter, or "
-        "run `git rm -r --cached .chaos-engine` and commit to become a true consumer "
-        "(the info/exclude block then hides it)."
+        "become a true consumer with "
+        "`git rm --cached -r .chaos-engine` then add `/.chaos-engine/` to .gitignore "
+        "and commit (the info/exclude block then hides it too)."
     )
 
 
