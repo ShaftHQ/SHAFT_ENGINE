@@ -416,6 +416,28 @@ TERM_WORDS = {
 TERM_PHRASES = (("فريم ورك", "framework"), ("تست كيس", "test case"), ("تست كيسز", "test cases"))
 TERM_PREF = ("وال", "فال", "بال", "لل", "ال", "و", "ف", "ب", "ك")
 
+# L38: Egyptian dialect loanwords that stay Arabic (not forced to Latin).
+EGYPTIAN_ALLOW = frozenset({
+    "موبايل", "لابتوب", "تليفون", "اوكيه", "أوكيه", "إنترنت", "انترنت",
+    "فلوس", "أوكي", "اوكي",
+})
+# Common Arabic/Egyptian function words — never listen-verify FP.
+ARABIC_COMMON = frozenset({
+    "أنا", "احنا", "إحنا", "انت", "أنت", "انتي", "أنتي", "هو", "هي", "هما", "هم",
+    "مش", "ما", "لا", "نعم", "ايوه", "أيوه", "طيب", "يعني", "كده", "كدا", "ده", "دي",
+    "اللي", "الى", "إلى", "على", "عن", "في", "من", "مع", "بعد", "قبل", "لما",
+    "لو", "عشان", "علشان", "فيه", "فيها", "كان", "كانت", "بقى", "بقى", "دلوقتي",
+    "حاجة", "حاجه", "حاجات", "ناس", "واحد", "واحدة", "كمان", "برضو", "برضه",
+    "اه", "آه", "يا", "والله", "خلاص", "بس", "او", "أو", "ثم", "اذا", "إذا",
+})
+# L38 FN phonetic dumps (Arabic-script English) — extend via --seed.
+PHONETIC_SEEDS = frozenset({
+    "سيكتت", "بانك", "ايس",  # سيكتت ايس بانك (missed listen-verify FN)
+    "سيرفر", "ستاك", "كلاود", "ديپلوي", "ديبلوي",
+})
+_AR_LETTER = re.compile(r"[؀-ۿ]")
+_LATIN = re.compile(r"[A-Za-z]")
+
 
 def _term_lexicon_maps(extra: list[str]) -> tuple[dict[str, str], list[tuple[str, str]]]:
     words, phrases = dict(TERM_WORDS), list(TERM_PHRASES)
@@ -434,15 +456,32 @@ def _term_lexicon_maps(extra: list[str]) -> tuple[dict[str, str], list[tuple[str
     return words, phrases
 
 
-def term_lexicon_hits(text: str, words: dict[str, str], phrases: list[tuple[str, str]]) -> list[str]:
+def _allow_set(extra: list[str] | None = None) -> set[str]:
+    allow = set(EGYPTIAN_ALLOW)
+    for item in extra or []:
+        tok = item.strip()
+        if tok:
+            allow.add(tok)
+    return allow
+
+
+def term_lexicon_hits(
+    text: str,
+    words: dict[str, str],
+    phrases: list[tuple[str, str]],
+    allow: set[str] | None = None,
+) -> list[str]:
     """Flag leftover Arabic-script forms of known tech/loan terms (optional bound prefixes)."""
     hits: list[str] = []
+    allow = allow or set()
     joined = text.replace(" ", " ")
     for ar, lat in phrases:
-        if ar in joined:
+        if ar in joined and ar not in allow:
             hits.append(f"Arabic-script tech transliteration {ar!r} → prefer Latin {lat!r}")
     for tok in joined.split():
         core = tok.rstrip("؟?.!")
+        if core in allow:
+            continue
         if core in words:
             hits.append(f"Arabic-script tech transliteration {tok!r} → prefer Latin {words[core]!r}")
             continue
@@ -451,6 +490,8 @@ def term_lexicon_hits(text: str, words: dict[str, str], phrases: list[tuple[str,
                 rest = core[len(pref):]
                 if rest.startswith("ـ"):  # tatweel after article
                     rest = rest[1:]
+                if rest in allow:
+                    break
                 if rest in words:
                     hits.append(
                         f"Arabic-script tech transliteration {tok!r} → prefer Latin {words[rest]!r} "
@@ -460,12 +501,181 @@ def term_lexicon_hits(text: str, words: dict[str, str], phrases: list[tuple[str,
     return hits
 
 
+def _strip_bound_prefix(core: str, *, min_pref_len: int = 1) -> str:
+    """Strip one leading bound article/prefix. min_pref_len=2 keeps ب/و/ف/ك."""
+    for pref in TERM_PREF:
+        if len(pref) < min_pref_len:
+            continue
+        if core.startswith(pref) and len(core) > len(pref):
+            rest = core[len(pref):]
+            if rest.startswith("ـ"):
+                rest = rest[1:]
+            return rest
+    return core
+
+
+# Arabic-script English loan endings (L38 listen-verify heuristic).
+# Min length 6 avoids short native FP (e.g. مسافر/ياقوت). Shorter FN dumps
+# stay covered by PHONETIC_SEEDS (سيكتت/سيرفر/كلاود).
+_LOAN_SHAPE = re.compile(
+    r"(?:وت|ايس|ايز|تت|اود|بلوي|پلوي|ينغ|ينج|منت|شين|كشن)$"
+)
+# Native-Arabic markers almost never used in English phonetic dumps.
+_AR_NATIVE = re.compile(r"[عغحخصضظطءةئؤإ]")
+
+
+def _looks_like_english_phonetic(token: str) -> bool:
+    """True when an Arabic-script token has an English-loan shape (low FP)."""
+    if len(token) < 6:
+        return False
+    if _AR_NATIVE.search(token):
+        return False
+    if _LATIN.search(token):
+        return False
+    if not _AR_LETTER.search(token):
+        return False
+    return bool(_LOAN_SHAPE.search(token))
+
+
+def _arabic_tokens(text: str) -> list[str]:
+    out: list[str] = []
+    for tok in text.replace(" ", " ").split():
+        core = tok.rstrip("؟?.!،,")
+        if not core or _LATIN.search(core):
+            continue
+        if not _AR_LETTER.search(core):
+            continue
+        out.append(core)
+    return out
+
+
+def listen_verify_hits(
+    text: str,
+    *,
+    words: dict[str, str],
+    allow: set[str],
+    seeds: set[str],
+) -> list[str]:
+    """L38: seed list + loan-shape heuristic → human listen-verify.
+
+    Matches: exact seed on tok/bare; seed substring on the *raw* token (so a
+    single-letter bound prefix cannot hide بانك inside بانكانا); loan-shape
+    heuristic on the article-stripped form (ال-/وال-/…).
+    """
+    hits: list[str] = []
+    known = set(words) | allow | ARABIC_COMMON
+    msg = (
+        "Arabic-script phonetic dump {tok!r} → listen-verify "
+        "(restore Latin or --allow Egyptian loanword)"
+    )
+    for tok in _arabic_tokens(text):
+        bare = _strip_bound_prefix(tok)  # full strip for allow/lexicon
+        article_bare = _strip_bound_prefix(tok, min_pref_len=2)
+        if tok in known or bare in known or article_bare in known:
+            continue
+        if tok in seeds or bare in seeds or article_bare in seeds:
+            hits.append(msg.format(tok=tok))
+            continue
+        # B2: substring against RAW tok so ب/و/ف/ك prefix cannot drop the hit.
+        if any(len(seed) >= 3 and seed in tok for seed in seeds):
+            hits.append(msg.format(tok=tok))
+            continue
+        # B1: loan-shape heuristic (not seed-only).
+        if _looks_like_english_phonetic(article_bare) or _looks_like_english_phonetic(tok):
+            hits.append(msg.format(tok=tok))
+            continue
+    return hits
+
+
 def cmd_termlexicon(qc, args) -> int:
     words, phrases = _term_lexicon_maps(args.term)
+    allow = _allow_set(getattr(args, "allow", None))
     cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
     hits = [f"cue {i}: {hit}" for i, cue in enumerate(cues, 1)
-            for hit in term_lexicon_hits(" ".join(cue["lines"]), words, phrases)]
+            for hit in term_lexicon_hits(" ".join(cue["lines"]), words, phrases, allow)]
     return qc.report("termlexicon", qc.FAIL if hits else qc.PASS, cues=len(cues), hits=hits)
+
+
+def cmd_listenverify(qc, args) -> int:
+    """L38: phonetic seeds + loan-shape heuristic → listen-verify."""
+    words, _phrases = _term_lexicon_maps(getattr(args, "term", []) or [])
+    allow = _allow_set(getattr(args, "allow", None))
+    seeds = set(PHONETIC_SEEDS)
+    for item in getattr(args, "seed", None) or []:
+        tok = item.strip()
+        if tok:
+            seeds.add(tok)
+    cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    hits = [f"cue {i}: {hit}" for i, cue in enumerate(cues, 1)
+            for hit in listen_verify_hits(
+                " ".join(cue["lines"]), words=words, allow=allow, seeds=seeds)]
+    return qc.report("listenverify", qc.FAIL if hits else qc.PASS, cues=len(cues), hits=hits)
+
+
+def _parse_mute_ranges(args) -> list[tuple[float, float]]:
+    mutes: list[tuple[float, float]] = []
+    if getattr(args, "mute", None):
+        for item in args.mute:
+            a, b = item.split(",", 1)
+            mutes.append((float(a), float(b)))
+    if getattr(args, "mutes", None):
+        raw = json.loads(Path(args.mutes).read_text(encoding="utf-8"))
+        if isinstance(raw, dict) and "mutes" in raw:
+            raw = raw["mutes"]
+        for m in raw:
+            if isinstance(m, (list, tuple)) and len(m) >= 2:
+                mutes.append((float(m[0]), float(m[1])))
+            elif isinstance(m, dict) and "start" in m:
+                mutes.append((float(m["start"]), float(m["end"])))
+    return mutes
+
+
+def cmd_mutesilent(qc, args) -> int:
+    """L38: declared mute ranges must measure silent on the mix."""
+    mutes = _parse_mute_ranges(args)
+    if not mutes:
+        return qc.report("mutesilent", qc.USAGE, error="pass --mute start,end and media")
+    thr = float(getattr(args, "thr", -40.0))
+    hop = float(getattr(args, "hop", 0.05))
+    speech = _speech_spans_rms(qc, args.media, thr=thr, hop=hop, min_speech=0.05)
+    hits: list[str] = []
+    for a, b in mutes:
+        if b <= a:
+            continue
+        for s, e in speech:
+            overlap = min(b, e) - max(a, s)
+            if overlap > 0.05:
+                hits.append(
+                    f"mute {a:.3f}-{b:.3f}s still has speech {s:.3f}-{e:.3f}s "
+                    f"(overlap {overlap:.3f}s)"
+                )
+                break
+    return qc.report(
+        "mutesilent",
+        qc.FAIL if hits else qc.PASS,
+        mutes=[{"start": a, "end": b} for a, b in mutes],
+        thr_dbfs=thr,
+        hits=hits,
+        note="mute ranges must be silent on the mix (L38)",
+    )
+
+
+_MUTED_PLACEHOLDER = re.compile(r"\[\s*muted\s*\]", re.IGNORECASE)
+
+
+def cmd_mutedburn(qc, args) -> int:
+    """L38: fail [muted] placeholders in cue text (SRT/VTT; no OCR/frames)."""
+    cues = qc.parse_cues(Path(args.file).read_text(encoding="utf-8"))
+    hits: list[str] = []
+    for i, cue in enumerate(cues, 1):
+        joined = " ".join(cue["lines"])
+        match = _MUTED_PLACEHOLDER.search(joined)
+        if match:
+            hits.append(
+                f"cue {i}: burned {match.group(0)!r} placeholder "
+                "(mute audio + redact text; cue-text only)"
+            )
+    return qc.report("mutedburn", qc.FAIL if hits else qc.PASS, cues=len(cues), hits=hits)
 
 
 def cmd_fadetail(qc, args) -> int:
@@ -3108,6 +3318,27 @@ def register(add, qc) -> None:
     p.add_argument("file")
     p.add_argument("--term", action="append", default=[], metavar="AR=LATIN",
                    help="extend placeholder lexicon (multiword AR allowed before =)")
+    p.add_argument("--allow", action="append", default=[], metavar="AR",
+                   help="L38 Egyptian loanword allowlist (stay Arabic)")
+    p = add("listenverify", bind(cmd_listenverify),
+            "L38: phonetic seeds + loan-shape heuristic → listen-verify")
+    p.add_argument("file")
+    p.add_argument("--term", action="append", default=[], metavar="AR=LATIN",
+                   help="known tech map (same as termlexicon)")
+    p.add_argument("--allow", action="append", default=[], metavar="AR",
+                   help="Egyptian loanword allowlist")
+    p.add_argument("--seed", action="append", default=[], metavar="AR",
+                   help="extra phonetic FN seeds")
+    p = add("mutesilent", bind(cmd_mutesilent),
+            "L38: declared mute ranges must be silent on the mix")
+    p.add_argument("media", help="wav/mp4 mix to measure")
+    p.add_argument("--mutes", default=None, help="JSON list of [start,end] or {mutes:[...]}")
+    p.add_argument("--mute", action="append", default=[], help="start,end seconds (repeatable)")
+    p.add_argument("--thr", type=float, default=-40.0, help="speech RMS threshold dBFS")
+    p.add_argument("--hop", type=float, default=0.05)
+    p = add("mutedburn", bind(cmd_mutedburn),
+            "L38: fail [muted] placeholders in cue text (SRT/VTT; no OCR)")
+    p.add_argument("file")
     p = add("fadetail", bind(cmd_fadetail), "tail fade clears the last spoken word")
     p.add_argument("--words", required=True)
     p.add_argument("--end", type=float, required=True)
