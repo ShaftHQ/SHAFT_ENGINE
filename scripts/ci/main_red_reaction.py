@@ -42,7 +42,7 @@ class Plan:
 
 
 def parse_jobs(lines: str) -> list[Job]:
-    """Parse ``gh api --jq`` JSON lines of ``{name, conclusion, html_url}``."""
+    """Parse legacy NDJSON lines of ``{name, conclusion, html_url}`` (tests / compat)."""
     jobs = []
     for line in lines.splitlines():
         if not line.strip():
@@ -119,23 +119,100 @@ class Runner:
             return ""
         completed = subprocess.run(  # nosec B603 - fixed argument vector, no shell.
             argv,
-            check=True,
+            check=False,
             capture_output=True,
             text=True,
             env={**os.environ, **(env or {})},
         )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout or "").strip()
+            raise subprocess.CalledProcessError(
+                completed.returncode,
+                argv,
+                output=completed.stdout,
+                stderr=detail,
+            )
         return completed.stdout.strip()
 
 
+def jobs_from_payload(payload: object) -> list[Job]:
+    """Parse a GitHub Actions jobs list JSON object (no ``gh --jq``)."""
+    jobs_raw: list[object]
+    if isinstance(payload, dict):
+        raw = payload.get("jobs")
+        jobs_raw = raw if isinstance(raw, list) else []
+    elif isinstance(payload, list):
+        jobs_raw = payload
+    else:
+        jobs_raw = []
+    parsed: list[Job] = []
+    for item in jobs_raw:
+        if not isinstance(item, dict):
+            continue
+        parsed.append(
+            Job(
+                str(item.get("name") or ""),
+                str(item.get("conclusion") or ""),
+                str(item.get("html_url") or item.get("url") or ""),
+            )
+        )
+    return parsed
+
+
+def _decode_concatenated_json(blob: str) -> list[object]:
+    """Decode one or more JSON values concatenated by ``gh api --paginate``."""
+    pages: list[object] = []
+    decoder = json.JSONDecoder()
+    idx = 0
+    length = len(blob)
+    while idx < length:
+        while idx < length and blob[idx].isspace():
+            idx += 1
+        if idx >= length:
+            break
+        page, end = decoder.raw_decode(blob, idx)
+        pages.append(page)
+        idx = end
+    return pages
+
+
 def fetch_jobs(runner: Runner, repo: str, run_id: str, attempt: str) -> list[Job]:
-    output = runner.run(
-        [
-            runner.gh, "api", "--paginate",
-            f"repos/{repo}/actions/runs/{run_id}/attempts/{attempt}/jobs",
-            "--jq", ".jobs[] | {name, conclusion, html_url}",
-        ]
-    )
-    return parse_jobs(output)
+    """
+    List jobs for one run attempt.
+
+    Parse JSON in Python. Avoid ``gh api --jq``: object-construction filters
+    combined with ``--paginate`` have crashed post-merge main runs and painted
+    the whole PR Gate red when every real leg was green.
+    """
+    endpoints = [
+        f"repos/{repo}/actions/runs/{run_id}/attempts/{attempt}/jobs?per_page=100",
+        f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100",
+    ]
+    errors: list[str] = []
+    for endpoint in endpoints:
+        try:
+            output = runner.run([runner.gh, "api", "--paginate", endpoint])
+        except subprocess.CalledProcessError as error:
+            detail = (error.stderr or error.output or "").strip() or str(error)
+            errors.append(f"{endpoint}: {detail}")
+            continue
+        blob = (output or "").strip()
+        if not blob:
+            errors.append(f"{endpoint}: empty body")
+            continue
+        try:
+            pages = _decode_concatenated_json(blob)
+        except json.JSONDecodeError as error:
+            errors.append(f"{endpoint}: JSON {error}")
+            continue
+        jobs: list[Job] = []
+        for page in pages:
+            jobs.extend(jobs_from_payload(page))
+        if jobs:
+            return jobs
+        errors.append(f"{endpoint}: no jobs in payload")
+    detail = "; ".join(errors) if errors else "no jobs returned"
+    raise RuntimeError(f"main-red-reaction: failed to list jobs ({detail})")
 
 
 def fetch_open_issues(runner: Runner, repo: str) -> dict[str, int]:
@@ -150,15 +227,23 @@ def fetch_open_issues(runner: Runner, repo: str) -> dict[str, int]:
 
 def originating_pr(runner: Runner, repo: str, sha: str) -> str:
     try:
-        output = runner.run(
-            [
-                runner.gh, "api", f"repos/{repo}/commits/{sha}/pulls",
-                "--jq", '.[0] | select(.) | "#\\(.number) \\(.title)"',
-            ]
-        )
+        output = runner.run([runner.gh, "api", f"repos/{repo}/commits/{sha}/pulls"])
     except subprocess.CalledProcessError:
         return ""
-    return output
+    try:
+        pulls = json.loads(output or "[]")
+    except json.JSONDecodeError:
+        return ""
+    if not isinstance(pulls, list) or not pulls:
+        return ""
+    first = pulls[0]
+    if not isinstance(first, dict):
+        return ""
+    number = first.get("number")
+    title = str(first.get("title") or "")
+    if number is None:
+        return ""
+    return f"#{number} {title}".strip()
 
 
 def apply_plan(runner: Runner, repo: str, plan: Plan, context: dict[str, str]) -> None:

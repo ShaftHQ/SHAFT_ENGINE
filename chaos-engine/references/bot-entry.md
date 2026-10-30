@@ -7,6 +7,10 @@ Projects, and any other independent bot. `AGENTS.md` is not read for you.
 ## No `.chaos-engine/` yet
 
 Install first: [harness maintenance](harness-maintenance.md#install).
+From an engine source checkout the installer is `chaos-engine/install.py`
+(with `--source <repo>/chaos-engine --commit <40-hex-sha>`). After install,
+doctor and `tool.py` use `.chaos-engine/install.py`. Tee install/doctor logs to
+`.chaos-engine-state/logs/` via `session_logs.log_path`, never workspace-root `*.log` files.
 
 ## Every task, before discovery
 
@@ -104,6 +108,15 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
   Details: [parallel streams](parallel-streams.md).
 - Keep tools and drafts outside `/tmp` (a box restore wipes it) and check
   `git ls-files -d` before each push.
+- **box-durability** (default entry/worker checklist):
+  1. Manual swap does not survive a restart. At entry after any restart, run
+     `free -h`; if swap is `0`, re-add it (`fallocate -l 8G /swapfile`,
+     `mkswap /swapfile`, `swapon /swapfile`, `sysctl vm.swappiness=10`).
+  2. Only `/workspace` survives Update Bot's Computer / recover / reset. Keep
+     all in-progress files, checkpoints, installs, and tool caches under
+     `/workspace` (never rely on `$HOME` alone for work product).
+  3. Update Bot's Computer runs only when no bot is busy — go idle when asked
+     so the update can proceed.
 
 ## Delivery ledger
 

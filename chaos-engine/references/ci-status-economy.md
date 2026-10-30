@@ -83,6 +83,10 @@ command, 404 mark); the candidate install still runs.
 - With a merge queue, `gh pr merge --auto` hands the PR to the queue. Then
   `autoMergeRequest` can read null while the PR is still queued. Check
   `mergeQueueEntry` in GraphQL before you re-arm it, and re-check after every push.
+- If an enqueue sits in `AWAITING_CHECKS` and no `merge_group` workflows have
+  started for that entry, dequeue and re-enqueue once (`gh api graphql` /
+  `dequeuePullRequest` then `enqueuePullRequest`). A stuck first enqueue can
+  leave the PR green-but-never-merged; the second enqueue usually starts PR Gate.
 - GitHub refuses an approval from the account that authored the PR. When a
   bot pushes as the owner's account, don't retry the approval. Rely on the
   required checks and the merge queue, and say in the report that no

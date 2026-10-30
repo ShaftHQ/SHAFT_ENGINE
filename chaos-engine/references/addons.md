@@ -31,7 +31,7 @@ automatically; removing an add-on that another selected add-on requires is
 refused and names the dependent. A later upgrade without flags keeps the
 recorded set. When the source lacks a recorded external add-on (the official
 one-liner downloads only the core tree), the installed copy is kept and the
-installer prints `addon kept: <name> (source not found)`. Extra add-on
+installer prints `addon kept: <name> (project-local; set CHAOS_ENGINE_ADDON_PATHS or reinstall with its source)`. That is expected for project-owned add-ons (for example `automatest-coach`) when this install run did not pass their source path; doctor also surfaces them as `stale-source`. Extra add-on
 directories can be named in `CHAOS_ENGINE_ADDON_PATHS`.
 
 ## Private add-ons

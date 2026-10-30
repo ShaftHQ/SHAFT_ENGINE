@@ -327,11 +327,14 @@ def upgrade_session(primary: Path, session: Path, *, repair_plugins: bool | None
     started = time.perf_counter()
     primary_ver = _read_version(primary)
     session_ver_before = _read_version(session)
-    written = materialize(primary, session)
-    # Tracked-tree path: if session has a git checkout of .chaos-engine that
-    # drifted, also try to reset CE-managed tracked files from primary via git
-    # when both are linked worktrees of the same repo (best-effort, non-fatal).
+    # Reconcile tracked host adapters the consumer never touched BEFORE
+    # materialize, so provenance refuses do not fire on stale worktree SHAs.
     _maybe_checkout_tracked_ce(primary, session)
+    # Gitignored overlay/agents (normal engine + consumer installs) are invisible
+    # to git checkout. Adopt their current hashes into the materialize manifest
+    # so stale CE-owned files upgrade instead of raising unknown provenance.
+    _adopt_ignored_ce_owned(primary, session)
+    written = materialize(primary, session)
     session_ver_after = _read_version(session)
     version_match = bool(primary_ver) and primary_ver == session_ver_after
     if repair_plugins is None:
@@ -354,35 +357,161 @@ def upgrade_session(primary: Path, session: Path, *, repair_plugins: bool | None
     }
 
 
-def _maybe_checkout_tracked_ce(primary: Path, session: Path) -> None:
-    """Best-effort: when CE is tracked, check out primary's TREE into the session worktree."""
+def _managed_checkout_paths(primary: Path) -> list[str]:
+    """Tracked CE overlay + host adapter paths safe to reset from primary HEAD."""
+    paths = [TREE, *SHARED_FILES]
+    for files in HOST_FILES.values():
+        paths.extend(files)
+    # Keep order stable and unique; only paths that exist on primary.
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for relative in paths:
+        if relative in seen:
+            continue
+        seen.add(relative)
+        if (primary / relative).exists():
+            ordered.append(relative)
+    return ordered
+
+
+def _path_has_local_edit(session: Path, relative: str) -> bool:
+    """True when the session worktree has an unstaged/staged edit on ``relative``."""
+    diff = _git(session, "diff", "--name-only", "HEAD", "--", relative)
+    cached = _git(session, "diff", "--name-only", "--cached", "--", relative)
+    dirty = set()
+    if diff:
+        dirty.update(line for line in diff.splitlines() if line.strip())
+    if cached:
+        dirty.update(line for line in cached.splitlines() if line.strip())
+    return bool(dirty)
+
+
+def _maybe_checkout_tracked_ce(primary: Path, session: Path) -> list[str]:
+    """
+    Reset tracked CE/host adapters from primary HEAD when the consumer never edited them.
+
+    Worktrees parked on an older SHA still carry tracked ``.chaos-engine/`` and
+    host adapters (for example ``.claude/agents/``). ``materialize`` would refuse
+    those as unknown provenance. Checking them out from primary HEAD first
+    reconciles consumer-untouched adapters; paths with local edits are skipped.
+    """
+    restored: list[str] = []
     if not (primary / TREE).is_dir():
-        return
+        return restored
     # Only when session is a linked worktree of the same primary.
     if primary_checkout(session) is None:
-        return
-    # Prefer copying already-materialized content; git checkout -f for tracked files
-    # matching TREE when the index knows them.
+        return restored
     top = _git(session, "rev-parse", "--show-toplevel")
     if not top:
-        return
-    # List tracked CE paths at primary HEAD and restore into session.
-    listed = _git(primary, "ls-files", TREE)
-    if not listed:
-        return
+        return restored
     sha = _git(primary, "rev-parse", "HEAD")
     if not sha:
-        return
+        return restored
     git = shutil.which("git")
     if git is None:
-        return
+        return restored
+    for relative in _managed_checkout_paths(primary):
+        # Skip paths the consumer edited in this worktree.
+        if _path_has_local_edit(session, relative):
+            continue
+        listed = _git(primary, "ls-files", relative)
+        if not listed:
+            continue
+        try:
+            result = subprocess.run(  # nosec B603
+                [git, "checkout", "-q", sha, "--", relative],
+                cwd=session, capture_output=True, text=True, timeout=60, check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        if result.returncode == 0:
+            restored.append(relative)
+    return restored
+
+
+
+def _ce_owned_upgrade_relatives(primary: Path) -> list[str]:
+    """CE-owned paths upgrade-session may reconcile when gitignored / untracked.
+
+    Covers the generated overlay (``.chaos-engine/**``, including
+    ``always-loaded-budget.json``) and ChaosEngine agent markdown under
+    ``.claude/agents`` / ``.codex/agents``. Consumer-editable shared files such
+    as ``AGENTS.md`` stay on the strict provenance path.
+    """
+    owned: list[str] = []
+    tree = primary / TREE
+    if tree.is_dir():
+        for item in _iter_source_files(tree):
+            owned.append(item.relative_to(primary).as_posix())
+    for agents_rel in (".claude/agents", ".codex/agents"):
+        agents = primary / agents_rel
+        if not agents.is_dir():
+            continue
+        for item in sorted(agents.glob("chaos-engine-*.md")):
+            if item.is_file():
+                owned.append(item.relative_to(primary).as_posix())
+    return owned
+
+
+def _path_is_ignored(session: Path, relative: str) -> bool:
+    """True when git reports ``relative`` ignored in ``session`` (or git unavailable)."""
+    git = shutil.which("git")
+    if git is None:
+        return True
     try:
-        subprocess.run(  # nosec B603
-            [git, "checkout", "-q", sha, "--", TREE],
-            cwd=session, capture_output=True, text=True, timeout=60, check=False,
+        result = subprocess.run(  # nosec B603
+            [git, "check-ignore", "-q", "--", relative],
+            cwd=session, capture_output=True, text=True, timeout=15, check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return
+        return True
+    if result.returncode == 0:
+        return True
+    # Not ignored: still treat as eligible when the path is absent from the index.
+    listed = _git(session, "ls-files", "--", relative)
+    return not listed
+
+
+def _adopt_ignored_ce_owned(primary: Path, session: Path) -> list[str]:
+    """Seed the materialize manifest for stale gitignored CE-owned session files.
+
+    When a worktree carries an older overlay (or agents) with no / lost
+    ``.overlay-materialize.json``, ``materialize`` would refuse unknown
+    provenance. Recording the current session hashes for CE-owned ignored
+    paths lets the existing stale-upgrade branch overwrite them from primary.
+    """
+    adopted: list[str] = []
+    if not (primary / TREE).is_dir():
+        return adopted
+    if primary_checkout(session) is None:
+        return adopted
+    manifest = _load_manifest(session)
+    dirty = False
+    for relative in _ce_owned_upgrade_relatives(primary):
+        source = primary / relative
+        dest = session / relative
+        if not source.is_file() or not dest.is_file():
+            continue
+        if not _path_is_ignored(session, relative):
+            continue
+        src_hash = _file_sha256(source)
+        dest_hash = _file_sha256(dest)
+        if dest_hash == src_hash:
+            if manifest.get(relative) != src_hash:
+                manifest[relative] = src_hash
+                dirty = True
+            continue
+        recorded = manifest.get(relative)
+        if recorded is None or dest_hash == recorded:
+            # Unknown or previously materialized stale CE content: adopt so
+            # materialize upgrades (dest_hash == recorded → copy from primary).
+            if recorded != dest_hash:
+                manifest[relative] = dest_hash
+                dirty = True
+            adopted.append(relative)
+    if dirty:
+        _save_manifest(session, manifest)
+    return adopted
 
 
 def _try_repair_hosts_light(session: Path) -> bool:

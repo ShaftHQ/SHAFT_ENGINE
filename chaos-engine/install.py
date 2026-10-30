@@ -668,7 +668,10 @@ def keep_installed_addons(project: Path, source: Path) -> list[str]:
         manifest.pop("include", None)
         (target / catalog.MANIFEST).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
         kept.append(name)
-        print(f"addon kept: {name} (source not found)", file=sys.stderr)
+        print(
+            f"addon kept: {name} (project-local; set CHAOS_ENGINE_ADDON_PATHS or reinstall with its source)",
+            file=sys.stderr,
+        )
     if kept:
         current_paths = os.environ.get(catalog.PATHS_ENVIRONMENT, "")
         os.environ[catalog.PATHS_ENVIRONMENT] = os.pathsep.join(filter(None, (current_paths, str(staging))))
@@ -7497,7 +7500,7 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
     return lines
 
 
-AGENT_SUMMARY_MAX_LINES = 11
+AGENT_SUMMARY_MAX_LINES = 14
 
 
 def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
@@ -7537,17 +7540,25 @@ def format_agent_summary(document: dict[str, object]) -> str:
     verdict = "pass" if str(document.get("status") or "") == "healthy" and _agent_summary_parts(document)[2] == "none" else "fail"
     name, status, drift = _agent_summary_parts(document)
     policy = str(document.get("policySha256") or "missing")
+    project = installed_project()
+    commit_bits = source_behind_advisory(project)
     lines = [
         f"doctor: {verdict}",
         f"component: {name} {status}",
         f"hash: {policy}",
         f"drift: {drift}",
-        "token-economy: " + " ".join(token_economy_status()),
-        "delete-guard: " + " ".join(delete_guard_status()),
-        "backup-remote: " + " ".join(backup_remote_advisory(installed_project())),
-        "backups-watch: " + " ".join(backups_watch_advisory()),
-        "secret-guard: " + " ".join(secret_guard_status(installed_project())),
     ]
+    if commit_bits:
+        lines.append(" ".join(commit_bits))
+    lines.extend(
+        [
+            "token-economy: " + " ".join(token_economy_status()),
+            "delete-guard: " + " ".join(delete_guard_status()),
+            "backup-remote: " + " ".join(backup_remote_advisory(project)),
+            "backups-watch: " + " ".join(backups_watch_advisory()),
+            "secret-guard: " + " ".join(secret_guard_status(project)),
+        ]
+    )
     if delete_guard_status()[0] != "pass" or lines[-1].startswith("secret-guard: fail"):
         lines[0] = "doctor: fail"
     kept = kept_addons_line(installed_project())
@@ -7892,12 +7903,120 @@ _HANDLED = object()
 
 
 
+
+def detect_repo_chaos_engine_source(project: Path) -> Path | None:
+    """Return ``<repo>/chaos-engine`` when the project sits in an engine source tree."""
+    root = Path(project).resolve()
+    for candidate in (root, *root.parents):
+        source = candidate / "chaos-engine"
+        if (source / "install.py").is_file() and (source / "VERSION").is_file():
+            return source
+        # Stop at filesystem root
+        if candidate.parent == candidate:
+            break
+    # install.py itself may be the source tree copy
+    here = Path(__file__).resolve().parent
+    if here.name == "chaos-engine" and (here / "VERSION").is_file():
+        return here
+    return None
+
+
+def detect_full_commit(project: Path) -> str | None:
+    """Return the 40-hex HEAD sha for ``project``, or None."""
+    git = shutil.which("git")
+    if not git:
+        return None
+    try:
+        completed = subprocess.run(  # nosec B603
+            [git, "-C", str(Path(project).resolve()), "rev-parse", "HEAD"],
+            capture_output=True, text=True, check=False, timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    sha = (completed.stdout or "").strip()
+    if completed.returncode == 0 and COMMIT_PATTERN.fullmatch(sha):
+        return sha
+    return None
+
+
+def apply_install_source_defaults(args: argparse.Namespace) -> None:
+    """Auto-detect ``--source <repo>/chaos-engine`` and ``--commit`` HEAD (40-hex)."""
+    if getattr(args, "from_bundle", None) is not None:
+        return
+    project = Path(getattr(args, "project", Path.cwd())).resolve()
+    if getattr(args, "source", None) is None:
+        detected = detect_repo_chaos_engine_source(project)
+        if detected is not None:
+            args.source = detected
+    if getattr(args, "commit", None) is None:
+        sha = detect_full_commit(project)
+        if sha is not None:
+            args.commit = sha
+
+
+def installed_commit_of(project: Path) -> str | None:
+    """Return the installed core commit from the overlay manifest, if any."""
+    try:
+        manifest = verify_install(Path(project) / INSTALL_DIRECTORY)
+    except Exception:  # nosec B110 - doctor advisory only
+        return None
+    source = manifest.get("source") if isinstance(manifest, dict) else None
+    if not isinstance(source, dict):
+        return None
+    commit = source.get("commit")
+    return commit if isinstance(commit, str) and COMMIT_PATTERN.fullmatch(commit) else None
+
+
+def source_behind_advisory(project: Path | None) -> tuple[str, ...]:
+    """
+    Doctor tip: installed commit vs CE source HEAD.
+
+    Only compares when ``<project>/…/chaos-engine`` exists as a source tree.
+    Never falls back to the consumer project HEAD (that false-positive "behind
+    source HEAD" after a ROG/consumer install). Installer ``__file__`` fallback
+    alone is not enough to claim a source HEAD.
+    """
+    if project is None:
+        return ()
+    installed = installed_commit_of(project)
+    if not installed:
+        return ()
+    source = detect_project_chaos_engine_source(project)
+    if source is None:
+        return ("commit:", installed[:12])
+    head = detect_full_commit(source)
+    if not head:
+        return ("commit:", installed[:12])
+    if installed == head:
+        return ("commit:", f"{installed[:12]} (matches source HEAD)")
+    return (
+        "commit:",
+        f"{installed[:12]} (behind source HEAD {head[:12]}; reinstall with "
+        f"--source <repo>/chaos-engine --commit {head})",
+    )
+
+
+def detect_project_chaos_engine_source(project: Path) -> Path | None:
+    """Return ``<repo>/chaos-engine`` walking from ``project`` only (no __file__)."""
+    root = Path(project).resolve()
+    for candidate in (root, *root.parents):
+        source = candidate / "chaos-engine"
+        if (source / "install.py").is_file() and (source / "VERSION").is_file():
+            return source
+        if candidate.parent == candidate:
+            break
+    return None
+
+
 def _local_source_required_message() -> str:
     """#7487: name the local-source flags; a bare --commit is not enough."""
     return (
-        "install needs --source and --commit, or --from-bundle. "
-        "Local example: python3 .chaos-engine/install.py install --project . "
-        "--consumer --source ../ce-src/chaos-engine --commit <40-hex-sha>"
+        "install needs --source <repo>/chaos-engine --commit <40-hex-sha>, or --from-bundle. "
+        "Example (detached source worktree): "
+        "git worktree add -f --detach ../ce-src <sha> && "
+        "python3 chaos-engine/install.py install --project . --consumer "
+        "--source ../ce-src/chaos-engine --commit <sha>. "
+        "After install, doctor/tool use .chaos-engine/install.py."
     )
 
 
@@ -7907,8 +8026,10 @@ def _run_install_command(args, requested, removed) -> object:
         args.source, args.commit = extract_bundle(
             args.from_bundle, Path(tempfile.mkdtemp(prefix="chaos-engine-bundle-")) / "chaos-engine"
         )
-    elif args.source is None or args.commit is None:
-        raise ValueError(_local_source_required_message())
+    else:
+        apply_install_source_defaults(args)
+        if args.source is None or args.commit is None:
+            raise ValueError(_local_source_required_message())
     refusal = linked_worktree_refusal(args.project)
     if refusal:
         raise RuntimeError(refusal)

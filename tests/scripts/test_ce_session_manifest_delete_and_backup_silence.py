@@ -473,24 +473,64 @@ class CeRestoreTest(unittest.TestCase):
 
 
 class BackupRemoteSilenceTest(unittest.TestCase):
-    def test_consumer_mode_still_warns_7263(self) -> None:
-        """#7263 contract: consumer mode hides harness state → warn, not silence."""
+    def _repo_with_upstream(self, project: Path) -> Path:
+        git = shutil.which("git")
+        assert git is not None
+        _git_repo(project)
+        bare = project.parent / (project.name + "-bare.git")
+        subprocess.run([git, "init", "--bare", "-q", str(bare)], check=True, capture_output=True)  # nosec B603
+        subprocess.run(  # nosec B603
+            [git, "remote", "add", "origin", str(bare)],
+            cwd=project, check=True, capture_output=True,
+        )
+        subprocess.run(  # nosec B603
+            [git, "push", "-u", "origin", "HEAD"],
+            cwd=project, check=True, capture_output=True,
+        )
+        return project
+
+    def test_consumer_mode_clean_is_silent(self) -> None:
+        """Consumer mode no longer warns just for being consumer; clean + upstream → silence."""
         dg = load()
         with tempfile.TemporaryDirectory() as temporary:
-            project = Path(temporary)
+            project = Path(temporary) / "repo"
+            project.mkdir()
             marker = project / dg.CONSUMER_MARKER
             marker.parent.mkdir(parents=True)
             marker.write_text("consumer\n", encoding="utf-8")
-            _git_repo(project)
-            self.assertEqual(
-                "consumer mode hides harness state from git",
-                dg.backup_remote_issue(project),
-            )
+            self._repo_with_upstream(project)
+            self.assertEqual("", dg.backup_remote_issue(project))
+
+    def test_ce_only_dirt_silent_on_primary(self) -> None:
+        dg = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "repo"
+            project.mkdir()
+            self._repo_with_upstream(project)
+            ce = project / ".chaos-engine"
+            ce.mkdir()
+            (ce / "VERSION").write_text("x\n", encoding="utf-8")
+            self.assertEqual("", dg.backup_remote_issue(project))
+
+    def test_non_ce_dirt_still_warns(self) -> None:
+        dg = load()
+        with tempfile.TemporaryDirectory() as temporary:
+            project = Path(temporary) / "repo"
+            project.mkdir()
+            marker = project / dg.CONSUMER_MARKER
+            marker.parent.mkdir(parents=True)
+            marker.write_text("consumer\n", encoding="utf-8")
+            self._repo_with_upstream(project)
+            (project / "notes.txt").write_text("x\n", encoding="utf-8")
+            self.assertEqual("uncommitted files", dg.backup_remote_issue(project))
 
     def test_only_ce_dirt_helper(self) -> None:
         dg = load()
         self.assertTrue(
             dg._only_chaos_engine_dirt(" M .chaos-engine/tool.py\n?? .chaos-engine/VERSION\n")
+        )
+        self.assertTrue(
+            dg._only_chaos_engine_dirt("?? .chaos-engine-state/consumer-mode\n")
         )
         self.assertFalse(
             dg._only_chaos_engine_dirt(" M README.md\n M .chaos-engine/tool.py\n")

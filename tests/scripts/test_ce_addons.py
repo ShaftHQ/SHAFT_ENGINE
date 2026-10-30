@@ -1187,7 +1187,7 @@ class KeptExternalAddonTests_7248(unittest.TestCase):
                 os.environ.pop(catalog.PATHS_ENVIRONMENT, None)
                 _, addons = install.plan_install(project, CE, set(), set(), environ={})
                 self.assertIn("ext-coach", addons)
-                self.assertIn("addon kept: ext-coach (source not found)", stderr.getvalue())
+                self.assertIn("addon kept: ext-coach (project-local; set CHAOS_ENGINE_ADDON_PATHS or reinstall with its source)", stderr.getvalue())
                 relatives = {
                     install.payload_relative(CE, path).as_posix()
                     for path in install.addon_source_files(CE, "portable", ("ext-coach",))

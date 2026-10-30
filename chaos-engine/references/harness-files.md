@@ -31,7 +31,7 @@ unless a file below is the subject of the task.
 
 ## top-level
 
-[INSTALL.md](../INSTALL.md), [README.md](../README.md), [RESEARCH.md](../RESEARCH.md), [STANDALONE.md](../STANDALONE.md), [addon_catalog.py](../addon_catalog.py), [consumer_mode.py](../consumer_mode.py), [decision-quality-baseline.md](../decision-quality-baseline.md), [decision-quality-calibration.aggregate.json](../decision-quality-calibration.aggregate.json), [decision-quality-calibration.md](../decision-quality-calibration.md), [decision-quality-report.md](../decision-quality-report.md), [decision-quality-rubric.md](../decision-quality-rubric.md), [decision-quality-score.baseline.json](../decision-quality-score.baseline.json), [distributions.json](../distributions.json), [install.ps1](../install.ps1), [install.sh](../install.sh), [tool.py](../tool.py).
+[INSTALL.md](../INSTALL.md), [README.md](../README.md), [RESEARCH.md](../RESEARCH.md), [STANDALONE.md](../STANDALONE.md), [addon_catalog.py](../addon_catalog.py), [consumer_mode.py](../consumer_mode.py), [session_logs.py](../session_logs.py), [decision-quality-baseline.md](../decision-quality-baseline.md), [decision-quality-calibration.aggregate.json](../decision-quality-calibration.aggregate.json), [decision-quality-calibration.md](../decision-quality-calibration.md), [decision-quality-report.md](../decision-quality-report.md), [decision-quality-rubric.md](../decision-quality-rubric.md), [decision-quality-score.baseline.json](../decision-quality-score.baseline.json), [distributions.json](../distributions.json), [install.ps1](../install.ps1), [install.sh](../install.sh), [tool.py](../tool.py).
 
 ## vendor
 

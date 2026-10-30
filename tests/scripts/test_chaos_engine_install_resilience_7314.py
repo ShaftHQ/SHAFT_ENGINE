@@ -248,7 +248,7 @@ class ConsumerTrackedCore(Temp):
                 redirect_stderr(StringIO()) as err:
             INSTALL.report_consumer_tracked_core(self.root, result)
         self.assertEqual(result["consumerMode"]["trackedCore"], 1)
-        self.assertIn("git rm -r --cached .chaos-engine", err.getvalue())
+        self.assertIn("git rm --cached -r .chaos-engine", err.getvalue())
 
     def test_untracked_core_is_silent(self):
         subprocess.run([GIT, "-C", str(self.root), "init", "-q"], check=True)  # nosec B603

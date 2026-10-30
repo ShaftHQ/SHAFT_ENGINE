@@ -88,6 +88,30 @@ def entry_bundle(installed_root: Path, opt_out: str = "") -> str:
     return "\n".join(parts)
 
 
+def entry_identity_line(installed_root: Path) -> str:
+    """Repo-local ChaosEngine git identity outside allowed remotes → one warning line."""
+    path = installed_root / "commit_identity.py"
+    if not path.is_file():
+        # Source-tree layout during development.
+        alt = installed_root.parent / "chaos-engine" / "commit_identity.py"
+        path = alt if alt.is_file() else path
+    if not path.is_file():
+        return ""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("_ce_commit_identity_entry", path)
+    if spec is None or spec.loader is None:
+        return ""
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except Exception:  # nosec B110 - entry must not crash
+        return ""
+    project = installed_root.parent if installed_root.name == ".chaos-engine" else installed_root
+    warn = module.entry_identity_warning(project)
+    return (warn + "\n") if warn else ""
+
+
 def entry_output(installed_root: Path, full: bool = False, opt_out: str = "") -> str:
     """Installed re-runs print one line while the bundle is unchanged (token economy)."""
     bundle = entry_bundle(installed_root, opt_out)
@@ -99,13 +123,14 @@ def entry_output(installed_root: Path, full: bool = False, opt_out: str = "") ->
         unchanged = stamp.read_text(encoding="utf-8").split(" ", 1)[0].strip() == digest
     except OSError:
         unchanged = False
+    identity = entry_identity_line(installed_root)
     if unchanged and not full:
-        return (
+        return identity + (
             f"ChaosEngine entry unchanged ({digest}); new conversation, context summary, or cards not in context: "
             "run `python3 .chaos-engine/tool.py entry --full`.\n"
         )
     write_entry_stamp(installed_root, opt_out, digest)
-    return bundle
+    return identity + bundle
 
 
 def write_entry_stamp(installed_root: Path, opt_out: str = "", digest: str = "") -> None:

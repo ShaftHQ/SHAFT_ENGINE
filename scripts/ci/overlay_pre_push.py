@@ -348,7 +348,7 @@ CHEAP_CI_CONTRACTS = (
      "HarnessMapTests.test_map_is_fresh"),
     (lambda p: p == "chaos-engine/delete_guard.py",
      "tests.scripts.test_chaos_engine_delete_guard_7251",
-     "DeleteGuardTest.test_backup_remote_warns_in_consumer_mode"),
+     "DeleteGuardTest.test_backup_remote_silent_in_consumer_mode"),
     (lambda p: p in {"chaos-engine/worktree_overlay.py", "chaos-engine/install.py"},
      "tests.scripts.test_policy_overlay_repair",
      "PolicyOverlayRepairTest.test_linked_worktree_repair_names_the_materialize_fix"),

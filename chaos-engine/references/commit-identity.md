@@ -22,7 +22,10 @@ user-guide automation clear without leaking the bot identity elsewhere.
 commit that sets ChaosEngine as author. Worker briefs inherit this default.
 `assert_chaosengine_author_allowed(project)` in
 `chaos-engine/commit_identity.py` refuses ChaosEngine authorship on any
-other remote.
+other remote. At entry, `entry_identity_warning(project)` also inspects
+repo-local `user.name` / `user.email`: when they are ChaosEngine and
+origin is outside `allowed_remotes()`, entry prints a warning so the
+misconfiguration is fixed before more commits land.
 
 ## Follow-up
 
