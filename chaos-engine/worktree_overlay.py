@@ -330,7 +330,7 @@ def upgrade_session(primary: Path, session: Path, *, repair_plugins: bool | None
     # Reconcile tracked host adapters the consumer never touched BEFORE
     # materialize, so provenance refuses do not fire on stale worktree SHAs.
     _maybe_checkout_tracked_ce(primary, session)
-    # Gitignored overlay/agents (normal SHAFT + consumer installs) are invisible
+    # Gitignored overlay/agents (normal engine + consumer installs) are invisible
     # to git checkout. Adopt their current hashes into the materialize manifest
     # so stale CE-owned files upgrade instead of raising unknown provenance.
     _adopt_ignored_ce_owned(primary, session)
