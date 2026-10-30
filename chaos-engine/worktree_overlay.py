@@ -330,6 +330,10 @@ def upgrade_session(primary: Path, session: Path, *, repair_plugins: bool | None
     # Reconcile tracked host adapters the consumer never touched BEFORE
     # materialize, so provenance refuses do not fire on stale worktree SHAs.
     _maybe_checkout_tracked_ce(primary, session)
+    # Gitignored overlay/agents (normal SHAFT + consumer installs) are invisible
+    # to git checkout. Adopt their current hashes into the materialize manifest
+    # so stale CE-owned files upgrade instead of raising unknown provenance.
+    _adopt_ignored_ce_owned(primary, session)
     written = materialize(primary, session)
     session_ver_after = _read_version(session)
     version_match = bool(primary_ver) and primary_ver == session_ver_after
@@ -423,6 +427,91 @@ def _maybe_checkout_tracked_ce(primary: Path, session: Path) -> list[str]:
         if result.returncode == 0:
             restored.append(relative)
     return restored
+
+
+
+def _ce_owned_upgrade_relatives(primary: Path) -> list[str]:
+    """CE-owned paths upgrade-session may reconcile when gitignored / untracked.
+
+    Covers the generated overlay (``.chaos-engine/**``, including
+    ``always-loaded-budget.json``) and ChaosEngine agent markdown under
+    ``.claude/agents`` / ``.codex/agents``. Consumer-editable shared files such
+    as ``AGENTS.md`` stay on the strict provenance path.
+    """
+    owned: list[str] = []
+    tree = primary / TREE
+    if tree.is_dir():
+        for item in _iter_source_files(tree):
+            owned.append(item.relative_to(primary).as_posix())
+    for agents_rel in (".claude/agents", ".codex/agents"):
+        agents = primary / agents_rel
+        if not agents.is_dir():
+            continue
+        for item in sorted(agents.glob("chaos-engine-*.md")):
+            if item.is_file():
+                owned.append(item.relative_to(primary).as_posix())
+    return owned
+
+
+def _path_is_ignored(session: Path, relative: str) -> bool:
+    """True when git reports ``relative`` ignored in ``session`` (or git unavailable)."""
+    git = shutil.which("git")
+    if git is None:
+        return True
+    try:
+        result = subprocess.run(  # nosec B603
+            [git, "check-ignore", "-q", "--", relative],
+            cwd=session, capture_output=True, text=True, timeout=15, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return True
+    if result.returncode == 0:
+        return True
+    # Not ignored: still treat as eligible when the path is absent from the index.
+    listed = _git(session, "ls-files", "--", relative)
+    return not listed
+
+
+def _adopt_ignored_ce_owned(primary: Path, session: Path) -> list[str]:
+    """Seed the materialize manifest for stale gitignored CE-owned session files.
+
+    When a worktree carries an older overlay (or agents) with no / lost
+    ``.overlay-materialize.json``, ``materialize`` would refuse unknown
+    provenance. Recording the current session hashes for CE-owned ignored
+    paths lets the existing stale-upgrade branch overwrite them from primary.
+    """
+    adopted: list[str] = []
+    if not (primary / TREE).is_dir():
+        return adopted
+    if primary_checkout(session) is None:
+        return adopted
+    manifest = _load_manifest(session)
+    dirty = False
+    for relative in _ce_owned_upgrade_relatives(primary):
+        source = primary / relative
+        dest = session / relative
+        if not source.is_file() or not dest.is_file():
+            continue
+        if not _path_is_ignored(session, relative):
+            continue
+        src_hash = _file_sha256(source)
+        dest_hash = _file_sha256(dest)
+        if dest_hash == src_hash:
+            if manifest.get(relative) != src_hash:
+                manifest[relative] = src_hash
+                dirty = True
+            continue
+        recorded = manifest.get(relative)
+        if recorded is None or dest_hash == recorded:
+            # Unknown or previously materialized stale CE content: adopt so
+            # materialize upgrades (dest_hash == recorded → copy from primary).
+            if recorded != dest_hash:
+                manifest[relative] = dest_hash
+                dirty = True
+            adopted.append(relative)
+    if dirty:
+        _save_manifest(session, manifest)
+    return adopted
 
 
 def _try_repair_hosts_light(session: Path) -> bool:
