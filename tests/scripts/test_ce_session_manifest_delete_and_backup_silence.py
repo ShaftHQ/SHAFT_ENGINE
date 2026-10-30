@@ -67,22 +67,35 @@ class SessionManifestDeleteTest(unittest.TestCase):
         path.mkdir()
         return path
 
+    def _init_manifest(self, scoped: Path, roots: list | None = None) -> Path:
+        """Session-start inventory before creating recordable files."""
+        dg = self.dg
+        manifest = scoped / "created-paths.json"
+        os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
+        os.environ.pop(dg.SESSION_CONTAINMENT_ROOTS_ENV, None)
+        os.environ.pop(dg.SESSION_WORKTREE_ENV, None)
+        root_list = roots if roots is not None else [scoped]
+        dg.init_session_created_manifest(manifest=manifest, roots=root_list)
+        return manifest
+
     def test_manifest_path_allowed_without_code(self) -> None:
         dg = self.dg
         scoped = self._scratch() / "scoped"
         scoped.mkdir()
-        target = scoped / "session-log.txt"
-        target.write_text("log\n", encoding="utf-8")
+        # Pre-existing sibling must not be recordable; init before creates.
         other = scoped / "other.txt"
         other.write_text("x\n", encoding="utf-8")
-        manifest = scoped / "created-paths.json"
-        os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
-        os.environ[dg.SESSION_CONTAINMENT_ROOTS_ENV] = str(scoped)
+        manifest = self._init_manifest(scoped)
+        target = scoped / "session-log.txt"
+        target.write_text("log\n", encoding="utf-8")
         dg.record_session_created_paths([target], manifest=manifest, roots=[scoped])
         self.assertTrue(dg.session_created_allows(target, manifest=manifest))
         self.assertEqual("", dg.path_reason(target))
         reason = dg.path_reason(other)
         self.assertNotEqual("", reason)
+        with self.assertRaises(PermissionError) as ctx:
+            dg.record_session_created_paths([other], manifest=manifest, roots=[scoped])
+        self.assertIn("pre-existing", str(ctx.exception).casefold())
 
     def test_forged_manifest_rejected(self) -> None:
         dg = self.dg
@@ -122,12 +135,11 @@ class SessionManifestDeleteTest(unittest.TestCase):
         dg = self.dg
         scoped = self._scratch() / "scoped"
         scoped.mkdir()
+        manifest = self._init_manifest(scoped)
         real = scoped / "real.txt"
         real.write_text("x\n", encoding="utf-8")
         link = scoped / "link.txt"
         link.symlink_to(real)
-        manifest = scoped / "created-paths.json"
-        os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
         with self.assertRaises(PermissionError) as ctx:
             dg.record_session_created_paths([link], manifest=manifest, roots=[scoped])
         self.assertIn("symlink", str(ctx.exception).casefold())
@@ -216,14 +228,11 @@ class SessionManifestDeleteTest(unittest.TestCase):
         dg = self.dg
         scoped = self._scratch() / "scoped"
         scoped.mkdir()
-        legit = scoped / "ok.txt"
-        legit.write_text("ok\n", encoding="utf-8")
-        manifest = scoped / "created-paths.json"
-        os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
-        os.environ.pop(dg.SESSION_CONTAINMENT_ROOTS_ENV, None)
-        os.environ.pop(dg.SESSION_WORKTREE_ENV, None)
         # Drop env HMAC so a real XDG key is created (stealable).
         os.environ.pop(dg.SESSION_MANIFEST_HMAC_ENV, None)
+        manifest = self._init_manifest(scoped)
+        legit = scoped / "ok.txt"
+        legit.write_text("ok\n", encoding="utf-8")
         dg.record_session_created_paths([legit], manifest=manifest, roots=[scoped])
         key_path = dg._session_hmac_key_path(manifest)
         self.assertTrue(key_path.is_file())
@@ -247,11 +256,9 @@ class SessionManifestDeleteTest(unittest.TestCase):
         dg = self.dg
         scoped = self._scratch() / "scoped"
         scoped.mkdir()
+        manifest = self._init_manifest(scoped)
         target = scoped / "session-log.txt"
         target.write_text("log\n", encoding="utf-8")
-        manifest = scoped / "created-paths.json"
-        os.environ[dg.SESSION_CREATED_MANIFEST_ENV] = str(manifest)
-        os.environ.pop(dg.SESSION_CONTAINMENT_ROOTS_ENV, None)
         dg.record_session_created_paths([target], manifest=manifest, roots=[scoped])
         self.assertTrue(dg.session_created_allows(target, manifest=manifest))
         # Attacker widens env after record; delete-time floor re-check still scopes.
@@ -261,8 +268,83 @@ class SessionManifestDeleteTest(unittest.TestCase):
         reason, _ = dg.check("rm -f -- /etc/hosts", cwd=scoped)
         self.assertTrue(reason)
 
+    def test_D_worktree_hint_cannot_expand_floor_for_foreign_untracked(self) -> None:
+        """B1-R2 exploit D: CHAOS_SESSION_WORKTREE must not add a foreign floor."""
+        dg = self.dg
+        scoped = self._scratch() / "scoped"
+        scoped.mkdir()
+        foreign = self._scratch() / "foreign-wt"
+        foreign.mkdir()
+        _git_repo(foreign)
+        victim = foreign / "preexist-untracked.txt"
+        victim.write_text("preexist\n", encoding="utf-8")
+        manifest = self._init_manifest(scoped)
+        os.environ[dg.SESSION_WORKTREE_ENV] = str(foreign)
+        floors = dg._floor_containment_roots(manifest)
+        self.assertNotIn(foreign.resolve(), floors)
+        with self.assertRaises(PermissionError) as ctx:
+            dg.record_session_created_paths([victim], manifest=manifest, roots=[scoped])
+        self.assertIn("containment", str(ctx.exception).casefold())
+        self.assertFalse(dg.session_created_allows(victim, manifest=manifest))
+        reason, _ = dg.check(f"rm -f -- {victim}", cwd=scoped)
+        self.assertTrue(reason, reason)
+
+    def test_D_GIT_DIR_cannot_expand_floor_for_foreign_repo(self) -> None:
+        """B1-R2 exploit D-GIT_DIR: scrubbed GIT_DIR/GIT_WORK_TREE cannot widen floors."""
+        dg = self.dg
+        scoped = self._scratch() / "scoped"
+        scoped.mkdir()
+        foreign = self._scratch() / "foreign-gitdir"
+        foreign.mkdir()
+        _git_repo(foreign)
+        victim = foreign / "README"
+        manifest = self._init_manifest(scoped)
+        with mock.patch.dict(
+            os.environ,
+            {
+                "GIT_DIR": str(foreign / ".git"),
+                "GIT_WORK_TREE": str(foreign),
+            },
+            clear=False,
+        ):
+            floors = dg._floor_containment_roots(manifest)
+            self.assertNotIn(foreign.resolve(), [Path(p).resolve() for p in floors])
+            with self.assertRaises(PermissionError) as ctx:
+                dg.record_session_created_paths([victim], manifest=manifest, roots=[scoped])
+            self.assertIn("containment", str(ctx.exception).casefold())
+            self.assertFalse(dg.session_created_allows(victim, manifest=manifest))
+            # Direct discover under env must still scrub inside _git.
+            top = dg._discover_git_toplevel(hint=scoped)
+            if top is not None:
+                self.assertNotEqual(top.resolve(), foreign.resolve())
+
+    def test_preexisting_untracked_launder_refused(self) -> None:
+        """Record cannot launder a file that existed before session start."""
+        dg = self.dg
+        scoped = self._scratch() / "scoped"
+        scoped.mkdir()
+        preexist = scoped / "already-here.txt"
+        preexist.write_text("old\n", encoding="utf-8")
+        manifest = self._init_manifest(scoped)
+        with self.assertRaises(PermissionError) as ctx:
+            dg.record_session_created_paths([preexist], manifest=manifest, roots=[scoped])
+        self.assertIn("pre-existing", str(ctx.exception).casefold())
+        self.assertFalse(dg.session_created_allows(preexist, manifest=manifest))
+        # path_reason must still hit git/outside refusal — not session short-circuit.
+        reason = dg.path_reason(preexist)
+        self.assertNotEqual("", reason)
+        reason2, _ = dg.check(f"rm -f -- {preexist}", cwd=scoped)
+        self.assertTrue(reason2, reason2)
+        # Freshly created after init still records.
+        fresh = scoped / "fresh.txt"
+        fresh.write_text("new\n", encoding="utf-8")
+        dg.record_session_created_paths([fresh], manifest=manifest, roots=[scoped])
+        self.assertTrue(dg.session_created_allows(fresh, manifest=manifest))
+        self.assertEqual("", dg.path_reason(fresh))
+
 
 class CeRestoreTest(unittest.TestCase):
+
     def setUp(self) -> None:
         self.dg = load()
         self._temp = tempfile.TemporaryDirectory()
