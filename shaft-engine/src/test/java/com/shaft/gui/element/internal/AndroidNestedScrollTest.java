@@ -69,6 +69,56 @@ public class AndroidNestedScrollTest {
         Assert.assertFalse(AndroidNestedScroll.looksLikeNestedScroll(null));
     }
 
+
+    @Test
+    public void diagnosisIsNullWhenTargetLooksFine() {
+        AndroidNestedScroll.TargetPresence presence =
+                new AndroidNestedScroll.TargetPresence(true, 10, 20, 100, 50);
+        Assert.assertFalse(presence.clippedOutOfView());
+        Assert.assertNull(presence.diagnosis());
+    }
+
+    @Test
+    public void inspectTreatsDisplayAndRectFailuresAsClipped() {
+        WebElement displayFails = mock(WebElement.class);
+        when(displayFails.isDisplayed()).thenThrow(new RuntimeException("stale"));
+        when(displayFails.getRect()).thenReturn(new Rectangle(1, 2, 3, 4));
+        AndroidNestedScroll.TargetPresence fromDisplay = AndroidNestedScroll.inspect(displayFails);
+        Assert.assertFalse(fromDisplay.displayed());
+        Assert.assertEquals(fromDisplay.width(), 4);
+
+        WebElement rectFails = mock(WebElement.class);
+        when(rectFails.isDisplayed()).thenReturn(true);
+        when(rectFails.getRect()).thenThrow(new RuntimeException("gone"));
+        AndroidNestedScroll.TargetPresence fromRect = AndroidNestedScroll.inspect(rectFails);
+        Assert.assertTrue(fromRect.invertedOrEmpty());
+        Assert.assertTrue(fromRect.diagnosis().contains("inverted / non-displayed"));
+    }
+
+    @Test
+    public void resourceIdFallsBackWhenDomAttributeBlankOrThrows() {
+        WebElement blankDom = mock(WebElement.class);
+        when(blankDom.getDomAttribute("resource-id")).thenReturn("  ");
+        when(blankDom.getAttribute("resource-id")).thenReturn("app:id/fromAttribute");
+        Assert.assertEquals(AndroidNestedScroll.resourceId(blankDom), "app:id/fromAttribute");
+
+        WebElement nullAttr = mock(WebElement.class);
+        when(nullAttr.getDomAttribute("resource-id")).thenThrow(new RuntimeException("dom"));
+        when(nullAttr.getAttribute("resource-id")).thenReturn(null);
+        Assert.assertEquals(AndroidNestedScroll.resourceId(nullAttr), "");
+
+        WebElement bothFail = mock(WebElement.class);
+        when(bothFail.getDomAttribute("resource-id")).thenThrow(new RuntimeException("dom"));
+        when(bothFail.getAttribute("resource-id")).thenThrow(new RuntimeException("attr"));
+        Assert.assertEquals(AndroidNestedScroll.resourceId(bothFail), "");
+    }
+
+    @Test
+    public void pickScrollableSkipsCandidatesFullyOutsideScreen() {
+        WebElement outside = scrollable("app:id/nestedScrollView", 2000, 3000, 100, 100, true);
+        Assert.assertNull(AndroidNestedScroll.pickScrollable(List.of(outside), 1080, 2400));
+    }
+
     private static WebElement scrollable(String resourceId, int x, int y, int width, int height, boolean displayed) {
         WebElement element = mock(WebElement.class);
         when(element.isDisplayed()).thenReturn(displayed);

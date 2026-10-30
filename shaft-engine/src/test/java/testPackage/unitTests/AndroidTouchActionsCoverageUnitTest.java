@@ -1121,6 +1121,73 @@ public class AndroidTouchActionsCoverageUnitTest {
         verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
     }
 
+
+
+    @Test
+    public void tryRecoverReturnsFalseOnNonAndroidDriver() throws Exception {
+        IOSDriver iosDriver = createMockIOSDriver();
+        TouchActions touchActions = new TouchActions(iosDriver);
+        Method tryRecover = TouchActions.class.getDeclaredMethod(
+                "tryRecoverAndroidNestedScrollable",
+                By.class, WebElement[].class, TouchActions.SwipeDirection[].class,
+                boolean[].class, boolean[].class, java.util.concurrent.atomic.AtomicBoolean.class,
+                TouchActions.SwipeDirection.class);
+        tryRecover.setAccessible(true);
+        boolean recovered = (boolean) tryRecover.invoke(
+                touchActions,
+                null,
+                new WebElement[]{null},
+                new TouchActions.SwipeDirection[]{TouchActions.SwipeDirection.DOWN},
+                new boolean[]{false},
+                new boolean[]{false},
+                new java.util.concurrent.atomic.AtomicBoolean(true),
+                TouchActions.SwipeDirection.DOWN);
+        Assert.assertFalse(recovered);
+    }
+
+    @Test
+    public void describeClippedSwipeTargetReturnsNullForNullLocator() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        Method describe = TouchActions.class.getDeclaredMethod("describeClippedSwipeTarget", By.class);
+        describe.setAccessible(true);
+        Assert.assertNull(describe.invoke(touchActions, new Object[]{null}));
+
+        Method noMovement = TouchActions.class.getDeclaredMethod("noMovementFailureMessage", By.class);
+        noMovement.setAccessible(true);
+        Assert.assertEquals(noMovement.invoke(touchActions, new Object[]{null}),
+                "Element not found; scrolling did not move the scrollable.");
+    }
+
+    @Test
+    public void prepareAndroidElementScrollParametersCoversHorizontalDirections() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper helper = mock(ElementActionsHelper.class);
+        RemoteWebElement scrollable = mock(RemoteWebElement.class);
+        when(scrollable.getId()).thenReturn("tray-id");
+        when(scrollable.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 400, 300));
+        when(helper.identifyUniqueElement(any(), eq(By.id("tray")))).thenReturn(List.of("tray", scrollable));
+        injectElementActionsHelper(touchActions, helper);
+
+        Method prepareParameters = TouchActions.class.getDeclaredMethod(
+                "prepareParameters", TouchActions.SwipeDirection.class, By.class, By.class);
+        prepareParameters.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> right = (Map<Object, Object>) prepareParameters.invoke(
+                touchActions, TouchActions.SwipeDirection.RIGHT, By.id("tray"), By.id("target"));
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> left = (Map<Object, Object>) prepareParameters.invoke(
+                touchActions, TouchActions.SwipeDirection.LEFT, By.id("tray"), By.id("target"));
+
+        Assert.assertEquals(right.get("direction"), "right");
+        Assert.assertEquals(right.get("elementId"), "tray-id");
+        Assert.assertEquals(left.get("direction"), "left");
+        Assert.assertEquals(left.get("elementId"), "tray-id");
+        Assert.assertTrue(((Number) left.get("left")).intValue() > ((Number) right.get("left")).intValue(),
+                "LEFT gesture starts further right than RIGHT: left=" + left + " right=" + right);
+    }
+
     @Test
     public void composeClippedTargetRecoversViaNestedScrollable() throws Exception {
         AndroidDriver driver = createMockAndroidDriver();

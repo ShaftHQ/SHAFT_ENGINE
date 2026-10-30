@@ -116,12 +116,7 @@ public final class AndroidNestedScroll {
     }
 
     private static Scored score(WebElement element, int screenWidth, int screenHeight) {
-        TargetPresence presence;
-        try {
-            presence = inspect(element);
-        } catch (RuntimeException ignored) {
-            return null;
-        }
+        TargetPresence presence = inspect(element);
         if (!presence.displayed() || presence.invertedOrEmpty()) {
             return null;
         }
