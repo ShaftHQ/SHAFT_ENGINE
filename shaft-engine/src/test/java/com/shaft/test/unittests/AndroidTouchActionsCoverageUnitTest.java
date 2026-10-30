@@ -1,0 +1,1558 @@
+package com.shaft.test.unittests;
+
+import com.shaft.driver.SHAFT;
+import com.shaft.driver.internal.DriverFactory.DriverFactoryHelper;
+import com.shaft.driver.internal.FluentWebDriverAction;
+import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.image.ImageMatchingMode;
+import com.shaft.gui.image.ImageRectangle;
+import com.shaft.gui.image.ImageTarget;
+import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.properties.internal.Properties;
+import com.shaft.tools.io.ReportManager;
+import io.appium.java_client.AppiumBy;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.flutter.commands.DoubleClickParameter;
+import io.appium.java_client.flutter.commands.DragAndDropParameter;
+import io.appium.java_client.flutter.commands.LongPressParameter;
+import io.appium.java_client.flutter.commands.ScrollParameter;
+import io.appium.java_client.flutter.commands.WaitParameter;
+import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.AppiumWebElement;
+import org.mockito.ArgumentCaptor;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Dimension;
+import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.ScreenOrientation;
+import org.openqa.selenium.UnsupportedCommandException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Sequence;
+import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.RemoteWebElement;
+import org.opentest4j.AssertionFailedError;
+import org.testng.annotations.AfterMethod;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import java.io.File;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+public class AndroidTouchActionsCoverageUnitTest {
+    @Test
+    public void touchActionsShouldExposeTypedImageAndOcrFourDirectionScrolling() throws Exception {
+        Assert.assertNotNull(TouchActions.class.getMethod("tap", com.shaft.gui.image.ImageTarget.class));
+        Assert.assertNotNull(TouchActions.class.getMethod("tap", com.shaft.gui.ocr.OcrTarget.class));
+        Assert.assertNotNull(TouchActions.class.getMethod("swipeElementIntoView",
+                com.shaft.gui.image.ImageTarget.class, TouchActions.SwipeDirection.class));
+        Assert.assertNotNull(TouchActions.class.getMethod("swipeElementIntoView",
+                com.shaft.gui.ocr.OcrTarget.class, TouchActions.SwipeDirection.class));
+        Assert.assertNotNull(TouchActions.class.getMethod("swipeElementIntoView", By.class,
+                com.shaft.gui.image.ImageTarget.class, TouchActions.SwipeDirection.class));
+        Assert.assertNotNull(TouchActions.class.getMethod("swipeElementIntoView", By.class,
+                com.shaft.gui.ocr.OcrTarget.class, TouchActions.SwipeDirection.class));
+        Assert.assertEquals(TouchActions.SwipeDirection.values().length, 4);
+    }
+
+    @Test
+    public void appiumImagesFallbackShouldSelectOccurrenceAndRestoreDefaultThreshold() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        WebElement first = mock(WebElement.class);
+        WebElement second = mock(WebElement.class);
+        when(driver.getSettings()).thenReturn(Map.of());
+        when(driver.setSetting(any(io.appium.java_client.Setting.class), any())).thenReturn(driver);
+        when(driver.findElements(any(By.class))).thenReturn(List.of(first, second));
+        SHAFT.Properties.visuals.set().visualMatchingThreshold(0.91);
+        TouchActions touchActions = new TouchActions(driver);
+        Method fallback = TouchActions.class.getDeclaredMethod("findUsingAppiumImages",
+                com.shaft.gui.image.ImageTarget.class);
+        fallback.setAccessible(true);
+
+        Object selected = fallback.invoke(touchActions,
+                com.shaft.gui.image.ImageTarget.fromPath(Path.of("src", "test", "resources",
+                        "testDataFiles", "youtube.png")).occurrence(1));
+
+        Assert.assertEquals(selected, java.util.Optional.of(second));
+        var order = org.mockito.Mockito.inOrder(driver);
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.91);
+        order.verify(driver).findElements(any(By.class));
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.4);
+    }
+
+    @Test
+    public void typedImageScrollShouldContinueLocallyWhenAppiumCannotHonorRegion() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+        byte[] screenshot = Files.readAllBytes(Path.of("src", "test", "resources", "testDataFiles", "youtube.png"));
+        ImageTarget target = ImageTarget.fromBytes(screenshot).within(new ImageRectangle(0, 0, 1, 1));
+
+        try (MockedStatic<ImageProcessingActions> imageProcessing = mockStatic(ImageProcessingActions.class);
+             MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
+                ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            imageProcessing.when(() -> ImageProcessingActions.isUniqueImageTargetInView(any(ImageTarget.class),
+                    any(byte[].class))).thenReturn(false);
+            touchActions.swipeElementIntoView(target, TouchActions.SwipeDirection.DOWN);
+        }
+
+        verify(driver, atLeastOnce()).executeScript(eq("mobile: scrollGesture"), anyMap());
+        verify(driver, never()).findElements(argThat(locator -> locator.toString().startsWith("AppiumBy.image")));
+    }
+
+    @Test
+    public void typedImageScrollShouldNotUseAppiumForExplicitMatchingMode() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+        byte[] screenshot = Files.readAllBytes(Path.of("src", "test", "resources", "testDataFiles", "youtube.png"));
+        ImageTarget target = ImageTarget.fromBytes(screenshot).matchingMode(ImageMatchingMode.FEATURE);
+
+        try (MockedStatic<ImageProcessingActions> imageProcessing = mockStatic(ImageProcessingActions.class);
+             MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
+                ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            imageProcessing.when(() -> ImageProcessingActions.isUniqueImageTargetInView(any(ImageTarget.class),
+                    any(byte[].class))).thenReturn(false);
+            touchActions.swipeElementIntoView(target, TouchActions.SwipeDirection.LEFT);
+        }
+
+        verify(driver, atLeastOnce()).executeScript(eq("mobile: scrollGesture"), anyMap());
+        verify(driver, never()).findElements(argThat(locator -> locator.toString().startsWith("AppiumBy.image")));
+    }
+
+    @Test
+    public void typedImageTapShouldUseTargetConfidenceForAppiumFallback() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        WebElement match = mock(WebElement.class);
+        when(driver.getSettings()).thenReturn(Map.of(
+                io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD.toString(), 0.67));
+        when(driver.setSetting(any(io.appium.java_client.Setting.class), any())).thenReturn(driver);
+        when(driver.findElements(any(By.class))).thenReturn(List.of(match));
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+        byte[] screenshot = Files.readAllBytes(Path.of("src", "test", "resources", "testDataFiles", "youtube.png"));
+
+        try (MockedStatic<ImageProcessingActions> imageProcessing = mockStatic(ImageProcessingActions.class);
+             MockedConstruction<ScreenshotManager> screenshots = org.mockito.Mockito.mockConstruction(
+                ScreenshotManager.class,
+                (manager, context) -> when(manager.takeViewportScreenshot(driver)).thenReturn(screenshot))) {
+            imageProcessing.when(() -> ImageProcessingActions.findImageWithinCurrentPage(any(ImageTarget.class),
+                    any(byte[].class))).thenReturn(java.util.Optional.empty());
+            touchActions.tap(ImageTarget.fromBytes(screenshot).minimumConfidence(0.93));
+        }
+
+        verify(match).click();
+        var order = org.mockito.Mockito.inOrder(driver);
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.93);
+        order.verify(driver).findElements(any(By.class));
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.67);
+    }
+
+    @Test
+    public void appiumImagesFallbackShouldRestorePriorThresholdWhenLookupFails() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.getSettings()).thenReturn(Map.of(
+                io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD.toString(), 0.66));
+        when(driver.setSetting(any(io.appium.java_client.Setting.class), any())).thenReturn(driver);
+        when(driver.findElements(any(By.class))).thenThrow(new WebDriverException("provider lookup failed"));
+        TouchActions touchActions = new TouchActions(driver);
+        Method fallback = TouchActions.class.getDeclaredMethod("findUsingAppiumImages", ImageTarget.class);
+        fallback.setAccessible(true);
+        ImageTarget target = ImageTarget.fromPath(Path.of("src", "test", "resources",
+                "testDataFiles", "youtube.png")).minimumConfidence(0.94);
+
+        InvocationTargetException failure = Assert.expectThrows(InvocationTargetException.class,
+                () -> fallback.invoke(touchActions, target));
+
+        Assert.assertTrue(failure.getCause() instanceof WebDriverException);
+        var order = org.mockito.Mockito.inOrder(driver);
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.94);
+        order.verify(driver).findElements(any(By.class));
+        order.verify(driver).setSetting(io.appium.java_client.Setting.IMAGE_MATCH_THRESHOLD, 0.66);
+    }
+    private static final Path TEMP_DIR = Path.of("target", "temp", "touchActionsCoverage");
+    private static final Path ROOT_PULL_PATH = Path.of("touchActions-root-pulled.txt");
+    private boolean originalWaitForLazyLoading;
+
+    @BeforeMethod(alwaysRun = true)
+    public void beforeMethod() throws Exception {
+        originalWaitForLazyLoading = SHAFT.Properties.timeouts.waitForLazyLoading();
+        SHAFT.Properties.timeouts.set().waitForLazyLoading(false);
+        Files.createDirectories(TEMP_DIR);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void afterMethod() throws Exception {
+        Files.deleteIfExists(ROOT_PULL_PATH);
+        SHAFT.Properties.timeouts.set().waitForLazyLoading(originalWaitForLazyLoading);
+        Properties.clearForCurrentThread();
+    }
+
+    @Test
+    public void androidLifecycleAndFileTransferApisShouldExecuteAndPersistPulledFile() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        byte[] pulledContent = "pulled content".getBytes();
+        when(driver.pullFile("/sdcard/Download/result.txt")).thenReturn(pulledContent);
+        when(driver.pullFile("/sdcard/Download/root-result.txt")).thenReturn(pulledContent);
+        when(driver.pullFile("/sdcard/Download/existing-result.txt")).thenReturn(pulledContent);
+
+        Path localSourceFile = TEMP_DIR.resolve("source.txt");
+        Files.writeString(localSourceFile, "source content");
+        Path pulledFilePath = TEMP_DIR.resolve("nested").resolve("result.txt");
+
+        TouchActions touchActions = new TouchActions(driver);
+        touchActions.sendAppToBackground(2)
+                .sendAppToBackground()
+                .activateAppFromBackground("io.appium.android.apis")
+                .rotate(ScreenOrientation.LANDSCAPE)
+                .hideNativeKeyboard()
+                .pushFile("/sdcard/Download/source.txt", localSourceFile.toString())
+                .pushFile("/sdcard/Download/source2.txt", localSourceFile.toFile())
+                .pullFile("/sdcard/Download/result.txt", pulledFilePath.toString())
+                .pullFile("/sdcard/Download/root-result.txt", ROOT_PULL_PATH.toString())
+                .pullFile("/sdcard/Download/existing-result.txt", TEMP_DIR.resolve("existing-result.txt").toString());
+
+        verify(driver).runAppInBackground(Duration.ofSeconds(2));
+        verify(driver).runAppInBackground(Duration.ofSeconds(-1));
+        verify(driver).activateApp("io.appium.android.apis");
+        verify(driver).rotate(ScreenOrientation.LANDSCAPE);
+        verify(driver).hideKeyboard();
+        verify(driver, times(2)).pushFile(anyString(), any(byte[].class));
+
+        SHAFT.Validations.assertThat().object(Files.exists(pulledFilePath)).isTrue().perform();
+        SHAFT.Validations.assertThat().object(Files.exists(ROOT_PULL_PATH)).isTrue().perform();
+        SHAFT.Validations.assertThat().object(Files.exists(TEMP_DIR.resolve("existing-result.txt"))).isTrue().perform();
+        SHAFT.Validations.assertThat().object(Arrays.equals(Files.readAllBytes(pulledFilePath), pulledContent)).isTrue().perform();
+    }
+
+    @Test
+    public void nativeKeyboardPressAndPinchZoomShouldUseMobileScriptsAndActionsApi() {
+        RemoteWebDriver driver = mock(RemoteWebDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new Dimension(1080, 1920));
+        when(driver.executeScript(eq("mobile: isKeyboardShown"))).thenReturn(true);
+
+        TouchActions touchActions = new TouchActions(driver);
+        touchActions.nativeKeyboardKeyPress(TouchActions.KeyboardKeys.SEARCH)
+                .pinchToZoom(TouchActions.ZoomDirection.IN)
+                .pinchToZoom(TouchActions.ZoomDirection.OUT);
+
+        verify(driver).executeScript(eq("mobile: isKeyboardShown"));
+        verify(driver).executeScript(eq("mobile: performEditorAction"), any());
+        verify(driver, times(2)).perform(any());
+    }
+
+
+    @Test
+    public void fileTransferFailureBranchesShouldReportFailuresWithoutThrowing() throws Exception {
+        Path localSourceFile = TEMP_DIR.resolve("failure-source.txt");
+        Files.writeString(localSourceFile, "failure source");
+        Path missingLocalFile = TEMP_DIR.resolve("missing-source.txt");
+        Path unsupportedPulledPath = TEMP_DIR.resolve("unsupported").resolve("result.txt");
+
+        AndroidDriver androidDriver = createMockAndroidDriver();
+        doThrow(new WebDriverException("android push failure")).when(androidDriver).pushFile(eq("/sdcard/fail.txt"), any(byte[].class));
+        when(androidDriver.pullFile("/sdcard/fail.txt")).thenThrow(new WebDriverException("android pull failure"));
+        ElementActionsHelper androidElementActionsHelper = mock(ElementActionsHelper.class);
+        TouchActions androidTouchActions = new TouchActions(androidDriver);
+        injectElementActionsHelper(androidTouchActions, androidElementActionsHelper);
+
+        androidTouchActions.pushFile("/sdcard/fail.txt", localSourceFile.toString())
+                .pullFile("/sdcard/fail.txt", TEMP_DIR.resolve("android-failure.txt").toString())
+                .pushFile("/sdcard/missing.txt", missingLocalFile.toString())
+                .pushFile("/sdcard/missing2.txt", missingLocalFile.toFile());
+
+        verify(androidElementActionsHelper, times(4)).failAction(eq(androidDriver), isNull(By.class), any(Throwable.class));
+
+        IOSDriver iosDriver = createMockIOSDriver();
+        doThrow(new WebDriverException("ios push failure")).when(iosDriver).pushFile(eq("/tmp/fail.txt"), any(byte[].class));
+        when(iosDriver.pullFile("/tmp/fail.txt")).thenThrow(new WebDriverException("ios pull failure"));
+        ElementActionsHelper iosElementActionsHelper = mock(ElementActionsHelper.class);
+        TouchActions iosTouchActions = new TouchActions(iosDriver);
+        injectElementActionsHelper(iosTouchActions, iosElementActionsHelper);
+
+        iosTouchActions.pushFile("/tmp/fail.txt", localSourceFile.toFile())
+                .pullFile("/tmp/fail.txt", TEMP_DIR.resolve("ios-failure.txt").toString());
+
+        verify(iosElementActionsHelper, times(2)).failAction(eq(iosDriver), isNull(By.class), any(Throwable.class));
+
+        RemoteWebDriver remoteWebDriver = createMockRemoteWebDriver();
+        ElementActionsHelper remoteElementActionsHelper = mock(ElementActionsHelper.class);
+        TouchActions remoteTouchActions = new TouchActions(remoteWebDriver);
+        injectElementActionsHelper(remoteTouchActions, remoteElementActionsHelper);
+
+        remoteTouchActions.pushFile("/remote/path.txt", localSourceFile.toString())
+                .pushFile("/remote/path2.txt", localSourceFile.toFile())
+                .pullFile("/remote/result.txt", unsupportedPulledPath.toString())
+                .sendAppToBackground(1)
+                .activateAppFromBackground("unsupported.app")
+                .hideNativeKeyboard()
+                .rotate(ScreenOrientation.PORTRAIT);
+
+        verify(remoteElementActionsHelper, times(4)).failAction(eq(remoteWebDriver), isNull(By.class));
+        verify(remoteElementActionsHelper).failAction(eq(remoteWebDriver), eq("seconds=1"), isNull(By.class));
+        verify(remoteElementActionsHelper).failAction(eq(remoteWebDriver), eq("appId=unsupported.app"), isNull(By.class));
+        verify(remoteElementActionsHelper).failAction(eq(remoteWebDriver), eq("orientation=PORTRAIT"), isNull(By.class));
+        verify(remoteWebDriver, never()).executeScript(eq("mobile: scrollGesture"), anyMap());
+        SHAFT.Validations.assertThat().object(Files.exists(unsupportedPulledPath)).isFalse().perform();
+    }
+
+    @Test
+    public void iosW3cScrollAndAllPrepareParameterDirectionsShouldUseExpectedScripts() throws Exception {
+        IOSDriver iosDriver = createMockIOSDriver();
+        doReturn(null).doReturn(false).when(iosDriver).executeScript(eq("mobile: scroll"), anyMap());
+        TouchActions touchActions = new TouchActions(iosDriver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        RemoteWebElement scrollableElement = mock(RemoteWebElement.class);
+        when(scrollableElement.getId()).thenReturn("ios-container-id");
+        when(scrollableElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
+        when(elementActionsHelper.identifyUniqueElement(any(), eq(By.id("ios-container"))))
+                .thenReturn(List.of("ios-container", scrollableElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        Method prepareParameters = TouchActions.class.getDeclaredMethod("prepareParameters", TouchActions.SwipeDirection.class, By.class, By.class);
+        prepareParameters.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> downParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.DOWN, null, By.id("target"));
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> rightParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.RIGHT, null, By.id("target"));
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> elementUpParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.UP, By.id("ios-container"), By.id("target"));
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> elementLeftParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.LEFT, By.id("ios-container"), By.id("target"));
+
+        Assert.assertEquals(downParameters, Map.of("direction", "down"));
+        Assert.assertEquals(rightParameters, Map.of("direction", "right"));
+        Assert.assertEquals(elementUpParameters, Map.of(
+                "direction", "up", "elementId", "ios-container-id"));
+        Assert.assertEquals(elementLeftParameters, Map.of(
+                "direction", "left", "elementId", "ios-container-id"));
+
+        Method performW3cCompliantScroll = TouchActions.class.getDeclaredMethod("performW3cCompliantScroll", java.util.HashMap.class, boolean.class);
+        performW3cCompliantScroll.setAccessible(true);
+        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, downParameters, true)).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, downParameters, false)).isEqualTo(false).perform();
+        verify(iosDriver, times(2)).executeScript(eq("mobile: scroll"), anyMap());
+    }
+
+    @Test
+    public void visualSwipeShouldCoverNativeMissingImageAndWebCoordinateBranches() throws Exception {
+        byte[] validPng = getValidPngBytes();
+
+        AndroidDriver androidDriver = createMockAndroidDriver();
+        doReturn(true).doReturn(false).when(androidDriver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TouchActions nativeTouchActions = new TouchActions(androidDriver);
+        ElementActionsHelper nativeElementActionsHelper = mock(ElementActionsHelper.class);
+        when(nativeElementActionsHelper.findElementPresence(androidDriver, "native-missing.png"))
+                .thenReturn(List.of(validPng, validPng, List.of()))
+                .thenReturn(List.of(validPng, validPng, List.of()))
+                .thenReturn(List.of(validPng, validPng, List.of(30, 40)));
+        when(nativeElementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(nativeTouchActions, nativeElementActionsHelper);
+
+        nativeTouchActions.swipeElementIntoView(null, "native-missing.png", TouchActions.SwipeDirection.DOWN);
+        verify(nativeElementActionsHelper, never()).failAction(eq(androidDriver), anyString(), isNull(By.class), any(List.class));
+
+        RemoteWebDriver webDriver = createMockRemoteWebDriver();
+        TouchActions webTouchActions = new TouchActions(webDriver);
+        ElementActionsHelper webElementActionsHelper = mock(ElementActionsHelper.class);
+        when(webElementActionsHelper.findElementPresence(webDriver, "web-present.png"))
+                .thenReturn(List.of(validPng, validPng, List.of(20, 40)));
+        when(webElementActionsHelper.findElementPresence(webDriver, "web-missing.png"))
+                .thenReturn(List.of(validPng, validPng, List.of()));
+        injectElementActionsHelper(webTouchActions, webElementActionsHelper);
+
+        webTouchActions.swipeElementIntoView(null, "web-present.png", TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView(null, "web-missing.png", TouchActions.SwipeDirection.DOWN);
+
+        verify(webElementActionsHelper).failAction(eq(webDriver), anyString(), isNull(By.class), any(List.class));
+    }
+
+    @Test
+    public void actionFailureBranchesShouldRemainNonThrowing() throws Exception {
+        AndroidDriver keyboardFailureDriver = createMockAndroidDriver();
+        doThrow(new WebDriverException("keyboard failure")).when(keyboardFailureDriver).hideKeyboard();
+        ElementActionsHelper keyboardElementActionsHelper = mock(ElementActionsHelper.class);
+        TouchActions keyboardTouchActions = new TouchActions(keyboardFailureDriver);
+        injectElementActionsHelper(keyboardTouchActions, keyboardElementActionsHelper);
+
+        keyboardTouchActions.hideNativeKeyboard();
+        verify(keyboardElementActionsHelper).failAction(eq(keyboardFailureDriver), isNull(By.class), any(Throwable.class));
+
+        RemoteWebDriver performFailureDriver = createMockRemoteWebDriver();
+        doThrow(new org.openqa.selenium.UnsupportedCommandException("perform failure")).when(performFailureDriver).perform(any());
+        TouchActions touchActions = new TouchActions(performFailureDriver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.waitForElementPresence(performFailureDriver, "tap-present.png"))
+                .thenReturn(List.of(getValidPngBytes(), getValidPngBytes(), List.of(10, 20)));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.tap("tap-present.png")
+                .pinchToZoom(TouchActions.ZoomDirection.IN);
+
+        verify(elementActionsHelper).failAction(eq(performFailureDriver),
+                eq("referenceImage=tap-present.png, coordinates=[10, 20]"), isNull(By.class), any(Throwable.class));
+        verify(elementActionsHelper).failAction(eq(performFailureDriver), eq("IN"), isNull(By.class), any(Throwable.class));
+    }
+
+    @Test
+    public void visualSwipeBubblesAlreadyReportedFailureWithoutDoubleWrapping() throws Exception {
+        // issue #4341: ElementActionsHelper#failAction now throws RuntimeException, not AssertionError, for
+        // a broken/failed action. swipeElementIntoView(By, String, SwipeDirection)'s inner catch block used
+        // to catch AssertionError specifically, to bubble an already-reported failure (the "couldn't find
+        // reference element" failAction call below) straight to the outer wrapper without re-reporting it.
+        // Now that failAction throws RuntimeException, that catch must match RuntimeException instead --
+        // otherwise the exception falls into the generic Exception handler and gets redundantly re-reported
+        // and re-wrapped an extra time before the outer wrapper wraps it again.
+        RemoteWebDriver driver = createMockRemoteWebDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper spyHelper = mock(ElementActionsHelper.class);
+        byte[] validPng = getValidPngBytes();
+        when(spyHelper.findElementPresence(eq(driver), eq("missing.png")))
+                .thenReturn(List.of(validPng, validPng, List.of()));
+        // simulate failAction's real (post-#4341-fix) throwing behavior on every overload it could hit here
+        doThrow(new RuntimeException("couldn't find reference element"))
+                .when(spyHelper).failAction(eq(driver), anyString(), isNull(By.class), any(List.class));
+        doThrow(new RuntimeException("redundant re-wrap -- should never happen"))
+                .when(spyHelper).failAction(eq(driver), anyString(), isNull(By.class), any(List.class), any(Throwable.class));
+        doThrow(new RuntimeException("final wrap"))
+                .when(spyHelper).failAction(eq(driver), isNull(By.class), any(Throwable.class));
+        injectElementActionsHelper(touchActions, spyHelper);
+
+        org.testng.Assert.expectThrows(RuntimeException.class,
+                () -> touchActions.swipeElementIntoView(null, "missing.png", TouchActions.SwipeDirection.DOWN));
+
+        verify(spyHelper, never()).failAction(eq(driver), anyString(), isNull(By.class), any(List.class), any(Throwable.class));
+        verify(spyHelper, times(1)).failAction(eq(driver), anyString(), isNull(By.class), any(List.class));
+        verify(spyHelper, times(1)).failAction(eq(driver), isNull(By.class), any(Throwable.class));
+    }
+
+    @Test
+    public void textSwipeHelpersShouldUseUiAutomatorLookups() {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.findElement(any(By.class))).thenReturn(mock(WebElement.class));
+
+        TouchActions touchActions = new TouchActions(driver);
+        touchActions.swipeElementIntoView("Group 18")
+                .swipeElementIntoView("TAB 12", TouchActions.SwipeMovement.HORIZONTAL)
+                .swipeElementIntoView("Group 19", TouchActions.SwipeMovement.VERTICAL);
+
+        verify(driver, times(3)).findElement(any(By.class));
+    }
+
+    @Test
+    public void reflectionHelpersShouldPrepareAndScrollWithW3CParameters() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        doReturn(true).doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(driver);
+        Method prepareParameters = TouchActions.class.getDeclaredMethod("prepareParameters", TouchActions.SwipeDirection.class, By.class, By.class);
+        prepareParameters.setAccessible(true);
+
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> upParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.UP, null, null);
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> leftParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.LEFT, null, null);
+
+        SHAFT.Validations.assertThat().object(upParameters.get("direction")).isEqualTo("up").perform();
+        SHAFT.Validations.assertThat().object(leftParameters.get("direction")).isEqualTo("left").perform();
+        SHAFT.Validations.assertThat().object(leftParameters.containsKey("left")).isTrue().perform();
+        SHAFT.Validations.assertThat().object(touchActions.and()).isEqualTo(touchActions).perform();
+
+        Method performW3cCompliantScroll = TouchActions.class.getDeclaredMethod("performW3cCompliantScroll", java.util.HashMap.class, boolean.class);
+        performW3cCompliantScroll.setAccessible(true);
+        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, upParameters, true)).isEqualTo(true).perform();
+        SHAFT.Validations.assertThat().object(performW3cCompliantScroll.invoke(touchActions, upParameters, false)).isEqualTo(false).perform();
+
+    }
+
+    @Test
+    public void publicHelpersAndEnumsShouldBeUsable() {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.findElement(any(By.class))).thenReturn(mock(WebElement.class));
+
+        TouchActions touchActions = new TouchActions(driver);
+        SHAFT.Validations.assertThat().object(touchActions.assertThat(By.id("x")) != null).isTrue().perform();
+        SHAFT.Validations.assertThat().object(touchActions.verifyThat(By.id("x")) != null).isTrue().perform();
+        SHAFT.Validations.assertThat().object(TouchActions.ZoomDirection.values().length).isEqualTo(2).perform();
+        SHAFT.Validations.assertThat().object(TouchActions.SwipeDirection.values().length).isEqualTo(4).perform();
+        SHAFT.Validations.assertThat().object(TouchActions.SwipeMovement.values().length).isEqualTo(2).perform();
+        SHAFT.Validations.assertThat().object(TouchActions.KeyboardKeys.GO.name()).isEqualTo("GO").perform();
+    }
+
+    @Test
+    public void visualTapAndWaitApisShouldCoverImageIdentificationBranches() throws Exception {
+        RemoteWebDriver driver = mock(RemoteWebDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new Dimension(1080, 1920));
+
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        byte[] validPng = getValidPngBytes();
+        when(elementActionsHelper.waitForElementPresence(driver, "present.png"))
+                .thenReturn(List.of(validPng, validPng, List.of(120, 240)));
+        when(elementActionsHelper.waitForElementPresence(driver, "missing.png"))
+                .thenReturn(List.of(validPng, validPng, List.of()));
+        when(elementActionsHelper.waitForElementInvisibility(driver, "not-visible.png"))
+                .thenReturn(List.of(validPng, validPng, List.of()));
+        when(elementActionsHelper.waitForElementInvisibility(driver, "still-visible.png"))
+                .thenReturn(List.of(validPng, validPng, List.of(120, 240)));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.tap("present.png")
+                .waitUntilElementIsVisible("present.png")
+                .waitUntilElementIsNotVisible("not-visible.png")
+                .tap("missing.png")
+                .waitUntilElementIsVisible("missing.png")
+                .waitUntilElementIsNotVisible("still-visible.png");
+
+        verify(driver).perform(any());
+    }
+
+    @Test
+    public void visualTapShouldUseBackendSpecificPointerKind() throws Exception {
+        byte[] validPng = getValidPngBytes();
+
+        RemoteWebDriver webDriver = createMockRemoteWebDriver();
+        TouchActions webTouchActions = new TouchActions(webDriver);
+        ElementActionsHelper webElementActionsHelper = mock(ElementActionsHelper.class);
+        when(webElementActionsHelper.waitForElementPresence(webDriver, "web-present.png"))
+                .thenReturn(List.of(validPng, validPng, List.of(10, 20)));
+        injectElementActionsHelper(webTouchActions, webElementActionsHelper);
+
+        webTouchActions.tap("web-present.png");
+
+        SHAFT.Validations.assertThat().object(capturedPointerType(webDriver)).isEqualTo("mouse").perform();
+
+        AndroidDriver androidDriver = createMockAndroidDriver();
+        TouchActions androidTouchActions = new TouchActions(androidDriver);
+        ElementActionsHelper androidElementActionsHelper = mock(ElementActionsHelper.class);
+        when(androidElementActionsHelper.waitForElementPresence(androidDriver, "android-present.png"))
+                .thenReturn(List.of(validPng, validPng, List.of(10, 20)));
+        injectElementActionsHelper(androidTouchActions, androidElementActionsHelper);
+
+        androidTouchActions.tap("android-present.png");
+
+        SHAFT.Validations.assertThat().object(capturedPointerType(androidDriver)).isEqualTo("touch").perform();
+    }
+
+    @Test
+    public void visualTypeShouldTapReferenceAndSendKeysThroughActionsApi() throws Exception {
+        RemoteWebDriver driver = createMockRemoteWebDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        byte[] validPng = getValidPngBytes();
+        when(elementActionsHelper.waitForElementPresence(driver, "field.png"))
+                .thenReturn(List.of(validPng, validPng, List.of(10, 20)));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.type("field.png", "hello");
+
+        verify(driver, times(2)).perform(any());
+    }
+
+    @Test
+    public void swipeElementIntoViewOverloadsShouldCoverNativeAndWebPaths() throws Exception {
+        AndroidDriver androidDriver = createMockAndroidDriver();
+        WebElement targetElement = mock(WebElement.class);
+        when(androidDriver.findElements(By.id("target"))).thenReturn(List.of(targetElement));
+
+        TouchActions nativeTouchActions = new TouchActions(androidDriver);
+        ElementActionsHelper nativeElementActionsHelper = mock(ElementActionsHelper.class);
+        byte[] validPng = getValidPngBytes();
+        when(nativeElementActionsHelper.findElementPresence(any(), eq("target.png")))
+                .thenReturn(List.of(validPng, validPng, List.of(100, 200)));
+        when(nativeElementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(nativeTouchActions, nativeElementActionsHelper);
+
+        nativeTouchActions.swipeElementIntoView(By.id("target"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView("target.png", TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView(By.id("container"), "target.png", TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView(By.id("container"), By.id("target"), TouchActions.SwipeDirection.DOWN);
+
+        RemoteWebDriver webDriver = mock(RemoteWebDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(webDriver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new Dimension(1080, 1920));
+
+        TouchActions webTouchActions = new TouchActions(webDriver);
+        ElementActionsHelper webElementActionsHelper = mock(ElementActionsHelper.class);
+        when(webElementActionsHelper.identifyUniqueElement(any(), any(By.class)))
+                .thenReturn(List.of("locator", targetElement));
+        injectElementActionsHelper(webTouchActions, webElementActionsHelper);
+
+        webTouchActions.swipeElementIntoView(null, By.id("target"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView(By.id("container"), By.id("target"), TouchActions.SwipeDirection.DOWN);
+    }
+
+    @Test
+    public void iosAndFallbackBranchesShouldCoverAdditionalLifecycleAndFilePaths() throws Exception {
+        Path localSourceFile = TEMP_DIR.resolve("ios-source.txt");
+        Files.writeString(localSourceFile, "ios source");
+        Path iosPulledPath = TEMP_DIR.resolve("ios").resolve("result.txt");
+
+        IOSDriver iosDriver = mock(IOSDriver.class);
+        WebDriver.Options iosOptions = mock(WebDriver.Options.class);
+        WebDriver.Window iosWindow = mock(WebDriver.Window.class);
+        when(iosDriver.manage()).thenReturn(iosOptions);
+        when(iosOptions.window()).thenReturn(iosWindow);
+        when(iosWindow.getSize()).thenReturn(new Dimension(1080, 1920));
+        when(iosDriver.pullFile("/tmp/ios-result.txt")).thenReturn("ios-result".getBytes());
+
+        TouchActions iosTouchActions = new TouchActions(iosDriver);
+        iosTouchActions.hideNativeKeyboard()
+                .sendAppToBackground(1)
+                .activateAppFromBackground("com.example.ios")
+                .rotate(ScreenOrientation.PORTRAIT)
+                .pushFile("/tmp/ios-source.txt", localSourceFile.toString())
+                .pushFile("/tmp/ios-source2.txt", localSourceFile.toFile())
+                .pullFile("/tmp/ios-result.txt", iosPulledPath.toString());
+
+        SHAFT.Validations.assertThat().object(Files.exists(iosPulledPath)).isTrue().perform();
+
+        IOSDriver wdaKeyboardDriver = mock(IOSDriver.class);
+        doThrow(new WebDriverException("WDA did not know how to dismiss the keyboard."))
+                .when(wdaKeyboardDriver).hideKeyboard();
+        when(wdaKeyboardDriver.executeScript("mobile: hideKeyboard")).thenReturn(null);
+        ElementActionsHelper wdaKeyboardHelper = mock(ElementActionsHelper.class);
+        TouchActions wdaKeyboardActions = new TouchActions(wdaKeyboardDriver);
+        injectElementActionsHelper(wdaKeyboardActions, wdaKeyboardHelper);
+        wdaKeyboardActions.hideNativeKeyboard();
+        verify(wdaKeyboardDriver).hideKeyboard();
+        verify(wdaKeyboardDriver).executeScript("mobile: hideKeyboard");
+        verify(wdaKeyboardHelper).passAction(eq(wdaKeyboardDriver), isNull(By.class), anyString(), isNull(), isNull(), isNull());
+
+        IOSDriver keyedKeyboardDriver = mock(IOSDriver.class);
+        doThrow(new WebDriverException("WDA did not know how to dismiss the keyboard."))
+                .when(keyedKeyboardDriver).hideKeyboard();
+        doThrow(new WebDriverException("bare mobile: hideKeyboard failed"))
+                .when(keyedKeyboardDriver).executeScript("mobile: hideKeyboard");
+        when(keyedKeyboardDriver.executeScript(eq("mobile: hideKeyboard"), any())).thenReturn(null);
+        ElementActionsHelper keyedKeyboardHelper = mock(ElementActionsHelper.class);
+        TouchActions keyedKeyboardActions = new TouchActions(keyedKeyboardDriver);
+        injectElementActionsHelper(keyedKeyboardActions, keyedKeyboardHelper);
+        keyedKeyboardActions.hideNativeKeyboard();
+        verify(keyedKeyboardDriver).executeScript(eq("mobile: hideKeyboard"), any());
+        verify(keyedKeyboardHelper).passAction(eq(keyedKeyboardDriver), isNull(By.class), anyString(), isNull(), isNull(), isNull());
+
+    }
+
+    @Test
+    public void reflectionAndWrapperMethodsShouldCoverRemainingTouchActionPaths() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        WebElement targetElement = mock(WebElement.class);
+        when(targetElement.isDisplayed()).thenReturn(true);
+        when(targetElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(40, 80, 120, 40));
+        when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(targetElement), List.of(targetElement));
+        doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(new DriverFactoryHelper(driver));
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        WebElement scrollableElement = mock(WebElement.class);
+        when(scrollableElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
+        when(elementActionsHelper.identifyUniqueElement(any(), eq(By.id("container"))))
+                .thenReturn(List.of("container", scrollableElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        Method prepareParameters = TouchActions.class.getDeclaredMethod("prepareParameters", TouchActions.SwipeDirection.class, By.class, By.class);
+        prepareParameters.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> elementScrollParameters = (Map<Object, Object>) prepareParameters.invoke(touchActions, TouchActions.SwipeDirection.RIGHT, By.id("container"), By.id("target"));
+        SHAFT.Validations.assertThat().object(elementScrollParameters.containsKey("width")).isTrue().perform();
+
+        Method attemptW3cCompliantActionsScroll = TouchActions.class.getDeclaredMethod("attemptW3cCompliantActionsScroll", TouchActions.SwipeDirection.class, By.class, By.class);
+        attemptW3cCompliantActionsScroll.setAccessible(true);
+        Object isFound = attemptW3cCompliantActionsScroll.invoke(touchActions, TouchActions.SwipeDirection.DOWN, null, By.id("target"));
+        SHAFT.Validations.assertThat().object(isFound).isEqualTo(true).perform();
+
+        executeWrapperForCoverage(() -> touchActions.tap(By.id("target")));
+        executeWrapperForCoverage(() -> touchActions.doubleTap(By.id("target")));
+        executeWrapperForCoverage(() -> touchActions.longTap(By.id("target")));
+        executeWrapperForCoverage(() -> touchActions.swipeToElement(By.id("source"), By.id("target")));
+        executeWrapperForCoverage(() -> touchActions.swipeByOffset(By.id("target"), 10, 10));
+    }
+
+    @Test
+    public void swipeToEndOfViewShouldScrollUntilAppiumReportsEnd() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        doReturn(true).doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        WebElement scrollableElement = mock(WebElement.class);
+        when(scrollableElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
+        when(elementActionsHelper.identifyUniqueElement(any(), eq(By.id("container"))))
+                .thenReturn(List.of("container", scrollableElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.swipeToEndOfView(TouchActions.SwipeDirection.DOWN)
+                .swipeToEndOfView(By.id("container"), TouchActions.SwipeDirection.UP);
+
+        verify(driver, times(3)).executeScript(eq("mobile: scrollGesture"), anyMap());
+        verify(driver, never()).findElements(isNull());
+    }
+
+    // Issue #4004: swipeToEndOfView has no scroll-to-end primitive against a Flutter locator (ScrollParameter
+    // mandates a scrollTo target), so it must fail loudly instead of silently doing nothing.
+    @Test
+    public void swipeToEndOfViewWithFlutterScrollableLocatorShouldThrowUnsupportedCommandException() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        // Mutation-kill: failAction only throws when invoked with the exact remedy-naming UnsupportedCommandException.
+        // If the guard regresses (e.g. silently removed), the native scroll loop runs instead and either never
+        // calls failAction with this specific throwable, or calls it with a different one -- the stub never fires,
+        // and the test fails to observe the expected exception, catching the regression instead of silently passing.
+        doThrow(new AssertionFailedError("swipeToEndOfView has no scroll-to-end primitive for Flutter locators"))
+                .when(elementActionsHelper).failAction(any(WebDriver.class), anyString(), any(),
+                        org.mockito.ArgumentMatchers.<Throwable>argThat(throwable -> throwable instanceof UnsupportedCommandException
+                                && throwable.getMessage() != null
+                                && throwable.getMessage().contains("swipeElementIntoView")));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        var scrollableLocator = AppiumBy.flutterType("ListView");
+        try {
+            touchActions.swipeToEndOfView(scrollableLocator, TouchActions.SwipeDirection.DOWN);
+            org.testng.Assert.fail("Expected the Flutter scroll-to-end guard to route into failAction with the remedy-naming UnsupportedCommandException, but no such exception propagated.");
+        } catch (AssertionFailedError expected) {
+            // expected: proves failAction was invoked with the remedy-naming UnsupportedCommandException
+        }
+        verify(driver, never()).executeScript(eq("mobile: scrollGesture"), anyMap());
+    }
+
+    // Issue #4004: a native "mobile: scrollGesture"/"mobile: scroll" call against a bare FlutterView reports
+    // zero effective scrolls on the very first attempt -- ambiguous between "already at scroll end" (legitimate,
+    // e.g. a native overlay atop the FlutterView) and "silent no-op" (the bug). Warn instead of throwing, since
+    // throwing would falsely fail the legitimate case.
+    @Test
+    public void swipeToEndOfViewWithFlutterDriverAndZeroScrollsShouldEmitLoudWarning() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        try (MockedStatic<ReportManager> reportManager = mockStatic(ReportManager.class)) {
+            touchActions.swipeToEndOfView(TouchActions.SwipeDirection.DOWN);
+
+            reportManager.verify(() -> ReportManager.log(argThat(message -> message != null
+                    && message.toLowerCase(java.util.Locale.ROOT).contains("flutter")), eq(org.apache.logging.log4j.Level.WARN)));
+        }
+        verify(elementActionsHelper, never()).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
+        verify(driver, times(1)).executeScript(eq("mobile: scrollGesture"), anyMap());
+    }
+
+    // Issue #4004: a Flutter session that genuinely scrolls a native overlay several times before reaching the
+    // end is a legitimate native scroll -- no warning should fire, matching today's behavior byte-for-byte.
+    @Test
+    public void swipeToEndOfViewWithFlutterDriverAndSuccessfulScrollsShouldNotWarnOrThrow() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        doReturn(true).doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        try (MockedStatic<ReportManager> reportManager = mockStatic(ReportManager.class)) {
+            touchActions.swipeToEndOfView(TouchActions.SwipeDirection.DOWN);
+
+            reportManager.verify(() -> ReportManager.log(anyString(), eq(org.apache.logging.log4j.Level.WARN)), never());
+        }
+        verify(elementActionsHelper, never()).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
+        verify(driver, times(2)).executeScript(eq("mobile: scrollGesture"), anyMap());
+    }
+
+    // Issue #3996: FlutterIntegration driver targets must scroll via "flutter: scrollTillVisible",
+    // not the native "mobile: scrollGesture" (a no-op against a single FlutterView with no native scrollable).
+
+    @Test
+    public void swipeElementIntoViewWithFlutterLocatorShouldIssueFlutterScrollCommand() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        // Pre-fix reproduction: the native path throws "Element not found after scrolling to the end of the page."
+        // (TouchActions.java:1105), and failAction converts it into the reporter's real AssertionFailedError.
+        doThrow(new AssertionFailedError("Element not found after scrolling to the end of the page."))
+                .when(elementActionsHelper).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        var targetLocator = AppiumBy.flutterKey("category_item_2");
+        touchActions.swipeElementIntoView(targetLocator, TouchActions.SwipeDirection.DOWN);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(driver).executeScript(eq("flutter: scrollTillVisible"), payloadCaptor.capture());
+        verify(driver, never()).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        Map<String, Object> payload = payloadCaptor.getValue();
+        SHAFT.Validations.assertThat().object(payload.get("finder"))
+                .isEqualTo(Map.of("using", "-flutter key", "value", "category_item_2")).perform();
+        SHAFT.Validations.assertThat().object(payload.get("scrollDirection")).isEqualTo("down").perform();
+    }
+
+    @Test
+    public void swipeElementIntoViewWithNativeLocatorShouldStillUseMobileScrollGesture() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        WebElement targetElement = mock(WebElement.class);
+        when(targetElement.isDisplayed()).thenReturn(true);
+        when(targetElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(80, 278, 100, 50));
+        when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(targetElement));
+        doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.swipeElementIntoView(By.id("target"), TouchActions.SwipeDirection.DOWN);
+
+        verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        verify(driver, never()).executeScript(eq("flutter: scrollTillVisible"), any());
+    }
+
+    @Test
+    public void swipeElementIntoViewWithFlutterScrollableAndFlutterTargetShouldIncludeScrollView() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        var scrollableLocator = AppiumBy.flutterType("ListView");
+        var targetLocator = AppiumBy.flutterKey("category_item_2");
+        touchActions.swipeElementIntoView(scrollableLocator, targetLocator, TouchActions.SwipeDirection.UP);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(driver).executeScript(eq("flutter: scrollTillVisible"), payloadCaptor.capture());
+        SHAFT.Validations.assertThat().object(payloadCaptor.getValue().containsKey("scrollView")).isTrue().perform();
+    }
+
+    @Test
+    public void swipeElementIntoViewWithFlutterTargetAndNativeScrollableShouldOmitScrollView() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        var targetLocator = AppiumBy.flutterKey("category_item_2");
+        touchActions.swipeElementIntoView(By.id("nativeContainer"), targetLocator, TouchActions.SwipeDirection.LEFT);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(driver).executeScript(eq("flutter: scrollTillVisible"), payloadCaptor.capture());
+        verify(driver, never()).executeScript(eq("mobile: scrollGesture"), anyMap());
+        SHAFT.Validations.assertThat().object(payloadCaptor.getValue().containsKey("scrollView")).isFalse().perform();
+    }
+
+    @Test
+    public void mapToFlutterScrollDirectionShouldPreserveWireFormatForAllDirections() throws Exception {
+        Method mapToFlutterScrollDirection = TouchActions.class.getDeclaredMethod("mapToFlutterScrollDirection", TouchActions.SwipeDirection.class);
+        mapToFlutterScrollDirection.setAccessible(true);
+        TouchActions touchActions = new TouchActions(createMockAndroidDriver());
+
+        Map<TouchActions.SwipeDirection, String> expectedWireDirections = Map.of(
+                TouchActions.SwipeDirection.UP, "up",
+                TouchActions.SwipeDirection.DOWN, "down",
+                TouchActions.SwipeDirection.LEFT, "left",
+                TouchActions.SwipeDirection.RIGHT, "right");
+
+        for (var entry : expectedWireDirections.entrySet()) {
+            ScrollParameter.ScrollDirection direction =
+                    (ScrollParameter.ScrollDirection) mapToFlutterScrollDirection.invoke(touchActions, entry.getKey());
+            SHAFT.Validations.assertThat().object(direction.getDirection()).isEqualTo(entry.getValue()).perform();
+        }
+    }
+
+    @Test
+    public void sessionStateApisShouldDelegateToMobileSessionStateManager() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        MutableCapabilities capabilities = new MutableCapabilities();
+        capabilities.setCapability("platformName", "Android");
+        capabilities.setCapability("appium:appPackage", "com.example.app");
+        when(driver.getCapabilities()).thenReturn(capabilities);
+        when(driver.getContext()).thenReturn("NATIVE_APP");
+
+        Path capabilitiesFile = TEMP_DIR.resolve("touchActions-session-capabilities.json");
+        Path appStateFile = TEMP_DIR.resolve("touchActions-app-state.json");
+
+        TouchActions touchActions = new TouchActions(driver);
+        touchActions.saveSessionCapabilities(capabilitiesFile.toString())
+                .saveAppState(appStateFile.toString());
+
+        SHAFT.Validations.assertThat().object(Files.exists(capabilitiesFile)).isTrue().perform();
+        SHAFT.Validations.assertThat().object(Files.exists(appStateFile)).isTrue().perform();
+
+        MutableCapabilities loadedCapabilities = TouchActions.loadSessionCapabilities(capabilitiesFile.toString());
+        SHAFT.Validations.assertThat().object(loadedCapabilities.getCapability("appium:appPackage")).isEqualTo("com.example.app").perform();
+
+        touchActions.loadAppState(appStateFile.toString());
+        verify(driver).activateApp("com.example.app");
+
+        Files.deleteIfExists(capabilitiesFile);
+        Files.deleteIfExists(appStateFile);
+    }
+
+    // Issue #4017: fluent wait/gesture/camera API over java-client's Flutter driver. These delegate to the
+    // typed Supports* interface methods directly (not raw executeScript), branching on `driver instanceof
+    // Supports*`, now that #4001 constructs a real FlutterAndroidDriver/FlutterIOSDriver for Flutter sessions.
+
+    @Test
+    public void waitForVisibleAndWaitForAbsentShouldDelegateToFlutterWaitingInterfaceWithLocatorAndTimeout() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+
+        var visibleLocator = AppiumBy.flutterKey("submit-button");
+        var absentLocator = AppiumBy.flutterKey("loading-spinner");
+
+        touchActions.waitForVisible(visibleLocator)
+                .waitForAbsent(absentLocator, Duration.ofSeconds(5));
+
+        ArgumentCaptor<WaitParameter> visibleCaptor = ArgumentCaptor.forClass(WaitParameter.class);
+        verify(driver).waitForVisible(visibleCaptor.capture());
+        SHAFT.Validations.assertThat().object(visibleCaptor.getValue().getLocator()).isEqualTo(visibleLocator).perform();
+        SHAFT.Validations.assertThat().object(visibleCaptor.getValue().getTimeout()).isEqualTo(null).perform();
+
+        ArgumentCaptor<WaitParameter> absentCaptor = ArgumentCaptor.forClass(WaitParameter.class);
+        verify(driver).waitForInVisible(absentCaptor.capture());
+        SHAFT.Validations.assertThat().object(absentCaptor.getValue().getLocator()).isEqualTo(absentLocator).perform();
+        SHAFT.Validations.assertThat().object(absentCaptor.getValue().getTimeout()).isEqualTo(Duration.ofSeconds(5)).perform();
+    }
+
+    @Test
+    public void waitForVisibleWithNonFlutterDriverOrLocatorShouldFailActionWithoutCallingFlutterInterface() throws Exception {
+        AndroidDriver nativeDriver = createMockAndroidDriver();
+        TouchActions nativeTouchActions = new TouchActions(nativeDriver);
+        ElementActionsHelper nativeElementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(nativeTouchActions, nativeElementActionsHelper);
+
+        nativeTouchActions.waitForVisible(By.id("native-element"));
+        verify(nativeElementActionsHelper).failAction(eq(nativeDriver), anyString(), eq(By.id("native-element")));
+
+        io.appium.java_client.flutter.android.FlutterAndroidDriver flutterDriver = createMockFlutterAndroidDriver();
+        TouchActions flutterTouchActions = new TouchActions(flutterDriver);
+        ElementActionsHelper flutterElementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(flutterTouchActions, flutterElementActionsHelper);
+
+        flutterTouchActions.waitForAbsent(By.id("native-element-on-flutter-driver"));
+        verify(flutterElementActionsHelper).failAction(eq(flutterDriver), anyString(), eq(By.id("native-element-on-flutter-driver")));
+        verify(flutterDriver, never()).waitForInVisible(any());
+    }
+
+    @Test
+    public void performDoubleClickAndLongPressShouldDelegateToFlutterGestureInterfaceWithResolvedElement() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        WebElement targetElement = mock(WebElement.class);
+        var targetLocator = AppiumBy.flutterKey("increment");
+        when(elementActionsHelper.identifyUniqueElement(driver, targetLocator)).thenReturn(List.of("increment", targetElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.performDoubleClick(targetLocator).performLongPress(targetLocator);
+
+        ArgumentCaptor<DoubleClickParameter> doubleClickCaptor = ArgumentCaptor.forClass(DoubleClickParameter.class);
+        verify(driver).performDoubleClick(doubleClickCaptor.capture());
+        SHAFT.Validations.assertThat().object(doubleClickCaptor.getValue().getElement()).isEqualTo(targetElement).perform();
+
+        ArgumentCaptor<LongPressParameter> longPressCaptor = ArgumentCaptor.forClass(LongPressParameter.class);
+        verify(driver).performLongPress(longPressCaptor.capture());
+        SHAFT.Validations.assertThat().object(longPressCaptor.getValue().getElement()).isEqualTo(targetElement).perform();
+    }
+
+    @Test
+    public void performDragAndDropShouldDelegateToFlutterGestureInterfaceWithResolvedSourceAndTarget() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        WebElement sourceElement = mock(WebElement.class);
+        WebElement targetElement = mock(WebElement.class);
+        var sourceLocator = AppiumBy.flutterKey("draggable");
+        var targetLocator = AppiumBy.flutterKey("drop-zone");
+        when(elementActionsHelper.identifyUniqueElement(driver, sourceLocator)).thenReturn(List.of("draggable", sourceElement));
+        when(elementActionsHelper.identifyUniqueElement(driver, targetLocator)).thenReturn(List.of("drop-zone", targetElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.performDragAndDrop(sourceLocator, targetLocator);
+
+        ArgumentCaptor<DragAndDropParameter> dragAndDropCaptor = ArgumentCaptor.forClass(DragAndDropParameter.class);
+        verify(driver).performDragAndDrop(dragAndDropCaptor.capture());
+        SHAFT.Validations.assertThat().object(dragAndDropCaptor.getValue().getSource()).isEqualTo(sourceElement).perform();
+        SHAFT.Validations.assertThat().object(dragAndDropCaptor.getValue().getTarget()).isEqualTo(targetElement).perform();
+    }
+
+    @Test
+    public void gestureMethodsWithNonFlutterDriverShouldFailActionWithoutCallingFlutterInterface() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.performDoubleClick(By.id("native"))
+                .performLongPress(By.id("native"))
+                .performDragAndDrop(By.id("native-source"), By.id("native-target"));
+
+        verify(elementActionsHelper, times(3)).failAction(eq(driver), anyString(), any(By.class));
+        verify(elementActionsHelper, never()).identifyUniqueElement(any(), any());
+    }
+
+    @Test
+    public void injectMockImageAndActivateInjectedImageShouldDelegateToFlutterCameraMockingInterface() throws Exception {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = createMockFlutterAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        File imageFile = TEMP_DIR.resolve("mock-camera.png").toFile();
+        Files.write(imageFile.toPath(), getValidPngBytes());
+        when(driver.injectMockImage(imageFile)).thenReturn("image-123");
+
+        String imageId = touchActions.injectMockImage(imageFile);
+        touchActions.activateInjectedImage(imageId);
+
+        SHAFT.Validations.assertThat().object(imageId).isEqualTo("image-123").perform();
+        verify(driver).injectMockImage(imageFile);
+        verify(driver).activateInjectedImage("image-123");
+    }
+
+    @Test
+    public void injectMockImageWithNonFlutterDriverShouldFailActionAndReturnNull() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+        File imageFile = TEMP_DIR.resolve("mock-camera-native.png").toFile();
+        Files.write(imageFile.toPath(), getValidPngBytes());
+
+        String imageId = touchActions.injectMockImage(imageFile);
+
+        SHAFT.Validations.assertThat().object(imageId).isEqualTo(null).perform();
+        verify(elementActionsHelper).failAction(eq(driver), anyString(), isNull(By.class));
+    }
+
+    @Test
+    public void activateInjectedImageWithNonFlutterDriverShouldFailAction() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        TouchActions touchActions = new TouchActions(driver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        touchActions.activateInjectedImage("mock-image-123");
+
+        verify(elementActionsHelper).failAction(eq(driver), anyString(), isNull(By.class));
+    }
+
+    @Test
+    public void offScreenNativeElementIsNotTreatedAsInViewport() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        WebElement offScreen = mock(WebElement.class);
+        WebElement onScreen = mock(WebElement.class);
+        when(offScreen.isDisplayed()).thenReturn(true);
+        when(onScreen.isDisplayed()).thenReturn(true);
+        when(offScreen.getRect()).thenReturn(new org.openqa.selenium.Rectangle(2367, 278, 100, 50));
+        when(onScreen.getRect()).thenReturn(new org.openqa.selenium.Rectangle(80, 278, 100, 50));
+        when(driver.findElements(any(By.class))).thenReturn(List.of(offScreen), List.of(onScreen));
+        doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = new TouchActions(new DriverFactoryHelper(driver));
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        when(elementActionsHelper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        // Presence in the native tree is not viewport membership (#5721). Public swipe
+        // must still scroll instead of treating the off-screen row as already in view.
+        touchActions.swipeElementIntoView(By.id("tab12"), TouchActions.SwipeDirection.RIGHT);
+
+        verify(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+    }
+
+
+
+    @Test
+    public void composeClippedTargetRecoversViaNestedScrollable() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(1080, 2400));
+
+        RemoteWebElement nested = mock(RemoteWebElement.class);
+        when(nested.getId()).thenReturn("nested-scroll-id");
+        when(nested.isDisplayed()).thenReturn(true);
+        when(nested.getRect()).thenReturn(new org.openqa.selenium.Rectangle(40, 200, 1800, 1000));
+        when(nested.getDomAttribute("resource-id")).thenReturn("app:id/nestedScrollView");
+        when(nested.getAttribute("resource-id")).thenReturn("app:id/nestedScrollView");
+
+        WebElement clipped = mock(WebElement.class);
+        when(clipped.isDisplayed()).thenReturn(false);
+        when(clipped.getRect()).thenReturn(new org.openqa.selenium.Rectangle(100, 2300, -50, 200));
+
+        WebElement visible = onScreenElement();
+        AtomicInteger gestures = new AtomicInteger();
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("scrollable")) {
+                return List.of(nested);
+            }
+            // After the first elementId-bound gesture (3rd scrollGesture call), the Compose
+            // node becomes displayed in the viewport (#7623).
+            return gestures.get() >= 3 ? List.of(visible) : List.of(clipped);
+        });
+        doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            Map<Object, Object> params = invocation.getArgument(1);
+            int n = gestures.getAndIncrement();
+            if (n < 2) {
+                Assert.assertNull(params.get("elementId"), "null-container gestures must not bind elementId yet: " + params);
+                return false;
+            }
+            Assert.assertEquals(params.get("elementId"), "nested-scroll-id", params.toString());
+            return true;
+        }).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        TouchActions touchActions = touchActionsWithScreenshots(driver);
+        TouchActions returned = touchActions.swipeElementIntoView(By.id("mobileField"), TouchActions.SwipeDirection.DOWN);
+
+        Assert.assertSame(returned, touchActions);
+        List<Map<Object, Object>> maps = capturedGestureMaps(driver, "mobile: scrollGesture");
+        Assert.assertTrue(maps.size() >= 3, "expected null-container attempts then recovered nested scroll: " + maps);
+        Assert.assertNull(maps.get(0).get("elementId"));
+        Assert.assertNull(maps.get(1).get("elementId"));
+        Assert.assertEquals(maps.get(2).get("elementId"), "nested-scroll-id");
+    }
+
+    @Test
+    public void composeClippedTargetDiagnosesInvertedBoundsWhenScrollStillStuck() throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(1080, 2400));
+
+        WebElement clipped = mock(WebElement.class);
+        when(clipped.isDisplayed()).thenReturn(false);
+        when(clipped.getRect()).thenReturn(new org.openqa.selenium.Rectangle(100, 2300, -50, 200));
+        when(driver.findElements(any(By.class))).thenAnswer(invocation -> {
+            By by = invocation.getArgument(0);
+            if (String.valueOf(by).contains("scrollable")) {
+                return List.of();
+            }
+            return List.of(clipped);
+        });
+        doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+
+        ElementActionsHelper helper = screenshotHelper();
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, helper);
+        touchActions.swipeElementIntoView(By.id("mobileField"), TouchActions.SwipeDirection.DOWN);
+
+        verify(helper).failAction(eq(driver), anyString(), any(), org.mockito.ArgumentMatchers.<Throwable>argThat(throwable ->
+                throwable.getMessage() != null
+                        && throwable.getMessage().contains("inverted / non-displayed bounds")
+                        && throwable.getMessage().contains("scrolling did not move the scrollable")));
+        verify(helper, never()).passAction(any(), any(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    public void scrollGestureStaysOnScreenAndANoMoveIsNotTheEndOfThePage() throws Exception {
+        List<String> firstNullFailure = null;
+        List<String> firstNestedFailure = null;
+        List<String> firstReveal = null;
+        List<String> firstNestedReveal = null;
+        List<String> firstEnd = null;
+        List<String> firstMovedEnd = null;
+        List<String> firstStopped = null;
+        for (int run = 0; run < 2; run++) {
+            for (int[] screen : new int[][]{{1080, 2400}, {320, 480}}) {
+                for (TouchActions.SwipeDirection direction : TouchActions.SwipeDirection.values()) {
+                    Map<Object, Object> gesture = captureNullContainerGesture(screen[0], screen[1], direction);
+                    if (direction != TouchActions.SwipeDirection.UP) {
+                        assertGestureBoxOnScreen(gesture, screen[0], screen[1]);
+                    }
+                    Assert.assertEquals(String.valueOf(gesture.get("direction")),
+                            direction.name().toLowerCase(java.util.Locale.ROOT));
+                    if (direction == TouchActions.SwipeDirection.UP && screen[1] == 2400) {
+                        int top = ((Number) gesture.get("top")).intValue();
+                        int height = ((Number) gesture.get("height")).intValue();
+                        // Documented exception (#6931): UP keeps the unclamped historical rectangle.
+                        Assert.assertTrue(top == screen[1] - 100 && height == screen[1] * 90 / 100,
+                                "null-container UP keeps top = screenHeight - 100 and a 90% height");
+                    }
+                }
+            }
+            assertIosScrollMapsStayDirectionOnly();
+            List<String> nullFailure = failedSearchDirections(null, TouchActions.SwipeDirection.UP);
+            List<String> nestedFailure = failedSearchDirections(By.id("nested"), TouchActions.SwipeDirection.UP);
+            List<String> reveal = revealedSearchDirections(null, TouchActions.SwipeDirection.UP);
+            List<String> nestedReveal = revealedSearchDirections(By.id("nested"), TouchActions.SwipeDirection.LEFT);
+            List<String> stopped = endOfPageAfterMovement(TouchActions.SwipeDirection.UP);
+            List<String> end = swipeToEndDirections(false);
+            List<String> movedEnd = swipeToEndDirections(true);
+            if (run == 0) {
+                firstNullFailure = nullFailure;
+                firstNestedFailure = nestedFailure;
+                firstReveal = reveal;
+                firstNestedReveal = nestedReveal;
+                firstStopped = stopped;
+                firstEnd = end;
+                firstMovedEnd = movedEnd;
+            } else {
+                Assert.assertEquals(nullFailure, firstNullFailure);
+                Assert.assertEquals(nestedFailure, firstNestedFailure);
+                Assert.assertEquals(reveal, firstReveal);
+                Assert.assertEquals(nestedReveal, firstNestedReveal);
+                Assert.assertEquals(stopped, firstStopped);
+                Assert.assertEquals(end, firstEnd);
+                Assert.assertEquals(movedEnd, firstMovedEnd);
+            }
+            Assert.assertEquals(nullFailure, List.of("up", "down"));
+            Assert.assertEquals(nestedFailure, List.of("up", "down"));
+            Assert.assertEquals(reveal, List.of("up", "down"));
+            Assert.assertEquals(nestedReveal, List.of("left", "right"));
+            Assert.assertEquals(stopped, List.of("up", "up", "down"));
+            Assert.assertEquals(end, List.of("down"));
+            Assert.assertEquals(movedEnd, List.of("down", "down"));
+        }
+    }
+
+    private Map<Object, Object> captureNullContainerGesture(int screenWidth, int screenHeight,
+                                                            TouchActions.SwipeDirection direction) throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(screenWidth, screenHeight));
+        WebElement onScreen = onScreenElement();
+        when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(onScreen));
+        doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        TouchActions touchActions = touchActionsWithScreenshots(driver);
+        touchActions.swipeElementIntoView(By.id("target"), direction);
+        return capturedGestureMaps(driver, "mobile: scrollGesture").getFirst();
+    }
+
+    private void assertIosScrollMapsStayDirectionOnly() throws Exception {
+        IOSDriver driver = createMockIOSDriver();
+        WebElement visible = onScreenElement();
+        when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(visible));
+        doReturn(Boolean.TRUE).when(driver).executeScript(eq("mobile: scroll"), anyMap());
+        TouchActions touchActions = touchActionsWithScreenshots(driver);
+        touchActions.swipeElementIntoView(By.id("target"), TouchActions.SwipeDirection.UP);
+        Assert.assertEquals(capturedGestureMaps(driver, "mobile: scroll").getFirst(), Map.of("direction", "up"));
+
+        IOSDriver contained = createMockIOSDriver();
+        WebElement containedVisible = onScreenElement();
+        when(contained.findElements(any(By.class))).thenReturn(List.of(), List.of(containedVisible));
+        doReturn(Boolean.TRUE).when(contained).executeScript(eq("mobile: scroll"), anyMap());
+        TouchActions containedActions = new TouchActions(contained);
+        ElementActionsHelper helper = screenshotHelper();
+        RemoteWebElement container = mock(RemoteWebElement.class);
+        when(container.getId()).thenReturn("ios-container-id");
+        when(container.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
+        when(helper.identifyUniqueElement(any(), eq(By.id("tray")))).thenReturn(List.of("tray", container));
+        injectElementActionsHelper(containedActions, helper);
+        containedActions.swipeElementIntoView(By.id("tray"), By.id("target"), TouchActions.SwipeDirection.LEFT);
+        Assert.assertEquals(capturedGestureMaps(contained, "mobile: scroll").getFirst(),
+                Map.of("direction", "left", "elementId", "ios-container-id"));
+    }
+
+    private List<String> failedSearchDirections(By container, TouchActions.SwipeDirection caller) throws Exception {
+        AndroidDriver driver = scrollingDriver(false, false);
+        ElementActionsHelper helper = prepareSearch(container);
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, helper);
+        swipe(touchActions, container, caller);
+        verify(helper).failAction(eq(driver), anyString(), any(), org.mockito.ArgumentMatchers.<Throwable>argThat(throwable ->
+                throwable.getMessage() != null
+                        && throwable.getMessage().contains("did not move")
+                        && !throwable.getMessage().contains("Element not found after scrolling to the end of the page.")));
+        verify(helper, never()).passAction(any(), any(), anyString(), any(), any(), any());
+        List<Map<Object, Object>> maps = capturedGestureMaps(driver, "mobile: scrollGesture");
+        if (container != null) {
+            Assert.assertEquals(maps.getFirst().get("elementId"), "nested-id");
+            Assert.assertEquals(maps.get(1).get("elementId"), "nested-id");
+        }
+        return directionsOf(maps);
+    }
+
+    private List<String> revealedSearchDirections(By container, TouchActions.SwipeDirection caller) throws Exception {
+        AndroidDriver driver = scrollingDriver(true, false);
+        WebElement visible = onScreenElement();
+        when(driver.findElements(any(By.class))).thenReturn(List.of(), List.of(), List.of(), List.of(visible));
+        ElementActionsHelper helper = prepareSearch(container);
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, helper);
+        TouchActions returned = swipe(touchActions, container, caller);
+        Assert.assertSame(returned, touchActions);
+        verify(helper, never()).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
+        return directionsOf(capturedGestureMaps(driver, "mobile: scrollGesture"));
+    }
+
+    private List<String> endOfPageAfterMovement(TouchActions.SwipeDirection caller) throws Exception {
+        AndroidDriver driver = scrollingDriver(false, true);
+        ElementActionsHelper helper = prepareSearch(null);
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, helper);
+        swipe(touchActions, null, caller);
+        verify(helper).failAction(eq(driver), anyString(), any(), org.mockito.ArgumentMatchers.<Throwable>argThat(throwable ->
+                throwable.getMessage() != null
+                        && throwable.getMessage().contains("Element not found after scrolling to the end of the page.")));
+        return directionsOf(capturedGestureMaps(driver, "mobile: scrollGesture"));
+    }
+
+    private List<String> swipeToEndDirections(boolean movesThenStops) throws Exception {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(1080, 2400));
+        if (movesThenStops) {
+            doReturn(true).doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        } else {
+            doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        }
+        ElementActionsHelper helper = screenshotHelper();
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, helper);
+        touchActions.swipeToEndOfView(TouchActions.SwipeDirection.DOWN);
+        verify(helper, never()).failAction(any(WebDriver.class), anyString(), any(), any(Throwable.class));
+        List<String> directions = directionsOf(capturedGestureMaps(driver, "mobile: scrollGesture"));
+        Assert.assertFalse(directions.contains("up"));
+        return directions;
+    }
+
+    private AndroidDriver scrollingDriver(boolean revealOnSecondGesture, boolean moveThenStop) {
+        AndroidDriver driver = createMockAndroidDriver();
+        when(driver.manage().window().getSize()).thenReturn(new Dimension(1080, 2400));
+        if (revealOnSecondGesture) {
+            doReturn(false).doReturn(true).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        } else if (moveThenStop) {
+            doReturn(true).doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        } else {
+            doReturn(false).when(driver).executeScript(eq("mobile: scrollGesture"), anyMap());
+        }
+        return driver;
+    }
+
+    private ElementActionsHelper prepareSearch(By container) {
+        ElementActionsHelper helper = screenshotHelper();
+        if (container != null) {
+            RemoteWebElement element = mock(RemoteWebElement.class);
+            when(element.getId()).thenReturn("nested-id");
+            when(element.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 400, 300));
+            when(helper.identifyUniqueElement(any(), eq(container))).thenReturn(List.of(container.toString(), element));
+        }
+        return helper;
+    }
+
+    private TouchActions swipe(TouchActions touchActions, By container, TouchActions.SwipeDirection caller) {
+        if (container == null) {
+            return touchActions.swipeElementIntoView(By.id("target"), caller);
+        }
+        return touchActions.swipeElementIntoView(container, By.id("target"), caller);
+    }
+
+    private TouchActions touchActionsWithScreenshots(WebDriver driver) throws Exception {
+        TouchActions touchActions = new TouchActions(driver);
+        injectElementActionsHelper(touchActions, screenshotHelper());
+        return touchActions;
+    }
+
+    private ElementActionsHelper screenshotHelper() {
+        ElementActionsHelper helper = mock(ElementActionsHelper.class);
+        when(helper.takeScreenshot(any(), any(), anyString(), any(), eq(true))).thenReturn(List.of());
+        return helper;
+    }
+
+    private WebElement onScreenElement() {
+        WebElement onScreen = mock(WebElement.class);
+        when(onScreen.isDisplayed()).thenReturn(true);
+        when(onScreen.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 10, 20, 20));
+        return onScreen;
+    }
+
+    private static void assertGestureBoxOnScreen(Map<Object, Object> gesture, int screenWidth, int screenHeight) {
+        int left = ((Number) gesture.get("left")).intValue();
+        int top = ((Number) gesture.get("top")).intValue();
+        int width = ((Number) gesture.get("width")).intValue();
+        int height = ((Number) gesture.get("height")).intValue();
+        Assert.assertTrue(left >= 0 && top >= 0 && width > 0 && height > 0, gesture.toString());
+        Assert.assertTrue((long) left + width <= screenWidth, gesture.toString());
+        Assert.assertTrue((long) top + height <= screenHeight, gesture.toString());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<Object, Object>> capturedGestureMaps(org.openqa.selenium.JavascriptExecutor driver, String script) {
+        ArgumentCaptor<Map<Object, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(driver, atLeastOnce()).executeScript(eq(script), captor.capture());
+        return captor.getAllValues();
+    }
+
+    private static List<String> directionsOf(List<Map<Object, Object>> maps) {
+        return maps.stream().map(map -> String.valueOf(map.get("direction"))).toList();
+    }
+
+    private AndroidDriver createMockAndroidDriver() {
+        AndroidDriver driver = mock(AndroidDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new Dimension(1080, 1920));
+        when(driver.findElements(any(By.class))).thenReturn(List.of());
+        return driver;
+    }
+
+
+    private IOSDriver createMockIOSDriver() {
+        IOSDriver driver = mock(IOSDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new Dimension(1080, 1920));
+        when(driver.findElements(any(By.class))).thenReturn(List.of());
+        return driver;
+    }
+
+    private RemoteWebDriver createMockRemoteWebDriver() {
+        RemoteWebDriver driver = mock(RemoteWebDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new Dimension(1080, 1920));
+        when(driver.findElements(any(By.class))).thenReturn(List.of());
+        return driver;
+    }
+
+    private io.appium.java_client.flutter.android.FlutterAndroidDriver createMockFlutterAndroidDriver() {
+        io.appium.java_client.flutter.android.FlutterAndroidDriver driver = mock(io.appium.java_client.flutter.android.FlutterAndroidDriver.class);
+        WebDriver.Options options = mock(WebDriver.Options.class);
+        WebDriver.Window window = mock(WebDriver.Window.class);
+        when(driver.manage()).thenReturn(options);
+        when(options.window()).thenReturn(window);
+        when(window.getSize()).thenReturn(new Dimension(1080, 1920));
+        when(driver.findElements(any(By.class))).thenReturn(List.of());
+        return driver;
+    }
+
+    private void injectElementActionsHelper(TouchActions touchActions, ElementActionsHelper elementActionsHelper) throws Exception {
+        Field elementActionsHelperField = FluentWebDriverAction.class.getDeclaredField("elementActionsHelper");
+        elementActionsHelperField.setAccessible(true);
+        elementActionsHelperField.set(touchActions, elementActionsHelper);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private String capturedPointerType(org.openqa.selenium.interactions.Interactive driver) {
+        ArgumentCaptor<Collection<Sequence>> actionsCaptor = ArgumentCaptor.forClass((Class) Collection.class);
+        verify(driver).perform(actionsCaptor.capture());
+        Map<String, Object> encodedSequence = actionsCaptor.getValue().iterator().next().encode();
+        Map<String, Object> parameters = (Map<String, Object>) encodedSequence.get("parameters");
+        return String.valueOf(parameters.get("pointerType"));
+    }
+
+    private byte[] getValidPngBytes() {
+        return Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn8YkQAAAAASUVORK5CYII=");
+    }
+
+    private void executeWrapperForCoverage(Runnable action) {
+        try {
+            action.run();
+        } catch (RuntimeException runtimeException) {
+            SHAFT.Validations.assertThat().object(runtimeException.getMessage() != null).isTrue().perform();
+        } catch (AssertionError assertionError) {
+            SHAFT.Validations.assertThat().object(assertionError.getMessage() != null).isTrue().perform();
+        }
+    }
+
+    @Test
+    public void prepareParametersUsesAppiumWebElementId() throws Exception {
+        IOSDriver iosDriver = createMockIOSDriver();
+        TouchActions touchActions = new TouchActions(iosDriver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        AppiumWebElement scrollableElement = mock(AppiumWebElement.class);
+        when(scrollableElement.getId()).thenReturn("appium-container-id");
+        when(scrollableElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
+        when(elementActionsHelper.identifyUniqueElement(any(), eq(By.id("appium-container"))))
+                .thenReturn(List.of("appium-container", scrollableElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        Method prepareParameters = TouchActions.class.getDeclaredMethod(
+                "prepareParameters", TouchActions.SwipeDirection.class, By.class, By.class);
+        prepareParameters.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<Object, Object> elementUpParameters = (Map<Object, Object>) prepareParameters.invoke(
+                touchActions, TouchActions.SwipeDirection.UP, By.id("appium-container"), By.id("target"));
+
+        Assert.assertEquals(elementUpParameters, Map.of(
+                "direction", "up", "elementId", "appium-container-id"));
+    }
+
+    @Test
+    public void prepareParametersFailsClosedWhenIosScrollableHasNoElementId() throws Exception {
+        IOSDriver iosDriver = createMockIOSDriver();
+        TouchActions touchActions = new TouchActions(iosDriver);
+        ElementActionsHelper elementActionsHelper = mock(ElementActionsHelper.class);
+        WebElement scrollableElement = mock(WebElement.class);
+        when(scrollableElement.getRect()).thenReturn(new org.openqa.selenium.Rectangle(10, 20, 300, 500));
+        when(elementActionsHelper.identifyUniqueElement(any(), eq(By.id("plain-container"))))
+                .thenReturn(List.of("plain-container", scrollableElement));
+        injectElementActionsHelper(touchActions, elementActionsHelper);
+
+        Method prepareParameters = TouchActions.class.getDeclaredMethod(
+                "prepareParameters", TouchActions.SwipeDirection.class, By.class, By.class);
+        prepareParameters.setAccessible(true);
+        try {
+            prepareParameters.invoke(
+                    touchActions, TouchActions.SwipeDirection.UP, By.id("plain-container"), By.id("target"));
+            Assert.fail("expected IllegalStateException for missing Appium element id");
+        } catch (InvocationTargetException ex) {
+            Assert.assertTrue(ex.getCause() instanceof IllegalStateException, String.valueOf(ex.getCause()));
+            Assert.assertTrue(ex.getCause().getMessage().contains("Appium remote element"),
+                    ex.getCause().getMessage());
+        }
+    }
+}

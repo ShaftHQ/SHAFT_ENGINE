@@ -500,7 +500,7 @@ public class ValidationsHelperNewPatternCoverageUnitTest {
         AssertionError error = new AssertionError("boom");
         error.setStackTrace(new StackTraceElement[]{
                 new StackTraceElement("org.testng.SomeClass", "invoke", "SomeClass.java", 10),
-                new StackTraceElement("testPackage.unitTests.CustomTest", "sample", "CustomTest.java", 42)
+                new StackTraceElement("com.shaft.test.unittests.CustomTest", "sample", "CustomTest.java", 42)
         });
 
         String formatted = (String) formatAssertionError.invoke(null, error);
