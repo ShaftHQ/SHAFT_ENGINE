@@ -332,7 +332,7 @@ untouched and ignore rules go to `.git/info/exclude` (see INSTALL.md).
 Committing the `.chaos-engine/` core is adopter (maintainer) mode: an upgrade
 must rewrite it, so a `--consumer` install over a committed core reports
 `consumerMode.trackedCore` and asks you to commit the upgrade or untrack the
-core with `git rm -r --cached .chaos-engine`.
+core with `git rm --cached -r .chaos-engine` then add `/.chaos-engine/` to `.gitignore`.
 Memory's canonical store is bootstrapped from the pinned v5
 [schema bundle](assets/memory-v5/SCHEMAS.md):
 [config](assets/memory-v5/config.schema.json),
