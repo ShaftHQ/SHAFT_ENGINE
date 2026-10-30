@@ -195,6 +195,8 @@ CHECKS = {
         (
             "tests.scripts.test_harness_pr_gate",
             "tests.scripts.test_unittest_shard",
+            # #7627: case-sensitive UnitTest.java discovery shared by shard + pre-push.
+            "tests.scripts.test_unit_test_discovery",
             # #6239: the suite must never mutate the invoking checkout.
             "tests.scripts.test_repo_state_guard",
             # #6543: build wrappers stay executable; workflows call them via bash.

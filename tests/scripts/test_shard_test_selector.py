@@ -9,6 +9,7 @@ from pathlib import Path
 import yaml
 
 from scripts.ci.shard_test_selector import entries, shard_entries
+from scripts.ci.unit_test_discovery import iter_unit_test_sources
 from scripts.ci.validate_quality_configuration import _pr_gate_unit_selectors
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -34,11 +35,13 @@ def unselected_unit_test_classes(selector: str, test_root: Path = UNIT_TEST_ROOT
     """Return *UnitTest classes no PR Gate shard runs (#7310).
 
     Classes under ``com/shaft/test/unittests`` ride the shard-1 glob; any other
-    ``*UnitTest`` class runs only when the selector names it.
+    ``*UnitTest`` class runs only when the selector names it. Discovery keeps a
+    case-sensitive ``UnitTest.java`` suffix so Windows ``rglob`` cannot treat
+    ``JunitTest.java`` as a unit-test class (#7627).
     """
     named = {entry.strip() for entry in selector.removeprefix("-Dtest=").split(",")}
     missing = []
-    for path in sorted(test_root.rglob("*UnitTest.java")):
+    for path in iter_unit_test_sources(test_root):
         relative = path.relative_to(test_root).as_posix()
         if relative.startswith("com/shaft/test/unittests/") or path.stem in named:
             continue
@@ -68,12 +71,18 @@ class ShardSelectorTest(unittest.TestCase):
                 "com/x/NamedUnitTest.java",
                 "com/x/ForgottenUnitTest.java",
                 "com/x/BrowserE2eTest.java",
+                "junitTestPackage/JunitTest.java",
             ):
                 (root / relative).parent.mkdir(parents=True, exist_ok=True)
                 (root / relative).write_text("class X {}", encoding="utf-8")
             self.assertEqual(
                 unselected_unit_test_classes("-Dtest=com/shaft/test/unittests/*, NamedUnitTest", root),
                 ["com/x/ForgottenUnitTest.java"],
+            )
+            # Case-sensitive suffix: JunitTest.java must never require shard registration (#7627).
+            self.assertNotIn(
+                "junitTestPackage/JunitTest.java",
+                unselected_unit_test_classes("-Dtest=com/shaft/test/unittests/*", root),
             )
 
     def test_union_of_shards_is_exactly_the_selector(self) -> None:

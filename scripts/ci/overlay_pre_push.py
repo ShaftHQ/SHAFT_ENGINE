@@ -338,11 +338,15 @@ def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
     Mirrors ``tests.scripts.test_shard_test_selector.unselected_unit_test_classes``
     without importing PyYAML: the ``-Dtest`` selector is read with a regex from
     ``pr-gate.yml``. Classes under ``com/shaft/test/unittests/`` ride the shard-1
-    glob; every other ``*UnitTest`` must be named in the selector.
+    glob; every other ``*UnitTest`` must be named in the selector. Discovery keeps
+    a case-sensitive ``UnitTest.java`` suffix so Windows ``rglob`` cannot treat
+    ``JunitTest.java`` as a unit-test class (#7627).
     """
+    from scripts.ci.unit_test_discovery import is_unit_test_source_name, iter_unit_test_sources
+
     normalized = [path.replace("\\", "/").removeprefix("./") for path in changed]
     if not any(
-        path.endswith("UnitTest.java") or path.endswith(".github/workflows/pr-gate.yml")
+        is_unit_test_source_name(path) or path.endswith(".github/workflows/pr-gate.yml")
         for path in normalized
     ):
         return []
@@ -355,7 +359,7 @@ def unselected_unit_test_failures(root: Path, changed: list[str]) -> list[str]:
         return ["PR Gate unit-test step lost its -Dtest selector"]
     named = {entry.strip() for entry in match.group(1).split(",")}
     missing = []
-    for path in sorted(test_root.rglob("*UnitTest.java")):
+    for path in iter_unit_test_sources(test_root):
         relative = path.relative_to(test_root).as_posix()
         if relative.startswith("com/shaft/test/unittests/") or path.stem in named:
             continue
