@@ -43,6 +43,6 @@ one lesson card.
 | [L35 Video caption handoff](video-caption-handoff.md) | human captions, script filter, speech cue gap, TP/fps/VFX/onset |
 | [L36 CMS paste fragment only](cms-paste-fragment-only.md) | Code-block paste = fragment; dir/lang + CSS on wrapper; header Δ≤1px vs `/` |
 | [L37 CMS paste no HTML comments](cms-paste-no-html-comments.md) | no `<!--` in paste; ops notes leak live |
+| [L38 Caption phonetic + mute gate](caption-phonetic-mute-gate.md) | Arabic phonetic tech dumps + Egyptian allowlist; mute must be silent; no burned [muted] |
 
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).
-| [L38 Caption phonetic + mute gate](caption-phonetic-mute-gate.md) | Arabic phonetic tech dumps + Egyptian allowlist; mute must be silent; no burned [muted] |
