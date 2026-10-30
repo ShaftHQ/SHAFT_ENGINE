@@ -33,14 +33,14 @@ UNIT_TEST_ROOT = ROOT / "shaft-engine/src/test/java"
 def unselected_unit_test_classes(selector: str, test_root: Path = UNIT_TEST_ROOT) -> list[str]:
     """Return *UnitTest classes no PR Gate shard runs (#7310).
 
-    Classes under ``testPackage/unitTests`` ride the shard-1 glob; any other
+    Classes under ``com/shaft/test/unittests`` ride the shard-1 glob; any other
     ``*UnitTest`` class runs only when the selector names it.
     """
     named = {entry.strip() for entry in selector.removeprefix("-Dtest=").split(",")}
     missing = []
     for path in sorted(test_root.rglob("*UnitTest.java")):
         relative = path.relative_to(test_root).as_posix()
-        if relative.startswith("testPackage/unitTests/") or path.stem in named:
+        if relative.startswith("com/shaft/test/unittests/") or path.stem in named:
             continue
         missing.append(relative)
     return missing
@@ -64,7 +64,7 @@ class ShardSelectorTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             for relative in (
-                "testPackage/unitTests/GlobbedUnitTest.java",
+                "com/shaft/test/unittests/GlobbedUnitTest.java",
                 "com/x/NamedUnitTest.java",
                 "com/x/ForgottenUnitTest.java",
                 "com/x/BrowserE2eTest.java",
@@ -72,7 +72,7 @@ class ShardSelectorTest(unittest.TestCase):
                 (root / relative).parent.mkdir(parents=True, exist_ok=True)
                 (root / relative).write_text("class X {}", encoding="utf-8")
             self.assertEqual(
-                unselected_unit_test_classes("-Dtest=testPackage/unitTests/*, NamedUnitTest", root),
+                unselected_unit_test_classes("-Dtest=com/shaft/test/unittests/*, NamedUnitTest", root),
                 ["com/x/ForgottenUnitTest.java"],
             )
 
@@ -92,7 +92,7 @@ class ShardSelectorTest(unittest.TestCase):
 
     def test_validator_still_reads_the_full_selector(self) -> None:
         selectors = _pr_gate_unit_selectors(PR_GATE.read_text(encoding="utf-8"))
-        self.assertIn("testPackage/unitTests/*", selectors)
+        self.assertIn("com/shaft/test/unittests/*", selectors)
         self.assertIn("LazyLoadingFixtureLiveTest", selectors)
 
     def test_round_robin_for_more_shards_is_deterministic_and_complete(self) -> None:

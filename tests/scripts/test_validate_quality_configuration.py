@@ -19,7 +19,7 @@ from scripts.ci.validate_quality_configuration import (
 
 PLAYWRIGHT_GRID_EXCLUSION = "!%regex[.*playwright.*PlaywrightActionsE2ETest.*]"
 LAZY_GRID_EXCLUSION = "!%regex[.*LazyLoadingFixtureLiveTest.*]"
-UNIT_PACKAGE_EXCLUSION = "!%regex[.*testPackage.unitTests.*]"
+UNIT_PACKAGE_EXCLUSION = "!%regex[.*com.shaft.test.unittests.*]"
 
 
 def workflow_scope(*tokens: str) -> str:
@@ -150,7 +150,7 @@ jobs:
             workflows = root / ".github" / "workflows"
             workflows.mkdir(parents=True)
             (workflows / "pr-gate.yml").write_text(
-                pr_gate_unit_job("'-Dtest=testPackage/unitTests/*, FailureTraceReporterTest'"),
+                pr_gate_unit_job("'-Dtest=com/shaft/test/unittests/*, FailureTraceReporterTest'"),
                 encoding="utf-8",
             )
             self.assertEqual(
@@ -293,7 +293,7 @@ jobs:
             encoding="utf-8"
         )
 
-        self.assertIn("!%regex[.*testPackage.unitTests.*]", local_e2e_workflow)
+        self.assertIn("!%regex[.*com.shaft.test.unittests.*]", local_e2e_workflow)
 
     def test_rejects_local_browser_scope_that_omits_pr_gate_owned_unit_tests(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -315,7 +315,7 @@ jobs:
                 encoding="utf-8",
             )
             (workflows / "pr-gate.yml").write_text(
-                pr_gate_unit_job("'-Dtest=testPackage/unitTests/*, ExampleUnitTest'"),
+                pr_gate_unit_job("'-Dtest=com/shaft/test/unittests/*, ExampleUnitTest'"),
                 encoding="utf-8",
             )
 
@@ -323,7 +323,7 @@ jobs:
                 validate_browser_matrix_scope_policy(root),
                 [
                     "e2eLocalTests.yml must exclude PR-gate-owned unit tests: "
-                    "!%regex[.*testPackage.unitTests.*], !%regex[.*ExampleUnitTest.*]"
+                    "!%regex[.*com.shaft.test.unittests.*], !%regex[.*ExampleUnitTest.*]"
                 ],
             )
 
@@ -347,7 +347,7 @@ jobs:
             )
             (workflows / "e2eLocalTests.yml").write_text(local_scope, encoding="utf-8")
             (workflows / "pr-gate.yml").write_text(
-                pr_gate_unit_job("'-Dtest=testPackage/unitTests/*'"),
+                pr_gate_unit_job("'-Dtest=com/shaft/test/unittests/*'"),
                 encoding="utf-8",
             )
 
@@ -382,7 +382,7 @@ jobs:
                     encoding="utf-8",
                 )
                 (workflows / "pr-gate.yml").write_text(
-                    pr_gate_unit_job("'-Dtest=testPackage/unitTests/*'"),
+                    pr_gate_unit_job("'-Dtest=com/shaft/test/unittests/*'"),
                     encoding="utf-8",
                 )
 
@@ -397,11 +397,11 @@ jobs:
     def test_pr_gate_ownership_requires_exact_positive_selector(self):
         selector_lines = {
             "comment-only": (
-                "# '-Dtest=testPackage/unitTests/*, ExampleUnitTest'\n"
-                "'-Dtest=testPackage/unitTests/*'"
+                "# '-Dtest=com/shaft/test/unittests/*, ExampleUnitTest'\n"
+                "'-Dtest=com/shaft/test/unittests/*'"
             ),
-            "negative": "'-Dtest=testPackage/unitTests/*, !ExampleUnitTest'",
-            "prefix-collision": "'-Dtest=testPackage/unitTests/*, ExampleUnitTestExtra'",
+            "negative": "'-Dtest=com/shaft/test/unittests/*, !ExampleUnitTest'",
+            "prefix-collision": "'-Dtest=com/shaft/test/unittests/*, ExampleUnitTestExtra'",
         }
         for scenario, selector in selector_lines.items():
             with self.subTest(scenario=scenario), tempfile.TemporaryDirectory() as temp_dir:
@@ -449,7 +449,7 @@ jobs:
                     encoding="utf-8",
                 )
                 (workflows / "pr-gate.yml").write_text(
-                    pr_gate_unit_job("'-Dtest=testPackage/unitTests/*'"),
+                    pr_gate_unit_job("'-Dtest=com/shaft/test/unittests/*'"),
                     encoding="utf-8",
                 )
 
@@ -459,7 +459,7 @@ jobs:
                 )
 
     def test_ignores_unit_selector_outside_the_owning_job_and_step(self):
-        unrelated_selector = "'-Dtest=testPackage/unitTests/*, ExampleUnitTest'"
+        unrelated_selector = "'-Dtest=com/shaft/test/unittests/*, ExampleUnitTest'"
         scenarios = {
             "disabled-job": (
                 "jobs:\n"
@@ -469,13 +469,13 @@ jobs:
                 "      - name: Run shaft-engine unit tests\n"
                 "        run: >-\n"
                 f"          {unrelated_selector}\n"
-                + pr_gate_unit_job("'-Dtest=testPackage/unitTests/*'").removeprefix("jobs:\n")
+                + pr_gate_unit_job("'-Dtest=com/shaft/test/unittests/*'").removeprefix("jobs:\n")
             ),
             "wrong-step": pr_gate_unit_job(unrelated_selector, step_name="Document unit selectors")
             + "      - name: Run shaft-engine unit tests\n"
             + "        run: >-\n"
-            + "          '-Dtest=testPackage/unitTests/*'\n",
-            "unnamed-disabled-step": pr_gate_unit_job("'-Dtest=testPackage/unitTests/*'")
+            + "          '-Dtest=com/shaft/test/unittests/*'\n",
+            "unnamed-disabled-step": pr_gate_unit_job("'-Dtest=com/shaft/test/unittests/*'")
             + "      - if: false\n"
             + "        run: >-\n"
             + f"          {unrelated_selector}\n",
