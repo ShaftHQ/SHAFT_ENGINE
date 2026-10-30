@@ -473,6 +473,18 @@ def codecov_yml_failures(root: Path, changed: list[str]) -> list[str]:
 
 
 
+
+def tracked_mobile_binary_failures(root: Path) -> list[str]:
+    """Fail closed when Phase 0 fixture apk/ipa paths are tracked again (#7547)."""
+    helper = root / "scripts" / "ci" / "fetch_mobile_test_apps.py"
+    if not helper.is_file():
+        return []
+    sys.path.insert(0, str(helper.parent))
+    import fetch_mobile_test_apps as fetch  # noqa: WPS433
+
+    return list(fetch.tracked_mobile_binary_failures(root))
+
+
 def no_push_guard_failures(root: Path) -> list[str]:
     """Fail closed when the tracked NO_PUSH guard is absent.
 
@@ -533,6 +545,7 @@ def overlay_pre_push_failures(root: Path, paths: list[str] | None = None) -> lis
     changed = list(paths) if paths is not None else changed_overlay_paths(root)
     failures: list[str] = tip_preflight_failures(root, changed)
     if paths is None:
+        failures.extend(tracked_mobile_binary_failures(root))
         failures.extend(no_push_guard_failures(root))
         failures.extend(evidence_pin_failures(root))
         failures.extend(client_name_scrub_failures(root))

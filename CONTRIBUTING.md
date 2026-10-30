@@ -42,7 +42,7 @@ python3 scripts/ci/fetch_mobile_test_apps.py
 ```
 
 CI jobs that need the fixtures pass `mobile-apps: 'true'` to
-`.github/actions/setup-test-env`. Generated indexes (`graphify-out/`) and
+`.github/actions/setup-test-env`. Do not force-add apk/ipa under those paths; the pre-push contract refuses tracked mobile fixtures (#7547 Phase 0). Generated indexes (`graphify-out/`) and
 ChaosEngine runtime state (`.chaos-engine-state/`) stay gitignored; do not
 commit them, and prefer one shared index per host over rebuilding per worktree.
 
