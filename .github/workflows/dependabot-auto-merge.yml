@@ -5,38 +5,100 @@ name: Dependabot auto-merge
 # tokens are read-only); never checks out or executes PR code. Release-note
 # governance already exempts dependabot[bot], so no classification label is
 # added here.
+#
+# Merge-queue evictions (checks_timed_out / merge_conflict) clear
+# autoMergeRequest and do not re-fire pull_request_target. schedule +
+# workflow_dispatch re-arm open Dependabot PRs that lost their queue seat.
 
 on:
   pull_request_target: # zizmor: ignore[dangerous-triggers]
     types: [opened, reopened, synchronize]
+  schedule:
+    # Every 20 minutes — shorter than the merge-queue check timeout so a kick
+    # is usually re-armed before the next human triage pass.
+    - cron: '*/20 * * * *'
+  workflow_dispatch: {}
 
 permissions:
   contents: write
   pull-requests: write
 
 concurrency:
-  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: dependabot-auto-merge-${{ github.event.pull_request.number || 'rearm' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request_target' }}
 
 jobs:
   enable-auto-merge:
     name: Enable Dependabot auto-merge
     if: >-
-      github.event.pull_request.user.login == 'dependabot[bot]'
-      && github.event.pull_request.head.repo.full_name == github.repository
+      github.event_name != 'pull_request_target'
+      || (
+        github.event.pull_request.user.login == 'dependabot[bot]'
+        && github.event.pull_request.head.repo.full_name == github.repository
+      )
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
       - name: Fetch Dependabot metadata
+        if: github.event_name == 'pull_request_target'
         id: metadata
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Enable auto-merge
+      - name: Enable auto-merge (this PR)
+        if: github.event_name == 'pull_request_target'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
         # Merge queue on main: omit --squash/--merge/--rebase so GitHub picks
         # the queue's required method.
-        run: gh pr merge --auto "$PR_URL"
+        run: |
+          set -euo pipefail
+          gh pr merge --auto "$PR_URL"
+          state="$(gh pr view "$PR_URL" --json state,autoMergeRequest,mergeStateStatus)"
+          echo "post-arm: $state"
+          echo "$state" | jq -e '
+            .autoMergeRequest != null
+            or .state != "OPEN"
+            or .mergeStateStatus == "QUEUED"
+          ' >/dev/null
+
+      - name: Re-arm open Dependabot PRs
+        if: github.event_name != 'pull_request_target'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mapfile -t urls < <(
+            gh pr list --author 'app/dependabot' --state open --limit 50 \
+              --json url,autoMergeRequest \
+              --jq '.[] | select(.autoMergeRequest == null) | .url'
+          )
+          if [ "${#urls[@]}" -eq 0 ]; then
+            echo "No open Dependabot PRs need re-arming."
+            exit 0
+          fi
+          failed=0
+          for url in "${urls[@]}"; do
+            echo "Re-arming $url"
+            if ! gh pr merge --auto "$url"; then
+              echo "warn: gh pr merge --auto failed for $url"
+              failed=$((failed + 1))
+              continue
+            fi
+            state="$(gh pr view "$url" --json state,autoMergeRequest,mergeStateStatus)"
+            echo "post-arm: $state"
+            if ! echo "$state" | jq -e '
+              .autoMergeRequest != null
+              or .state != "OPEN"
+              or .mergeStateStatus == "QUEUED"
+            ' >/dev/null; then
+              echo "warn: auto-merge not armed for $url"
+              failed=$((failed + 1))
+            fi
+          done
+          if [ "$failed" -gt 0 ]; then
+            echo "Failed to arm $failed Dependabot PR(s)."
+            exit 1
+          fi
