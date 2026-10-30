@@ -401,7 +401,7 @@ def command_targets(command: str, cwd: Path | None = None) -> list[Path]:
 
 
 def _git_subprocess_env() -> dict[str, str]:
-    """Copy os.environ with repo-redirecting GIT_* keys removed."""
+    """Return os.environ without repo-redirecting GIT_* keys."""
     out: dict[str, str] = {}
     for key, value in os.environ.items():
         if key in _GIT_ENV_BLOCKLIST:
@@ -487,8 +487,7 @@ def _git_reason(path: Path, top: Path) -> str:
 
 
 def session_manifest_path(explicit: Path | None = None) -> Path | None:
-    """
-    Resolve the per-session created-paths manifest, or None when unset/missing."""
+    """Return the per-session created-paths manifest path, or None if unset."""
     if explicit is not None:
         return Path(explicit)
     raw = os.environ.get(SESSION_CREATED_MANIFEST_ENV, "").strip()
@@ -623,6 +622,45 @@ def _proof_token(real: Path, st: os.stat_result) -> str:
     return f"{real}|{_inode_token(st)}|{_birth_or_ctime_ns(st)}"
 
 
+def _record_preexist_entry(
+    entry: os.DirEntry,
+    paths: set[str],
+    inodes: set[str],
+    stack: list[Path],
+) -> None:
+    """Add one scandir entry to the preexist inventory or descend into dirs."""
+    if entry.is_symlink():
+        return
+    if entry.is_dir(follow_symlinks=False):
+        stack.append(Path(entry.path))
+        return
+    if not entry.is_file(follow_symlinks=False):
+        return
+    st = entry.stat(follow_symlinks=False)
+    paths.add(str(Path(os.path.realpath(entry.path))))
+    inodes.add(_inode_token(st))
+
+
+def _walk_preexist_root(real_root: Path, paths: set[str], inodes: set[str], cap: int) -> None:
+    """DFS walk one containment root into path/inode sets (capped)."""
+    stack = [real_root]
+    while stack and len(paths) < cap:
+        current = stack.pop()
+        try:
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    if len(paths) >= cap:
+                        break
+                    try:
+                        _record_preexist_entry(entry, paths, inodes, stack)
+                    except OSError:
+                        # Unreadable entry; skip and keep scanning.
+                        continue
+        except OSError:
+            # Unreadable directory; skip remainder of this branch.
+            continue
+
+
 def _snapshot_preexist(roots: list[Path]) -> tuple[list[str], list[str]]:
     """
     Inventory existing real paths + inodes under floors at session start.
@@ -641,30 +679,7 @@ def _snapshot_preexist(roots: list[Path]) -> tuple[list[str], list[str]]:
             continue
         if not real_root.is_dir():
             continue
-        stack = [real_root]
-        while stack and len(paths) < cap:
-            current = stack.pop()
-            try:
-                with os.scandir(current) as entries:
-                    for entry in entries:
-                        if len(paths) >= cap:
-                            break
-                        try:
-                            if entry.is_symlink():
-                                continue
-                            if entry.is_dir(follow_symlinks=False):
-                                stack.append(Path(entry.path))
-                                continue
-                            if not entry.is_file(follow_symlinks=False):
-                                continue
-                            st = entry.stat(follow_symlinks=False)
-                            real = str(Path(os.path.realpath(entry.path)))
-                            paths.add(real)
-                            inodes.add(_inode_token(st))
-                        except OSError:
-                            continue
-            except OSError:
-                continue
+        _walk_preexist_root(real_root, paths, inodes, cap)
     return sorted(paths), sorted(inodes)
 
 
@@ -684,8 +699,7 @@ def _realpath_root(path: Path) -> Path | None:
 
 
 def _is_acceptable_containment_root(root: Path) -> bool:
-    """
-    False for ``/``, near-root (``/etc``, ``/tmp``, …), ``$HOME``, and never-touch."""
+    """Return False for ``/``, near-root dirs, ``$HOME``, and never-touch paths."""
     resolved = _realpath_root(root)
     if resolved is None:
         return False
@@ -740,8 +754,11 @@ def _discover_git_toplevel(hint: Path | None = None) -> Path | None:
 
 def _scoped_session_floor(manifest: Path) -> Path | None:
     """
-    Scoped temp dir for this manifest: ``…/chaos-engine-sessions/<id>`` when
-    present, else an acceptable manifest parent (never ``/`` or ``$HOME``)."""
+    Return the scoped temp dir for this manifest.
+
+    Uses ``…/chaos-engine-sessions/<id>`` when present, else an acceptable
+    manifest parent (never ``/`` or ``$HOME``).
+    """
     parent = _realpath_root(manifest.parent)
     if parent is None:
         return None
@@ -1143,7 +1160,6 @@ def record_session_created_paths(
     started_at = data.get("started_at")
     if not isinstance(started_at, (int, float, str)):
         raise PermissionError("session-manifest refused: missing started_at")
-    started_s = str(started_at)
     try:
         started_f = float(started_at)
     except (TypeError, ValueError) as exc:
