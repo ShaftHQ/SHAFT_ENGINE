@@ -229,6 +229,7 @@ class UpgradeMatrixDoctorOkTest(unittest.TestCase):
         "2026.10.31.2",
         "2026.10.31.3",
         "2026.10.31.4",
+        "2026.10.31.5",
     )
 
     def test_matrix_hops_doctor_ok(self) -> None:
@@ -285,7 +286,7 @@ class UpgradeMatrixDoctorOkTest(unittest.TestCase):
 class VersionPinTest(unittest.TestCase):
     def test_version_file(self) -> None:
         self.assertEqual(
-            "2026.10.31.4", (CE / "VERSION").read_text(encoding="utf-8").strip()
+            "2026.10.31.5", (CE / "VERSION").read_text(encoding="utf-8").strip()
         )
 
 

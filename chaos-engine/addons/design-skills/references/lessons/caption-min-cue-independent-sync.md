@@ -26,6 +26,10 @@ Short. Extends [L17](caption-micro-gap-snap.md) and [L35](video-caption-handoff.
 3. **Code-switch tolerance.** Latin / English tokens inside a mixed-script
    line may use a wider drift budget (`--codeswitch-tol`, default 0.30 s);
    default cue drift stays 0.15 s.
+4. **Token-overlap still applies on `--single-model`.** Even on the L44
+   single-ASR path, cue text must cover onset words in the cue window
+   (default `--min-overlap` 0.5). L49 adds consensus + RMS on top; L44
+   does not skip overlap.
 
 ## Verify
 
@@ -37,6 +41,8 @@ Short. Extends [L17](caption-micro-gap-snap.md) and [L35](video-caption-handoff.
       `onsets-share-snapper-words`.
 - [ ] A code-switched English token at 250 ms drift passes under default
       `--codeswitch-tol`.
+- [ ] `--single-model` with a multi-word cue and only the first onset token
+      fails `token-overlap` (same bar as L49 rule 5).
 
 ## Why
 

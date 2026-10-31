@@ -176,6 +176,11 @@ sends you there; the rest by
 - [harness learn](../../chaos-engine/references/harness-learn.md)
 - [learn traces](../../chaos-engine/references/learn-traces.md)
 - [design loop](../../chaos-engine/references/design-loop.md)
+- [fix bug class](../../chaos-engine/references/fix-bug-class.md): owned-path transactional repair + full version-hop matrix
+- [explicit staging](../../chaos-engine/references/explicit-staging.md): set -e; stage named paths only; never commit -a
+- [profile slow installs](../../chaos-engine/references/profile-slow-installs.md): profile_installs.py timing summariser across worktrees
+- [gemini quota wait](../../chaos-engine/references/gemini-quota-wait.md): one-shot resume after Gemini 429/UI grey-out
+- [appium driver npm recover](../../chaos-engine/references/appium-driver-npm-recover.md): uninstall then driver install --source=npm after null-package
 - [deep research](../../chaos-engine/references/deep-research.md)
 - [UI delivery](../../chaos-engine/references/ui-delivery.md)
 - [public landing](../../chaos-engine/references/public-landing.md)
