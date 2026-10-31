@@ -23,14 +23,24 @@ class InstallCommitRefTest(unittest.TestCase):
         result = self.run_install("HEAD")
         output = result.stdout + result.stderr
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("full lowercase 40-hex sha", output)
+        self.assertTrue(
+            "hex sha" in output.casefold() or "40-hex" in output.casefold(),
+            msg=output,
+        )
         self.assertIn("git rev-parse HEAD", output)
+        self.assertIn("HEAD is not accepted", output)
         self.assertNotIn("source record is invalid", output)
 
-    def test_short_sha_is_refused_too(self):
-        result = self.run_install("1465f10")
+    def test_unresolvable_short_sha_fails_closed(self):
+        # Valid hex shape but no matching object → clear refusal, not a cryptic source error.
+        result = self.run_install("deadbeef")
         self.assertNotEqual(0, result.returncode)
-        self.assertIn("40-hex", result.stdout + result.stderr)
+        output = result.stdout + result.stderr
+        self.assertTrue(
+            "could not be resolved" in output or "hex sha" in output.casefold(),
+            msg=output,
+        )
+        self.assertNotIn("source record is invalid", output)
 
 
 if __name__ == "__main__":

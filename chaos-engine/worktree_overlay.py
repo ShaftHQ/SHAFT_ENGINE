@@ -334,7 +334,13 @@ def upgrade_session(primary: Path, session: Path, *, repair_plugins: bool | None
     # to git checkout. Adopt their current hashes into the materialize manifest
     # so stale CE-owned files upgrade instead of raising unknown provenance.
     _adopt_ignored_ce_owned(primary, session)
-    written = materialize(primary, session)
+    try:
+        written = materialize(primary, session)
+    except OverlayLocalEditError:
+        # Self-heal once after a partial / raced materialize: re-adopt CE-owned
+        # ignored paths and retry. Consumer-edited non-CE files still refuse.
+        _adopt_ignored_ce_owned(primary, session)
+        written = materialize(primary, session)
     session_ver_after = _read_version(session)
     version_match = bool(primary_ver) and primary_ver == session_ver_after
     if repair_plugins is None:
@@ -479,6 +485,11 @@ def _adopt_ignored_ce_owned(primary: Path, session: Path) -> list[str]:
     ``.overlay-materialize.json``, ``materialize`` would refuse unknown
     provenance. Recording the current session hashes for CE-owned ignored
     paths lets the existing stale-upgrade branch overwrite them from primary.
+
+    CE itself may rewrite owned files (for example ``always-loaded-budget.json``)
+    without updating the materialize manifest. Treat any CE-owned ignored /
+    untracked divergence as stale CE state — never as a consumer edit — and
+    always adopt so upgrade-session can overwrite from primary.
     """
     adopted: list[str] = []
     if not (primary / TREE).is_dir():
@@ -501,14 +512,12 @@ def _adopt_ignored_ce_owned(primary: Path, session: Path) -> list[str]:
                 manifest[relative] = src_hash
                 dirty = True
             continue
-        recorded = manifest.get(relative)
-        if recorded is None or dest_hash == recorded:
-            # Unknown or previously materialized stale CE content: adopt so
-            # materialize upgrades (dest_hash == recorded → copy from primary).
-            if recorded != dest_hash:
-                manifest[relative] = dest_hash
-                dirty = True
-            adopted.append(relative)
+        # Diverge from primary: adopt current dest hash regardless of prior
+        # recorded value so materialize's stale-upgrade branch can overwrite.
+        if manifest.get(relative) != dest_hash:
+            manifest[relative] = dest_hash
+            dirty = True
+        adopted.append(relative)
     if dirty:
         _save_manifest(session, manifest)
     return adopted
