@@ -141,6 +141,41 @@ REPAIRABLE_COMPONENTS = frozenset({
     "tools",
     "maven-tools-mcp",
 })
+# Doctor component keys that are not argparse repair choices (#2026.10.31.4).
+DOCTOR_CHECK_REPAIR_MAP = {
+    "mempalace-owned-excludes": "mempalace",
+    "mempalace-backend": "hosts",
+    "retrieve-mempalace": "mempalace",
+    "retrieve-graphify": "graphify",
+    "retrieval-config": "mempalace",
+}
+
+
+def doctor_check_repair_component(name: str, item: dict[str, object] | None = None) -> str | None:
+    """Map a doctor component key (or its fixNext) to a valid repair --component."""
+    key = str(name or "").strip().casefold()
+    mapped = DOCTOR_CHECK_REPAIR_MAP.get(key, key)
+    if mapped in REPAIRABLE_COMPONENTS:
+        return mapped
+    if isinstance(item, dict):
+        for field in ("fixNext", "detail", "reason"):
+            value = item.get(field)
+            if not isinstance(value, str):
+                continue
+            match = re.search(r"--component\s+([A-Za-z0-9_-]+)", value)
+            if match:
+                choice = match.group(1).casefold()
+                choice = DOCTOR_CHECK_REPAIR_MAP.get(choice, choice)
+                if choice in REPAIRABLE_COMPONENTS:
+                    return choice
+    return None
+
+
+def extract_repair_components_from_text(text: str) -> list[str]:
+    """Return every `--component X` token found in doctor fix-next text."""
+    return [match.group(1).casefold() for match in re.finditer(
+        r"--component\s+([A-Za-z0-9_-]+)", str(text or "")
+    )]
 # #6338: the bootstrap records a verify-failure rollback here; status/doctor surface it.
 INSTALL_ROLLBACK_RELATIVE = ".chaos-engine-state/install-rollback.json"
 
@@ -5240,6 +5275,20 @@ def attach_component_status(
                 "detail": f"Disabled via --without-{name} (default-on bundle opt-out).",
                 "taskImpact": "optional",
             }
+    # Surface top-level hosts failures as a component row so they cannot mask
+    # later checks (and later checks cannot hide hosts) (#2026.10.31.4).
+    hosts = result.get("hosts")
+    if isinstance(hosts, dict):
+        host_status = str(hosts.get("status") or "")
+        if host_status and host_status not in DOCTOR_NON_ESCALATING_STATUSES | {"not-detected", "healthy"}:
+            row = {
+                "status": host_status,
+                "taskImpact": "required",
+            }
+            for key in ("code", "detail", "fixNext", "reason"):
+                if key in hosts:
+                    row[key] = hosts[key]
+            components["hosts"] = row
     result["components"] = components
     drift = reflection_controller_drift(project)
     if drift:
@@ -5262,8 +5311,9 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 return missing_core_recovery_status(project)
             if stale_host_state_after_wiped_runtime(project):
                 return wiped_runtime_recovery_status(project)
-            if upgrade_host_receipt_drift_needed(project):
-                return upgrade_host_receipt_drift_status(project)
+            # Host-adapter drift must not short-circuit the rest of doctor: continue
+            # and mark hosts below so mempalace/other rows still appear (#2026.10.31.4).
+            host_adapter_drift = upgrade_host_receipt_drift_needed(project)
             if orphan_core_without_hosts_receipt(project):
                 return missing_hosts_receipt_recovery_status(project)
             manifest = verify_install(target)
@@ -5301,14 +5351,33 @@ def status_with_dependencies(project: Path, *, active_probes: bool = False) -> d
                 )
                 return result
             pending_rollback = read_cross_rollback_journal(project)
-            if pending_rollback is not None:
-                result["hosts"] = host_controller.verify(project)
-                result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
-            else:
-                result["hosts"] = host_controller.verify(
-                    project,
-                    core_commit=str(manifest["source"]["commit"]),  # type: ignore[index]
-                )
+            try:
+                if pending_rollback is not None:
+                    result["hosts"] = host_controller.verify(project)
+                    result["hosts"]["status"] = "recovery-required"  # type: ignore[index]
+                else:
+                    result["hosts"] = host_controller.verify(
+                        project,
+                        core_commit=str(manifest["source"]["commit"]),  # type: ignore[index]
+                    )
+            except (OSError, RuntimeError, ValueError) as host_error:
+                if host_adapter_drift or _is_healable_host_drift(host_error):
+                    result["hosts"] = {
+                        "status": "recovery-required",
+                        "code": "CE_HOST_ADAPTER_DRIFT",
+                        "detail": str(host_error),
+                    }
+                    result["status"] = "recovery-required"
+                else:
+                    raise
+            if host_adapter_drift:
+                result["status"] = "recovery-required"
+                hosts_row = result.get("hosts")
+                if not isinstance(hosts_row, dict):
+                    hosts_row = {}
+                    result["hosts"] = hosts_row
+                hosts_row["status"] = "recovery-required"
+                hosts_row.setdefault("code", "CE_HOST_ADAPTER_DRIFT")
             if result["hosts"]["status"] != "healthy":  # type: ignore[index]
                 result["status"] = "recovery-required"
             if active_probes:
@@ -6736,6 +6805,15 @@ def _repair_dependency_component(
             payload["palace"] = str(
                 host_controller.mempalace_runtime_status(project).get("status") or "unknown"
             )
+            # #2026.10.31.4: owned exclude_patterns merge (was invalid retrieval-config).
+            if hasattr(host_controller, "ensure_owned_mempalace_excludes"):
+                payload["ownedExcludesMerged"] = bool(
+                    host_controller.ensure_owned_mempalace_excludes(project)
+                )
+            else:
+                controller = load_dependency_controller(target)
+                merge = getattr(controller, "apply_owned_mempalace_excludes", None)
+                payload["ownedExcludesMerged"] = bool(merge(project)) if callable(merge) else False
         if name in {"mempalace", "graphify"}:
             payload["storeRefresh"] = _refresh_shared_store(project, name)
             _install_store_schedule(project)
@@ -7778,11 +7856,15 @@ def format_host_environment_findings(document: dict[str, object]) -> list[str]:
     return lines
 
 
-AGENT_SUMMARY_MAX_LINES = 14
+AGENT_SUMMARY_MAX_LINES = 16
 
 
 def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
-    """Pick one component line and a single drift token for the agent summary."""
+    """Return failing component label(s), worst status, and drift token.
+
+    Lists EVERY degraded/recovery-required/failed component so one failure
+    cannot mask another in `--agent-summary` (#2026.10.31.4).
+    """
     components = document.get("components")
     name = "core"
     status = str(document.get("status") or "unknown")
@@ -7790,43 +7872,52 @@ def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
     policy = str(document.get("policySha256") or "")
     if policy == "0" * 64:
         drift = "policy-hash-drift"
-    if isinstance(components, dict):
-        for candidate in sorted(str(item) for item in components):
-            item = components[candidate]
-            if not isinstance(item, dict):
-                continue
-            detail = str(item.get("detail") or "")
-            code = str(item.get("code") or "")
-            reason = str(item.get("reason") or "")
-            blob = f"{detail} {code} {reason}".casefold()
-            mismatched = item.get("coreMatchesSource") is False or "drift" in blob or "mismatch" in blob
-            if mismatched:
-                return (
+    if not isinstance(components, dict):
+        return name, status, drift
+    failures: list[tuple[str, str, str]] = []
+    rank = {"failed": 3, "recovery-required": 2, "degraded": 1}
+    for candidate in sorted(str(item) for item in components):
+        item = components[candidate]
+        if not isinstance(item, dict):
+            continue
+        item_status = str(item.get("status") or "")
+        detail = str(item.get("detail") or "")
+        code = str(item.get("code") or "")
+        reason = str(item.get("reason") or "")
+        blob = f"{detail} {code} {reason}".casefold()
+        mismatched = (
+            item.get("coreMatchesSource") is False
+            or "drift" in blob
+            or "mismatch" in blob
+        )
+        if mismatched and item_status not in {"degraded", "recovery-required", "failed"}:
+            item_status = str(item.get("status") or "recovery-required")
+            failures.append(
+                (
                     candidate,
-                    str(item.get("status") or "recovery-required"),
+                    item_status,
                     detail or code or reason or "policy-hash-drift",
                 )
-        # Soft degraded rows (graphify/mempalace/…) must surface; a healthy core
-        # must not hide them behind doctor: pass.
-        for candidate in sorted(str(item) for item in components):
-            item = components[candidate]
-            if not isinstance(item, dict):
-                continue
-            item_status = str(item.get("status") or "")
-            if item_status not in {"degraded", "recovery-required", "failed"}:
-                continue
-            detail = str(item.get("detail") or "")
-            code = str(item.get("code") or "")
-            reason = str(item.get("reason") or "")
-            return (
-                candidate,
-                item_status,
-                detail or code or reason or item_status,
             )
-        core = components.get("core")
-        if isinstance(core, dict):
-            name = "core"
-            status = str(core.get("status") or status)
+            continue
+        if item_status in {"degraded", "recovery-required", "failed"}:
+            failures.append(
+                (
+                    candidate,
+                    item_status,
+                    detail or code or reason or item_status,
+                )
+            )
+    if failures:
+        label = "; ".join(f"{n} {s}" for n, s, _d in failures)
+        worst = max(failures, key=lambda row: rank.get(row[1], 0))
+        drift_bits = [row[2] for row in failures if row[2] and row[2] != "none"]
+        drift_text = " | ".join(dict.fromkeys(drift_bits)) if drift_bits else worst[2]
+        return label, worst[1], drift_text
+    core = components.get("core")
+    if isinstance(core, dict):
+        name = "core"
+        status = str(core.get("status") or status)
     return name, status, drift
 
 
@@ -7842,9 +7933,18 @@ def format_agent_summary(document: dict[str, object]) -> str:
     policy = str(document.get("policySha256") or "missing")
     project = installed_project()
     commit_bits = source_behind_advisory(project)
+    # name may already list "comp status; …" when multiple failures surface.
+    component_line = (
+        f"component: {name}"
+        if (" " in name and any(
+            token in name
+            for token in ("degraded", "recovery-required", "failed", "healthy")
+        ))
+        else f"component: {name} {status}"
+    )
     lines = [
         f"doctor: {verdict}",
-        f"component: {name} {status}",
+        component_line,
         f"hash: {policy}",
         f"drift: {drift}",
     ]
