@@ -43,6 +43,13 @@ On any non-allow-listed remote, set the owner's name and email before
 committing. ChaosEngine must not remain as the local `user.email` in those
 clones.
 
+
+## Entry / doctor warning
+
+`entry_identity_warning(project)` emits one line when the **repo-local**
+`user.name` / `user.email` is ChaosEngine outside `allowed_remotes()`. Doctor
+and `tool.py entry` surface it before more mis-attributed commits land.
+
 ## See also
 
 - `bot-entry.md` / `user-guide.md` (identity + push path)
