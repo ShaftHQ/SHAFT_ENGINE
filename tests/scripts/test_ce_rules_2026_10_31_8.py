@@ -7,7 +7,7 @@ import json
 import sys
 import tempfile
 import unittest
-import unittest.mock as mock
+import unittest.mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -286,10 +286,10 @@ class InstallPerfFastPathTest(unittest.TestCase):
             def doctor_with_dependencies(self, session, verify_clients=False):
                 return {"status": "healthy", "components": []}
 
-        with mock.patch.object(self.mod, "_load_install_module", return_value=FakeModule()):
-            with mock.patch.object(self.mod, "_unhealthy_with_hosts", return_value=[]):
-                with mock.patch.object(self.mod, "_blocking_doctor_failures", return_value=[]):
-                    with mock.patch.object(self.mod, "_run_repairs") as repairs:
+        with unittest.mock.patch.object(self.mod, "_load_install_module", return_value=FakeModule()):
+            with unittest.mock.patch.object(self.mod, "_unhealthy_with_hosts", return_value=[]):
+                with unittest.mock.patch.object(self.mod, "_blocking_doctor_failures", return_value=[]):
+                    with unittest.mock.patch.object(self.mod, "_run_repairs") as repairs:
                         result = self.mod._post_upgrade_repair_and_verify(
                             Path("/tmp"), Path("/tmp")
                         )
@@ -493,7 +493,7 @@ class InstallDownloadRetryTest(unittest.TestCase):
     def test_read_response_retries_ssl_eof(self) -> None:
         import ssl
         
-        good = mock.MagicMock()
+        good = unittest.mock.MagicMock()
         good.read.side_effect = [b"ok-body", b""]
         good.__enter__.return_value = good
         good.__exit__.return_value = None
@@ -505,7 +505,7 @@ class InstallDownloadRetryTest(unittest.TestCase):
                 raise ssl.SSLEOFError(8, "[SSL: UNEXPECTED_EOF_WHILE_READING]")
             return good
 
-        sleeper = mock.Mock()
+        sleeper = unittest.mock.Mock()
         value = self.mod.read_response(
             opener, "https://raw.githubusercontent.com/x/y/z", sleeper=sleeper
         )
@@ -521,11 +521,11 @@ class InstallDownloadRetryTest(unittest.TestCase):
             dest = P(tmp) / "dest"
             dest.mkdir()
             # Point env at this worktree as the local clone.
-            with mock.patch.dict(
+            with unittest.mock.patch.dict(
                 self.mod.os.environ,
                 {self.mod.LOCAL_CLONE_ENV: str(ROOT)},
             ):
-                with mock.patch.object(
+                with unittest.mock.patch.object(
                     self.mod,
                     "download_source_remote",
                     side_effect=RuntimeError(
@@ -569,9 +569,9 @@ class InstallDownloadRetryTest(unittest.TestCase):
                 return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
             return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
-        with mock.patch.object(tool, "default_branch_name", return_value="main"):
-            with mock.patch.object(tool, "time") as time_mod:
-                time_mod.sleep = mock.Mock()
+        with unittest.mock.patch.object(tool, "default_branch_name", return_value="main"):
+            with unittest.mock.patch.object(tool, "time") as time_mod:
+                time_mod.sleep = unittest.mock.Mock()
                 ok, msg = tool.maintain_sync(P("/tmp"), runner=runner)
         self.assertTrue(ok)
         self.assertGreaterEqual(calls["fetch"], 3)

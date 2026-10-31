@@ -340,9 +340,9 @@ def _apply_known_ids(
                     source="transcript",
                 )
                 if fact.text:
-                    key = fact.dedupe_key()
-                    if key not in seen_keys:
-                        seen_keys.add(key)
+                    dedupe = fact.dedupe_key()
+                    if dedupe not in seen_keys:
+                        seen_keys.add(dedupe)
                         ordered.append(fact.text)
                     by_id[normalize_id(raw_id) or nid] = fact
                     recovered_ok = True
