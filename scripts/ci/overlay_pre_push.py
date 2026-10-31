@@ -593,13 +593,11 @@ def pr_scope_failures(root: Path, paths: list[str], *, pr_fetcher=_gh_open_pr_fo
         spec.loader.exec_module(module)
     except Exception:  # nosec B110 - missing helper must not block push
         return []
-    is_agentic_pr = getattr(module, "is_agentic_pr", None)
-    evaluate = getattr(module, "evaluate", None)
-    if not callable(is_agentic_pr) or not callable(evaluate):
+    if not hasattr(module, "is_agentic_pr") or not hasattr(module, "evaluate"):
         return []
-    if not is_agentic_pr(pr):
+    if not module.is_agentic_pr(pr):
         return []
-    result = evaluate(pr["body"], list(paths))
+    result = module.evaluate(pr["body"], list(paths))
     if result.get("ok"):
         return []
     number = pr.get("number") or "?"

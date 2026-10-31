@@ -166,8 +166,9 @@ def human_cues(cues: list[dict]) -> list[dict]:
         import importlib.util
         helper = Path(__file__).resolve().parent / "human_cue.py"
         spec = importlib.util.spec_from_file_location("ce_human_cue", helper)
+        if spec is None or spec.loader is None:
+            raise ImportError("human_cue helper unavailable")
         mod = importlib.util.module_from_spec(spec)
-        assert spec.loader is not None
         spec.loader.exec_module(mod)
         is_human_json_cue = mod.is_human_json_cue
 
