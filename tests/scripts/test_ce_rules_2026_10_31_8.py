@@ -6,9 +6,8 @@ import importlib.util
 import json
 import sys
 import tempfile
-import unittest
-import unittest.mock
 from pathlib import Path
+from unittest import TestCase, main, mock
 
 ROOT = Path(__file__).resolve().parents[2]
 CE = ROOT / "chaos-engine"
@@ -23,7 +22,7 @@ def _load(name: str, path: Path):
     return mod
 
 
-class VersionBumpTest(unittest.TestCase):
+class VersionBumpTest(TestCase):
     def test_version_is_31_8(self) -> None:
         self.assertEqual(
             "2026.10.31.8",
@@ -31,7 +30,7 @@ class VersionBumpTest(unittest.TestCase):
         )
 
 
-class L74ProvenRedHelperTest(unittest.TestCase):
+class L74ProvenRedHelperTest(TestCase):
     def setUp(self) -> None:
         self.proven = _load("ce_gate_proven_red", CE / "rules/gate_proven_red.py")
 
@@ -40,7 +39,7 @@ class L74ProvenRedHelperTest(unittest.TestCase):
             self.proven.prove_red(lambda _obs: {"ok": True, "hits": []}, {})
 
 
-class L78ReviewScratchTest(unittest.TestCase):
+class L78ReviewScratchTest(TestCase):
     def setUp(self) -> None:
         self.mod = _load(
             "ce_review_scratch", ROOT / "scripts/ci/review_scratch.py"
@@ -78,7 +77,7 @@ class L78ReviewScratchTest(unittest.TestCase):
             self.assertTrue(result["ok"], result)
 
 
-class L79CmsBlockIdentityTest(unittest.TestCase):
+class L79CmsBlockIdentityTest(TestCase):
     def setUp(self) -> None:
         self.mod = _load("ce_cms_block_identity", CE / "rules/cms_block_identity.py")
         self.proven = _load("ce_gate_proven_red", CE / "rules/gate_proven_red.py")
@@ -120,7 +119,7 @@ class L79CmsBlockIdentityTest(unittest.TestCase):
         self.assertTrue(self.mod.evaluate(obs)["ok"])
 
 
-class L80TestRunBudgetTest(unittest.TestCase):
+class L80TestRunBudgetTest(TestCase):
     def setUp(self) -> None:
         self.mod = _load("ce_task_ledger", CE / "task_ledger.py")
         self.proven = _load("ce_gate_proven_red", CE / "rules/gate_proven_red.py")
@@ -181,7 +180,7 @@ class L80TestRunBudgetTest(unittest.TestCase):
         self.assertTrue(fake_gate({"kind": "test-run", "minutes": 35, "explicit": False})["ok"])
 
 
-class L81NoSelfClockTest(unittest.TestCase):
+class L81NoSelfClockTest(TestCase):
     def setUp(self) -> None:
         self.mod = _load(
             "ce_motion_graphics_gate",
@@ -272,7 +271,7 @@ class L81NoSelfClockTest(unittest.TestCase):
             )
 
 
-class InstallPerfFastPathTest(unittest.TestCase):
+class InstallPerfFastPathTest(TestCase):
     def setUp(self) -> None:
         self.mod = _load("ce_worktree_overlay", CE / "worktree_overlay.py")
 
@@ -286,10 +285,10 @@ class InstallPerfFastPathTest(unittest.TestCase):
             def doctor_with_dependencies(self, session, verify_clients=False):
                 return {"status": "healthy", "components": []}
 
-        with unittest.mock.patch.object(self.mod, "_load_install_module", return_value=FakeModule()):
-            with unittest.mock.patch.object(self.mod, "_unhealthy_with_hosts", return_value=[]):
-                with unittest.mock.patch.object(self.mod, "_blocking_doctor_failures", return_value=[]):
-                    with unittest.mock.patch.object(self.mod, "_run_repairs") as repairs:
+        with mock.patch.object(self.mod, "_load_install_module", return_value=FakeModule()):
+            with mock.patch.object(self.mod, "_unhealthy_with_hosts", return_value=[]):
+                with mock.patch.object(self.mod, "_blocking_doctor_failures", return_value=[]):
+                    with mock.patch.object(self.mod, "_run_repairs") as repairs:
                         result = self.mod._post_upgrade_repair_and_verify(
                             Path("/tmp"), Path("/tmp")
                         )
@@ -299,7 +298,7 @@ class InstallPerfFastPathTest(unittest.TestCase):
         repairs.assert_not_called()
 
 
-class TraineeCountFactTest(unittest.TestCase):
+class TraineeCountFactTest(TestCase):
     def setUp(self) -> None:
         self.mod = _load("ce_public_facts", CE / "rules/public_facts.py")
         self.proven = _load("ce_gate_proven_red", CE / "rules/gate_proven_red.py")
@@ -331,7 +330,7 @@ class TraineeCountFactTest(unittest.TestCase):
         self.assertIn("484", self.mod.SUPERSEDED_TRAINEE_COUNTS)
 
 
-class SpecAndMapPresentTest(unittest.TestCase):
+class SpecAndMapPresentTest(TestCase):
     def test_spec_files_exist(self) -> None:
         self.assertTrue((CE / "guides/ce-rules-2026-10-31-8-SPEC.md").is_file())
         self.assertTrue((CE / "references/ce-rules-2026-10-31-8-SPEC.md").is_file())
@@ -351,7 +350,7 @@ class SpecAndMapPresentTest(unittest.TestCase):
             )
 
 
-class MemoryDumpOwnShardTest(unittest.TestCase):
+class MemoryDumpOwnShardTest(TestCase):
     def setUp(self) -> None:
         self.mod = _load("ce_memory_full_dump_318", CE / "rules/memory_full_dump.py")
         self.proven = _load("ce_gate_proven_red_318b", CE / "rules/gate_proven_red.py")
@@ -473,7 +472,7 @@ class MemoryDumpOwnShardTest(unittest.TestCase):
             self.assertIn("one", out.read_text(encoding="utf-8"))
 
 
-class InstallDownloadRetryTest(unittest.TestCase):
+class InstallDownloadRetryTest(TestCase):
     def setUp(self) -> None:
         self.mod = _load("ce_bootstrap_318", CE / "bootstrap.py")
 
@@ -493,7 +492,7 @@ class InstallDownloadRetryTest(unittest.TestCase):
     def test_read_response_retries_ssl_eof(self) -> None:
         import ssl
         
-        good = unittest.mock.MagicMock()
+        good = mock.MagicMock()
         good.read.side_effect = [b"ok-body", b""]
         good.__enter__.return_value = good
         good.__exit__.return_value = None
@@ -505,7 +504,7 @@ class InstallDownloadRetryTest(unittest.TestCase):
                 raise ssl.SSLEOFError(8, "[SSL: UNEXPECTED_EOF_WHILE_READING]")
             return good
 
-        sleeper = unittest.mock.Mock()
+        sleeper = mock.Mock()
         value = self.mod.read_response(
             opener, "https://raw.githubusercontent.com/x/y/z", sleeper=sleeper
         )
@@ -521,11 +520,11 @@ class InstallDownloadRetryTest(unittest.TestCase):
             dest = P(tmp) / "dest"
             dest.mkdir()
             # Point env at this worktree as the local clone.
-            with unittest.mock.patch.dict(
+            with mock.patch.dict(
                 self.mod.os.environ,
                 {self.mod.LOCAL_CLONE_ENV: str(ROOT)},
             ):
-                with unittest.mock.patch.object(
+                with mock.patch.object(
                     self.mod,
                     "download_source_remote",
                     side_effect=RuntimeError(
@@ -569,13 +568,13 @@ class InstallDownloadRetryTest(unittest.TestCase):
                 return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
             return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
-        with unittest.mock.patch.object(tool, "default_branch_name", return_value="main"):
-            with unittest.mock.patch.object(tool, "time") as time_mod:
-                time_mod.sleep = unittest.mock.Mock()
+        with mock.patch.object(tool, "default_branch_name", return_value="main"):
+            with mock.patch.object(tool, "time") as time_mod:
+                time_mod.sleep = mock.Mock()
                 ok, msg = tool.maintain_sync(P("/tmp"), runner=runner)
         self.assertTrue(ok)
         self.assertGreaterEqual(calls["fetch"], 3)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

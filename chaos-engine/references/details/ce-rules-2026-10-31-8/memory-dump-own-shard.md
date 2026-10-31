@@ -16,7 +16,7 @@ python3 .chaos-engine/rules/memory_full_dump.py \
 
 ## Field reports (after CE .7)
 
-- Carl 82/209, Cortex 123/126, Cleo 66−1 — all `count_ok=false` against a pool
+- Carl 82/209, Cortex 123/126, Cleo 66−1, HRSD 110/219 — all `count_ok=false` against a pool
   that included shared/other bots.
 
 ## Check
