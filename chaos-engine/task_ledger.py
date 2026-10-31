@@ -51,10 +51,17 @@ KIND_BUDGET_MINUTES = {
 }
 
 # Evidence that the task is a real test run (not a budget-bypass label).
+# Strip leading env assignments / cd && chains, then require a runner at argv[0].
+TEST_RUN_LEAD_RE = re.compile(
+    r"(?i)^(?:(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)|(?:cd\s+\S+\s*(?:&&|;)\s*))*"
+)
+TEST_RUN_REJECT_RE = re.compile(
+    r"(?i)^(?:echo|printf|true|false|cat|:|#)"
+)
 TEST_RUN_CMD_RE = re.compile(
-    r"(?i)(?:^|[;&|\s])("
-    r"mvn(?:\s+\S+)*\s+test\b|"
-    r"gradlew?(?:\s+\S+)*\s+test\b|"
+    r"(?i)^(?:"
+    r"(?:\./)?gradlew?\s+(?:\S+\s+)*test\b|"
+    r"mvnw?(?:\s+\S+)*\s+test\b|"
     r"pytest\b|"
     r"python(?:3)?\s+-m\s+(?:pytest|unittest)\b|"
     r"npm(?:\s+run)?\s+test\b|"
@@ -180,10 +187,17 @@ def kind_budget_minutes(kind: str | None) -> float | None:
 
 
 def test_run_cmd_matches(cmd: str | None) -> bool:
-    """True when *cmd* looks like a test-runner invocation."""
+    """True when *cmd* is an argv-shaped test-runner at the command position.
+
+    Allows leading ``ENV=val`` and ``cd dir &&`` prefixes. Rejects ``echo`` /
+    ``printf`` / ``true`` / comments that merely mention a runner name.
+    """
     if not cmd:
         return False
-    return TEST_RUN_CMD_RE.search(str(cmd)) is not None
+    rest = TEST_RUN_LEAD_RE.sub("", str(cmd).strip()).lstrip()
+    if not rest or TEST_RUN_REJECT_RE.match(rest):
+        return False
+    return TEST_RUN_CMD_RE.match(rest) is not None
 
 
 def test_run_proof_ok(
@@ -195,15 +209,17 @@ def test_run_proof_ok(
     test_run_proof: bool = False,
     suite_id: str | None = None,
 ) -> bool:
-    """L80: 90-minute test-run budget requires recorded test-runner proof."""
-    if test_run_cmd_matches(task_cmd) or test_run_cmd_matches(command) or test_run_cmd_matches(cmd):
-        return True
-    if ledger_has_test_cmd and (test_run_proof or test_run_cmd_matches(task_cmd)):
-        return True
-    if suite_id and str(suite_id).strip() and test_run_cmd_matches(task_cmd or command or cmd or ""):
-        return True
-    # Explicit proof flag alone is insufficient without a matching cmd.
-    return False
+    """L80: 90-minute test-run budget requires a recorded test-runner command.
+
+    Boolean flags (``ledger_has_test_cmd``, ``test_run_proof``, ``suite_id``)
+    never grant 90 alone — a matching cmd string is mandatory.
+    """
+    del ledger_has_test_cmd, test_run_proof, suite_id  # flags alone are not proof
+    return bool(
+        test_run_cmd_matches(task_cmd)
+        or test_run_cmd_matches(command)
+        or test_run_cmd_matches(cmd)
+    )
 
 
 def evaluate_test_run_kind(obs: dict | None) -> dict:

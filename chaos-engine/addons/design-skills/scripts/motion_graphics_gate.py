@@ -133,39 +133,53 @@ _SELF_CLOCK_METHODS = frozenset({
 })
 
 
-def _independent_asr_word_match(row: dict[str, Any], obs: dict[str, Any] | None = None) -> bool:
-    """True when onset is backed by an ASR word time, not the cue alone."""
-    if row.get("asr_word_matched") is True or row.get("independent_asr_match") is True:
-        return True
-    if obs and (
-        obs.get("asr_word_matched") is True or obs.get("independent_asr_match") is True
-    ):
-        return True
-    try:
-        onset = float(row.get("phrase_onset", row.get("onset", row.get("onset_s"))))
-    except (TypeError, ValueError):
-        return False
+def _asr_word_rows(row: dict[str, Any], obs: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Collect ASR word dicts with non-empty token + numeric start (no booleans)."""
     words = row.get("asr_words") or row.get("words")
     if not isinstance(words, list) and obs is not None:
         words = obs.get("asr_words") or obs.get("words")
+    if not isinstance(words, list) and obs is not None:
+        # Prefer path-backed words when inline list absent.
+        extracted = None
+        try:
+            extracted = extract_asr_words(obs)
+        except Exception:
+            extracted = None
+        if isinstance(extracted, list):
+            words = extracted
     if not isinstance(words, list):
-        return False
-    caption = str(
-        row.get("caption") or row.get("word") or row.get("text") or row.get("line") or ""
-    ).strip().casefold()
+        return []
+    out: list[dict[str, Any]] = []
     for word in words:
         if not isinstance(word, dict):
+            continue
+        token = str(word.get("word") or word.get("text") or "").strip()
+        if not token:
             continue
         try:
             start = float(word.get("start", word.get("begin", word.get("t"))))
         except (TypeError, ValueError):
             continue
-        if abs(start - onset) > 1e-4:
-            continue
-        token = str(word.get("word") or word.get("text") or "").strip().casefold()
-        if not caption or (token and (token in caption or caption in token)):
-            return True
-    return False
+        out.append({"word": token, "start": start})
+    return out
+
+
+def _independent_asr_word_match(row: dict[str, Any], obs: dict[str, Any] | None = None) -> bool:
+    """True only when onset equals an ASR word timestamp (word + time data).
+
+    Builder booleans (``asr_word_matched`` / ``independent_asr_match``) are
+    ignored — they are forgeable. Onset must be derived from a real ASR word
+    start; caption/token match is optional soft confirmation.
+    """
+    try:
+        onset = float(row.get("phrase_onset", row.get("onset", row.get("onset_s"))))
+    except (TypeError, ValueError):
+        return False
+    words = _asr_word_rows(row, obs)
+    if not words:
+        return False
+    # Word + timestamp at onset is sufficient; builder booleans are ignored.
+    return any(abs(float(word["start"]) - onset) <= 1e-4 for word in words)
 
 
 def _row_self_clock_hit(index: int, row: dict[str, Any], obs: dict[str, Any]) -> str | None:
@@ -180,13 +194,14 @@ def _row_self_clock_hit(index: int, row: dict[str, Any], obs: dict[str, Any]) ->
         return None
     if abs(cue_s - onset) > 1e-4:
         return None
+    # onset ≈ cue: FAIL unless onset is derived from ASR word+time data.
     if _independent_asr_word_match(row, obs):
         return None
     return f"onset_rows[{index}]:self-clock:{method or 'unnamed'}"
 
 
 def _obs_self_clock_hit(obs: dict[str, Any]) -> str | None:
-    """Top-level obs onset==cue without independent ASR proof."""
+    """Top-level obs onset==cue without ASR word+time proof."""
     method = str(obs.get("onset_method") or "").strip().casefold()
     if obs.get("phrase_onset") is None or obs.get("cue_s", obs.get("cue_start")) is None:
         return None
@@ -201,9 +216,8 @@ def _obs_self_clock_hit(obs: dict[str, Any]) -> str | None:
         return None
     rowish = {
         "phrase_onset": obs.get("phrase_onset"),
-        "asr_word_matched": obs.get("asr_word_matched"),
-        "independent_asr_match": obs.get("independent_asr_match"),
         "asr_words": obs.get("asr_words"),
+        "words": obs.get("words"),
         "caption": obs.get("caption") or obs.get("word"),
     }
     if _independent_asr_word_match(rowish, obs):
@@ -212,9 +226,9 @@ def _obs_self_clock_hit(obs: dict[str, Any]) -> str | None:
 
 
 def self_clock_hits(obs: dict[str, Any], captions: list[Any] | None = None) -> list[str]:
-    """Reject onset rows whose onset equals the cue without independent ASR proof.
+    """Reject onset rows whose onset equals the cue without ASR word+time proof.
 
-    Detection is by value (onset ≈ cue_s), not by method-name allowlist.
+    Detection is by value (onset ≈ cue_s). Builder booleans are ignored.
     """
     del captions  # reserved for future caption cross-check
     hits: list[str] = []

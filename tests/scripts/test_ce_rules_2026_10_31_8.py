@@ -278,6 +278,56 @@ class L80TestRunBudgetTest(TestCase):
         )
         self.assertFalse(result["ok"])
 
+    def test_proven_red_flags_without_cmd_stay_35(self) -> None:
+        """L74/r2: ledger_has_test_cmd+test_run_proof without cmd → 35 / FAIL."""
+        bad = {
+            "kind": "test-run",
+            "ledger_has_test_cmd": True,
+            "test_run_proof": True,
+        }
+        result = self.proven.prove_red(
+            self.mod.evaluate_test_run_kind,
+            bad,
+            expected_hit_substr="test-run-missing-proof",
+        )
+        self.assertFalse(result["ok"])
+        self.assertEqual(
+            35.0,
+            self.mod.resolve_budget_minutes(
+                kind="test-run",
+                ledger_has_test_cmd=True,
+                test_run_proof=True,
+                explicit=False,
+            ),
+        )
+
+    def test_proven_red_echo_pytest_rejected(self) -> None:
+        """L74/r2: echo/printf/true # pytest must not grant 90."""
+        for cmd in ("echo pytest", "cat pytest", "true # pytest", "printf pytest"):
+            with self.subTest(cmd=cmd):
+                self.assertFalse(self.mod.test_run_cmd_matches(cmd))
+                self.assertEqual(
+                    35.0,
+                    self.mod.resolve_budget_minutes(
+                        kind="test-run", task_cmd=cmd, explicit=False
+                    ),
+                )
+        result = self.proven.prove_red(
+            self.mod.evaluate_test_run_kind,
+            {"kind": "test-run", "task_cmd": "echo pytest"},
+            expected_hit_substr="test-run-missing-proof",
+        )
+        self.assertFalse(result["ok"])
+
+    def test_gradlew_dot_slash_grants_90(self) -> None:
+        self.assertTrue(self.mod.test_run_cmd_matches("./gradlew test"))
+        self.assertEqual(
+            90.0,
+            self.mod.resolve_budget_minutes(
+                kind="test-run", task_cmd="./gradlew test", explicit=False
+            ),
+        )
+
 
 class L81NoSelfClockTest(TestCase):
     def setUp(self) -> None:
@@ -365,6 +415,43 @@ class L81NoSelfClockTest(TestCase):
             expected_hit_substr="self-clock",
         )
         self.assertFalse(result["ok"])
+
+    def test_proven_red_forged_asr_word_matched_boolean(self) -> None:
+        """L74/r2: asr_word_matched True without ASR word+time → self-clock FAIL."""
+        bad = {
+            "onset_rows": [
+                {
+                    "cue_s": 15.70,
+                    "phrase_onset": 15.70,
+                    "onset_method": "energy_peak",
+                    "asr_word_matched": True,
+                    "independent_asr_match": True,
+                }
+            ]
+        }
+        result = self.proven.prove_red(
+            lambda obs: {
+                "ok": not self.mod.self_clock_hits(obs),
+                "hits": self.mod.self_clock_hits(obs),
+            },
+            bad,
+            expected_hit_substr="self-clock",
+        )
+        self.assertFalse(result["ok"])
+
+    def test_onset_eq_cue_with_real_asr_word_ok(self) -> None:
+        """Coincidental cue==ASR word start is OK when word+time data backs onset."""
+        obs = {
+            "onset_rows": [
+                {
+                    "cue_s": 15.70,
+                    "phrase_onset": 15.70,
+                    "onset_method": "asr",
+                    "asr_words": [{"word": "retrieve", "start": 15.70}],
+                }
+            ]
+        }
+        self.assertEqual([], self.mod.self_clock_hits(obs))
 
     def test_mutant_mid_speech_cue_plus_500ms_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -536,6 +623,30 @@ class MemoryDumpOwnShardTest(TestCase):
         self.assertEqual(2, report.exported_unique)
         self.assertTrue(report.count_ok)
 
+    def test_proven_red_circular_by_id_without_known_ids(self) -> None:
+        """L74/r2: N id'd facts + shard_total=N without known_shard_ids → count_ok False."""
+        structured = [
+            {"text": f"m{i}", "bot": "carl", "id": f"id-{i}"} for i in range(82)
+        ]
+
+        def gate(obs):
+            _, report = self.mod.merge_batches(
+                [],
+                bot=obs["bot"],
+                shard_total=obs["shard_total"],
+                structured_hits=obs["structured"],
+            )
+            hits = []
+            if not report.count_ok:
+                hits.append("circular-by-id-or-missing-known-ids")
+            return {"ok": report.count_ok, "hits": hits, "notes": report.notes}
+
+        bad = {"bot": "carl", "shard_total": 82, "structured": structured}
+        result = self.proven.prove_red(
+            gate, bad, expected_hit_substr="circular-by-id-or-missing-known-ids"
+        )
+        self.assertFalse(result["ok"])
+
     def test_proven_red_forged_expected_vs_known_ids(self) -> None:
         """L74: forge --expected/shard_total to short export while known ids are larger."""
         structured = [
@@ -651,6 +762,41 @@ class MemoryDumpOwnShardTest(TestCase):
             data = json.loads(receipt.read_text(encoding="utf-8"))
             self.assertTrue(data["count_ok"])
             self.assertIn("one", out.read_text(encoding="utf-8"))
+
+    def test_proven_red_cli_expected_alone_exits_2(self) -> None:
+        """L74/r2: CLI --expected without --known-ids cannot satisfy count_ok."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            batches = root / "batches.jsonl"
+            line = json.dumps(
+                {
+                    "query": "q1",
+                    "hits": [
+                        {"text": "one", "bot": "carl", "id": "o1"},
+                        {"text": "two", "bot": "carl", "id": "o2"},
+                    ],
+                }
+            )
+            batches.write_text(line + chr(10), encoding="utf-8")
+            out = root / "dump.md"
+            receipt = root / "r.json"
+            rc = self.mod.run_cli(
+                [
+                    "--batches",
+                    str(batches),
+                    "--expected",
+                    "2",
+                    "--out",
+                    str(out),
+                    "--receipt",
+                    str(receipt),
+                    "--bot",
+                    "carl",
+                ]
+            )
+            self.assertEqual(2, rc)
+            data = json.loads(receipt.read_text(encoding="utf-8"))
+            self.assertFalse(data["count_ok"])
 
 
 class InstallDownloadRetryTest(TestCase):

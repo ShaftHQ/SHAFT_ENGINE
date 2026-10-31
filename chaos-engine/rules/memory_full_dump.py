@@ -359,13 +359,14 @@ def host_derived_shard_total(
     by_id: dict[str, MemoryFact] | None = None,
     cap_incomplete: bool = False,
 ) -> tuple[int | None, list[str]]:
-    """Derive own-shard expected count from host evidence, not a caller claim.
+    """Derive own-shard expected from host-supplied inventory only.
 
-    Prefer the unique normalized ``known_shard_ids`` set (exhaustive host list /
-    ReadTranscript inventory). Else, when queries were exhaustive
-    (``cap_incomplete`` is false), use the unique fact ids already captured in
-    ``by_id``. Returns ``(derived_or_None, notes)``.
+    ``known_shard_ids`` (exhaustive host / ReadTranscript id list) is the only
+    source here. Never derive from exported ``by_id`` — that makes
+    ``exported == expected`` tautological (Carl 82/209 forge). ``by_id`` and
+    ``cap_incomplete`` are accepted for call-compat but ignored for derivation.
     """
+    del by_id, cap_incomplete  # never circular-derive from the export
     notes: list[str] = []
     known = {
         nid
@@ -375,30 +376,11 @@ def host_derived_shard_total(
     }
     if known:
         return len(known), notes
-    ids = {
-        nid
-        for key in (by_id or {})
-        for nid in [normalize_id(str(key))]
-        if nid
-    }
-    # Also count facts whose fact_id is on the value.
-    if by_id:
-        for fact in by_id.values():
-            nid = normalize_id(fact.fact_id)
-            if nid:
-                ids.add(nid)
-    if not ids:
-        notes.append(
-            "no host-derived shard total: pass known_shard_ids "
-            "(or ensure batch hits carry fact ids)"
-        )
-        return None, notes
-    if cap_incomplete:
-        notes.append(
-            "cannot derive shard total under top-N cap without known_shard_ids"
-        )
-        return None, notes
-    return len(ids), notes
+    notes.append(
+        "no host-derived shard total: pass known_shard_ids "
+        "(caller --expected/shard_total alone cannot satisfy count_ok)"
+    )
+    return None, notes
 
 
 
@@ -439,7 +421,7 @@ def _resolve_expected_total(
     if expected is None and claimed is not None:
         notes.append(
             "shard_total/expected is caller-only; count_ok requires "
-            "host-derived known_shard_ids or exhaustive fact ids"
+            "host-derived known_shard_ids (or host_total-shared-other breakdown)"
         )
     if bot and expected is None and host_total is not None and claimed is None:
         notes.append(
@@ -464,7 +446,7 @@ def _count_ok_for_dump(
         if bot and "shard_total/expected is caller-only" not in " ".join(notes):
             notes.append(
                 "shard total unknown; count_ok requires host-derived "
-                "own-shard total (known_shard_ids or exhaustive ids)"
+                "own-shard total (known_shard_ids or host_total breakdown)"
             )
         elif not bot:
             notes.append(
@@ -682,8 +664,8 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
         required=True,
         help=(
             "Claimed own-shard total (NOT the cross-bot host pool). "
-            "Must match host-derived count from --known-ids / exhaustive fact ids "
-            "or count_ok fails."
+            "Can only raise against host-derived --known-ids; never satisfies "
+            "count_ok alone (exit 2 without known ids)."
         ),
     )
     parser.add_argument("--out", type=Path, required=True, help="Markdown dump path")
@@ -692,7 +674,10 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--known-ids",
         type=Path,
-        help="Optional text file of known shard fact ids (one per line)",
+        help=(
+            "Host-supplied own-shard fact ids (one per line). Required for "
+            "count_ok; without it the dump always exits 2."
+        ),
     )
     args = parser.parse_args(list(argv) if argv is not None else None)
 
