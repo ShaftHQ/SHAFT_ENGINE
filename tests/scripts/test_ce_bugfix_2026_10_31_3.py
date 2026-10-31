@@ -312,7 +312,7 @@ class UpgradeMatrixTest(unittest.TestCase):
 
 class VersionPinTest(unittest.TestCase):
     def test_version_file(self) -> None:
-        self.assertEqual("2026.10.31.3", (CE / "VERSION").read_text(encoding="utf-8").strip())
+        self.assertEqual("2026.10.31.4", (CE / "VERSION").read_text(encoding="utf-8").strip())
 
 
 if __name__ == "__main__":
