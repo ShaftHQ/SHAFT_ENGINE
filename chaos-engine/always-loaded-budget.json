@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "note": "Always-loaded bytes on a bot host: tool.py entry --full + references/bot-entry.md + AGENTS.md. Grow at most tolerance_pct over bytes; lower bytes when the bundle shrinks. 2026-10-30: raised after worker ce_load marker + keep-alive/checkpoint pointers (memory-abstraction Phase 1). 2026-10-30: KEEP-ALIVE + upgrade-on-release + cleanup-at-close pointers. 2026-10-31: box-durability entry/worker checklist (swap, /workspace-only, idle for Update Bot's Computer). 2026-10-31.6: H-IDENTITY/H-SCOPE + compact retro-gate pointer line in bot-entry.",
+  "note": "Always-loaded bytes on a bot host: tool.py entry --full + references/bot-entry.md + AGENTS.md. Grow at most tolerance_pct over bytes; lower bytes when the bundle shrinks. 2026-10-30: raised after worker ce_load marker + keep-alive/checkpoint pointers (memory-abstraction Phase 1). 2026-10-30: KEEP-ALIVE + upgrade-on-release + cleanup-at-close pointers. 2026-10-31: box-durability entry/worker checklist (swap, /workspace-only, idle for Update Bot's Computer). 2026-10-31.6: H-IDENTITY/H-SCOPE + compact retro-gate pointer line in bot-entry. 2026.10.31.7: WoW + memory-full-dump + L66\u2013L77 pointers.",
   "bytes": 22647,
   "tolerance_pct": 5,
   "shrink_ratchet_pct": 10

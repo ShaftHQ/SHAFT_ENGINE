@@ -356,7 +356,9 @@ class KaraokeHumanFragTest(unittest.TestCase):
 class DocAndCardPresenceTest(unittest.TestCase):
     def test_cards_and_docs(self) -> None:
         version = (ROOT / "chaos-engine/VERSION").read_text(encoding="utf-8").strip()
-        self.assertEqual("2026.10.31.6", version)
+        # Soft floor: later CE rules PRs bump VERSION; keep .6 artifacts present.
+        floor = tuple(int(p) for p in "2026.10.31.6".split("."))
+        self.assertGreaterEqual(tuple(int(p) for p in version.split(".")), floor)
         for rel in (
             "chaos-engine/references/radio-silence.md",
             "chaos-engine/references/gate-fail-closed.md",
@@ -547,7 +549,12 @@ class PrScopeWiredTest(unittest.TestCase):
 
 
 class MotionGraphicsL65Test(unittest.TestCase):
-    def _good(self) -> dict:
+    def _asr_file(self, rows: list, directory: Path) -> Path:
+        path = directory / "asr-words.json"
+        path.write_text(json.dumps(rows), encoding="utf-8")
+        return path
+
+    def _good(self, asr_path: Path) -> dict:
         return {
             "kind": "kinetic",
             "transcript_manually_verified": True,
@@ -555,21 +562,21 @@ class MotionGraphicsL65Test(unittest.TestCase):
             "shared_with_owner": False,
             "wip_sample_shared": False,
             "ocr_frames": [
-                {"text": f"مرحبا {chr(0x2066)}SHAFT{chr(0x2069)}", "expected": f"مرحبا {chr(0x2066)}SHAFT{chr(0x2069)}"},
+                {
+                    "text": f"مرحبا {chr(0x2066)}SHAFT{chr(0x2069)}",
+                    "expected": f"مرحبا {chr(0x2066)}SHAFT{chr(0x2069)}",
+                },
             ],
             "static_text_blocks": [{"text": "ok", "duration_s": 2.0, "words": 1}],
-            # Word-level ASR timings (seconds); cue start aligned within 100ms.
-            "asr_words": [
-                {"word": "Hello", "start": 1.00, "end": 1.20},
-                {"word": "there", "start": 1.25, "end": 1.40},
-                {"word": "friends", "start": 1.45, "end": 1.70},
-            ],
+            "asr_path": str(asr_path),
+            "asr_sha256": "fixture",
+            "asr_tool": "test-aligner",
+            "asr_independent_proof": True,
             "captions": [
                 {
                     "start": 1.10,
                     "lines": ["Hello there friends"],
                     "phrase_split": True,
-                    # Builder self-attest ignored for pass/fail.
                     "onset_ms_vs_speech": 50,
                 }
             ],
@@ -580,75 +587,80 @@ class MotionGraphicsL65Test(unittest.TestCase):
         sys.path.insert(0, str(ROOT / "chaos-engine/addons/design-skills/scripts"))
         import motion_graphics_gate as mg
 
-        good = self._good()
-        self.assertTrue(mg.evaluate(good)["ok"], mg.evaluate(good))
-        # bidi unisolated
-        bad = dict(good)
-        bad["ocr_frames"] = [{"text": "مرحبا SHAFT", "expected": "مرحبا SHAFT"}]
-        self.assertFalse(mg.evaluate(bad)["ok"])
-        self.assertTrue(any("bidi" in h for h in mg.evaluate(bad)["hits"]))
-        # static too long
-        bad = dict(good)
-        bad["static_text_blocks"] = [{"text": "one two three four five six seven", "duration_s": 4.0}]
-        hits = mg.evaluate(bad)["hits"]
-        self.assertTrue(any("duration" in h or "words" in h for h in hits), hits)
-        # measured onset >150ms (cue early vs ASR)
-        bad = dict(good)
-        bad["captions"] = [{
-            "start": 0.50,
-            "onset_ms_vs_speech": 50,
-            "lines": ["Hello there friends"],
-            "phrase_split": True,
-        }]
-        hits = mg.evaluate(bad)["hits"]
-        self.assertTrue(any("onset>" in h for h in hits), hits)
-        # caption line >32
-        bad = dict(good)
-        bad["captions"] = [{
-            "start": 1.10,
-            "lines": ["x" * 33],
-            "phrase_split": True,
-        }]
-        self.assertTrue(any("32chars" in h or ">32" in h for h in mg.evaluate(bad)["hits"]))
-        # phrase split false
-        bad = dict(good)
-        bad["captions"] = [{
-            "start": 1.10,
-            "lines": ["Hello-", "world"],
-            "phrase_split": False,
-        }]
-        self.assertTrue(any("mid-phrase" in h for h in mg.evaluate(bad)["hits"]))
-        # diagram pop
-        bad = dict(good)
-        bad["diagrams"] = [{"animation": "pop"}]
-        self.assertTrue(any("pop" in h for h in mg.evaluate(bad)["hits"]))
-        # WIP sample shared → FAIL
-        bad = dict(good)
-        bad["wip_sample_shared"] = True
-        self.assertTrue(any("wip-sample-shared" in h for h in mg.evaluate(bad)["hits"]))
-        # shared without review/approval → FAIL
-        bad = dict(good)
-        bad["shared_with_owner"] = True
-        hits = mg.evaluate(bad)["hits"]
-        self.assertTrue(any("shared-without-review" in h for h in hits), hits)
-        self.assertTrue(any("shared-without-owner-approval" in h for h in hits), hits)
-        # approved share path
-        bad = dict(good)
-        bad.update({
-            "shared_with_owner": True,
-            "reviewed": True,
-            "owner_approved": True,
-            "coach_acceptance_applicable": True,
-            "coach_accepted": True,
-        })
-        self.assertTrue(mg.evaluate(bad)["ok"], mg.evaluate(bad))
-        bad["coach_accepted"] = False
-        self.assertTrue(any("shared-without-coach" in h for h in mg.evaluate(bad)["hits"]))
-        # missing input
-        self.assertIn("missing-input", mg.evaluate(None)["hits"])
-        # CLI
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
+            asr = self._asr_file(
+                [
+                    {"word": "Hello", "start": 1.00, "end": 1.20},
+                    {"word": "there", "start": 1.25, "end": 1.40},
+                    {"word": "friends", "start": 1.45, "end": 1.70},
+                ],
+                root,
+            )
+            good = self._good(asr)
+            self.assertTrue(mg.evaluate(good)["ok"], mg.evaluate(good))
+            bad = dict(good)
+            bad["ocr_frames"] = [{"text": "مرحبا SHAFT", "expected": "مرحبا SHAFT"}]
+            self.assertFalse(mg.evaluate(bad)["ok"])
+            self.assertTrue(any("bidi" in h for h in mg.evaluate(bad)["hits"]))
+            bad = dict(good)
+            bad["static_text_blocks"] = [
+                {"text": "one two three four five six seven", "duration_s": 4.0}
+            ]
+            hits = mg.evaluate(bad)["hits"]
+            self.assertTrue(any("duration" in h or "words" in h for h in hits), hits)
+            bad = dict(good)
+            bad["captions"] = [{
+                "start": 0.50,
+                "onset_ms_vs_speech": 50,
+                "lines": ["Hello there friends"],
+                "phrase_split": True,
+            }]
+            hits = mg.evaluate(bad)["hits"]
+            self.assertTrue(any("onset>" in h for h in hits), hits)
+            bad = dict(good)
+            bad["captions"] = [{
+                "start": 1.10,
+                "lines": ["x" * 33],
+                "phrase_split": True,
+            }]
+            self.assertTrue(
+                any("32chars" in h or ">32" in h for h in mg.evaluate(bad)["hits"])
+            )
+            bad = dict(good)
+            bad["captions"] = [{
+                "start": 1.10,
+                "lines": ["Hello-", "world"],
+                "phrase_split": False,
+            }]
+            self.assertTrue(any("mid-phrase" in h for h in mg.evaluate(bad)["hits"]))
+            bad = dict(good)
+            bad["diagrams"] = [{"animation": "pop"}]
+            self.assertTrue(any("pop" in h for h in mg.evaluate(bad)["hits"]))
+            bad = dict(good)
+            bad["wip_sample_shared"] = True
+            self.assertTrue(any("wip-sample-shared" in h for h in mg.evaluate(bad)["hits"]))
+            bad = dict(good)
+            bad["shared_with_owner"] = True
+            hits = mg.evaluate(bad)["hits"]
+            self.assertTrue(any("shared-without-review" in h for h in hits), hits)
+            self.assertTrue(
+                any("shared-without-owner-approval" in h for h in hits), hits
+            )
+            bad = dict(good)
+            bad.update({
+                "shared_with_owner": True,
+                "reviewed": True,
+                "owner_approved": True,
+                "coach_acceptance_applicable": True,
+                "coach_accepted": True,
+            })
+            self.assertTrue(mg.evaluate(bad)["ok"], mg.evaluate(bad))
+            bad["coach_accepted"] = False
+            self.assertTrue(
+                any("shared-without-coach" in h for h in mg.evaluate(bad)["hits"])
+            )
+            self.assertIn("missing-input", mg.evaluate(None)["hits"])
             obs = root / "obs.json"
             obs.write_text(json.dumps(good), encoding="utf-8")
             code, payload = run_design("mggate", str(obs))
@@ -662,44 +674,53 @@ class MotionGraphicsL65Test(unittest.TestCase):
         sys.path.insert(0, str(ROOT / "chaos-engine/addons/design-skills/scripts"))
         import motion_graphics_gate as mg
 
-        # Builder swears 50ms; cue at 1.0s vs ASR word at 2.6s → 1600ms measured.
-        lie = {
-            "kind": "kinetic",
-            "transcript_manually_verified": True,
-            "reviewer_brief_lists_mg_checks": True,
-            "shared_with_owner": False,
-            "wip_sample_shared": False,
-            "ocr_frames": [{"text": "ok", "expected": "ok"}],
-            "static_text_blocks": [{"text": "ok", "duration_s": 1.0, "words": 1}],
-            "asr_words": [{"word": "Hello", "start": 2.60, "end": 2.80}],
-            "captions": [{
-                "start": 1.00,
-                "onset_ms_vs_speech": 50,
-                "onset_ms": 50,
-                "lines": ["Hello"],
-                "phrase_split": True,
-            }],
-            "diagrams": [{"animation": "draw-on"}],
-        }
-        hits = mg.evaluate(lie)["hits"]
-        self.assertFalse(mg.evaluate(lie)["ok"], hits)
-        self.assertTrue(any("onset>" in h for h in hits), hits)
-        # Lone builder onset field, no ASR → FAIL missing-asr-words
-        no_asr = dict(lie)
-        del no_asr["asr_words"]
-        hits = mg.evaluate(no_asr)["hits"]
-        self.assertIn("missing-asr-words", hits)
-        self.assertFalse(mg.evaluate(no_asr)["ok"])
-        # Empty ASR list → FAIL
-        empty = dict(lie)
-        empty["asr_words"] = []
-        self.assertIn("empty-asr-words", mg.evaluate(empty)["hits"])
-        # Lesson documents word-level ASR measurement
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            asr = self._asr_file(
+                [{"word": "Hello", "start": 2.60, "end": 2.80}], root
+            )
+            lie = {
+                "kind": "kinetic",
+                "transcript_manually_verified": True,
+                "reviewer_brief_lists_mg_checks": True,
+                "shared_with_owner": False,
+                "wip_sample_shared": False,
+                "ocr_frames": [{"text": "ok", "expected": "ok"}],
+                "static_text_blocks": [{"text": "ok", "duration_s": 1.0, "words": 1}],
+                "asr_path": str(asr),
+                "asr_sha256": "fixture",
+                "asr_tool": "test-aligner",
+                "asr_independent_proof": True,
+                "captions": [{
+                    "start": 1.00,
+                    "onset_ms_vs_speech": 50,
+                    "onset_ms": 50,
+                    "lines": ["Hello"],
+                    "phrase_split": True,
+                }],
+                "diagrams": [{"animation": "draw-on"}],
+            }
+            hits = mg.evaluate(lie)["hits"]
+            self.assertFalse(mg.evaluate(lie)["ok"], hits)
+            self.assertTrue(any("onset>" in h for h in hits), hits)
+            no_asr = dict(lie)
+            del no_asr["asr_path"]
+            del no_asr["asr_sha256"]
+            del no_asr["asr_tool"]
+            hits = mg.evaluate(no_asr)["hits"]
+            self.assertIn("missing-asr-words", hits)
+            self.assertIn("missing-asr-path", hits)
+            self.assertFalse(mg.evaluate(no_asr)["ok"])
+            empty_path = root / "empty.json"
+            empty_path.write_text("[]", encoding="utf-8")
+            empty = dict(lie)
+            empty["asr_path"] = str(empty_path)
+            self.assertIn("empty-asr-words", mg.evaluate(empty)["hits"])
         lesson = (
             ROOT / "chaos-engine/addons/design-skills/references/lessons/motion-graphics-gate.md"
         ).read_text(encoding="utf-8")
         self.assertIn("word-level", lesson.lower())
-        self.assertIn("asr_words", lesson)
+        self.assertIn("asr_path", lesson)
         self.assertIn("insufficient", lesson.lower())
 
 

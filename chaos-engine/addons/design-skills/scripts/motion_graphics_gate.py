@@ -1,6 +1,6 @@
-"""L65: motion-graphics acceptance gate (fail-closed on observations JSON).
+"""L65 + L65 follow-ups + L73: motion-graphics acceptance gate (fail-closed).
 
-Checks (Carl field miss after r1 MG sample passed indep review; r2 onset fix):
+Checks (Carl field miss after r1 MG sample passed indep review; r2/r3 onset):
 (a) OCR rendered frames vs verbatim transcript; catch AR/EN bidi garble
     (Latin runs isolated with U+2066 FIRST-STRONG ISOLATE / U+2069 PDI).
 (b) Kinetic deliverables: FAIL any static text block >3s OR >6 words.
@@ -11,6 +11,15 @@ Checks (Carl field miss after r1 MG sample passed indep review; r2 onset fix):
 Plus: caption lines <=32 chars, 1-2 lines split at phrase boundaries;
 share only reviewed + owner-approved deliverables (named acceptance when
 applicable); no WIP sample shares. Missing observations / ASR → FAIL.
+
+L65 follow-ups / L73 (CE 2026.10.31.7):
+1. Require ``asr_path`` artifact + ``asr_sha256`` + ``asr_tool`` provenance;
+   reject inline builder ``asr_words`` without path; reject ``asr_source`` in
+   {cue-aligned, cue_aligned, from-cues, builder}.
+2. Unmatched cue text → FAIL (no nearest-start fallback).
+3. Duplicate tokens match sequentially (consume ASR hits in order).
+4. Perfect 0 ms max across all cues is suspect without independent proof
+   (``asr_independent_proof: true``).
 """
 from __future__ import annotations
 
@@ -106,20 +115,40 @@ def _normalize_asr_words(raw: Any) -> list[dict[str, Any]]:
     return found
 
 
-def extract_asr_words(obs: dict[str, Any]) -> list[dict[str, Any]] | None:
-    """Return ASR/aligner words from observations, or None when absent.
+_CUE_ALIGNED = frozenset({
+    "cue-aligned", "cue_aligned", "from-cues", "from_cues", "builder", "builder-asr",
+})
 
-    Accepts top-level ``asr_words`` / ``aligner_words`` / ``asr`` / ``words``,
-    or an ``asr_path`` file (JSON). Builder onset fields alone are not ASR.
+
+def asr_provenance_hits(obs: dict[str, Any]) -> list[str]:
+    """L65-fu1 / L73: require asr_path + hash/tool; reject cue-aligned sources."""
+    hits: list[str] = []
+    src = str(obs.get("asr_source") or obs.get("asr_origin") or "").strip().casefold()
+    if src in _CUE_ALIGNED:
+        hits.append("asr-source-cue-aligned")
+    path_value = obs.get("asr_path") or obs.get("aligner_path")
+    if not path_value:
+        hits.append("missing-asr-path")
+    else:
+        path = Path(str(path_value))
+        if not path.is_file():
+            hits.append("asr-path-missing-file")
+    if not str(obs.get("asr_sha256") or obs.get("asr_hash") or "").strip():
+        hits.append("missing-asr-sha256")
+    if not str(obs.get("asr_tool") or obs.get("aligner_tool") or "").strip():
+        hits.append("missing-asr-tool")
+    # Inline builder words without a path are rejected (path is SoT).
+    if any(k in obs for k in _ASR_KEYS) and not path_value:
+        hits.append("inline-asr-words-without-path")
+    return hits
+
+
+def extract_asr_words(obs: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """Return ASR/aligner words from ``asr_path`` (preferred) or None when absent.
+
+    Inline ``asr_words`` alone are insufficient (L65-fu1). Builder onset fields
+    alone are not ASR.
     """
-    for key in _ASR_KEYS:
-        if key in obs:
-            raw = obs[key]
-            if isinstance(raw, dict) and any(k in raw for k in _ASR_KEYS):
-                for nested in _ASR_KEYS:
-                    if nested in raw:
-                        return _normalize_asr_words(raw[nested])
-            return _normalize_asr_words(raw)
     path_value = obs.get("asr_path") or obs.get("aligner_path")
     if path_value:
         path = Path(str(path_value))
@@ -148,26 +177,42 @@ def _cue_text_tokens(cue: dict[str, Any]) -> list[str]:
     return [_norm_tok(tok) for line in lines for tok in _words(str(line)) if _norm_tok(tok)]
 
 
-def matched_word_start_s(cue: dict[str, Any], asr_words: list[dict[str, Any]]) -> float | None:
-    """Pick ASR word start for *cue*: first token match, else nearest start."""
+def matched_word_start_s(
+    cue: dict[str, Any],
+    asr_words: list[dict[str, Any]],
+    *,
+    consumed: set[int] | None = None,
+) -> float | None:
+    """Pick ASR word start for *cue* by sequential token match (no nearest fallback).
+
+    L65-fu2: unmatched cue text → None (FAIL upstream).
+    L65-fu3: duplicate tokens consume ASR hits in order via *consumed* indices.
+    """
     if not asr_words:
         return None
-    cue_start = _cue_start_s(cue)
     tokens = _cue_text_tokens(cue)
-    if tokens:
-        target = tokens[0]
-        for row in asr_words:
-            if _norm_tok(row["word"]) == target:
-                return float(row["start"])
-    if cue_start is None:
+    if not tokens:
         return None
-    return min(asr_words, key=lambda row: abs(float(row["start"]) - cue_start))["start"]
+    target = tokens[0]
+    used = consumed if consumed is not None else set()
+    for index, row in enumerate(asr_words):
+        if index in used:
+            continue
+        if _norm_tok(row["word"]) == target:
+            used.add(index)
+            return float(row["start"])
+    return None
 
 
-def measured_onset_ms(cue: dict[str, Any], asr_words: list[dict[str, Any]]) -> float | None:
+def measured_onset_ms(
+    cue: dict[str, Any],
+    asr_words: list[dict[str, Any]],
+    *,
+    consumed: set[int] | None = None,
+) -> float | None:
     """|cue_start − matched ASR word start| in ms; None when not measurable."""
     cue_start = _cue_start_s(cue)
-    word_start = matched_word_start_s(cue, asr_words)
+    word_start = matched_word_start_s(cue, asr_words, consumed=consumed)
     if cue_start is None or word_start is None:
         return None
     return abs(float(cue_start) - float(word_start)) * 1000.0
@@ -261,22 +306,33 @@ def _check_caption_lines(cue: dict[str, Any], index: int, hits: list[str]) -> li
 
 
 def _check_caption_onset(
-    cue: dict[str, Any], index: int, asr_words: list[dict[str, Any]], hits: list[str],
+    cue: dict[str, Any],
+    index: int,
+    asr_words: list[dict[str, Any]],
+    hits: list[str],
+    *,
+    consumed: set[int],
+    measured: list[float],
 ) -> None:
     """Measure onset vs ASR; ignore builder onset_ms* fields for pass/fail."""
     if _cue_start_s(cue) is None:
         hits.append(f"captions[{index}]:missing-start")
         return
-    delta = measured_onset_ms(cue, asr_words)
+    delta = measured_onset_ms(cue, asr_words, consumed=consumed)
     if delta is None:
         hits.append(f"captions[{index}]:unmatched-asr-word")
         return
+    measured.append(float(delta))
     if delta > MAX_ONSET_MS + 1e-9:
         hits.append(f"captions[{index}]:onset>{MAX_ONSET_MS}ms (measured={delta:.1f}ms)")
 
 
 def _check_captions(
-    captions: Any, asr_words: list[dict[str, Any]] | None, hits: list[str],
+    captions: Any,
+    asr_words: list[dict[str, Any]] | None,
+    hits: list[str],
+    *,
+    obs: dict[str, Any] | None = None,
 ) -> None:
     if asr_words is None:
         hits.append("missing-asr-words")
@@ -289,6 +345,8 @@ def _check_captions(
         hits.append("empty-captions")
         return
     words = asr_words or []
+    consumed: set[int] = set()
+    measured: list[float] = []
     for index, cue in enumerate(captions):
         if not isinstance(cue, dict):
             hits.append(f"captions[{index}]:bad-row")
@@ -296,7 +354,16 @@ def _check_captions(
         _check_caption_lines(cue, index, hits)
         if asr_words is None or not asr_words:
             continue
-        _check_caption_onset(cue, index, words, hits)
+        _check_caption_onset(
+            cue, index, words, hits, consumed=consumed, measured=measured,
+        )
+    # L73: perfect 0ms across all measured cues needs independent proof.
+    if (
+        measured
+        and max(measured) <= 1e-9
+        and not (obs or {}).get("asr_independent_proof") is True
+    ):
+        hits.append("suspect-perfect-zero-onset-without-independent-proof")
 
 
 def _check_diagrams(diagrams: Any, hits: list[str]) -> None:
@@ -329,9 +396,10 @@ def evaluate(obs: dict[str, Any] | None) -> dict[str, Any]:
     _check_share(obs, hits)
     if obs.get("reviewer_brief_lists_mg_checks") is not True:
         hits.append("reviewer-brief-missing-mg-checks")
+    hits.extend(asr_provenance_hits(obs))
     _check_ocr(obs.get("ocr_frames"), hits)
     _check_static(obs, hits)
-    _check_captions(obs.get("captions"), extract_asr_words(obs), hits)
+    _check_captions(obs.get("captions"), extract_asr_words(obs), hits, obs=obs)
     _check_diagrams(obs.get("diagrams"), hits)
     return {
         "ok": not hits,
@@ -339,6 +407,9 @@ def evaluate(obs: dict[str, Any] | None) -> dict[str, Any]:
         "error": None if not hits else "motion-graphics gate failed",
         "max_caption_line_chars": MAX_CAPTION_LINE_CHARS,
         "max_onset_ms": MAX_ONSET_MS,
+        "asr_path": obs.get("asr_path") or obs.get("aligner_path"),
+        "asr_tool": obs.get("asr_tool") or obs.get("aligner_tool"),
+        "asr_sha256": obs.get("asr_sha256") or obs.get("asr_hash"),
     }
 
 

@@ -77,7 +77,7 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
 [progress-log](progress-log.md) ([`progress_log.py`](../progress_log.py));
 [moving-channel-pin](moving-channel-pin.md) ([`moving_channel_pin.py`](../moving_channel_pin.py));
 [doc-claim-review](doc-claim-review.md); [gate-fail-closed](gate-fail-closed.md).
-SPEC: [ce-retro-2026-10-31-6-SPEC.md](ce-retro-2026-10-31-6-SPEC.md) (full copy under `guides/`).
+SPEC: [ce-retro-2026-10-31-6-SPEC.md](ce-retro-2026-10-31-6-SPEC.md); [ce-rules-2026-10-31-7-SPEC.md](ce-rules-2026-10-31-7-SPEC.md) (WoW + L66–L77; full copy under `guides/`).
 
 ## Token economy
 

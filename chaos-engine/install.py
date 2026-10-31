@@ -8015,12 +8015,14 @@ def format_agent_summary(document: dict[str, object]) -> str:
             "backup-remote: " + " ".join(backup_remote_advisory(project)),
             "backups-watch: " + " ".join(backups_watch_advisory()),
             "secret-guard: " + " ".join(secret_guard_status(project)),
+            "remote-credential: " + " ".join(remote_credential_status(project)),
             "git-husk: " + " ".join(git_husk_status(project)),
         ]
     )
     if (
         delete_guard_status()[0] != "pass"
         or any(line.startswith("secret-guard: fail") for line in lines)
+        or any(line.startswith("remote-credential: fail") for line in lines)
         or any(line.startswith("git-husk: fail") for line in lines)
     ):
         lines[0] = "doctor: fail"
@@ -8081,6 +8083,22 @@ def backup_remote_advisory(project: Path | None, root: Path | None = None) -> tu
     except Exception as error:  # nosec B110 - advisory only
         return ("warn", f"({type(error).__name__})")
     return (status,) if status == "pass" else (status, f"({reason})")
+
+
+
+def remote_credential_status(project: Path | None, root: Path | None = None) -> tuple[str, ...]:
+    """L77: fail when any git remote URL embeds credentials (values never printed)."""
+    path = (root or Path(__file__).resolve().parent) / "rules" / "rules/remote_credential_guard.py"
+    if project is None or not path.is_file():
+        return ("pass", "(unavailable)")
+    try:
+        spec = importlib.util.spec_from_file_location("ce_remote_credential_doctor", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        status, reason = module.doctor_check(Path(project))
+    except Exception as error:  # nosec B110 - doctor reports, never crashes
+        return ("warn", f"({type(error).__name__})")
+    return (status,) if not reason else (status, f"({reason})")
 
 
 def secret_guard_status(project: Path | None, root: Path | None = None) -> tuple[str, ...]:

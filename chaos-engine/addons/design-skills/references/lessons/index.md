@@ -48,4 +48,13 @@ one lesson card.
 | [L44 Caption min-cue + independent sync](caption-min-cue-independent-sync.md) | cue <0.8s fail unless merged; capsync vs independent ASR/FA onsets |
 | [L45 Delete-check refusal final](delete-check-refusal-final.md) | delete-check refusal is final; no raw-rm bypass; session-manifest self-delete |
 
+| [L65 motion-graphics gate](motion-graphics-gate.md) | kinetic MG; ASR path provenance; sequential match |
+| [L66 web UI gate](web-ui-gate.md) | live web publish bidi/WCAG/390+1440 |
+| [L70 coach pre-publish](coach-pre-publish.md) | Coach PASS before live publish |
+| [L71 avatar likeness ref](avatar-likeness-ref-conditioned.md) | reference-conditioned; glasses+age |
+| [L72 design fix-loop](design-fix-loop-localized.md) | after cap-2 localize, no full regen |
+| [L74 gate proven red](gate-proven-red.md) | FAIL known-bad fixture first |
+| [L75 no probe live](no-probe-live.md) | write probes on scratch only |
+| [L76 preview real width](preview-at-real-width.md) | Coach PASS at real container width |
+
 External resources and verdicts: [design resources](../research/design-resources-2026-10.md).
