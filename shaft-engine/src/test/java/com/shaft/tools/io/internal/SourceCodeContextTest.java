@@ -55,6 +55,15 @@ public class SourceCodeContextTest {
     }
 
     @Test
+    public void relativeFallsBackWhenPathHasNoFileName() {
+        Path root = Path.of("/").toAbsolutePath().normalize();
+        // Root paths have a null file name on Unix; relative must not NPE.
+        String relative = SourceCodeContext.relative(root, null);
+        Assert.assertFalse(relative.isEmpty());
+        Assert.assertFalse(relative.contains("null"));
+    }
+
+    @Test
     public void sourceMetadataResolvesNestedClassButCannotTraversePaths() {
         var nested = new StackTraceElement(getClass().getName() + "$Nested", "call", "SourceCodeContextTest.java", 1);
         Path source = java.util.Objects.requireNonNull(SourceCodeContext.findSourceFile(nested, getClass()),

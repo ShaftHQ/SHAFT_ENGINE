@@ -316,9 +316,10 @@ public class BidiNetworkActivitySource implements AutoCloseable {
         if (metadataWasBounded(request, method, url, requestHeaders)) {
             warnMetadataLimit(owner);
         }
+        Long requestBodySize = request.getBodySize();
         return new TraceRequest(owner, method.value(), url.value(), requestHeaders.values(),
                 method.context(), url.context(), requestHeaders.contexts(),
-                Math.max(0L, request.getBodySize() == null ? 0L : request.getBodySize()), nanoTimeSource.getAsLong());
+                Math.max(0L, requestBodySize == null ? 0L : requestBodySize), nanoTimeSource.getAsLong());
     }
 
     private boolean retainInFlight(TraceRequest traceRequest) {
@@ -392,7 +393,6 @@ public class BidiNetworkActivitySource implements AutoCloseable {
             publish(pending, response, failureReason, "");
         }
     }
-
 
     private ExecutorService worker() {
         ExecutorService current = bodyWorker;
@@ -490,8 +490,12 @@ public class BidiNetworkActivitySource implements AutoCloseable {
         }
         long now = nanoTimeSource.getAsLong();
         long elapsed = now >= request.startNanos() ? now - request.startNanos() : 0L;
-        long responseSize = response == null ? 0L : Math.max(0L,
-                response.getBodySize() == null ? response.getBytesReceived() : response.getBodySize());
+        long responseSize = 0L;
+        if (response != null) {
+            Long responseBodySize = response.getBodySize();
+            responseSize = Math.max(0L,
+                    responseBodySize == null ? response.getBytesReceived() : responseBodySize);
+        }
         BoundedHeaders responseHeaders = response == null ? new BoundedHeaders(Map.of(), Map.of(), false)
                 : headers(response.getHeaders());
         if (responseHeaders.truncated()) {
