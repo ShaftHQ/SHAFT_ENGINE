@@ -71,5 +71,43 @@ class WorkOrderingCardTest(unittest.TestCase):
         self.assertIn("work-ordering.md", bot)
 
 
+
+class PreCommitIdentityGuardTest(unittest.TestCase):
+    def test_blocks_chaosengine_on_foreign_repo(self) -> None:
+        ci = load_commit_identity()
+        hits = ci.pre_commit_identity_failures(
+            name="ChaosEngine",
+            email="chaosengine@mail.grokbot.com",
+            remote_url="https://github.com/example/designer-workspace.git",
+        )
+        self.assertTrue(hits)
+        self.assertIn("commit-identity", hits[0])
+
+    def test_allows_chaosengine_on_engine(self) -> None:
+        ci = load_commit_identity()
+        hits = ci.pre_commit_identity_failures(
+            name="ChaosEngine",
+            email="chaosengine@mail.grokbot.com",
+            remote_url="https://github.com/ShaftHQ/SHAFT_ENGINE.git",
+        )
+        self.assertEqual([], hits)
+
+    def test_owner_identity_ok_anywhere(self) -> None:
+        ci = load_commit_identity()
+        hits = ci.pre_commit_identity_failures(
+            name="Owner",
+            email="owner@example.com",
+            remote_url="https://github.com/example/designer-workspace.git",
+        )
+        self.assertEqual([], hits)
+
+    def test_repo_identity_map_keys(self) -> None:
+        ci = load_commit_identity()
+        mapping = ci.repo_identity_map()
+        self.assertIn("ShaftHQ/SHAFT_ENGINE", mapping)
+        self.assertIn("ShaftHQ/shafthq.github.io", mapping)
+        self.assertEqual(ci.CHAOSENGINE_EMAIL, mapping["ShaftHQ/SHAFT_ENGINE"])
+
+
 if __name__ == "__main__":
     unittest.main()

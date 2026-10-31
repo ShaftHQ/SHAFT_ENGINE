@@ -43,6 +43,16 @@ esac
 """
 _PRE_COMMIT = _PREAMBLE + """PY=$(command -v python3 || command -v python)
 "$PY" "$(dirname "$0")/secret_guard.py" --staged || exit 1
+# H-IDENTITY: block ChaosEngine authorship outside the allowed-repo map.
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || ROOT=
+if [ -n "$ROOT" ]; then
+  for cand in "$ROOT/chaos-engine/commit_identity.py" "$ROOT/.chaos-engine/commit_identity.py"; do
+    if [ -f "$cand" ]; then
+      "$PY" "$cand" --pre-commit || exit 1
+      break
+    fi
+  done
+fi
 if [ -n "$chained" ] && [ -x "$chained/pre-commit" ]; then
   exec "$chained/pre-commit" "$@"
 fi

@@ -3129,6 +3129,52 @@ def cmd_askaraoke(qc, args) -> int:
 
 
 
+
+
+def cmd_uncaptionedspeech(qc, args) -> int:
+    """L64: ASR speech spans >=300ms need >=50% human-cue coverage."""
+    import importlib.util
+
+    helper = Path(__file__).resolve().parent / "uncaptioned_speech.py"
+    if not helper.is_file():
+        return qc.report(
+            "uncaptionedspeech", qc.FAIL, hits=["missing-helper"],
+            error=f"no helper: {helper}",
+        )
+    spec = importlib.util.spec_from_file_location("ce_uncaptioned_speech", helper)
+    if spec is None or spec.loader is None:
+        return qc.report(
+            "uncaptionedspeech", qc.FAIL, hits=["missing-helper"], error="load failed",
+        )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    cues_path = Path(str(args.cues))
+    asr_path = Path(str(args.asr))
+    cues = mod.load_json_list(cues_path)
+    asr = mod.load_json_list(asr_path)
+    if cues is None or asr is None:
+        return qc.report(
+            "uncaptionedspeech", qc.FAIL, hits=["missing-input"],
+            error="cues and asr JSON required (fail-closed)",
+        )
+    min_ms = int(getattr(args, "min_speech_ms", mod.MIN_SPEECH_MS))
+    result = mod.evaluate(
+        cues, asr,
+        min_speech_s=float(min_ms) / 1000.0,
+        min_covered_ratio=float(getattr(args, "min_covered", mod.MIN_COVERED_RATIO)),
+    )
+    return qc.report(
+        "uncaptionedspeech",
+        qc.PASS if result.get("ok") else qc.FAIL,
+        hits=result.get("hits") or [],
+        uncovered=result.get("uncovered") or [],
+        speech_spans=result.get("speech_spans"),
+        human_cues=result.get("human_cues"),
+        note="ASR speech >=min_ms needs >=ratio human-cue cover",
+        error=result.get("error"),
+    )
+
+
 def cmd_karaokehumanfrag(qc, args) -> int:
     """L63: fail short karaoke fragments inside human-marked cues."""
     import re as _re
@@ -4442,6 +4488,12 @@ def register(add, qc) -> None:
     p.add_argument("--check", action="store_true", help="FAIL while micro-gaps remain")
     p.add_argument("--out", default=None, help="write snapped SRT")
 
+    p = add("uncaptionedspeech", bind(cmd_uncaptionedspeech),
+            "L64: ASR speech spans need human-cue coverage (fail-closed)")
+    p.add_argument("--cues", required=True, help="human cues JSON list")
+    p.add_argument("--asr", required=True, help="ASR segments JSON list")
+    p.add_argument("--min-speech-ms", type=int, default=300, dest="min_speech_ms")
+    p.add_argument("--min-covered", type=float, default=0.50, dest="min_covered")
     p = add("karaokehumanfrag", bind(cmd_karaokehumanfrag),
             "L63: no short karaoke fragments inside human cues")
     p.add_argument("file", help="ASS / caption file")

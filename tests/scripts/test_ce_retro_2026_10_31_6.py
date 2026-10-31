@@ -1,4 +1,4 @@
-"""CE 2026.10.31.6 consolidated retro gates (H-* + L60–L63)."""
+"""CE 2026.10.31.6 consolidated retro gates (H-* + L60–L64 + H-IDENTITY/H-SCOPE)."""
 from __future__ import annotations
 
 import json
@@ -366,6 +366,10 @@ class DocAndCardPresenceTest(unittest.TestCase):
             "chaos-engine/addons/design-skills/references/lessons/schedule-dup-before-rebuild.md",
             "chaos-engine/addons/design-skills/references/lessons/signed-renders-store.md",
             "chaos-engine/addons/design-skills/references/lessons/karaoke-human-frag.md",
+            "chaos-engine/addons/design-skills/references/lessons/uncaptioned-speech.md",
+            "chaos-engine/references/pr-scope-check.md",
+            "chaos-engine/addons/design-skills/scripts/uncaptioned_speech.py",
+            "scripts/ci/pr_scope_check.py",
         ):
             self.assertTrue((ROOT / rel).is_file(), rel)
         bot = (ROOT / "chaos-engine/references/bot-entry.md").read_text(encoding="utf-8")
@@ -374,6 +378,92 @@ class DocAndCardPresenceTest(unittest.TestCase):
             ROOT / "chaos-engine/references/design-review-video-checklist.md"
         ).read_text(encoding="utf-8")
         self.assertIn("doc-claim", checklist.casefold())
+
+
+
+class UncaptionedSpeechL64Test(unittest.TestCase):
+    def test_uncovered_fails_covered_passes_missing_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cues = root / "cues.json"
+            asr = root / "asr.json"
+            # Carl shape: ASR words in seconds {s,e,t}; human cues {s,e,t,human}.
+            asr.write_text(
+                json.dumps([
+                    {"s": 0.0, "e": 0.20, "t": "hello"},
+                    {"s": 0.22, "e": 0.55, "t": "world"},
+                ]),
+                encoding="utf-8",
+            )
+            cues.write_text(json.dumps([]), encoding="utf-8")
+            code, payload = run_design(
+                "uncaptionedspeech", "--cues", str(cues), "--asr", str(asr),
+            )
+            self.assertEqual(1, code, payload)
+            self.assertTrue(payload.get("hits"), payload)
+            cues.write_text(
+                json.dumps([
+                    {"s": 0.0, "e": 0.50, "t": "hello there", "human": True},
+                ]),
+                encoding="utf-8",
+            )
+            code, payload = run_design(
+                "uncaptionedspeech", "--cues", str(cues), "--asr", str(asr),
+            )
+            self.assertEqual(0, code, payload)
+            code, payload = run_design(
+                "uncaptionedspeech",
+                "--cues", str(root / "missing.json"),
+                "--asr", str(asr),
+            )
+            self.assertEqual(1, code, payload)
+            self.assertIn("missing-input", payload.get("hits", []))
+
+
+class PrScopeCheckTest(unittest.TestCase):
+    def test_out_of_scope_and_missing(self) -> None:
+        sys.path.insert(0, str(ROOT))
+        from scripts.ci.pr_scope_check import evaluate
+
+        body = "<!-- chaos-engine:scope chaos-engine/,tests/scripts/ -->\n"
+        result = evaluate(body, ["chaos-engine/VERSION", "src/main/java/X.java"])
+        self.assertFalse(result["ok"])
+        self.assertTrue(any("out-of-scope" in h for h in result["hits"]))
+        result_ok = evaluate(body, ["chaos-engine/VERSION", "tests/scripts/t.py"])
+        self.assertTrue(result_ok["ok"], result_ok)
+        missing = evaluate("no scope here", ["chaos-engine/VERSION"])
+        self.assertFalse(missing["ok"])
+        self.assertIn("missing-scope", missing["hits"])
+
+    def test_scope_section_bullets(self) -> None:
+        sys.path.insert(0, str(ROOT))
+        from scripts.ci.pr_scope_check import parse_scope_prefixes
+
+        body = "## Scope\n- chaos-engine/\n- scripts/ci/\n\n## Plan\n- do stuff\n"
+        prefixes = parse_scope_prefixes(body)
+        self.assertEqual(["chaos-engine/", "scripts/ci/"], prefixes)
+
+
+class IdentityPreCommitCliTest(unittest.TestCase):
+    def test_cli_pre_commit_blocks_foreign(self) -> None:
+        sys.path.insert(0, str(ROOT / "chaos-engine"))
+        import commit_identity as ci
+
+        hits = ci.pre_commit_identity_failures(
+            name="ChaosEngine",
+            email="chaosengine@mail.grokbot.com",
+            remote_url="git@github.com:OtherOrg/designer-workspace.git",
+        )
+        self.assertTrue(hits)
+        self.assertIn("designer-workspace", hits[0])
+        # Engine remote with ChaosEngine identity must pass.
+        ok = ci.pre_commit_identity_failures(
+            name="ChaosEngine",
+            email="chaosengine@mail.grokbot.com",
+            remote_url="https://github.com/ShaftHQ/SHAFT_ENGINE.git",
+        )
+        self.assertEqual([], ok)
+
 
 
 if __name__ == "__main__":

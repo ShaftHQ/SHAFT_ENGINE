@@ -79,6 +79,7 @@ A talk chapter, Short, podcast clip or other captioned video is about to be
 - [ ] Before rebuild/schedule: design_qc.py scheduledup --inventory <live.json> --title <t> (L61)
 - [ ] On SIGN: copy finals to signed-renders/<UNIT>/ under the workspace root (L62 never-touch)
 - [ ] Human ASS cues: craft_qc.py karaokehumanfrag <ass> (L63)
+- [ ] Uncaptioned speech: craft_qc.py uncaptionedspeech --cues cues.json --asr asr.json (L64)
 - [ ] Likeness refs carry real-source provenance (L60); AI kinds FAIL
 Receipts: attach the JSON stdout of each design_qc command.
 Metric-only / hash-only SIGN is a FAIL even when prior FAIL items closed.

@@ -1,4 +1,4 @@
-# Lesson index extension (L40–L63)
+# Lesson index extension (L40–L64)
 
 Rows for Phase 1 memory-abstraction lessons plus 2026-10-31 retro cards. Kept separate from
 `index.md` so a sibling video sign-off lesson PR can own L39 + the
@@ -31,4 +31,4 @@ test reads this file together with `index.md`.
 | [L61 Schedule dup before rebuild](schedule-dup-before-rebuild.md) | title+window vs live inventory before rebuild/schedule |
 | [L62 Signed-renders store](signed-renders-store.md) | copy-on-SIGN; signed-renders never-touch |
 | [L63 Karaoke human frag](karaoke-human-frag.md) | no <0.8s karaoke fragments inside human cues |
-
+| [L64 Uncaptioned speech](uncaptioned-speech.md) | ASR speech ≥300ms needs ≥50% human-cue cover |

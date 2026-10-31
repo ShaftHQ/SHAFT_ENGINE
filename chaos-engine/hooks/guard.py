@@ -376,6 +376,27 @@ def git_commit_command(command: str) -> bool:
     return head == "git" and bool(arguments) and arguments[0] == "commit"
 
 
+def commit_identity_pre_commit_reason(cwd: Path, commands: tuple[str, ...]) -> str:
+    """PreToolUse: refuse git commit when ChaosEngine identity is out of scope (H-IDENTITY)."""
+    if not any(git_commit_command(candidate) for candidate in commands):
+        return ""
+    module_path = Path(__file__).resolve().parents[1] / "commit_identity.py"
+    if not module_path.is_file():
+        return ""
+    try:
+        spec = importlib.util.spec_from_file_location("chaos_engine_commit_identity_guard", module_path)
+        if spec is None or spec.loader is None:
+            return ""
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    except Exception:  # noqa: BLE001 - fail soft on import issues; hook must not crash
+        return ""
+    failures = module.pre_commit_identity_failures(cwd)
+    return failures[0] if failures else ""
+
+
+
+
 def _read_body_file(value: str) -> str | None:
     try:
         return Path(value).read_text(encoding="utf-8")
@@ -1325,6 +1346,9 @@ def _command_guard_state(
         scope_block = until_merged_out_of_scope_reason(cwd, commands)
         if scope_block:
             return receipt_command, mutation, scope_block
+        identity_block = commit_identity_pre_commit_reason(cwd, commands)
+        if identity_block:
+            return receipt_command, mutation, identity_block
     if event_name == "PreToolUse" and checkpoint and not receipt_command and (mutation or unchanged_test):
         return receipt_command, mutation, checkpoint_reason(checkpoint, session_id)
     uninspectable = _uninspectable_functions_call(

@@ -82,3 +82,7 @@ design-skills lesson index (+ index-extension for L40–L43), sibling video sign
 - [ ] Missing/empty input has a FAIL test (see [gate-fail-closed](gate-fail-closed.md))
 - [ ] Defaults match the card (fail-closed, not silent opt-in)
 - [ ] See [doc-claim-review](doc-claim-review.md)
+
+- [ ] L64 uncaptionedspeech --cues cues.json --asr asr.json (fail-closed)
+- [ ] H-SCOPE pr_scope_check.py on PR diff vs ## Scope
+- [ ] H-IDENTITY commit_identity --pre-commit

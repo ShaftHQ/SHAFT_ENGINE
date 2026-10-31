@@ -1,33 +1,43 @@
-# Commit identity (ChaosEngine author scope)
+# Commit identity (H-IDENTITY)
 
 ## Rule
 
-Commit as **ChaosEngine** `<chaosengine@mail.grokbot.com>` **only** in the two
-remotes returned by `allowed_remotes()` in
-[`commit_identity.py`](../commit_identity.py): the public engine GitHub
-repository and its companion user-guide pages repository. Every other
-repository uses the human owner's own git identity (name + email). Never set
-`GIT_AUTHOR_*` / `user.name` / `user.email` to ChaosEngine outside those two
-remotes.
+ChaosEngine `<chaosengine@mail.grokbot.com>` may author commits **only** in:
+
+- `ShaftHQ/SHAFT_ENGINE`
+- `ShaftHQ/shafthq.github.io`
+
+Every other remote must use the human **owner** git identity (`user.name` / `user.email`). Pre-commit and PreToolUse **block** the commit when ChaosEngine authorship would land outside that map (the designer-workspace miss class that produced six ChaosEngine-authored commits).
 
 ## Why
 
-A bot author on third-party or personal forks breaks CLA checks, confuses
-attribution, and can look like spoofing. Scoped authorship keeps engine and
-user-guide automation clear without leaking the bot identity elsewhere.
+Consumer / personal / client repos that inherit a ChaosEngine `user.email` pollute history and break attribution. The allow-list is the public engine + its user-guide pages only.
 
 ## Check
 
-`git remote get-url origin` matches one of `allowed_remotes()` before any
-commit that sets ChaosEngine as author. Worker briefs inherit this default.
-`assert_chaosengine_author_allowed(project)` in
-`chaos-engine/commit_identity.py` refuses ChaosEngine authorship on any
-other remote. At entry, `entry_identity_warning(project)` also inspects
-repo-local `user.name` / `user.email`: when they are ChaosEngine and
-origin is outside `allowed_remotes()`, entry prints a warning so the
-misconfiguration is fixed before more commits land.
+```python
+from commit_identity import (
+    allowed_remotes,
+    repo_identity_map,
+    pre_commit_identity_failures,
+    assert_chaosengine_author_allowed,
+)
+assert "ShaftHQ/SHAFT_ENGINE" in allowed_remotes()
+# Pre-commit / `python commit_identity.py --pre-commit` exits 1 on failures:
+assert pre_commit_identity_failures(
+    name="ChaosEngine",
+    email="chaosengine@mail.grokbot.com",
+    remote_url="https://github.com/example/designer-workspace.git",
+)
+```
 
-## Follow-up
+Git hook (`git_hooks.py` pre-commit) runs `commit_identity.py --pre-commit` after the secret guard. Guard PreToolUse calls `commit_identity_pre_commit_reason` on `git commit`.
 
-[bot entry](bot-entry.md), [worker keep-alive](worker-keep-alive.md),
-[`worker_ce_entry.py`](../skills/local-agency/scripts/worker_ce_entry.py).
+## Owner identity
+
+On any non-allow-listed remote, set the owner's name and email before committing. ChaosEngine must not remain as the local `user.email` in those clones.
+
+## See also
+
+- `bot-entry.md` / `user-guide.md` (identity + push path)
+- `git_hooks.py` (pre-commit wiring)
