@@ -12,9 +12,10 @@ linked git worktree or a fresh clone starts without them. This module:
   alone; stale pure-overlay copies are upgraded in place. Local edits that
   diverge from both refuse with a clear message. Idempotent and hash-based.
 * `upgrade_session(primary, session)` is the one fast command that brings a
-  worktree to the primary CE version: materialize (stale upgrade) plus a
-  lightweight host/plugin repair that skips client marketplace work when the
-  session VERSION already matches primary (plugins step is the ~60s cost).
+  worktree to the primary CE version: transactional materialize (preflight,
+  backup, VERSION last) plus host/plugin repair. CE-owned host adapters are
+  derived from the installer ownership list (not a hand list).
+* `recover_session(primary, session)` repairs half-applied upgrades.
 * `linked_worktree_reason(path)` returns a one-line refusal for installers
   run inside a linked worktree, naming the primary checkout.
 
@@ -32,6 +33,7 @@ from __future__ import annotations
 import argparse
 import os
 import hashlib
+import importlib.util
 import json
 import shutil
 import subprocess  # nosec B404 - fixed git arguments only.
@@ -62,6 +64,27 @@ HOST_FILES = {
     "antigravity": ("AGENTS.md",),
 }
 SHARED_FILES = ("AGENTS.md", ".mcp.json", ".claude/agents", ".codex/agents")
+# Paths CE may write that consumers commonly edit — keep strict provenance.
+CONSUMER_EDITABLE = frozenset(
+    {
+        "AGENTS.md",
+        "CLAUDE.md",
+        "GEMINI.md",
+        ".github/copilot-instructions.md",
+        ".gitignore",
+        ".gitattributes",
+        ".mcp.json",
+        ".agents/skills/README.md",
+        ".memory/events.jsonl",
+        "mempalace.yaml",
+    }
+)
+AGENT_GLOBS = (
+    (".claude/agents", "chaos-engine-*"),
+    (".codex/agents", "chaos-engine-*"),
+    (".cursor/agents", "chaos-engine-*"),
+)
+UPGRADE_BACKUP_DIR = ".chaos-engine-state/upgrade-backup"
 SKIP_PARTS = {"__pycache__", ".pytest_cache"}
 # Timing budget note (seconds) for callers / docs.
 MATERIALIZE_BUDGET_S_PER_WORKTREE = 5.0
@@ -187,6 +210,28 @@ def _rel_key(session: Path, target: Path) -> str:
     return normalized.relative_to(session_r).as_posix()
 
 
+def _diff_hint(source: Path, destination: Path, *, limit: int = 12) -> str:
+    """Short unified-diff (or hash) hint for a refused consumer edit."""
+    try:
+        src = source.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+        dst = destination.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+    except OSError:
+        return f"(unreadable; primary={_file_sha256(source)[:12]} session={_file_sha256(destination)[:12]})"
+    import difflib
+
+    lines = list(
+        difflib.unified_diff(
+            dst, src, fromfile=f"session/{destination.name}", tofile=f"primary/{source.name}", n=2
+        )
+    )
+    if not lines:
+        return "(no textual diff)"
+    body = "".join(lines[:limit])
+    if len(lines) > limit:
+        body += f"... ({len(lines) - limit} more diff lines)\n"
+    return body.rstrip()
+
+
 def _sync_file(
     source: Path,
     destination: Path,
@@ -196,6 +241,8 @@ def _sync_file(
     upgraded: list[str],
     copied: list[str],
     unchanged: list[str],
+    dry_run: bool = False,
+    deferred: list[tuple[Path, Path, str]] | None = None,
 ) -> None:
     if not source.is_file():
         return
@@ -204,6 +251,10 @@ def _sync_file(
     key = _rel_key(session, dest_abs)
     src_hash = _file_sha256(source)
     if not dest_abs.exists():
+        if dry_run:
+            if deferred is not None:
+                deferred.append((source, dest_abs, key))
+            return
         dest_abs.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, dest_abs)
         manifest[key] = src_hash
@@ -211,23 +262,29 @@ def _sync_file(
         return
     dest_hash = _file_sha256(dest_abs)
     if dest_hash == src_hash:
-        manifest[key] = src_hash
-        unchanged.append(dest_abs.as_posix())
+        if not dry_run:
+            manifest[key] = src_hash
+            unchanged.append(dest_abs.as_posix())
         return
     recorded = manifest.get(key)
     if recorded is not None and dest_hash == recorded:
+        if dry_run:
+            if deferred is not None:
+                deferred.append((source, dest_abs, key))
+            return
         shutil.copy2(source, dest_abs)
         manifest[key] = src_hash
         upgraded.append(dest_abs.as_posix())
         return
+    hint = _diff_hint(source, dest_abs)
     raise OverlayLocalEditError(
         f"local edit or unknown provenance at {dest_abs}: diverges from primary "
         f"and from the last materialized hash; move it aside or reconcile, then re-run "
-        f"materialize / upgrade-session"
+        f"materialize / upgrade-session\n--- diff hint ---\n{hint}"
     )
 
 
-def _iter_source_files(source: Path) -> list[Path]:
+def _iter_source_files(source: Path, *, skip_version: bool = False) -> list[Path]:
     if source.is_dir():
         found: list[Path] = []
         for item in sorted(source.rglob("*")):
@@ -235,26 +292,36 @@ def _iter_source_files(source: Path) -> list[Path]:
                 continue
             if item.name == ".overlay-materialize.json":
                 continue
+            if skip_version and item.name == "VERSION" and TREE in item.parts:
+                continue
             found.append(item)
         return found
     if source.is_file():
+        if skip_version and source.name == "VERSION" and TREE in source.parts:
+            return []
         return [source]
     return []
 
 
 def _copy(source: Path, destination: Path, *, session: Path, manifest: dict[str, str],
-          upgraded: list[str], copied: list[str], unchanged: list[str]) -> None:
+          upgraded: list[str], copied: list[str], unchanged: list[str],
+          dry_run: bool = False, deferred: list[tuple[Path, Path, str]] | None = None,
+          skip_version: bool = False) -> None:
     if source.is_dir():
-        for item in _iter_source_files(source):
+        for item in _iter_source_files(source, skip_version=skip_version):
             target = destination / item.relative_to(source)
             _sync_file(
                 item, target, session=session, manifest=manifest,
                 upgraded=upgraded, copied=copied, unchanged=unchanged,
+                dry_run=dry_run, deferred=deferred,
             )
     elif source.is_file():
+        if skip_version and source.name == "VERSION" and TREE in source.parts:
+            return
         _sync_file(
             source, destination, session=session, manifest=manifest,
             upgraded=upgraded, copied=copied, unchanged=unchanged,
+            dry_run=dry_run, deferred=deferred,
         )
 
 
@@ -278,32 +345,170 @@ def _clean_stale_leftovers(primary: Path, session: Path, manifest: dict[str, str
             del manifest[key]
 
 
-def materialize(primary: Path, session: Path) -> list[str]:
+def _materialize_relatives(primary: Path) -> list[str]:
+    relatives = [TREE, *SHARED_FILES]
+    for files in HOST_FILES.values():
+        relatives.extend(files)
+    return list(dict.fromkeys(relatives))
+
+
+def _is_version_relative(relative: str) -> bool:
+    rel = relative.replace("\\", "/")
+    return rel == VERSION_REL or rel.endswith("/VERSION") and TREE in rel.split("/")
+
+
+def materialize(primary: Path, session: Path, *, transactional: bool = True) -> list[str]:
     """Copy/upgrade the overlay and host files from `primary` into `session`.
 
     Returns paths newly written (copied or upgraded). Idempotent: a second call
     with the same primary leaves current files untouched. Raises
     ``OverlayLocalEditError`` when a session file has local edits.
+
+    When ``transactional`` (default): preflight every path before writing;
+    on refusal write nothing; on mid-write failure roll back from a session-dir
+    backup; ``VERSION`` is written last.
     """
     primary, session = Path(primary).resolve(), Path(session).resolve()
     if not (primary / ROUTER).is_file():
         raise FileNotFoundError(f"primary checkout has no ChaosEngine overlay: {primary}")
-    relatives = [TREE, *SHARED_FILES]
-    for files in HOST_FILES.values():
-        relatives.extend(files)
+    relatives = _materialize_relatives(primary)
     manifest = _load_manifest(session)
     copied: list[str] = []
     upgraded: list[str] = []
     unchanged: list[str] = []
     removed: list[str] = []
-    for relative in dict.fromkeys(relatives):
-        _copy(
-            primary / relative, session / relative, session=session, manifest=manifest,
-            upgraded=upgraded, copied=copied, unchanged=unchanged,
+
+    def _pass(*, dry_run: bool, skip_version: bool, deferred=None, man=None) -> None:
+        target_manifest = man if man is not None else manifest
+        for relative in relatives:
+            _copy(
+                primary / relative,
+                session / relative,
+                session=session,
+                manifest=target_manifest,
+                upgraded=upgraded,
+                copied=copied,
+                unchanged=unchanged,
+                dry_run=dry_run,
+                deferred=deferred,
+                skip_version=skip_version,
+            )
+
+    if not transactional:
+        _pass(dry_run=False, skip_version=False)
+        _clean_stale_leftovers(primary, session, manifest, removed)
+        _save_manifest(session, manifest)
+        return copied + upgraded
+
+    # --- transactional path ---
+    preflight_deferred: list[tuple[Path, Path, str]] = []
+    refusals: list[str] = []
+    # Preflight every relative (skip VERSION first pass semantics via skip_version
+    # on TREE walk); collect ALL refusals before writing anything.
+    for relative in relatives:
+        try:
+            _copy(
+                primary / relative,
+                session / relative,
+                session=session,
+                manifest=dict(manifest),
+                upgraded=[],
+                copied=[],
+                unchanged=[],
+                dry_run=True,
+                deferred=preflight_deferred,
+                skip_version=False,
+            )
+        except OverlayLocalEditError as error:
+            refusals.append(str(error))
+    # Deduplicate deferred entries by key (VERSION may appear once).
+    seen_keys: set[str] = set()
+    unique_deferred: list[tuple[Path, Path, str]] = []
+    for item in preflight_deferred:
+        if item[2] in seen_keys:
+            continue
+        seen_keys.add(item[2])
+        unique_deferred.append(item)
+    preflight_deferred = unique_deferred
+    if refusals:
+        joined = "\n---\n".join(refusals)
+        raise OverlayLocalEditError(
+            "upgrade preflight refused (nothing written):\n" + joined
         )
-    _clean_stale_leftovers(primary, session, manifest, removed)
-    _save_manifest(session, manifest)
-    return copied + upgraded
+
+    backup_root = _backup_session_targets(session, preflight_deferred)
+    try:
+        copied.clear()
+        upgraded.clear()
+        unchanged.clear()
+        # Write everything except VERSION first.
+        _pass(dry_run=False, skip_version=True)
+        # VERSION last.
+        version_src = primary / VERSION_REL
+        if version_src.is_file():
+            _sync_file(
+                version_src,
+                session / VERSION_REL,
+                session=session,
+                manifest=manifest,
+                upgraded=upgraded,
+                copied=copied,
+                unchanged=unchanged,
+            )
+        _clean_stale_leftovers(primary, session, manifest, removed)
+        _save_manifest(session, manifest)
+    except Exception:
+        if backup_root is not None:
+            _restore_session_backup(session, backup_root)
+        raise
+    return list(dict.fromkeys(copied + upgraded))
+
+
+
+def _backup_session_targets(
+    session: Path, deferred: list[tuple[Path, Path, str]]
+) -> Path | None:
+    """Copy existing session files that will change into a session-dir backup."""
+    existing = [(src, dest, key) for src, dest, key in deferred if dest.is_file()]
+    if not existing:
+        return None
+    stamp = time.strftime("%Y%m%dT%H%M%S")
+    root = session / UPGRADE_BACKUP_DIR / stamp
+    root.mkdir(parents=True, exist_ok=True)
+    for _src, dest, key in existing:
+        target = root / key
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(dest, target)
+    (root / "MANIFEST.json").write_text(
+        json.dumps({"files": [key for _s, _d, key in existing]}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return root
+
+
+def _restore_session_backup(session: Path, backup_root: Path) -> None:
+    """Restore files from an upgrade backup after a mid-write failure."""
+    manifest_path = backup_root / "MANIFEST.json"
+    keys: list[str] = []
+    if manifest_path.is_file():
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            keys = list(data.get("files") or [])
+        except (OSError, ValueError):
+            keys = []
+    if not keys:
+        keys = [
+            p.relative_to(backup_root).as_posix()
+            for p in backup_root.rglob("*")
+            if p.is_file() and p.name != "MANIFEST.json"
+        ]
+    for key in keys:
+        src = backup_root / key
+        if not src.is_file():
+            continue
+        dest = session / key
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
 
 
 def _read_version(root: Path) -> str:
@@ -317,11 +522,122 @@ def _read_version(root: Path) -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
-def upgrade_session(primary: Path, session: Path, *, repair_plugins: bool | None = None) -> dict:
+def _try_load_hosts(primary: Path):
+    """Load hosts.py from the primary overlay (or source tree) for ownership lists."""
+    candidates = [
+        primary / TREE / "hosts.py",
+        primary / "chaos-engine" / "hosts.py",
+        Path(__file__).resolve().with_name("hosts.py"),
+    ]
+    for path in candidates:
+        if not path.is_file():
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location("_ce_hosts_owned", path)
+            if spec is None or spec.loader is None:
+                continue
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            if hasattr(module, "receipt_owned_paths"):
+                return module
+        except Exception:  # nosec B110 - ownership helper must not break upgrade
+            continue
+    return None
+
+
+def _normalize_owned_rel(rel: str) -> str:
+    rel = rel.replace("\\", "/")
+    while rel.startswith("./"):
+        rel = rel[2:]
+    return rel
+
+
+def _add_owned_path(owned: list[str], seen: set[str], rel: str) -> None:
+    rel = _normalize_owned_rel(rel)
+    if rel in seen or rel in CONSUMER_EDITABLE:
+        return
+    seen.add(rel)
+    owned.append(rel)
+
+
+def _add_owned_tree_or_file(
+    primary: Path, owned: list[str], seen: set[str], rel: str
+) -> None:
+    path = primary / rel
+    if path.is_file():
+        _add_owned_path(owned, seen, rel)
+    elif path.is_dir():
+        for item in _iter_source_files(path):
+            _add_owned_path(owned, seen, item.relative_to(primary).as_posix())
+
+
+def _collect_receipt_owned(
+    primary: Path, owned: list[str], seen: set[str]
+) -> None:
+    hosts = _try_load_hosts(primary)
+    if hosts is None:
+        return
+    live = set(getattr(hosts, "LIVE_PERSISTENT_PATHS", ()))
+    try:
+        for rel in hosts.receipt_owned_paths():
+            if rel in live or rel in CONSUMER_EDITABLE:
+                continue
+            _add_owned_tree_or_file(primary, owned, seen, rel)
+    except Exception:  # nosec B110 - ownership helper must not break upgrade
+        return
+
+
+def _collect_agent_glob_owned(
+    primary: Path, owned: list[str], seen: set[str]
+) -> None:
+    for agents_rel, pattern in AGENT_GLOBS:
+        agents = primary / agents_rel
+        if not agents.is_dir():
+            continue
+        for item in sorted(agents.glob(pattern)):
+            if item.is_file():
+                _add_owned_path(owned, seen, item.relative_to(primary).as_posix())
+
+
+def _collect_host_files_owned(
+    primary: Path, owned: list[str], seen: set[str]
+) -> None:
+    for files in HOST_FILES.values():
+        for rel in files:
+            if rel in CONSUMER_EDITABLE:
+                continue
+            _add_owned_tree_or_file(primary, owned, seen, rel)
+
+
+def _installer_owned_relatives(primary: Path) -> list[str]:
+    """Every path CE writes for host adapters + overlay, from installer ownership.
+
+    Derived from ``hosts.receipt_owned_paths()`` plus ``.chaos-engine/**`` and
+    host-agent globs (any suffix). Not a hand-maintained file list. Consumer-
+    editable docs stay off this set so they keep strict provenance.
+    """
+    primary = Path(primary).resolve()
+    owned: list[str] = []
+    seen: set[str] = set()
+    tree = primary / TREE
+    if tree.is_dir():
+        for item in _iter_source_files(tree):
+            _add_owned_path(owned, seen, item.relative_to(primary).as_posix())
+    _collect_receipt_owned(primary, owned, seen)
+    _collect_agent_glob_owned(primary, owned, seen)
+    _collect_host_files_owned(primary, owned, seen)
+    return owned
+
+
+def upgrade_session(
+    primary: Path, session: Path, *, repair_plugins: bool | None = None, recover: bool = False
+) -> dict:
     """One command: bring ``session`` to primary CE version (materialize + host repair).
 
     Skips the slow plugin marketplace round-trip when VERSION already matches
     unless ``repair_plugins=True``. Returns a result dict with timings.
+
+    ``recover=True`` force-adopts CE-owned paths first (half-applied worktrees).
     """
     primary, session = Path(primary).resolve(), Path(session).resolve()
     started = time.perf_counter()
@@ -333,14 +649,14 @@ def upgrade_session(primary: Path, session: Path, *, repair_plugins: bool | None
     # Gitignored overlay/agents (normal engine + consumer installs) are invisible
     # to git checkout. Adopt their current hashes into the materialize manifest
     # so stale CE-owned files upgrade instead of raising unknown provenance.
-    _adopt_ignored_ce_owned(primary, session)
+    _adopt_ce_owned(primary, session, force=recover)
     try:
-        written = materialize(primary, session)
+        written = materialize(primary, session, transactional=True)
     except OverlayLocalEditError:
         # Self-heal once after a partial / raced materialize: re-adopt CE-owned
-        # ignored paths and retry. Consumer-edited non-CE files still refuse.
-        _adopt_ignored_ce_owned(primary, session)
-        written = materialize(primary, session)
+        # paths and retry. Consumer-edited non-CE files still refuse.
+        _adopt_ce_owned(primary, session, force=True)
+        written = materialize(primary, session, transactional=True)
     session_ver_after = _read_version(session)
     version_match = bool(primary_ver) and primary_ver == session_ver_after
     if repair_plugins is None:
@@ -358,9 +674,36 @@ def upgrade_session(primary: Path, session: Path, *, repair_plugins: bool | None
         "session_version": session_ver_after,
         "plugins_repaired": plugins_ran,
         "hosts_light_repaired": hosts_repaired,
+        "recovered": recover,
         "elapsed_s": round(elapsed, 3),
         "budget_s": MATERIALIZE_BUDGET_S_PER_WORKTREE if not plugins_ran else UPGRADE_WITH_PLUGINS_BUDGET_S,
     }
+
+
+def recover_session(primary: Path, session: Path) -> dict:
+    """Repair a half-applied worktree upgrade (VERSION bumped, hosts/files stuck)."""
+    return upgrade_session(primary, session, repair_plugins=True, recover=True)
+
+
+def session_is_half_applied(primary: Path, session: Path) -> bool:
+    """True when VERSION matches primary but some CE-owned files still diverge."""
+    primary, session = Path(primary).resolve(), Path(session).resolve()
+    if not (primary / VERSION_REL).is_file() or not (session / VERSION_REL).is_file():
+        return False
+    if _read_version(primary) != _read_version(session):
+        return False
+    for relative in _installer_owned_relatives(primary):
+        if relative == VERSION_REL or relative.endswith("/VERSION"):
+            continue
+        src = primary / relative
+        dest = session / relative
+        if not src.is_file():
+            continue
+        if not dest.is_file():
+            return True
+        if _file_sha256(src) != _file_sha256(dest):
+            return True
+    return False
 
 
 def _managed_checkout_paths(primary: Path) -> list[str]:
@@ -437,44 +780,46 @@ def _maybe_checkout_tracked_ce(primary: Path, session: Path) -> list[str]:
     return restored
 
 
-
-
 def _is_ce_owned_relative(relative: str) -> bool:
-    """True for overlay paths and ChaosEngine agent files upgrade may overwrite."""
+    """True for overlay paths and ChaosEngine host-adapter files upgrade may overwrite."""
     rel = relative.replace("\\", "/")
     while rel.startswith("./"):
         rel = rel[2:]
+    if rel in CONSUMER_EDITABLE:
+        return False
     if rel == TREE or rel.startswith(f"{TREE}/"):
         return True
     name = Path(rel).name
-    if name.startswith("chaos-engine-") and name.endswith((".md", ".toml")):
+    if name.startswith("chaos-engine-"):
         parent = Path(rel).parent.as_posix()
-        if parent in {".claude/agents", ".codex/agents"}:
+        if parent in {".claude/agents", ".codex/agents", ".cursor/agents"}:
             return True
+    # Skills / hooks / settings under host roots that CE owns.
+    for prefix in (
+        ".claude/skills/chaos-engine/",
+        ".codex/",
+        ".gemini/skills/chaos-engine/",
+        ".github/skills/chaos-engine/",
+        ".github/hooks/",
+        ".agents/skills/chaos-engine/",
+        ".grok/hooks/",
+        "plugins/chaos-engine/",
+    ):
+        if rel == prefix.rstrip("/") or rel.startswith(prefix):
+            return True
+    if rel in {
+        ".claude/settings.json",
+        ".gemini/settings.json",
+        ".codex/config.toml",
+        ".codex/hooks.json",
+    }:
+        return True
     return False
 
 
 def _ce_owned_upgrade_relatives(primary: Path) -> list[str]:
-    """CE-owned paths upgrade-session may reconcile when gitignored / untracked.
-
-    Covers the generated overlay (``.chaos-engine/**``, including
-    ``always-loaded-budget.json``) and ChaosEngine agent markdown under
-    ``.claude/agents`` / ``.codex/agents``. Consumer-editable shared files such
-    as ``AGENTS.md`` stay on the strict provenance path.
-    """
-    owned: list[str] = []
-    tree = primary / TREE
-    if tree.is_dir():
-        for item in _iter_source_files(tree):
-            owned.append(item.relative_to(primary).as_posix())
-    for agents_rel in (".claude/agents", ".codex/agents"):
-        agents = primary / agents_rel
-        if not agents.is_dir():
-            continue
-        for item in sorted(agents.glob("chaos-engine-*.md")):
-            if item.is_file():
-                owned.append(item.relative_to(primary).as_posix())
-    return owned
+    """Backward-compatible alias — prefer ``_installer_owned_relatives``."""
+    return _installer_owned_relatives(primary)
 
 
 def _path_is_ignored(session: Path, relative: str) -> bool:
@@ -496,36 +841,30 @@ def _path_is_ignored(session: Path, relative: str) -> bool:
     return not listed
 
 
-def _adopt_ignored_ce_owned(primary: Path, session: Path) -> list[str]:
+def _adopt_ce_owned(primary: Path, session: Path, *, force: bool = False) -> list[str]:
     """Seed the materialize manifest for stale CE-owned session files.
 
-    When a worktree carries an older overlay (or agents) with no / lost
-    ``.overlay-materialize.json``, ``materialize`` would refuse unknown
-    provenance. Recording the current session hashes for CE-owned paths lets
-    the existing stale-upgrade branch overwrite them from primary.
+    Ownership comes from the installer (``receipt_owned_paths`` + overlay +
+    host-agent globs), not a hand list. CE-owned paths that diverge from
+    primary are treated as stale CE output and adopted so materialize can
+    overwrite. Consumer-editable paths stay on strict provenance.
 
-    CE itself may rewrite owned files (for example ``always-loaded-budget.json``
-    or ``VERSION``) without updating the materialize manifest. A prior
-    upgrade may also leave CE-owned files **staged but uncommitted** in the
-    worktree index (force-added overlay). Those are still CE-owned — never a
-    consumer edit — whether gitignored, untracked, or staged. Always adopt so
-    upgrade-session can overwrite from primary. Consumer-edited non-CE files
-    (for example ``AGENTS.md``) stay off this list and keep strict provenance.
+    ``force=True`` (recover path) adopts even when a prior manifest hash
+    already matched a different value — used for half-applied worktrees.
     """
     adopted: list[str] = []
     if not (primary / TREE).is_dir():
         return adopted
-    if primary_checkout(session) is None:
+    # Allow adopt for linked worktrees; also allow recover on any session with overlay.
+    if primary_checkout(session) is None and not force:
         return adopted
     manifest = _load_manifest(session)
     dirty = False
-    for relative in _ce_owned_upgrade_relatives(primary):
+    for relative in _installer_owned_relatives(primary):
         source = primary / relative
         dest = session / relative
         if not source.is_file() or not dest.is_file():
             continue
-        # Adopt CE-owned paths even when staged/tracked. The previous
-        # ignore-only gate skipped force-added overlay files (HRSD VERSION).
         src_hash = _file_sha256(source)
         dest_hash = _file_sha256(dest)
         if dest_hash == src_hash:
@@ -533,15 +872,21 @@ def _adopt_ignored_ce_owned(primary: Path, session: Path) -> list[str]:
                 manifest[relative] = src_hash
                 dirty = True
             continue
-        # Diverge from primary: adopt current dest hash regardless of prior
-        # recorded value so materialize's stale-upgrade branch can overwrite.
-        if manifest.get(relative) != dest_hash:
+        # Diverge from primary: adopt current dest hash so stale-upgrade overwrites.
+        if force or manifest.get(relative) != dest_hash:
             manifest[relative] = dest_hash
             dirty = True
-        adopted.append(relative)
+            adopted.append(relative)
+        elif relative not in adopted and manifest.get(relative) == dest_hash:
+            # already adopted; materialize will upgrade
+            adopted.append(relative)
     if dirty:
         _save_manifest(session, manifest)
     return adopted
+
+
+# Back-compat name used by older call sites / tests.
+_adopt_ignored_ce_owned = _adopt_ce_owned
 
 
 def _try_repair_hosts_light(session: Path) -> bool:
@@ -587,19 +932,34 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Run plugin repair even when VERSION already matches (slow ~60s).",
     )
+    upgrade.add_argument(
+        "--recover",
+        action="store_true",
+        help="Force-adopt CE-owned paths first (half-applied worktrees).",
+    )
+    recover = commands.add_parser(
+        "recover-session",
+        help="Repair a half-applied upgrade (VERSION bumped, hosts/files stuck).",
+    )
+    recover.add_argument("--primary", type=Path, required=True)
+    recover.add_argument("--session", type=Path, required=True)
     args = parser.parse_args(argv)
     if args.command == "verify":
         report = verify_ce_loads(args.cwd)
         failing = {host: reason for host, reason in report.items() if reason != "ok"}
         print("ChaosEngine loads on every host" if not failing else json.dumps(failing, sort_keys=True))
         return 0 if not failing else 1
-    if args.command == "upgrade-session":
+    if args.command in {"upgrade-session", "recover-session"}:
+        recover_flag = args.command == "recover-session" or getattr(args, "recover", False)
         try:
             result = upgrade_session(
-                args.primary, args.session, repair_plugins=True if args.force_plugins else None
+                args.primary,
+                args.session,
+                repair_plugins=True if getattr(args, "force_plugins", False) or recover_flag else None,
+                recover=recover_flag,
             )
         except OverlayLocalEditError as error:
-            print(f"upgrade-session refused: {error}", file=sys.stderr)
+            print(f"{args.command} refused: {error}", file=sys.stderr)
             return 2
         print(json.dumps(result, sort_keys=True))
         return 0
