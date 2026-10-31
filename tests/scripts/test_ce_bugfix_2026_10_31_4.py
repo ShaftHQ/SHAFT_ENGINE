@@ -4,7 +4,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import shutil
-import subprocess
+import subprocess  # nosec B404 - tests drive the local git binary on fixtures.
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,7 +24,9 @@ def _git(cwd: Path, *args: str) -> None:
     git = shutil.which("git")
     if git is None:
         raise RuntimeError("git not found on PATH")
-    subprocess.run([git, *args], cwd=cwd, check=True, capture_output=True)
+    subprocess.run(  # nosec B603 B607 - fixed git commands on a temp fixture.
+        [git, *args], cwd=cwd, check=True, capture_output=True
+    )
 
 
 def _init_repo(path: Path) -> None:
