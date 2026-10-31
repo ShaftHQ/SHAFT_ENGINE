@@ -17,7 +17,7 @@ design-skills add-on lesson index; load them on demand from that add-on.
 5. **Orchestrator SIGN** after indep PASS + gate JSON. PDCA ≤ ~5 rounds then escalate.
 6. **Publish / schedule** only after SIGN — upload owners only; design lane never uploads.
 7. **Retro** defects → ChaosEngine gate + review-brief block.
-8. **Share only approved deliverables** — after independent review + owner approval (Coach acceptance when applicable). Minimal reporting = results, decisions, blockers; no WIP samples or progress chatter (L65).
+8. **Share only approved deliverables** — after independent review + owner approval (named acceptance gate when applicable). Minimal reporting = results, decisions, blockers; no WIP samples or progress chatter (L65).
 
 ### Video / caption (build + review + SIGN)
 - Ear-lock title to kept speech; spoken-lock keeps **scope words** (design L41);
