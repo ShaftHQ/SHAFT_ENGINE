@@ -368,6 +368,8 @@ class DocAndCardPresenceTest(unittest.TestCase):
             "chaos-engine/addons/design-skills/references/lessons/karaoke-human-frag.md",
             "chaos-engine/addons/design-skills/references/lessons/uncaptioned-speech.md",
             "chaos-engine/references/pr-scope-check.md",
+            "chaos-engine/references/ce-retro-2026-10-31-6-SPEC.md",
+            "chaos-engine/guides/ce-retro-2026-10-31-6-SPEC.md",
             "chaos-engine/addons/design-skills/scripts/uncaptioned_speech.py",
             "scripts/ci/pr_scope_check.py",
         ):

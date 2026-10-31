@@ -60,8 +60,8 @@ class PasteRobotsLessonCardTest(unittest.TestCase):
         self.assertIn("L34 ", index)
         self.assertIn(f"]({CARD})", index)
         inv = " ".join((DESIGN / "INVENTORY.md").read_text(encoding="utf-8").split())
-        self.assertIn("59 lesson", inv)
-        self.assertIn("L01-L59", inv)
+        self.assertIn("63 lesson", inv)
+        self.assertIn("L01-L64", inv)
         craft = (DESIGN / "references/craft/index.md").read_text(encoding="utf-8")
         self.assertIn("paste robots L34", craft)
         embed = (DESIGN / "references/site-builders/hosted-cms-embed.md").read_text(

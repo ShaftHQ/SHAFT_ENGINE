@@ -77,6 +77,7 @@ do not extend it. The one session-length rule, enforced at 35 minutes:
 [progress-log](progress-log.md) ([`progress_log.py`](../progress_log.py));
 [moving-channel-pin](moving-channel-pin.md) ([`moving_channel_pin.py`](../moving_channel_pin.py));
 [doc-claim-review](doc-claim-review.md); [gate-fail-closed](gate-fail-closed.md).
+SPEC: [ce-retro-2026-10-31-6-SPEC.md](ce-retro-2026-10-31-6-SPEC.md) (full copy under `guides/`).
 
 ## Token economy
 
@@ -157,7 +158,7 @@ manifest, conflict check, disk gate, no force-push under review).
 After every final delivery (owner approval, completed publish, or final
 merge), DoD in order: [post-merge own cleanup](parallel-streams.md#post-merge-own-cleanup)
 (mandatory; hygiene proofs; own items only), disk/cache inventory via
-`box_disk_guard`, Learning Session per the
+`box_disk_guard`, Learning Session after every final delivery per the
 [router contract](router-contract.md#learning-session), then
 `python3 .chaos-engine/tool.py maintain` before the next task.
 

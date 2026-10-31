@@ -65,7 +65,7 @@ class LessonCardsTest(unittest.TestCase):
                 self.assertIn(needle, text, msg=f"{name}: {needle}")
         inv = (DESIGN / "INVENTORY.md").read_text(encoding="utf-8")
         collapsed = " ".join(inv.split())
-        self.assertIn("L01-L63", collapsed)
+        self.assertIn("L01-L64", collapsed)
         self.assertIn("63 lesson", collapsed)
         idx = (LESSONS / "index-extension.md").read_text(encoding="utf-8")
         for needle in ("L56", "L57", "L58", "L59"):
