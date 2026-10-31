@@ -173,7 +173,7 @@ class AndroidSetupPlannerTest {
         assertTrue(sdk.source().toString().endsWith(fileName));
         assertEquals("sha256:" + checksum, sdk.checksum());
         assertTrue(sdk.version().contains("platform-tools@37.0.1"));
-        assertTrue(sdk.version().contains("emulator@37.2.13"));
+        assertTrue(sdk.version().contains("emulator@" + AndroidSetupPlanner.EMULATOR_VERSION));
         assertTrue(sdk.version().contains("platforms;android-36@2"));
         assertTrue(sdk.version().contains("build-tools;36.0.0@36.0.0"));
         assertTrue(sdk.version().contains("system-images;android-36;google_apis;"));
