@@ -8599,20 +8599,19 @@ def _emit_result(args, result) -> int:
             body = format_fix_next_only(result)
         else:
             body = format_health_report(result, kind=args.command)
+        print(body, end="")
         if args.command == "doctor":
             migration = result.get("migration")
             if isinstance(migration, dict) and migration.get("hardCut"):
-                body = body + f"WARNING: {migration['hardCut']}\n"
+                print(f"WARNING: {migration['hardCut']}")
             clients = result.get("clients")
             onboarding = format_doctor_host_onboarding(
                 clients if isinstance(clients, dict) else {}
             )
             # Cortex: host/copilot+grok cards were printed twice; keep one block.
             if onboarding and "Host onboarding cards:" not in body:
-                body = body + onboarding
-            print(body, end="" if body.endswith("\n") else "\n")
+                print(onboarding, end="")
             return doctor_exit_code(result)
-        print(body, end="")
         return 0
 
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
