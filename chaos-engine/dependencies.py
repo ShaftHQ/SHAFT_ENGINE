@@ -34,6 +34,119 @@ RUNTIME_CONTRACT_VERSION = 2
 STALE_AFTER = timedelta(hours=24)
 RECEIPT_NAME = "receipt.json"
 LOCK_MAGIC = b"chaos-engine-dependencies-lock-v1\n"
+UV_TOOLS_LOCK_NAME = ".chaos-engine-uv-tools.lock"
+UV_TOOL_INSTALL_ATTEMPTS = 5
+UV_TOOL_INSTALL_RETRY_SLEEP_S = 0.5
+
+
+def default_uv_tools_dir() -> Path:
+    """Shared account uv tools directory (concurrent bots race here)."""
+    override = os.environ.get("UV_TOOL_DIR")
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".local/share/uv/tools"
+
+
+@contextmanager
+def uv_tools_dir_lock(tools_root: Path | None = None):
+    """Exclusive lock for account-scoped ``uv tool install`` mutations."""
+    root = Path(tools_root) if tools_root is not None else default_uv_tools_dir()
+    root.mkdir(parents=True, exist_ok=True)
+    lock = root / UV_TOOLS_LOCK_NAME
+    flags = os.O_RDWR | getattr(os, "O_BINARY", 0)
+    created = False
+    try:
+        descriptor = os.open(lock, flags | os.O_CREAT | os.O_EXCL, 0o600)
+        created = True
+    except FileExistsError:
+        descriptor = os.open(lock, flags)
+    try:
+        stream = os.fdopen(descriptor, "r+b", closefd=True)
+    except (Exception, KeyboardInterrupt, SystemExit):
+        os.close(descriptor)
+        raise
+    deadline = time.monotonic() + 60.0
+    locked = False
+    try:
+        while True:
+            try:
+                if os.name == "nt":
+                    import msvcrt
+
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                locked = True
+                break
+            except (OSError, BlockingIOError):
+                if time.monotonic() >= deadline:
+                    stream.close()
+                    raise RuntimeError(f"uv tools directory is locked: {root}") from None
+                time.sleep(UV_TOOL_INSTALL_RETRY_SLEEP_S)
+        if created:
+            stream.seek(0)
+            stream.write(b'chaos-engine-uv-tools-lock-v1\n')
+            stream.truncate()
+            stream.flush()
+        yield root
+    finally:
+        try:
+            if locked:
+                if os.name == "nt":
+                    stream.seek(0)
+                    msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+        finally:
+            stream.close()
+
+
+def _uv_tool_race_error(error: BaseException) -> bool:
+    """True when uv failed removing a tool env during a concurrent install."""
+    blob = f"{error}".casefold()
+    if hasattr(error, "stderr"):
+        blob += f" {getattr(error, 'stderr', '')}".casefold()
+    if hasattr(error, "full_output"):
+        blob += f" {getattr(error, 'full_output', '')}".casefold()
+    return "directory not empty" in blob or "failed to remove" in blob
+
+
+def is_uv_tool_install_command(command: list[str]) -> bool:
+    """True for ``… uv tool install …`` argv (account or project runtime)."""
+    lowered = [str(part).casefold() for part in command]
+    for index in range(len(lowered) - 2):
+        if lowered[index].endswith("uv") or lowered[index].endswith("uv.exe"):
+            if lowered[index + 1] == "tool" and lowered[index + 2] == "install":
+                return True
+    return False
+
+
+def run_uv_tool_install_with_lock(
+    command: list[str],
+    project: Path,
+    *,
+    runner=subprocess.run,
+    run_command=None,
+) -> subprocess.CompletedProcess[str]:
+    """Serialize ``uv tool install`` on the shared tools dir; retry remove races."""
+    execute = run_command or _run_account_command
+    last_error: BaseException | None = None
+    with uv_tools_dir_lock():
+        for attempt in range(1, UV_TOOL_INSTALL_ATTEMPTS + 1):
+            try:
+                return execute(command, project, runner=runner)
+            except Exception as error:  # noqa: BLE001 - bounded retry on known race only
+                last_error = error
+                if attempt >= UV_TOOL_INSTALL_ATTEMPTS or not _uv_tool_race_error(error):
+                    raise
+                time.sleep(UV_TOOL_INSTALL_RETRY_SLEEP_S * attempt)
+    assert last_error is not None
+    raise last_error
+
 BUILD_MARKER_MAGIC = "chaos-engine-dependencies-build-v1\n"
 BUILD_MARKER_OWNED_SUFFIX = ".owned"
 POINTER_NAME = ".chaos-engine-runtime-current.json"
@@ -2818,7 +2931,10 @@ def install_account_dependencies(  # noqa: MC0001 - preflight then ordered accou
         },
     ).items():
         for command in planned:
-            _run_account_command(command, project, runner=runner)
+            if is_uv_tool_install_command(command):
+                run_uv_tool_install_with_lock(command, project, runner=runner)
+            else:
+                _run_account_command(command, project, runner=runner)
 
     local, commands = discover_account_commands(
         specification, preferred_commands=commands, which=which, runner=runner

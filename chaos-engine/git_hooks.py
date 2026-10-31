@@ -99,13 +99,46 @@ def _absolute(project: Path, value: str) -> Path:
     return (path if path.is_absolute() else project / path).resolve()
 
 
+def _git_dir_marker(project: Path) -> Path | None:
+    """Return the ``.git`` file or directory when present (possibly broken)."""
+    marker = Path(project) / ".git"
+    return marker if marker.exists() else None
+
+
+def _git_objects_healthy(common_dir: Path) -> bool:
+    """True when the common git dir has the usual objects/refs layout."""
+    objects = common_dir / "objects"
+    refs = common_dir / "refs"
+    return objects.is_dir() and refs.is_dir()
+
+
 def install_secret_guard(project: Path, guard_source: Path) -> dict[str, object]:
     """Wire the guard into the clone at ``project``; return what was done."""
     if os.environ.get("CHAOS_ENGINE_SECRET_GUARD", "1").strip().casefold() in {"0", "false", "no", "off"}:
         return {"status": "skipped", "reason": "CHAOS_ENGINE_SECRET_GUARD=0"}
+    marker = _git_dir_marker(project)
     common = _git(project, "rev-parse", "--git-common-dir", missing_ok=True)
     if not common:
+        if marker is not None:
+            # .git exists but git cannot open the repository (box restart with
+            # empty objects/refs, corrupt gitfile, …). Never silent-skip.
+            return {
+                "status": "failed",
+                "reason": (
+                    "broken git metadata (.git present but rev-parse failed); "
+                    "repair the clone before install, or pass --no-secret-guard"
+                ),
+            }
         return {"status": "skipped", "reason": "not a git repository"}
+    common_dir = Path(common) if Path(common).is_absolute() else (project / common)
+    if not _git_objects_healthy(common_dir.resolve()):
+        return {
+            "status": "failed",
+            "reason": (
+                f"broken git metadata (missing objects/refs under {common_dir}); "
+                "repair the clone before install, or pass --no-secret-guard"
+            ),
+        }
     top = _git(project, "rev-parse", "--show-toplevel", missing_ok=True)
     if not top or Path(top).resolve() != project.resolve():
         return {"status": "skipped", "reason": "not the root of its git repository"}

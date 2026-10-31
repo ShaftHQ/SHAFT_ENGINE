@@ -69,6 +69,7 @@ PROJECT_PACK_GLOB = "*/ce-pack/profile.json"
 PACKS_DIRECTORY = "packs"
 _PACK_NAME = re.compile(r"[a-z0-9][a-z0-9-]*")
 COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
+SHORT_COMMIT_PATTERN = re.compile(r"[0-9a-f]{4,40}")
 REPOSITORY_PATTERN = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 BRANCH_PATTERN = re.compile(r"[^\x00-\x20\x7f~^:?*\\\[\]]+")
 LOCK_NAME = ".chaos-engine.lock"
@@ -1044,13 +1045,27 @@ def is_generated_runtime_file(relative: Path) -> bool:
     return bool(relative.parts) and relative.parts[0] == "runtime"
 
 
+def is_worktree_materialize_bookkeeping(relative: Path) -> bool:
+    """Linked-worktree materialize bookkeeping is not packaged ownership.
+
+    ``worktree_overlay.materialize`` writes ``.overlay-materialize.json`` under
+    ``.chaos-engine/``. That file must not trip ``verify_install`` ownership drift
+    on every linked worktree after upgrade-session.
+    """
+    return relative.as_posix() == ".overlay-materialize.json"
+
+
 def installed_payload(target: Path) -> dict[str, str]:
     reject_link_or_reparse(target)
     payload: dict[str, str] = {}
     for path in sorted(target.rglob("*")):
         reject_link_or_reparse(path)
         relative = path.relative_to(target)
-        if is_generated_python_cache(relative) or is_generated_runtime_file(relative):
+        if (
+            is_generated_python_cache(relative)
+            or is_generated_runtime_file(relative)
+            or is_worktree_materialize_bookkeeping(relative)
+        ):
             continue
         if path.is_file() and relative.as_posix() != MANIFEST_NAME:
             payload[relative.as_posix()] = file_sha256(path)
@@ -4860,6 +4875,10 @@ def refresh_stale_graph(project: Path, *, stores=None) -> str:
     An update + reinstall used to leave graphify degraded until a manual
     `repair --component graphify` (#6234). A missing graph stays the setup plan,
     and a refresh failure never fails the install; doctor still reports it.
+
+    When the row is already ``degraded`` after an upgrade, force a rebuild
+    (``if_stale=False``) and, if still degraded, reinstall the account graphify
+    tool then refresh again so operators are not left with a manual repair.
     """
     try:
         stores = stores if stores is not None else _load_stores_module()
@@ -4868,10 +4887,41 @@ def refresh_stale_graph(project: Path, *, stores=None) -> str:
             return "absent"
         if row.get("status") == "healthy":
             return "current"
-        stores["refresh"](project, if_stale=True, components=frozenset({"graphify"}))
+        degraded = row.get("status") == "degraded"
+        stores["refresh"](
+            project,
+            if_stale=not degraded,
+            components=frozenset({"graphify"}),
+        )
+        row_after = stores["graphify_doctor_row"](project)
+        if isinstance(row_after, dict) and row_after.get("status") == "degraded":
+            _auto_repair_graphify_after_upgrade(project)
+            stores["refresh"](
+                project, if_stale=False, components=frozenset({"graphify"})
+            )
+            return "repaired"
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
         return f"skipped: {error}"
     return "refreshed"
+
+
+def _auto_repair_graphify_after_upgrade(project: Path) -> None:
+    """Best-effort account graphify reinstall used when refresh left it degraded."""
+    target = Path(project) / INSTALL_DIRECTORY
+    receipt = Path(project) / ".chaos-engine-dependencies.json"
+    if not (target / "dependencies.json").is_file() or not receipt.is_file():
+        return
+    try:
+        controller = load_dependency_controller(target)
+    except (OSError, RuntimeError, ValueError, ImportError):
+        return
+    if not hasattr(controller, "install_account_dependencies"):
+        return
+    try:
+        specification = controller.load_specification(target / "dependencies.json")
+        controller.install_account_dependencies(project, specification)
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError):
+        return
 
 
 def _refresh_shared_store(project: Path, component: str) -> str:
@@ -4926,8 +4976,12 @@ def _install_store_schedule(project: Path) -> None:
     The guard is idempotent, so install and the store repairs that also land here simply re-wire it.
     """
     guard = _install_secret_guard(project, project / INSTALL_DIRECTORY)
-    if guard is not None and guard.get("status") != "installed":
-        print(f"ChaosEngine secret guard: {guard.get('status')} ({guard.get('reason')})", file=sys.stderr)
+    if guard is not None and guard.get("status") not in {None, "installed", "skipped"}:
+        reason = guard.get("reason") or guard.get("status")
+        print(f"ChaosEngine secret guard: {guard.get('status')} ({reason})", file=sys.stderr)
+        raise RuntimeError(f"ChaosEngine secret guard {guard.get('status')}: {reason}")
+    if guard is not None and guard.get("status") == "skipped":
+        print(f"ChaosEngine secret guard: skipped ({guard.get('reason')})", file=sys.stderr)
     if os.environ.get("CHAOS_ENGINE_STORE_SCHEDULE", "1").strip().casefold() in {
         "0", "false", "no", "off",
     }:
@@ -7528,6 +7582,23 @@ def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
                     str(item.get("status") or "recovery-required"),
                     detail or code or reason or "policy-hash-drift",
                 )
+        # Soft degraded rows (graphify/mempalace/…) must surface; a healthy core
+        # must not hide them behind doctor: pass.
+        for candidate in sorted(str(item) for item in components):
+            item = components[candidate]
+            if not isinstance(item, dict):
+                continue
+            item_status = str(item.get("status") or "")
+            if item_status not in {"degraded", "recovery-required", "failed"}:
+                continue
+            detail = str(item.get("detail") or "")
+            code = str(item.get("code") or "")
+            reason = str(item.get("reason") or "")
+            return (
+                candidate,
+                item_status,
+                detail or code or reason or item_status,
+            )
         core = components.get("core")
         if isinstance(core, dict):
             name = "core"
@@ -7537,8 +7608,13 @@ def _agent_summary_parts(document: dict[str, object]) -> tuple[str, str, str]:
 
 def format_agent_summary(document: dict[str, object]) -> str:
     """Bounded agent-facing doctor summary. `--json` stays the full document."""
-    verdict = "pass" if str(document.get("status") or "") == "healthy" and _agent_summary_parts(document)[2] == "none" else "fail"
     name, status, drift = _agent_summary_parts(document)
+    healthy_doc = str(document.get("status") or "") == "healthy"
+    verdict = (
+        "pass"
+        if healthy_doc and drift == "none" and status not in {"degraded", "recovery-required", "failed"}
+        else "fail"
+    )
     policy = str(document.get("policySha256") or "missing")
     project = installed_project()
     commit_bits = source_behind_advisory(project)
@@ -7688,7 +7764,10 @@ def agent_summary_exit_code(document: dict[str, object]) -> int:
     policy = str(document.get("policySha256") or "")
     if re.fullmatch(r"[0-9a-f]{64}", policy) is None:
         return 1
-    if _agent_summary_parts(document)[2] != "none":
+    parts = _agent_summary_parts(document)
+    if parts[2] != "none":
+        return 1
+    if parts[1] in {"degraded", "recovery-required", "failed"}:
         return 1
     if delete_guard_status()[0] != "pass":
         return 1
@@ -7862,6 +7941,51 @@ def extract_bundle(bundle: Path, destination: Path) -> tuple[Path, str]:
     return destination, commit
 
 
+def resolve_commit_sha(commit: str, *, cwd: Path | None = None) -> str:
+    """Accept a short or full lowercase hex sha; return the full 40-hex object name.
+
+    Symbolic refs such as ``HEAD`` stay refused. Resolution uses ``git rev-parse``
+    in ``cwd`` (the install project or source tree) so announce / the source
+    record always store the full sha.
+    """
+    if not isinstance(commit, str) or not commit:
+        raise ValueError(
+            "--commit must be the full lowercase 40-hex sha, for example "
+            "`--commit $(git rev-parse HEAD)`; a ref such as HEAD is not accepted"
+        )
+    lowered = commit.strip().casefold()
+    if COMMIT_PATTERN.fullmatch(lowered):
+        return lowered
+    if SHORT_COMMIT_PATTERN.fullmatch(lowered) is None:
+        raise ValueError(
+            "--commit must be the full lowercase 40-hex sha, for example "
+            "`--commit $(git rev-parse HEAD)`; a ref such as HEAD is not accepted"
+        )
+    git = shutil.which("git")
+    if not git:
+        raise ValueError(
+            f"--commit {commit!r} is a short sha; install needs git on PATH to "
+            "resolve it to the full 40-hex object name"
+        )
+    root = Path(cwd).resolve() if cwd is not None else Path.cwd()
+    try:
+        completed = subprocess.run(  # nosec B603
+            [git, "-C", str(root), "rev-parse", "--verify", f"{lowered}^{{commit}}"],
+            capture_output=True, text=True, check=False, timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise ValueError(
+            f"--commit {commit!r} could not be resolved to a full 40-hex sha: {error}"
+        ) from error
+    sha = (completed.stdout or "").strip().casefold()
+    if completed.returncode != 0 or COMMIT_PATTERN.fullmatch(sha) is None:
+        detail = (completed.stderr or completed.stdout or "unknown object").strip()
+        raise ValueError(
+            f"--commit {commit!r} could not be resolved to a full 40-hex sha ({detail})"
+        )
+    return sha
+
+
 def validate_install_options(args: argparse.Namespace) -> None:
     if getattr(args, "skip_tools", False) and getattr(args, "with_maven_tools", False):
         raise ValueError("--with-maven-tools cannot be combined with --skip-tools")
@@ -7870,9 +7994,15 @@ def validate_install_options(args: argparse.Namespace) -> None:
     if getattr(args, "json", False) and getattr(args, "agent_summary", False):
         raise ValueError("--agent-summary cannot be combined with --json")
     commit = getattr(args, "commit", None)
-    if isinstance(commit, str) and COMMIT_PATTERN.fullmatch(commit) is None:
-        raise ValueError("--commit must be the full lowercase 40-hex sha, for example "
-                         "`--commit $(git rev-parse HEAD)`; a ref such as HEAD is not accepted")
+    if isinstance(commit, str):
+        lowered = commit.strip().casefold()
+        if SHORT_COMMIT_PATTERN.fullmatch(lowered) is None:
+            raise ValueError(
+                "--commit must be a lowercase hex sha (4–40 chars), for example "
+                "`--commit $(git rev-parse HEAD)` or a short sha; a ref such as HEAD "
+                "is not accepted"
+            )
+        args.commit = lowered
 
 
 WITH_MCP_MARKER = ".chaos-engine-state/with-mcp"
@@ -7952,6 +8082,11 @@ def apply_install_source_defaults(args: argparse.Namespace) -> None:
         sha = detect_full_commit(project)
         if sha is not None:
             args.commit = sha
+    elif isinstance(args.commit, str) and COMMIT_PATTERN.fullmatch(args.commit) is None:
+        # Short sha: resolve against the source tree when known, else the project.
+        source = getattr(args, "source", None)
+        resolve_root = Path(source).resolve().parent if source is not None else project
+        args.commit = resolve_commit_sha(args.commit, cwd=resolve_root)
 
 
 def installed_commit_of(project: Path) -> str | None:
@@ -8030,6 +8165,10 @@ def _run_install_command(args, requested, removed) -> object:
         apply_install_source_defaults(args)
         if args.source is None or args.commit is None:
             raise ValueError(_local_source_required_message())
+        if COMMIT_PATTERN.fullmatch(str(args.commit)) is None:
+            args.commit = resolve_commit_sha(
+                str(args.commit), cwd=Path(args.source).resolve().parent
+            )
     refusal = linked_worktree_refusal(args.project)
     if refusal:
         raise RuntimeError(refusal)
